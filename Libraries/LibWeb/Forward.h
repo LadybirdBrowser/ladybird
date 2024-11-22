@@ -205,6 +205,7 @@ class Resolution;
 class ResolutionOrCalculated;
 class ResolutionStyleValue;
 class RotationStyleValue;
+class ScaleStyleValue;
 class Screen;
 class ScreenOrientation;
 class ScrollbarGutterStyleValue;

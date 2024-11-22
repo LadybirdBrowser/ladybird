@@ -1130,12 +1130,15 @@ void PaintableBox::resolve_paint_properties()
     auto const& transformations = computed_values.transformations();
     auto const& translate = computed_values.translate();
     auto const& rotate = computed_values.rotate();
-    if (!transformations.is_empty() || translate.has_value() || rotate.has_value()) {
+    auto const& scale = computed_values.scale();
+    if (!transformations.is_empty() || translate.has_value() || rotate.has_value() || scale.has_value()) {
         auto matrix = Gfx::FloatMatrix4x4::identity();
         if (translate.has_value())
             matrix = matrix * translate->to_matrix(*this).release_value();
         if (rotate.has_value())
             matrix = matrix * rotate->to_matrix(*this).release_value();
+        if (scale.has_value())
+            matrix = matrix * scale->to_matrix(*this).release_value();
         for (auto const& transform : transformations)
             matrix = matrix * transform.to_matrix(*this).release_value();
         set_transform(matrix);

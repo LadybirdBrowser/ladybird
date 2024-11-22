@@ -177,6 +177,7 @@ public:
     CSS::TransformOrigin transform_origin() const;
     Optional<CSS::Transformation> rotate(Layout::Node const&) const;
     Optional<CSS::Transformation> translate() const;
+    Optional<CSS::Transformation> scale() const;
 
     Optional<CSS::MaskType> mask_type() const;
     Color stop_color() const;
