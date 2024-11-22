@@ -86,6 +86,8 @@ bool Node::can_contain_boxes_with_position_absolute() const
         return true;
     if (computed_values().rotate().has_value())
         return true;
+    if (computed_values().scale().has_value())
+        return true;
 
     return false;
 }
@@ -183,6 +185,9 @@ bool Node::establishes_stacking_context() const
         return true;
 
     if (computed_values().rotate().has_value())
+        return true;
+
+    if (computed_values().scale().has_value())
         return true;
 
     // Element that is a child of a flex container, with z-index value other than auto.
@@ -724,6 +729,9 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
 
     if (auto translate_value = computed_style.translate(); translate_value.has_value())
         computed_values.set_translate(translate_value.release_value());
+
+    if (auto scale_value = computed_style.scale(); scale_value.has_value())
+        computed_values.set_scale(scale_value.release_value());
 
     computed_values.set_transformations(computed_style.transformations());
     if (auto transform_box = computed_style.transform_box(); transform_box.has_value())

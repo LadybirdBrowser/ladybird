@@ -125,6 +125,7 @@ public:
         Rect,
         Resolution,
         Rotation,
+        Scale,
         ScrollbarGutter,
         Shadow,
         Shorthand,
@@ -294,6 +295,10 @@ public:
     bool is_rotation() const { return type() == Type::Rotation; }
     RotationStyleValue const& as_rotation() const;
     RotationStyleValue& as_rotation() { return const_cast<RotationStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_rotation()); }
+
+    bool is_scale() const { return type() == Type::Scale; }
+    ScaleStyleValue const& as_scale() const;
+    ScaleStyleValue& as_scale() { return const_cast<ScaleStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_scale()); }
 
     bool is_scrollbar_gutter() const { return type() == Type::ScrollbarGutter; }
     ScrollbarGutterStyleValue const& as_scrollbar_gutter() const;

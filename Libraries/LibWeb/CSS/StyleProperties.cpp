@@ -29,6 +29,7 @@
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RotationStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ScaleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ScrollbarGutterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
@@ -612,6 +613,20 @@ Optional<CSS::Transformation> StyleProperties::translate() const
     values.append(translation.y());
 
     return CSS::Transformation(CSS::TransformFunction::Translate, move(values));
+}
+
+Optional<CSS::Transformation> StyleProperties::scale() const
+{
+    auto const& value = property(CSS::PropertyID::Scale);
+    if (!value.is_scale())
+        return {};
+    auto const& scale = value.as_scale();
+
+    Vector<TransformValue> values;
+    values.append(scale.x());
+    values.append(scale.y());
+
+    return CSS::Transformation(CSS::TransformFunction::Scale, move(values));
 }
 
 static Optional<LengthPercentage> length_percentage_for_style_value(CSSStyleValue const& value)

@@ -186,6 +186,8 @@ public:
             return true;
         if (computed_values().translate().has_value())
             return true;
+        if (computed_values().scale().has_value())
+            return true;
         return false;
     }
 

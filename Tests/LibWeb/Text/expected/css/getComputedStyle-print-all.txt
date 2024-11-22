@@ -178,6 +178,7 @@ rotate: none
 row-gap: normal
 rx: auto
 ry: auto
+scale: none
 scrollbar-gutter: auto
 scrollbar-width: auto
 stop-color: rgb(0, 0, 0)
