@@ -1,0 +1,1 @@
+PASS: Change event was not fired
