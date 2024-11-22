@@ -44,5 +44,6 @@ ISOYearMonth balance_iso_year_month(double year, double month);
 ThrowCompletionOr<GC::Ref<PlainYearMonth>> create_temporal_year_month(VM&, ISODate, String calendar, GC::Ptr<FunctionObject> new_target = {});
 String temporal_year_month_to_string(PlainYearMonth const&, ShowCalendar);
 ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_year_month(VM&, DurationOperation, PlainYearMonth const&, Value other, Value options);
+ThrowCompletionOr<GC::Ref<PlainYearMonth>> add_duration_to_year_month(VM&, ArithmeticOperation, PlainYearMonth const&, Value temporal_duration_like, Value options);
 
 }

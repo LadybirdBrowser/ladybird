@@ -42,6 +42,8 @@ void PlainYearMonthPrototype::initialize(Realm& realm)
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
     define_native_function(realm, vm.names.with, with, 1, attr);
+    define_native_function(realm, vm.names.add, add, 1, attr);
+    define_native_function(realm, vm.names.subtract, subtract, 1, attr);
     define_native_function(realm, vm.names.until, until, 1, attr);
     define_native_function(realm, vm.names.since, since, 1, attr);
     define_native_function(realm, vm.names.equals, equals, 1, attr);
@@ -171,6 +173,34 @@ JS_DEFINE_NATIVE_FUNCTION(PlainYearMonthPrototype::with)
 
     // 11. Return ! CreateTemporalYearMonth(isoDate, calendar).
     return MUST(create_temporal_year_month(vm, iso_date, calendar));
+}
+
+// 9.3.14 Temporal.PlainYearMonth.prototype.add ( temporalDurationLike [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.add
+JS_DEFINE_NATIVE_FUNCTION(PlainYearMonthPrototype::add)
+{
+    auto temporal_duration_like = vm.argument(0);
+    auto options = vm.argument(1);
+
+    // 1. Let yearMonth be the this value.
+    // 2. Perform ? RequireInternalSlot(yearMonth, [[InitializedTemporalYearMonth]]).
+    auto year_month = TRY(typed_this_object(vm));
+
+    // 3. Return ? AddDurationToYearMonth(ADD, yearMonth, temporalDurationLike, options).
+    return TRY(add_duration_to_year_month(vm, ArithmeticOperation::Add, year_month, temporal_duration_like, options));
+}
+
+// 9.3.15 Temporal.PlainYearMonth.prototype.subtract ( temporalDurationLike [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.subtract
+JS_DEFINE_NATIVE_FUNCTION(PlainYearMonthPrototype::subtract)
+{
+    auto temporal_duration_like = vm.argument(0);
+    auto options = vm.argument(1);
+
+    // 1. Let yearMonth be the this value.
+    // 2. Perform ? RequireInternalSlot(yearMonth, [[InitializedTemporalYearMonth]]).
+    auto year_month = TRY(typed_this_object(vm));
+
+    // 3. Return ? AddDurationToYearMonth(SUBTRACT, yearMonth, temporalDurationLike, options).
+    return TRY(add_duration_to_year_month(vm, ArithmeticOperation::Subtract, year_month, temporal_duration_like, options));
 }
 
 // 9.3.16 Temporal.PlainYearMonth.prototype.until ( other [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.until

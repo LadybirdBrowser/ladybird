@@ -108,6 +108,19 @@ InternalDuration to_internal_duration_record_with_24_hour_days(VM& vm, Duration 
     return MUST(combine_date_and_time_duration(vm, date_duration, move(time_duration)));
 }
 
+// 7.5.7 ToDateDurationRecordWithoutTime ( duration ), https://tc39.es/proposal-temporal/#sec-temporal-todatedurationrecordwithouttime
+ThrowCompletionOr<DateDuration> to_date_duration_record_without_time(VM& vm, Duration const& duration)
+{
+    // 1. Let internalDuration be ToInternalDurationRecordWith24HourDays(duration).
+    auto internal_duration = to_internal_duration_record_with_24_hour_days(vm, duration);
+
+    // 2. Let days be truncate(internalDuration.[[Time]] / nsPerDay).
+    auto days = internal_duration.time.divided_by(NANOSECONDS_PER_DAY).quotient;
+
+    // 3. Return ? CreateDateDurationRecord(internalDuration.[[Date]].[[Years]], internalDuration.[[Date]].[[Months]], internalDuration.[[Date]].[[Weeks]], days).
+    return TRY(create_date_duration_record(vm, duration.years(), duration.months(), duration.weeks(), days.to_double()));
+}
+
 // 7.5.8 TemporalDurationFromInternal ( internalDuration, largestUnit ), https://tc39.es/proposal-temporal/#sec-temporal-temporaldurationfrominternal
 ThrowCompletionOr<GC::Ref<Duration>> temporal_duration_from_internal(VM& vm, InternalDuration const& internal_duration, Unit largest_unit)
 {

@@ -270,4 +270,73 @@ ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_year_month(VM& vm
     return result;
 }
 
+// 9.5.8 AddDurationToYearMonth ( operation, yearMonth, temporalDurationLike, options )
+ThrowCompletionOr<GC::Ref<PlainYearMonth>> add_duration_to_year_month(VM& vm, ArithmeticOperation operation, PlainYearMonth const& year_month, Value temporal_duration_like, Value options)
+{
+    // 1. Let duration be ? ToTemporalDuration(temporalDurationLike).
+    auto duration = TRY(to_temporal_duration(vm, temporal_duration_like));
+
+    // 2. If operation is SUBTRACT, set duration to CreateNegatedTemporalDuration(duration).
+    if (operation == ArithmeticOperation::Subtract)
+        duration = create_negated_temporal_duration(vm, duration);
+
+    // 3. Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolved_options = TRY(get_options_object(vm, options));
+
+    // 4. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+    auto overflow = TRY(get_temporal_overflow_option(vm, resolved_options));
+
+    // 5. Let sign be DurationSign(duration).
+    auto sign = duration_sign(duration);
+
+    // 6. Let calendar be yearMonth.[[Calendar]].
+    auto const& calendar = year_month.calendar();
+
+    // 7. Let fields be ISODateToFields(calendar, yearMonth.[[ISODate]], YEAR-MONTH).
+    auto fields = iso_date_to_fields(calendar, year_month.iso_date(), DateType::YearMonth);
+
+    // 8. Set fields.[[Day]] to 1.
+    fields.day = 1;
+
+    // 9. Let intermediateDate be ? CalendarDateFromFields(calendar, fields, CONSTRAIN).
+    auto intermediate_date = TRY(calendar_date_from_fields(vm, calendar, move(fields), Overflow::Constrain));
+
+    ISODate date;
+
+    // 10. If sign < 0, then
+    if (sign < 0) {
+        // a. Let oneMonthDuration be ! CreateDateDurationRecord(0, 1, 0, 0).
+        auto one_month_duration = MUST(create_date_duration_record(vm, 0, 1, 0, 0));
+
+        // b. Let nextMonth be ? CalendarDateAdd(calendar, intermediateDate, oneMonthDuration, CONSTRAIN).
+        auto next_month = TRY(calendar_date_add(vm, calendar, intermediate_date, one_month_duration, Overflow::Constrain));
+
+        // c. Let date be BalanceISODate(nextMonth.[[Year]], nextMonth.[[Month]], nextMonth.[[Day]] - 1).
+        date = balance_iso_date(next_month.year, next_month.month, next_month.day - 1);
+
+        // d. Assert: ISODateWithinLimits(date) is true.
+        VERIFY(iso_date_within_limits(date));
+    }
+    // 11. Else,
+    else {
+        // a. Let date be intermediateDate.
+        date = intermediate_date;
+    }
+
+    // 12. Let durationToAdd be ? ToDateDurationRecordWithoutTime(duration).
+    auto duration_to_add = TRY(to_date_duration_record_without_time(vm, duration));
+
+    // 13. Let addedDate be ? CalendarDateAdd(calendar, date, durationToAdd, overflow).
+    auto added_date = TRY(calendar_date_add(vm, calendar, date, duration_to_add, overflow));
+
+    // 14. Let addedDateFields be ISODateToFields(calendar, addedDate, YEAR-MONTH).
+    auto added_date_fields = iso_date_to_fields(calendar, added_date, DateType::YearMonth);
+
+    // 15. Let isoDate be ? CalendarYearMonthFromFields(calendar, addedDateFields, overflow).
+    auto iso_date = TRY(calendar_year_month_from_fields(vm, calendar, move(added_date_fields), overflow));
+
+    // 16. Return ! CreateTemporalYearMonth(isoDate, calendar).
+    return MUST(create_temporal_year_month(vm, iso_date, calendar));
+}
+
 }
