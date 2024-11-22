@@ -70,6 +70,8 @@ void SVGSVGPaintable::paint_descendants(PaintContext& context, PaintableBox cons
             context.display_list_recorder().apply_opacity(computed_values.opacity());
         }
 
+        context.display_list_recorder().apply_filters(paintable.computed_values().opacity(), paintable.computed_values().filter());
+
         if (svg_box.has_css_transform()) {
             auto transform_matrix = svg_box.transform();
             Gfx::FloatPoint transform_origin = svg_box.transform_origin().template to_type<float>();
