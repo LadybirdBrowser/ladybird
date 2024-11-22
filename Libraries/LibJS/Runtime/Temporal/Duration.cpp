@@ -834,7 +834,7 @@ ThrowCompletionOr<TimeDuration> round_time_duration(VM& vm, TimeDuration const& 
 }
 
 // 7.5.31 TotalTimeDuration ( timeDuration, unit ), https://tc39.es/proposal-temporal/#sec-temporal-totaltimeduration
-double total_time_duration(TimeDuration const& time_duration, Unit unit)
+Crypto::BigFraction total_time_duration(TimeDuration const& time_duration, Unit unit)
 {
     // 1. Let divisor be the value in the "Length in Nanoseconds" column of the row of Table 21 whose "Value" column contains unit.
     auto const& divisor = temporal_unit_length_in_nanoseconds(unit);
@@ -844,8 +844,7 @@ double total_time_duration(TimeDuration const& time_duration, Unit unit)
     //    or with software emulation such as in the SoftFP library.
 
     // 3. Return timeDuration / divisor.
-    auto result = Crypto::BigFraction { time_duration } / Crypto::BigFraction { Crypto::SignedBigInteger { divisor } };
-    return result.to_double();
+    return Crypto::BigFraction { time_duration } / Crypto::BigFraction { Crypto::SignedBigInteger { divisor } };
 }
 
 // 7.5.33 NudgeToCalendarUnit ( sign, duration, destEpochNs, isoDateTime, timeZone, calendar, increment, unit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-nudgetocalendarunit
@@ -1175,10 +1174,10 @@ ThrowCompletionOr<DurationNudgeResult> nudge_to_day_or_time(VM& vm, InternalDura
     time_duration.negate();
 
     // 5. Let wholeDays be truncate(TotalTimeDuration(timeDuration, DAY)).
-    auto whole_days = trunc(total_time_duration(time_duration, Unit::Day));
+    auto whole_days = trunc(total_time_duration(time_duration, Unit::Day).to_double());
 
     // 6. Let roundedWholeDays be truncate(TotalTimeDuration(roundedTime, DAY)).
-    auto rounded_whole_days = trunc(total_time_duration(rounded_time, Unit::Day));
+    auto rounded_whole_days = trunc(total_time_duration(rounded_time, Unit::Day).to_double());
 
     // 7. Let dayDelta be roundedWholeDays - wholeDays.
     auto day_delta = rounded_whole_days - whole_days;
@@ -1372,6 +1371,28 @@ ThrowCompletionOr<InternalDuration> round_relative_duration(VM& vm, InternalDura
 
     // 10. Return duration.
     return duration;
+}
+
+// 7.5.38 TotalRelativeDuration ( duration, destEpochNs, isoDateTime, timeZone, calendar, unit ), https://tc39.es/proposal-temporal/#sec-temporal-totalrelativeduration
+ThrowCompletionOr<Crypto::BigFraction> total_relative_duration(VM& vm, InternalDuration const& duration, TimeDuration const& dest_epoch_ns, ISODateTime const& iso_date_time, Optional<StringView> time_zone, StringView calendar, Unit unit)
+{
+    // 1. If IsCalendarUnit(unit) is true, or timeZone is not UNSET and unit is DAY, then
+    if (is_calendar_unit(unit) || (time_zone.has_value() && unit == Unit::Day)) {
+        // a. Let sign be InternalDurationSign(duration).
+        auto sign = internal_duration_sign(duration);
+
+        // b. Let record be ? NudgeToCalendarUnit(sign, duration, destEpochNs, isoDateTime, timeZone, calendar, 1, unit, TRUNC).
+        auto record = TRY(nudge_to_calendar_unit(vm, sign, duration, dest_epoch_ns, iso_date_time, time_zone, calendar, 1, unit, RoundingMode::Trunc));
+
+        // c. Return record.[[Total]].
+        return record.total;
+    }
+
+    // 2. Let timeDuration be ! Add24HourDaysToTimeDuration(duration.[[Time]], duration.[[Date]].[[Days]]).
+    auto time_duration = MUST(add_24_hour_days_to_time_duration(vm, duration.time, duration.date.days));
+
+    // 3. Return TotalTimeDuration(timeDuration, unit).
+    return total_time_duration(time_duration, unit);
 }
 
 // 7.5.39 TemporalDurationToString ( duration, precision ), https://tc39.es/proposal-temporal/#sec-temporal-temporaldurationtostring

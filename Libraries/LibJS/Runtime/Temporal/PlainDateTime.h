@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <LibCrypto/BigFraction/BigFraction.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/ISORecords.h>
 
@@ -20,5 +21,6 @@ ISODateTime balance_iso_date_time(double year, double month, double day, double 
 i8 compare_iso_date_time(ISODateTime const&, ISODateTime const&);
 ThrowCompletionOr<InternalDuration> difference_iso_date_time(VM&, ISODateTime const&, ISODateTime const&, StringView calendar, Unit largest_unit);
 ThrowCompletionOr<InternalDuration> difference_plain_date_time_with_rounding(VM&, ISODateTime const&, ISODateTime const&, StringView calendar, Unit largest_unit, u64 rounding_increment, Unit smallest_unit, RoundingMode);
+ThrowCompletionOr<Crypto::BigFraction> difference_plain_date_time_with_total(VM&, ISODateTime const&, ISODateTime const&, StringView calendar, Unit);
 
 }
