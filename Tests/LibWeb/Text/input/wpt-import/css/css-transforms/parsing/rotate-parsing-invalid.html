@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Transform Module Level 2: parsing rotate with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms-2/#propdef-rotate">
+<meta name="assert" content="rotate supports only the grammar 'none | <number>{3}? <angle>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("rotate", "100px");
+
+test_invalid_value("rotate", "100 400deg");
+test_invalid_value("rotate", "100 200 400deg");
+test_invalid_value("rotate", "100 200 300 500 400deg");
+
+test_invalid_value("rotate", "x y 45deg");
+test_invalid_value("rotate", "45deg x y");
+test_invalid_value("rotate", "z");
+test_invalid_value("rotate", "1 2");
+test_invalid_value("rotate", "1 2 3");
+</script>
+</body>
+</html>

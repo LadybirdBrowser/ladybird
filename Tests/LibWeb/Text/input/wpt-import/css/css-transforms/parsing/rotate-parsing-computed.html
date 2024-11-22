@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Transform Module Level 2: rotate computed values.</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms-2/#propdef-rotate">
+<link rel="author" title="Tim Nguyen" href="https://github.com/nt1m">
+<meta name="assert" content="rotate supports the full grammar 'none | <number>{3}? <angle>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+// https://drafts.csswg.org/css-transforms-2/#individual-transform-serialization
+
+// Serialize as the keyword none if and only if none was originally specified.
+test_computed_value("rotate", "none");
+
+// If a 2d rotation is specified, the property must serialize as just an <angle>.
+test_computed_value("rotate", "0deg");
+
+// If a 3d rotation is specified, the property must serialize with an axis specified.
+test_computed_value("rotate", "100 200 300 400grad", "100 200 300 360deg");
+test_computed_value("rotate", "400grad 100 200 300", "100 200 300 360deg");
+test_computed_value("rotate", "0 0 0 400grad", "0 0 0 360deg");
+
+// If the axis is parallel with the x or y axis, it must serialize as the appropriate keyword.
+test_computed_value("rotate", "x 400grad", "x 360deg");
+test_computed_value("rotate", "400grad x", "x 360deg");
+test_computed_value("rotate", "0.5 0 0 400grad", "x 360deg");
+test_computed_value("rotate", "1 0 0 400grad", "x 360deg");
+
+test_computed_value("rotate", "y 400grad", "y 360deg");
+test_computed_value("rotate", "400grad y", "y 360deg");
+test_computed_value("rotate", "0 0.5 0 400grad", "y 360deg");
+test_computed_value("rotate", "0 1 0 400grad", "y 360deg");
+
+// If the axis is parallel with the z axis the property must serialize as just an <angle>.
+test_computed_value("rotate", "400grad", "360deg");
+test_computed_value("rotate", "400grad z", "360deg");
+test_computed_value("rotate", "0 0 0.5 400grad", "360deg");
+test_computed_value("rotate", "0 0 1 400grad", "360deg");
+</script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Individual transform: combine individual transform properties</title>
+    <link rel="author" title="CJ Ku" href="mailto:cku@mozilla.com">
+    <link rel="author" title="Mozilla" href="https://www.mozilla.org">
+    <link rel="help" href="https://drafts.csswg.org/css-transforms-2/#individual-transforms">
+    <link rel="help" href="https://drafts.csswg.org/css-transforms-2/#ctm">
+    <meta name="assert" content="Tests that we combine transforms in the correct order."/>
+    <style>
+      div {
+        position: fixed;
+        width: 100px;
+        height: 100px;
+        top: 200px;
+        left: 200px;
+        transform-origin: 0 0;
+        border-style: solid;
+        border-width: 10px 0px 10px 0px;
+        border-color: lime;
+        transform: translate(50px, 50px) rotate(45deg) scale(2, 2);
+      }
+
+    </style>
+  </head>
+  <body>
+    <div></div>
+  </body>
+</html>

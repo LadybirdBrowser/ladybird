@@ -1,0 +1,32 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 22 tests
+
+22 Fail
+Details
+Result	Test Name	MessageFail	Property scale value 'none'	
+Fail	Property scale value '1'	
+Fail	Property scale value '1%'	
+Fail	Property scale value '100'	
+Fail	Property scale value '100%'	
+Fail	Property scale value '100 100'	
+Fail	Property scale value '100% 100%'	
+Fail	Property scale value '100 100 1'	
+Fail	Property scale value '100% 100% 1'	
+Fail	Property scale value '-100'	
+Fail	Property scale value '-100%'	
+Fail	Property scale value '-100 -100'	
+Fail	Property scale value '-100% -100%'	
+Fail	Property scale value '-100 -100 1'	
+Fail	Property scale value '-100% -100% 1'	
+Fail	Property scale value '100 200'	
+Fail	Property scale value '100% 200%'	
+Fail	Property scale value '100 200 1'	
+Fail	Property scale value '100% 200% 1'	
+Fail	Property scale value '100 200 300'	
+Fail	Property scale value '100 100 2'	
+Fail	Property scale value '100% 200% 300%'	
