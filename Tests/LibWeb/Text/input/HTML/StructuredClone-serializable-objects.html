@@ -61,6 +61,10 @@
         println(`CryptoKey.algorithm: ${JSON.stringify(clonedCryptoKey.algorithm)}`);
         println(`CryptoKey.usages: ${JSON.stringify(clonedCryptoKey.usages)}`);
 
+        let domException = structuredClone(new DOMException("Index out of bounds", "IndexSizeError"));
+        println(`instanceOf DOMException: ${domException instanceof DOMException}`);
+        println(`DOMException: ${domException.message} - ${domException.name}`);
+
         done();
     });
 </script>

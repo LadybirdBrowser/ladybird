@@ -46,6 +46,7 @@
 #include <LibWeb/Geometry/DOMRectReadOnly.h>
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
@@ -985,6 +986,8 @@ private:
             return FileAPI::File::create(realm);
         if (interface_name == "FileList"sv)
             return FileAPI::FileList::create(realm);
+        if (interface_name == "DOMException"sv)
+            return WebIDL::DOMException::create(realm);
         if (interface_name == "DOMMatrixReadOnly"sv)
             return Geometry::DOMMatrixReadOnly::create(realm);
         if (interface_name == "DOMMatrix"sv)
