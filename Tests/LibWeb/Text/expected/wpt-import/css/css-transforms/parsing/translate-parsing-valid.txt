@@ -6,17 +6,18 @@ Rerun
 
 Found 20 tests
 
-20 Fail
+8 Pass
+12 Fail
 Details
-Result	Test Name	MessageFail	e.style['translate'] = "none" should set the property value	
-Fail	e.style['translate'] = "0px" should set the property value	
-Fail	e.style['translate'] = "100%" should set the property value	
-Fail	e.style['translate'] = "100px 0px" should set the property value	
-Fail	e.style['translate'] = "100px 0.1px" should set the property value	
+Result	Test Name	MessagePass	e.style['translate'] = "none" should set the property value	
+Pass	e.style['translate'] = "0px" should set the property value	
+Pass	e.style['translate'] = "100%" should set the property value	
+Pass	e.style['translate'] = "100px 0px" should set the property value	
+Pass	e.style['translate'] = "100px 0.1px" should set the property value	
 Fail	e.style['translate'] = "100px 0%" should set the property value	
 Fail	e.style['translate'] = "100px calc(10px - 10%)" should set the property value	
-Fail	e.style['translate'] = "100px 200%" should set the property value	
-Fail	e.style['translate'] = "100% 200px" should set the property value	
+Pass	e.style['translate'] = "100px 200%" should set the property value	
+Pass	e.style['translate'] = "100% 200px" should set the property value	
 Fail	e.style['translate'] = "100px 200px 0px" should set the property value	
 Fail	e.style['translate'] = "100px 0px 300px" should set the property value	
 Fail	e.style['translate'] = "100px 0px 0px" should set the property value	
@@ -26,5 +27,5 @@ Fail	e.style['translate'] = "100% 0% 200px" should set the property value
 Fail	e.style['translate'] = "0% 0% 100px" should set the property value	
 Fail	e.style['translate'] = "0em 0em 100px" should set the property value	
 Fail	e.style['translate'] = "calc(10% + 10px) calc(20% + 20px) calc(30em + 30px)" should set the property value	
-Fail	e.style['translate'] = "0" should set the property value	
+Pass	e.style['translate'] = "0" should set the property value	
 Fail	e.style['translate'] = "1px 2px 0" should set the property value	

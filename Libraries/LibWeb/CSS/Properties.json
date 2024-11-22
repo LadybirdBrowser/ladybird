@@ -2725,6 +2725,13 @@
       "easing-function"
     ]
   },
+  "translate": {
+    "animation-type": "custom",
+    "inherited": false,
+    "initial": "none",
+    "affects-layout": false,
+    "affects-stacking-context": true
+  },
   "unicode-bidi": {
     "animation-type": "none",
     "inherited": false,

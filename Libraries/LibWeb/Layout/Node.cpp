@@ -82,6 +82,8 @@ bool Node::can_contain_boxes_with_position_absolute() const
     // Any computed value other than none for the transform affects containing block and stacking context
     if (!computed_values().transformations().is_empty())
         return true;
+    if (computed_values().translate().has_value())
+        return true;
     if (computed_values().rotate().has_value())
         return true;
 
@@ -175,6 +177,9 @@ bool Node::establishes_stacking_context() const
         return true;
 
     if (!computed_values().transformations().is_empty())
+        return true;
+
+    if (computed_values().translate().has_value())
         return true;
 
     if (computed_values().rotate().has_value())
@@ -716,6 +721,9 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
 
     if (auto rotate_value = computed_style.rotate(*this); rotate_value.has_value())
         computed_values.set_rotate(rotate_value.release_value());
+
+    if (auto translate_value = computed_style.translate(); translate_value.has_value())
+        computed_values.set_translate(translate_value.release_value());
 
     computed_values.set_transformations(computed_style.transformations());
     if (auto transform_box = computed_style.transform_box(); transform_box.has_value())

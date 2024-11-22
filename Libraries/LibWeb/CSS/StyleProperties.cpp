@@ -34,6 +34,7 @@
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
+#include <LibWeb/CSS/StyleValues/TranslationStyleValue.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Platform/FontPlugin.h>
@@ -597,6 +598,20 @@ Optional<CSS::Transformation> StyleProperties::rotate(Layout::Node const& layout
     values.append({ angle });
 
     return CSS::Transformation(CSS::TransformFunction::Rotate3d, move(values));
+}
+
+Optional<CSS::Transformation> StyleProperties::translate() const
+{
+    auto const& value = property(CSS::PropertyID::Translate);
+    if (!value.is_translation())
+        return {};
+    auto const& translation = value.as_translation();
+
+    Vector<TransformValue> values;
+    values.append(translation.x());
+    values.append(translation.y());
+
+    return CSS::Transformation(CSS::TransformFunction::Translate, move(values));
 }
 
 static Optional<LengthPercentage> length_percentage_for_style_value(CSSStyleValue const& value)

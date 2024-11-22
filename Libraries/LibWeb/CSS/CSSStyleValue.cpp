@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
@@ -56,6 +56,7 @@
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransitionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/TranslationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 
@@ -334,6 +335,12 @@ TransitionStyleValue const& CSSStyleValue::as_transition() const
 {
     VERIFY(is_transition());
     return static_cast<TransitionStyleValue const&>(*this);
+}
+
+TranslationStyleValue const& CSSStyleValue::as_translation() const
+{
+    VERIFY(is_translation());
+    return static_cast<TranslationStyleValue const&>(*this);
 }
 
 UnresolvedStyleValue const& CSSStyleValue::as_unresolved() const

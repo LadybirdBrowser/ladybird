@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2021, the SerenityOS developers.
  * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
@@ -76,6 +76,7 @@
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransitionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/TranslationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 #include <LibWeb/Dump.h>
@@ -6928,6 +6929,33 @@ Optional<CSS::GridSize> Parser::parse_grid_size(ComponentValue const& component_
     return {};
 }
 
+RefPtr<CSSStyleValue> Parser::parse_translate_value(TokenStream<ComponentValue>& tokens)
+{
+    if (tokens.remaining_token_count() == 1) {
+        // "none"
+        if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
+            return none;
+    }
+
+    auto transaction = tokens.begin_transaction();
+
+    auto maybe_x = parse_length_percentage(tokens);
+    if (!maybe_x.has_value())
+        return nullptr;
+
+    if (!tokens.has_next_token()) {
+        transaction.commit();
+        return TranslationStyleValue::create(maybe_x.release_value(), LengthPercentage(Length::make_px(0)));
+    }
+
+    auto maybe_y = parse_length_percentage(tokens);
+    if (!maybe_y.has_value())
+        return nullptr;
+
+    transaction.commit();
+    return TranslationStyleValue::create(maybe_x.release_value(), maybe_y.release_value());
+}
+
 Optional<CSS::GridFitContent> Parser::parse_fit_content(Vector<ComponentValue> const& component_values)
 {
     // https://www.w3.org/TR/css-grid-2/#valdef-grid-template-columns-fit-content
@@ -7943,6 +7971,10 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_css_value(Prope
         return ParseError::SyntaxError;
     case PropertyID::Transition:
         if (auto parsed_value = parse_transition_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::Translate:
+        if (auto parsed_value = parse_translate_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     default:
