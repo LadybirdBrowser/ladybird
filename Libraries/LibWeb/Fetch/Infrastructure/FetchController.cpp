@@ -85,9 +85,15 @@ void FetchController::abort(JS::Realm& realm, Optional<JS::Value> error)
     if (!error.has_value())
         error = fallback_error;
 
-    // FIXME: 4. Let serializedError be StructuredSerialize(error). If that threw an exception, catch it, and let serializedError be StructuredSerialize(fallbackError).
-    // FIXME: 5. Set controller’s serialized abort reason to serializedError.
-    (void)error;
+    // 4. Let serializedError be StructuredSerialize(error). If that threw an exception, catch it, and let serializedError be StructuredSerialize(fallbackError).
+    // 5. Set controller’s serialized abort reason to serializedError
+    auto structured_serialize = [](JS::VM& vm, JS::Value error, JS::Value fallback_error) {
+        auto serialized_value_or_error = HTML::structured_serialize(vm, error);
+        return serialized_value_or_error.is_error()
+            ? HTML::structured_serialize(vm, fallback_error).value()
+            : serialized_value_or_error.value();
+    };
+    m_serialized_abort_reason = structured_serialize(realm.vm(), error.value(), fallback_error);
 }
 
 // FIXME: https://fetch.spec.whatwg.org/#deserialize-a-serialized-abort-reason
