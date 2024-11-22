@@ -51,60 +51,61 @@ static Gfx::FloatMatrix4x4 matrix_with_scaled_translation(Gfx::FloatMatrix4x4 ma
     return matrix;
 }
 
+void SVGSVGPaintable::paint_svg_box(PaintContext& context, PaintableBox const& svg_box, PaintPhase phase)
+{
+    auto const& computed_values = svg_box.computed_values();
+
+    auto filters = svg_box.computed_values().filter();
+    auto masking_area = svg_box.get_masking_area();
+    auto needs_to_save_state = computed_values.opacity() < 1 || svg_box.has_css_transform() || svg_box.get_masking_area().has_value() || !filters.is_none();
+
+    if (needs_to_save_state) {
+        context.display_list_recorder().save();
+    }
+
+    if (computed_values.opacity() < 1) {
+        context.display_list_recorder().apply_opacity(computed_values.opacity());
+    }
+
+    context.display_list_recorder().apply_filters(filters);
+
+    if (svg_box.has_css_transform()) {
+        auto transform_matrix = svg_box.transform();
+        Gfx::FloatPoint transform_origin = svg_box.transform_origin().template to_type<float>();
+        auto to_device_pixels_scale = float(context.device_pixels_per_css_pixel());
+        context.display_list_recorder().apply_transform(transform_origin.scaled(to_device_pixels_scale), matrix_with_scaled_translation(transform_matrix, to_device_pixels_scale));
+    }
+
+    if (masking_area.has_value()) {
+        if (masking_area->is_empty())
+            return;
+        auto mask_bitmap = svg_box.calculate_mask(context, *masking_area);
+        if (mask_bitmap) {
+            auto source_paintable_rect = context.enclosing_device_rect(*masking_area).template to_type<int>();
+            auto origin = source_paintable_rect.location();
+            context.display_list_recorder().apply_mask_bitmap(origin, mask_bitmap.release_nonnull(), *svg_box.get_mask_type());
+        }
+    }
+
+    svg_box.before_paint(context, PaintPhase::Foreground);
+    svg_box.paint(context, PaintPhase::Foreground);
+    svg_box.after_paint(context, PaintPhase::Foreground);
+
+    paint_descendants(context, svg_box, phase);
+
+    if (needs_to_save_state) {
+        context.display_list_recorder().restore();
+    }
+}
+
 void SVGSVGPaintable::paint_descendants(PaintContext& context, PaintableBox const& paintable, PaintPhase phase)
 {
     if (phase != PaintPhase::Foreground)
         return;
 
-    auto paint_svg_box = [&](auto& svg_box) {
-        auto const& computed_values = svg_box.computed_values();
-
-        auto filters = paintable.computed_values().filter();
-        auto masking_area = svg_box.get_masking_area();
-        auto needs_to_save_state = computed_values.opacity() < 1 || svg_box.has_css_transform() || svg_box.get_masking_area().has_value() || !filters.is_none();
-
-        if (needs_to_save_state) {
-            context.display_list_recorder().save();
-        }
-
-        if (computed_values.opacity() < 1) {
-            context.display_list_recorder().apply_opacity(computed_values.opacity());
-        }
-
-        context.display_list_recorder().apply_filters(filters);
-
-        if (svg_box.has_css_transform()) {
-            auto transform_matrix = svg_box.transform();
-            Gfx::FloatPoint transform_origin = svg_box.transform_origin().template to_type<float>();
-            auto to_device_pixels_scale = float(context.device_pixels_per_css_pixel());
-            context.display_list_recorder().apply_transform(transform_origin.scaled(to_device_pixels_scale), matrix_with_scaled_translation(transform_matrix, to_device_pixels_scale));
-        }
-
-        if (masking_area.has_value()) {
-            if (masking_area->is_empty())
-                return;
-            auto mask_bitmap = svg_box.calculate_mask(context, *masking_area);
-            if (mask_bitmap) {
-                auto source_paintable_rect = context.enclosing_device_rect(*masking_area).template to_type<int>();
-                auto origin = source_paintable_rect.location();
-                context.display_list_recorder().apply_mask_bitmap(origin, mask_bitmap.release_nonnull(), *svg_box.get_mask_type());
-            }
-        }
-
-        svg_box.before_paint(context, PaintPhase::Foreground);
-        svg_box.paint(context, PaintPhase::Foreground);
-        svg_box.after_paint(context, PaintPhase::Foreground);
-
-        paint_descendants(context, svg_box, phase);
-
-        if (needs_to_save_state) {
-            context.display_list_recorder().restore();
-        }
-    };
-
     paintable.before_children_paint(context, PaintPhase::Foreground);
     paintable.for_each_child_of_type<PaintableBox>([&](PaintableBox& child) {
-        paint_svg_box(child);
+        paint_svg_box(context, child, phase);
         return IterationDecision::Continue;
     });
     paintable.after_children_paint(context, PaintPhase::Foreground);
