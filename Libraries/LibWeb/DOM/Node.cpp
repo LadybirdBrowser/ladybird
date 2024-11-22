@@ -2365,8 +2365,9 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
         // is not the empty string:
         if (target == NameOrDescription::Name && element->aria_label().has_value() && !element->aria_label()->is_empty() && !element->aria_label()->bytes_as_string_view().is_whitespace()) {
             // TODO: - If traversal of the current node is due to recursion and the current node is an embedded control as defined in step 2E, ignore aria-label and skip to rule 2E.
-            // - Otherwise, return the value of aria-label.
-            return element->aria_label().value();
+            // https://github.com/w3c/aria/pull/2385 and https://github.com/w3c/accname/issues/173
+            if (!element->is_html_slot_element())
+                return element->aria_label().value();
         }
 
         // E. Host Language Label: Otherwise, if the current node's native markup provides an attribute (e.g. alt) or
@@ -2444,39 +2445,46 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
                 else
                     total_accumulated_text.append(before->computed_values().content().data);
             }
-            // iii. For each child node of the current node:
-            element->for_each_child([&total_accumulated_text, current_node, target, &document, &visited_nodes](
-                                        DOM::Node const& child_node) mutable {
-                if (!child_node.is_element() && !child_node.is_text())
-                    return IterationDecision::Continue;
+            // iii. Determine Child Nodes: Determine the rendered child nodes of the current node:
+            // iii. Determine Child Nodes: Determine the rendered child nodes of the current node:
+            // c. [Otherwise,] set the rendered child nodes to be the child nodes of the current node.
+            auto child_nodes = current_node->children_as_vector();
+            // a. If the current node has an attached shadow root, set the rendered child nodes to be the child nodes of
+            // the shadow root.
+            if (element->is_shadow_host() && element->shadow_root() && element->shadow_root()->is_connected())
+                child_nodes = element->shadow_root()->children_as_vector();
+            // b. Otherwise, if the current node is a slot with assigned nodes, set the rendered child nodes to be the
+            // assigned nodes of the current node.
+            if (element->is_html_slot_element()) {
+                total_accumulated_text.append(element->text_content().value());
+                child_nodes = static_cast<HTML::HTMLSlotElement const*>(element)->assigned_nodes();
+            }
+            // iv. Name From Each Child: For each rendered child node of the current node
+            for (auto& child_node : child_nodes) {
+                if (!child_node->is_element() && !child_node->is_text())
+                    continue;
                 bool should_add_space = true;
                 const_cast<DOM::Document&>(document).update_layout();
-                auto const* layout_node = child_node.layout_node();
+                auto const* layout_node = child_node->layout_node();
                 if (layout_node) {
                     auto display = layout_node->display();
                     if (display.is_inline_outside() && display.is_flow_inside()) {
                         should_add_space = false;
                     }
                 }
-
-                if (visited_nodes.contains(child_node.unique_id()))
-                    return IterationDecision::Continue;
-
+                if (visited_nodes.contains(child_node->unique_id()))
+                    continue;
                 // a. Set the current node to the child node.
-                current_node = &child_node;
-
+                current_node = child_node;
                 // b. Compute the text alternative of the current node beginning with step 2. Set the result to that text alternative.
                 auto result = MUST(current_node->name_or_description(target, document, visited_nodes, IsDescendant::Yes));
-
                 // Append a space character and the result of each step above to the total accumulated text.
                 // AD-HOC: Doing the space-adding here is in a different order from what the spec states.
                 if (should_add_space)
                     total_accumulated_text.append(' ');
                 // c. Append the result to the accumulated text.
                 total_accumulated_text.append(result);
-
-                return IterationDecision::Continue;
-            });
+            }
             // NOTE: See step ii.b above.
             if (auto after = element->get_pseudo_element_node(CSS::Selector::PseudoElement::Type::After)) {
                 if (after->computed_values().content().alt_text.has_value())
