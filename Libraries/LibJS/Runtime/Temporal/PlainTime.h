@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/ISORecords.h>
 
 namespace JS::Temporal {
@@ -15,6 +16,7 @@ namespace JS::Temporal {
 Time create_time_record(double hour, double minute, double second, double millisecond, double microsecond, double nanosecond, double delta_days = 0);
 Time midnight_time_record();
 Time noon_time_record();
+ThrowCompletionOr<Time> regulate_time(VM&, double hour, double minute, double second, double millisecond, double microsecond, double nanosecond, Overflow);
 bool is_valid_time(double hour, double minute, double second, double millisecond, double microsecond, double nanosecond);
 Time balance_time(double hour, double minute, double second, double millisecond, double microsecond, double nanosecond);
 

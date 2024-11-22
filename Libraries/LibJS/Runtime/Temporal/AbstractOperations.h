@@ -129,9 +129,8 @@ struct SecondsStringPrecision {
 };
 
 struct RelativeTo {
-    // FIXME: Make these objects represent their actual types when we re-implement them.
-    GC::Ptr<JS::Object> plain_relative_to; // [[PlainRelativeTo]]
-    GC::Ptr<JS::Object> zoned_relative_to; // [[ZonedRelativeTo]]
+    GC::Ptr<PlainDate> plain_relative_to; // [[PlainRelativeTo]]
+    GC::Ptr<Object> zoned_relative_to;    // FIXME: [[ZonedRelativeTo]]
 };
 
 struct DifferenceSettings {

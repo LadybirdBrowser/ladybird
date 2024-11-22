@@ -53,8 +53,14 @@ ThrowCompletionOr<String> to_temporal_time_zone_identifier(VM& vm, Value tempora
     if (!temporal_time_zone_like.is_string())
         return vm.throw_completion<TypeError>(ErrorType::TemporalInvalidTimeZoneName, temporal_time_zone_like);
 
+    return to_temporal_time_zone_identifier(vm, temporal_time_zone_like.as_string().utf8_string_view());
+}
+
+// 11.1.8 ToTemporalTimeZoneIdentifier ( temporalTimeZoneLike ), https://tc39.es/proposal-temporal/#sec-temporal-totemporaltimezoneidentifier
+ThrowCompletionOr<String> to_temporal_time_zone_identifier(VM& vm, StringView temporal_time_zone_like)
+{
     // 3. Let parseResult be ? ParseTemporalTimeZoneString(temporalTimeZoneLike).
-    auto parse_result = TRY(parse_temporal_time_zone_string(vm, temporal_time_zone_like.as_string().utf8_string_view()));
+    auto parse_result = TRY(parse_temporal_time_zone_string(vm, temporal_time_zone_like));
 
     // 4. Let offsetMinutes be parseResult.[[OffsetMinutes]].
     // 5. If offsetMinutes is not empty, return FormatOffsetTimeZoneIdentifier(offsetMinutes).

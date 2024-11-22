@@ -7,6 +7,7 @@
  */
 
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
+#include <LibJS/Runtime/Temporal/Calendar.h>
 #include <LibJS/Runtime/Temporal/Instant.h>
 #include <LibJS/Runtime/Temporal/PlainDate.h>
 #include <LibJS/Runtime/Temporal/PlainDateTime.h>
@@ -52,6 +53,19 @@ bool iso_date_time_within_limits(ISODateTime iso_date_time)
 
     // 5. Return true.
     return true;
+}
+
+// 5.5.5 InterpretTemporalDateTimeFields ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-interprettemporaldatetimefields
+ThrowCompletionOr<ISODateTime> interpret_temporal_date_time_fields(VM& vm, StringView calendar, CalendarFields& fields, Overflow overflow)
+{
+    // 1. Let isoDate be ? CalendarDateFromFields(calendar, fields, overflow).
+    auto iso_date = TRY(calendar_date_from_fields(vm, calendar, fields, overflow));
+
+    // 2. Let time be ? RegulateTime(fields.[[Hour]], fields.[[Minute]], fields.[[Second]], fields.[[Millisecond]], fields.[[Microsecond]], fields.[[Nanosecond]], overflow).
+    auto time = TRY(regulate_time(vm, *fields.hour, *fields.minute, *fields.second, *fields.millisecond, *fields.microsecond, *fields.nanosecond, overflow));
+
+    // 3. Return CombineISODateAndTimeRecord(isoDate, time).
+    return combine_iso_date_and_time_record(iso_date, time);
 }
 
 // 5.5.7 BalanceISODateTime ( year, month, day, hour, minute, second, millisecond, microsecond, nanosecond ), https://tc39.es/proposal-temporal/#sec-temporal-balanceisodatetime
