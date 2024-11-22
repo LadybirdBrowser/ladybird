@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+
+<script>
+test(function () {
+  assert_throws_js(RangeError, function() {
+    new IntersectionObserver(e => {}, {threshold: [1.1]})
+  })
+}, "IntersectionObserver constructor with { threshold: [1.1] }");
+
+test(function () {
+  assert_throws_js(TypeError, function() {
+    new IntersectionObserver(e => {}, {threshold: ["foo"]})
+  })
+}, 'IntersectionObserver constructor with { threshold: ["foo"] }');
+
+test(function () {
+  assert_throws_dom("SYNTAX_ERR", function() {
+    new IntersectionObserver(e => {}, {rootMargin: "1"})
+  })
+}, 'IntersectionObserver constructor with { rootMargin: "1" }');
+
+test(function () {
+  assert_throws_dom("SYNTAX_ERR", function() {
+    new IntersectionObserver(e => {}, {rootMargin: "2em"})
+  })
+}, 'IntersectionObserver constructor with { rootMargin: "2em" }');
+
+test(function () {
+  assert_throws_dom("SYNTAX_ERR", function() {
+    new IntersectionObserver(e => {}, {rootMargin: "auto"})
+  })
+}, 'IntersectionObserver constructor with { rootMargin: "auto" }');
+
+test(function () {
+  assert_throws_dom("SYNTAX_ERR", function() {
+    new IntersectionObserver(e => {}, {rootMargin: "calc(1px + 2px)"})
+  })
+}, 'IntersectionObserver constructor with { rootMargin: "calc(1px + 2px)" }');
+
+test(function () {
+  assert_throws_dom("SYNTAX_ERR", function() {
+    new IntersectionObserver(e => {}, {rootMargin: "1px !important"})
+  })
+}, 'IntersectionObserver constructor with { rootMargin: "1px !important" }');
+
+test(function () {
+  assert_throws_dom("SYNTAX_ERR", function() {
+    new IntersectionObserver(e => {}, {rootMargin: "1px 1px 1px 1px 1px"})
+  })
+}, 'IntersectionObserver constructor with { rootMargin: "1px 1px 1px 1px 1px" }');
+
+test(function () {
+  assert_throws_js(TypeError, function() {
+    let observer = new IntersectionObserver(c => {}, {});
+    observer.observe("foo");
+  })
+}, 'IntersectionObserver.observe("foo")');
+</script>
