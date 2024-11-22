@@ -49,6 +49,8 @@ void PlainDatePrototype::initialize(Realm& realm)
     u8 attr = Attribute::Writable | Attribute::Configurable;
     define_native_function(realm, vm.names.add, add, 1, attr);
     define_native_function(realm, vm.names.subtract, subtract, 1, attr);
+    define_native_function(realm, vm.names.with, with, 1, attr);
+    define_native_function(realm, vm.names.withCalendar, with_calendar, 1, attr);
     define_native_function(realm, vm.names.equals, equals, 1, attr);
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
@@ -209,6 +211,61 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::subtract)
     // 2. Perform ? RequireInternalSlot(temporalDate, [[InitializedTemporalDate]]).
     // 3. Return ? AddDurationToDate(SUBTRACT, temporalDate, temporalDurationLike, options).
     return TRY(add_duration_to_date(vm, ArithmeticOperation::Subtract, temporal_date, temporal_duration_like, options));
+}
+
+// 3.3.23 Temporal.PlainDate.prototype.with ( temporalDateLike [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.with
+JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::with)
+{
+    auto temporal_date_like = vm.argument(0);
+    auto options = vm.argument(1);
+
+    // 1. Let temporalDate be the this value.
+    // 2. Perform ? RequireInternalSlot(temporalDate, [[InitializedTemporalDate]]).
+    auto temporal_date = TRY(typed_this_object(vm));
+
+    // 3. If ? IsPartialTemporalObject(temporalDateLike) is false, throw a TypeError exception.
+    if (!TRY(is_partial_temporal_object(vm, temporal_date_like)))
+        return vm.throw_completion<TypeError>(ErrorType::TemporalObjectMustBePartialTemporalObject);
+
+    // 4. Let calendar be temporalDate.[[Calendar]].
+    auto const& calendar = temporal_date->calendar();
+
+    // 5. Let fields be ISODateToFields(calendar, temporalDate.[[ISODate]], DATE).
+    auto fields = iso_date_to_fields(calendar, temporal_date->iso_date(), DateType::Date);
+
+    // 6. Let partialDate be ? PrepareCalendarFields(calendar, temporalDateLike, « YEAR, MONTH, MONTH-CODE, DAY », « », PARTIAL).
+    auto partial_date = TRY(prepare_calendar_fields(vm, calendar, temporal_date_like.as_object(), { { CalendarField::Year, CalendarField::Month, CalendarField::MonthCode, CalendarField::Day } }, {}, Partial {}));
+
+    // 7. Set fields to CalendarMergeFields(calendar, fields, partialDate).
+    fields = calendar_merge_fields(calendar, fields, partial_date);
+
+    // 8. Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolved_options = TRY(get_options_object(vm, options));
+
+    // 9. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+    auto overflow = TRY(get_temporal_overflow_option(vm, resolved_options));
+
+    // 10. Let isoDate be ? CalendarDateFromFields(calendar, fields, overflow).
+    auto iso_date = TRY(calendar_date_from_fields(vm, calendar, fields, overflow));
+
+    // 11. Return ! CreateTemporalDate(isoDate, calendar).
+    return MUST(create_temporal_date(vm, iso_date, calendar));
+}
+
+// 3.3.24 Temporal.PlainDate.prototype.withCalendar ( calendarLike ), https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.with
+JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::with_calendar)
+{
+    auto calendar_like = vm.argument(0);
+
+    // 1. Let temporalDate be the this value.
+    // 2. Perform ? RequireInternalSlot(temporalDate, [[InitializedTemporalDate]]).
+    auto temporal_date = TRY(typed_this_object(vm));
+
+    // 3. Let calendar be ? ToTemporalCalendarIdentifier(calendarLike).
+    auto calendar = TRY(to_temporal_calendar_identifier(vm, calendar_like));
+
+    // 4. Return ! CreateTemporalDate(temporalDate.[[ISODate]], calendar).
+    return MUST(create_temporal_date(vm, temporal_date->iso_date(), calendar));
 }
 
 // 3.3.27 Temporal.PlainDate.prototype.equals ( other ), https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.equals
