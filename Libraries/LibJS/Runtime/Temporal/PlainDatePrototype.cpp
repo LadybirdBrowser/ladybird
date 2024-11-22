@@ -10,6 +10,8 @@
 #include <LibJS/Runtime/Temporal/Calendar.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/PlainDatePrototype.h>
+#include <LibJS/Runtime/Temporal/PlainMonthDay.h>
+#include <LibJS/Runtime/Temporal/PlainYearMonth.h>
 
 namespace JS::Temporal {
 
@@ -48,6 +50,8 @@ void PlainDatePrototype::initialize(Realm& realm)
     define_native_accessor(realm, vm.names.inLeapYear, in_leap_year_getter, {}, Attribute::Configurable);
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
+    define_native_function(realm, vm.names.toPlainYearMonth, to_plain_year_month, 0, attr);
+    define_native_function(realm, vm.names.toPlainMonthDay, to_plain_month_day, 0, attr);
     define_native_function(realm, vm.names.add, add, 1, attr);
     define_native_function(realm, vm.names.subtract, subtract, 1, attr);
     define_native_function(realm, vm.names.with, with, 1, attr);
@@ -186,6 +190,46 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::year_of_week_getter)
 
     // 5. Return 𝔽(result).
     return *result;
+}
+
+// 3.3.19 Temporal.PlainDate.prototype.toPlainYearMonth ( ), https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.toplainyearmonth
+JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::to_plain_year_month)
+{
+    // 1. Let temporalDate be the this value.
+    // 2. Perform ? RequireInternalSlot(temporalDate, [[InitializedTemporalDate]]).
+    auto temporal_date = TRY(typed_this_object(vm));
+
+    // 3. Let calendar be temporalDate.[[Calendar]].
+    auto const& calendar = temporal_date->calendar();
+
+    // 4. Let fields be ISODateToFields(calendar, temporalDate.[[ISODate]], DATE).
+    auto fields = iso_date_to_fields(calendar, temporal_date->iso_date(), DateType::Date);
+
+    // 5. Let isoDate be ? CalendarYearMonthFromFields(calendar, fields, CONSTRAIN).
+    auto iso_date = TRY(calendar_year_month_from_fields(vm, calendar, move(fields), Overflow::Constrain));
+
+    // 6. Return ! CreateTemporalYearMonth(isoDate, calendar).
+    return MUST(create_temporal_year_month(vm, iso_date, calendar));
+}
+
+// 3.3.20 Temporal.PlainDate.prototype.toPlainMonthDay ( ), https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.toplainmonthday
+JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::to_plain_month_day)
+{
+    // 1. Let temporalDate be the this value.
+    // 2. Perform ? RequireInternalSlot(temporalDate, [[InitializedTemporalDate]]).
+    auto temporal_date = TRY(typed_this_object(vm));
+
+    // 3. Let calendar be temporalDate.[[Calendar]].
+    auto const& calendar = temporal_date->calendar();
+
+    // 4. Let fields be ISODateToFields(calendar, temporalDate.[[ISODate]], DATE).
+    auto fields = iso_date_to_fields(calendar, temporal_date->iso_date(), DateType::Date);
+
+    // 5. Let isoDate be ? CalendarMonthDayFromFields(calendar, fields, CONSTRAIN).
+    auto iso_date = TRY(calendar_month_day_from_fields(vm, calendar, move(fields), Overflow::Constrain));
+
+    // 6. Return ! CreateTemporalMonthDay(isoDate, calendar).
+    return MUST(create_temporal_month_day(vm, iso_date, calendar));
 }
 
 // 3.3.21 Temporal.PlainDate.prototype.add ( temporalDurationLike [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.add
