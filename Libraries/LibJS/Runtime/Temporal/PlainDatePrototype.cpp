@@ -207,7 +207,7 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::to_plain_year_month)
     auto fields = iso_date_to_fields(calendar, temporal_date->iso_date(), DateType::Date);
 
     // 5. Let isoDate be ? CalendarYearMonthFromFields(calendar, fields, CONSTRAIN).
-    auto iso_date = TRY(calendar_year_month_from_fields(vm, calendar, move(fields), Overflow::Constrain));
+    auto iso_date = TRY(calendar_year_month_from_fields(vm, calendar, fields, Overflow::Constrain));
 
     // 6. Return ! CreateTemporalYearMonth(isoDate, calendar).
     return MUST(create_temporal_year_month(vm, iso_date, calendar));
@@ -227,7 +227,7 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::to_plain_month_day)
     auto fields = iso_date_to_fields(calendar, temporal_date->iso_date(), DateType::Date);
 
     // 5. Let isoDate be ? CalendarMonthDayFromFields(calendar, fields, CONSTRAIN).
-    auto iso_date = TRY(calendar_month_day_from_fields(vm, calendar, move(fields), Overflow::Constrain));
+    auto iso_date = TRY(calendar_month_day_from_fields(vm, calendar, fields, Overflow::Constrain));
 
     // 6. Return ! CreateTemporalMonthDay(isoDate, calendar).
     return MUST(create_temporal_month_day(vm, iso_date, calendar));

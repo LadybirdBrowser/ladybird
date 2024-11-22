@@ -64,7 +64,7 @@ ThrowCompletionOr<GC::Ref<PlainYearMonth>> to_temporal_year_month(VM& vm, Value 
         auto overflow = TRY(get_temporal_overflow_option(vm, resolved_options));
 
         // f. Let isoDate be ? CalendarYearMonthFromFields(calendar, fields, overflow).
-        auto iso_date = TRY(calendar_year_month_from_fields(vm, calendar, move(fields), overflow));
+        auto iso_date = TRY(calendar_year_month_from_fields(vm, calendar, fields, overflow));
 
         // g. Return ! CreateTemporalYearMonth(isoDate, calendar).
         return MUST(create_temporal_year_month(vm, iso_date, move(calendar)));
@@ -224,7 +224,7 @@ ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_year_month(VM& vm
     this_fields.day = 1;
 
     // 9. Let thisDate be ? CalendarDateFromFields(calendar, thisFields, CONSTRAIN).
-    auto this_date = TRY(calendar_date_from_fields(vm, calendar, move(this_fields), Overflow::Constrain));
+    auto this_date = TRY(calendar_date_from_fields(vm, calendar, this_fields, Overflow::Constrain));
 
     // 10. Let otherFields be ISODateToFields(calendar, other.[[ISODate]], YEAR-MONTH).
     auto other_fields = iso_date_to_fields(calendar, other->iso_date(), DateType::YearMonth);
@@ -233,7 +233,7 @@ ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_year_month(VM& vm
     other_fields.day = 1;
 
     // 12. Let otherDate be ? CalendarDateFromFields(calendar, otherFields, CONSTRAIN).
-    auto other_date = TRY(calendar_date_from_fields(vm, calendar, move(other_fields), Overflow::Constrain));
+    auto other_date = TRY(calendar_date_from_fields(vm, calendar, other_fields, Overflow::Constrain));
 
     // 13. Let dateDifference be CalendarDateUntil(calendar, thisDate, otherDate, settings.[[LargestUnit]]).
     auto date_difference = calendar_date_until(vm, calendar, this_date, other_date, settings.largest_unit);
@@ -299,7 +299,7 @@ ThrowCompletionOr<GC::Ref<PlainYearMonth>> add_duration_to_year_month(VM& vm, Ar
     fields.day = 1;
 
     // 9. Let intermediateDate be ? CalendarDateFromFields(calendar, fields, CONSTRAIN).
-    auto intermediate_date = TRY(calendar_date_from_fields(vm, calendar, move(fields), Overflow::Constrain));
+    auto intermediate_date = TRY(calendar_date_from_fields(vm, calendar, fields, Overflow::Constrain));
 
     ISODate date;
 
@@ -333,7 +333,7 @@ ThrowCompletionOr<GC::Ref<PlainYearMonth>> add_duration_to_year_month(VM& vm, Ar
     auto added_date_fields = iso_date_to_fields(calendar, added_date, DateType::YearMonth);
 
     // 15. Let isoDate be ? CalendarYearMonthFromFields(calendar, addedDateFields, overflow).
-    auto iso_date = TRY(calendar_year_month_from_fields(vm, calendar, move(added_date_fields), overflow));
+    auto iso_date = TRY(calendar_year_month_from_fields(vm, calendar, added_date_fields, overflow));
 
     // 16. Return ! CreateTemporalYearMonth(isoDate, calendar).
     return MUST(create_temporal_year_month(vm, iso_date, calendar));

@@ -62,7 +62,7 @@ ThrowCompletionOr<GC::Ref<PlainMonthDay>> to_temporal_month_day(VM& vm, Value it
         auto overflow = TRY(get_temporal_overflow_option(vm, resolved_options));
 
         // f. Let isoDate be ? CalendarMonthDayFromFields(calendar, fields, overflow).
-        auto iso_date = TRY(calendar_month_day_from_fields(vm, calendar, move(fields), overflow));
+        auto iso_date = TRY(calendar_month_day_from_fields(vm, calendar, fields, overflow));
 
         // g. Return ! CreateTemporalMonthDay(isoDate, calendar).
         return MUST(create_temporal_month_day(vm, iso_date, move(calendar)));
