@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Transform Module Level 2: parsing translate with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-transforms-2/#propdef-translate">
+<meta name="assert" content="translate supports only the grammar 'none | <length-percentage> [ <length-percentage> <length>? ]?'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("translate", "100deg");
+
+test_invalid_value("translate", "100px 200px 300%");
+test_invalid_value("translate", "100px 200px calc(30px + 30%)");
+
+test_invalid_value("translate", "100px junk");
+test_invalid_value("translate", "100px 200px junk");
+test_invalid_value("translate", "100px 200px 300px junk");
+</script>
+</body>
+</html>

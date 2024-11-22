@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+  <head>
+    <title>
+      Individual transform properties' animations create stacking context in delay phase
+    </title>
+    <link rel="help" href="https://drafts.csswg.org/css-transforms-2/#individual-transforms">
+    <link rel="match" href="../../../../../expected/wpt-import/css/css-transforms/individual-transform/stacking-context-ref.html">
+    <meta name="assert" content="Individual transform properties' animations
+                                 should create stacking context even in delay
+                                 phase."/>
+    <style>
+      #back {
+        height: 100px;
+        width: 100px;
+        position: fixed;
+        background: green;
+        margin-top: 50px;
+      }
+      @keyframes scale {
+        from, to { scale: 1; }
+      }
+      #test {
+        width: 100px;
+        height: 100px;
+        background: blue;
+        animation: scale 100s 100s;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="back"></div>
+    <div id="test"></div>
+  </body>
+  <script>
+    requestAnimationFrame(() => {
+      document.documentElement.classList.remove('reftest-wait');
+    });
+  </script>
+</html>

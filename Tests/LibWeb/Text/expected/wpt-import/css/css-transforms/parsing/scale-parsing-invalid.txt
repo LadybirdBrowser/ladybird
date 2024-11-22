@@ -1,0 +1,15 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 5 tests
+
+5 Pass
+Details
+Result	Test Name	MessagePass	e.style['scale'] = "100px" should not set the property value	
+Pass	e.style['scale'] = "100 200 300 400" should not set the property value	
+Pass	e.style['scale'] = "1 junk" should not set the property value	
+Pass	e.style['scale'] = "1 2 junk" should not set the property value	
+Pass	e.style['scale'] = "1 2 3 junk" should not set the property value	

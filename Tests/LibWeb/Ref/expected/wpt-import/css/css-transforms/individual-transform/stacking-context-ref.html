@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Reference: Individual transform properties' animations create stacking context in delay phase
+    </title>
+    <style>
+      #back {
+        height: 100px;
+        width: 100px;
+        position: fixed;
+        background: green;
+        margin-top: 50px;
+      }
+      #test {
+        width: 100px;
+        height: 100px;
+        background: blue;
+        will-change: transform;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="back"></div>
+    <div id="test"></div>
+  </body>
+</html>
