@@ -129,7 +129,14 @@ public:
         return m_overflow_data->has_scrollable_overflow;
     }
 
-    bool has_css_transform() const { return computed_values().transformations().size() > 0; }
+    [[nodiscard]] bool has_css_transform() const
+    {
+        if (!computed_values().transformations().is_empty())
+            return true;
+        if (computed_values().rotate().has_value())
+            return true;
+        return false;
+    }
 
     [[nodiscard]] Optional<CSSPixelRect> scrollable_overflow_rect() const
     {
