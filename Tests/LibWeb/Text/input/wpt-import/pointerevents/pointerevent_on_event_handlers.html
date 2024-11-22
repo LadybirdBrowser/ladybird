@@ -1,0 +1,67 @@
+<!doctype html>
+<html>
+    <head>
+        <title>PointerEvent: Constructor test</title>
+        <meta name="viewport" content="width=device-width">
+        <link rel="stylesheet" type="text/css" href="pointerevent_styles.css">
+        <script src="../resources/testharness.js"></script>
+        <script src="../resources/testharnessreport.js"></script>
+        <!-- Additional helper script for common checks across event types -->
+        <script type="text/javascript" src="pointerevent_support.js"></script>
+    </head>
+    <body>
+    <h1>PointerEvent: Dispatch custom event</h1>
+    <h4>Test Description: This test checks if on pointer event handlers through attributes works properly using synthetic pointerevents. For valid results, this test must be run without generating real (trusted) events on the black rectangle below.</h4>
+    <div id="target0"
+         onpointercancel="window.eventHappened = 'pointercancel';"
+         onpointerdown="window.eventHappened = 'pointerdown';"
+         onpointerup="window.eventHappened = 'pointerup';"
+         onpointermove="window.eventHappened = 'pointermove';"
+         onpointerout="window.eventHappened = 'pointerout';"
+         onpointerover="window.eventHappened = 'pointerover';"
+         onpointerleave="window.eventHappened = 'pointerleave';"
+         onpointerenter="window.eventHappened = 'pointerenter';"
+         ongotpointercapture="window.eventHappened = 'gotpointercapture';"
+         onlostpointercapture="window.eventHappened = 'lostpointercapture';"
+    ></div>
+    <script>
+        window.eventHappened = '';
+
+        All_Pointer_Events.forEach(function(event) {
+            var on_event = "on" + event;
+
+            test(function() {
+              const htmlElement = document.createElement("span");
+              const svgElement = document.createElementNS("http://www.w3.org/2000/svg", "g");
+              for (var location of [window, htmlElement, svgElement, document]) {
+                assert_equals(location[on_event], null,
+                  `The default value of the property is null for a ${location.constructor.name} instance`);
+              }
+            }, "The default value of " + on_event + " is always null");
+
+            test(function() {
+              window.eventHappened = '';
+              const element = document.querySelector("#target0");
+              const compiledHandler = element[on_event];
+              assert_equals(typeof compiledHandler, "function", "The " + on_event + " property must be a function");
+              compiledHandler();
+              assert_equals(window.eventHappened, event, "Calling the handler must run the code");
+            }, "The " + on_event + " content attribute must be compiled into the " + on_event + " property");
+
+            var handlerTest = async_test("dispatching a " + event + " event must trigger element." + on_event);
+            const element = document.createElement("meta");
+            element[on_event] = function(e) {
+              handlerTest.step(function() {
+                assert_equals(e.currentTarget, element, "The event must be fired at the <meta> element");
+              });
+              handlerTest.done();
+            };
+            element.dispatchEvent(new Event(event));
+        });
+    </script>
+    <div id="complete-notice">
+    <p>The following pointer types were detected: <span id="pointertype-log"></span>.</p>
+    </div>
+    <div id="log"></div>
+    </body>
+</html>

@@ -37,6 +37,7 @@
     E(onfocusin, HTML::EventNames::focusin)                                   \
     E(onfocusout, HTML::EventNames::focusout)                                 \
     E(onformdata, HTML::EventNames::formdata)                                 \
+    E(ongotpointercapture, UIEvents::EventNames::gotpointercapture)           \
     E(oninput, HTML::EventNames::input)                                       \
     E(oninvalid, HTML::EventNames::invalid)                                   \
     E(onkeydown, UIEvents::EventNames::keydown)                               \
@@ -46,6 +47,7 @@
     E(onloadeddata, HTML::EventNames::loadeddata)                             \
     E(onloadedmetadata, HTML::EventNames::loadedmetadata)                     \
     E(onloadstart, HTML::EventNames::loadstart)                               \
+    E(onlostpointercapture, UIEvents::EventNames::lostpointercapture)         \
     E(onmousedown, UIEvents::EventNames::mousedown)                           \
     E(onmouseenter, UIEvents::EventNames::mouseenter)                         \
     E(onmouseleave, UIEvents::EventNames::mouseleave)                         \
@@ -56,6 +58,15 @@
     E(onpause, HTML::EventNames::pause)                                       \
     E(onplay, HTML::EventNames::play)                                         \
     E(onplaying, HTML::EventNames::playing)                                   \
+    E(onpointercancel, UIEvents::EventNames::pointercancel)                   \
+    E(onpointerdown, UIEvents::EventNames::pointerdown)                       \
+    E(onpointerenter, UIEvents::EventNames::pointerenter)                     \
+    E(onpointerleave, UIEvents::EventNames::pointerleave)                     \
+    E(onpointermove, UIEvents::EventNames::pointermove)                       \
+    E(onpointerout, UIEvents::EventNames::pointerout)                         \
+    E(onpointerover, UIEvents::EventNames::pointerover)                       \
+    E(onpointerrawupdate, UIEvents::EventNames::pointerrawupdate)             \
+    E(onpointerup, UIEvents::EventNames::pointerup)                           \
     E(onprogress, HTML::EventNames::progress)                                 \
     E(onratechange, HTML::EventNames::ratechange)                             \
     E(onreset, HTML::EventNames::reset)                                       \

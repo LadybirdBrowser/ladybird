@@ -159,6 +159,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(onfocusin)                  \
     __ENUMERATE_HTML_ATTRIBUTE(onfocusout)                 \
     __ENUMERATE_HTML_ATTRIBUTE(onformdata)                 \
+    __ENUMERATE_HTML_ATTRIBUTE(ongotpointercapture)        \
     __ENUMERATE_HTML_ATTRIBUTE(onhashchange)               \
     __ENUMERATE_HTML_ATTRIBUTE(oninput)                    \
     __ENUMERATE_HTML_ATTRIBUTE(oninvalid)                  \
@@ -170,6 +171,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(onloadeddata)               \
     __ENUMERATE_HTML_ATTRIBUTE(onloadedmetadata)           \
     __ENUMERATE_HTML_ATTRIBUTE(onloadstart)                \
+    __ENUMERATE_HTML_ATTRIBUTE(onlostpointercapture)       \
     __ENUMERATE_HTML_ATTRIBUTE(onmessage)                  \
     __ENUMERATE_HTML_ATTRIBUTE(onmessageerror)             \
     __ENUMERATE_HTML_ATTRIBUTE(onmousedown)                \
@@ -186,6 +188,15 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(onpause)                    \
     __ENUMERATE_HTML_ATTRIBUTE(onplay)                     \
     __ENUMERATE_HTML_ATTRIBUTE(onplaying)                  \
+    __ENUMERATE_HTML_ATTRIBUTE(onpointercancel)            \
+    __ENUMERATE_HTML_ATTRIBUTE(onpointerdown)              \
+    __ENUMERATE_HTML_ATTRIBUTE(onpointerenter)             \
+    __ENUMERATE_HTML_ATTRIBUTE(onpointerleave)             \
+    __ENUMERATE_HTML_ATTRIBUTE(onpointermove)              \
+    __ENUMERATE_HTML_ATTRIBUTE(onpointerout)               \
+    __ENUMERATE_HTML_ATTRIBUTE(onpointerover)              \
+    __ENUMERATE_HTML_ATTRIBUTE(onpointerrawupdate)         \
+    __ENUMERATE_HTML_ATTRIBUTE(onpointerup)                \
     __ENUMERATE_HTML_ATTRIBUTE(onpopstate)                 \
     __ENUMERATE_HTML_ATTRIBUTE(onprogress)                 \
     __ENUMERATE_HTML_ATTRIBUTE(onratechange)               \

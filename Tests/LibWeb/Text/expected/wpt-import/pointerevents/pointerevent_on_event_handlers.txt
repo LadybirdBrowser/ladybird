@@ -1,0 +1,40 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 30 tests
+
+30 Pass
+Details
+Result	Test Name	MessagePass	The default value of onpointerdown is always null	
+Pass	The onpointerdown content attribute must be compiled into the onpointerdown property	
+Pass	dispatching a pointerdown event must trigger element.onpointerdown	
+Pass	The default value of onpointerup is always null	
+Pass	The onpointerup content attribute must be compiled into the onpointerup property	
+Pass	dispatching a pointerup event must trigger element.onpointerup	
+Pass	The default value of onpointercancel is always null	
+Pass	The onpointercancel content attribute must be compiled into the onpointercancel property	
+Pass	dispatching a pointercancel event must trigger element.onpointercancel	
+Pass	The default value of onpointermove is always null	
+Pass	The onpointermove content attribute must be compiled into the onpointermove property	
+Pass	dispatching a pointermove event must trigger element.onpointermove	
+Pass	The default value of onpointerover is always null	
+Pass	The onpointerover content attribute must be compiled into the onpointerover property	
+Pass	dispatching a pointerover event must trigger element.onpointerover	
+Pass	The default value of onpointerout is always null	
+Pass	The onpointerout content attribute must be compiled into the onpointerout property	
+Pass	dispatching a pointerout event must trigger element.onpointerout	
+Pass	The default value of onpointerenter is always null	
+Pass	The onpointerenter content attribute must be compiled into the onpointerenter property	
+Pass	dispatching a pointerenter event must trigger element.onpointerenter	
+Pass	The default value of onpointerleave is always null	
+Pass	The onpointerleave content attribute must be compiled into the onpointerleave property	
+Pass	dispatching a pointerleave event must trigger element.onpointerleave	
+Pass	The default value of ongotpointercapture is always null	
+Pass	The ongotpointercapture content attribute must be compiled into the ongotpointercapture property	
+Pass	dispatching a gotpointercapture event must trigger element.ongotpointercapture	
+Pass	The default value of onlostpointercapture is always null	
+Pass	The onlostpointercapture content attribute must be compiled into the onlostpointercapture property	
+Pass	dispatching a lostpointercapture event must trigger element.onlostpointercapture	
