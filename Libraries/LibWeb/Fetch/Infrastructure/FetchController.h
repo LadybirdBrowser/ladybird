@@ -16,6 +16,7 @@
 #include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
+#include <LibWeb/HTML/StructuredSerialize.h>
 
 namespace Web::Fetch::Infrastructure {
 
@@ -74,8 +75,9 @@ private:
     GC::Ptr<GC::Function<void(JS::Object const&)>> m_report_timing_steps;
 
     // https://fetch.spec.whatwg.org/#fetch-controller-report-timing-steps
-    // FIXME: serialized abort reason (default null)
+    // serialized abort reason (default null)
     //     Null or a Record (result of StructuredSerialize).
+    HTML::SerializationRecord m_serialized_abort_reason;
 
     // https://fetch.spec.whatwg.org/#fetch-controller-next-manual-redirect-steps
     // next manual redirect steps (default null)
