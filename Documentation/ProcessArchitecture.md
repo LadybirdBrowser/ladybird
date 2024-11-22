@@ -1,8 +1,8 @@
-# SerenityOS Browser process architecture
+# Ladybird Browser process architecture
 
 *NOTE: This document is partly aspirational, in that the state of the code does not yet fully reflect what's described here. Implementation is underway.*
 
-The SerenityOS web browser (**"Browser"**) uses a multi-process architecture to improve stability and security in the face of arbitrary (and possibly hostile) web content.
+The Ladybird web browser uses a multi-process architecture to improve stability and security in the face of arbitrary (and possibly hostile) web content.
 
 ## Process overview
 
