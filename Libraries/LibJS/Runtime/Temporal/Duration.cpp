@@ -17,6 +17,7 @@
 #include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/DurationConstructor.h>
 #include <LibJS/Runtime/Temporal/Instant.h>
+#include <LibJS/Runtime/Temporal/PlainDate.h>
 #include <LibJS/Runtime/Temporal/PlainDateTime.h>
 #include <LibJS/Runtime/Temporal/TimeZone.h>
 #include <LibJS/Runtime/VM.h>
@@ -794,6 +795,32 @@ i8 time_duration_sign(TimeDuration const& time_duration)
 
     // 3. Return 0.
     return 0;
+}
+
+// 7.5.29 DateDurationDays ( dateDuration, plainRelativeTo ), https://tc39.es/proposal-temporal/#sec-temporal-datedurationdays
+ThrowCompletionOr<double> date_duration_days(VM& vm, DateDuration const& date_duration, PlainDate const& plain_relative_to)
+{
+    // 1. Let yearsMonthsWeeksDuration be ! AdjustDateDurationRecord(dateDuration, 0).
+    auto years_months_weeks_duration = MUST(adjust_date_duration_record(vm, date_duration, 0));
+
+    // 2. If DateDurationSign(yearsMonthsWeeksDuration) = 0, return dateDuration.[[Days]].
+    if (date_duration_sign(years_months_weeks_duration) == 0)
+        return date_duration.days;
+
+    // 3. Let later be ? CalendarDateAdd(plainRelativeTo.[[Calendar]], plainRelativeTo.[[ISODate]], yearsMonthsWeeksDuration, CONSTRAIN).
+    auto later = TRY(calendar_date_add(vm, plain_relative_to.calendar(), plain_relative_to.iso_date(), years_months_weeks_duration, Overflow::Constrain));
+
+    // 4. Let epochDays1 be ISODateToEpochDays(plainRelativeTo.[[ISODate]].[[Year]], plainRelativeTo.[[ISODate]].[[Month]] - 1, plainRelativeTo.[[ISODate]].[[Day]]).
+    auto epoch_days1 = iso_date_to_epoch_days(plain_relative_to.iso_date().year, plain_relative_to.iso_date().month - 1, plain_relative_to.iso_date().day);
+
+    // 5. Let epochDays2 be ISODateToEpochDays(later.[[Year]], later.[[Month]] - 1, later.[[Day]]).
+    auto epoch_days2 = iso_date_to_epoch_days(later.year, later.month - 1, later.day);
+
+    // 6. Let yearsMonthsWeeksInDays be epochDays2 - epochDays1.
+    auto years_months_weeks_in_days = epoch_days2 - epoch_days1;
+
+    // 7. Return dateDuration.[[Days]] + yearsMonthsWeeksInDays.
+    return date_duration.days + years_months_weeks_in_days;
 }
 
 // 7.5.30 RoundTimeDuration ( timeDuration, increment, unit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-roundtimeduration

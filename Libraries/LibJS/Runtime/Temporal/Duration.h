@@ -134,6 +134,7 @@ i8 compare_time_duration(TimeDuration const&, TimeDuration const&);
 TimeDuration time_duration_from_epoch_nanoseconds_difference(TimeDuration const&, TimeDuration const&);
 ThrowCompletionOr<TimeDuration> round_time_duration_to_increment(VM&, TimeDuration const&, Crypto::UnsignedBigInteger const& increment, RoundingMode);
 i8 time_duration_sign(TimeDuration const&);
+ThrowCompletionOr<double> date_duration_days(VM&, DateDuration const&, PlainDate const&);
 ThrowCompletionOr<TimeDuration> round_time_duration(VM&, TimeDuration const&, Crypto::UnsignedBigInteger const& increment, Unit, RoundingMode);
 ThrowCompletionOr<CalendarNudgeResult> nudge_to_calendar_unit(VM&, i8 sign, InternalDuration const&, TimeDuration const& dest_epoch_ns, ISODateTime const&, Optional<StringView> time_zone, StringView calendar, u64 increment, Unit, RoundingMode);
 ThrowCompletionOr<DurationNudgeResult> nudge_to_zoned_time(VM&, i8 sign, InternalDuration const&, ISODateTime const&, StringView time_zone, StringView calendar, u64 increment, Unit, RoundingMode);
