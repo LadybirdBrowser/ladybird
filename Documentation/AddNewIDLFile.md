@@ -1,6 +1,6 @@
 # Adding a new IDL file
 
-Serenity's build system does a lot of work of turning the IDL from a Web spec into code, but there are a few things you'll need to do yourself.
+Ladybird's build system does a lot of work of turning the IDL from a Web spec into code, but there are a few things you'll need to do yourself.
 
 For the sake of example, let's say you're wanting to add the `HTMLDetailsElement`.
 

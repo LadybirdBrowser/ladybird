@@ -70,7 +70,7 @@ In order to so, create a new file anywhere, for example `license-template.creato
 
 ```
 /*
- * Copyright (c) 2024, the SerenityOS developers.
+ * Copyright (c) 2024, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */

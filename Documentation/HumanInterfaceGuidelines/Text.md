@@ -1,8 +1,8 @@
-# Guidelines for user interface text in SerenityOS
+# Guidelines for user interface text in Ladybird
 
 ## Capitalization
 
-SerenityOS employs two capitalization styles:
+Ladybird employs two capitalization styles:
 
 - Book title capitalization
 - Sentence-style capitalization

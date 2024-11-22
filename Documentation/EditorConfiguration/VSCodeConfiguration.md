@@ -38,8 +38,8 @@ Run ``./Meta/ladybird.sh run ladybird`` at least once to generate the ``compile_
 
 ### DSL syntax highlighting
 
-There's a syntax highlighter extension for SerenityOS DSLs called "SerenityOS DSL Syntax Highlight", available [here](https://marketplace.visualstudio.com/items?itemName=kleinesfilmroellchen.serenity-dsl-syntaxhighlight) or [here](https://open-vsx.org/extension/kleinesfilmroellchen/serenity-dsl-syntaxhighlight).
-The extension provides syntax highlighting for LibIPC's IPC files, [Web IDL](https://webidl.spec.whatwg.org/), and LibJS's
+There's a syntax highlighter extension for domain specific language files (.idl, .ipc) called "SerenityOS DSL Syntax Highlight", available [here](https://marketplace.visualstudio.com/items?itemName=kleinesfilmroellchen.serenity-dsl-syntaxhighlight) or [here](https://open-vsx.org/extension/kleinesfilmroellchen/serenity-dsl-syntaxhighlight).
+The extension provides syntax highlighting for these files, [Web IDL](https://webidl.spec.whatwg.org/), and LibJS's
 serialization format (no extension) as output by js with the -d option.
 
 ### Microsoft C/C++ tools
