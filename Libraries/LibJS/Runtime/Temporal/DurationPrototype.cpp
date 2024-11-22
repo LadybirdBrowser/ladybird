@@ -5,8 +5,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/Temporal/Calendar.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/DurationPrototype.h>
+#include <LibJS/Runtime/Temporal/PlainDate.h>
+#include <LibJS/Runtime/Temporal/PlainDateTime.h>
+#include <LibJS/Runtime/Temporal/PlainTime.h>
 
 namespace JS::Temporal {
 
@@ -272,7 +276,7 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::round)
     // 10. Let relativeToRecord be ? GetTemporalRelativeToOption(roundTo).
     // 11. Let zonedRelativeTo be relativeToRecord.[[ZonedRelativeTo]].
     // 12. Let plainRelativeTo be relativeToRecord.[[PlainRelativeTo]].
-    auto [zoned_relative_to, plain_relative_to] = TRY(get_temporal_relative_to_option(vm, *round_to));
+    auto [plain_relative_to, zoned_relative_to] = TRY(get_temporal_relative_to_option(vm, *round_to));
 
     // 13. Let roundingIncrement be ? GetRoundingIncrementOption(roundTo).
     auto rounding_increment = TRY(get_rounding_increment_option(vm, *round_to));
@@ -362,13 +366,26 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::round)
         // a. Let internalDuration be ToInternalDurationRecordWith24HourDays(duration).
         auto internal_duration = to_internal_duration_record_with_24_hour_days(vm, duration);
 
-        // FIXME: b. Let targetTime be AddTime(MidnightTimeRecord(), internalDuration.[[Time]]).
-        // FIXME: c. Let calendar be plainRelativeTo.[[Calendar]].
-        // FIXME: d. Let dateDuration be ! AdjustDateDurationRecord(internalDuration.[[Date]], targetTime.[[Days]]).
-        // FIXME: e. Let targetDate be ? CalendarDateAdd(calendar, plainRelativeTo.[[ISODate]], dateDuration, constrain).
-        // FIXME: f. Let isoDateTime be CombineISODateAndTimeRecord(plainRelativeTo.[[ISODate]], MidnightTimeRecord()).
-        // FIXME: g. Let targetDateTime be CombineISODateAndTimeRecord(targetDate, targetTime).
-        // FIXME: h. Set internalDuration to ? DifferencePlainDateTimeWithRounding(isoDateTime, targetDateTime, calendar, largestUnit, roundingIncrement, smallestUnit, roundingMode).
+        // b. Let targetTime be AddTime(MidnightTimeRecord(), internalDuration.[[Time]]).
+        auto target_time = add_time(midnight_time_record(), internal_duration.time);
+
+        // c. Let calendar be plainRelativeTo.[[Calendar]].
+        auto const& calendar = plain_relative_to->calendar();
+
+        // d. Let dateDuration be ! AdjustDateDurationRecord(internalDuration.[[Date]], targetTime.[[Days]]).
+        auto date_duration = MUST(adjust_date_duration_record(vm, internal_duration.date, target_time.days));
+
+        // e. Let targetDate be ? CalendarDateAdd(calendar, plainRelativeTo.[[ISODate]], dateDuration, CONSTRAIN).
+        auto target_date = TRY(calendar_date_add(vm, calendar, plain_relative_to->iso_date(), date_duration, Overflow::Constrain));
+
+        // f. Let isoDateTime be CombineISODateAndTimeRecord(plainRelativeTo.[[ISODate]], MidnightTimeRecord()).
+        auto iso_date_time = combine_iso_date_and_time_record(plain_relative_to->iso_date(), midnight_time_record());
+
+        // g. Let targetDateTime be CombineISODateAndTimeRecord(targetDate, targetTime).
+        auto target_date_time = combine_iso_date_and_time_record(target_date, target_time);
+
+        // h. Set internalDuration to ? DifferencePlainDateTimeWithRounding(isoDateTime, targetDateTime, calendar, largestUnit, roundingIncrement, smallestUnit, roundingMode).
+        internal_duration = TRY(difference_plain_date_time_with_rounding(vm, iso_date_time, target_date_time, calendar, largest_unit_value, rounding_increment, smallest_unit_value, rounding_mode));
 
         // i. Return ? TemporalDurationFromInternal(internalDuration, largestUnit).
         return TRY(temporal_duration_from_internal(vm, internal_duration, largest_unit_value));
