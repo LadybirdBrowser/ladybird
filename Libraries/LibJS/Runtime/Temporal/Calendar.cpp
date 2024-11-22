@@ -9,6 +9,7 @@
 
 #include <AK/NonnullRawPtr.h>
 #include <AK/QuickSort.h>
+#include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/Calendar.h>
 #include <LibJS/Runtime/Temporal/DateEquations.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
@@ -361,12 +362,22 @@ DateDuration calendar_date_until(VM& vm, StringView calendar, ISODate const& one
         // c. Let years be 0.
         double years = 0;
 
-        // d. If largestUnit is YEAR, then
-        if (largest_unit == Unit::Year) {
-            // i. Let candidateYears be sign.
-            double candidate_years = sign;
+        // e. Let months be 0.
+        double months = 0;
 
-            // ii. Repeat, while ISODateSurpasses(sign, one.[[Year]] + candidateYears, one.[[Month]], one.[[Day]], two) is false,
+        // OPTIMIZATION: If the largestUnit is MONTH, we want to skip ahead to the correct year. If implemented in exact
+        //               accordance with the spec, we could enter the second ISODateSurpasses loop below with a very large
+        //               number of months to traverse.
+
+        // d. If largestUnit is YEAR, then
+        // f. If largestUnit is YEAR or largestUnit is MONTH, then
+        if (largest_unit == Unit::Year || largest_unit == Unit::Month) {
+            // d.i. Let candidateYears be sign.
+            auto candidate_years = two.year - one.year;
+            if (candidate_years != 0)
+                candidate_years -= sign;
+
+            // d.ii. Repeat, while ISODateSurpasses(sign, one.[[Year]] + candidateYears, one.[[Month]], one.[[Day]], two) is false,
             while (!iso_date_surpasses(sign, static_cast<double>(one.year) + candidate_years, one.month, one.day, two)) {
                 // 1. Set years to candidateYears.
                 years = candidate_years;
@@ -374,20 +385,14 @@ DateDuration calendar_date_until(VM& vm, StringView calendar, ISODate const& one
                 // 2. Set candidateYears to candidateYears + sign.
                 candidate_years += sign;
             }
-        }
 
-        // e. Let months be 0.
-        double months = 0;
-
-        // f. If largestUnit is YEAR or largestUnit is MONTH, then
-        if (largest_unit == Unit::Year || largest_unit == Unit::Month) {
-            // i. Let candidateMonths be sign.
+            // f.i. Let candidateMonths be sign.
             double candidate_months = sign;
 
-            // ii. Let intermediate be BalanceISOYearMonth(one.[[Year]] + years, one.[[Month]] + candidateMonths).
+            // f.ii. Let intermediate be BalanceISOYearMonth(one.[[Year]] + years, one.[[Month]] + candidateMonths).
             auto intermediate = balance_iso_year_month(static_cast<double>(one.year) + years, static_cast<double>(one.month) + candidate_months);
 
-            // iii. Repeat, while ISODateSurpasses(sign, intermediate.[[Year]], intermediate.[[Month]], one.[[Day]], two) is false,
+            // f.iii. Repeat, while ISODateSurpasses(sign, intermediate.[[Year]], intermediate.[[Month]], one.[[Day]], two) is false,
             while (!iso_date_surpasses(sign, intermediate.year, intermediate.month, one.day, two)) {
                 // 1. Set months to candidateMonths.
                 months = candidate_months;
@@ -397,6 +402,11 @@ DateDuration calendar_date_until(VM& vm, StringView calendar, ISODate const& one
 
                 // 3. Set intermediate to BalanceISOYearMonth(intermediate.[[Year]], intermediate.[[Month]] + sign).
                 intermediate = balance_iso_year_month(intermediate.year, static_cast<double>(intermediate.month) + sign);
+            }
+
+            if (largest_unit == Unit::Month) {
+                months += years * 12.0;
+                years = 0.0;
             }
         }
 
@@ -409,46 +419,16 @@ DateDuration calendar_date_until(VM& vm, StringView calendar, ISODate const& one
         // i. Let weeks be 0.
         double weeks = 0;
 
-        // j. If largestUnit is WEEK, then
+        // OPTIMIZATION: If the largestUnit is DAY, we do not want to enter an ISODateSurpasses loop. The loop would have
+        //               us increment the intermediate ISOYearMonth one day at time, which will take an extremely long
+        //               time if the difference is a large number of years. Instead, we can compute the day difference,
+        //               and convert to weeks if needed.
+
+        auto days = iso_date_to_epoch_days(two.year, two.month - 1, two.day) - iso_date_to_epoch_days(constrained.year, constrained.month - 1, constrained.day);
+
         if (largest_unit == Unit::Week) {
-            // i. Let candidateWeeks be sign.
-            double candidate_weeks = sign;
-
-            // ii. Set intermediate to BalanceISODate(constrained.[[Year]], constrained.[[Month]], constrained.[[Day]] + 7 × candidateWeeks).
-            auto intermediate = balance_iso_date(constrained.year, constrained.month, static_cast<double>(constrained.day) + (7.0 * candidate_weeks));
-
-            // iii. Repeat, while ISODateSurpasses(sign, intermediate.[[Year]], intermediate.[[Month]], intermediate.[[Day]], two) is false,
-            while (!iso_date_surpasses(sign, intermediate.year, intermediate.month, intermediate.day, two)) {
-                // 1. Set weeks to candidateWeeks.
-                weeks = candidate_weeks;
-
-                // 2. Set candidateWeeks to candidateWeeks + sign.
-                candidate_weeks += sign;
-
-                // 3. Set intermediate to BalanceISODate(intermediate.[[Year]], intermediate.[[Month]], intermediate.[[Day]] + 7 × sign).
-                intermediate = balance_iso_date(intermediate.year, intermediate.month, static_cast<double>(intermediate.day) + (7.0 * sign));
-            }
-        }
-
-        // k. Let days be 0.
-        double days = 0;
-
-        // l. Let candidateDays be sign.
-        double candidate_days = sign;
-
-        // m. Set intermediate to BalanceISODate(constrained.[[Year]], constrained.[[Month]], constrained.[[Day]] + 7 × weeks + candidateDays).
-        auto intermediate_date = balance_iso_date(constrained.year, constrained.month, static_cast<double>(constrained.day) + (7.0 * weeks) + candidate_days);
-
-        // n. Repeat, while ISODateSurpasses(sign, intermediate.[[Year]], intermediate.[[Month]], intermediate.[[Day]], two) is false,
-        while (!iso_date_surpasses(sign, intermediate_date.year, intermediate_date.month, intermediate_date.day, two)) {
-            // i. Set days to candidateDays.
-            days = candidate_days;
-
-            // ii. Set candidateDays to candidateDays + sign.
-            candidate_days += sign;
-
-            // iii. Set intermediate to BalanceISODate(intermediate.[[Year]], intermediate.[[Month]], intermediate.[[Day]] + sign).
-            intermediate_date = balance_iso_date(intermediate_date.year, intermediate_date.month, static_cast<double>(intermediate_date.day) + sign);
+            weeks = trunc(days / 7.0);
+            days = fmod(days, 7.0);
         }
 
         // o. Return ! CreateDateDurationRecord(years, months, weeks, days).
