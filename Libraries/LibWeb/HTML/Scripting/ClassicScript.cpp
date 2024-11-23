@@ -51,7 +51,7 @@ GC::Ref<ClassicScript> ClassicScript::create(ByteString filename, StringView sou
     // 10. Let result be ParseScript(source, realm, script).
     auto parse_timer = Core::ElapsedTimer::start_new();
     auto result = JS::Script::parse(source, realm, script->filename(), script, source_line_number);
-    dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Parsed {} in {}ms", script->filename(), parse_timer.elapsed());
+    dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Parsed {} in {}ms", script->filename(), parse_timer.elapsed_milliseconds());
 
     // 11. If result is a list of errors, then:
     if (result.is_error()) {
@@ -101,7 +101,7 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, GC::Ptr<JS::Envi
 
         // FIXME: If ScriptEvaluation does not complete because the user agent has aborted the running script, leave evaluationStatus as null.
 
-        dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Finished running script {}, Duration: {}ms", filename(), timer.elapsed());
+        dbgln_if(HTML_SCRIPT_DEBUG, "ClassicScript: Finished running script {}, Duration: {}ms", filename(), timer.elapsed_milliseconds());
     }
 
     // 7. If evaluationStatus is an abrupt completion, then:
