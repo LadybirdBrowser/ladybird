@@ -72,8 +72,6 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     Utf16View utf16_view { utf16_data };
     auto length = utf16_view.length_in_code_units();
 
-    auto inserted_data_length_in_utf16_code_units = AK::utf16_code_unit_length_from_utf8(data);
-
     // 2. If offset is greater than length, then throw an "IndexSizeError" DOMException.
     if (offset > length)
         return WebIDL::IndexSizeError::create(realm(), "Replacement offset out of range."_string);
@@ -88,11 +86,16 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     // 5. Insert data into node’s data after offset code units.
     // 6. Let delete offset be offset + data’s length.
     // 7. Starting from delete offset code units, remove count code units from node’s data.
-    StringBuilder builder;
-    builder.append(MUST(utf16_view.substring_view(0, offset).to_utf8(Utf16View::AllowInvalidCodeUnits::Yes)));
-    builder.append(data);
-    builder.append(MUST(utf16_view.substring_view(offset + count).to_utf8(Utf16View::AllowInvalidCodeUnits::Yes)));
-    m_data = MUST(builder.to_string());
+    auto before_data = utf16_view.substring_view(0, offset);
+    auto inserted_data = MUST(AK::utf8_to_utf16(data));
+    auto after_data = utf16_view.substring_view(offset + count);
+    Utf16Data full_data;
+    full_data.ensure_capacity(before_data.length_in_code_units() + inserted_data.size() + after_data.length_in_code_units());
+    full_data.append(before_data.data(), before_data.length_in_code_units());
+    full_data.extend(inserted_data);
+    full_data.append(after_data.data(), after_data.length_in_code_units());
+    Utf16View full_view { full_data };
+    m_data = MUST(full_view.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes));
 
     // 8. For each live range whose start node is node and start offset is greater than offset but less than or equal to offset plus count, set its start offset to offset.
     for (auto& range : Range::live_ranges()) {
@@ -109,14 +112,14 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     // 10. For each live range whose start node is node and start offset is greater than offset plus count, increase its start offset by data’s length and decrease it by count.
     for (auto& range : Range::live_ranges()) {
         if (range->start_container() == this && range->start_offset() > (offset + count))
-            TRY(range->set_start(*range->start_container(), range->start_offset() + inserted_data_length_in_utf16_code_units - count));
+            TRY(range->set_start(*range->start_container(), range->start_offset() + inserted_data.size() - count));
     }
 
     // 11. For each live range whose end node is node and end offset is greater than offset plus count, increase its end offset by data’s length and decrease it by count.
     for (auto& range : Range::live_ranges()) {
         if (range->end_container() == this && range->end_offset() > (offset + count)) {
             // AD-HOC: Clamp offset to the end of the data if it's too large.
-            auto new_offset = min(range->end_offset() + inserted_data_length_in_utf16_code_units - count, length_in_utf16_code_units());
+            auto new_offset = min(range->end_offset() + inserted_data.size() - count, length_in_utf16_code_units());
             TRY(range->set_end(*range->end_container(), new_offset));
         }
     }
