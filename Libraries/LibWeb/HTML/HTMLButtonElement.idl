@@ -1,5 +1,6 @@
 #import <HTML/HTMLElement.idl>
 #import <HTML/HTMLFormElement.idl>
+#import <HTML/PopoverInvokerElement.idl>
 
 [MissingValueDefault=submit, InvalidValueDefault=submit]
 enum ButtonTypeState {
@@ -33,4 +34,4 @@ interface HTMLButtonElement : HTMLElement {
 
     readonly attribute NodeList labels;
 };
-// FIXME: HTMLButtonElement includes PopoverInvokerElement;
+HTMLButtonElement includes PopoverInvokerElement;
