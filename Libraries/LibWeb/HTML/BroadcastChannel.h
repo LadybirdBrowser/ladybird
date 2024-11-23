@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
+ * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -24,6 +25,8 @@ public:
         return m_channel_name;
     }
 
+    WebIDL::ExceptionOr<void> post_message(JS::Value message);
+
     void close();
 
     void set_onmessage(GC::Ptr<WebIDL::CallbackType>);
@@ -35,6 +38,8 @@ private:
     BroadcastChannel(JS::Realm&, FlyString const& name);
 
     virtual void initialize(JS::Realm&) override;
+
+    bool is_eligible_for_messaging() const;
 
     FlyString m_channel_name;
     bool m_closed_flag { false };

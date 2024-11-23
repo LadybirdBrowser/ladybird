@@ -1,0 +1,17 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 7 tests
+
+7 Pass
+Details
+Result	Test Name	MessagePass	BroadcastChannel constructor called as normal function	
+Pass	postMessage results in correct event	
+Pass	messages are delivered in port creation order	
+Pass	messages aren't delivered to a closed port	
+Pass	messages aren't delivered to a port closed after calling postMessage.	
+Pass	closing and creating channels during message delivery works correctly	
+Pass	Closing a channel in onmessage prevents already queued tasks from firing onmessage events	

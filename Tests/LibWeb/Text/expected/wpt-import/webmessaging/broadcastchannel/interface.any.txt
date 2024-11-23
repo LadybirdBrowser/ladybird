@@ -1,0 +1,23 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 13 tests
+
+13 Pass
+Details
+Result	Test Name	MessagePass	Should throw if no name is provided	
+Pass	Null name should not throw	
+Pass	Undefined name should not throw	
+Pass	Non-empty name should not throw	
+Pass	Non-string name should not throw	
+Pass	postMessage without parameters should throw	
+Pass	postMessage with null should not throw	
+Pass	close should not throw	
+Pass	close should not throw when called multiple times	
+Pass	postMessage after close should throw	
+Pass	BroadcastChannel should have an onmessage event	
+Pass	postMessage should throw with uncloneable data	
+Pass	postMessage should throw InvalidStateError after close, even with uncloneable data	
