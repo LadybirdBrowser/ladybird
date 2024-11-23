@@ -5397,7 +5397,7 @@ WebIDL::ExceptionOr<JS::Value> structured_clone(JS::Realm& realm, JS::Value valu
     auto serialized = TRY(HTML::structured_serialize(vm, value));
 
     // 2. Return ? StructuredDeserialize(serialized, the current Realm).
-    return TRY(HTML::structured_deserialize(vm, serialized, realm, {}));
+    return TRY(HTML::structured_deserialize(vm, serialized, realm));
 }
 
 // https://streams.spec.whatwg.org/#close-sentinel

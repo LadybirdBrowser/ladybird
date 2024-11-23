@@ -298,7 +298,7 @@ WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMeasure>> Performance::measur
         auto record = TRY(HTML::structured_serialize(vm, start_or_measure_options_dictionary_object->detail));
 
         // 2. Set entry's detail to the result of calling the StructuredDeserialize algorithm on record and the current realm.
-        detail = TRY(HTML::structured_deserialize(vm, record, realm, Optional<HTML::DeserializationMemory> {}));
+        detail = TRY(HTML::structured_deserialize(vm, record, realm));
     }
 
     // 2. Otherwise, set it to null.

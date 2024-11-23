@@ -135,7 +135,7 @@ WebIDL::ExceptionOr<JS::Value> NavigationHistoryEntry::get_state()
     // 2. Return StructuredDeserialize(this's session history entry's navigation API state). Rethrow any exceptions.
     //    NOTE: This can in theory throw an exception, if attempting to deserialize a large ArrayBuffer
     //          when not enough memory is available.
-    return structured_deserialize(vm(), m_session_history_entry->navigation_api_state(), realm(), {});
+    return structured_deserialize(vm(), m_session_history_entry->navigation_api_state(), realm());
 }
 
 void NavigationHistoryEntry::set_ondispose(WebIDL::CallbackType* event_handler)

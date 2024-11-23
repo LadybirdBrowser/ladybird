@@ -87,7 +87,7 @@ bool NavigationDestination::same_document() const
 WebIDL::ExceptionOr<JS::Value> NavigationDestination::get_state()
 {
     // The getState() method steps are to return StructuredDeserialize(this's state).
-    return structured_deserialize(vm(), m_state, realm(), {});
+    return structured_deserialize(vm(), m_state, realm());
 }
 
 }
