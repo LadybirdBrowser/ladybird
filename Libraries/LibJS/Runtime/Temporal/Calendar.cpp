@@ -452,6 +452,8 @@ ThrowCompletionOr<String> to_temporal_calendar_identifier(VM& vm, Value temporal
         //    internal slot, then
         //     i. Return temporalCalendarLike.[[Calendar]].
         // FIXME: Add the other calendar-holding types as we define them.
+        if (is<PlainDate>(temporal_calendar_object))
+            return static_cast<PlainDate const&>(temporal_calendar_object).calendar();
         if (is<PlainMonthDay>(temporal_calendar_object))
             return static_cast<PlainMonthDay const&>(temporal_calendar_object).calendar();
         if (is<PlainYearMonth>(temporal_calendar_object))
@@ -476,6 +478,8 @@ ThrowCompletionOr<String> get_temporal_calendar_identifier_with_iso_default(VM& 
     //    [[InitializedTemporalYearMonth]], or [[InitializedTemporalZonedDateTime]] internal slot, then
     //     a. Return item.[[Calendar]].
     // FIXME: Add the other calendar-holding types as we define them.
+    if (is<PlainDate>(item))
+        return static_cast<PlainDate const&>(item).calendar();
     if (is<PlainMonthDay>(item))
         return static_cast<PlainMonthDay const&>(item).calendar();
     if (is<PlainYearMonth>(item))

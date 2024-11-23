@@ -624,6 +624,8 @@ ThrowCompletionOr<bool> is_partial_temporal_object(VM& vm, Value value)
     //    [[InitializedTemporalTime]], [[InitializedTemporalYearMonth]], or [[InitializedTemporalZonedDateTime]] internal
     //    slot, return false.
     // FIXME: Add the other types as we define them.
+    if (is<PlainDate>(object))
+        return false;
     if (is<PlainMonthDay>(object))
         return false;
     if (is<PlainYearMonth>(object))
