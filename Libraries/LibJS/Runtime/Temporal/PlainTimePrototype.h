@@ -29,6 +29,9 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(millisecond_getter);
     JS_DECLARE_NATIVE_FUNCTION(microsecond_getter);
     JS_DECLARE_NATIVE_FUNCTION(nanosecond_getter);
+    JS_DECLARE_NATIVE_FUNCTION(to_string);
+    JS_DECLARE_NATIVE_FUNCTION(to_locale_string);
+    JS_DECLARE_NATIVE_FUNCTION(to_json);
 };
 
 }

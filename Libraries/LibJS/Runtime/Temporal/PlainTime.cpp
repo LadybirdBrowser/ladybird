@@ -441,6 +441,16 @@ ThrowCompletionOr<TemporalTimeLike> to_temporal_time_record(VM& vm, Object const
     return result;
 }
 
+// 4.5.13 TimeRecordToString ( time, precision ), https://tc39.es/proposal-temporal/#sec-temporal-timerecordtostring
+String time_record_to_string(Time const& time, SecondsStringPrecision::Precision precision)
+{
+    // 1. Let subSecondNanoseconds be time.[[Millisecond]] × 10**6 + time.[[Microsecond]] × 10**3 + time.[[Nanosecond]].
+    auto sub_second_nanoseconds = (static_cast<u64>(time.millisecond) * 1'000'000) + (static_cast<u64>(time.microsecond) * 1000) + static_cast<u64>(time.nanosecond);
+
+    // 2. Return FormatTimeString(time.[[Hour]], time.[[Minute]], time.[[Second]], subSecondNanoseconds, precision).
+    return format_time_string(time.hour, time.minute, time.second, sub_second_nanoseconds, precision);
+}
+
 // 4.5.14 CompareTimeRecord ( time1, time2 ), https://tc39.es/proposal-temporal/#sec-temporal-comparetimerecord
 i8 compare_time_record(Time const& time1, Time const& time2)
 {
@@ -497,6 +507,103 @@ Time add_time(Time const& time, TimeDuration const& time_duration)
 
     // 1. Return BalanceTime(time.[[Hour]], time.[[Minute]], time.[[Second]], time.[[Millisecond]], time.[[Microsecond]], time.[[Nanosecond]] + timeDuration).
     return balance_time(time.hour, time.minute, time.second, time.millisecond, time.microsecond, nanoseconds);
+}
+
+// 4.5.16 RoundTime ( time, increment, unit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-roundtime
+Time round_time(Time const& time, u64 increment, Unit unit, RoundingMode rounding_mode)
+{
+    double quantity = 0;
+
+    switch (unit) {
+    // 1. If unit is DAY or HOUR, then
+    case Unit::Day:
+    case Unit::Hour:
+        // a. Let quantity be ((((time.[[Hour]] × 60 + time.[[Minute]]) × 60 + time.[[Second]]) × 1000 + time.[[Millisecond]]) × 1000 + time.[[Microsecond]]) × 1000 + time.[[Nanosecond]].
+        quantity = ((((time.hour * 60.0 + time.minute) * 60.0 + time.second) * 1000.0 + time.millisecond) * 1000.0 + time.microsecond) * 1000.0 + time.nanosecond;
+        break;
+
+    // 2. Else if unit is MINUTE, then
+    case Unit::Minute:
+        // a. Let quantity be (((time.[[Minute]] × 60 + time.[[Second]]) × 1000 + time.[[Millisecond]]) × 1000 + time.[[Microsecond]]) × 1000 + time.[[Nanosecond]].
+        quantity = (((time.minute * 60.0 + time.second) * 1000.0 + time.millisecond) * 1000.0 + time.microsecond) * 1000.0 + time.nanosecond;
+        break;
+
+    // 3. Else if unit is SECOND, then
+    case Unit::Second:
+        // a. Let quantity be ((time.[[Second]] × 1000 + time.[[Millisecond]]) × 1000 + time.[[Microsecond]]) × 1000 + time.[[Nanosecond]].
+        quantity = ((time.second * 1000.0 + time.millisecond) * 1000.0 + time.microsecond) * 1000.0 + time.nanosecond;
+        break;
+
+    // 4. Else if unit is MILLISECOND, then
+    case Unit::Millisecond:
+        // a. Let quantity be (time.[[Millisecond]] × 1000 + time.[[Microsecond]]) × 1000 + time.[[Nanosecond]].
+        quantity = (time.millisecond * 1000.0 + time.microsecond) * 1000.0 + time.nanosecond;
+        break;
+
+    // 5. Else if unit is MICROSECOND, then
+    case Unit::Microsecond:
+        // a. Let quantity be time.[[Microsecond]] × 1000 + time.[[Nanosecond]].
+        quantity = time.microsecond * 1000.0 + time.nanosecond;
+        break;
+
+    // 6. Else,
+    case Unit::Nanosecond:
+        // a. Assert: unit is NANOSECOND.
+        // b. Let quantity be time.[[Nanosecond]].
+        quantity = time.nanosecond;
+        break;
+
+    default:
+        VERIFY_NOT_REACHED();
+    }
+
+    // 7. Let unitLength be the value in the "Length in Nanoseconds" column of the row of Table 21 whose "Value" column contains unit.
+    auto unit_length = temporal_unit_length_in_nanoseconds(unit).to_u64();
+
+    // 8. Let result be RoundNumberToIncrement(quantity, increment × unitLength, roundingMode) / unitLength.
+    auto result = round_number_to_increment(quantity, increment * unit_length, rounding_mode) / static_cast<double>(unit_length);
+
+    switch (unit) {
+    // 9. If unit is DAY, then
+    case Unit::Day:
+        // a. Return CreateTimeRecord(0, 0, 0, 0, 0, 0, result).
+        return create_time_record(0, 0, 0, 0, 0, 0, result);
+
+    // 10. If unit is HOUR, then
+    case Unit::Hour:
+        // a. Return BalanceTime(result, 0, 0, 0, 0, 0).
+        return balance_time(result, 0, 0, 0, 0, 0);
+
+    // 11. If unit is MINUTE, then
+    case Unit::Minute:
+        // a. Return BalanceTime(time.[[Hour]], result, 0, 0, 0, 0).
+        return balance_time(time.hour, result, 0, 0, 0, 0);
+
+    // 12. If unit is SECOND, then
+    case Unit::Second:
+        // a. Return BalanceTime(time.[[Hour]], time.[[Minute]], result, 0, 0, 0).
+        return balance_time(time.hour, time.minute, result, 0, 0, 0);
+
+    // 13. If unit is MILLISECOND, then
+    case Unit::Millisecond:
+        // a. Return BalanceTime(time.[[Hour]], time.[[Minute]], time.[[Second]], result, 0, 0).
+        return balance_time(time.hour, time.minute, time.second, result, 0, 0);
+
+    // 14. If unit is MICROSECOND, then
+    case Unit::Microsecond:
+        // a. Return BalanceTime(time.[[Hour]], time.[[Minute]], time.[[Second]], time.[[Millisecond]], result, 0).
+        return balance_time(time.hour, time.minute, time.second, time.millisecond, result, 0);
+
+    // 15. Assert: unit is NANOSECOND.
+    case Unit::Nanosecond:
+        // 16. Return BalanceTime(time.[[Hour]], time.[[Minute]], time.[[Second]], time.[[Millisecond]], time.[[Microsecond]], result).
+        return balance_time(time.hour, time.minute, time.second, time.millisecond, time.microsecond, result);
+
+    default:
+        break;
+    }
+
+    VERIFY_NOT_REACHED();
 }
 
 }
