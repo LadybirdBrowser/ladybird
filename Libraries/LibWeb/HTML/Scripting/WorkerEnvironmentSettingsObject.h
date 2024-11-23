@@ -29,11 +29,11 @@ public:
     virtual ~WorkerEnvironmentSettingsObject() override = default;
 
     GC::Ptr<DOM::Document> responsible_document() override { return nullptr; }
-    String api_url_character_encoding() override { return m_api_url_character_encoding; }
-    URL::URL api_base_url() override;
-    URL::Origin origin() override;
-    PolicyContainer policy_container() override;
-    CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() override;
+    String api_url_character_encoding() const override { return m_api_url_character_encoding; }
+    URL::URL api_base_url() const override;
+    URL::Origin origin() const override;
+    PolicyContainer policy_container() const override;
+    CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() const override;
 
 private:
     virtual void visit_edges(JS::Cell::Visitor&) override;

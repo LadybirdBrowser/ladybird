@@ -21,11 +21,11 @@ public:
     virtual ~WindowEnvironmentSettingsObject() override;
 
     virtual GC::Ptr<DOM::Document> responsible_document() override;
-    virtual String api_url_character_encoding() override;
-    virtual URL::URL api_base_url() override;
-    virtual URL::Origin origin() override;
-    virtual PolicyContainer policy_container() override;
-    virtual CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() override;
+    virtual String api_url_character_encoding() const override;
+    virtual URL::URL api_base_url() const override;
+    virtual URL::Origin origin() const override;
+    virtual PolicyContainer policy_container() const override;
+    virtual CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() const override;
 
 private:
     WindowEnvironmentSettingsObject(Window&, NonnullOwnPtr<JS::ExecutionContext>);
