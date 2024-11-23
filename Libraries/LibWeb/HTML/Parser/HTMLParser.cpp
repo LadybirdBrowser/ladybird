@@ -519,25 +519,51 @@ DOM::QuirksMode HTMLParser::which_quirks_mode(HTMLToken const& doctype_token) co
     return DOM::QuirksMode::No;
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#the-initial-insertion-mode
 void HTMLParser::handle_initial(HTMLToken& token)
 {
+    // -> A character token that is one of U+0009 CHARACTER TABULATION, U+000A LINE FEED (LF),
+    //    U+000C FORM FEED (FF), U+000D CARRIAGE RETURN (CR), or U+0020 SPACE
     if (token.is_character() && token.is_parser_whitespace()) {
         return;
     }
 
+    // -> A comment token
     if (token.is_comment()) {
+        // Insert a comment as the last child of the Document object.
         auto comment = realm().create<DOM::Comment>(document(), token.comment());
         MUST(document().append_child(*comment));
         return;
     }
 
+    // -> A DOCTYPE token
     if (token.is_doctype()) {
+        // If the DOCTYPE token's name is not "html", or the token's public identifier is not missing,
+        // or the token's system identifier is neither missing nor "about:legacy-compat", then there is a parse error.
+        if (token.doctype_data().name != "html" || !token.doctype_data().missing_public_identifier || (!token.doctype_data().missing_system_identifier && token.doctype_data().system_identifier != "about:legacy-compat")) {
+            log_parse_error();
+        }
+
+        // Append a DocumentType node to the Document node, with its name set to the name given in the DOCTYPE token,
+        // or the empty string if the name was missing; its public ID set to the public identifier given in the DOCTYPE token,
+        // or the empty string if the public identifier was missing; and its system ID set to the system identifier
+        // given in the DOCTYPE token, or the empty string if the system identifier was missing.
+
         auto doctype = realm().create<DOM::DocumentType>(document());
         doctype->set_name(token.doctype_data().name);
         doctype->set_public_id(token.doctype_data().public_identifier);
         doctype->set_system_id(token.doctype_data().system_identifier);
         MUST(document().append_child(*doctype));
+
+        // Then, if the document is not an iframe srcdoc document, and the parser cannot change the mode flag is false,
+        // and the DOCTYPE token matches one of the conditions in the following list, then set the Document to quirks mode:
+        // [...]
+        // Otherwise, if the document is not an iframe srcdoc document, and the parser cannot change the mode flag is false,
+        // and the DOCTYPE token matches one of the conditions in the following list, then set the Document to limited-quirks mode:
+        // [...]
         document().set_quirks_mode(which_quirks_mode(token));
+
+        // Then, switch the insertion mode to "before html".
         m_insertion_mode = InsertionMode::BeforeHTML;
         return;
     }
