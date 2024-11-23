@@ -32,6 +32,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(axis)                       \
     __ENUMERATE_HTML_ATTRIBUTE(background)                 \
     __ENUMERATE_HTML_ATTRIBUTE(behavior)                   \
+    __ENUMERATE_HTML_ATTRIBUTE(bottommargin)               \
     __ENUMERATE_HTML_ATTRIBUTE(bgcolor)                    \
     __ENUMERATE_HTML_ATTRIBUTE(border)                     \
     __ENUMERATE_HTML_ATTRIBUTE(cellpadding)                \
@@ -104,6 +105,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(label)                      \
     __ENUMERATE_HTML_ATTRIBUTE(lang)                       \
     __ENUMERATE_HTML_ATTRIBUTE(language)                   \
+    __ENUMERATE_HTML_ATTRIBUTE(leftmargin)                 \
     __ENUMERATE_HTML_ATTRIBUTE(link)                       \
     __ENUMERATE_HTML_ATTRIBUTE(list)                       \
     __ENUMERATE_HTML_ATTRIBUTE(loading)                    \
@@ -241,6 +243,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(required)                   \
     __ENUMERATE_HTML_ATTRIBUTE(rev)                        \
     __ENUMERATE_HTML_ATTRIBUTE(reversed)                   \
+    __ENUMERATE_HTML_ATTRIBUTE(rightmargin)                \
     __ENUMERATE_HTML_ATTRIBUTE(rows)                       \
     __ENUMERATE_HTML_ATTRIBUTE(rowspan)                    \
     __ENUMERATE_HTML_ATTRIBUTE(rules)                      \
@@ -274,6 +277,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(target)                     \
     __ENUMERATE_HTML_ATTRIBUTE(text)                       \
     __ENUMERATE_HTML_ATTRIBUTE(title)                      \
+    __ENUMERATE_HTML_ATTRIBUTE(topmargin)                  \
     __ENUMERATE_HTML_ATTRIBUTE(truespeed)                  \
     __ENUMERATE_HTML_ATTRIBUTE(type)                       \
     __ENUMERATE_HTML_ATTRIBUTE(usemap)                     \

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,8 +8,10 @@
 #include <LibWeb/CSS/StyleProperties.h>
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLBodyElement.h>
+#include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Node.h>
@@ -57,6 +59,38 @@ void HTMLBodyElement::apply_presentational_hints(CSS::StyleProperties& style) co
             style.set_property(CSS::PropertyID::BackgroundImage, *m_background_style_value);
         }
     });
+
+    auto get_margin_value = [&](auto const& first_body_attr_name, auto const& second_body_attr_name, auto const& container_frame_attr_name) -> Optional<String> {
+        if (auto value = get_attribute(first_body_attr_name); value.has_value())
+            return value.value();
+        if (auto value = get_attribute(second_body_attr_name); value.has_value())
+            return value.value();
+        auto navigable = document().navigable();
+        if (!navigable)
+            return {};
+        auto container = navigable->container();
+        if (!container)
+            return {};
+        if (auto value = container->get_attribute(container_frame_attr_name); value.has_value())
+            return value;
+        return {};
+    };
+    auto margin_top_value = get_margin_value(HTML::AttributeNames::marginheight, HTML::AttributeNames::topmargin, HTML::AttributeNames::marginheight);
+    auto margin_bottom_value = get_margin_value(HTML::AttributeNames::marginheight, HTML::AttributeNames::bottommargin, HTML::AttributeNames::marginheight);
+    auto margin_left_value = get_margin_value(HTML::AttributeNames::marginwidth, HTML::AttributeNames::leftmargin, HTML::AttributeNames::marginwidth);
+    auto margin_right_value = get_margin_value(HTML::AttributeNames::marginwidth, HTML::AttributeNames::rightmargin, HTML::AttributeNames::marginwidth);
+
+    auto apply_margin_value = [&](CSS::PropertyID property_id, Optional<String> const& value) {
+        if (!value.has_value())
+            return;
+        if (auto parsed_value = parse_non_negative_integer(value.value()); parsed_value.has_value())
+            style.set_property(property_id, CSS::LengthStyleValue::create(CSS::Length::make_px(*parsed_value)));
+    };
+
+    apply_margin_value(CSS::PropertyID::MarginTop, margin_top_value);
+    apply_margin_value(CSS::PropertyID::MarginBottom, margin_bottom_value);
+    apply_margin_value(CSS::PropertyID::MarginLeft, margin_left_value);
+    apply_margin_value(CSS::PropertyID::MarginRight, margin_right_value);
 }
 
 void HTMLBodyElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
