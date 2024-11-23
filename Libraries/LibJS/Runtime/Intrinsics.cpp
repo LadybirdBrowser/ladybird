@@ -103,6 +103,8 @@
 #include <LibJS/Runtime/Temporal/DurationPrototype.h>
 #include <LibJS/Runtime/Temporal/PlainDateConstructor.h>
 #include <LibJS/Runtime/Temporal/PlainDatePrototype.h>
+#include <LibJS/Runtime/Temporal/PlainDateTimeConstructor.h>
+#include <LibJS/Runtime/Temporal/PlainDateTimePrototype.h>
 #include <LibJS/Runtime/Temporal/PlainMonthDayConstructor.h>
 #include <LibJS/Runtime/Temporal/PlainMonthDayPrototype.h>
 #include <LibJS/Runtime/Temporal/PlainTimeConstructor.h>

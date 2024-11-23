@@ -15,6 +15,7 @@
 #include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/ISO8601.h>
 #include <LibJS/Runtime/Temporal/PlainDate.h>
+#include <LibJS/Runtime/Temporal/PlainDateTime.h>
 #include <LibJS/Runtime/Temporal/PlainMonthDay.h>
 #include <LibJS/Runtime/Temporal/PlainYearMonth.h>
 #include <LibJS/Runtime/Temporal/TimeZone.h>
@@ -454,6 +455,8 @@ ThrowCompletionOr<String> to_temporal_calendar_identifier(VM& vm, Value temporal
         // FIXME: Add the other calendar-holding types as we define them.
         if (is<PlainDate>(temporal_calendar_object))
             return static_cast<PlainDate const&>(temporal_calendar_object).calendar();
+        if (is<PlainDateTime>(temporal_calendar_object))
+            return static_cast<PlainDateTime const&>(temporal_calendar_object).calendar();
         if (is<PlainMonthDay>(temporal_calendar_object))
             return static_cast<PlainMonthDay const&>(temporal_calendar_object).calendar();
         if (is<PlainYearMonth>(temporal_calendar_object))
@@ -480,6 +483,8 @@ ThrowCompletionOr<String> get_temporal_calendar_identifier_with_iso_default(VM& 
     // FIXME: Add the other calendar-holding types as we define them.
     if (is<PlainDate>(item))
         return static_cast<PlainDate const&>(item).calendar();
+    if (is<PlainDateTime>(item))
+        return static_cast<PlainDateTime const&>(item).calendar();
     if (is<PlainMonthDay>(item))
         return static_cast<PlainMonthDay const&>(item).calendar();
     if (is<PlainYearMonth>(item))

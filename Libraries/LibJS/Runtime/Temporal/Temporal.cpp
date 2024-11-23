@@ -8,6 +8,7 @@
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Temporal/DurationConstructor.h>
 #include <LibJS/Runtime/Temporal/PlainDateConstructor.h>
+#include <LibJS/Runtime/Temporal/PlainDateTimeConstructor.h>
 #include <LibJS/Runtime/Temporal/PlainMonthDayConstructor.h>
 #include <LibJS/Runtime/Temporal/PlainTimeConstructor.h>
 #include <LibJS/Runtime/Temporal/PlainYearMonthConstructor.h>
@@ -35,6 +36,7 @@ void Temporal::initialize(Realm& realm)
     u8 attr = Attribute::Writable | Attribute::Configurable;
     define_intrinsic_accessor(vm.names.Duration, attr, [](auto& realm) -> Value { return realm.intrinsics().temporal_duration_constructor(); });
     define_intrinsic_accessor(vm.names.PlainDate, attr, [](auto& realm) -> Value { return realm.intrinsics().temporal_plain_date_constructor(); });
+    define_intrinsic_accessor(vm.names.PlainDateTime, attr, [](auto& realm) -> Value { return realm.intrinsics().temporal_plain_date_time_constructor(); });
     define_intrinsic_accessor(vm.names.PlainMonthDay, attr, [](auto& realm) -> Value { return realm.intrinsics().temporal_plain_month_day_constructor(); });
     define_intrinsic_accessor(vm.names.PlainTime, attr, [](auto& realm) -> Value { return realm.intrinsics().temporal_plain_time_constructor(); });
     define_intrinsic_accessor(vm.names.PlainYearMonth, attr, [](auto& realm) -> Value { return realm.intrinsics().temporal_plain_year_month_constructor(); });

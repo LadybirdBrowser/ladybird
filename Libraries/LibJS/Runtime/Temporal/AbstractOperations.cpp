@@ -431,11 +431,18 @@ ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM& vm, Object con
             return RelativeTo { .plain_relative_to = static_cast<PlainDate&>(object), .zoned_relative_to = {} };
         }
 
-        // FIXME: c. If value has an [[InitializedTemporalDateTime]] internal slot, then
-        // FIXME:     i. Let plainDate be ! CreateTemporalDate(value.[[ISODateTime]].[[ISODate]], value.[[Calendar]]).
-        // FIXME:     ii. Return the Record { [[PlainRelativeTo]]: plainDate, [[ZonedRelativeTo]]: undefined }.
+        // c. If value has an [[InitializedTemporalDateTime]] internal slot, then
+        if (is<PlainDateTime>(object)) {
+            auto const& plain_date_time = static_cast<PlainDateTime const&>(object);
 
-        // FIXME: d. Let calendar be ? GetTemporalCalendarIdentifierWithISODefault(value).
+            // i. Let plainDate be ! CreateTemporalDate(value.[[ISODateTime]].[[ISODate]], value.[[Calendar]]).
+            auto plain_date = MUST(create_temporal_date(vm, plain_date_time.iso_date_time().iso_date, plain_date_time.calendar()));
+
+            // ii. Return the Record { [[PlainRelativeTo]]: plainDate, [[ZonedRelativeTo]]: undefined }.
+            return RelativeTo { .plain_relative_to = plain_date, .zoned_relative_to = {} };
+        }
+
+        // d. Let calendar be ? GetTemporalCalendarIdentifierWithISODefault(value).
         calendar = TRY(get_temporal_calendar_identifier_with_iso_default(vm, object));
 
         // e. Let fields be ? PrepareCalendarFields(calendar, value, « YEAR, MONTH, MONTH-CODE, DAY », « HOUR, MINUTE, SECOND, MILLISECOND, MICROSECOND, NANOSECOND, OFFSET, TIME-ZONE », «»).
@@ -625,6 +632,8 @@ ThrowCompletionOr<bool> is_partial_temporal_object(VM& vm, Value value)
     //    slot, return false.
     // FIXME: Add the other types as we define them.
     if (is<PlainDate>(object))
+        return false;
+    if (is<PlainDateTime>(object))
         return false;
     if (is<PlainMonthDay>(object))
         return false;
