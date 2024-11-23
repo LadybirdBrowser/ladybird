@@ -1201,7 +1201,7 @@ void FlexFormattingContext::calculate_cross_size_of_each_flex_line()
     }
 }
 
-// https://www.w3.org/TR/css-flexbox-1/#cross-sizing
+// https://www.w3.org/TR/css-flexbox-1/#algo-stretch
 void FlexFormattingContext::determine_used_cross_size_of_each_flex_item()
 {
     for (auto& flex_line : m_flex_lines) {
