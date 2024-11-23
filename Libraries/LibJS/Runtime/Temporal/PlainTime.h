@@ -63,6 +63,7 @@ String time_record_to_string(Time const&, SecondsStringPrecision::Precision);
 i8 compare_time_record(Time const&, Time const&);
 Time add_time(Time const&, TimeDuration const& time_duration);
 Time round_time(Time const&, u64 increment, Unit, RoundingMode);
+ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_time(VM&, DurationOperation, PlainTime const&, Value other, Value options);
 ThrowCompletionOr<GC::Ref<PlainTime>> add_duration_to_time(VM&, ArithmeticOperation, PlainTime const&, Value temporal_duration_like);
 
 }
