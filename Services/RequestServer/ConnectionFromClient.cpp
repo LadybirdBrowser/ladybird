@@ -605,7 +605,7 @@ void ConnectionFromClient::ensure_connection(URL::URL const& url, ::RequestServe
             Core::ElapsedTimer timer;
             timer.start();
             promise->when_resolved([url, timer](auto const& results) -> ErrorOr<void> {
-                dbgln("ensure_connection::ResolveOnly({}) OK {} entrie(s) in {}ms", url, results->cached_addresses().size(), timer.elapsed());
+                dbgln("ensure_connection::ResolveOnly({}) OK {} entrie(s) in {}ms", url, results->cached_addresses().size(), timer.elapsed_milliseconds());
                 return {};
             });
             promise->when_rejected([url](auto const&) { dbgln("ensure_connection::ResolveOnly({}) rejected", url); });

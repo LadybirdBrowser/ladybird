@@ -31,12 +31,6 @@ public:
     i64 elapsed_milliseconds() const;
     AK::Duration elapsed_time() const;
 
-    // FIXME: Move callers to elapsed_milliseconds(), remove this.
-    i64 elapsed() const // milliseconds
-    {
-        return elapsed_milliseconds();
-    }
-
     MonotonicTime const& origin_time() const { return m_origin_time; }
 
 private:
