@@ -815,15 +815,17 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
 
     // 18. For each navigable of nonchangingNavigablesThatStillNeedUpdates, queue a global task on the navigation and traversal task source given navigable's active window to run the steps:
     for (auto& navigable : non_changing_navigables_that_still_need_updates) {
-        if (navigable->has_been_destroyed()) {
+        // AD-HOC: This check is not in the spec but we should not continue navigation if navigable has been destroyed,
+        //         or if there's no active window.
+        if (navigable->has_been_destroyed() || !navigable->active_window()) {
             ++completed_non_changing_jobs;
             continue;
         }
 
-        VERIFY(navigable->active_window());
         queue_global_task(Task::Source::NavigationAndTraversal, *navigable->active_window(), GC::create_function(heap(), [&] {
-            // NOTE: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
-            if (navigable->has_been_destroyed()) {
+            // AD-HOC: This check is not in the spec but we should not continue navigation if navigable has been destroyed,
+            //         or if there's no active window.
+            if (navigable->has_been_destroyed() || !navigable->active_window()) {
                 ++completed_non_changing_jobs;
                 return;
             }
