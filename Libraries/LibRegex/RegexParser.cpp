@@ -1627,9 +1627,14 @@ bool ECMA262Parser::parse_atom_escape(ByteCode& stack, size_t& match_length_mini
             set_error(Error::InvalidNameForCaptureGroup);
             return false;
         }
-        match_length_minimum += maybe_capture_group->minimum_length;
+        auto maybe_length = m_parser_state.capture_group_minimum_lengths.get(maybe_capture_group.value());
+        if (!maybe_length.has_value()) {
+            set_error(Error::InvalidNameForCaptureGroup);
+            return false;
+        }
+        match_length_minimum += maybe_length.value();
 
-        stack.insert_bytecode_compare_values({ { CharacterCompareType::Reference, (ByteCodeValueType)maybe_capture_group->group_index } });
+        stack.insert_bytecode_compare_values({ { CharacterCompareType::Reference, (ByteCodeValueType)maybe_capture_group.value() } });
         return true;
     }
 
@@ -2674,6 +2679,8 @@ bool ECMA262Parser::parse_capture_group(ByteCode& stack, size_t& match_length_mi
                 return false;
             }
 
+            m_parser_state.named_capture_groups.set(name, group_index);
+
             ByteCode capture_group_bytecode;
             size_t length = 0;
             enter_capture_group_scope();
@@ -2693,7 +2700,6 @@ bool ECMA262Parser::parse_capture_group(ByteCode& stack, size_t& match_length_mi
             match_length_minimum += length;
 
             m_parser_state.capture_group_minimum_lengths.set(group_index, length);
-            m_parser_state.named_capture_groups.set(name, { group_index, length });
             return true;
         }
 
