@@ -35,6 +35,8 @@ void PlainTimePrototype::initialize(Realm& realm)
     define_native_accessor(realm, vm.names.nanosecond, nanosecond_getter, {}, Attribute::Configurable);
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
+    define_native_function(realm, vm.names.add, add, 1, attr);
+    define_native_function(realm, vm.names.subtract, subtract, 1, attr);
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
     define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
@@ -66,6 +68,32 @@ void PlainTimePrototype::initialize(Realm& realm)
     }
 JS_ENUMERATE_PLAIN_TIME_FIELDS
 #undef __JS_ENUMERATE
+
+// 4.3.9 Temporal.PlainTime.prototype.add ( temporalDurationLike ), https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.add
+JS_DEFINE_NATIVE_FUNCTION(PlainTimePrototype::add)
+{
+    auto temporal_duration_like = vm.argument(0);
+
+    // 1. Let temporalTime be the this value.
+    // 2. Perform ? RequireInternalSlot(temporalTime, [[InitializedTemporalTime]]).
+    auto temporal_time = TRY(typed_this_object(vm));
+
+    // 3. Return ? AddDurationToTime(ADD, temporalTime, temporalDurationLike).
+    return TRY(add_duration_to_time(vm, ArithmeticOperation::Add, temporal_time, temporal_duration_like));
+}
+
+// 4.3.10 Temporal.PlainTime.prototype.subtract ( temporalDurationLike ), https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.subtract
+JS_DEFINE_NATIVE_FUNCTION(PlainTimePrototype::subtract)
+{
+    auto temporal_duration_like = vm.argument(0);
+
+    // 1. Let temporalTime be the this value.
+    // 2. Perform ? RequireInternalSlot(temporalTime, [[InitializedTemporalTime]]).
+    auto temporal_time = TRY(typed_this_object(vm));
+
+    // 3. Return ? AddDurationToTime(SUBTRACT, temporalTime, temporalDurationLike).
+    return TRY(add_duration_to_time(vm, ArithmeticOperation::Subtract, temporal_time, temporal_duration_like));
+}
 
 // 4.3.16 Temporal.PlainTime.prototype.toString ( [ options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.tostring
 JS_DEFINE_NATIVE_FUNCTION(PlainTimePrototype::to_string)
