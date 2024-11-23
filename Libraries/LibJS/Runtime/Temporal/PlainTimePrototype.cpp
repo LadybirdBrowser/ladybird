@@ -38,6 +38,7 @@ void PlainTimePrototype::initialize(Realm& realm)
     u8 attr = Attribute::Writable | Attribute::Configurable;
     define_native_function(realm, vm.names.add, add, 1, attr);
     define_native_function(realm, vm.names.subtract, subtract, 1, attr);
+    define_native_function(realm, vm.names.with, with, 1, attr);
     define_native_function(realm, vm.names.until, until, 1, attr);
     define_native_function(realm, vm.names.since, since, 1, attr);
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
@@ -96,6 +97,72 @@ JS_DEFINE_NATIVE_FUNCTION(PlainTimePrototype::subtract)
 
     // 3. Return ? AddDurationToTime(SUBTRACT, temporalTime, temporalDurationLike).
     return TRY(add_duration_to_time(vm, ArithmeticOperation::Subtract, temporal_time, temporal_duration_like));
+}
+
+// 4.3.11 Temporal.PlainTime.prototype.with ( temporalTimeLike [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.with
+JS_DEFINE_NATIVE_FUNCTION(PlainTimePrototype::with)
+{
+    auto temporal_time_like = vm.argument(0);
+    auto options = vm.argument(1);
+
+    // 1. Let temporalTime be the this value.
+    // 2. Perform ? RequireInternalSlot(temporalTime, [[InitializedTemporalTime]]).
+    auto temporal_time = TRY(typed_this_object(vm));
+
+    // 3. If ? IsPartialTemporalObject(temporalTimeLike) is false, throw a TypeError exception.
+    if (!TRY(is_partial_temporal_object(vm, temporal_time_like)))
+        return vm.throw_completion<TypeError>(ErrorType::TemporalObjectMustBePartialTemporalObject);
+
+    // 4. Let partialTime be ? ToTemporalTimeRecord(temporalTimeLike, PARTIAL).
+    auto partial_time = TRY(to_temporal_time_record(vm, temporal_time_like.as_object(), Completeness::Partial));
+
+    // 5. If partialTime.[[Hour]] is not undefined, then
+    //     a. Let hour be partialTime.[[Hour]].
+    // 6. Else,
+    //     a. Let hour be temporalTime.[[Time]].[[Hour]].
+    auto hour = partial_time.hour.value_or(temporal_time->time().hour);
+
+    // 7. If partialTime.[[Minute]] is not undefined, then
+    //     a. Let minute be partialTime.[[Minute]].
+    // 8. Else,
+    //     a. Let minute be temporalTime.[[Time]].[[Minute]].
+    auto minute = partial_time.minute.value_or(temporal_time->time().minute);
+
+    // 9. If partialTime.[[Second]] is not undefined, then
+    //     a. Let second be partialTime.[[Second]].
+    // 10. Else,
+    //     a. Let second be temporalTime.[[Time]].[[Second]].
+    auto second = partial_time.second.value_or(temporal_time->time().second);
+
+    // 11. If partialTime.[[Millisecond]] is not undefined, then
+    //     a. Let millisecond be partialTime.[[Millisecond]].
+    // 12. Else,
+    //     a. Let millisecond be temporalTime.[[Time]].[[Millisecond]].
+    auto millisecond = partial_time.millisecond.value_or(temporal_time->time().millisecond);
+
+    // 13. If partialTime.[[Microsecond]] is not undefined, then
+    //     a. Let microsecond be partialTime.[[Microsecond]].
+    // 14. Else,
+    //     a. Let microsecond be temporalTime.[[Time]].[[Microsecond]].
+    auto microsecond = partial_time.microsecond.value_or(temporal_time->time().microsecond);
+
+    // 15. If partialTime.[[Nanosecond]] is not undefined, then
+    //     a. Let nanosecond be partialTime.[[Nanosecond]].
+    // 16. Else,
+    //     a. Let nanosecond be temporalTime.[[Time]].[[Nanosecond]].
+    auto nanosecond = partial_time.nanosecond.value_or(temporal_time->time().nanosecond);
+
+    // 17. Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolved_options = TRY(get_options_object(vm, options));
+
+    // 18. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+    auto overflow = TRY(get_temporal_overflow_option(vm, resolved_options));
+
+    // 19. Let result be ? RegulateTime(hour, minute, second, millisecond, microsecond, nanosecond, overflow).
+    auto result = TRY(regulate_time(vm, hour, minute, second, millisecond, microsecond, nanosecond, overflow));
+
+    // 20. Return ! CreateTemporalTime(result).
+    return MUST(create_temporal_time(vm, result));
 }
 
 // 4.3.12 Temporal.PlainTime.prototype.until ( other [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.until
