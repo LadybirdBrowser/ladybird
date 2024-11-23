@@ -158,7 +158,7 @@ RoundingIncrement maximum_temporal_duration_rounding_increment(Unit);
 Crypto::UnsignedBigInteger const& temporal_unit_length_in_nanoseconds(Unit);
 ThrowCompletionOr<bool> is_partial_temporal_object(VM&, Value);
 String format_fractional_seconds(u64, Precision);
-String format_time_string(u8 hour, u8 minute, u8 second, u16 sub_second_nanoseconds, SecondsStringPrecision::Precision, Optional<TimeStyle> = {});
+String format_time_string(u8 hour, u8 minute, u8 second, u64 sub_second_nanoseconds, SecondsStringPrecision::Precision, Optional<TimeStyle> = {});
 UnsignedRoundingMode get_unsigned_rounding_mode(RoundingMode, Sign);
 double apply_unsigned_rounding_mode(double, double r1, double r2, UnsignedRoundingMode);
 Crypto::SignedBigInteger apply_unsigned_rounding_mode(Crypto::SignedDivisionResult const&, Crypto::SignedBigInteger const& r1, Crypto::SignedBigInteger const& r2, UnsignedRoundingMode, Crypto::UnsignedBigInteger const& increment);

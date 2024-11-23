@@ -684,7 +684,7 @@ String format_fractional_seconds(u64 sub_second_nanoseconds, Precision precision
 }
 
 // 13.25 FormatTimeString ( hour, minute, second, subSecondNanoseconds, precision [ , style ] ), https://tc39.es/proposal-temporal/#sec-temporal-formattimestring
-String format_time_string(u8 hour, u8 minute, u8 second, u16 sub_second_nanoseconds, SecondsStringPrecision::Precision precision, Optional<TimeStyle> style)
+String format_time_string(u8 hour, u8 minute, u8 second, u64 sub_second_nanoseconds, SecondsStringPrecision::Precision precision, Optional<TimeStyle> style)
 {
     // 1. If style is present and style is UNSEPARATED, let separator be the empty String; otherwise, let separator be ":".
     auto separator = style == TimeStyle::Unseparated ? ""sv : ":"sv;
