@@ -56,6 +56,15 @@ public:
     {
     }
 
+    template<typename T>
+    requires(Detail::IsConstructible<JsonValue, T>)
+    JsonValue(Optional<T> value)
+        : JsonValue()
+    {
+        if (value.has_value())
+            exchange(*this, value.release_value());
+    }
+
     JsonValue(JsonArray const&);
     JsonValue(JsonObject const&);
 
