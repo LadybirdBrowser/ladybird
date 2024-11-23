@@ -30,12 +30,14 @@ namespace Web::HTML {
         SWITCH_TO_WITH_UNCLEAN_BUILDER(new_state); \
     } while (0)
 
-#define SWITCH_TO_WITH_UNCLEAN_BUILDER(new_state) \
-    do {                                          \
-        will_switch_to(State::new_state);         \
-        m_state = State::new_state;               \
-        CONSUME_NEXT_INPUT_CHARACTER;             \
-        goto new_state;                           \
+#define SWITCH_TO_WITH_UNCLEAN_BUILDER(new_state)                                                 \
+    do {                                                                                          \
+        will_switch_to(State::new_state);                                                         \
+        m_state = State::new_state;                                                               \
+        if (stop_at_insertion_point == StopAtInsertionPoint::Yes && is_insertion_point_reached()) \
+            return {};                                                                            \
+        CONSUME_NEXT_INPUT_CHARACTER;                                                             \
+        goto new_state;                                                                           \
     } while (0)
 
 #define RECONSUME_IN(new_state)              \

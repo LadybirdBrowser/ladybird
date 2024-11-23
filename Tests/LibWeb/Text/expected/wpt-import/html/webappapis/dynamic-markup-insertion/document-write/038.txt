@@ -6,6 +6,6 @@ Rerun
 
 Found 1 tests
 
-1 Fail
+1 Pass
 Details
-Result	Test Name	MessageFail	document.write	Cannot access property "childNodes" on null object "document.body"
+Result	Test Name	MessagePass	document.write	

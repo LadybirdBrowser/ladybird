@@ -6,9 +6,9 @@ Rerun
 
 Found 3 tests
 
-1 Pass
-2 Fail
+2 Pass
+1 Fail
 Details
-Result	Test Name	MessageFail	Check number of divs	
+Result	Test Name	MessagePass	Check number of divs	
 Pass	Check div structure: network	
-Fail	Check div structure: document.write	Cannot access property "childNodes" on undefined object "div"
+Fail	Check div structure: document.write	
