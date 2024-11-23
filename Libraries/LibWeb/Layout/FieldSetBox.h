@@ -8,7 +8,7 @@
 
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/BlockContainer.h>
-
+#include <LibWeb/Painting/FieldSetPaintable.h>
 namespace Web::Layout {
 
 class FieldSetBox final : public BlockContainer {
@@ -22,10 +22,10 @@ public:
     DOM::Element& dom_node() { return static_cast<DOM::Element&>(*BlockContainer::dom_node()); }
     DOM::Element const& dom_node() const { return static_cast<DOM::Element const&>(*BlockContainer::dom_node()); }
 
-    void layout_legend() const;
+    bool has_rendered_legend() const;
+    virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 
 private:
-    bool has_rendered_legend() const;
     virtual bool is_fieldset_box() const final
     {
         return true;
