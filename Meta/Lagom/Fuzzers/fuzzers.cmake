@@ -29,7 +29,6 @@ set(FUZZER_TARGETS
     SHA256
     SHA384
     SHA512
-    Tar
     TextDecoder
     TIFFLoader
     TinyVGLoader
@@ -39,7 +38,6 @@ set(FUZZER_TARGETS
     WOFF
     WOFF2
     XML
-    Zip
     ZlibDecompression
 )
 
@@ -62,7 +60,7 @@ set(FUZZER_DEPENDENCIES_ICCProfile LibGfx)
 set(FUZZER_DEPENDENCIES_ICOLoader LibGfx)
 set(FUZZER_DEPENDENCIES_JPEGLoader LibGfx)
 set(FUZZER_DEPENDENCIES_Js LibJS LibGC)
-set(FUZZER_DEPENDENCIES_LzmaDecompression LibArchive LibCompress)
+set(FUZZER_DEPENDENCIES_LzmaDecompression LibCompress)
 set(FUZZER_DEPENDENCIES_LzmaRoundtrip LibCompress)
 set(FUZZER_DEPENDENCIES_MatroskaReader LibMedia)
 set(FUZZER_DEPENDENCIES_MD5 LibCrypto)
@@ -77,7 +75,6 @@ set(FUZZER_DEPENDENCIES_SHA1 LibCrypto)
 set(FUZZER_DEPENDENCIES_SHA256 LibCrypto)
 set(FUZZER_DEPENDENCIES_SHA384 LibCrypto)
 set(FUZZER_DEPENDENCIES_SHA512 LibCrypto)
-set(FUZZER_DEPENDENCIES_Tar LibArchive)
 set(FUZZER_DEPENDENCIES_TextDecoder LibTextCodec)
 set(FUZZER_DEPENDENCIES_TIFFLoader LibGfx)
 set(FUZZER_DEPENDENCIES_TTF LibGfx)
@@ -88,5 +85,4 @@ set(FUZZER_DEPENDENCIES_WebPLoader LibGfx)
 set(FUZZER_DEPENDENCIES_WOFF LibGfx)
 set(FUZZER_DEPENDENCIES_WOFF2 LibGfx)
 set(FUZZER_DEPENDENCIES_XML LibXML)
-set(FUZZER_DEPENDENCIES_Zip LibArchive)
 set(FUZZER_DEPENDENCIES_ZlibDecompression LibCompress)

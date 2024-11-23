@@ -378,7 +378,6 @@ endif()
 
 # Lagom Libraries
 set(lagom_standard_libraries
-    Archive
     Compress
     Crypto
     Diff
