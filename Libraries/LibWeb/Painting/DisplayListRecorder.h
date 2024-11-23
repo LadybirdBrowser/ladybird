@@ -149,7 +149,7 @@ public:
     void paint_scrollbar(int scroll_frame_id, Gfx::IntRect, CSSPixelFraction scroll_size, bool vertical);
 
     void apply_opacity(float opacity);
-    void apply_filters(float opacity, CSS::ResolvedFilter filter);
+    void apply_filters(CSS::ResolvedFilter filter);
     void apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4);
     void apply_mask_bitmap(Gfx::IntPoint origin, Gfx::ImmutableBitmap const&, Gfx::Bitmap::MaskKind);
 

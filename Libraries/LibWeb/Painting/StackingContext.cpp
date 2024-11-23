@@ -327,7 +327,7 @@ void StackingContext::paint(PaintContext& context) const
         context.display_list_recorder().push_scroll_frame_id(*paintable_box().scroll_frame_id());
     }
     context.display_list_recorder().push_stacking_context(push_stacking_context_params);
-    context.display_list_recorder().apply_filters(opacity, paintable_box().computed_values().filter());
+    context.display_list_recorder().apply_filters(paintable_box().computed_values().filter());
 
     if (auto mask_image = computed_values.mask_image()) {
         auto mask_display_list = DisplayList::create();

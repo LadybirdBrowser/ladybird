@@ -407,9 +407,9 @@ void DisplayListRecorder::apply_opacity(float opacity)
     append(ApplyOpacity { .opacity = opacity });
 }
 
-void DisplayListRecorder::apply_filters(float opacity, CSS::ResolvedFilter filter)
+void DisplayListRecorder::apply_filters(CSS::ResolvedFilter filter)
 {
-    append(ApplyFilters { .opacity = opacity, .filter = filter });
+    append(ApplyFilters { .filter = filter });
 }
 
 void DisplayListRecorder::apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4 matrix)

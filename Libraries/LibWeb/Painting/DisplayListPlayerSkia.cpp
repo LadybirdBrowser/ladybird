@@ -1097,16 +1097,6 @@ void DisplayListPlayerSkia::apply_filters(ApplyFilters const& command)
         append_filter(to_skia_image_filter(filter));
     }
 
-    // We apply opacity as a color filter here so we only need to save and restore a single layer.
-    if (command.opacity < 1) {
-        append_filter(to_skia_image_filter(CSS::ResolvedFilter::FilterFunction {
-            CSS::ResolvedFilter::Color {
-                CSS::FilterOperation::Color::Type::Opacity,
-                command.opacity,
-            },
-        }));
-    }
-
     SkPaint paint;
     paint.setImageFilter(image_filter);
     auto& canvas = surface().canvas();
