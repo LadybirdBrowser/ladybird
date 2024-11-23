@@ -31,13 +31,6 @@ void BroadcastChannel::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(BroadcastChannel);
 }
 
-// https://html.spec.whatwg.org/multipage/web-messaging.html#dom-broadcastchannel-name
-FlyString BroadcastChannel::name()
-{
-    // The name getter steps are to return this's channel name.
-    return m_channel_name;
-}
-
 // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-broadcastchannel-close
 void BroadcastChannel::close()
 {
@@ -46,25 +39,25 @@ void BroadcastChannel::close()
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#handler-broadcastchannel-onmessage
-void BroadcastChannel::set_onmessage(WebIDL::CallbackType* event_handler)
+void BroadcastChannel::set_onmessage(GC::Ptr<WebIDL::CallbackType> event_handler)
 {
     set_event_handler_attribute(HTML::EventNames::message, event_handler);
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#handler-broadcastchannel-onmessage
-WebIDL::CallbackType* BroadcastChannel::onmessage()
+GC::Ptr<WebIDL::CallbackType> BroadcastChannel::onmessage()
 {
     return event_handler_attribute(HTML::EventNames::message);
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#handler-broadcastchannel-onmessageerror
-void BroadcastChannel::set_onmessageerror(WebIDL::CallbackType* event_handler)
+void BroadcastChannel::set_onmessageerror(GC::Ptr<WebIDL::CallbackType> event_handler)
 {
     set_event_handler_attribute(HTML::EventNames::messageerror, event_handler);
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#handler-broadcastchannel-onmessageerror
-WebIDL::CallbackType* BroadcastChannel::onmessageerror()
+GC::Ptr<WebIDL::CallbackType> BroadcastChannel::onmessageerror()
 {
     return event_handler_attribute(HTML::EventNames::messageerror);
 }
