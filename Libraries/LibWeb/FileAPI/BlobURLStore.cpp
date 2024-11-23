@@ -43,7 +43,7 @@ ErrorOr<String> generate_new_blob_url()
 
     // 6. If serialized is "null", set it to an implementation-defined value.
     if (serialized == "null"sv)
-        serialized = "ladybird"sv;
+        serialized = "ladybird"_string;
 
     // 7. Append serialized to result.
     TRY(result.try_append(serialized));

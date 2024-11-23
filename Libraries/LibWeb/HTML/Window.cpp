@@ -1077,7 +1077,7 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, W
         // with the origin attribute initialized to origin and the source attribute initialized to source, and then return.
         if (deserialize_record_or_error.is_exception()) {
             MessageEventInit message_event_init {};
-            message_event_init.origin = MUST(String::from_byte_string(origin));
+            message_event_init.origin = origin;
             message_event_init.source = GC::make_root(source);
 
             auto message_error_event = MessageEvent::create(target_realm, EventNames::messageerror, message_event_init);
@@ -1103,7 +1103,7 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, W
         //    the source attribute initialized to source, the data attribute initialized to messageClone, and the ports attribute
         //    initialized to newPorts.
         MessageEventInit message_event_init {};
-        message_event_init.origin = MUST(String::from_byte_string(origin));
+        message_event_init.origin = origin;
         message_event_init.source = GC::make_root(source);
         message_event_init.data = message_clone;
         message_event_init.ports = move(new_ports);

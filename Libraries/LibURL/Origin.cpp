@@ -10,11 +10,11 @@
 namespace URL {
 
 // https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin
-ByteString Origin::serialize() const
+String Origin::serialize() const
 {
     // 1. If origin is an opaque origin, then return "null"
     if (is_opaque())
-        return "null";
+        return "null"_string;
 
     // 2. Otherwise, let result be origin's scheme.
     StringBuilder result;
@@ -24,15 +24,16 @@ ByteString Origin::serialize() const
     result.append("://"sv);
 
     // 4. Append origin's host, serialized, to result.
-    result.append(Parser::serialize_host(host()).release_value_but_fixme_should_propagate_errors().to_byte_string());
+    result.append(MUST(Parser::serialize_host(host())));
 
     // 5. If origin's port is non-null, append a U+003A COLON character (:), and origin's port, serialized, to result.
     if (port().has_value()) {
         result.append(':');
-        result.append(ByteString::number(*port()));
+        result.append(String::number(*port()));
     }
+
     // 6. Return result
-    return result.to_byte_string();
+    return result.to_string_without_validation();
 }
 
 }

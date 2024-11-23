@@ -71,7 +71,7 @@ public:
     }
 
     // https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin
-    ByteString serialize() const;
+    String serialize() const;
 
     // https://html.spec.whatwg.org/multipage/origin.html#concept-origin-effective-domain
     Optional<Host> effective_domain() const

@@ -124,7 +124,7 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL& url_record, V
 
     auto* window_or_worker = dynamic_cast<HTML::WindowOrWorkerGlobalScopeMixin*>(&client.global_object());
     VERIFY(window_or_worker);
-    auto origin_string = MUST(window_or_worker->origin()).to_byte_string();
+    auto origin_string = window_or_worker->origin().to_byte_string();
 
     Vector<ByteString> protcol_byte_strings;
     for (auto const& protocol : protocols)

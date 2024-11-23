@@ -194,7 +194,7 @@ String Request::serialize_origin() const
         return "null"_string;
 
     // 2. Return request’s origin, serialized.
-    return MUST(String::from_byte_string(m_origin.get<URL::Origin>().serialize()));
+    return m_origin.get<URL::Origin>().serialize();
 }
 
 // https://fetch.spec.whatwg.org/#byte-serializing-a-request-origin
