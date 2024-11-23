@@ -147,20 +147,6 @@ void serialize_a_srgb_value(StringBuilder& builder, Color color)
         builder.appendff("rgba({}, {}, {}, {:.4})"sv, color.red(), color.green(), color.blue(), (float)(color.alpha()) / 255.0f);
 }
 
-String escape_a_character(u32 character)
-{
-    StringBuilder builder;
-    escape_a_character(builder, character);
-    return MUST(builder.to_string());
-}
-
-String escape_a_character_as_code_point(u32 character)
-{
-    StringBuilder builder;
-    escape_a_character_as_code_point(builder, character);
-    return MUST(builder.to_string());
-}
-
 String serialize_an_identifier(StringView ident)
 {
     StringBuilder builder;
