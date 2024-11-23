@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/Calendar.h>
 #include <LibJS/Runtime/Temporal/PlainDateTimePrototype.h>
 
@@ -50,6 +51,11 @@ void PlainDateTimePrototype::initialize(Realm& realm)
     define_native_accessor(realm, vm.names.daysInYear, days_in_year_getter, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.monthsInYear, months_in_year_getter, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.inLeapYear, in_leap_year_getter, {}, Attribute::Configurable);
+
+    u8 attr = Attribute::Writable | Attribute::Configurable;
+    define_native_function(realm, vm.names.toString, to_string, 0, attr);
+    define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
+    define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
 }
 
 // 5.3.3 get Temporal.PlainDateTime.prototype.calendarId, https://tc39.es/proposal-temporal/#sec-get-temporal.plaindatetime.prototype.calendarid
@@ -205,6 +211,73 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::year_of_week_getter)
 
     // 5. Return 𝔽(result).
     return *result;
+}
+
+// 5.3.34 Temporal.PlainDateTime.prototype.toString ( [ options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.tostring
+JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::to_string)
+{
+    // 1. Let dateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(dateTime, [[InitializedTemporalDateTime]]).
+    auto date_time = TRY(typed_this_object(vm));
+
+    // 3. Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolved_options = TRY(get_options_object(vm, vm.argument(0)));
+
+    // 4. NOTE: The following steps read options and perform independent validation in alphabetical order
+    //    (GetTemporalShowCalendarNameOption reads "calendarName", GetTemporalFractionalSecondDigitsOption reads
+    //    "fractionalSecondDigits", and GetRoundingModeOption reads "roundingMode").
+
+    // 5. Let showCalendar be ? GetTemporalShowCalendarNameOption(resolvedOptions).
+    auto show_calendar = TRY(get_temporal_show_calendar_name_option(vm, resolved_options));
+
+    // 6. Let digits be ? GetTemporalFractionalSecondDigitsOption(resolvedOptions).
+    auto digits = TRY(get_temporal_fractional_second_digits_option(vm, resolved_options));
+
+    // 7. Let roundingMode be ? GetRoundingModeOption(resolvedOptions, TRUNC).
+    auto rounding_mode = TRY(get_rounding_mode_option(vm, resolved_options, RoundingMode::Trunc));
+
+    // 8. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions, "smallestUnit", TIME, UNSET).
+    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, resolved_options, vm.names.smallestUnit, UnitGroup::Time, Unset {}));
+
+    // 9. If smallestUnit is HOUR, throw a RangeError exception.
+    if (auto const* unit = smallest_unit.get_pointer<Unit>(); unit && *unit == Unit::Hour)
+        return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, temporal_unit_to_string(*unit), vm.names.smallestUnit);
+
+    // 10. Let precision be ToSecondsStringPrecisionRecord(smallestUnit, digits).
+    auto precision = to_seconds_string_precision_record(smallest_unit, digits);
+
+    // 11. Let result be RoundISODateTime(dateTime.[[ISODateTime]], precision.[[Increment]], precision.[[Unit]], roundingMode).
+    auto result = round_iso_date_time(date_time->iso_date_time(), precision.increment, precision.unit, rounding_mode);
+
+    // 12. If ISODateTimeWithinLimits(result) is false, throw a RangeError exception.
+    if (!iso_date_time_within_limits(result))
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidPlainDateTime);
+
+    // 13. Return ISODateTimeToString(result, dateTime.[[Calendar]], precision.[[Precision]], showCalendar).
+    return PrimitiveString::create(vm, iso_date_time_to_string(result, date_time->calendar(), precision.precision, show_calendar));
+}
+
+// 5.3.35 Temporal.PlainDateTime.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.tolocalestring
+// NOTE: This is the minimum toLocaleString implementation for engines without ECMA-402.
+JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::to_locale_string)
+{
+    // 1. Let dateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(dateTime, [[InitializedTemporalDateTime]]).
+    auto date_time = TRY(typed_this_object(vm));
+
+    // 3. Return ISODateTimeToString(dateTime.[[ISODateTime]], dateTime.[[Calendar]], AUTO, AUTO).
+    return PrimitiveString::create(vm, iso_date_time_to_string(date_time->iso_date_time(), date_time->calendar(), Auto {}, ShowCalendar::Auto));
+}
+
+// 5.3.36 Temporal.PlainDateTime.prototype.toJSON ( ), https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.tojson
+JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::to_json)
+{
+    // 1. Let dateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(dateTime, [[InitializedTemporalDateTime]]).
+    auto date_time = TRY(typed_this_object(vm));
+
+    // 3. Return ISODateTimeToString(dateTime.[[ISODateTime]], dateTime.[[Calendar]], AUTO, AUTO).
+    return PrimitiveString::create(vm, iso_date_time_to_string(date_time->iso_date_time(), date_time->calendar(), Auto {}, ShowCalendar::Auto));
 }
 
 }
