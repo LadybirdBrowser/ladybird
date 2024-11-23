@@ -90,35 +90,35 @@ GC::Ptr<DOM::Document> WindowEnvironmentSettingsObject::responsible_document()
 }
 
 // https://html.spec.whatwg.org/multipage/window-object.html#script-settings-for-window-objects:api-url-character-encoding
-String WindowEnvironmentSettingsObject::api_url_character_encoding()
+String WindowEnvironmentSettingsObject::api_url_character_encoding() const
 {
     // Return the current character encoding of window's associated Document.
     return m_window->associated_document().encoding_or_default();
 }
 
 // https://html.spec.whatwg.org/multipage/window-object.html#script-settings-for-window-objects:api-base-url
-URL::URL WindowEnvironmentSettingsObject::api_base_url()
+URL::URL WindowEnvironmentSettingsObject::api_base_url() const
 {
     // Return the current base URL of window's associated Document.
     return m_window->associated_document().base_url();
 }
 
 // https://html.spec.whatwg.org/multipage/window-object.html#script-settings-for-window-objects:concept-settings-object-origin
-URL::Origin WindowEnvironmentSettingsObject::origin()
+URL::Origin WindowEnvironmentSettingsObject::origin() const
 {
     // Return the origin of window's associated Document.
     return m_window->associated_document().origin();
 }
 
 // https://html.spec.whatwg.org/multipage/window-object.html#script-settings-for-window-objects:concept-settings-object-policy-container
-PolicyContainer WindowEnvironmentSettingsObject::policy_container()
+PolicyContainer WindowEnvironmentSettingsObject::policy_container() const
 {
     // Return the policy container of window's associated Document.
     return m_window->associated_document().policy_container();
 }
 
 // https://html.spec.whatwg.org/multipage/window-object.html#script-settings-for-window-objects:concept-settings-object-cross-origin-isolated-capability
-CanUseCrossOriginIsolatedAPIs WindowEnvironmentSettingsObject::cross_origin_isolated_capability()
+CanUseCrossOriginIsolatedAPIs WindowEnvironmentSettingsObject::cross_origin_isolated_capability() const
 {
     // FIXME: Return true if both of the following hold, and false otherwise:
     //          1. realm's agent cluster's cross-origin-isolation mode is "concrete", and

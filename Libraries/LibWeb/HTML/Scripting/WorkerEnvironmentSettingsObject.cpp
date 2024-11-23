@@ -56,25 +56,25 @@ GC::Ref<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(
     return settings_object;
 }
 
-URL::URL WorkerEnvironmentSettingsObject::api_base_url()
+URL::URL WorkerEnvironmentSettingsObject::api_base_url() const
 {
     // Return worker global scope's url.
     return m_global_scope->url();
 }
 
-URL::Origin WorkerEnvironmentSettingsObject::origin()
+URL::Origin WorkerEnvironmentSettingsObject::origin() const
 {
     // FIXME: Return a unique opaque origin if worker global scope's url's scheme is "data", and inherited origin otherwise.
     return m_origin;
 }
 
-PolicyContainer WorkerEnvironmentSettingsObject::policy_container()
+PolicyContainer WorkerEnvironmentSettingsObject::policy_container() const
 {
     // Return worker global scope's policy container.
     return m_global_scope->policy_container();
 }
 
-CanUseCrossOriginIsolatedAPIs WorkerEnvironmentSettingsObject::cross_origin_isolated_capability()
+CanUseCrossOriginIsolatedAPIs WorkerEnvironmentSettingsObject::cross_origin_isolated_capability() const
 {
     // FIXME: Return worker global scope's cross-origin isolated capability.
     return CanUseCrossOriginIsolatedAPIs::No;
