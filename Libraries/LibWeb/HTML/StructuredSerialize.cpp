@@ -896,7 +896,7 @@ public:
                 return WebIDL::DataCloneError::create(realm, "Unsupported type"_string);
 
             // 3. Set value to a new instance of the interface identified by interfaceName, created in targetRealm.
-            value = TRY(create_serialized_type(interface_name, realm));
+            value = create_serialized_type(interface_name, realm);
 
             // 4. Set deep to true.
             deep = true;
@@ -977,7 +977,7 @@ private:
     GC::MarkedVector<JS::Value> m_memory; // Index -> JS value
     size_t m_position { 0 };
 
-    static WebIDL::ExceptionOr<GC::Ref<Bindings::PlatformObject>> create_serialized_type(StringView interface_name, JS::Realm& realm)
+    static GC::Ref<Bindings::PlatformObject> create_serialized_type(StringView interface_name, JS::Realm& realm)
     {
         if (interface_name == "Blob"sv)
             return FileAPI::Blob::create(realm);
