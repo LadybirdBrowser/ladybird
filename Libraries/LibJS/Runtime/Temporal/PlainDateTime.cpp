@@ -6,14 +6,25 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/Calendar.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/Instant.h>
 #include <LibJS/Runtime/Temporal/PlainDate.h>
 #include <LibJS/Runtime/Temporal/PlainDateTime.h>
+#include <LibJS/Runtime/Temporal/PlainDateTimeConstructor.h>
 #include <LibJS/Runtime/Temporal/PlainTime.h>
 
 namespace JS::Temporal {
+
+GC_DEFINE_ALLOCATOR(PlainDateTime);
+
+PlainDateTime::PlainDateTime(ISODateTime const& iso_date_time, String calendar, Object& prototype)
+    : Object(ConstructWithPrototypeTag::Tag, prototype)
+    , m_iso_date_time(iso_date_time)
+    , m_calendar(move(calendar))
+{
+}
 
 // 5.5.3 CombineISODateAndTimeRecord ( isoDate, time ), https://tc39.es/proposal-temporal/#sec-temporal-combineisodateandtimerecord
 ISODateTime combine_iso_date_and_time_record(ISODate iso_date, Time time)
@@ -68,6 +79,106 @@ ThrowCompletionOr<ISODateTime> interpret_temporal_date_time_fields(VM& vm, Strin
     return combine_iso_date_and_time_record(iso_date, time);
 }
 
+// 5.5.6 ToTemporalDateTime ( item [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal-totemporaldatetime
+ThrowCompletionOr<GC::Ref<PlainDateTime>> to_temporal_date_time(VM& vm, Value item, Value options)
+{
+    // 1. If options is not present, set options to undefined.
+
+    // 2. If item is an Object, then
+    if (item.is_object()) {
+        auto const& object = item.as_object();
+
+        // a. If item has an [[InitializedTemporalDateTime]] internal slot, then
+        if (is<PlainDateTime>(object)) {
+            auto const& plain_date_time = static_cast<PlainDateTime const&>(object);
+
+            // i. Let resolvedOptions be ? GetOptionsObject(options).
+            auto resolved_options = TRY(get_options_object(vm, options));
+
+            // ii. Perform ? GetTemporalOverflowOption(resolvedOptions).
+            TRY(get_temporal_overflow_option(vm, resolved_options));
+
+            // iii. Return ! CreateTemporalDateTime(item.[[ISODateTime]], item.[[Calendar]]).
+            return MUST(create_temporal_date_time(vm, plain_date_time.iso_date_time(), plain_date_time.calendar()));
+        }
+
+        // FIXME: b. If item has an [[InitializedTemporalZonedDateTime]] internal slot, then
+        // FIXME:     i. Let isoDateTime be GetISODateTimeFor(item.[[TimeZone]], item.[[EpochNanoseconds]]).
+        // FIXME:     ii. Let resolvedOptions be ? GetOptionsObject(options).
+        // FIXME:     iii. Perform ? GetTemporalOverflowOption(resolvedOptions).
+        // FIXME:     iv. Return ! CreateTemporalDateTime(isoDateTime, item.[[Calendar]]).
+
+        // c. If item has an [[InitializedTemporalDate]] internal slot, then
+        if (is<PlainDate>(object)) {
+            auto const& plain_date = static_cast<PlainDate const&>(object);
+
+            // i. Let resolvedOptions be ? GetOptionsObject(options).
+            auto resolved_options = TRY(get_options_object(vm, options));
+
+            // ii. Perform ? GetTemporalOverflowOption(resolvedOptions).
+            TRY(get_temporal_overflow_option(vm, resolved_options));
+
+            // iii. Let isoDateTime be CombineISODateAndTimeRecord(item.[[ISODate]], MidnightTimeRecord()).
+            auto iso_date_time = combine_iso_date_and_time_record(plain_date.iso_date(), midnight_time_record());
+
+            // iv. Return ? CreateTemporalDateTime(isoDateTime, item.[[Calendar]]).
+            return TRY(create_temporal_date_time(vm, iso_date_time, plain_date.calendar()));
+        }
+
+        // d. Let calendar be ? GetTemporalCalendarIdentifierWithISODefault(item).
+        auto calendar = TRY(get_temporal_calendar_identifier_with_iso_default(vm, object));
+
+        // e. Let fields be ? PrepareCalendarFields(calendar, item, « YEAR, MONTH, MONTH-CODE, DAY », « HOUR, MINUTE, SECOND, MILLISECOND, MICROSECOND, NANOSECOND », «»).
+        static constexpr auto calendar_field_names = to_array({ CalendarField::Year, CalendarField::Month, CalendarField::MonthCode, CalendarField::Day });
+        static constexpr auto non_calendar_field_names = to_array({ CalendarField::Hour, CalendarField::Minute, CalendarField::Second, CalendarField::Millisecond, CalendarField::Microsecond, CalendarField::Nanosecond });
+        auto fields = TRY(prepare_calendar_fields(vm, calendar, object, calendar_field_names, non_calendar_field_names, CalendarFieldList {}));
+
+        // f. Let resolvedOptions be ? GetOptionsObject(options).
+        auto resolved_options = TRY(get_options_object(vm, options));
+
+        // g. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+        auto overflow = TRY(get_temporal_overflow_option(vm, resolved_options));
+
+        // h. Let result be ? InterpretTemporalDateTimeFields(calendar, fields, overflow).
+        auto result = TRY(interpret_temporal_date_time_fields(vm, calendar, fields, overflow));
+
+        // i. Return ? CreateTemporalDateTime(result, calendar).
+        return TRY(create_temporal_date_time(vm, result, move(calendar)));
+    }
+
+    // 3. If item is not a String, throw a TypeError exception.
+    if (!item.is_string())
+        return vm.throw_completion<TypeError>(ErrorType::TemporalInvalidPlainDateTime);
+
+    // 4. Let result be ? ParseISODateTime(item, « TemporalDateTimeString[~Zoned] »).
+    auto result = TRY(parse_iso_date_time(vm, item.as_string().utf8_string_view(), { { Production::TemporalDateTimeString } }));
+
+    // 5. If result.[[Time]] is START-OF-DAY, let time be MidnightTimeRecord(); else let time be result.[[Time]].
+    auto time = result.time.has<ParsedISODateTime::StartOfDay>() ? midnight_time_record() : result.time.get<Time>();
+
+    // 6. Let calendar be result.[[Calendar]].
+    // 7. If calendar is empty, set calendar to "iso8601".
+    auto calendar = result.calendar.value_or("iso8601"_string);
+
+    // 8. Set calendar to ? CanonicalizeCalendar(calendar).
+    calendar = TRY(canonicalize_calendar(vm, calendar));
+
+    // 9. Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolved_options = TRY(get_options_object(vm, options));
+
+    // 10. Perform ? GetTemporalOverflowOption(resolvedOptions).
+    TRY(get_temporal_overflow_option(vm, resolved_options));
+
+    // 11. Let isoDate be CreateISODateRecord(result.[[Year]], result.[[Month]], result.[[Day]]).
+    auto iso_date = create_iso_date_record(*result.year, result.month, result.day);
+
+    // 12. Let isoDateTime be CombineISODateAndTimeRecord(isoDate, time).
+    auto iso_date_time = combine_iso_date_and_time_record(iso_date, time);
+
+    // 13. Return ? CreateTemporalDateTime(isoDateTime, calendar).
+    return TRY(create_temporal_date_time(vm, iso_date_time, move(calendar)));
+}
+
 // 5.5.7 BalanceISODateTime ( year, month, day, hour, minute, second, millisecond, microsecond, nanosecond ), https://tc39.es/proposal-temporal/#sec-temporal-balanceisodatetime
 ISODateTime balance_iso_date_time(double year, double month, double day, double hour, double minute, double second, double millisecond, double microsecond, double nanosecond)
 {
@@ -79,6 +190,30 @@ ISODateTime balance_iso_date_time(double year, double month, double day, double 
 
     // 3. Return CombineISODateAndTimeRecord(balancedDate, balancedTime).
     return combine_iso_date_and_time_record(balanced_date, balanced_time);
+}
+
+// 5.5.8 CreateTemporalDateTime ( isoDateTime, calendar [ , newTarget ] ), https://tc39.es/proposal-temporal/#sec-temporal-createtemporaldatetime
+ThrowCompletionOr<GC::Ref<PlainDateTime>> create_temporal_date_time(VM& vm, ISODateTime const& iso_date_time, String calendar, GC::Ptr<FunctionObject> new_target)
+{
+    auto& realm = *vm.current_realm();
+
+    // 1. If ISODateTimeWithinLimits(isoDateTime) is false, then
+    if (!iso_date_time_within_limits(iso_date_time)) {
+        // a. Throw a RangeError exception.
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidPlainDateTime);
+    }
+
+    // 2. If newTarget is not present, set newTarget to %Temporal.PlainDateTime%.
+    if (!new_target)
+        new_target = realm.intrinsics().temporal_plain_date_time_constructor();
+
+    // 3. Let object be ? OrdinaryCreateFromConstructor(newTarget, "%Temporal.PlainDateTime.prototype%", « [[InitializedTemporalDateTime]], [[ISODateTime]], [[Calendar]] »).
+    // 4. Set object.[[ISODateTime]] to isoDateTime.
+    // 5. Set object.[[Calendar]] to calendar.
+    auto object = TRY(ordinary_create_from_constructor<PlainDateTime>(vm, *new_target, &Intrinsics::temporal_plain_date_time_prototype, iso_date_time, move(calendar)));
+
+    // 6. Return object.
+    return object;
 }
 
 // 5.5.10 CompareISODateTime ( isoDateTime1, isoDateTime2 ), https://tc39.es/proposal-temporal/#sec-temporal-compareisodatetime

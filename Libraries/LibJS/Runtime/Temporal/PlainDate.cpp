@@ -83,15 +83,26 @@ ThrowCompletionOr<GC::Ref<PlainDate>> to_temporal_date(VM& vm, Value item, Value
             // iii. Return ! CreateTemporalDate(item.[[ISODate]], item.[[Calendar]]).
             return MUST(create_temporal_date(vm, plain_date.iso_date(), plain_date.calendar()));
         }
+
         // FIXME: b. If item has an [[InitializedTemporalZonedDateTime]] internal slot, then
         // FIXME:        i. Let isoDateTime be GetISODateTimeFor(item.[[TimeZone]], item.[[EpochNanoseconds]]).
         // FIXME:        ii. Let resolvedOptions be ? GetOptionsObject(options).
         // FIXME:        iii. Perform ? GetTemporalOverflowOption(resolvedOptions).
         // FIXME:        iv. Return ! CreateTemporalDate(isoDateTime.[[ISODate]], item.[[Calendar]]).
-        // FIXME: c. If item has an [[InitializedTemporalDateTime]] internal slot, then
-        // FIXME:        i. Let resolvedOptions be ? GetOptionsObject(options).
-        // FIXME:        ii. Perform ? GetTemporalOverflowOption(resolvedOptions).
-        // FIXME:        iii. Return ! CreateTemporalDate(item.[[ISODateTime]].[[ISODate]], item.[[Calendar]]).
+
+        // c. If item has an [[InitializedTemporalDateTime]] internal slot, then
+        if (is<PlainDateTime>(object)) {
+            auto const& plain_date_time = static_cast<PlainDateTime const&>(object);
+
+            // i. Let resolvedOptions be ? GetOptionsObject(options).
+            auto resolved_options = TRY(get_options_object(vm, options));
+
+            // ii. Perform ? GetTemporalOverflowOption(resolvedOptions).
+            TRY(get_temporal_overflow_option(vm, resolved_options));
+
+            // iii. Return ! CreateTemporalDate(item.[[ISODateTime]].[[ISODate]], item.[[Calendar]]).
+            return MUST(create_temporal_date(vm, plain_date_time.iso_date_time().iso_date, plain_date_time.calendar()));
+        }
 
         // d. Let calendar be ? GetTemporalCalendarIdentifierWithISODefault(item).
         auto calendar = TRY(get_temporal_calendar_identifier_with_iso_default(vm, object));

@@ -9,7 +9,7 @@ const PLAIN_TIME_PROPERTIES = [
 
 const REJECTED_CALENDAR_TYPES_THREE_ARGUMENTS = [
     Temporal.PlainDate,
-    // Temporal.PlainDateTime,
+    Temporal.PlainDateTime,
     Temporal.PlainTime,
 ];
 
