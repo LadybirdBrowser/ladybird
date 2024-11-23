@@ -606,4 +606,24 @@ Time round_time(Time const& time, u64 increment, Unit unit, RoundingMode roundin
     VERIFY_NOT_REACHED();
 }
 
+// 4.5.18 AddDurationToTime ( operation, temporalTime, temporalDurationLike ), https://tc39.es/proposal-temporal/#sec-temporal-adddurationtotime
+ThrowCompletionOr<GC::Ref<PlainTime>> add_duration_to_time(VM& vm, ArithmeticOperation operation, PlainTime const& temporal_time, Value temporal_duration_like)
+{
+    // 1. Let duration be ? ToTemporalDuration(temporalDurationLike).
+    auto duration = TRY(to_temporal_duration(vm, temporal_duration_like));
+
+    // 2. If operation is SUBTRACT, set duration to CreateNegatedTemporalDuration(duration).
+    if (operation == ArithmeticOperation::Subtract)
+        duration = create_negated_temporal_duration(vm, duration);
+
+    // 3. Let internalDuration be ToInternalDurationRecord(duration).
+    auto internal_duration = to_internal_duration_record(vm, duration);
+
+    // 4. Let result be AddTime(temporalTime.[[Time]], internalDuration.[[Time]]).
+    auto result = add_time(temporal_time.time(), internal_duration.time);
+
+    // 5. Return ! CreateTemporalTime(result).
+    return MUST(create_temporal_time(vm, result));
+}
+
 }
