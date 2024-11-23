@@ -399,7 +399,6 @@ struct ApplyOpacity {
 };
 
 struct ApplyFilters {
-    float opacity;
     CSS::ResolvedFilter filter;
 };
 
