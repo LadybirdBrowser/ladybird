@@ -739,24 +739,32 @@ void invoke_custom_element_reactions(Vector<GC::Root<DOM::Element>>& element_que
             // 1. Remove the first element of reactions, and let reaction be that element. Switch on reaction's type:
             auto reaction = reactions->take_first();
 
-            auto maybe_exception = reaction.visit(
-                [&](DOM::CustomElementUpgradeReaction const& custom_element_upgrade_reaction) -> JS::ThrowCompletionOr<void> {
+            reaction.visit(
+                [&](DOM::CustomElementUpgradeReaction const& custom_element_upgrade_reaction) -> void {
                     // -> upgrade reaction
                     //      Upgrade element using reaction's custom element definition.
-                    return element->upgrade_element(*custom_element_upgrade_reaction.custom_element_definition);
+                    auto maybe_exception = element->upgrade_element(*custom_element_upgrade_reaction.custom_element_definition);
+                    // If this throws an exception, catch it, and report it for reaction's custom element definition's constructor's corresponding JavaScript object's associated realm's global object.
+                    if (maybe_exception.is_error()) {
+                        // FIXME: Should it be easier to get to report an exception from an IDL callback?
+                        auto& callback = custom_element_upgrade_reaction.custom_element_definition->constructor();
+                        auto& realm = callback.callback->shape().realm();
+                        auto& global = realm.global_object();
+
+                        auto* window_or_worker = dynamic_cast<HTML::WindowOrWorkerGlobalScopeMixin*>(&global);
+                        VERIFY(window_or_worker);
+                        window_or_worker->report_an_exception(maybe_exception.error_value());
+                    }
                 },
-                [&](DOM::CustomElementCallbackReaction& custom_element_callback_reaction) -> JS::ThrowCompletionOr<void> {
+                [&](DOM::CustomElementCallbackReaction& custom_element_callback_reaction) -> void {
                     // -> callback reaction
                     //      Invoke reaction's callback function with reaction's arguments, and with element as the callback this value.
                     auto result = WebIDL::invoke_callback(*custom_element_callback_reaction.callback, element.ptr(), custom_element_callback_reaction.arguments);
+                    // FIXME: The error from CustomElementCallbackReaction is supposed
+                    //     to use the new steps for IDL callback error reporting
                     if (result.is_abrupt())
-                        return result.release_error();
-                    return {};
+                        HTML::report_exception(result, element->realm());
                 });
-
-            // If this throws an exception, catch it, and report the exception.
-            if (maybe_exception.is_throw_completion())
-                HTML::report_exception(maybe_exception, element->realm());
         }
     }
 }

@@ -1,0 +1,39 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 28 tests
+
+25 Pass
+3 Fail
+Details
+Result	Test Name	MessagePass	Creating an element in the document of the template elements must not enqueue a custom element upgrade reaction because the document does not have a browsing context	
+Pass	Creating an element in the document of the template elements and inserting into the document must not enqueue a custom element upgrade reaction	
+Pass	Creating an element in the document of the template elements and adopting back to a document with browsing context must enqueue a custom element upgrade reaction	
+Pass	Creating an element in a new document must not enqueue a custom element upgrade reaction because the document does not have a browsing context	
+Pass	Creating an element in a new document and inserting into the document must not enqueue a custom element upgrade reaction	
+Pass	Creating an element in a new document and adopting back to a document with browsing context must enqueue a custom element upgrade reaction	
+Pass	Creating an element in a cloned document must not enqueue a custom element upgrade reaction because the document does not have a browsing context	
+Pass	Creating an element in a cloned document and inserting into the document must not enqueue a custom element upgrade reaction	
+Pass	Creating an element in a cloned document and adopting back to a document with browsing context must enqueue a custom element upgrade reaction	
+Pass	Creating an element in a document created by createHTMLDocument must not enqueue a custom element upgrade reaction because the document does not have a browsing context	
+Pass	Creating an element in a document created by createHTMLDocument and inserting into the document must not enqueue a custom element upgrade reaction	
+Pass	Creating an element in a document created by createHTMLDocument and adopting back to a document with browsing context must enqueue a custom element upgrade reaction	
+Pass	Creating an element in an HTML document created by createDocument must not enqueue a custom element upgrade reaction because the document does not have a browsing context	
+Pass	Creating an element in an HTML document created by createDocument and inserting into the document must not enqueue a custom element upgrade reaction	
+Pass	Creating an element in an HTML document created by createDocument and adopting back to a document with browsing context must enqueue a custom element upgrade reaction	
+Fail	Creating an element in an HTML document fetched by XHR must not enqueue a custom element upgrade reaction because the document does not have a browsing context	
+Fail	Creating an element in an HTML document fetched by XHR and inserting into the document must not enqueue a custom element upgrade reaction	
+Fail	Creating an element in an HTML document fetched by XHR and adopting back to a document with browsing context must enqueue a custom element upgrade reaction	
+Pass	Creating an element in the document of an iframe must not enqueue a custom element upgrade reaction if there is no matching definition	
+Pass	Creating an element in the document of an iframe must enqueue a custom element upgrade reaction if there is a matching definition	
+Pass	"define" in the document of an iframe must not enqueue a custom element upgrade reaction on a disconnected unresolved custom element	
+Pass	Inserting an unresolved custom element into the document of an iframe must enqueue a custom element upgrade reaction	
+Pass	"define" in the document of an iframe must enqueue a custom element upgrade reaction on a connected unresolved custom element	
+Pass	Adopting (and leaving disconnceted) an unresolved custom element into the document of an iframe must not enqueue a custom element upgrade reaction	
+Pass	Adopting and inserting an unresolved custom element into the document of an iframe must enqueue a custom element upgrade reaction	
+Pass	If definition's disable shadow is true and element's shadow root is non-null, then throw a "NotSupportedError" DOMException.	
+Pass	Infinite constructor recursion with upgrade(this) should not be possible	
+Pass	Infinite constructor recursion with appendChild should not be possible	
