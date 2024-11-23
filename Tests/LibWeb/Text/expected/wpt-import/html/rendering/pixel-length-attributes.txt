@@ -6,8 +6,8 @@ Rerun
 
 Found 588 tests
 
-564 Pass
-24 Fail
+576 Pass
+12 Fail
 Details
 Result	Test Name	MessagePass	<iframe marginwidth="200"> mapping to marginLeft	
 Pass	<iframe marginwidth="1007"> mapping to marginLeft	
@@ -519,9 +519,9 @@ Pass	<input border=" 00523 "> mapping to borderTopWidth
 Pass	<input border="200."> mapping to borderTopWidth	
 Pass	<input border="200.25"> mapping to borderTopWidth	
 Pass	<input border="200.7"> mapping to borderTopWidth	
-Fail	<input border="0"> mapping to borderTopWidth	
-Fail	<input border="-0"> mapping to borderTopWidth	
-Fail	<input border="+0"> mapping to borderTopWidth	
+Pass	<input border="0"> mapping to borderTopWidth	
+Pass	<input border="-0"> mapping to borderTopWidth	
+Pass	<input border="+0"> mapping to borderTopWidth	
 Pass	<input border="+200"> mapping to borderTopWidth	
 Pass	<input border="200in"> mapping to borderTopWidth	
 Pass	<input border="200.25in"> mapping to borderTopWidth	
@@ -540,9 +540,9 @@ Pass	<input border=" 00523 "> mapping to borderRightWidth
 Pass	<input border="200."> mapping to borderRightWidth	
 Pass	<input border="200.25"> mapping to borderRightWidth	
 Pass	<input border="200.7"> mapping to borderRightWidth	
-Fail	<input border="0"> mapping to borderRightWidth	
-Fail	<input border="-0"> mapping to borderRightWidth	
-Fail	<input border="+0"> mapping to borderRightWidth	
+Pass	<input border="0"> mapping to borderRightWidth	
+Pass	<input border="-0"> mapping to borderRightWidth	
+Pass	<input border="+0"> mapping to borderRightWidth	
 Pass	<input border="+200"> mapping to borderRightWidth	
 Pass	<input border="200in"> mapping to borderRightWidth	
 Pass	<input border="200.25in"> mapping to borderRightWidth	
@@ -561,9 +561,9 @@ Pass	<input border=" 00523 "> mapping to borderBottomWidth
 Pass	<input border="200."> mapping to borderBottomWidth	
 Pass	<input border="200.25"> mapping to borderBottomWidth	
 Pass	<input border="200.7"> mapping to borderBottomWidth	
-Fail	<input border="0"> mapping to borderBottomWidth	
-Fail	<input border="-0"> mapping to borderBottomWidth	
-Fail	<input border="+0"> mapping to borderBottomWidth	
+Pass	<input border="0"> mapping to borderBottomWidth	
+Pass	<input border="-0"> mapping to borderBottomWidth	
+Pass	<input border="+0"> mapping to borderBottomWidth	
 Pass	<input border="+200"> mapping to borderBottomWidth	
 Pass	<input border="200in"> mapping to borderBottomWidth	
 Pass	<input border="200.25in"> mapping to borderBottomWidth	
@@ -582,9 +582,9 @@ Pass	<input border=" 00523 "> mapping to borderLeftWidth
 Pass	<input border="200."> mapping to borderLeftWidth	
 Pass	<input border="200.25"> mapping to borderLeftWidth	
 Pass	<input border="200.7"> mapping to borderLeftWidth	
-Fail	<input border="0"> mapping to borderLeftWidth	
-Fail	<input border="-0"> mapping to borderLeftWidth	
-Fail	<input border="+0"> mapping to borderLeftWidth	
+Pass	<input border="0"> mapping to borderLeftWidth	
+Pass	<input border="-0"> mapping to borderLeftWidth	
+Pass	<input border="+0"> mapping to borderLeftWidth	
 Pass	<input border="+200"> mapping to borderLeftWidth	
 Pass	<input border="200in"> mapping to borderLeftWidth	
 Pass	<input border="200.25in"> mapping to borderLeftWidth	

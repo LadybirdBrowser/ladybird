@@ -1610,7 +1610,7 @@ void HTMLInputElement::apply_presentational_hints(CSS::StyleProperties& style) c
             else if (value.equals_ignoring_ascii_case("middle"sv))
                 style.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Middle));
         } else if (name == HTML::AttributeNames::border) {
-            if (auto parsed_value = parse_non_negative_integer(value); parsed_value.has_value() && *parsed_value > 0) {
+            if (auto parsed_value = parse_non_negative_integer(value); parsed_value.has_value()) {
                 auto width_style_value = CSS::LengthStyleValue::create(CSS::Length::make_px(*parsed_value));
                 style.set_property(CSS::PropertyID::BorderTopWidth, width_style_value);
                 style.set_property(CSS::PropertyID::BorderRightWidth, width_style_value);
