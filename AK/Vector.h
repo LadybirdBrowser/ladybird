@@ -678,6 +678,21 @@ public:
         return try_resize(new_size, true);
     }
 
+    template<typename Callback>
+    requires(!contains_reference)
+    ErrorOr<void> try_grow_with(size_t needed_capacity, Callback&& initialization_callback)
+    {
+        TRY(try_grow_capacity(size() + needed_capacity));
+        Span<StorageType> uninitialized = { data() + size(), capacity() - size() };
+        if constexpr (FallibleFunction<Callback, Span<StorageType>>) {
+            TRY(initialization_callback(uninitialized));
+        } else {
+            initialization_callback(uninitialized);
+        }
+        m_size += needed_capacity;
+        return {};
+    }
+
     void grow_capacity(size_t needed_capacity)
     {
         MUST(try_grow_capacity(needed_capacity));
@@ -717,6 +732,13 @@ public:
     requires(!contains_reference)
     {
         MUST(try_resize_and_keep_capacity(new_size));
+    }
+
+    template<typename Callback>
+    requires(!contains_reference)
+    void grow_with(size_t additional_size, Callback&& initialization_callback)
+    {
+        MUST(try_grow_with(additional_size, initialization_callback));
     }
 
     void shrink_to_fit()
