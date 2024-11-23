@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/PlainTimePrototype.h>
 
 namespace JS::Temporal {
@@ -37,6 +38,8 @@ void PlainTimePrototype::initialize(Realm& realm)
     u8 attr = Attribute::Writable | Attribute::Configurable;
     define_native_function(realm, vm.names.add, add, 1, attr);
     define_native_function(realm, vm.names.subtract, subtract, 1, attr);
+    define_native_function(realm, vm.names.until, until, 1, attr);
+    define_native_function(realm, vm.names.since, since, 1, attr);
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
     define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
@@ -93,6 +96,34 @@ JS_DEFINE_NATIVE_FUNCTION(PlainTimePrototype::subtract)
 
     // 3. Return ? AddDurationToTime(SUBTRACT, temporalTime, temporalDurationLike).
     return TRY(add_duration_to_time(vm, ArithmeticOperation::Subtract, temporal_time, temporal_duration_like));
+}
+
+// 4.3.12 Temporal.PlainTime.prototype.until ( other [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.until
+JS_DEFINE_NATIVE_FUNCTION(PlainTimePrototype::until)
+{
+    auto other = vm.argument(0);
+    auto options = vm.argument(1);
+
+    // 1. Let temporalTime be the this value.
+    // 2. Perform ? RequireInternalSlot(temporalTime, [[InitializedTemporalTime]]).
+    auto temporal_time = TRY(typed_this_object(vm));
+
+    // 3. Return ? DifferenceTemporalPlainTime(UNTIL, temporalTime, other, options).
+    return TRY(difference_temporal_plain_time(vm, DurationOperation::Until, temporal_time, other, options));
+}
+
+// 4.3.13 Temporal.PlainTime.prototype.since ( other [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.since
+JS_DEFINE_NATIVE_FUNCTION(PlainTimePrototype::since)
+{
+    auto other = vm.argument(0);
+    auto options = vm.argument(1);
+
+    // 1. Let temporalTime be the this value.
+    // 2. Perform ? RequireInternalSlot(temporalTime, [[InitializedTemporalTime]]).
+    auto temporal_time = TRY(typed_this_object(vm));
+
+    // 3. Return ? DifferenceTemporalPlainTime(SINCE, temporalTime, other, options).
+    return TRY(difference_temporal_plain_time(vm, DurationOperation::Since, temporal_time, other, options));
 }
 
 // 4.3.16 Temporal.PlainTime.prototype.toString ( [ options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.tostring

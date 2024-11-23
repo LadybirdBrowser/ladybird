@@ -606,6 +606,38 @@ Time round_time(Time const& time, u64 increment, Unit unit, RoundingMode roundin
     VERIFY_NOT_REACHED();
 }
 
+// 4.5.17 DifferenceTemporalPlainTime ( operation, temporalTime, other, options ), https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalplaintime
+ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_time(VM& vm, DurationOperation operation, PlainTime const& temporal_time, Value other_value, Value options)
+{
+    // 1. Set other to ? ToTemporalTime(other).
+    auto other = TRY(to_temporal_time(vm, other_value));
+
+    // 2. Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolved_options = TRY(get_options_object(vm, options));
+
+    // 3. Let settings be ? GetDifferenceSettings(operation, resolvedOptions, TIME, « », NANOSECOND, HOUR).
+    auto settings = TRY(get_difference_settings(vm, operation, resolved_options, UnitGroup::Time, {}, Unit::Nanosecond, Unit::Hour));
+
+    // 4. Let timeDuration be DifferenceTime(temporalTime.[[Time]], other.[[Time]]).
+    auto time_duration = difference_time(temporal_time.time(), other->time());
+
+    // 5. Set timeDuration to ! RoundTimeDuration(timeDuration, settings.[[RoundingIncrement]], settings.[[SmallestUnit]], settings.[[RoundingMode]]).
+    time_duration = MUST(round_time_duration(vm, time_duration, Crypto::UnsignedBigInteger { settings.rounding_increment }, settings.smallest_unit, settings.rounding_mode));
+
+    // 6. Let duration be ! CombineDateAndTimeDuration(ZeroDateDuration(), timeDuration).
+    auto duration = MUST(combine_date_and_time_duration(vm, zero_date_duration(vm), move(time_duration)));
+
+    // 7. Let result be ! TemporalDurationFromInternal(duration, settings.[[LargestUnit]]).
+    auto result = MUST(temporal_duration_from_internal(vm, duration, settings.largest_unit));
+
+    // 8. If operation is SINCE, set result to CreateNegatedTemporalDuration(result).
+    if (operation == DurationOperation::Since)
+        result = create_negated_temporal_duration(vm, result);
+
+    // 9. Return result.
+    return result;
+}
+
 // 4.5.18 AddDurationToTime ( operation, temporalTime, temporalDurationLike ), https://tc39.es/proposal-temporal/#sec-temporal-adddurationtotime
 ThrowCompletionOr<GC::Ref<PlainTime>> add_duration_to_time(VM& vm, ArithmeticOperation operation, PlainTime const& temporal_time, Value temporal_duration_like)
 {
