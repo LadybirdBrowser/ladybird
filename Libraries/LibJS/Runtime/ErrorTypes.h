@@ -278,6 +278,7 @@
     M(TemporalInvalidRelativeToStringUTCDesignatorWithoutBracketedTimeZone, "Invalid relativeTo string '{}': must not contain a UTC "   \
                                                                             "designator without bracketed time zone")                   \
     M(TemporalInvalidTime, "Invalid time")                                                                                              \
+    M(TemporalInvalidTimeLikeField, "Invalid value {} for time field '{}'")                                                             \
     M(TemporalInvalidTimeString, "Invalid time string '{}'")                                                                            \
     M(TemporalInvalidTimeStringUTCDesignator, "Invalid time string '{}': must not contain a UTC designator")                            \
     M(TemporalInvalidTimeZoneName, "Invalid time zone name '{}'")                                                                       \

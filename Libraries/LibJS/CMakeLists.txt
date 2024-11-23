@@ -219,10 +219,12 @@ set(SOURCES
     Runtime/Temporal/PlainMonthDay.cpp
     Runtime/Temporal/PlainMonthDayConstructor.cpp
     Runtime/Temporal/PlainMonthDayPrototype.cpp
+    Runtime/Temporal/PlainTime.cpp
+    Runtime/Temporal/PlainTimeConstructor.cpp
+    Runtime/Temporal/PlainTimePrototype.cpp
     Runtime/Temporal/PlainYearMonth.cpp
     Runtime/Temporal/PlainYearMonthConstructor.cpp
     Runtime/Temporal/PlainYearMonthPrototype.cpp
-    Runtime/Temporal/PlainTime.cpp
     Runtime/Temporal/Temporal.cpp
     Runtime/Temporal/TimeZone.cpp
     Runtime/TypedArray.cpp

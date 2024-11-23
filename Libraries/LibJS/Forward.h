@@ -91,6 +91,7 @@
     __JS_ENUMERATE(Duration, duration, DurationPrototype, DurationConstructor)                       \
     __JS_ENUMERATE(PlainDate, plain_date, PlainDatePrototype, PlainDateConstructor)                  \
     __JS_ENUMERATE(PlainMonthDay, plain_month_day, PlainMonthDayPrototype, PlainMonthDayConstructor) \
+    __JS_ENUMERATE(PlainTime, plain_time, PlainTimePrototype, PlainTimeConstructor)                  \
     __JS_ENUMERATE(PlainYearMonth, plain_year_month, PlainYearMonthPrototype, PlainYearMonthConstructor)
 
 #define JS_ENUMERATE_BUILTIN_NAMESPACE_OBJECTS \

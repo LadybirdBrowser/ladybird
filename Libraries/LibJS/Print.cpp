@@ -50,6 +50,7 @@
 #include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/PlainDate.h>
 #include <LibJS/Runtime/Temporal/PlainMonthDay.h>
+#include <LibJS/Runtime/Temporal/PlainTime.h>
 #include <LibJS/Runtime/Temporal/PlainYearMonth.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/Value.h>
@@ -856,6 +857,13 @@ ErrorOr<void> print_temporal_plain_month_day(JS::PrintContext& print_context, JS
     return {};
 }
 
+ErrorOr<void> print_temporal_plain_time(JS::PrintContext& print_context, JS::Temporal::PlainTime const& plain_time, HashTable<JS::Object*>&)
+{
+    TRY(print_type(print_context, "Temporal.PlainTime"sv));
+    TRY(js_out(print_context, " \033[34;1m{:02}:{:02}:{:02}.{:03}{:03}{:03}\033[0m", plain_time.time().hour, plain_time.time().minute, plain_time.time().second, plain_time.time().millisecond, plain_time.time().microsecond, plain_time.time().nanosecond));
+    return {};
+}
+
 ErrorOr<void> print_temporal_plain_year_month(JS::PrintContext& print_context, JS::Temporal::PlainYearMonth const& plain_year_month, HashTable<JS::Object*>& seen_objects)
 {
     TRY(print_type(print_context, "Temporal.PlainYearMonth"sv));
@@ -986,6 +994,8 @@ ErrorOr<void> print_value(JS::PrintContext& print_context, JS::Value value, Hash
             return print_temporal_plain_date(print_context, static_cast<JS::Temporal::PlainDate&>(object), seen_objects);
         if (is<JS::Temporal::PlainMonthDay>(object))
             return print_temporal_plain_month_day(print_context, static_cast<JS::Temporal::PlainMonthDay&>(object), seen_objects);
+        if (is<JS::Temporal::PlainTime>(object))
+            return print_temporal_plain_time(print_context, static_cast<JS::Temporal::PlainTime&>(object), seen_objects);
         if (is<JS::Temporal::PlainYearMonth>(object))
             return print_temporal_plain_year_month(print_context, static_cast<JS::Temporal::PlainYearMonth&>(object), seen_objects);
         return print_object(print_context, object, seen_objects);
