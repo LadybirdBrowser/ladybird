@@ -5,8 +5,8 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         BlockContainer <div.green> at (8,-42) content-size 100x200 children: inline
           TextNode <#text>
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,-42 800x642]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x16] overflow: [0,-42 800x200]
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x16]
     PaintableBox (Box<BODY>) [8,8 784x0] overflow: [8,-42 100x200]
       PaintableWithLines (BlockContainer<DIV>.abspos) [8,-42 100x100] overflow: [8,-42 100x200]
         PaintableWithLines (BlockContainer<DIV>.green) [8,-42 100x200]
