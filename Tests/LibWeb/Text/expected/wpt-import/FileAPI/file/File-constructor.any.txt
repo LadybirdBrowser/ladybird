@@ -1,0 +1,56 @@
+Harness status: OK
+
+Found 51 tests
+
+51 Pass
+Pass	File interface object exists
+Pass	Required arguments
+Pass	empty fileBits
+Pass	DOMString fileBits
+Pass	Unicode DOMString fileBits
+Pass	String object fileBits
+Pass	Empty Blob fileBits
+Pass	Blob fileBits
+Pass	Empty File fileBits
+Pass	File fileBits
+Pass	ArrayBuffer fileBits
+Pass	Typed array fileBits
+Pass	Various fileBits
+Pass	Number in fileBits
+Pass	Array in fileBits
+Pass	Object in fileBits
+Pass	HTMLBodyElement in fileBits
+Pass	Object with toString in fileBits
+Pass	Custom @@iterator
+Pass	Invalid bits argument: "hello"
+Pass	Invalid bits argument: 0
+Pass	Invalid bits argument: null
+Pass	Bits argument: object that throws
+Pass	Using fileName
+Pass	No replacement when using special character in fileName
+Pass	Using null fileName
+Pass	Using number fileName
+Pass	Using empty string fileName
+Pass	Using object fileName
+Pass	Using type in File constructor: text/plain
+Pass	Using type in File constructor: text/plain;charset=UTF-8
+Pass	Using type in File constructor: TEXT/PLAIN
+Pass	Using type in File constructor: í µU+dcfdí µU+dceeí µU+dd01í µU+dcfd/í µU+dd2dí µU+dd29í µU+dd1eí µU+dd26í µU+dd2b
+Pass	Using type in File constructor: ascii/nonprintable
+Pass	Using type in File constructor: ascii/nonprintable
+Pass	Using type in File constructor: nonasciiÃ®
+Pass	Using type in File constructor: nonasciiáˆ´
+Pass	Using type in File constructor: nonparsable
+Pass	Using lastModified
+Pass	Misusing name
+Pass	Unknown properties are ignored
+Pass	Invalid property bag: 123
+Pass	Invalid property bag: 123.4
+Pass	Invalid property bag: true
+Pass	Invalid property bag: "abc"
+Pass	Unusual but valid property bag: null
+Pass	Unusual but valid property bag: undefined
+Pass	Unusual but valid property bag: 1,2,3
+Pass	Unusual but valid property bag: /regex/
+Pass	Unusual but valid property bag: function() {}
+Pass	Property bag propagates exceptions
