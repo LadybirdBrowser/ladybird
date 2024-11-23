@@ -41,6 +41,8 @@ void PlainTimePrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.with, with, 1, attr);
     define_native_function(realm, vm.names.until, until, 1, attr);
     define_native_function(realm, vm.names.since, since, 1, attr);
+    define_native_function(realm, vm.names.round, round, 1, attr);
+    define_native_function(realm, vm.names.equals, equals, 1, attr);
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
     define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
@@ -191,6 +193,89 @@ JS_DEFINE_NATIVE_FUNCTION(PlainTimePrototype::since)
 
     // 3. Return ? DifferenceTemporalPlainTime(SINCE, temporalTime, other, options).
     return TRY(difference_temporal_plain_time(vm, DurationOperation::Since, temporal_time, other, options));
+}
+
+// 4.3.14 Temporal.PlainTime.prototype.round ( roundTo ), https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.round
+JS_DEFINE_NATIVE_FUNCTION(PlainTimePrototype::round)
+{
+    auto& realm = *vm.current_realm();
+
+    auto round_to_value = vm.argument(0);
+
+    // 1. Let temporalTime be the this value.
+    // 2. Perform ? RequireInternalSlot(temporalTime, [[InitializedTemporalTime]]).
+    auto temporal_time = TRY(typed_this_object(vm));
+
+    // 3. If roundTo is undefined, then
+    if (round_to_value.is_undefined()) {
+        // a. Throw a TypeError exception.
+        return vm.throw_completion<TypeError>(ErrorType::TemporalMissingOptionsObject);
+    }
+
+    GC::Ptr<Object> round_to;
+
+    // 4. If roundTo is a String, then
+    if (round_to_value.is_string()) {
+        // a. Let paramString be roundTo.
+        auto param_string = round_to_value;
+
+        // b. Set roundTo to OrdinaryObjectCreate(null).
+        round_to = Object::create(realm, nullptr);
+
+        // c. Perform ! CreateDataPropertyOrThrow(roundTo, "smallestUnit", paramString).
+        MUST(round_to->create_data_property_or_throw(vm.names.smallestUnit, param_string));
+    }
+    // 5. Else,
+    else {
+        // a. Set roundTo to ? GetOptionsObject(roundTo).
+        round_to = TRY(get_options_object(vm, round_to_value));
+    }
+
+    // 6. NOTE: The following steps read options and perform independent validation in alphabetical order
+    //    (GetRoundingIncrementOption reads "roundingIncrement" and GetRoundingModeOption reads "roundingMode").
+
+    // 7. Let roundingIncrement be ? GetRoundingIncrementOption(roundTo).
+    auto rounding_increment = TRY(get_rounding_increment_option(vm, *round_to));
+
+    // 8. Let roundingMode be ? GetRoundingModeOption(roundTo, HALF-EXPAND).
+    auto rounding_mode = TRY(get_rounding_mode_option(vm, *round_to, RoundingMode::HalfExpand));
+
+    // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo, "smallestUnit", TIME, REQUIRED).
+    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, *round_to, vm.names.smallestUnit, UnitGroup::Time, Required {}));
+    auto smallest_unit_value = smallest_unit.get<Unit>();
+
+    // 10. Let maximum be MaximumTemporalDurationRoundingIncrement(smallestUnit).
+    auto maximum = maximum_temporal_duration_rounding_increment(smallest_unit_value);
+
+    // 11. Assert: maximum is not UNSET.
+    VERIFY(!maximum.has<Unset>());
+
+    // 12. Perform ? ValidateTemporalRoundingIncrement(roundingIncrement, maximum, false).
+    TRY(validate_temporal_rounding_increment(vm, rounding_increment, maximum.get<u64>(), false));
+
+    // 13. Let result be RoundTime(temporalTime.[[Time]], roundingIncrement, smallestUnit, roundingMode).
+    auto result = round_time(temporal_time->time(), rounding_increment, smallest_unit_value, rounding_mode);
+
+    // 14. Return ! CreateTemporalTime(result).
+    return MUST(create_temporal_time(vm, result));
+}
+
+// 4.3.15 Temporal.PlainTime.prototype.equals ( other ), https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.equals
+JS_DEFINE_NATIVE_FUNCTION(PlainTimePrototype::equals)
+{
+    // 1. Let temporalTime be the this value.
+    // 2. Perform ? RequireInternalSlot(temporalTime, [[InitializedTemporalTime]]).
+    auto temporal_time = TRY(typed_this_object(vm));
+
+    // 3. Set other to ? ToTemporalTime(other).
+    auto other = TRY(to_temporal_time(vm, vm.argument(0)));
+
+    // 4. If CompareTimeRecord(temporalTime.[[Time]], other.[[Time]]) = 0, return true.
+    if (compare_time_record(temporal_time->time(), other->time()) == 0)
+        return true;
+
+    // 5. Return false.
+    return false;
 }
 
 // 4.3.16 Temporal.PlainTime.prototype.toString ( [ options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.tostring
