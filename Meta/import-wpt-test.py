@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import Enum
 from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 from urllib.request import urlopen
 import re
 import os
@@ -17,6 +17,7 @@ wpt_base_url = 'https://wpt.live/'
 class TestType(Enum):
     TEXT = 1, 'Tests/LibWeb/Text/input/wpt-import', 'Tests/LibWeb/Text/expected/wpt-import'
     REF = 2, 'Tests/LibWeb/Ref/input/wpt-import', 'Tests/LibWeb/Ref/expected/wpt-import'
+    CRASH = 3, 'Tests/LibWeb/Crash/wpt-import', ''
 
     def __new__(cls, *args, **kwds):
         obj = object.__new__(cls)
@@ -130,6 +131,21 @@ def map_to_path(sources: list[ResourceAndType], is_resource=True, resource_path=
     return filepaths
 
 
+def is_crash_test(url_string):
+    # https://web-platform-tests.org/writing-tests/crashtest.html
+    # A test file is treated as a crash test if they have -crash in their name before the file extension, or they are
+    # located in a folder named crashtests
+    parsed_url = urlparse(url_string)
+    path_segments = parsed_url.path.strip('/').split('/')
+    if len(path_segments) > 1 and "crashtests" in path_segments[::-1]:
+        return True
+    file_name = path_segments[-1]
+    file_name_parts = file_name.split('.')
+    if len(file_name_parts) > 1 and any([part.endswith('-crash') for part in file_name_parts[:-1]]):
+        return True
+    return False
+
+
 def modify_sources(files, resources: list[ResourceAndType]) -> None:
     for file in files:
         # Get the distance to the wpt-imports folder
@@ -191,7 +207,7 @@ def download_files(filepaths):
 
 def create_expectation_files(files):
     # Ref tests don't have an expectation text file
-    if test_type == TestType.REF:
+    if test_type in [TestType.REF, TestType.CRASH]:
         return
 
     for file in files:
@@ -219,10 +235,14 @@ def main():
         page = response.read().decode("utf-8")
 
     global test_type, reference_path, raw_reference_path
-    identifier = TestTypeIdentifier(url_to_import)
-    identifier.feed(page)
-    test_type = identifier.test_type
-    raw_reference_path = identifier.reference_path
+    if is_crash_test(url_to_import):
+        test_type = TestType.CRASH
+    else:
+        identifier = TestTypeIdentifier(url_to_import)
+        identifier.feed(page)
+        test_type = identifier.test_type
+        raw_reference_path = identifier.reference_path
+
     print(f"Identified {url_to_import} as type {test_type}, ref {raw_reference_path}")
 
     main_file = [ResourceAndType(resource_path, ResourceType.INPUT)]
