@@ -15,6 +15,20 @@
 
 namespace JS::Temporal {
 
+// FIXME: We should add a generic floor() method to our BigInt classes. But for now, since we know we are only dividing
+//        by powers of 10, we can implement a very situationally specific method to compute the floor of a division.
+static TimeDuration big_floor(TimeDuration const& numerator, Crypto::UnsignedBigInteger const& denominator)
+{
+    auto result = numerator.divided_by(denominator);
+
+    if (result.remainder.is_zero())
+        return result.quotient;
+    if (!result.quotient.is_negative() && result.remainder.is_positive())
+        return result.quotient;
+
+    return result.quotient.minus(TimeDuration { 1 });
+}
+
 // 4.5.2 CreateTimeRecord ( hour, minute, second, millisecond, microsecond, nanosecond [ , deltaDays ] ), https://tc39.es/proposal-temporal/#sec-temporal-createtimerecord
 Time create_time_record(double hour, double minute, double second, double millisecond, double microsecond, double nanosecond, double delta_days)
 {
@@ -205,6 +219,49 @@ Time balance_time(double hour, double minute, double second, double millisecond,
     return create_time_record(hour, minute, second, millisecond, microsecond, nanosecond, delta_days);
 }
 
+// 4.5.10 BalanceTime ( hour, minute, second, millisecond, microsecond, nanosecond ), https://tc39.es/proposal-temporal/#sec-temporal-balancetime
+Time balance_time(double hour, double minute, double second, double millisecond, double microsecond, TimeDuration const& nanosecond_value)
+{
+    // 1. Set microsecond to microsecond + floor(nanosecond / 1000).
+    auto microsecond_value = TimeDuration { microsecond }.plus(big_floor(nanosecond_value, NANOSECONDS_PER_MICROSECOND));
+
+    // 2. Set nanosecond to nanosecond modulo 1000.
+    auto nanosecond = modulo(nanosecond_value, NANOSECONDS_PER_MICROSECOND).to_double();
+
+    // 3. Set millisecond to millisecond + floor(microsecond / 1000).
+    auto millisecond_value = TimeDuration { millisecond }.plus(big_floor(microsecond_value, MICROSECONDS_PER_MILLISECOND));
+
+    // 4. Set microsecond to microsecond modulo 1000.
+    microsecond = modulo(microsecond_value, MICROSECONDS_PER_MILLISECOND).to_double();
+
+    // 5. Set second to second + floor(millisecond / 1000).
+    auto second_value = TimeDuration { second }.plus(big_floor(millisecond_value, MILLISECONDS_PER_SECOND));
+
+    // 6. Set millisecond to millisecond modulo 1000.
+    millisecond = modulo(millisecond_value, MILLISECONDS_PER_SECOND).to_double();
+
+    // 7. Set minute to minute + floor(second / 60).
+    auto minute_value = TimeDuration { minute }.plus(big_floor(second_value, SECONDS_PER_MINUTE));
+
+    // 8. Set second to second modulo 60.
+    second = modulo(second_value, SECONDS_PER_MINUTE).to_double();
+
+    // 9. Set hour to hour + floor(minute / 60).
+    auto hour_value = TimeDuration { hour }.plus(big_floor(minute_value, MINUTES_PER_HOUR));
+
+    // 10. Set minute to minute modulo 60.
+    minute = modulo(minute_value, MINUTES_PER_HOUR).to_double();
+
+    // 11. Let deltaDays be floor(hour / 24).
+    auto delta_days = big_floor(hour_value, HOURS_PER_DAY).to_double();
+
+    // 12. Set hour to hour modulo 24.
+    hour = modulo(hour_value, HOURS_PER_DAY).to_double();
+
+    // 13. Return CreateTimeRecord(hour, minute, second, millisecond, microsecond, nanosecond, deltaDays).
+    return create_time_record(hour, minute, second, millisecond, microsecond, nanosecond, delta_days);
+}
+
 // 4.5.14 CompareTimeRecord ( time1, time2 ), https://tc39.es/proposal-temporal/#sec-temporal-comparetimerecord
 i8 compare_time_record(Time const& time1, Time const& time2)
 {
@@ -260,7 +317,7 @@ Time add_time(Time const& time, TimeDuration const& time_duration)
     auto nanoseconds = time_duration.plus(TimeDuration { static_cast<i64>(time.nanosecond) });
 
     // 1. Return BalanceTime(time.[[Hour]], time.[[Minute]], time.[[Second]], time.[[Millisecond]], time.[[Microsecond]], time.[[Nanosecond]] + timeDuration).
-    return balance_time(time.hour, time.minute, time.second, time.millisecond, time.microsecond, nanoseconds.to_double());
+    return balance_time(time.hour, time.minute, time.second, time.millisecond, time.microsecond, nanoseconds);
 }
 
 }

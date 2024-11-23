@@ -20,6 +20,7 @@ TimeDuration difference_time(Time const&, Time const&);
 ThrowCompletionOr<Time> regulate_time(VM&, double hour, double minute, double second, double millisecond, double microsecond, double nanosecond, Overflow);
 bool is_valid_time(double hour, double minute, double second, double millisecond, double microsecond, double nanosecond);
 Time balance_time(double hour, double minute, double second, double millisecond, double microsecond, double nanosecond);
+Time balance_time(double hour, double minute, double second, double millisecond, double microsecond, TimeDuration const& nanosecond);
 i8 compare_time_record(Time const&, Time const&);
 Time add_time(Time const&, TimeDuration const& time_duration);
 
