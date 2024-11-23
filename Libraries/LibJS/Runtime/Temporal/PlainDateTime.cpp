@@ -367,6 +367,42 @@ ThrowCompletionOr<Crypto::BigFraction> difference_plain_date_time_with_total(VM&
     return TRY(total_relative_duration(vm, diff, dest_epoch_ns, iso_date_time1, {}, calendar, unit));
 }
 
+// 5.5.15 DifferenceTemporalPlainDateTime ( operation, dateTime, other, options ), https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalplaindatetime
+ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_date_time(VM& vm, DurationOperation operation, PlainDateTime const& date_time, Value other_value, Value options)
+{
+    // 1. Set other to ? ToTemporalDateTime(other).
+    auto other = TRY(to_temporal_date_time(vm, other_value));
+
+    // 2. If CalendarEquals(dateTime.[[Calendar]], other.[[Calendar]]) is false, throw a RangeError exception.
+    if (!calendar_equals(date_time.calendar(), other->calendar()))
+        return vm.throw_completion<RangeError>(ErrorType::TemporalDifferentCalendars);
+
+    // 3. Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolved_options = TRY(get_options_object(vm, options));
+
+    // 4. Let settings be ? GetDifferenceSettings(operation, resolvedOptions, DATETIME, « », NANOSECOND, DAY).
+    auto settings = TRY(get_difference_settings(vm, operation, resolved_options, UnitGroup::DateTime, {}, Unit::Nanosecond, Unit::Day));
+
+    // 5. If CompareISODateTime(dateTime.[[ISODateTime]], other.[[ISODateTime]]) = 0, then
+    if (compare_iso_date_time(date_time.iso_date_time(), other->iso_date_time()) == 0) {
+        // a. Return ! CreateTemporalDuration(0, 0, 0, 0, 0, 0, 0, 0, 0, 0).
+        return MUST(create_temporal_duration(vm, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+    }
+
+    // 6. Let internalDuration be ? DifferencePlainDateTimeWithRounding(dateTime.[[ISODateTime]], other.[[ISODateTime]], dateTime.[[Calendar]], settings.[[LargestUnit]], settings.[[RoundingIncrement]], settings.[[SmallestUnit]], settings.[[RoundingMode]]).
+    auto internal_duration = TRY(difference_plain_date_time_with_rounding(vm, date_time.iso_date_time(), other->iso_date_time(), date_time.calendar(), settings.largest_unit, settings.rounding_increment, settings.smallest_unit, settings.rounding_mode));
+
+    // 7. Let result be ? TemporalDurationFromInternal(internalDuration, settings.[[LargestUnit]]).
+    auto result = TRY(temporal_duration_from_internal(vm, internal_duration, settings.largest_unit));
+
+    // 8. If operation is SINCE, set result to CreateNegatedTemporalDuration(result).
+    if (operation == DurationOperation::Since)
+        result = create_negated_temporal_duration(vm, result);
+
+    // 9. Return result.
+    return result;
+}
+
 // 5.5.16 AddDurationToDateTime ( operation, dateTime, temporalDurationLike, options ), https://tc39.es/proposal-temporal/#sec-temporal-adddurationtodatetime
 ThrowCompletionOr<GC::Ref<PlainDateTime>> add_duration_to_date_time(VM& vm, ArithmeticOperation operation, PlainDateTime const& date_time, Value temporal_duration_like, Value options)
 {
