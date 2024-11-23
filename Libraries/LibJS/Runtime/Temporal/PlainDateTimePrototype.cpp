@@ -58,6 +58,7 @@ void PlainDateTimePrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.subtract, subtract, 1, attr);
     define_native_function(realm, vm.names.until, until, 1, attr);
     define_native_function(realm, vm.names.since, since, 1, attr);
+    define_native_function(realm, vm.names.round, round, 1, attr);
     define_native_function(realm, vm.names.equals, equals, 1, attr);
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
@@ -273,6 +274,94 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::since)
 
     // 3. Return ? DifferenceTemporalPlainDateTime(SINCE, dateTime, other, options).
     return TRY(difference_temporal_plain_date_time(vm, DurationOperation::Since, date_time, other, options));
+}
+
+// 5.3.32 Temporal.PlainDateTime.prototype.round ( roundTo ), https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.round
+JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::round)
+{
+    auto& realm = *vm.current_realm();
+
+    auto round_to_value = vm.argument(0);
+
+    // 1. Let dateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(dateTime, [[InitializedTemporalDateTime]]).
+    auto date_time = TRY(typed_this_object(vm));
+
+    // 3. If roundTo is undefined, then
+    if (round_to_value.is_undefined()) {
+        // a. Throw a TypeError exception.
+        return vm.throw_completion<TypeError>(ErrorType::TemporalMissingOptionsObject);
+    }
+
+    GC::Ptr<Object> round_to;
+
+    // 4. If roundTo is a String, then
+    if (round_to_value.is_string()) {
+        // a. Let paramString be roundTo.
+        auto param_string = round_to_value;
+
+        // b. Set roundTo to OrdinaryObjectCreate(null).
+        round_to = Object::create(realm, nullptr);
+
+        // c. Perform ! CreateDataPropertyOrThrow(roundTo, "smallestUnit", paramString).
+        MUST(round_to->create_data_property_or_throw(vm.names.smallestUnit, param_string));
+    }
+    // 5. Else,
+    else {
+        // a. Set roundTo to ? GetOptionsObject(roundTo).
+        round_to = TRY(get_options_object(vm, round_to_value));
+    }
+
+    // 6. NOTE: The following steps read options and perform independent validation in alphabetical order
+    //    (GetRoundingIncrementOption reads "roundingIncrement" and GetRoundingModeOption reads "roundingMode").
+
+    // 7. Let roundingIncrement be ? GetRoundingIncrementOption(roundTo).
+    auto rounding_increment = TRY(get_rounding_increment_option(vm, *round_to));
+
+    // 8. Let roundingMode be ? GetRoundingModeOption(roundTo, HALF-EXPAND).
+    auto rounding_mode = TRY(get_rounding_mode_option(vm, *round_to, RoundingMode::HalfExpand));
+
+    // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo, "smallestUnit", TIME, REQUIRED, « DAY »).
+    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, *round_to, vm.names.smallestUnit, UnitGroup::Time, Required {}, { { Unit::Day } }));
+    auto smallest_unit_value = smallest_unit.get<Unit>();
+
+    RoundingIncrement maximum { 0 };
+    auto inclusive = false;
+
+    // 10. If smallestUnit is DAY, then
+    if (smallest_unit_value == Unit::Day) {
+        // a. Let maximum be 1.
+        maximum = 1;
+
+        // b. Let inclusive be true.
+        inclusive = true;
+    }
+    // 11. Else,
+    else {
+        // a. Let maximum be MaximumTemporalDurationRoundingIncrement(smallestUnit).
+        maximum = maximum_temporal_duration_rounding_increment(smallest_unit_value);
+
+        // b. Assert: maximum is not UNSET.
+        VERIFY(!maximum.has<Unset>());
+
+        // c. Let inclusive be false.
+        inclusive = false;
+    }
+
+    // 12. Perform ? ValidateTemporalRoundingIncrement(roundingIncrement, maximum, inclusive).
+    TRY(validate_temporal_rounding_increment(vm, rounding_increment, maximum.get<u64>(), inclusive));
+
+    // 13. If smallestUnit is NANOSECOND and roundingIncrement = 1, then
+    if (smallest_unit_value == Unit::Nanosecond && rounding_increment == 1) {
+        // a. Return ! CreateTemporalDateTime(dateTime.[[ISODateTime]], dateTime.[[Calendar]]).
+        return MUST(create_temporal_date_time(vm, date_time->iso_date_time(), date_time->calendar()));
+    }
+
+    // 14. Let result be RoundISODateTime(dateTime.[[ISODateTime]], roundingIncrement, smallestUnit, roundingMode).
+    auto result = round_iso_date_time(date_time->iso_date_time(), rounding_increment, smallest_unit_value, rounding_mode);
+
+    // 15. Return ? CreateTemporalDateTime(result, dateTime.[[Calendar]]).
+    return TRY(create_temporal_date_time(vm, result, date_time->calendar()));
 }
 
 // 5.3.33 Temporal.PlainDateTime.prototype.equals ( other ), https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.equals
