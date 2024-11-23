@@ -6,8 +6,7 @@ Rerun
 
 Found 70 tests
 
-69 Pass
-1 Fail
+70 Pass
 Details
 Result	Test Name	MessagePass	When qualifiedName does not match the Name production, an INVALID_CHARACTER_ERR exception is to be thrown. (toggleAttribute)	
 Pass	When qualifiedName does not match the Name production, an INVALID_CHARACTER_ERR exception is to be thrown, even if the attribute is already present. (toggleAttribute)	
@@ -78,4 +77,4 @@ Pass	Own property correctness with namespaced attribute before same-name non-nam
 Pass	Own property correctness with two namespaced attributes with the same name-with-prefix	
 Pass	Own property names should only include all-lowercase qualified names for an HTML element in an HTML document	
 Pass	Own property names should include all qualified names for a non-HTML element in an HTML document	
-Fail	Own property names should include all qualified names for an HTML element in a non-HTML document	
+Pass	Own property names should include all qualified names for an HTML element in a non-HTML document	

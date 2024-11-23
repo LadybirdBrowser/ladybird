@@ -61,8 +61,7 @@ Vector<FlyString> NamedNodeMap::supported_property_names() const
     }
 
     // 2. If this NamedNodeMap object’s element is in the HTML namespace and its node document is an HTML document, then for each name in names:
-    // FIXME: Handle the second condition, assume it is an HTML document for now.
-    if (associated_element().namespace_uri() == Namespace::HTML) {
+    if (associated_element().namespace_uri() == Namespace::HTML && associated_element().document().is_html_document()) {
         // 1. Let lowercaseName be name, in ASCII lowercase.
         // 2. If lowercaseName is not equal to name, remove name from names.
         names.remove_all_matching([](auto const& name) { return name != name.to_ascii_lowercase(); });
