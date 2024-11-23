@@ -216,6 +216,32 @@ ThrowCompletionOr<GC::Ref<PlainDateTime>> create_temporal_date_time(VM& vm, ISOD
     return object;
 }
 
+// 5.5.9 ISODateTimeToString ( isoDateTime, calendar, precision, showCalendar ), https://tc39.es/proposal-temporal/#sec-temporal-isodatetimetostring
+String iso_date_time_to_string(ISODateTime const& iso_date_time, StringView calendar, SecondsStringPrecision::Precision precision, ShowCalendar show_calendar)
+{
+    // 1. Let yearString be PadISOYear(isoDateTime.[[ISODate]].[[Year]]).
+    auto year_string = pad_iso_year(iso_date_time.iso_date.year);
+
+    // 2. Let monthString be ToZeroPaddedDecimalString(isoDateTime.[[ISODate]].[[Month]], 2).
+    auto month = iso_date_time.iso_date.month;
+
+    // 3. Let dayString be ToZeroPaddedDecimalString(isoDateTime.[[ISODate]].[[Day]], 2).
+    auto day = iso_date_time.iso_date.day;
+
+    // 4. Let subSecondNanoseconds be isoDateTime.[[Time]].[[Millisecond]] × 10**6 + isoDateTime.[[Time]].[[Microsecond]] × 10**3 + isoDateTime.[[Time]].[[Nanosecond]].
+    auto sub_second_nanoseconds = (static_cast<u64>(iso_date_time.time.millisecond) * 1'000'000) + (static_cast<u64>(iso_date_time.time.microsecond) * 1000) + static_cast<u64>(iso_date_time.time.nanosecond);
+
+    // 5. Let timeString be FormatTimeString(isoDateTime.[[Time]].[[Hour]], isoDateTime.[[Time]].[[Minute]], isoDateTime.[[Time]].[[Second]], subSecondNanoseconds, precision).
+    auto time_string = format_time_string(iso_date_time.time.hour, iso_date_time.time.minute, iso_date_time.time.second, sub_second_nanoseconds, precision);
+
+    // 6. Let calendarString be FormatCalendarAnnotation(calendar, showCalendar).
+    auto calendar_string = format_calendar_annotation(calendar, show_calendar);
+
+    // 7. Return the string-concatenation of yearString, the code unit 0x002D (HYPHEN-MINUS), monthString, the code unit 0x002D (HYPHEN-MINUS),
+    //    dayString, 0x0054 (LATIN CAPITAL LETTER T), timeString, and calendarString.
+    return MUST(String::formatted("{}-{:02}-{:02}T{}{}", year_string, month, day, time_string, calendar_string));
+}
+
 // 5.5.10 CompareISODateTime ( isoDateTime1, isoDateTime2 ), https://tc39.es/proposal-temporal/#sec-temporal-compareisodatetime
 i8 compare_iso_date_time(ISODateTime const& iso_date_time1, ISODateTime const& iso_date_time2)
 {
@@ -228,6 +254,22 @@ i8 compare_iso_date_time(ISODateTime const& iso_date_time1, ISODateTime const& i
 
     // 3. Return CompareTimeRecord(isoDateTime1.[[Time]], isoDateTime2.[[Time]]).
     return compare_time_record(iso_date_time1.time, iso_date_time2.time);
+}
+
+// 5.5.11 RoundISODateTime ( isoDateTime, increment, unit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-roundisodatetime
+ISODateTime round_iso_date_time(ISODateTime const& iso_date_time, u64 increment, Unit unit, RoundingMode rounding_mode)
+{
+    // 1. Assert: ISODateTimeWithinLimits(isoDateTime) is true.
+    VERIFY(iso_date_time_within_limits(iso_date_time));
+
+    // 2. Let roundedTime be RoundTime(isoDateTime.[[Time]], increment, unit, roundingMode).
+    auto rounded_time = round_time(iso_date_time.time, increment, unit, rounding_mode);
+
+    // 3. Let balanceResult be BalanceISODate(isoDateTime.[[ISODate]].[[Year]], isoDateTime.[[ISODate]].[[Month]], isoDateTime.[[ISODate]].[[Day]] + roundedTime.[[Days]]).
+    auto balance_result = balance_iso_date(iso_date_time.iso_date.year, iso_date_time.iso_date.month, iso_date_time.iso_date.day + rounded_time.days);
+
+    // 4. Return CombineISODateAndTimeRecord(balanceResult, roundedTime).
+    return combine_iso_date_and_time_record(balance_result, rounded_time);
 }
 
 // 5.5.12 DifferenceISODateTime ( isoDateTime1, isoDateTime2, calendar, largestUnit ), https://tc39.es/proposal-temporal/#sec-temporal-differenceisodatetime
