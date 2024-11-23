@@ -188,6 +188,8 @@ void HTMLParser::visit_edges(Cell::Visitor& visitor)
 
 void HTMLParser::run(HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point)
 {
+    m_stop_parsing = false;
+
     for (;;) {
         // FIXME: Find a better way to say that we come from Document::close() and want to process EOF.
         if (!m_tokenizer.is_eof_inserted() && m_tokenizer.is_insertion_point_reached())
