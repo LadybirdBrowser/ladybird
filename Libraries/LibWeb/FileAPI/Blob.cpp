@@ -336,27 +336,16 @@ GC::Ref<Streams::ReadableStream> Blob::get_stream()
 
             // 2. Queue a global task on the file reading task source given blob’s relevant global object to perform the following steps:
             HTML::queue_global_task(HTML::Task::Source::FileReading, realm.global_object(), GC::create_function(heap(), [stream, bytes = move(bytes)]() {
-                // NOTE: Using an TemporaryExecutionContext here results in a crash in the method HTML::incumbent_realm()
-                //       since we end up in a state where we have no execution context + an event loop with an empty incumbent
-                //       realm stack. We still need an execution context therefore we push the realm's execution context
-                //       onto the realm's VM, and we need an incumbent realm which is pushed onto the incumbent realm stack
-                //       by HTML::prepare_to_run_callback().
                 auto& realm = stream->realm();
-                auto& environment_settings = Bindings::principal_host_defined_environment_settings_object(realm);
-                realm.vm().push_execution_context(environment_settings.realm_execution_context());
-                HTML::prepare_to_run_callback(realm);
-                ScopeGuard const guard = [&realm] {
-                    HTML::clean_up_after_running_callback(realm);
-                    realm.vm().pop_execution_context();
-                };
+                HTML::TemporaryExecutionContext const execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
                 // 1. If bytes is failure, then error stream with a failure reason and abort these steps.
                 // 2. Let chunk be a new Uint8Array wrapping an ArrayBuffer containing bytes. If creating the ArrayBuffer throws an exception, then error stream with that exception and abort these steps.
-                auto array_buffer = JS::ArrayBuffer::create(stream->realm(), bytes);
-                auto chunk = JS::Uint8Array::create(stream->realm(), bytes.size(), *array_buffer);
+                auto array_buffer = JS::ArrayBuffer::create(realm, bytes);
+                auto chunk = JS::Uint8Array::create(realm, bytes.size(), *array_buffer);
 
                 // 3. Enqueue chunk in stream.
-                auto maybe_error = Bindings::throw_dom_exception_if_needed(stream->realm().vm(), [&]() {
+                auto maybe_error = Bindings::throw_dom_exception_if_needed(realm.vm(), [&]() {
                     return readable_stream_enqueue(*stream->controller(), chunk);
                 });
 
