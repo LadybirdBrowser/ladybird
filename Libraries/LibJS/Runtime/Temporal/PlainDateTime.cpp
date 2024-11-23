@@ -367,4 +367,39 @@ ThrowCompletionOr<Crypto::BigFraction> difference_plain_date_time_with_total(VM&
     return TRY(total_relative_duration(vm, diff, dest_epoch_ns, iso_date_time1, {}, calendar, unit));
 }
 
+// 5.5.16 AddDurationToDateTime ( operation, dateTime, temporalDurationLike, options ), https://tc39.es/proposal-temporal/#sec-temporal-adddurationtodatetime
+ThrowCompletionOr<GC::Ref<PlainDateTime>> add_duration_to_date_time(VM& vm, ArithmeticOperation operation, PlainDateTime const& date_time, Value temporal_duration_like, Value options)
+{
+    // 1. Let duration be ? ToTemporalDuration(temporalDurationLike).
+    auto duration = TRY(to_temporal_duration(vm, temporal_duration_like));
+
+    // 2. If operation is SUBTRACT, set duration to CreateNegatedTemporalDuration(duration).
+    if (operation == ArithmeticOperation::Subtract)
+        duration = create_negated_temporal_duration(vm, duration);
+
+    // 3. Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolved_options = TRY(get_options_object(vm, options));
+
+    // 4. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+    auto overflow = TRY(get_temporal_overflow_option(vm, resolved_options));
+
+    // 5. Let internalDuration be ToInternalDurationRecordWith24HourDays(duration).
+    auto internal_duration = to_internal_duration_record_with_24_hour_days(vm, duration);
+
+    // 6. Let timeResult be AddTime(dateTime.[[ISODateTime]].[[Time]], internalDuration.[[Time]]).
+    auto time_result = add_time(date_time.iso_date_time().time, internal_duration.time);
+
+    // 7. Let dateDuration be ? AdjustDateDurationRecord(internalDuration.[[Date]], timeResult.[[Days]]).
+    auto date_duration = TRY(adjust_date_duration_record(vm, internal_duration.date, time_result.days));
+
+    // 8. Let addedDate be ? CalendarDateAdd(dateTime.[[Calendar]], dateTime.[[ISODateTime]].[[ISODate]], dateDuration, overflow).
+    auto added_date = TRY(calendar_date_add(vm, date_time.calendar(), date_time.iso_date_time().iso_date, date_duration, overflow));
+
+    // 9. Let result be CombineISODateAndTimeRecord(addedDate, timeResult).
+    auto result = combine_iso_date_and_time_record(added_date, time_result);
+
+    // 10. Return ? CreateTemporalDateTime(result, dateTime.[[Calendar]]).
+    return TRY(create_temporal_date_time(vm, result, date_time.calendar()));
+}
+
 }
