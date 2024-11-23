@@ -109,6 +109,10 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box)
 
             auto child_border_box = child.paintable_box()->absolute_border_box_rect();
 
+            // Border boxes with zero area do not affect the scrollable overflow area.
+            if (child_border_box.is_empty())
+                return TraversalDecision::Continue;
+
             // NOTE: Here we check that the child is not wholly in the negative scrollable overflow region.
             if (child_border_box.bottom() < 0 || child_border_box.right() < 0)
                 return TraversalDecision::Continue;

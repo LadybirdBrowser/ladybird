@@ -86,7 +86,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x636]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x636]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x608] overflow: [8,8 784.484375x628]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x608] overflow: [8,8 784.484375x608]
       PaintableWithLines (BlockContainer<DIV>) [8,8 784x137]
         PaintableWithLines (BlockContainer(anonymous)) [8,8 784x17]
           TextPaintable (TextNode<#text>)
