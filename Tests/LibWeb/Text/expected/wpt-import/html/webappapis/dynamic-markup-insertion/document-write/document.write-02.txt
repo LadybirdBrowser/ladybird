@@ -1,0 +1,13 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 3 tests
+
+3 Pass
+Details
+Result	Test Name	MessagePass	Calling document.write with null and undefined	
+Pass	document.write(null)	
+Pass	document.write(undefined)	

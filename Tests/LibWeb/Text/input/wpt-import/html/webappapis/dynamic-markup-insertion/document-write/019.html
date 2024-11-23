@@ -1,0 +1,19 @@
+<!doctype html>
+<title>document.write</title>
+<script src="../../../../resources/testharness.js"></script><script src="../../../../resources/testharnessreport.js"></script>
+<script>
+var t = async_test();
+t.step(function() {
+  document.write("<i");
+});
+</script>
+>Filler Text</i>
+<script>
+t.step(function() {
+  assert_equals(document.body.childNodes[0].localName, "i");
+  assert_equals(document.body.childNodes[0].textContent, "Filler Text");
+}
+);
+t.done();
+</script>
+<div id="log"></div>

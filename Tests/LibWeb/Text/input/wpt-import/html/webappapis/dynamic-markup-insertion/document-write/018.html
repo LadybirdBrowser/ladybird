@@ -1,0 +1,19 @@
+<!doctype html>
+<title>document.write</title>
+<script src="../../../../resources/testharness.js"></script><script src="../../../../resources/testharnessreport.js"></script>
+<script>
+test(
+function() {
+  document.write("<body>");
+  var s = "<!--comment--><i>Filler Text</i>"
+  for (var i=0; i<s.length; i++) {
+    document.write(s[i]);
+  }
+  assert_equals(document.body.firstChild.nodeType, document.COMMENT_NODE);
+  assert_equals(document.body.firstChild.data, "comment");
+  assert_equals(document.body.childNodes[1].localName, "i");
+  assert_equals(document.body.childNodes[1].textContent, "Filler Text");
+}
+);
+</script>
+<div id="log"></div>

@@ -1,0 +1,10 @@
+<!doctype html>
+<title>document.write entity</title>
+<script src="../../../../resources/testharness.js"></script><script src="../../../../resources/testharnessreport.js"></script>
+<script>
+var t = test(function() {
+  document.write("<body><span>&notin;abc");
+  assert_equals(document.body.childNodes[0].textContent, "\u2209abc");
+});
+</script>
+<div id="log"></div>
