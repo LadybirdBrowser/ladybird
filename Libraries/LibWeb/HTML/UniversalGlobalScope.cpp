@@ -102,7 +102,7 @@ WebIDL::ExceptionOr<JS::Value> UniversalGlobalScopeMixin::structured_clone(JS::V
 
     // 2. Let deserializeRecord be ? StructuredDeserializeWithTransfer(serialized, this's relevant realm).
     // FIXME: Use WithTransfer variant of the AO
-    auto deserialized = TRY(structured_deserialize(vm, serialized, relevant_realm(this_impl()), {}));
+    auto deserialized = TRY(structured_deserialize(vm, serialized, relevant_realm(this_impl())));
 
     // 3. Return deserializeRecord.[[Deserialized]].
     return deserialized;

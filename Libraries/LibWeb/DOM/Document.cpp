@@ -4388,7 +4388,7 @@ void Document::restore_the_history_object_state(GC::Ref<HTML::SessionHistoryEntr
 
     // 2. Let state be StructuredDeserialize(entry's classic history API state, targetRealm). If this throws an exception, catch it and let state be null.
     // 3. Set document's history object's state to state.
-    auto state_or_error = HTML::structured_deserialize(target_realm.vm(), entry->classic_history_api_state(), target_realm, {});
+    auto state_or_error = HTML::structured_deserialize(target_realm.vm(), entry->classic_history_api_state(), target_realm);
     if (state_or_error.is_error())
         m_history->set_state(JS::js_null());
     else
