@@ -7,6 +7,8 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/HTMLLegendElement.h>
 #include <LibWeb/Layout/FieldSetBox.h>
+#include <LibWeb/Layout/LegendBox.h>
+#include <LibWeb/Painting/FieldSetPaintable.h>
 
 namespace Web::Layout {
 
@@ -22,13 +24,27 @@ FieldSetBox::~FieldSetBox() = default;
 bool FieldSetBox::has_rendered_legend() const
 {
     // https://html.spec.whatwg.org/#rendered-legend
-    if (this->has_children() && this->first_child()->is_legend_box()) {
-        auto* first_child = this->first_child();
-        return first_child->computed_values().float_() == CSS::Float::None
-            && first_child->computed_values().position() != CSS::Positioning::Absolute
-            && first_child->computed_values().position() != CSS::Positioning::Fixed;
+    bool has_rendered_legend = false;
+    if (has_children()) {
+        for_each_child_of_type<Box>([&](Box const& child) {
+            if (child.is_anonymous())
+                return IterationDecision::Continue;
+
+            if (!child.is_legend_box())
+                return IterationDecision::Break;
+
+            has_rendered_legend = child.computed_values().float_() == CSS::Float::None
+                && child.computed_values().position() != CSS::Positioning::Absolute
+                && child.computed_values().position() != CSS::Positioning::Fixed;
+            return IterationDecision::Break;
+        });
     }
-    return false;
+    return has_rendered_legend;
+}
+
+GC::Ptr<Painting::Paintable> FieldSetBox::create_paintable() const
+{
+    return Painting::FieldSetPaintable::create(*this);
 }
 
 }

@@ -665,6 +665,7 @@ namespace Web::Painting {
 class AudioPaintable;
 class ButtonPaintable;
 class CheckBoxPaintable;
+class FieldSetPaintable;
 class LabelablePaintable;
 class MediaPaintable;
 class Paintable;

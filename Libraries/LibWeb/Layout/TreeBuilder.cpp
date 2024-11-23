@@ -23,6 +23,7 @@
 #include <LibWeb/HTML/HTMLLIElement.h>
 #include <LibWeb/HTML/HTMLOListElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
+#include <LibWeb/Layout/FieldSetBox.h>
 #include <LibWeb/Layout/ListItemBox.h>
 #include <LibWeb/Layout/ListItemMarkerBox.h>
 #include <LibWeb/Layout/Node.h>
@@ -75,6 +76,9 @@ static Layout::Node& insertion_parent_for_inline_node(Layout::NodeWithStyle& lay
         }
         return *layout_parent.last_child();
     };
+
+    if (is<FieldSetBox>(layout_parent))
+        return last_child_creating_anonymous_wrapper_if_needed(layout_parent);
 
     if (layout_parent.display().is_inline_outside() && layout_parent.display().is_flow_inside())
         return layout_parent;

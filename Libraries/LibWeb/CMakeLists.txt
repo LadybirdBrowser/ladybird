@@ -619,6 +619,7 @@ set(SOURCES
     Painting/DisplayList.cpp
     Painting/DisplayListPlayerSkia.cpp
     Painting/DisplayListRecorder.cpp
+    Painting/FieldSetPaintable.cpp
     Painting/GradientPainting.cpp
     Painting/ImagePaintable.cpp
     Painting/LabelablePaintable.cpp
@@ -833,12 +834,12 @@ compile_ipc(Worker/WebWorkerClient.ipc Worker/WebWorkerClientEndpoint.h)
 compile_ipc(Worker/WebWorkerServer.ipc Worker/WebWorkerServerEndpoint.h)
 
 invoke_generator(
-        "AriaRoles.cpp"
-        Lagom::GenerateAriaRoles
-        "${CMAKE_CURRENT_SOURCE_DIR}/ARIA/AriaRoles.json"
-        "ARIA/AriaRoles.h"
-        "ARIA/AriaRoles.cpp"
-        arguments -j "${CMAKE_CURRENT_SOURCE_DIR}/ARIA/AriaRoles.json"
+    "AriaRoles.cpp"
+    Lagom::GenerateAriaRoles
+    "${CMAKE_CURRENT_SOURCE_DIR}/ARIA/AriaRoles.json"
+    "ARIA/AriaRoles.h"
+    "ARIA/AriaRoles.cpp"
+    arguments -j "${CMAKE_CURRENT_SOURCE_DIR}/ARIA/AriaRoles.json"
 )
 
 generate_css_implementation()
