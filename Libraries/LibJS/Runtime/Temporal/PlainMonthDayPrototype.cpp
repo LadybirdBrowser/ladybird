@@ -41,6 +41,7 @@ void PlainMonthDayPrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
     define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
     define_native_function(realm, vm.names.valueOf, value_of, 0, attr);
+    define_native_function(realm, vm.names.toPlainDate, to_plain_date, 1, attr);
 }
 
 // 10.3.3 get Temporal.PlainMonthDay.prototype.calendarId, https://tc39.es/proposal-temporal/#sec-get-temporal.plainmonthday.prototype.calendarid
@@ -178,6 +179,40 @@ JS_DEFINE_NATIVE_FUNCTION(PlainMonthDayPrototype::value_of)
 {
     // 1. Throw a TypeError exception.
     return vm.throw_completion<TypeError>(ErrorType::Convert, "Temporal.PlainMonthDay", "a primitive value");
+}
+
+// 10.3.12 Temporal.PlainMonthDay.prototype.toPlainDate ( item ), https://tc39.es/proposal-temporal/#sec-temporal.plainmonthday.prototype.toplaindate
+JS_DEFINE_NATIVE_FUNCTION(PlainMonthDayPrototype::to_plain_date)
+{
+    auto item = vm.argument(0);
+
+    // 1. Let monthDay be the this value.
+    // 2. Perform ? RequireInternalSlot(monthDay, [[InitializedTemporalMonthDay]]).
+    auto month_day = TRY(typed_this_object(vm));
+
+    // 3. If item is not an Object, then
+    if (!item.is_object()) {
+        // a. Throw a TypeError exception.
+        return vm.throw_completion<TypeError>(ErrorType::NotAnObject, item);
+    }
+
+    // 4. Let calendar be monthDay.[[Calendar]].
+    auto const& calendar = month_day->calendar();
+
+    // 5. Let fields be ISODateToFields(calendar, monthDay.[[ISODate]], MONTH-DAY).
+    auto fields = iso_date_to_fields(calendar, month_day->iso_date(), DateType::MonthDay);
+
+    // 6. Let inputFields be ? PrepareCalendarFields(calendar, item, « YEAR », « », « »).
+    auto input_fields = TRY(prepare_calendar_fields(vm, calendar, item.as_object(), { { CalendarField::Year } }, {}, CalendarFieldList {}));
+
+    // 7. Let mergedFields be CalendarMergeFields(calendar, fields, inputFields).
+    auto merged_fields = calendar_merge_fields(calendar, fields, input_fields);
+
+    // 8. Let isoDate be ? CalendarDateFromFields(calendar, mergedFields, CONSTRAIN).
+    auto iso_date = TRY(calendar_date_from_fields(vm, calendar, merged_fields, Overflow::Constrain));
+
+    // 9. Return ! CreateTemporalDate(isoDate, calendar).
+    return MUST(create_temporal_date(vm, iso_date, calendar));
 }
 
 }
