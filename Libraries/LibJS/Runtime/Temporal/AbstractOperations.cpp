@@ -628,6 +628,8 @@ ThrowCompletionOr<bool> is_partial_temporal_object(VM& vm, Value value)
         return false;
     if (is<PlainMonthDay>(object))
         return false;
+    if (is<PlainTime>(object))
+        return false;
     if (is<PlainYearMonth>(object))
         return false;
 

@@ -11,9 +11,19 @@
 #include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/Instant.h>
 #include <LibJS/Runtime/Temporal/PlainTime.h>
+#include <LibJS/Runtime/Temporal/PlainTimeConstructor.h>
 #include <math.h>
 
 namespace JS::Temporal {
+
+GC_DEFINE_ALLOCATOR(PlainTime);
+
+// 4 Temporal.PlainTime Objects, https://tc39.es/proposal-temporal/#sec-temporal-plaintime-objects
+PlainTime::PlainTime(Time const& time, Object& prototype)
+    : Object(ConstructWithPrototypeTag::Tag, prototype)
+    , m_time(time)
+{
+}
 
 // FIXME: We should add a generic floor() method to our BigInt classes. But for now, since we know we are only dividing
 //        by powers of 10, we can implement a very situationally specific method to compute the floor of a division.
@@ -91,6 +101,83 @@ TimeDuration difference_time(Time const& time1, Time const& time2)
 
     // 9. Return timeDuration.
     return time_duration;
+}
+
+// 4.5.6 ToTemporalTime ( item [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal-totemporaltime
+ThrowCompletionOr<GC::Ref<PlainTime>> to_temporal_time(VM& vm, Value item, Value options)
+{
+    // 1. If options is not present, set options to undefined.
+
+    Time time;
+
+    // 2. If item is an Object, then
+    if (item.is_object()) {
+        auto const& object = item.as_object();
+
+        // a. If item has an [[InitializedTemporalTime]] internal slot, then
+        if (is<PlainTime>(object)) {
+            auto const& plain_time = static_cast<PlainTime const&>(object);
+
+            // i. Let resolvedOptions be ? GetOptionsObject(options).
+            auto resolved_options = TRY(get_options_object(vm, options));
+
+            // ii. Perform ? GetTemporalOverflowOption(resolvedOptions).
+            TRY(get_temporal_overflow_option(vm, resolved_options));
+
+            // iii. Return ! CreateTemporalTime(item.[[Time]]).
+            return MUST(create_temporal_time(vm, plain_time.time()));
+        }
+
+        // FIXME: b. If item has an [[InitializedTemporalDateTime]] internal slot, then
+        // FIXME:     i. Let resolvedOptions be ? GetOptionsObject(options).
+        // FIXME:     ii. Perform ? GetTemporalOverflowOption(resolvedOptions).
+        // FIXME:     iii. Return ! CreateTemporalTime(item.[[ISODateTime]].[[Time]]).
+
+        // FIXME: c. If item has an [[InitializedTemporalZonedDateTime]] internal slot, then
+        // FIXME:     i. Let isoDateTime be GetISODateTimeFor(item.[[TimeZone]], item.[[EpochNanoseconds]]).
+        // FIXME:     ii. Let resolvedOptions be ? GetOptionsObject(options).
+        // FIXME:     iii. Perform ? GetTemporalOverflowOption(resolvedOptions).
+        // FIXME:     iv. Return ! CreateTemporalTime(isoDateTime.[[Time]]).
+
+        // d. Let result be ? ToTemporalTimeRecord(item).
+        auto result = TRY(to_temporal_time_record(vm, object));
+
+        // e. Let resolvedOptions be ? GetOptionsObject(options).
+        auto resolved_options = TRY(get_options_object(vm, options));
+
+        // f. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+        auto overflow = TRY(get_temporal_overflow_option(vm, resolved_options));
+
+        // g. Set result to ? RegulateTime(result.[[Hour]], result.[[Minute]], result.[[Second]], result.[[Millisecond]], result.[[Microsecond]], result.[[Nanosecond]], overflow).
+        time = TRY(regulate_time(vm, *result.hour, *result.minute, *result.second, *result.millisecond, *result.microsecond, *result.nanosecond, overflow));
+    }
+    // 3. Else,
+    else {
+        // a. If item is not a String, throw a TypeError exception.
+        if (!item.is_string())
+            return vm.throw_completion<TypeError>(ErrorType::TemporalInvalidPlainTime);
+
+        // b. Let parseResult be ? ParseISODateTime(item, « TemporalTimeString »).
+        auto parse_result = TRY(parse_iso_date_time(vm, item.as_string().utf8_string_view(), { { Production::TemporalTimeString } }));
+
+        // c. Assert: parseResult.[[Time]] is not START-OF-DAY.
+        VERIFY(!parse_result.time.has<ParsedISODateTime::StartOfDay>());
+
+        // d. Set result to parseResult.[[Time]].
+        time = parse_result.time.get<Time>();
+
+        // e. NOTE: A successful parse using TemporalTimeString guarantees absence of ambiguity with respect to any
+        //    ISO 8601 date-only, year-month, or month-day representation.
+
+        // f. Let resolvedOptions be ? GetOptionsObject(options).
+        auto resolved_options = TRY(get_options_object(vm, options));
+
+        // g. Perform ? GetTemporalOverflowOption(resolvedOptions).
+        TRY(get_temporal_overflow_option(vm, resolved_options));
+    }
+
+    // 4. Return ! CreateTemporalTime(result).
+    return MUST(create_temporal_time(vm, time));
 }
 
 // 4.5.8 RegulateTime ( hour, minute, second, millisecond, microsecond, nanosecond, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-regulatetime
@@ -260,6 +347,98 @@ Time balance_time(double hour, double minute, double second, double millisecond,
 
     // 13. Return CreateTimeRecord(hour, minute, second, millisecond, microsecond, nanosecond, deltaDays).
     return create_time_record(hour, minute, second, millisecond, microsecond, nanosecond, delta_days);
+}
+
+// 4.5.11 CreateTemporalTime ( time [ , newTarget ] ), https://tc39.es/proposal-temporal/#sec-temporal-createtemporaltime
+ThrowCompletionOr<GC::Ref<PlainTime>> create_temporal_time(VM& vm, Time const& time, GC::Ptr<FunctionObject> new_target)
+{
+    auto& realm = *vm.current_realm();
+
+    // 1. If newTarget is not present, set newTarget to %Temporal.PlainTime%.
+    if (!new_target)
+        new_target = realm.intrinsics().temporal_plain_time_constructor();
+
+    // 2. Let object be ? OrdinaryCreateFromConstructor(newTarget, "%Temporal.PlainTime.prototype%", « [[InitializedTemporalTime]], [[Time]] »).
+    // 3. Set object.[[Time]] to time.
+    auto object = TRY(ordinary_create_from_constructor<PlainTime>(vm, *new_target, &Intrinsics::temporal_plain_time_prototype, time));
+
+    // 4. Return object.
+    return object;
+}
+
+// 4.5.12 ToTemporalTimeRecord ( temporalTimeLike [ , completeness ] ), https://tc39.es/proposal-temporal/#sec-temporal-totemporaltimerecord
+ThrowCompletionOr<TemporalTimeLike> to_temporal_time_record(VM& vm, Object const& temporal_time_like, Completeness completeness)
+{
+    // 1. If completeness is not present, set completeness to COMPLETE.
+
+    TemporalTimeLike result;
+
+    // 2. If completeness is COMPLETE, then
+    if (completeness == Completeness::Complete) {
+        // a. Let result be a new TemporalTimeLike Record with each field set to 0.
+        result = TemporalTimeLike::zero();
+    }
+    // 3. Else,
+    else {
+        // a. Let result be a new TemporalTimeLike Record with each field set to UNSET.
+    }
+
+    // 4. Let any be false.
+    auto any = false;
+
+    auto apply_field = [&](auto const& key, auto& result_field) -> ThrowCompletionOr<void> {
+        auto field = TRY(temporal_time_like.get(key));
+        if (field.is_undefined())
+            return {};
+
+        result_field = TRY(to_integer_with_truncation(vm, field, ErrorType::TemporalInvalidTimeLikeField, field, key));
+        any = true;
+
+        return {};
+    };
+
+    // 5. Let hour be ? Get(temporalTimeLike, "hour").
+    // 6. If hour is not undefined, then
+    //     a. Set result.[[Hour]] to ? ToIntegerWithTruncation(hour).
+    //     b. Set any to true.
+    TRY(apply_field(vm.names.hour, result.hour));
+
+    // 7. Let microsecond be ? Get(temporalTimeLike, "microsecond").
+    // 8. If microsecond is not undefined, then
+    //     a. Set result.[[Microsecond]] to ? ToIntegerWithTruncation(microsecond).
+    //     b. Set any to true.
+    TRY(apply_field(vm.names.microsecond, result.microsecond));
+
+    // 9. Let millisecond be ? Get(temporalTimeLike, "millisecond").
+    // 10. If millisecond is not undefined, then
+    //     a. Set result.[[Millisecond]] to ? ToIntegerWithTruncation(millisecond).
+    //     b. Set any to true.
+    TRY(apply_field(vm.names.millisecond, result.millisecond));
+
+    // 11. Let minute be ? Get(temporalTimeLike, "minute").
+    // 12. If minute is not undefined, then
+    //     a. Set result.[[Minute]] to ? ToIntegerWithTruncation(minute).
+    //     b. Set any to true.
+    TRY(apply_field(vm.names.minute, result.minute));
+
+    // 13. Let nanosecond be ? Get(temporalTimeLike, "nanosecond").
+    // 14. If nanosecond is not undefined, then
+    //     a. Set result.[[Nanosecond]] to ? ToIntegerWithTruncation(nanosecond).
+    //     b. Set any to true.
+    TRY(apply_field(vm.names.nanosecond, result.nanosecond));
+
+    // 15. Let second be ? Get(temporalTimeLike, "second").
+    // 16. If second is not undefined, then
+    //     a. Set result.[[Second]] to ? ToIntegerWithTruncation(second).
+    //     b. Set any to true.
+    TRY(apply_field(vm.names.second, result.second));
+
+    // 17. If any is false, throw a TypeError exception.
+    if (!any)
+        return vm.throw_completion<TypeError>(ErrorType::TemporalInvalidTime);
+
+    // 18. Return result.
+    return result;
 }
 
 // 4.5.14 CompareTimeRecord ( time1, time2 ), https://tc39.es/proposal-temporal/#sec-temporal-comparetimerecord
