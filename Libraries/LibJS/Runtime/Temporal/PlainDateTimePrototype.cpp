@@ -53,6 +53,9 @@ void PlainDateTimePrototype::initialize(Realm& realm)
     define_native_accessor(realm, vm.names.inLeapYear, in_leap_year_getter, {}, Attribute::Configurable);
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
+    define_native_function(realm, vm.names.add, add, 1, attr);
+    define_native_function(realm, vm.names.subtract, subtract, 1, attr);
+    define_native_function(realm, vm.names.equals, equals, 1, attr);
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
     define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
@@ -211,6 +214,52 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::year_of_week_getter)
 
     // 5. Return 𝔽(result).
     return *result;
+}
+
+// 5.3.28 Temporal.PlainDateTime.prototype.add ( temporalDurationLike [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.add
+JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::add)
+{
+    auto temporal_duration_like = vm.argument(0);
+    auto options = vm.argument(1);
+
+    // 1. Let dateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(dateTime, [[InitializedTemporalDateTime]]).
+    auto date_time = TRY(typed_this_object(vm));
+
+    // 3. Return ? AddDurationToDateTime(ADD, dateTime, temporalDurationLike, options).
+    return TRY(add_duration_to_date_time(vm, ArithmeticOperation::Add, date_time, temporal_duration_like, options));
+}
+
+// 5.3.29 Temporal.PlainDateTime.prototype.subtract ( temporalDurationLike [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.add
+JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::subtract)
+{
+    auto temporal_duration_like = vm.argument(0);
+    auto options = vm.argument(1);
+
+    // 1. Let dateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(dateTime, [[InitializedTemporalDateTime]]).
+    auto date_time = TRY(typed_this_object(vm));
+
+    // 3. Return ? AddDurationToDateTime(SUBTRACT, dateTime, temporalDurationLike, options).
+    return TRY(add_duration_to_date_time(vm, ArithmeticOperation::Subtract, date_time, temporal_duration_like, options));
+}
+
+// 5.3.33 Temporal.PlainDateTime.prototype.equals ( other ), https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.equals
+JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::equals)
+{
+    // 1. Let dateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(dateTime, [[InitializedTemporalDateTime]]).
+    auto date_time = TRY(typed_this_object(vm));
+
+    // 3. Set other to ? ToTemporalDateTime(other).
+    auto other = TRY(to_temporal_date_time(vm, vm.argument(0)));
+
+    // 4. If CompareISODateTime(dateTime.[[ISODateTime]], other.[[ISODateTime]]) ≠ 0, return false.
+    if (compare_iso_date_time(date_time->iso_date_time(), other->iso_date_time()) != 0)
+        return false;
+
+    // 5. Return CalendarEquals(dateTime.[[Calendar]], other.[[Calendar]]).
+    return calendar_equals(date_time->calendar(), other->calendar());
 }
 
 // 5.3.34 Temporal.PlainDateTime.prototype.toString ( [ options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.tostring
