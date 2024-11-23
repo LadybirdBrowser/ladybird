@@ -15,7 +15,7 @@
 
 namespace Web::CSS {
 
-// https://www.w3.org/TR/css-conditional-4/#at-supports
+// https://www.w3.org/TR/css-conditional-3/#at-supports
 class Supports final : public RefCounted<Supports> {
     friend class Parser::Parser;
 
