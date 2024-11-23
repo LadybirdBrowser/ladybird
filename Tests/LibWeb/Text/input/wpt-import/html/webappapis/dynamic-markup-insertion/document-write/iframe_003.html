@@ -1,0 +1,23 @@
+<!doctype html>
+<title>document.write script into iframe</title>
+<script src="../../../../resources/testharness.js"></script><script src="../../../../resources/testharnessreport.js"></script>
+<iframe id="test"></iframe>
+<script>
+test(
+function() {
+  var iframe = document.getElementById("test");
+  var s = "<script>document.write(\"<i id='a'>Filler Text</i>\")</script" + "><b id=b>Filler Text</b>"
+  for (var i=0; i<s.length; i++) {
+    iframe.contentDocument.write(s[i]);
+  }
+  iframe.contentDocument.close();
+  //Note: <script> ends up in <head>
+  assert_equals(iframe.contentDocument.body.childNodes[0].textContent, "Filler Text");
+  assert_equals(iframe.contentDocument.body.childNodes[0].localName, "i");
+  assert_equals(iframe.contentDocument.body.childNodes[0].getAttribute('id'), "a");
+  assert_equals(iframe.contentDocument.body.childNodes[1].textContent, "Filler Text");
+  assert_equals(iframe.contentDocument.body.childNodes[1].localName, "b");
+  assert_equals(iframe.contentDocument.body.childNodes[1].getAttribute('id'), "b");
+});
+</script>
+<div id="log"></div>

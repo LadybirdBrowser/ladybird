@@ -1,0 +1,20 @@
+<!doctype html>
+<title>document.write</title>
+<script src="../../../../resources/testharness.js"></script><script src="../../../../resources/testharnessreport.js"></script>
+<script>
+test(
+  function() {
+    document.writeln("<i");
+    var s = " b='a'>Filler"
+    for (var i=0; i<s.length; i++) {
+      document.write(s[i]+"\n");
+    }
+    document.writeln("</i");
+    document.writeln(">");
+    assert_equals(document.body.childNodes[0].localName, "i");
+    assert_equals(document.body.childNodes[0].getAttribute("b"), "\na\n");
+    assert_equals(document.body.childNodes[0].textContent, "\nF\ni\nl\nl\ne\nr\n");
+  }
+);
+</script>
+<div id="log"></div>

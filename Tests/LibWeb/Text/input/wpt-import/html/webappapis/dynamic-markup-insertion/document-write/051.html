@@ -1,0 +1,22 @@
+<!doctype html>
+<title>document.write \r\n</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+
+<div id="log"></div>
+
+<script>
+var t = async_test();
+
+t.step(function() {
+  document.write("\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\nA");
+})
+
+onload = function() {
+  t.step(function() {
+    const lastNode = document.getElementById('after');
+    assert_equals(lastNode.previousSibling.data, "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nAB");
+  });
+  t.done();
+};
+</script>B<div id=after></div>

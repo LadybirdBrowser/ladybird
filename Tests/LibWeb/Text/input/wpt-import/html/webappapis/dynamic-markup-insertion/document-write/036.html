@@ -1,0 +1,21 @@
+<!doctype html>
+<title>document.write</title>
+<script src="../../../../resources/testharness.js"></script><script src="../../../../resources/testharnessreport.js"></script>
+<script>
+var t = async_test();
+t.step(function() {
+  var s = "<svg><![CDATA[Filler Text]";
+  for (var i=0; i<s.length; i++) {
+    document.write(s[i]);
+  }
+});
+</script>]></svg>
+<script>
+t.step(function() {
+  assert_equals(document.body.childNodes[0].localName, "svg");
+  assert_equals(document.body.childNodes[0].textContent, "Filler Text");
+}
+);
+t.done();
+</script>
+<div id="log"></div>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<title>document.write and null/undefined</title>
+<link rel="author" title="Ms2ger" href="mailto:ms2ger@gmail.com">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-document-write%28%29">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#documents-in-the-dom">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+test(function() {
+  var iframe = document.createElement("iframe");
+  document.body.appendChild(iframe);
+  doc = iframe.contentDocument;
+  test(function() {
+    doc.open();
+    doc.write(null);
+    doc.close();
+    assert_equals(doc.documentElement.textContent, "null");
+  }, "document.write(null)");
+  test(function() {
+    doc.open();
+    doc.write(undefined);
+    doc.close();
+    assert_equals(doc.documentElement.textContent, "undefined");
+  }, "document.write(undefined)");
+}, "Calling document.write with null and undefined");
+</script>

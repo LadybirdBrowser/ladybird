@@ -1,0 +1,19 @@
+<!doctype html>
+<title>document.write</title>
+<script src="../../../../resources/testharness.js"></script><script src="../../../../resources/testharnessreport.js"></script>
+<script>
+test(
+function() {
+  var s = "<i id=test>Filler Text</i><b>Filler Text"
+  for (var i=0; i<s.length; i++) {
+    document.write(s[i]);
+  }
+  assert_equals(document.body.firstChild.localName, "i");
+  assert_equals(document.body.firstChild.getAttribute('id'), "test");
+  assert_equals(document.body.firstChild.textContent, "Filler Text");
+  assert_equals(document.body.childNodes[1].localName, "b");
+  assert_equals(document.body.childNodes[1].textContent, "Filler Text");
+}
+);
+</script>
+<div id="log"></div>

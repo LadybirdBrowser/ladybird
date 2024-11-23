@@ -1,0 +1,10 @@
+<!doctype html>
+<title>document.write script writing a further script</title>
+<script src="../../../../resources/testharness.js"></script><script src="../../../../resources/testharnessreport.js"></script>
+<script>
+var t = async_test();
+t.step(function() {
+  document.write("<script>document.write('<script>t.done()</script'+'>')<"+"/script>");
+});
+</script>
+<div id="log"></div>
