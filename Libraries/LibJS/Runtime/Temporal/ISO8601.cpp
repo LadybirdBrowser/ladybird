@@ -199,7 +199,16 @@ public:
         // AnnotatedTime :::
         //     TimeDesignator Time DateTimeUTCOffset[~Z][opt] TimeZoneAnnotation[opt] Annotations[opt]
         //     Time DateTimeUTCOffset[~Z][opt] TimeZoneAnnotation[opt] Annotations[opt]
-        (void)parse_time_designator();
+        auto has_time_designator = parse_time_designator();
+
+        if (!has_time_designator) {
+            StateTransaction transaction { *this };
+
+            // It is a Syntax Error if ParseText(Time DateTimeUTCOffset[~Z], DateSpecMonthDay) is a Parse Node.
+            // It is a Syntax Error if ParseText(Time DateTimeUTCOffset[~Z], DateSpecYearMonth) is a Parse Node.
+            if (parse_date_spec_month_day() || parse_date_spec_year_month())
+                return false;
+        }
 
         if (!parse_time())
             return false;
