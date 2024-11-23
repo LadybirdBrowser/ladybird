@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -11,7 +11,9 @@
 #include <LibWeb/Bindings/HTMLImageElementPrototype.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
+#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
@@ -26,6 +28,7 @@
 #include <LibWeb/HTML/HTMLSourceElement.h>
 #include <LibWeb/HTML/ImageRequest.h>
 #include <LibWeb/HTML/ListOfAvailableImages.h>
+#include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -91,6 +94,20 @@ void HTMLImageElement::apply_presentational_hints(CSS::StyleProperties& style) c
             if (auto parsed_value = parse_dimension_value(value)) {
                 style.set_property(CSS::PropertyID::MarginTop, *parsed_value);
                 style.set_property(CSS::PropertyID::MarginBottom, *parsed_value);
+            }
+        } else if (name == HTML::AttributeNames::border) {
+            if (auto parsed_value = parse_non_negative_integer(value); parsed_value.has_value()) {
+                auto width_value = CSS::LengthStyleValue::create(CSS::Length::make_px(*parsed_value));
+                style.set_property(CSS::PropertyID::BorderTopWidth, width_value);
+                style.set_property(CSS::PropertyID::BorderRightWidth, width_value);
+                style.set_property(CSS::PropertyID::BorderBottomWidth, width_value);
+                style.set_property(CSS::PropertyID::BorderLeftWidth, width_value);
+
+                auto solid_value = CSS::CSSKeywordValue::create(CSS::Keyword::Solid);
+                style.set_property(CSS::PropertyID::BorderTopStyle, solid_value);
+                style.set_property(CSS::PropertyID::BorderRightStyle, solid_value);
+                style.set_property(CSS::PropertyID::BorderBottomStyle, solid_value);
+                style.set_property(CSS::PropertyID::BorderLeftStyle, solid_value);
             }
         }
     });
