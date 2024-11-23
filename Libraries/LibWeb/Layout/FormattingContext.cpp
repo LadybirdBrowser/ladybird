@@ -645,7 +645,10 @@ CSSPixels FormattingContext::compute_height_for_replaced_element(Box const& box,
     // use the algorithm under 'Minimum and maximum widths'
     // https://www.w3.org/TR/CSS22/visudet.html#min-max-widths
     // to find the used width and height.
-    if (computed_width.is_auto() && computed_height.is_auto() && box.has_preferred_aspect_ratio()) {
+    if ((computed_width.is_auto() && computed_height.is_auto() && box.has_preferred_aspect_ratio())
+        // NOTE: This is a special case where calling tentative_width_for_replaced_element() would call us right back,
+        //       and we'd end up in an infinite loop. So we need to handle this case separately.
+        && !(!box.has_natural_width() && box.has_natural_height())) {
         CSSPixels w = tentative_width_for_replaced_element(box, computed_width, available_space);
         CSSPixels h = used_height;
         used_height = solve_replaced_size_constraint(w, h, box, available_space).height();
