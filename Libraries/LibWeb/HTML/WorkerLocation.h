@@ -19,7 +19,7 @@ public:
     virtual ~WorkerLocation() override;
 
     WebIDL::ExceptionOr<String> href() const;
-    WebIDL::ExceptionOr<String> origin() const;
+    String origin() const;
     WebIDL::ExceptionOr<String> protocol() const;
     WebIDL::ExceptionOr<String> host() const;
     WebIDL::ExceptionOr<String> hostname() const;

@@ -213,12 +213,10 @@ WebIDL::ExceptionOr<void> DOMURL::set_href(String const& href)
 }
 
 // https://url.spec.whatwg.org/#dom-url-origin
-WebIDL::ExceptionOr<String> DOMURL::origin() const
+String DOMURL::origin() const
 {
-    auto& vm = realm().vm();
-
     // The origin getter steps are to return the serialization of this’s URL’s origin. [HTML]
-    return TRY_OR_THROW_OOM(vm, String::from_byte_string(m_url.origin().serialize()));
+    return m_url.origin().serialize();
 }
 
 // https://url.spec.whatwg.org/#dom-url-protocol

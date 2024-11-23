@@ -35,7 +35,7 @@ public:
     WebIDL::ExceptionOr<String> href() const;
     WebIDL::ExceptionOr<void> set_href(String const&);
 
-    WebIDL::ExceptionOr<String> origin() const;
+    String origin() const;
 
     WebIDL::ExceptionOr<String> protocol() const;
     WebIDL::ExceptionOr<void> set_protocol(String const&);

@@ -133,15 +133,13 @@ WebIDL::ExceptionOr<void> Location::set_href(String const& new_href)
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location-origin
 WebIDL::ExceptionOr<String> Location::origin() const
 {
-    auto& vm = this->vm();
-
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
         return WebIDL::SecurityError::create(realm(), "Location's relevant document is not same origin-domain with the entry settings object's origin"_string);
 
     // 2. Return the serialization of this's url's origin.
-    return TRY_OR_THROW_OOM(vm, String::from_byte_string(url().origin().serialize()));
+    return url().origin().serialize();
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-protocol
