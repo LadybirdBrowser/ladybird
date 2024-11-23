@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	e.style['color'] = "currentcolor" should set the property value
+Pass	e.style['color'] = "transparent" should set the property value
+Pass	e.style['color'] = "red" should set the property value
+Pass	e.style['color'] = "magenta" should set the property value
+Pass	e.style['color'] = "#234" should set the property value
+Pass	e.style['color'] = "#FEDCBA" should set the property value
+Pass	e.style['color'] = "rgb(2, 3, 4)" should set the property value
+Pass	e.style['color'] = "rgb(100%, 0%, 0%)" should set the property value
+Pass	e.style['color'] = "rgba(2, 3, 4, 0.5)" should set the property value
+Pass	e.style['color'] = "rgba(2, 3, 4, 50%)" should set the property value
+Pass	e.style['color'] = "hsl(120, 100%, 50%)" should set the property value
+Pass	e.style['color'] = "hsla(120, 100%, 50%, 0.25)" should set the property value
+Pass	e.style['color'] = "rgb(-2, 3, 4)" should set the property value
+Pass	e.style['color'] = "rgb(100, 200, 300)" should set the property value
+Pass	e.style['color'] = "rgb(20, 10, 0, -10)" should set the property value
+Pass	e.style['color'] = "rgb(100%, 200%, 300%)" should set the property value

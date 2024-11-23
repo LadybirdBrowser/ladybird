@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Color Level 4: Parsing and serialization of colors using valid HSL notation</title>
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#the-hsl-notation">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#resolving-sRGB-values">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#serializing-sRGB-values">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+tests = [
+    ["hsl(120 30% 50%)", "rgb(89, 166, 89)"],
+    ["hsl(120 30% 50% / 0.5)", "rgba(89, 166, 89, 0.5)"],
+    ["hsl(none none none)", "rgb(0, 0, 0)"],
+    ["hsl(0 0% 0%)", "rgb(0, 0, 0)"],
+    ["hsl(none none none / none)", "rgba(0, 0, 0, 0)"],
+    ["hsl(0 0% 0% / 0)", "rgba(0, 0, 0, 0)"],
+    ["hsla(none none none)", "rgb(0, 0, 0)"],
+    ["hsla(0 0% 0%)", "rgb(0, 0, 0)"],
+    ["hsla(none none none / none)", "rgba(0, 0, 0, 0)"],
+    ["hsla(0 0% 0% / 0)", "rgba(0, 0, 0, 0)"],
+    ["hsl(120 none none)", "rgb(0, 0, 0)"],
+    ["hsl(120 0% 0%)", "rgb(0, 0, 0)"],
+    ["hsl(120 80% none)", "rgb(0, 0, 0)"],
+    ["hsl(120 80% 0%)", "rgb(0, 0, 0)"],
+    ["hsl(120 none 50%)", "rgb(128, 128, 128)"],
+    ["hsl(120 0% 50%)", "rgb(128, 128, 128)"],
+    ["hsl(120 100% 50% / none)", "rgba(0, 255, 0, 0)"],
+    ["hsl(120 100% 50% / 0)", "rgba(0, 255, 0, 0)"],
+    ["hsl(none 100% 50%)", "rgb(255, 0, 0)"],
+    ["hsl(0 100% 50%)", "rgb(255, 0, 0)"],
+
+    // Test with number components.
+    ["hsl(120 30 50)", "rgb(89, 166, 89)"],
+    ["hsl(120 30 50 / 0.5)", "rgba(89, 166, 89, 0.5)"],
+    ["hsl(120 30% 50)", "rgb(89, 166, 89)"],
+    ["hsl(120 30% 50 / 0.5)", "rgba(89, 166, 89, 0.5)"],
+    ["hsl(120 30 50%)", "rgb(89, 166, 89)"],
+    ["hsl(120 30 50% / 0.5)", "rgba(89, 166, 89, 0.5)"],
+    ["hsl(120 none 50)", "rgb(128, 128, 128)"],
+    ["hsl(120 none 50 / 0.5)", "rgba(128, 128, 128, 0.5)"],
+    ["hsl(120 30 none)", "rgb(0, 0, 0)"],
+    ["hsl(120 30 none / 0.5)", "rgba(0, 0, 0, 0.5)"],
+    ["hsl(120 30 50 / none)", "rgba(89, 166, 89, 0)"],
+
+    // Test parse-time clamp of negative saturation to zero
+    ["hsl(0 -50% 40%)", "rgb(102, 102, 102)"],
+    ["hsl(30 -50% 60)", "rgb(153, 153, 153)"],
+    ["hsl(0 -50 40%)", "rgb(102, 102, 102)"],
+    ["hsl(30 -50 60)", "rgb(153, 153, 153)"],
+
+    // Test non-finite values. calc(infinity) goes to upper bound while calc(-infinity) and NaN go to the lower bound.
+    // See: https://github.com/w3c/csswg-drafts/issues/8629
+    ["hsl(calc(infinity) 100% 50%)", "rgb(255, 0, 0)"], // hsl(360 100% 50%)
+    ["hsl(calc(-infinity) 100% 50%)", "rgb(255, 0, 0)"], // hsl(0 100% 50%)
+    ["hsl(calc(0 / 0) 100% 50%)", "rgb(255, 0, 0)"], // hsl(0 100% 50%)
+    ["hsl(90 50% 50% / calc(infinity))", "rgb(128, 191, 64)"], // hsl(90 50% 50%)
+    ["hsl(90 50% 50% / calc(-infinity))", "rgba(128, 191, 64, 0)"], // hsl(90 50% 50% / 0)
+    ["hsl(90 50% 50% / calc(0 / 0))", "rgba(128, 191, 64, 0)"], // hsl(90 50% 50% / 0)
+
+    // calc(50% + (sign(1em - 10px) * 10%)) cannot be evaluated eagerly because font relative units are not yet known at parse time.
+    ["hsl(calc(50deg + (sign(1em - 10px) * 10deg)), 0%, 0%, 50%)", "hsl(calc(50deg + (10deg * sign(1em - 10px))) 0 0 / 0.5)"],
+    ["hsla(calc(50deg + (sign(1em - 10px) * 10deg)), 0%, 0%, 50%)", "hsl(calc(50deg + (10deg * sign(1em - 10px))) 0 0 / 0.5)"],
+    ["hsl(calc(50 + (sign(1em - 10px) * 10)), 0%, 0%, 50%)", "hsl(calc(50 + (10 * sign(1em - 10px))) 0 0 / 0.5)"],
+    ["hsla(calc(50 + (sign(1em - 10px) * 10)), 0%, 0%, 50%)", "hsl(calc(50 + (10 * sign(1em - 10px))) 0 0 / 0.5)"],
+    ["hsl(0deg, 0%, 0%, calc(50% + (sign(1em - 10px) * 10%)))", "hsl(0 0 0 / calc(50% + (10% * sign(1em - 10px))))"],
+    ["hsla(0deg, 0%, 0%, calc(50% + (sign(1em - 10px) * 10%)))", "hsl(0 0 0 / calc(50% + (10% * sign(1em - 10px))))"],
+    ["hsl(0, 0%, 0%, calc(50% + (sign(1em - 10px) * 10%)))", "hsl(0 0 0 / calc(50% + (10% * sign(1em - 10px))))"],
+    ["hsla(0, 0%, 0%, calc(50% + (sign(1em - 10px) * 10%)))", "hsl(0 0 0 / calc(50% + (10% * sign(1em - 10px))))"],
+
+    ["hsl(calc(50deg + (sign(1em - 10px) * 10deg)) 0% 0% / 50%)", "hsl(calc(50deg + (10deg * sign(1em - 10px))) 0 0 / 0.5)"],
+    ["hsla(calc(50deg + (sign(1em - 10px) * 10deg)) 0% 0% / 50%)", "hsl(calc(50deg + (10deg * sign(1em - 10px))) 0 0 / 0.5)"],
+    ["hsl(calc(50 + (sign(1em - 10px) * 10)) 0 0 / 0.5)", "hsl(calc(50 + (10 * sign(1em - 10px))) 0 0 / 0.5)"],
+    ["hsla(calc(50 + (sign(1em - 10px) * 10)) 0 0 / 0.5)", "hsl(calc(50 + (10 * sign(1em - 10px))) 0 0 / 0.5)"],
+    ["hsl(0deg 0% 0% / calc(50% + (sign(1em - 10px) * 10%)))", "hsl(0 0 0 / calc(50% + (10% * sign(1em - 10px))))"],
+    ["hsla(0deg 0% 0% / calc(50% + (sign(1em - 10px) * 10%)))", "hsl(0 0 0 / calc(50% + (10% * sign(1em - 10px))))"],
+    ["hsl(0 0 0 / calc(0.75 + (sign(1em - 10px) * 0.1)))", "hsl(0 0 0 / calc(0.75 + (0.1 * sign(1em - 10px))))"],
+    ["hsla(0 0 0 / calc(0.75 + (sign(1em - 10px) * 0.1)))", "hsl(0 0 0 / calc(0.75 + (0.1 * sign(1em - 10px))))"],
+
+    ["hsla(calc(50deg + (sign(1em - 10px) * 10deg)) -100 300 / 0.5)", "hsl(calc(50deg + (10deg * sign(1em - 10px))) 0 300 / 0.5)"],
+    ["hsla(calc(50deg + (sign(1em - 10px) * 10deg)) -100% 300% / 0.5)", "hsl(calc(50deg + (10deg * sign(1em - 10px))) 0 300 / 0.5)"],
+];
+
+for (const test of tests) {
+    test_valid_value("color", test[0], test[1], test[2] ? `[${test[2]}]` : undefined);
+}
+
+</script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+Harness status: OK
+
+Found 99 tests
+
+79 Pass
+20 Fail
+Pass	Property color value 'rgb(none none none)'
+Pass	Property color value 'rgb(none none none / none)'
+Pass	Property color value 'rgb(128 none none)'
+Pass	Property color value 'rgb(128 none none / none)'
+Pass	Property color value 'rgb(none none none / .5)'
+Pass	Property color value 'rgb(20% none none)'
+Pass	Property color value 'rgb(20% none none / none)'
+Pass	Property color value 'rgb(none none none / 50%)'
+Pass	Property color value 'rgba(none none none)'
+Pass	Property color value 'rgba(none none none / none)'
+Pass	Property color value 'rgba(128 none none)'
+Pass	Property color value 'rgba(128 none none / none)'
+Pass	Property color value 'rgba(none none none / .5)'
+Pass	Property color value 'rgba(20% none none)'
+Pass	Property color value 'rgba(20% none none / none)'
+Pass	Property color value 'rgba(none none none / 50%)'
+Pass	Property color value 'rgb(2.5, 3.4, 4.6)' [Tests that RGB channels are rounded appropriately]
+Pass	Property color value 'rgb(00, 51, 102)' [Valid numbers should be parsed]
+Pass	Property color value 'r\gb(00, 51, 102)' [Correct escape sequences should still parse]
+Pass	Property color value 'r\67 b(00, 51, 102)' [Correct escape sequences should still parse]
+Pass	Property color value 'RGB(153, 204, 255)' [Capitalization should not affect parsing]
+Pass	Property color value 'rgB(0, 0, 0)' [Capitalization should not affect parsing]
+Pass	Property color value 'rgB(0, 51, 255)' [Capitalization should not affect parsing]
+Pass	Property color value 'rgb(0,51,255)' [Lack of whitespace should not affect parsing]
+Pass	Property color value 'rgb(0	,  51 ,255)' [Whitespace should not affect parsing]
+Pass	Property color value 'rgb(/* R */0, /* G */51, /* B */255)' [Comments should be allowed within function]
+Pass	Property color value 'rgb(-51, 306, 0)' [Invalid values should be clamped to 0 and 255 respectively]
+Pass	Property color value 'rgb(42%, 3%, 50%)' [Valid percentages should be parsed]
+Pass	Property color value 'RGB(100%, 100%, 100%)' [Capitalization should not affect parsing]
+Pass	Property color value 'rgB(0%, 0%, 0%)' [Capitalization should not affect parsing]
+Pass	Property color value 'rgB(10%, 20%, 30%)' [Capitalization should not affect parsing]
+Pass	Property color value 'rgb(10%,20%,30%)' [Whitespace should not affect parsing]
+Pass	Property color value 'rgb(10%	,  20% ,30%)' [Whitespace should not affect parsing]
+Pass	Property color value 'rgb(/* R */ 10%, /* G */ 20%, /* B */ 30%)' [Comments should not affect parsing]
+Pass	Property color value 'rgb(-12%, 110%, 1400%)' [Invalid values should be clamped to 0 and 255 respectively]
+Pass	Property color value 'rgb(0, 0, 0, 0)' [RGB and RGBA are synonyms]
+Pass	Property color value 'rgb(0%, 0%, 0%, 0%)' [RGB and RGBA are synonyms]
+Pass	Property color value 'rgb(0%, 0%, 0%, 0)' [RGB and RGBA are synonyms]
+Pass	Property color value 'rgba(0, 0, 0, 0)' [Valid numbers should be parsed]
+Pass	Property color value 'rgba(204, 0, 102, 0.3)' [Valid numbers should be parsed]
+Pass	Property color value 'RGBA(255, 255, 255, 0)' [Capitalization should not affect parsing]
+Pass	Property color value 'rgBA(0, 51, 255, 1)' [Capitalization should not affect parsing]
+Pass	Property color value 'rgba(0, 51, 255, 1.1)' [Invalid alpha values should be clamped to 0 and 1 respectively]
+Pass	Property color value 'rgba(0, 51, 255, 37)' [Invalid alpha values should be clamped to 0 and 1 respectively]
+Pass	Property color value 'rgba(0, 51, 255, 0.42)' [Valid numbers should be parsed]
+Pass	Property color value 'rgba(0, 51, 255, 0)' [Valid numbers should be parsed]
+Pass	Property color value 'rgba(0, 51, 255, -0.1)' [Invalid alpha values should be clamped to 0 and 1 respectively]
+Pass	Property color value 'rgba(0, 51, 255, -139)' [Invalid alpha values should be clamped to 0 and 1 respectively]
+Pass	Property color value 'RGBA(100%, 100%, 100%, 0)' [Capitalization should not affect parsing]
+Pass	Property color value 'rgba(42%, 3%, 50%, 0.3)' [Valid percentages should be parsed]
+Pass	Property color value 'rgBA(0%, 20%, 100%, 1)' [Capitalization should not affect parsing]
+Pass	Property color value 'rgba(0%, 20%, 100%, 1.1)' [Invalid alpha values should be clamped to 0 and 1 respectively]
+Pass	Property color value 'rgba(0%, 20%, 100%, 37)' [Invalid alpha values should be clamped to 0 and 1 respectively]
+Pass	Property color value 'rgba(0%, 20%, 100%, 0.42)' [Valid percentages should be parsed]
+Pass	Property color value 'rgba(0%, 20%, 100%, 0)' [Valid percentages should be parsed]
+Pass	Property color value 'rgba(0%, 20%, 100%, -0.1)' [Invalid alpha values should be clamped to 0 and 1 respectively]
+Pass	Property color value 'rgba(0%, 20%, 100%, -139)' [Invalid alpha values should be clamped to 0 and 1 respectively]
+Pass	Property color value 'rgba(255, 255, 255, 0%)' [Percent alpha values are accepted in rgb/rgba]
+Pass	Property color value 'rgba(0%, 0%, 0%, 0%)' [Percent alpha values are accepted in rgb/rgba]
+Pass	Property color value 'rgba(0%, 0%, 0%)' [RGB and RGBA are synonyms]
+Pass	Property color value 'rgba(0, 0, 0)' [RGB and RGBA are synonyms]
+Pass	Property color value 'rgb(calc(infinity), 0, 0)' [Red channel resolves positive infinity to 255]
+Pass	Property color value 'rgb(0, calc(infinity), 0)' [Green channel resolves positive infinity to 255]
+Pass	Property color value 'rgb(0, 0, calc(infinity))' [Blue channel resolves positive infinity to 255]
+Pass	Property color value 'rgba(0, 0, 0, calc(infinity))' [Alpha channel resolves positive infinity to fully opaque]
+Pass	Property color value 'rgb(calc(-infinity), 0, 0)' [Red channel resolves negative infinity to zero]
+Pass	Property color value 'rgb(0, calc(-infinity), 0)' [Green channel resolves negative infinity to zero]
+Pass	Property color value 'rgb(0, 0, calc(-infinity))' [Blue channel resolves negative infinity to zero]
+Pass	Property color value 'rgba(0, 0, 0, calc(-infinity))' [Alpha channel resolves negative infinity to fully transparent]
+Pass	Property color value 'rgb(calc(NaN), 0, 0)' [Red channel resolves NaN to zero]
+Pass	Property color value 'rgb(0, calc(NaN), 0)' [Green channel resolves NaN to zero]
+Pass	Property color value 'rgb(0, 0, calc(NaN))' [Blue channel resolves NaN to zero]
+Pass	Property color value 'rgba(0, 0, 0, calc(NaN))' [Alpha channel resolves NaN to zero]
+Pass	Property color value 'rgb(calc(0 / 0), 0, 0)' [Red channel resolves NaN equivalent calc statements to zero]
+Pass	Property color value 'rgb(0, calc(0 / 0), 0)' [Green channel resolves NaN equivalent calc statements to zero]
+Pass	Property color value 'rgb(0, 0, calc(0 / 0))' [Blue channel resolves NaN equivalent calc statements to zero]
+Pass	Property color value 'rgba(0, 0, 0, calc(0 / 0))' [Alpha channel resolves NaN equivalent calc statements to zero]
+Pass	Property color value 'rgb(var(--high), 0, 0)' [Variables above 255 get clamped to 255.]
+Pass	Property color value 'rgb(var(--negative), 64, 128)' [Variables below 0 get clamped to 0.]
+Fail	Property color value 'rgb(calc(50% + (sign(1em - 10px) * 10%)), 0%, 0%, 50%)'
+Fail	Property color value 'rgba(calc(50% + (sign(1em - 10px) * 10%)), 0%, 0%, 50%)'
+Fail	Property color value 'rgb(calc(50 + (sign(1em - 10px) * 10)), 0, 0, 0.5)'
+Fail	Property color value 'rgba(calc(50 + (sign(1em - 10px) * 10)), 0, 0, 0.5)'
+Fail	Property color value 'rgb(0%, 0%, 0%, calc(50% + (sign(1em - 10px) * 10%)))'
+Fail	Property color value 'rgba(0%, 0%, 0%, calc(50% + (sign(1em - 10px) * 10%)))'
+Fail	Property color value 'rgb(0, 0, 0, calc(0.75 + (sign(1em - 10px) * 0.1)))'
+Fail	Property color value 'rgba(0, 0, 0, calc(0.75 + (sign(1em - 10px) * 0.1)))'
+Fail	Property color value 'rgb(calc(50% + (sign(1em - 10px) * 10%)) 0% 0% / 50%)'
+Fail	Property color value 'rgba(calc(50% + (sign(1em - 10px) * 10%)) 0% 0% / 50%)'
+Fail	Property color value 'rgb(calc(50 + (sign(1em - 10px) * 10)) 0 0 / 0.5)'
+Fail	Property color value 'rgba(calc(50 + (sign(1em - 10px) * 10)) 0 0 / 0.5)'
+Fail	Property color value 'rgb(0% 0% 0% / calc(50% + (sign(1em - 10px) * 10%)))'
+Fail	Property color value 'rgba(0% 0% 0% / calc(50% + (sign(1em - 10px) * 10%)))'
+Fail	Property color value 'rgb(0 0 0 / calc(0.75 + (sign(1em - 10px) * 0.1)))'
+Fail	Property color value 'rgba(0 0 0 / calc(0.75 + (sign(1em - 10px) * 0.1)))'
+Fail	Property color value 'rgba(calc(50% + (sign(1em - 10px) * 10%)) 0 0% / 0.5)'
+Fail	Property color value 'rgba(0% 0 0% / calc(0.75 + (sign(1em - 10px) * 0.1)))'
+Fail	Property color value 'rgba(calc(50% + (sign(2cqw - 10px) * 10%)), 0%, 0%, 51%)'
+Fail	Property color value 'rgba(calc(50% + (sign(2cqw - 10px) * 10%)), 0%, 0%, 52%)'

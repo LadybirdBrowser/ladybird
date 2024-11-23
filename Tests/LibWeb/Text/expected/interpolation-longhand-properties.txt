@@ -18,7 +18,7 @@ At time 750:
   background-color: rgb(147, 157, 168)
   background-repeat: space
   bottom: 100%
-  box-shadow: rgb(81, 71, 210) 75px 150px 227.5px 0px, rgba(0, 0, 174, 0.749) 37.5px 7.5px 15px 22.5px
+  box-shadow: rgb(81, 71, 210) 75px 150px 227.5px 0px, rgba(0, 0, 174, 0.75) 37.5px 7.5px 15px 22.5px
   color: rgb(81, 71, 210)
   transform: matrix(1, 0, 0, 1, 75, 75)
 
