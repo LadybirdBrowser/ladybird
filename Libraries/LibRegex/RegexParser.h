@@ -98,11 +98,6 @@ protected:
 
     size_t tell() const { return m_parser_state.current_token.position(); }
 
-    struct NamedCaptureGroup {
-        size_t group_index { 0 };
-        size_t minimum_length { 0 };
-    };
-
     struct ParserState {
         Lexer& lexer;
         Token current_token;
@@ -114,8 +109,8 @@ protected:
         size_t match_length_minimum { 0 };
         size_t repetition_mark_count { 0 };
         AllOptions regex_options;
-        HashMap<int, size_t> capture_group_minimum_lengths;
-        HashMap<DeprecatedFlyString, NamedCaptureGroup> named_capture_groups;
+        HashMap<size_t, size_t> capture_group_minimum_lengths;
+        HashMap<DeprecatedFlyString, size_t> named_capture_groups;
 
         explicit ParserState(Lexer& lexer)
             : lexer(lexer)
