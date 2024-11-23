@@ -46,6 +46,7 @@ void PlainTimePrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
     define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
+    define_native_function(realm, vm.names.valueOf, value_of, 0, attr);
 }
 
 // 4.3.3 get Temporal.PlainTime.prototype.hour, https://tc39.es/proposal-temporal/#sec-get-temporal.plaintime.prototype.hour
@@ -334,6 +335,13 @@ JS_DEFINE_NATIVE_FUNCTION(PlainTimePrototype::to_json)
 
     // 3. Return TimeRecordToString(temporalTime.[[Time]], AUTO).
     return PrimitiveString::create(vm, time_record_to_string(temporal_time->time(), Auto {}));
+}
+
+// 4.3.19 Temporal.PlainTime.prototype.valueOf ( ), https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.valueof
+JS_DEFINE_NATIVE_FUNCTION(PlainTimePrototype::value_of)
+{
+    // 1. Throw a TypeError exception.
+    return vm.throw_completion<TypeError>(ErrorType::Convert, "Temporal.PlainTime", "a primitive value");
 }
 
 }
