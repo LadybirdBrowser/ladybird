@@ -2,6 +2,8 @@
 <script src="../include.js"></script>
 <script>
     test(() => {
+        removeTestErrorHandler()
+        window.addEventListener("error", (event) => { println(`${event.message}`); })
         class TestElement extends HTMLElement {
             constructor() {
                 super();
