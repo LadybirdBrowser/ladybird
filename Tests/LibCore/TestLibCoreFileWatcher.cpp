@@ -15,11 +15,20 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#ifdef AK_OS_MACOS
+constexpr int TIMEOUT_PER_STEP_IN_MS = 500;
+#else
+constexpr int TIMEOUT_PER_STEP_IN_MS = 50;
+#endif
+
 TEST_CASE(file_watcher_child_events)
 {
     auto event_loop = Core::EventLoop();
     auto maybe_file_watcher = Core::FileWatcher::create();
     EXPECT_NE(maybe_file_watcher.is_error(), true);
+
+    // Ensure the testfile does not already exist.
+    (void)Core::System::unlink("/tmp/testfile"sv);
 
     auto file_watcher = maybe_file_watcher.release_value();
     auto watch_result = file_watcher->add_watch("/tmp/",
@@ -46,19 +55,18 @@ TEST_CASE(file_watcher_child_events)
         event_count++;
     };
 
-    auto timer1 = Core::Timer::create_single_shot(500, [&] {
+    auto timer1 = Core::Timer::create_single_shot(1 * TIMEOUT_PER_STEP_IN_MS, [&] {
         int rc = creat("/tmp/testfile", 0777);
         EXPECT_NE(rc, -1);
     });
     timer1->start();
 
-    auto timer2 = Core::Timer::create_single_shot(1000, [&] {
-        int rc = unlink("/tmp/testfile");
-        EXPECT_NE(rc, -1);
+    auto timer2 = Core::Timer::create_single_shot(2 * TIMEOUT_PER_STEP_IN_MS, [&] {
+        MUST(Core::System::unlink("/tmp/testfile"sv));
     });
     timer2->start();
 
-    auto catchall_timer = Core::Timer::create_single_shot(2000, [&] {
+    auto catchall_timer = Core::Timer::create_single_shot(3 * TIMEOUT_PER_STEP_IN_MS, [&] {
         VERIFY_NOT_REACHED();
     });
     catchall_timer->start();
@@ -94,13 +102,13 @@ TEST_CASE(contents_changed)
         }
     };
 
-    auto timer1 = Core::Timer::create_single_shot(500, [&] { write_file("line2\n"sv); });
+    auto timer1 = Core::Timer::create_single_shot(1 * TIMEOUT_PER_STEP_IN_MS, [&] { write_file("line2\n"sv); });
     timer1->start();
 
-    auto timer2 = Core::Timer::create_single_shot(1000, [&] { write_file("line3\n"sv); });
+    auto timer2 = Core::Timer::create_single_shot(2 * TIMEOUT_PER_STEP_IN_MS, [&] { write_file("line3\n"sv); });
     timer2->start();
 
-    auto catchall_timer = Core::Timer::create_single_shot(2000, [&] {
+    auto catchall_timer = Core::Timer::create_single_shot(3 * TIMEOUT_PER_STEP_IN_MS, [&] {
         VERIFY_NOT_REACHED();
     });
     catchall_timer->start();
@@ -139,19 +147,19 @@ TEST_CASE(symbolic_link)
         }
     };
 
-    auto timer1 = Core::Timer::create_single_shot(500, [&] {
+    auto timer1 = Core::Timer::create_single_shot(1 * TIMEOUT_PER_STEP_IN_MS, [&] {
         MUST(Core::System::unlink(test_file.string()));
         MUST(Core::System::symlink(test_link1.string(), test_file.string()));
     });
     timer1->start();
 
-    auto timer2 = Core::Timer::create_single_shot(1000, [&] {
+    auto timer2 = Core::Timer::create_single_shot(2 * TIMEOUT_PER_STEP_IN_MS, [&] {
         MUST(Core::System::unlink(test_file.string()));
         MUST(Core::System::symlink(test_link2.string(), test_file.string()));
     });
     timer2->start();
 
-    auto catchall_timer = Core::Timer::create_single_shot(2000, [&] {
+    auto catchall_timer = Core::Timer::create_single_shot(3 * TIMEOUT_PER_STEP_IN_MS, [&] {
         VERIFY_NOT_REACHED();
     });
     catchall_timer->start();
