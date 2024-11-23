@@ -76,6 +76,7 @@ static WebIDL::ExceptionOr<Variant<GC::Ptr<Element>, GC::Ref<NodeList>>> scope_m
                     return TraversalDecision::Break;
                 }
                 results.append(element);
+                break;
             }
         }
         return TraversalDecision::Continue;

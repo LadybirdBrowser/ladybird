@@ -6,8 +6,8 @@ Rerun
 
 Found 1975 tests
 
-1951 Pass
-24 Fail
+1955 Pass
+20 Fail
 Details
 Result	Test Name	MessagePass	Selectors-API Test Suite: HTML	
 Pass	Document supports querySelector	
@@ -670,7 +670,7 @@ Pass	Document.querySelectorAll: Class selector, matching element with class with
 Pass	Document.querySelector: Class selector, matching element with class with escaped character: .test\.foo\[5\]bar	
 Pass	Document.querySelectorAll: ID selector, matching element with specified id: #id #id-div1	
 Pass	Document.querySelector: ID selector, matching element with specified id: #id #id-div1	
-Fail	Document.querySelectorAll: ID selector, chained, matching element with specified id: #id-div1, #id-div1	
+Pass	Document.querySelectorAll: ID selector, chained, matching element with specified id: #id-div1, #id-div1	
 Pass	Document.querySelector: ID selector, chained, matching element with specified id: #id-div1, #id-div1	
 Pass	Document.querySelectorAll: ID selector, chained, matching element with specified id: #id-div1, #id-div2	
 Pass	Document.querySelector: ID selector, chained, matching element with specified id: #id-div1, #id-div2	
@@ -1068,7 +1068,7 @@ Pass	Detached Element.querySelectorAll: Class selector, matching element with cl
 Pass	Detached Element.querySelector: Class selector, matching element with class with escaped character: .test\.foo\[5\]bar	
 Pass	Detached Element.querySelectorAll: ID selector, matching element with specified id: #id #id-div1	
 Pass	Detached Element.querySelector: ID selector, matching element with specified id: #id #id-div1	
-Fail	Detached Element.querySelectorAll: ID selector, chained, matching element with specified id: #id-div1, #id-div1	
+Pass	Detached Element.querySelectorAll: ID selector, chained, matching element with specified id: #id-div1, #id-div1	
 Pass	Detached Element.querySelector: ID selector, chained, matching element with specified id: #id-div1, #id-div1	
 Pass	Detached Element.querySelectorAll: ID selector, chained, matching element with specified id: #id-div1, #id-div2	
 Pass	Detached Element.querySelector: ID selector, chained, matching element with specified id: #id-div1, #id-div2	
@@ -1464,7 +1464,7 @@ Pass	Fragment.querySelectorAll: Class selector, matching element with class with
 Pass	Fragment.querySelector: Class selector, matching element with class with escaped character: .test\.foo\[5\]bar	
 Pass	Fragment.querySelectorAll: ID selector, matching element with specified id: #id #id-div1	
 Pass	Fragment.querySelector: ID selector, matching element with specified id: #id #id-div1	
-Fail	Fragment.querySelectorAll: ID selector, chained, matching element with specified id: #id-div1, #id-div1	
+Pass	Fragment.querySelectorAll: ID selector, chained, matching element with specified id: #id-div1, #id-div1	
 Pass	Fragment.querySelector: ID selector, chained, matching element with specified id: #id-div1, #id-div1	
 Pass	Fragment.querySelectorAll: ID selector, chained, matching element with specified id: #id-div1, #id-div2	
 Pass	Fragment.querySelector: ID selector, chained, matching element with specified id: #id-div1, #id-div2	
@@ -1860,7 +1860,7 @@ Pass	In-document Element.querySelectorAll: Class selector, matching element with
 Pass	In-document Element.querySelector: Class selector, matching element with class with escaped character: .test\.foo\[5\]bar	
 Pass	In-document Element.querySelectorAll: ID selector, matching element with specified id: #id #id-div1	
 Pass	In-document Element.querySelector: ID selector, matching element with specified id: #id #id-div1	
-Fail	In-document Element.querySelectorAll: ID selector, chained, matching element with specified id: #id-div1, #id-div1	
+Pass	In-document Element.querySelectorAll: ID selector, chained, matching element with specified id: #id-div1, #id-div1	
 Pass	In-document Element.querySelector: ID selector, chained, matching element with specified id: #id-div1, #id-div1	
 Pass	In-document Element.querySelectorAll: ID selector, chained, matching element with specified id: #id-div1, #id-div2	
 Pass	In-document Element.querySelector: ID selector, chained, matching element with specified id: #id-div1, #id-div2	
