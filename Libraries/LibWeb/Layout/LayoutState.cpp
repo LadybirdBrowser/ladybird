@@ -124,11 +124,11 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box)
             //   (including zero-area boxes and accounting for transforms as described above),
             //   provided they themselves have overflow: visible (i.e. do not themselves trap the overflow)
             //   and that scrollable overflow is not already clipped (e.g. by the clip property or the contain property).
-            if (is<Viewport>(box) || child.computed_values().overflow_x() == CSS::Overflow::Visible || child.computed_values().overflow_y() == CSS::Overflow::Visible) {
+            if (child.computed_values().overflow_x() == CSS::Overflow::Visible || child.computed_values().overflow_y() == CSS::Overflow::Visible) {
                 auto child_scrollable_overflow = measure_scrollable_overflow(child);
-                if (is<Viewport>(box) || child.computed_values().overflow_x() == CSS::Overflow::Visible)
+                if (child.computed_values().overflow_x() == CSS::Overflow::Visible)
                     scrollable_overflow_rect.unite_horizontally(child_scrollable_overflow);
-                if (is<Viewport>(box) || child.computed_values().overflow_y() == CSS::Overflow::Visible)
+                if (child.computed_values().overflow_y() == CSS::Overflow::Visible)
                     scrollable_overflow_rect.unite_vertically(child_scrollable_overflow);
             }
 
