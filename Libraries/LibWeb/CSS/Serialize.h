@@ -24,8 +24,6 @@ void serialize_a_local(StringBuilder&, StringView path);
 void serialize_unicode_ranges(StringBuilder&, Vector<Gfx::UnicodeRange> const& unicode_ranges);
 void serialize_a_srgb_value(StringBuilder&, Color color);
 
-String escape_a_character(u32 character);
-String escape_a_character_as_code_point(u32 character);
 String serialize_an_identifier(StringView ident);
 String serialize_a_string(StringView string);
 String serialize_a_url(StringView url);
