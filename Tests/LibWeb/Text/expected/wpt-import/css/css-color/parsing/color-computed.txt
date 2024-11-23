@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	Property color value 'currentcolor'
+Pass	Property color value 'transparent'
+Pass	Property color value 'red'
+Pass	Property color value 'magenta'
+Pass	Property color value '#234'
+Pass	Property color value '#FEDCBA'
+Pass	Property color value 'rgb(2, 3, 4)'
+Pass	Property color value 'rgb(100%, 0%, 0%)'
+Pass	Property color value 'rgba(2, 3, 4, 0.5)'
+Pass	Property color value 'rgba(2, 3, 4, 50%)'
+Pass	Property color value 'hsl(120, 100%, 50%)'
+Pass	Property color value 'hsla(120, 100%, 50%, 0.25)'
+Pass	Property color value 'rgb(-2, 3, 4)'
+Pass	Property color value 'rgb(100, 200, 300)'
+Pass	Property color value 'rgb(20, 10, 0, -10)'
+Pass	Property color value 'rgb(100%, 200%, 300%)'

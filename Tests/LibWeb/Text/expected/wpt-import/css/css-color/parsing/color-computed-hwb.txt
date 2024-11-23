@@ -1,0 +1,62 @@
+Harness status: OK
+
+Found 56 tests
+
+50 Pass
+6 Fail
+Pass	Property color value 'hwb(120 30% 50%)'
+Pass	Property color value 'hwb(120 30% 50% / 0.5)'
+Pass	Property color value 'hwb(120 30% 50% / 50%)'
+Pass	Property color value 'hwb(none none none)'
+Pass	Property color value 'hwb(0 0% 0%)'
+Pass	Property color value 'hwb(none none none / none)'
+Pass	Property color value 'hwb(0 0% 0% / 0)'
+Pass	Property color value 'hwb(120 none none)'
+Pass	Property color value 'hwb(120 0% 0%)'
+Pass	Property color value 'hwb(120 80% none)'
+Pass	Property color value 'hwb(120 80% 0%)'
+Pass	Property color value 'hwb(120 none 50%)'
+Pass	Property color value 'hwb(120 0% 50%)'
+Pass	Property color value 'hwb(120 30% 50% / none)'
+Pass	Property color value 'hwb(120 30% 50% / 0)'
+Pass	Property color value 'hwb(120 30% 50% / 0%)'
+Pass	Property color value 'hwb(none 100% 50% / none)'
+Pass	Property color value 'hwb(0 100% 50% / 0)'
+Pass	Property color value 'hwb(0 50% 50%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(30 50% 50%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(60 50% 50%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(90 50% 50%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(120 50% 50%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(180 50% 50%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(210 50% 50%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(240 50% 50%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(270 50% 50%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(300 50% 50%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(330 50% 50%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(360 50% 50%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(90deg 50% 50%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(90 0% 50%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(90 12.5% 50%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(90 25% 50%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(90 37.5% 50%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(90 62.5% 50%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(90 75% 50%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(90 87.5% 50%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(90 100% 50%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(90 50% 0%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(90 50% 12.5%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(90 50% 25%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(90 50% 37.5%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(90 50% 62.5%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(90 50% 75%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(90 50% 87.5%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(90 50% 100%)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(90 50% 50% / 0)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(90 50% 50% / 0.2)' [HWB value should parse and round correctly]
+Pass	Property color value 'hwb(90 50% 50% / 1)' [HWB value should parse and round correctly]
+Fail	Property color value 'hwb(calc(110deg + (sign(1em - 10px) * 10deg)) 30% 50% / 50%)'
+Fail	Property color value 'hwb(calc(110 + (sign(1em - 10px) * 10)) 30 50 / 0.5)'
+Fail	Property color value 'hwb(120deg 30% 50% / calc(50% + (sign(1em - 10px) * 10%)))'
+Fail	Property color value 'hwb(120 30 50 / calc(0.75 + (sign(1em - 10px) * 0.1)))'
+Fail	Property color value 'hwb(calc(110deg + (sign(2cqw - 10px) * 10deg)) 30 50 / 51%)'
+Fail	Property color value 'hwb(calc(110deg + (sign(2cqw - 10px) * 10deg)) 30 50 / 52%)'
