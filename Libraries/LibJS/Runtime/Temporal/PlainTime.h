@@ -59,7 +59,9 @@ Time balance_time(double hour, double minute, double second, double millisecond,
 Time balance_time(double hour, double minute, double second, double millisecond, double microsecond, TimeDuration const& nanosecond);
 ThrowCompletionOr<GC::Ref<PlainTime>> create_temporal_time(VM&, Time const&, GC::Ptr<FunctionObject> new_target = {});
 ThrowCompletionOr<TemporalTimeLike> to_temporal_time_record(VM&, Object const& temporal_time_like, Completeness = Completeness::Complete);
+String time_record_to_string(Time const&, SecondsStringPrecision::Precision);
 i8 compare_time_record(Time const&, Time const&);
 Time add_time(Time const&, TimeDuration const& time_duration);
+Time round_time(Time const&, u64 increment, Unit, RoundingMode);
 
 }

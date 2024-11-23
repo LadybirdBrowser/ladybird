@@ -33,6 +33,11 @@ void PlainTimePrototype::initialize(Realm& realm)
     define_native_accessor(realm, vm.names.millisecond, millisecond_getter, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.microsecond, microsecond_getter, {}, Attribute::Configurable);
     define_native_accessor(realm, vm.names.nanosecond, nanosecond_getter, {}, Attribute::Configurable);
+
+    u8 attr = Attribute::Writable | Attribute::Configurable;
+    define_native_function(realm, vm.names.toString, to_string, 0, attr);
+    define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
+    define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
 }
 
 // 4.3.3 get Temporal.PlainTime.prototype.hour, https://tc39.es/proposal-temporal/#sec-get-temporal.plaintime.prototype.hour
@@ -61,5 +66,63 @@ void PlainTimePrototype::initialize(Realm& realm)
     }
 JS_ENUMERATE_PLAIN_TIME_FIELDS
 #undef __JS_ENUMERATE
+
+// 4.3.16 Temporal.PlainTime.prototype.toString ( [ options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.tostring
+JS_DEFINE_NATIVE_FUNCTION(PlainTimePrototype::to_string)
+{
+    // 1. Let temporalTime be the this value.
+    // 2. Perform ? RequireInternalSlot(temporalTime, [[InitializedTemporalTime]]).
+    auto temporal_time = TRY(typed_this_object(vm));
+
+    // 3. Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolved_options = TRY(get_options_object(vm, vm.argument(0)));
+
+    // 4. NOTE: The following steps read options and perform independent validation in alphabetical order
+    //    (GetTemporalFractionalSecondDigitsOption reads "fractionalSecondDigits" and GetRoundingModeOption reads "roundingMode").
+
+    // 5. Let digits be ? GetTemporalFractionalSecondDigitsOption(resolvedOptions).
+    auto digits = TRY(get_temporal_fractional_second_digits_option(vm, resolved_options));
+
+    // 6. Let roundingMode be ? GetRoundingModeOption(resolvedOptions, TRUNC).
+    auto rounding_mode = TRY(get_rounding_mode_option(vm, resolved_options, RoundingMode::Trunc));
+
+    // 7. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions, "smallestUnit", TIME, UNSET).
+    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, resolved_options, vm.names.smallestUnit, UnitGroup::Time, Unset {}));
+
+    // 8. If smallestUnit is HOUR, throw a RangeError exception.
+    if (auto const* unit = smallest_unit.get_pointer<Unit>(); unit && *unit == Unit::Hour)
+        return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, temporal_unit_to_string(*unit), vm.names.smallestUnit);
+
+    // 9. Let precision be ToSecondsStringPrecisionRecord(smallestUnit, digits).
+    auto precision = to_seconds_string_precision_record(smallest_unit, digits);
+
+    // 10. Let roundResult be RoundTime(temporalTime.[[Time]], precision.[[Increment]], precision.[[Unit]], roundingMode).
+    auto round_result = round_time(temporal_time->time(), precision.increment, precision.unit, rounding_mode);
+
+    // 11. Return TimeRecordToString(roundResult, precision.[[Precision]]).
+    return PrimitiveString::create(vm, time_record_to_string(round_result, precision.precision));
+}
+
+// 4.3.17 Temporal.PlainTime.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.tolocalestring
+JS_DEFINE_NATIVE_FUNCTION(PlainTimePrototype::to_locale_string)
+{
+    // 1. Let temporalTime be the this value.
+    // 2. Perform ? RequireInternalSlot(temporalTime, [[InitializedTemporalTime]]).
+    auto temporal_time = TRY(typed_this_object(vm));
+
+    // 3. Return TimeRecordToString(temporalTime.[[Time]], AUTO).
+    return PrimitiveString::create(vm, time_record_to_string(temporal_time->time(), Auto {}));
+}
+
+// 4.3.18 Temporal.PlainTime.prototype.toJSON ( ), https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.tojson
+JS_DEFINE_NATIVE_FUNCTION(PlainTimePrototype::to_json)
+{
+    // 1. Let temporalTime be the this value.
+    // 2. Perform ? RequireInternalSlot(temporalTime, [[InitializedTemporalTime]]).
+    auto temporal_time = TRY(typed_this_object(vm));
+
+    // 3. Return TimeRecordToString(temporalTime.[[Time]], AUTO).
+    return PrimitiveString::create(vm, time_record_to_string(temporal_time->time(), Auto {}));
+}
 
 }
