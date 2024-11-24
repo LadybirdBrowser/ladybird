@@ -6,8 +6,8 @@ Rerun
 
 Found 54 tests
 
-45 Pass
-9 Fail
+50 Pass
+4 Fail
 Details
 Result	Test Name	MessagePass	html5lib_tests10.html 33cab27b810c8329105a4447f7767307577cb52f	
 Pass	html5lib_tests10.html b833b22c2ce59749e320b26fbc4d277bc015f261	
@@ -46,8 +46,8 @@ Pass	html5lib_tests10.html 6c10b9811a0d228cf26bc0b55ee12c7d99926270
 Fail	html5lib_tests10.html ee2de7753d6594fbf05d321b24e2c8bb6f2323c6	
 Fail	html5lib_tests10.html 225170b3f08201a11d43f153fa3c8a041173b55f	
 Pass	html5lib_tests10.html 716a01ee7d076876318395625e08e555065fc3b0	
-Fail	html5lib_tests10.html 3c5cc236386d2d4a16d14e5c65da7edd26697a43	
-Fail	html5lib_tests10.html 6c3447a16060d2805f8c969ec0a7b5c551468f25	
+Pass	html5lib_tests10.html 3c5cc236386d2d4a16d14e5c65da7edd26697a43	
+Pass	html5lib_tests10.html 6c3447a16060d2805f8c969ec0a7b5c551468f25	
 Pass	html5lib_tests10.html 071f13f248eb7af8f7d512cf453b16c8ccc57483	
 Pass	html5lib_tests10.html 0ef97c924e3e5e8ddf8a0bc74530868684685c38	
 Pass	html5lib_tests10.html 25a94dd91d982fa75c89944ad8f066f7961c590b	
@@ -60,6 +60,6 @@ Pass	html5lib_tests10.html d5ab79a14609f3ed214baa8e02bedb54ddcf33ec
 Pass	html5lib_tests10.html 4318bf46f0256426716a911e194f9bdf6185bd7c	
 Pass	html5lib_tests10.html aa5c4b093ee603618493cff853af125b5fb0d401	
 Pass	html5lib_tests10.html bfd98674d75ff3291d377f2a7cec3321844a0701	
-Fail	html5lib_tests10.html 7fc99b729a6d57d28b2ad1edc33bb15167e051bb	
-Fail	html5lib_tests10.html 8e87f0d5ca606ca162384d1bf3bb8de62bd6f398	
-Fail	html5lib_tests10.html 6476f80f3d2a04e9c1323ffe78686188c579e9ac	
+Pass	html5lib_tests10.html 7fc99b729a6d57d28b2ad1edc33bb15167e051bb	
+Pass	html5lib_tests10.html 8e87f0d5ca606ca162384d1bf3bb8de62bd6f398	
+Pass	html5lib_tests10.html 6476f80f3d2a04e9c1323ffe78686188c579e9ac	
