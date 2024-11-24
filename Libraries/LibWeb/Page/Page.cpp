@@ -620,7 +620,7 @@ Page::FindInPageResult Page::perform_find_in_page_query(FindInPageQuery const& q
         return 0;
     };
 
-    for (auto document : documents_in_active_window()) {
+    for (auto const& document : documents_in_active_window()) {
         auto matches = document->find_matching_text(query.string, query.case_sensitivity);
         if (document == top_level_traversable()->active_document()) {
             auto new_match_index = find_current_match_index(*document, matches);
