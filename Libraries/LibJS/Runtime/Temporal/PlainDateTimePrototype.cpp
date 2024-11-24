@@ -68,6 +68,7 @@ void PlainDateTimePrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
     define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
+    define_native_function(realm, vm.names.valueOf, value_of, 0, attr);
     define_native_function(realm, vm.names.toPlainDate, to_plain_date, 0, attr);
     define_native_function(realm, vm.names.toPlainTime, to_plain_time, 0, attr);
 }
@@ -548,6 +549,13 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::to_json)
 
     // 3. Return ISODateTimeToString(dateTime.[[ISODateTime]], dateTime.[[Calendar]], AUTO, AUTO).
     return PrimitiveString::create(vm, iso_date_time_to_string(date_time->iso_date_time(), date_time->calendar(), Auto {}, ShowCalendar::Auto));
+}
+
+// 5.3.37 Temporal.PlainDateTime.prototype.valueOf ( ), https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.valueof
+JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::value_of)
+{
+    // 1. Throw a TypeError exception.
+    return vm.throw_completion<TypeError>(ErrorType::Convert, "Temporal.PlainDateTime", "a primitive value");
 }
 
 // 5.3.39 Temporal.PlainDateTime.prototype.toPlainDate ( ), https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.toplaindate
