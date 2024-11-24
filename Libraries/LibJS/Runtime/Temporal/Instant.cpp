@@ -11,11 +11,11 @@
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/Instant.h>
 #include <LibJS/Runtime/Temporal/InstantConstructor.h>
 #include <LibJS/Runtime/Temporal/PlainDateTime.h>
 #include <LibJS/Runtime/Temporal/PlainTime.h>
+#include <LibJS/Runtime/Temporal/TimeZone.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/ValueInlines.h>
 
@@ -162,6 +162,55 @@ i8 compare_epoch_nanoseconds(Crypto::SignedBigInteger const& epoch_nanoseconds_o
 
     // 3. Return 0.
     return 0;
+}
+
+// 8.5.7 RoundTemporalInstant ( ns, increment, unit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-roundtemporalinstant
+Crypto::SignedBigInteger round_temporal_instant(Crypto::SignedBigInteger const& nanoseconds, u64 increment, Unit unit, RoundingMode rounding_mode)
+{
+    // 1. Let unitLength be the value in the "Length in Nanoseconds" column of the row of Table 21 whose "Value" column contains unit.
+    auto unit_length = temporal_unit_length_in_nanoseconds(unit);
+
+    // 2. Let incrementNs be increment × unitLength.
+    auto increment_nanoseconds = Crypto::UnsignedBigInteger { increment }.multiplied_by(unit_length);
+
+    // 3. Return ℤ(RoundNumberToIncrementAsIfPositive(ℝ(ns), incrementNs, roundingMode)).
+    return round_number_to_increment_as_if_positive(nanoseconds, increment_nanoseconds, rounding_mode);
+}
+
+// 8.5.8 TemporalInstantToString ( instant, timeZone, precision ), https://tc39.es/proposal-temporal/#sec-temporal-temporalinstanttostring
+String temporal_instant_to_string(Instant const& instant, Optional<StringView> time_zone, SecondsStringPrecision::Precision precision)
+{
+    // 1. Let outputTimeZone be timeZone.
+    // 2. If outputTimeZone is undefined, set outputTimeZone to "UTC".
+    auto output_time_zone = time_zone.value_or("UTC"sv);
+
+    // 3. Let epochNs be instant.[[EpochNanoseconds]].
+    auto const& epoch_nanoseconds = instant.epoch_nanoseconds()->big_integer();
+
+    // 4. Let isoDateTime be GetISODateTimeFor(outputTimeZone, epochNs).
+    auto iso_date_time = get_iso_date_time_for(output_time_zone, epoch_nanoseconds);
+
+    // 5. Let dateTimeString be ISODateTimeToString(isoDateTime, "iso8601", precision, NEVER).
+    auto date_time_string = iso_date_time_to_string(iso_date_time, "iso8601"sv, precision, ShowCalendar::Never);
+
+    String time_zone_string;
+
+    // 6. If timeZone is undefined, then
+    if (!time_zone.has_value()) {
+        // a. Let timeZoneString be "Z".
+        time_zone_string = "Z"_string;
+    }
+    // 7. Else,
+    else {
+        // a. Let offsetNanoseconds be GetOffsetNanosecondsFor(outputTimeZone, epochNs).
+        auto offset_nanoseconds = get_offset_nanoseconds_for(output_time_zone, epoch_nanoseconds);
+
+        // b. Let timeZoneString be FormatDateTimeUTCOffsetRounded(offsetNanoseconds).
+        time_zone_string = format_date_time_utc_offset_rounded(offset_nanoseconds);
+    }
+
+    // 8. Return the string-concatenation of dateTimeString and timeZoneString.
+    return MUST(String::formatted("{}{}", date_time_string, time_zone_string));
 }
 
 }
