@@ -3188,7 +3188,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key([[maybe_unused]] Web:
 
             // 2. Let key be a new CryptoKey object that represents the X25519 private key identified by interpreting jwk according to Section 2 of [RFC8037].
             auto private_key_base_64 = jwk.d.value();
-            auto private_key = TRY_OR_THROW_OOM(vm, decode_base64(private_key_base_64));
+            auto private_key_or_error = decode_base64url(private_key_base_64);
+            if (private_key_or_error.is_error()) {
+                return WebIDL::DataError::create(m_realm, "Failed to decode base64"_string);
+            }
+            auto private_key = private_key_or_error.release_value();
             key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { private_key });
 
             // 3. Set the [[type]] internal slot of Key to "private".
@@ -3217,7 +3221,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key([[maybe_unused]] Web:
 
             // 2. Let key be a new CryptoKey object that represents the X25519 public key identified by interpreting jwk according to Section 2 of [RFC8037].
             auto public_key_base_64 = jwk.x.value();
-            auto public_key = TRY_OR_THROW_OOM(vm, decode_base64(public_key_base_64));
+            auto public_key_or_error = decode_base64url(public_key_base_64);
+            if (public_key_or_error.is_error()) {
+                return WebIDL::DataError::create(m_realm, "Failed to decode base64"_string);
+            }
+            auto public_key = public_key_or_error.release_value();
             key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key });
 
             // 3. Set the [[type]] internal slot of Key to "public".
