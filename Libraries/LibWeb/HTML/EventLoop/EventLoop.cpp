@@ -527,11 +527,6 @@ Vector<GC::Root<DOM::Document>> EventLoop::documents_in_this_event_loop_matching
     return documents;
 }
 
-Vector<GC::Root<DOM::Document>> EventLoop::documents_in_this_event_loop() const
-{
-    return documents_in_this_event_loop_matching([](auto&) { return true; });
-}
-
 void EventLoop::register_document(Badge<DOM::Document>, DOM::Document& document)
 {
     m_documents.append(&document);
