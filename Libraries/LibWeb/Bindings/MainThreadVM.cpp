@@ -583,29 +583,26 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             // 5. Set settings's principal realm to O's associated realm
             .principal_realm = object.shape().realm(),
 
-            // 6. Set settings's underlying realm to realm.
-            .underlying_realm = realm,
-
-            // 7. Set settings's module map to a new module map, initially empty.
+            // 6. Set settings's module map to a new module map, initially empty.
             .module_map = realm.create<HTML::ModuleMap>(),
         };
 
-        // 8. Set realm.[[HostDefined]] to settings.
+        // 7. Set realm.[[HostDefined]] to settings.
         realm.set_host_defined(make<Bindings::SyntheticHostDefined>(move(settings), realm.create<Bindings::Intrinsics>(realm)));
 
-        // 9. Set realm.[[GlobalObject]] to globalObject.
+        // 8. Set realm.[[GlobalObject]] to globalObject.
         realm.set_global_object(global_object);
 
-        // 10. Set realm.[[GlobalEnv]] to NewGlobalEnvironment(globalObject, globalObject).
+        // 9. Set realm.[[GlobalEnv]] to NewGlobalEnvironment(globalObject, globalObject).
         realm.set_global_environment(realm.heap().allocate<JS::GlobalEnvironment>(global_object, global_object));
 
-        // 11. Perform ? SetDefaultGlobalBindings(realm).
+        // 10. Perform ? SetDefaultGlobalBindings(realm).
         set_default_global_bindings(realm);
 
         // NOTE: This needs to be done after initialization so that the realm has an intrinsics in its [[HostDefined]]
         global_object->initialize_web_interfaces();
 
-        // 12. Return NormalCompletion(unused).
+        // 11. Return NormalCompletion(unused).
         return {};
     };
 

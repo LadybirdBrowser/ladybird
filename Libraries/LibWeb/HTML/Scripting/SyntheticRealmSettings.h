@@ -23,10 +23,6 @@ struct SyntheticRealmSettings {
     // The principal realm which this synthetic realm exists within.
     GC::Ref<JS::Realm> principal_realm;
 
-    // An underlying realm
-    // The synthetic realm which this settings object represents.
-    GC::Ref<JS::Realm> underlying_realm;
-
     // A module map
     // A module map that is used when importing JavaScript modules.
     GC::Ref<ModuleMap> module_map;
