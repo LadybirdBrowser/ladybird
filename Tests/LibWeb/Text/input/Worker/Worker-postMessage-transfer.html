@@ -24,6 +24,8 @@
         const message = encoder.encode("Hello, world");
         const myBuf = message.buffer;
 
+        println('Buffer length before transfer: ' + myBuf.byteLength);
         worker.postMessage(myBuf, [myBuf]);
+        println('Buffer length after transfer: ' + myBuf.byteLength);
     });
 </script>
