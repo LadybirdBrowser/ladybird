@@ -23,7 +23,7 @@ ErrorOr<int> open(StringView path, int options, mode_t mode)
 {
     ByteString string_path = path;
     auto sz_path = string_path.characters();
-    int rc = _open(sz_path, options, mode);
+    int rc = _open(sz_path, options | O_BINARY, mode);
     if (rc < 0) {
         int error = errno;
         struct stat st = {};
