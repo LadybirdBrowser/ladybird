@@ -14,7 +14,7 @@
 #include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibIPC/SingleServer.h>
-#include <LibTLS/Certificate.h>
+#include <LibTLS/TLSv12.h>
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/HttpProtocol.h>
 #include <RequestServer/HttpsProtocol.h>

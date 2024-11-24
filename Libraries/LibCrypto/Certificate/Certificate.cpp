@@ -17,7 +17,7 @@ namespace {
 static String s_error_string;
 }
 
-namespace TLS {
+namespace Crypto::Certificate {
 
 #define ERROR_WITH_SCOPE(error)                                                  \
     do {                                                                         \

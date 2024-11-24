@@ -15,9 +15,8 @@
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibCrypto/PK/RSA.h>
-#include <LibTLS/Extensions.h>
 
-namespace TLS {
+namespace Crypto::Certificate {
 
 constexpr static Array<int, 7>
     rsa_encryption_oid { 1, 2, 840, 113549, 1, 1, 1 },
@@ -301,5 +300,3 @@ private:
 };
 
 }
-
-using TLS::Certificate;

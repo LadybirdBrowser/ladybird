@@ -5,13 +5,13 @@
  */
 
 #include <AK/Base64.h>
-#include <LibTLS/Certificate.h>
+#include <LibCrypto/Certificate/Certificate.h>
 #include <LibTest/TestCase.h>
 
 TEST_CASE(certificate_with_malformed_tbscertificate_should_fail_gracefully)
 {
     Array<u8, 4> invalid_certificate_data { 0xB0, 0x02, 0x70, 0x00 };
-    auto parse_result = TLS::Certificate::parse_certificate(invalid_certificate_data);
+    auto parse_result = Crypto::Certificate::Certificate::parse_certificate(invalid_certificate_data);
     EXPECT(parse_result.is_error());
 }
 
@@ -31,9 +31,9 @@ TEST_CASE(test_private_key_info_decode)
     auto decoded_keyder = TRY_OR_FAIL(decode_base64(keyder));
 
     Crypto::ASN1::Decoder decoder(decoded_keyder);
-    auto private_key_info = TRY_OR_FAIL(TLS::parse_private_key_info(decoder));
+    auto private_key_info = TRY_OR_FAIL(Crypto::Certificate::parse_private_key_info(decoder));
 
-    EXPECT_EQ(private_key_info.algorithm.identifier, TLS::rsa_encryption_oid);
+    EXPECT_EQ(private_key_info.algorithm.identifier, Crypto::Certificate::rsa_encryption_oid);
     auto& key = private_key_info.rsa;
 
     EXPECT_EQ(key.length() * 8, 512u);

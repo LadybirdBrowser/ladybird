@@ -14,11 +14,11 @@
 #include <LibCore/Timer.h>
 #include <LibCrypto/ASN1/ASN1.h>
 #include <LibCrypto/ASN1/PEM.h>
+#include <LibCrypto/Certificate/Certificate.h>
 #include <LibCrypto/Curves/Ed25519.h>
 #include <LibCrypto/Curves/SECPxxxr1.h>
 #include <LibCrypto/PK/Code/EMSA_PKCS1_V1_5.h>
 #include <LibFileSystem/FileSystem.h>
-#include <LibTLS/Certificate.h>
 #include <LibTLS/TLSv12.h>
 #include <errno.h>
 
@@ -316,25 +316,25 @@ bool Context::verify_certificate_pair(Certificate const& subject, Certificate co
 
     bool is_rsa = true;
 
-    if (identifier == rsa_encryption_oid) {
+    if (identifier == Crypto::Certificate::rsa_encryption_oid) {
         kind = Crypto::Hash::HashKind::None;
-    } else if (identifier == rsa_md5_encryption_oid) {
+    } else if (identifier == Crypto::Certificate::rsa_md5_encryption_oid) {
         kind = Crypto::Hash::HashKind::MD5;
-    } else if (identifier == rsa_sha1_encryption_oid) {
+    } else if (identifier == Crypto::Certificate::rsa_sha1_encryption_oid) {
         kind = Crypto::Hash::HashKind::SHA1;
-    } else if (identifier == rsa_sha256_encryption_oid) {
+    } else if (identifier == Crypto::Certificate::rsa_sha256_encryption_oid) {
         kind = Crypto::Hash::HashKind::SHA256;
-    } else if (identifier == rsa_sha384_encryption_oid) {
+    } else if (identifier == Crypto::Certificate::rsa_sha384_encryption_oid) {
         kind = Crypto::Hash::HashKind::SHA384;
-    } else if (identifier == rsa_sha512_encryption_oid) {
+    } else if (identifier == Crypto::Certificate::rsa_sha512_encryption_oid) {
         kind = Crypto::Hash::HashKind::SHA512;
-    } else if (identifier == ecdsa_with_sha256_encryption_oid) {
+    } else if (identifier == Crypto::Certificate::ecdsa_with_sha256_encryption_oid) {
         kind = Crypto::Hash::HashKind::SHA256;
         is_rsa = false;
-    } else if (identifier == ecdsa_with_sha384_encryption_oid) {
+    } else if (identifier == Crypto::Certificate::ecdsa_with_sha384_encryption_oid) {
         kind = Crypto::Hash::HashKind::SHA384;
         is_rsa = false;
-    } else if (identifier == ecdsa_with_sha512_encryption_oid) {
+    } else if (identifier == Crypto::Certificate::ecdsa_with_sha512_encryption_oid) {
         kind = Crypto::Hash::HashKind::SHA512;
         is_rsa = false;
     }
@@ -597,9 +597,9 @@ ErrorOr<Vector<Certificate>> DefaultRootCACertificates::parse_pem_root_certifica
 
 ErrorOr<SupportedGroup> oid_to_curve(Vector<int> curve)
 {
-    if (curve == curve_ansip384r1)
+    if (curve == Crypto::Certificate::curve_ansip384r1)
         return SupportedGroup::SECP384R1;
-    if (curve == curve_prime256)
+    if (curve == Crypto::Certificate::curve_prime256)
         return SupportedGroup::SECP256R1;
 
     return AK::Error::from_string_literal("Unknown curve oid");

@@ -17,6 +17,7 @@ set(SOURCES
     BigInt/Algorithms/SimpleOperations.cpp
     BigInt/SignedBigInteger.cpp
     BigInt/UnsignedBigInteger.cpp
+    Certificate/Certificate.cpp
     Checksum/Adler32.cpp
     Checksum/cksum.cpp
     Checksum/CRC32.cpp
