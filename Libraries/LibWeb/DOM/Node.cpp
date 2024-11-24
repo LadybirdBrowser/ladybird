@@ -982,8 +982,13 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::replace_child(GC::Ref<Node> node, GC::R
     else
         nodes.append(GC::make_root(*node));
 
-    // 13. Insert node into parent before referenceChild with the suppress observers flag set.
-    insert_before(node, reference_child, true);
+    // AD-HOC: Since removing the child may have executed arbitrary code, we have to verify
+    //         the sanity of inserting `node` before `reference_child` again, as well as
+    //         `child` not being reinserted elsewhere.
+    if (!reference_child || (reference_child->parent() == this && !child->parent_node())) {
+        // 13. Insert node into parent before referenceChild with the suppress observers flag set.
+        insert_before(node, reference_child, true);
+    }
 
     // 14. Queue a tree mutation record for parent with nodes, removedNodes, previousSibling, and referenceChild.
     queue_tree_mutation_record(move(nodes), move(removed_nodes), previous_sibling.ptr(), reference_child.ptr());
