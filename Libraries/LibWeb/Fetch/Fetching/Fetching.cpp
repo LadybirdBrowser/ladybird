@@ -2240,7 +2240,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> nonstandard_resource_loader_file_o
 
     auto request = fetch_params.request();
 
-    auto& page = Bindings::principal_host_defined_page(realm);
+    auto& page = Bindings::principal_host_defined_page(HTML::principal_realm(realm));
 
     // NOTE: Using LoadRequest::create_for_url_on_page here will unconditionally add cookies as long as there's a page available.
     //       However, it is up to http_network_or_cache_fetch to determine if cookies should be added to the request.
