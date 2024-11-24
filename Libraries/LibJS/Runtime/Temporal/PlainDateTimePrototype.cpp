@@ -9,6 +9,7 @@
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/Calendar.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
+#include <LibJS/Runtime/Temporal/PlainDate.h>
 #include <LibJS/Runtime/Temporal/PlainDateTimePrototype.h>
 #include <LibJS/Runtime/Temporal/PlainTime.h>
 
@@ -67,6 +68,8 @@ void PlainDateTimePrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
     define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
+    define_native_function(realm, vm.names.toPlainDate, to_plain_date, 0, attr);
+    define_native_function(realm, vm.names.toPlainTime, to_plain_time, 0, attr);
 }
 
 // 5.3.3 get Temporal.PlainDateTime.prototype.calendarId, https://tc39.es/proposal-temporal/#sec-get-temporal.plaindatetime.prototype.calendarid
@@ -545,6 +548,28 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::to_json)
 
     // 3. Return ISODateTimeToString(dateTime.[[ISODateTime]], dateTime.[[Calendar]], AUTO, AUTO).
     return PrimitiveString::create(vm, iso_date_time_to_string(date_time->iso_date_time(), date_time->calendar(), Auto {}, ShowCalendar::Auto));
+}
+
+// 5.3.39 Temporal.PlainDateTime.prototype.toPlainDate ( ), https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.toplaindate
+JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::to_plain_date)
+{
+    // 1. Let dateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(dateTime, [[InitializedTemporalDateTime]]).
+    auto date_time = TRY(typed_this_object(vm));
+
+    // 3. Return ! CreateTemporalDate(dateTime.[[ISODateTime]].[[ISODate]], dateTime.[[Calendar]]).
+    return MUST(create_temporal_date(vm, date_time->iso_date_time().iso_date, date_time->calendar()));
+}
+
+// 5.3.40 Temporal.PlainDateTime.prototype.toPlainTime ( ), https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.toplaintime
+JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::to_plain_time)
+{
+    // 1. Let dateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(dateTime, [[InitializedTemporalDateTime]]).
+    auto date_time = TRY(typed_this_object(vm));
+
+    // 3. Return ! CreateTemporalTime(dateTime.[[ISODateTime]].[[Time]]).
+    return MUST(create_temporal_time(vm, date_time->iso_date_time().time));
 }
 
 }
