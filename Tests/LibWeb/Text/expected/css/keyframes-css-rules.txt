@@ -1,7 +1,7 @@
-fooRule: [object CSSKeyframesRule] ~ @keyframes "foo" { 0% { color: rgb(0, 0, 0); } 100% { color: rgb(255, 255, 255); } }
+fooRule: [object CSSKeyframesRule] ~ @keyframes "foo" { 0% { color: black; } 100% { color: white; } }
 fooRule.cssRules: [object CSSRuleList]
-fooRule.cssRules[0]: [object CSSKeyframeRule] ~ 0% { color: rgb(0, 0, 0); }
+fooRule.cssRules[0]: [object CSSKeyframeRule] ~ 0% { color: black; }
 fooRule.cssRules[0].parentRule: [object CSSKeyframesRule]
-fooRule.cssRules[0].parentRule: [object CSSKeyframesRule] ~ @keyframes "foo" { 0% { color: rgb(0, 0, 0); } 100% { color: rgb(255, 255, 255); } }
-fooRule.cssRules[0].style.parentRule: [object CSSKeyframeRule] ~ 0% { color: rgb(0, 0, 0); }
+fooRule.cssRules[0].parentRule: [object CSSKeyframesRule] ~ @keyframes "foo" { 0% { color: black; } 100% { color: white; } }
+fooRule.cssRules[0].style.parentRule: [object CSSKeyframeRule] ~ 0% { color: black; }
 fooRule.cssRules[0].style.parentRule === fooRule.cssRules[0]: true

@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <AK/FlyString.h>
 #include <LibGfx/Color.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 
@@ -17,7 +18,7 @@ namespace Web::CSS {
 // https://drafts.css-houdini.org/css-typed-om-1/#csscolorvalue
 class CSSColorValue : public CSSStyleValue {
 public:
-    static ValueComparingNonnullRefPtr<CSSColorValue> create_from_color(Color color);
+    static ValueComparingNonnullRefPtr<CSSColorValue> create_from_color(Color color, Optional<FlyString> name = {});
     virtual ~CSSColorValue() override = default;
 
     virtual bool has_color() const override { return true; }

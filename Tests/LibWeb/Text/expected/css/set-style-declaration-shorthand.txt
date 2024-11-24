@@ -28,7 +28,7 @@ Setting flex: ''; becomes...
 Setting border: '1px solid red'; becomes...
   border-width: '1px 1px 1px 1px'
   border-style: 'solid solid solid solid'
-  border-color: 'rgb(255, 0, 0) rgb(255, 0, 0) rgb(255, 0, 0) rgb(255, 0, 0)'
+  border-color: 'red red red red'
   border: ''
   e.style.length: 12
   > [0] border-top-width
