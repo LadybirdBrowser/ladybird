@@ -89,6 +89,7 @@
 
 #define JS_ENUMERATE_TEMPORAL_OBJECTS                                                                \
     __JS_ENUMERATE(Duration, duration, DurationPrototype, DurationConstructor)                       \
+    __JS_ENUMERATE(Instant, instant, InstantPrototype, InstantConstructor)                           \
     __JS_ENUMERATE(PlainDate, plain_date, PlainDatePrototype, PlainDateConstructor)                  \
     __JS_ENUMERATE(PlainDateTime, plain_date_time, PlainDateTimePrototype, PlainDateTimeConstructor) \
     __JS_ENUMERATE(PlainMonthDay, plain_month_day, PlainMonthDayPrototype, PlainMonthDayConstructor) \

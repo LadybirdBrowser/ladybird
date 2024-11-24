@@ -48,6 +48,7 @@
 #include <LibJS/Runtime/StringObject.h>
 #include <LibJS/Runtime/StringPrototype.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
+#include <LibJS/Runtime/Temporal/Instant.h>
 #include <LibJS/Runtime/Temporal/PlainDate.h>
 #include <LibJS/Runtime/Temporal/PlainDateTime.h>
 #include <LibJS/Runtime/Temporal/PlainMonthDay.h>
@@ -840,6 +841,14 @@ ErrorOr<void> print_temporal_duration(JS::PrintContext& print_context, JS::Tempo
     return {};
 }
 
+ErrorOr<void> print_temporal_instant(JS::PrintContext& print_context, JS::Temporal::Instant const& instant, HashTable<JS::Object*>& seen_objects)
+{
+    TRY(print_type(print_context, "Temporal.Instant"sv));
+    TRY(js_out(print_context, " "));
+    TRY(print_value(print_context, instant.epoch_nanoseconds(), seen_objects));
+    return {};
+}
+
 ErrorOr<void> print_temporal_plain_date(JS::PrintContext& print_context, JS::Temporal::PlainDate const& plain_date, HashTable<JS::Object*>& seen_objects)
 {
     TRY(print_type(print_context, "Temporal.PlainDate"sv));
@@ -1000,6 +1009,8 @@ ErrorOr<void> print_value(JS::PrintContext& print_context, JS::Value value, Hash
             return print_intl_duration_format(print_context, static_cast<JS::Intl::DurationFormat&>(object), seen_objects);
         if (is<JS::Temporal::Duration>(object))
             return print_temporal_duration(print_context, static_cast<JS::Temporal::Duration&>(object), seen_objects);
+        if (is<JS::Temporal::Instant>(object))
+            return print_temporal_instant(print_context, static_cast<JS::Temporal::Instant&>(object), seen_objects);
         if (is<JS::Temporal::PlainDate>(object))
             return print_temporal_plain_date(print_context, static_cast<JS::Temporal::PlainDate&>(object), seen_objects);
         if (is<JS::Temporal::PlainDateTime>(object))
