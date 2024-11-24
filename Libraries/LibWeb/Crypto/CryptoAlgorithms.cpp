@@ -2724,7 +2724,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(
             return WebIDL::DataError::create(m_realm, "Invalid algorithm identifier"_string);
 
         // 5. If the parameters field of the algorithm AlgorithmIdentifier field of spki is present, then throw a DataError.
-        if (static_cast<u16>(spki.algorithm.ec_parameters) != 0)
+        if (spki.algorithm.ec_parameters.has_value())
             return WebIDL::DataError::create(m_realm, "Invalid algorithm parameters"_string);
 
         // 6. Let publicKey be the Ed25519 public key identified by the subjectPublicKey field of spki.
@@ -2767,7 +2767,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(
 
         // 5. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of privateKeyInfo is present,
         //    then throw a DataError.
-        if (static_cast<u16>(private_key_info.algorithm.ec_parameters) != 0)
+        if (private_key_info.algorithm.ec_parameters.has_value())
             return WebIDL::DataError::create(m_realm, "Invalid algorithm parameters"_string);
 
         // 6. Let curvePrivateKey be the result of performing the parse an ASN.1 structure algorithm,
@@ -3417,7 +3417,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key([[maybe_unused]] Web:
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
 
         // 5. If the parameters field of the algorithm AlgorithmIdentifier field of spki is present, then throw a DataError.
-        if (static_cast<u16>(spki.algorithm.ec_parameters) != 0)
+        if (spki.algorithm.ec_parameters.has_value())
             return WebIDL::DataError::create(m_realm, "Invalid algorithm parameters"_string);
 
         // 6. Let publicKey be the X25519 public key identified by the subjectPublicKey field of spki.
@@ -3458,7 +3458,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key([[maybe_unused]] Web:
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
 
         // 5. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of privateKeyInfo is present, then throw a DataError.
-        if (static_cast<u16>(private_key_info.algorithm.ec_parameters) != 0)
+        if (private_key_info.algorithm.ec_parameters.has_value())
             return WebIDL::DataError::create(m_realm, "Invalid algorithm parameters"_string);
 
         // 6. Let curvePrivateKey be the result of performing the parse an ASN.1 structure algorithm,

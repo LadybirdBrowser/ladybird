@@ -364,7 +364,13 @@ bool Context::verify_certificate_pair(Certificate const& subject, Certificate co
     }
 
     // ECDSA hash verification: hash, then check signature against the specific curve
-    switch (issuer.public_key.algorithm.ec_parameters) {
+    auto ec_curve = oid_to_curve(issuer.public_key.algorithm.ec_parameters.value_or({}));
+    if (ec_curve.is_error()) {
+        dbgln("verify_certificate_pair: Unknown curve for ECDSA signature verification");
+        return false;
+    }
+
+    switch (ec_curve.release_value()) {
     case SupportedGroup::SECP256R1: {
         Crypto::Hash::Manager hasher(kind);
         hasher.update(subject.tbs_asn1.bytes());
@@ -401,7 +407,7 @@ bool Context::verify_certificate_pair(Certificate const& subject, Certificate co
         return result;
     }
     default:
-        dbgln("verify_certificate_pair: Don't know how to verify signature for curve {}", to_underlying(issuer.public_key.algorithm.ec_parameters));
+        dbgln("verify_certificate_pair: Don't know how to verify signature for curve {}", to_underlying(ec_curve.release_value()));
         return false;
     }
 }
@@ -588,4 +594,15 @@ ErrorOr<Vector<Certificate>> DefaultRootCACertificates::parse_pem_root_certifica
 
     return certificates;
 }
+
+ErrorOr<SupportedGroup> oid_to_curve(Vector<int> curve)
+{
+    if (curve == curve_ansip384r1)
+        return SupportedGroup::SECP384R1;
+    if (curve == curve_prime256)
+        return SupportedGroup::SECP256R1;
+
+    return AK::Error::from_string_literal("Unknown curve oid");
+}
+
 }

@@ -139,6 +139,8 @@ constexpr CipherAlgorithm get_cipher_algorithm(CipherSuite suite)
     }
 }
 
+ErrorOr<SupportedGroup> oid_to_curve(Vector<int> curve);
+
 struct Options {
     static Vector<CipherSuite> default_usable_cipher_suites()
     {
