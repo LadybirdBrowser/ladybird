@@ -3413,7 +3413,7 @@ RefPtr<CSSStyleValue> Parser::parse_color_value(TokenStream<ComponentValue>& tok
         auto color = Color::from_string(ident);
         if (color.has_value()) {
             transaction.commit();
-            return CSSColorValue::create_from_color(color.release_value());
+            return CSSColorValue::create_from_color(color.release_value(), ident);
         }
         // Otherwise, fall through to the hashless-hex-color case
     }

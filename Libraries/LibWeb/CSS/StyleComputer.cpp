@@ -2425,6 +2425,17 @@ Optional<StyleProperties> StyleComputer::compute_style_impl(DOM::Element& elemen
         start_needed_transitions(*previous_style, style, element, pseudo_element);
     }
 
+    // Remove color names from CSS color values. This is needed because computed values cannot be named colors.
+    for (auto i = to_underlying(CSS::first_property_id); i <= to_underlying(CSS::last_property_id); ++i) {
+        auto property_id = (CSS::PropertyID)i;
+        auto* property = style.maybe_null_property(property_id);
+        if (property && property->is_color()) {
+            auto& color_value = property->as_color();
+            if (color_value.color_type() == CSSColorValue::ColorType::RGB)
+                style.set_property(property_id, CSSColorValue::create_from_color(color_value.to_color({})));
+        }
+    }
+
     return style;
 }
 

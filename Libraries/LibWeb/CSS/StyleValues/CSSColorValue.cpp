@@ -17,32 +17,14 @@
 
 namespace Web::CSS {
 
-ValueComparingNonnullRefPtr<CSSColorValue> CSSColorValue::create_from_color(Color color)
+ValueComparingNonnullRefPtr<CSSColorValue> CSSColorValue::create_from_color(Color color, Optional<FlyString> name)
 {
-    auto make_rgb_color = [](Color const& color) {
-        return CSSRGB::create(
-            NumberStyleValue::create(color.red()),
-            NumberStyleValue::create(color.green()),
-            NumberStyleValue::create(color.blue()),
-            NumberStyleValue::create(color.alpha() / 255.0));
-    };
-
-    if (color.value() == 0) {
-        static auto transparent = make_rgb_color(color);
-        return transparent;
-    }
-
-    if (color == Color::from_rgb(0x000000)) {
-        static auto black = make_rgb_color(color);
-        return black;
-    }
-
-    if (color == Color::from_rgb(0xffffff)) {
-        static auto white = make_rgb_color(color);
-        return white;
-    }
-
-    return make_rgb_color(color);
+    return CSSRGB::create(
+        NumberStyleValue::create(color.red()),
+        NumberStyleValue::create(color.green()),
+        NumberStyleValue::create(color.blue()),
+        NumberStyleValue::create(color.alpha() / 255.0),
+        name);
 }
 
 Optional<double> CSSColorValue::resolve_hue(CSSStyleValue const& style_value)

@@ -1,1 +1,1 @@
-test { --color: red; color: rgb(255, 0, 0); }
+test { --color: red; color: red; }

@@ -71,6 +71,8 @@ bool CSSRGB::equals(CSSStyleValue const& other) const
 String CSSRGB::to_string() const
 {
     // FIXME: Do this properly, taking unresolved calculated values into account.
+    if (m_properties.name.has_value())
+        return m_properties.name.value().to_string().to_ascii_lowercase();
     return serialize_a_srgb_value(to_color({}));
 }
 
