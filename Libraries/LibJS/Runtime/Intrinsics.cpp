@@ -101,6 +101,8 @@
 #include <LibJS/Runtime/SymbolPrototype.h>
 #include <LibJS/Runtime/Temporal/DurationConstructor.h>
 #include <LibJS/Runtime/Temporal/DurationPrototype.h>
+#include <LibJS/Runtime/Temporal/InstantConstructor.h>
+#include <LibJS/Runtime/Temporal/InstantPrototype.h>
 #include <LibJS/Runtime/Temporal/PlainDateConstructor.h>
 #include <LibJS/Runtime/Temporal/PlainDatePrototype.h>
 #include <LibJS/Runtime/Temporal/PlainDateTimeConstructor.h>

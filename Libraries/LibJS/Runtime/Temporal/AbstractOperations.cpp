@@ -1754,4 +1754,19 @@ Crypto::SignedBigInteger get_utc_epoch_nanoseconds(ISODateTime const& iso_date_t
         iso_date_time.time.nanosecond);
 }
 
+// AD-HOC
+// FIXME: We should add a generic floor() method to our BigInt classes. But for now, since we know we are only dividing
+//        by powers of 10, we can implement a very situationally specific method to compute the floor of a division.
+Crypto::SignedBigInteger big_floor(Crypto::SignedBigInteger const& numerator, Crypto::UnsignedBigInteger const& denominator)
+{
+    auto result = numerator.divided_by(denominator);
+
+    if (result.remainder.is_zero())
+        return result.quotient;
+    if (!result.quotient.is_negative() && result.remainder.is_positive())
+        return result.quotient;
+
+    return result.quotient.minus(Crypto::SignedBigInteger { 1 });
+}
+
 }

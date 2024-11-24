@@ -26,20 +26,6 @@ PlainTime::PlainTime(Time const& time, Object& prototype)
 {
 }
 
-// FIXME: We should add a generic floor() method to our BigInt classes. But for now, since we know we are only dividing
-//        by powers of 10, we can implement a very situationally specific method to compute the floor of a division.
-static TimeDuration big_floor(TimeDuration const& numerator, Crypto::UnsignedBigInteger const& denominator)
-{
-    auto result = numerator.divided_by(denominator);
-
-    if (result.remainder.is_zero())
-        return result.quotient;
-    if (!result.quotient.is_negative() && result.remainder.is_positive())
-        return result.quotient;
-
-    return result.quotient.minus(TimeDuration { 1 });
-}
-
 // 4.5.2 CreateTimeRecord ( hour, minute, second, millisecond, microsecond, nanosecond [ , deltaDays ] ), https://tc39.es/proposal-temporal/#sec-temporal-createtimerecord
 Time create_time_record(double hour, double minute, double second, double millisecond, double microsecond, double nanosecond, double delta_days)
 {
