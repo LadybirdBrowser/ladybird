@@ -37,7 +37,7 @@ constexpr static Array<int, 7>
     ed25519_oid { 1, 3, 101, 112 },
     ed448_oid { 1, 3, 101, 113 };
 
-constexpr static Array<Array<int, 7>, 10> known_algorithm_identifiers {
+constexpr static Array<Array<int, 7>, 11> known_algorithm_identifiers {
     rsa_encryption_oid,
     rsa_md5_encryption_oid,
     rsa_sha1_encryption_oid,
@@ -47,7 +47,8 @@ constexpr static Array<Array<int, 7>, 10> known_algorithm_identifiers {
     ecdsa_with_sha256_encryption_oid,
     ecdsa_with_sha384_encryption_oid,
     ec_public_key_encryption_oid,
-    x25519_oid
+    x25519_oid,
+    ed25519_oid,
 };
 
 constexpr static Array<int, 7>
