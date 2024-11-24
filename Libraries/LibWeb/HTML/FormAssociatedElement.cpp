@@ -794,7 +794,7 @@ void FormAssociatedTextControlElement::decrement_cursor_position_to_previous_wor
 
     while (true) {
         if (auto offset = text_node->word_segmenter().previous_boundary(m_selection_end); offset.has_value()) {
-            auto word = text_node->data().code_points().substring_view(m_selection_end, m_selection_end - *offset);
+            auto word = text_node->data().code_points().substring_view(*offset, m_selection_end - *offset);
             if (collapse == CollapseSelection::Yes) {
                 collapse_selection_to_offset(*offset);
             } else {
