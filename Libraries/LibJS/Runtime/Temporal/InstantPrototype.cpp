@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/InstantPrototype.h>
@@ -37,6 +38,7 @@ void InstantPrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.subtract, subtract, 1, attr);
     define_native_function(realm, vm.names.until, until, 1, attr);
     define_native_function(realm, vm.names.since, since, 1, attr);
+    define_native_function(realm, vm.names.round, round, 1, attr);
     define_native_function(realm, vm.names.equals, equals, 1, attr);
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
@@ -124,6 +126,99 @@ JS_DEFINE_NATIVE_FUNCTION(InstantPrototype::since)
 
     // 3. Return ? DifferenceTemporalInstant(SINCE, instant, other, options).
     return TRY(difference_temporal_instant(vm, DurationOperation::Since, instant, other, options));
+}
+
+// 8.3.9 Temporal.Instant.prototype.round ( roundTo ), https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.round
+JS_DEFINE_NATIVE_FUNCTION(InstantPrototype::round)
+{
+    auto& realm = *vm.current_realm();
+
+    auto round_to_value = vm.argument(0);
+
+    // 1. Let instant be the this value.
+    // 2. Perform ? RequireInternalSlot(instant, [[InitializedTemporalInstant]]).
+    auto instant = TRY(typed_this_object(vm));
+
+    // 3. If roundTo is undefined, then
+    if (round_to_value.is_undefined()) {
+        // a. Throw a TypeError exception.
+        return vm.throw_completion<TypeError>(ErrorType::TemporalMissingOptionsObject);
+    }
+
+    GC::Ptr<Object> round_to;
+
+    // 4. If roundTo is a String, then
+    if (round_to_value.is_string()) {
+        // a. Let paramString be roundTo.
+        auto param_string = round_to_value;
+
+        // b. Set roundTo to OrdinaryObjectCreate(null).
+        round_to = Object::create(realm, nullptr);
+
+        // c. Perform ! CreateDataPropertyOrThrow(roundTo, "smallestUnit", paramString).
+        MUST(round_to->create_data_property_or_throw(vm.names.smallestUnit, param_string));
+    }
+    // 5. Else,
+    else {
+        // a. Set roundTo to ? GetOptionsObject(roundTo).
+        round_to = TRY(get_options_object(vm, round_to_value));
+    }
+
+    // 6. NOTE: The following steps read options and perform independent validation in alphabetical order
+    //    (GetRoundingIncrementOption reads "roundingIncrement" and GetRoundingModeOption reads "roundingMode").
+
+    // 7. Let roundingIncrement be ? GetRoundingIncrementOption(roundTo).
+    auto rounding_increment = TRY(get_rounding_increment_option(vm, *round_to));
+
+    // 8. Let roundingMode be ? GetRoundingModeOption(roundTo, HALF-EXPAND).
+    auto rounding_mode = TRY(get_rounding_mode_option(vm, *round_to, RoundingMode::HalfExpand));
+
+    // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(roundTo, "smallestUnit", TIME, REQUIRED).
+    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, *round_to, vm.names.smallestUnit, UnitGroup::Time, Required {}));
+    auto smallest_unit_value = smallest_unit.get<Unit>();
+
+    auto maximum = [&]() {
+        switch (smallest_unit_value) {
+        // 10. If smallestUnit is hour, then
+        case Unit::Hour:
+            // a. Let maximum be HoursPerDay.
+            return hours_per_day;
+        // 11. Else if smallestUnit is minute, then
+        case Unit::Minute:
+            // a. Let maximum be MinutesPerHour × HoursPerDay.
+            return minutes_per_hour * hours_per_day;
+        // 12. Else if smallestUnit is second, then
+        case Unit::Second:
+            // a. Let maximum be SecondsPerMinute × MinutesPerHour × HoursPerDay.
+            return seconds_per_minute * minutes_per_hour * hours_per_day;
+        // 13. Else if smallestUnit is millisecond, then
+        case Unit::Millisecond:
+            // a. Let maximum be ℝ(msPerDay).
+            return ms_per_day;
+        // 14. Else if smallestUnit is microsecond, then
+        case Unit::Microsecond:
+            // a. Let maximum be 10**3 × ℝ(msPerDay).
+            return 1000 * ms_per_day;
+        // 15. Else,
+        case Unit::Nanosecond:
+            // a. Assert: smallestUnit is nanosecond.
+            // b. Let maximum be nsPerDay.
+            return ns_per_day;
+        default:
+            break;
+        }
+
+        VERIFY_NOT_REACHED();
+    }();
+
+    // 16. Perform ? ValidateTemporalRoundingIncrement(roundingIncrement, maximum, true).
+    TRY(validate_temporal_rounding_increment(vm, rounding_increment, maximum, true));
+
+    // 17. Let roundedNs be RoundTemporalInstant(instant.[[EpochNanoseconds]], roundingIncrement, smallestUnit, roundingMode).
+    auto rounded_nanoseconds = round_temporal_instant(instant->epoch_nanoseconds()->big_integer(), rounding_increment, smallest_unit_value, rounding_mode);
+
+    // 18. Return ! CreateTemporalInstant(roundedNs).
+    return MUST(create_temporal_instant(vm, BigInt::create(vm, move(rounded_nanoseconds))));
 }
 
 // 8.3.10 Temporal.Instant.prototype.equals ( other ), https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.equals
