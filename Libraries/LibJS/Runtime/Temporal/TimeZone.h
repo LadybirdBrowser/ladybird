@@ -28,8 +28,12 @@ enum class Disambiguation {
     Reject,
 };
 
+ISODateTime get_iso_parts_from_epoch(Crypto::SignedBigInteger const& epoch_nanoseconds);
 String format_offset_time_zone_identifier(i64 offset_minutes, Optional<TimeStyle> = {});
+String format_date_time_utc_offset_rounded(i64 offset_nanoseconds);
 ThrowCompletionOr<String> to_temporal_time_zone_identifier(VM&, Value temporal_time_zone_like);
+i64 get_offset_nanoseconds_for(StringView time_zone, Crypto::SignedBigInteger const& epoch_nanoseconds);
+ISODateTime get_iso_date_time_for(StringView time_zone, Crypto::SignedBigInteger const& epoch_nanoseconds);
 ThrowCompletionOr<String> to_temporal_time_zone_identifier(VM&, StringView temporal_time_zone_like);
 ThrowCompletionOr<Crypto::SignedBigInteger> get_epoch_nanoseconds_for(VM&, StringView time_zone, ISODateTime const&, Disambiguation);
 ThrowCompletionOr<Crypto::SignedBigInteger> disambiguate_possible_epoch_nanoseconds(VM&, Vector<Crypto::SignedBigInteger> possible_epoch_ns, StringView time_zone, ISODateTime const&, Disambiguation);

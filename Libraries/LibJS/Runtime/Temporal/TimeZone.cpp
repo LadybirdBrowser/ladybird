@@ -10,13 +10,69 @@
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
+#include <LibJS/Runtime/Temporal/DateEquations.h>
 #include <LibJS/Runtime/Temporal/ISO8601.h>
 #include <LibJS/Runtime/Temporal/Instant.h>
+#include <LibJS/Runtime/Temporal/PlainDate.h>
 #include <LibJS/Runtime/Temporal/PlainDateTime.h>
+#include <LibJS/Runtime/Temporal/PlainTime.h>
 #include <LibJS/Runtime/Temporal/TimeZone.h>
 #include <LibJS/Runtime/VM.h>
 
 namespace JS::Temporal {
+
+// 11.1.2 GetISOPartsFromEpoch ( epochNanoseconds ), https://tc39.es/proposal-temporal/#sec-temporal-getisopartsfromepoch
+ISODateTime get_iso_parts_from_epoch(Crypto::SignedBigInteger const& epoch_nanoseconds)
+{
+    // 1. Assert: IsValidEpochNanoseconds(ℤ(epochNanoseconds)) is true.
+    VERIFY(is_valid_epoch_nanoseconds(epoch_nanoseconds));
+
+    // 2. Let remainderNs be epochNanoseconds modulo 10**6.
+    auto remainder_nanoseconds = modulo(epoch_nanoseconds, NANOSECONDS_PER_MILLISECOND);
+    auto remainder_nanoseconds_value = remainder_nanoseconds.to_double();
+
+    // 3. Let epochMilliseconds be 𝔽((epochNanoseconds - remainderNs) / 10**6).
+    auto epoch_milliseconds = epoch_nanoseconds.minus(remainder_nanoseconds).divided_by(NANOSECONDS_PER_MILLISECOND).quotient.to_double();
+
+    // 4. Let year be EpochTimeToEpochYear(epochMilliseconds).
+    auto year = epoch_time_to_epoch_year(epoch_milliseconds);
+
+    // 5. Let month be EpochTimeToMonthInYear(epochMilliseconds) + 1.
+    auto month = epoch_time_to_month_in_year(epoch_milliseconds) + 1;
+
+    // 6. Let day be EpochTimeToDate(epochMilliseconds).
+    auto day = epoch_time_to_date(epoch_milliseconds);
+
+    // 7. Let hour be ℝ(HourFromTime(epochMilliseconds)).
+    auto hour = hour_from_time(epoch_milliseconds);
+
+    // 8. Let minute be ℝ(MinFromTime(epochMilliseconds)).
+    auto minute = min_from_time(epoch_milliseconds);
+
+    // 9. Let second be ℝ(SecFromTime(epochMilliseconds)).
+    auto second = sec_from_time(epoch_milliseconds);
+
+    // 10. Let millisecond be ℝ(msFromTime(epochMilliseconds)).
+    auto millisecond = ms_from_time(epoch_milliseconds);
+
+    // 11. Let microsecond be floor(remainderNs / 1000).
+    auto microsecond = floor(remainder_nanoseconds_value / 1000.0);
+
+    // 12. Assert: microsecond < 1000.
+    VERIFY(microsecond < 1000.0);
+
+    // 13. Let nanosecond be remainderNs modulo 1000.
+    auto nanosecond = modulo(remainder_nanoseconds_value, 1000.0);
+
+    // 14. Let isoDate be CreateISODateRecord(year, month, day).
+    auto iso_date = create_iso_date_record(year, month, day);
+
+    // 15. Let time be CreateTimeRecord(hour, minute, second, millisecond, microsecond, nanosecond).
+    auto time = create_time_record(hour, minute, second, millisecond, microsecond, nanosecond);
+
+    // 16. Return CombineISODateAndTimeRecord(isoDate, time).
+    return combine_iso_date_and_time_record(iso_date, time);
+}
 
 // 11.1.5 FormatOffsetTimeZoneIdentifier ( offsetMinutes [ , style ] ), https://tc39.es/proposal-temporal/#sec-temporal-formatoffsettimezoneidentifier
 String format_offset_time_zone_identifier(i64 offset_minutes, Optional<TimeStyle> style)
@@ -38,6 +94,22 @@ String format_offset_time_zone_identifier(i64 offset_minutes, Optional<TimeStyle
 
     // 6. Return the string-concatenation of sign and timeString.
     return MUST(String::formatted("{}{}", sign, time_string));
+}
+
+// 11.1.7 FormatDateTimeUTCOffsetRounded ( offsetNanoseconds ), https://tc39.es/proposal-temporal/#sec-temporal-formatdatetimeutcoffsetrounded
+String format_date_time_utc_offset_rounded(i64 offset_nanoseconds)
+{
+    // 1. Set offsetNanoseconds to RoundNumberToIncrement(offsetNanoseconds, 60 × 10**9, HALF-EXPAND).
+    auto offset_nanoseconds_value = round_number_to_increment(static_cast<double>(offset_nanoseconds), 60'000'000'000, RoundingMode::HalfExpand);
+
+    // 2. Let offsetMinutes be offsetNanoseconds / (60 × 10**9).
+    auto offset_minutes = offset_nanoseconds_value / 60'000'000'000;
+
+    // 3. Assert: offsetMinutes is an integer.
+    VERIFY(trunc(offset_minutes) == offset_minutes);
+
+    // 4. Return FormatOffsetTimeZoneIdentifier(offsetMinutes).
+    return format_offset_time_zone_identifier(static_cast<i64>(offset_minutes));
 }
 
 // 11.1.8 ToTemporalTimeZoneIdentifier ( temporalTimeZoneLike ), https://tc39.es/proposal-temporal/#sec-temporal-totemporaltimezoneidentifier
@@ -77,6 +149,33 @@ ThrowCompletionOr<String> to_temporal_time_zone_identifier(VM& vm, StringView te
 
     // 9. Return timeZoneIdentifierRecord.[[Identifier]].
     return time_zone_identifier_record->identifier;
+}
+
+// 11.1.9 GetOffsetNanosecondsFor ( timeZone, epochNs ), https://tc39.es/proposal-temporal/#sec-temporal-getoffsetnanosecondsfor
+i64 get_offset_nanoseconds_for(StringView time_zone, Crypto::SignedBigInteger const& epoch_nanoseconds)
+{
+    // 1. Let parseResult be ! ParseTimeZoneIdentifier(timeZone).
+    auto parse_result = parse_time_zone_identifier(time_zone);
+
+    // 2. If parseResult.[[OffsetMinutes]] is not empty, return parseResult.[[OffsetMinutes]] × (60 × 10**9).
+    if (parse_result.offset_minutes.has_value())
+        return *parse_result.offset_minutes * 60'000'000'000;
+
+    // 3. Return GetNamedTimeZoneOffsetNanoseconds(parseResult.[[Name]], epochNs).
+    return get_named_time_zone_offset_nanoseconds(*parse_result.name, epoch_nanoseconds).offset.to_nanoseconds();
+}
+
+// 11.1.10 GetISODateTimeFor ( timeZone, epochNs ), https://tc39.es/proposal-temporal/#sec-temporal-getisodatetimefor
+ISODateTime get_iso_date_time_for(StringView time_zone, Crypto::SignedBigInteger const& epoch_nanoseconds)
+{
+    // 1. Let offsetNanoseconds be GetOffsetNanosecondsFor(timeZone, epochNs).
+    auto offset_nanoseconds = get_offset_nanoseconds_for(time_zone, epoch_nanoseconds);
+
+    // 2. Let result be GetISOPartsFromEpoch(ℝ(epochNs)).
+    auto result = get_iso_parts_from_epoch(epoch_nanoseconds);
+
+    // 3. Return BalanceISODateTime(result.[[ISODate]].[[Year]], result.[[ISODate]].[[Month]], result.[[ISODate]].[[Day]], result.[[Time]].[[Hour]], result.[[Time]].[[Minute]], result.[[Time]].[[Second]], result.[[Time]].[[Millisecond]], result.[[Time]].[[Microsecond]], result.[[Time]].[[Nanosecond]] + offsetNanoseconds).
+    return balance_iso_date_time(result.iso_date.year, result.iso_date.month, result.iso_date.day, result.time.hour, result.time.minute, result.time.second, result.time.millisecond, result.time.microsecond, static_cast<double>(result.time.nanosecond) + static_cast<double>(offset_nanoseconds));
 }
 
 // 11.1.11 GetEpochNanosecondsFor ( timeZone, isoDateTime, disambiguation ), https://tc39.es/proposal-temporal/#sec-temporal-getepochnanosecondsfor

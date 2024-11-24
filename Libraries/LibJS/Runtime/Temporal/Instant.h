@@ -12,6 +12,7 @@
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/Temporal/AbstractOperations.h>
 
 namespace JS::Temporal {
 
@@ -59,5 +60,7 @@ bool is_valid_epoch_nanoseconds(Crypto::SignedBigInteger const& epoch_nanosecond
 ThrowCompletionOr<GC::Ref<Instant>> create_temporal_instant(VM&, BigInt const& epoch_nanoseconds, GC::Ptr<FunctionObject> new_target = {});
 ThrowCompletionOr<GC::Ref<Instant>> to_temporal_instant(VM&, Value item);
 i8 compare_epoch_nanoseconds(Crypto::SignedBigInteger const& epoch_nanoseconds_one, Crypto::SignedBigInteger const& epoch_nanoseconds_two);
+Crypto::SignedBigInteger round_temporal_instant(Crypto::SignedBigInteger const& nanoseconds, u64 increment, Unit, RoundingMode);
+String temporal_instant_to_string(Instant const&, Optional<StringView> time_zone, SecondsStringPrecision::Precision);
 
 }

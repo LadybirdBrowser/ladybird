@@ -804,7 +804,7 @@ double apply_unsigned_rounding_mode(double x, double r1, double r2, UnsignedRoun
 }
 
 // 13.27 ApplyUnsignedRoundingMode ( x, r1, r2, unsignedRoundingMode ), https://tc39.es/proposal-temporal/#sec-applyunsignedroundingmode
-Crypto::SignedBigInteger apply_unsigned_rounding_mode(Crypto::SignedDivisionResult const& x, Crypto::SignedBigInteger const& r1, Crypto::SignedBigInteger const& r2, UnsignedRoundingMode unsigned_rounding_mode, Crypto::UnsignedBigInteger const& increment)
+Crypto::SignedBigInteger apply_unsigned_rounding_mode(Crypto::SignedDivisionResult const& x, Crypto::SignedBigInteger r1, Crypto::SignedBigInteger r2, UnsignedRoundingMode unsigned_rounding_mode, Crypto::UnsignedBigInteger const& increment)
 {
     // 1. If x = r1, return r1.
     if (x.quotient == r1 && x.remainder.unsigned_value().is_zero())
@@ -947,13 +947,50 @@ Crypto::SignedBigInteger round_number_to_increment(Crypto::SignedBigInteger cons
     auto r2 = division_result.quotient.plus(1_bigint);
 
     // 7. Let rounded be ApplyUnsignedRoundingMode(quotient, r1, r2, unsignedRoundingMode).
-    auto rounded = apply_unsigned_rounding_mode(division_result, r1, r2, unsigned_rounding_mode, increment);
+    auto rounded = apply_unsigned_rounding_mode(division_result, move(r1), move(r2), unsigned_rounding_mode, increment);
 
     // 8. If isNegative is NEGATIVE, set rounded to -rounded.
     if (is_negative == Sign::Negative)
         rounded.negate();
 
     // 9. Return rounded × increment.
+    return rounded.multiplied_by(increment);
+}
+
+// 13.29 RoundNumberToIncrementAsIfPositive ( x, increment, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-roundnumbertoincrementasifpositive
+Crypto::SignedBigInteger round_number_to_increment_as_if_positive(Crypto::SignedBigInteger const& x, Crypto::UnsignedBigInteger const& increment, RoundingMode rounding_mode)
+{
+    // OPTIMIZATION: If the increment is 1 the number is always rounded.
+    if (increment == 1)
+        return x;
+
+    // 1. Let quotient be x / increment.
+    auto division_result = x.divided_by(increment);
+
+    // OPTIMIZATION: If there's no remainder the number is already rounded.
+    if (division_result.remainder.unsigned_value().is_zero())
+        return x;
+
+    // 2. Let unsignedRoundingMode be GetUnsignedRoundingMode(roundingMode, POSITIVE).
+    auto unsigned_rounding_mode = get_unsigned_rounding_mode(rounding_mode, Sign::Positive);
+
+    // 3. Let r1 be the largest integer such that r1 ≤ quotient.
+    // 4. Let r2 be the smallest integer such that r2 > quotient.
+    Crypto::SignedBigInteger r1;
+    Crypto::SignedBigInteger r2;
+
+    if (x.is_negative()) {
+        r1 = division_result.quotient.minus("1"_sbigint);
+        r2 = division_result.quotient;
+    } else {
+        r1 = division_result.quotient;
+        r2 = division_result.quotient.plus("1"_sbigint);
+    }
+
+    // 5. Let rounded be ApplyUnsignedRoundingMode(quotient, r1, r2, unsignedRoundingMode).
+    auto rounded = apply_unsigned_rounding_mode(division_result, move(r1), move(r2), unsigned_rounding_mode, increment);
+
+    // 6. Return rounded × increment.
     return rounded.multiplied_by(increment);
 }
 
