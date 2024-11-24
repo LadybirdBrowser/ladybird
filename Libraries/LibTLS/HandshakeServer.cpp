@@ -488,7 +488,13 @@ ssize_t TLSv12::verify_ecdsa_server_key_exchange(ReadonlyBytes server_key_info_b
 
     ErrorOr<bool> res = AK::Error::from_errno(ENOTSUP);
     auto& public_key = m_context.certificates.first().public_key;
-    switch (public_key.algorithm.ec_parameters) {
+    auto ec_curve = oid_to_curve(public_key.algorithm.ec_parameters.value_or({}));
+    if (ec_curve.is_error()) {
+        dbgln("verify_ecdsa_server_key_exchange failed: Unknown curve for ECDSA signature verification");
+        return (i8)Error::NotUnderstood;
+    }
+
+    switch (ec_curve.release_value()) {
     case SupportedGroup::SECP256R1: {
         Crypto::Hash::Manager manager(hash_kind);
         manager.update(message);
@@ -508,7 +514,7 @@ ssize_t TLSv12::verify_ecdsa_server_key_exchange(ReadonlyBytes server_key_info_b
         break;
     }
     default: {
-        dbgln("verify_ecdsa_server_key_exchange failed: Server certificate public key algorithm is not supported: {}", to_underlying(public_key.algorithm.ec_parameters));
+        dbgln("verify_ecdsa_server_key_exchange failed: Server certificate public key algorithm is not supported: {}", to_underlying(ec_curve.release_value()));
         break;
     }
     }

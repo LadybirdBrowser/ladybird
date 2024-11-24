@@ -188,7 +188,7 @@ struct AlgorithmIdentifier {
     }
 
     Vector<int, 9> identifier;
-    SupportedGroup ec_parameters {};
+    Optional<Vector<int>> ec_parameters;
 };
 
 struct BasicConstraints {
