@@ -100,11 +100,11 @@ ErrorOr<ByteBuffer> encode_pem(ReadonlyBytes data, PEMType type)
     StringView block_end;
 
     switch (type) {
-    case Certificate:
+    case PEMType::Certificate:
         block_start = "-----BEGIN CERTIFICATE-----\n"sv;
         block_end = "-----END CERTIFICATE-----\n"sv;
         break;
-    case PrivateKey:
+    case PEMType::PrivateKey:
         block_start = "-----BEGIN PRIVATE KEY-----\n"sv;
         block_end = "-----END PRIVATE KEY-----\n"sv;
         break;
