@@ -32,6 +32,9 @@ void InstantPrototype::initialize(Realm& realm)
     define_native_accessor(realm, vm.names.epochNanoseconds, epoch_nanoseconds_getter, {}, Attribute::Configurable);
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
+    define_native_function(realm, vm.names.add, add, 1, attr);
+    define_native_function(realm, vm.names.subtract, subtract, 1, attr);
+    define_native_function(realm, vm.names.equals, equals, 1, attr);
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
     define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
@@ -64,6 +67,50 @@ JS_DEFINE_NATIVE_FUNCTION(InstantPrototype::epoch_nanoseconds_getter)
 
     // 3. Return instant.[[EpochNanoseconds]].
     return instant->epoch_nanoseconds();
+}
+
+// 8.3.5 Temporal.Instant.prototype.add ( temporalDurationLike ), https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.add
+JS_DEFINE_NATIVE_FUNCTION(InstantPrototype::add)
+{
+    auto temporal_duration_like = vm.argument(0);
+
+    // 1. Let instant be the this value.
+    // 2. Perform ? RequireInternalSlot(instant, [[InitializedTemporalInstant]]).
+    auto instant = TRY(typed_this_object(vm));
+
+    // 3. Return ? AddDurationToInstant(ADD, instant, temporalDurationLike).
+    return TRY(add_duration_to_instant(vm, ArithmeticOperation::Add, instant, temporal_duration_like));
+}
+
+// 8.3.6 Temporal.Instant.prototype.subtract ( temporalDurationLike ), https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.subtract
+JS_DEFINE_NATIVE_FUNCTION(InstantPrototype::subtract)
+{
+    auto temporal_duration_like = vm.argument(0);
+
+    // 1. Let instant be the this value.
+    // 2. Perform ? RequireInternalSlot(instant, [[InitializedTemporalInstant]]).
+    auto instant = TRY(typed_this_object(vm));
+
+    // 3. Return ? AddDurationToInstant(SUBTRACT, instant, temporalDurationLike).
+    return TRY(add_duration_to_instant(vm, ArithmeticOperation::Subtract, instant, temporal_duration_like));
+}
+
+// 8.3.10 Temporal.Instant.prototype.equals ( other ), https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.equals
+JS_DEFINE_NATIVE_FUNCTION(InstantPrototype::equals)
+{
+    // 1. Let instant be the this value.
+    // 2. Perform ? RequireInternalSlot(instant, [[InitializedTemporalInstant]]).
+    auto instant = TRY(typed_this_object(vm));
+
+    // 3. Set other to ? ToTemporalInstant(other).
+    auto other = TRY(to_temporal_instant(vm, vm.argument(0)));
+
+    // 4. If instant.[[EpochNanoseconds]] ≠ other.[[EpochNanoseconds]], return false.
+    if (instant->epoch_nanoseconds()->big_integer() != other->epoch_nanoseconds()->big_integer())
+        return false;
+
+    // 5. Return true.
+    return true;
 }
 
 // 8.3.11 Temporal.Instant.prototype.toString ( [ options ] ), https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tostring
