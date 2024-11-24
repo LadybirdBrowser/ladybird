@@ -73,14 +73,14 @@ GC::Ref<WebIDL::Promise> fetch(JS::VM& vm, RequestInfo const& input, RequestInit
     auto locally_aborted = Fetching::RefCountedFlag::create(false);
 
     // 10. Let controller be null.
-    GC::Ptr<Infrastructure::FetchController> controller;
+    auto controller_holder = Infrastructure::FetchControllerHolder::create(vm);
 
     // NOTE: Step 11 is done out of order so that the controller is non-null when we capture the GCPtr by copy in the abort algorithm lambda.
     //       This is not observable, AFAICT.
 
     // 12. Set controller to the result of calling fetch given request and processResponse given response being these
     //     steps:
-    auto process_response = [locally_aborted, promise_capability, request, response_object, &relevant_realm](GC::Ref<Infrastructure::Response> response) mutable {
+    auto process_response = [locally_aborted, promise_capability, request, response_object, controller_holder, &relevant_realm](GC::Ref<Infrastructure::Response> response) mutable {
         // 1. If locallyAborted is true, then abort these steps.
         if (locally_aborted->value())
             return;
@@ -90,9 +90,9 @@ GC::Ref<WebIDL::Promise> fetch(JS::VM& vm, RequestInfo const& input, RequestInit
 
         // 2. If response’s aborted flag is set, then:
         if (response->aborted()) {
-            // FIXME: 1. Let deserializedError be the result of deserialize a serialized abort reason given controller’s
-            //           serialized abort reason and relevantRealm.
-            auto deserialized_error = JS::js_undefined();
+            // 1. Let deserializedError be the result of deserialize a serialized abort reason given controller’s
+            //    serialized abort reason and relevantRealm.
+            auto deserialized_error = controller_holder->controller()->deserialize_a_serialized_abort_reason(relevant_realm);
 
             // 2. Abort the fetch() call with p, request, responseObject, and deserializedError.
             abort_fetch(relevant_realm, promise_capability, request, response_object, deserialized_error);
@@ -115,7 +115,7 @@ GC::Ref<WebIDL::Promise> fetch(JS::VM& vm, RequestInfo const& input, RequestInit
         // 5. Resolve p with responseObject.
         WebIDL::resolve_promise(relevant_realm, promise_capability, response_object);
     };
-    controller = MUST(Fetching::fetch(
+    controller_holder->set_controller(MUST(Fetching::fetch(
         realm,
         request,
         Infrastructure::FetchAlgorithms::create(vm,
@@ -126,20 +126,20 @@ GC::Ref<WebIDL::Promise> fetch(JS::VM& vm, RequestInfo const& input, RequestInit
                 .process_response = move(process_response),
                 .process_response_end_of_body = {},
                 .process_response_consume_body = {},
-            })));
+            }))));
 
     // 11. Add the following abort steps to requestObject’s signal:
-    request_object->signal()->add_abort_algorithm([locally_aborted, request, controller, promise_capability, request_object, response_object, &relevant_realm] {
+    request_object->signal()->add_abort_algorithm([locally_aborted, request, controller_holder, promise_capability, request_object, response_object, &relevant_realm] {
         dbgln_if(WEB_FETCH_DEBUG, "Fetch: Request object signal's abort algorithm called");
 
         // 1. Set locallyAborted to true.
         locally_aborted->set_value(true);
 
         // 2. Assert: controller is non-null.
-        VERIFY(controller);
+        VERIFY(controller_holder->controller());
 
         // 3. Abort controller with requestObject’s signal’s abort reason.
-        controller->abort(relevant_realm, request_object->signal()->reason());
+        controller_holder->controller()->abort(relevant_realm, request_object->signal()->reason());
 
         // AD-HOC: An execution context is required for Promise functions.
         HTML::TemporaryExecutionContext execution_context { relevant_realm };
