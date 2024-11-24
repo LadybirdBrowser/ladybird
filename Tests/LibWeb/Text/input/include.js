@@ -104,7 +104,7 @@ class HTTPTestServer {
         this.baseURL = baseURL;
     }
     async createEcho(method, path, options) {
-        const result = await fetch(`${this.baseURL}/create`, {
+        const result = await fetch(`${this.baseURL}/echo`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
