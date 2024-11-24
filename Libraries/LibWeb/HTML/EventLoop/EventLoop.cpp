@@ -513,7 +513,7 @@ void EventLoop::perform_a_microtask_checkpoint()
     // FIXME: 8. Record timing info for microtask checkpoint.
 }
 
-Vector<GC::Root<DOM::Document>> EventLoop::documents_in_this_event_loop_matching(auto callback) const
+Vector<GC::Root<DOM::Document>> EventLoop::documents_in_this_event_loop_matching(Function<bool(DOM::Document&)> callback) const
 {
     Vector<GC::Root<DOM::Document>> documents;
     for (auto& document : m_documents) {
