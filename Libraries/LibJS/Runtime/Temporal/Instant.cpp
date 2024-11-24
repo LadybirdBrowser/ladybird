@@ -11,6 +11,7 @@
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/Instant.h>
 #include <LibJS/Runtime/Temporal/InstantConstructor.h>
 #include <LibJS/Runtime/Temporal/PlainDateTime.h>
@@ -164,6 +165,20 @@ i8 compare_epoch_nanoseconds(Crypto::SignedBigInteger const& epoch_nanoseconds_o
     return 0;
 }
 
+// 8.5.5 AddInstant ( epochNanoseconds, timeDuration ), https://tc39.es/proposal-temporal/#sec-temporal-addinstant
+ThrowCompletionOr<Crypto::SignedBigInteger> add_instant(VM& vm, Crypto::SignedBigInteger const& epoch_nanoseconds, TimeDuration const& time_duration)
+{
+    // 1. Let result be AddTimeDurationToEpochNanoseconds(timeDuration, epochNanoseconds).
+    auto result = add_time_duration_to_epoch_nanoseconds(time_duration, epoch_nanoseconds);
+
+    // 2. If IsValidEpochNanoseconds(result) is false, throw a RangeError exception.
+    if (!is_valid_epoch_nanoseconds(result))
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidEpochNanoseconds);
+
+    // 3. Return result.
+    return result;
+}
+
 // 8.5.7 RoundTemporalInstant ( ns, increment, unit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-roundtemporalinstant
 Crypto::SignedBigInteger round_temporal_instant(Crypto::SignedBigInteger const& nanoseconds, u64 increment, Unit unit, RoundingMode rounding_mode)
 {
@@ -211,6 +226,33 @@ String temporal_instant_to_string(Instant const& instant, Optional<StringView> t
 
     // 8. Return the string-concatenation of dateTimeString and timeZoneString.
     return MUST(String::formatted("{}{}", date_time_string, time_zone_string));
+}
+
+// 8.5.10 AddDurationToInstant ( operation, instant, temporalDurationLike ), https://tc39.es/proposal-temporal/#sec-temporal-adddurationtoinstant
+ThrowCompletionOr<GC::Ref<Instant>> add_duration_to_instant(VM& vm, ArithmeticOperation operation, Instant const& instant, Value temporal_duration_like)
+{
+    // 1. Let duration be ? ToTemporalDuration(temporalDurationLike).
+    auto duration = TRY(to_temporal_duration(vm, temporal_duration_like));
+
+    // 2. If operation is SUBTRACT, set duration to CreateNegatedTemporalDuration(duration).
+    if (operation == ArithmeticOperation::Subtract)
+        duration = create_negated_temporal_duration(vm, duration);
+
+    // 3. Let largestUnit be DefaultTemporalLargestUnit(duration).
+    auto largest_unit = default_temporal_largest_unit(duration);
+
+    // 4. If TemporalUnitCategory(largestUnit) is DATE, throw a RangeError exception.
+    if (temporal_unit_category(largest_unit) == UnitCategory::Date)
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidLargestUnit, temporal_unit_to_string(largest_unit));
+
+    // 5. Let internalDuration be ToInternalDurationRecordWith24HourDays(duration).
+    auto internal_duration = to_internal_duration_record_with_24_hour_days(vm, duration);
+
+    // 6. Let ns be ? AddInstant(instant.[[EpochNanoseconds]], internalDuration.[[Time]]).
+    auto nanoseconds = TRY(add_instant(vm, instant.epoch_nanoseconds()->big_integer(), internal_duration.time));
+
+    // 7. Return ! CreateTemporalInstant(ns).
+    return MUST(create_temporal_instant(vm, BigInt::create(vm, move(nanoseconds))));
 }
 
 }
