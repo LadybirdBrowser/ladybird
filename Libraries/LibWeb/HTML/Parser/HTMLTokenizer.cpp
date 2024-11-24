@@ -22,7 +22,7 @@ namespace Web::HTML {
 #pragma GCC diagnostic ignored "-Wunused-label"
 
 #define CONSUME_NEXT_INPUT_CHARACTER \
-    current_input_character = next_code_point();
+    current_input_character = next_code_point(stop_at_insertion_point);
 
 #define SWITCH_TO(new_state)                       \
     do {                                           \
@@ -195,7 +195,7 @@ static inline void log_parse_error(SourceLocation const& location = SourceLocati
     dbgln_if(TOKENIZER_TRACE_DEBUG, "Parse error (tokenization) {}", location);
 }
 
-Optional<u32> HTMLTokenizer::next_code_point()
+Optional<u32> HTMLTokenizer::next_code_point(StopAtInsertionPoint stop_at_insertion_point)
 {
     if (m_utf8_iterator == m_utf8_view.end())
         return {};
@@ -203,11 +203,11 @@ Optional<u32> HTMLTokenizer::next_code_point()
     u32 code_point;
     // https://html.spec.whatwg.org/multipage/parsing.html#preprocessing-the-input-stream:tokenization
     // https://infra.spec.whatwg.org/#normalize-newlines
-    if (peek_code_point(0).value_or(0) == '\r' && peek_code_point(1).value_or(0) == '\n') {
+    if (peek_code_point(0, stop_at_insertion_point).value_or(0) == '\r' && peek_code_point(1, stop_at_insertion_point).value_or(0) == '\n') {
         // replace every U+000D CR U+000A LF code point pair with a single U+000A LF code point,
         skip(2);
         code_point = '\n';
-    } else if (peek_code_point(0).value_or(0) == '\r') {
+    } else if (peek_code_point(0, stop_at_insertion_point).value_or(0) == '\r') {
         // replace every remaining U+000D CR code point with a U+000A LF code point.
         skip(1);
         code_point = '\n';
@@ -240,11 +240,16 @@ void HTMLTokenizer::skip(size_t count)
     }
 }
 
-Optional<u32> HTMLTokenizer::peek_code_point(size_t offset) const
+Optional<u32> HTMLTokenizer::peek_code_point(size_t offset, StopAtInsertionPoint stop_at_insertion_point) const
 {
     auto it = m_utf8_iterator;
     for (size_t i = 0; i < offset && it != m_utf8_view.end(); ++i)
         ++it;
+    if (stop_at_insertion_point == StopAtInsertionPoint::Yes
+        && m_insertion_point.defined
+        && m_utf8_view.byte_offset_of(it) >= m_insertion_point.position) {
+        return {};
+    }
     if (it == m_utf8_view.end())
         return {};
     return *it;
@@ -277,7 +282,7 @@ _StartOfFunction:
         if (stop_at_insertion_point == StopAtInsertionPoint::Yes && is_insertion_point_reached())
             return {};
 
-        auto current_input_character = next_code_point();
+        auto current_input_character = next_code_point(stop_at_insertion_point);
         switch (m_state) {
             // 13.2.5.1 Data state, https://html.spec.whatwg.org/multipage/parsing.html#data-state
             BEGIN_STATE(Data)
@@ -424,15 +429,31 @@ _StartOfFunction:
             BEGIN_STATE(MarkupDeclarationOpen)
             {
                 DONT_CONSUME_NEXT_INPUT_CHARACTER;
-                if (consume_next_if_match("--"sv)) {
+
+                switch (consume_next_if_match("--"sv, stop_at_insertion_point)) {
+                case ConsumeNextResult::Consumed:
                     create_new_token(HTMLToken::Type::Comment);
                     m_current_token.set_start_position({}, nth_last_position(3));
                     SWITCH_TO(CommentStart);
+                    break;
+                case ConsumeNextResult::NotConsumed:
+                    break;
+                case ConsumeNextResult::RanOutOfCharacters:
+                    return {};
                 }
-                if (consume_next_if_match("DOCTYPE"sv, CaseSensitivity::CaseInsensitive)) {
+
+                switch (consume_next_if_match("DOCTYPE"sv, stop_at_insertion_point, CaseSensitivity::CaseInsensitive)) {
+                case ConsumeNextResult::Consumed:
                     SWITCH_TO(DOCTYPE);
+                    break;
+                case ConsumeNextResult::NotConsumed:
+                    break;
+                case ConsumeNextResult::RanOutOfCharacters:
+                    return {};
                 }
-                if (consume_next_if_match("[CDATA["sv)) {
+
+                switch (consume_next_if_match("[CDATA["sv, stop_at_insertion_point)) {
+                case ConsumeNextResult::Consumed:
                     // We keep the parser optional so that syntax highlighting can be lexer-only.
                     // The parser registers itself with the lexer it creates.
                     if (m_parser != nullptr
@@ -444,6 +465,11 @@ _StartOfFunction:
                         m_current_builder.append("[CDATA["sv);
                         SWITCH_TO_WITH_UNCLEAN_BUILDER(BogusComment);
                     }
+                    break;
+                case ConsumeNextResult::NotConsumed:
+                    break;
+                case ConsumeNextResult::RanOutOfCharacters:
+                    return {};
                 }
                 ANYTHING_ELSE
                 {
@@ -614,11 +640,29 @@ _StartOfFunction:
                 }
                 ANYTHING_ELSE
                 {
-                    if (to_ascii_uppercase(current_input_character.value()) == 'P' && consume_next_if_match("UBLIC"sv, CaseSensitivity::CaseInsensitive)) {
-                        SWITCH_TO(AfterDOCTYPEPublicKeyword);
+                    if (to_ascii_uppercase(current_input_character.value()) == 'P') {
+                        switch (consume_next_if_match("UBLIC"sv, stop_at_insertion_point, CaseSensitivity::CaseInsensitive)) {
+                        case ConsumeNextResult::Consumed:
+                            SWITCH_TO(AfterDOCTYPEPublicKeyword);
+                            break;
+                        case ConsumeNextResult::NotConsumed:
+                            break;
+                        case ConsumeNextResult::RanOutOfCharacters:
+                            DONT_CONSUME_NEXT_INPUT_CHARACTER;
+                            return {};
+                        }
                     }
-                    if (to_ascii_uppercase(current_input_character.value()) == 'S' && consume_next_if_match("YSTEM"sv, CaseSensitivity::CaseInsensitive)) {
-                        SWITCH_TO(AfterDOCTYPESystemKeyword);
+                    if (to_ascii_uppercase(current_input_character.value()) == 'S') {
+                        switch (consume_next_if_match("YSTEM"sv, stop_at_insertion_point, CaseSensitivity::CaseInsensitive)) {
+                        case ConsumeNextResult::Consumed:
+                            SWITCH_TO(AfterDOCTYPESystemKeyword);
+                            break;
+                        case ConsumeNextResult::NotConsumed:
+                            break;
+                        case ConsumeNextResult::RanOutOfCharacters:
+                            DONT_CONSUME_NEXT_INPUT_CHARACTER;
+                            return {};
+                        }
                     }
                     log_parse_error();
                     m_current_token.ensure_doctype_data().force_quirks = true;
@@ -1666,7 +1710,7 @@ _StartOfFunction:
                         m_temporary_buffer.append(ch);
 
                     if (consumed_as_part_of_an_attribute() && !match.value().entity.ends_with(';')) {
-                        auto next_code_point = peek_code_point(0);
+                        auto next_code_point = peek_code_point(0, stop_at_insertion_point);
                         if (next_code_point.has_value() && (next_code_point.value() == '=' || is_ascii_alphanumeric(next_code_point.value()))) {
                             FLUSH_CODEPOINTS_CONSUMED_AS_A_CHARACTER_REFERENCE;
                             SWITCH_TO_RETURN_STATE;
@@ -2766,25 +2810,29 @@ _StartOfFunction:
     }
 }
 
-bool HTMLTokenizer::consume_next_if_match(StringView string, CaseSensitivity case_sensitivity)
+HTMLTokenizer::ConsumeNextResult HTMLTokenizer::consume_next_if_match(StringView string, StopAtInsertionPoint stop_at_insertion_point, CaseSensitivity case_sensitivity)
 {
     for (size_t i = 0; i < string.length(); ++i) {
-        auto code_point = peek_code_point(i);
-        if (!code_point.has_value())
-            return false;
+        auto code_point = peek_code_point(i, stop_at_insertion_point);
+        if (!code_point.has_value()) {
+            if (StopAtInsertionPoint::Yes == stop_at_insertion_point) {
+                return ConsumeNextResult::RanOutOfCharacters;
+            }
+            return ConsumeNextResult::NotConsumed;
+        }
         // FIXME: This should be more Unicode-aware.
         if (case_sensitivity == CaseSensitivity::CaseInsensitive) {
             if (code_point.value() < 0x80) {
                 if (to_ascii_lowercase(code_point.value()) != to_ascii_lowercase(string[i]))
-                    return false;
+                    return ConsumeNextResult::NotConsumed;
                 continue;
             }
         }
         if (code_point.value() != (u32)string[i])
-            return false;
+            return ConsumeNextResult::NotConsumed;
     }
     skip(string.length());
-    return true;
+    return ConsumeNextResult::Consumed;
 }
 
 void HTMLTokenizer::create_new_token(HTMLToken::Type type)
