@@ -34,7 +34,7 @@ struct RegisteredAlgorithm {
 using SupportedAlgorithmsMap = HashMap<String, HashMap<String, RegisteredAlgorithm, AK::ASCIICaseInsensitiveStringTraits>>;
 
 static SupportedAlgorithmsMap& supported_algorithms_internal();
-static SupportedAlgorithmsMap supported_algorithms();
+static SupportedAlgorithmsMap const& supported_algorithms();
 
 template<typename Methods, typename Param = AlgorithmParams>
 static void define_an_algorithm(String op, String algorithm);
@@ -77,7 +77,7 @@ WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::
     // If alg is an object:
     // 1. Let registeredAlgorithms be the associative container stored at the op key of supportedAlgorithms.
     // NOTE: There should always be a container at the op key.
-    auto internal_object = supported_algorithms();
+    auto const& internal_object = supported_algorithms();
     auto maybe_registered_algorithms = internal_object.get(operation);
     auto registered_algorithms = maybe_registered_algorithms.value();
 
@@ -741,7 +741,7 @@ SupportedAlgorithmsMap& supported_algorithms_internal()
 }
 
 // https://w3c.github.io/webcrypto/#algorithm-normalization-internalS
-SupportedAlgorithmsMap supported_algorithms()
+SupportedAlgorithmsMap const& supported_algorithms()
 {
     auto& internal_object = supported_algorithms_internal();
 
