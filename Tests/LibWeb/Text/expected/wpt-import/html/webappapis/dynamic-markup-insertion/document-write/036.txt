@@ -6,6 +6,6 @@ Rerun
 
 Found 1 tests
 
-1 Fail
+1 Pass
 Details
-Result	Test Name	MessageFail	document.write	
+Result	Test Name	MessagePass	document.write	

@@ -153,9 +153,16 @@ public:
 
 private:
     void skip(size_t count);
-    Optional<u32> next_code_point();
-    Optional<u32> peek_code_point(size_t offset) const;
-    bool consume_next_if_match(StringView, CaseSensitivity = CaseSensitivity::CaseSensitive);
+    Optional<u32> next_code_point(StopAtInsertionPoint);
+    Optional<u32> peek_code_point(size_t offset, StopAtInsertionPoint) const;
+
+    enum class ConsumeNextResult {
+        Consumed,
+        NotConsumed,
+        RanOutOfCharacters,
+    };
+    [[nodiscard]] ConsumeNextResult consume_next_if_match(StringView, StopAtInsertionPoint, CaseSensitivity = CaseSensitivity::CaseSensitive);
+
     void create_new_token(HTMLToken::Type);
     bool current_end_tag_token_is_appropriate() const;
     String consume_current_builder();
