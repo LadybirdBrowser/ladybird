@@ -260,30 +260,28 @@ void EventLoop::update_the_rendering()
     // FIXME: 1. Let frameTimestamp be eventLoop's last render opportunity time.
 
     // FIXME: 2. Let docs be all fully active Document objects whose relevant agent's event loop is eventLoop, sorted arbitrarily except that the following conditions must be met:
-    auto docs = documents_in_this_event_loop();
-    docs.remove_all_matching([&](auto& document) {
-        return !document->is_fully_active();
-    });
-
     // 3. Filter non-renderable documents: Remove from docs any Document object doc for which any of the following are true:
-    docs.remove_all_matching([&](auto const& document) {
-        auto navigable = document->navigable();
-        if (!navigable)
-            return true;
+    auto docs = documents_in_this_event_loop_matching([&](auto const& document) {
+        if (!document.is_fully_active())
+            return false;
 
         // FIXME: doc is render-blocked;
 
         // doc's visibility state is "hidden";
-        if (document->hidden())
-            return true;
+        if (document.hidden())
+            return false;
 
         // FIXME: doc's rendering is suppressed for view transitions; or
 
+        auto navigable = document.navigable();
+        if (!navigable)
+            return false;
+
         // doc's node navigable doesn't currently have a rendering opportunity.
         if (!navigable->has_a_rendering_opportunity())
-            return true;
+            return false;
 
-        return false;
+        return true;
     });
 
     // FIXME: 4. Unnecessary rendering: Remove from docs any Document object doc for which all of the following are true:
@@ -515,16 +513,23 @@ void EventLoop::perform_a_microtask_checkpoint()
     // FIXME: 8. Record timing info for microtask checkpoint.
 }
 
-Vector<GC::Root<DOM::Document>> EventLoop::documents_in_this_event_loop() const
+Vector<GC::Root<DOM::Document>> EventLoop::documents_in_this_event_loop_matching(auto callback) const
 {
     Vector<GC::Root<DOM::Document>> documents;
     for (auto& document : m_documents) {
         VERIFY(document);
         if (document->is_decoded_svg())
             continue;
+        if (!callback(*document))
+            continue;
         documents.append(GC::make_root(*document));
     }
     return documents;
+}
+
+Vector<GC::Root<DOM::Document>> EventLoop::documents_in_this_event_loop() const
+{
+    return documents_in_this_event_loop_matching([](auto&) { return true; });
 }
 
 void EventLoop::register_document(Badge<DOM::Document>, DOM::Document& document)
@@ -568,9 +573,8 @@ void EventLoop::unregister_environment_settings_object(Badge<EnvironmentSettings
 Vector<GC::Root<HTML::Window>> EventLoop::same_loop_windows() const
 {
     Vector<GC::Root<HTML::Window>> windows;
-    for (auto& document : documents_in_this_event_loop()) {
-        if (document->is_fully_active())
-            windows.append(GC::make_root(document->window()));
+    for (auto& document : documents_in_this_event_loop_matching([](auto& document) { return document.is_fully_active(); })) {
+        windows.append(GC::make_root(document->window()));
     }
     return windows;
 }
