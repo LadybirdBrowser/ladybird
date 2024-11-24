@@ -10,7 +10,9 @@
 #include <LibJS/Runtime/Temporal/Calendar.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/PlainDatePrototype.h>
+#include <LibJS/Runtime/Temporal/PlainDateTime.h>
 #include <LibJS/Runtime/Temporal/PlainMonthDay.h>
+#include <LibJS/Runtime/Temporal/PlainTime.h>
 #include <LibJS/Runtime/Temporal/PlainYearMonth.h>
 
 namespace JS::Temporal {
@@ -59,6 +61,7 @@ void PlainDatePrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.until, until, 1, attr);
     define_native_function(realm, vm.names.since, since, 1, attr);
     define_native_function(realm, vm.names.equals, equals, 1, attr);
+    define_native_function(realm, vm.names.toPlainDateTime, to_plain_date_time, 0, attr);
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
     define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
@@ -360,6 +363,25 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::equals)
 
     // 5. Return CalendarEquals(temporalDate.[[Calendar]], other.[[Calendar]]).
     return calendar_equals(temporal_date->calendar(), other->calendar());
+}
+
+// 3.3.28 Temporal.PlainDate.prototype.toPlainDateTime ( [ temporalTime ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.toplaindatetime
+JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::to_plain_date_time)
+{
+    auto temporal_time = vm.argument(0);
+
+    // 1. Let temporalDate be the this value.
+    // 2. Perform ? RequireInternalSlot(temporalDate, [[InitializedTemporalDate]]).
+    auto temporal_date = TRY(typed_this_object(vm));
+
+    // 3. Let time be ? ToTimeRecordOrMidnight(temporalTime).
+    auto time = TRY(to_time_record_or_midnight(vm, temporal_time));
+
+    // 4. Let isoDateTime be CombineISODateAndTimeRecord(temporalDate.[[ISODate]], time).
+    auto iso_date_time = combine_iso_date_and_time_record(temporal_date->iso_date(), time);
+
+    // 5. Return ? CreateTemporalDateTime(isoDateTime, temporalDate.[[Calendar]]).
+    return TRY(create_temporal_date_time(vm, iso_date_time, temporal_date->calendar()));
 }
 
 // 3.3.30 Temporal.PlainDate.prototype.toString ( [ options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.tostring
