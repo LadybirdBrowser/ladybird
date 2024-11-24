@@ -35,6 +35,6 @@ private:
     Crypto::SignedBigInteger m_big_integer;
 };
 
-ThrowCompletionOr<BigInt*> number_to_bigint(VM&, Value);
+ThrowCompletionOr<GC::Ref<BigInt>> number_to_bigint(VM&, Value);
 
 }

@@ -30,7 +30,7 @@ ErrorOr<String> BigInt::to_string() const
 }
 
 // 21.2.1.1.1 NumberToBigInt ( number ), https://tc39.es/ecma262/#sec-numbertobigint
-ThrowCompletionOr<BigInt*> number_to_bigint(VM& vm, Value number)
+ThrowCompletionOr<GC::Ref<BigInt>> number_to_bigint(VM& vm, Value number)
 {
     VERIFY(number.is_number());
 
@@ -39,7 +39,7 @@ ThrowCompletionOr<BigInt*> number_to_bigint(VM& vm, Value number)
         return vm.throw_completion<RangeError>(ErrorType::BigIntFromNonIntegral);
 
     // 2. Return the BigInt value that represents ℝ(number).
-    return BigInt::create(vm, Crypto::SignedBigInteger { number.as_double() }).ptr();
+    return BigInt::create(vm, Crypto::SignedBigInteger { number.as_double() });
 }
 
 }
