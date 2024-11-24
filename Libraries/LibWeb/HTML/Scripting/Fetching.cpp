@@ -85,8 +85,8 @@ ByteString module_type_from_module_request(JS::ModuleRequest const& module_reque
 WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referring_script, ByteString const& specifier)
 {
     // 1. Let settingsObject and baseURL be null.
-    Optional<EnvironmentSettingsObject&> settings_object;
-    Optional<URL::URL const&> base_url;
+    GC::Ptr<EnvironmentSettingsObject> settings_object;
+    Optional<URL::URL> base_url;
 
     // 2. If referringScript is not null, then:
     if (referring_script.has_value()) {
