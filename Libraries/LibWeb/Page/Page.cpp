@@ -569,11 +569,9 @@ Vector<GC::Root<DOM::Document>> Page::documents_in_active_window() const
     if (!top_level_traversable_is_initialized())
         return {};
 
-    auto documents = HTML::main_thread_event_loop().documents_in_this_event_loop();
-    for (ssize_t i = documents.size() - 1; i >= 0; --i) {
-        if (documents[i]->window() != top_level_traversable()->active_window())
-            documents.remove(i);
-    }
+    auto documents = HTML::main_thread_event_loop().documents_in_this_event_loop_matching([&](auto& document) {
+        return document.window() == top_level_traversable()->active_window();
+    });
 
     return documents;
 }

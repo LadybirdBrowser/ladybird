@@ -73,6 +73,7 @@ public:
     void unregister_document(Badge<DOM::Document>, DOM::Document&);
 
     Vector<GC::Root<DOM::Document>> documents_in_this_event_loop() const;
+    [[nodiscard]] Vector<GC::Root<DOM::Document>> documents_in_this_event_loop_matching(Function<bool(DOM::Document&)> callback) const;
 
     Vector<GC::Root<HTML::Window>> same_loop_windows() const;
 
@@ -94,8 +95,6 @@ private:
     explicit EventLoop(Type);
 
     virtual void visit_edges(Visitor&) override;
-
-    [[nodiscard]] Vector<GC::Root<DOM::Document>> documents_in_this_event_loop_matching(auto callback) const;
 
     void update_the_rendering();
 
