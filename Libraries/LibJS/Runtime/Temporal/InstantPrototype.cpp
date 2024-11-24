@@ -6,6 +6,7 @@
  */
 
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
+#include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/InstantPrototype.h>
 #include <LibJS/Runtime/Temporal/TimeZone.h>
 
@@ -34,6 +35,8 @@ void InstantPrototype::initialize(Realm& realm)
     u8 attr = Attribute::Writable | Attribute::Configurable;
     define_native_function(realm, vm.names.add, add, 1, attr);
     define_native_function(realm, vm.names.subtract, subtract, 1, attr);
+    define_native_function(realm, vm.names.until, until, 1, attr);
+    define_native_function(realm, vm.names.since, since, 1, attr);
     define_native_function(realm, vm.names.equals, equals, 1, attr);
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
@@ -93,6 +96,34 @@ JS_DEFINE_NATIVE_FUNCTION(InstantPrototype::subtract)
 
     // 3. Return ? AddDurationToInstant(SUBTRACT, instant, temporalDurationLike).
     return TRY(add_duration_to_instant(vm, ArithmeticOperation::Subtract, instant, temporal_duration_like));
+}
+
+// 8.3.7 Temporal.Instant.prototype.until ( other [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.until
+JS_DEFINE_NATIVE_FUNCTION(InstantPrototype::until)
+{
+    auto other = vm.argument(0);
+    auto options = vm.argument(1);
+
+    // 1. Let instant be the this value.
+    // 2. Perform ? RequireInternalSlot(instant, [[InitializedTemporalInstant]]).
+    auto instant = TRY(typed_this_object(vm));
+
+    // 3. Return ? DifferenceTemporalInstant(UNTIL, instant, other, options).
+    return TRY(difference_temporal_instant(vm, DurationOperation::Until, instant, other, options));
+}
+
+// 8.3.8 Temporal.Instant.prototype.since ( other [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.since
+JS_DEFINE_NATIVE_FUNCTION(InstantPrototype::since)
+{
+    auto other = vm.argument(0);
+    auto options = vm.argument(1);
+
+    // 1. Let instant be the this value.
+    // 2. Perform ? RequireInternalSlot(instant, [[InitializedTemporalInstant]]).
+    auto instant = TRY(typed_this_object(vm));
+
+    // 3. Return ? DifferenceTemporalInstant(SINCE, instant, other, options).
+    return TRY(difference_temporal_instant(vm, DurationOperation::Since, instant, other, options));
 }
 
 // 8.3.10 Temporal.Instant.prototype.equals ( other ), https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.equals

@@ -179,6 +179,19 @@ ThrowCompletionOr<Crypto::SignedBigInteger> add_instant(VM& vm, Crypto::SignedBi
     return result;
 }
 
+// 8.5.6 DifferenceInstant ( ns1, ns2, roundingIncrement, smallestUnit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-differenceinstant
+InternalDuration difference_instant(VM& vm, Crypto::SignedBigInteger const& nanoseconds1, Crypto::SignedBigInteger const& nanoseconds2, u64 rounding_increment, Unit smallest_unit, RoundingMode rounding_mode)
+{
+    // 1. Let timeDuration be TimeDurationFromEpochNanosecondsDifference(ns2, ns1).
+    auto time_duration = time_duration_from_epoch_nanoseconds_difference(nanoseconds2, nanoseconds1);
+
+    // 2. Set timeDuration to ! RoundTimeDuration(timeDuration, roundingIncrement, smallestUnit, roundingMode).
+    time_duration = MUST(round_time_duration(vm, time_duration, Crypto::UnsignedBigInteger { rounding_increment }, smallest_unit, rounding_mode));
+
+    // 3. Return ! CombineDateAndTimeDuration(ZeroDateDuration(), timeDuration).
+    return MUST(combine_date_and_time_duration(vm, zero_date_duration(vm), move(time_duration)));
+}
+
 // 8.5.7 RoundTemporalInstant ( ns, increment, unit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-roundtemporalinstant
 Crypto::SignedBigInteger round_temporal_instant(Crypto::SignedBigInteger const& nanoseconds, u64 increment, Unit unit, RoundingMode rounding_mode)
 {
@@ -226,6 +239,32 @@ String temporal_instant_to_string(Instant const& instant, Optional<StringView> t
 
     // 8. Return the string-concatenation of dateTimeString and timeZoneString.
     return MUST(String::formatted("{}{}", date_time_string, time_zone_string));
+}
+
+// 8.5.9 DifferenceTemporalInstant ( operation, instant, other, options ), https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalinstant
+ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_instant(VM& vm, DurationOperation operation, Instant const& instant, Value other_value, Value options)
+{
+    // 1. Set other to ? ToTemporalInstant(other).
+    auto other = TRY(to_temporal_instant(vm, other_value));
+
+    // 2. Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolved_options = TRY(get_options_object(vm, options));
+
+    // 3. Let settings be ? GetDifferenceSettings(operation, resolvedOptions, TIME, « », NANOSECOND, SECOND).
+    auto settings = TRY(get_difference_settings(vm, operation, resolved_options, UnitGroup::Time, {}, Unit::Nanosecond, Unit::Second));
+
+    // 4. Let internalDuration be DifferenceInstant(instant.[[EpochNanoseconds]], other.[[EpochNanoseconds]], settings.[[RoundingIncrement]], settings.[[SmallestUnit]], settings.[[RoundingMode]]).
+    auto internal_duration = difference_instant(vm, instant.epoch_nanoseconds()->big_integer(), other->epoch_nanoseconds()->big_integer(), settings.rounding_increment, settings.smallest_unit, settings.rounding_mode);
+
+    // 5. Let result be ! TemporalDurationFromInternal(internalDuration, settings.[[LargestUnit]]).
+    auto result = MUST(temporal_duration_from_internal(vm, internal_duration, settings.largest_unit));
+
+    // 6. If operation is SINCE, set result to CreateNegatedTemporalDuration(result).
+    if (operation == DurationOperation::Since)
+        result = create_negated_temporal_duration(vm, result);
+
+    // 7. Return result.
+    return result;
 }
 
 // 8.5.10 AddDurationToInstant ( operation, instant, temporalDurationLike ), https://tc39.es/proposal-temporal/#sec-temporal-adddurationtoinstant
