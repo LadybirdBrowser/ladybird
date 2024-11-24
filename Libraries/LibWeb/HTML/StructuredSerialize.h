@@ -25,7 +25,7 @@
 namespace Web::HTML {
 
 struct TransferDataHolder {
-    Vector<u8> data;
+    Vector<u32> data;
     Vector<IPC::File> fds;
 };
 
@@ -46,6 +46,8 @@ struct DeserializedRecord {
 
 enum class TransferType : u8 {
     MessagePort,
+    ArrayBuffer,
+    ResizableArrayBuffer,
 };
 
 WebIDL::ExceptionOr<SerializationRecord> structured_serialize(JS::VM& vm, JS::Value);

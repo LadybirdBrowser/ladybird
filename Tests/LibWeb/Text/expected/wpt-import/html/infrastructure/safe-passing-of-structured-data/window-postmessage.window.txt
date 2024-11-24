@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 150 tests
 
-124 Pass
-25 Fail
+133 Pass
+16 Fail
 1 Optional Feature Unsupported
 Pass	primitive undefined
 Pass	primitive null
@@ -118,10 +118,10 @@ Fail	Object ImageData object, ImageData 1x1 non-transparent non-black
 Pass	Array sparse
 Pass	Array with non-index property
 Pass	Object with index property and length
-Fail	Array with circular reference
-Fail	Object with circular reference
-Fail	Array with identical property values
-Fail	Object with identical property values
+Pass	Array with circular reference
+Pass	Object with circular reference
+Pass	Array with identical property values
+Pass	Object with identical property values
 Pass	Object with property on prototype
 Pass	Object with non-enumerable property
 Pass	Object with non-writable property
@@ -143,14 +143,14 @@ Pass	Length-tracking TypedArray
 Pass	Length-tracking DataView
 Pass	Serializing OOB TypedArray throws
 Pass	Serializing OOB DataView throws
-Fail	ArrayBuffer
-Fail	MessagePort
-Fail	A detached ArrayBuffer cannot be transferred
+Pass	ArrayBuffer
+Pass	MessagePort
+Pass	A detached ArrayBuffer cannot be transferred
 Pass	A detached platform object cannot be transferred
 Pass	Transferring a non-transferable platform object fails
-Fail	An object whose interface is deleted from the global object must still be received
+Pass	An object whose interface is deleted from the global object must still be received
 Optional Feature Unsupported	A subclass instance will be received as its closest transferable superclass
-Fail	Resizable ArrayBuffer is transferable
+Pass	Resizable ArrayBuffer is transferable
 Fail	Length-tracking TypedArray is transferable
 Fail	Length-tracking DataView is transferable
 Pass	Transferring OOB TypedArray throws
