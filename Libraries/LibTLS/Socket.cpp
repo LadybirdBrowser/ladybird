@@ -280,6 +280,7 @@ bool TLSv12::check_connection_state(bool read)
             if (on_tls_finished)
                 on_tls_finished();
         }
+        m_context.connection_status = ConnectionStatus::Disconnected;
         if (m_context.tls_buffer.size()) {
             dbgln_if(TLS_DEBUG, "connection closed without finishing data transfer, {} bytes still in buffer and {} bytes in application buffer",
                 m_context.tls_buffer.size(),
