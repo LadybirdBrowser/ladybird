@@ -95,6 +95,8 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
+    [[nodiscard]] Vector<GC::Root<DOM::Document>> documents_in_this_event_loop_matching(auto callback) const;
+
     void update_the_rendering();
 
     Type m_type { Type::Window };
