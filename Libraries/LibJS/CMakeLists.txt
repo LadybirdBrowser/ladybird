@@ -214,6 +214,7 @@ set(SOURCES
     Runtime/Temporal/InstantConstructor.cpp
     Runtime/Temporal/InstantPrototype.cpp
     Runtime/Temporal/ISO8601.cpp
+    Runtime/Temporal/Now.cpp
     Runtime/Temporal/PlainDate.cpp
     Runtime/Temporal/PlainDateConstructor.cpp
     Runtime/Temporal/PlainDatePrototype.cpp

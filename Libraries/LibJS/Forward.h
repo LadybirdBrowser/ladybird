@@ -282,6 +282,7 @@ namespace Temporal {
 JS_ENUMERATE_TEMPORAL_OBJECTS
 #undef __JS_ENUMERATE
 
+class Now;
 class Temporal;
 
 struct CalendarDate;

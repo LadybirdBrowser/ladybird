@@ -12,6 +12,7 @@
 #include <AK/ScopeGuard.h>
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
+#include <AK/Time.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibJS/AST.h>
 #include <LibJS/Bytecode/Interpreter.h>
@@ -29,6 +30,7 @@
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/Reference.h>
 #include <LibJS/Runtime/Symbol.h>
+#include <LibJS/Runtime/Temporal/Instant.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/SourceTextModule.h>
 #include <LibJS/SyntheticModule.h>
@@ -179,6 +181,20 @@ VM::VM(OwnPtr<CustomData> custom_data, ErrorMessages error_messages)
         //
         // The host may use this hook to add properties to the ShadowRealm's global object. Those properties must be configurable.
         return {};
+    };
+
+    // 2.3.1 HostSystemUTCEpochNanoseconds ( global ), https://tc39.es/proposal-temporal/#sec-hostsystemutcepochnanoseconds
+    host_system_utc_epoch_nanoseconds = [](Object const&) {
+        // 1. Let ns be the approximate current UTC date and time, in nanoseconds since the epoch.
+        Crypto::SignedBigInteger nanoseconds { AK::UnixDateTime::now().nanoseconds_since_epoch() };
+
+        // 2. Return the result of clamping ns between nsMinInstant and nsMaxInstant.
+        if (nanoseconds < Temporal::NANOSECONDS_MIN_INSTANT)
+            nanoseconds = Temporal::NANOSECONDS_MIN_INSTANT;
+        if (nanoseconds > Temporal::NANOSECONDS_MAX_INSTANT)
+            nanoseconds = Temporal::NANOSECONDS_MAX_INSTANT;
+
+        return nanoseconds;
     };
 
     // AD-HOC: Inform the host that we received a date string we were unable to parse.
