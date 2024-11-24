@@ -190,6 +190,20 @@ ThrowCompletionOr<GC::Ref<PlainTime>> to_temporal_time(VM& vm, Value item, Value
     return MUST(create_temporal_time(vm, time));
 }
 
+// 4.5.7 ToTimeRecordOrMidnight ( item ), https://tc39.es/proposal-temporal/#sec-temporal-totimerecordormidnight
+ThrowCompletionOr<Time> to_time_record_or_midnight(VM& vm, Value item)
+{
+    // 1. If item is undefined, return MidnightTimeRecord().
+    if (item.is_undefined())
+        return midnight_time_record();
+
+    // 2. Let plainTime be ? ToTemporalTime(item).
+    auto plain_time = TRY(to_temporal_time(vm, item));
+
+    // 3. Return plainTime.[[Time]].
+    return plain_time->time();
+}
+
 // 4.5.8 RegulateTime ( hour, minute, second, millisecond, microsecond, nanosecond, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-regulatetime
 ThrowCompletionOr<Time> regulate_time(VM& vm, double hour, double minute, double second, double millisecond, double microsecond, double nanosecond, Overflow overflow)
 {

@@ -10,6 +10,7 @@
 #include <LibJS/Runtime/Temporal/Calendar.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/PlainDateTimePrototype.h>
+#include <LibJS/Runtime/Temporal/PlainTime.h>
 
 namespace JS::Temporal {
 
@@ -54,6 +55,9 @@ void PlainDateTimePrototype::initialize(Realm& realm)
     define_native_accessor(realm, vm.names.inLeapYear, in_leap_year_getter, {}, Attribute::Configurable);
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
+    define_native_function(realm, vm.names.with, with, 1, attr);
+    define_native_function(realm, vm.names.withPlainTime, with_plain_time, 0, attr);
+    define_native_function(realm, vm.names.withCalendar, with_calendar, 1, attr);
     define_native_function(realm, vm.names.add, add, 1, attr);
     define_native_function(realm, vm.names.subtract, subtract, 1, attr);
     define_native_function(realm, vm.names.until, until, 1, attr);
@@ -218,6 +222,100 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::year_of_week_getter)
 
     // 5. Return 𝔽(result).
     return *result;
+}
+
+// 5.3.25 Temporal.PlainDateTime.prototype.with ( temporalDateTimeLike [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.with
+JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::with)
+{
+    auto temporal_date_time_like = vm.argument(0);
+    auto options = vm.argument(1);
+
+    // 1. Let dateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(dateTime, [[InitializedTemporalDateTime]]).
+    auto date_time = TRY(typed_this_object(vm));
+
+    // 3. If ? IsPartialTemporalObject(temporalDateTimeLike) is false, throw a TypeError exception.
+    if (!TRY(is_partial_temporal_object(vm, temporal_date_time_like)))
+        return vm.throw_completion<TypeError>(ErrorType::TemporalObjectMustBePartialTemporalObject);
+
+    // 4. Let calendar be dateTime.[[Calendar]].
+    auto const& calendar = date_time->calendar();
+
+    // 5. Let fields be ISODateToFields(calendar, dateTime.[[ISODateTime]].[[ISODate]], DATE).
+    auto fields = iso_date_to_fields(calendar, date_time->iso_date_time().iso_date, DateType::Date);
+
+    // 6. Set fields.[[Hour]] to dateTime.[[ISODateTime]].[[Time]].[[Hour]].
+    fields.hour = date_time->iso_date_time().time.hour;
+
+    // 7. Set fields.[[Minute]] to dateTime.[[ISODateTime]].[[Time]].[[Minute]].
+    fields.minute = date_time->iso_date_time().time.minute;
+
+    // 8. Set fields.[[Second]] to dateTime.[[ISODateTime]].[[Time]].[[Second]].
+    fields.second = date_time->iso_date_time().time.second;
+
+    // 9. Set fields.[[Millisecond]] to dateTime.[[ISODateTime]].[[Time]].[[Millisecond]].
+    fields.millisecond = date_time->iso_date_time().time.millisecond;
+
+    // 10. Set fields.[[Microsecond]] to dateTime.[[ISODateTime]].[[Time]].[[Microsecond]].
+    fields.microsecond = date_time->iso_date_time().time.microsecond;
+
+    // 11. Set fields.[[Nanosecond]] to dateTime.[[ISODateTime]].[[Time]].[[Nanosecond]].
+    fields.nanosecond = date_time->iso_date_time().time.nanosecond;
+
+    // 12. Let partialDateTime be ? PrepareCalendarFields(calendar, temporalDateTimeLike, « YEAR, MONTH, MONTH-CODE, DAY », « HOUR, MINUTE, SECOND, MILLISECOND, MICROSECOND, NANOSECOND », PARTIAL).
+    static constexpr auto calendar_field_names = to_array({ CalendarField::Year, CalendarField::Month, CalendarField::MonthCode, CalendarField::Day });
+    static constexpr auto non_calendar_field_names = to_array({ CalendarField::Hour, CalendarField::Minute, CalendarField::Second, CalendarField::Millisecond, CalendarField::Microsecond, CalendarField::Nanosecond });
+    auto partial_date_time = TRY(prepare_calendar_fields(vm, calendar, temporal_date_time_like.as_object(), calendar_field_names, non_calendar_field_names, Partial {}));
+
+    // 13. Set fields to CalendarMergeFields(calendar, fields, partialDateTime).
+    fields = calendar_merge_fields(calendar, fields, partial_date_time);
+
+    // 14. Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolved_options = TRY(get_options_object(vm, options));
+
+    // 15. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+    auto overflow = TRY(get_temporal_overflow_option(vm, resolved_options));
+
+    // 16. Let result be ? InterpretTemporalDateTimeFields(calendar, fields, overflow).
+    auto result = TRY(interpret_temporal_date_time_fields(vm, calendar, fields, overflow));
+
+    // 17. Return ? CreateTemporalDateTime(result, calendar).
+    return MUST(create_temporal_date_time(vm, result, calendar));
+}
+
+// 5.3.26 Temporal.PlainDateTime.prototype.withPlainTime ( [ plainTimeLike ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.withplaintime
+JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::with_plain_time)
+{
+    auto plain_time_like = vm.argument(0);
+
+    // 1. Let dateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(dateTime, [[InitializedTemporalDateTime]]).
+    auto date_time = TRY(typed_this_object(vm));
+
+    // 3. Let time be ? ToTimeRecordOrMidnight(plainTimeLike).
+    auto time = TRY(to_time_record_or_midnight(vm, plain_time_like));
+
+    // 4. Let isoDateTime be CombineISODateAndTimeRecord(dateTime.[[ISODateTime]].[[ISODate]], time).
+    auto iso_date_time = combine_iso_date_and_time_record(date_time->iso_date_time().iso_date, time);
+
+    // 5. Return ? CreateTemporalDateTime(isoDateTime, dateTime.[[Calendar]]).
+    return TRY(create_temporal_date_time(vm, iso_date_time, date_time->calendar()));
+}
+
+// 5.3.27 Temporal.PlainDateTime.prototype.withCalendar ( calendarLike ), https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.withcalendar
+JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::with_calendar)
+{
+    auto calendar_like = vm.argument(0);
+
+    // 1. Let dateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(dateTime, [[InitializedTemporalDateTime]]).
+    auto date_time = TRY(typed_this_object(vm));
+
+    // 3. Let calendar be ? ToTemporalCalendarIdentifier(calendarLike).
+    auto calendar = TRY(to_temporal_calendar_identifier(vm, calendar_like));
+
+    // 4. Return ! CreateTemporalDateTime(dateTime.[[ISODateTime]], calendar).
+    return TRY(create_temporal_date_time(vm, date_time->iso_date_time(), calendar));
 }
 
 // 5.3.28 Temporal.PlainDateTime.prototype.add ( temporalDurationLike [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.add

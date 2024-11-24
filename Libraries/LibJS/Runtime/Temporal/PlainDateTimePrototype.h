@@ -45,6 +45,9 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(days_in_year_getter);
     JS_DECLARE_NATIVE_FUNCTION(months_in_year_getter);
     JS_DECLARE_NATIVE_FUNCTION(in_leap_year_getter);
+    JS_DECLARE_NATIVE_FUNCTION(with);
+    JS_DECLARE_NATIVE_FUNCTION(with_plain_time);
+    JS_DECLARE_NATIVE_FUNCTION(with_calendar);
     JS_DECLARE_NATIVE_FUNCTION(add);
     JS_DECLARE_NATIVE_FUNCTION(subtract);
     JS_DECLARE_NATIVE_FUNCTION(until);
