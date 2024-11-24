@@ -538,6 +538,7 @@ namespace JS {
     P(timeLog)                               \
     P(timeStyle)                             \
     P(timeZone)                              \
+    P(timeZoneId)                            \
     P(timeZoneName)                          \
     P(toArray)                               \
     P(toBase64)                              \
