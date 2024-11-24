@@ -232,7 +232,12 @@ void HTMLParser::run(HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point
             break;
         }
     }
-
+    // Set element as target element if url fragment matches its id.
+    auto url_fragment = m_document->url().fragment();
+    GC::Ptr<DOM::Element> target_element;
+    if (url_fragment.has_value() && (target_element = m_document->get_element_by_id(url_fragment.value()))) {
+        m_document->set_target_element(target_element);
+    }
     flush_character_insertions();
 }
 

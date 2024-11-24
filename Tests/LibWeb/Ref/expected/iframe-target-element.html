@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<iframe id="iframe"></iframe>
+
+<script>
+const IFRAME_DATA_SRC = `data:text/html,
+    
+    <p id="foo">This should be green.</p>
+    <style>%23foo { color: green; }<\/style>#foo`.replace('\n', '');
+
+const iframe = document.getElementById("iframe");
+iframe.src = IFRAME_DATA_SRC;
+</script>
