@@ -10,11 +10,10 @@
 #include <LibCrypto/ASN1/ASN1.h>
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/ASN1/PEM.h>
+#include <LibCrypto/Certificate/Certificate.h>
 #include <LibCrypto/PK/RSA.h>
 
 namespace Crypto::PK {
-
-static constexpr Array<int, 7> pkcs8_rsa_key_oid { 1, 2, 840, 113549, 1, 1, 1 };
 
 RSA::KeyPairType RSA::parse_rsa_key(ReadonlyBytes der)
 {
@@ -96,7 +95,7 @@ RSA::KeyPairType RSA::parse_rsa_key(ReadonlyBytes der)
 
         auto oid = oid_result.release_value();
         // Now let's check that the OID matches "RSA key"
-        if (oid != pkcs8_rsa_key_oid) {
+        if (oid != Crypto::Certificate::rsa_encryption_oid) {
             // Oh well. not an RSA key at all.
             dbgln_if(RSA_PARSE_DEBUG, "RSA PKCS#8 public key parse failed: Not an RSA key");
             return false;
