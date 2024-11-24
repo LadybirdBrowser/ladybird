@@ -72,7 +72,6 @@ public:
     void register_document(Badge<DOM::Document>, DOM::Document&);
     void unregister_document(Badge<DOM::Document>, DOM::Document&);
 
-    Vector<GC::Root<DOM::Document>> documents_in_this_event_loop() const;
     [[nodiscard]] Vector<GC::Root<DOM::Document>> documents_in_this_event_loop_matching(Function<bool(DOM::Document&)> callback) const;
 
     Vector<GC::Root<HTML::Window>> same_loop_windows() const;
