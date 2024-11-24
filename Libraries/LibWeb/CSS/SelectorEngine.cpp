@@ -363,6 +363,29 @@ static inline DOM::Element const* next_sibling_with_same_tag_name(DOM::Element c
     return nullptr;
 }
 
+/// Returns true if this selector should be blocked from matching against the shadow host from within a shadow tree.
+/// Only :host pseudo-class is allowed to match the shadow host from within shadow tree, all other selectors (including other pseudo-classes) are blocked.
+/// Compound selectors (:has(), :is(), :where()), nesting, and pseudo-elements are allowed as they may contain or be contained within :host.
+static inline bool should_block_shadow_host_matching(CSS::Selector::SimpleSelector const& component, GC::Ptr<DOM::Element const> shadow_host, DOM::Element const& element)
+{
+    if (!shadow_host || &element != shadow_host.ptr())
+        return false;
+
+    // From within shadow tree, only :host pseudo-class can match the host element
+    if (component.type == CSS::Selector::SimpleSelector::Type::PseudoClass) {
+        auto const& pseudo_class = component.pseudo_class();
+        return pseudo_class.type != CSS::PseudoClass::Host
+            && pseudo_class.type != CSS::PseudoClass::Has
+            && pseudo_class.type != CSS::PseudoClass::Is
+            && pseudo_class.type != CSS::PseudoClass::Where;
+    }
+
+    // Allow nesting and PseudoElement as it may contain :host class
+    if (component.type == CSS::Selector::SimpleSelector::Type::Nesting || component.type == CSS::Selector::SimpleSelector::Type::PseudoElement)
+        return false;
+
+    return true;
+}
 // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-read-write
 static bool matches_read_write_pseudo_class(DOM::Element const& element)
 {
@@ -755,6 +778,8 @@ static ALWAYS_INLINE bool matches_namespace(
 
 static inline bool matches(CSS::Selector::SimpleSelector const& component, Optional<CSS::CSSStyleSheet const&> style_sheet_for_rule, DOM::Element const& element, GC::Ptr<DOM::Element const> shadow_host, GC::Ptr<DOM::ParentNode const> scope, SelectorKind selector_kind, [[maybe_unused]] GC::Ptr<DOM::Element const> anchor)
 {
+    if (should_block_shadow_host_matching(component, shadow_host, element))
+        return false;
     switch (component.type) {
     case CSS::Selector::SimpleSelector::Type::Universal:
     case CSS::Selector::SimpleSelector::Type::TagName: {
@@ -866,6 +891,9 @@ bool matches(CSS::Selector const& selector, Optional<CSS::CSSStyleSheet const&> 
 
 static bool fast_matches_simple_selector(CSS::Selector::SimpleSelector const& simple_selector, Optional<CSS::CSSStyleSheet const&> style_sheet_for_rule, DOM::Element const& element, GC::Ptr<DOM::Element const> shadow_host)
 {
+    if (should_block_shadow_host_matching(simple_selector, shadow_host, element))
+        return false;
+
     switch (simple_selector.type) {
     case CSS::Selector::SimpleSelector::Type::Universal:
         return matches_namespace(simple_selector.qualified_name(), element, style_sheet_for_rule);
