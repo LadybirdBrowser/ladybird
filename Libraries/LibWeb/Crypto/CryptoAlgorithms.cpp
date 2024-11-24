@@ -12,6 +12,7 @@
 #include <LibCrypto/ASN1/ASN1.h>
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/Authentication/HMAC.h>
+#include <LibCrypto/Certificate/Certificate.h>
 #include <LibCrypto/Cipher/AES.h>
 #include <LibCrypto/Curves/Ed25519.h>
 #include <LibCrypto/Curves/SECPxxxr1.h>
@@ -28,7 +29,6 @@
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibTLS/Certificate.h>
 #include <LibWeb/Crypto/CryptoAlgorithms.h>
 #include <LibWeb/Crypto/KeyAlgorithms.h>
 #include <LibWeb/Crypto/SubtleCrypto.h>
@@ -173,13 +173,13 @@ static WebIDL::ExceptionOr<Structure> parse_an_ASN1_structure(JS::Realm& realm, 
     // 4. Parse data according to the Distinguished Encoding Rules of [X690], using structure as the ASN.1 structure to be decoded.
     ::Crypto::ASN1::Decoder decoder(data);
     Structure structure;
-    if constexpr (IsSame<Structure, TLS::SubjectPublicKey>) {
-        auto maybe_subject_public_key = TLS::parse_subject_public_key_info(decoder);
+    if constexpr (IsSame<Structure, ::Crypto::Certificate::SubjectPublicKey>) {
+        auto maybe_subject_public_key = ::Crypto::Certificate::parse_subject_public_key_info(decoder);
         if (maybe_subject_public_key.is_error())
             return WebIDL::DataError::create(realm, MUST(String::formatted("Error parsing subjectPublicKeyInfo: {}", maybe_subject_public_key.release_error())));
         structure = maybe_subject_public_key.release_value();
-    } else if constexpr (IsSame<Structure, TLS::PrivateKey>) {
-        auto maybe_private_key = TLS::parse_private_key_info(decoder);
+    } else if constexpr (IsSame<Structure, ::Crypto::Certificate::PrivateKey>) {
+        auto maybe_private_key = ::Crypto::Certificate::parse_private_key_info(decoder);
         if (maybe_private_key.is_error())
             return WebIDL::DataError::create(realm, MUST(String::formatted("Error parsing privateKeyInfo: {}", maybe_private_key.release_error())));
         structure = maybe_private_key.release_value();
@@ -201,21 +201,21 @@ static WebIDL::ExceptionOr<Structure> parse_an_ASN1_structure(JS::Realm& realm, 
 }
 
 // https://w3c.github.io/webcrypto/#concept-parse-a-spki
-static WebIDL::ExceptionOr<TLS::SubjectPublicKey> parse_a_subject_public_key_info(JS::Realm& realm, ReadonlyBytes bytes)
+static WebIDL::ExceptionOr<::Crypto::Certificate::SubjectPublicKey> parse_a_subject_public_key_info(JS::Realm& realm, ReadonlyBytes bytes)
 {
     // When this specification says to parse a subjectPublicKeyInfo, the user agent must parse an ASN.1 structure,
     // with data set to the sequence of bytes to be parsed, structure as the ASN.1 structure of subjectPublicKeyInfo,
     // as specified in [RFC5280], and exactData set to true.
-    return parse_an_ASN1_structure<TLS::SubjectPublicKey>(realm, bytes, true);
+    return parse_an_ASN1_structure<::Crypto::Certificate::SubjectPublicKey>(realm, bytes, true);
 }
 
 // https://w3c.github.io/webcrypto/#concept-parse-a-privateKeyInfo
-static WebIDL::ExceptionOr<TLS::PrivateKey> parse_a_private_key_info(JS::Realm& realm, ReadonlyBytes bytes)
+static WebIDL::ExceptionOr<::Crypto::Certificate::PrivateKey> parse_a_private_key_info(JS::Realm& realm, ReadonlyBytes bytes)
 {
     // When this specification says to parse a PrivateKeyInfo, the user agent must parse an ASN.1 structure
     // with data set to the sequence of bytes to be parsed, structure as the ASN.1 structure of PrivateKeyInfo,
     // as specified in [RFC5208], and exactData set to true.
-    return parse_an_ASN1_structure<TLS::PrivateKey>(realm, bytes, true);
+    return parse_an_ASN1_structure<::Crypto::Certificate::PrivateKey>(realm, bytes, true);
 }
 
 static WebIDL::ExceptionOr<::Crypto::PK::RSAPrivateKey<>> parse_jwk_rsa_private_key(JS::Realm& realm, Bindings::JsonWebKey const& jwk)
@@ -852,7 +852,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(Web::Crypto::Algorit
 
         // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
         //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
-        if (spki.algorithm.identifier != TLS::rsa_encryption_oid)
+        if (spki.algorithm.identifier != ::Crypto::Certificate::rsa_encryption_oid)
             return WebIDL::DataError::create(m_realm, "Algorithm object identifier is not the rsaEncryption object identifier"_string);
 
         // 5. Let publicKey be the result of performing the parse an ASN.1 structure algorithm,
@@ -889,7 +889,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(Web::Crypto::Algorit
 
         // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
         //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
-        if (private_key_info.algorithm.identifier != TLS::rsa_encryption_oid)
+        if (private_key_info.algorithm.identifier != ::Crypto::Certificate::rsa_encryption_oid)
             return WebIDL::DataError::create(m_realm, "Algorithm object identifier is not the rsaEncryption object identifier"_string);
 
         // 5. Let rsaPrivateKey be the result of performing the parse an ASN.1 structure algorithm,
@@ -2720,7 +2720,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(
 
         // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
         //    is not equal to the id-Ed25519 object identifier defined in [RFC8410], then throw a DataError.
-        if (spki.algorithm.identifier != TLS::ed25519_oid)
+        if (spki.algorithm.identifier != ::Crypto::Certificate::ed25519_oid)
             return WebIDL::DataError::create(m_realm, "Invalid algorithm identifier"_string);
 
         // 5. If the parameters field of the algorithm AlgorithmIdentifier field of spki is present, then throw a DataError.
@@ -2762,7 +2762,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(
 
         // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field
         //    of privateKeyInfo is not equal to the id-Ed25519 object identifier defined in [RFC8410], then throw a DataError.
-        if (private_key_info.algorithm.identifier != TLS::ed25519_oid)
+        if (private_key_info.algorithm.identifier != ::Crypto::Certificate::ed25519_oid)
             return WebIDL::DataError::create(m_realm, "Invalid algorithm identifier"_string);
 
         // 5. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of privateKeyInfo is present,
@@ -2970,7 +2970,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(Bindings::KeyFormat
         //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
         //      * Set the algorithm object identifier to the id-Ed25519 OID defined in [RFC8410].
         //    * Set the subjectPublicKey field to keyData.
-        auto ed25519_oid = TLS::ed25519_oid;
+        auto ed25519_oid = ::Crypto::Certificate::ed25519_oid;
         auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_subject_public_key_info(key_data, ed25519_oid));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
@@ -2989,7 +2989,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(Bindings::KeyFormat
         //      * Set the algorithm object identifier to the id-Ed25519 OID defined in [RFC8410].
         //    * Set the privateKey field to the result of DER-encoding a CurvePrivateKey ASN.1 type, as defined in Section 7 of [RFC8410], that represents the Ed25519 private key represented by the [[handle]] internal slot of key
 
-        auto ed25519_oid = TLS::ed25519_oid;
+        auto ed25519_oid = ::Crypto::Certificate::ed25519_oid;
         auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_private_key_info(key_data, ed25519_oid));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
@@ -3413,7 +3413,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key([[maybe_unused]] Web:
 
         // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
         //    is not equal to the id-X25519 object identifier defined in [RFC8410], then throw a DataError.
-        if (spki.algorithm.identifier != TLS::x25519_oid)
+        if (spki.algorithm.identifier != ::Crypto::Certificate::x25519_oid)
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
 
         // 5. If the parameters field of the algorithm AlgorithmIdentifier field of spki is present, then throw a DataError.
@@ -3454,7 +3454,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key([[maybe_unused]] Web:
 
         // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
         //    is not equal to the id-X25519 object identifier defined in [RFC8410], then throw a DataError.
-        if (private_key_info.algorithm.identifier != TLS::x25519_oid)
+        if (private_key_info.algorithm.identifier != ::Crypto::Certificate::x25519_oid)
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
 
         // 5. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of privateKeyInfo is present, then throw a DataError.

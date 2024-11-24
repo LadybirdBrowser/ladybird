@@ -23,7 +23,7 @@ static ByteBuffer operator""_b(char const* string, size_t length)
     return ByteBuffer::copy(string, length).release_value();
 }
 
-ErrorOr<Vector<Certificate>> load_certificates();
+ErrorOr<Vector<Crypto::Certificate::Certificate>> load_certificates();
 ByteString locate_ca_certs_file();
 
 ByteString locate_ca_certs_file()
@@ -38,7 +38,7 @@ ByteString locate_ca_certs_file()
     return "";
 }
 
-ErrorOr<Vector<Certificate>> load_certificates()
+ErrorOr<Vector<Crypto::Certificate::Certificate>> load_certificates()
 {
     auto cacert_file = TRY(Core::File::open(locate_ca_certs_file(), Core::File::OpenMode::Read));
     auto data = TRY(cacert_file->read_until_eof());

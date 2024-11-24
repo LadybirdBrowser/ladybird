@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "Certificate.h"
 #include <AK/IPv4Address.h>
 #include <AK/Queue.h>
 #include <AK/WeakPtr.h>
@@ -15,6 +14,7 @@
 #include <LibCore/Timer.h>
 #include <LibCrypto/Authentication/HMAC.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
+#include <LibCrypto/Certificate/Certificate.h>
 #include <LibCrypto/Cipher/AES.h>
 #include <LibCrypto/Curves/EllipticCurve.h>
 #include <LibCrypto/Hash/HashManager.h>
@@ -23,6 +23,8 @@
 #include <LibTLS/TLSPacketBuilder.h>
 
 namespace TLS {
+
+using Crypto::Certificate::Certificate;
 
 inline void print_buffer(ReadonlyBytes buffer)
 {
