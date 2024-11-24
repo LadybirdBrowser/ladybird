@@ -446,15 +446,21 @@ public:
         return *this;
     }
 
-    // Note: Disallows assignment from a temporary as this does not do any lifetime extension.
     template<typename U>
     requires(!IsSame<OptionalNone, RemoveCVReference<U>>)
-    ALWAYS_INLINE Optional& operator=(U&& value)
-    requires(CanBePlacedInOptional<U> && IsLvalueReference<U>)
+    ALWAYS_INLINE Optional& operator=(U& value)
+    requires(CanBePlacedInOptional<U>)
     {
         m_pointer = &value;
         return *this;
     }
+
+    // Note: Disallows assignment from a temporary as this does not do any lifetime extension.
+    template<typename U>
+    requires(!IsSame<OptionalNone, RemoveCVReference<U>>)
+    ALWAYS_INLINE consteval Optional& operator=(RemoveReference<U> const&& value)
+    requires(CanBePlacedInOptional<U>)
+    = delete;
 
     ALWAYS_INLINE void clear()
     {

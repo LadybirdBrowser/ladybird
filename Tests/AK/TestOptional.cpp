@@ -272,6 +272,34 @@ TEST_CASE(comparison_reference)
     EXPECT_NE(opt1, opt3);
 }
 
+template<typename To, typename From>
+struct CheckAssignments;
+
+template<typename To, typename From>
+requires(requires { declval<To>() = declval<From>(); })
+struct CheckAssignments<To, From> {
+    static constexpr bool allowed = true;
+};
+
+template<typename To, typename From>
+requires(!requires { declval<To>() = declval<From>(); })
+struct CheckAssignments<To, From> {
+    static constexpr bool allowed = false;
+};
+
+static_assert(CheckAssignments<Optional<int>, int>::allowed);
+static_assert(!CheckAssignments<Optional<int*>, double*>::allowed);
+
+static_assert(CheckAssignments<Optional<int&>, int&>::allowed);
+static_assert(!CheckAssignments<Optional<int&>, int const&>::allowed);
+static_assert(!CheckAssignments<Optional<int&>, int&&>::allowed);
+static_assert(!CheckAssignments<Optional<int&>, int const&&>::allowed);
+
+static_assert(CheckAssignments<Optional<int const&>, int&>::allowed);
+static_assert(CheckAssignments<Optional<int const&>, int const&>::allowed);
+static_assert(CheckAssignments<Optional<int const&>, int&&>::allowed);       // Lifetime extension
+static_assert(CheckAssignments<Optional<int const&>, int const&&>::allowed); // Lifetime extension
+
 TEST_CASE(string_specialization)
 {
     EXPECT_EQ(sizeof(Optional<String>), sizeof(String));
