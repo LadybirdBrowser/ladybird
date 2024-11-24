@@ -88,6 +88,10 @@ WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::
     //       fetch the actual algorithm factory from the registeredAlgorithms map.
     auto initial_algorithm = TRY(algorithm.get<GC::Root<JS::Object>>()->get("name"));
 
+    if (initial_algorithm.is_undefined()) {
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Algorithm");
+    }
+
     // 4. Let algName be the value of the name attribute of initialAlg.
     auto algorithm_name = TRY(initial_algorithm.to_string(vm));
 
