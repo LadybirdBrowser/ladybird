@@ -13,7 +13,6 @@ void SyntheticRealmSettings::visit_edges(JS::Cell::Visitor& visitor)
 {
     execution_context->visit_edges(visitor);
     visitor.visit(principal_realm);
-    visitor.visit(underlying_realm);
     visitor.visit(module_map);
 }
 
