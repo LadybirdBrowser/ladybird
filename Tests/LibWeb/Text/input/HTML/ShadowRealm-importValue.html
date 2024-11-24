@@ -1,0 +1,10 @@
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const shadowRealm = new ShadowRealm();
+        const promise = shadowRealm.importValue("../../data/external-module.mjs", "foo");
+        const value = await promise;
+        println(value);
+        done();
+    });
+</script>
