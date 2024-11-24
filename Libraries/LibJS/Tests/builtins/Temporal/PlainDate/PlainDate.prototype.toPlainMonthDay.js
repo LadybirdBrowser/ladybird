@@ -6,7 +6,7 @@ describe("correct behavior", () => {
     test("basic functionality", () => {
         const plainDate = new Temporal.PlainDate(2021, 7, 6);
         const plainMonthDay = plainDate.toPlainMonthDay();
-        expect(plainMonthDay.calendar).toBe(plainDate.calendar);
+        expect(plainMonthDay.calendarId).toBe(plainDate.calendarId);
         expect(plainMonthDay.monthCode).toBe("M07");
         expect(plainMonthDay.day).toBe(6);
 
