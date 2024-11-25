@@ -16,6 +16,7 @@
 #include <LibCore/DateTime.h>
 #include <LibCore/Promise.h>
 #include <LibCore/SocketAddress.h>
+#include <LibCore/Timer.h>
 #include <LibDNS/Message.h>
 #include <LibThreading/MutexProtected.h>
 #include <LibThreading/RWLockProtected.h>
@@ -112,6 +113,15 @@ private:
 };
 
 class Resolver {
+    struct PendingLookup {
+        u16 id { 0 };
+        ByteString name;
+        WeakPtr<LookupResult> result;
+        NonnullRefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>> promise;
+        NonnullRefPtr<Core::Timer> repeat_timer;
+        size_t times_repeated { 0 };
+    };
+
 public:
     enum class ConnectionMode {
         TCP,
@@ -203,11 +213,18 @@ public:
         return lookup(move(name), class_, Array { Messages::ResourceType::A, Messages::ResourceType::AAAA });
     }
 
-    NonnullRefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>> lookup(ByteString name, Messages::Class class_, Span<Messages::ResourceType const> desired_types)
+    NonnullRefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>> lookup(ByteString name, Messages::Class class_, Span<Messages::ResourceType const> desired_types, PendingLookup* repeating_lookup = nullptr)
     {
         flush_cache();
 
-        auto promise = Core::Promise<NonnullRefPtr<LookupResult const>>::construct();
+        if (repeating_lookup && repeating_lookup->times_repeated >= 5) {
+            auto promise = repeating_lookup->promise;
+            promise->reject(Error::from_string_literal("DNS lookup timed out"));
+            m_pending_lookups.with_write_locked([&](auto& lookups) { lookups->remove(repeating_lookup->id); });
+            return promise;
+        }
+
+        auto promise = repeating_lookup ? repeating_lookup->promise : Core::Promise<NonnullRefPtr<LookupResult const>>::construct();
 
         if (auto maybe_ipv4 = IPv4Address::from_string(name); maybe_ipv4.has_value()) {
             if (desired_types.contains_slow(Messages::ResourceType::A)) {
@@ -302,11 +319,16 @@ public:
         }
 
         Messages::Message query;
-        m_pending_lookups.with_read_locked([&](auto& lookups) {
-            do
-                fill_with_random({ &query.header.id, sizeof(query.header.id) });
-            while (lookups->find(query.header.id) != nullptr);
-        });
+        if (repeating_lookup) {
+            query.header.id = repeating_lookup->id;
+            repeating_lookup->times_repeated++;
+        } else {
+            m_pending_lookups.with_read_locked([&](auto& lookups) {
+                do
+                    fill_with_random({ &query.header.id, sizeof(query.header.id) });
+                while (lookups->find(query.header.id) != nullptr);
+            });
+        }
         query.header.question_count = max(1u, desired_types.size());
         query.header.options.set_response_code(Messages::Options::ResponseCode::NoError);
         query.header.options.set_recursion_desired(true);
@@ -327,20 +349,43 @@ public:
             });
         }
 
-        auto cached_entry = m_pending_lookups.with_write_locked([&](auto& pending_lookups) -> RefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>> {
+        auto cached_entry = repeating_lookup ? nullptr : m_pending_lookups.with_write_locked([&](auto& pending_lookups) -> PendingLookup* {
             // One more try to make sure we're not overwriting an existing lookup
             if (cached_result_id.has_value()) {
                 if (auto* lookup = pending_lookups->find(*cached_result_id))
-                    return lookup->promise;
+                    return lookup;
             }
 
-            pending_lookups->insert(query.header.id, { query.header.id, name, result->make_weak_ptr(), promise });
+            pending_lookups->insert(query.header.id, { query.header.id, name, result->make_weak_ptr(), promise, Core::Timer::create(), 0 });
+            auto p = pending_lookups->find(query.header.id);
+            p->repeat_timer->set_single_shot(true);
+            p->repeat_timer->set_interval(1000);
+            p->repeat_timer->on_timeout = [=, this] {
+                (void)lookup(name, class_, desired_types, p);
+            };
+
             return nullptr;
         });
+
         if (cached_entry) {
-            dbgln_if(DNS_DEBUG, "DNS::lookup({}) -> Already in cache", name);
-            return cached_entry.release_nonnull();
+            dbgln_if(DNS_DEBUG, "DNS::lookup({}) -> Lookup already underway", name);
+            auto user_promise = Core::Promise<NonnullRefPtr<LookupResult const>>::construct();
+            promise->on_resolution = [user_promise, cached_promise = cached_entry->promise](auto& result) {
+                user_promise->resolve(*result);
+                cached_promise->resolve(*result);
+                return ErrorOr<void> {};
+            };
+            promise->on_rejection = [user_promise, cached_promise = cached_entry->promise](auto& error) {
+                user_promise->reject(Error::copy(error));
+                cached_promise->reject(Error::copy(error));
+            };
+            cached_entry->promise = move(promise);
+            return user_promise;
         }
+
+        auto pending_lookup = m_pending_lookups.with_write_locked([&](auto& lookups) -> PendingLookup* {
+            return lookups->find(query.header.id);
+        });
 
         ByteBuffer query_bytes;
         MUST(query.to_raw(query_bytes));
@@ -361,17 +406,12 @@ public:
             return promise;
         }
 
+        pending_lookup->repeat_timer->start();
+
         return promise;
     }
 
 private:
-    struct PendingLookup {
-        u16 id { 0 };
-        ByteString name;
-        WeakPtr<LookupResult> result;
-        NonnullRefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>> promise;
-    };
-
     ErrorOr<Messages::Message> parse_one_message()
     {
         if (m_mode == ConnectionMode::UDP)
@@ -407,6 +447,7 @@ private:
                 if (!lookup)
                     return Error::from_string_literal("No pending lookup found for this message");
 
+                lookup->repeat_timer->stop();
                 if (lookup->result.is_null())
                     return {}; // Message is a response to a lookup that's been purged from the cache, ignore it
 
