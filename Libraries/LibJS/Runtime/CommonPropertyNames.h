@@ -264,6 +264,7 @@ namespace JS {
     P(getTime)                               \
     P(getTimezoneOffset)                     \
     P(getTimeZones)                          \
+    P(getTimeZoneTransition)                 \
     P(getUint8)                              \
     P(getUint16)                             \
     P(getUint32)                             \

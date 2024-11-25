@@ -75,6 +75,26 @@ ISODateTime get_iso_parts_from_epoch(Crypto::SignedBigInteger const& epoch_nanos
     return combine_iso_date_and_time_record(iso_date, time);
 }
 
+// 11.1.3 GetNamedTimeZoneNextTransition ( timeZoneIdentifier, epochNanoseconds ), https://tc39.es/proposal-temporal/#sec-temporal-getnamedtimezonenexttransition
+Optional<Crypto::SignedBigInteger> get_named_time_zone_next_transition(StringView time_zone, Crypto::SignedBigInteger const& epoch_nanoseconds)
+{
+    // FIXME: Implement this AO.
+    (void)time_zone;
+    (void)epoch_nanoseconds;
+
+    return {};
+}
+
+// 11.1.4 GetNamedTimeZonePreviousTransition ( timeZoneIdentifier, epochNanoseconds ), https://tc39.es/proposal-temporal/#sec-temporal-getnamedtimezoneprevioustransition
+Optional<Crypto::SignedBigInteger> get_named_time_zone_previous_transition(StringView time_zone, Crypto::SignedBigInteger const& epoch_nanoseconds)
+{
+    // FIXME: Implement this AO.
+    (void)time_zone;
+    (void)epoch_nanoseconds;
+
+    return {};
+}
+
 // 11.1.5 FormatOffsetTimeZoneIdentifier ( offsetMinutes [ , style ] ), https://tc39.es/proposal-temporal/#sec-temporal-formatoffsettimezoneidentifier
 String format_offset_time_zone_identifier(i64 offset_minutes, Optional<TimeStyle> style)
 {

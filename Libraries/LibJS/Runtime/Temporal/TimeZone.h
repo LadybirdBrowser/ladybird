@@ -22,6 +22,8 @@ struct TimeZone {
 };
 
 ISODateTime get_iso_parts_from_epoch(Crypto::SignedBigInteger const& epoch_nanoseconds);
+Optional<Crypto::SignedBigInteger> get_named_time_zone_next_transition(StringView time_zone, Crypto::SignedBigInteger const& epoch_nanoseconds);
+Optional<Crypto::SignedBigInteger> get_named_time_zone_previous_transition(StringView time_zone, Crypto::SignedBigInteger const& epoch_nanoseconds);
 String format_offset_time_zone_identifier(i64 offset_minutes, Optional<TimeStyle> = {});
 String format_utc_offset_nanoseconds(i64 offset_nanoseconds);
 String format_date_time_utc_offset_rounded(i64 offset_nanoseconds);

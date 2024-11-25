@@ -33,6 +33,11 @@ enum class DateType {
     YearMonth,
 };
 
+enum class Direction {
+    Next,
+    Previous,
+};
+
 enum class Disambiguation {
     Compatible,
     Earlier,
@@ -175,6 +180,7 @@ ThrowCompletionOr<OffsetOption> get_temporal_offset_option(VM&, Object const& op
 ThrowCompletionOr<ShowTimeZoneName> get_temporal_show_time_zone_name_option(VM&, Object const& options);
 ThrowCompletionOr<ShowOffset> get_temporal_show_offset_option(VM&, Object const& options);
 ThrowCompletionOr<ShowCalendar> get_temporal_show_calendar_name_option(VM&, Object const& options);
+ThrowCompletionOr<Direction> get_direction_option(VM&, Object const& options);
 ThrowCompletionOr<void> validate_temporal_rounding_increment(VM&, u64 increment, u64 dividend, bool inclusive);
 ThrowCompletionOr<Precision> get_temporal_fractional_second_digits_option(VM&, Object const& options);
 SecondsStringPrecision to_seconds_string_precision_record(UnitValue, Precision);
