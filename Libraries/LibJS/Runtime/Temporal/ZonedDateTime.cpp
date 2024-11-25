@@ -319,6 +319,63 @@ ThrowCompletionOr<GC::Ref<ZonedDateTime>> create_temporal_zoned_date_time(VM& vm
     return object;
 }
 
+// 6.5.4 TemporalZonedDateTimeToString ( zonedDateTime, precision, showCalendar, showTimeZone, showOffset [ , increment [ , unit [ , roundingMode ] ] ] ), https://tc39.es/proposal-temporal/#sec-temporal-temporalzoneddatetimetostring
+String temporal_zoned_date_time_to_string(ZonedDateTime const& zoned_date_time, SecondsStringPrecision::Precision precision, ShowCalendar show_calendar, ShowTimeZoneName show_time_zone, ShowOffset show_offset, u64 increment, Unit unit, RoundingMode rounding_mode)
+{
+    // 1. If increment is not present, set increment to 1.
+    // 2. If unit is not present, set unit to NANOSECOND.
+    // 3. If roundingMode is not present, set roundingMode to TRUNC.
+
+    // 4. Let epochNs be zonedDateTime.[[EpochNanoseconds]].
+    // 5. Set epochNs to RoundTemporalInstant(epochNs, increment, unit, roundingMode).
+    auto epoch_nanoseconds = round_temporal_instant(zoned_date_time.epoch_nanoseconds()->big_integer(), increment, unit, rounding_mode);
+
+    // 6. Let timeZone be zonedDateTime.[[TimeZone]].
+    auto const& time_zone = zoned_date_time.time_zone();
+
+    // 7. Let offsetNanoseconds be GetOffsetNanosecondsFor(timeZone, epochNs).
+    auto offset_nanoseconds = get_offset_nanoseconds_for(time_zone, epoch_nanoseconds);
+
+    // 8. Let isoDateTime be GetISODateTimeFor(timeZone, epochNs).
+    auto iso_date_time = get_iso_date_time_for(time_zone, epoch_nanoseconds);
+
+    // 9. Let dateTimeString be ISODateTimeToString(isoDateTime, "iso8601", precision, NEVER).
+    auto date_time_string = iso_date_time_to_string(iso_date_time, "iso8601"sv, precision, ShowCalendar::Never);
+
+    String offset_string;
+    String time_zone_string;
+
+    // 10. If showOffset is NEVER, then
+    if (show_offset == ShowOffset::Never) {
+        // a. Let offsetString be the empty String.
+    }
+    // 11. Else,
+    else {
+        // a. Let offsetString be FormatDateTimeUTCOffsetRounded(offsetNanoseconds).
+        offset_string = format_date_time_utc_offset_rounded(offset_nanoseconds);
+    }
+
+    // 12. If showTimeZone is NEVER, then
+    if (show_time_zone == ShowTimeZoneName::Never) {
+        // a. Let timeZoneString be the empty String.
+    }
+    // 13. Else,
+    else {
+        // a. If showTimeZone is critical, let flag be "!"; else let flag be the empty String.
+        auto flag = show_time_zone == ShowTimeZoneName::Critical ? "!"sv : ""sv;
+
+        // b. Let timeZoneString be the string-concatenation of the code unit 0x005B (LEFT SQUARE BRACKET), flag,
+        //    timeZone, and the code unit 0x005D (RIGHT SQUARE BRACKET).
+        time_zone_string = MUST(String::formatted("[{}{}]", flag, time_zone));
+    }
+
+    // 14. Let calendarString be FormatCalendarAnnotation(zonedDateTime.[[Calendar]], showCalendar).
+    auto calendar_string = format_calendar_annotation(zoned_date_time.calendar(), show_calendar);
+
+    // 15. Return the string-concatenation of dateTimeString, offsetString, timeZoneString, and calendarString.
+    return MUST(String::formatted("{}{}{}{}", date_time_string, offset_string, time_zone_string, calendar_string));
+}
+
 // 6.5.5 AddZonedDateTime ( epochNanoseconds, timeZone, calendar, duration, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-addzoneddatetime
 ThrowCompletionOr<Crypto::SignedBigInteger> add_zoned_date_time(VM& vm, Crypto::SignedBigInteger const& epoch_nanoseconds, StringView time_zone, StringView calendar, InternalDuration const& duration, Overflow overflow)
 {

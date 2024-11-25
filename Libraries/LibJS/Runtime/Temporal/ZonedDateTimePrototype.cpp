@@ -62,6 +62,9 @@ void ZonedDateTimePrototype::initialize(Realm& realm)
     define_native_accessor(realm, vm.names.offset, offset_getter, {}, Attribute::Configurable);
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
+    define_native_function(realm, vm.names.toString, to_string, 0, attr);
+    define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
+    define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
     define_native_function(realm, vm.names.valueOf, value_of, 0, attr);
 }
 
@@ -337,6 +340,72 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::offset_getter)
 
     // 4. Return FormatUTCOffsetNanoseconds(offsetNanoseconds).
     return PrimitiveString::create(vm, format_utc_offset_nanoseconds(offset_nanoseconds));
+}
+
+// 6.3.41 Temporal.ZonedDateTime.prototype.toString ( [ options ] ), https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.tostring
+JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::to_string)
+{
+    // 1. Let zonedDateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(zonedDateTime, [[InitializedTemporalZonedDateTime]]).
+    auto zoned_date_time = TRY(typed_this_object(vm));
+
+    // 3. Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolved_options = TRY(get_options_object(vm, vm.argument(0)));
+
+    // 4. NOTE: The following steps read options and perform independent validation in alphabetical order
+    //    (GetTemporalShowCalendarNameOption reads "calendarName", GetTemporalFractionalSecondDigitsOption reads
+    //    "fractionalSecondDigits", GetTemporalShowOffsetOption reads "offset", and GetRoundingModeOption reads "roundingMode").
+
+    // 5. Let showCalendar be ? GetTemporalShowCalendarNameOption(resolvedOptions).
+    auto show_calendar = TRY(get_temporal_show_calendar_name_option(vm, resolved_options));
+
+    // 6. Let digits be ? GetTemporalFractionalSecondDigitsOption(resolvedOptions).
+    auto digits = TRY(get_temporal_fractional_second_digits_option(vm, resolved_options));
+
+    // 7. Let showOffset be ? GetTemporalShowOffsetOption(resolvedOptions).
+    auto show_offset = TRY(get_temporal_show_offset_option(vm, resolved_options));
+
+    // 8. Let roundingMode be ? GetRoundingModeOption(resolvedOptions, TRUNC).
+    auto rounding_mode = TRY(get_rounding_mode_option(vm, resolved_options, RoundingMode::Trunc));
+
+    // 9. Let smallestUnit be ? GetTemporalUnitValuedOption(resolvedOptions, "smallestUnit", TIME, UNSET).
+    auto smallest_unit = TRY(get_temporal_unit_valued_option(vm, resolved_options, vm.names.smallestUnit, UnitGroup::Time, Unset {}));
+
+    // 10. If smallestUnit is hour, throw a RangeError exception.
+    if (auto const* unit = smallest_unit.get_pointer<Unit>(); unit && *unit == Unit::Hour)
+        return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, temporal_unit_to_string(*unit), vm.names.smallestUnit);
+
+    // 11. Let showTimeZone be ? GetTemporalShowTimeZoneNameOption(resolvedOptions).
+    auto show_time_zone = TRY(get_temporal_show_time_zone_name_option(vm, resolved_options));
+
+    // 12. Let precision be ToSecondsStringPrecisionRecord(smallestUnit, digits).
+    auto precision = to_seconds_string_precision_record(smallest_unit, digits);
+
+    // 13. Return TemporalZonedDateTimeToString(zonedDateTime, precision.[[Precision]], showCalendar, showTimeZone, showOffset, precision.[[Increment]], precision.[[Unit]], roundingMode).
+    return PrimitiveString::create(vm, temporal_zoned_date_time_to_string(zoned_date_time, precision.precision, show_calendar, show_time_zone, show_offset, precision.increment, precision.unit, rounding_mode));
+}
+
+// 6.3.42 Temporal.ZonedDateTime.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.tolocalestring
+// NOTE: This is the minimum toLocaleString implementation for engines without ECMA-402.
+JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::to_locale_string)
+{
+    // 1. Let zonedDateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(zonedDateTime, [[InitializedTemporalZonedDateTime]]).
+    auto zoned_date_time = TRY(typed_this_object(vm));
+
+    // 3. Return TemporalZonedDateTimeToString(zonedDateTime, AUTO, AUTO, AUTO, AUTO).
+    return PrimitiveString::create(vm, temporal_zoned_date_time_to_string(zoned_date_time, Auto {}, ShowCalendar::Auto, ShowTimeZoneName::Auto, ShowOffset::Auto));
+}
+
+// 6.3.43 Temporal.ZonedDateTime.prototype.toJSON ( ), https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.tojson
+JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::to_json)
+{
+    // 1. Let zonedDateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(zonedDateTime, [[InitializedTemporalZonedDateTime]]).
+    auto zoned_date_time = TRY(typed_this_object(vm));
+
+    // 3. Return TemporalZonedDateTimeToString(zonedDateTime, AUTO, AUTO, AUTO, AUTO).
+    return PrimitiveString::create(vm, temporal_zoned_date_time_to_string(zoned_date_time, Auto {}, ShowCalendar::Auto, ShowTimeZoneName::Auto, ShowOffset::Auto));
 }
 
 // 6.3.44 Temporal.ZonedDateTime.prototype.valueOf ( ), https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.valueof

@@ -211,6 +211,40 @@ ThrowCompletionOr<ShowCalendar> get_temporal_show_calendar_name_option(VM& vm, O
     return ShowCalendar::Auto;
 }
 
+// 13.11 GetTemporalShowTimeZoneNameOption ( options ), https://tc39.es/proposal-temporal/#sec-temporal-gettemporalshowtimezonenameoption
+ThrowCompletionOr<ShowTimeZoneName> get_temporal_show_time_zone_name_option(VM& vm, Object const& options)
+{
+    // 1. Let stringValue be ? GetOption(options, "timeZoneName", STRING, « "auto", "never", "critical" », "auto").
+    auto string_value = TRY(get_option(vm, options, vm.names.timeZoneName, OptionType::String, { "auto"sv, "never"sv, "critical"sv }, "auto"sv));
+    auto string_view = string_value.as_string().utf8_string_view();
+
+    // 2. If stringValue is "never", return NEVER.
+    if (string_view == "never"sv)
+        return ShowTimeZoneName::Never;
+
+    // 3. If stringValue is "critical", return CRITICAL.
+    if (string_view == "critical"sv)
+        return ShowTimeZoneName::Critical;
+
+    // 4. Return AUTO.
+    return ShowTimeZoneName::Auto;
+}
+
+// 13.12 GetTemporalShowOffsetOption ( options ), https://tc39.es/proposal-temporal/#sec-temporal-gettemporalshowoffsetoption
+ThrowCompletionOr<ShowOffset> get_temporal_show_offset_option(VM& vm, Object const& options)
+{
+    // 1. Let stringValue be ? GetOption(options, "offset", STRING, « "auto", "never" », "auto").
+    auto string_value = TRY(get_option(vm, options, vm.names.offset, OptionType::String, { "auto"sv, "never"sv }, "auto"sv));
+    auto string_view = string_value.as_string().utf8_string_view();
+
+    // 2. If stringValue is "never", return never.
+    if (string_view == "never"sv)
+        return ShowOffset::Never;
+
+    // 3. Return auto.
+    return ShowOffset::Auto;
+}
+
 // 13.14 ValidateTemporalRoundingIncrement ( increment, dividend, inclusive ), https://tc39.es/proposal-temporal/#sec-validatetemporalroundingincrement
 ThrowCompletionOr<void> validate_temporal_rounding_increment(VM& vm, u64 increment, u64 dividend, bool inclusive)
 {
