@@ -572,8 +572,9 @@ NonnullRefPtr<CSSStyleValue const> interpolate_value(DOM::Element& element, CSSS
     case CSSStyleValue::Type::Integer:
         return IntegerStyleValue::create(interpolate_raw(from.as_integer().integer(), to.as_integer().integer(), delta));
     case CSSStyleValue::Type::Length: {
-        auto& from_length = from.as_length().length();
-        auto& to_length = to.as_length().length();
+        // FIXME: Absolutize values
+        auto const& from_length = from.as_length().length();
+        auto const& to_length = to.as_length().length();
         return LengthStyleValue::create(Length(interpolate_raw(from_length.raw_value(), to_length.raw_value(), delta), from_length.type()));
     }
     case CSSStyleValue::Type::Number:
@@ -583,8 +584,8 @@ NonnullRefPtr<CSSStyleValue const> interpolate_value(DOM::Element& element, CSSS
     case CSSStyleValue::Type::Position: {
         // https://www.w3.org/TR/css-values-4/#combine-positions
         // FIXME: Interpolation of <position> is defined as the independent interpolation of each component (x, y) normalized as an offset from the top left corner as a <length-percentage>.
-        auto& from_position = from.as_position();
-        auto& to_position = to.as_position();
+        auto const& from_position = from.as_position();
+        auto const& to_position = to.as_position();
         return PositionStyleValue::create(
             interpolate_value(element, from_position.edge_x(), to_position.edge_x(), delta)->as_edge(),
             interpolate_value(element, from_position.edge_y(), to_position.edge_y(), delta)->as_edge());
@@ -606,6 +607,12 @@ NonnullRefPtr<CSSStyleValue const> interpolate_value(DOM::Element& element, CSSS
     case CSSStyleValue::Type::Rect: {
         auto from_rect = from.as_rect().rect();
         auto to_rect = to.as_rect().rect();
+
+        if (from_rect.top_edge.is_auto() != to_rect.top_edge.is_auto() || from_rect.right_edge.is_auto() != to_rect.right_edge.is_auto() || from_rect.bottom_edge.is_auto() != to_rect.bottom_edge.is_auto() || from_rect.left_edge.is_auto() != to_rect.left_edge.is_auto()) {
+            return delta >= 0.5f ? to : from;
+        }
+
+        // FIXME: Absolutize values
         return RectStyleValue::create({
             Length(interpolate_raw(from_rect.top_edge.raw_value(), to_rect.top_edge.raw_value(), delta), from_rect.top_edge.type()),
             Length(interpolate_raw(from_rect.right_edge.raw_value(), to_rect.right_edge.raw_value(), delta), from_rect.right_edge.type()),
@@ -616,11 +623,14 @@ NonnullRefPtr<CSSStyleValue const> interpolate_value(DOM::Element& element, CSSS
     case CSSStyleValue::Type::Transformation:
         VERIFY_NOT_REACHED();
     case CSSStyleValue::Type::ValueList: {
-        auto& from_list = from.as_value_list();
-        auto& to_list = to.as_value_list();
+        auto const& from_list = from.as_value_list();
+        auto const& to_list = to.as_value_list();
         if (from_list.size() != to_list.size())
-            return from;
+            return delta >= 0.5f ? to : from;
 
+        // FIXME: If the number of components or the types of corresponding components do not match,
+        // or if any component value uses discrete animation and the two corresponding values do not match,
+        // then the property values combine as discrete.
         StyleValueVector interpolated_values;
         interpolated_values.ensure_capacity(from_list.size());
         for (size_t i = 0; i < from_list.size(); ++i)
@@ -629,7 +639,7 @@ NonnullRefPtr<CSSStyleValue const> interpolate_value(DOM::Element& element, CSSS
         return StyleValueList::create(move(interpolated_values), from_list.separator());
     }
     default:
-        return from;
+        return delta >= 0.5f ? to : from;
     }
 }
 
