@@ -13,6 +13,8 @@
 #include <LibJS/Runtime/Temporal/PlainDateTime.h>
 #include <LibJS/Runtime/Temporal/PlainTime.h>
 #include <LibJS/Runtime/Temporal/PlainTimeConstructor.h>
+#include <LibJS/Runtime/Temporal/TimeZone.h>
+#include <LibJS/Runtime/Temporal/ZonedDateTime.h>
 #include <math.h>
 
 namespace JS::Temporal {
@@ -129,11 +131,22 @@ ThrowCompletionOr<GC::Ref<PlainTime>> to_temporal_time(VM& vm, Value item, Value
             return MUST(create_temporal_time(vm, plain_date_time.iso_date_time().time));
         }
 
-        // FIXME: c. If item has an [[InitializedTemporalZonedDateTime]] internal slot, then
-        // FIXME:     i. Let isoDateTime be GetISODateTimeFor(item.[[TimeZone]], item.[[EpochNanoseconds]]).
-        // FIXME:     ii. Let resolvedOptions be ? GetOptionsObject(options).
-        // FIXME:     iii. Perform ? GetTemporalOverflowOption(resolvedOptions).
-        // FIXME:     iv. Return ! CreateTemporalTime(isoDateTime.[[Time]]).
+        // c. If item has an [[InitializedTemporalZonedDateTime]] internal slot, then
+        if (is<ZonedDateTime>(object)) {
+            auto const& zoned_date_time = static_cast<ZonedDateTime const&>(object);
+
+            // i. Let isoDateTime be GetISODateTimeFor(item.[[TimeZone]], item.[[EpochNanoseconds]]).
+            auto iso_date_time = get_iso_date_time_for(zoned_date_time.time_zone(), zoned_date_time.epoch_nanoseconds()->big_integer());
+
+            // ii. Let resolvedOptions be ? GetOptionsObject(options).
+            auto resolved_options = TRY(get_options_object(vm, options));
+
+            // iii. Perform ? GetTemporalOverflowOption(resolvedOptions).
+            TRY(get_temporal_overflow_option(vm, resolved_options));
+
+            // iv. Return ! CreateTemporalTime(isoDateTime.[[Time]]).
+            return MUST(create_temporal_time(vm, iso_date_time.time));
+        }
 
         // d. Let result be ? ToTemporalTimeRecord(item).
         auto result = TRY(to_temporal_time_record(vm, object));

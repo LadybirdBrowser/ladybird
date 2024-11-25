@@ -17,6 +17,14 @@ describe("correct behavior", () => {
         expect(createdPlainDate.month).toBe(7);
         expect(createdPlainDate.day).toBe(26);
     });
+
+    test("ZonedDateTime instance argument", () => {
+        const zonedDateTime = new Temporal.ZonedDateTime(1627318123456789000n, "UTC");
+        const createdPlainDate = Temporal.PlainDate.from(zonedDateTime);
+        expect(createdPlainDate.year).toBe(2021);
+        expect(createdPlainDate.month).toBe(7);
+        expect(createdPlainDate.day).toBe(26);
+    });
 });
 
 describe("errors", () => {

@@ -32,6 +32,20 @@ describe("correct behavior", () => {
         expect(plainDateTime.nanosecond).toBe(0);
     });
 
+    test("ZonedDateTime instance argument", () => {
+        const zonedDateTime = new Temporal.ZonedDateTime(1625614921000000000n, "UTC");
+        const plainDateTime = Temporal.PlainDateTime.from(zonedDateTime);
+        expect(plainDateTime.year).toBe(2021);
+        expect(plainDateTime.month).toBe(7);
+        expect(plainDateTime.day).toBe(6);
+        expect(plainDateTime.hour).toBe(23);
+        expect(plainDateTime.minute).toBe(42);
+        expect(plainDateTime.second).toBe(1);
+        expect(plainDateTime.millisecond).toBe(0);
+        expect(plainDateTime.microsecond).toBe(0);
+        expect(plainDateTime.nanosecond).toBe(0);
+    });
+
     test("fields object argument", () => {
         const object = {
             year: 2021,

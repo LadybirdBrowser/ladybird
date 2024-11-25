@@ -14,6 +14,8 @@
 #include <LibJS/Runtime/Temporal/PlainDateTime.h>
 #include <LibJS/Runtime/Temporal/PlainDateTimeConstructor.h>
 #include <LibJS/Runtime/Temporal/PlainTime.h>
+#include <LibJS/Runtime/Temporal/TimeZone.h>
+#include <LibJS/Runtime/Temporal/ZonedDateTime.h>
 
 namespace JS::Temporal {
 
@@ -102,11 +104,22 @@ ThrowCompletionOr<GC::Ref<PlainDateTime>> to_temporal_date_time(VM& vm, Value it
             return MUST(create_temporal_date_time(vm, plain_date_time.iso_date_time(), plain_date_time.calendar()));
         }
 
-        // FIXME: b. If item has an [[InitializedTemporalZonedDateTime]] internal slot, then
-        // FIXME:     i. Let isoDateTime be GetISODateTimeFor(item.[[TimeZone]], item.[[EpochNanoseconds]]).
-        // FIXME:     ii. Let resolvedOptions be ? GetOptionsObject(options).
-        // FIXME:     iii. Perform ? GetTemporalOverflowOption(resolvedOptions).
-        // FIXME:     iv. Return ! CreateTemporalDateTime(isoDateTime, item.[[Calendar]]).
+        // b. If item has an [[InitializedTemporalZonedDateTime]] internal slot, then
+        if (is<ZonedDateTime>(object)) {
+            auto const& zoned_date_time = static_cast<ZonedDateTime const&>(object);
+
+            // i. Let isoDateTime be GetISODateTimeFor(item.[[TimeZone]], item.[[EpochNanoseconds]]).
+            auto iso_date_time = get_iso_date_time_for(zoned_date_time.time_zone(), zoned_date_time.epoch_nanoseconds()->big_integer());
+
+            // ii. Let resolvedOptions be ? GetOptionsObject(options).
+            auto resolved_options = TRY(get_options_object(vm, options));
+
+            // iii. Perform ? GetTemporalOverflowOption(resolvedOptions).
+            TRY(get_temporal_overflow_option(vm, resolved_options));
+
+            // iv. Return ! CreateTemporalDateTime(isoDateTime, item.[[Calendar]]).
+            return MUST(create_temporal_date_time(vm, iso_date_time, zoned_date_time.calendar()));
+        }
 
         // c. If item has an [[InitializedTemporalDate]] internal slot, then
         if (is<PlainDate>(object)) {
