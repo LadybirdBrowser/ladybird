@@ -16,6 +16,7 @@
 #include <LibWeb/WebAudio/AudioDestinationNode.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/BiquadFilterNode.h>
+#include <LibWeb/WebAudio/ChannelMergerNode.h>
 #include <LibWeb/WebAudio/DynamicsCompressorNode.h>
 #include <LibWeb/WebAudio/GainNode.h>
 #include <LibWeb/WebAudio/OscillatorNode.h>
@@ -78,6 +79,15 @@ WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> BaseAudioContext::create_buf
 {
     // Factory method for a AudioBufferSourceNode.
     return AudioBufferSourceNode::create(realm(), *this);
+}
+
+// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createchannelmerger
+WebIDL::ExceptionOr<GC::Ref<ChannelMergerNode>> BaseAudioContext::create_channel_merger(WebIDL::UnsignedLong number_of_inputs)
+{
+    ChannelMergerOptions options;
+    options.number_of_inputs = number_of_inputs;
+
+    return ChannelMergerNode::create(realm(), *this, options);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createoscillator

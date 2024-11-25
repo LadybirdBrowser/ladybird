@@ -1,0 +1,13 @@
+#import <WebAudio/AudioNode.idl>
+#import <WebAudio/BaseAudioContext.idl>
+
+// https://webaudio.github.io/web-audio-api/#ChannelMergerNode
+[Exposed=Window]
+interface ChannelMergerNode : AudioNode {
+    constructor (BaseAudioContext context, optional ChannelMergerOptions options = {});
+};
+
+// https://webaudio.github.io/web-audio-api/#ChannelMergerOptions
+dictionary ChannelMergerOptions : AudioNodeOptions {
+    unsigned long numberOfInputs = 6;
+};
