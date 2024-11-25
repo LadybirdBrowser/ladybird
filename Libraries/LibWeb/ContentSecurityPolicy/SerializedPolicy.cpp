@@ -17,6 +17,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::ContentSecurityPolicy::SerializedPol
     TRY(encoder.encode(serialized_policy.disposition));
     TRY(encoder.encode(serialized_policy.source));
     TRY(encoder.encode(serialized_policy.self_origin));
+    TRY(encoder.encode(serialized_policy.pre_parsed_policy_string));
 
     return {};
 }
@@ -30,6 +31,7 @@ ErrorOr<Web::ContentSecurityPolicy::SerializedPolicy> decode(Decoder& decoder)
     serialized_policy.disposition = TRY(decoder.decode<Web::ContentSecurityPolicy::Policy::Disposition>());
     serialized_policy.source = TRY(decoder.decode<Web::ContentSecurityPolicy::Policy::Source>());
     serialized_policy.self_origin = TRY(decoder.decode<URL::Origin>());
+    serialized_policy.pre_parsed_policy_string = TRY(decoder.decode<String>());
 
     return serialized_policy;
 }

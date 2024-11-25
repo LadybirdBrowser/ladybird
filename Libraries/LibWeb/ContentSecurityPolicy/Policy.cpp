@@ -35,6 +35,7 @@ GC::Ref<Policy> Policy::parse_a_serialized_csp(JS::Realm& realm, Variant<ByteBuf
 
     // 2. Let policy be a new policy with an empty directive set, a source of source, and a disposition of disposition.
     auto policy = realm.create<Policy>();
+    policy->m_pre_parsed_policy_string = serialized_string;
     policy->m_source = source;
     policy->m_disposition = disposition;
 
@@ -148,6 +149,7 @@ GC::Ref<Policy> Policy::create_from_serialized_policy(JS::Realm& realm, Serializ
     policy->m_disposition = serialized_policy.disposition;
     policy->m_source = serialized_policy.source;
     policy->m_self_origin = serialized_policy.self_origin;
+    policy->m_pre_parsed_policy_string = serialized_policy.pre_parsed_policy_string;
     return policy;
 }
 
@@ -157,6 +159,18 @@ bool Policy::contains_directive_with_name(StringView name) const
         return directive->name() == name;
     });
     return !maybe_directive.is_end();
+}
+
+GC::Ptr<Directives::Directive> Policy::get_directive_by_name(StringView name) const
+{
+    auto maybe_directive = m_directives.find_if([name](auto const& directive) {
+        return directive->name() == name;
+    });
+
+    if (!maybe_directive.is_end())
+        return *maybe_directive;
+
+    return nullptr;
 }
 
 GC::Ref<Policy> Policy::clone(JS::Realm& realm) const
@@ -171,6 +185,7 @@ GC::Ref<Policy> Policy::clone(JS::Realm& realm) const
     policy->m_disposition = m_disposition;
     policy->m_source = m_source;
     policy->m_self_origin = m_self_origin;
+    policy->m_pre_parsed_policy_string = m_pre_parsed_policy_string;
     return policy;
 }
 
@@ -187,6 +202,7 @@ SerializedPolicy Policy::serialize() const
         .disposition = m_disposition,
         .source = m_source,
         .self_origin = m_self_origin,
+        .pre_parsed_policy_string = m_pre_parsed_policy_string,
     };
 }
 
