@@ -23,6 +23,7 @@ void NavigationParams::visit_edges(Visitor& visitor)
     visitor.visit(response);
     visitor.visit(fetch_controller);
     visitor.visit(reserved_environment);
+    visitor.visit(policy_container);
 }
 
 void NonFetchSchemeNavigationParams::visit_edges(Visitor& visitor)

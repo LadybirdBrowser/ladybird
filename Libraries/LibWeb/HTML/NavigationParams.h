@@ -60,7 +60,7 @@ struct NavigationParams : JS::Cell {
     URL::Origin origin;
 
     // a policy container to use for the new Document
-    PolicyContainer policy_container;
+    GC::Ptr<PolicyContainer> policy_container;
 
     // a sandboxing flag set to impose on the new Document
     SandboxingFlagSet final_sandboxing_flag_set = {};

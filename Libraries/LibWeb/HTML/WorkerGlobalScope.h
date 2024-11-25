@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2022, Andrew Kaster <akaster@serenityos.org>
+ * Copyright (c) 2025, Luke Wilde <luke@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -92,7 +93,7 @@ public:
 
     Web::Page* page() { return m_page.ptr(); }
 
-    PolicyContainer policy_container() const { return m_policy_container; }
+    GC::Ref<PolicyContainer> policy_container() const;
 
     bool is_closing() const { return m_closing; }
 
@@ -137,7 +138,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/workers.html#concept-workerglobalscope-policy-container
     // A WorkerGlobalScope object has an associated policy container (a policy container). It is initially a new policy container.
-    PolicyContainer m_policy_container;
+    mutable GC::Ptr<PolicyContainer> m_policy_container;
 
     // https://html.spec.whatwg.org/multipage/workers.html#concept-workerglobalscope-embedder-policy
     // A WorkerGlobalScope object has an associated embedder policy (an embedder policy).

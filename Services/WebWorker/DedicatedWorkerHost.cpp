@@ -76,7 +76,7 @@ void DedicatedWorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHo
     // FIXME: support for 'owner' set on WorkerGlobalScope
 
     // IMPLEMENTATION DEFINED: We need an object to represent the fetch response's client
-    auto outside_settings = inner_settings->realm().create<Web::HTML::EnvironmentSettingsSnapshot>(inner_settings->realm_execution_context().copy(), outside_settings_snapshot);
+    auto outside_settings = inner_settings->realm().create<Web::HTML::EnvironmentSettingsSnapshot>(inner_settings->realm(), inner_settings->realm_execution_context().copy(), outside_settings_snapshot);
 
     // 12. If is shared is true, then:
     if (is_shared) {

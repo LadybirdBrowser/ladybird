@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2021-2023, Luke Wilde <lukew@serenityos.org>
+ * Copyright (c) 2021-2025, Luke Wilde <luke@ladybird.org>
  * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2024, Matthew Olsson <mattco@serenityos.org>
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
@@ -118,6 +118,7 @@
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/PopStateEvent.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
@@ -586,6 +587,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_local_storage_holder);
     visitor.visit(m_session_storage_holder);
     visitor.visit(m_render_blocking_elements);
+    visitor.visit(m_policy_container);
 }
 
 // https://w3c.github.io/selection-api/#dom-document-getselection
@@ -3705,39 +3707,46 @@ void Document::set_active_sandboxing_flag_set(HTML::SandboxingFlagSet sandboxing
     m_active_sandboxing_flag_set = sandboxing_flag_set;
 }
 
-HTML::PolicyContainer Document::policy_container() const
+GC::Ref<HTML::PolicyContainer> Document::policy_container() const
 {
-    return m_policy_container;
+    auto& realm = this->realm();
+    if (!m_policy_container) {
+        m_policy_container = realm.create<HTML::PolicyContainer>(realm);
+    }
+    return *m_policy_container;
 }
 
-void Document::set_policy_container(HTML::PolicyContainer policy_container)
+void Document::set_policy_container(GC::Ref<HTML::PolicyContainer> policy_container)
 {
-    m_policy_container = move(policy_container);
+    m_policy_container = policy_container;
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#snapshotting-source-snapshot-params
-HTML::SourceSnapshotParams Document::snapshot_source_snapshot_params() const
+GC::Ref<HTML::SourceSnapshotParams> Document::snapshot_source_snapshot_params() const
 {
+    auto& realm = this->realm();
+
     // To snapshot source snapshot params given a Document sourceDocument, return a new source snapshot params with
+    return realm.create<HTML::SourceSnapshotParams>(
+        // has transient activation
+        //    true if sourceDocument's relevant global object has transient activation; otherwise false
+        as<HTML::Window>(HTML::relevant_global_object(*this)).has_transient_activation(),
 
-    // has transient activation
-    //    true if sourceDocument's relevant global object has transient activation; otherwise false
-    // sandboxing flags
-    //     sourceDocument's active sandboxing flag set
-    // allows downloading
-    //     false if sourceDocument's active sandboxing flag set has the sandboxed downloads browsing context flag set; otherwise true
-    // fetch client
-    //     sourceDocument's relevant settings object
-    // source policy container
-    //     a clone of sourceDocument's policy container
+        // sandboxing flags
+        //     sourceDocument's active sandboxing flag set
+        m_active_sandboxing_flag_set,
 
-    return HTML::SourceSnapshotParams {
-        .has_transient_activation = as<HTML::Window>(HTML::relevant_global_object(*this)).has_transient_activation(),
-        .sandboxing_flags = m_active_sandboxing_flag_set,
-        .allows_downloading = !has_flag(m_active_sandboxing_flag_set, HTML::SandboxingFlagSet::SandboxedDownloads),
-        .fetch_client = relevant_settings_object(),
-        .source_policy_container = m_policy_container
-    };
+        // allows downloading
+        //     false if sourceDocument's active sandboxing flag set has the sandboxed downloads browsing context flag set; otherwise true
+        !has_flag(m_active_sandboxing_flag_set, HTML::SandboxingFlagSet::SandboxedDownloads),
+
+        // fetch client
+        //     sourceDocument's relevant settings object
+        relevant_settings_object(),
+
+        // source policy container
+        //     a clone of sourceDocument's policy container
+        policy_container()->clone(realm));
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#descendant-navigables

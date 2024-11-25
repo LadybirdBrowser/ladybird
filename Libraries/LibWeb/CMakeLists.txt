@@ -485,11 +485,13 @@ set(SOURCES
     HTML/Scripting/SerializedEnvironmentSettingsObject.cpp
     HTML/SelectedFile.cpp
     HTML/SelectItem.cpp
+    HTML/SerializedPolicyContainer.cpp
     HTML/SessionHistoryEntry.cpp
     HTML/SessionHistoryTraversalQueue.cpp
     HTML/ShadowRealmGlobalScope.cpp
     HTML/SharedResourceRequest.cpp
     HTML/SourceSet.cpp
+    HTML/SourceSnapshotParams.cpp
     HTML/Storage.cpp
     HTML/StorageEvent.cpp
     HTML/StructuredSerialize.cpp

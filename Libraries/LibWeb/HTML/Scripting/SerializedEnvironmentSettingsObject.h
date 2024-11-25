@@ -10,7 +10,7 @@
 #include <LibIPC/Forward.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
-#include <LibWeb/HTML/PolicyContainers.h>
+#include <LibWeb/HTML/SerializedPolicyContainer.h>
 
 namespace Web::HTML {
 
@@ -28,7 +28,7 @@ struct SerializedEnvironmentSettingsObject {
     String api_url_character_encoding;
     URL::URL api_base_url;
     URL::Origin origin;
-    PolicyContainer policy_container;
+    SerializedPolicyContainer policy_container;
     CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability;
     double time_origin;
 };

@@ -21,6 +21,8 @@ template<typename MutateDocument>
 GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::Navigable> navigable, Optional<String> navigation_id, HTML::UserNavigationInvolvement user_involvement, MutateDocument mutate_document)
 {
     auto& vm = navigable->vm();
+    VERIFY(navigable->active_document());
+    auto& realm = navigable->active_document()->realm();
 
     // 1. Let origin be a new opaque origin.
     URL::Origin origin {};
@@ -66,7 +68,7 @@ GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::Navigabl
     navigation_params->coop_enforcement_result = move(coop_enforcement_result);
     navigation_params->reserved_environment = {};
     navigation_params->origin = move(origin);
-    navigation_params->policy_container = HTML::PolicyContainer {};
+    navigation_params->policy_container = vm.heap().allocate<HTML::PolicyContainer>(realm);
     navigation_params->final_sandboxing_flag_set = HTML::SandboxingFlagSet {};
     navigation_params->opener_policy = move(coop);
     navigation_params->about_base_url = {};
