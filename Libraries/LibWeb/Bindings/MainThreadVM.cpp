@@ -25,6 +25,7 @@
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/SyntheticHostDefined.h>
 #include <LibWeb/Bindings/WindowExposedInterfaces.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
 #include <LibWeb/HTML/EventNames.h>
