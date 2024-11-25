@@ -69,8 +69,8 @@ public:
     [[nodiscard]] ScrollRestorationMode scroll_restoration_mode() const { return m_scroll_restoration_mode; }
     void set_scroll_restoration_mode(ScrollRestorationMode scroll_restoration_mode) { m_scroll_restoration_mode = scroll_restoration_mode; }
 
-    [[nodiscard]] Optional<PolicyContainer> const& policy_container() const { return m_policy_container; }
-    void set_policy_container(Optional<PolicyContainer> policy_container) { m_policy_container = move(policy_container); }
+    [[nodiscard]] GC::Ptr<PolicyContainer> policy_container() const { return m_policy_container; }
+    void set_policy_container(GC::Ptr<PolicyContainer> policy_container) { m_policy_container = policy_container; }
 
     [[nodiscard]] Optional<ByteString> const& browsing_context_name() const { return m_browsing_context_name; }
     void set_browsing_context_name(Optional<ByteString> browsing_context_name) { m_browsing_context_name = move(browsing_context_name); }
@@ -111,7 +111,7 @@ private:
     ScrollRestorationMode m_scroll_restoration_mode { ScrollRestorationMode::Auto };
 
     // policy container, a policy container or null
-    Optional<PolicyContainer> m_policy_container;
+    GC::Ptr<PolicyContainer> m_policy_container;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#she-scroll-position
     // FIXME: scroll position data, which is scroll position data for the document's restorable scrollable regions

@@ -181,10 +181,10 @@ WebIDL::ExceptionOr<GC::Ref<Infrastructure::FetchController>> fetch(JS::Realm& r
         // 1. If request’s client is non-null, then set request’s policy container to a clone of request’s client’s
         //    policy container.
         if (request.client() != nullptr)
-            request.set_policy_container(request.client()->policy_container());
+            request.set_policy_container(request.client()->policy_container()->clone(realm));
         // 2. Otherwise, set request’s policy container to a new policy container.
         else
-            request.set_policy_container(HTML::PolicyContainer {});
+            request.set_policy_container(realm.create<HTML::PolicyContainer>(realm));
     }
 
     // 13. If request’s header list does not contain `Accept`, then:
@@ -301,8 +301,8 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
     // 8. If request’s referrer policy is the empty string, then set request’s referrer policy to request’s policy
     //    container’s referrer policy.
     if (request->referrer_policy() == ReferrerPolicy::ReferrerPolicy::EmptyString) {
-        VERIFY(request->policy_container().has<HTML::PolicyContainer>());
-        request->set_referrer_policy(request->policy_container().get<HTML::PolicyContainer>().referrer_policy);
+        VERIFY(request->policy_container().has<GC::Ref<HTML::PolicyContainer>>());
+        request->set_referrer_policy(request->policy_container().get<GC::Ref<HTML::PolicyContainer>>()->referrer_policy);
     }
 
     // 9. If request’s referrer is not "no-referrer", then set request’s referrer to the result of invoking determine

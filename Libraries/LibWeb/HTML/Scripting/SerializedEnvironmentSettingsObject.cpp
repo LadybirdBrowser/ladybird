@@ -39,7 +39,7 @@ ErrorOr<Web::HTML::SerializedEnvironmentSettingsObject> decode(Decoder& decoder)
     object.api_url_character_encoding = TRY(decoder.decode<String>());
     object.api_base_url = TRY(decoder.decode<URL::URL>());
     object.origin = TRY(decoder.decode<URL::Origin>());
-    object.policy_container = TRY(decoder.decode<Web::HTML::PolicyContainer>());
+    object.policy_container = TRY(decoder.decode<Web::HTML::SerializedPolicyContainer>());
     object.cross_origin_isolated_capability = TRY(decoder.decode<Web::HTML::CanUseCrossOriginIsolatedAPIs>());
     object.time_origin = TRY(decoder.decode<double>());
 
