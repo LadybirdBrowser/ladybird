@@ -336,6 +336,9 @@ private:
 
 template<typename T>
 requires(IsLvalueReference<T>) class [[nodiscard]] Optional<T> {
+    AK_MAKE_DEFAULT_COPYABLE(Optional);
+    AK_MAKE_DEFAULT_MOVABLE(Optional);
+
     template<typename>
     friend class Optional;
 
@@ -369,17 +372,6 @@ public:
     {
     }
 
-    ALWAYS_INLINE Optional(Optional const& other)
-        : m_pointer(other.m_pointer)
-    {
-    }
-
-    ALWAYS_INLINE Optional(Optional&& other)
-        : m_pointer(other.m_pointer)
-    {
-        other.m_pointer = nullptr;
-    }
-
     template<typename U>
     ALWAYS_INLINE Optional(Optional<U>& other)
     requires(CanBePlacedInOptional<U>)
@@ -400,25 +392,6 @@ public:
         : m_pointer(other.ptr())
     {
         other.m_pointer = nullptr;
-    }
-
-    ALWAYS_INLINE Optional& operator=(Optional& other)
-    {
-        m_pointer = other.m_pointer;
-        return *this;
-    }
-
-    ALWAYS_INLINE Optional& operator=(Optional const& other)
-    {
-        m_pointer = other.m_pointer;
-        return *this;
-    }
-
-    ALWAYS_INLINE Optional& operator=(Optional&& other)
-    {
-        m_pointer = other.m_pointer;
-        other.m_pointer = nullptr;
-        return *this;
     }
 
     template<typename U>

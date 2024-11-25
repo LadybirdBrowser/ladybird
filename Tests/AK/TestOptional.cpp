@@ -247,7 +247,6 @@ TEST_CASE(move_optional_reference)
     y = move(x);
     EXPECT_EQ(y.has_value(), true);
     EXPECT_EQ(y.value(), 3);
-    EXPECT_EQ(x.has_value(), false);
 }
 
 TEST_CASE(short_notation_reference)
