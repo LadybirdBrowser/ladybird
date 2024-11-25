@@ -699,7 +699,7 @@ String Parser::percent_encode_after_encoding(TextCodec::Encoder& encoder, String
 }
 
 // https://url.spec.whatwg.org/#concept-basic-url-parser
-URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, URL* url, Optional<State> state_override, Optional<StringView> encoding)
+URL Parser::basic_parse(StringView raw_input, Optional<URL const&> base_url, URL* url, Optional<State> state_override, Optional<StringView> encoding)
 {
     dbgln_if(URL_PARSER_DEBUG, "URL::Parser::basic_parse: Parsing '{}'", raw_input);
 

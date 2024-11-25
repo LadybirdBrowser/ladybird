@@ -17,6 +17,6 @@ struct CurrencyCode {
     Optional<int> minor_unit {};
 };
 
-Optional<CurrencyCode> get_currency_code(StringView currency);
+Optional<CurrencyCode const&> get_currency_code(StringView currency);
 
 }

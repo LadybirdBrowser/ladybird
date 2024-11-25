@@ -50,17 +50,17 @@ public:
         return m_members.try_set(move(key), move(value));
     }
 
-    Optional<String> get(StringView key) const
+    Optional<String const&> get(StringView key) const
     {
         return m_members.get(key);
     }
 
-    Optional<String> get(ASN1::AttributeType key) const
+    Optional<String const&> get(ASN1::AttributeType key) const
     {
         return m_members.get(enum_value(key));
     }
 
-    Optional<String> get(ASN1::ObjectClass key) const
+    Optional<String const&> get(ASN1::ObjectClass key) const
     {
         return m_members.get(enum_value(key));
     }

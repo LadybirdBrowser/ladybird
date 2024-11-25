@@ -39,7 +39,7 @@ public:
         return connections;
     }
 
-    [[nodiscard]] static Optional<GC::Root<Database>> for_key_and_name(StorageAPI::StorageKey&, String&);
+    [[nodiscard]] static Optional<GC::Root<Database> const&> for_key_and_name(StorageAPI::StorageKey&, String&);
     [[nodiscard]] static ErrorOr<GC::Root<Database>> create_for_key_and_name(JS::Realm&, StorageAPI::StorageKey&, String&);
     [[nodiscard]] static ErrorOr<void> delete_for_key_and_name(StorageAPI::StorageKey&, String&);
 

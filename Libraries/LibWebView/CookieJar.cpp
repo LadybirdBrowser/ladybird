@@ -618,7 +618,7 @@ void CookieJar::TransientStorage::set_cookie(CookieStorageKey key, Web::Cookie::
     m_dirty_cookies.set(move(key), move(cookie));
 }
 
-Optional<Web::Cookie::Cookie> CookieJar::TransientStorage::get_cookie(CookieStorageKey const& key)
+Optional<Web::Cookie::Cookie const&> CookieJar::TransientStorage::get_cookie(CookieStorageKey const& key)
 {
     return m_cookies.get(key);
 }

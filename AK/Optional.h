@@ -210,7 +210,7 @@ public:
     }
 
     template<typename U>
-    requires(IsConstructible<T, U const&> && !IsSpecializationOf<T, Optional> && !IsSpecializationOf<U, Optional>) ALWAYS_INLINE explicit Optional(Optional<U> const& other)
+    requires(IsConstructible<T, U const&> && !IsSpecializationOf<T, Optional> && !IsSpecializationOf<U, Optional> && (!IsLvalueReference<U> || IsTriviallyCopyConstructible<U>)) ALWAYS_INLINE explicit Optional(Optional<U> const& other)
         : m_has_value(other.has_value())
     {
         if (other.has_value())
@@ -218,7 +218,7 @@ public:
     }
 
     template<typename U>
-    requires(IsConstructible<T, U &&> && !IsSpecializationOf<T, Optional> && !IsSpecializationOf<U, Optional>) ALWAYS_INLINE explicit Optional(Optional<U>&& other)
+    requires(IsConstructible<T, U &&> && !IsSpecializationOf<T, Optional> && !IsSpecializationOf<U, Optional> && (!IsLvalueReference<U> || IsTriviallyMoveConstructible<U>)) ALWAYS_INLINE explicit Optional(Optional<U>&& other)
         : m_has_value(other.has_value())
     {
         if (other.has_value())
@@ -503,12 +503,27 @@ public:
     ALWAYS_INLINE RawPtr<AddConst<RemoveReference<T>>> operator->() const { return &value(); }
     ALWAYS_INLINE RawPtr<RemoveReference<T>> operator->() { return &value(); }
 
-    // Conversion operators from Optional<T&> -> Optional<T>
+    // Conversion operators from Optional<T&> -> Optional<T>, implicit when T is trivially copyable.
     ALWAYS_INLINE operator Optional<RemoveCVReference<T>>() const
+    requires(IsTriviallyCopyable<RemoveCVReference<T>>)
     {
         if (has_value())
             return Optional<RemoveCVReference<T>>(value());
         return {};
+    }
+
+    // Conversion operators from Optional<T&> -> Optional<T>, explicit when T is not trivially copyable, since this is usually a mistake.
+    ALWAYS_INLINE explicit operator Optional<RemoveCVReference<T>>() const
+    requires(!IsTriviallyCopyable<RemoveCVReference<T>>)
+    {
+        if (has_value())
+            return Optional<RemoveCVReference<T>>(value());
+        return {};
+    }
+
+    ALWAYS_INLINE constexpr Optional<RemoveCVReference<T>> copy() const
+    {
+        return static_cast<Optional<RemoveCVReference<T>>>(*this);
     }
 
     template<typename Callback>
