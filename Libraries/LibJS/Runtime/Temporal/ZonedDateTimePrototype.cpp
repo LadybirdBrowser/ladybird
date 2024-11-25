@@ -6,11 +6,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Temporal/Calendar.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/Instant.h>
 #include <LibJS/Runtime/Temporal/PlainDate.h>
 #include <LibJS/Runtime/Temporal/PlainDateTime.h>
+#include <LibJS/Runtime/Temporal/PlainTime.h>
 #include <LibJS/Runtime/Temporal/TimeZone.h>
 #include <LibJS/Runtime/Temporal/ZonedDateTimePrototype.h>
 
@@ -63,6 +65,10 @@ void ZonedDateTimePrototype::initialize(Realm& realm)
     define_native_accessor(realm, vm.names.offset, offset_getter, {}, Attribute::Configurable);
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
+    define_native_function(realm, vm.names.with, with, 1, attr);
+    define_native_function(realm, vm.names.withPlainTime, with_plain_time, 0, attr);
+    define_native_function(realm, vm.names.withTimeZone, with_time_zone, 1, attr);
+    define_native_function(realm, vm.names.withCalendar, with_calendar, 1, attr);
     define_native_function(realm, vm.names.add, add, 1, attr);
     define_native_function(realm, vm.names.subtract, subtract, 1, attr);
     define_native_function(realm, vm.names.until, until, 1, attr);
@@ -347,6 +353,165 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::offset_getter)
 
     // 4. Return FormatUTCOffsetNanoseconds(offsetNanoseconds).
     return PrimitiveString::create(vm, format_utc_offset_nanoseconds(offset_nanoseconds));
+}
+
+// 6.3.31 Temporal.ZonedDateTime.prototype.with ( temporalZonedDateTimeLike [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.with
+JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::with)
+{
+    auto temporal_zoned_date_time_like = vm.argument(0);
+    auto options = vm.argument(1);
+
+    // 1. Let zonedDateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(zonedDateTime, [[InitializedTemporalZonedDateTime]]).
+    auto zoned_date_time = TRY(typed_this_object(vm));
+
+    // 3. If ? IsPartialTemporalObject(temporalZonedDateTimeLike) is false, throw a TypeError exception.
+    if (!TRY(is_partial_temporal_object(vm, temporal_zoned_date_time_like)))
+        return vm.throw_completion<TypeError>(ErrorType::TemporalObjectMustBePartialTemporalObject);
+
+    // 4. Let epochNs be zonedDateTime.[[EpochNanoseconds]].
+    auto const& epoch_nanoseconds = zoned_date_time->epoch_nanoseconds()->big_integer();
+
+    // 5. Let timeZone be zonedDateTime.[[TimeZone]].
+    auto const& time_zone = zoned_date_time->time_zone();
+
+    // 6. Let calendar be zonedDateTime.[[Calendar]].
+    auto const& calendar = zoned_date_time->calendar();
+
+    // 7. Let offsetNanoseconds be GetOffsetNanosecondsFor(timeZone, epochNs).
+    auto offset_nanoseconds = get_offset_nanoseconds_for(time_zone, epoch_nanoseconds);
+
+    // 8. Let isoDateTime be GetISODateTimeFor(timeZone, epochNs).
+    auto iso_date_time = get_iso_date_time_for(time_zone, epoch_nanoseconds);
+
+    // 9. Let fields be ISODateToFields(calendar, isoDateTime.[[ISODate]], DATE).
+    auto fields = iso_date_to_fields(calendar, iso_date_time.iso_date, DateType::Date);
+
+    // 10. Set fields.[[Hour]] to isoDateTime.[[Time]].[[Hour]].
+    fields.hour = iso_date_time.time.hour;
+
+    // 11. Set fields.[[Minute]] to isoDateTime.[[Time]].[[Minute]].
+    fields.minute = iso_date_time.time.minute;
+
+    // 12. Set fields.[[Second]] to isoDateTime.[[Time]].[[Second]].
+    fields.second = iso_date_time.time.second;
+
+    // 13. Set fields.[[Millisecond]] to isoDateTime.[[Time]].[[Millisecond]].
+    fields.millisecond = iso_date_time.time.millisecond;
+
+    // 14. Set fields.[[Microsecond]] to isoDateTime.[[Time]].[[Microsecond]].
+    fields.microsecond = iso_date_time.time.microsecond;
+
+    // 15. Set fields.[[Nanosecond]] to isoDateTime.[[Time]].[[Nanosecond]].
+    fields.nanosecond = iso_date_time.time.nanosecond;
+
+    // 16. Set fields.[[OffsetString]] to FormatUTCOffsetNanoseconds(offsetNanoseconds).
+    fields.offset = format_utc_offset_nanoseconds(offset_nanoseconds);
+
+    // 17. Let partialZonedDateTime be ? PrepareCalendarFields(calendar, temporalZonedDateTimeLike, « YEAR, MONTH, MONTH-CODE, DAY », « HOUR, MINUTE, SECOND, MILLISECOND, MICROSECOND, NANOSECOND, OFFSET », PARTIAL).
+    static constexpr auto calendar_field_names = to_array({ CalendarField::Year, CalendarField::Month, CalendarField::MonthCode, CalendarField::Day });
+    static constexpr auto non_calendar_field_names = to_array({ CalendarField::Hour, CalendarField::Minute, CalendarField::Second, CalendarField::Millisecond, CalendarField::Microsecond, CalendarField::Nanosecond, CalendarField::Offset });
+    auto partial_zoned_date_time = TRY(prepare_calendar_fields(vm, calendar, temporal_zoned_date_time_like.as_object(), calendar_field_names, non_calendar_field_names, Partial {}));
+
+    // 18. Set fields to CalendarMergeFields(calendar, fields, partialZonedDateTime).
+    fields = calendar_merge_fields(calendar, fields, partial_zoned_date_time);
+
+    // 19. Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolved_options = TRY(get_options_object(vm, options));
+
+    // 20. Let disambiguation be ? GetTemporalDisambiguationOption(resolvedOptions).
+    auto disambiguation = TRY(get_temporal_disambiguation_option(vm, resolved_options));
+
+    // 21. Let offset be ? GetTemporalOffsetOption(resolvedOptions, PREFER).
+    auto offset = TRY(get_temporal_offset_option(vm, resolved_options, OffsetOption::Prefer));
+
+    // 22. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+    auto overflow = TRY(get_temporal_overflow_option(vm, resolved_options));
+
+    // 23. Let dateTimeResult be ? InterpretTemporalDateTimeFields(calendar, fields, overflow).
+    auto date_time_result = TRY(interpret_temporal_date_time_fields(vm, calendar, fields, overflow));
+
+    // 24. Let newOffsetNanoseconds be ! ParseDateTimeUTCOffset(fields.[[OffsetString]]).
+    auto new_offset_nanoseconds = parse_date_time_utc_offset(*fields.offset);
+
+    // 25. Let epochNanoseconds be ? InterpretISODateTimeOffset(dateTimeResult.[[ISODate]], dateTimeResult.[[Time]], OPTION, newOffsetNanoseconds, timeZone, disambiguation, offset, MATCH-EXACTLY).
+    auto new_epoch_nanoseconds = TRY(interpret_iso_date_time_offset(vm, date_time_result.iso_date, date_time_result.time, OffsetBehavior::Option, new_offset_nanoseconds, time_zone, disambiguation, offset, MatchBehavior::MatchExactly));
+
+    // 26. Return ! CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar).
+    return MUST(create_temporal_zoned_date_time(vm, BigInt::create(vm, move(new_epoch_nanoseconds)), time_zone, calendar));
+}
+
+// 6.3.32 Temporal.ZonedDateTime.prototype.withPlainTime ( [ plainTimeLike ] ), https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.withplaintime
+JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::with_plain_time)
+{
+    auto plain_time_like = vm.argument(0);
+
+    // 1. Let zonedDateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(zonedDateTime, [[InitializedTemporalZonedDateTime]]).
+    auto zoned_date_time = TRY(typed_this_object(vm));
+
+    // 3. Let timeZone be zonedDateTime.[[TimeZone]].
+    auto const& time_zone = zoned_date_time->time_zone();
+
+    // 4. Let calendar be zonedDateTime.[[Calendar]].
+    auto const& calendar = zoned_date_time->calendar();
+
+    // 5. Let isoDateTime be GetISODateTimeFor(timeZone, zonedDateTime.[[EpochNanoseconds]]).
+    auto iso_date_time = get_iso_date_time_for(time_zone, zoned_date_time->epoch_nanoseconds()->big_integer());
+
+    Crypto::SignedBigInteger epoch_nanoseconds;
+
+    // 6. If plainTimeLike is undefined, then
+    if (plain_time_like.is_undefined()) {
+        // a. Let epochNs be ? GetStartOfDay(timeZone, isoDateTime.[[ISODate]]).
+        epoch_nanoseconds = TRY(get_start_of_day(vm, time_zone, iso_date_time.iso_date));
+    }
+    // 7. Else,
+    else {
+        // a. Let plainTime be ? ToTemporalTime(plainTimeLike).
+        auto plain_time = TRY(to_temporal_time(vm, plain_time_like));
+
+        // b. Let resultISODateTime be CombineISODateAndTimeRecord(isoDateTime.[[ISODate]], plainTime.[[Time]]).
+        auto result_iso_date_time = combine_iso_date_and_time_record(iso_date_time.iso_date, plain_time->time());
+
+        // c. Let epochNs be ? GetEpochNanosecondsFor(timeZone, resultISODateTime, COMPATIBLE).
+        epoch_nanoseconds = TRY(get_epoch_nanoseconds_for(vm, time_zone, result_iso_date_time, Disambiguation::Compatible));
+    }
+
+    // 8. Return ! CreateTemporalZonedDateTime(epochNs, timeZone, calendar).
+    return MUST(create_temporal_zoned_date_time(vm, BigInt::create(vm, move(epoch_nanoseconds)), time_zone, calendar));
+}
+
+// 6.3.33 Temporal.ZonedDateTime.prototype.withTimeZone ( timeZoneLike ), https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.withtimezone
+JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::with_time_zone)
+{
+    auto time_zone_like = vm.argument(0);
+
+    // 1. Let zonedDateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(zonedDateTime, [[InitializedTemporalZonedDateTime]]).
+    auto zoned_date_time = TRY(typed_this_object(vm));
+
+    // 3. Let timeZone be ? ToTemporalTimeZoneIdentifier(timeZoneLike).
+    auto time_zone = TRY(to_temporal_time_zone_identifier(vm, time_zone_like));
+
+    // 4. Return ! CreateTemporalZonedDateTime(zonedDateTime.[[EpochNanoseconds]], timeZone, zonedDateTime.[[Calendar]]).
+    return MUST(create_temporal_zoned_date_time(vm, zoned_date_time->epoch_nanoseconds(), move(time_zone), zoned_date_time->calendar()));
+}
+
+// 6.3.34 Temporal.ZonedDateTime.prototype.withCalendar ( calendarLike ), https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.withcalendar
+JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::with_calendar)
+{
+    auto calendar_like = vm.argument(0);
+
+    // 1. Let zonedDateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(zonedDateTime, [[InitializedTemporalZonedDateTime]]).
+    auto zoned_date_time = TRY(typed_this_object(vm));
+
+    // 3. Let calendar be ? ToTemporalCalendarIdentifier(calendarLike).
+    auto calendar = TRY(to_temporal_calendar_identifier(vm, calendar_like));
+
+    // 4. Return ! CreateTemporalZonedDateTime(zonedDateTime.[[EpochNanoseconds]], zonedDateTime.[[TimeZone]], calendar).
+    return MUST(create_temporal_zoned_date_time(vm, zoned_date_time->epoch_nanoseconds(), zoned_date_time->time_zone(), move(calendar)));
 }
 
 // 6.3.35 Temporal.ZonedDateTime.prototype.add ( temporalDurationLike [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.add
