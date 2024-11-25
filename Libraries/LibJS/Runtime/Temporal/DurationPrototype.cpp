@@ -11,6 +11,7 @@
 #include <LibJS/Runtime/Temporal/PlainDate.h>
 #include <LibJS/Runtime/Temporal/PlainDateTime.h>
 #include <LibJS/Runtime/Temporal/PlainTime.h>
+#include <LibJS/Runtime/Temporal/ZonedDateTime.h>
 
 namespace JS::Temporal {
 
@@ -347,11 +348,20 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::round)
         // a. Let internalDuration be ToInternalDurationRecord(duration).
         auto internal_duration = to_internal_duration_record(vm, duration);
 
-        // FIXME: b. Let timeZone be zonedRelativeTo.[[TimeZone]].
-        // FIXME: c. Let calendar be zonedRelativeTo.[[Calendar]].
-        // FIXME: d. Let relativeEpochNs be zonedRelativeTo.[[EpochNanoseconds]].
-        // FIXME: e. Let targetEpochNs be ? AddZonedDateTime(relativeEpochNs, timeZone, calendar, internalDuration, constrain).
-        // FIXME: f. Set internalDuration to ? DifferenceZonedDateTimeWithRounding(relativeEpochNs, targetEpochNs, timeZone, calendar, largestUnit, roundingIncrement, smallestUnit, roundingMode).
+        // b. Let timeZone be zonedRelativeTo.[[TimeZone]].
+        auto const& time_zone = zoned_relative_to->time_zone();
+
+        // c. Let calendar be zonedRelativeTo.[[Calendar]].
+        auto const& calendar = zoned_relative_to->calendar();
+
+        // d. Let relativeEpochNs be zonedRelativeTo.[[EpochNanoseconds]].
+        auto const& relative_epoch_nanoseconds = zoned_relative_to->epoch_nanoseconds()->big_integer();
+
+        // e. Let targetEpochNs be ? AddZonedDateTime(relativeEpochNs, timeZone, calendar, internalDuration, CONSTRAIN).
+        auto target_epoch_nanoseconds = TRY(add_zoned_date_time(vm, relative_epoch_nanoseconds, time_zone, calendar, internal_duration, Overflow::Constrain));
+
+        // f. Set internalDuration to ? DifferenceZonedDateTimeWithRounding(relativeEpochNs, targetEpochNs, timeZone, calendar, largestUnit, roundingIncrement, smallestUnit, roundingMode).
+        internal_duration = TRY(difference_zoned_date_time_with_rounding(vm, relative_epoch_nanoseconds, target_epoch_nanoseconds, time_zone, calendar, largest_unit_value, rounding_increment, smallest_unit_value, rounding_mode));
 
         // g. If TemporalUnitCategory(largestUnit) is date, set largestUnit to hour.
         if (temporal_unit_category(largest_unit_value) == UnitCategory::Date)
@@ -479,12 +489,23 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::total)
 
     // 11. If zonedRelativeTo is not undefined, then
     if (zoned_relative_to) {
-        // FIXME: a. Let internalDuration be ToInternalDurationRecord(duration).
-        // FIXME: b. Let timeZone be zonedRelativeTo.[[TimeZone]].
-        // FIXME: c. Let calendar be zonedRelativeTo.[[Calendar]].
-        // FIXME: d. Let relativeEpochNs be zonedRelativeTo.[[EpochNanoseconds]].
-        // FIXME: e. Let targetEpochNs be ? AddZonedDateTime(relativeEpochNs, timeZone, calendar, internalDuration, constrain).
-        // FIXME: f. Let total be ? DifferenceZonedDateTimeWithTotal(relativeEpochNs, targetEpochNs, timeZone, calendar, unit).
+        // a. Let internalDuration be ToInternalDurationRecord(duration).
+        auto internal_duration = to_internal_duration_record(vm, duration);
+
+        // b. Let timeZone be zonedRelativeTo.[[TimeZone]].
+        auto const time_zone = zoned_relative_to->time_zone();
+
+        // c. Let calendar be zonedRelativeTo.[[Calendar]].
+        auto const& calendar = zoned_relative_to->calendar();
+
+        // d. Let relativeEpochNs be zonedRelativeTo.[[EpochNanoseconds]].
+        auto const& relative_epoch_nanoseconds = zoned_relative_to->epoch_nanoseconds()->big_integer();
+
+        // e. Let targetEpochNs be ? AddZonedDateTime(relativeEpochNs, timeZone, calendar, internalDuration, CONSTRAIN).
+        auto target_epoch_nanoseconds = TRY(add_zoned_date_time(vm, relative_epoch_nanoseconds, time_zone, calendar, internal_duration, Overflow::Constrain));
+
+        // f. Let total be ? DifferenceZonedDateTimeWithTotal(relativeEpochNs, targetEpochNs, timeZone, calendar, unit).
+        total = TRY(difference_zoned_date_time_with_total(vm, relative_epoch_nanoseconds, target_epoch_nanoseconds, time_zone, calendar, unit));
     }
     // 12. Else if plainRelativeTo is not undefined, then
     else if (plain_relative_to) {
