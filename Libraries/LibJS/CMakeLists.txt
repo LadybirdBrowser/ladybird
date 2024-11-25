@@ -232,6 +232,9 @@ set(SOURCES
     Runtime/Temporal/PlainYearMonthPrototype.cpp
     Runtime/Temporal/Temporal.cpp
     Runtime/Temporal/TimeZone.cpp
+    Runtime/Temporal/ZonedDateTime.cpp
+    Runtime/Temporal/ZonedDateTimeConstructor.cpp
+    Runtime/Temporal/ZonedDateTimePrototype.cpp
     Runtime/TypedArray.cpp
     Runtime/TypedArrayConstructor.cpp
     Runtime/TypedArrayPrototype.cpp

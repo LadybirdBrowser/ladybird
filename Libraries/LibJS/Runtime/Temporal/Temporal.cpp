@@ -15,6 +15,7 @@
 #include <LibJS/Runtime/Temporal/PlainTimeConstructor.h>
 #include <LibJS/Runtime/Temporal/PlainYearMonthConstructor.h>
 #include <LibJS/Runtime/Temporal/Temporal.h>
+#include <LibJS/Runtime/Temporal/ZonedDateTimeConstructor.h>
 
 namespace JS::Temporal {
 
@@ -44,6 +45,7 @@ void Temporal::initialize(Realm& realm)
     define_intrinsic_accessor(vm.names.PlainMonthDay, attr, [](auto& realm) -> Value { return realm.intrinsics().temporal_plain_month_day_constructor(); });
     define_intrinsic_accessor(vm.names.PlainTime, attr, [](auto& realm) -> Value { return realm.intrinsics().temporal_plain_time_constructor(); });
     define_intrinsic_accessor(vm.names.PlainYearMonth, attr, [](auto& realm) -> Value { return realm.intrinsics().temporal_plain_year_month_constructor(); });
+    define_intrinsic_accessor(vm.names.ZonedDateTime, attr, [](auto& realm) -> Value { return realm.intrinsics().temporal_zoned_date_time_constructor(); });
 }
 
 }

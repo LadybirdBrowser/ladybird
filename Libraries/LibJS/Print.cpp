@@ -54,6 +54,7 @@
 #include <LibJS/Runtime/Temporal/PlainMonthDay.h>
 #include <LibJS/Runtime/Temporal/PlainTime.h>
 #include <LibJS/Runtime/Temporal/PlainYearMonth.h>
+#include <LibJS/Runtime/Temporal/ZonedDateTime.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/WeakMap.h>
@@ -893,6 +894,18 @@ ErrorOr<void> print_temporal_plain_year_month(JS::PrintContext& print_context, J
     return {};
 }
 
+ErrorOr<void> print_temporal_zoned_date_time(JS::PrintContext& print_context, JS::Temporal::ZonedDateTime const& zoned_date_time, HashTable<JS::Object*>& seen_objects)
+{
+    TRY(print_type(print_context, "Temporal.ZonedDateTime"sv));
+    TRY(js_out(print_context, "\n  epochNanoseconds: "));
+    TRY(print_value(print_context, zoned_date_time.epoch_nanoseconds(), seen_objects));
+    TRY(js_out(print_context, "\n  timeZone: "));
+    TRY(print_value(print_context, JS::PrimitiveString::create(zoned_date_time.vm(), zoned_date_time.time_zone()), seen_objects));
+    TRY(js_out(print_context, "\n  calendar: "));
+    TRY(print_value(print_context, JS::PrimitiveString::create(zoned_date_time.vm(), zoned_date_time.calendar()), seen_objects));
+    return {};
+}
+
 ErrorOr<void> print_boolean_object(JS::PrintContext& print_context, JS::BooleanObject const& boolean_object, HashTable<JS::Object*>& seen_objects)
 {
     TRY(print_type(print_context, "Boolean"sv));
@@ -1022,6 +1035,8 @@ ErrorOr<void> print_value(JS::PrintContext& print_context, JS::Value value, Hash
             return print_temporal_plain_time(print_context, static_cast<JS::Temporal::PlainTime&>(object), seen_objects);
         if (is<JS::Temporal::PlainYearMonth>(object))
             return print_temporal_plain_year_month(print_context, static_cast<JS::Temporal::PlainYearMonth&>(object), seen_objects);
+        if (is<JS::Temporal::ZonedDateTime>(object))
+            return print_temporal_zoned_date_time(print_context, static_cast<JS::Temporal::ZonedDateTime&>(object), seen_objects);
         return print_object(print_context, object, seen_objects);
     }
 

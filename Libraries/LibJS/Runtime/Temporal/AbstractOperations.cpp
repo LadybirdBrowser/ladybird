@@ -21,6 +21,7 @@
 #include <LibJS/Runtime/Temporal/PlainTime.h>
 #include <LibJS/Runtime/Temporal/PlainYearMonth.h>
 #include <LibJS/Runtime/Temporal/TimeZone.h>
+#include <LibJS/Runtime/Temporal/ZonedDateTime.h>
 
 namespace JS::Temporal {
 
@@ -100,6 +101,29 @@ ThrowCompletionOr<Overflow> get_temporal_overflow_option(VM& vm, Object const& o
     return Overflow::Reject;
 }
 
+// 13.7 GetTemporalDisambiguationOption ( options ), https://tc39.es/proposal-temporal/#sec-temporal-gettemporaldisambiguationoption
+ThrowCompletionOr<Disambiguation> get_temporal_disambiguation_option(VM& vm, Object const& options)
+{
+    // 1. Let stringValue be ? GetOption(options, "disambiguation", STRING, « "compatible", "earlier", "later", "reject" », "compatible").
+    auto string_value = TRY(get_option(vm, options, vm.names.disambiguation, OptionType::String, { "compatible"sv, "earlier"sv, "later"sv, "reject"sv }, "compatible"sv));
+    auto string_view = string_value.as_string().utf8_string_view();
+
+    // 2. If stringValue is "compatible", return COMPATIBLE.
+    if (string_view == "compatible"sv)
+        return Disambiguation::Compatible;
+
+    // 3. If stringValue is "earlier", return EARLIER.
+    if (string_view == "earlier"sv)
+        return Disambiguation::Earlier;
+
+    // 4. If stringValue is "later", return LATER.
+    if (string_view == "later"sv)
+        return Disambiguation::Later;
+
+    // 5. Return REJECT.
+    return Disambiguation::Reject;
+}
+
 // 13.8 NegateRoundingMode ( roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-negateroundingmode
 RoundingMode negate_rounding_mode(RoundingMode rounding_mode)
 {
@@ -123,22 +147,64 @@ RoundingMode negate_rounding_mode(RoundingMode rounding_mode)
     return rounding_mode;
 }
 
+// 13.9 GetTemporalOffsetOption ( options, fallback ), https://tc39.es/proposal-temporal/#sec-temporal-gettemporaloffsetoption
+ThrowCompletionOr<OffsetOption> get_temporal_offset_option(VM& vm, Object const& options, OffsetOption fallback)
+{
+    auto string_fallback = [&]() {
+        switch (fallback) {
+        // 1. If fallback is PREFER, let stringFallback be "prefer".
+        case OffsetOption::Prefer:
+            return "prefer"sv;
+        // 2. Else if fallback is USE, let stringFallback be "use".
+        case OffsetOption::Use:
+            return "use"sv;
+        // 3. Else if fallback is IGNORE, let stringFallback be "ignore".
+        case OffsetOption::Ignore:
+            return "ignore"sv;
+        // 4. Else, let stringFallback be "reject".
+        case OffsetOption::Reject:
+            return "reject"sv;
+        }
+        VERIFY_NOT_REACHED();
+    }();
+
+    // 5. Let stringValue be ? GetOption(options, "offset", STRING, « "prefer", "use", "ignore", "reject" », stringFallback).
+    auto string_value = TRY(get_option(vm, options, vm.names.offset, OptionType::String, { "prefer"sv, "use"sv, "ignore"sv, "reject"sv }, string_fallback));
+    auto string_view = string_value.as_string().utf8_string_view();
+
+    // 6. If stringValue is "prefer", return PREFER.
+    if (string_view == "prefer"sv)
+        return OffsetOption::Prefer;
+
+    // 7. If stringValue is "use", return USE.
+    if (string_view == "use"sv)
+        return OffsetOption::Use;
+
+    // 8. If stringValue is "ignore", return IGNORE.
+    if (string_view == "ignore"sv)
+        return OffsetOption::Ignore;
+
+    // 9. Return REJECT.
+    return OffsetOption::Reject;
+}
+
 // 13.10 GetTemporalShowCalendarNameOption ( options ), https://tc39.es/proposal-temporal/#sec-temporal-gettemporalshowcalendarnameoption
 ThrowCompletionOr<ShowCalendar> get_temporal_show_calendar_name_option(VM& vm, Object const& options)
 {
     // 1. Let stringValue be ? GetOption(options, "calendarName", STRING, « "auto", "always", "never", "critical" », "auto").
     auto string_value = TRY(get_option(vm, options, vm.names.calendarName, OptionType::String, { "auto"sv, "always"sv, "never"sv, "critical"sv }, "auto"sv));
+    auto string_view = string_value.as_string().utf8_string_view();
 
     // 2. If stringValue is "always", return ALWAYS.
-    if (string_value.as_string().utf8_string_view() == "always"sv)
+    if (string_view == "always"sv)
         return ShowCalendar::Always;
 
     // 3. If stringValue is "never", return NEVER.
-    if (string_value.as_string().utf8_string_view() == "never"sv)
+    if (string_view == "never"sv)
         return ShowCalendar::Never;
 
     // 4. If stringValue is "critical", return CRITICAL.
-    if (string_value.as_string().utf8_string_view() == "critical"sv)
+    if (string_view == "critical"sv)
         return ShowCalendar::Critical;
 
     // 5. Return AUTO.
@@ -630,7 +696,6 @@ ThrowCompletionOr<bool> is_partial_temporal_object(VM& vm, Value value)
     // 2. If value has an [[InitializedTemporalDate]], [[InitializedTemporalDateTime]], [[InitializedTemporalMonthDay]],
     //    [[InitializedTemporalTime]], [[InitializedTemporalYearMonth]], or [[InitializedTemporalZonedDateTime]] internal
     //    slot, return false.
-    // FIXME: Add the other types as we define them.
     if (is<PlainDate>(object))
         return false;
     if (is<PlainDateTime>(object))
@@ -640,6 +705,8 @@ ThrowCompletionOr<bool> is_partial_temporal_object(VM& vm, Value value)
     if (is<PlainTime>(object))
         return false;
     if (is<PlainYearMonth>(object))
+        return false;
+    if (is<ZonedDateTime>(object))
         return false;
 
     // 3. Let calendarProperty be ? Get(value, "calendar").

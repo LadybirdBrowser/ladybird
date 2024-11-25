@@ -17,6 +17,7 @@
 #include <LibJS/Runtime/Temporal/PlainDateTime.h>
 #include <LibJS/Runtime/Temporal/PlainTime.h>
 #include <LibJS/Runtime/Temporal/TimeZone.h>
+#include <LibJS/Runtime/Temporal/ZonedDateTime.h>
 #include <LibJS/Runtime/VM.h>
 
 namespace JS::Temporal {
@@ -96,6 +97,39 @@ String format_offset_time_zone_identifier(i64 offset_minutes, Optional<TimeStyle
     return MUST(String::formatted("{}{}", sign, time_string));
 }
 
+// 11.1.6 FormatUTCOffsetNanoseconds ( offsetNanoseconds ), https://tc39.es/proposal-temporal/#sec-temporal-formatutcoffsetnanoseconds
+String format_utc_offset_nanoseconds(i64 offset_nanoseconds)
+{
+    // 1. If offsetNanoseconds ≥ 0, let sign be the code unit 0x002B (PLUS SIGN); otherwise, let sign be the code unit 0x002D (HYPHEN-MINUS).
+    auto sign = offset_nanoseconds >= 0 ? '+' : '-';
+
+    // 2. Let absoluteNanoseconds be abs(offsetNanoseconds).
+    auto absolute_nanoseconds = static_cast<double>(abs(offset_nanoseconds));
+
+    // 3. Let hour be floor(absoluteNanoseconds / (3600 × 10**9)).
+    auto hour = floor(absolute_nanoseconds / 3'600'000'000'000.0);
+
+    // 4. Let minute be floor(absoluteNanoseconds / (60 × 10**9)) modulo 60.
+    auto minute = modulo(floor(absolute_nanoseconds / 60'000'000'000.0), 60.0);
+
+    // 5. Let second be floor(absoluteNanoseconds / 10**9) modulo 60.
+    auto second = modulo(floor(absolute_nanoseconds / 1'000'000'000.0), 60.0);
+
+    // 6. Let subSecondNanoseconds be absoluteNanoseconds modulo 10**9.
+    auto sub_second_nanoseconds = modulo(absolute_nanoseconds, 1'000'000'000.0);
+
+    // 7. If second = 0 and subSecondNanoseconds = 0, let precision be MINUTE; otherwise, let precision be AUTO.
+    SecondsStringPrecision::Precision precision { Auto {} };
+    if (second == 0 && sub_second_nanoseconds == 0)
+        precision = SecondsStringPrecision::Minute {};
+
+    // 8. Let timeString be FormatTimeString(hour, minute, second, subSecondNanoseconds, precision).
+    auto time_string = format_time_string(hour, minute, second, sub_second_nanoseconds, precision);
+
+    // 9. Return the string-concatenation of sign and timeString.
+    return MUST(String::formatted("{}{}", sign, time_string));
+}
+
 // 11.1.7 FormatDateTimeUTCOffsetRounded ( offsetNanoseconds ), https://tc39.es/proposal-temporal/#sec-temporal-formatdatetimeutcoffsetrounded
 String format_date_time_utc_offset_rounded(i64 offset_nanoseconds)
 {
@@ -117,8 +151,13 @@ ThrowCompletionOr<String> to_temporal_time_zone_identifier(VM& vm, Value tempora
 {
     // 1. If temporalTimeZoneLike is an Object, then
     if (temporal_time_zone_like.is_object()) {
-        // FIXME: a. If temporalTimeZoneLike has an [[InitializedTemporalZonedDateTime]] internal slot, then
-        // FIXME:     i. Return temporalTimeZoneLike.[[TimeZone]].
+        auto const& object = temporal_time_zone_like.as_object();
+
+        // a. If temporalTimeZoneLike has an [[InitializedTemporalZonedDateTime]] internal slot, then
+        if (is<ZonedDateTime>(object)) {
+            // i. Return temporalTimeZoneLike.[[TimeZone]].
+            return static_cast<ZonedDateTime const&>(object).time_zone();
+        }
     }
 
     // 2. If temporalTimeZoneLike is not a String, throw a TypeError exception.
@@ -295,6 +334,23 @@ ThrowCompletionOr<Vector<Crypto::SignedBigInteger>> get_possible_epoch_nanosecon
 
     // 5. Return possibleEpochNanoseconds.
     return possible_epoch_nanoseconds;
+}
+
+// 11.1.14 GetStartOfDay ( timeZone, isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-getstartofday
+ThrowCompletionOr<Crypto::SignedBigInteger> get_start_of_day(VM& vm, StringView time_zone, ISODate iso_date)
+{
+    // 1. Let isoDateTime be CombineISODateAndTimeRecord(isoDate, MidnightTimeRecord()).
+    auto iso_date_time = combine_iso_date_and_time_record(iso_date, midnight_time_record());
+
+    // 2. Let possibleEpochNs be ? GetPossibleEpochNanoseconds(timeZone, isoDateTime).
+    auto possible_epoch_nanoseconds = TRY(get_possible_epoch_nanoseconds(vm, time_zone, iso_date_time));
+
+    // 3. If possibleEpochNs is not empty, return possibleEpochNs[0].
+    if (!possible_epoch_nanoseconds.is_empty())
+        return move(possible_epoch_nanoseconds[0]);
+
+    // FIXME: GetNamedTimeZoneEpochNanoseconds currently does not produce zero instants.
+    TODO();
 }
 
 // 11.1.16 ParseTimeZoneIdentifier ( identifier ), https://tc39.es/proposal-temporal/#sec-parsetimezoneidentifier

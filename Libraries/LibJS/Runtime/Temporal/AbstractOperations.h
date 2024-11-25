@@ -33,9 +33,23 @@ enum class DateType {
     YearMonth,
 };
 
+enum class Disambiguation {
+    Compatible,
+    Earlier,
+    Later,
+    Reject,
+};
+
 enum class DurationOperation {
     Since,
     Until,
+};
+
+enum class OffsetOption {
+    Prefer,
+    Use,
+    Ignore,
+    Reject,
 };
 
 enum class Overflow {
@@ -144,7 +158,9 @@ double iso_date_to_epoch_days(double year, double month, double date);
 double epoch_days_to_epoch_ms(double day, double time);
 ThrowCompletionOr<void> check_iso_days_range(VM&, ISODate const&);
 ThrowCompletionOr<Overflow> get_temporal_overflow_option(VM&, Object const& options);
+ThrowCompletionOr<Disambiguation> get_temporal_disambiguation_option(VM&, Object const& options);
 RoundingMode negate_rounding_mode(RoundingMode);
+ThrowCompletionOr<OffsetOption> get_temporal_offset_option(VM&, Object const& options, OffsetOption fallback);
 ThrowCompletionOr<ShowCalendar> get_temporal_show_calendar_name_option(VM&, Object const& options);
 ThrowCompletionOr<void> validate_temporal_rounding_increment(VM&, u64 increment, u64 dividend, bool inclusive);
 ThrowCompletionOr<Precision> get_temporal_fractional_second_digits_option(VM&, Object const& options);
