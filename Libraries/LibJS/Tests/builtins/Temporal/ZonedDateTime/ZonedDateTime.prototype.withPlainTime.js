@@ -53,42 +53,41 @@ describe("correct behavior", () => {
         checkCommonExpectedResults(withPlainTimeZonedDateTime);
     });
 
-    // FIXME: Enable this test when we have ZonedDateTime.prototype.startOfDay
-    // test("passing no parameters is the equivalent of using startOfDay", () => {
-    //     const plainDateTime = new Temporal.PlainDateTime(2021, 11, 4, 21, 16, 56, 100, 200, 300);
-    //     const zonedDateTime = plainDateTime.toZonedDateTime("UTC");
-    //     const startOfDayZonedDateTime = zonedDateTime.startOfDay();
-    //     const withPlainTimeZonedDateTime = zonedDateTime.withPlainTime();
+    test("passing no parameters is the equivalent of using startOfDay", () => {
+        const plainDateTime = new Temporal.PlainDateTime(2021, 11, 4, 21, 16, 56, 100, 200, 300);
+        const zonedDateTime = plainDateTime.toZonedDateTime("UTC");
+        const startOfDayZonedDateTime = zonedDateTime.startOfDay();
+        const withPlainTimeZonedDateTime = zonedDateTime.withPlainTime();
 
-    //     expect(startOfDayZonedDateTime.epochNanoseconds).toBe(
-    //         withPlainTimeZonedDateTime.epochNanoseconds
-    //     );
-    //     expect(startOfDayZonedDateTime.epochMilliseconds).toBe(
-    //         withPlainTimeZonedDateTime.epochMilliseconds
-    //     );
-    //     expect(startOfDayZonedDateTime.year).toBe(withPlainTimeZonedDateTime.year);
-    //     expect(startOfDayZonedDateTime.month).toBe(withPlainTimeZonedDateTime.month);
-    //     expect(startOfDayZonedDateTime.monthCode).toBe(withPlainTimeZonedDateTime.monthCode);
-    //     expect(startOfDayZonedDateTime.day).toBe(withPlainTimeZonedDateTime.day);
-    //     expect(startOfDayZonedDateTime.hour).toBe(withPlainTimeZonedDateTime.hour);
-    //     expect(startOfDayZonedDateTime.minute).toBe(withPlainTimeZonedDateTime.minute);
-    //     expect(startOfDayZonedDateTime.second).toBe(withPlainTimeZonedDateTime.second);
-    //     expect(startOfDayZonedDateTime.millisecond).toBe(withPlainTimeZonedDateTime.millisecond);
-    //     expect(startOfDayZonedDateTime.microsecond).toBe(withPlainTimeZonedDateTime.microsecond);
-    //     expect(startOfDayZonedDateTime.nanosecond).toBe(withPlainTimeZonedDateTime.nanosecond);
-    //     expect(startOfDayZonedDateTime.dayOfWeek).toBe(withPlainTimeZonedDateTime.dayOfWeek);
-    //     expect(startOfDayZonedDateTime.dayOfYear).toBe(withPlainTimeZonedDateTime.dayOfYear);
-    //     expect(startOfDayZonedDateTime.weekOfYear).toBe(withPlainTimeZonedDateTime.weekOfYear);
-    //     expect(startOfDayZonedDateTime.hoursInDay).toBe(withPlainTimeZonedDateTime.hoursInDay);
-    //     expect(startOfDayZonedDateTime.daysInWeek).toBe(withPlainTimeZonedDateTime.daysInWeek);
-    //     expect(startOfDayZonedDateTime.daysInYear).toBe(withPlainTimeZonedDateTime.daysInYear);
-    //     expect(startOfDayZonedDateTime.monthsInYear).toBe(withPlainTimeZonedDateTime.monthsInYear);
-    //     expect(startOfDayZonedDateTime.inLeapYear).toBe(withPlainTimeZonedDateTime.inLeapYear);
-    //     expect(startOfDayZonedDateTime.offset).toBe(withPlainTimeZonedDateTime.offset);
-    //     expect(startOfDayZonedDateTime.offsetNanoseconds).toBe(
-    //         withPlainTimeZonedDateTime.offsetNanoseconds
-    //     );
-    // });
+        expect(startOfDayZonedDateTime.epochNanoseconds).toBe(
+            withPlainTimeZonedDateTime.epochNanoseconds
+        );
+        expect(startOfDayZonedDateTime.epochMilliseconds).toBe(
+            withPlainTimeZonedDateTime.epochMilliseconds
+        );
+        expect(startOfDayZonedDateTime.year).toBe(withPlainTimeZonedDateTime.year);
+        expect(startOfDayZonedDateTime.month).toBe(withPlainTimeZonedDateTime.month);
+        expect(startOfDayZonedDateTime.monthCode).toBe(withPlainTimeZonedDateTime.monthCode);
+        expect(startOfDayZonedDateTime.day).toBe(withPlainTimeZonedDateTime.day);
+        expect(startOfDayZonedDateTime.hour).toBe(withPlainTimeZonedDateTime.hour);
+        expect(startOfDayZonedDateTime.minute).toBe(withPlainTimeZonedDateTime.minute);
+        expect(startOfDayZonedDateTime.second).toBe(withPlainTimeZonedDateTime.second);
+        expect(startOfDayZonedDateTime.millisecond).toBe(withPlainTimeZonedDateTime.millisecond);
+        expect(startOfDayZonedDateTime.microsecond).toBe(withPlainTimeZonedDateTime.microsecond);
+        expect(startOfDayZonedDateTime.nanosecond).toBe(withPlainTimeZonedDateTime.nanosecond);
+        expect(startOfDayZonedDateTime.dayOfWeek).toBe(withPlainTimeZonedDateTime.dayOfWeek);
+        expect(startOfDayZonedDateTime.dayOfYear).toBe(withPlainTimeZonedDateTime.dayOfYear);
+        expect(startOfDayZonedDateTime.weekOfYear).toBe(withPlainTimeZonedDateTime.weekOfYear);
+        expect(startOfDayZonedDateTime.hoursInDay).toBe(withPlainTimeZonedDateTime.hoursInDay);
+        expect(startOfDayZonedDateTime.daysInWeek).toBe(withPlainTimeZonedDateTime.daysInWeek);
+        expect(startOfDayZonedDateTime.daysInYear).toBe(withPlainTimeZonedDateTime.daysInYear);
+        expect(startOfDayZonedDateTime.monthsInYear).toBe(withPlainTimeZonedDateTime.monthsInYear);
+        expect(startOfDayZonedDateTime.inLeapYear).toBe(withPlainTimeZonedDateTime.inLeapYear);
+        expect(startOfDayZonedDateTime.offset).toBe(withPlainTimeZonedDateTime.offset);
+        expect(startOfDayZonedDateTime.offsetNanoseconds).toBe(
+            withPlainTimeZonedDateTime.offsetNanoseconds
+        );
+    });
 
     test("from plain time string", () => {
         const plainDateTime = new Temporal.PlainDateTime(2021, 11, 4, 21, 16, 56, 100, 200, 300);
