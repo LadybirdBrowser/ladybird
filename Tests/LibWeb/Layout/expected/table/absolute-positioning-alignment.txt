@@ -4,20 +4,20 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
       Box <div.container> at (24,24) content-size 500x500 positioned flex-container(row) [FFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        TableWrapper <(anonymous)> at (24,199) content-size 100x150 positioned [BFC] children: not-inline
-          Box <div.table.left> at (27,202) content-size 94x144 table-box [TFC] children: not-inline
+        TableWrapper <(anonymous)> at (24,196) content-size 106x156 positioned [BFC] children: not-inline
+          Box <div.table.left> at (27,199) content-size 100x150 table-box [TFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        TableWrapper <(anonymous)> at (424,199) content-size 100x150 positioned [BFC] children: not-inline
-          Box <div.table.right> at (427,202) content-size 94x144 table-box [TFC] children: not-inline
+        TableWrapper <(anonymous)> at (418,196) content-size 106x156 positioned [BFC] children: not-inline
+          Box <div.table.right> at (421,199) content-size 100x150 table-box [TFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        TableWrapper <(anonymous)> at (199,24) content-size 150x100 positioned [BFC] children: not-inline
-          Box <div.table.top> at (202,27) content-size 144x94 table-box [TFC] children: not-inline
+        TableWrapper <(anonymous)> at (196,24) content-size 156x106 positioned [BFC] children: not-inline
+          Box <div.table.top> at (199,27) content-size 150x100 table-box [TFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
-        TableWrapper <(anonymous)> at (199,424) content-size 150x100 positioned [BFC] children: not-inline
-          Box <div.table.bottom> at (202,427) content-size 144x94 table-box [TFC] children: not-inline
+        TableWrapper <(anonymous)> at (196,418) content-size 156x106 positioned [BFC] children: not-inline
+          Box <div.table.bottom> at (199,421) content-size 150x100 table-box [TFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
       BlockContainer <(anonymous)> at (16,532) content-size 768x0 children: inline
@@ -27,12 +27,12 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [5,5 790x538]
     PaintableWithLines (BlockContainer<BODY>) [13,13 774x522]
       PaintableBox (Box<DIV>.container) [21,21 506x506]
-        PaintableWithLines (TableWrapper(anonymous)) [24,199 100x150]
-          PaintableBox (Box<DIV>.table.left) [24,199 100x150]
-        PaintableWithLines (TableWrapper(anonymous)) [424,199 100x150]
-          PaintableBox (Box<DIV>.table.right) [424,199 100x150]
-        PaintableWithLines (TableWrapper(anonymous)) [199,24 150x100]
-          PaintableBox (Box<DIV>.table.top) [199,24 150x100]
-        PaintableWithLines (TableWrapper(anonymous)) [199,424 150x100]
-          PaintableBox (Box<DIV>.table.bottom) [199,424 150x100]
+        PaintableWithLines (TableWrapper(anonymous)) [24,196 106x156]
+          PaintableBox (Box<DIV>.table.left) [24,196 106x156]
+        PaintableWithLines (TableWrapper(anonymous)) [418,196 106x156]
+          PaintableBox (Box<DIV>.table.right) [418,196 106x156]
+        PaintableWithLines (TableWrapper(anonymous)) [196,24 156x106]
+          PaintableBox (Box<DIV>.table.top) [196,24 156x106]
+        PaintableWithLines (TableWrapper(anonymous)) [196,418 156x106]
+          PaintableBox (Box<DIV>.table.bottom) [196,418 156x106]
       PaintableWithLines (BlockContainer(anonymous)) [16,532 768x0]
