@@ -7,6 +7,7 @@
  */
 
 #include <LibWeb/CSS/SystemColor.h>
+#include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentLoading.h>
@@ -992,8 +993,11 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
             entry->document_state()->set_resource(Empty {});
         }
 
-        // FIXME 9. Set responsePolicyContainer to the result of creating a policy container from a fetch response given response and request's reserved client.
-        // FIXME 10. Set finalSandboxFlags to the union of targetSnapshotParams's sandboxing flags and responsePolicyContainer's CSP list's CSP-derived sandboxing flags.
+        // 9. Set responsePolicyContainer to the result of creating a policy container from a fetch response given response and request's reserved client.
+        response_policy_container = create_a_policy_container_from_a_fetch_response(realm, *response_holder->response(), request->reserved_client());
+
+        // 10. Set finalSandboxFlags to the union of targetSnapshotParams's sandboxing flags and responsePolicyContainer's CSP list's CSP-derived sandboxing flags.
+        final_sandbox_flags = target_snapshot_params.sandboxing_flags | response_policy_container->csp_list->csp_derived_sandboxing_flags();
 
         // 11. Set responseOrigin to the result of determining the origin given response's URL, finalSandboxFlags, and entry's document state's initiator origin.
         response_origin = determine_the_origin(response_holder->response()->url(), final_sandbox_flags, entry->document_state()->initiator_origin());
