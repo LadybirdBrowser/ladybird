@@ -9,6 +9,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/ContentSecurityPolicy/Policy.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/SerializedPolicyContainer.h>
@@ -32,6 +33,29 @@ bool url_requires_storing_the_policy_container_in_history(URL::URL const& url)
     // 2. If url is local, then return true.
     // 3. Return false.
     return Fetch::Infrastructure::is_local_url(url);
+}
+
+// https://html.spec.whatwg.org/multipage/browsers.html#creating-a-policy-container-from-a-fetch-response
+GC::Ref<PolicyContainer> create_a_policy_container_from_a_fetch_response(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ptr<Environment>)
+{
+    // FIXME: 1. If response's URL's scheme is "blob", then return a clone of response's URL's blob URL entry's
+    //           environment's policy container.
+
+    // 2. Let result be a new policy container.
+    GC::Ref<PolicyContainer> result = realm.create<PolicyContainer>(realm);
+
+    // 3. Set result's CSP list to the result of parsing a response's Content Security Policies given response.
+    result->csp_list = ContentSecurityPolicy::Policy::parse_a_responses_content_security_policies(realm, response);
+
+    // FIXME: 4. If environment is non-null, then set result's embedder policy to the result of obtaining an embedder
+    //           policy given response and environment. Otherwise, set it to "unsafe-none".
+
+    // FIXME: 5. Set result's referrer policy to the result of parsing the `Referrer-Policy` header given response.
+    //           [REFERRERPOLICY]
+    //        Doing this currently makes Fetch fail the policy != ReferrerPolicy::EmptyString verification.
+
+    // 6. Return result.
+    return result;
 }
 
 GC::Ref<PolicyContainer> create_a_policy_container_from_serialized_policy_container(JS::Realm& realm, SerializedPolicyContainer const& serialized_policy_container)
