@@ -42,6 +42,7 @@ set(SOURCES
     ContentSecurityPolicy/Directives/KeywordSources.cpp
     ContentSecurityPolicy/Directives/Names.cpp
     ContentSecurityPolicy/Directives/SerializedDirective.cpp
+    ContentSecurityPolicy/Directives/SourceExpression.cpp
     ContentSecurityPolicy/BlockingAlgorithms.cpp
     ContentSecurityPolicy/Policy.cpp
     ContentSecurityPolicy/PolicyList.cpp
