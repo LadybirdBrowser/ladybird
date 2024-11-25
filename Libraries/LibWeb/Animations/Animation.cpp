@@ -739,7 +739,7 @@ WebIDL::ExceptionOr<void> Animation::pause()
 
     // 8. If animation has a pending play task, cancel that task and let has pending ready promise be true.
     if (m_pending_play_task == TaskState::Scheduled) {
-        m_pending_pause_task = TaskState::None;
+        m_pending_play_task = TaskState::None;
         has_pending_ready_promise = true;
     }
 
