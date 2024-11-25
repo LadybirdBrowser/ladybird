@@ -81,6 +81,10 @@ void ZonedDateTimePrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.valueOf, value_of, 0, attr);
     define_native_function(realm, vm.names.startOfDay, start_of_day, 0, attr);
     define_native_function(realm, vm.names.getTimeZoneTransition, get_time_zone_transition, 1, attr);
+    define_native_function(realm, vm.names.toInstant, to_instant, 0, attr);
+    define_native_function(realm, vm.names.toPlainDate, to_plain_date, 0, attr);
+    define_native_function(realm, vm.names.toPlainTime, to_plain_time, 0, attr);
+    define_native_function(realm, vm.names.toPlainDateTime, to_plain_date_time, 0, attr);
 }
 
 // 6.3.3 get Temporal.ZonedDateTime.prototype.calendarId, https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.calendarid
@@ -899,6 +903,59 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::get_time_zone_transition)
 
     // 12. Return ! CreateTemporalZonedDateTime(transition, timeZone, zonedDateTime.[[Calendar]]).
     return MUST(create_temporal_zoned_date_time(vm, BigInt::create(vm, transition.release_value()), time_zone, zoned_date_time->calendar()));
+}
+
+// 6.3.47 Temporal.ZonedDateTime.prototype.toInstant ( ), https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.toinstant
+JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::to_instant)
+{
+    // 1. Let zonedDateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(zonedDateTime, [[InitializedTemporalZonedDateTime]]).
+    auto zoned_date_time = TRY(typed_this_object(vm));
+
+    // 3. Return ! CreateTemporalInstant(zonedDateTime.[[EpochNanoseconds]]).
+    return MUST(create_temporal_instant(vm, zoned_date_time->epoch_nanoseconds()));
+}
+
+// 6.3.48 Temporal.ZonedDateTime.prototype.toPlainDate ( ), https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.toplaindate
+JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::to_plain_date)
+{
+    // 1. Let zonedDateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(zonedDateTime, [[InitializedTemporalZonedDateTime]]).
+    auto zoned_date_time = TRY(typed_this_object(vm));
+
+    // 3. Let isoDateTime be GetISODateTimeFor(zonedDateTime.[[TimeZone]], zonedDateTime.[[EpochNanoseconds]]).
+    auto iso_date_time = get_iso_date_time_for(zoned_date_time->time_zone(), zoned_date_time->epoch_nanoseconds()->big_integer());
+
+    // 4. Return ! CreateTemporalDate(isoDateTime.[[ISODate]], zonedDateTime.[[Calendar]].).
+    return MUST(create_temporal_date(vm, iso_date_time.iso_date, zoned_date_time->calendar()));
+}
+
+// 6.3.49 Temporal.ZonedDateTime.prototype.toPlainTime ( ), https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.toplaintime
+JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::to_plain_time)
+{
+    // 1. Let zonedDateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(zonedDateTime, [[InitializedTemporalZonedDateTime]]).
+    auto zoned_date_time = TRY(typed_this_object(vm));
+
+    // 3. Let isoDateTime be GetISODateTimeFor(zonedDateTime.[[TimeZone]], zonedDateTime.[[EpochNanoseconds]]).
+    auto iso_date_time = get_iso_date_time_for(zoned_date_time->time_zone(), zoned_date_time->epoch_nanoseconds()->big_integer());
+
+    // 4. Return ! CreateTemporalTime(isoDateTime.[[Time]]).
+    return MUST(create_temporal_time(vm, iso_date_time.time));
+}
+
+// 6.3.50 Temporal.ZonedDateTime.prototype.toPlainDateTime ( ), https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.toplaindatetime
+JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::to_plain_date_time)
+{
+    // 1. Let zonedDateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(zonedDateTime, [[InitializedTemporalZonedDateTime]]).
+    auto zoned_date_time = TRY(typed_this_object(vm));
+
+    // 3. Let isoDateTime be GetISODateTimeFor(zonedDateTime.[[TimeZone]], zonedDateTime.[[EpochNanoseconds]]).
+    auto iso_date_time = get_iso_date_time_for(zoned_date_time->time_zone(), zoned_date_time->epoch_nanoseconds()->big_integer());
+
+    // 4. Return ! CreateTemporalDateTime(isoDateTime, zonedDateTime.[[Calendar]]).
+    return MUST(create_temporal_date_time(vm, iso_date_time, zoned_date_time->calendar()));
 }
 
 }
