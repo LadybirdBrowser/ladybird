@@ -33,7 +33,7 @@ public:
     String api_url_character_encoding() const override { return m_api_url_character_encoding; }
     URL::URL api_base_url() const override;
     URL::Origin origin() const override;
-    PolicyContainer policy_container() const override;
+    GC::Ref<PolicyContainer> policy_container() const override;
     CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() const override;
     double time_origin() const override;
 

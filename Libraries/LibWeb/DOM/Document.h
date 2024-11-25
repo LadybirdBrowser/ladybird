@@ -548,8 +548,8 @@ public:
     void set_active_sandboxing_flag_set(HTML::SandboxingFlagSet);
 
     // https://html.spec.whatwg.org/multipage/dom.html#concept-document-policy-container
-    HTML::PolicyContainer policy_container() const;
-    void set_policy_container(HTML::PolicyContainer);
+    GC::Ref<HTML::PolicyContainer> policy_container() const;
+    void set_policy_container(GC::Ref<HTML::PolicyContainer>);
 
     Vector<GC::Root<HTML::Navigable>> descendant_navigables();
     Vector<GC::Root<HTML::Navigable>> const descendant_navigables() const;
@@ -635,7 +635,7 @@ public:
 
     u32 unload_counter() const { return m_unload_counter; }
 
-    HTML::SourceSnapshotParams snapshot_source_snapshot_params() const;
+    GC::Ref<HTML::SourceSnapshotParams> snapshot_source_snapshot_params() const;
 
     void update_for_history_step_application(GC::Ref<HTML::SessionHistoryEntry>, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<Bindings::NavigationType> navigation_type, Optional<Vector<GC::Ref<HTML::SessionHistoryEntry>>> entries_for_navigation_api = {}, GC::Ptr<HTML::SessionHistoryEntry> previous_entry_for_activation = {}, bool update_navigation_api = true);
 
@@ -1018,7 +1018,7 @@ private:
     HTML::SandboxingFlagSet m_active_sandboxing_flag_set;
 
     // https://html.spec.whatwg.org/multipage/dom.html#concept-document-policy-container
-    HTML::PolicyContainer m_policy_container;
+    mutable GC::Ptr<HTML::PolicyContainer> m_policy_container;
 
     // https://html.spec.whatwg.org/multipage/interaction.html#visibility-state
     HTML::VisibilityState m_visibility_state { HTML::VisibilityState::Hidden };

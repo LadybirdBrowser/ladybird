@@ -438,7 +438,7 @@ GC_DEFINE_ALLOCATOR(ChangingNavigableContinuationState);
 TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_step(
     int step,
     bool check_for_cancelation,
-    IGNORE_USE_IN_ESCAPING_LAMBDA Optional<SourceSnapshotParams> source_snapshot_params,
+    GC::Ptr<SourceSnapshotParams> source_snapshot_params,
     GC::Ptr<Navigable> initiator_to_check,
     IGNORE_USE_IN_ESCAPING_LAMBDA UserNavigationInvolvement user_involvement,
     IGNORE_USE_IN_ESCAPING_LAMBDA Optional<Bindings::NavigationType> navigation_type,
@@ -456,7 +456,7 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
     // 3. If initiatorToCheck is not null, then:
     if (initiator_to_check != nullptr) {
         // 1. Assert: sourceSnapshotParams is not null.
-        VERIFY(source_snapshot_params.has_value());
+        VERIFY(source_snapshot_params);
 
         // 2. For each navigable of get all navigables whose current session history entry will change or reload:
         //    if initiatorToCheck is not allowed by sandboxing to navigate navigable given sourceSnapshotParams, then return "initiator-disallowed".
@@ -628,10 +628,10 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
                 auto target_snapshot_params = navigable->snapshot_target_snapshot_params();
 
                 // 3. Let potentiallyTargetSpecificSourceSnapshotParams be sourceSnapshotParams.
-                Optional<SourceSnapshotParams> potentially_target_specific_source_snapshot_params = source_snapshot_params;
+                GC::Ptr<SourceSnapshotParams> potentially_target_specific_source_snapshot_params = source_snapshot_params;
 
                 // 4. If potentiallyTargetSpecificSourceSnapshotParams is null, then set it to the result of snapshotting source snapshot params given navigable's active document.
-                if (!potentially_target_specific_source_snapshot_params.has_value()) {
+                if (!potentially_target_specific_source_snapshot_params) {
                     potentially_target_specific_source_snapshot_params = navigable->active_document()->snapshot_source_snapshot_params();
                 }
 
@@ -1134,17 +1134,17 @@ bool TraversableNavigable::can_go_forward() const
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#traverse-the-history-by-a-delta
-void TraversableNavigable::traverse_the_history_by_delta(int delta, Optional<DOM::Document&> source_document)
+void TraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr<DOM::Document> source_document)
 {
     // 1. Let sourceSnapshotParams and initiatorToCheck be null.
-    Optional<SourceSnapshotParams> source_snapshot_params = {};
+    GC::Ptr<SourceSnapshotParams> source_snapshot_params = nullptr;
     GC::Ptr<Navigable> initiator_to_check = nullptr;
 
     // 2. Let userInvolvement be "browser UI".
     UserNavigationInvolvement user_involvement = UserNavigationInvolvement::BrowserUI;
 
     // 1. If sourceDocument is given, then:
-    if (source_document.has_value()) {
+    if (source_document) {
         // 1. Set sourceSnapshotParams to the result of snapshotting source snapshot params given sourceDocument.
         source_snapshot_params = source_document->snapshot_source_snapshot_params();
 
@@ -1156,7 +1156,7 @@ void TraversableNavigable::traverse_the_history_by_delta(int delta, Optional<DOM
     }
 
     // 4. Append the following session history traversal steps to traversable:
-    append_session_history_traversal_steps(GC::create_function(heap(), [this, delta, source_snapshot_params = move(source_snapshot_params), initiator_to_check, user_involvement] {
+    append_session_history_traversal_steps(GC::create_function(heap(), [this, delta, source_snapshot_params, initiator_to_check, user_involvement] {
         // 1. Let allSteps be the result of getting all used history steps for traversable.
         auto all_steps = get_all_used_history_steps();
 
@@ -1205,10 +1205,10 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_push_or_
     return apply_the_history_step(step, false, {}, {}, user_involvement, navigation_type, synchronous_navigation);
 }
 
-TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_traverse_history_step(int step, Optional<SourceSnapshotParams> source_snapshot_params, GC::Ptr<Navigable> initiator_to_check, UserNavigationInvolvement user_involvement)
+TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_traverse_history_step(int step, GC::Ptr<SourceSnapshotParams> source_snapshot_params, GC::Ptr<Navigable> initiator_to_check, UserNavigationInvolvement user_involvement)
 {
     // 1. Return the result of applying the history step step to traversable given true, sourceSnapshotParams, initiatorToCheck, userInvolvement, and "traverse".
-    return apply_the_history_step(step, true, move(source_snapshot_params), initiator_to_check, user_involvement, Bindings::NavigationType::Traverse, SynchronousNavigation::No);
+    return apply_the_history_step(step, true, source_snapshot_params, initiator_to_check, user_involvement, Bindings::NavigationType::Traverse, SynchronousNavigation::No);
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#close-a-top-level-traversable

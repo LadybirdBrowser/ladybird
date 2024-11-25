@@ -251,7 +251,7 @@ WebIDL::ExceptionOr<BrowsingContext::BrowsingContextAndDocument> BrowsingContext
         document->set_referrer(creator->url().serialize());
 
         // 2. Set document's policy container to a clone of creator's policy container.
-        document->set_policy_container(creator->policy_container());
+        document->set_policy_container(creator->policy_container()->clone(document->realm()));
 
         // 3. If creator's origin is same origin with creator's relevant settings object's top-level origin,
         if (creator->origin().is_same_origin(creator->relevant_settings_object().top_level_origin)) {

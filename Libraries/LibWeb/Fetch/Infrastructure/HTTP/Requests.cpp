@@ -33,6 +33,9 @@ void Request::visit_edges(JS::Cell::Visitor& visitor)
         [&](GC::Ptr<HTML::EnvironmentSettingsObject> const& value) { visitor.visit(value); },
         [](auto const&) {});
     visitor.visit(m_pending_responses);
+    m_policy_container.visit(
+        [&](GC::Ref<HTML::PolicyContainer> const& policy_container) { visitor.visit(policy_container); },
+        [](auto const&) {});
 }
 
 GC::Ref<Request> Request::create(JS::VM& vm)
@@ -359,7 +362,7 @@ bool Request::cross_origin_embedder_policy_allows_credentials() const
         return true;
 
     // 3. If request’s client’s policy container’s embedder policy’s value is not "credentialless", then return true.
-    if (m_policy_container.has<HTML::PolicyContainer>() && m_policy_container.get<HTML::PolicyContainer>().embedder_policy.value != HTML::EmbedderPolicyValue::Credentialless)
+    if (m_policy_container.has<GC::Ref<HTML::PolicyContainer>>() && m_policy_container.get<GC::Ref<HTML::PolicyContainer>>()->embedder_policy.value != HTML::EmbedderPolicyValue::Credentialless)
         return true;
 
     // 4. If request’s origin is same origin with request’s current URL’s origin and request does not have a redirect-tainted origin, then return true.
