@@ -24,6 +24,7 @@ class Event;
 class EventLoop;
 class EventReceiver;
 class File;
+class Gamepad;
 class LocalServer;
 class LocalSocket;
 class MappedFile;

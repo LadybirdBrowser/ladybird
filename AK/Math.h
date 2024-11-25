@@ -1034,6 +1034,14 @@ constexpr I clamp_to(T value)
     return value;
 }
 
+template<Arithmetic A>
+static double normalize_value_in_range(A value, A low, A high)
+{
+    VERIFY(low != high);
+    VERIFY(value >= low && value <= high);
+    return (static_cast<double>(value) - static_cast<double>(low)) * 2.0 / (static_cast<double>(high) - static_cast<double>(low)) - 1.0;
+}
+
 #undef CONSTEXPR_STATE
 #undef AARCH64_INSTRUCTION
 }
