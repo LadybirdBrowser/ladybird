@@ -64,6 +64,8 @@ void ZonedDateTimePrototype::initialize(Realm& realm)
     u8 attr = Attribute::Writable | Attribute::Configurable;
     define_native_function(realm, vm.names.add, add, 1, attr);
     define_native_function(realm, vm.names.subtract, subtract, 1, attr);
+    define_native_function(realm, vm.names.until, until, 1, attr);
+    define_native_function(realm, vm.names.since, since, 1, attr);
     define_native_function(realm, vm.names.equals, equals, 1, attr);
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
@@ -371,6 +373,34 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::subtract)
 
     // 3. Return ? AddDurationToZonedDateTime(SUBTRACT, zonedDateTime, temporalDurationLike, options).
     return TRY(add_duration_to_zoned_date_time(vm, ArithmeticOperation::Subtract, zoned_date_time, temporal_duration_like, options));
+}
+
+// 6.3.37 Temporal.ZonedDateTime.prototype.until ( other [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.until
+JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::until)
+{
+    auto other = vm.argument(0);
+    auto options = vm.argument(1);
+
+    // 1. Let zonedDateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(zonedDateTime, [[InitializedTemporalZonedDateTime]]).
+    auto zoned_date_time = TRY(typed_this_object(vm));
+
+    // 3. Return ? DifferenceTemporalZonedDateTime(UNTIL, zonedDateTime, other, options).
+    return TRY(difference_temporal_zoned_date_time(vm, DurationOperation::Until, zoned_date_time, other, options));
+}
+
+// 6.3.38 Temporal.ZonedDateTime.prototype.since ( other [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.since
+JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::since)
+{
+    auto other = vm.argument(0);
+    auto options = vm.argument(1);
+
+    // 1. Let zonedDateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(zonedDateTime, [[InitializedTemporalZonedDateTime]]).
+    auto zoned_date_time = TRY(typed_this_object(vm));
+
+    // 3. Return ? DifferenceTemporalZonedDateTime(SINCE, zonedDateTime, other, options).
+    return TRY(difference_temporal_zoned_date_time(vm, DurationOperation::Since, zoned_date_time, other, options));
 }
 
 // 6.3.40 Temporal.ZonedDateTime.prototype.equals ( other ), https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.equals
