@@ -730,7 +730,7 @@ ThrowCompletionOr<ISODate> calendar_date_to_iso(VM& vm, StringView calendar, Cal
 
     // 2. Return an implementation-defined ISO Date Record, or throw a RangeError exception, as described below.
     // FIXME: Create an ISODateRecord based on an ISO8601 calendar for now. See also: CalendarResolveFields.
-    return calendar_month_day_to_iso_reference_date(vm, "iso8601"sv, fields, overflow);
+    return calendar_date_to_iso(vm, "iso8601"sv, fields, overflow);
 }
 
 // 12.2.20 CalendarMonthDayToISOReferenceDate ( calendar, fields, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendarmonthdaytoisoreferencedate
