@@ -25,15 +25,12 @@ shared_library("LibGfx") {
   public_configs = [ ":tiff_headers" ]
   sources = [
     "AffineTransform.cpp",
-    "AntiAliasingPainter.cpp",
     "Bitmap.cpp",
     "BitmapSequence.cpp",
     "CMYKBitmap.cpp",
     "Color.cpp",
     "DeltaE.cpp",
-    "DeprecatedPainter.cpp",
     "DeprecatedPath.cpp",
-    "EdgeFlagPathRasterizer.cpp",
     "Font/Font.cpp",
     "Font/FontData.cpp",
     "Font/FontDatabase.cpp",

@@ -8,7 +8,6 @@
  */
 
 #include <AK/OwnPtr.h>
-#include <LibGfx/DeprecatedPainter.h>
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/Quad.h>
 #include <LibGfx/Rect.h>

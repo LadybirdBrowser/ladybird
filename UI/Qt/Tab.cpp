@@ -7,7 +7,6 @@
  */
 
 #include <AK/TemporaryChange.h>
-#include <LibGfx/DeprecatedPainter.h>
 #include <LibGfx/ImageFormats/BMPWriter.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/SearchEngine.h>

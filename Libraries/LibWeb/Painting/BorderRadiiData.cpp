@@ -10,9 +10,9 @@
 
 namespace Web::Painting {
 
-Gfx::CornerRadius BorderRadiusData::as_corner(PaintContext const& context) const
+CornerRadius BorderRadiusData::as_corner(PaintContext const& context) const
 {
-    return Gfx::CornerRadius {
+    return CornerRadius {
         context.floored_device_pixels(horizontal_radius).value(),
         context.floored_device_pixels(vertical_radius).value()
     };

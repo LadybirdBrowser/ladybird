@@ -7,17 +7,25 @@
 
 #pragma once
 
-#include <LibGfx/AntiAliasingPainter.h>
-#include <LibGfx/Forward.h>
 #include <LibWeb/CSS/ComputedValues.h>
 
 namespace Web::Painting {
+
+struct CornerRadius {
+    int horizontal_radius { 0 };
+    int vertical_radius { 0 };
+
+    inline operator bool() const
+    {
+        return horizontal_radius > 0 && vertical_radius > 0;
+    }
+};
 
 struct BorderRadiusData {
     CSSPixels horizontal_radius { 0 };
     CSSPixels vertical_radius { 0 };
 
-    Gfx::CornerRadius as_corner(PaintContext const& context) const;
+    CornerRadius as_corner(PaintContext const& context) const;
 
     inline operator bool() const
     {
@@ -38,8 +46,6 @@ struct BorderRadiusData {
         vertical_radius = max(vertical_radius, other.vertical_radius);
     }
 };
-
-using CornerRadius = Gfx::CornerRadius;
 
 struct CornerRadii {
     CornerRadius top_left;
