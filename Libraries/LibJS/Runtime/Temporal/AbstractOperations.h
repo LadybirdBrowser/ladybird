@@ -64,6 +64,17 @@ enum class ShowCalendar {
     Critical,
 };
 
+enum class ShowOffset {
+    Auto,
+    Never,
+};
+
+enum class ShowTimeZoneName {
+    Auto,
+    Never,
+    Critical,
+};
+
 enum class TimeStyle {
     Separated,
     Unseparated,
@@ -161,6 +172,8 @@ ThrowCompletionOr<Overflow> get_temporal_overflow_option(VM&, Object const& opti
 ThrowCompletionOr<Disambiguation> get_temporal_disambiguation_option(VM&, Object const& options);
 RoundingMode negate_rounding_mode(RoundingMode);
 ThrowCompletionOr<OffsetOption> get_temporal_offset_option(VM&, Object const& options, OffsetOption fallback);
+ThrowCompletionOr<ShowTimeZoneName> get_temporal_show_time_zone_name_option(VM&, Object const& options);
+ThrowCompletionOr<ShowOffset> get_temporal_show_offset_option(VM&, Object const& options);
 ThrowCompletionOr<ShowCalendar> get_temporal_show_calendar_name_option(VM&, Object const& options);
 ThrowCompletionOr<void> validate_temporal_rounding_increment(VM&, u64 increment, u64 dividend, bool inclusive);
 ThrowCompletionOr<Precision> get_temporal_fractional_second_digits_option(VM&, Object const& options);
@@ -184,7 +197,7 @@ Crypto::SignedBigInteger round_number_to_increment_as_if_positive(Crypto::Signed
 ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM&, StringView iso_string, ReadonlySpan<Production> allowed_formats);
 ThrowCompletionOr<String> parse_temporal_calendar_string(VM&, String const&);
 ThrowCompletionOr<GC::Ref<Duration>> parse_temporal_duration_string(VM&, StringView iso_string);
-ThrowCompletionOr<TimeZone> parse_temporal_time_zone_string(VM& vm, StringView time_zone_string);
+ThrowCompletionOr<TimeZone> parse_temporal_time_zone_string(VM&, StringView time_zone_string);
 ThrowCompletionOr<String> to_month_code(VM&, Value argument);
 ThrowCompletionOr<String> to_offset_string(VM&, Value argument);
 CalendarFields iso_date_to_fields(StringView calendar, ISODate const&, DateType);
