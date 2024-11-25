@@ -3752,6 +3752,69 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X25519::export_key(Bindings::KeyFormat 
 }
 
 // https://wicg.github.io/webcrypto-secure-curves/#x448-operations
+WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> X448::derive_bits(
+    AlgorithmParams const& params,
+    GC::Ref<CryptoKey> key,
+    Optional<u32> length_optional)
+{
+    // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+    if (key->type() != Bindings::KeyType::Private)
+        return WebIDL::InvalidAccessError::create(m_realm, "Key is not a private key"_string);
+
+    // 2. Let publicKey be the public member of normalizedAlgorithm.
+    auto& public_key = static_cast<EcdhKeyDerivePrams const&>(params).public_key;
+
+    // 3. If the [[type]] internal slot of publicKey is not "public", then throw an InvalidAccessError.
+    if (public_key->type() != Bindings::KeyType::Public)
+        return WebIDL::InvalidAccessError::create(m_realm, "Public key is not a public key"_string);
+
+    // 4. If the name attribute of the [[algorithm]] internal slot of publicKey is not equal to
+    //    the name property of the [[algorithm]] internal slot of key, then throw an InvalidAccessError.
+    auto& internal_algorithm = static_cast<KeyAlgorithm const&>(*key->algorithm());
+    auto& public_internal_algorithm = static_cast<KeyAlgorithm const&>(*public_key->algorithm());
+    if (internal_algorithm.name() != public_internal_algorithm.name())
+        return WebIDL::InvalidAccessError::create(m_realm, "Algorithm mismatch"_string);
+
+    // 5. Let secret be the result of performing the X448 function specified in [RFC7748] Section 5
+    //    with key as the X448 private key k and the X448 public key represented by the [[handle]]
+    //    internal slot of publicKey as the X448 public key u.
+    auto private_key = key->handle().get<ByteBuffer>();
+    auto public_key_data = public_key->handle().get<ByteBuffer>();
+
+    ::Crypto::Curves::X448 curve;
+    auto maybe_secret = curve.compute_coordinate(private_key, public_key_data);
+    if (maybe_secret.is_error())
+        return WebIDL::OperationError::create(m_realm, "Failed to compute secret"_string);
+
+    auto secret = maybe_secret.release_value();
+
+    // 6. If secret is the all-zero value, then throw a OperationError. This check must be performed in constant-time, as per [RFC7748] Section 6.2.
+    // NOTE: The check may be performed by ORing all the bytes together and checking whether the result is zero,
+    //       as this eliminates standard side-channels in software implementations.
+    auto or_bytes = 0;
+    for (auto byte : secret.bytes()) {
+        or_bytes |= byte;
+    }
+
+    if (or_bytes == 0)
+        return WebIDL::OperationError::create(m_realm, "Secret is the all-zero value"_string);
+
+    // 7. If length is null: Return secret
+    if (!length_optional.has_value()) {
+        auto result = TRY_OR_THROW_OOM(m_realm->vm(), ByteBuffer::copy(secret));
+        return JS::ArrayBuffer::create(m_realm, move(result));
+    }
+
+    // Otherwise: Return an octet string containing the first length bits of secret.
+    auto length = length_optional.value();
+    if (secret.size() * 8 < length)
+        return WebIDL::OperationError::create(m_realm, "Secret is too short"_string);
+
+    auto slice = TRY_OR_THROW_OOM(m_realm->vm(), secret.slice(0, length / 8));
+    return JS::ArrayBuffer::create(m_realm, move(slice));
+}
+
+// https://wicg.github.io/webcrypto-secure-curves/#x448-operations
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> X448::generate_key(
     AlgorithmParams const&,
     bool extractable,

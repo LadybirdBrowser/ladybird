@@ -873,7 +873,7 @@ SupportedAlgorithmsMap const& supported_algorithms()
     define_an_algorithm<X25519>("exportKey"_string, "X25519"_string);
 
     // https://wicg.github.io/webcrypto-secure-curves/#x448-registration
-    // FIXME: define_an_algorithm<X448, EcdhKeyDerivePrams>("deriveBits"_string, "X448"_string);
+    define_an_algorithm<X448, EcdhKeyDerivePrams>("deriveBits"_string, "X448"_string);
     define_an_algorithm<X448>("generateKey"_string, "X448"_string);
     define_an_algorithm<X448>("importKey"_string, "X448"_string);
     define_an_algorithm<X448>("exportKey"_string, "X448"_string);
