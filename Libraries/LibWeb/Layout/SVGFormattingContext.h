@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibGfx/DeprecatedPath.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/FormattingContext.h>
 #include <LibWeb/Layout/SVGImageBox.h>
