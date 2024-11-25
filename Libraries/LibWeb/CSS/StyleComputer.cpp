@@ -1038,37 +1038,36 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
         return;
 
     auto& keyframes = effect->key_frame_set()->keyframes_by_key;
-
-    // FIXME: Support progress values outside [0-1]
-    output_progress = clamp(output_progress.value(), 0, 1);
-    auto key = static_cast<u64>(output_progress.value() * 100.0 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor);
-    auto matching_keyframe_it = keyframes.find_largest_not_above_iterator(key);
-    if (matching_keyframe_it.is_end()) {
+    if (keyframes.size() < 2) {
         if constexpr (LIBWEB_CSS_ANIMATION_DEBUG) {
-            dbgln("    Did not find any start keyframe for the current state ({}) :(", key);
-            dbgln("    (have {} keyframes)", keyframes.size());
+            dbgln("    Did not find enough keyframes ({} keyframes)", keyframes.size());
             for (auto it = keyframes.begin(); it != keyframes.end(); ++it)
                 dbgln("        - {}", it.key());
         }
         return;
     }
 
-    auto keyframe_start = matching_keyframe_it.key();
-    auto keyframe_values = *matching_keyframe_it;
+    auto key = static_cast<i64>(round(output_progress.value() * 100.0 * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor));
+    auto keyframe_start_it = [&] {
+        if (output_progress.value() <= 0) {
+            return keyframes.begin();
+        }
+        auto potential_match = keyframes.find_largest_not_above_iterator(key);
+        if (output_progress.value() >= 0) {
+            return --potential_match;
+        }
+        return potential_match;
+    }();
+    auto keyframe_start = static_cast<i64>(keyframe_start_it.key());
+    auto keyframe_values = *keyframe_start_it;
 
-    auto initial_keyframe_it = matching_keyframe_it;
-    auto keyframe_end_it = ++matching_keyframe_it;
-    if (keyframe_end_it.is_end())
-        keyframe_end_it = initial_keyframe_it;
-
-    auto keyframe_end = keyframe_end_it.key();
+    auto keyframe_end_it = ++keyframe_start_it;
+    VERIFY(!keyframe_end_it.is_end());
+    auto keyframe_end = static_cast<i64>(keyframe_end_it.key());
     auto keyframe_end_values = *keyframe_end_it;
 
-    auto progress_in_keyframe = [&] {
-        if (keyframe_start == keyframe_end)
-            return 0.f;
-        return static_cast<float>(key - keyframe_start) / static_cast<float>(keyframe_end - keyframe_start);
-    }();
+    auto progress_in_keyframe
+        = static_cast<float>(key - keyframe_start) / static_cast<float>(keyframe_end - keyframe_start);
 
     if constexpr (LIBWEB_CSS_ANIMATION_DEBUG) {
         auto valid_properties = keyframe_values.properties.size();
