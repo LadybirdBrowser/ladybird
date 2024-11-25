@@ -183,8 +183,10 @@ static GC::Ref<HTML::BrowsingContext> obtain_a_browsing_context_to_use_for_a_nav
         VERIFY(navigation_coop.value == HTML::OpenerPolicyValue::UnsafeNone);
 
         // 2. Assert: newBrowsingContext's popup sandboxing flag set is empty.
+        VERIFY(is_empty(new_browsing_context->popup_sandboxing_flag_set()));
 
         // 3. Set newBrowsingContext's popup sandboxing flag set to a clone of sandboxFlags.
+        new_browsing_context->set_popup_sandboxing_flag_set(sandbox_flags);
     }
 
     // 6. Return newBrowsingContext.
@@ -3213,6 +3215,11 @@ Optional<String> Document::navigation_id() const
 HTML::SandboxingFlagSet Document::active_sandboxing_flag_set() const
 {
     return m_active_sandboxing_flag_set;
+}
+
+void Document::set_active_sandboxing_flag_set(HTML::SandboxingFlagSet sandboxing_flag_set)
+{
+    m_active_sandboxing_flag_set = sandboxing_flag_set;
 }
 
 HTML::PolicyContainer Document::policy_container() const

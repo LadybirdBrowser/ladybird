@@ -476,13 +476,16 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
                 // 1. Set chosen to the result of creating a new top-level traversable given currentNavigable's active browsing context and targetName.
                 chosen = create_new_traversable->function()(active_browsing_context());
 
-                // FIXME: 2. If sandboxingFlagSet's sandboxed navigation browsing context flag is set,
+                // 2. If sandboxingFlagSet's sandboxed navigation browsing context flag is set,
                 //    then set chosen's active browsing context's one permitted sandboxed navigator to currentNavigable's active browsing context.
+                if (has_flag(sandboxing_flag_set, SandboxingFlagSet::SandboxedNavigation))
+                    chosen->active_browsing_context()->set_the_one_permitted_sandboxed_navigator(active_browsing_context());
             }
 
-            // FIXME: 10. If sandboxingFlagSet's sandbox propagates to auxiliary browsing contexts flag is set,
-            //    then all the flags that are set in sandboxingFlagSet must be set in chosen's active browsing context's popup sandboxing flag set.
-            // Our BrowsingContexts do not have SandboxingFlagSets yet, only documents do
+            // 10. If sandboxingFlagSet's sandbox propagates to auxiliary browsing contexts flag is set,
+            //     then all the flags that are set in sandboxingFlagSet must be set in chosen's active browsing context's popup sandboxing flag set.
+            if (has_flag(sandboxing_flag_set, SandboxingFlagSet::SandboxPropagatesToAuxiliaryBrowsingContexts))
+                chosen->active_browsing_context()->set_popup_sandboxing_flag_set(chosen->active_browsing_context()->popup_sandboxing_flag_set() | sandboxing_flag_set);
         }
 
         // --> If the user agent has been configured such that in this instance t will reuse current

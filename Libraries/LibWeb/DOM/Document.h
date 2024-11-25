@@ -526,6 +526,7 @@ public:
 
     // https://html.spec.whatwg.org/multipage/origin.html#active-sandboxing-flag-set
     HTML::SandboxingFlagSet active_sandboxing_flag_set() const;
+    void set_active_sandboxing_flag_set(HTML::SandboxingFlagSet);
 
     // https://html.spec.whatwg.org/multipage/dom.html#concept-document-policy-container
     HTML::PolicyContainer policy_container() const;
