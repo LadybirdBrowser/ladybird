@@ -1,0 +1,16 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 5 tests
+
+4 Pass
+1 Fail
+Details
+Result	Test Name	MessagePass	A misssing attribute is equivalent to size=20	
+Pass	An invalid attribute value is equivalent to size=20	
+Pass	The width depends on a size attribute	
+Pass	Size attribute value affects layout-dependent computed style	
+Fail	Size attribute value is not a presentational hint	
