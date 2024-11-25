@@ -84,7 +84,9 @@ bool EventDispatcher::inner_invoke(Event& event, Vector<GC::Root<DOM::DOMEventLi
         if (listener->passive)
             event.set_in_passive_listener(true);
 
-        // 10. Call a user object’s operation with listener’s callback, "handleEvent", « event », and event’s currentTarget attribute value. If this throws an exception, then:
+        // FIXME: 10. If global is a Window object, then record timing info for event listener given event and listener.
+
+        // 11. Call a user object’s operation with listener’s callback, "handleEvent", « event », and event’s currentTarget attribute value.
         // FIXME: These should be wrapped for us in call_user_object_operation, but it currently doesn't do that.
         auto* this_value = event.current_target().ptr();
         auto* wrapped_event = &event;
@@ -100,18 +102,18 @@ bool EventDispatcher::inner_invoke(Event& event, Vector<GC::Root<DOM::DOMEventLi
             // FIXME: 2. Set legacyOutputDidListenersThrowFlag if given. (Only used by IndexedDB currently)
         }
 
-        // 11. Unset event’s in passive listener flag.
+        // 12. Unset event’s in passive listener flag.
         event.set_in_passive_listener(false);
 
-        // 12. If global is a Window object, then set global’s current event to currentEvent.
+        // 13. If global is a Window object, then set global’s current event to currentEvent.
         if (is<HTML::Window>(global)) {
             auto& window = verify_cast<HTML::Window>(global);
             window.set_current_event(current_event);
         }
 
-        // 13. If event’s stop immediate propagation flag is set, then return found.
+        // 14. If event’s stop immediate propagation flag is set, then break.
         if (event.should_stop_immediate_propagation())
-            return found;
+            break;
     }
 
     // 3. Return found.
