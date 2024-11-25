@@ -37,19 +37,17 @@ bool is_using_dark_system_theme(QWidget&);
 bool is_using_dark_system_theme(QWidget& widget)
 {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-    // We use that only for fallback mode
-    Q_UNUSED(widget);
-    // Use the new Qt API available from version 6.5.0
+    // Use the explicitly set or system default color scheme whenever available
     auto color_scheme = QGuiApplication::styleHints()->colorScheme();
-    return color_scheme == Qt::ColorScheme::Dark;
-#else
-    // Fallback for older Qt versions
+    if (color_scheme != Qt::ColorScheme::Unknown)
+        return color_scheme == Qt::ColorScheme::Dark;
+#endif
+
     // Calculate luma based on Rec. 709 coefficients
     // https://en.wikipedia.org/wiki/Rec._709#Luma_coefficients
     auto color = widget.palette().color(widget.backgroundRole());
     auto luma = 0.2126f * color.redF() + 0.7152f * color.greenF() + 0.0722f * color.blueF();
     return luma <= 0.5f;
-#endif
 }
 
 }
