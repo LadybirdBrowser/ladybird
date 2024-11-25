@@ -6,12 +6,14 @@
 
 #pragma once
 
+#include <LibWeb/ContentSecurityPolicy/SerializedPolicy.h>
 #include <LibWeb/HTML/EmbedderPolicy.h>
 #include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::HTML {
 
 struct SerializedPolicyContainer {
+    Vector<ContentSecurityPolicy::SerializedPolicy> csp_list;
     EmbedderPolicy embedder_policy;
     ReferrerPolicy::ReferrerPolicy referrer_policy;
 };
