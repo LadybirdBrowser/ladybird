@@ -1863,9 +1863,10 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_min_length(WebIDL::Long value)
 // https://html.spec.whatwg.org/multipage/input.html#the-size-attribute
 unsigned HTMLInputElement::size() const
 {
+    // The size attribute, if specified, must have a value that is a valid non-negative integer greater than zero.
     // The size IDL attribute is limited to only positive numbers and has a default value of 20.
     if (auto size_string = get_attribute(HTML::AttributeNames::size); size_string.has_value()) {
-        if (auto size = parse_non_negative_integer(*size_string); size.has_value())
+        if (auto size = parse_non_negative_integer(*size_string); size.has_value() && size.value() != 0)
             return *size;
     }
     return 20;
