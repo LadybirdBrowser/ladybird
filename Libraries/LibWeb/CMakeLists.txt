@@ -35,6 +35,13 @@ set(SOURCES
     Clipboard/ClipboardEvent.cpp
     Compression/CompressionStream.cpp
     Compression/DecompressionStream.cpp
+    ContentSecurityPolicy/Directives/Directive.cpp
+    ContentSecurityPolicy/Directives/DirectiveFactory.cpp
+    ContentSecurityPolicy/Directives/Names.cpp
+    ContentSecurityPolicy/Directives/SerializedDirective.cpp
+    ContentSecurityPolicy/Policy.cpp
+    ContentSecurityPolicy/PolicyList.cpp
+    ContentSecurityPolicy/SerializedPolicy.cpp
     Crypto/Crypto.cpp
     Crypto/CryptoAlgorithms.cpp
     Crypto/CryptoBindings.cpp

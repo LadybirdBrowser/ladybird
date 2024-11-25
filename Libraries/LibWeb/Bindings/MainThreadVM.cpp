@@ -25,6 +25,7 @@
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/SyntheticHostDefined.h>
 #include <LibWeb/Bindings/WindowExposedInterfaces.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/MutationType.h>
 #include <LibWeb/Editing/CommandNames.h>
@@ -104,6 +105,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
     custom_data.event_loop = s_main_thread_vm->heap().allocate<HTML::EventLoop>(type);
 
     // These strings could potentially live on the VM similar to CommonPropertyNames.
+    ContentSecurityPolicy::Directives::Names::initialize_strings();
     DOM::MutationType::initialize_strings();
     Editing::CommandNames::initialize_strings();
     HTML::AttributeNames::initialize_strings();
