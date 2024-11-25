@@ -524,6 +524,69 @@ ThrowCompletionOr<Crypto::BigFraction> difference_zoned_date_time_with_total(VM&
     return TRY(total_relative_duration(vm, difference, nanoseconds2, date_time, time_zone, calendar, unit));
 }
 
+// 6.5.9 DifferenceTemporalZonedDateTime ( operation, zonedDateTime, other, options ), https://tc39.es/proposal-temporal/#sec-temporal-differencetemporalzoneddatetime
+ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_zoned_date_time(VM& vm, DurationOperation operation, ZonedDateTime const& zoned_date_time, Value other_value, Value options)
+{
+    // 1. Set other to ? ToTemporalZonedDateTime(other).
+    auto other = TRY(to_temporal_zoned_date_time(vm, other_value));
+
+    // 2. If CalendarEquals(zonedDateTime.[[Calendar]], other.[[Calendar]]) is false, then
+    if (!calendar_equals(zoned_date_time.calendar(), other->calendar())) {
+        // a. Throw a RangeError exception.
+        return vm.throw_completion<RangeError>(ErrorType::TemporalDifferentCalendars);
+    }
+
+    // 3. Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolved_options = TRY(get_options_object(vm, options));
+
+    // 4. Let settings be ? GetDifferenceSettings(operation, resolvedOptions, DATETIME, « », NANOSECOND, HOUR).
+    auto settings = TRY(get_difference_settings(vm, operation, resolved_options, UnitGroup::DateTime, {}, Unit::Nanosecond, Unit::Hour));
+
+    // 5. If TemporalUnitCategory(settings.[[LargestUnit]]) is not DATE, then
+    if (temporal_unit_category(settings.largest_unit) != UnitCategory::Date) {
+        // a. Let internalDuration be DifferenceInstant(zonedDateTime.[[EpochNanoseconds]], other.[[EpochNanoseconds]], settings.[[RoundingIncrement]], settings.[[SmallestUnit]], settings.[[RoundingMode]]).
+        auto internal_duration = difference_instant(vm, zoned_date_time.epoch_nanoseconds()->big_integer(), other->epoch_nanoseconds()->big_integer(), settings.rounding_increment, settings.smallest_unit, settings.rounding_mode);
+
+        // b. Let result be ! TemporalDurationFromInternal(internalDuration, settings.[[LargestUnit]]).
+        auto result = MUST(temporal_duration_from_internal(vm, internal_duration, settings.largest_unit));
+
+        // c. If operation is SINCE, set result to CreateNegatedTemporalDuration(result).
+        if (operation == DurationOperation::Since)
+            result = create_negated_temporal_duration(vm, result);
+
+        // d. Return result.
+        return result;
+    }
+
+    // 6. NOTE: To calculate differences in two different time zones, settings.[[LargestUnit]] must be a time unit,
+    //    because day lengths can vary between time zones due to DST and other UTC offset shifts.
+
+    // 7. If TimeZoneEquals(zonedDateTime.[[TimeZone]], other.[[TimeZone]]) is false, then
+    if (!time_zone_equals(zoned_date_time.time_zone(), other->time_zone())) {
+        // a. Throw a RangeError exception.
+        return vm.throw_completion<RangeError>(ErrorType::TemporalDifferentTimeZones);
+    }
+
+    // 8. If zonedDateTime.[[EpochNanoseconds]] = other.[[EpochNanoseconds]], then
+    if (zoned_date_time.epoch_nanoseconds()->big_integer() == other->epoch_nanoseconds()->big_integer()) {
+        // a. Return ! CreateTemporalDuration(0, 0, 0, 0, 0, 0, 0, 0, 0, 0).
+        return MUST(create_temporal_duration(vm, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+    }
+
+    // 9. Let internalDuration be ? DifferenceZonedDateTimeWithRounding(zonedDateTime.[[EpochNanoseconds]], other.[[EpochNanoseconds]], zonedDateTime.[[TimeZone]], zonedDateTime.[[Calendar]], settings.[[LargestUnit]], settings.[[RoundingIncrement]], settings.[[SmallestUnit]], settings.[[RoundingMode]]).
+    auto internal_duration = TRY(difference_zoned_date_time_with_rounding(vm, zoned_date_time.epoch_nanoseconds()->big_integer(), other->epoch_nanoseconds()->big_integer(), zoned_date_time.time_zone(), zoned_date_time.calendar(), settings.largest_unit, settings.rounding_increment, settings.smallest_unit, settings.rounding_mode));
+
+    // 10. Let result be ? TemporalDurationFromInternal(internalDuration, HOUR).
+    auto result = TRY(temporal_duration_from_internal(vm, internal_duration, Unit::Hour));
+
+    // 11. If operation is SINCE, set result to CreateNegatedTemporalDuration(result).
+    if (operation == DurationOperation::Since)
+        result = create_negated_temporal_duration(vm, result);
+
+    // 12. Return result.
+    return result;
+}
+
 // 6.5.10 AddDurationToZonedDateTime ( operation, zonedDateTime, temporalDurationLike, options ), https://tc39.es/proposal-temporal/#sec-temporal-adddurationtozoneddatetime
 ThrowCompletionOr<GC::Ref<ZonedDateTime>> add_duration_to_zoned_date_time(VM& vm, ArithmeticOperation operation, ZonedDateTime const& zoned_date_time, Value temporal_duration_like, Value options)
 {
