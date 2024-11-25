@@ -24,7 +24,7 @@ public:
     virtual String api_url_character_encoding() const override;
     virtual URL::URL api_base_url() const override;
     virtual URL::Origin origin() const override;
-    virtual PolicyContainer policy_container() const override;
+    virtual GC::Ref<PolicyContainer> policy_container() const override;
     virtual CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() const override;
     virtual double time_origin() const override;
 
