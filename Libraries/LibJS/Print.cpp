@@ -468,7 +468,8 @@ ErrorOr<void> print_typed_array(JS::PrintContext& print_context, JS::TypedArrayB
     TRY(print_value(print_context, JS::Value(JS::typed_array_byte_length(typed_array_record)), seen_objects));
 
     TRY(js_out(print_context, "\n"));
-    // FIXME: This kinda sucks.
+    // FIXME: Find a better way to print typed arrays to the console.
+    // The current solution is limited to 100 lines, is hard to read, and hampers debugging.
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, ArrayType) \
     if (is<JS::ClassName>(typed_array_base)) {                                           \
         TRY(js_out(print_context, "[ "));                                                \
