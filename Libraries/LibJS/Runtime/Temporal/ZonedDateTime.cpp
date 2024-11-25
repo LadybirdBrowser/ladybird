@@ -524,4 +524,36 @@ ThrowCompletionOr<Crypto::BigFraction> difference_zoned_date_time_with_total(VM&
     return TRY(total_relative_duration(vm, difference, nanoseconds2, date_time, time_zone, calendar, unit));
 }
 
+// 6.5.10 AddDurationToZonedDateTime ( operation, zonedDateTime, temporalDurationLike, options ), https://tc39.es/proposal-temporal/#sec-temporal-adddurationtozoneddatetime
+ThrowCompletionOr<GC::Ref<ZonedDateTime>> add_duration_to_zoned_date_time(VM& vm, ArithmeticOperation operation, ZonedDateTime const& zoned_date_time, Value temporal_duration_like, Value options)
+{
+    // 1. Let duration be ? ToTemporalDuration(temporalDurationLike).
+    auto duration = TRY(to_temporal_duration(vm, temporal_duration_like));
+
+    // 2. If operation is SUBTRACT, set duration to CreateNegatedTemporalDuration(duration).
+    if (operation == ArithmeticOperation::Subtract)
+        duration = create_negated_temporal_duration(vm, duration);
+
+    // 3. Let resolvedOptions be ? GetOptionsObject(options).
+    auto resolved_options = TRY(get_options_object(vm, options));
+
+    // 4. Let overflow be ? GetTemporalOverflowOption(resolvedOptions).
+    auto overflow = TRY(get_temporal_overflow_option(vm, resolved_options));
+
+    // 5. Let calendar be zonedDateTime.[[Calendar]].
+    auto const& calendar = zoned_date_time.calendar();
+
+    // 6. Let timeZone be zonedDateTime.[[TimeZone]].
+    auto const& time_zone = zoned_date_time.time_zone();
+
+    // 7. Let internalDuration be ToInternalDurationRecord(duration).
+    auto internal_duration = to_internal_duration_record(vm, duration);
+
+    // 8. Let epochNanoseconds be ? AddZonedDateTime(zonedDateTime.[[EpochNanoseconds]], timeZone, calendar, internalDuration, overflow).
+    auto epoch_nanoseconds = TRY(add_zoned_date_time(vm, zoned_date_time.epoch_nanoseconds()->big_integer(), time_zone, calendar, internal_duration, overflow));
+
+    // 9. Return ! CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar).
+    return MUST(create_temporal_zoned_date_time(vm, BigInt::create(vm, move(epoch_nanoseconds)), time_zone, calendar));
+}
+
 }

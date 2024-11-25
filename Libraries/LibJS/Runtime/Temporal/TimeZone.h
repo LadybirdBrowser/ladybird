@@ -33,6 +33,7 @@ ThrowCompletionOr<Crypto::SignedBigInteger> get_epoch_nanoseconds_for(VM&, Strin
 ThrowCompletionOr<Crypto::SignedBigInteger> disambiguate_possible_epoch_nanoseconds(VM&, Vector<Crypto::SignedBigInteger> possible_epoch_ns, StringView time_zone, ISODateTime const&, Disambiguation);
 ThrowCompletionOr<Vector<Crypto::SignedBigInteger>> get_possible_epoch_nanoseconds(VM&, StringView time_zone, ISODateTime const&);
 ThrowCompletionOr<Crypto::SignedBigInteger> get_start_of_day(VM&, StringView time_zone, ISODate);
+bool time_zone_equals(StringView one, StringView two);
 ThrowCompletionOr<TimeZone> parse_time_zone_identifier(VM&, StringView identifier);
 TimeZone parse_time_zone_identifier(StringView identifier);
 TimeZone parse_time_zone_identifier(ParseResult const&);
