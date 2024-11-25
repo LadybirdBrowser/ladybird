@@ -7,7 +7,10 @@
  */
 
 #include <LibWeb/CSS/SystemColor.h>
+#include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/DirectiveOperations.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
+#include <LibWeb/ContentSecurityPolicy/Violation.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentLoading.h>
@@ -788,8 +791,6 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
     auto& realm = navigable->active_window()->realm();
     auto& active_document = *navigable->active_document();
 
-    (void)csp_navigation_type;
-
     // FIXME: 1. Assert: this is running in parallel.
 
     // 2. Let documentResource be entry's document state's resource.
@@ -977,7 +978,11 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
             request->set_reserved_client(realm.create<Environment>(id_string, current_url, top_level_creation_url, top_level_origin, navigable->active_browsing_context()));
         }
 
-        // FIXME: 3. If the result of should navigation request of type be blocked by Content Security Policy? given request and cspNavigationType is "Blocked", then set response to a network error and break. [CSP]
+        // 3. If the result of should navigation request of type be blocked by Content Security Policy? given request and cspNavigationType is "Blocked", then set response to a network error and break. [CSP]
+        if (ContentSecurityPolicy::should_navigation_request_of_type_be_blocked_by_content_security_policy(request, csp_navigation_type) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
+            response_holder->set_response(Fetch::Infrastructure::Response::network_error(vm, "Blocked by Content Security Policy"sv));
+            break;
+        }
 
         // 4. Set response to null.
         response_holder->set_response(nullptr);
@@ -1262,7 +1267,7 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
         return {};
 
     // 5. Queue a global task on the navigation and traversal task source, given navigable's active window, to run these steps:
-    queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, entry, navigation_params = move(navigation_params), navigation_id, user_involvement, completion_steps]() mutable {
+    queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, entry, navigation_params = move(navigation_params), navigation_id, user_involvement, completion_steps, csp_navigation_type]() mutable {
         // NOTE: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
         if (has_been_destroyed())
             return;
@@ -1291,15 +1296,19 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
 
         // 4. Otherwise, if any of the following are true:
         //  - navigationParams is null;
-        //  - FIXME: the result of should navigation response to navigation request of type in target be blocked by Content Security Policy? given navigationParams's request, navigationParams's response, navigationParams's policy container's CSP list, cspNavigationType, and navigable is "Blocked";
+        //  - the result of should navigation response to navigation request of type in target be blocked by Content Security Policy? given navigationParams's request, navigationParams's response, navigationParams's policy container's CSP list, cspNavigationType, and navigable is "Blocked";
         //  - FIXME: navigationParams's reserved environment is non-null and the result of checking a navigation response's adherence to its embedder policy given navigationParams's response, navigable, and navigationParams's policy container's embedder policy is false; or
         //  - the result of checking a navigation response's adherence to `X-Frame-Options` given navigationParams's response, navigable, navigationParams's policy container's CSP list, and navigationParams's origin is false,
         //    then:
         if (navigation_params.visit(
                 [](NullOrError) { return true; },
-                [this](GC::Ref<NavigationParams> navigation_params) {
+                [this, csp_navigation_type](GC::Ref<NavigationParams> navigation_params) {
+                    auto csp_result = ContentSecurityPolicy::should_navigation_response_to_navigation_request_of_type_in_target_be_blocked_by_content_security_policy(navigation_params->request, *navigation_params->response, navigation_params->policy_container->csp_list, csp_navigation_type, *this);
+                    if (csp_result == ContentSecurityPolicy::Directives::Directive::Result::Blocked)
+                        return true;
+
                     // FIXME: Pass in navigationParams's policy container's CSP list
-                    return !check_a_navigation_responses_adherence_to_x_frame_options(navigation_params->response, this, navigation_params->origin);
+                    return !check_a_navigation_responses_adherence_to_x_frame_options(navigation_params->response, this, navigation_params->policy_container->csp_list, navigation_params->origin);
                 },
                 [](GC::Ref<NonFetchSchemeNavigationParams>) { return false; })) {
             // 1. Set entry's document state's document to the result of creating a document for inline content that doesn't have a DOM, given navigable, null, navTimingType, and userInvolvement. The inline content should indicate to the user the sort of error that occurred.
@@ -1863,8 +1872,8 @@ GC::Ptr<DOM::Document> Navigable::evaluate_javascript_url(URL::URL const& url, U
     // 12. Let policyContainer be targetNavigable's active document's policy container.
     auto const& policy_container = active_document()->policy_container();
 
-    // FIXME: 13. Let finalSandboxFlags be policyContainer's CSP list's CSP-derived sandboxing flags.
-    auto final_sandbox_flags = SandboxingFlagSet {};
+    // 13. Let finalSandboxFlags be policyContainer's CSP list's CSP-derived sandboxing flags.
+    auto final_sandbox_flags = policy_container->csp_list->csp_derived_sandboxing_flags();
 
     // 14. Let coop be targetNavigable's active document's opener policy.
     auto const& coop = active_document()->opener_policy();
@@ -1916,8 +1925,10 @@ GC::Ptr<DOM::Document> Navigable::evaluate_javascript_url(URL::URL const& url, U
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-to-a-javascript:-url
-void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlingBehavior history_handling, GC::Ref<SourceSnapshotParams>, URL::Origin const& initiator_origin, UserNavigationInvolvement user_involvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, String navigation_id)
+void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlingBehavior history_handling, GC::Ref<SourceSnapshotParams> source_snapshot_params, URL::Origin const& initiator_origin, UserNavigationInvolvement user_involvement, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, String navigation_id)
 {
+    auto& vm = this->vm();
+
     // 1. Assert: historyHandling is "replace".
     VERIFY(history_handling == HistoryHandlingBehavior::Replace);
 
@@ -1928,10 +1939,14 @@ void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlin
     if (!initiator_origin.is_same_origin_domain(active_document()->origin()))
         return;
 
-    // FIXME: 4. Let request be a new request whose URL is url and whose policy container is sourceSnapshotParams's source policy container.
+    // 4. Let request be a new request whose URL is url and whose policy container is sourceSnapshotParams's source policy container.
+    auto request = Fetch::Infrastructure::Request::create(vm);
+    request->set_url(url);
+    request->set_policy_container(source_snapshot_params->source_policy_container);
 
-    // FIXME: 5. If the result of should navigation request of type be blocked by Content Security Policy? given request and cspNavigationType is "Blocked", then return.
-    (void)csp_navigation_type;
+    // 5. If the result of should navigation request of type be blocked by Content Security Policy? given request and cspNavigationType is "Blocked", then return.
+    if (ContentSecurityPolicy::should_navigation_request_of_type_be_blocked_by_content_security_policy(request, csp_navigation_type) == ContentSecurityPolicy::Directives::Directive::Result::Blocked)
+        return;
 
     // 6. Let newDocument be the result of evaluating a javascript: URL given targetNavigable, url, initiatorOrigin, and userInvolvement.
     auto new_document = evaluate_javascript_url(url, initiator_origin, user_involvement, navigation_id);

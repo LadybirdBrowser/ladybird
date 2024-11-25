@@ -190,4 +190,38 @@ ShouldExecute should_fetch_directive_execute(Optional<FlyString> effective_direc
     return ShouldExecute::No;
 }
 
+// https://w3c.github.io/webappsec-csp/#effective-directive-for-inline-check
+FlyString get_the_effective_directive_for_inline_checks(Directive::InlineType type)
+{
+    // Spec Note: While the effective directive is only defined for requests, in this algorithm it is used similarly to
+    //            mean the directive that is most relevant to a particular type of inline check.
+
+    // Switch on type:
+    switch (type) {
+        // "script"
+        // "navigation"
+        //    Return script-src-elem.
+    case Directive::InlineType::Script:
+    case Directive::InlineType::Navigation:
+        return Names::ScriptSrcElem;
+        // "script attribute"
+        //    Return script-src-attr.
+    case Directive::InlineType::ScriptAttribute:
+        return Names::ScriptSrcAttr;
+        // "style"
+        //    Return style-src-elem.
+    case Directive::InlineType::Style:
+        return Names::StyleSrcElem;
+        // "style attribute"
+        //    Return style-src-attr.
+    case Directive::InlineType::StyleAttribute:
+        return Names::StyleSrcAttr;
+    }
+
+    // 2. Return null.
+    // FIXME: File spec issue that this should be invalid, as the result of this algorithm ends up being piped into
+    //        Violation's effective directive, which is defined to be a non-empty string.
+    VERIFY_NOT_REACHED();
+}
+
 }
