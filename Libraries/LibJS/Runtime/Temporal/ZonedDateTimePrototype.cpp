@@ -79,6 +79,7 @@ void ZonedDateTimePrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
     define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
     define_native_function(realm, vm.names.valueOf, value_of, 0, attr);
+    define_native_function(realm, vm.names.startOfDay, start_of_day, 0, attr);
 }
 
 // 6.3.3 get Temporal.ZonedDateTime.prototype.calendarId, https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.calendarid
@@ -806,6 +807,29 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::value_of)
 {
     // 1. Throw a TypeError exception.
     return vm.throw_completion<TypeError>(ErrorType::Convert, "Temporal.ZonedDateTime", "a primitive value");
+}
+
+// 6.3.45 Temporal.ZonedDateTime.prototype.startOfDay ( ), https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.startofday
+JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::start_of_day)
+{
+    // 1. Let zonedDateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(zonedDateTime, [[InitializedTemporalZonedDateTime]]).
+    auto zoned_date_time = TRY(typed_this_object(vm));
+
+    // 3. Let timeZone be zonedDateTime.[[TimeZone]].
+    auto const& time_zone = zoned_date_time->time_zone();
+
+    // 4. Let calendar be zonedDateTime.[[Calendar]].
+    auto const& calendar = zoned_date_time->calendar();
+
+    // 5. Let isoDateTime be GetISODateTimeFor(timeZone, zonedDateTime.[[EpochNanoseconds]]).
+    auto iso_date_time = get_iso_date_time_for(time_zone, zoned_date_time->epoch_nanoseconds()->big_integer());
+
+    // 6. Let epochNanoseconds be ? GetStartOfDay(timeZone, isoDateTime.[[ISODate]]).
+    auto epoch_nanoseconds = TRY(get_start_of_day(vm, time_zone, iso_date_time.iso_date));
+
+    // 7. Return ! CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar).
+    return MUST(create_temporal_zoned_date_time(vm, BigInt::create(vm, move(epoch_nanoseconds)), time_zone, calendar));
 }
 
 }
