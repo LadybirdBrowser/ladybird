@@ -2740,7 +2740,12 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
             // https://drafts.csswg.org/cssom/#ref-for-cssstyledeclaration-updating-flag
             if (m_inline_style && m_inline_style->is_updating())
                 return;
-            m_inline_style = parse_css_style_attribute(CSS::Parser::ParsingContext(document()), *value, *this);
+            if (!m_inline_style) {
+                m_inline_style = parse_css_style_attribute(CSS::Parser::ParsingContext(document()), *value, *this);
+            } else {
+                // NOTE: ElementInlineCSSStyleDeclaration::set_css_text should never throw an exception.
+                m_inline_style->set_declarations_from_text(*value);
+            }
             set_needs_style_update(true);
         }
     } else if (local_name == HTML::AttributeNames::dir) {

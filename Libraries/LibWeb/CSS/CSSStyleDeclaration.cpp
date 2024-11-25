@@ -513,6 +513,19 @@ void PropertyOwningCSSStyleDeclaration::set_the_declarations(Vector<StylePropert
     m_custom_properties = move(custom_properties);
 }
 
+void ElementInlineCSSStyleDeclaration::set_declarations_from_text(StringView css_text)
+{
+    // FIXME: What do we do if the element is null?
+    if (!m_element) {
+        dbgln("FIXME: Returning from ElementInlineCSSStyleDeclaration::declarations_from_text as m_element is null.");
+        return;
+    }
+
+    empty_the_declarations();
+    auto style = parse_css_style_attribute(CSS::Parser::ParsingContext(m_element->document()), css_text, *m_element.ptr());
+    set_the_declarations(style->properties(), style->custom_properties());
+}
+
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-csstext
 WebIDL::ExceptionOr<void> ElementInlineCSSStyleDeclaration::set_css_text(StringView css_text)
 {
@@ -526,11 +539,8 @@ WebIDL::ExceptionOr<void> ElementInlineCSSStyleDeclaration::set_css_text(StringV
     // NOTE: See ResolvedCSSStyleDeclaration.
 
     // 2. Empty the declarations.
-    empty_the_declarations();
-
     // 3. Parse the given value and, if the return value is not the empty list, insert the items in the list into the declarations, in specified order.
-    auto style = parse_css_style_attribute(CSS::Parser::ParsingContext(m_element->document()), css_text, *m_element.ptr());
-    set_the_declarations(style->properties(), style->custom_properties());
+    set_declarations_from_text(css_text);
 
     // 4. Update style attribute for the CSS declaration block.
     update_style_attribute();

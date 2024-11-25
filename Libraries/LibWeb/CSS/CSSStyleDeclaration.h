@@ -123,6 +123,8 @@ public:
 
     bool is_updating() const { return m_updating; }
 
+    void set_declarations_from_text(StringView);
+
     virtual WebIDL::ExceptionOr<void> set_css_text(StringView) override;
 
 private:
