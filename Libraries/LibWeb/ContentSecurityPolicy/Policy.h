@@ -46,8 +46,10 @@ public:
     [[nodiscard]] Disposition disposition() const { return m_disposition; }
     [[nodiscard]] Source source() const { return m_source; }
     [[nodiscard]] URL::Origin const& self_origin() const { return m_self_origin; }
+    [[nodiscard]] String const& pre_parsed_policy_string(Badge<Violation>) const { return m_pre_parsed_policy_string; }
 
     [[nodiscard]] bool contains_directive_with_name(StringView name) const;
+    [[nodiscard]] GC::Ptr<Directives::Directive> get_directive_by_name(StringView) const;
 
     [[nodiscard]] GC::Ref<Policy> clone(JS::Realm&) const;
     [[nodiscard]] SerializedPolicy serialize() const;
@@ -77,6 +79,12 @@ private:
     //            their policy but have an opaque origin. Most of the time this will simply be the environment settings
     //            object’s origin.
     URL::Origin m_self_origin;
+
+    // This is used for reporting which policy was violated. It's not exactly specified, only linking to an ABNF grammar
+    // definition. WebKit and Blink return the original string that was parsed, whereas Firefox seems to try and return
+    // a nice serialization of what it parsed. For simplicity and wider compatibility, we follow what WebKit and Blink
+    // do.
+    String m_pre_parsed_policy_string;
 };
 
 }

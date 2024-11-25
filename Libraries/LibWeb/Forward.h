@@ -102,6 +102,7 @@ namespace Web::ContentSecurityPolicy {
 class Policy;
 class PolicyList;
 class SecurityPolicyViolationEvent;
+class Violation;
 struct SecurityPolicyViolationEventInit;
 struct SerializedPolicy;
 }
