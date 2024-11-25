@@ -38,7 +38,7 @@ ConnectionQueue& ConnectionQueueHandler::for_key_and_name(StorageAPI::StorageKey
         });
 }
 
-Optional<GC::Root<Database>> Database::for_key_and_name(StorageAPI::StorageKey& key, String& name)
+Optional<GC::Root<Database> const&> Database::for_key_and_name(StorageAPI::StorageKey& key, String& name)
 {
     return m_databases.ensure(key, [] {
                           return HashMap<String, GC::Root<Database>>();

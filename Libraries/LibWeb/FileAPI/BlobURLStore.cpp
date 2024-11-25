@@ -108,7 +108,7 @@ void run_unloading_cleanup_steps(GC::Ref<DOM::Document> document)
 }
 
 // https://w3c.github.io/FileAPI/#blob-url-resolve
-Optional<BlobURLEntry> resolve_a_blob_url(URL::URL const& url)
+Optional<BlobURLEntry const&> resolve_a_blob_url(URL::URL const& url)
 {
     // 1. Assert: url’s scheme is "blob".
     VERIFY(url.scheme() == "blob"sv);

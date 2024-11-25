@@ -43,7 +43,7 @@ class CookieJar {
 
         void set_cookies(Cookies);
         void set_cookie(CookieStorageKey, Web::Cookie::Cookie);
-        Optional<Web::Cookie::Cookie> get_cookie(CookieStorageKey const&);
+        Optional<Web::Cookie::Cookie const&> get_cookie(CookieStorageKey const&);
 
         size_t size() const { return m_cookies.size(); }
 

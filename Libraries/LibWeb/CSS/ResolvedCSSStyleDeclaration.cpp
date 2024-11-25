@@ -601,7 +601,7 @@ Optional<StyleProperty> ResolvedCSSStyleDeclaration::property(PropertyID propert
     };
 }
 
-Optional<StyleProperty> ResolvedCSSStyleDeclaration::custom_property(FlyString const& name) const
+Optional<StyleProperty const&> ResolvedCSSStyleDeclaration::custom_property(FlyString const& name) const
 {
     const_cast<DOM::Document&>(m_element->document()).update_style();
 

@@ -39,7 +39,7 @@ public:
         return m_map.contains(name);
     }
 
-    [[nodiscard]] Optional<ByteString> get(ByteString const& name) const
+    [[nodiscard]] Optional<ByteString const&> get(ByteString const& name) const
     {
         return m_map.get(name);
     }

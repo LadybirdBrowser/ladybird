@@ -265,7 +265,7 @@ void add_@global_object_snake_name@_exposed_interfaces(JS::Object& global)
     static constexpr u8 attr = JS::Attribute::Writable | JS::Attribute::Configurable;
 )~~~");
 
-    auto add_interface = [](SourceGenerator& gen, StringView name, StringView prototype_class, Optional<LegacyConstructor> const& legacy_constructor, Optional<ByteString> const& legacy_alias_name) {
+    auto add_interface = [](SourceGenerator& gen, StringView name, StringView prototype_class, Optional<LegacyConstructor> const& legacy_constructor, Optional<ByteString const&> legacy_alias_name) {
         gen.set("interface_name", name);
         gen.set("prototype_class", prototype_class);
 
