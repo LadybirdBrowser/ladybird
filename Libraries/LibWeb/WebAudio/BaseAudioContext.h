@@ -12,6 +12,7 @@
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/WebAudio/AudioListener.h>
 #include <LibWeb/WebAudio/BiquadFilterNode.h>
+#include <LibWeb/WebAudio/ChannelMergerNode.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::WebAudio {
@@ -57,6 +58,7 @@ public:
     WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> create_biquad_filter();
     WebIDL::ExceptionOr<GC::Ref<AudioBuffer>> create_buffer(WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
     WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> create_buffer_source();
+    WebIDL::ExceptionOr<GC::Ref<ChannelMergerNode>> create_channel_merger(WebIDL::UnsignedLong number_of_inputs);
     WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> create_oscillator();
     WebIDL::ExceptionOr<GC::Ref<DynamicsCompressorNode>> create_dynamics_compressor();
     WebIDL::ExceptionOr<GC::Ref<GainNode>> create_gain();

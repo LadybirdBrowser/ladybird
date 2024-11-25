@@ -4,6 +4,7 @@
 #import <WebAudio/AudioBufferSourceNode.idl>
 #import <WebAudio/AudioDestinationNode.idl>
 #import <WebAudio/AudioListener.idl>
+#import <WebAudio/ChannelMergerNode.idl>
 #import <WebAudio/DynamicsCompressorNode.idl>
 #import <WebAudio/GainNode.idl>
 #import <WebAudio/OscillatorNode.idl>
@@ -32,7 +33,7 @@ interface BaseAudioContext : EventTarget {
     BiquadFilterNode createBiquadFilter ();
     AudioBuffer createBuffer(unsigned long numberOfChannels, unsigned long length, float sampleRate);
     AudioBufferSourceNode createBufferSource ();
-    [FIXME] ChannelMergerNode createChannelMerger (optional unsigned long numberOfInputs = 6);
+    ChannelMergerNode createChannelMerger (optional unsigned long numberOfInputs = 6);
     [FIXME] ChannelSplitterNode createChannelSplitter (optional unsigned long numberOfOutputs = 6);
     [FIXME] ConstantSourceNode createConstantSource ();
     [FIXME] ConvolverNode createConvolver ();
