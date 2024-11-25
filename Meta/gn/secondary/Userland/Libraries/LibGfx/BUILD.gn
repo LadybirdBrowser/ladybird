@@ -30,7 +30,6 @@ shared_library("LibGfx") {
     "CMYKBitmap.cpp",
     "Color.cpp",
     "DeltaE.cpp",
-    "DeprecatedPath.cpp",
     "Font/Font.cpp",
     "Font/FontData.cpp",
     "Font/FontDatabase.cpp",

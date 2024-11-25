@@ -6,7 +6,6 @@
 
 #include <AK/Debug.h>
 #include <AK/Optional.h>
-#include <LibGfx/DeprecatedPath.h>
 #include <LibGfx/Path.h>
 #include <LibWeb/Bindings/SVGPathElementPrototype.h>
 #include <LibWeb/DOM/Document.h>
