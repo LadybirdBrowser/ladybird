@@ -5,7 +5,6 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibGfx/AntiAliasingPainter.h>
 #include <LibWeb/Layout/ListItemMarkerBox.h>
 #include <LibWeb/Painting/MarkerPaintable.h>
 

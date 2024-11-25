@@ -5,7 +5,6 @@
  */
 
 #include <AK/Array.h>
-#include <LibGfx/AntiAliasingPainter.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>

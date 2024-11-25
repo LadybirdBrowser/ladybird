@@ -5,7 +5,6 @@
  */
 
 #include <AK/Math.h>
-#include <LibGfx/DeprecatedPainter.h>
 #include <LibGfx/Gradients.h>
 #include <LibGfx/PaintStyle.h>
 
@@ -122,18 +121,6 @@ public:
         return color;
     }
 
-    void paint_into_physical_rect(DeprecatedPainter& painter, IntRect rect, auto location_transform)
-    {
-        auto clipped_rect = rect.intersected(painter.clip_rect());
-        auto start_offset = clipped_rect.location() - rect.location();
-        for (int y = 0; y < clipped_rect.height(); y++) {
-            for (int x = 0; x < clipped_rect.width(); x++) {
-                auto pixel = sample_color(location_transform(x + start_offset.x(), y + start_offset.y()));
-                painter.set_physical_pixel(clipped_rect.location().translated(x, y), pixel, m_requires_blending);
-            }
-        }
-    }
-
     bool repeating() const
     {
         return m_repeat_mode != RepeatMode::None;
@@ -169,11 +156,6 @@ struct Gradient {
         : m_gradient_line(move(gradient_line))
         , m_transform_function(move(transform_function))
     {
-    }
-
-    void paint(DeprecatedPainter& painter, IntRect rect)
-    {
-        m_gradient_line.paint_into_physical_rect(painter, rect, m_transform_function);
     }
 
     template<typename CoordinateType = int>

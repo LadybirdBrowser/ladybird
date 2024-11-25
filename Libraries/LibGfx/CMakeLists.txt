@@ -3,15 +3,11 @@ include(vulkan)
 
 set(SOURCES
     AffineTransform.cpp
-    AntiAliasingPainter.cpp
     Bitmap.cpp
     BitmapSequence.cpp
     CMYKBitmap.cpp
     Color.cpp
     DeltaE.cpp
-    DeprecatedPainter.cpp
-    DeprecatedPath.cpp
-    EdgeFlagPathRasterizer.cpp
     FontCascadeList.cpp
     Font/Font.cpp
     Font/FontData.cpp

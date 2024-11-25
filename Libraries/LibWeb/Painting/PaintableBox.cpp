@@ -7,7 +7,6 @@
  */
 
 #include <AK/GenericShorthands.h>
-#include <LibGfx/DeprecatedPainter.h>
 #include <LibGfx/Font/ScaledFont.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibWeb/CSS/SystemColor.h>
