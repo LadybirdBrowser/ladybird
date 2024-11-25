@@ -353,6 +353,48 @@ ThrowCompletionOr<Crypto::SignedBigInteger> get_start_of_day(VM& vm, StringView 
     TODO();
 }
 
+// 11.1.15 TimeZoneEquals ( one, two ), https://tc39.es/proposal-temporal/#sec-temporal-timezoneequals
+bool time_zone_equals(StringView one, StringView two)
+{
+    // 1. If one is two, return true.
+    if (one == two)
+        return true;
+
+    // 2. Let offsetMinutesOne be ! ParseTimeZoneIdentifier(one).[[OffsetMinutes]].
+    auto offset_minutes_one = parse_time_zone_identifier(one).offset_minutes;
+
+    // 3. Let offsetMinutesTwo be ! ParseTimeZoneIdentifier(two).[[OffsetMinutes]].
+    auto offset_minutes_two = parse_time_zone_identifier(two).offset_minutes;
+
+    // 4. If offsetMinutesOne is EMPTY and offsetMinutesTwo is EMPTY, then
+    if (!offset_minutes_one.has_value() && !offset_minutes_two.has_value()) {
+        // a. Let recordOne be GetAvailableNamedTimeZoneIdentifier(one).
+        auto record_one = Intl::get_available_named_time_zone_identifier(one);
+
+        // b. Let recordTwo be GetAvailableNamedTimeZoneIdentifier(two).
+        auto record_two = Intl::get_available_named_time_zone_identifier(two);
+
+        // c. If recordOne is not EMPTY and recordTwo is not EMPTY and recordOne.[[PrimaryIdentifier]] is
+        //    recordTwo.[[PrimaryIdentifier]], return true.
+        if (record_one.has_value() && record_two.has_value()) {
+            if (record_one->primary_identifier == record_two->primary_identifier)
+                return true;
+        }
+    }
+    // 5. Else,
+    else {
+        // a. If offsetMinutesOne is not EMPTY and offsetMinutesTwo is not EMPTY and offsetMinutesOne = offsetMinutesTwo,
+        //    return true.
+        if (offset_minutes_one.has_value() && offset_minutes_two.has_value()) {
+            if (offset_minutes_one == offset_minutes_two)
+                return true;
+        }
+    }
+
+    // 6. Return false.
+    return false;
+}
+
 // 11.1.16 ParseTimeZoneIdentifier ( identifier ), https://tc39.es/proposal-temporal/#sec-parsetimezoneidentifier
 ThrowCompletionOr<TimeZone> parse_time_zone_identifier(VM& vm, StringView identifier)
 {

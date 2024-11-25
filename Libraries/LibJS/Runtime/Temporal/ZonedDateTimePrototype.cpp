@@ -62,6 +62,9 @@ void ZonedDateTimePrototype::initialize(Realm& realm)
     define_native_accessor(realm, vm.names.offset, offset_getter, {}, Attribute::Configurable);
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
+    define_native_function(realm, vm.names.add, add, 1, attr);
+    define_native_function(realm, vm.names.subtract, subtract, 1, attr);
+    define_native_function(realm, vm.names.equals, equals, 1, attr);
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
     define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
@@ -340,6 +343,56 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::offset_getter)
 
     // 4. Return FormatUTCOffsetNanoseconds(offsetNanoseconds).
     return PrimitiveString::create(vm, format_utc_offset_nanoseconds(offset_nanoseconds));
+}
+
+// 6.3.35 Temporal.ZonedDateTime.prototype.add ( temporalDurationLike [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.add
+JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::add)
+{
+    auto temporal_duration_like = vm.argument(0);
+    auto options = vm.argument(1);
+
+    // 1. Let zonedDateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(zonedDateTime, [[InitializedTemporalZonedDateTime]]).
+    auto zoned_date_time = TRY(typed_this_object(vm));
+
+    // 3. Return ? AddDurationToZonedDateTime(ADD, zonedDateTime, temporalDurationLike, options).
+    return TRY(add_duration_to_zoned_date_time(vm, ArithmeticOperation::Add, zoned_date_time, temporal_duration_like, options));
+}
+
+// 6.3.36 Temporal.ZonedDateTime.prototype.subtract ( temporalDurationLike [ , options ] ), https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.subtract
+JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::subtract)
+{
+    auto temporal_duration_like = vm.argument(0);
+    auto options = vm.argument(1);
+
+    // 1. Let zonedDateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(zonedDateTime, [[InitializedTemporalZonedDateTime]]).
+    auto zoned_date_time = TRY(typed_this_object(vm));
+
+    // 3. Return ? AddDurationToZonedDateTime(SUBTRACT, zonedDateTime, temporalDurationLike, options).
+    return TRY(add_duration_to_zoned_date_time(vm, ArithmeticOperation::Subtract, zoned_date_time, temporal_duration_like, options));
+}
+
+// 6.3.40 Temporal.ZonedDateTime.prototype.equals ( other ), https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.equals
+JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::equals)
+{
+    // 1. Let zonedDateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(zonedDateTime, [[InitializedTemporalZonedDateTime]]).
+    auto zoned_date_time = TRY(typed_this_object(vm));
+
+    // 3. Set other to ? ToTemporalZonedDateTime(other).
+    auto other = TRY(to_temporal_zoned_date_time(vm, vm.argument(0)));
+
+    // 4. If zonedDateTime.[[EpochNanoseconds]] ≠ other.[[EpochNanoseconds]], return false.
+    if (zoned_date_time->epoch_nanoseconds()->big_integer() != other->epoch_nanoseconds()->big_integer())
+        return false;
+
+    // 5. If TimeZoneEquals(zonedDateTime.[[TimeZone]], other.[[TimeZone]]) is false, return false.
+    if (!time_zone_equals(zoned_date_time->time_zone(), other->time_zone()))
+        return false;
+
+    // 6. Return CalendarEquals(zonedDateTime.[[Calendar]], other.[[Calendar]]).
+    return calendar_equals(zoned_date_time->calendar(), other->calendar());
 }
 
 // 6.3.41 Temporal.ZonedDateTime.prototype.toString ( [ options ] ), https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.tostring

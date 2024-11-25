@@ -56,5 +56,6 @@ ThrowCompletionOr<Crypto::SignedBigInteger> add_zoned_date_time(VM&, Crypto::Sig
 ThrowCompletionOr<InternalDuration> difference_zoned_date_time(VM&, Crypto::SignedBigInteger const& nanoseconds1, Crypto::SignedBigInteger const& nanoseconds2, StringView time_zone, StringView calendar, Unit largest_unit);
 ThrowCompletionOr<InternalDuration> difference_zoned_date_time_with_rounding(VM&, Crypto::SignedBigInteger const& nanoseconds1, Crypto::SignedBigInteger const& nanoseconds2, StringView time_zone, StringView calendar, Unit largest_unit, u64 rounding_increment, Unit smallest_unit, RoundingMode);
 ThrowCompletionOr<Crypto::BigFraction> difference_zoned_date_time_with_total(VM&, Crypto::SignedBigInteger const& nanoseconds1, Crypto::SignedBigInteger const& nanoseconds2, StringView time_zone, StringView calendar, Unit);
+ThrowCompletionOr<GC::Ref<ZonedDateTime>> add_duration_to_zoned_date_time(VM&, ArithmeticOperation, ZonedDateTime const&, Value temporal_duration_like, Value options);
 
 }
