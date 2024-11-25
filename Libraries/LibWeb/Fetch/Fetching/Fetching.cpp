@@ -15,6 +15,7 @@
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/Cookie/Cookie.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOMURL/DOMURL.h>
@@ -295,8 +296,7 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
     //    should request be blocked by Content Security Policy returns blocked, then set response to a network error.
     if (Infrastructure::block_bad_port(request) == Infrastructure::RequestOrResponseBlocking::Blocked
         || MixedContent::should_fetching_request_be_blocked_as_mixed_content(request) == Infrastructure::RequestOrResponseBlocking::Blocked
-        || false // FIXME: "should request be blocked by Content Security Policy returns blocked"
-    ) {
+        || ContentSecurityPolicy::should_request_be_blocked_by_content_security_policy(realm, request) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
         response = Infrastructure::Response::network_error(vm, "Request was blocked"sv);
     }
 
