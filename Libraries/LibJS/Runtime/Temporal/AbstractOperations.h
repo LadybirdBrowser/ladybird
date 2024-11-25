@@ -143,8 +143,8 @@ struct SecondsStringPrecision {
 };
 
 struct RelativeTo {
-    GC::Ptr<PlainDate> plain_relative_to; // [[PlainRelativeTo]]
-    GC::Ptr<Object> zoned_relative_to;    // FIXME: [[ZonedRelativeTo]]
+    GC::Ptr<PlainDate> plain_relative_to;     // [[PlainRelativeTo]]
+    GC::Ptr<ZonedDateTime> zoned_relative_to; // [[ZonedRelativeTo]]
 };
 
 struct DifferenceSettings {

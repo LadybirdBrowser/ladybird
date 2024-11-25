@@ -9,6 +9,7 @@
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/DurationConstructor.h>
+#include <LibJS/Runtime/Temporal/ZonedDateTime.h>
 
 namespace JS::Temporal {
 
@@ -149,12 +150,25 @@ JS_DEFINE_NATIVE_FUNCTION(DurationConstructor::compare)
 
     // 12. If zonedRelativeTo is not undefined, and either TemporalUnitCategory(largestUnit1) or TemporalUnitCategory(largestUnit2) is date, then
     if (zoned_relative_to && (temporal_unit_category(largest_unit1) == UnitCategory::Date || temporal_unit_category(largest_unit2) == UnitCategory::Date)) {
-        // FIXME: a. Let timeZone be zonedRelativeTo.[[TimeZone]].
-        // FIXME: b. Let calendar be zonedRelativeTo.[[Calendar]].
-        // FIXME: c. Let after1 be ? AddZonedDateTime(zonedRelativeTo.[[EpochNanoseconds]], timeZone, calendar, duration1, constrain).
-        // FIXME: d. Let after2 be ? AddZonedDateTime(zonedRelativeTo.[[EpochNanoseconds]], timeZone, calendar, duration2, constrain).
-        // FIXME: e. If after1 > after2, return 1𝔽.
-        // FIXME: f. If after1 < after2, return -1𝔽.
+        // a. Let timeZone be zonedRelativeTo.[[TimeZone]].
+        auto const time_zone = zoned_relative_to->time_zone();
+
+        // b. Let calendar be zonedRelativeTo.[[Calendar]].
+        auto const& calendar = zoned_relative_to->calendar();
+
+        // c. Let after1 be ? AddZonedDateTime(zonedRelativeTo.[[EpochNanoseconds]], timeZone, calendar, duration1, CONSTRAIN).
+        auto after1 = TRY(add_zoned_date_time(vm, zoned_relative_to->epoch_nanoseconds()->big_integer(), time_zone, calendar, duration1, Overflow::Constrain));
+
+        // d. Let after2 be ? AddZonedDateTime(zonedRelativeTo.[[EpochNanoseconds]], timeZone, calendar, duration2, CONSTRAIN).
+        auto after2 = TRY(add_zoned_date_time(vm, zoned_relative_to->epoch_nanoseconds()->big_integer(), time_zone, calendar, duration2, Overflow::Constrain));
+
+        // e. If after1 > after2, return 1𝔽.
+        if (after1 > after2)
+            return 1;
+
+        // f. If after1 < after2, return -1𝔽.
+        if (after1 < after2)
+            return -1;
 
         // g. Return +0𝔽.
         return 0;

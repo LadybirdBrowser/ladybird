@@ -475,12 +475,16 @@ ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM& vm, Object con
     if (value.is_undefined())
         return RelativeTo { .plain_relative_to = {}, .zoned_relative_to = {} };
 
-    // FIXME: 3. Let offsetBehaviour be OPTION.
-    // FIXME: 4. Let matchBehaviour be MATCH-EXACTLY.
+    // 3. Let offsetBehaviour be OPTION.
+    auto offset_behavior = OffsetBehavior::Option;
+
+    // 4. Let matchBehaviour be MATCH-EXACTLY.
+    auto match_behavior = MatchBehavior::MatchExactly;
 
     String calendar;
     Optional<String> time_zone;
     Optional<String> offset_string;
+
     ISODate iso_date;
     Variant<ParsedISODateTime::StartOfDay, Time> time { Time {} };
 
@@ -488,8 +492,11 @@ ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM& vm, Object con
     if (value.is_object()) {
         auto& object = value.as_object();
 
-        // FIXME: a. If value has an [[InitializedTemporalZonedDateTime]] internal slot, then
-        // FIXME:     i. Return the Record { [[PlainRelativeTo]]: undefined, [[ZonedRelativeTo]]: value }.
+        // a. If value has an [[InitializedTemporalZonedDateTime]] internal slot, then
+        if (is<ZonedDateTime>(object)) {
+            // i. Return the Record { [[PlainRelativeTo]]: undefined, [[ZonedRelativeTo]]: value }.
+            return RelativeTo { .plain_relative_to = {}, .zoned_relative_to = static_cast<ZonedDateTime&>(object) };
+        }
 
         // b. If value has an [[InitializedTemporalDate]] internal slot, then
         if (is<PlainDate>(object)) {
@@ -527,7 +534,8 @@ ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM& vm, Object con
 
         // i. If offsetString is UNSET, then
         if (!offset_string.has_value()) {
-            // FIXME: i. Set offsetBehaviour to WALL.
+            // i. Set offsetBehaviour to WALL.
+            offset_behavior = OffsetBehavior::Wall;
         }
 
         // j. Let isoDate be result.[[ISODate]].
@@ -563,14 +571,17 @@ ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM& vm, Object con
 
             // ii. If result.[[TimeZone]].[[Z]] is true, then
             if (result.time_zone.z_designator) {
-                // FIXME: 1. Set offsetBehaviour to EXACT.
+                // 1. Set offsetBehaviour to EXACT.
+                offset_behavior = OffsetBehavior::Exact;
             }
             // iii. Else if offsetString is EMPTY, then
             else if (!offset_string.has_value()) {
-                // FIXME: 1. Set offsetBehaviour to WALL.
+                // 1. Set offsetBehaviour to WALL.
+                offset_behavior = OffsetBehavior::Wall;
             }
 
-            // FIXME: iv. Set matchBehaviour to MATCH-MINUTES.
+            // iv. Set matchBehaviour to MATCH-MINUTES.
+            match_behavior = MatchBehavior::MatchMinutes;
         }
 
         // g. Let calendar be result.[[Calendar]].
@@ -596,15 +607,27 @@ ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM& vm, Object con
         return RelativeTo { .plain_relative_to = plain_date, .zoned_relative_to = {} };
     }
 
-    // FIXME: 8. If offsetBehaviour is OPTION, then
-    // FIXME:     a. Let offsetNs be ! ParseDateTimeUTCOffset(offsetString).
-    // FIXME: 9. Else,
-    // FIXME:     a. Let offsetNs be 0.
-    // FIXME: 10. Let epochNanoseconds be ? InterpretISODateTimeOffset(isoDate, time, offsetBehaviour, offsetNs, timeZone, compatible, reject, matchBehaviour).
-    // FIXME: 11. Let zonedRelativeTo be ! CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar).
-    // FIXME: 12. Return the Record { [[PlainRelativeTo]]: undefined, [[ZonedRelativeTo]]: zonedRelativeTo }.
+    double offset_nanoseconds = 0;
 
-    return RelativeTo { .plain_relative_to = {}, .zoned_relative_to = {} };
+    // 8. If offsetBehaviour is OPTION, then
+    if (offset_behavior == OffsetBehavior::Option) {
+        // a. Let offsetNs be ! ParseDateTimeUTCOffset(offsetString).
+        offset_nanoseconds = parse_date_time_utc_offset(*offset_string);
+    }
+    // 9. Else,
+    else {
+        // a. Let offsetNs be 0.
+        offset_nanoseconds = 0;
+    }
+
+    // 10. Let epochNanoseconds be ? InterpretISODateTimeOffset(isoDate, time, offsetBehaviour, offsetNs, timeZone, COMPATIBLE, REJECT, matchBehaviour).
+    auto epoch_nanoseconds = TRY(interpret_iso_date_time_offset(vm, iso_date, time, offset_behavior, offset_nanoseconds, *time_zone, Disambiguation::Compatible, OffsetOption::Reject, match_behavior));
+
+    // 11. Let zonedRelativeTo be ! CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar).
+    auto zoned_relative_to = MUST(create_temporal_zoned_date_time(vm, BigInt::create(vm, move(epoch_nanoseconds)), time_zone.release_value(), move(calendar)));
+
+    // 12. Return the Record { [[PlainRelativeTo]]: undefined, [[ZonedRelativeTo]]: zonedRelativeTo }.
+    return RelativeTo { .plain_relative_to = {}, .zoned_relative_to = zoned_relative_to };
 }
 
 // 13.19 LargerOfTwoTemporalUnits ( u1, u2 ), https://tc39.es/proposal-temporal/#sec-temporal-largeroftwotemporalunits

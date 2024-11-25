@@ -98,6 +98,20 @@ describe("correct behavior", () => {
             expect(result.months).toBe(1);
         });
     });
+
+    test("relative to zoned date time", () => {
+        const duration = new Temporal.Duration(0, 0, 0, 31);
+
+        [
+            "2000-01-01[UTC]",
+            "2000-01-01T00:00[UTC]",
+            "2000-01-01T00:00+00:00[UTC]",
+            "2000-01-01T00:00+00:00[UTC][u-ca=iso8601]",
+        ].forEach(relativeTo => {
+            const result = duration.round({ largestUnit: "months", relativeTo });
+            expect(result.months).toBe(1);
+        });
+    });
 });
 
 describe("errors", () => {

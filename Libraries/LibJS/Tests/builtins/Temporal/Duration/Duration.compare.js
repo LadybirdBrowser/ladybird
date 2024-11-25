@@ -47,6 +47,26 @@ describe("correct behavior", () => {
         });
         expect(result).toBe(-1);
     });
+
+    test("relative to zoned date time", () => {
+        const oneMonth = new Temporal.Duration(0, 1);
+        const thirtyDays = new Temporal.Duration(0, 0, 0, 30);
+
+        let result = Temporal.Duration.compare(oneMonth, thirtyDays, {
+            relativeTo: Temporal.ZonedDateTime.from("2018-04-01[UTC]"),
+        });
+        expect(result).toBe(0);
+
+        result = Temporal.Duration.compare(oneMonth, thirtyDays, {
+            relativeTo: Temporal.ZonedDateTime.from("2018-03-01[UTC]"),
+        });
+        expect(result).toBe(1);
+
+        result = Temporal.Duration.compare(oneMonth, thirtyDays, {
+            relativeTo: Temporal.ZonedDateTime.from("2018-02-01[UTC]"),
+        });
+        expect(result).toBe(-1);
+    });
 });
 
 describe("errors", () => {
