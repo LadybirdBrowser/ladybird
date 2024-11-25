@@ -39,6 +39,9 @@
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/CSS/VisualViewport.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
+#include <LibWeb/ContentSecurityPolicy/Policy.h>
+#include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/Cookie/ParsedCookie.h>
 #include <LibWeb/DOM/AdoptedStyleSheets.h>
 #include <LibWeb/DOM/Attr.h>
@@ -333,7 +336,8 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     // 11. Set window's associated Document to document.
     window->set_associated_document(*document);
 
-    // FIXME: 12. Run CSP initialization for a Document given document.
+    // 12. Run CSP initialization for a Document given document.
+    document->run_csp_initialization();
 
     // 13. If navigationParams's request is non-null, then:
     if (navigation_params.request) {
@@ -5773,6 +5777,20 @@ Document::StepsToFireBeforeunloadResult Document::steps_to_fire_beforeunload(boo
 
     // 8. Return (unloadPromptShown, unloadPromptCanceled).
     return { unload_prompt_shown, unload_prompt_canceled };
+}
+
+// https://w3c.github.io/webappsec-csp/#run-document-csp-initialization
+void Document::run_csp_initialization() const
+{
+    // 1. For each policy of document’s policy container's CSP list:
+    for (auto policy : policy_container()->csp_list->policies()) {
+        // 1. For each directive of policy:
+        for (auto directive : policy->directives()) {
+            // 1. Execute directive’s initialization algorithm on document, and assert: its returned value is "Allowed".
+            auto result = directive->initialization(GC::Ref { *this }, policy);
+            VERIFY(result == ContentSecurityPolicy::Directives::Directive::Result::Allowed);
+        }
+    }
 }
 
 WebIDL::CallbackType* Document::onreadystatechange()
