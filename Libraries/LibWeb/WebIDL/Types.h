@@ -6,41 +6,45 @@
 
 #pragma once
 
-#include <AK/Types.h>
+#include <LibWeb/Infra/Types.h>
 
 namespace Web::WebIDL {
 
+// https://webidl.spec.whatwg.org/#idl-boolean
+// The boolean type corresponds to booleans.
+using Boolean = Infra::Boolean;
+
 // https://webidl.spec.whatwg.org/#idl-byte
-// The byte type is a signed integer type that has values in the range [−128, 127].
-using Byte = i8;
+// The byte type corresponds to 8-bit signed integers.
+using Byte = Infra::Signed8BitInteger;
 
 // https://webidl.spec.whatwg.org/#idl-octet
-// The octet type is an unsigned integer type that has values in the range [0, 255].
-using Octet = u8;
+// The octet type corresponds to 8-bit unsigned integers.
+using Octet = Infra::Unsigned8BitInteger;
 
 // https://webidl.spec.whatwg.org/#idl-short
-// The short type is a signed integer type that has values in the range [−32768, 32767].
-using Short = i16;
+// The short type corresponds to 16-bit signed integers.
+using Short = Infra::Signed16BitInteger;
 
 // https://webidl.spec.whatwg.org/#idl-unsigned-short
-// The unsigned short type is an unsigned integer type that has values in the range [0, 65535].
-using UnsignedShort = u16;
+// The unsigned short type corresponds to 16-bit unsigned integers.
+using UnsignedShort = Infra::Unsigned16BitInteger;
 
 // https://webidl.spec.whatwg.org/#idl-long
-// The long type is a signed integer type that has values in the range [−2147483648, 2147483647].
-using Long = i32;
+// The long type corresponds to 32-bit signed integers.
+using Long = Infra::Signed32BitInteger;
 
 // https://webidl.spec.whatwg.org/#idl-unsigned-long
-// The unsigned long type is an unsigned integer type that has values in the range [0, 4294967295].
-using UnsignedLong = u32;
+// The unsigned long type corresponds to 32-bit unsigned integers.
+using UnsignedLong = Infra::Unsigned32BitInteger;
 
 // https://webidl.spec.whatwg.org/#idl-long-long
-// The long long type is a signed integer type that has values in the range [−9223372036854775808, 9223372036854775807].
-using LongLong = i64;
+// The long long type corresponds to 64-bit signed integers.
+using LongLong = Infra::Signed64BitInteger;
 
 // https://webidl.spec.whatwg.org/#idl-unsigned-long-long
-// The unsigned long long type is an unsigned integer type that has values in the range [0, 18446744073709551615].
-using UnsignedLongLong = u64;
+// The unsigned long long type corresponds to 64-bit unsigned integers.
+using UnsignedLongLong = Infra::Unsigned64BitInteger;
 
 // https://webidl.spec.whatwg.org/#idl-double
 // The double type is a floating point numeric type that corresponds to the set of finite
