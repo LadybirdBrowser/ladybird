@@ -10,6 +10,7 @@
 #include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/InstantPrototype.h>
 #include <LibJS/Runtime/Temporal/TimeZone.h>
+#include <LibJS/Runtime/Temporal/ZonedDateTime.h>
 
 namespace JS::Temporal {
 
@@ -44,6 +45,7 @@ void InstantPrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
     define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
     define_native_function(realm, vm.names.valueOf, value_of, 0, attr);
+    define_native_function(realm, vm.names.toZonedDateTimeISO, to_zoned_date_time_iso, 1, attr);
 }
 
 // 8.3.3 get Temporal.Instant.prototype.epochMilliseconds, https://tc39.es/proposal-temporal/#sec-get-temporal.instant.prototype.epochmilliseconds
@@ -319,6 +321,20 @@ JS_DEFINE_NATIVE_FUNCTION(InstantPrototype::value_of)
 {
     // 1. Throw a TypeError exception.
     return vm.throw_completion<TypeError>(ErrorType::Convert, "Temporal.Instant", "a primitive value");
+}
+
+// 8.3.15 Temporal.Instant.prototype.toZonedDateTimeISO ( timeZone ), https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tozoneddatetimeiso
+JS_DEFINE_NATIVE_FUNCTION(InstantPrototype::to_zoned_date_time_iso)
+{
+    // 1. Let instant be the this value.
+    // 2. Perform ? RequireInternalSlot(instant, [[InitializedTemporalInstant]]).
+    auto instant = TRY(typed_this_object(vm));
+
+    // 3. Set timeZone to ? ToTemporalTimeZoneIdentifier(timeZone).
+    auto time_zone = TRY(to_temporal_time_zone_identifier(vm, vm.argument(0)));
+
+    // 4. Return ! CreateTemporalZonedDateTime(instant.[[EpochNanoseconds]], timeZone, "iso8601").
+    return MUST(create_temporal_zoned_date_time(vm, instant->epoch_nanoseconds(), move(time_zone), "iso8601"_string));
 }
 
 }

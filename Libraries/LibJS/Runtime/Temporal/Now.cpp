@@ -12,6 +12,7 @@
 #include <LibJS/Runtime/Temporal/PlainDateTime.h>
 #include <LibJS/Runtime/Temporal/PlainTime.h>
 #include <LibJS/Runtime/Temporal/TimeZone.h>
+#include <LibJS/Runtime/Temporal/ZonedDateTime.h>
 
 namespace JS::Temporal {
 
@@ -36,6 +37,7 @@ void Now::initialize(Realm& realm)
     define_native_function(realm, vm.names.timeZoneId, time_zone_id, 0, attr);
     define_native_function(realm, vm.names.instant, instant, 0, attr);
     define_native_function(realm, vm.names.plainDateTimeISO, plain_date_time_iso, 0, attr);
+    define_native_function(realm, vm.names.zonedDateTimeISO, zoned_date_time_iso, 0, attr);
     define_native_function(realm, vm.names.plainDateISO, plain_date_iso, 0, attr);
     define_native_function(realm, vm.names.plainTimeISO, plain_time_iso, 0, attr);
 }
@@ -67,6 +69,30 @@ JS_DEFINE_NATIVE_FUNCTION(Now::plain_date_time_iso)
 
     // 2. Return ! CreateTemporalDateTime(isoDateTime, "iso8601").
     return MUST(create_temporal_date_time(vm, iso_date_time, "iso8601"_string));
+}
+
+// 2.2.4 Temporal.Now.zonedDateTimeISO ( [ temporalTimeZoneLike ] ), https://tc39.es/proposal-temporal/#sec-temporal.now.zoneddatetimeiso
+JS_DEFINE_NATIVE_FUNCTION(Now::zoned_date_time_iso)
+{
+    auto temporal_time_zone_like = vm.argument(0);
+    String time_zone;
+
+    // 1. If temporalTimeZoneLike is undefined, then
+    if (temporal_time_zone_like.is_undefined()) {
+        // a. Let timeZone be SystemTimeZoneIdentifier().
+        time_zone = system_time_zone_identifier();
+    }
+    // 2. Else,
+    else {
+        // a. Let timeZone be ? ToTemporalTimeZoneIdentifier(temporalTimeZoneLike).
+        time_zone = TRY(to_temporal_time_zone_identifier(vm, temporal_time_zone_like));
+    }
+
+    //  3. Let ns be SystemUTCEpochNanoseconds().
+    auto nanoseconds = system_utc_epoch_nanoseconds(vm);
+
+    //  4. Return ! CreateTemporalZonedDateTime(ns, timeZone, "iso8601").
+    return MUST(create_temporal_zoned_date_time(vm, BigInt::create(vm, move(nanoseconds)), move(time_zone), "iso8601"_string));
 }
 
 // 2.2.5 Temporal.Now.plainDateISO ( [ temporalTimeZoneLike ] ), https://tc39.es/proposal-temporal/#sec-temporal.now.plaindateiso

@@ -14,6 +14,8 @@
 #include <LibJS/Runtime/Temporal/PlainMonthDay.h>
 #include <LibJS/Runtime/Temporal/PlainTime.h>
 #include <LibJS/Runtime/Temporal/PlainYearMonth.h>
+#include <LibJS/Runtime/Temporal/TimeZone.h>
+#include <LibJS/Runtime/Temporal/ZonedDateTime.h>
 
 namespace JS::Temporal {
 
@@ -62,6 +64,7 @@ void PlainDatePrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.since, since, 1, attr);
     define_native_function(realm, vm.names.equals, equals, 1, attr);
     define_native_function(realm, vm.names.toPlainDateTime, to_plain_date_time, 0, attr);
+    define_native_function(realm, vm.names.toZonedDateTime, to_zoned_date_time, 1, attr);
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.names.toLocaleString, to_locale_string, 0, attr);
     define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
@@ -382,6 +385,76 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::to_plain_date_time)
 
     // 5. Return ? CreateTemporalDateTime(isoDateTime, temporalDate.[[Calendar]]).
     return TRY(create_temporal_date_time(vm, iso_date_time, temporal_date->calendar()));
+}
+
+// 3.3.29 Temporal.PlainDate.prototype.toZonedDateTime ( item ), https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.tozoneddatetime
+JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::to_zoned_date_time)
+{
+    auto item = vm.argument(0);
+
+    // 1. Let temporalDate be the this value.
+    // 2. Perform ? RequireInternalSlot(temporalDate, [[InitializedTemporalDate]]).
+    auto temporal_date = TRY(typed_this_object(vm));
+
+    String time_zone;
+    Value temporal_time;
+
+    // 3. If item is an Object, then
+    if (item.is_object()) {
+        // a. Let timeZoneLike be ? Get(item, "timeZone").
+        auto time_zone_like = TRY(item.as_object().get(vm.names.timeZone));
+
+        // b. If timeZoneLike is undefined, then
+        if (time_zone_like.is_undefined()) {
+            // i. Let timeZone be ? ToTemporalTimeZoneIdentifier(item).
+            time_zone = TRY(to_temporal_time_zone_identifier(vm, item));
+
+            // ii. Let temporalTime be undefined.
+            temporal_time = js_undefined();
+        }
+        // c. Else,
+        else {
+            // i. Let timeZone be ? ToTemporalTimeZoneIdentifier(timeZoneLike).
+            time_zone = TRY(to_temporal_time_zone_identifier(vm, time_zone_like));
+
+            // ii. Let temporalTime be ? Get(item, "plainTime").
+            temporal_time = TRY(item.as_object().get(vm.names.plainTime));
+        }
+    }
+    // 4. Else,
+    else {
+        // a. Let timeZone be ? ToTemporalTimeZoneIdentifier(item).
+        time_zone = TRY(to_temporal_time_zone_identifier(vm, item));
+
+        // b. Let temporalTime be undefined.
+        temporal_time = js_undefined();
+    }
+
+    Crypto::SignedBigInteger epoch_nanoseconds;
+
+    // 5. If temporalTime is undefined, then
+    if (temporal_time.is_undefined()) {
+        // a. Let epochNs be ? GetStartOfDay(timeZone, temporalDate.[[ISODate]]).
+        epoch_nanoseconds = TRY(get_start_of_day(vm, time_zone, temporal_date->iso_date()));
+    }
+    // 6. Else,
+    else {
+        // a. Set temporalTime to ? ToTemporalTime(temporalTime).
+        auto plain_temporal_time = TRY(to_temporal_time(vm, temporal_time));
+
+        // b. Let isoDateTime be CombineISODateAndTimeRecord(temporalDate.[[ISODate]], temporalTime.[[Time]]).
+        auto iso_date_time = combine_iso_date_and_time_record(temporal_date->iso_date(), plain_temporal_time->time());
+
+        // c. If ISODateTimeWithinLimits(isoDateTime) is false, throw a RangeError exception.
+        if (!iso_date_time_within_limits(iso_date_time))
+            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidISODateTime);
+
+        // d. Let epochNs be ? GetEpochNanosecondsFor(timeZone, isoDateTime, COMPATIBLE).
+        epoch_nanoseconds = TRY(get_epoch_nanoseconds_for(vm, time_zone, iso_date_time, Disambiguation::Compatible));
+    }
+
+    // 7. Return ! CreateTemporalZonedDateTime(epochNs, timeZone, temporalDate.[[Calendar]]).
+    return MUST(create_temporal_zoned_date_time(vm, BigInt::create(vm, move(epoch_nanoseconds)), move(time_zone), temporal_date->calendar()));
 }
 
 // 3.3.30 Temporal.PlainDate.prototype.toString ( [ options ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.tostring

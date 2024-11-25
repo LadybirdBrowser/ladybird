@@ -27,6 +27,7 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(time_zone_id);
     JS_DECLARE_NATIVE_FUNCTION(instant);
     JS_DECLARE_NATIVE_FUNCTION(plain_date_time_iso);
+    JS_DECLARE_NATIVE_FUNCTION(zoned_date_time_iso);
     JS_DECLARE_NATIVE_FUNCTION(plain_date_iso);
     JS_DECLARE_NATIVE_FUNCTION(plain_time_iso);
 };
