@@ -420,13 +420,16 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
 
         // --> If the user agent has been configured such that in this instance it will create a new top-level traversable
         else if (true) { // FIXME: When is this the case?
-            // 1. Set windowType to "new and unrestricted".
+            // 1. Consume user activation of currentNavigable's active window.
+            active_window()->consume_user_activation();
+
+            // 2. Set windowType to "new and unrestricted".
             window_type = WindowType::NewAndUnrestricted;
 
-            // 2. Let currentDocument be currentNavigable's active document.
+            // 3. Let currentDocument be currentNavigable's active document.
             auto current_document = active_document();
 
-            // 3. If currentDocument's opener policy's value is "same-origin" or "same-origin-plus-COEP",
+            // 4. If currentDocument's opener policy's value is "same-origin" or "same-origin-plus-COEP",
             //    and currentDocument's origin is not same origin with currentDocument's relevant settings object's top-level origin, then:
             if ((current_document->opener_policy().value == OpenerPolicyValue::SameOrigin || current_document->opener_policy().value == OpenerPolicyValue::SameOriginPlusCOEP)
                 && !current_document->origin().is_same_origin(relevant_settings_object(*current_document).top_level_origin)) {
@@ -443,13 +446,13 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
             // NOTE: In the presence of an opener policy,
             //       nested documents that are cross-origin with their top-level browsing context's active document always set noopener to true.
 
-            // 4. Let chosen be null.
+            // 5. Let chosen be null.
             chosen = nullptr;
 
-            // 5. Let targetName be the empty string.
+            // 6. Let targetName be the empty string.
             String target_name;
 
-            // 6. If name is not an ASCII case-insensitive match for "_blank", then set targetName to name.
+            // 7. If name is not an ASCII case-insensitive match for "_blank", then set targetName to name.
             if (!Infra::is_ascii_case_insensitive_match(name, "_blank"sv))
                 target_name = MUST(String::from_utf8(name));
 
@@ -463,12 +466,12 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
             };
             auto create_new_traversable = GC::create_function(heap(), move(create_new_traversable_closure));
 
-            // 7. If noopener is true, then set chosen to the result of creating a new top-level traversable given null and targetName.
+            // 8. If noopener is true, then set chosen to the result of creating a new top-level traversable given null and targetName.
             if (no_opener == TokenizedFeature::NoOpener::Yes) {
                 chosen = create_new_traversable->function()(nullptr);
             }
 
-            // 8. Otherwise:
+            // 9. Otherwise:
             else {
                 // 1. Set chosen to the result of creating a new top-level traversable given currentNavigable's active browsing context and targetName.
                 chosen = create_new_traversable->function()(active_browsing_context());
@@ -477,7 +480,7 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
                 //    then set chosen's active browsing context's one permitted sandboxed navigator to currentNavigable's active browsing context.
             }
 
-            // FIXME: 5. If sandboxingFlagSet's sandbox propagates to auxiliary browsing contexts flag is set,
+            // FIXME: 10. If sandboxingFlagSet's sandbox propagates to auxiliary browsing contexts flag is set,
             //    then all the flags that are set in sandboxingFlagSet must be set in chosen's active browsing context's popup sandboxing flag set.
             // Our BrowsingContexts do not have SandboxingFlagSets yet, only documents do
         }
