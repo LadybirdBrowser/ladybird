@@ -19,6 +19,7 @@
 #include <LibJS/Runtime/Temporal/PlainMonthDay.h>
 #include <LibJS/Runtime/Temporal/PlainYearMonth.h>
 #include <LibJS/Runtime/Temporal/TimeZone.h>
+#include <LibJS/Runtime/Temporal/ZonedDateTime.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibUnicode/Locale.h>
 #include <LibUnicode/UnicodeKeywords.h>
@@ -452,7 +453,6 @@ ThrowCompletionOr<String> to_temporal_calendar_identifier(VM& vm, Value temporal
         //    [[InitializedTemporalMonthDay]], [[InitializedTemporalYearMonth]], or [[InitializedTemporalZonedDateTime]]
         //    internal slot, then
         //     i. Return temporalCalendarLike.[[Calendar]].
-        // FIXME: Add the other calendar-holding types as we define them.
         if (is<PlainDate>(temporal_calendar_object))
             return static_cast<PlainDate const&>(temporal_calendar_object).calendar();
         if (is<PlainDateTime>(temporal_calendar_object))
@@ -461,6 +461,8 @@ ThrowCompletionOr<String> to_temporal_calendar_identifier(VM& vm, Value temporal
             return static_cast<PlainMonthDay const&>(temporal_calendar_object).calendar();
         if (is<PlainYearMonth>(temporal_calendar_object))
             return static_cast<PlainYearMonth const&>(temporal_calendar_object).calendar();
+        if (is<ZonedDateTime>(temporal_calendar_object))
+            return static_cast<ZonedDateTime const&>(temporal_calendar_object).calendar();
     }
 
     // 2. If temporalCalendarLike is not a String, throw a TypeError exception.
@@ -480,7 +482,6 @@ ThrowCompletionOr<String> get_temporal_calendar_identifier_with_iso_default(VM& 
     // 1. If item has an [[InitializedTemporalDate]], [[InitializedTemporalDateTime]], [[InitializedTemporalMonthDay]],
     //    [[InitializedTemporalYearMonth]], or [[InitializedTemporalZonedDateTime]] internal slot, then
     //     a. Return item.[[Calendar]].
-    // FIXME: Add the other calendar-holding types as we define them.
     if (is<PlainDate>(item))
         return static_cast<PlainDate const&>(item).calendar();
     if (is<PlainDateTime>(item))
@@ -488,6 +489,8 @@ ThrowCompletionOr<String> get_temporal_calendar_identifier_with_iso_default(VM& 
     if (is<PlainMonthDay>(item))
         return static_cast<PlainMonthDay const&>(item).calendar();
     if (is<PlainYearMonth>(item))
+        return static_cast<PlainYearMonth const&>(item).calendar();
+    if (is<ZonedDateTime>(item))
         return static_cast<PlainYearMonth const&>(item).calendar();
 
     // 2. Let calendarLike be ? Get(item, "calendar").
