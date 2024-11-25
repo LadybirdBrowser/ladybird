@@ -34,6 +34,11 @@ describe("correct behavior", () => {
         expect(result).toBeInstanceOf(Temporal.Instant);
         expect(result.epochNanoseconds).toBe(0n);
     });
+
+    test("ZonedDateTime instance argument", () => {
+        const zonedDateTime = new Temporal.ZonedDateTime(123n, "UTC");
+        expect(Temporal.Instant.from(zonedDateTime).epochNanoseconds).toBe(123n);
+    });
 });
 
 describe("errors", () => {

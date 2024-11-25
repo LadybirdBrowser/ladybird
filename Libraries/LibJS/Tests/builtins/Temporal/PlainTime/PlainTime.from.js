@@ -23,6 +23,17 @@ describe("correct behavior", () => {
         expect(createdPlainTime.microsecond).toBe(0);
         expect(createdPlainTime.nanosecond).toBe(0);
     });
+
+    test("ZonedDateTime instance argument", () => {
+        const zonedDateTime = new Temporal.ZonedDateTime(1627318123456789000n, "UTC");
+        const createdPlainTime = Temporal.PlainTime.from(zonedDateTime);
+        expect(createdPlainTime.hour).toBe(16);
+        expect(createdPlainTime.minute).toBe(48);
+        expect(createdPlainTime.second).toBe(43);
+        expect(createdPlainTime.millisecond).toBe(456);
+        expect(createdPlainTime.microsecond).toBe(789);
+        expect(createdPlainTime.nanosecond).toBe(0);
+    });
 });
 
 describe("errors", () => {

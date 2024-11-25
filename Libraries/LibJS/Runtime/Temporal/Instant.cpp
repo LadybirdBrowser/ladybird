@@ -17,6 +17,7 @@
 #include <LibJS/Runtime/Temporal/PlainDateTime.h>
 #include <LibJS/Runtime/Temporal/PlainTime.h>
 #include <LibJS/Runtime/Temporal/TimeZone.h>
+#include <LibJS/Runtime/Temporal/ZonedDateTime.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/ValueInlines.h>
 
@@ -101,11 +102,11 @@ ThrowCompletionOr<GC::Ref<Instant>> to_temporal_instant(VM& vm, Value item)
         auto const& object = item.as_object();
 
         // a. If item has an [[InitializedTemporalInstant]] or [[InitializedTemporalZonedDateTime]] internal slot, then
-        // FIXME: Handle ZonedDateTime.
-        if (is<Instant>(object)) {
-            // i. Return ! CreateTemporalInstant(item.[[EpochNanoseconds]]).
+        //     i. Return ! CreateTemporalInstant(item.[[EpochNanoseconds]]).
+        if (is<Instant>(object))
             return MUST(create_temporal_instant(vm, static_cast<Instant const&>(object).epoch_nanoseconds()));
-        }
+        if (is<ZonedDateTime>(object))
+            return MUST(create_temporal_instant(vm, static_cast<ZonedDateTime const&>(object).epoch_nanoseconds()));
 
         // b. NOTE: This use of ToPrimitive allows Instant-like objects to be converted.
         // c. Set item to ? ToPrimitive(item, STRING).
