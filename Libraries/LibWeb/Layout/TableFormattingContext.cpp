@@ -516,8 +516,10 @@ void TableFormattingContext::compute_table_width()
         // resolved-table-width) other than auto, the used width is the greater
         // of resolved-table-width, and the used min-width of the table.
         CSSPixels resolved_table_width = computed_values.width().to_px(table_box(), width_of_table_wrapper_containing_block);
-        // Since used_width is content width, we need to subtract the border spacing from the specified width for a consistent comparison.
-        used_width = max(resolved_table_width - table_box_state.border_box_left() - table_box_state.border_box_right(), used_min_width);
+        // Since used_width is content width, we need to subtract the border and padding spacing from the specified width for a consistent comparison.
+        if (computed_values.box_sizing() == CSS::BoxSizing::BorderBox)
+            resolved_table_width -= table_box_state.border_box_left() + table_box_state.border_box_right();
+        used_width = max(resolved_table_width, used_min_width);
         if (!should_treat_max_width_as_none(table_box(), m_available_space->width))
             used_width = min(used_width, computed_values.max_width().to_px(table_box(), width_of_table_wrapper_containing_block));
     }
@@ -912,8 +914,11 @@ void TableFormattingContext::compute_table_height()
         // ends up smaller than this number.
         CSSPixels height_of_table_containing_block = m_state.get(*table_wrapper().containing_block()).content_height();
         auto specified_table_height = table_box().computed_values().height().to_px(table_box(), height_of_table_containing_block);
-        auto const& table_state = m_state.get(table_box());
-        m_table_height = max(m_table_height, specified_table_height - table_state.border_box_top() - table_state.border_box_bottom());
+        if (table_box().computed_values().box_sizing() == CSS::BoxSizing::BorderBox) {
+            auto const& table_state = m_state.get(table_box());
+            specified_table_height -= table_state.border_box_top() + table_state.border_box_bottom();
+        }
+        m_table_height = max(m_table_height, specified_table_height);
     }
 
     for (auto& row : m_rows) {

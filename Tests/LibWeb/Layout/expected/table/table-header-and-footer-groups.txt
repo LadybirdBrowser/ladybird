@@ -1,29 +1,29 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x216 [BFC] children: not-inline
-    TableWrapper <(anonymous)> at (9,9) content-size 300x200 [BFC] children: not-inline
-      Box <body.table> at (10,10) content-size 298x198 table-box [TFC] children: not-inline
-        Box <div.bottom> at (10,10) content-size 298x99 table-footer-group children: inline
-          Box <(anonymous)> at (10,10) content-size 298x99 table-row children: inline
-            BlockContainer <(anonymous)> at (10,10) content-size 298x17 table-cell [BFC] children: inline
+  BlockContainer <html> at (1,1) content-size 798x218 [BFC] children: not-inline
+    TableWrapper <(anonymous)> at (9,9) content-size 302x202 [BFC] children: not-inline
+      Box <body.table> at (10,10) content-size 300x200 table-box [TFC] children: not-inline
+        Box <div.bottom> at (10,10) content-size 300x100 table-footer-group children: inline
+          Box <(anonymous)> at (10,10) content-size 300x100 table-row children: inline
+            BlockContainer <(anonymous)> at (10,10) content-size 300x17 table-cell [BFC] children: inline
               frag 0 from TextNode start: 0, length: 6, rect: [10,10 56.109375x17] baseline: 13.296875
                   "bottom"
               TextNode <#text>
-        Box <div.top> at (10,109) content-size 298x99 table-header-group children: inline
-          Box <(anonymous)> at (10,109) content-size 298x99 table-row children: inline
-            BlockContainer <(anonymous)> at (10,109) content-size 298x17 table-cell [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 3, rect: [10,109 26.640625x17] baseline: 13.296875
+        Box <div.top> at (10,110) content-size 300x100 table-header-group children: inline
+          Box <(anonymous)> at (10,110) content-size 300x100 table-row children: inline
+            BlockContainer <(anonymous)> at (10,110) content-size 300x17 table-cell [BFC] children: inline
+              frag 0 from TextNode start: 0, length: 3, rect: [10,110 26.640625x17] baseline: 13.296875
                   "top"
               TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x218]
-    PaintableWithLines (TableWrapper(anonymous)) [9,9 300x200]
-      PaintableBox (Box<BODY>.table) [9,9 300x200]
-        PaintableBox (Box<DIV>.bottom) [10,10 298x99]
-          PaintableBox (Box(anonymous)) [10,10 298x99]
-            PaintableWithLines (BlockContainer(anonymous)) [10,10 298x99]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x220]
+    PaintableWithLines (TableWrapper(anonymous)) [9,9 302x202]
+      PaintableBox (Box<BODY>.table) [9,9 302x202]
+        PaintableBox (Box<DIV>.bottom) [10,10 300x100]
+          PaintableBox (Box(anonymous)) [10,10 300x100]
+            PaintableWithLines (BlockContainer(anonymous)) [10,10 300x100]
               TextPaintable (TextNode<#text>)
-        PaintableBox (Box<DIV>.top) [10,109 298x99]
-          PaintableBox (Box(anonymous)) [10,109 298x99]
-            PaintableWithLines (BlockContainer(anonymous)) [10,109 298x99]
+        PaintableBox (Box<DIV>.top) [10,110 300x100]
+          PaintableBox (Box(anonymous)) [10,110 300x100]
+            PaintableWithLines (BlockContainer(anonymous)) [10,110 300x100]
               TextPaintable (TextNode<#text>)
