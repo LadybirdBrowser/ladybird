@@ -17,6 +17,7 @@ struct SerializedPolicy {
     Policy::Disposition disposition;
     Policy::Source source;
     URL::Origin self_origin;
+    String pre_parsed_policy_string;
 };
 
 }
