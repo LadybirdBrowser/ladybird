@@ -132,9 +132,9 @@ bool assume(T const& expression, StringView expression_string, SourceLocation lo
 
 }
 
-#define EXPECT(x)                  \
-    do {                           \
-        ::Test::expect(x, #x##sv); \
+#define EXPECT(...)                                    \
+    do {                                               \
+        ::Test::expect(__VA_ARGS__, #__VA_ARGS__##sv); \
     } while (false)
 
 #define EXPECT_EQ(a, b)                                \
