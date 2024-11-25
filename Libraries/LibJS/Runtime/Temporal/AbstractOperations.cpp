@@ -245,6 +245,21 @@ ThrowCompletionOr<ShowOffset> get_temporal_show_offset_option(VM& vm, Object con
     return ShowOffset::Auto;
 }
 
+// 13.13 GetDirectionOption ( options ), https://tc39.es/proposal-temporal/#sec-temporal-getdirectionoption
+ThrowCompletionOr<Direction> get_direction_option(VM& vm, Object const& options)
+{
+    // 1. Let stringValue be ? GetOption(options, "direction", STRING, « "next", "previous" », REQUIRED).
+    auto string_value = TRY(get_option(vm, options, vm.names.direction, OptionType::String, { "next"sv, "previous"sv }, Required {}));
+    auto string_view = string_value.as_string().utf8_string_view();
+
+    // 2. If stringValue is "next", return NEXT.
+    if (string_view == "next"sv)
+        return Direction::Next;
+
+    // 3. Return PREVIOUS.
+    return Direction::Previous;
+}
+
 // 13.14 ValidateTemporalRoundingIncrement ( increment, dividend, inclusive ), https://tc39.es/proposal-temporal/#sec-validatetemporalroundingincrement
 ThrowCompletionOr<void> validate_temporal_rounding_increment(VM& vm, u64 increment, u64 dividend, bool inclusive)
 {

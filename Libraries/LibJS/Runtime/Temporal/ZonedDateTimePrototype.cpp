@@ -80,6 +80,7 @@ void ZonedDateTimePrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.toJSON, to_json, 0, attr);
     define_native_function(realm, vm.names.valueOf, value_of, 0, attr);
     define_native_function(realm, vm.names.startOfDay, start_of_day, 0, attr);
+    define_native_function(realm, vm.names.getTimeZoneTransition, get_time_zone_transition, 1, attr);
 }
 
 // 6.3.3 get Temporal.ZonedDateTime.prototype.calendarId, https://tc39.es/proposal-temporal/#sec-get-temporal.zoneddatetime.prototype.calendarid
@@ -830,6 +831,74 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::start_of_day)
 
     // 7. Return ! CreateTemporalZonedDateTime(epochNanoseconds, timeZone, calendar).
     return MUST(create_temporal_zoned_date_time(vm, BigInt::create(vm, move(epoch_nanoseconds)), time_zone, calendar));
+}
+
+// 6.3.46 Temporal.ZonedDateTime.prototype.getTimeZoneTransition ( directionParam ), https://tc39.es/proposal-temporal/#sec-temporal.zoneddatetime.prototype.gettimezonetransition
+JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::get_time_zone_transition)
+{
+    auto& realm = *vm.current_realm();
+
+    auto direction_param_value = vm.argument(0);
+
+    // 1. Let zonedDateTime be the this value.
+    // 2. Perform ? RequireInternalSlot(zonedDateTime, [[InitializedTemporalZonedDateTime]]).
+    auto zoned_date_time = TRY(typed_this_object(vm));
+
+    // 3. Let timeZone be zonedDateTime.[[TimeZone]].
+    auto const& time_zone = zoned_date_time->time_zone();
+
+    // 4. If directionParam is undefined, throw a TypeError exception.
+    if (direction_param_value.is_undefined())
+        return vm.throw_completion<TypeError>(ErrorType::IsUndefined, "Transition direction parameter"sv);
+
+    GC::Ptr<Object> direction_param;
+
+    // 5. If directionParam is a String, then
+    if (direction_param_value.is_string()) {
+        // a. Let paramString be directionParam.
+        auto param_string = direction_param_value;
+
+        // b. Set directionParam to OrdinaryObjectCreate(null).
+        direction_param = Object::create(realm, nullptr);
+
+        // c. Perform ! CreateDataPropertyOrThrow(directionParam, "direction", paramString).
+        MUST(direction_param->create_data_property_or_throw(vm.names.direction, param_string));
+    }
+    // 6. Else,
+    else {
+        // a. Set directionParam to ? GetOptionsObject(directionParam).
+        direction_param = TRY(get_options_object(vm, direction_param_value));
+    }
+
+    // 7. Let direction be ? GetDirectionOption(directionParam).
+    auto direction = TRY(get_direction_option(vm, *direction_param));
+
+    // 8. If IsOffsetTimeZoneIdentifier(timeZone) is true, return null.
+    if (is_offset_time_zone_identifier(time_zone))
+        return js_null();
+
+    Optional<Crypto::SignedBigInteger> transition;
+
+    switch (direction) {
+    // 9. If direction is NEXT, then
+    case Direction::Next:
+        // a. Let transition be GetNamedTimeZoneNextTransition(timeZone, zonedDateTime.[[EpochNanoseconds]]).
+        transition = get_named_time_zone_next_transition(time_zone, zoned_date_time->epoch_nanoseconds()->big_integer());
+        break;
+    // 10. Else,
+    case Direction::Previous:
+        // a. Assert: direction is PREVIOUS.
+        // b. Let transition be GetNamedTimeZonePreviousTransition(timeZone, zonedDateTime.[[EpochNanoseconds]]).
+        transition = get_named_time_zone_previous_transition(time_zone, zoned_date_time->epoch_nanoseconds()->big_integer());
+        break;
+    }
+
+    // 11. If transition is null, return null.
+    if (!transition.has_value())
+        return js_null();
+
+    // 12. Return ! CreateTemporalZonedDateTime(transition, timeZone, zonedDateTime.[[Calendar]]).
+    return MUST(create_temporal_zoned_date_time(vm, BigInt::create(vm, transition.release_value()), time_zone, zoned_date_time->calendar()));
 }
 
 }
