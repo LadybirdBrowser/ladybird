@@ -71,6 +71,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(download)                   \
     __ENUMERATE_HTML_ATTRIBUTE(enctype)                    \
     __ENUMERATE_HTML_ATTRIBUTE(ended)                      \
+    __ENUMERATE_HTML_ATTRIBUTE(enterkeyhint)               \
     __ENUMERATE_HTML_ATTRIBUTE(event)                      \
     __ENUMERATE_HTML_ATTRIBUTE(face)                       \
     __ENUMERATE_HTML_ATTRIBUTE(fetchpriority)              \
