@@ -41,7 +41,6 @@ HTMLObjectElement::HTMLObjectElement(DOM::Document& document, DOM::QualifiedName
     // - the element is created,
     // ...the user agent must queue an element task on the DOM manipulation task source given
     // the object element to run the following steps to (re)determine what the object element represents.
-    // This task being queued or actively running must delay the load event of the element's node document.
     queue_element_task_to_run_object_representation_steps();
 }
 
@@ -215,6 +214,7 @@ void HTMLObjectElement::queue_element_task_to_run_object_representation_steps()
             // 5. Fetch request, with processResponseEndOfBody given response res set to finalize and report timing with res, the element's node document's relevant global object, and "object".
             //    Fetching the resource must delay the load event of the element's node document until the task that is queued by the networking task source once the resource has been fetched (defined next) has been run.
             set_resource(ResourceLoader::the().load_resource(Resource::Type::Generic, request));
+            m_document_load_event_delayer_for_resource_load.emplace(document());
 
             // 6. If the resource is not yet available (e.g. because the resource was not available in the cache, so that loading the resource required making a request over the network), then jump to the step below labeled fallback. The task that is queued by the networking task source once the resource is available must restart this algorithm from this step. Resources can load incrementally; user agents may opt to consider a resource "available" whenever enough data has been obtained to begin processing the resource.
 
@@ -234,11 +234,16 @@ void HTMLObjectElement::resource_did_fail()
     // 4.7. If the load failed (e.g. there was an HTTP 404 error, there was a DNS error), fire an event named error at the element, then jump to the step below labeled fallback.
     dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
     run_object_representation_fallback_steps();
+    m_document_load_event_delayer_for_resource_load.clear();
 }
 
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#object-type-detection
 void HTMLObjectElement::resource_did_load()
 {
+    ScopeGuard load_event_delayer_guard = [&] {
+        m_document_load_event_delayer_for_resource_load.clear();
+    };
+
     // 4.8. Determine the resource type, as follows:
 
     // 1. Let the resource type be unknown.
