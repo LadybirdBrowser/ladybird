@@ -83,6 +83,14 @@ public:
     [[nodiscard]] RefPtr<CSS::CSSStyleValue> width_style_value_from_attribute() const;
     [[nodiscard]] RefPtr<CSS::CSSStyleValue> height_style_value_from_attribute() const;
 
+    struct NaturalMetrics {
+        Optional<CSSPixels> width;
+        Optional<CSSPixels> height;
+        Optional<CSSPixelFraction> aspect_ratio;
+    };
+
+    static NaturalMetrics negotiate_natural_metrics(SVGSVGElement const&);
+
 private:
     SVGSVGElement(DOM::Document&, DOM::QualifiedName);
 
