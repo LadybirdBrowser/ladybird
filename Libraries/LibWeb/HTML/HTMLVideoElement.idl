@@ -10,7 +10,7 @@ interface HTMLVideoElement : HTMLMediaElement {
     [CEReactions, Reflect] attribute unsigned long height;
     readonly attribute unsigned long videoWidth;
     readonly attribute unsigned long videoHeight;
-    [CEReactions, Reflect] attribute USVString poster;
+    [CEReactions, Reflect, URL] attribute USVString poster;
     [CEReactions, Reflect=playsinline] attribute boolean playsInline;
 
 };
