@@ -9,29 +9,29 @@
 #include <LibWeb/Layout/NavigableContainerViewport.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
-#include <LibWeb/Painting/NestedBrowsingContextPaintable.h>
+#include <LibWeb/Painting/NavigableContainerViewportPaintable.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 
 namespace Web::Painting {
 
-GC_DEFINE_ALLOCATOR(NestedBrowsingContextPaintable);
+GC_DEFINE_ALLOCATOR(NavigableContainerViewportPaintable);
 
-GC::Ref<NestedBrowsingContextPaintable> NestedBrowsingContextPaintable::create(Layout::NavigableContainerViewport const& layout_box)
+GC::Ref<NavigableContainerViewportPaintable> NavigableContainerViewportPaintable::create(Layout::NavigableContainerViewport const& layout_box)
 {
-    return layout_box.heap().allocate<NestedBrowsingContextPaintable>(layout_box);
+    return layout_box.heap().allocate<NavigableContainerViewportPaintable>(layout_box);
 }
 
-NestedBrowsingContextPaintable::NestedBrowsingContextPaintable(Layout::NavigableContainerViewport const& layout_box)
+NavigableContainerViewportPaintable::NavigableContainerViewportPaintable(Layout::NavigableContainerViewport const& layout_box)
     : PaintableBox(layout_box)
 {
 }
 
-Layout::NavigableContainerViewport const& NestedBrowsingContextPaintable::layout_box() const
+Layout::NavigableContainerViewport const& NavigableContainerViewportPaintable::layout_box() const
 {
     return static_cast<Layout::NavigableContainerViewport const&>(layout_node());
 }
 
-void NestedBrowsingContextPaintable::paint(PaintContext& context, PaintPhase phase) const
+void NavigableContainerViewportPaintable::paint(PaintContext& context, PaintPhase phase) const
 {
     if (!is_visible())
         return;

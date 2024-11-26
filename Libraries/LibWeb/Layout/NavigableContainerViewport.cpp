@@ -7,7 +7,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/NavigableContainerViewport.h>
 #include <LibWeb/Layout/Viewport.h>
-#include <LibWeb/Painting/NestedBrowsingContextPaintable.h>
+#include <LibWeb/Painting/NavigableContainerViewportPaintable.h>
 
 namespace Web::Layout {
 
@@ -37,7 +37,7 @@ void NavigableContainerViewport::did_set_content_size()
 
 GC::Ptr<Painting::Paintable> NavigableContainerViewport::create_paintable() const
 {
-    return Painting::NestedBrowsingContextPaintable::create(*this);
+    return Painting::NavigableContainerViewportPaintable::create(*this);
 }
 
 }
