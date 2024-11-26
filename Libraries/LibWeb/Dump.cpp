@@ -327,6 +327,11 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
             auto const& frame_box = static_cast<Layout::NavigableContainerViewport const&>(box);
             if (auto const* document = frame_box.dom_node().content_document_without_origin_check()) {
                 builder.appendff(" (url: {})", document->url());
+                if (auto const* nested_layout_root = document->layout_node()) {
+                    ++indent;
+                    dump_tree(builder, *nested_layout_root, show_box_model, show_specified_style, interactive);
+                    --indent;
+                }
             }
         }
 
