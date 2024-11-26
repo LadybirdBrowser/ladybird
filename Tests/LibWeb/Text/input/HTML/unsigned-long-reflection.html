@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function testProperty(elementName, propertyName, propertyGetter, propertySetter) {
+            const attributeName = propertyName.toLowerCase();
+            function setValue(value) {
+                let element = document.createElement(elementName);
+                element.setAttribute(attributeName, value.toString());
+                println(`${elementName}.getAttribute("${attributeName}") after ${elementName}.setAttribute("${propertyName}", "${value}"): ${element.getAttribute(`${attributeName}`)}`);
+                println(`${elementName}.${propertyName} after ${elementName}.setAttribute("${attributeName}", "${value}"): ${propertyGetter(element)}`);
+
+                element = document.createElement(elementName);
+                propertySetter(element, value);
+                println(`${elementName}.getAttribute("${attributeName}") after ${elementName}.${propertyName} = ${value}: ${element.getAttribute(attributeName)}`);
+                println(`${elementName}.${propertyName} after ${elementName}.${propertyName} = ${value}: ${propertyGetter(element)}`);
+            }
+
+            setValue(1);
+            setValue(2147483647);
+            setValue(2147483648);
+            setValue(4294967295);
+        }
+
+        testProperty("img", "hspace", (img) => img.hspace, (img, value) => img.hspace = value);
+    });
+</script>

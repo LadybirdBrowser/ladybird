@@ -3834,6 +3834,22 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
     else
         MUST(impl->set_attribute(HTML::AttributeNames::@attribute.reflect_name@, String {}));
 )~~~");
+                } else if (attribute.type->name() == "unsigned long") {
+                    // The setter steps are:
+                    // FIXME: 1. If the reflected IDL attribute is limited to only positive numbers and the given value is 0, then throw an "IndexSizeError" DOMException.
+                    // 2. Let minimum be 0.
+                    // FIXME: 3. If the reflected IDL attribute is limited to only positive numbers or limited to only positive numbers with fallback, then set minimum to 1.
+                    // 4. Let newValue be minimum.
+                    // FIXME: 5. If the reflected IDL attribute has a default value, then set newValue to defaultValue.
+                    // 6. If the given value is in the range minimum to 2147483647, inclusive, then set newValue to it.
+                    // 7. Run this's set the content attribute with newValue converted to the shortest possible string representing the number as a valid non-negative integer.
+                    attribute_generator.append(R"~~~(
+    u32 minimum = 0;
+    u32 new_value = minimum;
+    if (cpp_value >= minimum && cpp_value <= 2147483647)
+        new_value = cpp_value;
+    MUST(impl->set_attribute(HTML::AttributeNames::@attribute.reflect_name@, String::number(new_value)));
+)~~~");
                 } else if (attribute.type->is_integer() && !attribute.type->is_nullable()) {
                     attribute_generator.append(R"~~~(
     MUST(impl->set_attribute(HTML::AttributeNames::@attribute.reflect_name@, String::number(cpp_value)));
