@@ -126,7 +126,7 @@ c8yGzl89pYST
     auto keypair = Crypto::PK::RSA::parse_rsa_key(decoded);
     auto priv_der = MUST(keypair.private_key.export_as_der());
     auto rsa_encryption_oid = Array<int, 7> { 1, 2, 840, 113549, 1, 1, 1 };
-    auto wrapped_priv_der = MUST(Crypto::PK::wrap_in_private_key_info(keypair.private_key, rsa_encryption_oid));
+    auto wrapped_priv_der = MUST(Crypto::PK::wrap_in_private_key_info(keypair.private_key, rsa_encryption_oid, nullptr));
     auto priv_pem = MUST(Crypto::encode_pem(wrapped_priv_der, Crypto::PEMType::PrivateKey));
     auto rsa_from_pair = Crypto::PK::RSA(keypair.public_key, keypair.private_key);
     auto rsa_from_pem = Crypto::PK::RSA(priv_pem);
