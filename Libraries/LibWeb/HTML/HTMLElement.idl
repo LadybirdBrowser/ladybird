@@ -52,6 +52,17 @@ HTMLElement includes GlobalEventHandlers;
 HTMLElement includes ElementContentEditable;
 HTMLElement includes HTMLOrSVGElement;
 
+// https://html.spec.whatwg.org/multipage/interaction.html#attr-enterkeyhint
+enum EnterKeyHint {
+    "enter",
+    "done",
+    "go",
+    "next",
+    "previous",
+    "search",
+    "send"
+};
+
 // https://html.spec.whatwg.org/#attr-inputmode
 enum InputMode {
     "none",
@@ -67,7 +78,7 @@ enum InputMode {
 // https://html.spec.whatwg.org/#elementcontenteditable
 interface mixin ElementContentEditable {
     [CEReactions] attribute DOMString contentEditable;
-    [FIXME, CEReactions] attribute DOMString enterKeyHint;
+    [Reflect=enterkeyhint, Enumerated=EnterKeyHint, CEReactions] attribute DOMString enterKeyHint;
     readonly attribute boolean isContentEditable;
     [Reflect=inputmode, Enumerated=InputMode, CEReactions] attribute DOMString inputMode;
 };
