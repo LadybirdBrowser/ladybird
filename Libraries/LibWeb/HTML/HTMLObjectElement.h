@@ -92,6 +92,10 @@ private:
     GC::Ptr<DecodedImageData> image_data() const;
 
     GC::Ptr<SharedResourceRequest> m_resource_request;
+
+public:
+    Optional<DOM::DocumentLoadEventDelayer> m_document_load_event_delayer_for_object_representation_task;
+    Optional<DOM::DocumentLoadEventDelayer> m_document_load_event_delayer_for_resource_load;
 };
 
 }
