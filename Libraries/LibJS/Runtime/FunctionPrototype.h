@@ -30,9 +30,8 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(to_string);
     JS_DECLARE_NATIVE_FUNCTION(symbol_has_instance);
 
-    // Totally unnecessary, but sadly still necessary.
-    // TODO: Get rid of the pointless name() method.
-    DeprecatedFlyString m_name { "FunctionPrototype" };
+    // 20.2.3: The Function prototype object has a "name" property whose value is the empty String.
+    DeprecatedFlyString m_name;
 };
 
 }
