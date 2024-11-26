@@ -113,9 +113,7 @@ static constexpr auto s_public_suffixes = Array {)~~~");
         auto view = line.split_view("."sv);
         view.reverse();
 
-        StringBuilder builder;
-        builder.join("."sv, view);
-        auto val = builder.string_view();
+        auto val = MUST(String::join("."sv, view));
 
         generator.set("line", val);
         generator.append(R"~~~(
