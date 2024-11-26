@@ -1,0 +1,16 @@
+img.getAttribute("hspace") after img.setAttribute("hspace", "1"): 1
+img.hspace after img.setAttribute("hspace", "1"): 1
+img.getAttribute("hspace") after img.hspace = 1: 1
+img.hspace after img.hspace = 1: 1
+img.getAttribute("hspace") after img.setAttribute("hspace", "2147483647"): 2147483647
+img.hspace after img.setAttribute("hspace", "2147483647"): 2147483647
+img.getAttribute("hspace") after img.hspace = 2147483647: 2147483647
+img.hspace after img.hspace = 2147483647: 2147483647
+img.getAttribute("hspace") after img.setAttribute("hspace", "2147483648"): 2147483648
+img.hspace after img.setAttribute("hspace", "2147483648"): 0
+img.getAttribute("hspace") after img.hspace = 2147483648: 0
+img.hspace after img.hspace = 2147483648: 0
+img.getAttribute("hspace") after img.setAttribute("hspace", "4294967295"): 4294967295
+img.hspace after img.setAttribute("hspace", "4294967295"): 0
+img.getAttribute("hspace") after img.hspace = 4294967295: 0
+img.hspace after img.hspace = 4294967295: 0
