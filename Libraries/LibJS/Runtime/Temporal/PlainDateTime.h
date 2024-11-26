@@ -32,8 +32,8 @@ private:
     String m_calendar;           // [[Calendar]]
 };
 
-ISODateTime combine_iso_date_and_time_record(ISODate, Time);
-bool iso_date_time_within_limits(ISODateTime);
+ISODateTime combine_iso_date_and_time_record(ISODate, Time const&);
+bool iso_date_time_within_limits(ISODateTime const&);
 ThrowCompletionOr<ISODateTime> interpret_temporal_date_time_fields(VM&, StringView calendar, CalendarFields&, Overflow);
 ThrowCompletionOr<GC::Ref<PlainDateTime>> to_temporal_date_time(VM&, Value item, Value options = js_undefined());
 ISODateTime balance_iso_date_time(double year, double month, double day, double hour, double minute, double second, double millisecond, double microsecond, double nanosecond);
