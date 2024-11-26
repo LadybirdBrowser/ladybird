@@ -11,7 +11,7 @@
 namespace Web::WebAssembly {
 
 class CompileError final : public JS::Error {
-    JS_OBJECT(CompileError, Error);
+    JS_OBJECT(CompileError, JS::Error);
     GC_DECLARE_ALLOCATOR(CompileError);
 
 public:
@@ -24,7 +24,7 @@ private:
 };
 
 class LinkError final : public JS::Error {
-    JS_OBJECT(LinkError, Error);
+    JS_OBJECT(LinkError, JS::Error);
     GC_DECLARE_ALLOCATOR(LinkError);
 
 public:
@@ -37,7 +37,7 @@ private:
 };
 
 class RuntimeError final : public JS::Error {
-    JS_OBJECT(RuntimeError, Error);
+    JS_OBJECT(RuntimeError, JS::Error);
     GC_DECLARE_ALLOCATOR(RuntimeError);
 
 public:
