@@ -609,6 +609,21 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcdhKeyDerivePrams::from_v
     return adopt_own<AlgorithmParams>(*new EcdhKeyDerivePrams { name, key });
 }
 
+EcKeyImportParams::~EcKeyImportParams() = default;
+
+JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcKeyImportParams::from_value(JS::VM& vm, JS::Value value)
+{
+    auto& object = value.as_object();
+
+    auto name_value = TRY(object.get("name"));
+    auto name = TRY(name_value.to_string(vm));
+
+    auto named_curve_value = TRY(object.get("namedCurve"));
+    auto named_curve = TRY(named_curve_value.to_string(vm));
+
+    return adopt_own<AlgorithmParams>(*new EcKeyImportParams { name, named_curve });
+}
+
 HmacImportParams::~HmacImportParams() = default;
 
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> HmacImportParams::from_value(JS::VM& vm, JS::Value value)

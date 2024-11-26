@@ -591,6 +591,20 @@ struct EcdhKeyDerivePrams : public AlgorithmParams {
     static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::VM&, JS::Value);
 };
 
+struct EcKeyImportParams : public AlgorithmParams {
+    virtual ~EcKeyImportParams() override;
+
+    EcKeyImportParams(String name, String named_curve)
+        : AlgorithmParams(move(name))
+        , named_curve(move(named_curve))
+    {
+    }
+
+    String named_curve;
+
+    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::VM&, JS::Value);
+};
+
 ErrorOr<String> base64_url_uint_encode(::Crypto::UnsignedBigInteger);
 WebIDL::ExceptionOr<ByteBuffer> base64_url_bytes_decode(JS::Realm&, String const& base64_url_string);
 WebIDL::ExceptionOr<::Crypto::UnsignedBigInteger> base64_url_uint_decode(JS::Realm&, String const& base64_url_string);
