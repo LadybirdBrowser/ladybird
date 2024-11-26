@@ -64,7 +64,6 @@
                                                   "units after being used in larger units")                                             \
     M(InvalidAssignToConst, "Invalid assignment to const variable")                                                                     \
     M(InvalidCodePoint, "Invalid code point {}, must be an integer no less than 0 and no greater than 0x10FFFF")                        \
-    M(InvalidFormat, "Invalid {} format")                                                                                               \
     M(InvalidFractionDigits, "Fraction Digits must be an integer no less than 0, and no greater than 100")                              \
     M(InvalidHint, "Invalid hint: \"{}\"")                                                                                              \
     M(InvalidIndex, "Index must be a positive integer")                                                                                 \
@@ -80,22 +79,17 @@
     M(IsNotAEvaluatedFrom, "{} is not a {} (evaluated from '{}')")                                                                      \
     M(IsUndefined, "{} is undefined")                                                                                                   \
     M(IterableNextBadReturn, "iterator.next() returned a non-object value")                                                             \
-    M(IterableNextNotAFunction, "'next' property on returned object from Symbol.iterator method is not a function")                     \
     M(IterableReturnBadReturn, "iterator.return() returned a non-object value")                                                         \
-    M(IterableToListOfTypeInvalidValue, "Cannot create typed list from iterable, invalid value {}")                                     \
     M(JsonBigInt, "Cannot serialize BigInt value to JSON")                                                                              \
     M(JsonCircular, "Cannot stringify circular object")                                                                                 \
     M(JsonMalformed, "Malformed JSON string")                                                                                           \
     M(MissingRequiredProperty, "Required property {} is missing or undefined")                                                          \
     M(ModuleNoEnvironment, "Cannot find module environment for imported binding")                                                       \
     M(ModuleNotFound, "Cannot find/open module: '{}'")                                                                                  \
-    M(ModuleNotFoundNoReferencingScript, "Cannot resolve module {} without any active script or module")                                \
     M(NegativeExponent, "Exponent must be positive")                                                                                    \
     M(NoDisposeMethod, "{} does not have dispose method")                                                                               \
-    M(NonExtensibleDefine, "Cannot define property {} on non-extensible object")                                                        \
     M(NotAConstructor, "{} is not a constructor")                                                                                       \
     M(NotAFunction, "{} is not a function")                                                                                             \
-    M(NotAFunctionNoParam, "Not a function")                                                                                            \
     M(NotAnIntegerOrUndefined, "{} is neither an integer nor undefined")                                                                \
     M(NotAnObject, "{} is not an object")                                                                                               \
     M(NotAnObjectOfType, "Not an object of type {}")                                                                                    \
@@ -118,8 +112,6 @@
     M(ObjectSetReturnedFalse, "Object's [[Set]] method returned false")                                                                 \
     M(ObjectSetPrototypeOfReturnedFalse, "Object's [[SetPrototypeOf]] method returned false")                                           \
     M(ObjectPreventExtensionsReturnedFalse, "Object's [[PreventExtensions]] method returned false")                                     \
-    M(ObjectPrototypeNullOrUndefinedOnSuperPropertyAccess,                                                                              \
-        "Object prototype must not be {} on a super property access")                                                                   \
     M(ObjectPrototypeWrongType, "Prototype must be an object or null")                                                                  \
     M(OptionIsNotValidValue, "{} is not a valid value for option {}")                                                                   \
     M(OutOfMemory, "Out of memory")                                                                                                     \
@@ -159,9 +151,6 @@
     M(ProxyGetNonConfigurableAccessor, "Proxy handler's get trap violates invariant: the "                                              \
                                        "returned value must be undefined if the property exists on the target as a "                    \
                                        "non-configurable accessor property with an undefined get attribute")                            \
-    M(ProxyGetOwnDescriptorExistingConfigurable, "Proxy handler's getOwnPropertyDescriptor "                                            \
-                                                 "trap violates invariant: a property cannot be defined as non-configurable if it "     \
-                                                 "already exists on the target object as a configurable property")                      \
     M(ProxyGetOwnDescriptorInvalidDescriptor, "Proxy handler's getOwnPropertyDescriptor trap "                                          \
                                               "violates invariant: invalid property descriptor for existing property on the target")    \
     M(ProxyGetOwnDescriptorInvalidNonConfig, "Proxy handler's getOwnPropertyDescriptor trap "                                           \
@@ -215,7 +204,6 @@
                                         "target is non-extensible")                                                                     \
     M(ReduceNoInitial, "Reduce of empty array with no initial value")                                                                   \
     M(ReferenceNullishDeleteProperty, "Cannot delete property '{}' of {}")                                                              \
-    M(ReferenceNullishGetProperty, "Cannot get property '{}' of {}")                                                                    \
     M(ReferenceNullishSetProperty, "Cannot set property '{}' of {}")                                                                    \
     M(ReferencePrimitiveSetProperty, "Cannot set property '{}' of {} '{}'")                                                             \
     M(ReferenceUnresolvable, "Unresolvable reference")                                                                                  \
@@ -232,84 +220,43 @@
     M(SpeciesConstructorDidNotCreate, "Species constructor did not create {}")                                                          \
     M(SpeciesConstructorReturned, "Species constructor returned {}")                                                                    \
     M(StringNonGlobalRegExp, "RegExp argument is non-global")                                                                           \
-    M(StringRawCannotConvert, "Cannot convert property 'raw' to object from {}")                                                        \
     M(StringRepeatCountMustBe, "repeat count must be a {} number")                                                                      \
     M(StringRepeatCountMustNotOverflow, "repeat count must not overflow")                                                               \
-    M(TemporalAmbiguousMonthOfPlainMonthDay, "Accessing month of PlainMonthDay is ambiguous, use monthCode instead")                    \
     M(TemporalDifferentCalendars, "Cannot compare dates from two different calendars")                                                  \
     M(TemporalDifferentTimeZones, "Cannot compare dates from two different time zones")                                                 \
     M(TemporalDisambiguatePossibleEpochNSRejectMoreThanOne, "Cannot disambiguate two or more possible epoch nanoseconds")               \
     M(TemporalDisambiguatePossibleEpochNSRejectZero, "Cannot disambiguate zero possible epoch nanoseconds")                             \
-    M(TemporalDisambiguatePossibleInstantsEarlierZero, "Cannot disambiguate zero possible instants with mode \"earlier\"")              \
-    M(TemporalDisambiguatePossibleInstantsRejectMoreThanOne, "Cannot disambiguate two or more possible instants with mode \"reject\"")  \
-    M(TemporalDisambiguatePossibleInstantsRejectZero, "Cannot disambiguate zero possible instants with mode \"reject\"")                \
-    M(TemporalDisambiguatePossibleInstantsZero, "Cannot disambiguate zero possible instants")                                           \
-    M(TemporalDuplicateCalendarField, "Duplicate calendar field '{}'")                                                                  \
     M(TemporalInvalidCalendar, "Invalid calendar")                                                                                      \
     M(TemporalInvalidCalendarFieldName, "Invalid calendar field '{}'")                                                                  \
-    M(TemporalInvalidCalendarFieldValue, "Invalid calendar field {}, expected a string")                                                \
-    M(TemporalInvalidCalendarFunctionResult, "Invalid calendar, {}() function returned {}")                                             \
     M(TemporalInvalidCalendarIdentifier, "Invalid calendar identifier '{}'")                                                            \
     M(TemporalInvalidCalendarString, "Invalid calendar string '{}'")                                                                    \
     M(TemporalInvalidCriticalAnnotation, "Invalid critical annotation: '{}={}'")                                                        \
-    M(TemporalInvalidDateTimeString, "Invalid date time string '{}'")                                                                   \
-    M(TemporalInvalidDateTimeStringUTCDesignator, "Invalid date time string '{}': must not contain a UTC designator")                   \
     M(TemporalInvalidDuration, "Invalid duration")                                                                                      \
     M(TemporalInvalidDurationLikeObject, "Invalid duration-like object")                                                                \
     M(TemporalInvalidDurationPropertyValueNonIntegral, "Invalid value for duration property '{}': must be an integer, got {}")          \
-    M(TemporalInvalidDurationPropertyValueNonZero, "Invalid value for duration property '{}': must be zero, got {}")                    \
     M(TemporalInvalidDurationString, "Invalid duration string '{}'")                                                                    \
-    M(TemporalInvalidDurationStringFractionNotLast, "Invalid duration string '{}': fractional {} must not be proceeded by {}")          \
     M(TemporalInvalidEpochNanoseconds, "Invalid epoch nanoseconds value, must be in range -86400 * 10^17 to 86400 * 10^17")             \
     M(TemporalInvalidInstantString, "Invalid instant string '{}'")                                                                      \
     M(TemporalInvalidISODate, "Invalid ISO date")                                                                                       \
     M(TemporalInvalidISODateTime, "Invalid ISO date time")                                                                              \
     M(TemporalInvalidLargestUnit, "Largest unit must not be {}")                                                                        \
     M(TemporalInvalidMonthCode, "Invalid month code")                                                                                   \
-    M(TemporalInvalidMonthDayString, "Invalid month day string '{}'")                                                                   \
-    M(TemporalInvalidMonthDayStringUTCDesignator, "Invalid month day string '{}': must not contain a UTC designator")                   \
-    M(TemporalInvalidOffsetNanosecondsValue, "Invalid offset nanoseconds value, must be in range -86400 * 10^9 + 1 to "                 \
-                                             "86400 * 10^9 - 1")                                                                        \
     M(TemporalInvalidPlainDate, "Invalid plain date")                                                                                   \
     M(TemporalInvalidPlainDateTime, "Invalid plain date time")                                                                          \
     M(TemporalInvalidPlainMonthDay, "Invalid plain month day")                                                                          \
     M(TemporalInvalidPlainTime, "Invalid plain time")                                                                                   \
     M(TemporalInvalidPlainYearMonth, "Invalid plain year month")                                                                        \
-    M(TemporalInvalidRelativeToStringUTCDesignatorWithoutBracketedTimeZone, "Invalid relativeTo string '{}': must not contain a UTC "   \
-                                                                            "designator without bracketed time zone")                   \
     M(TemporalInvalidTime, "Invalid time")                                                                                              \
     M(TemporalInvalidTimeLikeField, "Invalid value {} for time field '{}'")                                                             \
-    M(TemporalInvalidTimeString, "Invalid time string '{}'")                                                                            \
-    M(TemporalInvalidTimeStringUTCDesignator, "Invalid time string '{}': must not contain a UTC designator")                            \
     M(TemporalInvalidTimeZoneName, "Invalid time zone name '{}'")                                                                       \
     M(TemporalInvalidTimeZoneString, "Invalid time zone string '{}'")                                                                   \
     M(TemporalInvalidUnitRange, "Invalid unit range, {} is larger than {}")                                                             \
-    M(TemporalInvalidYearMonthString, "Invalid year month string '{}'")                                                                 \
-    M(TemporalInvalidYearMonthStringUTCDesignator, "Invalid year month string '{}': must not contain a UTC designator")                 \
     M(TemporalInvalidZonedDateTimeOffset, "Invalid offset for the provided date and time in the current time zone")                     \
     M(TemporalInvalidZonedDateTimeString, "Invalid zoned date time string '{}'")                                                        \
-    M(TemporalOnlyISO8601WithMonthDayString, "MM-DD string format can only be used with the iso8601 calendar")                          \
-    M(TemporalOnlyISO8601WithYearMonthString, "YYYY-MM string format can only be used with the iso8601 calendar")                       \
     M(TemporalMissingOptionsObject, "Required options object is missing or undefined")                                                  \
     M(TemporalMissingStartingPoint, "A starting point is required for comparing {}")                                                    \
     M(TemporalMissingUnits, "One or both of smallestUnit or largestUnit is required")                                                   \
-    M(TemporalNanosecondsConvertedToDaysWithOppositeSign, "Time zone or calendar converted nanoseconds into a number of days with "     \
-                                                          "the opposite sign")                                                          \
-    M(TemporalNanosecondsConvertedToRemainderOfNanosecondsWithOppositeSign, "Time zone or calendar ended up with a remainder of "       \
-                                                                            "nanoseconds with the opposite sign")                       \
-    M(TemporalNanosecondsConvertedToRemainderOfNanosecondsLongerThanDayLength, "Time zone or calendar ended up with a remainder of "    \
-                                                                               "nanoseconds longer than the day length")                \
     M(TemporalObjectMustBePartialTemporalObject, "Object must be a partial Temporal object")                                            \
-    M(TemporalObjectMustHaveOneOf, "Object must have at least one of the following properties: {}")                                     \
-    M(TemporalObjectMustNotHave, "Object must not have a defined {} property")                                                          \
-    M(TemporalPropertyMustBeFinite, "Property must not be Infinity")                                                                    \
-    M(TemporalPropertyMustBePositiveInteger, "Property must be a positive integer")                                                     \
-    M(TemporalTimeZoneOffsetStringMismatch, "Time zone offset string mismatch: '{}' is not equal to '{}'")                              \
-    M(TemporalUnexpectedCalendarObject, "Got unexpected Calendar object in conversion to TimeZone")                                     \
-    M(TemporalUnexpectedTimeZoneObject, "Got unexpected TimeZone object in conversion to Calendar")                                     \
-    M(TemporalUnknownCriticalAnnotation, "Unknown annotation key in critical annotation: '{}'")                                         \
-    M(TemporalZonedDateTimeRoundZeroOrNegativeLengthDay, "Cannot round a ZonedDateTime in a calendar or time zone that has zero or "    \
-                                                         "negative length days")                                                        \
     M(ThisHasNotBeenInitialized, "|this| has not been initialized")                                                                     \
     M(ThisIsAlreadyInitialized, "|this| is already initialized")                                                                        \
     M(ToObjectNullOrUndefined, "ToObject on null or undefined")                                                                         \
@@ -329,7 +276,6 @@
     M(TypedArrayOverflow, "Overflow in {}")                                                                                             \
     M(TypedArrayOverflowOrOutOfBounds, "Overflow or out of bounds in {}")                                                               \
     M(TypedArrayPrototypeOneArg, "TypedArray.prototype.{}() requires at least one argument")                                            \
-    M(TypedArrayFailedSettingIndex, "Failed setting value of index {} of typed array")                                                  \
     M(TypedArrayTypeIsNot, "Typed array {} element type is not {}")                                                                     \
     M(UnknownIdentifier, "'{}' is not defined")                                                                                         \
     M(UnsupportedDeleteSuperProperty, "Can't delete a property on 'super'")                                                             \
@@ -337,9 +283,7 @@
     M(WrappedFunctionCopyNameAndLengthThrowCompletion, "Trying to copy target name and length did not complete normally")               \
     M(YieldFromIteratorMissingThrowMethod, "yield* protocol violation: iterator must have a throw method")                              \
     M(URIMalformed, "URI malformed") /* LibWeb bindings */                                                                              \
-    M(NotAByteString, "Argument to {}() must be a byte string")                                                                         \
     M(BadArgCountOne, "{}() needs one argument")                                                                                        \
-    M(BadArgCountAtLeastOne, "{}() needs at least one argument")                                                                        \
     M(BadArgCountMany, "{}() needs {} arguments")                                                                                       \
     M(NotEnoughMemoryToAllocate, "Not enough memory to allocate {} bytes")                                                              \
     M(InvalidEnumerationValue, "Invalid value '{}' for enumeration type '{}'")                                                          \

@@ -130,10 +130,7 @@ namespace JS {
     P(currency)                              \
     P(currencyDisplay)                       \
     P(currencySign)                          \
-    P(dateAdd)                               \
-    P(dateFromFields)                        \
     P(dateStyle)                             \
-    P(dateUntil)                             \
     P(day)                                   \
     P(dayOfWeek)                             \
     P(dayOfYear)                             \
@@ -167,10 +164,8 @@ namespace JS {
     P(endsWith)                              \
     P(entries)                               \
     P(enumerable)                            \
-    P(epochMicroseconds)                     \
     P(epochMilliseconds)                     \
     P(epochNanoseconds)                      \
-    P(epochSeconds)                          \
     P(equals)                                \
     P(era)                                   \
     P(eraYear)                               \
@@ -185,7 +180,6 @@ namespace JS {
     P(exp)                                   \
     P(expm1)                                 \
     P(fallback)                              \
-    P(fields)                                \
     P(fill)                                  \
     P(filter)                                \
     P(finally)                               \
@@ -217,10 +211,8 @@ namespace JS {
     P(fromCharCode)                          \
     P(fromCodePoint)                         \
     P(fromEntries)                           \
-    P(fromEpochMicroseconds)                 \
     P(fromEpochMilliseconds)                 \
     P(fromEpochNanoseconds)                  \
-    P(fromEpochSeconds)                      \
     P(fromHex)                               \
     P(fround)                                \
     P(f16round)                              \
@@ -239,25 +231,17 @@ namespace JS {
     P(getFullYear)                           \
     P(getHourCycles)                         \
     P(getHours)                              \
-    P(getInstantFor)                         \
     P(getInt8)                               \
     P(getInt16)                              \
     P(getInt32)                              \
-    P(getISOFields)                          \
     P(getMilliseconds)                       \
     P(getMinutes)                            \
     P(getMonth)                              \
-    P(getNextTransition)                     \
     P(getNumberingSystems)                   \
-    P(getOffsetNanosecondsFor)               \
-    P(getOffsetStringFor)                    \
     P(getOwnPropertyDescriptor)              \
     P(getOwnPropertyDescriptors)             \
     P(getOwnPropertyNames)                   \
     P(getOwnPropertySymbols)                 \
-    P(getPlainDateTimeFor)                   \
-    P(getPossibleInstantsFor)                \
-    P(getPreviousTransition)                 \
     P(getPrototypeOf)                        \
     P(getSeconds)                            \
     P(getTextInfo)                           \
@@ -327,15 +311,6 @@ namespace JS {
     P(isSubsetOf)                            \
     P(isSupersetOf)                          \
     P(isView)                                \
-    P(isoDay)                                \
-    P(isoHour)                               \
-    P(isoMicrosecond)                        \
-    P(isoMillisecond)                        \
-    P(isoMinute)                             \
-    P(isoMonth)                              \
-    P(isoNanosecond)                         \
-    P(isoSecond)                             \
-    P(isoYear)                               \
     P(isWellFormed)                          \
     P(isWordLike)                            \
     P(italics)                               \
@@ -365,7 +340,6 @@ namespace JS {
     P(max)                                   \
     P(maxByteLength)                         \
     P(maximize)                              \
-    P(mergeFields)                           \
     P(message)                               \
     P(microsecond)                           \
     P(microseconds)                          \
@@ -386,7 +360,6 @@ namespace JS {
     P(minutesDisplay)                        \
     P(month)                                 \
     P(monthCode)                             \
-    P(monthDayFromFields)                    \
     P(months)                                \
     P(monthsDisplay)                         \
     P(monthsInYear)                          \
@@ -416,9 +389,7 @@ namespace JS {
     P(parseFloat)                            \
     P(parseInt)                              \
     P(pause)                                 \
-    P(plainDate)                             \
     P(plainDateISO)                          \
-    P(plainDateTime)                         \
     P(plainDateTimeISO)                      \
     P(plainTime)                             \
     P(plainTimeISO)                          \
@@ -568,7 +539,6 @@ namespace JS {
     P(toSpliced)                             \
     P(toString)                              \
     P(total)                                 \
-    P(toTemporalInstant)                     \
     P(toTimeString)                          \
     P(toUpperCase)                           \
     P(toUTCString)                           \
@@ -611,18 +581,15 @@ namespace JS {
     P(weeksDisplay)                          \
     P(with)                                  \
     P(withCalendar)                          \
-    P(withPlainDate)                         \
     P(withPlainTime)                         \
     P(withResolvers)                         \
     P(withTimeZone)                          \
     P(writable)                              \
     P(written)                               \
     P(year)                                  \
-    P(yearMonthFromFields)                   \
     P(yearOfWeek)                            \
     P(years)                                 \
     P(yearsDisplay)                          \
-    P(zonedDateTime)                         \
     P(zonedDateTimeISO)
 
 struct CommonPropertyNames {
