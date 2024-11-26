@@ -34,7 +34,10 @@ constexpr static Array<int, 7>
     x25519_oid { 1, 3, 101, 110 },
     x448_oid { 1, 3, 101, 111 },
     ed25519_oid { 1, 3, 101, 112 },
-    ed448_oid { 1, 3, 101, 113 };
+    ed448_oid { 1, 3, 101, 113 },
+    secp256r1_oid { 1, 2, 840, 10045, 3, 1, 7 },
+    secp384r1_oid { 1, 3, 132, 0, 34 },
+    secp521r1_oid { 1, 3, 132, 0, 35 };
 
 constexpr static Array<Array<int, 7>, 12> known_algorithm_identifiers {
     rsa_encryption_oid,
