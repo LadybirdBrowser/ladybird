@@ -35,8 +35,8 @@
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/FormattingContext.h>
-#include <LibWeb/Layout/FrameBox.h>
 #include <LibWeb/Layout/InlineNode.h>
+#include <LibWeb/Layout/NavigableContainerViewport.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/SVGBox.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -323,8 +323,8 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
 
         builder.appendff(" children: {}", box.children_are_inline() ? "inline" : "not-inline");
 
-        if (is<Layout::FrameBox>(box)) {
-            auto const& frame_box = static_cast<Layout::FrameBox const&>(box);
+        if (is<Layout::NavigableContainerViewport>(box)) {
+            auto const& frame_box = static_cast<Layout::NavigableContainerViewport const&>(box);
             if (auto const* document = frame_box.dom_node().content_document_without_origin_check()) {
                 builder.appendff(" (url: {})", document->url());
             }

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Layout/FrameBox.h>
+#include <LibWeb/Layout/NavigableContainerViewport.h>
 #include <LibWeb/Painting/PaintableBox.h>
 
 namespace Web::Painting {
@@ -16,14 +16,14 @@ class NestedBrowsingContextPaintable final : public PaintableBox {
     GC_DECLARE_ALLOCATOR(NestedBrowsingContextPaintable);
 
 public:
-    static GC::Ref<NestedBrowsingContextPaintable> create(Layout::FrameBox const&);
+    static GC::Ref<NestedBrowsingContextPaintable> create(Layout::NavigableContainerViewport const&);
 
     virtual void paint(PaintContext&, PaintPhase) const override;
 
-    Layout::FrameBox const& layout_box() const;
+    Layout::NavigableContainerViewport const& layout_box() const;
 
 private:
-    NestedBrowsingContextPaintable(Layout::FrameBox const&);
+    NestedBrowsingContextPaintable(Layout::NavigableContainerViewport const&);
 };
 
 }

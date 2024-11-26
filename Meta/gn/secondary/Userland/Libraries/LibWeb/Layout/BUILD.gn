@@ -16,7 +16,7 @@ source_set("Layout") {
     "CheckBox.cpp",
     "FlexFormattingContext.cpp",
     "FormattingContext.cpp",
-    "FrameBox.cpp",
+    "NavigableContainerViewport.cpp",
     "GridFormattingContext.cpp",
     "ImageBox.cpp",
     "ImageProvider.cpp",

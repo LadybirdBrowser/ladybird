@@ -15,7 +15,7 @@
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
-#include <LibWeb/Layout/FrameBox.h>
+#include <LibWeb/Layout/NavigableContainerViewport.h>
 
 namespace Web::HTML {
 
@@ -36,7 +36,7 @@ void HTMLIFrameElement::initialize(JS::Realm& realm)
 
 GC::Ptr<Layout::Node> HTMLIFrameElement::create_layout_node(CSS::StyleProperties style)
 {
-    return heap().allocate<Layout::FrameBox>(document(), *this, move(style));
+    return heap().allocate<Layout::NavigableContainerViewport>(document(), *this, move(style));
 }
 
 void HTMLIFrameElement::adjust_computed_style(CSS::StyleProperties& style)

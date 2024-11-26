@@ -3,39 +3,39 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
     BlockContainer <body> at (8,8) content-size 784x0 children: not-inline
       BlockContainer <div#container> at (8,8) content-size 784x0 children: not-inline
         BlockContainer <div> at (8,8) content-size 1x1 positioned [BFC] children: inline
-          frag 0 from FrameBox start: 0, length: 0, rect: [18,18 10x10] baseline: 30
-          frag 1 from FrameBox start: 0, length: 0, rect: [18,48 10x10] baseline: 30
-          frag 2 from FrameBox start: 0, length: 0, rect: [18,78 10x10] baseline: 30
-          frag 3 from FrameBox start: 0, length: 0, rect: [18,108 10x10] baseline: 30
-          frag 4 from FrameBox start: 0, length: 0, rect: [18,138 10x10] baseline: 30
-          frag 5 from FrameBox start: 0, length: 0, rect: [18,168 10x10] baseline: 30
-          frag 6 from FrameBox start: 0, length: 0, rect: [18,198 10x10] baseline: 30
-          frag 7 from FrameBox start: 0, length: 0, rect: [18,228 10x10] baseline: 30
-          frag 8 from FrameBox start: 0, length: 0, rect: [18,258 10x10] baseline: 30
-          frag 9 from FrameBox start: 0, length: 0, rect: [18,288 10x10] baseline: 30
-          FrameBox <iframe> at (18,18) content-size 10x10 children: not-inline (url: about:blank)
-          FrameBox <iframe> at (18,48) content-size 10x10 children: not-inline (url: about:blank)
-          FrameBox <iframe> at (18,78) content-size 10x10 children: not-inline (url: about:blank)
-          FrameBox <iframe> at (18,108) content-size 10x10 children: not-inline (url: about:blank)
-          FrameBox <iframe> at (18,138) content-size 10x10 children: not-inline (url: about:blank)
-          FrameBox <iframe> at (18,168) content-size 10x10 children: not-inline (url: about:blank)
-          FrameBox <iframe> at (18,198) content-size 10x10 children: not-inline (url: about:blank)
-          FrameBox <iframe> at (18,228) content-size 10x10 children: not-inline (url: about:blank)
-          FrameBox <iframe> at (18,258) content-size 10x10 children: not-inline (url: about:blank)
-          FrameBox <iframe> at (18,288) content-size 10x10 children: not-inline (url: about:blank)
+          frag 0 from NavigableContainerViewport start: 0, length: 0, rect: [18,18 10x10] baseline: 30
+          frag 1 from NavigableContainerViewport start: 0, length: 0, rect: [18,48 10x10] baseline: 30
+          frag 2 from NavigableContainerViewport start: 0, length: 0, rect: [18,78 10x10] baseline: 30
+          frag 3 from NavigableContainerViewport start: 0, length: 0, rect: [18,108 10x10] baseline: 30
+          frag 4 from NavigableContainerViewport start: 0, length: 0, rect: [18,138 10x10] baseline: 30
+          frag 5 from NavigableContainerViewport start: 0, length: 0, rect: [18,168 10x10] baseline: 30
+          frag 6 from NavigableContainerViewport start: 0, length: 0, rect: [18,198 10x10] baseline: 30
+          frag 7 from NavigableContainerViewport start: 0, length: 0, rect: [18,228 10x10] baseline: 30
+          frag 8 from NavigableContainerViewport start: 0, length: 0, rect: [18,258 10x10] baseline: 30
+          frag 9 from NavigableContainerViewport start: 0, length: 0, rect: [18,288 10x10] baseline: 30
+          NavigableContainerViewport <iframe> at (18,18) content-size 10x10 children: not-inline (url: about:blank)
+          NavigableContainerViewport <iframe> at (18,48) content-size 10x10 children: not-inline (url: about:blank)
+          NavigableContainerViewport <iframe> at (18,78) content-size 10x10 children: not-inline (url: about:blank)
+          NavigableContainerViewport <iframe> at (18,108) content-size 10x10 children: not-inline (url: about:blank)
+          NavigableContainerViewport <iframe> at (18,138) content-size 10x10 children: not-inline (url: about:blank)
+          NavigableContainerViewport <iframe> at (18,168) content-size 10x10 children: not-inline (url: about:blank)
+          NavigableContainerViewport <iframe> at (18,198) content-size 10x10 children: not-inline (url: about:blank)
+          NavigableContainerViewport <iframe> at (18,228) content-size 10x10 children: not-inline (url: about:blank)
+          NavigableContainerViewport <iframe> at (18,258) content-size 10x10 children: not-inline (url: about:blank)
+          NavigableContainerViewport <iframe> at (18,288) content-size 10x10 children: not-inline (url: about:blank)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x16]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x0]
       PaintableWithLines (BlockContainer<DIV>#container) [8,8 784x0]
         PaintableWithLines (BlockContainer<DIV>) [8,8 1x1] overflow: [8,8 20x290]
-          NestedBrowsingContextPaintable (FrameBox<IFRAME>) [13,13 20x20]
-          NestedBrowsingContextPaintable (FrameBox<IFRAME>) [13,43 20x20]
-          NestedBrowsingContextPaintable (FrameBox<IFRAME>) [13,73 20x20]
-          NestedBrowsingContextPaintable (FrameBox<IFRAME>) [13,103 20x20]
-          NestedBrowsingContextPaintable (FrameBox<IFRAME>) [13,133 20x20]
-          NestedBrowsingContextPaintable (FrameBox<IFRAME>) [13,163 20x20]
-          NestedBrowsingContextPaintable (FrameBox<IFRAME>) [13,193 20x20]
-          NestedBrowsingContextPaintable (FrameBox<IFRAME>) [13,223 20x20]
-          NestedBrowsingContextPaintable (FrameBox<IFRAME>) [13,253 20x20]
-          NestedBrowsingContextPaintable (FrameBox<IFRAME>) [13,283 20x20]
+          NestedBrowsingContextPaintable (NavigableContainerViewport<IFRAME>) [13,13 20x20]
+          NestedBrowsingContextPaintable (NavigableContainerViewport<IFRAME>) [13,43 20x20]
+          NestedBrowsingContextPaintable (NavigableContainerViewport<IFRAME>) [13,73 20x20]
+          NestedBrowsingContextPaintable (NavigableContainerViewport<IFRAME>) [13,103 20x20]
+          NestedBrowsingContextPaintable (NavigableContainerViewport<IFRAME>) [13,133 20x20]
+          NestedBrowsingContextPaintable (NavigableContainerViewport<IFRAME>) [13,163 20x20]
+          NestedBrowsingContextPaintable (NavigableContainerViewport<IFRAME>) [13,193 20x20]
+          NestedBrowsingContextPaintable (NavigableContainerViewport<IFRAME>) [13,223 20x20]
+          NestedBrowsingContextPaintable (NavigableContainerViewport<IFRAME>) [13,253 20x20]
+          NestedBrowsingContextPaintable (NavigableContainerViewport<IFRAME>) [13,283 20x20]

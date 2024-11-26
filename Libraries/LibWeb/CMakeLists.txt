@@ -538,7 +538,6 @@ set(SOURCES
     Layout/FieldSetBox.cpp
     Layout/FlexFormattingContext.cpp
     Layout/FormattingContext.cpp
-    Layout/FrameBox.cpp
     Layout/GridFormattingContext.cpp
     Layout/ImageBox.cpp
     Layout/ImageProvider.cpp
@@ -555,6 +554,7 @@ set(SOURCES
     Layout/LineBuilder.cpp
     Layout/ListItemBox.cpp
     Layout/ListItemMarkerBox.cpp
+    Layout/NavigableContainerViewport.cpp
     Layout/Node.cpp
     Layout/RadioButton.cpp
     Layout/ReplacedBox.cpp
