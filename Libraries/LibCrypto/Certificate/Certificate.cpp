@@ -12,6 +12,7 @@
 #include <LibCrypto/ASN1/ASN1.h>
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/ASN1/PEM.h>
+#include <LibCrypto/PK/EC.h>
 
 namespace {
 static String s_error_string;
@@ -432,6 +433,17 @@ ErrorOr<PrivateKey> parse_private_key_info(Crypto::ASN1::Decoder& decoder, Vecto
         }
 
         private_key.rsa = move(key.private_key);
+
+        EXIT_SCOPE();
+        return private_key;
+    }
+    if (private_key.algorithm.identifier.span() == ec_public_key_encryption_oid.span()) {
+        auto maybe_key = Crypto::PK::EC::parse_ec_key(value.bytes());
+        if (maybe_key.is_error()) {
+            ERROR_WITH_SCOPE(TRY(String::formatted("Invalid EC key at {}: {}", current_scope, maybe_key.release_error())));
+        }
+
+        private_key.ec = move(maybe_key.release_value().private_key);
 
         EXIT_SCOPE();
         return private_key;

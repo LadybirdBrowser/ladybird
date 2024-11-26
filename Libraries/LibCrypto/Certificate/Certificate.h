@@ -14,6 +14,7 @@
 #include <LibCore/ConfigFile.h>
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
+#include <LibCrypto/PK/EC.h>
 #include <LibCrypto/PK/RSA.h>
 
 namespace Crypto::Certificate {
@@ -262,6 +263,7 @@ ErrorOr<SubjectPublicKey> parse_subject_public_key_info(Crypto::ASN1::Decoder& d
 class PrivateKey {
 public:
     Crypto::PK::RSAPrivateKey<Crypto::UnsignedBigInteger> rsa;
+    Crypto::PK::ECPrivateKey<Crypto::UnsignedBigInteger> ec;
 
     AlgorithmIdentifier algorithm;
     ByteBuffer raw_key;
