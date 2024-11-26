@@ -33,6 +33,9 @@ GC_DEFINE_ALLOCATOR(HTMLObjectElement);
 HTMLObjectElement::HTMLObjectElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : NavigableContainer(document, move(qualified_name))
 {
+    // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-object-element:potentially-delays-the-load-event
+    set_potentially_delays_the_load_event(true);
+
     // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-object-element
     // Whenever one of the following conditions occur:
     // - the element is created,
