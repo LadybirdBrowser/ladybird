@@ -756,7 +756,7 @@ i8 compare_time_duration(TimeDuration const& one, TimeDuration const& two)
 }
 
 // 7.5.26 TimeDurationFromEpochNanosecondsDifference ( one, two ), https://tc39.es/proposal-temporal/#sec-temporal-timedurationfromepochnanosecondsdifference
-TimeDuration time_duration_from_epoch_nanoseconds_difference(TimeDuration const& one, TimeDuration const& two)
+TimeDuration time_duration_from_epoch_nanoseconds_difference(Crypto::SignedBigInteger const& one, Crypto::SignedBigInteger const& two)
 {
     // 1. Let result be ℝ(one) - ℝ(two).
     auto result = one.minus(two);
@@ -848,7 +848,7 @@ Crypto::BigFraction total_time_duration(TimeDuration const& time_duration, Unit 
 }
 
 // 7.5.33 NudgeToCalendarUnit ( sign, duration, destEpochNs, isoDateTime, timeZone, calendar, increment, unit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-nudgetocalendarunit
-ThrowCompletionOr<CalendarNudgeResult> nudge_to_calendar_unit(VM& vm, i8 sign, InternalDuration const& duration, TimeDuration const& dest_epoch_ns, ISODateTime const& iso_date_time, Optional<StringView> time_zone, StringView calendar, u64 increment, Unit unit, RoundingMode rounding_mode)
+ThrowCompletionOr<CalendarNudgeResult> nudge_to_calendar_unit(VM& vm, i8 sign, InternalDuration const& duration, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const& iso_date_time, Optional<StringView> time_zone, StringView calendar, u64 increment, Unit unit, RoundingMode rounding_mode)
 {
     DateDuration start_duration;
     DateDuration end_duration;
@@ -959,8 +959,8 @@ ThrowCompletionOr<CalendarNudgeResult> nudge_to_calendar_unit(VM& vm, i8 sign, I
     // 10. Let endDateTime be CombineISODateAndTimeRecord(end, isoDateTime.[[Time]]).
     auto end_date_time = combine_iso_date_and_time_record(end, iso_date_time.time);
 
-    TimeDuration start_epoch_ns;
-    TimeDuration end_epoch_ns;
+    Crypto::SignedBigInteger start_epoch_ns;
+    Crypto::SignedBigInteger end_epoch_ns;
 
     // 11. If timeZone is UNSET, then
     if (!time_zone.has_value()) {
@@ -1042,7 +1042,7 @@ ThrowCompletionOr<CalendarNudgeResult> nudge_to_calendar_unit(VM& vm, i8 sign, I
 
     auto did_expand_calendar_unit = false;
     DateDuration result_duration;
-    TimeDuration nudged_epoch_ns;
+    Crypto::SignedBigInteger nudged_epoch_ns;
 
     // 24. If roundedUnit is abs(r2), then
     if (rounded_unit == fabs(r2)) {
@@ -1116,7 +1116,7 @@ ThrowCompletionOr<DurationNudgeResult> nudge_to_zoned_time(VM& vm, i8 sign, Inte
     auto beyond_day_span = TRY(add_time_duration(vm, rounded_time_duration, day_span));
 
     auto did_round_beyond_day = false;
-    TimeDuration nudged_epoch_ns;
+    Crypto::SignedBigInteger nudged_epoch_ns;
     i8 day_delta = 0;
 
     // 12. If TimeDurationSign(beyondDaySpan) ≠ -sign, then
@@ -1156,7 +1156,7 @@ ThrowCompletionOr<DurationNudgeResult> nudge_to_zoned_time(VM& vm, i8 sign, Inte
 }
 
 // 7.5.35 NudgeToDayOrTime ( duration, destEpochNs, largestUnit, increment, smallestUnit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-nudgetodayortime
-ThrowCompletionOr<DurationNudgeResult> nudge_to_day_or_time(VM& vm, InternalDuration const& duration, TimeDuration const& dest_epoch_ns, Unit largest_unit, u64 increment, Unit smallest_unit, RoundingMode rounding_mode)
+ThrowCompletionOr<DurationNudgeResult> nudge_to_day_or_time(VM& vm, InternalDuration const& duration, Crypto::SignedBigInteger const& dest_epoch_ns, Unit largest_unit, u64 increment, Unit smallest_unit, RoundingMode rounding_mode)
 {
     // 1. Let timeDuration be ! Add24HourDaysToTimeDuration(duration.[[Time]], duration.[[Date]].[[Days]]).
     auto time_duration = MUST(add_24_hour_days_to_time_duration(vm, duration.time, duration.date.days));
@@ -1219,7 +1219,7 @@ ThrowCompletionOr<DurationNudgeResult> nudge_to_day_or_time(VM& vm, InternalDura
 }
 
 // 7.5.36 BubbleRelativeDuration ( sign, duration, nudgedEpochNs, isoDateTime, timeZone, calendar, largestUnit, smallestUnit ), https://tc39.es/proposal-temporal/#sec-temporal-bubblerelativeduration
-ThrowCompletionOr<InternalDuration> bubble_relative_duration(VM& vm, i8 sign, InternalDuration duration, TimeDuration const& nudged_epoch_ns, ISODateTime const& iso_date_time, Optional<StringView> time_zone, StringView calendar, Unit largest_unit, Unit smallest_unit)
+ThrowCompletionOr<InternalDuration> bubble_relative_duration(VM& vm, i8 sign, InternalDuration duration, Crypto::SignedBigInteger const& nudged_epoch_ns, ISODateTime const& iso_date_time, Optional<StringView> time_zone, StringView calendar, Unit largest_unit, Unit smallest_unit)
 {
     // 1. If smallestUnit is largestUnit, return duration.
     if (smallest_unit == largest_unit)
@@ -1280,7 +1280,7 @@ ThrowCompletionOr<InternalDuration> bubble_relative_duration(VM& vm, i8 sign, In
             // v. Let endDateTime be CombineISODateAndTimeRecord(end, isoDateTime.[[Time]]).
             auto end_date_time = combine_iso_date_and_time_record(end, iso_date_time.time);
 
-            TimeDuration end_epoch_ns;
+            Crypto::SignedBigInteger end_epoch_ns;
 
             // vi. If timeZone is UNSET, then
             if (!time_zone.has_value()) {
@@ -1320,7 +1320,7 @@ ThrowCompletionOr<InternalDuration> bubble_relative_duration(VM& vm, i8 sign, In
 }
 
 // 7.5.37 RoundRelativeDuration ( duration, destEpochNs, isoDateTime, timeZone, calendar, largestUnit, increment, smallestUnit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-roundrelativeduration
-ThrowCompletionOr<InternalDuration> round_relative_duration(VM& vm, InternalDuration duration, TimeDuration const& dest_epoch_ns, ISODateTime const& iso_date_time, Optional<StringView> time_zone, StringView calendar, Unit largest_unit, u64 increment, Unit smallest_unit, RoundingMode rounding_mode)
+ThrowCompletionOr<InternalDuration> round_relative_duration(VM& vm, InternalDuration duration, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const& iso_date_time, Optional<StringView> time_zone, StringView calendar, Unit largest_unit, u64 increment, Unit smallest_unit, RoundingMode rounding_mode)
 {
     // 1. Let irregularLengthUnit be false.
     auto irregular_length_unit = false;
@@ -1374,7 +1374,7 @@ ThrowCompletionOr<InternalDuration> round_relative_duration(VM& vm, InternalDura
 }
 
 // 7.5.38 TotalRelativeDuration ( duration, destEpochNs, isoDateTime, timeZone, calendar, unit ), https://tc39.es/proposal-temporal/#sec-temporal-totalrelativeduration
-ThrowCompletionOr<Crypto::BigFraction> total_relative_duration(VM& vm, InternalDuration const& duration, TimeDuration const& dest_epoch_ns, ISODateTime const& iso_date_time, Optional<StringView> time_zone, StringView calendar, Unit unit)
+ThrowCompletionOr<Crypto::BigFraction> total_relative_duration(VM& vm, InternalDuration const& duration, Crypto::SignedBigInteger const& dest_epoch_ns, ISODateTime const& iso_date_time, Optional<StringView> time_zone, StringView calendar, Unit unit)
 {
     // 1. If IsCalendarUnit(unit) is true, or timeZone is not UNSET and unit is DAY, then
     if (is_calendar_unit(unit) || (time_zone.has_value() && unit == Unit::Day)) {

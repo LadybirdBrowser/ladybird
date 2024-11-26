@@ -57,7 +57,7 @@ ThrowCompletionOr<Time> to_time_record_or_midnight(VM&, Value item);
 ThrowCompletionOr<Time> regulate_time(VM&, double hour, double minute, double second, double millisecond, double microsecond, double nanosecond, Overflow);
 bool is_valid_time(double hour, double minute, double second, double millisecond, double microsecond, double nanosecond);
 Time balance_time(double hour, double minute, double second, double millisecond, double microsecond, double nanosecond);
-Time balance_time(double hour, double minute, double second, double millisecond, double microsecond, TimeDuration const& nanosecond);
+Time balance_time(double hour, double minute, double second, double millisecond, double microsecond, Crypto::SignedBigInteger const& nanosecond);
 ThrowCompletionOr<GC::Ref<PlainTime>> create_temporal_time(VM&, Time const&, GC::Ptr<FunctionObject> new_target = {});
 ThrowCompletionOr<TemporalTimeLike> to_temporal_time_record(VM&, Object const& temporal_time_like, Completeness = Completeness::Complete);
 String time_record_to_string(Time const&, SecondsStringPrecision::Precision);
