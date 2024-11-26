@@ -67,7 +67,7 @@ WebIDL::UnsignedLong HTMLMarqueeElement::scroll_amount()
 {
     // The scrollAmount IDL attribute must reflect the scrollamount content attribute. The default value is 6.
     if (auto scroll_amount_string = get_attribute(HTML::AttributeNames::scrollamount); scroll_amount_string.has_value()) {
-        if (auto scroll_amount = parse_non_negative_integer(*scroll_amount_string); scroll_amount.has_value())
+        if (auto scroll_amount = parse_non_negative_integer(*scroll_amount_string); scroll_amount.has_value() && *scroll_amount <= 2147483647)
             return *scroll_amount;
     }
     return 6;
@@ -76,6 +76,8 @@ WebIDL::UnsignedLong HTMLMarqueeElement::scroll_amount()
 // https://html.spec.whatwg.org/multipage/obsolete.html#dom-marquee-scrollamount
 WebIDL::ExceptionOr<void> HTMLMarqueeElement::set_scroll_amount(WebIDL::UnsignedLong value)
 {
+    if (value > 2147483647)
+        value = 6;
     return set_attribute(HTML::AttributeNames::scrollamount, String::number(value));
 }
 
@@ -84,7 +86,7 @@ WebIDL::UnsignedLong HTMLMarqueeElement::scroll_delay()
 {
     // The scrollDelay IDL attribute must reflect the scrolldelay content attribute. The default value is 85.
     if (auto scroll_delay_string = get_attribute(HTML::AttributeNames::scrolldelay); scroll_delay_string.has_value()) {
-        if (auto scroll_delay = parse_non_negative_integer(*scroll_delay_string); scroll_delay.has_value())
+        if (auto scroll_delay = parse_non_negative_integer(*scroll_delay_string); scroll_delay.has_value() && *scroll_delay <= 2147483647)
             return *scroll_delay;
     }
     return 85;
@@ -93,6 +95,8 @@ WebIDL::UnsignedLong HTMLMarqueeElement::scroll_delay()
 // https://html.spec.whatwg.org/multipage/obsolete.html#dom-marquee-scrolldelay
 WebIDL::ExceptionOr<void> HTMLMarqueeElement::set_scroll_delay(WebIDL::UnsignedLong value)
 {
+    if (value > 2147483647)
+        value = 85;
     return set_attribute(HTML::AttributeNames::scrolldelay, String::number(value));
 }
 
