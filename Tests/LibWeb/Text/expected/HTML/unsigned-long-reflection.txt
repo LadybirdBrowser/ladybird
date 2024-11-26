@@ -46,3 +46,35 @@ marquee.getAttribute("scrolldelay") after marquee.setAttribute("scrollDelay", "4
 marquee.scrollDelay after marquee.setAttribute("scrolldelay", "4294967295"): 85
 marquee.getAttribute("scrolldelay") after marquee.scrollDelay = 4294967295: 85
 marquee.scrollDelay after marquee.scrollDelay = 4294967295: 85
+textarea.getAttribute("rows") after textarea.setAttribute("rows", "1"): 1
+textarea.rows after textarea.setAttribute("rows", "1"): 1
+textarea.getAttribute("rows") after textarea.rows = 1: 1
+textarea.rows after textarea.rows = 1: 1
+textarea.getAttribute("rows") after textarea.setAttribute("rows", "2147483647"): 2147483647
+textarea.rows after textarea.setAttribute("rows", "2147483647"): 2147483647
+textarea.getAttribute("rows") after textarea.rows = 2147483647: 2147483647
+textarea.rows after textarea.rows = 2147483647: 2147483647
+textarea.getAttribute("rows") after textarea.setAttribute("rows", "2147483648"): 2147483648
+textarea.rows after textarea.setAttribute("rows", "2147483648"): 2
+textarea.getAttribute("rows") after textarea.rows = 2147483648: 2
+textarea.rows after textarea.rows = 2147483648: 2
+textarea.getAttribute("rows") after textarea.setAttribute("rows", "4294967295"): 4294967295
+textarea.rows after textarea.setAttribute("rows", "4294967295"): 2
+textarea.getAttribute("rows") after textarea.rows = 4294967295: 2
+textarea.rows after textarea.rows = 4294967295: 2
+textarea.getAttribute("cols") after textarea.setAttribute("cols", "1"): 1
+textarea.cols after textarea.setAttribute("cols", "1"): 1
+textarea.getAttribute("cols") after textarea.cols = 1: 1
+textarea.cols after textarea.cols = 1: 1
+textarea.getAttribute("cols") after textarea.setAttribute("cols", "2147483647"): 2147483647
+textarea.cols after textarea.setAttribute("cols", "2147483647"): 2147483647
+textarea.getAttribute("cols") after textarea.cols = 2147483647: 2147483647
+textarea.cols after textarea.cols = 2147483647: 2147483647
+textarea.getAttribute("cols") after textarea.setAttribute("cols", "2147483648"): 2147483648
+textarea.cols after textarea.setAttribute("cols", "2147483648"): 20
+textarea.getAttribute("cols") after textarea.cols = 2147483648: 20
+textarea.cols after textarea.cols = 2147483648: 20
+textarea.getAttribute("cols") after textarea.setAttribute("cols", "4294967295"): 4294967295
+textarea.cols after textarea.setAttribute("cols", "4294967295"): 20
+textarea.getAttribute("cols") after textarea.cols = 4294967295: 20
+textarea.cols after textarea.cols = 4294967295: 20

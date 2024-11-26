@@ -293,7 +293,7 @@ unsigned HTMLTextAreaElement::cols() const
 {
     // The cols and rows attributes are limited to only positive numbers with fallback. The cols IDL attribute's default value is 20.
     if (auto cols_string = get_attribute(HTML::AttributeNames::cols); cols_string.has_value()) {
-        if (auto cols = parse_non_negative_integer(*cols_string); cols.has_value() && *cols > 0)
+        if (auto cols = parse_non_negative_integer(*cols_string); cols.has_value() && *cols > 0 && *cols <= 2147483647)
             return *cols;
     }
     return 20;
@@ -301,6 +301,9 @@ unsigned HTMLTextAreaElement::cols() const
 
 WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_cols(unsigned cols)
 {
+    if (cols > 2147483647)
+        cols = 20;
+
     return set_attribute(HTML::AttributeNames::cols, String::number(cols));
 }
 
@@ -309,7 +312,7 @@ unsigned HTMLTextAreaElement::rows() const
 {
     // The cols and rows attributes are limited to only positive numbers with fallback. The rows IDL attribute's default value is 2.
     if (auto rows_string = get_attribute(HTML::AttributeNames::rows); rows_string.has_value()) {
-        if (auto rows = parse_non_negative_integer(*rows_string); rows.has_value() && *rows > 0)
+        if (auto rows = parse_non_negative_integer(*rows_string); rows.has_value() && *rows > 0 && *rows <= 2147483647)
             return *rows;
     }
     return 2;
@@ -317,6 +320,9 @@ unsigned HTMLTextAreaElement::rows() const
 
 WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_rows(unsigned rows)
 {
+    if (rows > 2147483647)
+        rows = 2;
+
     return set_attribute(HTML::AttributeNames::rows, String::number(rows));
 }
 
