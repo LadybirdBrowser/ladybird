@@ -29,6 +29,8 @@ public:
 
     [[nodiscard]] HTML::SandboxingFlagSet csp_derived_sandboxing_flags() const;
 
+    void enforce_policy(GC::Ref<Policy>);
+
     [[nodiscard]] GC::Ref<PolicyList> clone(JS::Realm&) const;
     [[nodiscard]] Vector<SerializedPolicy> serialize() const;
 
