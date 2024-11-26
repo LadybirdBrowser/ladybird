@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,13 +11,13 @@
 
 namespace Web::Layout {
 
-class FrameBox final : public ReplacedBox {
-    GC_CELL(FrameBox, ReplacedBox);
-    GC_DECLARE_ALLOCATOR(FrameBox);
+class NavigableContainerViewport final : public ReplacedBox {
+    GC_CELL(NavigableContainerViewport, ReplacedBox);
+    GC_DECLARE_ALLOCATOR(NavigableContainerViewport);
 
 public:
-    FrameBox(DOM::Document&, DOM::Element&, CSS::StyleProperties);
-    virtual ~FrameBox() override;
+    NavigableContainerViewport(DOM::Document&, DOM::Element&, CSS::StyleProperties);
+    virtual ~NavigableContainerViewport() override;
 
     virtual void prepare_for_replaced_layout() override;
 
