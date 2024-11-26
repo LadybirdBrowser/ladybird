@@ -22,6 +22,19 @@
 
 namespace Web::WebDriver {
 
+struct __PointerFields {
+    PointerInputSource::Subtype pointer_type { PointerInputSource::Subtype::Mouse };
+    Optional<double> width;
+    Optional<double> height;
+    Optional<double> pressure;
+    Optional<double> tangential_pressure;
+    Optional<i32> tilt_x;
+    Optional<i32> tilt_y;
+    Optional<u32> twist;
+    Optional<double> altitude_angle;
+    Optional<double> azimuth_angle;
+};
+
 // https://w3c.github.io/webdriver/#dfn-action-object
 struct ActionObject {
     enum class Subtype {
@@ -49,18 +62,9 @@ struct ActionObject {
         u32 value { 0 };
     };
 
-    struct PointerFields {
-        PointerInputSource::Subtype pointer_type { PointerInputSource::Subtype::Mouse };
-        Optional<double> width;
-        Optional<double> height;
-        Optional<double> pressure;
-        Optional<double> tangential_pressure;
-        Optional<i32> tilt_x;
-        Optional<i32> tilt_y;
-        Optional<u32> twist;
-        Optional<double> altitude_angle;
-        Optional<double> azimuth_angle;
-    };
+    // NOTE: This is to work around a bug in GCC
+    // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=88165
+    using PointerFields = __PointerFields;
 
     struct PointerUpDownFields : public PointerFields {
         UIEvents::MouseButton button { UIEvents::MouseButton::None };

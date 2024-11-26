@@ -371,6 +371,12 @@ private:
     };
 };
 
+struct __MemoryArgument {
+    u32 align;
+    u32 offset;
+    MemoryIndex memory_index = 0;
+};
+
 // https://webassembly.github.io/spec/core/bikeshed/#binary-instr
 // https://webassembly.github.io/spec/core/bikeshed/#reference-instructions%E2%91%A6
 // https://webassembly.github.io/spec/core/bikeshed/#parametric-instructions%E2%91%A6
@@ -412,11 +418,9 @@ public:
         TableIndex table;
     };
 
-    struct MemoryArgument {
-        u32 align;
-        u32 offset;
-        MemoryIndex memory_index { 0 };
-    };
+    // NOTE: This is to work around a bug in GCC
+    // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=88165
+    using MemoryArgument = __MemoryArgument;
 
     struct MemoryAndLaneArgument {
         MemoryArgument memory;
