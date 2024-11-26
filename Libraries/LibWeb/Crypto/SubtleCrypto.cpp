@@ -805,9 +805,9 @@ SupportedAlgorithmsMap const& supported_algorithms()
     // FIXME: define_an_algorithm<ECDSA>("exportKey"_string, "ECDSA"_string);
 
     // https://w3c.github.io/webcrypto/#ecdh-registration
-    // FIXME: define_an_algorithm<ECDH, EcdhKeyDerivePrams>("deriveBits"_string, "ECDH"_string);
     // FIXME: define_an_algorithm<ECDH, EcKeyImportParams>("importKey"_string, "ECDH"_string);
     // FIXME: define_an_algorithm<ECDH>("exportKey"_string, "ECDH"_string);
+    define_an_algorithm<ECDH, EcdhKeyDerivePrams>("deriveBits"_string, "ECDH"_string);
     define_an_algorithm<ECDH, EcKeyGenParams>("generateKey"_string, "ECDH"_string);
 
     // https://w3c.github.io/webcrypto/#aes-ctr-registration
