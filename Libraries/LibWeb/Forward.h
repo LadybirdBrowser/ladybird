@@ -102,6 +102,8 @@ class DecompressionStream;
 namespace Web::ContentSecurityPolicy {
 class Policy;
 class PolicyList;
+class SecurityPolicyViolationEvent;
+struct SecurityPolicyViolationEventInit;
 struct SerializedPolicy;
 }
 
