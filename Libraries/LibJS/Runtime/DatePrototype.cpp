@@ -22,6 +22,7 @@
 #include <LibJS/Runtime/Intl/DateTimeFormat.h>
 #include <LibJS/Runtime/Intl/DateTimeFormatConstructor.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
+#include <LibJS/Runtime/Temporal/Instant.h>
 #include <LibJS/Runtime/Temporal/TimeZone.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/ValueInlines.h>
@@ -85,6 +86,8 @@ void DatePrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.toString, to_string, 0, attr);
     define_native_function(realm, vm.names.toTimeString, to_time_string, 0, attr);
     define_native_function(realm, vm.names.toUTCString, to_utc_string, 0, attr);
+
+    define_native_function(realm, vm.names.toTemporalInstant, to_temporal_instant, 0, attr);
 
     define_native_function(realm, vm.names.getYear, get_year, 0, attr);
     define_native_function(realm, vm.names.setYear, set_year, 1, attr);
@@ -1219,6 +1222,24 @@ JS_DEFINE_NATIVE_FUNCTION(DatePrototype::symbol_to_primitive)
     else
         return vm.throw_completion<TypeError>(ErrorType::InvalidHint, hint);
     return TRY(this_value.as_object().ordinary_to_primitive(try_first));
+}
+
+// 14.8.1 Date.prototype.toTemporalInstant ( ), https://tc39.es/proposal-temporal/#sec-date.prototype.totemporalinstant
+JS_DEFINE_NATIVE_FUNCTION(DatePrototype::to_temporal_instant)
+{
+    // 1. Let dateObject be the this value.
+    // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+    auto date_object = TRY(typed_this_value(vm));
+
+    // 3. Let t be dateObject.[[DateValue]].
+    auto time = date_object->date_value();
+
+    // 4. Let ns be ? NumberToBigInt(t) × ℤ(10**6).
+    auto nanoseconds = TRY(number_to_bigint(vm, Value { time }));
+    nanoseconds = BigInt::create(vm, nanoseconds->big_integer().multiplied_by(Temporal::NANOSECONDS_PER_MILLISECOND));
+
+    // 5. Return ! CreateTemporalInstant(ns).
+    return MUST(Temporal::create_temporal_instant(vm, nanoseconds));
 }
 
 // B.2.4.1 Date.prototype.getYear ( ), https://tc39.es/ecma262/#sec-date.prototype.getyear

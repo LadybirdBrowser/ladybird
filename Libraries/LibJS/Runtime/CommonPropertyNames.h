@@ -538,6 +538,7 @@ namespace JS {
     P(toSpliced)                             \
     P(toString)                              \
     P(total)                                 \
+    P(toTemporalInstant)                     \
     P(toTimeString)                          \
     P(toUpperCase)                           \
     P(toUTCString)                           \
