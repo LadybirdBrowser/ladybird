@@ -1702,6 +1702,7 @@ bool HTMLParser::is_special_tag(FlyString const& tag_name, Optional<FlyString> c
             HTML::TagNames::plaintext,
             HTML::TagNames::pre,
             HTML::TagNames::script,
+            HTML::TagNames::search,
             HTML::TagNames::section,
             HTML::TagNames::select,
             HTML::TagNames::source,
