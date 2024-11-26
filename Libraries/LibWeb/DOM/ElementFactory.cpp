@@ -151,7 +151,7 @@ ErrorOr<FixedArray<FlyString>> valid_local_names_for_given_html_element_interfac
         return FixedArray<FlyString>::create({ HTML::TagNames::dl });
     if (html_element_interface_name == "HTMLEmbedElement"sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::embed });
-    if (html_element_interface_name == "HTMLFieldsetElement"sv)
+    if (html_element_interface_name == "HTMLFieldSetElement"sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::fieldset });
     if (html_element_interface_name == "HTMLFontElement"sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::font });
@@ -187,12 +187,18 @@ ErrorOr<FixedArray<FlyString>> valid_local_names_for_given_html_element_interfac
         return FixedArray<FlyString>::create({ HTML::TagNames::marquee });
     if (html_element_interface_name == "HTMLMenuElement"sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::menu });
+    if (html_element_interface_name == "HTMLMetaElement"sv)
+        return FixedArray<FlyString>::create({ HTML::TagNames::meta });
     if (html_element_interface_name == "HTMLMeterElement"sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::meter });
     if (html_element_interface_name == "HTMLModElement"sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::ins, HTML::TagNames::del });
+    if (html_element_interface_name == "HTMLOListElement"sv)
+        return FixedArray<FlyString>::create({ HTML::TagNames::ol });
     if (html_element_interface_name == "HTMLObjectElement"sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::object });
+    if (html_element_interface_name == "HTMLOptGroupElement"sv)
+        return FixedArray<FlyString>::create({ HTML::TagNames::optgroup });
     if (html_element_interface_name == "HTMLOutputElement"sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::output });
     if (html_element_interface_name == "HTMLParagraphElement"sv)
