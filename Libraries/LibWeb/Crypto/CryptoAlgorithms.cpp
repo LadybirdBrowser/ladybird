@@ -2579,8 +2579,8 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDH::g
 
     // 3. If performing the operation results in an error, then throw a OperationError.
     auto maybe_private_key_data = curve.visit(
-        [](Empty const&) -> ErrorOr<ByteBuffer> { return Error::from_string_literal("noop error"); },
-        [](auto instance) { return instance.generate_private_key(); });
+        [](Empty const&) -> ErrorOr<::Crypto::UnsignedBigInteger> { return Error::from_string_literal("noop error"); },
+        [](auto instance) { return instance.generate_private_key_scalar(); });
 
     if (maybe_private_key_data.is_error())
         return WebIDL::OperationError::create(m_realm, "Failed to create valid crypto instance"_string);
@@ -2588,13 +2588,14 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDH::g
     auto private_key_data = maybe_private_key_data.release_value();
 
     auto maybe_public_key_data = curve.visit(
-        [](Empty const&) -> ErrorOr<ByteBuffer> { return Error::from_string_literal("noop error"); },
-        [&](auto instance) { return instance.generate_public_key(private_key_data); });
+        [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> { return Error::from_string_literal("noop error"); },
+        [&](auto instance) { return instance.generate_public_key_point(private_key_data); });
 
     if (maybe_public_key_data.is_error())
         return WebIDL::OperationError::create(m_realm, "Failed to create valid crypto instance"_string);
 
     auto public_key_data = maybe_public_key_data.release_value();
+    auto ec_public_key = ::Crypto::PK::ECPublicKey<> { public_key_data.x, public_key_data.y };
 
     // 4. Let algorithm be a new EcKeyAlgorithm object.
     auto algorithm = EcKeyAlgorithm::create(m_realm);
@@ -2606,7 +2607,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDH::g
     algorithm->set_named_curve(normalized_algorithm.named_curve);
 
     // 7. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
-    auto public_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key_data });
+    auto public_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { ec_public_key });
 
     // 8. Set the [[type]] internal slot of publicKey to "public"
     public_key->set_type(Bindings::KeyType::Public);
@@ -2621,7 +2622,8 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDH::g
     public_key->set_usages({});
 
     // 12. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
-    auto private_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { private_key_data });
+    auto ec_private_key = ::Crypto::PK::ECPrivateKey<> { private_key_data, {}, ec_public_key };
+    auto private_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { ec_private_key });
 
     // 13. Set the [[type]] internal slot of privateKey to "private"
     private_key->set_type(Bindings::KeyType::Private);
