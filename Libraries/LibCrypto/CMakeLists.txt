@@ -34,6 +34,7 @@ set(SOURCES
     Hash/SHA2.cpp
     NumberTheory/ModularFunctions.cpp
     PK/RSA.cpp
+    PK/EC.cpp
 )
 
 serenity_lib(LibCrypto crypto)
