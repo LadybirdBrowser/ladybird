@@ -32,6 +32,7 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(plain_time_iso);
 };
 
+double system_utc_epoch_milliseconds(VM&);
 Crypto::SignedBigInteger system_utc_epoch_nanoseconds(VM&);
 ThrowCompletionOr<ISODateTime> system_date_time(VM&, Value temporal_time_zone_like);
 

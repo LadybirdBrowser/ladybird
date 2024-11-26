@@ -119,6 +119,19 @@ JS_DEFINE_NATIVE_FUNCTION(Now::plain_time_iso)
     return MUST(create_temporal_time(vm, iso_date_time.time));
 }
 
+// 2.3.2 SystemUTCEpochMilliseconds ( ), https://tc39.es/proposal-temporal/#sec-temporal-systemutcepochmilliseconds
+double system_utc_epoch_milliseconds(VM& vm)
+{
+    // 1. Let global be GetGlobalObject().
+    auto const& global = vm.get_global_object();
+
+    // 2. Let nowNs be HostSystemUTCEpochNanoseconds(global).
+    auto now_ns = vm.host_system_utc_epoch_nanoseconds(global);
+
+    // 3. Return 𝔽(floor(nowNs / 10**6)).
+    return big_floor(now_ns, NANOSECONDS_PER_MILLISECOND).to_double();
+}
+
 // 2.3.3 SystemUTCEpochNanoseconds ( ), https://tc39.es/proposal-temporal/#sec-temporal-systemutcepochnanoseconds
 Crypto::SignedBigInteger system_utc_epoch_nanoseconds(VM& vm)
 {
