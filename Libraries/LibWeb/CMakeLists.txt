@@ -38,6 +38,7 @@ set(SOURCES
     ContentSecurityPolicy/Directives/Directive.cpp
     ContentSecurityPolicy/Directives/DirectiveFactory.cpp
     ContentSecurityPolicy/Directives/DirectiveOperations.cpp
+    ContentSecurityPolicy/Directives/KeywordSources.cpp
     ContentSecurityPolicy/Directives/Names.cpp
     ContentSecurityPolicy/Directives/SerializedDirective.cpp
     ContentSecurityPolicy/BlockingAlgorithms.cpp
