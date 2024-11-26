@@ -25,7 +25,7 @@ namespace JS {
 GC_DEFINE_ALLOCATOR(DateConstructor);
 
 // 21.4.3.2 Date.parse ( string ), https://tc39.es/ecma262/#sec-date.parse
-static double parse_simplified_iso8601(ByteString const& iso_8601)
+static Optional<double> parse_simplified_iso8601(ByteString const& iso_8601)
 {
     // 21.4.1.15 Date Time String Format, https://tc39.es/ecma262/#sec-date-time-string-format
     GenericLexer lexer(iso_8601);
@@ -127,9 +127,8 @@ static double parse_simplified_iso8601(ByteString const& iso_8601)
     };
     auto lex_time = [&]() { return lex_hours_minutes(hours, minutes) && (!lexer.consume_specific(':') || lex_seconds_milliseconds()) && lex_timezone(); };
 
-    if (!lex_date() || (lexer.consume_specific('T') && !lex_time()) || !lexer.is_eof()) {
-        return NAN;
-    }
+    if (!lex_date() || (lexer.consume_specific('T') && !lex_time()) || !lexer.is_eof())
+        return {};
 
     // We parsed a valid date simplified ISO 8601 string.
     VERIFY(year.has_value()); // A valid date string always has at least a year.
@@ -154,9 +153,8 @@ static double parse_date_string(VM& vm, ByteString const& date_string)
     if (date_string.is_empty())
         return NAN;
 
-    auto value = parse_simplified_iso8601(date_string);
-    if (isfinite(value))
-        return value;
+    if (auto time = parse_simplified_iso8601(date_string); time.has_value())
+        return *time;
 
     // Date.parse() is allowed to accept an arbitrary number of implementation-defined formats.
     // FIXME: Exactly what timezone and which additional formats we should support is unclear.
