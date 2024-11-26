@@ -2,7 +2,7 @@
  * Copyright (c) 2020-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2020, Nico Weber <thakis@chromium.org>
  * Copyright (c) 2021, Petróczi Zoltán <petroczizoltan@tutanota.com>
- * Copyright (c) 2022, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -16,10 +16,9 @@
 #include <LibJS/Runtime/DateConstructor.h>
 #include <LibJS/Runtime/DatePrototype.h>
 #include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/Temporal/Now.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/ValueInlines.h>
-#include <sys/time.h>
-#include <time.h>
 
 namespace JS {
 
@@ -227,17 +226,17 @@ void DateConstructor::initialize(Realm& realm)
 }
 
 // 21.4.2.1 Date ( ...values ), https://tc39.es/ecma262/#sec-date
+// 14.6.1 Date ( ...values ), https://tc39.es/proposal-temporal/#sec-temporal-date
 ThrowCompletionOr<Value> DateConstructor::call()
 {
-    // 1. If NewTarget is undefined, then
-    //     a. Let now be the time value (UTC) identifying the current time.
-    auto now = AK::UnixDateTime::now().milliseconds_since_epoch();
+    auto& vm = this->vm();
 
-    //     b. Return ToDateString(now).
-    return PrimitiveString::create(vm(), to_date_string(now));
+    // 1. If NewTarget is undefined, return ToDateString(SystemUTCEpochMilliseconds()).
+    return PrimitiveString::create(vm, to_date_string(Temporal::system_utc_epoch_milliseconds(vm)));
 }
 
 // 21.4.2.1 Date ( ...values ), https://tc39.es/ecma262/#sec-date
+// 14.6.1 Date ( ...values ), https://tc39.es/proposal-temporal/#sec-temporal-date
 ThrowCompletionOr<GC::Ref<Object>> DateConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
@@ -247,9 +246,8 @@ ThrowCompletionOr<GC::Ref<Object>> DateConstructor::construct(FunctionObject& ne
     // 2. Let numberOfArgs be the number of elements in values.
     // 3. If numberOfArgs = 0, then
     if (vm.argument_count() == 0) {
-        // a. Let dv be the time value (UTC) identifying the current time.
-        auto now = AK::UnixDateTime::now().milliseconds_since_epoch();
-        date_value = static_cast<double>(now);
+        // a. Let dv be SystemUTCEpochMilliseconds().
+        date_value = Temporal::system_utc_epoch_milliseconds(vm);
     }
     // 4. Else if numberOfArgs = 1, then
     else if (vm.argument_count() == 1) {
@@ -333,11 +331,11 @@ ThrowCompletionOr<GC::Ref<Object>> DateConstructor::construct(FunctionObject& ne
 }
 
 // 21.4.3.1 Date.now ( ), https://tc39.es/ecma262/#sec-date.now
+// 14.7.1 Date.now ( ), https://tc39.es/proposal-temporal/#sec-temporal-date.now
 JS_DEFINE_NATIVE_FUNCTION(DateConstructor::now)
 {
-    struct timeval tv;
-    gettimeofday(&tv, nullptr);
-    return Value(floor(tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0));
+    // 1. Return SystemUTCEpochMilliseconds().
+    return Temporal::system_utc_epoch_milliseconds(vm);
 }
 
 // 21.4.3.2 Date.parse ( string ), https://tc39.es/ecma262/#sec-date.parse
