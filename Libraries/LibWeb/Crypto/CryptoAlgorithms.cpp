@@ -2740,6 +2740,427 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDH::derive_bits(AlgorithmParams 
     auto slice = TRY_OR_THROW_OOM(realm.vm(), secret.slice(0, length / 8));
     return JS::ArrayBuffer::create(realm, move(slice));
 }
+
+// https://w3c.github.io/webcrypto/#ecdh-operations
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+{
+    // NOTE: This is a parameter to the function
+    // 1. Let keyData be the key data to be imported.
+
+    auto const& normalized_algorithm = static_cast<EcKeyImportParams const&>(params);
+
+    GC::Ptr<CryptoKey> key = nullptr;
+
+    // 2. If format is "spki":
+    if (key_format == Bindings::KeyFormat::Spki) {
+        // 1. If usages is not empty then throw a SyntaxError.
+        if (!usages.is_empty())
+            return WebIDL::SyntaxError::create(m_realm, "Usages must be empty"_string);
+
+        // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
+        // 3. If an error occurred while parsing, then throw a DataError.
+        auto spki = TRY(parse_a_subject_public_key_info(m_realm, key_data.get<ByteBuffer>()));
+
+        // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
+        //    is not equal to the id-ecPublicKey object identifier defined in [RFC5480], then throw a DataError.
+        if (spki.algorithm.identifier != ::Crypto::Certificate::ec_public_key_encryption_oid)
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
+
+        // 5. If the parameters field of the algorithm AlgorithmIdentifier field of spki is absent, then throw a DataError.
+        if (!spki.algorithm.ec_parameters.has_value())
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm parameters"_string);
+
+        // 6. Let params be the parameters field of the algorithm AlgorithmIdentifier field of spki.
+        auto ec_params = spki.algorithm.ec_parameters;
+
+        // 7. If params is not an instance of the ECParameters ASN.1 type defined in [RFC5480] that specifies a namedCurve, then throw a DataError.
+        // 8. Let namedCurve be a string whose initial value is undefined.
+        String named_curve;
+
+        // 9. If params is equivalent to the secp256r1 object identifier defined in [RFC5480]:
+        if (ec_params == ::Crypto::Certificate::secp256r1_oid) {
+            // Set namedCurve to "P-256".
+            named_curve = "P-256"_string;
+        }
+        // If params is equivalent to the secp384r1 object identifier defined in [RFC5480]:
+        else if (ec_params == ::Crypto::Certificate::secp384r1_oid) {
+            // Set namedCurve to "P-384".
+            named_curve = "P-384"_string;
+        }
+        // If params is equivalent to the secp521r1 object identifier defined in [RFC5480]:
+        else if (ec_params == ::Crypto::Certificate::secp521r1_oid) {
+            // Set namedCurve to "P-521".
+            named_curve = "P-521"_string;
+        }
+
+        // 10. If namedCurve is not undefined
+        if (!named_curve.is_empty()) {
+            // 1. Let publicKey be the Elliptic Curve public key identified by performing
+            //    the conversion steps defined in Section 2.3.4 of [SEC1] to the subjectPublicKey field of spki.
+            // The uncompressed point format MUST be supported.
+            // 2. If the implementation does not support the compressed point format and a compressed point is provided, throw a DataError.
+            if (spki.raw_key[0] != 0x04)
+                return WebIDL::DataError::create(m_realm, "Unsupported key format"_string);
+
+            // 3. If a decode error occurs or an identity point is found, throw a DataError.
+            size_t coord_size;
+            if (named_curve == "P-256"sv)
+                coord_size = 32;
+            else if (named_curve == "P-384"sv)
+                coord_size = 48;
+            else if (named_curve == "P-521"sv)
+                coord_size = 66;
+            else
+                VERIFY_NOT_REACHED();
+
+            // 4. Let key be a new CryptoKey that represents publicKey.
+            auto public_key = ::Crypto::PK::ECPublicKey<> {
+                ::Crypto::UnsignedBigInteger::import_data(spki.raw_key.data() + 1, coord_size),
+                ::Crypto::UnsignedBigInteger::import_data(spki.raw_key.data() + 1 + coord_size, coord_size)
+            };
+            key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key });
+        } else {
+            // Otherwise:
+            // 1. Perform any key import steps defined by other applicable specifications, passing format, spki and obtaining namedCurve and key.
+            // TODO: support 'applicable specifications'
+
+            // 2. If an error occurred or there are no applicable specifications, throw a DataError.
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
+        }
+
+        // 11. If namedCurve is defined, and not equal to the namedCurve member of normalizedAlgorithm, throw a DataError.
+        if (!named_curve.is_empty() && named_curve != normalized_algorithm.named_curve)
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
+
+        // TODO: 12. If the key value is not a valid point on the Elliptic Curve identified
+        //           by the namedCurve member of normalizedAlgorithm throw a DataError.
+
+        // 13. Set the [[type]] internal slot of key to "public"
+        key->set_type(Bindings::KeyType::Public);
+
+        // 14. Let algorithm be a new EcKeyAlgorithm.
+        auto algorithm = EcKeyAlgorithm::create(m_realm);
+
+        // 15. Set the name attribute of algorithm to "ECDH".
+        algorithm->set_name("ECDH"_string);
+
+        // 16. Set the namedCurve attribute of algorithm to namedCurve.
+        algorithm->set_named_curve(named_curve);
+
+        // 17. Set the [[algorithm]] internal slot of key to algorithm.
+        key->set_algorithm(algorithm);
+    }
+
+    // 2. If format is "pkcs8":
+    else if (key_format == Bindings::KeyFormat::Pkcs8) {
+        // 1. If usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
+        for (auto const& usage : usages) {
+            if (usage != Bindings::KeyUsage::Derivekey && usage != Bindings::KeyUsage::Derivebits) {
+                return WebIDL::SyntaxError::create(m_realm, MUST(String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage))));
+            }
+        }
+
+        // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
+        // 3. If an error occurred while parsing, then throw a DataError.
+        auto private_key_info = TRY(parse_a_private_key_info(m_realm, key_data.get<ByteBuffer>()));
+
+        // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
+        //    is not equal to the id-ecPublicKey object identifier defined in [RFC5480], then throw a DataError.
+        if (private_key_info.algorithm.identifier != ::Crypto::Certificate::ec_public_key_encryption_oid)
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
+
+        // 5. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field
+        //    of privateKeyInfo is not present, then throw a DataError.
+        if (!private_key_info.algorithm.ec_parameters.has_value())
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm parameters"_string);
+
+        // 6. Let params be the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of privateKeyInfo.
+        auto ec_params = private_key_info.algorithm.ec_parameters;
+
+        // 7. If params is not an instance of the ECParameters ASN.1 type defined in [RFC5480] that specifies a namedCurve, then throw a DataError.
+        // 8. Let namedCurve be a string whose initial value is undefined.
+        String named_curve;
+
+        // 9. If params is equivalent to the secp256r1 object identifier defined in [RFC5480]:
+        if (ec_params == ::Crypto::Certificate::secp256r1_oid) {
+            // Set namedCurve to "P-256".
+            named_curve = "P-256"_string;
+        }
+        // If params is equivalent to the secp384r1 object identifier defined in [RFC5480]:
+        else if (ec_params == ::Crypto::Certificate::secp384r1_oid) {
+            // Set namedCurve to "P-384".
+            named_curve = "P-384"_string;
+        }
+        // If params is equivalent to the secp521r1 object identifier defined in [RFC5480]:
+        else if (ec_params == ::Crypto::Certificate::secp521r1_oid) {
+            // Set namedCurve to "P-521".
+            named_curve = "P-521"_string;
+        }
+
+        // 10. If namedCurve is not undefined
+        if (!named_curve.is_empty()) {
+            // 1. Let ecPrivateKey be the result of performing the parse an ASN.1 structure algorithm,
+            //    with data as the privateKey field of privateKeyInfo, structure as the ASN.1 ECPrivateKey
+            //    structure specified in Section 3 of [RFC5915], and exactData set to true.
+            // NOTE: We already did this in parse_a_private_key_info
+            // 2. If an error occurred while parsing, then throw a DataError.
+            auto& ec_private_key = private_key_info.ec;
+
+            // 3. If the parameters field of ecPrivateKey is present, and is not an instance
+            //    of the namedCurve ASN.1 type defined in [RFC5480], or does not contain
+            //    the same object identifier as the parameters field of the privateKeyAlgorithm
+            //    PrivateKeyAlgorithmIdentifier field of privateKeyInfo, throw a DataError.
+            if (ec_private_key.parameters().has_value() && *ec_private_key.parameters() != ec_params.value_or({}))
+                return WebIDL::DataError::create(m_realm, "Invalid algorithm parameters"_string);
+
+            // 4. Let key be a new CryptoKey that represents the Elliptic Curve private key identified
+            //    by performing the conversion steps defined in Section 3 of [RFC5915] using ecPrivateKey.
+            key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { ec_private_key });
+        } else {
+            // Otherwise:
+            // 1. Perform any key import steps defined by other applicable specifications, passing format, spki and obtaining namedCurve and key.
+            // TODO: support 'applicable specifications'
+
+            // 2. If an error occurred or there are no applicable specifications, throw a DataError.
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
+        }
+
+        // 11. If namedCurve is defined, and not equal to the namedCurve member of normalizedAlgorithm, throw a DataError.
+        if (!named_curve.is_empty() && named_curve != normalized_algorithm.named_curve)
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
+
+        // TODO: 12. If the key value is not a valid point on the Elliptic Curve identified
+        //           by the namedCurve member of normalizedAlgorithm throw a DataError.
+
+        // 13. Set the [[type]] internal slot of key to "private".
+        key->set_type(Bindings::KeyType::Private);
+
+        // 14. Let algorithm be a new EcKeyAlgorithm.
+        auto algorithm = EcKeyAlgorithm::create(m_realm);
+
+        // 15. Set the name attribute of algorithm to "ECDH".
+        algorithm->set_name("ECDH"_string);
+
+        // 16. Set the namedCurve attribute of algorithm to namedCurve.
+        algorithm->set_named_curve(named_curve);
+
+        // 17. Set the [[algorithm]] internal slot of key to algorithm.
+        key->set_algorithm(algorithm);
+    }
+
+    // 2. If format is "jwk":
+    else if (key_format == Bindings::KeyFormat::Jwk) {
+        // 1. If keyData is a JsonWebKey dictionary: Let jwk equal keyData.
+        //    Otherwise: Throw a DataError.
+        if (!key_data.has<Bindings::JsonWebKey>())
+            return WebIDL::DataError::create(m_realm, "keyData is not a JsonWebKey dictionary"_string);
+        auto& jwk = key_data.get<Bindings::JsonWebKey>();
+
+        // 2. If the d field is present and if usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
+        if (jwk.d.has_value() && !usages.is_empty()) {
+            for (auto const& usage : usages) {
+                if (usage != Bindings::KeyUsage::Derivekey && usage != Bindings::KeyUsage::Derivebits) {
+                    return WebIDL::SyntaxError::create(m_realm, MUST(String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage))));
+                }
+            }
+        }
+
+        // 3. If the d field is not present and if usages is not empty then throw a SyntaxError.
+        if (!jwk.d.has_value() && !usages.is_empty())
+            return WebIDL::SyntaxError::create(m_realm, "Usages must be empty"_string);
+
+        // 4. If the kty field of jwk is not "EC", then throw a DataError.
+        if (jwk.kty != "EC"sv)
+            return WebIDL::DataError::create(m_realm, "Invalid key type"_string);
+
+        // 5. If usages is non-empty and the use field of jwk is present and is not equal to "enc" then throw a DataError.
+        if (!usages.is_empty() && jwk.use.has_value() && *jwk.use != "enc"sv)
+            return WebIDL::DataError::create(m_realm, "Invalid key use"_string);
+
+        // 6. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK],
+        //    or it does not contain all of the specified usages values, then throw a DataError.
+        TRY(validate_jwk_key_ops(m_realm, jwk, usages));
+
+        // 7. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
+        if (jwk.ext.has_value() && !*jwk.ext && extractable)
+            return WebIDL::DataError::create(m_realm, "Invalid extractable"_string);
+
+        // 8. Let namedCurve be a string whose value is equal to the crv field of jwk.
+        // NOTE: The spec does not say what to do if crv is missing.
+        if (!jwk.crv.has_value())
+            return WebIDL::DataError::create(m_realm, "Invalid key crv"_string);
+        auto named_curve = *jwk.crv;
+
+        // 9. If namedCurve is not equal to the namedCurve member of normalizedAlgorithm, throw a DataError.
+        if (named_curve != normalized_algorithm.named_curve)
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
+
+        // 10. If namedCurve is "P-256", "P-384" or "P-521":
+        if (named_curve.is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
+            size_t coord_size;
+            if (named_curve == "P-256"sv)
+                coord_size = 32;
+            else if (named_curve == "P-384"sv)
+                coord_size = 48;
+            else if (named_curve == "P-521"sv)
+                coord_size = 66;
+            else
+                VERIFY_NOT_REACHED();
+
+            // NOTE: according to Section 6.2.1 and 6.2.2 of JSON Web Algorithms [JWA], x and y are always required
+            if (!jwk.x.has_value() || !jwk.y.has_value())
+                return WebIDL::DataError::create(m_realm, "Invalid key"_string);
+
+            auto maybe_x_bytes = decode_base64url(jwk.x.value());
+            if (maybe_x_bytes.is_error()) {
+                return WebIDL::DataError::create(m_realm, "Failed to decode base64"_string);
+            }
+            auto x_bytes = maybe_x_bytes.release_value();
+            if (x_bytes.size() != coord_size)
+                return WebIDL::DataError::create(m_realm, "Invalid key size"_string);
+
+            auto maybe_y_bytes = decode_base64url(jwk.y.value());
+            if (maybe_y_bytes.is_error()) {
+                return WebIDL::DataError::create(m_realm, "Failed to decode base64"_string);
+            }
+            auto y_bytes = maybe_y_bytes.release_value();
+            if (y_bytes.size() != coord_size)
+                return WebIDL::DataError::create(m_realm, "Invalid key size"_string);
+
+            auto public_key = ::Crypto::PK::ECPublicKey<> {
+                ::Crypto::UnsignedBigInteger::import_data(x_bytes),
+                ::Crypto::UnsignedBigInteger::import_data(y_bytes),
+            };
+
+            // If the d field is present:
+            if (jwk.d.has_value()) {
+                // 1. If jwk does not meet the requirements of Section 6.2.2 of JSON Web Algorithms [JWA], then throw a DataError.
+                auto maybe_d_bytes = decode_base64url(jwk.d.value());
+                if (maybe_d_bytes.is_error()) {
+                    return WebIDL::DataError::create(m_realm, "Failed to decode base64"_string);
+                }
+                auto d_bytes = maybe_d_bytes.release_value();
+                if (d_bytes.size() != coord_size)
+                    return WebIDL::DataError::create(m_realm, "Invalid key size"_string);
+
+                // 2. Let key be a new CryptoKey object that represents the Elliptic Curve private key identified
+                //    by interpreting jwk according to Section 6.2.2 of JSON Web Algorithms [JWA].
+                auto private_key = ::Crypto::PK::ECPrivateKey<> {
+                    ::Crypto::UnsignedBigInteger::import_data(d_bytes),
+                    {},
+                    public_key,
+                };
+                key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { private_key });
+
+                // 3. Set the [[type]] internal slot of Key to "private".
+                key->set_type(Bindings::KeyType::Private);
+            } else {
+                // Otherwise:
+                // 1. If jwk does not meet the requirements of Section 6.2.1 of JSON Web Algorithms [JWA], then throw a DataError.
+                // 2. Let key be a new CryptoKey object that represents the Elliptic Curve public key identified by interpreting
+                //    jwk according to Section 6.2.1 of JSON Web Algorithms [JWA].
+                key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key });
+
+                // 3. Set the [[type]] internal slot of Key to "public".
+                key->set_type(Bindings::KeyType::Public);
+            }
+        } else {
+            // 1. Perform any key import steps defined by other applicable specifications, passing format, jwk and obtaining key.
+            // TODO: support 'applicable specifications'
+
+            // 2. If an error occurred or there are no applicable specifications, throw a DataError.
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
+        }
+
+        // TODO: 11. If the key value is not a valid point on the Elliptic Curve identified
+        //           by the namedCurve member of normalizedAlgorithm throw a DataError.
+
+        // 12. Let algorithm be a new instance of an EcKeyAlgorithm object.
+        auto algorithm = EcKeyAlgorithm::create(m_realm);
+
+        // 13. Set the name attribute of algorithm to "ECDH".
+        algorithm->set_name("ECDH"_string);
+
+        // 14. Set the namedCurve attribute of algorithm to namedCurve.
+        algorithm->set_named_curve(named_curve);
+
+        // 15. Set the [[algorithm]] internal slot of key to algorithm.
+        key->set_algorithm(algorithm);
+    }
+
+    // 2. If format is "raw":
+    else if (key_format == Bindings::KeyFormat::Raw) {
+        // 1. If the namedCurve member of normalizedAlgorithm is not a named curve, then throw a DataError.
+        if (!normalized_algorithm.named_curve.is_one_of("P-256"sv, "P-384"sv, "P-521"sv))
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
+
+        // 2. If usages is not the empty list, then throw a SyntaxError.
+        if (!usages.is_empty())
+            return WebIDL::SyntaxError::create(m_realm, "Usages must be empty"_string);
+
+        // 3. If namedCurve is "P-256", "P-384" or "P-521":
+        if (normalized_algorithm.named_curve.is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
+            auto key_bytes = key_data.get<ByteBuffer>();
+
+            size_t coord_size;
+            if (normalized_algorithm.named_curve == "P-256"sv)
+                coord_size = 32;
+            else if (normalized_algorithm.named_curve == "P-384"sv)
+                coord_size = 48;
+            else if (normalized_algorithm.named_curve == "P-521"sv)
+                coord_size = 66;
+            else
+                VERIFY_NOT_REACHED();
+
+            if (key_bytes.size() != 1 + 2 * coord_size)
+                return WebIDL::DataError::create(m_realm, "Invalid key size"_string);
+
+            // 1. Let Q be the Elliptic Curve public key on the curve identified by the namedCurve
+            //          member of normalizedAlgorithm identified by performing the conversion steps
+            //          defined in Section 2.3.4 of [SEC1] to keyData.
+            // The uncompressed point format MUST be supported.
+
+            // 2. If the implementation does not support the compressed point format and a compressed point is provided, throw a DataError.
+            if (key_bytes[0] != 0x04)
+                return WebIDL::DataError::create(m_realm, "Unsupported key format"_string);
+
+            // 3. If a decode error occurs or an identity point is found, throw a DataError.
+            // 4. Let key be a new CryptoKey that represents Q.
+            auto public_key = ::Crypto::PK::ECPublicKey<> {
+                ::Crypto::UnsignedBigInteger::import_data(key_bytes.data() + 1, coord_size),
+                ::Crypto::UnsignedBigInteger::import_data(key_bytes.data() + 1 + coord_size, coord_size)
+            };
+
+            key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key });
+        } else {
+            // Otherwise:
+            // 1. Perform any key import steps defined by other applicable specifications, passing format, keyData and obtaining key.
+            // TODO: support 'applicable specifications'
+
+            // 2. If an error occured or there are no applicable specifications, throw a DataError.
+            return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
+        }
+
+        // 4. Let algorithm be a new EcKeyAlgorithm object.
+        auto algorithm = EcKeyAlgorithm::create(m_realm);
+
+        // 5. Set the name attribute of algorithm to "ECDH".
+        algorithm->set_name("ECDH"_string);
+
+        // 6. Set the namedCurve attribute of algorithm to equal the namedCurve member of normalizedAlgorithm.
+        algorithm->set_named_curve(normalized_algorithm.named_curve);
+
+        // 7. Set the [[type]] internal slot of key to "public"
+        key->set_type(Bindings::KeyType::Public);
+
+        // 8. Set the [[algorithm]] internal slot of key to algorithm.
+        key->set_algorithm(algorithm);
+    }
+
+    // 3. Return key
+    return GC::Ref { *key };
+}
+
 // https://wicg.github.io/webcrypto-secure-curves/#ed25519-operations
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ED25519::generate_key([[maybe_unused]] AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
