@@ -14,3 +14,35 @@ img.getAttribute("hspace") after img.setAttribute("hspace", "4294967295"): 42949
 img.hspace after img.setAttribute("hspace", "4294967295"): 0
 img.getAttribute("hspace") after img.hspace = 4294967295: 0
 img.hspace after img.hspace = 4294967295: 0
+marquee.getAttribute("scrollamount") after marquee.setAttribute("scrollAmount", "1"): 1
+marquee.scrollAmount after marquee.setAttribute("scrollamount", "1"): 1
+marquee.getAttribute("scrollamount") after marquee.scrollAmount = 1: 1
+marquee.scrollAmount after marquee.scrollAmount = 1: 1
+marquee.getAttribute("scrollamount") after marquee.setAttribute("scrollAmount", "2147483647"): 2147483647
+marquee.scrollAmount after marquee.setAttribute("scrollamount", "2147483647"): 2147483647
+marquee.getAttribute("scrollamount") after marquee.scrollAmount = 2147483647: 2147483647
+marquee.scrollAmount after marquee.scrollAmount = 2147483647: 2147483647
+marquee.getAttribute("scrollamount") after marquee.setAttribute("scrollAmount", "2147483648"): 2147483648
+marquee.scrollAmount after marquee.setAttribute("scrollamount", "2147483648"): 6
+marquee.getAttribute("scrollamount") after marquee.scrollAmount = 2147483648: 6
+marquee.scrollAmount after marquee.scrollAmount = 2147483648: 6
+marquee.getAttribute("scrollamount") after marquee.setAttribute("scrollAmount", "4294967295"): 4294967295
+marquee.scrollAmount after marquee.setAttribute("scrollamount", "4294967295"): 6
+marquee.getAttribute("scrollamount") after marquee.scrollAmount = 4294967295: 6
+marquee.scrollAmount after marquee.scrollAmount = 4294967295: 6
+marquee.getAttribute("scrolldelay") after marquee.setAttribute("scrollDelay", "1"): 1
+marquee.scrollDelay after marquee.setAttribute("scrolldelay", "1"): 1
+marquee.getAttribute("scrolldelay") after marquee.scrollDelay = 1: 1
+marquee.scrollDelay after marquee.scrollDelay = 1: 1
+marquee.getAttribute("scrolldelay") after marquee.setAttribute("scrollDelay", "2147483647"): 2147483647
+marquee.scrollDelay after marquee.setAttribute("scrolldelay", "2147483647"): 2147483647
+marquee.getAttribute("scrolldelay") after marquee.scrollDelay = 2147483647: 2147483647
+marquee.scrollDelay after marquee.scrollDelay = 2147483647: 2147483647
+marquee.getAttribute("scrolldelay") after marquee.setAttribute("scrollDelay", "2147483648"): 2147483648
+marquee.scrollDelay after marquee.setAttribute("scrolldelay", "2147483648"): 85
+marquee.getAttribute("scrolldelay") after marquee.scrollDelay = 2147483648: 85
+marquee.scrollDelay after marquee.scrollDelay = 2147483648: 85
+marquee.getAttribute("scrolldelay") after marquee.setAttribute("scrollDelay", "4294967295"): 4294967295
+marquee.scrollDelay after marquee.setAttribute("scrolldelay", "4294967295"): 85
+marquee.getAttribute("scrolldelay") after marquee.scrollDelay = 4294967295: 85
+marquee.scrollDelay after marquee.scrollDelay = 4294967295: 85
