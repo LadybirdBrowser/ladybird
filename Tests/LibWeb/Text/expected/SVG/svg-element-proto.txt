@@ -1,0 +1,5 @@
+function SVGElement() { [native code] }
+function Element() { [native code] }
+function Node() { [native code] }
+function EventTarget() { [native code] }
+function () { [native code] }
