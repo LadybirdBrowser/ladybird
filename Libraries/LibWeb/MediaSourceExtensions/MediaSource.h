@@ -30,6 +30,8 @@ public:
     void set_onsourceclose(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> onsourceclose();
 
+    static bool is_type_supported(JS::VM&, String const&);
+
 protected:
     MediaSource(JS::Realm&);
 

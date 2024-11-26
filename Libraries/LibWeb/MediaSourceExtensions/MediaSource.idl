@@ -38,5 +38,5 @@ interface MediaSource : EventTarget {
     [FIXME] undefined endOfStream(optional EndOfStreamError error);
     [FIXME] undefined setLiveSeekableRange(double start, double end);
     [FIXME] undefined clearLiveSeekableRange();
-    [FIXME] static boolean isTypeSupported(DOMString type);
+    static boolean isTypeSupported(DOMString type);
 };

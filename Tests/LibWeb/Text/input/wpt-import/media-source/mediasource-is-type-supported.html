@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<!-- Copyright © 2016 Chromium authors and World Wide Web Consortium, (Massachusetts Institute of Technology, ERCIM, Keio University, Beihang). -->
+<html>
+    <head>
+        <title>MediaSource.isTypeSupported() test cases.</title>
+        <script src="../resources/testharness.js"></script>
+        <script src="../resources/testharnessreport.js"></script>
+    </head>
+    <body>
+        <div id="log"></div>
+        <script>
+          // Generate a distinct test for each type in types
+          function test_type_support(types, expectation, description)
+          {
+              for (var i = 0; i < types.length; ++i) {
+                  test(function()
+                  {
+                      assert_equals(MediaSource.isTypeSupported(types[i]),
+                                    expectation, 'supported');
+                  },  description + ' "' + types[i] + '"');
+              }
+          };
+
+          test_type_support([
+              'video',
+              'video/',
+              'video/webm',
+              'video/webm;',
+              'video/webm;codecs',
+              'video/webm;codecs=',
+              'video/webm;codecs="',
+              'video/webm;codecs=""',
+              'video/webm;codecs=","',
+              'audio/webm;aaacodecsbbb=opus',
+              'unsupported_mediatype',
+              '',
+              null
+          ], false, 'Test invalid MIME format');
+
+          test_type_support([
+              'xxx',
+              'text/html',
+              'image/jpeg'
+          ], false, 'Test invalid MSE MIME media type');
+
+          test_type_support([
+              'audio/webm;codecs="vp8"',
+              'audio/mp4;codecs="avc1.4d001e"',
+              'audio/mp4;codecs="vorbis"',
+              'audio/webm;codecs="mp4a.40.2"',
+              'video/mp4;codecs="vp8"',
+              'video/mp4;codecs="vorbis"',
+              'video/webm;codecs="mp4a.40.2"',
+          ], false, 'Test invalid mismatch between MIME type and codec ID');
+
+          // Note that, though the user agent might support some subset of
+          // these for progressive non-MSE playback, the MSE mpeg audio
+          // bytestream format specification requires there to be no codecs
+          // parameter.
+          test_type_support([
+              'audio/mpeg;codecs="mp3"',
+              'audio/mpeg;codecs="mp4a.69"',
+              'audio/mpeg;codecs="mp4a.6B"',
+              'audio/aac;codecs="aac"',
+              'audio/aac;codecs="adts"',
+              'audio/aac;codecs="mp4a.40"',
+          ], false, 'Test invalid inclusion of codecs parameter for mpeg audio types');
+
+          test_type_support([
+              'audio/mp4;codecs="mp4a"',
+              'audio/mp4;codecs="mp4a.40"',
+              'audio/mp4;codecs="mp4a.40."',
+              'audio/mp4;codecs="mp4a.67.3"'
+          ], false, 'Test invalid codec ID');
+
+          test_type_support([
+              'video/webm;codecs="vp8"',
+              'video/webm;codecs="vorbis"',
+              'video/webm;codecs="vp8,vorbis"',
+              'video/webm;codecs="vorbis, vp8"',
+              'audio/webm;codecs="vorbis"',
+              'AUDIO/WEBM;CODECS="vorbis"',
+              'audio/webm;codecs=vorbis;test="6"',
+              'audio/webm;codecs="opus"',
+              'video/webm;codecs="opus"'
+          ], true, 'Test valid WebM type');
+
+          test_type_support([
+              'video/mp4;codecs="avc1.4d001e"', // H.264 Main Profile level 3.0
+              'video/mp4;codecs="avc1.42001e"', // H.264 Baseline Profile level 3.0
+              'audio/mp4;codecs="mp4a.40.2"',   // MPEG4 AAC-LC
+              'audio/mp4;codecs="mp4a.40.5"',   // MPEG4 HE-AAC
+              'audio/mp4;codecs="mp4a.67"',     // MPEG2 AAC-LC
+              'video/mp4;codecs="mp4a.40.2"',
+              'video/mp4;codecs="avc1.4d001e,mp4a.40.2"',
+              'video/mp4;codecs="mp4a.40.2 , avc1.4d001e "',
+              'video/mp4;codecs="avc1.4d001e,mp4a.40.5"',
+              'audio/mp4;codecs="Opus"',
+              'video/mp4;codecs="Opus"',
+              'audio/mp4;codecs="fLaC"',
+              'video/mp4;codecs="fLaC"'
+          ], true, 'Test valid MP4 type');
+
+        </script>
+    </body>
+</html>
