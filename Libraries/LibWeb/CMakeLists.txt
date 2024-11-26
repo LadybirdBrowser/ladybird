@@ -42,6 +42,7 @@ set(SOURCES
     ContentSecurityPolicy/Directives/SerializedDirective.cpp
     ContentSecurityPolicy/Policy.cpp
     ContentSecurityPolicy/PolicyList.cpp
+    ContentSecurityPolicy/SecurityPolicyViolationEvent.cpp
     ContentSecurityPolicy/SerializedPolicy.cpp
     CredentialManagement/Credential.cpp
     CredentialManagement/CredentialsContainer.cpp
