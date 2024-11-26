@@ -127,6 +127,11 @@ void HTMLImageElement::form_associated_element_attribute_changed(FlyString const
         if (layout_node())
             did_update_alt_text(verify_cast<Layout::ImageBox>(*layout_node()));
     }
+
+    if (name == HTML::AttributeNames::decoding) {
+        if (value.has_value() && (value->equals_ignoring_ascii_case("sync"sv) || value->equals_ignoring_ascii_case("async"sv)))
+            dbgln("FIXME: HTMLImageElement.decoding = '{}' is not implemented yet", value->to_ascii_lowercase());
+    }
 }
 
 GC::Ptr<Layout::Node> HTMLImageElement::create_layout_node(CSS::StyleProperties style)
@@ -1169,32 +1174,6 @@ void HTMLImageElement::animate()
 
     if (paintable())
         paintable()->set_needs_display();
-}
-
-StringView HTMLImageElement::decoding() const
-{
-    switch (m_decoding_hint) {
-    case ImageDecodingHint::Sync:
-        return "sync"sv;
-    case ImageDecodingHint::Async:
-        return "async"sv;
-    case ImageDecodingHint::Auto:
-        return "auto"sv;
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
-void HTMLImageElement::set_decoding(String decoding)
-{
-    if (decoding == "sync"sv) {
-        dbgln("FIXME: HTMLImageElement.decoding = 'sync' is not implemented yet");
-        m_decoding_hint = ImageDecodingHint::Sync;
-    } else if (decoding == "async"sv) {
-        dbgln("FIXME: HTMLImageElement.decoding = 'async' is not implemented yet");
-        m_decoding_hint = ImageDecodingHint::Async;
-    } else
-        m_decoding_hint = ImageDecodingHint::Auto;
 }
 
 bool HTMLImageElement::allows_auto_sizes() const

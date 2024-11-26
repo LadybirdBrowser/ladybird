@@ -60,6 +60,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(data)                       \
     __ENUMERATE_HTML_ATTRIBUTE(datetime)                   \
     __ENUMERATE_HTML_ATTRIBUTE(declare)                    \
+    __ENUMERATE_HTML_ATTRIBUTE(decoding)                   \
     __ENUMERATE_HTML_ATTRIBUTE(default_)                   \
     __ENUMERATE_HTML_ATTRIBUTE(defaultchecked)             \
     __ENUMERATE_HTML_ATTRIBUTE(defaultselected)            \
