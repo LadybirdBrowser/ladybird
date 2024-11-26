@@ -1,0 +1,22 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 12 tests
+
+12 Pass
+Details
+Result	Test Name	MessagePass	for='window' event='onload()' parser inserted executes immediately	
+Pass	for='window' event='onload' parser inserted executes immediately	
+Pass	for=' WINdow ' event='ONload ' parser inserted executes immediately	
+Pass	for='window' event='load' parser inserted does not execute	
+Pass	for='window' event='onpageshow' parser inserted does not execute	
+Pass	for='document' event='onload' parser inserted does not execute	
+Pass	for='window' event='onload()' dom inserted executes immediately	
+Pass	for='window' event='onload' dom inserted executes immediately	
+Pass	for=' WINdow ' event='ONload ' dom inserted executes immediately	
+Pass	for='window' event='load' dom inserted does not execute	
+Pass	for='window' event='onpageshow' dom inserted does not execute	
+Pass	for='document' event='onload' dom inserted does not execute	
