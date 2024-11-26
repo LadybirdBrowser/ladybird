@@ -448,7 +448,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Method must not be GET or HEAD when body is provided"sv };
 
     // 36. Let initBody be null.
-    GC::Ptr<Infrastructure::Body> init_body;
+    Optional<Infrastructure::Request::BodyType> init_body;
 
     // 37. If init["body"] exists and is non-null, then:
     if (init.body.has_value() && (*init.body).has_value()) {
@@ -467,15 +467,13 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
     }
 
     // 38. Let inputOrInitBody be initBody if it is non-null; otherwise inputBody.
-    Optional<Infrastructure::Request::BodyType const&> input_or_init_body = init_body
-        ? Infrastructure::Request::BodyType { *init_body }
-        : input_body;
+    auto input_or_init_body = init_body.value_or<Optional<Infrastructure::Request::BodyType const&>>(input_body);
 
     // 39. If inputOrInitBody is non-null and inputOrInitBody’s source is null, then:
     // FIXME: The spec doesn't check if inputOrInitBody is a body before accessing source.
     if (input_or_init_body.has_value() && input_or_init_body->has<GC::Ref<Infrastructure::Body>>() && input_or_init_body->get<GC::Ref<Infrastructure::Body>>()->source().has<Empty>()) {
         // 1. If initBody is non-null and init["duplex"] does not exist, then throw a TypeError.
-        if (init_body && !init.duplex.has_value())
+        if (init_body.has_value() && !init.duplex.has_value())
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Body without source requires 'duplex' value to be set"sv };
 
         // 2. If this’s request’s mode is neither "same-origin" nor "cors", then throw a TypeError.
@@ -490,7 +488,7 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
     auto const& final_body = input_or_init_body;
 
     // 41. If initBody is null and inputBody is non-null, then:
-    if (!init_body && input_body.has_value()) {
+    if (!init_body.has_value() && input_body.has_value()) {
         // 2. If input is unusable, then throw a TypeError.
         if (input.has<GC::Root<Request>>() && input.get<GC::Root<Request>>()->is_unusable())
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Request is unusable"sv };

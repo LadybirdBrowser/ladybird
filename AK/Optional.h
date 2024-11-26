@@ -71,14 +71,17 @@ public:
         return static_cast<Self const&>(*this).has_value() ? __builtin_launder(reinterpret_cast<T const*>(&static_cast<Self const&>(*this).value())) : nullptr;
     }
 
-    [[nodiscard]] ALWAYS_INLINE T value_or(T const& fallback) const&
+    template<typename O = T, typename Fallback = O>
+    [[nodiscard]] ALWAYS_INLINE O value_or(Fallback const& fallback) const&
     {
         if (static_cast<Self const&>(*this).has_value())
             return static_cast<Self const&>(*this).value();
         return fallback;
     }
 
-    [[nodiscard]] ALWAYS_INLINE T value_or(T&& fallback) &&
+    template<typename O = T, typename Fallback = O>
+    requires(!IsLvalueReference<O> && !IsRvalueReference<O>)
+    [[nodiscard]] ALWAYS_INLINE O value_or(Fallback&& fallback) &&
     {
         if (static_cast<Self&>(*this).has_value())
             return move(static_cast<Self&>(*this).value());
