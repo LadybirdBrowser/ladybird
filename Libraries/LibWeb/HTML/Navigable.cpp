@@ -1931,6 +1931,12 @@ void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryH
 
     // 10. Apply the push/replace history step targetStep to traversable.
     traversable->apply_the_push_or_replace_history_step(target_step, history_handling, TraversableNavigable::SynchronousNavigation::No);
+
+    // AD-HOC: If we're inside a navigable container, let's trigger a relayout in the container document.
+    //         This allows size negotiation between the containing document and SVG documents to happen.
+    if (auto container = navigable->container()) {
+        container->document().set_needs_layout();
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#url-and-history-update-steps

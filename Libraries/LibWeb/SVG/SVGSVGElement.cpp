@@ -266,4 +266,58 @@ GC::Ref<SVGTransform> SVGSVGElement::create_svg_transform() const
     return SVGTransform::create(realm());
 }
 
+SVGSVGElement::NaturalMetrics SVGSVGElement::negotiate_natural_metrics(SVG::SVGSVGElement const& svg_root)
+{
+    // https://www.w3.org/TR/SVG2/coords.html#SizingSVGInCSS
+
+    NaturalMetrics natural_metrics;
+
+    // The intrinsic dimensions must also be determined from the width and height sizing properties.
+    // If either width or height are not specified, the used value is the initial value 'auto'.
+    // 'auto' and percentage lengths must not be used to determine an intrinsic width or intrinsic height.
+
+    if (auto width = svg_root.width_style_value_from_attribute(); width && width->is_length() && width->as_length().length().is_absolute()) {
+        natural_metrics.width = width->as_length().length().absolute_length_to_px();
+    }
+
+    if (auto height = svg_root.height_style_value_from_attribute(); height && height->is_length() && height->as_length().length().is_absolute()) {
+        natural_metrics.height = height->as_length().length().absolute_length_to_px();
+    }
+
+    // The intrinsic aspect ratio must be calculated using the following algorithm. If the algorithm returns null, then there is no intrinsic aspect ratio.
+    natural_metrics.aspect_ratio = [&]() -> Optional<CSSPixelFraction> {
+        // 1. If the width and height sizing properties on the ‘svg’ element are both absolute values:
+        if (natural_metrics.width.has_value() && natural_metrics.height.has_value()) {
+            if (natural_metrics.width != 0 && natural_metrics.height != 0) {
+                // 1. return width / height
+                return *natural_metrics.width / *natural_metrics.height;
+            }
+            return {};
+        }
+
+        // FIXME: 2. If an SVG View is active:
+        // FIXME:    1. let viewbox be the viewbox defined by the active SVG View
+        // FIXME:    2. return viewbox.width / viewbox.height
+
+        // 3. If the ‘viewBox’ on the ‘svg’ element is correctly specified:
+        if (svg_root.view_box().has_value()) {
+            // 1. let viewbox be the viewbox defined by the ‘viewBox’ attribute on the ‘svg’ element
+            auto const& viewbox = svg_root.view_box().value();
+
+            // 2. return viewbox.width / viewbox.height
+            auto viewbox_width = CSSPixels::nearest_value_for(viewbox.width);
+            auto viewbox_height = CSSPixels::nearest_value_for(viewbox.height);
+            if (viewbox_width != 0 && viewbox_height != 0)
+                return viewbox_width / viewbox_height;
+
+            return {};
+        }
+
+        // 4. return null
+        return {};
+    }();
+
+    return natural_metrics;
+}
+
 }
