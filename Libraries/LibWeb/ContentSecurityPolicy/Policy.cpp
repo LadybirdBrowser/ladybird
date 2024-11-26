@@ -206,6 +206,18 @@ SerializedPolicy Policy::serialize() const
     };
 }
 
+void Policy::remove_directive(Badge<HTML::HTMLMetaElement>, FlyString const& name)
+{
+    m_directives.remove_all_matching([&name](auto const& directive) {
+        return directive->name() == name;
+    });
+}
+
+void Policy::set_self_origin(Badge<HTML::HTMLMetaElement>, URL::Origin const& origin)
+{
+    m_self_origin = origin;
+}
+
 void Policy::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
