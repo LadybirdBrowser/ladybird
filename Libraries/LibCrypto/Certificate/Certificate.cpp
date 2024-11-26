@@ -101,7 +101,7 @@ static ErrorOr<Crypto::UnsignedBigInteger> parse_serial_number(Crypto::ASN1::Dec
     return serial;
 }
 
-static ErrorOr<Vector<int>> parse_ec_parameters(Crypto::ASN1::Decoder& decoder, Vector<StringView> current_scope)
+ErrorOr<Vector<int>> parse_ec_parameters(Crypto::ASN1::Decoder& decoder, Vector<StringView> current_scope)
 {
     // ECParameters ::= CHOICE {
     //     namedCurve      OBJECT IDENTIFIER
