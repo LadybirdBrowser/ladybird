@@ -4,7 +4,7 @@
 
 // https://w3c.github.io/csswg-drafts/cssom-view-1/#screen
 [Exposed=Window]
-interface Screen : EventTarget {
+interface Screen {
     readonly attribute long availWidth;
     readonly attribute long availHeight;
     readonly attribute long width;
