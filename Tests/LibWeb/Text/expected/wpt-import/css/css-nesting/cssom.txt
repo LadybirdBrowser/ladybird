@@ -6,10 +6,10 @@ Rerun
 
 Found 13 tests
 
-11 Pass
-2 Fail
+12 Pass
+1 Fail
 Details
-Result	Test Name	MessageFail	CSSStyleRule is a CSSGroupingRule	
+Result	Test Name	MessagePass	CSSStyleRule is a CSSGroupingRule	
 Pass	Simple CSSOM manipulation of subrules	
 Pass	Simple CSSOM manipulation of subrules 1	
 Pass	Simple CSSOM manipulation of subrules 2	
