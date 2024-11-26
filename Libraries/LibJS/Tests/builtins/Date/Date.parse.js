@@ -67,6 +67,12 @@ test("basic functionality", () => {
 test("time clip", () => {
     expect(Date.parse("+999999")).toBeNaN();
     expect(Date.parse("-999999")).toBeNaN();
+
+    const belowMinDate = "-271821-04-19T23:59:59.999Z";
+    expect(belowMinDate).toBeNaN();
+
+    const aboveMaxDate = "+275760-09-13T00:00:00.001Z";
+    expect(aboveMaxDate).toBeNaN();
 });
 
 test("extra micro seconds extension", () => {
