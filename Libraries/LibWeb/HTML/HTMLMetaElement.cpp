@@ -12,7 +12,10 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
+#include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/HTMLHeadElement.h>
 #include <LibWeb/HTML/HTMLMetaElement.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Page/Page.h>
@@ -141,6 +144,38 @@ void HTMLMetaElement::inserted()
             // 9. Set the pragma-set default language to candidate.
             auto language = String::from_utf8_without_validation(candidate.bytes());
             document().set_pragma_set_default_language(language);
+            break;
+        }
+        case HttpEquivAttributeState::ContentSecurityPolicy: {
+            // https://html.spec.whatwg.org/multipage/semantics.html#attr-meta-http-equiv-content-security-policy
+            // This pragma enforces a Content Security Policy on a Document. [CSP]
+            // 1. If the meta element is not a child of a head element, return.
+            if (!is<HTMLHeadElement>(parent()))
+                break;
+
+            // 2. If the meta element has no content attribute, or if that attribute's value is the empty string, then return.
+            auto input = get_attribute_value(AttributeNames::content);
+            if (input.is_empty())
+                break;
+
+            // 3. Let policy be the result of executing Content Security Policy's parse a serialized Content Security
+            //    Policy algorithm on the meta element's content attribute's value, with a source of "meta", and a
+            //    disposition of "enforce".
+            auto& realm = this->realm();
+            auto policy = ContentSecurityPolicy::Policy::parse_a_serialized_csp(realm.heap(), input, ContentSecurityPolicy::Policy::Source::Meta, ContentSecurityPolicy::Policy::Disposition::Enforce);
+
+            // 4. Remove all occurrences of the report-uri, frame-ancestors, and sandbox directives from policy.
+            policy->remove_directive({}, ContentSecurityPolicy::Directives::Names::ReportUri);
+            policy->remove_directive({}, ContentSecurityPolicy::Directives::Names::FrameAncestors);
+            policy->remove_directive({}, ContentSecurityPolicy::Directives::Names::Sandbox);
+
+            // FIXME: File spec issue stating the policy's self origin isn't set here.
+            policy->set_self_origin({}, document().origin());
+
+            // 5. Enforce the policy policy.
+            auto policy_list = ContentSecurityPolicy::PolicyList::from_object(realm.global_object());
+            VERIFY(policy_list);
+            policy_list->enforce_policy(policy);
             break;
         }
         default:

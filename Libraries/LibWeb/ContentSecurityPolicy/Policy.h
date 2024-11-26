@@ -54,6 +54,9 @@ public:
     [[nodiscard]] GC::Ref<Policy> clone(GC::Heap&) const;
     [[nodiscard]] SerializedPolicy serialize() const;
 
+    void remove_directive(Badge<HTML::HTMLMetaElement>, FlyString const& name);
+    void set_self_origin(Badge<HTML::HTMLMetaElement>, URL::Origin const& origin);
+
 protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
