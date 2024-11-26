@@ -6,33 +6,10 @@
  */
 
 #include <AK/String.h>
-#include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibWebView/URL.h>
 
-#if defined(ENABLE_PUBLIC_SUFFIX)
-#    include <LibWebView/PublicSuffixData.h>
-#endif
-
 namespace WebView {
-
-bool is_public_suffix([[maybe_unused]] StringView host)
-{
-#if defined(ENABLE_PUBLIC_SUFFIX)
-    return PublicSuffixData::the()->is_public_suffix(host);
-#else
-    return false;
-#endif
-}
-
-Optional<String> get_public_suffix([[maybe_unused]] StringView host)
-{
-#if defined(ENABLE_PUBLIC_SUFFIX)
-    return MUST(PublicSuffixData::the()->get_public_suffix(host));
-#else
-    return {};
-#endif
-}
 
 Optional<URL::URL> sanitize_url(StringView url, Optional<StringView> search_engine, AppendTLD append_tld)
 {
@@ -111,7 +88,7 @@ static URLParts break_web_url_into_parts(URL::URL const& url, StringView url_str
         domain = url_without_scheme;
     }
 
-    auto public_suffix = get_public_suffix(domain);
+    auto public_suffix = URL::get_public_suffix(domain);
     if (!public_suffix.has_value() || !domain.ends_with(*public_suffix))
         return { scheme, domain, remainder };
 
