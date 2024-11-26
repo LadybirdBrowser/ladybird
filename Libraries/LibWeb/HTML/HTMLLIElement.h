@@ -8,6 +8,7 @@
 
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
 
@@ -21,8 +22,8 @@ public:
     // https://www.w3.org/TR/html-aria/#el-li
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::listitem; }
 
-    i32 value() { return get_attribute(AttributeNames::value).value_or("0"_string).to_number<i32>().value_or(0); }
-    void set_value(i32 value)
+    WebIDL::Long value();
+    void set_value(WebIDL::Long value)
     {
         set_attribute(AttributeNames::value, String::number(value)).release_value_but_fixme_should_propagate_errors();
     }
