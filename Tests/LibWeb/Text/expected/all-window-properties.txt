@@ -345,6 +345,7 @@ SVGTransformList
 SVGUseElement
 Screen
 ScreenOrientation
+SecurityPolicyViolationEvent
 Selection
 ServiceWorker
 ServiceWorkerContainer
