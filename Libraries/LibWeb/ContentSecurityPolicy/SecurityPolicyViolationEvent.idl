@@ -1,0 +1,40 @@
+#import <DOM/Event.idl>
+
+// https://w3c.github.io/webappsec-csp/#enumdef-securitypolicyviolationeventdisposition
+enum SecurityPolicyViolationEventDisposition {
+    "enforce",
+    "report"
+};
+
+// https://w3c.github.io/webappsec-csp/#securitypolicyviolationevent
+[Exposed=(Window,Worker)]
+interface SecurityPolicyViolationEvent : Event {
+    constructor(DOMString type, optional SecurityPolicyViolationEventInit eventInitDict = {});
+    readonly attribute USVString documentURI;
+    readonly attribute USVString referrer;
+    readonly attribute USVString blockedURI;
+    readonly attribute DOMString effectiveDirective;
+    readonly attribute DOMString violatedDirective; // historical alias of effectiveDirective
+    readonly attribute DOMString originalPolicy;
+    readonly attribute USVString sourceFile;
+    readonly attribute DOMString sample;
+    readonly attribute SecurityPolicyViolationEventDisposition disposition;
+    readonly attribute unsigned short statusCode;
+    readonly attribute unsigned long lineNumber;
+    readonly attribute unsigned long columnNumber;
+};
+
+dictionary SecurityPolicyViolationEventInit : EventInit {
+    USVString documentURI = "";
+    USVString referrer = "";
+    USVString blockedURI = "";
+    DOMString violatedDirective = "";
+    DOMString effectiveDirective = "";
+    DOMString originalPolicy = "";
+    USVString sourceFile = "";
+    DOMString sample = "";
+    SecurityPolicyViolationEventDisposition disposition = "enforce";
+    unsigned short statusCode = 0;
+    unsigned long lineNumber = 0;
+    unsigned long columnNumber = 0;
+};
