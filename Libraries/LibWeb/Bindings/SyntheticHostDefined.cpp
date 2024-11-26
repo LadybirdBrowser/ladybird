@@ -13,7 +13,7 @@ namespace Web::Bindings {
 
 void SyntheticHostDefined::visit_edges(JS::Cell::Visitor& visitor)
 {
-    JS::Realm::HostDefined::visit_edges(visitor);
+    HostDefined::visit_edges(visitor);
     synthetic_realm_settings.visit_edges(visitor);
 }
 
