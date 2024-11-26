@@ -2643,6 +2643,103 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDH::g
     // 20. Return the result of converting result to an ECMAScript Object, as defined by [WebIDL].
     return Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>> { CryptoKeyPair::create(m_realm, public_key, private_key) };
 }
+
+// https://w3c.github.io/webcrypto/#ecdh-operations
+WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDH::derive_bits(AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
+{
+    auto& realm = *m_realm;
+    auto const& normalized_algorithm = static_cast<EcdhKeyDerivePrams const&>(params);
+
+    // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+    if (key->type() != Bindings::KeyType::Private)
+        return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_string);
+
+    // 2. Let publicKey be the public member of normalizedAlgorithm.
+    auto& public_key = normalized_algorithm.public_key;
+
+    // 3. If the [[type]] internal slot of publicKey is not "public", then throw an InvalidAccessError.
+    if (public_key->type() != Bindings::KeyType::Public)
+        return WebIDL::InvalidAccessError::create(realm, "Public key is not a public key"_string);
+
+    // 4. If the name attribute of the [[algorithm]] internal slot of publicKey is not equal to
+    //    the name property of the [[algorithm]] internal slot of key, then throw an InvalidAccessError.
+    auto& internal_algorithm = static_cast<EcKeyAlgorithm const&>(*key->algorithm());
+    auto& public_internal_algorithm = static_cast<EcKeyAlgorithm const&>(*public_key->algorithm());
+    if (internal_algorithm.name() != public_internal_algorithm.name()) {
+        return WebIDL::InvalidAccessError::create(realm, "Algorithm mismatch"_string);
+    }
+
+    // 5. If the namedCurve attribute of the [[algorithm]] internal slot of publicKey is not equal to
+    //    the namedCurve property of the [[algorithm]] internal slot of key, then throw an InvalidAccessError.
+    if (internal_algorithm.named_curve() != public_internal_algorithm.named_curve())
+        return WebIDL::InvalidAccessError::create(realm, "Curve mismatch"_string);
+
+    ByteBuffer secret;
+
+    // 6. If the namedCurve property of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
+    // 7. If performing the operation results in an error, then throw a OperationError.
+    if (internal_algorithm.named_curve().is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
+        // 1. Perform the ECDH primitive specified in [RFC6090] Section 4
+        //    with key as the EC private key d and the EC public key represented
+        //    by the [[handle]] internal slot of publicKey as the EC public key.
+        // 2. Let secret be the result of applying the field element to octet string conversion
+        //    defined in Section 6.2 of [RFC6090] to the output of the ECDH primitive.
+        auto private_key_data = key->handle().get<::Crypto::PK::ECPrivateKey<>>();
+        auto public_key_data = public_key->handle().get<::Crypto::PK::ECPublicKey<>>();
+
+        Variant<Empty, ::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1> curve;
+        if (internal_algorithm.named_curve() == "P-256"sv) {
+            curve = ::Crypto::Curves::SECP256r1 {};
+        } else if (internal_algorithm.named_curve() == "P-384"sv) {
+            curve = ::Crypto::Curves::SECP384r1 {};
+        } else if (internal_algorithm.named_curve() == "P-521"sv) {
+            // TODO: Support P-521
+            return WebIDL::NotSupportedError::create(m_realm, "'P-521' is not supported yet"_string);
+        }
+
+        auto maybe_secret = curve.visit(
+            [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> { return Error::from_string_literal("noop error"); },
+            [&private_key_data, &public_key_data](auto instance) { return instance.compute_coordinate_point(private_key_data.d(), ::Crypto::Curves::SECPxxxr1Point { public_key_data.x(), public_key_data.y() }); });
+
+        if (maybe_secret.is_error()) {
+            auto message = TRY_OR_THROW_OOM(realm.vm(), String::formatted("Failed to compute secret: {}", maybe_secret.error()));
+            return WebIDL::OperationError::create(realm, message);
+        }
+
+        auto maybe_secret_data = maybe_secret.release_value().to_uncompressed();
+        if (maybe_secret_data.is_error())
+            return WebIDL::OperationError::create(realm, "Failed to convert secret"_string);
+
+        // NOTE: Remove the prefix from the uncompressed point
+        auto secret_data = maybe_secret_data.release_value();
+        VERIFY(secret_data[0] == 0x04);
+
+        secret = TRY_OR_THROW_OOM(realm.vm(), secret_data.slice(1, secret_data.size() - 1));
+    } else {
+        // If the namedCurve property of the [[algorithm]] internal slot of key is a value specified
+        // in an applicable specification that specifies the use of that value with ECDH:
+        // Perform the ECDH derivation steps specified in that specification,
+        // passing in key and publicKey and resulting in secret.
+        // TODO: support 'applicable specification'
+
+        return WebIDL::NotSupportedError::create(realm, "Only 'P-256', 'P-384' and 'P-521' is supported"_string);
+    }
+
+    // 8. If length is null: Return secret
+    if (!length_optional.has_value()) {
+        auto result = TRY_OR_THROW_OOM(realm.vm(), ByteBuffer::copy(secret));
+        return JS::ArrayBuffer::create(realm, move(secret));
+    }
+
+    // Otherwise: If the length of secret in bits is less than length: throw an OperationError.
+    auto length = length_optional.value();
+    if (secret.size() * 8 < length)
+        return WebIDL::OperationError::create(realm, "Secret is too short"_string);
+
+    // Otherwise: Return an octet string containing the first length bits of secret.
+    auto slice = TRY_OR_THROW_OOM(realm.vm(), secret.slice(0, length / 8));
+    return JS::ArrayBuffer::create(realm, move(slice));
+}
 // https://wicg.github.io/webcrypto-secure-curves/#ed25519-operations
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ED25519::generate_key([[maybe_unused]] AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
