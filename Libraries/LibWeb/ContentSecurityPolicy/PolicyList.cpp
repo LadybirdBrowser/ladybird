@@ -79,6 +79,13 @@ HTML::SandboxingFlagSet PolicyList::csp_derived_sandboxing_flags() const
     return HTML::SandboxingFlagSet {};
 }
 
+// https://w3c.github.io/webappsec-csp/#enforced
+void PolicyList::enforce_policy(GC::Ref<Policy> policy)
+{
+    // A policy is enforced or monitored for a global object by inserting it into the global object’s CSP list.
+    m_policies.append(policy);
+}
+
 GC::Ref<PolicyList> PolicyList::clone(GC::Heap& heap) const
 {
     auto policy_list = heap.allocate<PolicyList>();

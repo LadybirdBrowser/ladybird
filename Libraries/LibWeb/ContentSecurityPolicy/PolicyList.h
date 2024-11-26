@@ -30,6 +30,9 @@ public:
     [[nodiscard]] HTML::SandboxingFlagSet csp_derived_sandboxing_flags() const;
 
     [[nodiscard]] GC::Ref<PolicyList> clone(GC::Heap&) const;
+
+    void enforce_policy(GC::Ref<Policy>);
+
     [[nodiscard]] Vector<SerializedPolicy> serialize() const;
 
 protected:
