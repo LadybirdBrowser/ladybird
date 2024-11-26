@@ -1,0 +1,86 @@
+<script src="include.js"></script>
+<script>
+    test(() => {
+        let testCounter = 1;
+        function testPart(part) {
+            println(`${testCounter++}. ${JSON.stringify(part())}`);
+        }
+
+        // Define custom element with shadow DOM and both simple and complex selectors
+        class TestElement extends HTMLElement {
+            constructor() {
+                super();
+                const shadow = this.attachShadow({ mode: 'open' });
+
+                const style = document.createElement('style');
+                style.textContent = `
+                    /* Simple selectors - fast match path */
+                    #host { background: red; }
+                    .host-class { background: green; }
+                    div { background: yellow; }
+                    :host { background: purple; }
+
+                    /* Complex selectors - slow match path */
+                    #host:not(.other) { border: 5px solid red; }
+                    .host-class:where(.exists) { border: 5px solid green; }
+                    div:has(span) { border: 5px solid yellow; }
+                    :host(.host-class) { border: 5px solid purple; }
+                `;
+                shadow.appendChild(style);
+
+                const div = document.createElement('div');
+                div.textContent = 'Shadow content';
+                shadow.appendChild(div);
+            }
+        }
+        customElements.define('test-element', TestElement);
+
+        // Create test element
+        const element = document.createElement('test-element');
+        element.id = 'host';
+        element.classList.add('host-class', 'exists');
+        document.body.appendChild(element);
+
+        // Test fast match selectors
+        testPart(() => {
+            const style = getComputedStyle(element);
+            return `Fast match #host selector matches: ${style.backgroundColor === 'rgb(255, 0, 0)' ? 'Yes' : 'No'}`;
+        });
+
+        testPart(() => {
+            const style = getComputedStyle(element);
+            return `Fast match .host-class selector matches: ${style.backgroundColor === 'rgb(0, 255, 0)' ? 'Yes' : 'No'}`;
+        });
+
+        testPart(() => {
+            const style = getComputedStyle(element);
+            return `Fast match div selector matches: ${style.backgroundColor === 'rgb(255, 255, 0)' ? 'Yes' : 'No'}`;
+        });
+
+        testPart(() => {
+            const style = getComputedStyle(element);
+            return `Fast match :host selector matches: ${style.backgroundColor === 'rgb(128, 0, 128)' ? 'Yes' : 'No'}`;
+        });
+
+        // Test complex selectors (slow match path)
+        testPart(() => {
+            const style = getComputedStyle(element);
+            return `Complex match #host:not(.other) matches: ${style.border === '5px solid rgb(255, 0, 0)' ? 'Yes' : 'No'}`;
+        });
+
+        testPart(() => {
+            const style = getComputedStyle(element);
+            return `Complex match .host-class:where(.exists) matches: ${style.border === '5px solid rgb(0, 255, 0)' ? 'Yes' : 'No'}`;
+        });
+
+        testPart(() => {
+            const style = getComputedStyle(element);
+            return `Complex match div:has(span) matches: ${style.border === '5px solid rgb(255, 255, 0)' ? 'Yes' : 'No'}`;
+        });
+
+        testPart(() => {
+            const style = getComputedStyle(element);
+            return `Complex match :host(.host-class) matches: ${style.border === '5px solid rgb(128, 0, 128)' ? 'Yes' : 'No'}`;
+        });
+    });
+</script>
