@@ -4022,7 +4022,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::for_each)
         generate_variable_statement(iterator_generator, "wrapped_key", interface.pair_iterator_types->get<0>(), "key", interface);
         generate_variable_statement(iterator_generator, "wrapped_value", interface.pair_iterator_types->get<1>(), "value", interface);
         iterator_generator.append(R"~~~(
-        TRY(call(vm, callback.as_function(), vm.argument(1), wrapped_value, wrapped_key, this_value));
+        TRY(JS::call(vm, callback.as_function(), vm.argument(1), wrapped_value, wrapped_key, this_value));
         return {};
     }));
 
@@ -4100,7 +4100,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::for_each)
 
     for (auto& entry : *set) {
         auto value = entry.key;
-        TRY(call(vm, callback.as_function(), vm.argument(1), value, value, impl));
+        TRY(JS::call(vm, callback.as_function(), vm.argument(1), value, value, impl));
     }
 
     return JS::js_undefined();
