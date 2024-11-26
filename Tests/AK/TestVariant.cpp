@@ -14,6 +14,17 @@ namespace {
 struct Object : public RefCounted<Object> {
 };
 
+struct DontCopyMe {
+    constexpr DontCopyMe() { }
+    ~DontCopyMe() = default;
+    DontCopyMe(DontCopyMe&&) = default;
+    DontCopyMe& operator=(DontCopyMe&&) = default;
+    DontCopyMe(DontCopyMe const&) = delete;
+    DontCopyMe& operator=(DontCopyMe const&) = delete;
+
+    int x { 13 };
+};
+
 }
 
 TEST_CASE(basic)
@@ -161,9 +172,18 @@ TEST_CASE(moved_from_state)
 
 TEST_CASE(duplicated_types)
 {
-    Variant<int, int, int, int> its_just_an_int { 42 };
-    EXPECT(its_just_an_int.has<int>());
-    EXPECT_EQ(its_just_an_int.get<int>(), 42);
+    {
+        Variant<int, int, int, int> its_just_an_int { 42 };
+        EXPECT(its_just_an_int.has<int>());
+        EXPECT_EQ(its_just_an_int.get<int>(), 42);
+        EXPECT_EQ(its_just_an_int.index(), 0);
+    }
+    {
+        Variant<int, int, int, int, double> its_just_a_double { 69.0 };
+        EXPECT(its_just_a_double.has<double>());
+        EXPECT_EQ(its_just_a_double.get<double>(), 69.0);
+        EXPECT_EQ(its_just_a_double.index(), 1);
+    }
 }
 
 TEST_CASE(return_values)
@@ -301,4 +321,45 @@ TEST_CASE(variant_equality)
         MyVariant variant2;
         EXPECT_EQ(variant1, variant2);
     }
+}
+
+TEST_CASE(test_constexpr)
+{
+    EXPECT_CONSTEVAL(Variant<Empty, int, DontCopyMe> {});
+    EXPECT_CONSTEVAL(Variant<int, DontCopyMe, Empty> {});
+    EXPECT_CONSTEVAL(Variant<Empty, int, DontCopyMe> {}.has<Empty>());
+    EXPECT_CONSTEVAL(Variant<int, DontCopyMe, Empty> {}.has<Empty>());
+
+    EXPECT_CONSTEVAL(Variant<int, DontCopyMe> { 13 });
+    EXPECT_CONSTEVAL(Variant<int, DontCopyMe> { DontCopyMe {} });
+
+    static_assert(Variant<int, DontCopyMe> { 13 }.has<int>());
+    static_assert(!Variant<int, DontCopyMe> { 13 }.has<DontCopyMe>());
+    static_assert(!Variant<int, DontCopyMe> { DontCopyMe {} }.has<int>());
+    static_assert(Variant<int, DontCopyMe> { DontCopyMe {} }.has<DontCopyMe>());
+
+    static_assert(Variant<int, DontCopyMe> { 13 }.get<int>() == 13);
+    static_assert(Variant<int, DontCopyMe> { DontCopyMe {} }.get<DontCopyMe>().x == 13);
+
+    static_assert(*Variant<int, DontCopyMe> { 13 }.get_pointer<int>() == 13);
+    static_assert(Variant<int, DontCopyMe> { 13 }.get_pointer<DontCopyMe>() == nullptr);
+    static_assert(Variant<int, DontCopyMe> { DontCopyMe {} }.get_pointer<DontCopyMe>()->x == 13);
+    static_assert(Variant<int, DontCopyMe> { DontCopyMe {} }.get_pointer<int>() == nullptr);
+
+    static_assert(Variant<int, double> { 13.0 } == 13.0);
+
+    static_assert(
+        Variant<int, DontCopyMe> { 13 }
+            .visit(
+                [](DontCopyMe const& dcm) { return dcm.x; },
+                [](auto const& x) { return x; })
+        == 13);
+    static_assert(
+        Variant<int, DontCopyMe> { DontCopyMe {} }
+            .visit(
+                [](DontCopyMe const& dcm) { return dcm.x; },
+                [](auto const& x) { return x; })
+        == 13);
+
+    static_assert(Variant<int, DontCopyMe> { DontCopyMe {} }.downcast<DontCopyMe>().has<DontCopyMe>());
 }
