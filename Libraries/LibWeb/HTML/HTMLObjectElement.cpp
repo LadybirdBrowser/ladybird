@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2020-2024, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -21,6 +21,7 @@
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
 #include <LibWeb/Layout/ImageBox.h>
+#include <LibWeb/Layout/NavigableContainerViewport.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/MimeSniff/Resource.h>
@@ -143,8 +144,7 @@ GC::Ptr<Layout::Node> HTMLObjectElement::create_layout_node(CSS::StyleProperties
     case Representation::Children:
         return NavigableContainer::create_layout_node(move(style));
     case Representation::NestedBrowsingContext:
-        // FIXME: Actually paint the nested browsing context's document, similar to how iframes are painted with NavigableContainerViewport and NavigableContainerViewportPaintable.
-        return nullptr;
+        return heap().allocate<Layout::NavigableContainerViewport>(document(), *this, move(style));
     case Representation::Image:
         if (image_data())
             return heap().allocate<Layout::ImageBox>(document(), *this, move(style), *this);
