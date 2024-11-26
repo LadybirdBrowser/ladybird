@@ -27,6 +27,20 @@ struct SECPxxxr1CurveParameters {
     StringView generator_point;
 };
 
+struct SECPxxxr1Point {
+    UnsignedBigInteger x;
+    UnsignedBigInteger y;
+
+    ErrorOr<ByteBuffer> to_uncompressed() const
+    {
+        auto bytes = TRY(ByteBuffer::create_uninitialized(1 + x.byte_length() + y.byte_length()));
+        bytes[0] = 0x04; // uncompressed
+        auto x_size = x.export_data(bytes.span().slice(1));
+        auto y_size = y.export_data(bytes.span().slice(1 + x_size));
+        return bytes.slice(0, 1 + x_size + y_size);
+    }
+};
+
 template<size_t bit_size, SECPxxxr1CurveParameters const& CURVE_PARAMETERS>
 class SECPxxxr1 : public EllipticCurve {
 private:
@@ -145,9 +159,22 @@ public:
         return buffer;
     }
 
+    ErrorOr<UnsignedBigInteger> generate_private_key_scalar()
+    {
+        auto buffer = TRY(generate_private_key());
+        return UnsignedBigInteger::import_data(buffer.data(), buffer.size());
+    }
+
     ErrorOr<ByteBuffer> generate_public_key(ReadonlyBytes a) override
     {
         return compute_coordinate(a, GENERATOR_POINT);
+    }
+
+    ErrorOr<SECPxxxr1Point> generate_public_key_point(UnsignedBigInteger scalar)
+    {
+        VERIFY(scalar.byte_length() == KEY_BYTE_SIZE);
+
+        return compute_coordinate_point(scalar, SECPxxxr1Point { UnsignedBigInteger::import_data(GENERATOR_POINT.data() + 1, KEY_BYTE_SIZE), UnsignedBigInteger::import_data(GENERATOR_POINT.data() + 1 + KEY_BYTE_SIZE, KEY_BYTE_SIZE) });
     }
 
     ErrorOr<ByteBuffer> compute_coordinate(ReadonlyBytes scalar_bytes, ReadonlyBytes point_bytes) override
@@ -168,6 +195,22 @@ public:
         return buf;
     }
 
+    ErrorOr<SECPxxxr1Point> compute_coordinate_point(UnsignedBigInteger scalar, SECPxxxr1Point point)
+    {
+        // FIXME: this is very ugly, but it gets the job done.
+        auto scalar_bytes = TRY(ByteBuffer::create_uninitialized(scalar.byte_length()));
+        auto scalar_size = scalar.export_data(scalar_bytes.span());
+        auto point_bytes = TRY(point.to_uncompressed());
+
+        auto result_bytes = TRY(compute_coordinate(scalar_bytes.span().slice(0, scalar_size), point_bytes));
+        VERIFY(result_bytes[0] == 0x04);
+
+        return SECPxxxr1Point {
+            .x = UnsignedBigInteger::import_data(result_bytes.data() + 1, KEY_BYTE_SIZE),
+            .y = UnsignedBigInteger::import_data(result_bytes.data() + 1 + KEY_BYTE_SIZE, KEY_BYTE_SIZE),
+        };
+    }
+
     ErrorOr<ByteBuffer> derive_premaster_key(ReadonlyBytes shared_point) override
     {
         VERIFY(shared_point.size() == POINT_BYTE_SIZE);
@@ -176,6 +219,11 @@ public:
         ByteBuffer premaster_key = TRY(ByteBuffer::create_uninitialized(KEY_BYTE_SIZE));
         premaster_key.overwrite(0, shared_point.data() + 1, KEY_BYTE_SIZE);
         return premaster_key;
+    }
+
+    ErrorOr<SECPxxxr1Point> derive_premaster_key_point(SECPxxxr1Point shared_point)
+    {
+        return shared_point;
     }
 
     ErrorOr<bool> verify(ReadonlyBytes hash, ReadonlyBytes pubkey, ReadonlyBytes signature)
