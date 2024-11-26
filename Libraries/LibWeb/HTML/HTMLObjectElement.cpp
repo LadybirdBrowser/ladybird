@@ -143,7 +143,7 @@ GC::Ptr<Layout::Node> HTMLObjectElement::create_layout_node(CSS::StyleProperties
     case Representation::Children:
         return NavigableContainer::create_layout_node(move(style));
     case Representation::NestedBrowsingContext:
-        // FIXME: Actually paint the nested browsing context's document, similar to how iframes are painted with NavigableContainerViewport and NestedBrowsingContextPaintable.
+        // FIXME: Actually paint the nested browsing context's document, similar to how iframes are painted with NavigableContainerViewport and NavigableContainerViewportPaintable.
         return nullptr;
     case Representation::Image:
         if (image_data())

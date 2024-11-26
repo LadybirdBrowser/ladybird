@@ -26,7 +26,7 @@ source_set("Painting") {
     "LabelablePaintable.cpp",
     "MarkerPaintable.cpp",
     "MediaPaintable.cpp",
-    "NestedBrowsingContextPaintable.cpp",
+    "NavigableContainerViewportPaintable.cpp",
     "PaintContext.cpp",
     "PaintStyle.cpp",
     "Paintable.cpp",

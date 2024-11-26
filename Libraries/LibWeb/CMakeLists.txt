@@ -624,7 +624,7 @@ set(SOURCES
     Painting/LabelablePaintable.cpp
     Painting/MarkerPaintable.cpp
     Painting/MediaPaintable.cpp
-    Painting/NestedBrowsingContextPaintable.cpp
+    Painting/NavigableContainerViewportPaintable.cpp
     Painting/PaintContext.cpp
     Painting/Paintable.cpp
     Painting/PaintableBox.cpp
