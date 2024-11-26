@@ -75,7 +75,7 @@ double epoch_days_to_epoch_ms(double day, double time)
 }
 
 // 13.4 CheckISODaysRange ( isoDate ), https://tc39.es/proposal-temporal/#sec-checkisodaysrange
-ThrowCompletionOr<void> check_iso_days_range(VM& vm, ISODate const& iso_date)
+ThrowCompletionOr<void> check_iso_days_range(VM& vm, ISODate iso_date)
 {
     // 1. If abs(ISODateToEpochDays(isoDate.[[Year]], isoDate.[[Month]] - 1, isoDate.[[Day]])) > 10**8, then
     if (fabs(iso_date_to_epoch_days(iso_date.year, iso_date.month - 1, iso_date.day)) > 100'000'000) {
@@ -1725,7 +1725,7 @@ ThrowCompletionOr<String> to_offset_string(VM& vm, Value argument)
 }
 
 // 13.42 ISODateToFields ( calendar, isoDate, type ), https://tc39.es/proposal-temporal/#sec-temporal-isodatetofields
-CalendarFields iso_date_to_fields(StringView calendar, ISODate const& iso_date, DateType type)
+CalendarFields iso_date_to_fields(StringView calendar, ISODate iso_date, DateType type)
 {
     // 1. Let fields be an empty Calendar Fields Record with all fields set to unset.
     auto fields = CalendarFields::unset();

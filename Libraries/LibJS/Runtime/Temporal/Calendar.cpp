@@ -316,7 +316,7 @@ CalendarFields calendar_merge_fields(StringView calendar, CalendarFields const& 
 }
 
 // 12.2.6 CalendarDateAdd ( calendar, isoDate, duration, overflow ), https://tc39.es/proposal-temporal/#sec-temporal-calendardateadd
-ThrowCompletionOr<ISODate> calendar_date_add(VM& vm, StringView calendar, ISODate const& iso_date, DateDuration const& duration, Overflow overflow)
+ThrowCompletionOr<ISODate> calendar_date_add(VM& vm, StringView calendar, ISODate iso_date, DateDuration const& duration, Overflow overflow)
 {
     ISODate result;
 
@@ -349,7 +349,7 @@ ThrowCompletionOr<ISODate> calendar_date_add(VM& vm, StringView calendar, ISODat
 }
 
 // 12.2.7 CalendarDateUntil ( calendar, one, two, largestUnit ), https://tc39.es/proposal-temporal/#sec-temporal-calendardateuntil
-DateDuration calendar_date_until(VM& vm, StringView calendar, ISODate const& one, ISODate const& two, Unit largest_unit)
+DateDuration calendar_date_until(VM& vm, StringView calendar, ISODate one, ISODate two, Unit largest_unit)
 {
     // 1. If calendar is "iso8601", then
     if (calendar == "iso8601"sv) {
@@ -610,7 +610,7 @@ u8 iso_days_in_month(double year, double month)
 }
 
 // 12.2.16 ISOWeekOfYear ( isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-isoweekofyear
-YearWeek iso_week_of_year(ISODate const& iso_date)
+YearWeek iso_week_of_year(ISODate iso_date)
 {
     // 1. Let year be isoDate.[[Year]].
     auto year = iso_date.year;
@@ -691,7 +691,7 @@ YearWeek iso_week_of_year(ISODate const& iso_date)
 }
 
 // 12.2.17 ISODayOfYear ( isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-isodayofyear
-u16 iso_day_of_year(ISODate const& iso_date)
+u16 iso_day_of_year(ISODate iso_date)
 {
     // 1. Let epochDays be ISODateToEpochDays(isoDate.[[Year]], isoDate.[[Month]] - 1, isoDate.[[Day]]).
     auto epoch_days = iso_date_to_epoch_days(iso_date.year, iso_date.month - 1, iso_date.day);
@@ -701,7 +701,7 @@ u16 iso_day_of_year(ISODate const& iso_date)
 }
 
 // 12.2.18 ISODayOfWeek ( isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-isodayofweek
-u8 iso_day_of_week(ISODate const& iso_date)
+u8 iso_day_of_week(ISODate iso_date)
 {
     // 1. Let epochDays be ISODateToEpochDays(isoDate.[[Year]], isoDate.[[Month]] - 1, isoDate.[[Day]]).
     auto epoch_days = iso_date_to_epoch_days(iso_date.year, iso_date.month - 1, iso_date.day);
@@ -764,7 +764,7 @@ ThrowCompletionOr<ISODate> calendar_month_day_to_iso_reference_date(VM& vm, Stri
 }
 
 // 12.2.21 CalendarISOToDate ( calendar, isoDate ), https://tc39.es/proposal-temporal/#sec-temporal-calendarisotodate
-CalendarDate calendar_iso_to_date(StringView calendar, ISODate const& iso_date)
+CalendarDate calendar_iso_to_date(StringView calendar, ISODate iso_date)
 {
     // 1. If calendar is "iso8601", then
     if (calendar == "iso8601"sv) {

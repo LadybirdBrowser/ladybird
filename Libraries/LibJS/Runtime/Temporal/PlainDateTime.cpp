@@ -29,7 +29,7 @@ PlainDateTime::PlainDateTime(ISODateTime const& iso_date_time, String calendar, 
 }
 
 // 5.5.3 CombineISODateAndTimeRecord ( isoDate, time ), https://tc39.es/proposal-temporal/#sec-temporal-combineisodateandtimerecord
-ISODateTime combine_iso_date_and_time_record(ISODate iso_date, Time time)
+ISODateTime combine_iso_date_and_time_record(ISODate iso_date, Time const& time)
 {
     // 1. NOTE: time.[[Days]] is ignored.
     // 2. Return ISO Date-Time Record { [[ISODate]]: isoDate, [[Time]]: time }.
@@ -43,7 +43,7 @@ static auto const DATETIME_NANOSECONDS_MIN = "-8640000086400000000000"_sbigint;
 static auto const DATETIME_NANOSECONDS_MAX = "8640000086400000000000"_sbigint;
 
 // 5.5.4 ISODateTimeWithinLimits ( isoDateTime ), https://tc39.es/proposal-temporal/#sec-temporal-isodatetimewithinlimits
-bool iso_date_time_within_limits(ISODateTime iso_date_time)
+bool iso_date_time_within_limits(ISODateTime const& iso_date_time)
 {
     // 1. If abs(ISODateToEpochDays(isoDateTime.[[ISODate]].[[Year]], isoDateTime.[[ISODate]].[[Month]] - 1, isoDateTime.[[ISODate]].[[Day]])) > 10**8 + 1, return false.
     if (fabs(iso_date_to_epoch_days(iso_date_time.iso_date.year, iso_date_time.iso_date.month - 1, iso_date_time.iso_date.day)) > 100000001)

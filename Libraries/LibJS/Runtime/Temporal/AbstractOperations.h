@@ -172,7 +172,7 @@ struct DifferenceSettings {
 
 double iso_date_to_epoch_days(double year, double month, double date);
 double epoch_days_to_epoch_ms(double day, double time);
-ThrowCompletionOr<void> check_iso_days_range(VM&, ISODate const&);
+ThrowCompletionOr<void> check_iso_days_range(VM&, ISODate);
 ThrowCompletionOr<Overflow> get_temporal_overflow_option(VM&, Object const& options);
 ThrowCompletionOr<Disambiguation> get_temporal_disambiguation_option(VM&, Object const& options);
 RoundingMode negate_rounding_mode(RoundingMode);
@@ -206,7 +206,7 @@ ThrowCompletionOr<GC::Ref<Duration>> parse_temporal_duration_string(VM&, StringV
 ThrowCompletionOr<TimeZone> parse_temporal_time_zone_string(VM&, StringView time_zone_string);
 ThrowCompletionOr<String> to_month_code(VM&, Value argument);
 ThrowCompletionOr<String> to_offset_string(VM&, Value argument);
-CalendarFields iso_date_to_fields(StringView calendar, ISODate const&, DateType);
+CalendarFields iso_date_to_fields(StringView calendar, ISODate, DateType);
 ThrowCompletionOr<DifferenceSettings> get_difference_settings(VM&, DurationOperation, Object const& options, UnitGroup, ReadonlySpan<Unit> disallowed_units, Unit fallback_smallest_unit, Unit smallest_largest_default_unit);
 
 // 13.38 ToIntegerWithTruncation ( argument ), https://tc39.es/proposal-temporal/#sec-tointegerwithtruncation
