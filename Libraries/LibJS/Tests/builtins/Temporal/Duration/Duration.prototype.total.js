@@ -39,6 +39,16 @@ describe("correct behavior", () => {
             expect(result).toBe(1);
         });
     });
+
+    test("match minutes", () => {
+        const duration = new Temporal.Duration(1, 0, 0, 0, 24);
+
+        const result = duration.total({
+            unit: "days",
+            relativeTo: "1970-01-01T00:00:00-00:45[Africa/Monrovia]",
+        });
+        expect(result).toBe(366);
+    });
 });
 
 describe("errors", () => {

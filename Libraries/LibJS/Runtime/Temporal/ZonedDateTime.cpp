@@ -114,7 +114,7 @@ ThrowCompletionOr<Crypto::SignedBigInteger> interpret_iso_date_time_offset(VM& v
             auto rounded_candidate_nanoseconds = round_number_to_increment(candidate_offset, NANOSECONDS_PER_MINUTE, RoundingMode::HalfExpand);
 
             // ii. If roundedCandidateNanoseconds = offsetNanoseconds, then
-            if (candidate_offset.compare_to_double(offset_nanoseconds) == Crypto::UnsignedBigInteger::CompareResult::DoubleEqualsBigInt) {
+            if (rounded_candidate_nanoseconds.compare_to_double(offset_nanoseconds) == Crypto::UnsignedBigInteger::CompareResult::DoubleEqualsBigInt) {
                 // 1. Return candidate.
                 return move(candidate);
             }
