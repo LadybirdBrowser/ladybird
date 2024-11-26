@@ -56,7 +56,7 @@ ErrorOr<void> generate_header_file(Core::InputBufferedFile&, Core::File& file)
 #include <AK/Trie.h>
 #include <AK/Variant.h>
 
-namespace WebView {
+namespace URL {
 
 class PublicSuffixData {
 protected:
@@ -96,9 +96,9 @@ ErrorOr<void> generate_implementation_file(Core::InputBufferedFile& input, Core:
     generator.append(R"~~~(
 #include <AK/String.h>
 #include <AK/Vector.h>
-#include <LibWebView/PublicSuffixData.h>
+#include <LibURL/PublicSuffixData.h>
 
-namespace WebView {
+namespace URL {
 
 static constexpr auto s_public_suffixes = Array {)~~~");
 

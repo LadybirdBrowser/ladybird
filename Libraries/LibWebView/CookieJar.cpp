@@ -14,7 +14,6 @@
 #include <LibURL/URL.h>
 #include <LibWeb/Cookie/ParsedCookie.h>
 #include <LibWebView/CookieJar.h>
-#include <LibWebView/URL.h>
 
 namespace WebView {
 
@@ -335,7 +334,7 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, con
     }
 
     // 9. If the user agent is configured to reject "public suffixes" and the domain-attribute is a public suffix:
-    if (is_public_suffix(domain_attribute)) {
+    if (URL::is_public_suffix(domain_attribute)) {
         // 1. If the domain-attribute is identical to the canonicalized request-host:
         if (domain_attribute == canonicalized_domain) {
             // 1. Let the domain-attribute be the empty string.

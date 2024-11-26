@@ -1,5 +1,4 @@
 include(fontconfig)
-include(public_suffix)
 
 set(SOURCES
     Application.cpp
@@ -21,7 +20,6 @@ set(SOURCES
     Utilities.cpp
     ViewImplementation.cpp
     WebContentClient.cpp
-    ${PUBLIC_SUFFIX_SOURCES}
 )
 
 if (APPLE)
@@ -74,7 +72,6 @@ set(GENERATED_SOURCES
 
 serenity_lib(LibWebView webview)
 target_link_libraries(LibWebView PRIVATE LibCore LibFileSystem LibGfx LibImageDecoderClient LibIPC LibRequests LibJS LibWeb LibUnicode LibURL LibSyntax)
-target_compile_definitions(LibWebView PRIVATE ENABLE_PUBLIC_SUFFIX=$<BOOL:${ENABLE_PUBLIC_SUFFIX_DOWNLOAD}>)
 
 if (APPLE)
     target_link_libraries(LibWebView PRIVATE LibThreading)
