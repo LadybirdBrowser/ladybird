@@ -2292,7 +2292,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         return;
     }
 
-    // 3. An end tag whose tag name is one of: "h1", "h2", "h3", "h4", "h5", "h6"
+    // -> An end tag whose tag name is one of: "h1", "h2", "h3", "h4", "h5", "h6"
     if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::h1, HTML::TagNames::h2, HTML::TagNames::h3, HTML::TagNames::h4, HTML::TagNames::h5, HTML::TagNames::h6)) {
         // If the stack of open elements does not have an element in scope that is an HTML element and whose tag name is one of "h1", "h2", "h3", "h4", "h5", or "h6", then this is a parse error; ignore the token.
         if (!m_stack_of_open_elements.has_in_scope(HTML::TagNames::h1)
@@ -2321,6 +2321,12 @@ void HTMLParser::handle_in_body(HTMLToken& token)
                 break;
         }
         return;
+    }
+
+    // -> An end tag whose tag name is "sarcasm"
+    if (token.is_end_tag() && token.tag_name().is_one_of("sarcasm"_fly_string)) {
+        // Take a deep breath, then act as described in the "any other end tag" entry below.
+        goto AnyOtherEndTag;
     }
 
     // -> A start tag whose tag name is "a"
