@@ -194,6 +194,8 @@ struct AlgorithmIdentifier {
     Optional<Vector<int>> ec_parameters;
 };
 
+ErrorOr<Vector<int>> parse_ec_parameters(ASN1::Decoder& decoder, Vector<StringView> current_scope = {});
+
 struct BasicConstraints {
     bool is_certificate_authority;
     Crypto::UnsignedBigInteger path_length_constraint;
