@@ -26,6 +26,7 @@
 #include <LibWeb/Bindings/WindowExposedInterfaces.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/MutationType.h>
+#include <LibWeb/Editing/CommandNames.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
@@ -101,6 +102,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
 
     // These strings could potentially live on the VM similar to CommonPropertyNames.
     DOM::MutationType::initialize_strings();
+    Editing::CommandNames::initialize_strings();
     HTML::AttributeNames::initialize_strings();
     HTML::CustomElementReactionNames::initialize_strings();
     HTML::EventNames::initialize_strings();
