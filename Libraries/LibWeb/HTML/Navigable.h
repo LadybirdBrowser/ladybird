@@ -177,8 +177,6 @@ public:
 
     void set_needs_display(InvalidateDisplayList = InvalidateDisplayList::Yes);
 
-    void set_is_popup(TokenizedFeature::Popup is_popup) { m_is_popup = is_popup; }
-
     // https://html.spec.whatwg.org/#rendering-opportunity
     [[nodiscard]] bool has_a_rendering_opportunity() const;
 
@@ -201,9 +199,6 @@ protected:
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#ongoing-navigation
     Variant<Empty, Traversal, String> m_ongoing_navigation;
-
-    // https://html.spec.whatwg.org/multipage/browsers.html#is-popup
-    TokenizedFeature::Popup m_is_popup { TokenizedFeature::Popup::No };
 
 private:
     void reset_cursor_blink_cycle();
