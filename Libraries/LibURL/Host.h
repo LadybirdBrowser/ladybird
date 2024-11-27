@@ -46,6 +46,9 @@ public:
 
     VariantType const& value() const { return m_value; }
 
+    Optional<String> public_suffix() const;
+    Optional<String> registrable_domain() const;
+
     String serialize() const;
 
 private:
