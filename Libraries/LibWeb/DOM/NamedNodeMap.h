@@ -53,6 +53,8 @@ public:
     Attr const* remove_attribute(FlyString const& qualified_name);
     Attr const* remove_attribute_ns(Optional<FlyString> const& namespace_, FlyString const& local_name);
 
+    Attr const* get_attribute_namespace_agnostic(FlyString const& local_name) const;
+
     WebIDL::ExceptionOr<GC::Ref<Attr>> remove_attribute_node(GC::Ref<Attr>);
 
 private:
