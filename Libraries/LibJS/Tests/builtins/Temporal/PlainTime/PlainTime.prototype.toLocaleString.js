@@ -5,7 +5,7 @@ describe("correct behavior", () => {
 
     test("basic functionality", () => {
         const plainTime = new Temporal.PlainTime(18, 14, 47, 123, 456, 789);
-        expect(plainTime.toLocaleString()).toBe("18:14:47.123456789");
+        expect(plainTime.toLocaleString()).toBe("6:14:47 PM");
     });
 });
 
