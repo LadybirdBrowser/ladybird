@@ -1,0 +1,41 @@
+<script src="../include.js"></script>
+<script>
+    function shadowRealmEvalAsync(realm, asyncBody) {
+        return new Promise(realm.evaluate(`
+            (resolve, reject) => {
+                (async () => {
+                    ${asyncBody}
+                })().then(resolve, (e) => reject(e.toString()));
+            }
+        `));
+    };
+
+    asyncTest(async done => {
+        const outerShadowRealm = new ShadowRealm();
+
+        outerShadowRealm.evaluate(`
+            var innerShadowRealm = new ShadowRealm();
+        `);
+
+        const outerResult = await shadowRealmEvalAsync(outerShadowRealm, `
+            function shadowRealmEvalAsync(realm, asyncBody) {
+                return new Promise(realm.evaluate(\`
+                    (resolve, reject) => {
+                        (async () => {
+                            \${asyncBody}
+                        })().then(resolve, (e) => reject(e.toString()));
+                    }
+                \`));
+            };
+
+            const innerResult = await shadowRealmEvalAsync(innerShadowRealm, \`
+                return new Event("Some event...").type;
+            \`);
+
+            return innerResult;
+        `);
+
+        println(outerResult);
+        done();
+    });
+</script>
