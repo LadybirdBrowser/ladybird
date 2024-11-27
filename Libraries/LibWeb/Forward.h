@@ -91,6 +91,10 @@ class CompressionStream;
 class DecompressionStream;
 }
 
+namespace Web::Credentials {
+class Credential;
+}
+
 namespace Web::Cookie {
 struct Cookie;
 struct ParsedCookie;
