@@ -408,6 +408,13 @@ JS::Realm& relevant_realm(JS::Object const& object)
     return object.shape().realm();
 }
 
+// https://whatpr.org/html/9893/webappapis.html#relevant-principal-realm
+JS::Realm& relevant_principal_realm(JS::Object const& object)
+{
+    // The relevant principal realm for a platform object o is o's relevant realm's principal realm.
+    return principal_realm(relevant_realm(object));
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#relevant-settings-object
 EnvironmentSettingsObject& relevant_settings_object(JS::Object const& object)
 {
@@ -421,11 +428,25 @@ EnvironmentSettingsObject& relevant_settings_object(DOM::Node const& node)
     return const_cast<DOM::Document&>(node.document()).relevant_settings_object();
 }
 
+// https://whatpr.org/html/9893/webappapis.html#relevant-principal-settings-object
+EnvironmentSettingsObject& relevant_principal_settings_object(JS::Object const& object)
+{
+    // The relevant principal settings object for a platform object o is o's relevant principal realm's environment settings object.
+    return Bindings::principal_host_defined_environment_settings_object(relevant_principal_realm(object));
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-relevant-global
 JS::Object& relevant_global_object(JS::Object const& object)
 {
     // Similarly, the relevant global object for a platform object o is the global object of the relevant Realm for o.
     return relevant_realm(object).global_object();
+}
+
+// https://whatpr.org/html/9893/webappapis.html#relevant-principal-global
+JS::Object& relevant_principal_global_object(JS::Object const& object)
+{
+    // The relevant principal global object for a platform object o is o's relevant principal realm's global object.
+    return relevant_principal_realm(object).global_object();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-entry-realm

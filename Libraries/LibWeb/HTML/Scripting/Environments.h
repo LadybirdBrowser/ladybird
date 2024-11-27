@@ -151,10 +151,17 @@ EnvironmentSettingsObject& current_principal_settings_object();
 
 JS::Realm& principal_realm(GC::Ref<JS::Realm>);
 JS::Object& current_principal_global_object();
+
 JS::Realm& relevant_realm(JS::Object const&);
+JS::Realm& relevant_principal_realm(JS::Object const&);
+
 EnvironmentSettingsObject& relevant_settings_object(JS::Object const&);
 EnvironmentSettingsObject& relevant_settings_object(DOM::Node const&);
+EnvironmentSettingsObject& relevant_principal_settings_object(JS::Object const&);
+
 JS::Object& relevant_global_object(JS::Object const&);
+JS::Object& relevant_principal_global_object(JS::Object const&);
+
 JS::Realm& entry_realm();
 EnvironmentSettingsObject& entry_settings_object();
 JS::Object& entry_global_object();
