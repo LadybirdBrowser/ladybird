@@ -5,6 +5,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/Intl/DateTimeFormat.h>
+#include <LibJS/Runtime/Intl/DateTimeFormatConstructor.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/Calendar.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
@@ -270,15 +272,23 @@ JS_DEFINE_NATIVE_FUNCTION(PlainYearMonthPrototype::to_string)
 }
 
 // 9.3.20 Temporal.PlainYearMonth.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.tolocalestring
-// NOTE: This is the minimum toLocaleString implementation for engines without ECMA-402.
+// 15.12.7.1 Temporal.PlainYearMonth.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/proposal-temporal/#sup-temporal.plainyearmonth.prototype.tolocalestring
 JS_DEFINE_NATIVE_FUNCTION(PlainYearMonthPrototype::to_locale_string)
 {
+    auto& realm = *vm.current_realm();
+
+    auto locales = vm.argument(0);
+    auto options = vm.argument(1);
+
     // 1. Let yearMonth be the this value.
     // 2. Perform ? RequireInternalSlot(yearMonth, [[InitializedTemporalYearMonth]]).
     auto year_month = TRY(typed_this_object(vm));
 
-    // 3. Return TemporalYearMonthToString(yearMonth, AUTO).
-    return PrimitiveString::create(vm, temporal_year_month_to_string(year_month, ShowCalendar::Auto));
+    // 3. Let dateFormat be ? CreateDateTimeFormat(%Intl.DateTimeFormat%, locales, options, DATE, DATE).
+    auto date_format = TRY(Intl::create_date_time_format(vm, realm.intrinsics().intl_date_time_format_constructor(), locales, options, Intl::OptionRequired::Date, Intl::OptionDefaults::Date));
+
+    // 4. Return ? FormatDateTime(dateFormat, yearMonth).
+    return PrimitiveString::create(vm, TRY(Intl::format_date_time(vm, date_format, year_month)));
 }
 
 // 9.3.21 Temporal.PlainYearMonth.prototype.toJSON ( ), https://tc39.es/proposal-temporal/#sec-temporal.plainyearmonth.prototype.tojson
