@@ -6,6 +6,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/Intl/DateTimeFormat.h>
+#include <LibJS/Runtime/Intl/DateTimeFormatConstructor.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/Calendar.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
@@ -475,15 +477,23 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::to_string)
 }
 
 // 3.3.31 Temporal.PlainDate.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.tolocalestring
-// NOTE: This is the minimum toLocaleString implementation for engines without ECMA-402.
+// 15.12.3.1 Temporal.PlainDate.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/proposal-temporal/#sup-temporal.plaindate.prototype.tolocalestring
 JS_DEFINE_NATIVE_FUNCTION(PlainDatePrototype::to_locale_string)
 {
+    auto& realm = *vm.current_realm();
+
+    auto locales = vm.argument(0);
+    auto options = vm.argument(1);
+
     // 1. Let temporalDate be the this value.
     // 2. Perform ? RequireInternalSlot(temporalDate, [[InitializedTemporalDate]]).
     auto temporal_date = TRY(typed_this_object(vm));
 
-    // 3. Return TemporalDateToString(temporalDate, AUTO).
-    return PrimitiveString::create(vm, temporal_date_to_string(temporal_date, ShowCalendar::Auto));
+    // 3. Let dateFormat be ? CreateDateTimeFormat(%Intl.DateTimeFormat%, locales, options, DATE, DATE).
+    auto date_format = TRY(Intl::create_date_time_format(vm, realm.intrinsics().intl_date_time_format_constructor(), locales, options, Intl::OptionRequired::Date, Intl::OptionDefaults::Date));
+
+    // 4. Return ? FormatDateTime(dateFormat, temporalDate).
+    return PrimitiveString::create(vm, TRY(Intl::format_date_time(vm, date_format, temporal_date)));
 }
 
 // 3.3.32 Temporal.PlainDate.prototype.toJSON ( ), https://tc39.es/proposal-temporal/#sec-temporal.plaindate.prototype.tojson
