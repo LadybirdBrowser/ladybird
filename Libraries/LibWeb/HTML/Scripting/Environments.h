@@ -149,7 +149,7 @@ JS::Realm& current_principal_realm();
 EnvironmentSettingsObject& principal_realm_settings_object(JS::Realm&);
 EnvironmentSettingsObject& current_principal_settings_object();
 
-JS::Realm& principal_realm(JS::Realm&);
+JS::Realm& principal_realm(GC::Ref<JS::Realm>);
 JS::Object& current_principal_global_object();
 JS::Realm& relevant_realm(JS::Object const&);
 EnvironmentSettingsObject& relevant_settings_object(JS::Object const&);
