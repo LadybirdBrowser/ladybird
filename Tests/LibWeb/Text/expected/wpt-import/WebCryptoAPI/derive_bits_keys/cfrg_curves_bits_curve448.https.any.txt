@@ -6,8 +6,8 @@ Rerun
 
 Found 18 tests
 
-16 Pass
-2 Fail
+17 Pass
+1 Fail
 Details
 Result	Test Name	MessagePass	setup - define tests	
 Pass	X448 key derivation checks for all-zero value result with a key of order 0	
@@ -16,7 +16,7 @@ Pass	X448 key derivation checks for all-zero value result with a key of order p-
 Pass	X448 key derivation checks for all-zero value result with a key of order p (=0, order 4)	
 Pass	X448 key derivation checks for all-zero value result with a key of order p+1 (=1, order 1)	
 Pass	X448 good parameters	
-Fail	X448 mixed case parameters	
+Pass	X448 mixed case parameters	
 Pass	X448 short result	
 Fail	X448 non-multiple of 8 bits	
 Pass	X448 missing public property	

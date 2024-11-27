@@ -6,8 +6,8 @@ Rerun
 
 Found 31 tests
 
-21 Pass
-10 Fail
+23 Pass
+8 Fail
 Details
 Result	Test Name	MessagePass	setup - define tests	
 Fail	P-521 good parameters	
@@ -21,7 +21,7 @@ Fail	P-521 base key is not a private key
 Fail	P-521 public property value is a private key	
 Fail	P-521 public property value is a secret key	
 Pass	P-256 good parameters	
-Fail	P-256 mixed case parameters	
+Pass	P-256 mixed case parameters	
 Pass	P-256 missing public curve	
 Pass	P-256 public property of algorithm is not a CryptoKey	
 Pass	P-256 mismatched curves	
@@ -31,7 +31,7 @@ Pass	P-256 base key is not a private key
 Pass	P-256 public property value is a private key	
 Pass	P-256 public property value is a secret key	
 Pass	P-384 good parameters	
-Fail	P-384 mixed case parameters	
+Pass	P-384 mixed case parameters	
 Pass	P-384 missing public curve	
 Pass	P-384 public property of algorithm is not a CryptoKey	
 Pass	P-384 mismatched curves	
