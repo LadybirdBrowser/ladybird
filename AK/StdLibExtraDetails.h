@@ -588,6 +588,7 @@ struct __InvokeResult<MethodType MethodDefBaseType::*, InstanceType, Args...> {
 };
 
 template<typename F, typename... Args>
+requires(requires { (declval<F>())(declval<Args>()...); })
 struct __InvokeResult<F, Args...> {
     using type = decltype((declval<F>())(declval<Args>()...));
 };
