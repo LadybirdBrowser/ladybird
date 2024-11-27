@@ -1,6 +1,7 @@
 include(public_suffix)
 
 set(SOURCES
+    Host.cpp
     Origin.cpp
     Parser.cpp
     URL.cpp

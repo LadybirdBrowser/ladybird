@@ -108,6 +108,9 @@ template<>
 ErrorOr<void> encode(Encoder&, URL::Origin const&);
 
 template<>
+ErrorOr<void> encode(Encoder&, URL::Host const&);
+
+template<>
 ErrorOr<void> encode(Encoder&, File const&);
 
 template<>

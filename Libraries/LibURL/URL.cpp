@@ -88,7 +88,7 @@ void URL::set_host(Host host)
 // https://url.spec.whatwg.org/#concept-host-serializer
 ErrorOr<String> URL::serialized_host() const
 {
-    return Parser::serialize_host(m_data->host.value());
+    return m_data->host->serialize();
 }
 
 void URL::set_port(Optional<u16> port)
@@ -119,7 +119,8 @@ void URL::append_path(StringView path)
 bool URL::cannot_have_a_username_or_password_or_port() const
 {
     // A URL cannot have a username/password/port if its host is null or the empty string, or its scheme is "file".
-    return !m_data->host.has_value() || m_data->host == String {} || m_data->scheme == "file"sv;
+
+    return !m_data->host.has_value() || m_data->host->is_empty_host() || m_data->scheme == "file"sv;
 }
 
 // FIXME: This is by no means complete.

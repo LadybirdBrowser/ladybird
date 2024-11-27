@@ -109,6 +109,9 @@ template<>
 ErrorOr<URL::Origin> decode(Decoder&);
 
 template<>
+ErrorOr<URL::Host> decode(Decoder&);
+
+template<>
 ErrorOr<File> decode(Decoder&);
 
 template<>

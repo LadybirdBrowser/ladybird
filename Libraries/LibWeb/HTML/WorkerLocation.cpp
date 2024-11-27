@@ -60,8 +60,6 @@ WebIDL::ExceptionOr<String> WorkerLocation::host() const
 // https://html.spec.whatwg.org/multipage/workers.html#dom-workerlocation-hostname
 WebIDL::ExceptionOr<String> WorkerLocation::hostname() const
 {
-    auto& vm = realm().vm();
-
     // The hostname getter steps are:
     // 1. Let host be this's WorkerGlobalScope object's url's host.
     auto const& host = m_global_scope->url().host();
@@ -71,7 +69,7 @@ WebIDL::ExceptionOr<String> WorkerLocation::hostname() const
         return String {};
 
     // 3. Return host, serialized.
-    return TRY_OR_THROW_OOM(vm, URL::Parser::serialize_host(host.value()));
+    return host->serialize();
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-workerlocation-port
