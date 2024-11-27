@@ -42,13 +42,15 @@ namespace AK {
 
 unsigned Traits<URL::Origin>::hash(URL::Origin const& origin)
 {
+    if (origin.is_opaque())
+        return 0;
+
     unsigned hash = origin.scheme().hash();
 
     if (origin.port().has_value())
         hash = pair_int_hash(hash, *origin.port());
 
-    if (!origin.host().has<Empty>())
-        hash = pair_int_hash(hash, URL::Parser::serialize_host(origin.host()).release_value_but_fixme_should_propagate_errors().hash());
+    hash = pair_int_hash(hash, URL::Parser::serialize_host(origin.host()).release_value_but_fixme_should_propagate_errors().hash());
 
     return hash;
 }
