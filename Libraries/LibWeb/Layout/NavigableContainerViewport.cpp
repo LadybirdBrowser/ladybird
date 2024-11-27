@@ -6,6 +6,7 @@
 
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/HTMLObjectElement.h>
 #include <LibWeb/Layout/NavigableContainerViewport.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/NavigableContainerViewportPaintable.h>
@@ -24,13 +25,15 @@ NavigableContainerViewport::~NavigableContainerViewport() = default;
 
 void NavigableContainerViewport::prepare_for_replaced_layout()
 {
-    if (auto const* content_document = dom_node().content_document_without_origin_check()) {
-        if (auto const* root_element = content_document->document_element(); root_element && root_element->is_svg_svg_element()) {
-            auto natural_metrics = SVG::SVGSVGElement::negotiate_natural_metrics(static_cast<SVG::SVGSVGElement const&>(*root_element));
-            set_natural_width(natural_metrics.width);
-            set_natural_height(natural_metrics.height);
-            set_natural_aspect_ratio(natural_metrics.aspect_ratio);
-            return;
+    if (is<HTML::HTMLObjectElement>(dom_node())) {
+        if (auto const* content_document = dom_node().content_document_without_origin_check()) {
+            if (auto const* root_element = content_document->document_element(); root_element && root_element->is_svg_svg_element()) {
+                auto natural_metrics = SVG::SVGSVGElement::negotiate_natural_metrics(static_cast<SVG::SVGSVGElement const&>(*root_element));
+                set_natural_width(natural_metrics.width);
+                set_natural_height(natural_metrics.height);
+                set_natural_aspect_ratio(natural_metrics.aspect_ratio);
+                return;
+            }
         }
     }
     // FIXME: Do proper error checking, etc.
