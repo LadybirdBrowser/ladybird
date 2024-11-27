@@ -121,6 +121,10 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
             [&](FileAction::CloseFile const& action) -> ErrorOr<void> {
                 CHECK(posix_spawn_file_actions_addclose(&spawn_actions, action.fd));
                 return {};
+            },
+            [&](FileAction::DupFd const& action) -> ErrorOr<void> {
+                CHECK(posix_spawn_file_actions_adddup2(&spawn_actions, action.write_fd, action.fd));
+                return {};
             }));
     }
 
