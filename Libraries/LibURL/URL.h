@@ -83,7 +83,7 @@ public:
     String const& scheme() const { return m_data->scheme; }
     String const& username() const { return m_data->username; }
     String const& password() const { return m_data->password; }
-    Host const& host() const { return m_data->host; }
+    Optional<Host> const& host() const { return m_data->host; }
     ErrorOr<String> serialized_host() const;
     ByteString basename() const;
     Optional<String> const& query() const { return m_data->query; }
@@ -171,7 +171,7 @@ private:
         String password;
 
         // A URL’s host is null or a host. It is initially null.
-        Host host;
+        Optional<Host> host;
 
         // A URL’s port is either null or a 16-bit unsigned integer that identifies a networking port. It is initially null.
         Optional<u16> port;

@@ -494,7 +494,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method_string, Stri
     // NOTE: This is handled in the overload lacking the async argument.
 
     // 8. If parsedURL’s host is non-null, then:
-    if (!parsed_url.host().has<Empty>()) {
+    if (parsed_url.host().has_value()) {
         // 1. If the username argument is not null, set the username given parsedURL and username.
         if (username.has_value())
             parsed_url.set_username(username.value());

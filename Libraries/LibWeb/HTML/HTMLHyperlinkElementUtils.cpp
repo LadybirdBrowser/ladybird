@@ -167,7 +167,7 @@ String HTMLHyperlinkElementUtils::host() const
     auto const& url = m_url;
 
     // 3. If url or url's host is null, return the empty string.
-    if (!url.has_value() || url->host().has<Empty>())
+    if (!url.has_value() || !url->host().has_value())
         return String {};
 
     // 4. If url's port is null, return url's host, serialized.
@@ -206,7 +206,8 @@ String HTMLHyperlinkElementUtils::hostname() const
     URL::URL url(href());
 
     // 3. If url or url's host is null, return the empty string.
-    if (url.host().has<Empty>())
+    // FIXME: How can url be null here?
+    if (!url.host().has_value())
         return String {};
 
     // 4. Return url's host, serialized.

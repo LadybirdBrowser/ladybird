@@ -206,7 +206,7 @@ TEST_CASE(about_url)
     URL::URL url("about:blank"sv);
     EXPECT(url.is_valid());
     EXPECT_EQ(url.scheme(), "about");
-    EXPECT(url.host().has<Empty>());
+    EXPECT(!url.host().has_value());
     EXPECT_EQ(url.serialize_path(), "blank");
     EXPECT(!url.query().has_value());
     EXPECT(!url.fragment().has_value());
@@ -218,7 +218,7 @@ TEST_CASE(mailto_url)
     URL::URL url("mailto:mail@example.com"sv);
     EXPECT(url.is_valid());
     EXPECT_EQ(url.scheme(), "mailto");
-    EXPECT(url.host().has<Empty>());
+    EXPECT(!url.host().has_value());
     EXPECT_EQ(url.port_or_default(), 0);
     EXPECT_EQ(url.path_segment_count(), 1u);
     EXPECT_EQ(url.path_segment_at_index(0), "mail@example.com");
@@ -232,7 +232,7 @@ TEST_CASE(mailto_url_with_subject)
     URL::URL url("mailto:mail@example.com?subject=test"sv);
     EXPECT(url.is_valid());
     EXPECT_EQ(url.scheme(), "mailto");
-    EXPECT(url.host().has<Empty>());
+    EXPECT(!url.host().has_value());
     EXPECT_EQ(url.port_or_default(), 0);
     EXPECT_EQ(url.path_segment_count(), 1u);
     EXPECT_EQ(url.path_segment_at_index(0), "mail@example.com");

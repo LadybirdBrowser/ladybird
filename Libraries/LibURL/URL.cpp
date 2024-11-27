@@ -88,7 +88,7 @@ void URL::set_host(Host host)
 // https://url.spec.whatwg.org/#concept-host-serializer
 ErrorOr<String> URL::serialized_host() const
 {
-    return Parser::serialize_host(m_data->host);
+    return Parser::serialize_host(m_data->host.value());
 }
 
 void URL::set_port(Optional<u16> port)
@@ -119,7 +119,7 @@ void URL::append_path(StringView path)
 bool URL::cannot_have_a_username_or_password_or_port() const
 {
     // A URL cannot have a username/password/port if its host is null or the empty string, or its scheme is "file".
-    return m_data->host.has<Empty>() || m_data->host == String {} || m_data->scheme == "file"sv;
+    return !m_data->host.has_value() || m_data->host == String {} || m_data->scheme == "file"sv;
 }
 
 // FIXME: This is by no means complete.
@@ -142,8 +142,8 @@ bool URL::compute_validity() const
             return false;
     }
 
-    // NOTE: A file URL's host should be the empty string for localhost, not null.
-    if (m_data->scheme == "file" && m_data->host.has<Empty>())
+    // FIXME: A file URL's host should be the empty string for localhost, not null.
+    if (m_data->scheme == "file" && !m_data->host.has_value())
         return false;
 
     return true;
@@ -252,7 +252,7 @@ ByteString URL::serialize(ExcludeFragment exclude_fragment) const
     output.append(':');
 
     // 2. If url’s host is non-null:
-    if (!m_data->host.has<Empty>()) {
+    if (m_data->host.has_value()) {
         // 1. Append "//" to output.
         output.append("//"sv);
 
@@ -285,7 +285,7 @@ ByteString URL::serialize(ExcludeFragment exclude_fragment) const
     if (cannot_be_a_base_url()) {
         output.append(m_data->paths[0]);
     } else {
-        if (m_data->host.has<Empty>() && m_data->paths.size() > 1 && m_data->paths[0].is_empty())
+        if (!m_data->host.has_value() && m_data->paths.size() > 1 && m_data->paths[0].is_empty())
             output.append("/."sv);
         for (auto& segment : m_data->paths) {
             output.append('/');
@@ -321,7 +321,7 @@ ByteString URL::serialize_for_display() const
     builder.append(m_data->scheme);
     builder.append(':');
 
-    if (!m_data->host.has<Empty>()) {
+    if (m_data->host.has_value()) {
         builder.append("//"sv);
         builder.append(serialized_host().release_value_but_fixme_should_propagate_errors());
         if (m_data->port.has_value())
@@ -331,7 +331,7 @@ ByteString URL::serialize_for_display() const
     if (cannot_be_a_base_url()) {
         builder.append(m_data->paths[0]);
     } else {
-        if (m_data->host.has<Empty>() && m_data->paths.size() > 1 && m_data->paths[0].is_empty())
+        if (!m_data->host.has_value() && m_data->paths.size() > 1 && m_data->paths[0].is_empty())
             builder.append("/."sv);
         for (auto& segment : m_data->paths) {
             builder.append('/');
@@ -391,7 +391,7 @@ Origin URL::origin() const
     // -> "wss"
     if (scheme().is_one_of("ftp"sv, "http"sv, "https"sv, "ws"sv, "wss"sv)) {
         // Return the tuple origin (url’s scheme, url’s host, url’s port, null).
-        return Origin(scheme().to_byte_string(), host(), port());
+        return Origin(scheme().to_byte_string(), host().value(), port());
     }
 
     // -> "file"

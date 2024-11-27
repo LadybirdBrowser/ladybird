@@ -46,7 +46,7 @@ WebIDL::ExceptionOr<String> WorkerLocation::host() const
     auto const& url = m_global_scope->url();
 
     // 2. If url's host is null, return the empty string.
-    if (url.host().has<Empty>())
+    if (!url.host().has_value())
         return String {};
 
     // 3. If url's port is null, return url's host, serialized.
@@ -67,11 +67,11 @@ WebIDL::ExceptionOr<String> WorkerLocation::hostname() const
     auto const& host = m_global_scope->url().host();
 
     // 2. If host is null, return the empty string.
-    if (host.has<Empty>())
+    if (!host.has_value())
         return String {};
 
     // 3. Return host, serialized.
-    return TRY_OR_THROW_OOM(vm, URL::Parser::serialize_host(host));
+    return TRY_OR_THROW_OOM(vm, URL::Parser::serialize_host(host.value()));
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-workerlocation-port
