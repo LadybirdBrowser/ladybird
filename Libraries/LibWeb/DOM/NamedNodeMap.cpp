@@ -194,6 +194,16 @@ Attr const* NamedNodeMap::get_attribute_ns(Optional<FlyString> const& namespace_
     return nullptr;
 }
 
+Attr const* NamedNodeMap::get_attribute_namespace_agnostic(FlyString const& local_name) const
+{
+    for (auto const& attribute : m_attributes) {
+        if (attribute->local_name() == local_name)
+            return attribute.ptr();
+    }
+
+    return nullptr;
+}
+
 // https://dom.spec.whatwg.org/#concept-element-attributes-set
 WebIDL::ExceptionOr<GC::Ptr<Attr>> NamedNodeMap::set_attribute(Attr& attribute)
 {

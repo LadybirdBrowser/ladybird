@@ -213,13 +213,43 @@ static inline bool matches_indeterminate_pseudo_class(DOM::Element const& elemen
     return false;
 }
 
+static inline Web::DOM::Attr const* get_optionally_namespaced_attribute(CSS::Selector::SimpleSelector::Attribute const& attribute, Optional<CSS::CSSStyleSheet const&> style_sheet_for_rule, DOM::Element const& element)
+{
+    auto const& qualified_name = attribute.qualified_name;
+    auto const& attribute_name = qualified_name.name.name;
+    auto const& namespace_type = qualified_name.namespace_type;
+
+    if (element.namespace_uri() == Namespace::HTML) {
+        if (namespace_type == CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Named) {
+            return nullptr;
+        }
+        return element.attributes()->get_attribute(attribute_name);
+    }
+
+    switch (namespace_type) {
+    // "In keeping with the Namespaces in the XML recommendation, default namespaces do not apply to attributes,
+    //  therefore attribute selectors without a namespace component apply only to attributes that have no namespace (equivalent to "|attr")"
+    case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Default:
+    case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::None:
+        return element.attributes()->get_attribute(attribute_name);
+    case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Any:
+        return element.attributes()->get_attribute_namespace_agnostic(attribute_name);
+    case CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Named:
+        if (!style_sheet_for_rule.has_value())
+            return nullptr;
+        auto const& selector_namespace = style_sheet_for_rule->namespace_uri(qualified_name.namespace_);
+        if (!selector_namespace.has_value())
+            return nullptr;
+        return element.attributes()->get_attribute_ns(selector_namespace, attribute_name);
+    }
+    VERIFY_NOT_REACHED();
+}
+
 static inline bool matches_attribute(CSS::Selector::SimpleSelector::Attribute const& attribute, [[maybe_unused]] Optional<CSS::CSSStyleSheet const&> style_sheet_for_rule, DOM::Element const& element)
 {
-    // FIXME: Check the attribute's namespace, once we support that in DOM::Element!
-
     auto const& attribute_name = attribute.qualified_name.name.name;
 
-    auto const* attr = element.attributes()->get_attribute(attribute_name);
+    auto const* attr = get_optionally_namespaced_attribute(attribute, style_sheet_for_rule, element);
 
     if (attribute.match_type == CSS::Selector::SimpleSelector::Attribute::MatchType::HasAttribute) {
         // Early way out in case of an attribute existence selector.
