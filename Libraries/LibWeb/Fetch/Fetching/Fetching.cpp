@@ -1880,7 +1880,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_network_or_cache_fetch(JS::Re
                 //    with the user agent’s cookie store and httpRequest’s current URL.
                 auto cookies = ([&] {
                     // FIXME: Getting to the page client reliably is way too complicated, and going via the document won't work in workers.
-                    auto document = Bindings::principal_host_defined_environment_settings_object(realm).responsible_document();
+                    auto document = Bindings::principal_host_defined_environment_settings_object(HTML::principal_realm(realm)).responsible_document();
                     if (!document)
                         return String {};
                     return document->page().client().page_did_request_cookie(http_request->current_url(), Cookie::Source::Http);
