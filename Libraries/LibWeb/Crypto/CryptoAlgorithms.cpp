@@ -690,13 +690,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::encrypt(AlgorithmParams c
 
     auto error_message = MUST(String::formatted("Invalid hash function '{}'", hash));
     ErrorOr<ByteBuffer> maybe_padding = Error::from_string_view(error_message.bytes_as_string_view());
-    if (hash.equals_ignoring_ascii_case("SHA-1"sv)) {
+    if (hash == "SHA-1") {
         maybe_padding = ::Crypto::Padding::OAEP::eme_encode<::Crypto::Hash::SHA1, ::Crypto::Hash::MGF>(plaintext, label, public_key.length());
-    } else if (hash.equals_ignoring_ascii_case("SHA-256"sv)) {
+    } else if (hash == "SHA-256") {
         maybe_padding = ::Crypto::Padding::OAEP::eme_encode<::Crypto::Hash::SHA256, ::Crypto::Hash::MGF>(plaintext, label, public_key.length());
-    } else if (hash.equals_ignoring_ascii_case("SHA-384"sv)) {
+    } else if (hash == "SHA-384") {
         maybe_padding = ::Crypto::Padding::OAEP::eme_encode<::Crypto::Hash::SHA384, ::Crypto::Hash::MGF>(plaintext, label, public_key.length());
-    } else if (hash.equals_ignoring_ascii_case("SHA-512"sv)) {
+    } else if (hash == "SHA-512") {
         maybe_padding = ::Crypto::Padding::OAEP::eme_encode<::Crypto::Hash::SHA512, ::Crypto::Hash::MGF>(plaintext, label, public_key.length());
     }
 
@@ -751,13 +751,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::decrypt(AlgorithmParams c
 
     auto error_message = MUST(String::formatted("Invalid hash function '{}'", hash));
     ErrorOr<ByteBuffer> maybe_plaintext = Error::from_string_view(error_message.bytes_as_string_view());
-    if (hash.equals_ignoring_ascii_case("SHA-1"sv)) {
+    if (hash == "SHA-1") {
         maybe_plaintext = ::Crypto::Padding::OAEP::eme_decode<::Crypto::Hash::SHA1, ::Crypto::Hash::MGF>(padding, label, private_key_length);
-    } else if (hash.equals_ignoring_ascii_case("SHA-256"sv)) {
+    } else if (hash == "SHA-256") {
         maybe_plaintext = ::Crypto::Padding::OAEP::eme_decode<::Crypto::Hash::SHA256, ::Crypto::Hash::MGF>(padding, label, private_key_length);
-    } else if (hash.equals_ignoring_ascii_case("SHA-384"sv)) {
+    } else if (hash == "SHA-384") {
         maybe_plaintext = ::Crypto::Padding::OAEP::eme_decode<::Crypto::Hash::SHA384, ::Crypto::Hash::MGF>(padding, label, private_key_length);
-    } else if (hash.equals_ignoring_ascii_case("SHA-512"sv)) {
+    } else if (hash == "SHA-512") {
         maybe_plaintext = ::Crypto::Padding::OAEP::eme_decode<::Crypto::Hash::SHA512, ::Crypto::Hash::MGF>(padding, label, private_key_length);
     }
 
@@ -2281,13 +2281,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> SHA::digest(AlgorithmParams const&
     auto& algorithm_name = algorithm.name;
 
     ::Crypto::Hash::HashKind hash_kind;
-    if (algorithm_name.equals_ignoring_ascii_case("SHA-1"sv)) {
+    if (algorithm_name == "SHA-1") {
         hash_kind = ::Crypto::Hash::HashKind::SHA1;
-    } else if (algorithm_name.equals_ignoring_ascii_case("SHA-256"sv)) {
+    } else if (algorithm_name == "SHA-256") {
         hash_kind = ::Crypto::Hash::HashKind::SHA256;
-    } else if (algorithm_name.equals_ignoring_ascii_case("SHA-384"sv)) {
+    } else if (algorithm_name == "SHA-384") {
         hash_kind = ::Crypto::Hash::HashKind::SHA384;
-    } else if (algorithm_name.equals_ignoring_ascii_case("SHA-512"sv)) {
+    } else if (algorithm_name == "SHA-512") {
         hash_kind = ::Crypto::Hash::HashKind::SHA512;
     } else {
         return WebIDL::NotSupportedError::create(m_realm, MUST(String::formatted("Invalid hash function '{}'", algorithm_name)));
@@ -2321,14 +2321,14 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDSA::
     // with domain parameters for the curve identified by the namedCurve member of normalizedAlgorithm.
     Variant<Empty, ::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1> curve;
     if (normalized_algorithm.named_curve.is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
-        if (normalized_algorithm.named_curve.equals_ignoring_ascii_case("P-256"sv))
+        if (normalized_algorithm.named_curve == "P-256")
             curve = ::Crypto::Curves::SECP256r1 {};
 
-        if (normalized_algorithm.named_curve.equals_ignoring_ascii_case("P-384"sv))
+        if (normalized_algorithm.named_curve == "P-384")
             curve = ::Crypto::Curves::SECP384r1 {};
 
         // FIXME: Support P-521
-        if (normalized_algorithm.named_curve.equals_ignoring_ascii_case("P-521"sv))
+        if (normalized_algorithm.named_curve == "P-521")
             return WebIDL::NotSupportedError::create(m_realm, "'P-521' is not supported yet"_string);
     } else {
         // If the namedCurve member of normalizedAlgorithm is a value specified in an applicable specification:
@@ -2458,13 +2458,13 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, GC::
 
     // 3. Let M be the result of performing the digest operation specified by hashAlgorithm using message.
     ::Crypto::Hash::HashKind hash_kind;
-    if (hash_algorithm.equals_ignoring_ascii_case("SHA-1"sv)) {
+    if (hash_algorithm == "SHA-1") {
         hash_kind = ::Crypto::Hash::HashKind::SHA1;
-    } else if (hash_algorithm.equals_ignoring_ascii_case("SHA-256"sv)) {
+    } else if (hash_algorithm == "SHA-256") {
         hash_kind = ::Crypto::Hash::HashKind::SHA256;
-    } else if (hash_algorithm.equals_ignoring_ascii_case("SHA-384"sv)) {
+    } else if (hash_algorithm == "SHA-384") {
         hash_kind = ::Crypto::Hash::HashKind::SHA384;
-    } else if (hash_algorithm.equals_ignoring_ascii_case("SHA-512"sv)) {
+    } else if (hash_algorithm == "SHA-512") {
         hash_kind = ::Crypto::Hash::HashKind::SHA512;
     } else {
         return WebIDL::NotSupportedError::create(m_realm, MUST(String::formatted("Invalid hash function '{}'", hash_algorithm)));
@@ -2492,14 +2492,14 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, GC::
 
     Variant<Empty, ::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1> curve;
     if (named_curve.is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
-        if (named_curve.equals_ignoring_ascii_case("P-256"sv))
+        if (named_curve == "P-256")
             curve = ::Crypto::Curves::SECP256r1 {};
 
-        if (named_curve.equals_ignoring_ascii_case("P-384"sv))
+        if (named_curve == "P-384")
             curve = ::Crypto::Curves::SECP384r1 {};
 
         // FIXME: Support P-521
-        if (named_curve.equals_ignoring_ascii_case("P-521"sv))
+        if (named_curve == "P-521")
             return WebIDL::NotSupportedError::create(m_realm, "'P-521' is not supported yet"_string);
 
         // Perform the ECDSA verifying process, as specified in [RFC6090], Section 5.3,
@@ -2558,14 +2558,14 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDH::g
     // with domain parameters for the curve identified by the namedCurve member of normalizedAlgorithm.
     Variant<Empty, ::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1> curve;
     if (normalized_algorithm.named_curve.is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
-        if (normalized_algorithm.named_curve.equals_ignoring_ascii_case("P-256"sv))
+        if (normalized_algorithm.named_curve == "P-256")
             curve = ::Crypto::Curves::SECP256r1 {};
 
-        if (normalized_algorithm.named_curve.equals_ignoring_ascii_case("P-384"sv))
+        if (normalized_algorithm.named_curve == "P-384")
             curve = ::Crypto::Curves::SECP384r1 {};
 
         // FIXME: Support P-521
-        if (normalized_algorithm.named_curve.equals_ignoring_ascii_case("P-521"sv))
+        if (normalized_algorithm.named_curve == "P-521")
             return WebIDL::NotSupportedError::create(m_realm, "'P-521' is not supported yet"_string);
     } else {
         // If the namedCurve member of normalizedAlgorithm is a value specified in an applicable specification
@@ -3996,13 +3996,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> HKDF::derive_bits(AlgorithmParams 
     // Because we are forced by neither peer pressure nor the spec, we don't support it either.
     auto const& hash_algorithm = TRY(normalized_algorithm.hash.name(realm.vm()));
     ErrorOr<ByteBuffer> result = Error::from_string_literal("noop error");
-    if (hash_algorithm.equals_ignoring_ascii_case("SHA-1"sv)) {
+    if (hash_algorithm == "SHA-1") {
         result = ::Crypto::Hash::HKDF<::Crypto::Hash::SHA1>::derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, length / 8);
-    } else if (hash_algorithm.equals_ignoring_ascii_case("SHA-256"sv)) {
+    } else if (hash_algorithm == "SHA-256") {
         result = ::Crypto::Hash::HKDF<::Crypto::Hash::SHA256>::derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, length / 8);
-    } else if (hash_algorithm.equals_ignoring_ascii_case("SHA-384"sv)) {
+    } else if (hash_algorithm == "SHA-384") {
         result = ::Crypto::Hash::HKDF<::Crypto::Hash::SHA384>::derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, length / 8);
-    } else if (hash_algorithm.equals_ignoring_ascii_case("SHA-512"sv)) {
+    } else if (hash_algorithm == "SHA-512") {
         result = ::Crypto::Hash::HKDF<::Crypto::Hash::SHA512>::derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, length / 8);
     } else {
         return WebIDL::NotSupportedError::create(m_realm, MUST(String::formatted("Invalid hash function '{}'", hash_algorithm)));
@@ -4054,13 +4054,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> PBKDF2::derive_bits(AlgorithmParam
     auto iterations = normalized_algorithm.iterations;
     auto derived_key_length_bytes = length / 8;
 
-    if (hash_algorithm.equals_ignoring_ascii_case("SHA-1"sv)) {
+    if (hash_algorithm == "SHA-1") {
         result = ::Crypto::Hash::PBKDF2::derive_key<::Crypto::Authentication::HMAC<::Crypto::Hash::SHA1>>(password, salt, iterations, derived_key_length_bytes);
-    } else if (hash_algorithm.equals_ignoring_ascii_case("SHA-256"sv)) {
+    } else if (hash_algorithm == "SHA-256") {
         result = ::Crypto::Hash::PBKDF2::derive_key<::Crypto::Authentication::HMAC<::Crypto::Hash::SHA256>>(password, salt, iterations, derived_key_length_bytes);
-    } else if (hash_algorithm.equals_ignoring_ascii_case("SHA-384"sv)) {
+    } else if (hash_algorithm == "SHA-384") {
         result = ::Crypto::Hash::PBKDF2::derive_key<::Crypto::Authentication::HMAC<::Crypto::Hash::SHA384>>(password, salt, iterations, derived_key_length_bytes);
-    } else if (hash_algorithm.equals_ignoring_ascii_case("SHA-512"sv)) {
+    } else if (hash_algorithm == "SHA-512") {
         result = ::Crypto::Hash::PBKDF2::derive_key<::Crypto::Authentication::HMAC<::Crypto::Hash::SHA512>>(password, salt, iterations, derived_key_length_bytes);
     } else {
         return WebIDL::NotSupportedError::create(m_realm, MUST(String::formatted("Invalid hash function '{}'", hash_algorithm)));
@@ -5095,13 +5095,13 @@ static WebIDL::ExceptionOr<ByteBuffer> hmac_calculate_message_digest(JS::Realm& 
         return MUST(ByteBuffer::copy(digest.bytes()));
     };
     auto hash_name = hash->name();
-    if (hash_name.equals_ignoring_ascii_case("SHA-1"sv))
+    if (hash_name == "SHA-1")
         return calculate_digest.operator()<::Crypto::Hash::SHA1>();
-    if (hash_name.equals_ignoring_ascii_case("SHA-256"sv))
+    if (hash_name == "SHA-256")
         return calculate_digest.operator()<::Crypto::Hash::SHA256>();
-    if (hash_name.equals_ignoring_ascii_case("SHA-384"sv))
+    if (hash_name == "SHA-384")
         return calculate_digest.operator()<::Crypto::Hash::SHA384>();
-    if (hash_name.equals_ignoring_ascii_case("SHA-512"sv))
+    if (hash_name == "SHA-512")
         return calculate_digest.operator()<::Crypto::Hash::SHA512>();
     return WebIDL::NotSupportedError::create(realm, "Invalid algorithm"_string);
 }
@@ -5109,13 +5109,13 @@ static WebIDL::ExceptionOr<ByteBuffer> hmac_calculate_message_digest(JS::Realm& 
 static WebIDL::ExceptionOr<WebIDL::UnsignedLong> hmac_hash_block_size(JS::Realm& realm, HashAlgorithmIdentifier hash)
 {
     auto hash_name = TRY(hash.name(realm.vm()));
-    if (hash_name.equals_ignoring_ascii_case("SHA-1"sv))
+    if (hash_name == "SHA-1")
         return ::Crypto::Hash::SHA1::digest_size();
-    if (hash_name.equals_ignoring_ascii_case("SHA-256"sv))
+    if (hash_name == "SHA-256")
         return ::Crypto::Hash::SHA256::digest_size();
-    if (hash_name.equals_ignoring_ascii_case("SHA-384"sv))
+    if (hash_name == "SHA-384")
         return ::Crypto::Hash::SHA384::digest_size();
-    if (hash_name.equals_ignoring_ascii_case("SHA-512"sv))
+    if (hash_name == "SHA-512")
         return ::Crypto::Hash::SHA512::digest_size();
     return WebIDL::NotSupportedError::create(realm, MUST(String::formatted("Invalid hash function '{}'", hash_name)));
 }
@@ -5270,28 +5270,28 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(Web::Crypto::AlgorithmP
 
         // 6. If the name attribute of hash is "SHA-1":
         auto hash_name = hash->name();
-        if (hash_name.equals_ignoring_ascii_case("SHA-1"sv)) {
+        if (hash_name == "SHA-1") {
             // If the alg field of jwk is present and is not "HS1", then throw a DataError.
             if (jwk.alg.has_value() && jwk.alg != "HS1"sv)
                 return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
 
         // If the name attribute of hash is "SHA-256":
-        else if (hash_name.equals_ignoring_ascii_case("SHA-256"sv)) {
+        else if (hash_name == "SHA-256") {
             // If the alg field of jwk is present and is not "HS256", then throw a DataError.
             if (jwk.alg.has_value() && jwk.alg != "HS256"sv)
                 return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
 
         // If the name attribute of hash is "SHA-384":
-        else if (hash_name.equals_ignoring_ascii_case("SHA-384"sv)) {
+        else if (hash_name == "SHA-384") {
             // If the alg field of jwk is present and is not "HS384", then throw a DataError.
             if (jwk.alg.has_value() && jwk.alg != "HS384"sv)
                 return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
         }
 
         // If the name attribute of hash is "SHA-512":
-        else if (hash_name.equals_ignoring_ascii_case("SHA-512"sv)) {
+        else if (hash_name == "SHA-512") {
             // If the alg field of jwk is present and is not "HS512", then throw a DataError.
             if (jwk.alg.has_value() && jwk.alg != "HS512"sv)
                 return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
@@ -5420,22 +5420,22 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> HMAC::export_key(Bindings::KeyFormat fo
 
         // If the name attribute of hash is "SHA-1":
         auto hash_name = hash->name();
-        if (hash_name.equals_ignoring_ascii_case("SHA-1"sv)) {
+        if (hash_name == "SHA-1") {
             // Set the alg attribute of jwk to the string "HS1".
             jwk.alg = "HS1"_string;
         }
         // If the name attribute of hash is "SHA-256":
-        else if (hash_name.equals_ignoring_ascii_case("SHA-256"sv)) {
+        else if (hash_name == "SHA-256") {
             // Set the alg attribute of jwk to the string "HS256".
             jwk.alg = "HS256"_string;
         }
         // If the name attribute of hash is "SHA-384":
-        else if (hash_name.equals_ignoring_ascii_case("SHA-384"sv)) {
+        else if (hash_name == "SHA-384") {
             // Set the alg attribute of jwk to the string "HS384".
             jwk.alg = "HS384"_string;
         }
         // If the name attribute of hash is "SHA-512":
-        else if (hash_name.equals_ignoring_ascii_case("SHA-512"sv)) {
+        else if (hash_name == "SHA-512") {
             // Set the alg attribute of jwk to the string "HS512".
             jwk.alg = "HS512"_string;
         }
