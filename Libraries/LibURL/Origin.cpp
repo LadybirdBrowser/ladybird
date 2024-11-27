@@ -18,7 +18,7 @@ String Origin::serialize() const
 
     // 2. Otherwise, let result be origin's scheme.
     StringBuilder result;
-    result.append(scheme());
+    result.append(scheme().value_or(String {}));
 
     // 3. Append "://" to result.
     result.append("://"sv);
@@ -45,7 +45,7 @@ unsigned Traits<URL::Origin>::hash(URL::Origin const& origin)
     if (origin.is_opaque())
         return 0;
 
-    unsigned hash = origin.scheme().hash();
+    unsigned hash = origin.scheme().value_or(String {}).hash();
 
     if (origin.port().has_value())
         hash = pair_int_hash(hash, *origin.port());

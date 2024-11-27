@@ -123,7 +123,7 @@ ErrorOr<void> encode(Encoder& encoder, URL::Origin const& origin)
         TRY(encoder.encode(true));
     } else {
         TRY(encoder.encode(false));
-        TRY(encoder.encode<ByteString>(origin.scheme()));
+        TRY(encoder.encode(origin.scheme()));
         TRY(encoder.encode(origin.host()));
         TRY(encoder.encode(origin.port()));
     }
