@@ -284,7 +284,7 @@ WebIDL::ExceptionOr<String> DOMURL::host() const
     auto& url = m_url;
 
     // 2. If url’s host is null, then return the empty string.
-    if (url.host().has<Empty>())
+    if (!url.host().has_value())
         return String {};
 
     // 3. If url’s port is null, return url’s host, serialized.
@@ -312,7 +312,7 @@ WebIDL::ExceptionOr<String> DOMURL::hostname() const
     auto& vm = realm().vm();
 
     // 1. If this’s URL’s host is null, then return the empty string.
-    if (m_url.host().has<Empty>())
+    if (!m_url.host().has_value())
         return String {};
 
     // 2. Return this’s URL’s host, serialized.
@@ -477,6 +477,7 @@ void DOMURL::set_hash(String const& hash)
 }
 
 // https://url.spec.whatwg.org/#concept-domain
+// FIXME: Move into URL::Host
 bool host_is_domain(URL::Host const& host)
 {
     // A domain is a non-empty ASCII string that identifies a realm within a network.

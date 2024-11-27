@@ -322,7 +322,7 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
         // - request’s current URL’s scheme is "http"
         request->current_url().scheme() == "http"sv
         // - request’s current URL’s host is a domain
-        && DOMURL::host_is_domain(request->current_url().host())
+        && request->current_url().host().has_value() && DOMURL::host_is_domain(request->current_url().host().value())
         // FIXME: - Matching request’s current URL’s host per Known HSTS Host Domain Name Matching results in either a
         //          superdomain match with an asserted includeSubDomains directive or a congruent match (with or without an
         //          asserted includeSubDomains directive) [HSTS]; or DNS resolution for the request finds a matching HTTPS RR

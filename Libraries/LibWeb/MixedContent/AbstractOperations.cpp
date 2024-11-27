@@ -20,7 +20,7 @@ void upgrade_a_mixed_content_request_to_a_potentially_trustworthy_url_if_appropr
         SecureContexts::is_url_potentially_trustworthy(request.url()) == SecureContexts::Trustworthiness::PotentiallyTrustworthy
 
         // 2. request’s URL’s host is an IP address.
-        || request.url().host().has<URL::IPv4Address>() || request.url().host().has<URL::IPv6Address>()
+        || (request.url().host().has_value() && (request.url().host()->has<URL::IPv4Address>() || request.url().host()->has<URL::IPv6Address>()))
 
         // 3. § 4.3 Does settings prohibit mixed security contexts? returns "Does Not Restrict Mixed Security Contents" when applied to request’s client.
         || does_settings_prohibit_mixed_security_contexts(request.client()) == ProhibitsMixedSecurityContexts::DoesNotRestrictMixedSecurityContexts

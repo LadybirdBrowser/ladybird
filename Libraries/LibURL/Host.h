@@ -26,6 +26,6 @@ using IPv6Address = Array<u16, 8>;
 // https://url.spec.whatwg.org/#concept-host
 // A host is a domain, an IP address, an opaque host, or an empty host. Typically a host serves as a network address,
 // but it is sometimes used as opaque identifier in URLs where a network address is not necessary.
-using Host = Variant<IPv4Address, IPv6Address, String, Empty>;
+using Host = Variant<IPv4Address, IPv6Address, String>;
 
 }

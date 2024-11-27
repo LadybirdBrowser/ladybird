@@ -203,7 +203,7 @@ WebIDL::ExceptionOr<String> Location::host() const
     auto url = this->url();
 
     // 3. If url's host is null, return the empty string.
-    if (url.host().has<Empty>())
+    if (!url.host().has_value())
         return String {};
 
     // 4. If url's port is null, return url's host, serialized.
@@ -233,7 +233,7 @@ WebIDL::ExceptionOr<String> Location::hostname() const
     auto url = this->url();
 
     // 2. If this's url's host is null, return the empty string.
-    if (url.host().has<Empty>())
+    if (!url.host().has_value())
         return String {};
 
     // 3. Return this's url's host, serialized.

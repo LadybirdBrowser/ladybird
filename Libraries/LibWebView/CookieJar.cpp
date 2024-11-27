@@ -220,7 +220,7 @@ void CookieJar::expire_cookies_with_time_offset(AK::Duration offset)
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.1.2
 Optional<String> CookieJar::canonicalize_domain(const URL::URL& url)
 {
-    if (!url.is_valid() || url.host().has<Empty>())
+    if (!url.is_valid() || !url.host().has_value())
         return {};
 
     // 1. Convert the host name to a sequence of individual domain name labels.

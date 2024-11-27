@@ -1574,7 +1574,7 @@ URL Parser::basic_parse(StringView raw_input, Optional<URL> const& base_url, URL
                     continue;
             }
             // 5. Otherwise, if state override is given and url’s host is null, append the empty string to url’s path.
-            else if (state_override.has_value() && url->host().has<Empty>()) {
+            else if (state_override.has_value() && !url->host().has_value()) {
                 url->append_slash();
             }
             break;

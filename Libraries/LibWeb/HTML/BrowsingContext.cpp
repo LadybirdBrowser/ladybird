@@ -44,7 +44,7 @@ bool url_matches_about_blank(URL::URL const& url)
         && url.paths().size() == 1 && url.paths()[0] == "blank"sv
         && url.username().is_empty()
         && url.password().is_empty()
-        && url.host().has<Empty>();
+        && !url.host().has_value();
 }
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#matches-about:srcdoc
@@ -56,7 +56,7 @@ bool url_matches_about_srcdoc(URL::URL const& url)
         && !url.query().has_value()
         && url.username().is_empty()
         && url.password().is_empty()
-        && url.host().has<Empty>();
+        && !url.host().has_value();
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#determining-the-origin
