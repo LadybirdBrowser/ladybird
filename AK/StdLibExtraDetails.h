@@ -293,17 +293,33 @@ using AddRvalueReference = typename __AddReference<T>::RvalueType;
 template<typename T>
 auto declval() -> AddRvalueReference<T>;
 
+template<typename T>
+struct __Decay {
+    typedef RemoveCVReference<T> type;
+};
+template<typename T>
+struct __Decay<T[]> {
+    typedef T* type;
+};
+template<typename T, decltype(sizeof(T)) N>
+struct __Decay<T[N]> {
+    typedef T* type;
+};
+// FIXME: Function decay
+template<typename T>
+using Decay = typename __Decay<T>::type;
+
 template<typename...>
 struct __CommonType;
 
-template<typename T>
-struct __CommonType<T> {
-    using Type = T;
-};
-
 template<typename T1, typename T2>
 struct __CommonType<T1, T2> {
-    using Type = decltype(true ? declval<T1>() : declval<T2>());
+    using Type = Decay<decltype(true ? declval<T1>() : declval<T2>())>;
+};
+
+template<typename T>
+struct __CommonType<T> {
+    using Type = __CommonType<T, T>;
 };
 
 template<typename T1, typename T2, typename... Ts>
@@ -516,22 +532,6 @@ inline constexpr bool IsSpecializationOf = false;
 
 template<template<typename...> typename U, typename... Us>
 inline constexpr bool IsSpecializationOf<U<Us...>, U> = true;
-
-template<typename T>
-struct __Decay {
-    typedef RemoveCVReference<T> type;
-};
-template<typename T>
-struct __Decay<T[]> {
-    typedef T* type;
-};
-template<typename T, decltype(sizeof(T)) N>
-struct __Decay<T[N]> {
-    typedef T* type;
-};
-// FIXME: Function decay
-template<typename T>
-using Decay = typename __Decay<T>::type;
 
 template<typename T, typename U>
 inline constexpr bool IsPointerOfType = IsPointer<Decay<U>> && IsSame<T, RemoveCV<RemovePointer<Decay<U>>>>;
