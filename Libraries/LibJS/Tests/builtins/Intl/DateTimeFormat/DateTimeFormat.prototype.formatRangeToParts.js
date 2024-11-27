@@ -36,6 +36,82 @@ describe("errors", () => {
             }).toThrowWithMessage(RangeError, "Time value must be between -8.64E15 and 8.64E15");
         });
     });
+
+    test("Temporal object must have same calendar", () => {
+        const formatter = new Intl.DateTimeFormat([], { calendar: "iso8601" });
+
+        expect(() => {
+            const plainDate = new Temporal.PlainDate(1972, 1, 1, "gregory");
+            formatter.formatRangeToParts(plainDate, plainDate);
+        }).toThrowWithMessage(
+            RangeError,
+            "Cannot format Temporal.PlainDate with calendar 'gregory' in locale with calendar 'iso8601'"
+        );
+
+        expect(() => {
+            const plainYearMonth = new Temporal.PlainYearMonth(1972, 1, "gregory");
+            formatter.formatRangeToParts(plainYearMonth, plainYearMonth);
+        }).toThrowWithMessage(
+            RangeError,
+            "Cannot format Temporal.PlainYearMonth with calendar 'gregory' in locale with calendar 'iso8601'"
+        );
+
+        expect(() => {
+            const plainMonthDay = new Temporal.PlainMonthDay(1, 1, "gregory");
+            formatter.formatRangeToParts(plainMonthDay, plainMonthDay);
+        }).toThrowWithMessage(
+            RangeError,
+            "Cannot format Temporal.PlainMonthDay with calendar 'gregory' in locale with calendar 'iso8601'"
+        );
+
+        expect(() => {
+            const plainDateTime = new Temporal.PlainDateTime(
+                1972,
+                1,
+                1,
+                8,
+                45,
+                56,
+                123,
+                345,
+                789,
+                "gregory"
+            );
+            formatter.formatRangeToParts(plainDateTime, plainDateTime);
+        }).toThrowWithMessage(
+            RangeError,
+            "Cannot format Temporal.PlainDateTime with calendar 'gregory' in locale with calendar 'iso8601'"
+        );
+    });
+
+    test("cannot format Temporal.ZonedDateTime", () => {
+        expect(() => {
+            const zonedDateTime = new Temporal.ZonedDateTime(0n, "UTC");
+            new Intl.DateTimeFormat().formatRangeToParts(zonedDateTime, zonedDateTime);
+        }).toThrowWithMessage(
+            TypeError,
+            "Cannot format Temporal.ZonedDateTime, use Temporal.ZonedDateTime.prototype.toLocaleString"
+        );
+    });
+
+    test("cannot mix Temporal object types", () => {
+        expect(() => {
+            const plainDate = new Temporal.PlainDate(1972, 1, 1, "gregory");
+            new Intl.DateTimeFormat().formatRangeToParts(plainDate, 0);
+        }).toThrowWithMessage(
+            TypeError,
+            "Cannot format a date-time range with different date-time types"
+        );
+
+        expect(() => {
+            const plainYearMonth = new Temporal.PlainYearMonth(1972, 1, "gregory");
+            const plainMonthDay = new Temporal.PlainMonthDay(1, 1, "gregory");
+            new Intl.DateTimeFormat().formatRangeToParts(plainYearMonth, plainMonthDay);
+        }).toThrowWithMessage(
+            TypeError,
+            "Cannot format a date-time range with different date-time types"
+        );
+    });
 });
 
 const d0 = Date.UTC(1989, 0, 23, 7, 8, 9, 45);
@@ -630,6 +706,115 @@ describe("timeStyle", () => {
             { type: "hour", value: "17", source: "endRange" },
             { type: "literal", value: ":", source: "endRange" },
             { type: "minute", value: "40", source: "endRange" },
+        ]);
+    });
+});
+
+describe("Temporal objects", () => {
+    const formatter = new Intl.DateTimeFormat("en", {
+        calendar: "iso8601",
+        timeZone: "UTC",
+    });
+
+    test("Temporal.PlainDate", () => {
+        const plainDate1 = new Temporal.PlainDate(1989, 1, 23);
+        const plainDate2 = new Temporal.PlainDate(2024, 11, 27);
+        expect(formatter.formatRangeToParts(plainDate1, plainDate2)).toEqual([
+            { type: "month", value: "1", source: "startRange" },
+            { type: "literal", value: "/", source: "startRange" },
+            { type: "day", value: "23", source: "startRange" },
+            { type: "literal", value: "/", source: "startRange" },
+            { type: "year", value: "1989", source: "startRange" },
+            { type: "literal", value: " – ", source: "shared" },
+            { type: "month", value: "11", source: "endRange" },
+            { type: "literal", value: "/", source: "endRange" },
+            { type: "day", value: "27", source: "endRange" },
+            { type: "literal", value: "/", source: "endRange" },
+            { type: "year", value: "2024", source: "endRange" },
+        ]);
+    });
+
+    test("Temporal.PlainYearMonth", () => {
+        const plainYearMonth1 = new Temporal.PlainYearMonth(1989, 1);
+        const plainYearMonth2 = new Temporal.PlainYearMonth(2024, 11);
+        expect(formatter.formatRangeToParts(plainYearMonth1, plainYearMonth2)).toEqual([
+            { type: "month", value: "1", source: "startRange" },
+            { type: "literal", value: "/", source: "startRange" },
+            { type: "year", value: "1989", source: "startRange" },
+            { type: "literal", value: " – ", source: "shared" },
+            { type: "month", value: "11", source: "endRange" },
+            { type: "literal", value: "/", source: "endRange" },
+            { type: "year", value: "2024", source: "endRange" },
+        ]);
+    });
+
+    test("Temporal.PlainMonthDay", () => {
+        const plainMonthDay1 = new Temporal.PlainMonthDay(1, 23);
+        const plainMonthDay2 = new Temporal.PlainMonthDay(11, 27);
+        expect(formatter.formatRangeToParts(plainMonthDay1, plainMonthDay2)).toEqual([
+            { type: "month", value: "1", source: "startRange" },
+            { type: "literal", value: "/", source: "startRange" },
+            { type: "day", value: "23", source: "startRange" },
+            { type: "literal", value: " – ", source: "shared" },
+            { type: "month", value: "11", source: "endRange" },
+            { type: "literal", value: "/", source: "endRange" },
+            { type: "day", value: "27", source: "endRange" },
+        ]);
+    });
+
+    test("Temporal.PlainTime", () => {
+        const plainTime1 = new Temporal.PlainTime(8, 10, 51);
+        const plainTime2 = new Temporal.PlainTime(20, 41, 9);
+        expect(formatter.formatRangeToParts(plainTime1, plainTime2)).toEqual([
+            { type: "hour", value: "8", source: "startRange" },
+            { type: "literal", value: ":", source: "startRange" },
+            { type: "minute", value: "10", source: "startRange" },
+            { type: "literal", value: ":", source: "startRange" },
+            { type: "second", value: "51", source: "startRange" },
+            { type: "literal", value: " ", source: "startRange" },
+            { type: "dayPeriod", value: "AM", source: "startRange" },
+            { type: "literal", value: " – ", source: "shared" },
+            { type: "hour", value: "8", source: "endRange" },
+            { type: "literal", value: ":", source: "endRange" },
+            { type: "minute", value: "41", source: "endRange" },
+            { type: "literal", value: ":", source: "endRange" },
+            { type: "second", value: "09", source: "endRange" },
+            { type: "literal", value: " ", source: "endRange" },
+            { type: "dayPeriod", value: "PM", source: "endRange" },
+        ]);
+    });
+
+    test("Temporal.Instant", () => {
+        const instant1 = new Temporal.Instant(601546251000000000n);
+        const instant2 = new Temporal.Instant(1732740069000000000n);
+        expect(formatter.formatRangeToParts(instant1, instant2)).toEqual([
+            { type: "month", value: "1", source: "startRange" },
+            { type: "literal", value: "/", source: "startRange" },
+            { type: "day", value: "23", source: "startRange" },
+            { type: "literal", value: "/", source: "startRange" },
+            { type: "year", value: "1989", source: "startRange" },
+            { type: "literal", value: ", ", source: "startRange" },
+            { type: "hour", value: "8", source: "startRange" },
+            { type: "literal", value: ":", source: "startRange" },
+            { type: "minute", value: "10", source: "startRange" },
+            { type: "literal", value: ":", source: "startRange" },
+            { type: "second", value: "51", source: "startRange" },
+            { type: "literal", value: " ", source: "startRange" },
+            { type: "dayPeriod", value: "AM", source: "startRange" },
+            { type: "literal", value: " – ", source: "shared" },
+            { type: "month", value: "11", source: "endRange" },
+            { type: "literal", value: "/", source: "endRange" },
+            { type: "day", value: "27", source: "endRange" },
+            { type: "literal", value: "/", source: "endRange" },
+            { type: "year", value: "2024", source: "endRange" },
+            { type: "literal", value: ", ", source: "endRange" },
+            { type: "hour", value: "8", source: "endRange" },
+            { type: "literal", value: ":", source: "endRange" },
+            { type: "minute", value: "41", source: "endRange" },
+            { type: "literal", value: ":", source: "endRange" },
+            { type: "second", value: "09", source: "endRange" },
+            { type: "literal", value: " ", source: "endRange" },
+            { type: "dayPeriod", value: "PM", source: "endRange" },
         ]);
     });
 });

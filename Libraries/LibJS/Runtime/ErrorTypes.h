@@ -67,6 +67,10 @@
         "Styles other than 'fractional', numeric', or '2-digit' may not be used in smaller units after being used in larger units") \
     M(IntlNumberIsNaNOrOutOfRange, "Value {} is NaN or is not between {} and {}")                                                   \
     M(IntlOptionUndefined, "Option {} must be defined when option {} is {}")                                                        \
+    M(IntlTemporalFormatIsNull, "Unable to determine format for {}")                                                                \
+    M(IntlTemporalFormatRangeTypeMismatch, "Cannot format a date-time range with different date-time types")                        \
+    M(IntlTemporalInvalidCalendar, "Cannot format {} with calendar '{}' in locale with calendar '{}'")                              \
+    M(IntlTemporalZonedDateTime, "Cannot format Temporal.ZonedDateTime, use Temporal.ZonedDateTime.prototype.toLocaleString")       \
     M(InvalidAssignToConst, "Invalid assignment to const variable")                                                                 \
     M(InvalidCodePoint, "Invalid code point {}, must be an integer no less than 0 and no greater than 0x10FFFF")                    \
     M(InvalidEnumerationValue, "Invalid value '{}' for enumeration type '{}'")                                                      \

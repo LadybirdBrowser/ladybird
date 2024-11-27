@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -12,6 +12,7 @@
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibJS/Runtime/Completion.h>
+#include <LibJS/Runtime/Intl/DateTimeFormatConstructor.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibUnicode/DateTimeFormat.h>
@@ -65,31 +66,96 @@ public:
     Unicode::DateTimeFormat const& formatter() const { return *m_formatter; }
     void set_formatter(NonnullOwnPtr<Unicode::DateTimeFormat> formatter) { m_formatter = move(formatter); }
 
+    Optional<Unicode::DateTimeFormat const&> temporal_plain_date_formatter();
+    void set_temporal_plain_date_format(Optional<Unicode::CalendarPattern> temporal_plain_date_format) { m_temporal_plain_date_format = move(temporal_plain_date_format); }
+
+    Optional<Unicode::DateTimeFormat const&> temporal_plain_year_month_formatter();
+    void set_temporal_plain_year_month_format(Optional<Unicode::CalendarPattern> temporal_plain_year_month_format) { m_temporal_plain_year_month_format = move(temporal_plain_year_month_format); }
+
+    Optional<Unicode::DateTimeFormat const&> temporal_plain_month_day_formatter();
+    void set_temporal_plain_month_day_format(Optional<Unicode::CalendarPattern> temporal_plain_month_day_format) { m_temporal_plain_month_day_format = move(temporal_plain_month_day_format); }
+
+    Optional<Unicode::DateTimeFormat const&> temporal_plain_time_formatter();
+    void set_temporal_plain_time_format(Optional<Unicode::CalendarPattern> temporal_plain_time_format) { m_temporal_plain_time_format = move(temporal_plain_time_format); }
+
+    Optional<Unicode::DateTimeFormat const&> temporal_plain_date_time_formatter();
+    void set_temporal_plain_date_time_format(Optional<Unicode::CalendarPattern> temporal_plain_date_time_format) { m_temporal_plain_date_time_format = move(temporal_plain_date_time_format); }
+
+    Optional<Unicode::DateTimeFormat const&> temporal_instant_formatter();
+    void set_temporal_instant_format(Optional<Unicode::CalendarPattern> temporal_instant_format) { m_temporal_instant_format = move(temporal_instant_format); }
+
+    void set_temporal_time_zone(String temporal_time_zone) { m_temporal_time_zone = move(temporal_time_zone); }
+
 private:
     DateTimeFormat(Object& prototype);
 
     virtual void visit_edges(Visitor&) override;
 
-    String m_locale;                               // [[Locale]]
-    String m_calendar;                             // [[Calendar]]
-    String m_numbering_system;                     // [[NumberingSystem]]
-    String m_time_zone;                            // [[TimeZone]]
-    Optional<Unicode::DateTimeStyle> m_date_style; // [[DateStyle]]
-    Optional<Unicode::DateTimeStyle> m_time_style; // [[TimeStyle]]
-    Unicode::CalendarPattern m_date_time_format;   // [[DateTimeFormat]]
-    GC::Ptr<NativeFunction> m_bound_format;        // [[BoundFormat]]
+    String m_locale;                                                       // [[Locale]]
+    String m_calendar;                                                     // [[Calendar]]
+    String m_numbering_system;                                             // [[NumberingSystem]]
+    String m_time_zone;                                                    // [[TimeZone]]
+    Optional<Unicode::DateTimeStyle> m_date_style;                         // [[DateStyle]]
+    Optional<Unicode::DateTimeStyle> m_time_style;                         // [[TimeStyle]]
+    Unicode::CalendarPattern m_date_time_format;                           // [[DateTimeFormat]]
+    Optional<Unicode::CalendarPattern> m_temporal_plain_date_format;       // [[TemporalPlainDateFormat]]
+    Optional<Unicode::CalendarPattern> m_temporal_plain_year_month_format; // [[TemporalPlainYearMonthFormat]]
+    Optional<Unicode::CalendarPattern> m_temporal_plain_month_day_format;  // [[TemporalPlainMonthDayFormat]]
+    Optional<Unicode::CalendarPattern> m_temporal_plain_time_format;       // [[TemporalPlainTimeFormat]]
+    Optional<Unicode::CalendarPattern> m_temporal_plain_date_time_format;  // [[TemporalPlainDateTimeFormat]]
+    Optional<Unicode::CalendarPattern> m_temporal_instant_format;          // [[TemporalInstantFormat]]
+    GC::Ptr<NativeFunction> m_bound_format;                                // [[BoundFormat]]
 
-    // Non-standard. Stores the ICU date-time formatter for the Intl object's formatting options.
+    // Non-standard. Stores the ICU date-time formatters for the Intl object's formatting options.
     OwnPtr<Unicode::DateTimeFormat> m_formatter;
+    OwnPtr<Unicode::DateTimeFormat> m_temporal_plain_date_formatter;
+    OwnPtr<Unicode::DateTimeFormat> m_temporal_plain_year_month_formatter;
+    OwnPtr<Unicode::DateTimeFormat> m_temporal_plain_month_day_formatter;
+    OwnPtr<Unicode::DateTimeFormat> m_temporal_plain_time_formatter;
+    OwnPtr<Unicode::DateTimeFormat> m_temporal_plain_date_time_formatter;
+    OwnPtr<Unicode::DateTimeFormat> m_temporal_instant_formatter;
+    String m_temporal_time_zone;
 };
 
-ThrowCompletionOr<Vector<Unicode::DateTimeFormat::Partition>> format_date_time_pattern(VM&, DateTimeFormat&, double time);
-ThrowCompletionOr<Vector<Unicode::DateTimeFormat::Partition>> partition_date_time_pattern(VM&, DateTimeFormat&, double time);
-ThrowCompletionOr<String> format_date_time(VM&, DateTimeFormat&, double time);
-ThrowCompletionOr<GC::Ref<Array>> format_date_time_to_parts(VM&, DateTimeFormat&, double time);
-ThrowCompletionOr<Vector<Unicode::DateTimeFormat::Partition>> partition_date_time_range_pattern(VM&, DateTimeFormat&, double start, double end);
-ThrowCompletionOr<String> format_date_time_range(VM&, DateTimeFormat&, double start, double end);
-ThrowCompletionOr<GC::Ref<Array>> format_date_time_range_to_parts(VM&, DateTimeFormat&, double start, double end);
+using FormattableDateTime = Variant<
+    double,
+    GC::Ref<Temporal::PlainDate>,
+    GC::Ref<Temporal::PlainYearMonth>,
+    GC::Ref<Temporal::PlainMonthDay>,
+    GC::Ref<Temporal::PlainTime>,
+    GC::Ref<Temporal::PlainDateTime>,
+    GC::Ref<Temporal::ZonedDateTime>,
+    GC::Ref<Temporal::Instant>>;
+
+// https://tc39.es/proposal-temporal/#datetimeformat-value-format-record
+// NOTE: ICU does not support nanoseconds in its date-time formatter. Thus, we do do not store the epoch nanoseconds as
+//       a BigInt here. Instead, we store the epoch in milliseconds as a double.
+struct ValueFormat {
+    Unicode::DateTimeFormat const& formatter; // [[Format]]
+    double epoch_milliseconds { 0 };          // [[EpochNanoseconds]]
+};
+
+Vector<Unicode::DateTimeFormat::Partition> format_date_time_pattern(ValueFormat const&);
+ThrowCompletionOr<Vector<Unicode::DateTimeFormat::Partition>> partition_date_time_pattern(VM&, DateTimeFormat&, FormattableDateTime const&);
+ThrowCompletionOr<String> format_date_time(VM&, DateTimeFormat&, FormattableDateTime const&);
+ThrowCompletionOr<GC::Ref<Array>> format_date_time_to_parts(VM&, DateTimeFormat&, FormattableDateTime const&);
+ThrowCompletionOr<Vector<Unicode::DateTimeFormat::Partition>> partition_date_time_range_pattern(VM&, DateTimeFormat&, FormattableDateTime const& start, FormattableDateTime const& end);
+ThrowCompletionOr<String> format_date_time_range(VM&, DateTimeFormat&, FormattableDateTime const& start, FormattableDateTime const& end);
+ThrowCompletionOr<GC::Ref<Array>> format_date_time_range_to_parts(VM&, DateTimeFormat&, FormattableDateTime const& start, FormattableDateTime const& end);
+
+Optional<Unicode::CalendarPattern> get_date_time_format(Unicode::CalendarPattern const& options, OptionRequired, OptionDefaults, OptionInherit);
+Unicode::CalendarPattern adjust_date_time_style_format(Unicode::CalendarPattern const& base_format, ReadonlySpan<Unicode::CalendarPattern::Field> allowed_options);
+ThrowCompletionOr<FormattableDateTime> to_date_time_formattable(VM&, Value);
+bool is_temporal_object(FormattableDateTime const&);
+bool same_temporal_type(FormattableDateTime const&, FormattableDateTime const&);
+ThrowCompletionOr<ValueFormat> handle_date_time_temporal_date(VM&, DateTimeFormat&, Temporal::PlainDate const&);
+ThrowCompletionOr<ValueFormat> handle_date_time_temporal_year_month(VM&, DateTimeFormat&, Temporal::PlainYearMonth const&);
+ThrowCompletionOr<ValueFormat> handle_date_time_temporal_month_day(VM&, DateTimeFormat&, Temporal::PlainMonthDay const&);
+ThrowCompletionOr<ValueFormat> handle_date_time_temporal_time(VM&, DateTimeFormat&, Temporal::PlainTime const&);
+ThrowCompletionOr<ValueFormat> handle_date_time_temporal_date_time(VM&, DateTimeFormat&, Temporal::PlainDateTime const&);
+ValueFormat handle_date_time_temporal_instant(DateTimeFormat&, Temporal::Instant const&);
+ThrowCompletionOr<ValueFormat> handle_date_time_others(VM&, DateTimeFormat&, double);
+ThrowCompletionOr<ValueFormat> handle_date_time_value(VM&, DateTimeFormat&, FormattableDateTime const&);
 
 template<typename Callback>
 ThrowCompletionOr<void> for_each_calendar_field(VM& vm, Unicode::CalendarPattern& pattern, Callback&& callback)
