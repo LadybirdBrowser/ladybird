@@ -104,7 +104,7 @@ ErrorOr<URL::Origin> decode(Decoder& decoder)
     if (is_opaque)
         return URL::Origin {};
 
-    auto scheme = TRY(decoder.decode<ByteString>());
+    auto scheme = TRY(decoder.decode<Optional<String>>());
     auto host = TRY(decoder.decode<URL::Host>());
     auto port = TRY(decoder.decode<Optional<u16>>());
 

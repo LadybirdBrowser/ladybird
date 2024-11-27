@@ -15,7 +15,7 @@ namespace URL {
 class Origin {
 public:
     Origin() = default;
-    Origin(Optional<ByteString> const& scheme, Host const& host, Optional<u16> port)
+    Origin(Optional<String> const& scheme, Host const& host, Optional<u16> port)
         : m_state(State {
               .scheme = scheme,
               .host = host,
@@ -27,10 +27,7 @@ public:
     // https://html.spec.whatwg.org/multipage/origin.html#concept-origin-opaque
     bool is_opaque() const { return !m_state.has_value(); }
 
-    StringView scheme() const
-    {
-        return m_state->scheme.map([](auto& str) { return str.view(); }).value_or(StringView {});
-    }
+    Optional<String> const& scheme() const { return m_state->scheme; }
     Host const& host() const { return m_state->host; }
     Optional<u16> port() const { return m_state->port; }
 
@@ -97,7 +94,7 @@ public:
 
 private:
     struct State {
-        Optional<ByteString> scheme;
+        Optional<String> scheme;
         Host host;
         Optional<u16> port;
     };

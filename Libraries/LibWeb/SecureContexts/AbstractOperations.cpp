@@ -24,7 +24,7 @@ Trustworthiness is_origin_potentially_trustworthy(URL::Origin const& origin)
 
     // 3. If origin’s scheme is either "https" or "wss", return "Potentially Trustworthy".
     // Note: This is meant to be analog to the a priori authenticated URL concept in [MIX].
-    if (origin.scheme().is_one_of("https"sv, "wss"sv))
+    if (auto& scheme = origin.scheme(); scheme.has_value() && scheme->is_one_of("https"sv, "wss"sv))
         return Trustworthiness::PotentiallyTrustworthy;
 
     // 4. If origin’s host matches one of the CIDR notations 127.0.0.0/8 or ::1/128 [RFC4632], return "Potentially Trustworthy".

@@ -392,7 +392,7 @@ Origin URL::origin() const
     // -> "wss"
     if (scheme().is_one_of("ftp"sv, "http"sv, "https"sv, "ws"sv, "wss"sv)) {
         // Return the tuple origin (url’s scheme, url’s host, url’s port, null).
-        return Origin(scheme().to_byte_string(), host().value(), port());
+        return Origin(scheme(), host().value(), port());
     }
 
     // -> "file"
@@ -400,7 +400,7 @@ Origin URL::origin() const
     if (scheme() == "file"sv || scheme() == "resource"sv) {
         // Unfortunate as it is, this is left as an exercise to the reader. When in doubt, return a new opaque origin.
         // Note: We must return an origin with the `file://' protocol for `file://' iframes to work from `file://' pages.
-        return Origin(scheme().to_byte_string(), String {}, {});
+        return Origin(scheme(), String {}, {});
     }
 
     // -> Otherwise
