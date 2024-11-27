@@ -61,6 +61,10 @@ ThrowCompletionOr<GC::Ref<Object>> ShadowRealmConstructor::construct(FunctionObj
     // 8. Set O.[[ShadowRealm]] to realmRec.
     object->set_shadow_realm(realm_record);
 
+    // Spec-Note: The realm created in this algorithm is referred to as a shadow realm
+    // NOTE: This is needed for module lookup to work properly.
+    realm_record.set_is_shadow_realm(true, {});
+
     // 9. Perform ? HostInitializeShadowRealm(realmRec, innerContext, O).
     TRY(vm.host_initialize_shadow_realm(realm_record, move(inner_context), object));
 

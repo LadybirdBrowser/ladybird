@@ -504,16 +504,19 @@ void VM::restore_execution_context_stack()
 }
 
 // 9.4.1 GetActiveScriptOrModule ( ), https://tc39.es/ecma262/#sec-getactivescriptormodule
+// NOTE: Also applies https://github.com/tc39/proposal-shadowrealm/pull/415 so that shadow realm module loading works as expected for HTML integration
 ScriptOrModule VM::get_active_script_or_module() const
 {
     // 1. If the execution context stack is empty, return null.
     if (m_execution_context_stack.is_empty())
         return Empty {};
 
-    // 2. Let ec be the topmost execution context on the execution context stack whose ScriptOrModule component is not null.
+    // 2. Let ec be the topmost execution context on the execution context stack whose ScriptOrModule component is not null or whose Realm is a shadow realm.
     for (auto i = m_execution_context_stack.size() - 1; i > 0; i--) {
-        if (!m_execution_context_stack[i]->script_or_module.has<Empty>())
-            return m_execution_context_stack[i]->script_or_module;
+        auto const& context = m_execution_context_stack[i];
+
+        if (!context->script_or_module.has<Empty>() || context->realm->is_shadow_realm({}))
+            return context->script_or_module;
     }
 
     // 3. If no such execution context exists, return null. Otherwise, return ec's ScriptOrModule.

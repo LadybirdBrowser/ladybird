@@ -71,6 +71,12 @@ public:
         return *m_builtins[to_underlying(builtin)];
     }
 
+    // See: https://github.com/tc39/proposal-shadowrealm/pull/415
+    // This should be removed after the merge of https://github.com/tc39/ecma262/pull/3374 which applies the same fix
+    // as this slot in Realm achieves.
+    bool is_shadow_realm(Badge<VM>) const { return m_is_shadow_realm; }
+    void set_is_shadow_realm(bool is_shadow_realm, Badge<ShadowRealmConstructor>) { m_is_shadow_realm = is_shadow_realm; }
+
 private:
     Realm() = default;
 
@@ -81,6 +87,7 @@ private:
     GC::Ptr<GlobalEnvironment> m_global_environment; // [[GlobalEnv]]
     OwnPtr<HostDefined> m_host_defined;              // [[HostDefined]]
     AK::Array<GC::Ptr<NativeFunction>, to_underlying(Bytecode::Builtin::__Count)> m_builtins;
+    bool m_is_shadow_realm { false };
 };
 
 }

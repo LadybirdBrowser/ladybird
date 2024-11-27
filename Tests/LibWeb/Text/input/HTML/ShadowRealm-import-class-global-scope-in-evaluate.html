@@ -1,0 +1,24 @@
+<script src="../include.js"></script>
+<script>
+    function shadowRealmEvalAsync(realm, asyncBody) {
+        return new Promise(realm.evaluate(`
+            (resolve, reject) => {
+                (async () => {
+                    ${asyncBody}
+                })().then(resolve, (e) => reject(e.toString()));
+            }
+        `));
+    };
+
+    asyncTest(async done => {
+        const shadowRealm = new ShadowRealm();
+
+        const result = await shadowRealmEvalAsync(shadowRealm, `
+            const module = await import("../../data/external-module.mjs");
+            return new Work().shift;
+        `);
+
+        println(result);
+        done();
+    });
+</script>
