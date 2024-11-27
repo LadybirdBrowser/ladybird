@@ -6,6 +6,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/Intl/DateTimeFormat.h>
+#include <LibJS/Runtime/Intl/DateTimeFormatConstructor.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/PlainTimePrototype.h>
 
@@ -316,14 +318,23 @@ JS_DEFINE_NATIVE_FUNCTION(PlainTimePrototype::to_string)
 }
 
 // 4.3.17 Temporal.PlainTime.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.tolocalestring
+// 15.12.6.1 Temporal.PlainTime.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/proposal-temporal/#sup-temporal.plaintime.prototype.tolocalestring
 JS_DEFINE_NATIVE_FUNCTION(PlainTimePrototype::to_locale_string)
 {
+    auto& realm = *vm.current_realm();
+
+    auto locales = vm.argument(0);
+    auto options = vm.argument(1);
+
     // 1. Let temporalTime be the this value.
     // 2. Perform ? RequireInternalSlot(temporalTime, [[InitializedTemporalTime]]).
     auto temporal_time = TRY(typed_this_object(vm));
 
-    // 3. Return TimeRecordToString(temporalTime.[[Time]], AUTO).
-    return PrimitiveString::create(vm, time_record_to_string(temporal_time->time(), Auto {}));
+    // 3. Let dateFormat be ? CreateDateTimeFormat(%Intl.DateTimeFormat%, locales, options, TIME, TIME).
+    auto date_format = TRY(Intl::create_date_time_format(vm, realm.intrinsics().intl_date_time_format_constructor(), locales, options, Intl::OptionRequired::Time, Intl::OptionDefaults::Time));
+
+    // 4. Return ? FormatDateTime(dateFormat, temporalTime).
+    return PrimitiveString::create(vm, TRY(Intl::format_date_time(vm, date_format, temporal_time)));
 }
 
 // 4.3.18 Temporal.PlainTime.prototype.toJSON ( ), https://tc39.es/proposal-temporal/#sec-temporal.plaintime.prototype.tojson
