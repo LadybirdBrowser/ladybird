@@ -93,6 +93,9 @@ class DecompressionStream;
 
 namespace Web::Credentials {
 class Credential;
+class CredentialContainer;
+struct CredentialRequestOptions;
+struct CredentialCreationOptions;
 }
 
 namespace Web::Cookie {

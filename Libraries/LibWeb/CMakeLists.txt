@@ -31,6 +31,8 @@ set(SOURCES
     Compression/CompressionStream.cpp
     Compression/DecompressionStream.cpp
     Credentials/Credential.cpp
+    Credentials/CredentialsContainer.cpp
+    Credentials/NavigatorCredentialsContainer.cpp
     Crypto/Crypto.cpp
     Crypto/CryptoAlgorithms.cpp
     Crypto/CryptoBindings.cpp
