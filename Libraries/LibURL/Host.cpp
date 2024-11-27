@@ -7,6 +7,7 @@
  */
 
 #include <LibURL/Host.h>
+#include <LibURL/URL.h>
 
 namespace URL {
 
@@ -150,6 +151,60 @@ String Host::serialize() const
         [](String const& string) {
             return string;
         });
+}
+
+// https://url.spec.whatwg.org/#host-public-suffix
+Optional<String> Host::public_suffix() const
+{
+    // 1. If host is not a domain, then return null.
+    if (!is_domain())
+        return OptionalNone {};
+
+    auto const& host_string = m_value.get<String>();
+
+    // 2. Let trailingDot be "." if host ends with "."; otherwise the empty string.
+    auto trailing_dot = host_string.ends_with('.') ? "."sv : ""sv;
+
+    // 3. Let publicSuffix be the public suffix determined by running the Public Suffix List algorithm with host as domain. [PSL]
+    auto public_suffix = get_public_suffix(host_string.bytes_as_string_view());
+
+    // NOTE: get_public_suffix() returns Optional, but this algorithm assumes a value. Is that OK?
+    VERIFY(public_suffix.has_value());
+
+    // 4. Assert: publicSuffix is an ASCII string that does not end with ".".
+    VERIFY(all_of(public_suffix->code_points(), is_ascii));
+    VERIFY(!public_suffix->ends_with('.'));
+
+    // 5. Return publicSuffix and trailingDot concatenated.
+    return MUST(String::formatted("{}{}", public_suffix, trailing_dot));
+}
+
+// https://url.spec.whatwg.org/#host-registrable-domain
+Optional<String> Host::registrable_domain() const
+{
+    // 1. If host’s public suffix is null or host’s public suffix equals host, then return null.
+    auto public_suffix = this->public_suffix();
+    if (!public_suffix.has_value() || public_suffix == m_value.get<String>())
+        return OptionalNone {};
+
+    // NOTE: If we got here, we know this Host is a String.
+    auto const& host_string = m_value.get<String>();
+
+    // 2. Let trailingDot be "." if host ends with "."; otherwise the empty string.
+    auto trailing_dot = host_string.ends_with('.') ? "."sv : ""sv;
+
+    // 3. Let registrableDomain be the registrable domain determined by running the Public Suffix List algorithm with host as domain. [PSL]
+    auto registrable_domain = get_public_suffix(host_string);
+
+    // NOTE: get_public_suffix() returns Optional, but this algorithm assumes a value. Is that OK?
+    VERIFY(registrable_domain.has_value());
+
+    // 4. Assert: registrableDomain is an ASCII string that does not end with ".".
+    VERIFY(all_of(registrable_domain->code_points(), is_ascii));
+    VERIFY(!registrable_domain->ends_with('.'));
+
+    // 5. Return registrableDomain and trailingDot concatenated.
+    return MUST(String::formatted("{}{}", registrable_domain, trailing_dot));
 }
 
 }
