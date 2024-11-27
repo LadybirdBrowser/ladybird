@@ -6,6 +6,8 @@
  */
 
 #include <LibJS/Runtime/Date.h>
+#include <LibJS/Runtime/Intl/DateTimeFormat.h>
+#include <LibJS/Runtime/Intl/DateTimeFormatConstructor.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/InstantPrototype.h>
@@ -294,15 +296,23 @@ JS_DEFINE_NATIVE_FUNCTION(InstantPrototype::to_string)
 }
 
 // 8.3.12 Temporal.Instant.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tolocalestring
-// NOTE: This is the minimum toLocaleString implementation for engines without ECMA-402.
+// 15.12.2.1 Temporal.Instant.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/proposal-temporal/#sup-temporal.instant.prototype.tolocalestring
 JS_DEFINE_NATIVE_FUNCTION(InstantPrototype::to_locale_string)
 {
+    auto& realm = *vm.current_realm();
+
+    auto locales = vm.argument(0);
+    auto options = vm.argument(1);
+
     // 1. Let instant be the this value.
     // 2. Perform ? RequireInternalSlot(instant, [[InitializedTemporalInstant]]).
     auto instant = TRY(typed_this_object(vm));
 
-    // 3. Return TemporalInstantToString(instant, undefined, AUTO).
-    return PrimitiveString::create(vm, temporal_instant_to_string(instant, {}, Auto {}));
+    // 3. Let dateFormat be ? CreateDateTimeFormat(%Intl.DateTimeFormat%, locales, options, ANY, ALL).
+    auto date_format = TRY(Intl::create_date_time_format(vm, realm.intrinsics().intl_date_time_format_constructor(), locales, options, Intl::OptionRequired::Any, Intl::OptionDefaults::All));
+
+    // 4. Return ? FormatDateTime(dateFormat, instant).
+    return PrimitiveString::create(vm, TRY(Intl::format_date_time(vm, date_format, instant)));
 }
 
 // 8.3.13 Temporal.Instant.prototype.toJSON ( ), https://tc39.es/proposal-temporal/#sec-temporal.instant.prototype.tojson
