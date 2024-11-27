@@ -6,11 +6,8 @@ describe("correct behavior", () => {
     test("basic functionality", () => {
         let plainMonthDay;
 
-        plainMonthDay = new Temporal.PlainMonthDay(7, 6);
-        expect(plainMonthDay.toLocaleString()).toBe("07-06");
-
-        plainMonthDay = new Temporal.PlainMonthDay(7, 6, "gregory", 2021);
-        expect(plainMonthDay.toLocaleString()).toBe("2021-07-06[u-ca=gregory]");
+        plainMonthDay = new Temporal.PlainMonthDay(7, 6, "gregory");
+        expect(plainMonthDay.toLocaleString()).toBe("7/6");
     });
 });
 
