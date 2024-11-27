@@ -4,6 +4,7 @@ set(SOURCES
     Host.cpp
     Origin.cpp
     Parser.cpp
+    Site.cpp
     URL.cpp
     ${PUBLIC_SUFFIX_SOURCES}
 )

@@ -7,9 +7,11 @@
 #pragma once
 
 namespace URL {
+class Host;
 class Origin;
-class URL;
 class Parser;
+class Site;
+class URL;
 
 struct BlobURLEntry;
 }

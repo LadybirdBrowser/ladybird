@@ -6,8 +6,26 @@
 
 #include <LibURL/Origin.h>
 #include <LibURL/Parser.h>
+#include <LibURL/Site.h>
 
 namespace URL {
+
+// https://html.spec.whatwg.org/multipage/browsers.html#same-site
+bool Origin::is_same_site(Origin const& other) const
+{
+    // 1. Let siteA be the result of obtaining a site given A.
+    auto site_a = Site::obtain(*this);
+
+    // 2. Let siteB be the result of obtaining a site given B.
+    auto site_b = Site::obtain(other);
+
+    // 3. If siteA is same site with siteB, then return true.
+    if (site_a.is_same_site(site_b))
+        return true;
+
+    // 4. Return false.
+    return false;
+}
 
 // https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin
 String Origin::serialize() const

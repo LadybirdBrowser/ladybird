@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/ByteString.h>
+#include <LibURL/Forward.h>
 #include <LibURL/Host.h>
 
 namespace URL {
@@ -73,6 +74,9 @@ public:
         // 3. Return false.
         return false;
     }
+
+    // https://html.spec.whatwg.org/multipage/browsers.html#same-site
+    bool is_same_site(Origin const&) const;
 
     // https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin
     String serialize() const;
