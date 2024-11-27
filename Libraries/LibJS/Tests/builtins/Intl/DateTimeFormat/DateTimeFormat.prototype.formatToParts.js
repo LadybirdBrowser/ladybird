@@ -28,6 +28,49 @@ describe("errors", () => {
             Intl.DateTimeFormat().formatToParts(8.65e15);
         }).toThrowWithMessage(RangeError, "Time value must be between -8.64E15 and 8.64E15");
     });
+
+    test("Temporal object must have same calendar", () => {
+        const formatter = new Intl.DateTimeFormat([], { calendar: "iso8601" });
+
+        expect(() => {
+            formatter.formatToParts(new Temporal.PlainDate(1972, 1, 1, "gregory"));
+        }).toThrowWithMessage(
+            RangeError,
+            "Cannot format Temporal.PlainDate with calendar 'gregory' in locale with calendar 'iso8601'"
+        );
+
+        expect(() => {
+            formatter.formatToParts(new Temporal.PlainYearMonth(1972, 1, "gregory"));
+        }).toThrowWithMessage(
+            RangeError,
+            "Cannot format Temporal.PlainYearMonth with calendar 'gregory' in locale with calendar 'iso8601'"
+        );
+
+        expect(() => {
+            formatter.formatToParts(new Temporal.PlainMonthDay(1, 1, "gregory"));
+        }).toThrowWithMessage(
+            RangeError,
+            "Cannot format Temporal.PlainMonthDay with calendar 'gregory' in locale with calendar 'iso8601'"
+        );
+
+        expect(() => {
+            formatter.formatToParts(
+                new Temporal.PlainDateTime(1972, 1, 1, 8, 45, 56, 123, 345, 789, "gregory")
+            );
+        }).toThrowWithMessage(
+            RangeError,
+            "Cannot format Temporal.PlainDateTime with calendar 'gregory' in locale with calendar 'iso8601'"
+        );
+    });
+
+    test("cannot format Temporal.ZonedDateTime", () => {
+        expect(() => {
+            new Intl.DateTimeFormat().formatToParts(new Temporal.ZonedDateTime(0n, "UTC"));
+        }).toThrowWithMessage(
+            TypeError,
+            "Cannot format Temporal.ZonedDateTime, use Temporal.ZonedDateTime.prototype.toLocaleString"
+        );
+    });
 });
 
 const d = Date.UTC(1989, 0, 23, 7, 8, 9, 45);
@@ -272,6 +315,74 @@ describe("special cases", () => {
             { type: "second", value: "٠٩" },
             { type: "literal", value: "٫" },
             { type: "fractionalSecond", value: "٠٤٥" },
+        ]);
+    });
+});
+
+describe("Temporal objects", () => {
+    const formatter = new Intl.DateTimeFormat("en", {
+        calendar: "iso8601",
+        timeZone: "UTC",
+    });
+
+    test("Temporal.PlainDate", () => {
+        const plainDate = new Temporal.PlainDate(1989, 1, 23);
+        expect(formatter.formatToParts(plainDate)).toEqual([
+            { type: "month", value: "1" },
+            { type: "literal", value: "/" },
+            { type: "day", value: "23" },
+            { type: "literal", value: "/" },
+            { type: "year", value: "1989" },
+        ]);
+    });
+
+    test("Temporal.PlainYearMonth", () => {
+        const plainYearMonth = new Temporal.PlainYearMonth(1989, 1);
+        expect(formatter.formatToParts(plainYearMonth)).toEqual([
+            { type: "month", value: "1" },
+            { type: "literal", value: "/" },
+            { type: "year", value: "1989" },
+        ]);
+    });
+
+    test("Temporal.PlainMonthDay", () => {
+        const plainMonthDay = new Temporal.PlainMonthDay(1, 23);
+        expect(formatter.formatToParts(plainMonthDay)).toEqual([
+            { type: "month", value: "1" },
+            { type: "literal", value: "/" },
+            { type: "day", value: "23" },
+        ]);
+    });
+
+    test("Temporal.PlainTime", () => {
+        const plainTime = new Temporal.PlainTime(8, 10, 51);
+        expect(formatter.formatToParts(plainTime)).toEqual([
+            { type: "hour", value: "8" },
+            { type: "literal", value: ":" },
+            { type: "minute", value: "10" },
+            { type: "literal", value: ":" },
+            { type: "second", value: "51" },
+            { type: "literal", value: " " },
+            { type: "dayPeriod", value: "AM" },
+        ]);
+    });
+
+    test("Temporal.Instant", () => {
+        const instant = new Temporal.Instant(1732740069000000000n);
+        expect(formatter.formatToParts(instant)).toEqual([
+            { type: "month", value: "11" },
+            { type: "literal", value: "/" },
+            { type: "day", value: "27" },
+            { type: "literal", value: "/" },
+            { type: "year", value: "2024" },
+            { type: "literal", value: ", " },
+            { type: "hour", value: "8" },
+            { type: "literal", value: ":" },
+            { type: "minute", value: "41" },
+            { type: "literal", value: ":" },
+            { type: "second", value: "09" },
+            { type: "literal", value: " " },
+            { type: "dayPeriod", value: "PM" },
         ]);
     });
 });

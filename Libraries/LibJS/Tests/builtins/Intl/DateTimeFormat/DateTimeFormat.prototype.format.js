@@ -32,6 +32,49 @@ describe("errors", () => {
             Intl.DateTimeFormat().format(8.65e15);
         }).toThrowWithMessage(RangeError, "Time value must be between -8.64E15 and 8.64E15");
     });
+
+    test("Temporal object must have same calendar", () => {
+        const formatter = new Intl.DateTimeFormat([], { calendar: "iso8601" });
+
+        expect(() => {
+            formatter.format(new Temporal.PlainDate(1972, 1, 1, "gregory"));
+        }).toThrowWithMessage(
+            RangeError,
+            "Cannot format Temporal.PlainDate with calendar 'gregory' in locale with calendar 'iso8601'"
+        );
+
+        expect(() => {
+            formatter.format(new Temporal.PlainYearMonth(1972, 1, "gregory"));
+        }).toThrowWithMessage(
+            RangeError,
+            "Cannot format Temporal.PlainYearMonth with calendar 'gregory' in locale with calendar 'iso8601'"
+        );
+
+        expect(() => {
+            formatter.format(new Temporal.PlainMonthDay(1, 1, "gregory"));
+        }).toThrowWithMessage(
+            RangeError,
+            "Cannot format Temporal.PlainMonthDay with calendar 'gregory' in locale with calendar 'iso8601'"
+        );
+
+        expect(() => {
+            formatter.format(
+                new Temporal.PlainDateTime(1972, 1, 1, 8, 45, 56, 123, 345, 789, "gregory")
+            );
+        }).toThrowWithMessage(
+            RangeError,
+            "Cannot format Temporal.PlainDateTime with calendar 'gregory' in locale with calendar 'iso8601'"
+        );
+    });
+
+    test("cannot format Temporal.ZonedDateTime", () => {
+        expect(() => {
+            new Intl.DateTimeFormat().format(new Temporal.ZonedDateTime(0n, "UTC"));
+        }).toThrowWithMessage(
+            TypeError,
+            "Cannot format Temporal.ZonedDateTime, use Temporal.ZonedDateTime.prototype.toLocaleString"
+        );
+    });
 });
 
 const d0 = Date.UTC(2021, 11, 7, 17, 40, 50, 456);
@@ -573,5 +616,37 @@ describe("non-Gregorian calendars", () => {
         });
         expect(zh.format(d0)).toBe("2021辛丑年十一月初四 UTC 17:40:50");
         expect(zh.format(d1)).toBe("1988戊辰年腊月十六 UTC 07:08:09");
+    });
+});
+
+describe("Temporal objects", () => {
+    const formatter = new Intl.DateTimeFormat("en", {
+        calendar: "iso8601",
+        timeZone: "UTC",
+    });
+
+    test("Temporal.PlainDate", () => {
+        const plainDate = new Temporal.PlainDate(1989, 1, 23);
+        expect(formatter.format(plainDate)).toBe("1/23/1989");
+    });
+
+    test("Temporal.PlainYearMonth", () => {
+        const plainYearMonth = new Temporal.PlainYearMonth(1989, 1);
+        expect(formatter.format(plainYearMonth)).toBe("1/1989");
+    });
+
+    test("Temporal.PlainMonthDay", () => {
+        const plainMonthDay = new Temporal.PlainMonthDay(1, 23);
+        expect(formatter.format(plainMonthDay)).toBe("1/23");
+    });
+
+    test("Temporal.PlainTime", () => {
+        const plainTime = new Temporal.PlainTime(8, 10, 51);
+        expect(formatter.format(plainTime)).toBe("8:10:51 AM");
+    });
+
+    test("Temporal.Instant", () => {
+        const instant = new Temporal.Instant(1732740069000000000n);
+        expect(formatter.format(instant)).toBe("11/27/2024, 8:41:09 PM");
     });
 });

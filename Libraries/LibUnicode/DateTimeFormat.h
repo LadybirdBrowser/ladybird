@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/IterationDecision.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
@@ -60,8 +61,59 @@ CalendarPatternStyle calendar_pattern_style_from_string(StringView style);
 StringView calendar_pattern_style_to_string(CalendarPatternStyle style);
 
 struct CalendarPattern {
+    enum class Field {
+        Era,
+        Year,
+        Month,
+        Weekday,
+        Day,
+        DayPeriod,
+        Hour,
+        Minute,
+        Second,
+        FractionalSecondDigits,
+        TimeZoneName,
+    };
+
     static CalendarPattern create_from_pattern(StringView);
     String to_pattern() const;
+
+    template<typename Callback>
+    void for_each_calendar_field_zipped_with(CalendarPattern& other, ReadonlySpan<Field> filter, Callback&& callback) const
+    {
+        auto invoke_callback_for_field = [&](auto field) {
+            switch (field) {
+            case Field::Era:
+                return callback(era, other.era);
+            case Field::Year:
+                return callback(year, other.year);
+            case Field::Month:
+                return callback(month, other.month);
+            case Field::Weekday:
+                return callback(weekday, other.weekday);
+            case Field::Day:
+                return callback(day, other.day);
+            case Field::DayPeriod:
+                return callback(day_period, other.day_period);
+            case Field::Hour:
+                return callback(hour, other.hour);
+            case Field::Minute:
+                return callback(minute, other.minute);
+            case Field::Second:
+                return callback(second, other.second);
+            case Field::FractionalSecondDigits:
+                return callback(fractional_second_digits, other.fractional_second_digits);
+            case Field::TimeZoneName:
+                return callback(time_zone_name, other.time_zone_name);
+            }
+            VERIFY_NOT_REACHED();
+        };
+
+        for (auto field : filter) {
+            if (invoke_callback_for_field(field) == IterationDecision::Break)
+                break;
+        }
+    }
 
     Optional<HourCycle> hour_cycle;
     Optional<bool> hour12;

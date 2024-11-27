@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -33,15 +33,25 @@ enum class OptionRequired {
     Any,
     Date,
     Time,
+    YearMonth,
+    MonthDay,
 };
 
 enum class OptionDefaults {
     All,
     Date,
     Time,
+    YearMonth,
+    MonthDay,
+    ZonedDateTime,
 };
 
-ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM&, FunctionObject& new_target, Value locales_value, Value options_value, OptionRequired, OptionDefaults);
+enum class OptionInherit {
+    All,
+    Relevant,
+};
+
+ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM&, FunctionObject& new_target, Value locales_value, Value options_value, OptionRequired, OptionDefaults, Optional<String> const& to_locale_string_time_zone = {});
 String format_offset_time_zone_identifier(double offset_minutes);
 
 }

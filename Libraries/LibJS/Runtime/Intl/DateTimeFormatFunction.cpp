@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -17,6 +17,7 @@ namespace JS::Intl {
 GC_DEFINE_ALLOCATOR(DateTimeFormatFunction);
 
 // 11.5.4 DateTime Format Functions, https://tc39.es/ecma402/#sec-datetime-format-functions
+// 15.9.3 DateTime Format Functions, https://tc39.es/proposal-temporal/#sec-datetime-format-functions
 GC::Ref<DateTimeFormatFunction> DateTimeFormatFunction::create(Realm& realm, DateTimeFormat& date_time_format)
 {
     return realm.create<DateTimeFormatFunction>(date_time_format, realm.intrinsics().function_prototype());
@@ -42,26 +43,26 @@ ThrowCompletionOr<Value> DateTimeFormatFunction::call()
     auto& vm = this->vm();
     auto& realm = *vm.current_realm();
 
-    auto date = vm.argument(0);
+    auto date_value = vm.argument(0);
 
     // 1. Let dtf be F.[[DateTimeFormat]].
     // 2. Assert: Type(dtf) is Object and dtf has an [[InitializedDateTimeFormat]] internal slot.
 
-    double date_value;
+    FormattableDateTime date { 0 };
 
     // 3. If date is not provided or is undefined, then
-    if (date.is_undefined()) {
+    if (date_value.is_undefined()) {
         // a. Let x be ! Call(%Date.now%, undefined).
-        date_value = MUST(JS::call(vm, *realm.intrinsics().date_constructor_now_function(), js_undefined())).as_double();
+        date = MUST(JS::call(vm, *realm.intrinsics().date_constructor_now_function(), js_undefined())).as_double();
     }
     // 4. Else,
     else {
-        // a. Let x be ? ToNumber(date).
-        date_value = TRY(date.to_number(vm)).as_double();
+        // a. Let x be ? ToDateTimeFormattable(date).
+        date = TRY(to_date_time_formattable(vm, date_value));
     }
 
     // 5. Return ? FormatDateTime(dtf, x).
-    auto formatted = TRY(format_date_time(vm, m_date_time_format, date_value));
+    auto formatted = TRY(format_date_time(vm, m_date_time_format, date));
     return PrimitiveString::create(vm, move(formatted));
 }
 
