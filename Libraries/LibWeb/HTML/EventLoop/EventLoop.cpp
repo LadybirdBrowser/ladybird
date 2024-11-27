@@ -497,7 +497,7 @@ void EventLoop::perform_a_microtask_checkpoint()
 
     // 4. For each environment settings object settingsObject whose responsible event loop is this event loop, notify about rejected promises given settingsObject's global object.
     for (auto& environment_settings_object : m_related_environment_settings_objects) {
-        auto* global = dynamic_cast<HTML::WindowOrWorkerGlobalScopeMixin*>(&environment_settings_object->global_object());
+        auto* global = dynamic_cast<HTML::UniversalGlobalScopeMixin*>(&environment_settings_object->global_object());
         VERIFY(global);
         global->notify_about_rejected_promises({});
     }

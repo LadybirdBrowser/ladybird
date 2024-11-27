@@ -1,0 +1,20 @@
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const shadowRealm = new ShadowRealm();
+
+        try {
+            const result = await new Promise(shadowRealm.evaluate(`
+                (resolve, reject) => {
+                    (async () => {
+                        throw new Error('An error!');
+                    })().then(resolve, (e) => reject(e.toString()));
+                }
+            `));
+        } catch (e) {
+            println(e);
+        }
+
+        done();
+    });
+</script>

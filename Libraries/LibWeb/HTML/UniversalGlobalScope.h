@@ -32,6 +32,18 @@ public:
     GC::Ref<WebIDL::CallbackType> count_queuing_strategy_size_function();
     GC::Ref<WebIDL::CallbackType> byte_length_queuing_strategy_size_function();
 
+    void push_onto_outstanding_rejected_promises_weak_set(JS::Promise*);
+
+    // Returns true if removed, false otherwise.
+    bool remove_from_outstanding_rejected_promises_weak_set(JS::Promise*);
+
+    void push_onto_about_to_be_notified_rejected_promises_list(GC::Ref<JS::Promise>);
+
+    // Returns true if removed, false otherwise.
+    bool remove_from_about_to_be_notified_rejected_promises_list(GC::Ref<JS::Promise>);
+
+    void notify_about_rejected_promises(Badge<EventLoop>);
+
 protected:
     void visit_edges(GC::Cell::Visitor&);
 
@@ -41,6 +53,13 @@ private:
 
     // https://streams.spec.whatwg.org/#byte-length-queuing-strategy-size-function
     GC::Ptr<WebIDL::CallbackType> m_byte_length_queuing_strategy_size_function;
+
+    // https://html.spec.whatwg.org/multipage/webappapis.html#about-to-be-notified-rejected-promises-list
+    Vector<GC::Root<JS::Promise>> m_about_to_be_notified_rejected_promises_list;
+
+    // https://html.spec.whatwg.org/multipage/webappapis.html#outstanding-rejected-promises-weak-set
+    // The outstanding rejected promises weak set must not create strong references to any of its members, and implementations are free to limit its size, e.g. by removing old entries from it when new ones are added.
+    Vector<GC::Ptr<JS::Promise>> m_outstanding_rejected_promises_weak_set;
 };
 
 }

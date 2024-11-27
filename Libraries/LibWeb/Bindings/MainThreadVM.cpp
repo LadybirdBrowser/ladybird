@@ -161,7 +161,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         auto& realm = script ? script->realm() : *vm.current_realm();
 
         // 5. Let global be realm's global object.
-        auto* global_mixin = dynamic_cast<HTML::WindowOrWorkerGlobalScopeMixin*>(&realm.global_object());
+        auto* global_mixin = dynamic_cast<HTML::UniversalGlobalScopeMixin*>(&realm.global_object());
         VERIFY(global_mixin);
         auto& global = global_mixin->this_impl();
 
