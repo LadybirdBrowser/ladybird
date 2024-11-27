@@ -4554,15 +4554,19 @@ bool writable_stream_default_controller_get_backpressure(WritableStreamDefaultCo
 // https://streams.spec.whatwg.org/#writable-stream-default-controller-get-chunk-size
 JS::Value writable_stream_default_controller_get_chunk_size(WritableStreamDefaultController& controller, JS::Value chunk)
 {
-    // FIXME: This null check is due to a spec bug: https://github.com/whatwg/streams/issues/1331
-    //        An abort clears the strategySizeAlgorithm, so fall back to default value if we don't have any algorithm.
-    if (!controller.strategy_size_algorithm())
-        return JS::Value { 1.0 };
+    // 1. If controller.[[strategySizeAlgorithm]] is undefined, then:
+    if (!controller.strategy_size_algorithm()) {
+        // 1. Assert: controller.[[stream]].[[state]] is "erroring" or "errored".
+        VERIFY(controller.stream()->state() == WritableStream::State::Erroring || controller.stream()->state() == WritableStream::State::Errored);
 
-    // 1. Let returnValue be the result of performing controller.[[strategySizeAlgorithm]], passing in chunk, and interpreting the result as a completion record.
+        // 2. Return 1.
+        return JS::Value { 1.0 };
+    }
+
+    // 2. Let returnValue be the result of performing controller.[[strategySizeAlgorithm]], passing in chunk, and interpreting the result as a completion record.
     auto return_value = controller.strategy_size_algorithm()->function()(chunk);
 
-    // 2. If returnValue is an abrupt completion,
+    // 3. If returnValue is an abrupt completion,
     if (return_value.is_abrupt()) {
         // 1. Perform ! WritableStreamDefaultControllerErrorIfNeeded(controller, returnValue.[[Value]]).
         writable_stream_default_controller_error_if_needed(controller, *return_value.release_value());
@@ -4571,7 +4575,7 @@ JS::Value writable_stream_default_controller_get_chunk_size(WritableStreamDefaul
         return JS::Value { 1.0 };
     }
 
-    // 3. Return returnValue.[[Value]].
+    // 4. Return returnValue.[[Value]].
     return *return_value.release_value();
 }
 
