@@ -6,6 +6,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/Intl/DateTimeFormat.h>
+#include <LibJS/Runtime/Intl/DateTimeFormatConstructor.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/Calendar.h>
 #include <LibJS/Runtime/Temporal/Duration.h>
@@ -532,15 +534,23 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::to_string)
 }
 
 // 5.3.35 Temporal.PlainDateTime.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.tolocalestring
-// NOTE: This is the minimum toLocaleString implementation for engines without ECMA-402.
+// 15.12.4.1 Temporal.PlainDateTime.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/proposal-temporal/#sup-properties-of-the-temporal-plaindatetime-prototype-object
 JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::to_locale_string)
 {
+    auto& realm = *vm.current_realm();
+
+    auto locales = vm.argument(0);
+    auto options = vm.argument(1);
+
     // 1. Let dateTime be the this value.
     // 2. Perform ? RequireInternalSlot(dateTime, [[InitializedTemporalDateTime]]).
     auto date_time = TRY(typed_this_object(vm));
 
-    // 3. Return ISODateTimeToString(dateTime.[[ISODateTime]], dateTime.[[Calendar]], AUTO, AUTO).
-    return PrimitiveString::create(vm, iso_date_time_to_string(date_time->iso_date_time(), date_time->calendar(), Auto {}, ShowCalendar::Auto));
+    // 3. Let dateFormat be ? CreateDateTimeFormat(%Intl.DateTimeFormat%, locales, options, ANY, ALL).
+    auto date_format = TRY(Intl::create_date_time_format(vm, realm.intrinsics().intl_date_time_format_constructor(), locales, options, Intl::OptionRequired::Any, Intl::OptionDefaults::All));
+
+    // 4. Return ? FormatDateTime(dateFormat, dateTime).
+    return PrimitiveString::create(vm, TRY(Intl::format_date_time(vm, date_format, date_time)));
 }
 
 // 5.3.36 Temporal.PlainDateTime.prototype.toJSON ( ), https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.tojson
