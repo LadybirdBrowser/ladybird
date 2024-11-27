@@ -222,6 +222,10 @@ set(SOURCES
     DOMURL/URLSearchParams.cpp
     DOMURL/URLSearchParamsIterator.cpp
     Dump.cpp
+    Editing/CommandNames.cpp
+    Editing/Commands.cpp
+    Editing/ExecCommand.cpp
+    Editing/Internal/Algorithms.cpp
     Encoding/TextDecoder.cpp
     Encoding/TextEncoder.cpp
     EntriesAPI/FileSystemEntry.cpp

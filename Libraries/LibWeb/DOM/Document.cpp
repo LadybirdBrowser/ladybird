@@ -5077,48 +5077,6 @@ JS::Value Document::named_item_value(FlyString const& name) const
     });
 }
 
-// https://w3c.github.io/editing/docs/execCommand/#execcommand()
-bool Document::exec_command(String const& command, bool show_ui, String const& value)
-{
-    dbgln("FIXME: document.execCommand(\"{}\", {}, \"{}\")", command, show_ui, value);
-    return false;
-}
-
-// https://w3c.github.io/editing/docs/execCommand/#querycommandenabled()
-bool Document::query_command_enabled(String const& command)
-{
-    dbgln("FIXME: document.queryCommandEnabled(\"{}\")", command);
-    return false;
-}
-
-// https://w3c.github.io/editing/docs/execCommand/#querycommandindeterm()
-bool Document::query_command_indeterm(String const& command)
-{
-    dbgln("FIXME: document.queryCommandIndeterm(\"{}\")", command);
-    return false;
-}
-
-// https://w3c.github.io/editing/docs/execCommand/#querycommandstate()
-bool Document::query_command_state(String const& command)
-{
-    dbgln("FIXME: document.queryCommandState(\"{}\")", command);
-    return false;
-}
-
-// https://w3c.github.io/editing/docs/execCommand/#querycommandsupported()
-bool Document::query_command_supported(String const& command)
-{
-    dbgln("FIXME: document.queryCommandSupported(\"{}\")", command);
-    return false;
-}
-
-// https://w3c.github.io/editing/docs/execCommand/#querycommandvalue()
-String Document::query_command_value(String const& command)
-{
-    dbgln("FIXME: document.queryCommandValue(\"{}\")", command);
-    return String {};
-}
-
 // https://drafts.csswg.org/resize-observer-1/#calculate-depth-for-node
 static size_t calculate_depth_for_node(Node const& node)
 {
