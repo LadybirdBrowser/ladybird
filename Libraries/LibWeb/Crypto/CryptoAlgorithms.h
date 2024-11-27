@@ -577,10 +577,10 @@ private:
     }
 };
 
-struct EcdhKeyDerivePrams : public AlgorithmParams {
-    virtual ~EcdhKeyDerivePrams() override;
+struct EcdhKeyDeriveParams : public AlgorithmParams {
+    virtual ~EcdhKeyDeriveParams() override;
 
-    EcdhKeyDerivePrams(String name, CryptoKey& public_key)
+    EcdhKeyDeriveParams(String name, CryptoKey& public_key)
         : AlgorithmParams(move(name))
         , public_key(public_key)
     {

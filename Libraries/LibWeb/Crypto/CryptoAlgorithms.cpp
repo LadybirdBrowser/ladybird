@@ -588,9 +588,9 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesDerivedKeyParams::from_
     return adopt_own<AlgorithmParams>(*new AesDerivedKeyParams { name, length });
 }
 
-EcdhKeyDerivePrams::~EcdhKeyDerivePrams() = default;
+EcdhKeyDeriveParams::~EcdhKeyDeriveParams() = default;
 
-JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcdhKeyDerivePrams::from_value(JS::VM& vm, JS::Value value)
+JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcdhKeyDeriveParams::from_value(JS::VM& vm, JS::Value value)
 {
     auto& object = value.as_object();
 
@@ -606,7 +606,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcdhKeyDerivePrams::from_v
 
     auto& key = verify_cast<CryptoKey>(*key_object);
 
-    return adopt_own<AlgorithmParams>(*new EcdhKeyDerivePrams { name, key });
+    return adopt_own<AlgorithmParams>(*new EcdhKeyDeriveParams { name, key });
 }
 
 EcKeyImportParams::~EcKeyImportParams() = default;
@@ -2648,7 +2648,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDH::g
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDH::derive_bits(AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
 {
     auto& realm = *m_realm;
-    auto const& normalized_algorithm = static_cast<EcdhKeyDerivePrams const&>(params);
+    auto const& normalized_algorithm = static_cast<EcdhKeyDeriveParams const&>(params);
 
     // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
     if (key->type() != Bindings::KeyType::Private)
@@ -4121,7 +4121,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> PBKDF2::import_key(AlgorithmParams const
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> X25519::derive_bits(AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
 {
     auto& realm = *m_realm;
-    auto const& normalized_algorithm = static_cast<EcdhKeyDerivePrams const&>(params);
+    auto const& normalized_algorithm = static_cast<EcdhKeyDeriveParams const&>(params);
 
     // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
     if (key->type() != Bindings::KeyType::Private)
@@ -4620,7 +4620,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> X448::derive_bits(
         return WebIDL::InvalidAccessError::create(m_realm, "Key is not a private key"_string);
 
     // 2. Let publicKey be the public member of normalizedAlgorithm.
-    auto& public_key = static_cast<EcdhKeyDerivePrams const&>(params).public_key;
+    auto& public_key = static_cast<EcdhKeyDeriveParams const&>(params).public_key;
 
     // 3. If the [[type]] internal slot of publicKey is not "public", then throw an InvalidAccessError.
     if (public_key->type() != Bindings::KeyType::Public)
