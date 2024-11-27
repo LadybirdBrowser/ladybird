@@ -807,7 +807,7 @@ SupportedAlgorithmsMap const& supported_algorithms()
     // https://w3c.github.io/webcrypto/#ecdh-registration
     define_an_algorithm<ECDH, EcKeyImportParams>("importKey"_string, "ECDH"_string);
     define_an_algorithm<ECDH>("exportKey"_string, "ECDH"_string);
-    define_an_algorithm<ECDH, EcdhKeyDerivePrams>("deriveBits"_string, "ECDH"_string);
+    define_an_algorithm<ECDH, EcdhKeyDeriveParams>("deriveBits"_string, "ECDH"_string);
     define_an_algorithm<ECDH, EcKeyGenParams>("generateKey"_string, "ECDH"_string);
 
     // https://w3c.github.io/webcrypto/#aes-ctr-registration
@@ -867,13 +867,13 @@ SupportedAlgorithmsMap const& supported_algorithms()
     define_an_algorithm<PBKDF2>("get key length"_string, "PBKDF2"_string);
 
     // https://wicg.github.io/webcrypto-secure-curves/#x25519-registration
-    define_an_algorithm<X25519, EcdhKeyDerivePrams>("deriveBits"_string, "X25519"_string);
+    define_an_algorithm<X25519, EcdhKeyDeriveParams>("deriveBits"_string, "X25519"_string);
     define_an_algorithm<X25519>("generateKey"_string, "X25519"_string);
     define_an_algorithm<X25519>("importKey"_string, "X25519"_string);
     define_an_algorithm<X25519>("exportKey"_string, "X25519"_string);
 
     // https://wicg.github.io/webcrypto-secure-curves/#x448-registration
-    define_an_algorithm<X448, EcdhKeyDerivePrams>("deriveBits"_string, "X448"_string);
+    define_an_algorithm<X448, EcdhKeyDeriveParams>("deriveBits"_string, "X448"_string);
     define_an_algorithm<X448>("generateKey"_string, "X448"_string);
     define_an_algorithm<X448>("importKey"_string, "X448"_string);
     define_an_algorithm<X448>("exportKey"_string, "X448"_string);
