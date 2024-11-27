@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2022-2023, networkException <networkexception@serenityos.org>
  * Copyright (c) 2024, Tim Ledbetter <timledbetter@gmail.com>
+ * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,6 +10,8 @@
 #include <LibGC/Function.h>
 #include <LibJS/Runtime/ModuleRequest.h>
 #include <LibTextCodec/Decoder.h>
+#include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
@@ -84,36 +87,38 @@ ByteString module_type_from_module_request(JS::ModuleRequest const& module_reque
 // https://whatpr.org/html/9893/webappapis.html#resolve-a-module-specifier
 WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referring_script, ByteString const& specifier)
 {
-    // 1. Let settingsObject and baseURL be null.
-    GC::Ptr<EnvironmentSettingsObject> settings_object;
+    auto& vm = Bindings::main_thread_vm();
+
+    // 1. Let realm and baseURL be null.
+    GC::Ptr<JS::Realm> realm;
     Optional<URL::URL> base_url;
 
     // 2. If referringScript is not null, then:
     if (referring_script.has_value()) {
-        // 1. Set settingsObject to referringScript's settings object.
-        settings_object = referring_script->settings_object();
+        // 1. Set realm to referringScript's realm.
+        realm = referring_script->realm();
 
         // 2. Set baseURL to referringScript's base URL.
         base_url = referring_script->base_url();
     }
     // 3. Otherwise:
     else {
-        // 1. Assert: there is a current principal settings object.
-        // NOTE: This is handled by the current_principal_settings_object() accessor.
+        // 1. Assert: there is a current realm.
+        VERIFY(vm.current_realm());
 
-        // 2. Set settingsObject to the current principal settings object.
-        settings_object = current_principal_settings_object();
+        // 2. Set realm to the current realm.
+        realm = *vm.current_realm();
 
-        // 3. Set baseURL to settingsObject's API base URL.
-        base_url = settings_object->api_base_url();
+        // 3. Set baseURL to realm's principal realm's settings object's API base URL.
+        base_url = Bindings::principal_host_defined_environment_settings_object(HTML::principal_realm(*realm)).api_base_url();
     }
 
     // 4. Let importMap be an empty import map.
     ImportMap import_map;
 
-    // 5. If settingsObject's global object implements Window, then set importMap to settingsObject's global object's import map.
-    if (is<Window>(settings_object->global_object()))
-        import_map = verify_cast<Window>(settings_object->global_object()).import_map();
+    // 5. If realm's global object implements Window, then set importMap to settingsObject's global object's import map.
+    if (is<Window>(realm->global_object()))
+        import_map = verify_cast<Window>(realm->global_object()).import_map();
 
     // 6. Let baseURLString be baseURL, serialized.
     auto base_url_string = base_url->serialize();
