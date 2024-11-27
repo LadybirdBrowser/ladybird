@@ -24,7 +24,7 @@ String Origin::serialize() const
     result.append("://"sv);
 
     // 4. Append origin's host, serialized, to result.
-    result.append(MUST(Parser::serialize_host(host())));
+    result.append(host().serialize());
 
     // 5. If origin's port is non-null, append a U+003A COLON character (:), and origin's port, serialized, to result.
     if (port().has_value()) {
@@ -50,7 +50,7 @@ unsigned Traits<URL::Origin>::hash(URL::Origin const& origin)
     if (origin.port().has_value())
         hash = pair_int_hash(hash, *origin.port());
 
-    hash = pair_int_hash(hash, URL::Parser::serialize_host(origin.host()).release_value_but_fixme_should_propagate_errors().hash());
+    hash = pair_int_hash(hash, origin.host().serialize().hash());
 
     return hash;
 }

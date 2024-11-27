@@ -3194,7 +3194,7 @@ String Document::domain() const
         return String {};
 
     // 3. Return effectiveDomain, serialized.
-    return MUST(URL::Parser::serialize_host(effective_domain.release_value()));
+    return effective_domain->serialize();
 }
 
 void Document::set_domain(String const& domain)

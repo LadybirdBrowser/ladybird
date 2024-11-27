@@ -132,6 +132,13 @@ ErrorOr<void> encode(Encoder& encoder, URL::Origin const& origin)
 }
 
 template<>
+ErrorOr<void> encode(Encoder& encoder, URL::Host const& host)
+{
+    TRY(encoder.encode(host.value()));
+    return {};
+}
+
+template<>
 ErrorOr<void> encode(Encoder& encoder, File const& file)
 {
     int fd = file.take_fd();

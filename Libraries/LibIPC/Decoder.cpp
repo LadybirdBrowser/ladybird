@@ -112,6 +112,13 @@ ErrorOr<URL::Origin> decode(Decoder& decoder)
 }
 
 template<>
+ErrorOr<URL::Host> decode(Decoder& decoder)
+{
+    auto value = TRY(decoder.decode<URL::Host::VariantType>());
+    return URL::Host { move(value) };
+}
+
+template<>
 ErrorOr<File> decode(Decoder& decoder)
 {
     auto file = TRY(decoder.files().try_dequeue());
