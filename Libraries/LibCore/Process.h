@@ -11,7 +11,6 @@
 
 #include <AK/ByteString.h>
 #include <AK/Forward.h>
-#include <AK/Span.h>
 #include <LibCore/File.h>
 
 namespace Core {
@@ -29,7 +28,10 @@ struct CloseFile {
     int fd { -1 };
 };
 
-// FIXME: Implement other file actions
+struct DupFd {
+    int write_fd { -1 };
+    int fd { -1 };
+};
 
 }
 
@@ -40,7 +42,7 @@ struct ProcessSpawnOptions {
     Vector<ByteString> const& arguments {};
     Optional<ByteString> working_directory {};
 
-    using FileActionType = Variant<FileAction::OpenFile, FileAction::CloseFile>;
+    using FileActionType = Variant<FileAction::OpenFile, FileAction::CloseFile, FileAction::DupFd>;
     Vector<FileActionType> file_actions {};
 };
 
