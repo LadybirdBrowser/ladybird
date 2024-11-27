@@ -360,19 +360,19 @@ JS::Realm& current_principal_realm()
 }
 
 // https://whatpr.org/html/9893/webappapis.html#concept-principal-realm-of-realm
-JS::Realm& principal_realm(JS::Realm& realm)
+JS::Realm& principal_realm(GC::Ref<JS::Realm> realm)
 {
-    VERIFY(realm.host_defined());
+    VERIFY(realm->host_defined());
 
     // 1. If realm.[[HostDefined]] is a synthetic realm settings object, then:
-    if (is<Bindings::SyntheticHostDefined>(*realm.host_defined())) {
+    if (is<Bindings::SyntheticHostDefined>(*realm->host_defined())) {
         // 1. Assert: realm is a synthetic realm.
         // 2. Set realm to the principal realm of realm.[[HostDefined]].
-        return static_cast<Bindings::SyntheticHostDefined const&>(*realm.host_defined()).synthetic_realm_settings.principal_realm;
+        realm = static_cast<Bindings::SyntheticHostDefined const&>(*realm->host_defined()).synthetic_realm_settings.principal_realm;
     }
 
     // 2. Assert: realm.[[HostDefined]] is an environment settings object and realm is a principal realm.
-    VERIFY(is<Bindings::PrincipalHostDefined>(*realm.host_defined()));
+    VERIFY(is<Bindings::PrincipalHostDefined>(*realm->host_defined()));
 
     // 3. Return realm.
     return realm;
