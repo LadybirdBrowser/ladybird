@@ -6,11 +6,8 @@ describe("correct behavior", () => {
     test("basic functionality", () => {
         let plainDate;
 
-        plainDate = new Temporal.PlainDate(2021, 7, 6);
-        expect(plainDate.toLocaleString()).toBe("2021-07-06");
-
         plainDate = new Temporal.PlainDate(2021, 7, 6, "gregory");
-        expect(plainDate.toLocaleString()).toBe("2021-07-06[u-ca=gregory]");
+        expect(plainDate.toLocaleString()).toBe("7/6/2021");
     });
 });
 
