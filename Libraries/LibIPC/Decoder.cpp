@@ -100,6 +100,10 @@ ErrorOr<URL::URL> decode(Decoder& decoder)
 template<>
 ErrorOr<URL::Origin> decode(Decoder& decoder)
 {
+    auto is_opaque = TRY(decoder.decode<bool>());
+    if (is_opaque)
+        return URL::Origin {};
+
     auto scheme = TRY(decoder.decode<ByteString>());
     auto host = TRY(decoder.decode<URL::Host>());
     auto port = TRY(decoder.decode<Optional<u16>>());
