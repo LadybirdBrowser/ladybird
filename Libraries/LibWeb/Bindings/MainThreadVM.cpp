@@ -580,8 +580,8 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             // 4. Set settings's execution context to context.
             .execution_context = move(context),
 
-            // 5. Set settings's principal realm to O's associated realm
-            .principal_realm = object.shape().realm(),
+            // 5. Set settings's principal realm to O's associated realm's principal realm
+            .principal_realm = HTML::principal_realm(object.shape().realm()),
 
             // 6. Set settings's module map to a new module map, initially empty.
             .module_map = realm.create<HTML::ModuleMap>(),
