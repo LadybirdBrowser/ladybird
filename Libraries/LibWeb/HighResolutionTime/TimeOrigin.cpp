@@ -59,10 +59,14 @@ DOMHighResTimeStamp current_high_resolution_time(JS::Object const& global)
 }
 
 // https://w3c.github.io/hr-time/#dfn-relative-high-resolution-time
+// https://pr-preview.s3.amazonaws.com/w3c/hr-time/pull/168.html#dfn-relative-high-resolution-time
 DOMHighResTimeStamp relative_high_resolution_time(DOMHighResTimeStamp time, JS::Object const& global)
 {
-    // 1. Let coarse time be the result of calling coarsen time with time and global's relevant settings object's cross-origin isolated capability.
-    auto coarse_time = coarsen_time(time, HTML::relevant_settings_object(global).cross_origin_isolated_capability() == HTML::CanUseCrossOriginIsolatedAPIs::Yes);
+    // 1. Let settings be the global's relevant principal settings object.
+    auto& settings = HTML::relevant_principal_settings_object(global);
+
+    // 2. Let coarse time be the result of calling coarsen time with time and settings's cross-origin isolated capability.
+    auto coarse_time = coarsen_time(time, settings.cross_origin_isolated_capability() == HTML::CanUseCrossOriginIsolatedAPIs::Yes);
 
     // 2. Return the relative high resolution coarse time for coarse time and global.
     return relative_high_resolution_coarsen_time(coarse_time, global);
