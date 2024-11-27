@@ -314,14 +314,9 @@ static WebIDL::ExceptionOr<ByteBuffer> generate_random_key(JS::VM& vm, u16 const
 
 AlgorithmParams::~AlgorithmParams() = default;
 
-JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AlgorithmParams::from_value(JS::VM& vm, JS::Value value)
+JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AlgorithmParams::from_value(JS::VM&, JS::Value)
 {
-    auto& object = value.as_object();
-
-    auto name = TRY(object.get("name"));
-    auto name_string = TRY(name.to_string(vm));
-
-    return adopt_own(*new AlgorithmParams { name_string });
+    return adopt_own(*new AlgorithmParams {});
 }
 
 AesCbcParams::~AesCbcParams() = default;
@@ -330,15 +325,12 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesCbcParams::from_value(J
 {
     auto& object = value.as_object();
 
-    auto name_value = TRY(object.get("name"));
-    auto name = TRY(name_value.to_string(vm));
-
     auto iv_value = TRY(object.get("iv"));
     if (!iv_value.is_object() || !(is<JS::TypedArrayBase>(iv_value.as_object()) || is<JS::ArrayBuffer>(iv_value.as_object()) || is<JS::DataView>(iv_value.as_object())))
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
     auto iv = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(iv_value.as_object()));
 
-    return adopt_own<AlgorithmParams>(*new AesCbcParams { name, iv });
+    return adopt_own<AlgorithmParams>(*new AesCbcParams { iv });
 }
 
 AesCtrParams::~AesCtrParams() = default;
@@ -346,9 +338,6 @@ AesCtrParams::~AesCtrParams() = default;
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesCtrParams::from_value(JS::VM& vm, JS::Value value)
 {
     auto& object = value.as_object();
-
-    auto name_value = TRY(object.get("name"));
-    auto name = TRY(name_value.to_string(vm));
 
     auto iv_value = TRY(object.get("counter"));
     if (!iv_value.is_object() || !(is<JS::TypedArrayBase>(iv_value.as_object()) || is<JS::ArrayBuffer>(iv_value.as_object()) || is<JS::DataView>(iv_value.as_object())))
@@ -358,7 +347,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesCtrParams::from_value(J
     auto length_value = TRY(object.get("length"));
     auto length = TRY(length_value.to_u8(vm));
 
-    return adopt_own<AlgorithmParams>(*new AesCtrParams { name, iv, length });
+    return adopt_own<AlgorithmParams>(*new AesCtrParams { iv, length });
 }
 
 AesGcmParams::~AesGcmParams() = default;
@@ -366,9 +355,6 @@ AesGcmParams::~AesGcmParams() = default;
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesGcmParams::from_value(JS::VM& vm, JS::Value value)
 {
     auto& object = value.as_object();
-
-    auto name_value = TRY(object.get("name"));
-    auto name = TRY(name_value.to_string(vm));
 
     auto iv_value = TRY(object.get("iv"));
     if (!iv_value.is_object() || !(is<JS::TypedArrayBase>(iv_value.as_object()) || is<JS::ArrayBuffer>(iv_value.as_object()) || is<JS::DataView>(iv_value.as_object())))
@@ -389,7 +375,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesGcmParams::from_value(J
         maybe_tag_length = TRY(tag_length_value.to_u8(vm));
     }
 
-    return adopt_own<AlgorithmParams>(*new AesGcmParams { name, iv, maybe_additional_data, maybe_tag_length });
+    return adopt_own<AlgorithmParams>(*new AesGcmParams { iv, maybe_additional_data, maybe_tag_length });
 }
 
 HKDFParams::~HKDFParams() = default;
@@ -397,9 +383,6 @@ HKDFParams::~HKDFParams() = default;
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> HKDFParams::from_value(JS::VM& vm, JS::Value value)
 {
     auto& object = value.as_object();
-
-    auto name_value = TRY(object.get("name"));
-    auto name = TRY(name_value.to_string(vm));
 
     auto hash_value = TRY(object.get("hash"));
     auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
@@ -414,7 +397,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> HKDFParams::from_value(JS:
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
     auto info = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(info_value.as_object()));
 
-    return adopt_own<AlgorithmParams>(*new HKDFParams { name, hash, salt, info });
+    return adopt_own<AlgorithmParams>(*new HKDFParams { hash, salt, info });
 }
 
 PBKDF2Params::~PBKDF2Params() = default;
@@ -422,9 +405,6 @@ PBKDF2Params::~PBKDF2Params() = default;
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> PBKDF2Params::from_value(JS::VM& vm, JS::Value value)
 {
     auto& object = value.as_object();
-
-    auto name_value = TRY(object.get("name"));
-    auto name = TRY(name_value.to_string(vm));
 
     auto salt_value = TRY(object.get("salt"));
 
@@ -439,7 +419,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> PBKDF2Params::from_value(J
     auto hash_value = TRY(object.get("hash"));
     auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
 
-    return adopt_own<AlgorithmParams>(*new PBKDF2Params { name, salt, iterations, hash });
+    return adopt_own<AlgorithmParams>(*new PBKDF2Params { salt, iterations, hash });
 }
 
 RsaKeyGenParams::~RsaKeyGenParams() = default;
@@ -448,9 +428,6 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> RsaKeyGenParams::from_valu
 {
     auto& object = value.as_object();
 
-    auto name_value = TRY(object.get("name"));
-    auto name = TRY(name_value.to_string(vm));
-
     auto modulus_length_value = TRY(object.get("modulusLength"));
     auto modulus_length = TRY(modulus_length_value.to_u32(vm));
 
@@ -462,7 +439,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> RsaKeyGenParams::from_valu
 
     public_exponent = static_cast<JS::Uint8Array&>(public_exponent_value.as_object());
 
-    return adopt_own<AlgorithmParams>(*new RsaKeyGenParams { name, modulus_length, big_integer_from_api_big_integer(public_exponent) });
+    return adopt_own<AlgorithmParams>(*new RsaKeyGenParams { modulus_length, big_integer_from_api_big_integer(public_exponent) });
 }
 
 RsaHashedKeyGenParams::~RsaHashedKeyGenParams() = default;
@@ -471,9 +448,6 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> RsaHashedKeyGenParams::fro
 {
     auto& object = value.as_object();
 
-    auto name_value = TRY(object.get("name"));
-    auto name = TRY(name_value.to_string(vm));
-
     auto modulus_length_value = TRY(object.get("modulusLength"));
     auto modulus_length = TRY(modulus_length_value.to_u32(vm));
 
@@ -488,7 +462,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> RsaHashedKeyGenParams::fro
     auto hash_value = TRY(object.get("hash"));
     auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
 
-    return adopt_own<AlgorithmParams>(*new RsaHashedKeyGenParams { name, modulus_length, big_integer_from_api_big_integer(public_exponent), hash });
+    return adopt_own<AlgorithmParams>(*new RsaHashedKeyGenParams { modulus_length, big_integer_from_api_big_integer(public_exponent), hash });
 }
 
 RsaHashedImportParams::~RsaHashedImportParams() = default;
@@ -497,13 +471,10 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> RsaHashedImportParams::fro
 {
     auto& object = value.as_object();
 
-    auto name_value = TRY(object.get("name"));
-    auto name = TRY(name_value.to_string(vm));
-
     auto hash_value = TRY(object.get("hash"));
     auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
 
-    return adopt_own<AlgorithmParams>(*new RsaHashedImportParams { name, hash });
+    return adopt_own<AlgorithmParams>(*new RsaHashedImportParams { hash });
 }
 
 RsaOaepParams::~RsaOaepParams() = default;
@@ -511,9 +482,6 @@ RsaOaepParams::~RsaOaepParams() = default;
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> RsaOaepParams::from_value(JS::VM& vm, JS::Value value)
 {
     auto& object = value.as_object();
-
-    auto name_value = TRY(object.get("name"));
-    auto name = TRY(name_value.to_string(vm));
 
     auto label_value = TRY(object.get("label"));
 
@@ -525,7 +493,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> RsaOaepParams::from_value(
         label = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(label_value.as_object()));
     }
 
-    return adopt_own<AlgorithmParams>(*new RsaOaepParams { name, move(label) });
+    return adopt_own<AlgorithmParams>(*new RsaOaepParams { move(label) });
 }
 
 EcdsaParams::~EcdsaParams() = default;
@@ -534,13 +502,10 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcdsaParams::from_value(JS
 {
     auto& object = value.as_object();
 
-    auto name_value = TRY(object.get("name"));
-    auto name = TRY(name_value.to_string(vm));
-
     auto hash_value = TRY(object.get("hash"));
     auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
 
-    return adopt_own<AlgorithmParams>(*new EcdsaParams { name, hash });
+    return adopt_own<AlgorithmParams>(*new EcdsaParams { hash });
 }
 
 EcKeyGenParams::~EcKeyGenParams() = default;
@@ -549,13 +514,10 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcKeyGenParams::from_value
 {
     auto& object = value.as_object();
 
-    auto name_value = TRY(object.get("name"));
-    auto name = TRY(name_value.to_string(vm));
-
     auto curve_value = TRY(object.get("namedCurve"));
     auto curve = TRY(curve_value.to_string(vm));
 
-    return adopt_own<AlgorithmParams>(*new EcKeyGenParams { name, curve });
+    return adopt_own<AlgorithmParams>(*new EcKeyGenParams { curve });
 }
 
 AesKeyGenParams::~AesKeyGenParams() = default;
@@ -564,13 +526,10 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesKeyGenParams::from_valu
 {
     auto& object = value.as_object();
 
-    auto name_value = TRY(object.get("name"));
-    auto name = TRY(name_value.to_string(vm));
-
     auto length_value = TRY(object.get("length"));
     auto length = TRY(length_value.to_u16(vm));
 
-    return adopt_own<AlgorithmParams>(*new AesKeyGenParams { name, length });
+    return adopt_own<AlgorithmParams>(*new AesKeyGenParams { length });
 }
 
 AesDerivedKeyParams::~AesDerivedKeyParams() = default;
@@ -579,13 +538,10 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AesDerivedKeyParams::from_
 {
     auto& object = value.as_object();
 
-    auto name_value = TRY(object.get("name"));
-    auto name = TRY(name_value.to_string(vm));
-
     auto length_value = TRY(object.get("length"));
     auto length = TRY(length_value.to_u16(vm));
 
-    return adopt_own<AlgorithmParams>(*new AesDerivedKeyParams { name, length });
+    return adopt_own<AlgorithmParams>(*new AesDerivedKeyParams { length });
 }
 
 EcdhKeyDeriveParams::~EcdhKeyDeriveParams() = default;
@@ -593,9 +549,6 @@ EcdhKeyDeriveParams::~EcdhKeyDeriveParams() = default;
 JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcdhKeyDeriveParams::from_value(JS::VM& vm, JS::Value value)
 {
     auto& object = value.as_object();
-
-    auto name_value = TRY(object.get("name"));
-    auto name = TRY(name_value.to_string(vm));
 
     auto key_value = TRY(object.get("public"));
     auto key_object = TRY(key_value.to_object(vm));
@@ -606,7 +559,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcdhKeyDeriveParams::from_
 
     auto& key = verify_cast<CryptoKey>(*key_object);
 
-    return adopt_own<AlgorithmParams>(*new EcdhKeyDeriveParams { name, key });
+    return adopt_own<AlgorithmParams>(*new EcdhKeyDeriveParams { key });
 }
 
 EcKeyImportParams::~EcKeyImportParams() = default;
@@ -615,13 +568,10 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcKeyImportParams::from_va
 {
     auto& object = value.as_object();
 
-    auto name_value = TRY(object.get("name"));
-    auto name = TRY(name_value.to_string(vm));
-
     auto named_curve_value = TRY(object.get("namedCurve"));
     auto named_curve = TRY(named_curve_value.to_string(vm));
 
-    return adopt_own<AlgorithmParams>(*new EcKeyImportParams { name, named_curve });
+    return adopt_own<AlgorithmParams>(*new EcKeyImportParams { named_curve });
 }
 
 HmacImportParams::~HmacImportParams() = default;
@@ -630,9 +580,6 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> HmacImportParams::from_val
 {
     auto& object = value.as_object();
 
-    auto name_value = TRY(object.get("name"));
-    auto name = TRY(name_value.to_string(vm));
-
     auto hash_value = TRY(object.get("hash"));
     auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
 
@@ -642,7 +589,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> HmacImportParams::from_val
         maybe_length = TRY(length_value.to_u32(vm));
     }
 
-    return adopt_own<AlgorithmParams>(*new HmacImportParams { name, hash, maybe_length });
+    return adopt_own<AlgorithmParams>(*new HmacImportParams { hash, maybe_length });
 }
 
 HmacKeyGenParams::~HmacKeyGenParams() = default;
@@ -651,9 +598,6 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> HmacKeyGenParams::from_val
 {
     auto& object = value.as_object();
 
-    auto name_value = TRY(object.get("name"));
-    auto name = TRY(name_value.to_string(vm));
-
     auto hash_value = TRY(object.get("hash"));
     auto hash = TRY(hash_algorithm_identifier_from_value(vm, hash_value));
 
@@ -663,7 +607,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> HmacKeyGenParams::from_val
         maybe_length = TRY(length_value.to_u32(vm));
     }
 
-    return adopt_own<AlgorithmParams>(*new HmacKeyGenParams { name, hash, maybe_length });
+    return adopt_own<AlgorithmParams>(*new HmacKeyGenParams { hash, maybe_length });
 }
 
 // https://w3c.github.io/webcrypto/#rsa-oaep-operations

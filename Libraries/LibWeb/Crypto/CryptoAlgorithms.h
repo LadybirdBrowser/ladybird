@@ -45,11 +45,12 @@ struct HashAlgorithmIdentifier : public AlgorithmIdentifier {
 // https://w3c.github.io/webcrypto/#algorithm-overview
 struct AlgorithmParams {
     virtual ~AlgorithmParams();
-    explicit AlgorithmParams(String name)
-        : name(move(name))
+    explicit AlgorithmParams()
     {
     }
 
+    // NOTE: this is initialized when normalizing the algorithm name as the spec requests.
+    //       It must not be set in `from_value`.
     String name;
 
     static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::VM&, JS::Value);
@@ -58,9 +59,8 @@ struct AlgorithmParams {
 // https://w3c.github.io/webcrypto/#aes-cbc
 struct AesCbcParams : public AlgorithmParams {
     virtual ~AesCbcParams() override;
-    AesCbcParams(String name, ByteBuffer iv)
-        : AlgorithmParams(move(name))
-        , iv(move(iv))
+    AesCbcParams(ByteBuffer iv)
+        : iv(move(iv))
     {
     }
 
@@ -72,9 +72,8 @@ struct AesCbcParams : public AlgorithmParams {
 // https://w3c.github.io/webcrypto/#dfn-AesCtrParams
 struct AesCtrParams : public AlgorithmParams {
     virtual ~AesCtrParams() override;
-    AesCtrParams(String name, ByteBuffer counter, u8 length)
-        : AlgorithmParams(move(name))
-        , counter(move(counter))
+    AesCtrParams(ByteBuffer counter, u8 length)
+        : counter(move(counter))
         , length(length)
     {
     }
@@ -88,9 +87,8 @@ struct AesCtrParams : public AlgorithmParams {
 // https://w3c.github.io/webcrypto/#dfn-AesGcmParams
 struct AesGcmParams : public AlgorithmParams {
     virtual ~AesGcmParams() override;
-    AesGcmParams(String name, ByteBuffer iv, Optional<ByteBuffer> additional_data, Optional<u8> tag_length)
-        : AlgorithmParams(move(name))
-        , iv(move(iv))
+    AesGcmParams(ByteBuffer iv, Optional<ByteBuffer> additional_data, Optional<u8> tag_length)
+        : iv(move(iv))
         , additional_data(move(additional_data))
         , tag_length(tag_length)
     {
@@ -106,9 +104,8 @@ struct AesGcmParams : public AlgorithmParams {
 // https://w3c.github.io/webcrypto/#hkdf-params
 struct HKDFParams : public AlgorithmParams {
     virtual ~HKDFParams() override;
-    HKDFParams(String name, HashAlgorithmIdentifier hash, ByteBuffer salt, ByteBuffer info)
-        : AlgorithmParams(move(name))
-        , hash(move(hash))
+    HKDFParams(HashAlgorithmIdentifier hash, ByteBuffer salt, ByteBuffer info)
+        : hash(move(hash))
         , salt(move(salt))
         , info(move(info))
     {
@@ -124,9 +121,8 @@ struct HKDFParams : public AlgorithmParams {
 // https://w3c.github.io/webcrypto/#pbkdf2-params
 struct PBKDF2Params : public AlgorithmParams {
     virtual ~PBKDF2Params() override;
-    PBKDF2Params(String name, ByteBuffer salt, u32 iterations, HashAlgorithmIdentifier hash)
-        : AlgorithmParams(move(name))
-        , salt(move(salt))
+    PBKDF2Params(ByteBuffer salt, u32 iterations, HashAlgorithmIdentifier hash)
+        : salt(move(salt))
         , iterations(iterations)
         , hash(move(hash))
     {
@@ -143,9 +139,8 @@ struct PBKDF2Params : public AlgorithmParams {
 struct RsaKeyGenParams : public AlgorithmParams {
     virtual ~RsaKeyGenParams() override;
 
-    RsaKeyGenParams(String name, u32 modulus_length, ::Crypto::UnsignedBigInteger public_exponent)
-        : AlgorithmParams(move(name))
-        , modulus_length(modulus_length)
+    RsaKeyGenParams(u32 modulus_length, ::Crypto::UnsignedBigInteger public_exponent)
+        : modulus_length(modulus_length)
         , public_exponent(move(public_exponent))
     {
     }
@@ -161,8 +156,8 @@ struct RsaKeyGenParams : public AlgorithmParams {
 struct RsaHashedKeyGenParams : public RsaKeyGenParams {
     virtual ~RsaHashedKeyGenParams() override;
 
-    RsaHashedKeyGenParams(String name, u32 modulus_length, ::Crypto::UnsignedBigInteger public_exponent, HashAlgorithmIdentifier hash)
-        : RsaKeyGenParams(move(name), modulus_length, move(public_exponent))
+    RsaHashedKeyGenParams(u32 modulus_length, ::Crypto::UnsignedBigInteger public_exponent, HashAlgorithmIdentifier hash)
+        : RsaKeyGenParams(modulus_length, move(public_exponent))
         , hash(move(hash))
     {
     }
@@ -176,9 +171,8 @@ struct RsaHashedKeyGenParams : public RsaKeyGenParams {
 struct RsaHashedImportParams : public AlgorithmParams {
     virtual ~RsaHashedImportParams() override;
 
-    RsaHashedImportParams(String name, HashAlgorithmIdentifier hash)
-        : AlgorithmParams(move(name))
-        , hash(move(hash))
+    RsaHashedImportParams(HashAlgorithmIdentifier hash)
+        : hash(move(hash))
     {
     }
 
@@ -191,9 +185,8 @@ struct RsaHashedImportParams : public AlgorithmParams {
 struct RsaOaepParams : public AlgorithmParams {
     virtual ~RsaOaepParams() override;
 
-    RsaOaepParams(String name, ByteBuffer label)
-        : AlgorithmParams(move(name))
-        , label(move(label))
+    RsaOaepParams(ByteBuffer label)
+        : label(move(label))
     {
     }
 
@@ -206,9 +199,8 @@ struct RsaOaepParams : public AlgorithmParams {
 struct EcdsaParams : public AlgorithmParams {
     virtual ~EcdsaParams() override;
 
-    EcdsaParams(String name, HashAlgorithmIdentifier hash)
-        : AlgorithmParams(move(name))
-        , hash(move(hash))
+    EcdsaParams(HashAlgorithmIdentifier hash)
+        : hash(move(hash))
     {
     }
 
@@ -221,9 +213,8 @@ struct EcdsaParams : public AlgorithmParams {
 struct EcKeyGenParams : public AlgorithmParams {
     virtual ~EcKeyGenParams() override;
 
-    EcKeyGenParams(String name, NamedCurve named_curve)
-        : AlgorithmParams(move(name))
-        , named_curve(move(named_curve))
+    EcKeyGenParams(NamedCurve named_curve)
+        : named_curve(move(named_curve))
     {
     }
 
@@ -236,9 +227,8 @@ struct EcKeyGenParams : public AlgorithmParams {
 struct AesKeyGenParams : public AlgorithmParams {
     virtual ~AesKeyGenParams() override;
 
-    AesKeyGenParams(String name, u16 length)
-        : AlgorithmParams(move(name))
-        , length(length)
+    AesKeyGenParams(u16 length)
+        : length(length)
     {
     }
 
@@ -251,9 +241,8 @@ struct AesKeyGenParams : public AlgorithmParams {
 struct AesDerivedKeyParams : public AlgorithmParams {
     virtual ~AesDerivedKeyParams() override;
 
-    AesDerivedKeyParams(String name, u16 length)
-        : AlgorithmParams(move(name))
-        , length(length)
+    AesDerivedKeyParams(u16 length)
+        : length(length)
     {
     }
 
@@ -266,9 +255,8 @@ struct AesDerivedKeyParams : public AlgorithmParams {
 struct HmacImportParams : public AlgorithmParams {
     virtual ~HmacImportParams() override;
 
-    HmacImportParams(String name, HashAlgorithmIdentifier hash, Optional<WebIDL::UnsignedLong> length)
-        : AlgorithmParams(move(name))
-        , hash(move(hash))
+    HmacImportParams(HashAlgorithmIdentifier hash, Optional<WebIDL::UnsignedLong> length)
+        : hash(move(hash))
         , length(length)
     {
     }
@@ -283,9 +271,8 @@ struct HmacImportParams : public AlgorithmParams {
 struct HmacKeyGenParams : public AlgorithmParams {
     virtual ~HmacKeyGenParams() override;
 
-    HmacKeyGenParams(String name, HashAlgorithmIdentifier hash, Optional<WebIDL::UnsignedLong> length)
-        : AlgorithmParams(move(name))
-        , hash(move(hash))
+    HmacKeyGenParams(HashAlgorithmIdentifier hash, Optional<WebIDL::UnsignedLong> length)
+        : hash(move(hash))
         , length(length)
     {
     }
@@ -580,9 +567,8 @@ private:
 struct EcdhKeyDeriveParams : public AlgorithmParams {
     virtual ~EcdhKeyDeriveParams() override;
 
-    EcdhKeyDeriveParams(String name, CryptoKey& public_key)
-        : AlgorithmParams(move(name))
-        , public_key(public_key)
+    EcdhKeyDeriveParams(CryptoKey& public_key)
+        : public_key(public_key)
     {
     }
 
@@ -594,9 +580,8 @@ struct EcdhKeyDeriveParams : public AlgorithmParams {
 struct EcKeyImportParams : public AlgorithmParams {
     virtual ~EcKeyImportParams() override;
 
-    EcKeyImportParams(String name, String named_curve)
-        : AlgorithmParams(move(name))
-        , named_curve(move(named_curve))
+    EcKeyImportParams(String named_curve)
+        : named_curve(move(named_curve))
     {
     }
 

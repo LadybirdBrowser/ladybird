@@ -100,6 +100,8 @@ WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::
     // 5. If registeredAlgorithms contains a key that is a case-insensitive string match for algName:
     if (auto it = registered_algorithms.find(algorithm_name); it != registered_algorithms.end()) {
         // 1. Set algName to the value of the matching key.
+        algorithm_name = it->key;
+
         // 2. Let desiredType be the IDL dictionary type stored at algName in registeredAlgorithms.
         desired_type = it->value;
     } else {
@@ -110,7 +112,6 @@ WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::
 
     // 8. Let normalizedAlgorithm be the result of converting the ECMAScript object represented by alg
     // to the IDL dictionary type desiredType, as defined by [WebIDL].
-    // 9. Set the name attribute of normalizedAlgorithm to algName.
     // 10. If an error occurred, return the error and terminate this algorithm.
     // 11. Let dictionaries be a list consisting of the IDL dictionary type desiredType
     // and all of desiredType's inherited dictionaries, in order from least to most derived.
@@ -118,6 +119,11 @@ WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::
     //    Note: All of these steps are handled by the create_methods and parameter_from_value methods.
     auto methods = desired_type.create_methods(realm);
     auto parameter = TRY(desired_type.parameter_from_value(vm, algorithm.get<GC::Root<JS::Object>>()));
+
+    // 9. Set the name attribute of normalizedAlgorithm to algName.
+    VERIFY(parameter->name.is_empty());
+    parameter->name = algorithm_name;
+
     auto normalized_algorithm = NormalizedAlgorithmAndParameter { move(methods), move(parameter) };
 
     // 13. Return normalizedAlgorithm.
