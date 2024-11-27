@@ -5,7 +5,7 @@ describe("correct behavior", () => {
 
     test("basic functionality", () => {
         const instant = new Temporal.Instant(1625614921123456789n);
-        expect(instant.toLocaleString()).toBe("2021-07-06T23:42:01.123456789Z");
+        expect(instant.toLocaleString([], { timeZone: "UTC" })).toBe("7/6/2021, 11:42:01 PM");
     });
 });
 
