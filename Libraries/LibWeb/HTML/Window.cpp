@@ -146,12 +146,40 @@ WebIDL::ExceptionOr<GC::Ptr<WindowProxy>> Window::window_open_steps(StringView u
     if (target_navigable == nullptr)
         return nullptr;
 
-    // 14. If noopener is true or windowType is "new with no opener", then return null.
+    // 17. If noopener is true or windowType is "new with no opener", then return null.
     if (no_opener == TokenizedFeature::NoOpener::Yes || window_type == Navigable::WindowType::NewWithNoOpener)
         return nullptr;
 
-    // 15. Return targetNavigable's active WindowProxy.
+    // 18. Return targetNavigable's active WindowProxy.
     return target_navigable->active_window_proxy();
+}
+
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#get-noopener-for-window-open
+static TokenizedFeature::NoOpener get_noopener_for_window_open(DOM::Document const& source_document, TokenizedFeature::Map const& tokenized_features, URL::URL url)
+{
+    // 1. If url's scheme is "blob":
+    if (url.scheme() == "blob"sv) {
+        // 1. Let blobOrigin be url's blob URL entry's environment's origin.
+        auto blob_origin = url.blob_url_entry()->environment_origin;
+
+        // 2. Let topLevelOrigin be sourceDocument's relevant settings object's top-level origin.
+        auto top_level_origin = source_document.relevant_settings_object().top_level_origin;
+
+        // 3. If blobOrigin is not same site with topLevelOrigin, then return true.
+        if (!blob_origin.is_same_site(top_level_origin))
+            return TokenizedFeature::NoOpener::Yes;
+    }
+
+    // 2. Let noopener be false.
+    auto noopener = TokenizedFeature::NoOpener::No;
+
+    // 3. If tokenizedFeatures["noopener"] exists, then set noopener to the result of parsing tokenizedFeatures["noopener"] as a boolean feature.
+    if (auto value = tokenized_features.get("noopener"sv); value.has_value()) {
+        noopener = parse_boolean_feature<TokenizedFeature::NoOpener>(*value);
+    }
+
+    // 4. Return noopener.
+    return noopener;
 }
 
 // https://html.spec.whatwg.org/multipage/window-object.html#window-open-steps
@@ -184,49 +212,43 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Str
     // 6. Let tokenizedFeatures be the result of tokenizing features.
     auto tokenized_features = tokenize_open_features(features);
 
-    // 7. Let noopener and noreferrer be false.
-    auto no_opener = TokenizedFeature::NoOpener::No;
+    // 7. Let noreferrer be false.
     auto no_referrer = TokenizedFeature::NoReferrer::No;
 
-    // 8. If tokenizedFeatures["noopener"] exists, then:
-    if (auto no_opener_feature = tokenized_features.get("noopener"sv); no_opener_feature.has_value()) {
-        // 1. Set noopener to the result of parsing tokenizedFeatures["noopener"] as a boolean feature.
-        no_opener = parse_boolean_feature<TokenizedFeature::NoOpener>(*no_opener_feature);
-
-        // 2. Remove tokenizedFeatures["noopener"].
-        tokenized_features.remove("noopener"sv);
-    }
-
-    // 9. If tokenizedFeatures["noreferrer"] exists, then:
+    // 8. If tokenizedFeatures["noreferrer"] exists, then set noreferrer to the result of parsing tokenizedFeatures["noreferrer"] as a boolean feature.
     if (auto no_referrer_feature = tokenized_features.get("noreferrer"sv); no_referrer_feature.has_value()) {
-        // 1. Set noreferrer to the result of parsing tokenizedFeatures["noreferrer"] as a boolean feature.
         no_referrer = parse_boolean_feature<TokenizedFeature::NoReferrer>(*no_referrer_feature);
-
-        // 2. Remove tokenizedFeatures["noreferrer"].
-        tokenized_features.remove("noreferrer"sv);
     }
 
-    // 10. Let referrerPolicy be the empty string.
+    // 9. Let noopener be the result of getting noopener for window open with sourceDocument, tokenizedFeatures, and urlRecord.
+    // FIXME: Is it safe to assume url_record has a value here?
+    auto no_opener = get_noopener_for_window_open(source_document, tokenized_features, *url_record);
+
+    // 10. Remove tokenizedFeatures["noopener"] and tokenizedFeatures["noreferrer"].
+    tokenized_features.remove("noopener"sv);
+    tokenized_features.remove("noreferrer"sv);
+
+    // 11. Let referrerPolicy be the empty string.
     auto referrer_policy = ReferrerPolicy::ReferrerPolicy::EmptyString;
 
-    // 11. If noreferrer is true, then set noopener to true and set referrerPolicy to "no-referrer".
+    // 12. If noreferrer is true, then set noopener to true and set referrerPolicy to "no-referrer".
     if (no_referrer == TokenizedFeature::NoReferrer::Yes) {
         no_opener = TokenizedFeature::NoOpener::Yes;
         referrer_policy = ReferrerPolicy::ReferrerPolicy::NoReferrer;
     }
 
-    // 12. Let targetNavigable and windowType be the result of applying the rules for choosing a navigable given target, sourceDocument's node navigable, and noopener.
+    // 13. Let targetNavigable and windowType be the result of applying the rules for choosing a navigable given target, sourceDocument's node navigable, and noopener.
     VERIFY(source_document.navigable());
     auto [target_navigable, window_type] = source_document.navigable()->choose_a_navigable(target, no_opener, ActivateTab::Yes, tokenized_features);
 
-    // 13. If targetNavigable is null, then return null.
+    // 14. If targetNavigable is null, then return null.
     if (target_navigable == nullptr)
         return OpenedWindow {};
 
-    // 14. If windowType is either "new and unrestricted" or "new with no opener", then:
+    // 15. If windowType is either "new and unrestricted" or "new with no opener", then:
     if (window_type == Navigable::WindowType::NewAndUnrestricted || window_type == Navigable::WindowType::NewWithNoOpener) {
-        // 1. Set the target browsing context's is popup to the result of checking if a popup window is requested, given tokenizedFeatures.
-        target_navigable->set_is_popup(check_if_a_popup_window_is_requested(tokenized_features));
+        // 1. Set targetNavigable's active browsing context's is popup to the result of checking if a popup window is requested, given tokenizedFeatures.
+        target_navigable->active_browsing_context()->set_is_popup(check_if_a_popup_window_is_requested(tokenized_features));
 
         // 2. Set up browsing context features for target browsing context given tokenizedFeatures. [CSSOMVIEW]
         // NOTE: This is implemented in choose_a_navigable when creating the top level traversable.
@@ -249,7 +271,7 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Str
             TRY(target_navigable->navigate({ .url = url_record.release_value(), .source_document = source_document, .exceptions_enabled = true, .referrer_policy = referrer_policy }));
         }
     }
-    // 15. Otherwise:
+    // 16. Otherwise:
     else {
         // 1. If urlRecord is not null, then navigate targetNavigable to urlRecord using sourceDocument, with referrerPolicy set to referrerPolicy and exceptionsEnabled set to true.
         if (url_record.has_value())
@@ -260,6 +282,7 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Str
             target_navigable->active_browsing_context()->set_opener_browsing_context(source_document.browsing_context());
     }
 
+    // NOTE: Steps 17 and 18 are implemented in window_open_steps().
     return OpenedWindow { target_navigable, no_opener, window_type };
 }
 
