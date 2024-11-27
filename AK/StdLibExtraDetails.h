@@ -496,6 +496,24 @@ inline constexpr bool IsTriviallyConstructible = __is_trivially_constructible(T,
 template<typename From, typename To>
 inline constexpr bool IsConvertible = requires { declval<void (*)(To)>()(declval<From>()); };
 
+template<typename From, typename To>
+auto __IsNonNarrowingConvertibleHelper(int) -> decltype(declval<void(To)>()({ declval<From>() }), TrueType {});
+template<typename, typename>
+auto __IsNonNarrowingConvertibleHelper(...) -> FalseType;
+
+template<typename From, typename To>
+consteval bool __IsNonNarrowingConvertible()
+{
+    if constexpr ((IsArithmetic<From> || IsEnum<From> || IsPointer<From> || IsMemberPointer<From>) && (IsArithmetic<To> || IsEnum<To>)) {
+        return decltype(__IsNonNarrowingConvertibleHelper<From, To>(0))::value;
+    } else {
+        return IsConvertible<From, To>;
+    }
+}
+
+template<typename From, typename To>
+inline constexpr bool IsNonNarrowingConvertible = __IsNonNarrowingConvertible<From, To>();
+
 template<typename T, typename U>
 inline constexpr bool IsAssignable = requires { declval<T>() = declval<U>(); };
 
@@ -654,6 +672,7 @@ using AK::Detail::IsLvalueReference;
 using AK::Detail::IsMemberPointer;
 using AK::Detail::IsMoveAssignable;
 using AK::Detail::IsMoveConstructible;
+using AK::Detail::IsNonNarrowingConvertible;
 using AK::Detail::IsNullPointer;
 using AK::Detail::IsOneOf;
 using AK::Detail::IsOneOfIgnoringCV;
