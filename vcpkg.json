@@ -57,6 +57,7 @@
         "apng"
       ]
     },
+    "libproxy",
     {
       "name": "libavif",
       "features": [
@@ -144,6 +145,10 @@
     {
       "name": "libpng",
       "version": "1.6.43#3"
+    },
+    {
+      "name": "libproxy",
+      "version": "0.4.18#3"
     },
     {
       "name": "libavif",
