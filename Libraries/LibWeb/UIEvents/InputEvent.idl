@@ -14,7 +14,7 @@ interface InputEvent : UIEvent {
 
 // https://w3c.github.io/uievents/#dictdef-inputeventinit
 dictionary InputEventInit : UIEventInit {
-    DOMString? data = null;
+    [LegacyNullToEmptyString] DOMString? data = null;
     boolean isComposing = false;
     DOMString inputType = "";
 };
