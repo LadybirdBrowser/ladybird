@@ -6,8 +6,8 @@ Rerun
 
 Found 687 tests
 
-464 Pass
-223 Fail
+466 Pass
+221 Fail
 Details
 Result	Test Name	MessagePass	background-attachment: scroll	
 Pass	background-attachment: fixed	
@@ -329,8 +329,8 @@ Pass	content: "string"
 Pass	content: 'string'	
 Fail	content: url("http://localhost/")	
 Fail	content: url(http://localhost/)	
-Fail	content: counter(par-num)	
-Fail	content: counter(par-num, decimal)	
+Pass	content: counter(par-num)	
+Pass	content: counter(par-num, decimal)	
 Pass	content: counter(par-num, upper-roman)	
 Pass	content: attr(foo-bar)	
 Pass	content: attr(foo_bar)	
