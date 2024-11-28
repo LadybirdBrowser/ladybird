@@ -1,4 +1,4 @@
-style.cssText = background-color: yellow; background-image: none; background-position-x: left 0%; background-position-y: top 0%; background-size: auto auto; background-repeat: repeat repeat; background-attachment: scroll; background-origin: padding-box; background-clip: border-box;
+style.cssText = background-color: yellow; background-image: none; background-position-x: left 0%; background-position-y: top 0%; background-size: auto auto; background-repeat: repeat; background-attachment: scroll; background-origin: padding-box; background-clip: border-box;
 style.length = 9
 style[] =
 1. background-color
