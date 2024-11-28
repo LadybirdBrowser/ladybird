@@ -148,6 +148,7 @@ protected:
     // to playing or paused, e.g. to start/stop play timers.
     virtual void on_playing() { }
     virtual void on_paused() { }
+    virtual void on_stopped() { }
 
     // Override in subclasses to handle implementation-specific seeking behavior. When seeking is complete,
     // subclasses must invoke set_current_playback_position() to unblock the user agent.
