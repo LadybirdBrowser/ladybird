@@ -198,22 +198,24 @@ void HTMLHyperlinkElementUtils::set_host(StringView host)
     update_href();
 }
 
+// https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-hostname
 String HTMLHyperlinkElementUtils::hostname() const
 {
     // 1. Reinitialize url.
-    //
+    reinitialize_url();
+
     // 2. Let url be this element's url.
-    URL::URL url(href());
+    auto url = m_url;
 
     // 3. If url or url's host is null, return the empty string.
-    // FIXME: How can url be null here?
-    if (!url.host().has_value())
+    if (!url.has_value() || !url->host().has_value())
         return String {};
 
     // 4. Return url's host, serialized.
-    return url.serialized_host();
+    return url->serialized_host();
 }
 
+// https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-hostname
 void HTMLHyperlinkElementUtils::set_hostname(StringView hostname)
 {
     // 1. Reinitialize url.
