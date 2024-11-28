@@ -182,7 +182,7 @@ jobs:
       - name: Test
         if: ${{ inputs.fuzzer == 'NO_FUZZ' }}
         working-directory: ${{ github.workspace }}
-        run: ctest --preset Sanitizer --output-on-failure --test-dir Build --timeout 3600
+        run: ctest --preset Sanitizer --output-on-failure --test-dir Build
         env:
           TESTS_ONLY: 1
 
