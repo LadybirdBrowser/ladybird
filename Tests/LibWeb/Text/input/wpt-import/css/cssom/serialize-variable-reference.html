@@ -1,0 +1,36 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSSOM - Serialization with variable preserves original serialization.</title>
+<link rel="help" href="https://drafts.csswg.org/css-variables/#serializing-custom-props">
+<link rel="help" href="https://drafts.csswg.org/css-variables/#variables-in-shorthands">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<div id="longhand-whitespace" style="font-size: var(--a);"></div>
+<div id="shorthand-whitespace" style="font: var(--a);"></div>
+<div id="longhand" style="font-size:var(--a);"></div>
+<div id="shorthand" style="font:var(--a);"></div>
+<script>
+    test(function() {
+        var elem = document.getElementById('longhand-whitespace');
+
+        assert_equals(elem.style.cssText, 'font-size: var(--a);');
+    }, 'Longhand with variable preserves original serialization: with whitespace')
+
+    test(function() {
+        var elem = document.getElementById('shorthand-whitespace');
+
+        assert_equals(elem.style.cssText, 'font: var(--a);');
+    }, 'Shorthand with variable preserves original serialization: with whitespace')
+
+    test(function() {
+        var elem = document.getElementById('longhand');
+
+        assert_equals(elem.style.cssText, 'font-size: var(--a);');
+    }, 'Longhand with variable preserves original serialization but trims whitespace: without whitespace')
+
+    test(function() {
+        var elem = document.getElementById('shorthand');
+
+        assert_equals(elem.style.cssText, 'font: var(--a);');
+    }, 'Shorthand with variable preserves original serialization but trims whitespace: without whitespace')
+</script>

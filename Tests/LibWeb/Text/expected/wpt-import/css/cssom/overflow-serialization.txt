@@ -1,0 +1,21 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 10 tests
+
+2 Pass
+8 Fail
+Details
+Result	Test Name	MessagePass	Single value overflow with CSS-wide keyword should serialize correctly.	
+Fail	Single value overflow with non-CSS-wide keyword should serialize correctly.	
+Fail	Overflow-x/y longhands with same CSS-wide keyword should serialize correctly.	
+Fail	Overflow-x/y longhands with same non-CSS-wide keyword should serialize correctly.	
+Fail	Overflow-x/y longhands with different keywords should serialize correctly.	
+Fail	Single value overflow on element with CSS-wide keyword should serialize correctly.	
+Fail	Single value overflow on element with non-CSS-wide keyword should serialize correctly.	
+Fail	Overflow-x/y longhands on element with same CSS-wide keyword should serialize correctly.	
+Fail	Overflow-x/y longhands on element with same non-CSS-wide keyword should serialize correctly.	
+Pass	Overflow-x/y longhands on element with different keywords should serialize correctly.	

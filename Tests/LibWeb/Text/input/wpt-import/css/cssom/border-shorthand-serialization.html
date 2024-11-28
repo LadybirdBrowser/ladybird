@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<link rel="author" title="Erik Nordin" href="mailto:enordin@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds-3/#propdef-border">
+<link rel="help" href="https://drafts.csswg.org/cssom-1/#serialize-a-css-declaration-block">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1594241">
+<meta charset="utf-8">
+<title>serialization of border shorthand</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style id="target">
+    .a {
+        border-width: 1px;
+        border-style: solid;
+        border-color: black;
+    }
+    .b {
+        border-width: 1px;
+        border-style: solid;
+        border-color: black;
+        border-image: linear-gradient(white,black);
+    }
+    .c {
+        border: 1px solid black;
+    }
+</style>
+<script>
+    test(function() {
+        let rule = document.getElementById('target').sheet.cssRules[0];
+        assert_equals(rule.style.border, "", "border shorthand isn't serialized if border-image longhands are not initial");
+    }, "Declaration with border longhands is not serialized to a border shorthand declaration.");
+    test(function() {
+        let rule = document.getElementById('target').sheet.cssRules[1];
+        assert_equals(rule.style.border, "", "border shorthand isn't serialized if border-image longhands are not initial");
+    }, "Declaration with border longhands and border-image is not serialized to a border shorthand declaration.");
+    test(function() {
+        let rule = document.getElementById('target').sheet.cssRules[2];
+        assert_not_equals(rule.style.border, "", "border shorthand ");
+        assert_equals(rule.cssText, ".c { border: 1px solid black; }");
+    }, "Border shorthand is serialized correctly if all border-image-* are set to their initial specified values.");
+</script>
+</html>

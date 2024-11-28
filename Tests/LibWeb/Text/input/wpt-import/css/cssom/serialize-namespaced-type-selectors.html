@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>CSSOM Test: test serialization of type selectors and namespace prefixes</title>
+        <link rel="author" title="Rune Lillesveen" href="mailto:rune@opera.com">
+        <link rel="help" href="https://drafts.csswg.org/cssom-1/#serializing-selectors">
+        <meta name="flags" content="dom">
+        <meta charset="utf-8">
+        <script src="../../resources/testharness.js"></script>
+        <script src="../../resources/testharnessreport.js"></script>
+        <style id="teststyles">
+        </style>
+    </head>
+    <body>
+        <div id="log"></div>
+        <script>
+            var ns_rule = "@namespace ns url(ns);";
+            var default_ns_rules = "@namespace url(default_ns); @namespace nsdefault url(default_ns);" + ns_rule;
+
+            function assert_selector_serializes_to(source, expected_result) {
+                var style_element = document.getElementById("teststyles");
+                style_element.firstChild.data = source + "{ font-size: 1em; }";
+                var sheet = style_element.sheet;
+                assert_equals(sheet.cssRules[sheet.cssRules.length - 1].selectorText, expected_result);
+            }
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "e", "e");
+                assert_selector_serializes_to(default_ns_rules + "e", "e");
+            }, "Simple type selector");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "|e", "|e");
+                assert_selector_serializes_to(default_ns_rules + "|e", "|e");
+            }, "Type selector without a namespace");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "*|e", "e");
+                assert_selector_serializes_to(default_ns_rules + "*|e", "*|e");
+            }, "Type selector with any namespace");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "*", "*");
+                assert_selector_serializes_to(default_ns_rules + "*", "*");
+            }, "Universal selector");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "|*", "|*");
+                assert_selector_serializes_to(default_ns_rules + "|*", "|*");
+            }, "Universal selector without a namespace");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "*|*", "*");
+                assert_selector_serializes_to(default_ns_rules + "*|*", "*|*");
+            }, "Universal selector in any namespace");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "ns|e", "ns|e");
+                assert_selector_serializes_to(default_ns_rules + "ns|e", "ns|e");
+            }, "Type selector with namespace");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "ns|*", "ns|*");
+                assert_selector_serializes_to(default_ns_rules + "ns|*", "ns|*");
+            }, "Universal selector with namespace");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "e.c", "e.c");
+                assert_selector_serializes_to(default_ns_rules + "e.c", "e.c");
+            }, "Simple type selector followed by class");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "e#i", "e#i");
+                assert_selector_serializes_to(default_ns_rules + "e#i", "e#i");
+            }, "Simple type selector followed by id");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "e:hover", "e:hover");
+                assert_selector_serializes_to(default_ns_rules + "e:hover", "e:hover");
+            }, "Simple type selector followed by pseudo class");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "e::before", "e::before");
+                assert_selector_serializes_to(default_ns_rules + "e::before", "e::before");
+            }, "Simple type selector followed by pseudo element");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "e[attr]", "e[attr]");
+                assert_selector_serializes_to(default_ns_rules + "e[attr]", "e[attr]");
+            }, "Simple type selector followed by atttribute selector");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "|e.c", "|e.c");
+                assert_selector_serializes_to(default_ns_rules + "|e.c", "|e.c");
+            }, "Type selector without a namespace followed by class");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "|e#i", "|e#i");
+                assert_selector_serializes_to(default_ns_rules + "|e#i", "|e#i");
+            }, "Type selector without a namespace followed by id");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "|e:hover", "|e:hover");
+                assert_selector_serializes_to(default_ns_rules + "|e:hover", "|e:hover");
+            }, "Type selector without a namespace followed by pseudo class");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "|e::before", "|e::before");
+                assert_selector_serializes_to(default_ns_rules + "|e::before", "|e::before");
+            }, "Type selector without a namespace followed by pseudo element");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "|e[attr]", "|e[attr]");
+                assert_selector_serializes_to(default_ns_rules + "|e[attr]", "|e[attr]");
+            }, "Type selector without a namespace followed by attribute selector");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "*|e.c", "e.c");
+                assert_selector_serializes_to(default_ns_rules + "*|e.c", "*|e.c");
+            }, "Type selector with any namespace followed by class");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "*|e#id", "e#id");
+                assert_selector_serializes_to(default_ns_rules + "*|e#id", "*|e#id");
+            }, "Type selector with any namespace followed by id");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "*|e:hover", "e:hover");
+                assert_selector_serializes_to(default_ns_rules + "*|e:hover", "*|e:hover");
+            }, "Type selector with any namespace followed by pseudo class");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "*|e::before", "e::before");
+                assert_selector_serializes_to(default_ns_rules + "*|e::before", "*|e::before");
+            }, "Type selector with any namespace followed by pseudo element");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "*|e[attr]", "e[attr]");
+                assert_selector_serializes_to(default_ns_rules + "*|e[attr]", "*|e[attr]");
+            }, "Type selector with any namespace followed by attribute selector");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "*.c", ".c");
+                assert_selector_serializes_to(default_ns_rules + "*.c", ".c");
+            }, "Universal selector followed by class");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "*#i", "#i");
+                assert_selector_serializes_to(default_ns_rules + "*#i", "#i");
+            }, "Universal selector followed by id");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "*:hover", ":hover");
+                assert_selector_serializes_to(default_ns_rules + "*:hover", ":hover");
+            }, "Universal selector followed by pseudo class");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "*::before", "::before");
+                assert_selector_serializes_to(default_ns_rules + "*::before", "::before");
+            }, "Universal selector followed by pseudo element");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "*[attr]", "[attr]");
+                assert_selector_serializes_to(default_ns_rules + "*[attr]", "[attr]");
+            }, "Universal selector followed by attribute selector");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "|*.c", "|*.c");
+                assert_selector_serializes_to(default_ns_rules + "|*.c", "|*.c");
+            }, "Universal selector without a namespace followed by class");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "|*#i", "|*#i");
+                assert_selector_serializes_to(default_ns_rules + "|*#i", "|*#i");
+            }, "Universal selector without a namespace followed by id");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "|*:hover", "|*:hover");
+                assert_selector_serializes_to(default_ns_rules + "|*:hover", "|*:hover");
+            }, "Universal selector without a namespace followed by pseudo class");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "|*::before", "|*::before");
+                assert_selector_serializes_to(default_ns_rules + "|*::before", "|*::before");
+            }, "Universal selector without a namespace followed by pseudo element");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "|*[attr]", "|*[attr]");
+                assert_selector_serializes_to(default_ns_rules + "|*[attr]", "|*[attr]");
+            }, "Universal selector without a namespace followed by attribute selector");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "*|*.c", ".c");
+                assert_selector_serializes_to(default_ns_rules + "*|*.c", "*|*.c");
+            }, "Universal selector in any namespace followed by class");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "*|*#id", "#id");
+                assert_selector_serializes_to(default_ns_rules + "*|*#id", "*|*#id");
+            }, "Universal selector in any namespace followed by id");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "*|*:hover", ":hover");
+                assert_selector_serializes_to(default_ns_rules + "*|*:hover", "*|*:hover");
+            }, "Universal selector in any namespace followed by pseudo class");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "*|*::before", "::before");
+                assert_selector_serializes_to(default_ns_rules + "*|*::before", "*|*::before");
+            }, "Universal selector in any namespace followed by pseudo element");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "*|*[attr]", "[attr]");
+                assert_selector_serializes_to(default_ns_rules + "*|*[attr]", "*|*[attr]");
+            }, "Universal selector in any namespace followed by attribute selector");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "ns|e.c", "ns|e.c");
+                assert_selector_serializes_to(default_ns_rules + "ns|e.c", "ns|e.c");
+            }, "Type selector with namespace followed by class");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "ns|e#i", "ns|e#i");
+                assert_selector_serializes_to(default_ns_rules + "ns|e#i", "ns|e#i");
+            }, "Type selector with namespace followed by id");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "ns|e:hover", "ns|e:hover");
+                assert_selector_serializes_to(default_ns_rules + "ns|e:hover", "ns|e:hover");
+            }, "Type selector with namespace followed by pseudo class");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "ns|e::before", "ns|e::before");
+                assert_selector_serializes_to(default_ns_rules + "ns|e::before", "ns|e::before");
+            }, "Type selector with namespace followed by pseudo element");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "ns|e[attr]", "ns|e[attr]");
+                assert_selector_serializes_to(default_ns_rules + "ns|e[attr]", "ns|e[attr]");
+            }, "Type selector with namespace followed by attribute selector");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "ns|*.c", "ns|*.c");
+                assert_selector_serializes_to(default_ns_rules + "ns|*.c", "ns|*.c");
+            }, "Universal selector with namespace followed by class");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "ns|*#i", "ns|*#i");
+                assert_selector_serializes_to(default_ns_rules + "ns|*#i", "ns|*#i");
+            }, "Universal selector with namespace followed by id");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "ns|*:hover", "ns|*:hover");
+                assert_selector_serializes_to(default_ns_rules + "ns|*:hover", "ns|*:hover");
+            }, "Universal selector with namespace followed by pseudo class");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "ns|*::before", "ns|*::before");
+                assert_selector_serializes_to(default_ns_rules + "ns|*::before", "ns|*::before");
+            }, "Universal selector with namespace followed by pseudo element");
+            test(function() {
+                assert_selector_serializes_to(ns_rule + "ns|*[attr]", "ns|*[attr]");
+                assert_selector_serializes_to(default_ns_rules + "ns|*[attr]", "ns|*[attr]");
+            }, "Universal selector with namespace followed by attribute selector");
+            test(function() {
+                assert_selector_serializes_to(default_ns_rules + "nsdefault|e", "e");
+            }, "Type selector with namespace equal to default namespace");
+            test(function() {
+                assert_selector_serializes_to(default_ns_rules + "nsdefault|*", "*");
+            }, "Universal selector with namespace equal to default namespace");
+            test(function() {
+                assert_selector_serializes_to(default_ns_rules + "nsdefault|e.c", "e.c");
+            }, "Type selector with namespace equal to default namespace followed by class");
+            test(function() {
+                assert_selector_serializes_to(default_ns_rules + "nsdefault|e#i", "e#i");
+            }, "Type selector with namespace equal to default namespace followed by id");
+            test(function() {
+                assert_selector_serializes_to(default_ns_rules + "nsdefault|e:hover", "e:hover");
+            }, "Type selector with namespace equal to default namespace followed by pseudo class");
+            test(function() {
+                assert_selector_serializes_to(default_ns_rules + "nsdefault|e::before", "e::before");
+            }, "Type selector with namespace equal to default namespace followed by pseudo element");
+            test(function() {
+                assert_selector_serializes_to(default_ns_rules + "nsdefault|e[attr]", "e[attr]");
+            }, "Type selector with namespace equal to default namespace followed by attribute selector");
+            test(function() {
+                assert_selector_serializes_to(default_ns_rules + "nsdefault|*.c", ".c");
+            }, "Universal selector with namespace equal to default namespace followed by class");
+            test(function() {
+                assert_selector_serializes_to(default_ns_rules + "nsdefault|*#i", "#i");
+            }, "Universal selector with namespace equal to default namespace followed by id");
+            test(function() {
+                assert_selector_serializes_to(default_ns_rules + "nsdefault|*:hover", ":hover");
+            }, "Universal selector with namespace equal to default namespace followed by pseudo class");
+            test(function() {
+                assert_selector_serializes_to(default_ns_rules + "nsdefault|*::before", "::before");
+            }, "Universal selector with namespace equal to default namespace followed by pseudo element");
+            test(function() {
+                assert_selector_serializes_to(default_ns_rules + "nsdefault|*[attr]", "[attr]");
+            }, "Universal selector with namespace equal to default namespace followed by attribute selector");
+        </script>
+    </body>
+</html>
+

@@ -1,0 +1,185 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CSSOM - Serialization of CSSMediaRule</title>
+  <link rel="help" href="https://drafts.csswg.org/cssom/#serialize-a-css-rule">
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<script>
+function makeSheet(t) {
+  var style = document.createElement('style');
+  document.body.appendChild(style);
+  t.add_cleanup(function() {
+    document.body.removeChild(style);
+  });
+  return style.sheet;
+}
+
+test(function(t) {
+  var sheet = makeSheet(t);
+  sheet.insertRule('@media {}', 0);
+
+  assert_equals(sheet.cssRules.length, 1);
+  assert_equals(sheet.cssRules[0].cssText, '@media  {\n}');
+}, 'empty media query list');
+
+test(function(t) {
+  var sheet = makeSheet(t);
+  sheet.insertRule('@media all {}');
+  sheet.insertRule('@media print {}');
+  sheet.insertRule('@media screen {}');
+  sheet.insertRule('@media speech {}');
+
+  assert_equals(sheet.cssRules.length, 4);
+  assert_equals(sheet.cssRules[0].cssText, '@media speech {\n}');
+  assert_equals(sheet.cssRules[1].cssText, '@media screen {\n}');
+  assert_equals(sheet.cssRules[2].cssText, '@media print {\n}');
+  assert_equals(sheet.cssRules[3].cssText, '@media all {\n}');
+}, 'type - no features');
+
+test(function(t) {
+  var sheet = makeSheet(t);
+  sheet.insertRule('@media not all {}');
+  sheet.insertRule('@media not print {}');
+  sheet.insertRule('@media not screen {}');
+  sheet.insertRule('@media not speech {}');
+
+  assert_equals(sheet.cssRules.length, 4);
+  assert_equals(sheet.cssRules[0].cssText, '@media not speech {\n}');
+  assert_equals(sheet.cssRules[1].cssText, '@media not screen {\n}');
+  assert_equals(sheet.cssRules[2].cssText, '@media not print {\n}');
+  assert_equals(sheet.cssRules[3].cssText, '@media not all {\n}');
+}, 'type - no features - negation');
+
+test(function(t) {
+  var sheet = makeSheet(t);
+  sheet.insertRule('@media aLL {}');
+  sheet.insertRule('@media pRiNt {}');
+  sheet.insertRule('@media screEN {}');
+  sheet.insertRule('@media spEech {}');
+
+  assert_equals(sheet.cssRules.length, 4);
+  assert_equals(sheet.cssRules[0].cssText, '@media speech {\n}');
+  assert_equals(sheet.cssRules[1].cssText, '@media screen {\n}');
+  assert_equals(sheet.cssRules[2].cssText, '@media print {\n}');
+  assert_equals(sheet.cssRules[3].cssText, '@media all {\n}');
+}, 'type - no features - character case normalization');
+
+test(function(t) {
+  var sheet = makeSheet(t);
+  sheet.insertRule('@media all and (color) {}');
+
+  assert_equals(sheet.cssRules.length, 1);
+  assert_equals(sheet.cssRules[0].cssText, '@media (color) {\n}');
+}, 'type - omission of all');
+
+test(function(t) {
+  var sheet = makeSheet(t);
+  sheet.insertRule('@media not all and (color) {}');
+
+  assert_equals(sheet.cssRules.length, 1);
+  assert_equals(sheet.cssRules[0].cssText, '@media not all and (color) {\n}');
+}, 'type - inclusion of negated all');
+
+test(function(t) {
+  var sheet = makeSheet(t);
+  sheet.insertRule('@media screen and (Color) {}');
+  sheet.insertRule('@media screen and (cOLor) {}');
+
+  assert_equals(sheet.cssRules.length, 2);
+  assert_equals(sheet.cssRules[0].cssText, '@media screen and (color) {\n}');
+  assert_equals(sheet.cssRules[1].cssText, '@media screen and (color) {\n}');
+}, 'features - character case normalization');
+
+/**
+ * The following test is disabled pending clarification of the intended
+ * behavior: https://github.com/w3c/csswg-drafts/issues/533
+ */
+//test(function(t) {
+//  var sheet = makeSheet(t);
+//  sheet.insertRule('@media screen and (color) and (color) {}');
+//
+//  assert_equals(sheet.cssRules.length, 1);
+//  assert_equals(
+//    sheet.cssRules[0].cssText,
+//    '@media screen and (color) {\n}'
+//  );
+//}, 'features - de-duplication');
+
+test(function(t) {
+  var sheet = makeSheet(t);
+  sheet.insertRule('@media print and (max-width: 23px) and (max-width: 45px) {}');
+
+  assert_equals(sheet.cssRules.length, 1);
+  assert_equals(
+    sheet.cssRules[0].cssText,
+    '@media print and (max-width: 23px) and (max-width: 45px) {\n}'
+  );
+}, 'features - preservation of overspecified features');
+
+test(function(t) {
+  var sheet = makeSheet(t);
+  sheet.insertRule('@media screen and (max-width: 0px) and (color) {}');
+  sheet.insertRule('@media screen and (color) and (max-width: 0px) {}');
+
+  assert_equals(sheet.cssRules.length, 2);
+  assert_equals(
+    sheet.cssRules[0].cssText,
+    '@media screen and (color) and (max-width: 0px) {\n}'
+  );
+  assert_equals(
+    sheet.cssRules[1].cssText,
+    '@media screen and (max-width: 0px) and (color) {\n}'
+  );
+}, 'features - no lexicographical sorting');
+
+test(function(t) {
+  var sheet = makeSheet(t);
+  sheet.insertRule('@media screen and (max-width: 0px), screen and (color) {}');
+
+  assert_equals(sheet.cssRules.length, 1);
+  assert_equals(
+    sheet.cssRules[0].cssText,
+    '@media screen and (max-width: 0px), screen and (color) {\n}'
+  );
+}, 'media query list');
+
+test(function(t) {
+  var sheet = makeSheet(t);
+  sheet.insertRule('@media print {}');
+
+  assert_equals(sheet.cssRules.length, 1);
+  sheet.cssRules[0].insertRule('#foo { z-index: 23; float: left; }', 0);
+  assert_equals(
+    sheet.cssRules[0].cssText,
+    [
+      '@media print {',
+      '  #foo { z-index: 23; float: left; }',
+      '}'
+    ].join('\n')
+  );
+}, 'one rule');
+
+test(function(t) {
+  var sheet = makeSheet(t);
+  sheet.insertRule('@media print {}');
+
+  assert_equals(sheet.cssRules.length, 1);
+  sheet.cssRules[0].insertRule('#foo { z-index: 23; float: left; }', 0);
+  sheet.cssRules[0].insertRule('#bar { float: none; z-index: 45; }', 0);
+  assert_equals(
+    sheet.cssRules[0].cssText,
+    [
+      '@media print {',
+      '  #bar { float: none; z-index: 45; }',
+      '  #foo { z-index: 23; float: left; }',
+      '}'
+    ].join('\n')
+  );
+}, 'many rules');
+</script>
+</body>
+</html>
