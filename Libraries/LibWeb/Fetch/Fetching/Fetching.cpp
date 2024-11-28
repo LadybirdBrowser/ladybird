@@ -528,8 +528,8 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
             if (!response->is_network_error() && (
                     // - should internalResponse to request be blocked as mixed content
                     MixedContent::should_response_to_request_be_blocked_as_mixed_content(request, internal_response) == Infrastructure::RequestOrResponseBlocking::Blocked
-                    // FIXME: - should internalResponse to request be blocked by Content Security Policy
-                    || false
+                    // - should internalResponse to request be blocked by Content Security Policy
+                    || ContentSecurityPolicy::should_response_to_request_be_blocked_by_content_security_policy(realm, internal_response, request) == ContentSecurityPolicy::Directives::Directive::Result::Blocked
                     // - should internalResponse to request be blocked due to its MIME type
                     || Infrastructure::should_response_to_request_be_blocked_due_to_its_mime_type(internal_response, request) == Infrastructure::RequestOrResponseBlocking::Blocked
                     // - should internalResponse to request be blocked due to nosniff

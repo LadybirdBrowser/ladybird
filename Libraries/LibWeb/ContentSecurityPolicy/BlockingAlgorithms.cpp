@@ -89,6 +89,7 @@ void report_content_security_policy_violations_for_request(JS::Realm& realm, GC:
     }
 }
 
+// https://w3c.github.io/webappsec-csp/#should-block-request
 Directives::Directive::Result should_request_be_blocked_by_content_security_policy(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Request> request)
 {
     // 1. Let CSP list be request’s policy container's CSP list.
@@ -115,6 +116,40 @@ Directives::Directive::Result should_request_be_blocked_by_content_security_poli
 
             // 2. Set result to "Blocked".
             result = Directives::Directive::Result::Blocked;
+        }
+    }
+
+    // 4. Return result.
+    return result;
+}
+
+// https://w3c.github.io/webappsec-csp/#should-block-response
+Directives::Directive::Result should_response_to_request_be_blocked_by_content_security_policy(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Response> response, GC::Ref<Fetch::Infrastructure::Request> request)
+{
+    // 1. Let CSP list be request’s policy container's CSP list.
+    auto csp_list = request->policy_container().get<GC::Ref<HTML::PolicyContainer>>()->csp_list;
+
+    // 2. Let result be "Allowed".
+    auto result = Directives::Directive::Result::Allowed;
+
+    // 3. For each policy of CSP list:
+    // Spec Note: This portion of the check verifies that the page can load the response. That is, that a Service
+    //            Worker hasn't substituted a file which would violate the page’s CSP.
+    for (auto policy : csp_list->policies()) {
+        // 1. For each directive of policy:
+        for (auto directive : policy->directives()) {
+            // 1. If the result of executing directive’s post-request check is "Blocked", then:
+            if (directive->post_request_check(realm, request, response, policy) == Directives::Directive::Result::Blocked) {
+                // 1. Execute § 5.5 Report a violation on the result of executing § 2.4.2 Create a violation object for
+                //    request, and policy. on request, and policy.
+                auto violation = Violation::create_a_violation_object_for_request_and_policy(realm, request, policy);
+                violation->report_a_violation(realm);
+
+                // 2. If policy’s disposition is "enforce", then set result to "Blocked".
+                if (policy->disposition() == Policy::Disposition::Enforce) {
+                    result = Directives::Directive::Result::Blocked;
+                }
+            }
         }
     }
 
