@@ -172,10 +172,10 @@ String HTMLHyperlinkElementUtils::host() const
 
     // 4. If url's port is null, return url's host, serialized.
     if (!url->port().has_value())
-        return MUST(url->serialized_host());
+        return url->serialized_host();
 
     // 5. Return url's host, serialized, followed by ":" and url's port, serialized.
-    return MUST(String::formatted("{}:{}", MUST(url->serialized_host()), url->port().value()));
+    return MUST(String::formatted("{}:{}", url->serialized_host(), url->port().value()));
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-host
@@ -211,7 +211,7 @@ String HTMLHyperlinkElementUtils::hostname() const
         return String {};
 
     // 4. Return url's host, serialized.
-    return MUST(url.serialized_host());
+    return url.serialized_host();
 }
 
 void HTMLHyperlinkElementUtils::set_hostname(StringView hostname)

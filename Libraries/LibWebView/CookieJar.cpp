@@ -230,7 +230,7 @@ Optional<String> CookieJar::canonicalize_domain(const URL::URL& url)
     // 3. Concatenate the resulting labels, separated by a %x2E (".") character.
     // FIXME: Implement the above conversions.
 
-    return MUST(MUST(url.serialized_host()).to_lowercase());
+    return MUST(url.serialized_host().to_lowercase());
 }
 
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.1.4

@@ -571,7 +571,7 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
         builder.append("</title></head><body>"sv);
         builder.append("<h1>Web page crashed"sv);
         if (m_url.host().has_value()) {
-            builder.appendff(" on {}", escape_html_entities(m_url.serialized_host().release_value_but_fixme_should_propagate_errors()));
+            builder.appendff(" on {}", escape_html_entities(m_url.serialized_host()));
         }
         builder.append("</h1>"sv);
         auto escaped_url = escape_html_entities(m_url.to_byte_string());

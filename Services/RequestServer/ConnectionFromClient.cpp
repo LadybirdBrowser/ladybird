@@ -343,7 +343,7 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString const& metho
         return;
     }
 
-    auto host = url.serialized_host().value().to_byte_string();
+    auto host = url.serialized_host().to_byte_string();
     m_resolver->dns.lookup(host, DNS::Messages::Class::IN, Array { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }.span())
         ->when_rejected([this, request_id](auto const& error) {
             dbgln("StartRequest: DNS lookup failed: {}", error);
@@ -598,7 +598,7 @@ void ConnectionFromClient::ensure_connection(URL::URL const& url, ::RequestServe
     }
 
     if (cache_level == CacheLevel::ResolveOnly) {
-        [[maybe_unused]] auto promise = m_resolver->dns.lookup(url.serialized_host().value().to_byte_string(), DNS::Messages::Class::IN, Array { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }.span());
+        [[maybe_unused]] auto promise = m_resolver->dns.lookup(url.serialized_host().to_byte_string(), DNS::Messages::Class::IN, Array { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA }.span());
         if constexpr (REQUESTSERVER_DEBUG) {
             Core::ElapsedTimer timer;
             timer.start();
