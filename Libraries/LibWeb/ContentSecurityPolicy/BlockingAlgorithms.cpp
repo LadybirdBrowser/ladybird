@@ -65,6 +65,30 @@ namespace Web::ContentSecurityPolicy {
     return violates;
 }
 
+// https://w3c.github.io/webappsec-csp/#report-for-request
+void report_content_security_policy_violations_for_request(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Request> request)
+{
+    // 1. Let CSP list be request’s policy container's CSP list.
+    auto csp_list = request->policy_container().get<GC::Ref<HTML::PolicyContainer>>()->csp_list;
+
+    // 2. For each policy of CSP list:
+    for (auto policy : csp_list->policies()) {
+        // 1. If policy’s disposition is "enforce", then skip to the next policy.
+        if (policy->disposition() == Policy::Disposition::Enforce)
+            continue;
+
+        // 2. Let violates be the result of executing § 6.7.2.1 Does request violate policy? on request and policy.
+        auto violates = does_request_violate_policy(realm, request, policy);
+
+        // 3. If violates is not "Does Not Violate", then execute § 5.5 Report a violation on the result of executing
+        //    § 2.4.2 Create a violation object for request, and policy. on request, and policy.
+        if (violates) {
+            auto violation = Violation::create_a_violation_object_for_request_and_policy(realm, request, policy);
+            violation->report_a_violation(realm);
+        }
+    }
+}
+
 Directives::Directive::Result should_request_be_blocked_by_content_security_policy(JS::Realm& realm, GC::Ref<Fetch::Infrastructure::Request> request)
 {
     // 1. Let CSP list be request’s policy container's CSP list.
