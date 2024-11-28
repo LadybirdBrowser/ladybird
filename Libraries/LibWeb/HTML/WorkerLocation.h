@@ -18,15 +18,15 @@ class WorkerLocation : public Bindings::PlatformObject {
 public:
     virtual ~WorkerLocation() override;
 
-    WebIDL::ExceptionOr<String> href() const;
+    String href() const;
     String origin() const;
-    WebIDL::ExceptionOr<String> protocol() const;
-    WebIDL::ExceptionOr<String> host() const;
-    WebIDL::ExceptionOr<String> hostname() const;
-    WebIDL::ExceptionOr<String> port() const;
+    String protocol() const;
+    String host() const;
+    String hostname() const;
+    String port() const;
     String pathname() const;
-    WebIDL::ExceptionOr<String> search() const;
-    WebIDL::ExceptionOr<String> hash() const;
+    String search() const;
+    String hash() const;
 
 private:
     explicit WorkerLocation(WorkerGlobalScope&);
