@@ -738,30 +738,31 @@ static_assert(sizeof(SockRecvResult) == 8);
 template<typename TResult, typename Tag = u32>
 struct Result {
     Result(TResult&& result)
-        : bits {}
+        : m_result(result)
         , tag(0)
     {
-        new (&bits) TResult(move(result));
     }
 
     Result(Errno&& error)
-        : bits {}
+        : m_error(error)
         , tag(1)
     {
-        new (&bits) Errno(error);
     }
 
-    Optional<TResult&> result() const
+    static_assert(IsTriviallyDestructible<TResult>);
+    static_assert(IsTriviallyDestructible<Errno>);
+
+    Optional<TResult const&> result() const
     {
         if (tag == 0)
-            return *bit_cast<TResult*>(&bits[0]);
+            return m_result;
         return {};
     }
 
-    Optional<Errno&> error() const
+    Optional<Errno const&> error() const
     {
         if (tag == 1)
-            return *bit_cast<Errno*>(&bits[0]);
+            return m_error;
         return {};
     }
 
@@ -778,23 +779,25 @@ struct Result {
     }
 
 private:
-    alignas(max(alignof(TResult), alignof(Errno))) u8 bits[max(sizeof(TResult), sizeof(Errno))];
+    union {
+        TResult m_result;
+        Errno m_error;
+    };
     LittleEndian<Tag> tag;
 };
 
 template<typename Tag>
 struct Result<void, Tag> {
     Result()
-        : error_bits {}
+        : m_error()
         , tag(0)
     {
     }
 
     Result(Errno&& error)
-        : error_bits {}
+        : m_error(error)
         , tag(1)
     {
-        new (&error_bits) Errno(error);
     }
 
     Optional<Empty> result() const
@@ -803,16 +806,16 @@ struct Result<void, Tag> {
             return { Empty {} };
         return {};
     }
-    Optional<Errno&> error() const
+    Optional<Errno const&> error() const
     {
         if (tag == 1)
-            return *bit_cast<Errno*>(&error_bits[0]);
+            return m_error;
         return {};
     }
     bool is_error() const { return tag == 1; }
 
 private:
-    alignas(Errno) u8 error_bits[sizeof(Errno)];
+    Errno m_error;
     LittleEndian<Tag> tag;
 };
 
