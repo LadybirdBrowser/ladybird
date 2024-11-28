@@ -151,7 +151,7 @@ String CounterStyleValue::to_string() const
     list.append(CustomIdentStyleValue::create(m_properties.counter_name));
     if (m_properties.function == CounterFunction::Counters)
         list.append(StringStyleValue::create(m_properties.join_string.to_string()));
-    if (m_properties.counter_style->to_keyword() != Keyword::Decimal)
+    if (m_properties.counter_style->to_string() != "decimal"sv)
         list.append(m_properties.counter_style);
 
     // 5. Let each item in list be the result of invoking serialize a CSS component value on that item.
