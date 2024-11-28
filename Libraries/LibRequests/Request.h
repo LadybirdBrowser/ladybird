@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Badge.h>
-#include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
 #include <AK/Function.h>
 #include <AK/MemoryStream.h>
@@ -15,7 +14,6 @@
 #include <AK/WeakPtr.h>
 #include <LibCore/Notifier.h>
 #include <LibHTTP/HeaderMap.h>
-#include <LibIPC/Forward.h>
 #include <LibRequests/NetworkErrorEnum.h>
 
 namespace Requests {
