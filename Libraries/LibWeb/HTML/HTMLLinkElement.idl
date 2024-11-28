@@ -3,6 +3,34 @@
 #import <HTML/HTMLElement.idl>
 #import <HTML/Scripting/Fetching.idl>
 
+// https://fetch.spec.whatwg.org/#concept-potential-destination
+enum PotentialDestination {
+    "",
+    "audio",
+    "audioworklet",
+    "document",
+    "embed",
+    "font",
+    "frame",
+    "iframe",
+    "image",
+    "json",
+    "manifest",
+    "object",
+    "paintworklet",
+    "report",
+    "script",
+    "serviceworker",
+    "sharedworker",
+    "style",
+    "track",
+    "video",
+    "webidentity", 
+    "worker",
+    "xslt",
+    "fetch"
+};
+
 // https://html.spec.whatwg.org/multipage/semantics.html#htmllinkelement
 [Exposed=Window]
 interface HTMLLinkElement : HTMLElement {
@@ -12,7 +40,7 @@ interface HTMLLinkElement : HTMLElement {
     [CEReactions, Reflect, URL] attribute USVString href;
     [CEReactions, Reflect=crossorigin, Enumerated=CORSSettingsAttribute] attribute DOMString? crossOrigin;
     [CEReactions, Reflect] attribute DOMString rel;
-    [CEReactions] attribute DOMString as;
+    [CEReactions, Reflect, Enumerated=PotentialDestination] attribute DOMString as;
     [SameObject, PutForwards=value] readonly attribute DOMTokenList relList;
     [CEReactions, Reflect] attribute DOMString media;
     [CEReactions, Reflect] attribute DOMString integrity;

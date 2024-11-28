@@ -33,7 +33,6 @@ public:
     String rel() const { return get_attribute_value(HTML::AttributeNames::rel); }
     String type() const { return get_attribute_value(HTML::AttributeNames::type); }
     String href() const { return get_attribute_value(HTML::AttributeNames::href); }
-    String as() const;
     WebIDL::ExceptionOr<void> set_as(String const&);
 
     GC::Ref<DOM::DOMTokenList> rel_list();
