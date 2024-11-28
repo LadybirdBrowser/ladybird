@@ -299,16 +299,16 @@ unsigned HTMLTextAreaElement::cols() const
     return 20;
 }
 
-WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_cols(unsigned cols)
+WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_cols(WebIDL::UnsignedLong cols)
 {
-    if (cols > 2147483647)
+    if (cols == 0 || cols > 2147483647)
         cols = 20;
 
     return set_attribute(HTML::AttributeNames::cols, String::number(cols));
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-rows
-unsigned HTMLTextAreaElement::rows() const
+WebIDL::UnsignedLong HTMLTextAreaElement::rows() const
 {
     // The cols and rows attributes are limited to only positive numbers with fallback. The rows IDL attribute's default value is 2.
     if (auto rows_string = get_attribute(HTML::AttributeNames::rows); rows_string.has_value()) {
@@ -318,9 +318,9 @@ unsigned HTMLTextAreaElement::rows() const
     return 2;
 }
 
-WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_rows(unsigned rows)
+WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_rows(WebIDL::UnsignedLong rows)
 {
-    if (rows > 2147483647)
+    if (rows == 0 || rows > 2147483647)
         rows = 2;
 
     return set_attribute(HTML::AttributeNames::rows, String::number(rows));

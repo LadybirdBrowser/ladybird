@@ -1,3 +1,7 @@
+img.getAttribute("hspace") after img.setAttribute("hspace", "0"): 0
+img.hspace after img.setAttribute("hspace", "0"): 0
+img.getAttribute("hspace") after img.hspace = 0: 0
+img.hspace after img.hspace = 0: 0
 img.getAttribute("hspace") after img.setAttribute("hspace", "1"): 1
 img.hspace after img.setAttribute("hspace", "1"): 1
 img.getAttribute("hspace") after img.hspace = 1: 1
@@ -14,6 +18,9 @@ img.getAttribute("hspace") after img.setAttribute("hspace", "4294967295"): 42949
 img.hspace after img.setAttribute("hspace", "4294967295"): 0
 img.getAttribute("hspace") after img.hspace = 4294967295: 0
 img.hspace after img.hspace = 4294967295: 0
+input.getAttribute("size") after input.setAttribute("size", "0"): 0
+input.size after input.setAttribute("size", "0"): 20
+input.size = 0 threw exception of type IndexSizeError
 input.getAttribute("size") after input.setAttribute("size", "1"): 1
 input.size after input.setAttribute("size", "1"): 1
 input.getAttribute("size") after input.size = 1: 1
@@ -30,6 +37,10 @@ input.getAttribute("size") after input.setAttribute("size", "4294967295"): 42949
 input.size after input.setAttribute("size", "4294967295"): 20
 input.getAttribute("size") after input.size = 4294967295: 20
 input.size after input.size = 4294967295: 20
+marquee.getAttribute("scrollamount") after marquee.setAttribute("scrollAmount", "0"): 0
+marquee.scrollAmount after marquee.setAttribute("scrollamount", "0"): 0
+marquee.getAttribute("scrollamount") after marquee.scrollAmount = 0: 0
+marquee.scrollAmount after marquee.scrollAmount = 0: 0
 marquee.getAttribute("scrollamount") after marquee.setAttribute("scrollAmount", "1"): 1
 marquee.scrollAmount after marquee.setAttribute("scrollamount", "1"): 1
 marquee.getAttribute("scrollamount") after marquee.scrollAmount = 1: 1
@@ -46,6 +57,10 @@ marquee.getAttribute("scrollamount") after marquee.setAttribute("scrollAmount", 
 marquee.scrollAmount after marquee.setAttribute("scrollamount", "4294967295"): 6
 marquee.getAttribute("scrollamount") after marquee.scrollAmount = 4294967295: 6
 marquee.scrollAmount after marquee.scrollAmount = 4294967295: 6
+marquee.getAttribute("scrolldelay") after marquee.setAttribute("scrollDelay", "0"): 0
+marquee.scrollDelay after marquee.setAttribute("scrolldelay", "0"): 0
+marquee.getAttribute("scrolldelay") after marquee.scrollDelay = 0: 0
+marquee.scrollDelay after marquee.scrollDelay = 0: 0
 marquee.getAttribute("scrolldelay") after marquee.setAttribute("scrollDelay", "1"): 1
 marquee.scrollDelay after marquee.setAttribute("scrolldelay", "1"): 1
 marquee.getAttribute("scrolldelay") after marquee.scrollDelay = 1: 1
@@ -62,6 +77,10 @@ marquee.getAttribute("scrolldelay") after marquee.setAttribute("scrollDelay", "4
 marquee.scrollDelay after marquee.setAttribute("scrolldelay", "4294967295"): 85
 marquee.getAttribute("scrolldelay") after marquee.scrollDelay = 4294967295: 85
 marquee.scrollDelay after marquee.scrollDelay = 4294967295: 85
+textarea.getAttribute("rows") after textarea.setAttribute("rows", "0"): 0
+textarea.rows after textarea.setAttribute("rows", "0"): 2
+textarea.getAttribute("rows") after textarea.rows = 0: 2
+textarea.rows after textarea.rows = 0: 2
 textarea.getAttribute("rows") after textarea.setAttribute("rows", "1"): 1
 textarea.rows after textarea.setAttribute("rows", "1"): 1
 textarea.getAttribute("rows") after textarea.rows = 1: 1
@@ -78,6 +97,10 @@ textarea.getAttribute("rows") after textarea.setAttribute("rows", "4294967295"):
 textarea.rows after textarea.setAttribute("rows", "4294967295"): 2
 textarea.getAttribute("rows") after textarea.rows = 4294967295: 2
 textarea.rows after textarea.rows = 4294967295: 2
+textarea.getAttribute("cols") after textarea.setAttribute("cols", "0"): 0
+textarea.cols after textarea.setAttribute("cols", "0"): 20
+textarea.getAttribute("cols") after textarea.cols = 0: 20
+textarea.cols after textarea.cols = 0: 20
 textarea.getAttribute("cols") after textarea.setAttribute("cols", "1"): 1
 textarea.cols after textarea.setAttribute("cols", "1"): 1
 textarea.getAttribute("cols") after textarea.cols = 1: 1
