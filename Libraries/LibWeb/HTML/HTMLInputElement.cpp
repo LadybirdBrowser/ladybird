@@ -1861,19 +1861,23 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_min_length(WebIDL::Long value)
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#the-size-attribute
-unsigned HTMLInputElement::size() const
+WebIDL::UnsignedLong HTMLInputElement::size() const
 {
     // The size attribute, if specified, must have a value that is a valid non-negative integer greater than zero.
     // The size IDL attribute is limited to only positive numbers and has a default value of 20.
     if (auto size_string = get_attribute(HTML::AttributeNames::size); size_string.has_value()) {
-        if (auto size = parse_non_negative_integer(*size_string); size.has_value() && size.value() != 0)
+        if (auto size = parse_non_negative_integer(*size_string); size.has_value() && *size != 0 && *size <= 2147483647)
             return *size;
     }
     return 20;
 }
 
-WebIDL::ExceptionOr<void> HTMLInputElement::set_size(unsigned value)
+WebIDL::ExceptionOr<void> HTMLInputElement::set_size(WebIDL::UnsignedLong value)
 {
+    if (value == 0)
+        return WebIDL::IndexSizeError::create(realm(), "Size must be greater than zero"_string);
+    if (value > 2147483647)
+        value = 20;
     return set_attribute(HTML::AttributeNames::size, String::number(value));
 }
 
