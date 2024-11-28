@@ -395,11 +395,19 @@ static void generate_to_string(SourceGenerator& scoped_generator, ParameterType 
 )~~~");
         }
 
-        scoped_generator.append(R"~~~(
+        if (parameter.type->is_nullable()) {
+            scoped_generator.append(R"~~~(
+    if (!@js_name@@js_suffix@.is_undefined()) {
+        if (!@js_name@@js_suffix@.is_null())
+            @cpp_name@ = TRY(WebIDL::@to_string@(vm, @js_name@@js_suffix@));
+    })~~~");
+        } else {
+            scoped_generator.append(R"~~~(
     if (!@js_name@@js_suffix@.is_undefined()) {
         if (!@legacy_null_to_empty_string@ || !@js_name@@js_suffix@.is_null())
             @cpp_name@ = TRY(WebIDL::@to_string@(vm, @js_name@@js_suffix@));
     })~~~");
+        }
         if (!may_be_null) {
             scoped_generator.append(R"~~~( else {
         @cpp_name@ = MUST(@string_type@::from_utf8(@parameter.optional_default_value@sv));
