@@ -11,11 +11,16 @@
                 println(`${elementName}.${propertyName} after ${elementName}.setAttribute("${attributeName}", "${value}"): ${propertyGetter(element)}`);
 
                 element = document.createElement(elementName);
-                propertySetter(element, value);
-                println(`${elementName}.getAttribute("${attributeName}") after ${elementName}.${propertyName} = ${value}: ${element.getAttribute(attributeName)}`);
-                println(`${elementName}.${propertyName} after ${elementName}.${propertyName} = ${value}: ${propertyGetter(element)}`);
+                try {
+                    propertySetter(element, value);
+                    println(`${elementName}.getAttribute("${attributeName}") after ${elementName}.${propertyName} = ${value}: ${element.getAttribute(attributeName)}`);
+                    println(`${elementName}.${propertyName} after ${elementName}.${propertyName} = ${value}: ${propertyGetter(element)}`);
+                } catch (e) {
+                    println(`${elementName}.${propertyName} = ${value} threw exception of type ${e.name}`);    
+                }
             }
 
+            setValue(0);
             setValue(1);
             setValue(2147483647);
             setValue(2147483648);

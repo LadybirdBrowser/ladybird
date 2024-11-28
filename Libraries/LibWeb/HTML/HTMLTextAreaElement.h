@@ -102,11 +102,11 @@ public:
     WebIDL::Long min_length() const;
     WebIDL::ExceptionOr<void> set_min_length(WebIDL::Long);
 
-    unsigned cols() const;
+    WebIDL::UnsignedLong cols() const;
     WebIDL::ExceptionOr<void> set_cols(unsigned);
 
-    unsigned rows() const;
-    WebIDL::ExceptionOr<void> set_rows(unsigned);
+    WebIDL::UnsignedLong rows() const;
+    WebIDL::ExceptionOr<void> set_rows(WebIDL::UnsignedLong);
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectionstart
     WebIDL::UnsignedLong selection_start_binding() const;
