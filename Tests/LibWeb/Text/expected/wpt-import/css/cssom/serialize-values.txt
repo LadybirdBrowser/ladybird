@@ -6,8 +6,8 @@ Rerun
 
 Found 687 tests
 
-462 Pass
-225 Fail
+463 Pass
+224 Fail
 Details
 Result	Test Name	MessagePass	background-attachment: scroll	
 Pass	background-attachment: fixed	
@@ -315,7 +315,7 @@ Pass	clear: left
 Pass	clear: right	
 Pass	clear: both	
 Pass	clear: inherit	
-Fail	clip: rect(1em, auto, 0.5px, 2000em)	
+Pass	clip: rect(1em, auto, 0.5px, 2000em)	
 Pass	clip: auto	
 Pass	clip: inherit	
 Pass	color: black	
