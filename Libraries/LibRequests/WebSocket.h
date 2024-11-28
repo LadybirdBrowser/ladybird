@@ -12,8 +12,6 @@
 #include <AK/Function.h>
 #include <AK/RefCounted.h>
 #include <AK/WeakPtr.h>
-#include <LibCore/Notifier.h>
-#include <LibIPC/Forward.h>
 
 namespace Requests {
 
