@@ -31,14 +31,17 @@ String serialize_a_string(StringView string);
 String serialize_a_url(StringView url);
 String serialize_a_srgb_value(Color color);
 
+// https://www.w3.org/TR/cssom/#serialize-a-comma-separated-list
 template<typename T, typename SerializeItem>
 void serialize_a_comma_separated_list(StringBuilder& builder, Vector<T> const& items, SerializeItem serialize_item)
 {
+    // To serialize a comma-separated list concatenate all items of the list in list order
+    // while separating them by ", ", i.e., COMMA (U+002C) followed by a single SPACE (U+0020).
     for (size_t i = 0; i < items.size(); i++) {
         auto& item = items.at(i);
         serialize_item(builder, item);
         if ((i + 1) < items.size()) {
-            builder.append(",\n"sv);
+            builder.append(", "sv);
         }
     }
 }
