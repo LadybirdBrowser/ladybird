@@ -130,6 +130,7 @@ struct SerializedPolicy;
 
 namespace Web::ContentSecurityPolicy::Directives {
 
+class ConnectSourceDirective;
 class Directive;
 struct SerializedDirective;
 

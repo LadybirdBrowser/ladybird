@@ -13,6 +13,7 @@
 #include <LibWeb/ContentSecurityPolicy/Directives/SourceExpression.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
 #include <LibWeb/Infra/Strings.h>
 
@@ -577,6 +578,30 @@ MatchResult does_url_match_source_list_in_origin_with_redirect_count(URL::URL co
 
     // 5. Return "Does Not Match".
     return MatchResult::DoesNotMatch;
+}
+
+// https://w3c.github.io/webappsec-csp/#match-request-to-source-list
+MatchResult does_request_match_source_list(GC::Ref<Fetch::Infrastructure::Request const> request, Vector<String> const& source_list, GC::Ref<Policy const> policy)
+{
+    // Given a request request, a source list source list, and a policy policy, this algorithm returns the result of
+    // executing § 6.7.2.7 Does url match source list in origin with redirect count? on request’s current url, source
+    // list, policy’s self-origin, and request’s redirect count.
+    // Spec Note: This is generally used in directives' pre-request check algorithms to verify that a given request is
+    //            reasonable.
+    return does_url_match_source_list_in_origin_with_redirect_count(request->current_url(), source_list, policy->self_origin(), request->redirect_count());
+}
+
+// https://w3c.github.io/webappsec-csp/#match-response-to-source-list
+MatchResult does_response_match_source_list(GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ref<Fetch::Infrastructure::Request const> request, Vector<String> const& source_list, GC::Ref<Policy const> policy)
+{
+    // Given a request request, and a source list source list, and a policy policy, this algorithm returns the result
+    // of executing § 6.7.2.7 Does url match source list in origin with redirect count? on response’s url, source list,
+    // policy’s self-origin, and request’s redirect count.
+    // Spec Note: This is generally used in directives' post-request check algorithms to verify that a given response
+    //            is reasonable.
+    // FIXME: File spec issue that it does specify to pass in response here.
+    VERIFY(response->url().has_value());
+    return does_url_match_source_list_in_origin_with_redirect_count(response->url().value(), source_list, policy->self_origin(), request->redirect_count());
 }
 
 }
