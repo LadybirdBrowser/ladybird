@@ -120,4 +120,6 @@ if (WIN32)
     find_package(pthread REQUIRED)
     target_include_directories(LibCore PRIVATE ${PTHREAD_INCLUDE_DIR})
     target_link_libraries(LibCore PRIVATE ${PTHREAD_LIBRARY})
+
+    target_link_libraries(LibCore PRIVATE ws2_32.lib)
 endif()
