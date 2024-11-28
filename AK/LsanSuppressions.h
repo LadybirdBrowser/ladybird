@@ -8,9 +8,10 @@
 
 #include <AK/Platform.h>
 
-#ifdef HAS_ADDRESS_SANITIZER
+#if defined(HAS_ADDRESS_SANITIZER)
+#    include <sanitizer/lsan_interface.h>
+
 extern "C" {
-char const* __lsan_default_suppressions();
 char const* __lsan_default_suppressions()
 {
     // Both Skia and Chromium suppress false positive FontConfig leaks
@@ -20,3 +21,14 @@ char const* __lsan_default_suppressions()
 }
 }
 #endif
+
+namespace AK {
+
+inline void perform_leak_sanitizer_checks()
+{
+#if defined(HAS_ADDRESS_SANITIZER)
+    __lsan_do_leak_check();
+#endif
+}
+
+}

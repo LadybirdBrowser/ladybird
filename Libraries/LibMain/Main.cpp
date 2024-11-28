@@ -5,6 +5,8 @@
  */
 
 #include <AK/Format.h>
+#include <AK/LsanSuppressions.h>
+#include <AK/ScopeGuard.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
 #include <LibMain/Main.h>
@@ -41,10 +43,14 @@ int main(int argc, char** argv)
         .argv = argv,
         .strings = arguments.span(),
     });
+
+    ScopeGuard guard { []() { AK::perform_leak_sanitizer_checks(); } };
+
     if (result.is_error()) {
         auto error = result.release_error();
         warnln("\033[31;1mRuntime error\033[0m: {}", error);
         return Main::return_code_for_errors();
     }
+
     return result.value();
 }
