@@ -372,7 +372,7 @@ static void generate_to_string(SourceGenerator& scoped_generator, ParameterType 
         if (!parameter.type->is_nullable()) {
             scoped_generator.append(R"~~~(
     @string_type@ @cpp_name@;
-    if (!@legacy_null_to_empty_string@ || !@js_name@@js_suffix@.is_null()) {
+    if (@legacy_null_to_empty_string@ || !@js_name@@js_suffix@.is_null()) {
         @cpp_name@ = TRY(WebIDL::@to_string@(vm, @js_name@@js_suffix@));
     }
 )~~~");
@@ -397,7 +397,7 @@ static void generate_to_string(SourceGenerator& scoped_generator, ParameterType 
 
         scoped_generator.append(R"~~~(
     if (!@js_name@@js_suffix@.is_undefined()) {
-        if (!@legacy_null_to_empty_string@ || !@js_name@@js_suffix@.is_null())
+        if (@legacy_null_to_empty_string@ || !@js_name@@js_suffix@.is_null())
             @cpp_name@ = TRY(WebIDL::@to_string@(vm, @js_name@@js_suffix@));
     })~~~");
         if (!may_be_null) {
