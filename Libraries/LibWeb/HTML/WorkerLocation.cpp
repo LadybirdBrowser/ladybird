@@ -51,10 +51,10 @@ WebIDL::ExceptionOr<String> WorkerLocation::host() const
 
     // 3. If url's port is null, return url's host, serialized.
     if (!url.port().has_value())
-        return TRY_OR_THROW_OOM(vm, url.serialized_host());
+        return url.serialized_host();
 
     // 4. Return url's host, serialized, followed by ":" and url's port, serialized.
-    return TRY_OR_THROW_OOM(vm, String::formatted("{}:{}", TRY_OR_THROW_OOM(vm, url.serialized_host()), url.port().value()));
+    return TRY_OR_THROW_OOM(vm, String::formatted("{}:{}", url.serialized_host(), url.port().value()));
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-workerlocation-hostname

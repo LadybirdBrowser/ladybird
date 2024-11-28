@@ -84,7 +84,7 @@ public:
     String const& username() const { return m_data->username; }
     String const& password() const { return m_data->password; }
     Optional<Host> const& host() const { return m_data->host; }
-    ErrorOr<String> serialized_host() const;
+    String serialized_host() const;
     ByteString basename() const;
     Optional<String> const& query() const { return m_data->query; }
     Optional<String> const& fragment() const { return m_data->fragment; }

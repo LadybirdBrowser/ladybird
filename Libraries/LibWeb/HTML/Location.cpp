@@ -208,10 +208,10 @@ WebIDL::ExceptionOr<String> Location::host() const
 
     // 4. If url's port is null, return url's host, serialized.
     if (!url.port().has_value())
-        return TRY_OR_THROW_OOM(vm, url.serialized_host());
+        return url.serialized_host();
 
     // 5. Return url's host, serialized, followed by ":" and url's port, serialized.
-    return TRY_OR_THROW_OOM(vm, String::formatted("{}:{}", TRY_OR_THROW_OOM(vm, url.serialized_host()), *url.port()));
+    return TRY_OR_THROW_OOM(vm, String::formatted("{}:{}", url.serialized_host(), *url.port()));
 }
 
 WebIDL::ExceptionOr<void> Location::set_host(String const&)
@@ -223,8 +223,6 @@ WebIDL::ExceptionOr<void> Location::set_host(String const&)
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-hostname
 WebIDL::ExceptionOr<String> Location::hostname() const
 {
-    auto& vm = this->vm();
-
     // 1. If this's relevant Document is non-null and its origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
     auto const relevant_document = this->relevant_document();
     if (relevant_document && !relevant_document->origin().is_same_origin_domain(entry_settings_object().origin()))
@@ -237,7 +235,7 @@ WebIDL::ExceptionOr<String> Location::hostname() const
         return String {};
 
     // 3. Return this's url's host, serialized.
-    return TRY_OR_THROW_OOM(vm, url.serialized_host());
+    return url.serialized_host();
 }
 
 WebIDL::ExceptionOr<void> Location::set_hostname(String const&)

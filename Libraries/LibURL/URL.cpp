@@ -86,7 +86,7 @@ void URL::set_host(Host host)
 }
 
 // https://url.spec.whatwg.org/#concept-host-serializer
-ErrorOr<String> URL::serialized_host() const
+String URL::serialized_host() const
 {
     return m_data->host->serialize();
 }
@@ -273,7 +273,7 @@ ByteString URL::serialize(ExcludeFragment exclude_fragment) const
         }
 
         // 3. Append url’s host, serialized, to output.
-        output.append(serialized_host().release_value_but_fixme_should_propagate_errors());
+        output.append(serialized_host());
 
         // 4. If url’s port is non-null, append U+003A (:) followed by url’s port, serialized, to output.
         if (m_data->port.has_value())
@@ -324,7 +324,7 @@ ByteString URL::serialize_for_display() const
 
     if (m_data->host.has_value()) {
         builder.append("//"sv);
-        builder.append(serialized_host().release_value_but_fixme_should_propagate_errors());
+        builder.append(serialized_host());
         if (m_data->port.has_value())
             builder.appendff(":{}", *m_data->port);
     }
