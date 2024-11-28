@@ -14,6 +14,22 @@ img.getAttribute("hspace") after img.setAttribute("hspace", "4294967295"): 42949
 img.hspace after img.setAttribute("hspace", "4294967295"): 0
 img.getAttribute("hspace") after img.hspace = 4294967295: 0
 img.hspace after img.hspace = 4294967295: 0
+input.getAttribute("size") after input.setAttribute("size", "1"): 1
+input.size after input.setAttribute("size", "1"): 1
+input.getAttribute("size") after input.size = 1: 1
+input.size after input.size = 1: 1
+input.getAttribute("size") after input.setAttribute("size", "2147483647"): 2147483647
+input.size after input.setAttribute("size", "2147483647"): 2147483647
+input.getAttribute("size") after input.size = 2147483647: 2147483647
+input.size after input.size = 2147483647: 2147483647
+input.getAttribute("size") after input.setAttribute("size", "2147483648"): 2147483648
+input.size after input.setAttribute("size", "2147483648"): 20
+input.getAttribute("size") after input.size = 2147483648: 20
+input.size after input.size = 2147483648: 20
+input.getAttribute("size") after input.setAttribute("size", "4294967295"): 4294967295
+input.size after input.setAttribute("size", "4294967295"): 20
+input.getAttribute("size") after input.size = 4294967295: 20
+input.size after input.size = 4294967295: 20
 marquee.getAttribute("scrollamount") after marquee.setAttribute("scrollAmount", "1"): 1
 marquee.scrollAmount after marquee.setAttribute("scrollamount", "1"): 1
 marquee.getAttribute("scrollamount") after marquee.scrollAmount = 1: 1
