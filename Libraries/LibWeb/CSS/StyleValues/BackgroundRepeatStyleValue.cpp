@@ -22,6 +22,14 @@ BackgroundRepeatStyleValue::~BackgroundRepeatStyleValue() = default;
 
 String BackgroundRepeatStyleValue::to_string() const
 {
+    if (m_properties.repeat_x == m_properties.repeat_y)
+        return MUST(String::from_utf8(CSS::to_string(m_properties.repeat_x)));
+
+    if (m_properties.repeat_x == Repeat::Repeat && m_properties.repeat_y == Repeat::NoRepeat)
+        return "repeat-x"_string;
+    if (m_properties.repeat_x == Repeat::NoRepeat && m_properties.repeat_y == Repeat::Repeat)
+        return "repeat-y"_string;
+
     return MUST(String::formatted("{} {}", CSS::to_string(m_properties.repeat_x), CSS::to_string(m_properties.repeat_y)));
 }
 

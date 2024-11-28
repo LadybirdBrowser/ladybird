@@ -4,7 +4,7 @@ At time 400:
   animation-duration: auto
   aspect-ratio: 1.54415 / 1
   background-color: rgb(78, 88, 99)
-  background-repeat: repeat no-repeat
+  background-repeat: repeat-x
   bottom: auto
   box-shadow: rgb(163, 82, 142) 40px 80px 126px 0px inset, rgba(0, 0, 72, 0.4) 20px 4px 8px 12px
   color: rgb(163, 82, 142)
@@ -16,7 +16,7 @@ At time 750:
   animation-duration: auto
   aspect-ratio: 1.36506 / 1
   background-color: rgb(147, 157, 168)
-  background-repeat: space space
+  background-repeat: space
   bottom: 100%
   box-shadow: rgb(81, 71, 210) 75px 150px 227.5px 0px, rgba(0, 0, 174, 0.749) 37.5px 7.5px 15px 22.5px
   color: rgb(81, 71, 210)
