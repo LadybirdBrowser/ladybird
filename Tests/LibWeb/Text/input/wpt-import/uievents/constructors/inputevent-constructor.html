@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<title>InputEvent Constructor Tests</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+test(function() {
+  var e = new InputEvent('type');
+  assert_equals(e.data, null, '.data');
+  assert_false(e.isComposing, '.isComposing');
+}, 'InputEvent constructor without InputEventInit.');
+
+test(function() {
+  var e = new InputEvent('type', { data: null, isComposing: true });
+  assert_equals(e.data, null, '.data');
+  assert_true(e.isComposing, '.isComposing');
+}, 'InputEvent construtor with InputEventInit where data is null');
+
+test(function() {
+  assert_equals(new InputEvent('type', { data: ''}).data, '', '.data');
+}, 'InputEvent construtor with InputEventInit where data is empty string');
+
+test(function() {
+  assert_equals(new InputEvent('type', { data: 'data' }).data, 'data', '.data');
+}, 'InputEvent construtor with InputEventInit where data is non empty string');
+</script>
