@@ -1,0 +1,14 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 4 tests
+
+4 Pass
+Details
+Result	Test Name	MessagePass	Serialization of <generic-family>	
+Pass	Serialization of quoted "<generic-family>"	
+Pass	Serialization of prefixed -webkit-<generic-family>	
+Pass	Serialization of NonGenericFontFamilyName,-webkit-body,-webkit-standard,-webkit-pictograph,BlinkMacSystemFont	

@@ -1,0 +1,32 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>cssom - Serialization of CSS declaration with "important" flag</title>
+<link rel="help" href="https://drafts.csswg.org/cssom/#serialize-a-css-declaration">
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+<div id="noWhitespace" style="display: inline !important;"></div>
+<div id="whitespace" style="background-color: blue !important; color: red ! important;"></div>
+<div id="dinamicallyStyle"></div>
+<script>
+    test(function () {
+        var css_style = document.querySelector('#noWhitespace').style.cssText;
+        assert_equals(css_style, "display: inline !important;");
+    }, "Inline style declaration without whitespace between '!' and 'important'.");
+
+    test(function () {
+        var css_style = document.querySelector('#whitespace').style.cssText;
+        assert_equals(css_style, "background-color: blue !important; color: red !important;");
+    }, "Inline style declaration with whitespace between '!' and 'important'.");
+
+    test(function () {
+        document.querySelector('#dinamicallyStyle').style.cssText = "color: black !important;";
+        var css_style = document.querySelector('#dinamicallyStyle').style.cssText;
+        assert_equals(css_style, "color: black !important;");
+    }, "Style set dynamically via cssText without whitespace between '!' and 'important'.");
+
+    test(function () {
+        document.querySelector('#dinamicallyStyle').style.cssText = "color: black ! important;";
+        var css_style = document.querySelector('#dinamicallyStyle').style.cssText;
+        assert_equals(css_style, "color: black !important;");
+    }, "Style set dynamically via cssText with whitespace between '!' and 'important'.");
+</script>

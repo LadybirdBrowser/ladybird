@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>CSSOM - Flex serialization</title>
+    <link rel="help" href="https://drafts.csswg.org/cssom/#serialize-a-css-value">
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <style>
+        div { flex: initial; }
+        div { flex: 0; }
+        div { flex: initial; flex-basis: initial; flex-shrink: initial; }
+        div { flex: initial; flex-shrink: 0; }
+        div { flex: initial; flex-basis: 0; flex-shrink: 2;}
+    </style>
+
+    <script>
+    var styleSheet = document.styleSheets[0]
+    test(function () {
+        assert_equals(styleSheet.cssRules[0].style.cssText, "flex: initial;")
+    }, "Single value flex with CSS-wide keyword should serialize correctly.")
+    test(function () {
+        assert_in_array(styleSheet.cssRules[1].style.cssText, ["flex: 0px;", "flex: 0 1 0px;"])
+    }, "Single value flex with non-CSS-wide value should serialize correctly.")
+    test(function () {
+        assert_equals(styleSheet.cssRules[2].style.cssText, "flex: initial;")
+    }, "Multiple values flex with CSS-wide keyword should serialize correctly.")
+    test(function () {
+        assert_equals(styleSheet.cssRules[3].style.cssText, "flex-grow: initial; flex-basis: initial; flex-shrink: 0;")
+    }, "Multiple values flex with CSS-wide keywords and non-CSS-wide value should serialize correctly.")
+    test(function () {
+        assert_equals(styleSheet.cssRules[4].style.cssText, "flex-grow: initial; flex-basis: 0px; flex-shrink: 2;")
+    }, "Multiple values flex with CSS-wide and two non-CSS-wide-keyword values should serialize correctly.")
+    </script>
+</head>
+</html>

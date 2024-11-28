@@ -1,0 +1,34 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 23 tests
+
+19 Pass
+4 Fail
+Details
+Result	Test Name	MessagePass	:nth-child serialization produces canonical form	
+Pass	single universal selector shows '*' when serialized.	
+Pass	single type (simple) selector in the sequence of simple selectors that is not a universal selector	
+Pass	single class (simple) selector in the sequence of simple selectors that is not a universal selector	
+Pass	single id (simple) selector in the sequence of simple selectors that is not a universal selector	
+Pass	single pseudo (simple) selector which does not accept arguments in the sequence of simple selectors that is not a universal selector	
+Fail	single pseudo (simple) selector "lang" which accepts arguments in the sequence of simple selectors that is not a universal selector	
+Pass	single pseudo (simple) selector "nth-child" which accepts arguments in the sequence of simple selectors that is not a universal selector	
+Pass	single pseudo (simple) selector "nth-last-child" which accepts arguments in the sequence of simple selectors that is not a universal selector	
+Pass	single pseudo (simple) selector "nth-of-child" which accepts arguments in the sequence of simple selectors that is not a universal selector	
+Pass	single pseudo (simple) selector ":nth-last-of-type" which accepts arguments in the sequence of simple selectors that is not a universal selector	
+Pass	single pseudo (simple) selector ":not" which accepts arguments in the sequence of simple selectors that is not a universal selector	
+Pass	escaped character in attribute name	
+Fail	escaped character as code point in attribute name	
+Pass	escaped character (@) in attribute name	
+Fail	escaped character in attribute name with any namespace	
+Pass	escaped character in attribute prefix	
+Pass	escaped character in both attribute prefix and name	
+Pass	escaped character (\) in element name	
+Pass	escaped character (\) in element name with any namespace without default	
+Fail	escaped character (\) in element name with any namespace with default	
+Pass	escaped character (\) in element name with no namespace	
+Pass	escaped character (*) in element prefix	

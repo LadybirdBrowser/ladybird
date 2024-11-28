@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+<meta charset="utf-8">
+<title>Serialization of font shorthand</title>
+<link rel="help" href="https://drafts.csswg.org/cssom-1/#serialize-a-css-declaration-block">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+<div id="target" style="font: 10px/1 Ahem;"></div>
+<script>
+    test(function() {
+        var target = document.getElementById('target');
+        assert_equals(target.style.cssText, 'font: 10px / 1 Ahem;');
+        assert_equals(target.style.font, '10px / 1 Ahem');
+    }, "The font shorthand should be serialized just like any other shorthand.");
+</script>
+</html>

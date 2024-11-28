@@ -1,0 +1,44 @@
+<!DOCTYPE HTML>
+<html>
+<meta charset="utf-8">
+<title>Serialization of font-family</title>
+<link rel="help" href="https://drafts.csswg.org/cssom/#serialize-a-css-declaration-block">
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#font-family-prop">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/css-fonts/support/font-family-keywords.js"></script>
+<div id="target"></div>
+<script>
+  function SetFontFamilyAndSerialize(fontFamilyValue) {
+    var target = document.getElementById('target');
+    target.setAttribute("style", `font-family: ${fontFamilyValue}`);
+    return window.getComputedStyle(target).getPropertyValue('font-family');
+  }
+  test(function() {
+    kGenericFontFamilyKeywords.forEach(keyword => {
+      assert_equals(SetFontFamilyAndSerialize(keyword), keyword);
+    });
+  }, "Serialization of <generic-family>");
+
+  test(function() {
+    kGenericFontFamilyKeywords.forEach(keyword => {
+      var quoted_keyword = `"${keyword}"`;
+      assert_equals(SetFontFamilyAndSerialize(quoted_keyword), quoted_keyword);
+    });
+  }, "Serialization of quoted \"<generic-family>\"");
+
+  test(function() {
+    kGenericFontFamilyKeywords.forEach(keyword => {
+      var prefixed_keyword = `-webkit-${keyword}`;
+      assert_equals(SetFontFamilyAndSerialize(prefixed_keyword), prefixed_keyword);
+    });
+  }, "Serialization of prefixed -webkit-<generic-family>");
+
+  test(function() {
+    kNonGenericFontFamilyKeywords.forEach(keyword => {
+      assert_equals(SetFontFamilyAndSerialize(keyword), keyword);
+    });
+  }, `Serialization of ${kNonGenericFontFamilyKeywords}`);
+
+</script>
+</html>

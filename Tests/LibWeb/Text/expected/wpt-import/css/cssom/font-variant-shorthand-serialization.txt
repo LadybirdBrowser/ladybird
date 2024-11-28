@@ -1,0 +1,18 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 7 tests
+
+4 Pass
+3 Fail
+Details
+Result	Test Name	MessagePass	font-variant: normal serialization	
+Fail	font-variant: none serialization	
+Pass	font-variant-ligatures: none serialization with non-default value for another longhand	
+Pass	font-variant: normal with non-default longhands	
+Fail	CSS-wide keyword in one longhand	
+Pass	CSS-wide keyword in shorthand	
+Fail	font: menu serialization	

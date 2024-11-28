@@ -1,0 +1,15 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 4 tests
+
+2 Pass
+2 Fail
+Details
+Result	Test Name	MessagePass	Longhand with variable preserves original serialization: with whitespace	
+Fail	Shorthand with variable preserves original serialization: with whitespace	
+Pass	Longhand with variable preserves original serialization but trims whitespace: without whitespace	
+Fail	Shorthand with variable preserves original serialization but trims whitespace: without whitespace	
