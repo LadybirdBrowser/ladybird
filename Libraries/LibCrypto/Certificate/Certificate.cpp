@@ -325,12 +325,12 @@ ErrorOr<SubjectPublicKey> parse_subject_public_key_info(Crypto::ASN1::Decoder& d
     public_key.raw_key = TRY(ByteBuffer::copy(TRY(value.raw_bytes())));
 
     if (public_key.algorithm.identifier.span() == ASN1::rsa_encryption_oid.span()) {
-        auto key = Crypto::PK::RSA::parse_rsa_key(TRY(value.raw_bytes()));
-        if (!key.public_key.length()) {
-            return Error::from_string_literal("Invalid RSA key");
+        auto maybe_key = Crypto::PK::RSA::parse_rsa_key(public_key.raw_key, false, current_scope);
+        if (maybe_key.is_error()) {
+            ERROR_WITH_SCOPE(maybe_key.release_error());
         }
 
-        public_key.rsa = move(key.public_key);
+        public_key.rsa = move(maybe_key.release_value().public_key);
 
         EXIT_SCOPE();
         return public_key;
@@ -384,12 +384,12 @@ ErrorOr<PrivateKey> parse_private_key_info(Crypto::ASN1::Decoder& decoder, Vecto
     private_key.raw_key = TRY(ByteBuffer::copy(value.bytes()));
 
     if (private_key.algorithm.identifier.span() == ASN1::rsa_encryption_oid.span()) {
-        auto key = Crypto::PK::RSA::parse_rsa_key(value.bytes());
-        if (key.private_key.length() == 0) {
-            ERROR_WITH_SCOPE(TRY(String::formatted("Invalid RSA key at {}", current_scope)));
+        auto maybe_key = Crypto::PK::RSA::parse_rsa_key(value.bytes(), true, current_scope);
+        if (maybe_key.is_error()) {
+            ERROR_WITH_SCOPE(maybe_key.release_error());
         }
 
-        private_key.rsa = move(key.private_key);
+        private_key.rsa = move(maybe_key.release_value().private_key);
 
         EXIT_SCOPE();
         return private_key;

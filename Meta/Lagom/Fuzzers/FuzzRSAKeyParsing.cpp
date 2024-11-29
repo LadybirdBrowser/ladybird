@@ -11,6 +11,7 @@
 extern "C" int LLVMFuzzerTestOneInput(uint8_t const* data, size_t size)
 {
     AK::set_debug_enabled(false);
-    Crypto::PK::RSA::parse_rsa_key({ data, size });
+    (void)Crypto::PK::RSA::parse_rsa_key({ data, size }, true, {});
+    (void)Crypto::PK::RSA::parse_rsa_key({ data, size }, false, {});
     return 0;
 }
