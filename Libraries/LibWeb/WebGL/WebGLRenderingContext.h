@@ -10,13 +10,14 @@
 #include <LibGC/Ptr.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/Types.h>
 #include <LibWeb/WebGL/WebGLContextAttributes.h>
+#include <LibWeb/WebGL/WebGLRenderingContextImpl.h>
 
 namespace Web::WebGL {
 
-class WebGLRenderingContext : public Bindings::PlatformObject {
+class WebGLRenderingContext : public Bindings::PlatformObject
+    , public WebGLRenderingContextImpl {
     WEB_PLATFORM_OBJECT(WebGLRenderingContext, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(WebGLRenderingContext);
 
@@ -25,8 +26,8 @@ public:
 
     virtual ~WebGLRenderingContext() override;
 
-    void present();
-    void needs_to_present();
+    void present() override;
+    void needs_to_present() override;
 
     GC::Ref<HTML::HTMLCanvasElement> canvas_for_binding() const;
 
@@ -38,48 +39,12 @@ public:
     void set_size(Gfx::IntSize const&);
     void reset_to_default_state();
 
-    Optional<Vector<String>> get_supported_extensions() const;
-    JS::Object* get_extension(String const& name) const;
-
-    void active_texture(GLenum texture);
-
-    void clear(GLbitfield mask);
-    void clear_color(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
-    void clear_depth(GLclampf depth);
-    void clear_stencil(GLint s);
-    void color_mask(GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha);
-
-    void cull_face(GLenum mode);
-
-    void depth_func(GLenum func);
-    void depth_mask(GLboolean mask);
-    void depth_range(GLclampf z_near, GLclampf z_far);
-
-    void finish();
-    void flush();
-
-    void front_face(GLenum mode);
-
-    GLenum get_error();
-
-    void line_width(GLfloat width);
-    void polygon_offset(GLfloat factor, GLfloat units);
-
-    void scissor(GLint x, GLint y, GLsizei width, GLsizei height);
-
-    void stencil_op(GLenum fail, GLenum zfail, GLenum zpass);
-    void stencil_op_separate(GLenum face, GLenum fail, GLenum zfail, GLenum zpass);
-
-    void viewport(GLint x, GLint y, GLsizei width, GLsizei height);
-
 private:
     virtual void initialize(JS::Realm&) override;
 
     WebGLRenderingContext(JS::Realm&, HTML::HTMLCanvasElement&, NonnullOwnPtr<OpenGLContext> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters);
 
     virtual void visit_edges(Cell::Visitor&) override;
-
-    OwnPtr<OpenGLContext> m_context;
 
     GC::Ref<HTML::HTMLCanvasElement> m_canvas_element;
 

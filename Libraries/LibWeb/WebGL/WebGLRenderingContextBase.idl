@@ -30,10 +30,10 @@ interface mixin WebGLRenderingContextBase {
     [FIXME] attribute PredefinedColorSpace unpackColorSpace;
 
     [FIXME] WebGLContextAttributes? getContextAttributes();
-    boolean isContextLost();
+    [FIXME] boolean isContextLost();
 
-    sequence<DOMString>? getSupportedExtensions();
-    object? getExtension(DOMString name);
+    [FIXME] sequence<DOMString>? getSupportedExtensions();
+    [FIXME] object? getExtension(DOMString name);
 
     undefined activeTexture(GLenum texture);
     [FIXME] undefined attachShader(WebGLProgram program, WebGLShader shader);
