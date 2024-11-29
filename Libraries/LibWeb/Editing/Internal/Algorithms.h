@@ -25,6 +25,7 @@ String canonical_space_sequence(u32 length, bool non_breaking_start, bool non_br
 void canonicalize_whitespace(GC::Ref<DOM::Node>, u32 offset, bool fix_collapsed_space = true);
 void delete_the_selection(Selection::Selection const&);
 GC::Ptr<DOM::Node> editing_host_of_node(GC::Ref<DOM::Node>);
+void fix_disallowed_ancestors_of_node(GC::Ptr<DOM::Node>);
 bool follows_a_line_break(GC::Ref<DOM::Node>);
 bool is_allowed_child_of_node(Variant<GC::Ref<DOM::Node>, FlyString> child, Variant<GC::Ref<DOM::Node>, FlyString> parent);
 bool is_block_boundary_point(GC::Ref<DOM::Node>, u32 offset);
@@ -39,6 +40,7 @@ bool is_in_same_editing_host(GC::Ref<DOM::Node>, GC::Ref<DOM::Node>);
 bool is_inline_node(GC::Ref<DOM::Node>);
 bool is_invisible_node(GC::Ref<DOM::Node>);
 bool is_name_of_an_element_with_inline_contents(FlyString const&);
+bool is_prohibited_paragraph_child(GC::Ref<DOM::Node>);
 bool is_prohibited_paragraph_child_name(FlyString const&);
 bool is_visible_node(GC::Ref<DOM::Node>);
 bool is_whitespace_node(GC::Ref<DOM::Node>);

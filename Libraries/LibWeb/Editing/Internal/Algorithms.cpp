@@ -379,6 +379,75 @@ GC::Ptr<DOM::Node> editing_host_of_node(GC::Ref<DOM::Node> node)
     return {};
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#fix-disallowed-ancestors
+void fix_disallowed_ancestors_of_node(GC::Ptr<DOM::Node> node)
+{
+    // 1. If node is not editable, abort these steps.
+    if (!node->is_editable())
+        return;
+
+    // 2. If node is not an allowed child of any of its ancestors in the same editing host:
+    bool allowed_child_of_any_ancestor = false;
+    GC::Ptr<DOM::Node> ancestor = node->parent();
+    do {
+        if (is_in_same_editing_host(*ancestor, *node) && is_allowed_child_of_node(GC::Ref { *node }, GC::Ref { *ancestor })) {
+            allowed_child_of_any_ancestor = true;
+            break;
+        }
+        ancestor = ancestor->parent();
+    } while (ancestor);
+    if (!allowed_child_of_any_ancestor) {
+        // FIXME: 1. If node is a dd or dt, wrap the one-node list consisting of node, with sibling criteria returning true for
+        //    any dl with no attributes and false otherwise, and new parent instructions returning the result of calling
+        //    createElement("dl") on the context object. Then abort these steps.
+
+        // 2. If "p" is not an allowed child of the editing host of node, abort these steps.
+        if (!is_allowed_child_of_node(HTML::TagNames::p, GC::Ref { *editing_host_of_node(*node) }))
+            return;
+
+        // 3. If node is not a prohibited paragraph child, abort these steps.
+        if (!is_prohibited_paragraph_child(*node))
+            return;
+
+        // 4. Set the tag name of node to the default single-line container name, and let node be the result.
+        node = set_the_tag_name(static_cast<DOM::Element&>(*node), node->document().default_single_line_container_name());
+
+        // 5. Fix disallowed ancestors of node.
+        fix_disallowed_ancestors_of_node(node);
+
+        // 6. Let children be node's children.
+        // 7. For each child in children, if child is a prohibited paragraph child:
+        node->for_each_child([](DOM::Node& child) {
+            if (!is_prohibited_paragraph_child(child))
+                return IterationDecision::Continue;
+
+            // 1. Record the values of the one-node list consisting of child, and let values be the result.
+            auto values = record_the_values_of_nodes({ child });
+
+            // 2. Split the parent of the one-node list consisting of child.
+            split_the_parent_of_nodes({ child });
+
+            // 3. Restore the values from values.
+            restore_the_values_of_nodes(values);
+
+            return IterationDecision::Continue;
+        });
+
+        // 8. Abort these steps.
+        return;
+    }
+
+    // 3. Record the values of the one-node list consisting of node, and let values be the result.
+    auto values = record_the_values_of_nodes({ *node });
+
+    // 4. While node is not an allowed child of its parent, split the parent of the one-node list consisting of node.
+    while (!is_allowed_child_of_node(GC::Ref { *node }, GC::Ref { *node->parent() }))
+        split_the_parent_of_nodes({ *node });
+
+    // 5. Restore the values from values.
+    restore_the_values_of_nodes(values);
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#follows-a-line-break
 bool follows_a_line_break(GC::Ref<DOM::Node> node)
 {
@@ -861,6 +930,13 @@ bool is_name_of_an_element_with_inline_contents(FlyString const& local_name)
         HTML::TagNames::marquee,
         HTML::TagNames::nobr,
         HTML::TagNames::tt);
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#prohibited-paragraph-child
+bool is_prohibited_paragraph_child(GC::Ref<DOM::Node> node)
+{
+    // A prohibited paragraph child is an HTML element whose local name is a prohibited paragraph child name.
+    return is<HTML::HTMLElement>(*node) && is_prohibited_paragraph_child_name(static_cast<DOM::Element&>(*node).local_name());
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#prohibited-paragraph-child-name
