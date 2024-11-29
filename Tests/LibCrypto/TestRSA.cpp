@@ -127,7 +127,7 @@ c8yGzl89pYST
     EXPECT_EQ(decoded.type, Crypto::PEMType::PrivateKey);
     auto decoder = Crypto::ASN1::Decoder { decoded.data };
     auto priv_key_info = MUST(Crypto::Certificate::parse_private_key_info(decoder, {}));
-    auto keypair = Crypto::PK::RSA::parse_rsa_key(priv_key_info.raw_key);
+    auto keypair = MUST(Crypto::PK::RSA::parse_rsa_key(priv_key_info.raw_key, true, {}));
     auto priv_der = MUST(priv_key_info.rsa.export_as_der());
     auto rsa_encryption_oid = Array<int, 7> { 1, 2, 840, 113549, 1, 1, 1 };
     auto wrapped_priv_der = MUST(Crypto::PK::wrap_in_private_key_info(priv_key_info.raw_key, rsa_encryption_oid, nullptr));

@@ -152,7 +152,7 @@ class RSA : public PKSystem<RSAPrivateKey<IntegerType>, RSAPublicKey<IntegerType
 public:
     using KeyPairType = RSAKeyPair<PublicKeyType, PrivateKeyType>;
 
-    static KeyPairType parse_rsa_key(ReadonlyBytes der);
+    static ErrorOr<KeyPairType> parse_rsa_key(ReadonlyBytes der, bool is_private, Vector<StringView> current_scope);
     static KeyPairType generate_key_pair(size_t bits = 256, IntegerType e = 65537)
     {
         IntegerType p;

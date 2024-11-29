@@ -13,107 +13,109 @@
 #include <LibCrypto/Certificate/Certificate.h>
 #include <LibCrypto/PK/RSA.h>
 
+namespace {
+// Used by ASN1 macros
+static String s_error_string;
+}
+
 namespace Crypto::PK {
 
-RSA::KeyPairType RSA::parse_rsa_key(ReadonlyBytes der)
+ErrorOr<RSA::KeyPairType> RSA::parse_rsa_key(ReadonlyBytes der, bool is_private, Vector<StringView> current_scope)
 {
-    // we are going to assign to at least one of these
     KeyPairType keypair;
 
     ASN1::Decoder decoder(der);
-    // There are two possible (supported) formats:
-    // PKCS#1 private key
-    // PKCS#1 public key
 
-    // They're all a single sequence, so let's check that first
-    {
-        auto result = decoder.peek();
-        if (result.is_error()) {
-            // Bad data.
-            dbgln_if(RSA_PARSE_DEBUG, "RSA key parse failed: {}", result.error());
-            return keypair;
+    if (is_private) {
+        // RSAPrivateKey ::= SEQUENCE {
+        //      version             Version,
+        //      modulus             INTEGER,
+        //      publicExponent      INTEGER,
+        //      privateExponent     INTEGER,
+        //      prime1              INTEGER,
+        //      prime2              INTEGER,
+        //      exponent1           INTEGER,
+        //      exponent2           INTEGER,
+        //      coefficient         INTEGER,
+        //      otherPrimeInfos     OtherPrimeInfos OPTIONAL
+        // }
+
+        ENTER_TYPED_SCOPE(Sequence, "RSAPrivateKey"sv);
+
+        PUSH_SCOPE("version");
+        READ_OBJECT(Integer, Crypto::UnsignedBigInteger, version);
+        POP_SCOPE();
+        if (version != 0) {
+            ERROR_WITH_SCOPE(TRY(String::formatted("Invalid version value at {}", current_scope)));
         }
-        auto tag = result.value();
-        if (tag.kind != ASN1::Kind::Sequence) {
-            dbgln_if(RSA_PARSE_DEBUG, "RSA key parse failed: Expected a Sequence but got {}", ASN1::kind_name(tag.kind));
-            return keypair;
-        }
-    }
 
-    // Then enter the sequence
-    {
-        auto error = decoder.enter();
-        if (error.is_error()) {
-            // Something was weird with the input.
-            dbgln_if(RSA_PARSE_DEBUG, "RSA key parse failed: {}", error.error());
-            return keypair;
-        }
-    }
+        PUSH_SCOPE("modulus");
+        READ_OBJECT(Integer, Crypto::UnsignedBigInteger, modulus);
+        POP_SCOPE();
 
-    auto integer_result = decoder.read<UnsignedBigInteger>();
-    if (integer_result.is_error()) {
-        dbgln_if(RSA_PARSE_DEBUG, "RSA key parse failed: {}", integer_result.error());
-        return keypair;
-    }
+        PUSH_SCOPE("publicExponent");
+        READ_OBJECT(Integer, Crypto::UnsignedBigInteger, public_exponent);
+        POP_SCOPE();
 
-    auto first_integer = integer_result.release_value();
+        PUSH_SCOPE("privateExponent");
+        READ_OBJECT(Integer, Crypto::UnsignedBigInteger, private_exponent);
+        POP_SCOPE();
 
-    // It's a PKCS#1 key (or something we don't support)
-    // if the first integer is zero or one, it's a private key.
-    if (first_integer == 0) {
-        // This is a private key, parse the rest.
-        auto modulus_result = decoder.read<UnsignedBigInteger>();
-        auto public_exponent_result = decoder.read<UnsignedBigInteger>();
-        auto private_exponent_result = decoder.read<UnsignedBigInteger>();
-        auto prime1_result = decoder.read<UnsignedBigInteger>();
-        auto prime2_result = decoder.read<UnsignedBigInteger>();
-        auto exponent1_result = decoder.read<UnsignedBigInteger>();
-        auto exponent2_result = decoder.read<UnsignedBigInteger>();
-        auto coefficient_result = decoder.read<UnsignedBigInteger>();
+        PUSH_SCOPE("prime1");
+        READ_OBJECT(Integer, Crypto::UnsignedBigInteger, prime1);
+        POP_SCOPE();
 
-        Array results = { &modulus_result, &public_exponent_result, &private_exponent_result, &prime1_result, &prime2_result, &exponent1_result, &exponent2_result, &coefficient_result };
-        for (auto& result : results) {
-            if (result->is_error()) {
-                dbgln_if(RSA_PARSE_DEBUG, "RSA PKCS#1 private key parse failed: {}", result->error());
-                return keypair;
-            }
-        }
+        PUSH_SCOPE("prime2");
+        READ_OBJECT(Integer, Crypto::UnsignedBigInteger, prime2);
+        POP_SCOPE();
+
+        PUSH_SCOPE("exponent1");
+        READ_OBJECT(Integer, Crypto::UnsignedBigInteger, exponent1);
+        POP_SCOPE();
+
+        PUSH_SCOPE("exponent2");
+        READ_OBJECT(Integer, Crypto::UnsignedBigInteger, exponent2);
+        POP_SCOPE();
+
+        PUSH_SCOPE("coefficient");
+        READ_OBJECT(Integer, Crypto::UnsignedBigInteger, coefficient);
+        POP_SCOPE();
 
         keypair.private_key = {
-            modulus_result.value(),
-            private_exponent_result.release_value(),
-            public_exponent_result.value(),
-            prime1_result.release_value(),
-            prime2_result.release_value(),
-            exponent1_result.release_value(),
-            exponent2_result.release_value(),
-            coefficient_result.release_value(),
+            modulus,
+            private_exponent,
+            public_exponent,
+            prime1,
+            prime2,
+            exponent1,
+            exponent2,
+            coefficient,
         };
-        keypair.public_key = { modulus_result.release_value(), public_exponent_result.release_value() };
+        keypair.public_key = { modulus, public_exponent };
 
+        EXIT_SCOPE();
+        return keypair;
+    } else {
+        // RSAPublicKey ::= SEQUENCE {
+        //      modulus         INTEGER,
+        //      publicExponent  INTEGER
+        // }
+
+        ENTER_TYPED_SCOPE(Sequence, "RSAPublicKey"sv);
+
+        PUSH_SCOPE("modulus");
+        READ_OBJECT(Integer, Crypto::UnsignedBigInteger, modulus);
+        POP_SCOPE();
+
+        PUSH_SCOPE("publicExponent");
+        READ_OBJECT(Integer, Crypto::UnsignedBigInteger, public_exponent);
+        POP_SCOPE();
+
+        keypair.public_key = { move(modulus), move(public_exponent) };
+
+        EXIT_SCOPE();
         return keypair;
     }
-
-    if (first_integer == 1) {
-        // This is a multi-prime key, we don't support that.
-        dbgln_if(RSA_PARSE_DEBUG, "RSA PKCS#1 private key parse failed: Multi-prime key not supported");
-        return keypair;
-    }
-
-    auto&& modulus = move(first_integer);
-
-    // Try reading a public key, `first_integer` is the modulus.
-    auto public_exponent_result = decoder.read<UnsignedBigInteger>();
-    if (public_exponent_result.is_error()) {
-        // Bad public key.
-        dbgln_if(RSA_PARSE_DEBUG, "RSA PKCS#1 public key parse failed: {}", public_exponent_result.error());
-        return keypair;
-    }
-
-    auto public_exponent = public_exponent_result.release_value();
-    keypair.public_key.set(move(modulus), move(public_exponent));
-
-    return keypair;
 }
 
 void RSA::encrypt(ReadonlyBytes in, Bytes& out)
@@ -189,12 +191,12 @@ void RSA::import_private_key(ReadonlyBytes bytes, bool pem)
         }
     }
 
-    auto key = parse_rsa_key(decoded_bytes);
-    if (key.private_key.length() == 0) {
-        dbgln("Failed to parse RSA private key");
+    auto maybe_key = parse_rsa_key(decoded_bytes, true, {});
+    if (maybe_key.is_error()) {
+        dbgln("Failed to parse RSA private key: {}", maybe_key.error());
         VERIFY_NOT_REACHED();
     }
-    m_private_key = key.private_key;
+    m_private_key = maybe_key.release_value().private_key;
 }
 
 void RSA::import_public_key(ReadonlyBytes bytes, bool pem)
@@ -220,12 +222,12 @@ void RSA::import_public_key(ReadonlyBytes bytes, bool pem)
         }
     }
 
-    auto key = parse_rsa_key(decoded_bytes);
-    if (key.public_key.length() == 0) {
-        dbgln("Failed to parse RSA public key");
+    auto maybe_key = parse_rsa_key(decoded_bytes, false, {});
+    if (maybe_key.is_error()) {
+        dbgln("Failed to parse RSA public key: {}", maybe_key.error());
         VERIFY_NOT_REACHED();
     }
-    m_public_key = key.public_key;
+    m_public_key = maybe_key.release_value().public_key;
 }
 
 void RSA_PKCS1_EME::encrypt(ReadonlyBytes in, Bytes& out)
