@@ -10,11 +10,10 @@
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefCounted.h>
+#include <LibWeb/CSS/CalculatedOr.h>
 #include <LibWeb/CSS/GeneralEnclosed.h>
-#include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/MediaFeatureID.h>
 #include <LibWeb/CSS/Ratio.h>
-#include <LibWeb/CSS/Resolution.h>
 
 namespace Web::CSS {
 
@@ -26,7 +25,7 @@ public:
     {
     }
 
-    explicit MediaFeatureValue(Length length)
+    explicit MediaFeatureValue(LengthOrCalculated length)
         : m_value(move(length))
     {
     }
@@ -36,23 +35,28 @@ public:
     {
     }
 
-    explicit MediaFeatureValue(Resolution resolution)
+    explicit MediaFeatureValue(ResolutionOrCalculated resolution)
         : m_value(move(resolution))
     {
     }
 
-    explicit MediaFeatureValue(float number)
-        : m_value(number)
+    explicit MediaFeatureValue(IntegerOrCalculated integer)
+        : m_value(move(integer))
+    {
+    }
+
+    explicit MediaFeatureValue(i64 integer)
+        : m_value(IntegerOrCalculated(integer))
     {
     }
 
     String to_string() const;
 
     bool is_ident() const { return m_value.has<Keyword>(); }
-    bool is_length() const { return m_value.has<Length>(); }
-    bool is_number() const { return m_value.has<float>(); }
+    bool is_length() const { return m_value.has<LengthOrCalculated>(); }
+    bool is_integer() const { return m_value.has<IntegerOrCalculated>(); }
     bool is_ratio() const { return m_value.has<Ratio>(); }
-    bool is_resolution() const { return m_value.has<Resolution>(); }
+    bool is_resolution() const { return m_value.has<ResolutionOrCalculated>(); }
     bool is_same_type(MediaFeatureValue const& other) const;
 
     Keyword const& ident() const
@@ -61,10 +65,10 @@ public:
         return m_value.get<Keyword>();
     }
 
-    Length const& length() const
+    LengthOrCalculated const& length() const
     {
         VERIFY(is_length());
-        return m_value.get<Length>();
+        return m_value.get<LengthOrCalculated>();
     }
 
     Ratio const& ratio() const
@@ -73,20 +77,20 @@ public:
         return m_value.get<Ratio>();
     }
 
-    Resolution const& resolution() const
+    ResolutionOrCalculated const& resolution() const
     {
         VERIFY(is_resolution());
-        return m_value.get<Resolution>();
+        return m_value.get<ResolutionOrCalculated>();
     }
 
-    float number() const
+    IntegerOrCalculated integer() const
     {
-        VERIFY(is_number());
-        return m_value.get<float>();
+        VERIFY(is_integer());
+        return m_value.get<IntegerOrCalculated>();
     }
 
 private:
-    Variant<Keyword, Length, Ratio, Resolution, float> m_value;
+    Variant<Keyword, LengthOrCalculated, Ratio, ResolutionOrCalculated, IntegerOrCalculated> m_value;
 };
 
 // https://www.w3.org/TR/mediaqueries-4/#mq-features

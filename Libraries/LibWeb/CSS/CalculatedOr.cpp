@@ -52,6 +52,13 @@ i64 IntegerOrCalculated::resolve_calculated(NonnullRefPtr<CSSMathValue> const& c
     return calculated->resolve_integer().value();
 }
 
+i64 IntegerOrCalculated::resolved() const
+{
+    if (is_calculated())
+        return calculated()->resolve_integer().value();
+    return value();
+}
+
 NonnullRefPtr<CSSStyleValue> IntegerOrCalculated::create_style_value() const
 {
     return IntegerStyleValue::create(value());
@@ -97,6 +104,13 @@ NonnullRefPtr<CSSStyleValue> PercentageOrCalculated::create_style_value() const
 Resolution ResolutionOrCalculated::resolve_calculated(NonnullRefPtr<CSSMathValue> const& calculated, Layout::Node const&) const
 {
     return calculated->resolve_resolution().value();
+}
+
+Resolution ResolutionOrCalculated::resolved() const
+{
+    if (is_calculated())
+        return calculated()->resolve_resolution().value();
+    return value();
 }
 
 NonnullRefPtr<CSSStyleValue> ResolutionOrCalculated::create_style_value() const

@@ -551,8 +551,6 @@ OwnPtr<MediaCondition> Parser::parse_media_in_parens(TokenStream<ComponentValue>
 // `<mf-value>`, https://www.w3.org/TR/mediaqueries-4/#typedef-mf-value
 Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID media_feature, TokenStream<ComponentValue>& tokens)
 {
-    // NOTE: Calculations are not allowed for media feature values, at least in the current spec, so we reject them.
-
     // Identifiers
     if (tokens.next_token().is(Token::Type::Ident)) {
         auto transaction = tokens.begin_transaction();
@@ -570,11 +568,11 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
     if (media_feature_accepts_type(media_feature, MediaFeatureValueType::Boolean)) {
         auto transaction = tokens.begin_transaction();
         tokens.discard_whitespace();
-        if (auto integer = parse_integer(tokens); integer.has_value() && !integer->is_calculated()) {
-            auto integer_value = integer->value();
+        if (auto integer = parse_integer(tokens); integer.has_value()) {
+            auto integer_value = integer.value().resolved();
             if (integer_value == 0 || integer_value == 1) {
                 transaction.commit();
-                return MediaFeatureValue(integer_value);
+                return MediaFeatureValue(integer.release_value());
             }
         }
     }
@@ -582,9 +580,9 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
     // Integer
     if (media_feature_accepts_type(media_feature, MediaFeatureValueType::Integer)) {
         auto transaction = tokens.begin_transaction();
-        if (auto integer = parse_integer(tokens); integer.has_value() && !integer->is_calculated()) {
+        if (auto integer = parse_integer(tokens); integer.has_value()) {
             transaction.commit();
-            return MediaFeatureValue(integer->value());
+            return MediaFeatureValue(integer.release_value());
         }
     }
 
@@ -592,9 +590,9 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
     if (media_feature_accepts_type(media_feature, MediaFeatureValueType::Length)) {
         auto transaction = tokens.begin_transaction();
         tokens.discard_whitespace();
-        if (auto length = parse_length(tokens); length.has_value() && !length->is_calculated()) {
+        if (auto length = parse_length(tokens); length.has_value()) {
             transaction.commit();
-            return MediaFeatureValue(length->value());
+            return MediaFeatureValue(length.release_value());
         }
     }
 
@@ -612,9 +610,9 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
     if (media_feature_accepts_type(media_feature, MediaFeatureValueType::Resolution)) {
         auto transaction = tokens.begin_transaction();
         tokens.discard_whitespace();
-        if (auto resolution = parse_resolution(tokens); resolution.has_value() && !resolution->is_calculated()) {
+        if (auto resolution = parse_resolution(tokens); resolution.has_value()) {
             transaction.commit();
-            return MediaFeatureValue(resolution->value());
+            return MediaFeatureValue(resolution.release_value());
         }
     }
 
