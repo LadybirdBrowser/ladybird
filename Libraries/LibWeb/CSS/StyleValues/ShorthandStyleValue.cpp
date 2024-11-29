@@ -38,7 +38,28 @@ ValueComparingRefPtr<CSSStyleValue const> ShorthandStyleValue::longhand(Property
 
 String ShorthandStyleValue::to_string() const
 {
-    // Special-cases first
+    // If all the longhands are the same CSS-wide keyword, just return that once.
+    Optional<Keyword> built_in_keyword;
+    bool all_same_keyword = true;
+    for (auto& value : m_properties.values) {
+        if (!value->is_css_wide_keyword()) {
+            all_same_keyword = false;
+            break;
+        }
+        auto keyword = value->to_keyword();
+        if (!built_in_keyword.has_value()) {
+            built_in_keyword = keyword;
+            continue;
+        }
+        if (built_in_keyword != keyword) {
+            all_same_keyword = false;
+            break;
+        }
+    }
+    if (all_same_keyword && built_in_keyword.has_value())
+        return m_properties.values.first()->to_string();
+
+    // Then special cases
     switch (m_properties.shorthand_property) {
     case PropertyID::Background: {
         auto color = longhand(PropertyID::BackgroundColor);

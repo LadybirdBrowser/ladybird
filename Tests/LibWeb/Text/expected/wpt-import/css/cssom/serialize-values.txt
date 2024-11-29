@@ -6,8 +6,8 @@ Rerun
 
 Found 687 tests
 
-471 Pass
-216 Fail
+473 Pass
+214 Fail
 Details
 Result	Test Name	MessagePass	background-attachment: scroll	
 Pass	background-attachment: fixed	
@@ -191,7 +191,7 @@ Fail	background-position: right -.1em
 Fail	background-position: right top	
 Fail	background-position: right center	
 Fail	background-position: right bottom	
-Fail	background-position: inherit	
+Pass	background-position: inherit	
 Pass	background-repeat: repeat	
 Pass	background-repeat: repeat-x	
 Pass	background-repeat: repeat-y	
@@ -630,7 +630,7 @@ Fail	text-decoration: underline
 Fail	text-decoration: overline	
 Fail	text-decoration: line-through	
 Fail	text-decoration: blink	
-Fail	text-decoration: inherit	
+Pass	text-decoration: inherit	
 Pass	text-indent: 0px	
 Pass	text-indent: 1px	
 Pass	text-indent: .1em	
