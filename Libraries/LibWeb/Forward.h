@@ -831,9 +831,18 @@ struct OscillatorOptions;
 }
 
 namespace Web::WebGL {
+class OpenGLContext;
+class WebGLActiveInfo;
+class WebGLBuffer;
 class WebGLContextEvent;
+class WebGLFramebuffer;
+class WebGLObject;
+class WebGLProgram;
+class WebGLRenderbuffer;
 class WebGLRenderingContext;
-class WebGLRenderingContextBase;
+class WebGLShader;
+class WebGLTexture;
+class WebGLUniformLocation;
 }
 
 namespace Web::WebIDL {

@@ -853,6 +853,18 @@ invoke_generator(
 
 generate_css_implementation()
 
+invoke_generator(
+    "WebGLRenderingContextImpl.cpp"
+    Lagom::GenerateWebGLRenderingContext
+    "${CMAKE_CURRENT_SOURCE_DIR}/WebGL/WebGLRenderingContextBase.idl"
+    "WebGL/WebGLRenderingContextImpl.h"
+    "WebGL/WebGLRenderingContextImpl.cpp"
+    arguments -b "${CMAKE_CURRENT_SOURCE_DIR}" -b "${CMAKE_CURRENT_BINARY_DIR}" -i "${CMAKE_CURRENT_SOURCE_DIR}/WebGL/WebGLRenderingContext.idl"
+    # NOTE: GeneratedCSSStyleProperties.idl is listed because it's transitively included by WebGLRenderingContextBase.idl
+    #       and we need to make sure it's generated before we generate the WebGLRenderingContext implementation.
+    dependencies WebGL/WebGLRenderingContextBase.idl WebGL/WebGLRenderingContextOverloads.idl CSS/GeneratedCSSStyleProperties.idl
+)
+
 set(GENERATED_SOURCES
     ARIA/AriaRoles.cpp
     CSS/DefaultStyleSheetSource.cpp
@@ -868,6 +880,7 @@ set(GENERATED_SOURCES
     CSS/TransformFunctions.cpp
     MathML/MathMLStyleSheetSource.cpp
     SVG/SVGStyleSheetSource.cpp
+    WebGL/WebGLRenderingContextImpl.cpp
     Worker/WebWorkerClientEndpoint.h
     Worker/WebWorkerServerEndpoint.h
 )

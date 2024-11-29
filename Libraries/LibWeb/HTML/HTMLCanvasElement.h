@@ -10,7 +10,6 @@
 #include <LibGfx/Forward.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibWeb/HTML/HTMLElement.h>
-#include <LibWeb/WebGL/WebGLRenderingContext.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
