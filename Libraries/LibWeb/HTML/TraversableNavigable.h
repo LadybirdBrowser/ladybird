@@ -149,7 +149,7 @@ private:
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
 
 #ifdef AK_OS_MACOS
-    OwnPtr<Gfx::MetalContext> m_metal_context;
+    RefPtr<Gfx::MetalContext> m_metal_context;
 #endif
 };
 

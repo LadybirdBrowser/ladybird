@@ -11,6 +11,8 @@ static_assert(false, "This file must only be used for macOS");
 #endif
 
 #include <AK/Forward.h>
+#include <AK/RefCounted.h>
+#include <AK/RefPtr.h>
 #include <LibCore/IOSurface.h>
 
 namespace Gfx {
@@ -24,7 +26,7 @@ public:
     virtual ~MetalTexture() {};
 };
 
-class MetalContext {
+class MetalContext : public RefCounted<MetalContext> {
 public:
     virtual void const* device() const = 0;
     virtual void const* queue() const = 0;
@@ -34,6 +36,6 @@ public:
     virtual ~MetalContext() {};
 };
 
-OwnPtr<MetalContext> get_metal_context();
+RefPtr<MetalContext> get_metal_context();
 
 }

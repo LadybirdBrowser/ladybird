@@ -28,7 +28,7 @@ public:
     static NonnullRefPtr<PaintingSurface> wrap_bitmap(Bitmap&);
 
 #ifdef AK_OS_MACOS
-    static NonnullRefPtr<PaintingSurface> wrap_metal_surface(Gfx::MetalTexture&, RefPtr<SkiaBackendContext>);
+    static NonnullRefPtr<PaintingSurface> wrap_iosurface(Core::IOSurfaceHandle const&, RefPtr<SkiaBackendContext>);
 #endif
 
     void read_into_bitmap(Bitmap&);

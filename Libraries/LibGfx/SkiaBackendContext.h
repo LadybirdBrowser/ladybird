@@ -22,6 +22,8 @@ class SkSurface;
 
 namespace Gfx {
 
+class MetalContext;
+
 class SkiaBackendContext : public RefCounted<SkiaBackendContext> {
     AK_MAKE_NONCOPYABLE(SkiaBackendContext);
     AK_MAKE_NONMOVABLE(SkiaBackendContext);
@@ -32,7 +34,7 @@ public:
 #endif
 
 #ifdef AK_OS_MACOS
-    static RefPtr<Gfx::SkiaBackendContext> create_metal_context(Gfx::MetalContext const&);
+    static RefPtr<Gfx::SkiaBackendContext> create_metal_context(MetalContext&);
 #endif
 
     SkiaBackendContext() {};
@@ -40,6 +42,8 @@ public:
 
     virtual void flush_and_submit(SkSurface*) {};
     virtual GrDirectContext* sk_context() const = 0;
+
+    virtual MetalContext& metal_context() = 0;
 };
 
 }

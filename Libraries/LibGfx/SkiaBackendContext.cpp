@@ -53,6 +53,8 @@ public:
 
     GrDirectContext* sk_context() const override { return m_context.get(); }
 
+    MetalContext& metal_context() override { VERIFY_NOT_REACHED(); }
+
 private:
     sk_sp<GrDirectContext> m_context;
     NonnullOwnPtr<skgpu::VulkanExtensions> m_extensions;
@@ -89,8 +91,9 @@ class SkiaMetalBackendContext final : public SkiaBackendContext {
     AK_MAKE_NONMOVABLE(SkiaMetalBackendContext);
 
 public:
-    SkiaMetalBackendContext(sk_sp<GrDirectContext> context)
+    SkiaMetalBackendContext(sk_sp<GrDirectContext> context, MetalContext& metal_context)
         : m_context(move(context))
+        , m_metal_context(move(metal_context))
     {
     }
 
@@ -105,17 +108,20 @@ public:
 
     GrDirectContext* sk_context() const override { return m_context.get(); }
 
+    MetalContext& metal_context() override { return m_metal_context; }
+
 private:
     sk_sp<GrDirectContext> m_context;
+    NonnullRefPtr<MetalContext> m_metal_context;
 };
 
-RefPtr<SkiaBackendContext> SkiaBackendContext::create_metal_context(Gfx::MetalContext const& metal_context)
+RefPtr<SkiaBackendContext> SkiaBackendContext::create_metal_context(MetalContext& metal_context)
 {
     GrMtlBackendContext backend_context;
-    backend_context.fDevice.retain((GrMTLHandle)metal_context.device());
-    backend_context.fQueue.retain((GrMTLHandle)metal_context.queue());
+    backend_context.fDevice.retain(metal_context.device());
+    backend_context.fQueue.retain(metal_context.queue());
     sk_sp<GrDirectContext> ctx = GrDirectContexts::MakeMetal(backend_context);
-    return adopt_ref(*new SkiaMetalBackendContext(ctx));
+    return adopt_ref(*new SkiaMetalBackendContext(ctx, metal_context));
 }
 #endif
 
