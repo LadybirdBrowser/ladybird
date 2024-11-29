@@ -7,17 +7,25 @@
 #pragma once
 
 #include <AK/ByteBuffer.h>
-#include <AK/Span.h>
 
 namespace Crypto {
 
 enum class PEMType {
+    Unknown,
     Certificate,
     PrivateKey,
+    PublicKey,
+    RSAPrivateKey,
+    RSAPublicKey
 };
 
-ByteBuffer decode_pem(ReadonlyBytes);
-ErrorOr<Vector<ByteBuffer>> decode_pems(ReadonlyBytes);
+struct DecodedPEM {
+    PEMType type { PEMType::Unknown };
+    ByteBuffer data;
+};
+
+DecodedPEM decode_pem(ReadonlyBytes);
+ErrorOr<Vector<DecodedPEM>> decode_pems(ReadonlyBytes);
 ErrorOr<ByteBuffer> encode_pem(ReadonlyBytes, PEMType = PEMType::Certificate);
 
 }

@@ -501,12 +501,12 @@ Vector<Certificate> TLSv12::parse_pem_certificate(ReadonlyBytes certificate_pem_
     }
 
     auto decoded_certificate = Crypto::decode_pem(certificate_pem_buffer);
-    if (decoded_certificate.is_empty()) {
+    if (decoded_certificate.type != Crypto::PEMType::Certificate) {
         dbgln("Certificate not PEM");
         return {};
     }
 
-    auto maybe_certificate = Certificate::parse_certificate(decoded_certificate);
+    auto maybe_certificate = Certificate::parse_certificate(decoded_certificate.data);
     if (!maybe_certificate.is_error()) {
         dbgln("Invalid certificate");
         return {};
@@ -576,7 +576,7 @@ ErrorOr<Vector<Certificate>> DefaultRootCACertificates::parse_pem_root_certifica
     auto certs = TRY(Crypto::decode_pems(data));
 
     for (auto& cert : certs) {
-        auto certificate_result = Certificate::parse_certificate(cert.bytes());
+        auto certificate_result = Certificate::parse_certificate(cert.data);
         if (certificate_result.is_error()) {
             // FIXME: It would be nice to have more informations about the certificate we failed to parse.
             //        Like: Issuer, Algorithm, CN, etc
