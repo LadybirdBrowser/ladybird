@@ -10,10 +10,26 @@
 
 namespace Crypto {
 
-ByteBuffer decode_pem(ReadonlyBytes data)
+static PEMType pem_header_to_type(StringView header)
+{
+    if (header == "CERTIFICATE"sv)
+        return PEMType::Certificate;
+    if (header == "PRIVATE KEY"sv)
+        return PEMType::PrivateKey;
+    if (header == "RSA PRIVATE KEY"sv)
+        return PEMType::RSAPrivateKey;
+    if (header == "PUBLIC KEY"sv)
+        return PEMType::PublicKey;
+    if (header == "RSA PUBLIC KEY"sv)
+        return PEMType::RSAPublicKey;
+    return PEMType::Unknown;
+}
+
+DecodedPEM decode_pem(ReadonlyBytes data)
 {
     GenericLexer lexer { data };
-    ByteBuffer decoded;
+    DecodedPEM decoded;
+    StringView header_type;
 
     // FIXME: Parse multiple.
     enum {
@@ -24,14 +40,23 @@ ByteBuffer decode_pem(ReadonlyBytes data)
     while (!lexer.is_eof()) {
         switch (state) {
         case PreStartData:
-            if (lexer.consume_specific("-----BEGIN"sv))
+            if (lexer.consume_specific("-----BEGIN "sv)) {
                 state = Started;
+                header_type = lexer.consume_until("-----");
+            }
             lexer.consume_line();
             break;
         case Started: {
-            if (lexer.consume_specific("-----END"sv)) {
+            if (lexer.consume_specific("-----END "sv)) {
                 state = Ended;
+
+                if (lexer.consume_until("-----") != header_type) {
+                    dbgln("PEM type mismatch");
+                    return {};
+                }
                 lexer.consume_line();
+
+                decoded.type = pem_header_to_type(header_type);
                 break;
             }
             auto b64decoded = decode_base64(lexer.consume_line().trim_whitespace(TrimMode::Right));
@@ -39,7 +64,7 @@ ByteBuffer decode_pem(ReadonlyBytes data)
                 dbgln("Failed to decode PEM: {}", b64decoded.error().string_literal());
                 return {};
             }
-            if (decoded.try_append(b64decoded.value().data(), b64decoded.value().size()).is_error()) {
+            if (decoded.data.try_append(b64decoded.value().data(), b64decoded.value().size()).is_error()) {
                 dbgln("Failed to decode PEM, likely OOM condition");
                 return {};
             }
@@ -56,11 +81,13 @@ ByteBuffer decode_pem(ReadonlyBytes data)
     return decoded;
 }
 
-ErrorOr<Vector<ByteBuffer>> decode_pems(ReadonlyBytes data)
+ErrorOr<Vector<DecodedPEM>> decode_pems(ReadonlyBytes data)
 {
     GenericLexer lexer { data };
-    ByteBuffer decoded;
-    Vector<ByteBuffer> pems;
+    Vector<DecodedPEM> pems;
+
+    DecodedPEM decoded;
+    StringView header_type;
 
     enum {
         Junk,
@@ -69,20 +96,28 @@ ErrorOr<Vector<ByteBuffer>> decode_pems(ReadonlyBytes data)
     while (!lexer.is_eof()) {
         switch (state) {
         case Junk:
-            if (lexer.consume_specific("-----BEGIN"sv))
+            if (lexer.consume_specific("-----BEGIN "sv)) {
                 state = Parsing;
+                header_type = lexer.consume_until("-----");
+            }
             lexer.consume_line();
             break;
         case Parsing: {
-            if (lexer.consume_specific("-----END"sv)) {
+            if (lexer.consume_specific("-----END "sv)) {
                 state = Junk;
+
+                if (lexer.consume_until("-----") != header_type) {
+                    return Error::from_string_literal("PEM type mismatch");
+                }
                 lexer.consume_line();
+
                 TRY(pems.try_append(decoded));
-                decoded.clear();
+                decoded = {};
+                header_type = {};
                 break;
             }
             auto b64decoded = TRY(decode_base64(lexer.consume_line().trim_whitespace(TrimMode::Right)));
-            TRY(decoded.try_append(b64decoded.data(), b64decoded.size()));
+            TRY(decoded.data.try_append(b64decoded.data(), b64decoded.size()));
             break;
         }
         default:
@@ -107,6 +142,18 @@ ErrorOr<ByteBuffer> encode_pem(ReadonlyBytes data, PEMType type)
     case PEMType::PrivateKey:
         block_start = "-----BEGIN PRIVATE KEY-----\n"sv;
         block_end = "-----END PRIVATE KEY-----\n"sv;
+        break;
+    case PEMType::RSAPrivateKey:
+        block_start = "-----BEGIN RSA PRIVATE KEY-----\n"sv;
+        block_end = "-----END RSA PRIVATE KEY-----\n"sv;
+        break;
+    case PEMType::PublicKey:
+        block_start = "-----BEGIN PUBLIC KEY-----\n"sv;
+        block_end = "-----END PUBLIC KEY-----\n"sv;
+        break;
+    case PEMType::RSAPublicKey:
+        block_start = "-----BEGIN RSA PUBLIC KEY-----\n"sv;
+        block_end = "-----END RSA PUBLIC KEY-----\n"sv;
         break;
     default:
         VERIFY_NOT_REACHED();

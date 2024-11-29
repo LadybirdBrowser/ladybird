@@ -266,7 +266,7 @@ void RSA::import_private_key(ReadonlyBytes bytes, bool pem)
 {
     ByteBuffer buffer;
     if (pem) {
-        buffer = decode_pem(bytes);
+        buffer = decode_pem(bytes).data;
         bytes = buffer;
     }
 
@@ -282,7 +282,7 @@ void RSA::import_public_key(ReadonlyBytes bytes, bool pem)
 {
     ByteBuffer buffer;
     if (pem) {
-        buffer = decode_pem(bytes);
+        buffer = decode_pem(bytes).data;
         bytes = buffer;
     }
 
