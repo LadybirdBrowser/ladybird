@@ -496,9 +496,19 @@ UniqueObject& my_unique_object(); // Free function.
 
 ### Comments
 
-Make comments look like sentences by starting with a capital letter and ending with a period (punctuation). One exception may be end of line comments like this `if (x == y) // false for NaN`.
+Comments should be written using `//` and not `/* */`, except for the copyright notice.
+
+Write comments as proper sentences starting with a capital letter and ending with a period (or other punctuation).
+One exception may be end of line comments like this: `if (x == y) // false for NaN`
+Another exception is comments copied from specifications. These should be quoted verbatim, and not modified except for
+wrapping or to insert necessary punctuation such as adding `**` when a number is raised to a power, as this is often
+done using elements like `<sup>` which do not appear in the copied text.
+
+Please wrap long comments onto multiple lines so that they are easier to read. Generally, 120 characters is a good width
+to aim for. 
 
 Use FIXME: (without attribution) to denote items that need to be addressed in the future.
+TODO: (without attribution) is also permitted.
 
 ###### Right:
 
@@ -506,14 +516,16 @@ Use FIXME: (without attribution) to denote items that need to be addressed in th
 draw_jpg(); // FIXME: Make this code handle jpg in addition to the png support.
 ```
 
+###### OK:
+
+```cpp
+draw_jpg(); // TODO: Make this code handle jpg in addition to the png support.
+```
+
 ###### Wrong:
 
 ```cpp
 draw_jpg(); // FIXME(joe): Make this code handle jpg in addition to the png support.
-```
-
-```cpp
-draw_jpg(); // TODO: Make this code handle jpg in addition to the png support.
 ```
 
 Explain *why* the code does something. The code itself should already say what is happening.
