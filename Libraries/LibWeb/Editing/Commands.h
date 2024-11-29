@@ -21,6 +21,8 @@ struct CommandDefinition {
 Optional<CommandDefinition const&> find_command_definition(FlyString const&);
 
 // Command implementations
+bool command_default_paragraph_separator_action(DOM::Document&, String const&);
+String command_default_paragraph_separator_value(DOM::Document const&);
 bool command_delete_action(DOM::Document&, String const&);
 
 }

@@ -19,6 +19,34 @@
 
 namespace Web::Editing {
 
+// https://w3c.github.io/editing/docs/execCommand/#the-defaultparagraphseparator-command
+bool command_default_paragraph_separator_action(DOM::Document& document, String const& input_value)
+{
+    // Let value be converted to ASCII lowercase.
+    auto value = input_value.to_ascii_lowercase();
+
+    // If value is then equal to "p" or "div", set the context object's default single-line
+    // container name to value, then return true.
+    if (value == HTML::TagNames::p) {
+        document.set_default_single_line_container_name(HTML::TagNames::p);
+        return true;
+    }
+    if (value == HTML::TagNames::div) {
+        document.set_default_single_line_container_name(HTML::TagNames::div);
+        return true;
+    }
+
+    // Otherwise, return false.
+    return false;
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-defaultparagraphseparator-command
+String command_default_paragraph_separator_value(DOM::Document const& document)
+{
+    // Return the context object's default single-line container name.
+    return document.default_single_line_container_name().to_string();
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-delete-command
 bool command_delete_action(DOM::Document& document, String const&)
 {
@@ -326,6 +354,7 @@ bool command_delete_action(DOM::Document& document, String const&)
 
 static Array const commands {
     CommandDefinition { CommandNames::delete_, command_delete_action, {}, {}, {} },
+    CommandDefinition { CommandNames::defaultParagraphSeparator, command_default_paragraph_separator_action, {}, {}, command_default_paragraph_separator_value },
 };
 
 Optional<CommandDefinition const&> find_command_definition(FlyString const& command)

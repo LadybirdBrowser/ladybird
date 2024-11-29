@@ -749,6 +749,10 @@ public:
 
     GC::Ref<EditingHostManager> editing_host_manager() const { return *m_editing_host_manager; }
 
+    // // https://w3c.github.io/editing/docs/execCommand/#default-single-line-container-name
+    FlyString const& default_single_line_container_name() const { return m_default_single_line_container_name; }
+    void set_default_single_line_container_name(FlyString const& name) { m_default_single_line_container_name = name; }
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -1039,6 +1043,9 @@ private:
     mutable OwnPtr<Unicode::Segmenter> m_word_segmenter;
 
     GC::Ref<EditingHostManager> m_editing_host_manager;
+
+    // https://w3c.github.io/editing/docs/execCommand/#default-single-line-container-name
+    FlyString m_default_single_line_container_name { HTML::TagNames::div };
 };
 
 template<>
