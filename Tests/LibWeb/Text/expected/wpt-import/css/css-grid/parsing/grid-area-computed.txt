@@ -6,11 +6,11 @@ Rerun
 
 Found 30 tests
 
-6 Pass
-24 Fail
+9 Pass
+21 Fail
 Details
 Result	Test Name	MessageFail	Property grid-area value 'auto / auto / auto / auto'	
-Fail	Property grid-row value 'auto / auto'	
+Pass	Property grid-row value 'auto / auto'	
 Pass	Property grid-column-end value 'auto'	
 Fail	Property grid-row value '-zπ'	
 Pass	Property grid-row-start value 'AZ'	
@@ -25,7 +25,7 @@ Fail	Property grid-column-start value '-44 Z'
 Fail	Property grid-row-end value '1 -πA'	
 Fail	Property grid-column-end value '5 π_'	
 Fail	Property grid-area value 'span 2 i / auto / auto / auto'	
-Fail	Property grid-row value 'span 2 / auto'	
+Pass	Property grid-row value 'span 2 / auto'	
 Fail	Property grid-column-start value 'span 1 i'	
 Pass	Property grid-row-start value 'span 1'	
 Fail	Property grid-row-end value 'span 2 i'	
@@ -35,7 +35,7 @@ Fail	Property grid-row value 'span i / auto'
 Fail	Property grid-area value 'auto / i / auto / i'	
 Fail	Property grid-area value 'auto / i / 2 j'	
 Fail	Property grid-area value 'auto / i / 2 j / span 3 k'	
-Fail	Property grid-row value 'auto / i'	
+Pass	Property grid-row value 'auto / i'	
 Fail	Property grid-column value '2 j / span 3 k'	
 Fail	Property grid-column-end value '\31st'	
 Fail	Property grid-column-end value '\31 st'	
