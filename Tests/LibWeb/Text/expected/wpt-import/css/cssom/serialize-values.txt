@@ -6,8 +6,8 @@ Rerun
 
 Found 687 tests
 
-473 Pass
-214 Fail
+478 Pass
+209 Fail
 Details
 Result	Test Name	MessagePass	background-attachment: scroll	
 Pass	background-attachment: fixed	
@@ -625,11 +625,11 @@ Pass	text-align: right
 Pass	text-align: center	
 Pass	text-align: justify	
 Pass	text-align: inherit	
-Fail	text-decoration: none	
-Fail	text-decoration: underline	
-Fail	text-decoration: overline	
-Fail	text-decoration: line-through	
-Fail	text-decoration: blink	
+Pass	text-decoration: none	
+Pass	text-decoration: underline	
+Pass	text-decoration: overline	
+Pass	text-decoration: line-through	
+Pass	text-decoration: blink	
 Pass	text-decoration: inherit	
 Pass	text-indent: 0px	
 Pass	text-indent: 1px	

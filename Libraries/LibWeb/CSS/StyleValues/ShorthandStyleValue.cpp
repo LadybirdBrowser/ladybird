@@ -233,8 +233,29 @@ String ShorthandStyleValue::to_string() const
             return align_self;
         return MUST(String::formatted("{} {}", align_self, justify_self));
     }
-    case PropertyID::TextDecoration:
-        return MUST(String::formatted("{} {} {} {}", longhand(PropertyID::TextDecorationLine)->to_string(), longhand(PropertyID::TextDecorationThickness)->to_string(), longhand(PropertyID::TextDecorationStyle)->to_string(), longhand(PropertyID::TextDecorationColor)->to_string()));
+    case PropertyID::TextDecoration: {
+        // The rule here seems to be, only print what's different from the default value,
+        // but if they're all default, print the line.
+        StringBuilder builder;
+        auto append_if_non_default = [&](PropertyID property_id) {
+            auto value = longhand(property_id);
+            if (!value->equals(property_initial_value({}, property_id))) {
+                if (!builder.is_empty())
+                    builder.append(' ');
+                builder.append(value->to_string());
+            }
+        };
+
+        append_if_non_default(PropertyID::TextDecorationLine);
+        append_if_non_default(PropertyID::TextDecorationThickness);
+        append_if_non_default(PropertyID::TextDecorationStyle);
+        append_if_non_default(PropertyID::TextDecorationColor);
+
+        if (builder.is_empty())
+            return longhand(PropertyID::TextDecorationLine)->to_string();
+
+        return builder.to_string_without_validation();
+    }
     default:
         StringBuilder builder;
         auto first = true;
