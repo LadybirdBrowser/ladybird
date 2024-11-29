@@ -13,6 +13,63 @@
 
 namespace Crypto::ASN1 {
 
+#define ERROR_WITH_SCOPE(error)                                                  \
+    do {                                                                         \
+        s_error_string = TRY(String::formatted("{}: {}", current_scope, error)); \
+        return Error::from_string_view(s_error_string.bytes_as_string_view());   \
+    } while (0)
+
+#define ENTER_TYPED_SCOPE(tag_kind_name, scope)                                                                                                               \
+    do {                                                                                                                                                      \
+        if (auto tag = decoder.peek(); tag.is_error() || tag.value().kind != Crypto::ASN1::Kind::tag_kind_name) {                                             \
+            if (tag.is_error())                                                                                                                               \
+                ERROR_WITH_SCOPE(TRY(String::formatted(scope " data was invalid: {}", tag.error())));                                                         \
+            else                                                                                                                                              \
+                ERROR_WITH_SCOPE(TRY(String::formatted(scope " data was not of kind " #tag_kind_name " was {}", Crypto::ASN1::kind_name(tag.value().kind)))); \
+        }                                                                                                                                                     \
+        ENTER_SCOPE(scope);                                                                                                                                   \
+    } while (0)
+
+#define ENTER_SCOPE(scope)                                                                \
+    do {                                                                                  \
+        if (auto result = decoder.enter(); result.is_error()) {                           \
+            ERROR_WITH_SCOPE(TRY(String::formatted("Failed to enter scope: {}", scope))); \
+        }                                                                                 \
+        PUSH_SCOPE(scope)                                                                 \
+    } while (0)
+
+#define PUSH_SCOPE(scope) current_scope.append(#scope##sv);
+
+#define EXIT_SCOPE()                                                                             \
+    do {                                                                                         \
+        if (auto error = decoder.leave(); error.is_error()) {                                    \
+            ERROR_WITH_SCOPE(TRY(String::formatted("Failed to exit scope: {}", error.error()))); \
+        }                                                                                        \
+        POP_SCOPE();                                                                             \
+    } while (0)
+
+#define POP_SCOPE() current_scope.remove(current_scope.size() - 1);
+
+#define READ_OBJECT(kind_name, type_name, value_name)                                                                    \
+    auto value_name##_result = decoder.read<type_name>(Crypto::ASN1::Class::Universal, Crypto::ASN1::Kind::kind_name);   \
+    if (value_name##_result.is_error()) {                                                                                \
+        ERROR_WITH_SCOPE(TRY(String::formatted("Read of kind " #kind_name " failed: {}", value_name##_result.error()))); \
+    }                                                                                                                    \
+    auto value_name = value_name##_result.release_value();
+
+#define REWRITE_TAG(kind_name)                                                                                              \
+    auto value_name##_result = decoder.rewrite_tag(Crypto::ASN1::Kind::kind_name);                                          \
+    if (value_name##_result.is_error()) {                                                                                   \
+        ERROR_WITH_SCOPE(TRY(String::formatted("Rewrite of kind " #kind_name " failed: {}", value_name##_result.error()))); \
+    }
+
+#define DROP_OBJECT()                                                                   \
+    do {                                                                                \
+        if (auto error = decoder.drop(); error.is_error()) {                            \
+            ERROR_WITH_SCOPE(TRY(String::formatted("Drop failed: {}", error.error()))); \
+        }                                                                               \
+    } while (0)
+
 class BitStringView {
 public:
     BitStringView(ReadonlyBytes data, size_t unused_bits)
