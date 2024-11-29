@@ -132,6 +132,7 @@ namespace Web::ContentSecurityPolicy::Directives {
 
 class ConnectSourceDirective;
 class Directive;
+class FontSourceDirective;
 struct SerializedDirective;
 
 }
