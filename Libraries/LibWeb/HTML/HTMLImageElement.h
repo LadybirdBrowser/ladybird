@@ -52,11 +52,11 @@ public:
 
     RefPtr<Gfx::ImmutableBitmap> immutable_bitmap() const;
 
-    unsigned width() const;
-    WebIDL::ExceptionOr<void> set_width(unsigned);
+    WebIDL::UnsignedLong width() const;
+    WebIDL::ExceptionOr<void> set_width(WebIDL::UnsignedLong);
 
-    unsigned height() const;
-    WebIDL::ExceptionOr<void> set_height(unsigned);
+    WebIDL::UnsignedLong height() const;
+    WebIDL::ExceptionOr<void> set_height(WebIDL::UnsignedLong);
 
     unsigned natural_width() const;
     unsigned natural_height() const;

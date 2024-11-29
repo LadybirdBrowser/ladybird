@@ -1,3 +1,23 @@
+img.getAttribute("height") after img.setAttribute("height", "0"): 0
+img.height after img.setAttribute("height", "0"): 0
+img.getAttribute("height") after img.height = 0: 0
+img.height after img.height = 0: 0
+img.getAttribute("height") after img.setAttribute("height", "1"): 1
+img.height after img.setAttribute("height", "1"): 1
+img.getAttribute("height") after img.height = 1: 1
+img.height after img.height = 1: 1
+img.getAttribute("height") after img.setAttribute("height", "2147483647"): 2147483647
+img.height after img.setAttribute("height", "2147483647"): 2147483647
+img.getAttribute("height") after img.height = 2147483647: 2147483647
+img.height after img.height = 2147483647: 2147483647
+img.getAttribute("height") after img.setAttribute("height", "2147483648"): 2147483648
+img.height after img.setAttribute("height", "2147483648"): 0
+img.getAttribute("height") after img.height = 2147483648: 0
+img.height after img.height = 2147483648: 0
+img.getAttribute("height") after img.setAttribute("height", "4294967295"): 4294967295
+img.height after img.setAttribute("height", "4294967295"): 0
+img.getAttribute("height") after img.height = 4294967295: 0
+img.height after img.height = 4294967295: 0
 img.getAttribute("hspace") after img.setAttribute("hspace", "0"): 0
 img.hspace after img.setAttribute("hspace", "0"): 0
 img.getAttribute("hspace") after img.hspace = 0: 0
@@ -18,6 +38,26 @@ img.getAttribute("hspace") after img.setAttribute("hspace", "4294967295"): 42949
 img.hspace after img.setAttribute("hspace", "4294967295"): 0
 img.getAttribute("hspace") after img.hspace = 4294967295: 0
 img.hspace after img.hspace = 4294967295: 0
+img.getAttribute("width") after img.setAttribute("width", "0"): 0
+img.width after img.setAttribute("width", "0"): 0
+img.getAttribute("width") after img.width = 0: 0
+img.width after img.width = 0: 0
+img.getAttribute("width") after img.setAttribute("width", "1"): 1
+img.width after img.setAttribute("width", "1"): 1
+img.getAttribute("width") after img.width = 1: 1
+img.width after img.width = 1: 1
+img.getAttribute("width") after img.setAttribute("width", "2147483647"): 2147483647
+img.width after img.setAttribute("width", "2147483647"): 2147483647
+img.getAttribute("width") after img.width = 2147483647: 2147483647
+img.width after img.width = 2147483647: 2147483647
+img.getAttribute("width") after img.setAttribute("width", "2147483648"): 2147483648
+img.width after img.setAttribute("width", "2147483648"): 0
+img.getAttribute("width") after img.width = 2147483648: 0
+img.width after img.width = 2147483648: 0
+img.getAttribute("width") after img.setAttribute("width", "4294967295"): 4294967295
+img.width after img.setAttribute("width", "4294967295"): 0
+img.getAttribute("width") after img.width = 4294967295: 0
+img.width after img.width = 4294967295: 0
 input.getAttribute("size") after input.setAttribute("size", "0"): 0
 input.size after input.setAttribute("size", "0"): 20
 input.size = 0 threw exception of type IndexSizeError
