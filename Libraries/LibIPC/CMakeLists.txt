@@ -2,6 +2,7 @@ set(SOURCES
     Connection.cpp
     Decoder.cpp
     Encoder.cpp
+    File.cpp
     Message.cpp
 )
 
