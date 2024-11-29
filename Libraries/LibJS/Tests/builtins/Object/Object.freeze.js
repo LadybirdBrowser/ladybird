@@ -83,3 +83,28 @@ test("freeze with huge number of properties doesn't crash", () => {
     }
     Object.freeze(o);
 });
+
+test("freeze with TypedArray", () => {
+    const TYPED_ARRAYS = [
+        Uint8Array,
+        Uint8ClampedArray,
+        Uint16Array,
+        Uint32Array,
+        Int8Array,
+        Int16Array,
+        Int32Array,
+        Float16Array,
+        Float32Array,
+        Float64Array,
+    ];
+
+    const buffer = new ArrayBuffer(5, { maxByteLength: 10 });
+
+    TYPED_ARRAYS.forEach(T => {
+        const typedArray = new T(buffer, 0, 0);
+
+        expect(() => {
+            Object.freeze(typedArray);
+        }).toThrowWithMessage(TypeError, "Could not freeze object");
+    });
+});

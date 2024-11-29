@@ -88,7 +88,7 @@ private:
     virtual void visit_edges(Visitor&) override;
 };
 
-// 10.4.5.8 TypedArray With Buffer Witness Records, https://tc39.es/ecma262/#sec-typedarray-with-buffer-witness-records
+// 10.4.5.9 TypedArray With Buffer Witness Records, https://tc39.es/ecma262/#sec-typedarray-with-buffer-witness-records
 struct TypedArrayWithBufferWitness {
     GC::Ref<TypedArrayBase const> object; // [[Object]]
     ByteLength cached_buffer_byte_length; // [[CachedBufferByteLength]]
@@ -98,9 +98,10 @@ TypedArrayWithBufferWitness make_typed_array_with_buffer_witness_record(TypedArr
 u32 typed_array_byte_length(TypedArrayWithBufferWitness const&);
 u32 typed_array_length(TypedArrayWithBufferWitness const&);
 bool is_typed_array_out_of_bounds(TypedArrayWithBufferWitness const&);
+bool is_typed_array_fixed_length(TypedArrayBase const&);
 bool is_valid_integer_index_slow_case(TypedArrayBase const&, CanonicalIndex property_index);
 
-// 10.4.5.14 IsValidIntegerIndex ( O, index ), https://tc39.es/ecma262/#sec-isvalidintegerindex
+// 10.4.5.16 IsValidIntegerIndex ( O, index ), https://tc39.es/ecma262/#sec-isvalidintegerindex
 inline bool is_valid_integer_index(TypedArrayBase const& typed_array, CanonicalIndex property_index)
 {
     // 1. If IsDetachedBuffer(O.[[ViewedArrayBuffer]]) is true, return false.
@@ -127,7 +128,7 @@ inline bool is_valid_integer_index(TypedArrayBase const& typed_array, CanonicalI
     return is_valid_integer_index_slow_case(typed_array, property_index);
 }
 
-// 10.4.5.15 TypedArrayGetElement ( O, index ), https://tc39.es/ecma262/#sec-typedarraygetelement
+// 10.4.5.17 TypedArrayGetElement ( O, index ), https://tc39.es/ecma262/#sec-typedarraygetelement
 template<typename T>
 inline ThrowCompletionOr<Value> typed_array_get_element(TypedArrayBase const& typed_array, CanonicalIndex property_index)
 {
@@ -155,7 +156,7 @@ inline ThrowCompletionOr<Value> typed_array_get_element(TypedArrayBase const& ty
     return typed_array.viewed_array_buffer()->template get_value<T>(byte_index_in_buffer.value(), true, ArrayBuffer::Order::Unordered);
 }
 
-// 10.4.5.16 TypedArraySetElement ( O, index, value ), https://tc39.es/ecma262/#sec-typedarraysetelement
+// 10.4.5.18 TypedArraySetElement ( O, index, value ), https://tc39.es/ecma262/#sec-typedarraysetelement
 // NOTE: In error cases, the function will return as if it succeeded.
 template<typename T>
 inline ThrowCompletionOr<void> typed_array_set_element(TypedArrayBase& typed_array, CanonicalIndex property_index, Value value)
@@ -207,7 +208,22 @@ class TypedArray : public TypedArrayBase {
     using UnderlyingBufferDataType = Conditional<IsSame<ClampedU8, T>, u8, T>;
 
 public:
-    // 10.4.5.1 [[GetOwnProperty]] ( P ), https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-getownproperty-p
+    // 10.4.5.1 [[PreventExtensions]] ( ), https://tc39.es/ecma262/#sec-typedarray-preventextensions
+    virtual ThrowCompletionOr<bool> internal_prevent_extensions() override
+    {
+        // 1. NOTE: The extensibility-related invariants specified in 6.1.7.3 do not allow this method to return true
+        //    when O can gain (or lose and then regain) properties, which might occur for properties with integer index
+        //    names when its underlying buffer is resized.
+
+        // 2. If IsTypedArrayFixedLength(O) is false, return false.
+        if (!is_typed_array_fixed_length(*this))
+            return false;
+
+        // 3. Return OrdinaryPreventExtensions(O).
+        return Object::internal_prevent_extensions();
+    }
+
+    // 10.4.5.2 [[GetOwnProperty]] ( P ), https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-getownproperty-p
     virtual ThrowCompletionOr<Optional<PropertyDescriptor>> internal_get_own_property(PropertyKey const& property_key) const override
     {
         // NOTE: If the property name is a number type (An implementation-defined optimized
@@ -242,7 +258,7 @@ public:
         return Object::internal_get_own_property(property_key);
     }
 
-    // 10.4.5.2 [[HasProperty]] ( P ), https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-hasproperty-p
+    // 10.4.5.3 [[HasProperty]] ( P ), https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-hasproperty-p
     virtual ThrowCompletionOr<bool> internal_has_property(PropertyKey const& property_key) const override
     {
         // NOTE: If the property name is a number type (An implementation-defined optimized
@@ -263,7 +279,7 @@ public:
         return Object::internal_has_property(property_key);
     }
 
-    // 10.4.5.3 [[DefineOwnProperty]] ( P, Desc ), https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-defineownproperty-p-desc
+    // 10.4.5.4 [[DefineOwnProperty]] ( P, Desc ), https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-defineownproperty-p-desc
     virtual ThrowCompletionOr<bool> internal_define_own_property(PropertyKey const& property_key, PropertyDescriptor const& property_descriptor, Optional<PropertyDescriptor>* precomputed_get_own_property = nullptr) override
     {
         // NOTE: If the property name is a number type (An implementation-defined optimized
@@ -310,7 +326,7 @@ public:
         return Object::internal_define_own_property(property_key, property_descriptor, precomputed_get_own_property);
     }
 
-    // 10.4.5.4 [[Get]] ( P, Receiver ), https://tc39.es/ecma262/#sec-typedarray-get
+    // 10.4.5.5 [[Get]] ( P, Receiver ), https://tc39.es/ecma262/#sec-typedarray-get
     virtual ThrowCompletionOr<Value> internal_get(PropertyKey const& property_key, Value receiver, CacheablePropertyMetadata* cacheable_metadata, PropertyLookupPhase phase) const override
     {
         VERIFY(!receiver.is_empty());
@@ -335,7 +351,7 @@ public:
         return Object::internal_get(property_key, receiver, cacheable_metadata, phase);
     }
 
-    // 10.4.5.5 [[Set]] ( P, V, Receiver ), https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-set-p-v-receiver
+    // 10.4.5.6 [[Set]] ( P, V, Receiver ), https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-set-p-v-receiver
     virtual ThrowCompletionOr<bool> internal_set(PropertyKey const& property_key, Value value, Value receiver, CacheablePropertyMetadata*) override
     {
         VERIFY(!value.is_empty());
@@ -371,7 +387,7 @@ public:
         return Object::internal_set(property_key, value, receiver);
     }
 
-    // 10.4.5.6 [[Delete]] ( P ), https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-delete-p
+    // 10.4.5.7 [[Delete]] ( P ), https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-delete-p
     virtual ThrowCompletionOr<bool> internal_delete(PropertyKey const& property_key) override
     {
         // NOTE: If the property name is a number type (An implementation-defined optimized
@@ -396,7 +412,7 @@ public:
         return Object::internal_delete(property_key);
     }
 
-    // 10.4.5.7 [[OwnPropertyKeys]] ( ), https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-ownpropertykeys
+    // 10.4.5.8 [[OwnPropertyKeys]] ( ), https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-ownpropertykeys
     virtual ThrowCompletionOr<GC::MarkedVector<Value>> internal_own_property_keys() const override
     {
         auto& vm = this->vm();
