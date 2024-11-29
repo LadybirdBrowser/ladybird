@@ -115,6 +115,8 @@ private:
     void update_inner_text_element();
     void queue_input_and_change_events();
 
+    u32 display_size() const;
+
     GC::Ptr<HTMLOptionsCollection> m_options;
     GC::Ptr<DOM::HTMLCollection> m_selected_options;
     bool m_is_open { false };
