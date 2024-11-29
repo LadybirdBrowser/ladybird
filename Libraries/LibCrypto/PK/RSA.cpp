@@ -95,7 +95,7 @@ RSA::KeyPairType RSA::parse_rsa_key(ReadonlyBytes der)
 
         auto oid = oid_result.release_value();
         // Now let's check that the OID matches "RSA key"
-        if (oid != Crypto::Certificate::rsa_encryption_oid) {
+        if (oid != Crypto::ASN1::rsa_encryption_oid) {
             // Oh well. not an RSA key at all.
             dbgln_if(RSA_PARSE_DEBUG, "RSA PKCS#8 public key parse failed: Not an RSA key");
             return false;

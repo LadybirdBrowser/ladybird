@@ -112,9 +112,9 @@ ErrorOr<Vector<int>> parse_ec_parameters(Crypto::ASN1::Decoder& decoder, Vector<
     POP_SCOPE();
 
     constexpr static Array<Span<int const>, 3> known_curve_identifiers {
-        secp256r1_oid,
-        secp384r1_oid,
-        secp521r1_oid
+        ASN1::secp256r1_oid,
+        ASN1::secp384r1_oid,
+        ASN1::secp521r1_oid
     };
 
     bool is_known_curve = false;
@@ -144,18 +144,18 @@ static ErrorOr<AlgorithmIdentifier> parse_algorithm_identifier(Crypto::ASN1::Dec
     POP_SCOPE();
 
     constexpr static Array<Span<int const>, 12> known_algorithm_identifiers {
-        rsa_encryption_oid,
-        rsa_md5_encryption_oid,
-        rsa_sha1_encryption_oid,
-        rsa_sha256_encryption_oid,
-        rsa_sha384_encryption_oid,
-        rsa_sha512_encryption_oid,
-        ecdsa_with_sha256_encryption_oid,
-        ecdsa_with_sha384_encryption_oid,
-        ec_public_key_encryption_oid,
-        x25519_oid,
-        ed25519_oid,
-        x448_oid,
+        ASN1::rsa_encryption_oid,
+        ASN1::rsa_md5_encryption_oid,
+        ASN1::rsa_sha1_encryption_oid,
+        ASN1::rsa_sha256_encryption_oid,
+        ASN1::rsa_sha384_encryption_oid,
+        ASN1::rsa_sha512_encryption_oid,
+        ASN1::ecdsa_with_sha256_encryption_oid,
+        ASN1::ecdsa_with_sha384_encryption_oid,
+        ASN1::ec_public_key_encryption_oid,
+        ASN1::x25519_oid,
+        ASN1::ed25519_oid,
+        ASN1::x448_oid,
     };
 
     bool is_known_algorithm = false;
@@ -180,13 +180,13 @@ static ErrorOr<AlgorithmIdentifier> parse_algorithm_identifier(Crypto::ASN1::Dec
     //      sha512WithRSAEncryption  OBJECT IDENTIFIER  ::=  { pkcs-1 13 }
     //      sha224WithRSAEncryption  OBJECT IDENTIFIER  ::=  { pkcs-1 14 }
     constexpr static Array<Span<int const>, 8> rsa_null_algorithms = {
-        rsa_encryption_oid,
-        rsa_md5_encryption_oid,
-        rsa_sha1_encryption_oid,
-        rsa_sha256_encryption_oid,
-        rsa_sha384_encryption_oid,
-        rsa_sha512_encryption_oid,
-        rsa_sha224_encryption_oid,
+        ASN1::rsa_encryption_oid,
+        ASN1::rsa_md5_encryption_oid,
+        ASN1::rsa_sha1_encryption_oid,
+        ASN1::rsa_sha256_encryption_oid,
+        ASN1::rsa_sha384_encryption_oid,
+        ASN1::rsa_sha512_encryption_oid,
+        ASN1::rsa_sha224_encryption_oid,
     };
 
     bool is_rsa_null_algorithm = false;
@@ -216,14 +216,14 @@ static ErrorOr<AlgorithmIdentifier> parse_algorithm_identifier(Crypto::ASN1::Dec
     // https://datatracker.ietf.org/doc/html/rfc8410#section-9
     // For all of the OIDs, the parameters MUST be absent.
     constexpr static Array<Span<int const>, 8> no_parameter_algorithms = {
-        ecdsa_with_sha224_encryption_oid,
-        ecdsa_with_sha256_encryption_oid,
-        ecdsa_with_sha384_encryption_oid,
-        ecdsa_with_sha512_encryption_oid,
-        x25519_oid,
-        x448_oid,
-        ed25519_oid,
-        ed448_oid
+        ASN1::ecdsa_with_sha224_encryption_oid,
+        ASN1::ecdsa_with_sha256_encryption_oid,
+        ASN1::ecdsa_with_sha384_encryption_oid,
+        ASN1::ecdsa_with_sha512_encryption_oid,
+        ASN1::x25519_oid,
+        ASN1::x448_oid,
+        ASN1::ed25519_oid,
+        ASN1::ed448_oid
     };
 
     bool is_no_parameter_algorithm = false;
@@ -239,7 +239,7 @@ static ErrorOr<AlgorithmIdentifier> parse_algorithm_identifier(Crypto::ASN1::Dec
         return AlgorithmIdentifier(algorithm);
     }
 
-    if (algorithm.span() == ec_public_key_encryption_oid.span()) {
+    if (algorithm.span() == ASN1::ec_public_key_encryption_oid.span()) {
         // The parameters associated with id-ecPublicKey SHOULD be absent or ECParameters,
         // and NULL is allowed to support legacy implementations.
         if (decoder.eof()) {
@@ -380,7 +380,7 @@ ErrorOr<SubjectPublicKey> parse_subject_public_key_info(Crypto::ASN1::Decoder& d
 
     public_key.raw_key = TRY(ByteBuffer::copy(TRY(value.raw_bytes())));
 
-    if (public_key.algorithm.identifier.span() == rsa_encryption_oid.span()) {
+    if (public_key.algorithm.identifier.span() == ASN1::rsa_encryption_oid.span()) {
         auto key = Crypto::PK::RSA::parse_rsa_key(TRY(value.raw_bytes()));
         if (!key.public_key.length()) {
             return Error::from_string_literal("Invalid RSA key");
@@ -395,11 +395,11 @@ ErrorOr<SubjectPublicKey> parse_subject_public_key_info(Crypto::ASN1::Decoder& d
     // https://datatracker.ietf.org/doc/html/rfc8410#section-9
     // For all of the OIDs, the parameters MUST be absent.
     constexpr static Array<Span<int const>, 5> no_parameter_algorithms = {
-        ec_public_key_encryption_oid,
-        x25519_oid,
-        x448_oid,
-        ed25519_oid,
-        ed448_oid
+        ASN1::ec_public_key_encryption_oid,
+        ASN1::x25519_oid,
+        ASN1::x448_oid,
+        ASN1::ed25519_oid,
+        ASN1::ed448_oid
     };
 
     for (auto const& inner : no_parameter_algorithms) {
@@ -439,7 +439,7 @@ ErrorOr<PrivateKey> parse_private_key_info(Crypto::ASN1::Decoder& decoder, Vecto
 
     private_key.raw_key = TRY(ByteBuffer::copy(value.bytes()));
 
-    if (private_key.algorithm.identifier.span() == rsa_encryption_oid.span()) {
+    if (private_key.algorithm.identifier.span() == ASN1::rsa_encryption_oid.span()) {
         auto key = Crypto::PK::RSA::parse_rsa_key(value.bytes());
         if (key.private_key.length() == 0) {
             ERROR_WITH_SCOPE(TRY(String::formatted("Invalid RSA key at {}", current_scope)));
@@ -450,7 +450,7 @@ ErrorOr<PrivateKey> parse_private_key_info(Crypto::ASN1::Decoder& decoder, Vecto
         EXIT_SCOPE();
         return private_key;
     }
-    if (private_key.algorithm.identifier.span() == ec_public_key_encryption_oid.span()) {
+    if (private_key.algorithm.identifier.span() == ASN1::ec_public_key_encryption_oid.span()) {
         auto maybe_key = Crypto::PK::EC::parse_ec_key(value.bytes());
         if (maybe_key.is_error()) {
             ERROR_WITH_SCOPE(TRY(String::formatted("Invalid EC key at {}: {}", current_scope, maybe_key.release_error())));
@@ -465,11 +465,11 @@ ErrorOr<PrivateKey> parse_private_key_info(Crypto::ASN1::Decoder& decoder, Vecto
     // https://datatracker.ietf.org/doc/html/rfc8410#section-9
     // For all of the OIDs, the parameters MUST be absent.
     constexpr static Array<Span<int const>, 5> no_parameter_algorithms = {
-        ec_public_key_encryption_oid,
-        x25519_oid,
-        x448_oid,
-        ed25519_oid,
-        ed448_oid
+        ASN1::ec_public_key_encryption_oid,
+        ASN1::x25519_oid,
+        ASN1::x448_oid,
+        ASN1::ed25519_oid,
+        ASN1::ed448_oid
     };
 
     for (auto const& inner : no_parameter_algorithms) {
@@ -701,26 +701,26 @@ static ErrorOr<void> parse_extension(Crypto::ASN1::Decoder& decoder, Vector<Stri
 
     Crypto::ASN1::Decoder extension_decoder { extension_value.bytes() };
     Vector<StringView, 8> extension_scope {};
-    if (extension_id == subject_alternative_name_oid) {
+    if (extension_id == ASN1::subject_alternative_name_oid) {
         is_known_extension = true;
         auto alternate_names = TRY(parse_subject_alternative_names(extension_decoder, extension_scope));
         certificate.SAN = alternate_names;
     }
 
-    if (extension_id == key_usage_oid) {
+    if (extension_id == ASN1::key_usage_oid) {
         is_known_extension = true;
         auto usage = TRY(parse_key_usage(extension_decoder, extension_scope));
         certificate.is_allowed_to_sign_certificate = usage.get(5);
     }
 
-    if (extension_id == basic_constraints_oid) {
+    if (extension_id == ASN1::basic_constraints_oid) {
         is_known_extension = true;
         auto constraints = TRY(parse_basic_constraints(extension_decoder, extension_scope));
         certificate.is_certificate_authority = constraints.is_certificate_authority;
         certificate.path_length_constraint = constraints.path_length_constraint.to_u64();
     }
 
-    if (extension_id == issuer_alternative_name_oid) {
+    if (extension_id == ASN1::issuer_alternative_name_oid) {
         is_known_extension = true;
         auto alternate_names = TRY(parse_issuer_alternative_names(extension_decoder, extension_scope));
         certificate.IAN = alternate_names;
@@ -899,23 +899,23 @@ ErrorOr<String> RelativeDistinguishedName::to_string() const
     StringBuilder cert_name;
 
     for (auto const& [member_identifier, value] : m_members) {
-        ADD_IF_RECOGNIZED(enum_value(AttributeType::SerialNumber), "SERIALNUMBER");
-        ADD_IF_RECOGNIZED(enum_value(AttributeType::Email), "MAIL");
-        ADD_IF_RECOGNIZED(enum_value(AttributeType::Title), "T");
-        ADD_IF_RECOGNIZED(enum_value(AttributeType::PostalCode), "PC");
-        ADD_IF_RECOGNIZED(enum_value(AttributeType::DnQualifier), "DNQ");
-        ADD_IF_RECOGNIZED(enum_value(AttributeType::GivenName), "GIVENNAME");
-        ADD_IF_RECOGNIZED(enum_value(AttributeType::Surname), "SN");
+        ADD_IF_RECOGNIZED(enum_value(ASN1::AttributeType::SerialNumber), "SERIALNUMBER");
+        ADD_IF_RECOGNIZED(enum_value(ASN1::AttributeType::Email), "MAIL");
+        ADD_IF_RECOGNIZED(enum_value(ASN1::AttributeType::Title), "T");
+        ADD_IF_RECOGNIZED(enum_value(ASN1::AttributeType::PostalCode), "PC");
+        ADD_IF_RECOGNIZED(enum_value(ASN1::AttributeType::DnQualifier), "DNQ");
+        ADD_IF_RECOGNIZED(enum_value(ASN1::AttributeType::GivenName), "GIVENNAME");
+        ADD_IF_RECOGNIZED(enum_value(ASN1::AttributeType::Surname), "SN");
 
-        ADD_IF_RECOGNIZED(enum_value(AttributeType::Cn), "CN");
-        ADD_IF_RECOGNIZED(enum_value(AttributeType::L), "L");
-        ADD_IF_RECOGNIZED(enum_value(AttributeType::St), "ST");
-        ADD_IF_RECOGNIZED(enum_value(AttributeType::O), "O");
-        ADD_IF_RECOGNIZED(enum_value(AttributeType::Ou), "OU");
-        ADD_IF_RECOGNIZED(enum_value(AttributeType::C), "C");
-        ADD_IF_RECOGNIZED(enum_value(AttributeType::Street), "STREET");
-        ADD_IF_RECOGNIZED(enum_value(AttributeType::Dc), "DC");
-        ADD_IF_RECOGNIZED(enum_value(AttributeType::Uid), "UID");
+        ADD_IF_RECOGNIZED(enum_value(ASN1::AttributeType::Cn), "CN");
+        ADD_IF_RECOGNIZED(enum_value(ASN1::AttributeType::L), "L");
+        ADD_IF_RECOGNIZED(enum_value(ASN1::AttributeType::St), "ST");
+        ADD_IF_RECOGNIZED(enum_value(ASN1::AttributeType::O), "O");
+        ADD_IF_RECOGNIZED(enum_value(ASN1::AttributeType::Ou), "OU");
+        ADD_IF_RECOGNIZED(enum_value(ASN1::AttributeType::C), "C");
+        ADD_IF_RECOGNIZED(enum_value(ASN1::AttributeType::Street), "STREET");
+        ADD_IF_RECOGNIZED(enum_value(ASN1::AttributeType::Dc), "DC");
+        ADD_IF_RECOGNIZED(enum_value(ASN1::AttributeType::Uid), "UID");
 
         cert_name.appendff("\\{}={}", member_identifier, value);
     }
