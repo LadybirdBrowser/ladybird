@@ -37,6 +37,26 @@ input.getAttribute("size") after input.setAttribute("size", "4294967295"): 42949
 input.size after input.setAttribute("size", "4294967295"): 20
 input.getAttribute("size") after input.size = 4294967295: 20
 input.size after input.size = 4294967295: 20
+input.getAttribute("height") after input.setAttribute("height", "0"): 0
+input.height after input.setAttribute("height", "0"): 0
+input.getAttribute("height") after input.height = 0: 0
+input.height after input.height = 0: 0
+input.getAttribute("height") after input.setAttribute("height", "1"): 1
+input.height after input.setAttribute("height", "1"): 1
+input.getAttribute("height") after input.height = 1: 1
+input.height after input.height = 1: 0
+input.getAttribute("height") after input.setAttribute("height", "2147483647"): 2147483647
+input.height after input.setAttribute("height", "2147483647"): 2147483647
+input.getAttribute("height") after input.height = 2147483647: 2147483647
+input.height after input.height = 2147483647: 0
+input.getAttribute("height") after input.setAttribute("height", "2147483648"): 2147483648
+input.height after input.setAttribute("height", "2147483648"): 0
+input.getAttribute("height") after input.height = 2147483648: 0
+input.height after input.height = 2147483648: 0
+input.getAttribute("height") after input.setAttribute("height", "4294967295"): 4294967295
+input.height after input.setAttribute("height", "4294967295"): 0
+input.getAttribute("height") after input.height = 4294967295: 0
+input.height after input.height = 4294967295: 0
 input.getAttribute("width") after input.setAttribute("width", "0"): 0
 input.width after input.setAttribute("width", "0"): 0
 input.getAttribute("width") after input.width = 0: 0

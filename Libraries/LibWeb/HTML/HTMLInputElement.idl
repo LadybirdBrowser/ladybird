@@ -22,7 +22,7 @@ interface HTMLInputElement : HTMLElement {
     [CEReactions, Reflect=formmethod, Enumerated=FormMethodAttribute] attribute DOMString formMethod;
     [CEReactions, Reflect=formnovalidate] attribute boolean formNoValidate;
     [CEReactions, Reflect=formtarget] attribute DOMString formTarget;
-    [FIXME, CEReactions] attribute unsigned long height;
+    [CEReactions] attribute unsigned long height;
     attribute boolean indeterminate;
     [FIXME] readonly attribute HTMLDataListElement? list;
     [CEReactions, Reflect] attribute DOMString max;

@@ -1882,6 +1882,41 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_size(WebIDL::UnsignedLong value)
     return set_attribute(HTML::AttributeNames::size, String::number(value));
 }
 
+// https://html.spec.whatwg.org/multipage/input.html#dom-input-height
+WebIDL::UnsignedLong HTMLInputElement::height() const
+{
+    const_cast<DOM::Document&>(document()).update_layout();
+
+    // When the input element's type attribute is not in the Image Button state, then no image is available.
+    if (type_state() != TypeAttributeState::ImageButton)
+        return 0;
+
+    // Return the rendered height of the image, in CSS pixels, if the image is being rendered.
+    if (auto* paintable_box = this->paintable_box())
+        return paintable_box->content_height().to_int();
+
+    // On setting [the width or height IDL attribute], they must act as if they reflected the respective content attributes of the same name.
+    if (auto height_string = get_attribute(HTML::AttributeNames::height); height_string.has_value()) {
+        if (auto height = parse_non_negative_integer(*height_string); height.has_value() && *height <= 2147483647)
+            return *height;
+    }
+
+    // ...or else the natural height and height of the image, in CSS pixels, if an image is available but not being rendered
+    if (auto bitmap = current_image_bitmap())
+        return bitmap->height();
+
+    // ...or else 0, if the image is not available or does not have intrinsic dimensions.
+    return 0;
+}
+
+WebIDL::ExceptionOr<void> HTMLInputElement::set_height(WebIDL::UnsignedLong value)
+{
+    if (value > 2147483647)
+        value = 0;
+
+    return set_attribute(HTML::AttributeNames::height, String::number(value));
+}
+
 // https://html.spec.whatwg.org/multipage/input.html#dom-input-width
 WebIDL::UnsignedLong HTMLInputElement::width() const
 {
