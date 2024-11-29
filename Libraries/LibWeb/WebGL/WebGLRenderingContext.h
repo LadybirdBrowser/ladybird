@@ -33,6 +33,7 @@ public:
     bool is_context_lost() const;
 
     RefPtr<Gfx::PaintingSurface> surface();
+    void allocate_painting_surface_if_needed();
 
     void set_size(Gfx::IntSize const&);
     void reset_to_default_state();
