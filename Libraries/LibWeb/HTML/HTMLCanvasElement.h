@@ -11,6 +11,7 @@
 #include <LibGfx/PaintingSurface.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
+#include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
 
@@ -29,11 +30,11 @@ public:
 
     JS::ThrowCompletionOr<RenderingContext> get_context(String const& type, JS::Value options);
 
-    unsigned width() const;
-    unsigned height() const;
+    WebIDL::UnsignedLong width() const;
+    WebIDL::UnsignedLong height() const;
 
-    WebIDL::ExceptionOr<void> set_width(unsigned);
-    WebIDL::ExceptionOr<void> set_height(unsigned);
+    WebIDL::ExceptionOr<void> set_width(WebIDL::UnsignedLong);
+    WebIDL::ExceptionOr<void> set_height(WebIDL::UnsignedLong);
 
     String to_data_url(StringView type, JS::Value quality);
     WebIDL::ExceptionOr<void> to_blob(GC::Ref<WebIDL::CallbackType> callback, StringView type, JS::Value quality);

@@ -82,22 +82,36 @@ void HTMLCanvasElement::apply_presentational_hints(CSS::StyleProperties& style) 
                 CSS::StyleValueList::Separator::Space));
 }
 
-unsigned HTMLCanvasElement::width() const
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-width
+WebIDL::UnsignedLong HTMLCanvasElement::width() const
 {
+    // The width and height IDL attributes must reflect the respective content attributes of the same name, with the same defaults.
     // https://html.spec.whatwg.org/multipage/canvas.html#obtain-numeric-values
     // The rules for parsing non-negative integers must be used to obtain their numeric values.
     // If an attribute is missing, or if parsing its value returns an error, then the default value must be used instead.
     // The width attribute defaults to 300
-    return parse_non_negative_integer(get_attribute_value(HTML::AttributeNames::width)).value_or(300);
+    if (auto width_string = get_attribute(HTML::AttributeNames::width); width_string.has_value()) {
+        if (auto width = parse_non_negative_integer(*width_string); width.has_value() && *width <= 2147483647)
+            return *width;
+    }
+
+    return 300;
 }
 
-unsigned HTMLCanvasElement::height() const
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-height
+WebIDL::UnsignedLong HTMLCanvasElement::height() const
 {
+    // The width and height IDL attributes must reflect the respective content attributes of the same name, with the same defaults.
     // https://html.spec.whatwg.org/multipage/canvas.html#obtain-numeric-values
     // The rules for parsing non-negative integers must be used to obtain their numeric values.
     // If an attribute is missing, or if parsing its value returns an error, then the default value must be used instead.
     // the height attribute defaults to 150
-    return parse_non_negative_integer(get_attribute_value(HTML::AttributeNames::height)).value_or(150);
+    if (auto height_string = get_attribute(HTML::AttributeNames::height); height_string.has_value()) {
+        if (auto height = parse_non_negative_integer(*height_string); height.has_value() && *height <= 2147483647)
+            return *height;
+    }
+
+    return 150;
 }
 
 void HTMLCanvasElement::reset_context_to_default_state()
@@ -114,16 +128,22 @@ void HTMLCanvasElement::reset_context_to_default_state()
         });
 }
 
-WebIDL::ExceptionOr<void> HTMLCanvasElement::set_width(unsigned value)
+WebIDL::ExceptionOr<void> HTMLCanvasElement::set_width(WebIDL::UnsignedLong value)
 {
+    if (value > 2147483647)
+        value = 300;
+
     TRY(set_attribute(HTML::AttributeNames::width, String::number(value)));
     m_surface = nullptr;
     reset_context_to_default_state();
     return {};
 }
 
-WebIDL::ExceptionOr<void> HTMLCanvasElement::set_height(unsigned value)
+WebIDL::ExceptionOr<void> HTMLCanvasElement::set_height(WebIDL::UnsignedLong value)
 {
+    if (value > 2147483647)
+        value = 150;
+
     TRY(set_attribute(HTML::AttributeNames::height, String::number(value)));
     m_surface = nullptr;
     reset_context_to_default_state();
