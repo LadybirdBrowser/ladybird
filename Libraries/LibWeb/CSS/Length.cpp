@@ -15,6 +15,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Node.h>
 
 namespace Web::CSS {
@@ -129,6 +130,18 @@ CSSPixels Length::viewport_relative_length_to_px(CSSPixelRect const& viewport_re
     default:
         VERIFY_NOT_REACHED();
     }
+}
+
+Length::ResolutionContext Length::ResolutionContext::for_window(HTML::Window const& window)
+{
+    auto const& initial_font = window.associated_document().style_computer().initial_font();
+    Gfx::FontPixelMetrics const& initial_font_metrics = initial_font.pixel_metrics();
+    Length::FontMetrics font_metrics { CSSPixels { initial_font.pixel_size() }, initial_font_metrics };
+    return Length::ResolutionContext {
+        .viewport_rect = window.page().web_exposed_screen_area(),
+        .font_metrics = font_metrics,
+        .root_font_metrics = font_metrics,
+    };
 }
 
 Length::ResolutionContext Length::ResolutionContext::for_layout_node(Layout::Node const& node)

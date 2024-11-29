@@ -119,6 +119,8 @@ class IntegerOrCalculated : public CalculatedOr<i64> {
 public:
     using CalculatedOr<i64>::CalculatedOr;
 
+    [[nodiscard]] i64 resolved() const;
+
 private:
     virtual i64 resolve_calculated(NonnullRefPtr<CSSMathValue> const&, Layout::Node const&) const override;
     virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
@@ -156,6 +158,8 @@ private:
 class ResolutionOrCalculated : public CalculatedOr<Resolution> {
 public:
     using CalculatedOr<Resolution>::CalculatedOr;
+
+    [[nodiscard]] Resolution resolved() const;
 
 private:
     virtual Resolution resolve_calculated(NonnullRefPtr<CSSMathValue> const&, Layout::Node const&) const override;

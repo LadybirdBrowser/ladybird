@@ -158,6 +158,7 @@ public:
     StringView unit_name() const;
 
     struct ResolutionContext {
+        [[nodiscard]] static Length::ResolutionContext for_window(HTML::Window const&);
         [[nodiscard]] static Length::ResolutionContext for_layout_node(Layout::Node const&);
 
         CSSPixelRect viewport_rect;

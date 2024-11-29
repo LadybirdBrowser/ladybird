@@ -26,20 +26,24 @@ String MediaFeatureValue::to_string() const
 {
     return m_value.visit(
         [](Keyword const& ident) { return MUST(String::from_utf8(string_from_keyword(ident))); },
-        [](Length const& length) { return length.to_string(); },
+        [](LengthOrCalculated const& length) { return length.to_string(); },
         [](Ratio const& ratio) { return ratio.to_string(); },
-        [](Resolution const& resolution) { return resolution.to_string(); },
-        [](float number) { return String::number(number); });
+        [](ResolutionOrCalculated const& resolution) { return resolution.to_string(); },
+        [](IntegerOrCalculated const& integer) {
+            if (integer.is_calculated())
+                return integer.calculated()->to_string();
+            return String::number(integer.value());
+        });
 }
 
 bool MediaFeatureValue::is_same_type(MediaFeatureValue const& other) const
 {
     return m_value.visit(
         [&](Keyword const&) { return other.is_ident(); },
-        [&](Length const&) { return other.is_length(); },
+        [&](LengthOrCalculated const&) { return other.is_length(); },
         [&](Ratio const&) { return other.is_ratio(); },
-        [&](Resolution const&) { return other.is_resolution(); },
-        [&](float) { return other.is_number(); });
+        [&](ResolutionOrCalculated const&) { return other.is_resolution(); },
+        [&](IntegerOrCalculated const&) { return other.is_integer(); });
 }
 
 String MediaFeature::to_string() const
@@ -88,15 +92,18 @@ bool MediaFeature::evaluate(HTML::Window const& window) const
 
     switch (m_type) {
     case Type::IsTrue:
-        if (queried_value.is_number())
-            return queried_value.number() != 0;
-        if (queried_value.is_length())
-            return queried_value.length().raw_value() != 0;
+        if (queried_value.is_integer())
+            return queried_value.integer().resolved() != 0;
+        if (queried_value.is_length()) {
+            auto resolution_context = Length::ResolutionContext::for_window(window);
+            auto length = queried_value.length().resolved(resolution_context);
+            return length.raw_value() != 0;
+        }
         // FIXME: I couldn't figure out from the spec how ratios should be evaluated in a boolean context.
         if (queried_value.is_ratio())
             return !queried_value.ratio().is_degenerate();
         if (queried_value.is_resolution())
-            return queried_value.resolution().to_dots_per_pixel() != 0;
+            return queried_value.resolution().resolved().to_dots_per_pixel() != 0;
         if (queried_value.is_ident()) {
             // NOTE: It is not technically correct to always treat `no-preference` as false, but every
             //       media-feature that accepts it as a value treats it as false, so good enough. :^)
@@ -141,18 +148,18 @@ bool MediaFeature::compare(HTML::Window const& window, MediaFeatureValue left, C
         return false;
     }
 
-    if (left.is_number()) {
+    if (left.is_integer()) {
         switch (comparison) {
         case Comparison::Equal:
-            return left.number() == right.number();
+            return left.integer().resolved() == right.integer().resolved();
         case Comparison::LessThan:
-            return left.number() < right.number();
+            return left.integer().resolved() < right.integer().resolved();
         case Comparison::LessThanOrEqual:
-            return left.number() <= right.number();
+            return left.integer().resolved() <= right.integer().resolved();
         case Comparison::GreaterThan:
-            return left.number() > right.number();
+            return left.integer().resolved() > right.integer().resolved();
         case Comparison::GreaterThanOrEqual:
-            return left.number() >= right.number();
+            return left.integer().resolved() >= right.integer().resolved();
         }
         VERIFY_NOT_REACHED();
     }
@@ -160,10 +167,13 @@ bool MediaFeature::compare(HTML::Window const& window, MediaFeatureValue left, C
     if (left.is_length()) {
         CSSPixels left_px;
         CSSPixels right_px;
+        auto resolution_context = Length::ResolutionContext::for_window(window);
+        auto left_length = left.length().resolved(resolution_context);
+        auto right_length = right.length().resolved(resolution_context);
         // Save ourselves some work if neither side is a relative length.
-        if (left.length().is_absolute() && right.length().is_absolute()) {
-            left_px = left.length().absolute_length_to_px();
-            right_px = right.length().absolute_length_to_px();
+        if (left_length.is_absolute() && right_length.is_absolute()) {
+            left_px = left_length.absolute_length_to_px();
+            right_px = right_length.absolute_length_to_px();
         } else {
             auto viewport_rect = window.page().web_exposed_screen_area();
 
@@ -171,8 +181,8 @@ bool MediaFeature::compare(HTML::Window const& window, MediaFeatureValue left, C
             Gfx::FontPixelMetrics const& initial_font_metrics = initial_font.pixel_metrics();
             Length::FontMetrics font_metrics { CSSPixels { initial_font.point_size() }, initial_font_metrics };
 
-            left_px = left.length().to_px(viewport_rect, font_metrics, font_metrics);
-            right_px = right.length().to_px(viewport_rect, font_metrics, font_metrics);
+            left_px = left_length.to_px(viewport_rect, font_metrics, font_metrics);
+            right_px = right_length.to_px(viewport_rect, font_metrics, font_metrics);
         }
 
         switch (comparison) {
@@ -211,8 +221,8 @@ bool MediaFeature::compare(HTML::Window const& window, MediaFeatureValue left, C
     }
 
     if (left.is_resolution()) {
-        auto left_dppx = left.resolution().to_dots_per_pixel();
-        auto right_dppx = right.resolution().to_dots_per_pixel();
+        auto left_dppx = left.resolution().resolved().to_dots_per_pixel();
+        auto right_dppx = right.resolution().resolved().to_dots_per_pixel();
 
         switch (comparison) {
         case Comparison::Equal:

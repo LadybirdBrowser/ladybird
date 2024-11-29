@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+	<head>
+		<title>Test: evaluation of ch in calc in Media Queries</title>
+		<link rel="author" title="Florian Rivoal" href="http://florian.rivoal.net/">
+		<link rel="help" href="http://www.w3.org/TR/css3-values/#calc-notation">
+		<link rel="help" href="http://www.w3.org/TR/css3-mediaqueries/#units">
+		<link rel="match" href="../../../../expected/wpt-import/css/mediaqueries/../reference/ref-filled-green-100px-square.xht">
+		<meta name="assert" content="The size in pixels of the 'ch' unit used in calc inside a media query does not depend on declarations and use the initial value.">
+		<style>
+			:root { font-size: 30000px; }
+			p { font-size: 16px; }
+			div {
+				width: 100px;
+				height: 100px;
+				background-color: red;
+			}
+	</style>
+	</head>
+	<body>
+		<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+		<div></div>
+		<script>
+		  document.body.offsetTop;
+		</script>
+		<style>
+			@media (min-width: calc(1ch)){
+				div { background-color: green; }
+			}
+		</style>
+	</body>
+</html>
