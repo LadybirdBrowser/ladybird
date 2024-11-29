@@ -6,8 +6,7 @@ Rerun
 
 Found 608 tests
 
-606 Pass
-2 Fail
+608 Pass
 Details
 Result	Test Name	MessagePass	Bad usages: importKey(spki, {name: ECDH, namedCurve: P-256}, true, [encrypt])	
 Pass	Bad usages: importKey(spki, {name: ECDH, namedCurve: P-256}, false, [encrypt])	
@@ -473,8 +472,8 @@ Pass	Empty usages: importKey(pkcs8, {name: ECDH, namedCurve: P-384}, true, [])
 Pass	Empty usages: importKey(pkcs8, {name: ECDH, namedCurve: P-384}, false, [])	
 Pass	Empty usages: importKey(jwk(private), {name: ECDH, namedCurve: P-384}, true, [])	
 Pass	Empty usages: importKey(jwk(private), {name: ECDH, namedCurve: P-384}, false, [])	
-Fail	Empty usages: importKey(pkcs8, {name: ECDH, namedCurve: P-521}, true, [])	
-Fail	Empty usages: importKey(pkcs8, {name: ECDH, namedCurve: P-521}, false, [])	
+Pass	Empty usages: importKey(pkcs8, {name: ECDH, namedCurve: P-521}, true, [])	
+Pass	Empty usages: importKey(pkcs8, {name: ECDH, namedCurve: P-521}, false, [])	
 Pass	Empty usages: importKey(jwk(private), {name: ECDH, namedCurve: P-521}, true, [])	
 Pass	Empty usages: importKey(jwk(private), {name: ECDH, namedCurve: P-521}, false, [])	
 Pass	Bad key length: importKey(spki, {name: ECDH, namedCurve: P-256}, true, [])	

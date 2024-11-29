@@ -3144,7 +3144,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
                 [&](::Crypto::PK::ECPublicKey<> const& public_key) -> ErrorOr<ByteBuffer> {
                     auto public_key_bytes = TRY(public_key.to_uncompressed());
 
-                    Array<int, 7> ec_params;
+                    Span<int const> ec_params;
                     if (algorithm.named_curve() == "P-256"sv)
                         ec_params = ::Crypto::Certificate::secp256r1_oid;
                     else if (algorithm.named_curve() == "P-384"sv)
@@ -3154,17 +3154,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
                     else
                         VERIFY_NOT_REACHED();
 
-                    // NOTE: we store OIDs as 7 bytes, but they might be shorter
-                    size_t trailing_zeros = 0;
-                    for (size_t i = ec_params.size() - 1; i > 0; --i) {
-                        if (ec_params[i] == 0)
-                            ++trailing_zeros;
-                        else
-                            break;
-                    }
-
-                    auto ec_public_key_oid = ::Crypto::Certificate::ec_public_key_encryption_oid.span().trim(6);
-                    return TRY(::Crypto::PK::wrap_in_subject_public_key_info(public_key_bytes, ec_public_key_oid, ec_params.span().trim(ec_params.size() - trailing_zeros)));
+                    return TRY(::Crypto::PK::wrap_in_subject_public_key_info(public_key_bytes, ::Crypto::Certificate::ec_public_key_encryption_oid, ec_params));
                 },
                 [](auto) -> ErrorOr<ByteBuffer> {
                     VERIFY_NOT_REACHED();
@@ -3221,7 +3211,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
             // NOTE: everything above happens in wrap_in_private_key_info
             auto maybe_data = handle.visit(
                 [&](::Crypto::PK::ECPrivateKey<> const& private_key) -> ErrorOr<ByteBuffer> {
-                    Array<int, 7> ec_params;
+                    Span<int const> ec_params;
                     if (algorithm.named_curve() == "P-256"sv)
                         ec_params = ::Crypto::Certificate::secp256r1_oid;
                     else if (algorithm.named_curve() == "P-384"sv)
@@ -3231,17 +3221,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
                     else
                         VERIFY_NOT_REACHED();
 
-                    // NOTE: we store OIDs as 7 bytes, but they might be shorter
-                    size_t trailing_zeros = 0;
-                    for (size_t i = ec_params.size() - 1; i > 0; --i) {
-                        if (ec_params[i] == 0)
-                            ++trailing_zeros;
-                        else
-                            break;
-                    }
-
-                    auto ec_public_key_oid = ::Crypto::Certificate::ec_public_key_encryption_oid.span().trim(6);
-                    return TRY(::Crypto::PK::wrap_in_private_key_info(private_key, ec_public_key_oid, ec_params.span().trim(ec_params.size() - trailing_zeros)));
+                    return TRY(::Crypto::PK::wrap_in_private_key_info(private_key, ::Crypto::Certificate::ec_public_key_encryption_oid, ec_params));
                 },
                 [](auto) -> ErrorOr<ByteBuffer> {
                     VERIFY_NOT_REACHED();
