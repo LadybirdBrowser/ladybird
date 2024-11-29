@@ -14,6 +14,7 @@
 #include <AK/Format.h>
 #include <AK/Forward.h>
 #include <AK/Function.h>
+#include <AK/IntegralMath.h>
 #include <AK/Result.h>
 #include <AK/SourceLocation.h>
 #include <AK/String.h>
@@ -27,85 +28,90 @@
 
 namespace JS {
 
+enum class CellTag {
+    Object,
+    String,
+    Symbol,
+    Accessor,
+    BigInt,
+    __Count,
+};
+
+static_assert((to_underlying(CellTag::__Count) & ~GC::BOTTOM_TAG_PATTERN) == 0);
+
+enum class NanBoxedTag {
+    Empty,
+    Undefined,
+    Null,
+    Boolean,
+    Int32,
+    Number,
+    __Count,
+};
+
+static constexpr u64 NUMBER_OF_NAN_TAG_BITS = AK::ceil_log2(to_underlying(NanBoxedTag::__Count));
+
 // 2 ** 53 - 1
 static constexpr double MAX_ARRAY_LIKE_INDEX = 9007199254740991.0;
 // Unique bit representation of negative zero (only sign bit set)
 static constexpr u64 NEGATIVE_ZERO_BITS = ((u64)1 << 63);
 
-// This leaves us 3 bits to tag the type of pointer:
-static constexpr u64 OBJECT_TAG = 0b001 | GC::IS_CELL_BIT;
-static constexpr u64 STRING_TAG = 0b010 | GC::IS_CELL_BIT;
-static constexpr u64 SYMBOL_TAG = 0b011 | GC::IS_CELL_BIT;
-static constexpr u64 ACCESSOR_TAG = 0b100 | GC::IS_CELL_BIT;
-static constexpr u64 BIGINT_TAG = 0b101 | GC::IS_CELL_BIT;
+constexpr u64 shift_tag(CellTag tag)
+{
+    return static_cast<u64>(to_underlying(tag));
+}
+constexpr u64 shift_tag(NanBoxedTag tag)
+{
+    return GC::TAG_PATTERN | (static_cast<u64>(to_underlying(tag)) << (GC::MAX_PAYLOAD_BITS - NUMBER_OF_NAN_TAG_BITS));
+}
 
-// We can then by extracting the top 13 bits quickly check if a Value is
-// pointer backed.
-static_assert((OBJECT_TAG & GC::IS_CELL_PATTERN) == GC::IS_CELL_PATTERN);
-static_assert((STRING_TAG & GC::IS_CELL_PATTERN) == GC::IS_CELL_PATTERN);
-static_assert((GC::CANON_NAN_BITS & GC::IS_CELL_PATTERN) != GC::IS_CELL_PATTERN);
-static_assert((GC::NEGATIVE_INFINITY_BITS & GC::IS_CELL_PATTERN) != GC::IS_CELL_PATTERN);
+constexpr u64 EMPTY_TAG = shift_tag(NanBoxedTag::Empty);
+constexpr u64 UNDEFINED_TAG = shift_tag(NanBoxedTag::Undefined);
+constexpr u64 NULL_TAG = shift_tag(NanBoxedTag::Null);
+constexpr u64 BOOLEAN_TAG = shift_tag(NanBoxedTag::Boolean);
+constexpr u64 INT32_TAG = shift_tag(NanBoxedTag::Int32);
 
-// Then for the non pointer backed types we don't set the sign bit and use the
-// three lower bits for tagging as well.
-static constexpr u64 UNDEFINED_TAG = 0b110 | GC::BASE_TAG;
-static constexpr u64 NULL_TAG = 0b111 | GC::BASE_TAG;
-static constexpr u64 BOOLEAN_TAG = 0b001 | GC::BASE_TAG;
-static constexpr u64 INT32_TAG = 0b010 | GC::BASE_TAG;
-static constexpr u64 EMPTY_TAG = 0b011 | GC::BASE_TAG;
-// Notice how only undefined and null have the top bit set, this mean we can
-// quickly check for nullish values by checking if the top and bottom bits are set
-// but the middle one isn't.
-static constexpr u64 IS_NULLISH_EXTRACT_PATTERN = 0xFFFEULL;
-static constexpr u64 IS_NULLISH_PATTERN = 0x7FFEULL;
-static_assert((UNDEFINED_TAG & IS_NULLISH_EXTRACT_PATTERN) == IS_NULLISH_PATTERN);
-static_assert((NULL_TAG & IS_NULLISH_EXTRACT_PATTERN) == IS_NULLISH_PATTERN);
-static_assert((BOOLEAN_TAG & IS_NULLISH_EXTRACT_PATTERN) != IS_NULLISH_PATTERN);
-static_assert((INT32_TAG & IS_NULLISH_EXTRACT_PATTERN) != IS_NULLISH_PATTERN);
-static_assert((EMPTY_TAG & IS_NULLISH_EXTRACT_PATTERN) != IS_NULLISH_PATTERN);
-// We also have the empty tag to represent array holes however since empty
-// values are not valid anywhere else we can use this "value" to our advantage
-// in Optional<Value> to represent the empty optional.
+constexpr u64 OBJECT_TAG = shift_tag(CellTag::Object);
+constexpr u64 STRING_TAG = shift_tag(CellTag::String);
+constexpr u64 SYMBOL_TAG = shift_tag(CellTag::Symbol);
+constexpr u64 ACCESSOR_TAG = shift_tag(CellTag::Accessor);
+constexpr u64 BIGINT_TAG = shift_tag(CellTag::BigInt);
 
-static constexpr u64 SHIFTED_BOOLEAN_TAG = BOOLEAN_TAG << GC::TAG_SHIFT;
-static constexpr u64 SHIFTED_INT32_TAG = INT32_TAG << GC::TAG_SHIFT;
-
-// Summary:
-// To pack all the different value in to doubles we use the following schema:
-// s = sign, e = exponent, m = mantissa
-// The top part is the tag and the bottom the payload.
-// 0bseeeeeeeeeeemmmm mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
-// 0b0111111111111000 0... is the only real NaN
-// 0b1111111111111xxx yyy... xxx = pointer type, yyy = pointer value
-// 0b0111111111111xxx yyy... xxx = non-pointer type, yyy = value or 0 if just type
-
-// Future expansion: We are not fully utilizing all the possible bit patterns
-// yet, these choices were made to make it easy to implement and understand.
-// We can for example drop the always 1 top bit of the mantissa expanding our
-// options from 8 tags to 15 but since we currently only use 5 for both sign bits
-// this is not needed.
-
-class Value : public GC::NanBoxedValue {
+class Value : public GC::NanBoxedValue<NUMBER_OF_NAN_TAG_BITS> {
 public:
+    static_assert(PAYLOAD_BITS >= 32);
+
+    static constexpr u64 NAN_BOXED_TAG_PATTERN = GC::TAG_PATTERN | (((1ULL << TAG_BITS) - 1) << (PAYLOAD_BITS));
+
     enum class PreferredType {
         Default,
         String,
         Number,
     };
 
-    [[nodiscard]] u16 tag() const { return m_value.tag; }
+    u64 nan_boxed_tag() const
+    {
+        return m_value.encoded & NAN_BOXED_TAG_PATTERN;
+    }
 
-    bool is_empty() const { return m_value.tag == EMPTY_TAG; }
-    bool is_undefined() const { return m_value.tag == UNDEFINED_TAG; }
-    bool is_null() const { return m_value.tag == NULL_TAG; }
+    u64 tag() const
+    {
+        if (is_cell())
+            return cell_tag();
+        return nan_boxed_tag();
+    }
+
+    bool is_empty() const { return nan_boxed_tag() == EMPTY_TAG; }
+    bool is_undefined() const { return nan_boxed_tag() == UNDEFINED_TAG; }
+    bool is_null() const { return nan_boxed_tag() == NULL_TAG; }
     bool is_number() const { return is_double() || is_int32(); }
-    bool is_string() const { return m_value.tag == STRING_TAG; }
-    bool is_object() const { return m_value.tag == OBJECT_TAG; }
-    bool is_boolean() const { return m_value.tag == BOOLEAN_TAG; }
-    bool is_symbol() const { return m_value.tag == SYMBOL_TAG; }
-    bool is_accessor() const { return m_value.tag == ACCESSOR_TAG; }
-    bool is_bigint() const { return m_value.tag == BIGINT_TAG; }
-    bool is_nullish() const { return (m_value.tag & IS_NULLISH_EXTRACT_PATTERN) == IS_NULLISH_PATTERN; }
+    bool is_boolean() const { return nan_boxed_tag() == BOOLEAN_TAG; }
+    bool is_string() const { return tag() == STRING_TAG; }
+    bool is_object() const { return tag() == OBJECT_TAG; }
+    bool is_symbol() const { return tag() == SYMBOL_TAG; }
+    bool is_accessor() const { return tag() == ACCESSOR_TAG; }
+    bool is_bigint() const { return tag() == BIGINT_TAG; }
+    bool is_nullish() const { return is_null() || is_undefined(); }
     ThrowCompletionOr<bool> is_array(VM&) const;
     bool is_function() const;
     bool is_constructor() const;
@@ -147,21 +153,21 @@ public:
 
     bool is_finite_number() const
     {
-        if (!is_number())
-            return false;
         if (is_int32())
             return true;
+        if (!is_number())
+            return false;
         return !is_nan() && !is_infinity();
     }
 
     Value()
-        : Value(EMPTY_TAG << GC::TAG_SHIFT, (u64)0)
+        : Value(NanBoxedTag::Empty)
     {
     }
 
     template<typename T>
     requires(IsSameIgnoringCV<T, bool>) explicit Value(T value)
-        : Value(BOOLEAN_TAG << GC::TAG_SHIFT, (u64)value)
+        : Value(NanBoxedTag::Boolean, (u64)value)
     {
     }
 
@@ -169,13 +175,15 @@ public:
     {
         bool is_negative_zero = bit_cast<u64>(value) == NEGATIVE_ZERO_BITS;
         if (value >= NumericLimits<i32>::min() && value <= NumericLimits<i32>::max() && trunc(value) == value && !is_negative_zero) {
-            ASSERT(!(SHIFTED_INT32_TAG & (static_cast<i32>(value) & 0xFFFFFFFFul)));
-            m_value.encoded = SHIFTED_INT32_TAG | (static_cast<i32>(value) & 0xFFFFFFFFul);
+            ASSERT(!(INT32_TAG & (static_cast<i32>(value) & 0xFFFFFFFFul)));
+            m_value.encoded = INT32_TAG | (static_cast<i32>(value) & 0xFFFFFFFFul);
         } else {
             if (isnan(value)) [[unlikely]]
                 m_value.encoded = GC::CANON_NAN_BITS;
             else
                 m_value.as_double = value;
+            if ((m_value.encoded != 0 && m_value.encoded <= 0x00007FFFFFFFFFFF)) [[unlikely]]
+                m_value.encoded = GC::SUBNORMAL_PATTERN | bit_cast<u64>(value);
         }
     }
 
@@ -194,8 +202,8 @@ public:
         if (value > NumericLimits<i32>::max()) {
             m_value.as_double = static_cast<double>(value);
         } else {
-            ASSERT(!(SHIFTED_INT32_TAG & (static_cast<i32>(value) & 0xFFFFFFFFul)));
-            m_value.encoded = SHIFTED_INT32_TAG | (static_cast<i32>(value) & 0xFFFFFFFFul);
+            ASSERT(!(INT32_TAG & (static_cast<i32>(value) & 0xFFFFFFFFul)));
+            m_value.encoded = INT32_TAG | (static_cast<i32>(value) & 0xFFFFFFFFul);
         }
     }
 
@@ -204,38 +212,38 @@ public:
         if (value > NumericLimits<i32>::max()) {
             m_value.as_double = static_cast<double>(value);
         } else {
-            ASSERT(!(SHIFTED_INT32_TAG & (static_cast<i32>(value) & 0xFFFFFFFFul)));
-            m_value.encoded = SHIFTED_INT32_TAG | (static_cast<i32>(value) & 0xFFFFFFFFul);
+            ASSERT(!(INT32_TAG & (static_cast<i32>(value) & 0xFFFFFFFFul)));
+            m_value.encoded = INT32_TAG | (static_cast<i32>(value) & 0xFFFFFFFFul);
         }
     }
 
     explicit Value(i32 value)
-        : Value(SHIFTED_INT32_TAG, (u32)value)
+        : Value(NanBoxedTag::Int32, (u32)value)
     {
     }
 
     Value(Object const* object)
-        : Value(OBJECT_TAG << GC::TAG_SHIFT, reinterpret_cast<void const*>(object))
+        : Value(CellTag::Object, reinterpret_cast<void const*>(object))
     {
     }
 
     Value(PrimitiveString const* string)
-        : Value(STRING_TAG << GC::TAG_SHIFT, reinterpret_cast<void const*>(string))
+        : Value(CellTag::String, reinterpret_cast<void const*>(string))
     {
     }
 
     Value(Symbol const* symbol)
-        : Value(SYMBOL_TAG << GC::TAG_SHIFT, reinterpret_cast<void const*>(symbol))
+        : Value(CellTag::Symbol, reinterpret_cast<void const*>(symbol))
     {
     }
 
     Value(Accessor const* accessor)
-        : Value(ACCESSOR_TAG << GC::TAG_SHIFT, reinterpret_cast<void const*>(accessor))
+        : Value(CellTag::Accessor, reinterpret_cast<void const*>(accessor))
     {
     }
 
     Value(BigInt const* bigint)
-        : Value(BIGINT_TAG << GC::TAG_SHIFT, reinterpret_cast<void const*>(bigint))
+        : Value(CellTag::BigInt, reinterpret_cast<void const*>(bigint))
     {
     }
 
@@ -257,12 +265,6 @@ public:
     {
     }
 
-    Cell& as_cell()
-    {
-        VERIFY(is_cell());
-        return *extract_pointer<Cell>();
-    }
-
     Cell& as_cell() const
     {
         VERIFY(is_cell());
@@ -271,10 +273,9 @@ public:
 
     double as_double() const
     {
-        VERIFY(is_number());
         if (is_int32())
             return as_i32();
-        return m_value.as_double;
+        return GC::NanBoxedCell::as_double();
     }
 
     bool as_bool() const
@@ -388,10 +389,7 @@ public:
     template<typename... Args>
     [[nodiscard]] ALWAYS_INLINE ThrowCompletionOr<Value> invoke(VM&, PropertyKey const& property_key, Args... args);
 
-    // A double is any Value which does not have the full exponent and top mantissa bit set or has
-    // exactly only those bits set.
-    bool is_double() const { return (m_value.encoded & GC::CANON_NAN_BITS) != GC::CANON_NAN_BITS || (m_value.encoded == GC::CANON_NAN_BITS); }
-    bool is_int32() const { return m_value.tag == INT32_TAG; }
+    bool is_int32() const { return nan_boxed_tag() == INT32_TAG; }
 
     i32 as_i32() const
     {
@@ -419,34 +417,21 @@ private:
     ThrowCompletionOr<Value> to_numeric_slow_case(VM&) const;
     ThrowCompletionOr<Value> to_primitive_slow_case(VM&, PreferredType) const;
 
-    Value(u64 tag, u64 val)
+    Value(NanBoxedTag tag, u64 val = 0)
     {
-        ASSERT(!(tag & val));
-        m_value.encoded = tag | val;
+        ASSERT(!(shift_tag(tag) & val));
+        m_value.encoded = shift_tag(tag) | val;
     }
 
-    template<typename PointerType>
-    Value(u64 tag, PointerType const* ptr)
+    Value(CellTag tag, void const* ptr)
     {
         if (!ptr) {
             // Make sure all nullptrs are null
-            m_value.tag = NULL_TAG;
+            m_value.encoded = NULL_TAG;
             return;
         }
 
-        ASSERT((tag & 0x8000000000000000ul) == 0x8000000000000000ul);
-
-        if constexpr (sizeof(PointerType*) < sizeof(u64)) {
-            m_value.encoded = tag | reinterpret_cast<u32>(ptr);
-        } else {
-            // NOTE: Pointers in x86-64 use just 48 bits however are supposed to be
-            //       sign extended up from the 47th bit.
-            //       This means that all bits above the 47th should be the same as
-            //       the 47th. When storing a pointer we thus drop the top 16 bits as
-            //       we can recover it when extracting the pointer again.
-            //       See also: NanBoxedValue::extract_pointer.
-            m_value.encoded = tag | (reinterpret_cast<u64>(ptr) & 0x0000ffffffffffffULL);
-        }
+        m_value.encoded = reinterpret_cast<FlatPtr>(ptr) | shift_tag(tag);
     }
 
     [[nodiscard]] ThrowCompletionOr<Value> invoke_internal(VM&, PropertyKey const&, Optional<GC::MarkedVector<Value>> arguments);
@@ -465,12 +450,12 @@ private:
 
 inline Value js_undefined()
 {
-    return Value(UNDEFINED_TAG << GC::TAG_SHIFT, (u64)0);
+    return Value(NanBoxedTag::Undefined);
 }
 
 inline Value js_null()
 {
-    return Value(NULL_TAG << GC::TAG_SHIFT, (u64)0);
+    return Value(NanBoxedTag::Null);
 }
 
 inline Value js_nan()

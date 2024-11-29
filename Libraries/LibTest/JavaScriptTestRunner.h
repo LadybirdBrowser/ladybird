@@ -340,7 +340,11 @@ inline JSFileResult TestRunner::run_file_test(ByteString const& test_path)
     auto test_script = result.release_value();
 
     g_vm->push_execution_context(global_execution_context);
-    MUST(g_vm->bytecode_interpreter().run(*test_script));
+    if (auto maybe_error = g_vm->bytecode_interpreter().run(*test_script); maybe_error.is_error()) {
+        warnln("Unable to push execution context");
+        warnln("{}", maybe_error.release_error().value());
+        cleanup_and_exit();
+    }
     g_vm->pop_execution_context();
 
     auto file_script = parse_script(test_path, *realm);

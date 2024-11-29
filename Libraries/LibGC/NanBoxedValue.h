@@ -13,7 +13,7 @@
 namespace GC {
 
 static_assert(sizeof(double) == 8);
-static_assert(sizeof(void*) == sizeof(double) || sizeof(void*) == sizeof(u32));
+static_assert(sizeof(void*) <= sizeof(double));
 // To make our Value representation compact we can use the fact that IEEE
 // doubles have a lot (2^52 - 2) of NaN bit patterns. The canonical form being
 // just 0x7FF8000000000000 i.e. sign = 0 exponent is all ones and the top most
@@ -34,87 +34,118 @@ static_assert(NEGATIVE_INFINITY_BITS == 0xFFF0000000000000);
 // (NOTE: we have to use __builtin_isnan here since some isnan implementations are not constexpr)
 static_assert(__builtin_isnan(bit_cast<double>(0x7FF0000000000001)));
 static_assert(__builtin_isnan(bit_cast<double>(0xFFF0000000040000)));
-// This means we can use all of these NaNs to store all other options for Value.
-// To make sure all of these other representations we use 0x7FF8 as the base top
-// 2 bytes which ensures the value is always a NaN.
-static constexpr u64 BASE_TAG = 0x7FF8;
-// This leaves the sign bit and the three lower bits for tagging a value and then
-// 48 bits of potential payload.
-// First the pointer backed types (Object, String etc.), to signify this category
-// and make stack scanning easier we use the sign bit (top most bit) of 1 to
-// signify that it is a pointer backed type.
-static constexpr u64 IS_CELL_BIT = 0x8000 | BASE_TAG;
-// On all current 64-bit systems this code runs pointer actually only use the
-// lowest 6 bytes which fits neatly into our NaN payload with the top two bytes
-// left over for marking it as a NaN and tagging the type.
-// Note that we do need to take care when extracting the pointer value but this
-// is explained in the extract_pointer method.
 
-static constexpr u64 IS_CELL_PATTERN = 0xFFF8ULL;
-static constexpr u64 TAG_SHIFT = 48;
-static constexpr u64 TAG_EXTRACTION = 0xFFFF000000000000;
-static constexpr u64 SHIFTED_IS_CELL_PATTERN = IS_CELL_PATTERN << TAG_SHIFT;
+// Any user-space pointer values will have their upper bits set to 0.
+// Conveniently, when those same bits of a _double_ value are 0,
+// then the encoded value will represent be a _subnormal_ (or `0.0`).
+// Subnormals are rare, they typically indicate an underflow error, and are often
+// avoided since computations involving subnormals are slower on most hardware.
+// We can therefore encode these rare values by NaN-boxing them, and re-use
+// the newly available encodings for the much more frequent cell pointers.
+// Storing pointers with their usual bit pattern also makes CPUs and compilers happy.
+static_assert(!__builtin_isnormal(bit_cast<double>(0x0000700000000000)));
+static_assert(!__builtin_isnormal(bit_cast<double>(0x00007FFFFFFFFFFF)));
+static_assert(!__builtin_isnormal(bit_cast<double>(0x000FFFFFFFFFFFFF)));
+static_assert(__builtin_isnormal(bit_cast<double>(0x0010000000000000)));
 
-class NanBoxedValue {
+static constexpr u64 SUBNORMAL_PATTERN = 0xFFFC000000000000;
+static constexpr u64 TAG_PATTERN = 0xFFFF800000000000;
+static constexpr u64 MAX_PAYLOAD_BITS = 47;
+// Bottom tags are 3 bits since `Cell` pointers are at least 8-byte aligned.
+static constexpr u64 BOTTOM_TAG_PATTERN = 0x7ULL;
+
+class NanBoxedCell {
 public:
-    bool is_cell() const { return (m_value.tag & IS_CELL_PATTERN) == IS_CELL_PATTERN; }
-
-    static constexpr FlatPtr extract_pointer_bits(u64 encoded)
+    // A cell is any non-zero NanBoxedCell with the first 17 bits unset.
+    [[nodiscard]] ALWAYS_INLINE constexpr bool is_cell() const
     {
-#ifdef AK_ARCH_32_BIT
-        // For 32-bit system the pointer fully fits so we can just return it directly.
-        static_assert(sizeof(void*) == sizeof(u32));
-        return static_cast<FlatPtr>(encoded & 0xffff'ffff);
-#elif ARCH(X86_64) || ARCH(RISCV64)
-        // For x86_64 and riscv64 the top 16 bits should be sign extending the "real" top bit (47th).
-        // So first shift the top 16 bits away then using the right shift it sign extends the top 16 bits.
-        return static_cast<FlatPtr>((static_cast<i64>(encoded << 16)) >> 16);
-#elif ARCH(AARCH64) || ARCH(PPC64) || ARCH(PPC64LE)
-        // For AArch64 the top 16 bits of the pointer should be zero.
-        // For PPC64: all 64 bits can be used for pointers, however on Linux only
-        //            the lower 43 bits are used for user-space addresses, so
-        //            masking off the top 16 bits should match the rest of LibGC.
-        return static_cast<FlatPtr>(encoded & 0xffff'ffff'ffffULL);
-#else
-#    error "Unknown architecture. Don't know whether pointers need to be sign-extended."
-#endif
+        return (m_value.encoded & TAG_PATTERN) == 0 && m_value.encoded != 0;
+    }
+
+    // A nan-boxed value is any NanBoxedCell with the first 17 bits set.
+    // This wastes a few bits, but keeps the `is_double` check more efficient.
+    [[nodiscard]] ALWAYS_INLINE constexpr bool is_nan_boxed_value() const
+    {
+        return (m_value.encoded & TAG_PATTERN) == TAG_PATTERN;
+    }
+
+    // A nan-boxed subnormal is any NanBoxedCell with the first 17 bits equal to `SUBNORMAL_PATTERN`.
+    [[nodiscard]] ALWAYS_INLINE constexpr bool is_nan_boxed_subnormal() const
+    {
+        return (m_value.encoded & TAG_PATTERN) == SUBNORMAL_PATTERN;
+    }
+
+    // A double is any other NanBoxedCell.
+    [[nodiscard]] ALWAYS_INLINE constexpr bool is_double() const
+    {
+        return !is_cell() && !is_nan_boxed_value();
+    }
+
+    // Returns true if `m_value.as_double` contains a valid `double`.
+    [[nodiscard]] ALWAYS_INLINE constexpr bool has_double() const
+    {
+        return is_double() && !is_nan_boxed_subnormal();
+    }
+
+    [[nodiscard]] ALWAYS_INLINE constexpr double as_double() const
+    {
+        if (is_nan_boxed_subnormal()) [[unlikely]]
+            return bit_cast<double>(m_value.encoded & ~SUBNORMAL_PATTERN);
+        if (is_double())
+            return m_value.as_double;
+        VERIFY_NOT_REACHED();
+    }
+
+    static ALWAYS_INLINE constexpr FlatPtr extract_pointer_bits(u64 encoded)
+    {
+        return static_cast<FlatPtr>(encoded) & ~BOTTOM_TAG_PATTERN;
     }
 
     template<typename PointerType>
-    PointerType* extract_pointer() const
+    ALWAYS_INLINE constexpr PointerType* extract_pointer() const
     {
         VERIFY(is_cell());
         return reinterpret_cast<PointerType*>(extract_pointer_bits(m_value.encoded));
     }
 
-    Cell& as_cell()
+    ALWAYS_INLINE constexpr Cell& as_cell() const
     {
         VERIFY(is_cell());
         return *extract_pointer<Cell>();
     }
 
-    Cell& as_cell() const
-    {
-        VERIFY(is_cell());
-        return *extract_pointer<Cell>();
-    }
-
-    bool is_nan() const
+    ALWAYS_INLINE constexpr bool is_nan() const
     {
         return m_value.encoded == CANON_NAN_BITS;
+    }
+
+    ALWAYS_INLINE constexpr u64 cell_tag() const
+    {
+        return m_value.encoded & BOTTOM_TAG_PATTERN;
     }
 
 protected:
     union {
         double as_double;
-        struct {
-            u64 payload : 48;
-            u64 tag : 16;
-        };
         u64 encoded;
     } m_value { .encoded = 0 };
 };
 
-static_assert(sizeof(NanBoxedValue) == sizeof(double));
+template<size_t tag_bits = 3>
+class NanBoxedValue : public NanBoxedCell {
+public:
+    static constexpr size_t TAG_BITS = tag_bits;
+    static constexpr size_t PAYLOAD_BITS = MAX_PAYLOAD_BITS - TAG_BITS;
+
+    static_assert(TAG_BITS <= MAX_PAYLOAD_BITS);
+
+    template<typename T = u16>
+    [[nodiscard]] T nan_boxed_tag() const
+    {
+        return static_cast<T>((m_value.encoded >> (MAX_PAYLOAD_BITS - TAG_BITS)) & ((1 << TAG_BITS) - 1));
+    }
+};
+
+static_assert(sizeof(NanBoxedCell) == sizeof(double));
 
 }

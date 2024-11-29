@@ -46,10 +46,7 @@ namespace JS {
 
 static inline bool same_type_for_equality(Value const& lhs, Value const& rhs)
 {
-    // If the top two bytes are identical then either:
-    // both are NaN boxed Values with the same type
-    // or they are doubles which happen to have the same top bytes.
-    if ((lhs.encoded() & GC::TAG_EXTRACTION) == (rhs.encoded() & GC::TAG_EXTRACTION))
+    if (lhs.tag() == rhs.tag())
         return true;
 
     if (lhs.is_number() && rhs.is_number())
@@ -328,7 +325,7 @@ GC::Ref<PrimitiveString> Value::typeof_(VM& vm) const
     if (is_number())
         return *vm.typeof_strings.number;
 
-    switch (m_value.tag) {
+    switch (tag()) {
     // 4. If val is undefined, return "undefined".
     case UNDEFINED_TAG:
         return *vm.typeof_strings.undefined;
@@ -366,9 +363,9 @@ GC::Ref<PrimitiveString> Value::typeof_(VM& vm) const
 String Value::to_string_without_side_effects() const
 {
     if (is_double())
-        return number_to_string(m_value.as_double);
+        return number_to_string(as_double());
 
-    switch (m_value.tag) {
+    switch (tag()) {
     case UNDEFINED_TAG:
         return "undefined"_string;
     case NULL_TAG:
@@ -406,9 +403,9 @@ ThrowCompletionOr<GC::Ref<PrimitiveString>> Value::to_primitive_string(VM& vm)
 ThrowCompletionOr<String> Value::to_string(VM& vm) const
 {
     if (is_double())
-        return number_to_string(m_value.as_double);
+        return number_to_string(as_double());
 
-    switch (m_value.tag) {
+    switch (tag()) {
     // 1. If argument is a String, return argument.
     case STRING_TAG:
         return as_string().utf8_string();
@@ -471,12 +468,12 @@ ThrowCompletionOr<String> Value::to_well_formed_string(VM& vm) const
 bool Value::to_boolean_slow_case() const
 {
     if (is_double()) {
-        if (is_nan())
+        if (__builtin_isnan(m_value.as_double)) // NOTE: This also accounts for NaN-boxed subnormals!
             return false;
         return m_value.as_double != 0;
     }
 
-    switch (m_value.tag) {
+    switch (tag()) {
     // 1. If argument is a Boolean, return argument.
     case BOOLEAN_TAG:
         return as_bool();
@@ -567,7 +564,7 @@ ThrowCompletionOr<GC::Ref<Object>> Value::to_object(VM& vm) const
         return NumberObject::create(realm, as_double());
     }
 
-    switch (m_value.tag) {
+    switch (tag()) {
     // Undefined
     // Null
     case UNDEFINED_TAG:
@@ -707,7 +704,7 @@ ThrowCompletionOr<Value> Value::to_number_slow_case(VM& vm) const
     if (is_number())
         return *this;
 
-    switch (m_value.tag) {
+    switch (tag()) {
     // 2. If argument is either a Symbol or a BigInt, throw a TypeError exception.
     case SYMBOL_TAG:
         return vm.throw_completion<TypeError>(ErrorType::Convert, "symbol", "number");
@@ -757,7 +754,7 @@ ThrowCompletionOr<GC::Ref<BigInt>> Value::to_bigint(VM& vm) const
         return vm.throw_completion<TypeError>(ErrorType::Convert, "number", "BigInt");
     }
 
-    switch (primitive.m_value.tag) {
+    switch (primitive.tag()) {
     // Undefined
     case UNDEFINED_TAG:
         // Throw a TypeError exception.

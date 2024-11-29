@@ -68,7 +68,7 @@ public:
     virtual void gather_roots(HashMap<Cell*, GC::HeapRoot>& roots) const override
     {
         for (auto& value : *this) {
-            if constexpr (IsBaseOf<NanBoxedValue, T>) {
+            if constexpr (IsBaseOf<NanBoxedCell, T>) {
                 if (value.is_cell())
                     roots.set(&const_cast<T&>(value).as_cell(), HeapRoot { .type = HeapRoot::Type::MarkedVector });
             } else {

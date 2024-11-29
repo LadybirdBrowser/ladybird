@@ -48,30 +48,17 @@ TEST_CASE(valid_pointer_in_gives_same_pointer_out)
 #define EXPECT_POINTER_TO_SURVIVE(input)                                           \
     {                                                                              \
         JS::Value value(reinterpret_cast<Object*>(static_cast<u64>(input)));       \
-        EXPECT(value.is_object());                                                 \
+        EXPECT(value.is_cell());                                                   \
         EXPECT(!value.is_null());                                                  \
         auto extracted_pointer = JS::Value::extract_pointer_bits(value.encoded()); \
         EXPECT_EQ(static_cast<u64>(input), extracted_pointer);                     \
     }
 
-    EXPECT_POINTER_TO_SURVIVE(0x1);
     EXPECT_POINTER_TO_SURVIVE(0x10);
     EXPECT_POINTER_TO_SURVIVE(0x100);
-    EXPECT_POINTER_TO_SURVIVE(0x00007fffffffffff);
+    EXPECT_POINTER_TO_SURVIVE(0x00007ffffffffff0);
     EXPECT_POINTER_TO_SURVIVE(0x0000700000000000);
     EXPECT_POINTER_TO_SURVIVE(0x0000100000000000);
-
-#if ARCH(X86_64)
-    // On x86-64, the top 16 bits of pointers are equal to bit 47.
-    EXPECT_POINTER_TO_SURVIVE(0xffff800000000000);
-    EXPECT_POINTER_TO_SURVIVE(0xffff800000000001);
-    EXPECT_POINTER_TO_SURVIVE(0xffff800000000010);
-#elif ARCH(AARCH64)
-    // ... but they should contain zeroes on AArch64.
-    EXPECT_POINTER_TO_SURVIVE(0x0000800000000000);
-    EXPECT_POINTER_TO_SURVIVE(0x0000800000000001);
-    EXPECT_POINTER_TO_SURVIVE(0x0000800000000010);
-#endif
 
 #undef EXPECT_POINTER_TO_SURVIVE
 }
@@ -92,25 +79,25 @@ TEST_CASE(non_canon_nans)
 
     EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | 0x1);
     EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | 0x10);
-    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | (NULL_TAG << GC::TAG_SHIFT));
-    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | (UNDEFINED_TAG << GC::TAG_SHIFT));
-    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | (INT32_TAG << GC::TAG_SHIFT) | 0x88);
-    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | (OBJECT_TAG << GC::TAG_SHIFT));
-    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | (OBJECT_TAG << GC::TAG_SHIFT) | 0x1230);
-    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | (STRING_TAG << GC::TAG_SHIFT));
-    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | (STRING_TAG << GC::TAG_SHIFT) | 0x1230);
+    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | (NULL_TAG << GC::MAX_PAYLOAD_BITS));
+    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | (UNDEFINED_TAG << GC::MAX_PAYLOAD_BITS));
+    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | (INT32_TAG << GC::MAX_PAYLOAD_BITS) | 0x88);
+    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | (OBJECT_TAG << GC::MAX_PAYLOAD_BITS));
+    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | (OBJECT_TAG << GC::MAX_PAYLOAD_BITS) | 0x1230);
+    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | (STRING_TAG << GC::MAX_PAYLOAD_BITS));
+    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | (STRING_TAG << GC::MAX_PAYLOAD_BITS) | 0x1230);
 
     u64 sign_bit = 1ULL << 63;
 
     EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | sign_bit | 0x1);
     EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | sign_bit | 0x10);
-    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | sign_bit | (NULL_TAG << GC::TAG_SHIFT));
-    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | sign_bit | (UNDEFINED_TAG << GC::TAG_SHIFT));
-    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | sign_bit | (INT32_TAG << GC::TAG_SHIFT) | 0x88);
-    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | sign_bit | (OBJECT_TAG << GC::TAG_SHIFT));
-    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | sign_bit | (OBJECT_TAG << GC::TAG_SHIFT) | 0x1230);
-    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | sign_bit | (STRING_TAG << GC::TAG_SHIFT));
-    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | sign_bit | (STRING_TAG << GC::TAG_SHIFT) | 0x1230);
+    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | sign_bit | (NULL_TAG << GC::MAX_PAYLOAD_BITS));
+    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | sign_bit | (UNDEFINED_TAG << GC::MAX_PAYLOAD_BITS));
+    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | sign_bit | (INT32_TAG << GC::MAX_PAYLOAD_BITS) | 0x88);
+    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | sign_bit | (OBJECT_TAG << GC::MAX_PAYLOAD_BITS));
+    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | sign_bit | (OBJECT_TAG << GC::MAX_PAYLOAD_BITS) | 0x1230);
+    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | sign_bit | (STRING_TAG << GC::MAX_PAYLOAD_BITS));
+    EXPECT_TO_BE_NAN(GC::CANON_NAN_BITS | sign_bit | (STRING_TAG << GC::MAX_PAYLOAD_BITS) | 0x1230);
 
 #undef EXPECT_TO_BE_NAN
 }
