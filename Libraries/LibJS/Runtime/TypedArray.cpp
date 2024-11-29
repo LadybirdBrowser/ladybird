@@ -594,7 +594,7 @@ void TypedArrayBase::visit_edges(Visitor& visitor)
 JS_ENUMERATE_TYPED_ARRAYS
 #undef __JS_ENUMERATE
 
-// 10.4.5.9 MakeTypedArrayWithBufferWitnessRecord ( obj, order ), https://tc39.es/ecma262/#sec-maketypedarraywithbufferwitnessrecord
+// 10.4.5.10 MakeTypedArrayWithBufferWitnessRecord ( obj, order ), https://tc39.es/ecma262/#sec-maketypedarraywithbufferwitnessrecord
 TypedArrayWithBufferWitness make_typed_array_with_buffer_witness_record(TypedArrayBase const& typed_array, ArrayBuffer::Order order)
 {
     // 1. Let buffer be obj.[[ViewedArrayBuffer]].
@@ -617,7 +617,7 @@ TypedArrayWithBufferWitness make_typed_array_with_buffer_witness_record(TypedArr
     return { .object = typed_array, .cached_buffer_byte_length = move(byte_length) };
 }
 
-// 10.4.5.11 TypedArrayByteLength ( taRecord ), https://tc39.es/ecma262/#sec-typedarraybytelength
+// 10.4.5.12 TypedArrayByteLength ( taRecord ), https://tc39.es/ecma262/#sec-typedarraybytelength
 u32 typed_array_byte_length(TypedArrayWithBufferWitness const& typed_array_record)
 {
     // 1. If IsTypedArrayOutOfBounds(taRecord) is true, return 0.
@@ -645,7 +645,7 @@ u32 typed_array_byte_length(TypedArrayWithBufferWitness const& typed_array_recor
     return length * element_size;
 }
 
-// 10.4.5.12 TypedArrayLength ( taRecord ), https://tc39.es/ecma262/#sec-typedarraylength
+// 10.4.5.13 TypedArrayLength ( taRecord ), https://tc39.es/ecma262/#sec-typedarraylength
 u32 typed_array_length(TypedArrayWithBufferWitness const& typed_array_record)
 {
     // 1. Assert: IsTypedArrayOutOfBounds(taRecord) is false.
@@ -677,7 +677,7 @@ u32 typed_array_length(TypedArrayWithBufferWitness const& typed_array_record)
     return (byte_length.length() - byte_offset) / element_size;
 }
 
-// 10.4.5.13 IsTypedArrayOutOfBounds ( taRecord ), https://tc39.es/ecma262/#sec-istypedarrayoutofbounds
+// 10.4.5.14 IsTypedArrayOutOfBounds ( taRecord ), https://tc39.es/ecma262/#sec-istypedarrayoutofbounds
 bool is_typed_array_out_of_bounds(TypedArrayWithBufferWitness const& typed_array_record)
 {
     // 1. Let O be taRecord.[[Object]].
@@ -720,7 +720,25 @@ bool is_typed_array_out_of_bounds(TypedArrayWithBufferWitness const& typed_array
     return false;
 }
 
-// 10.4.5.14 IsValidIntegerIndex ( O, index ), https://tc39.es/ecma262/#sec-isvalidintegerindex
+// 10.4.5.15 IsTypedArrayFixedLength ( O ), https://tc39.es/ecma262/#sec-istypedarrayfixedlength
+bool is_typed_array_fixed_length(TypedArrayBase const& typed_array)
+{
+    // 1. If O.[[ArrayLength]] is AUTO, return false.
+    if (typed_array.array_length().is_auto())
+        return false;
+
+    // 2. Let buffer be O.[[ViewedArrayBuffer]].
+    auto const* buffer = typed_array.viewed_array_buffer();
+
+    // 3. If IsFixedLengthArrayBuffer(buffer) is false and IsSharedArrayBuffer(buffer) is false, return false.
+    if (!buffer->is_fixed_length() && !buffer->is_shared_array_buffer())
+        return false;
+
+    // 4. Return true.
+    return true;
+}
+
+// 10.4.5.16 IsValidIntegerIndex ( O, index ), https://tc39.es/ecma262/#sec-isvalidintegerindex
 bool is_valid_integer_index_slow_case(TypedArrayBase const& typed_array, CanonicalIndex property_index)
 {
     // 4. Let taRecord be MakeTypedArrayWithBufferWitnessRecord(O, unordered).
