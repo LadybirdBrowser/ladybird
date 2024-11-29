@@ -6,8 +6,8 @@ Rerun
 
 Found 687 tests
 
-466 Pass
-221 Fail
+471 Pass
+216 Fail
 Details
 Result	Test Name	MessagePass	background-attachment: scroll	
 Pass	background-attachment: fixed	
@@ -561,11 +561,11 @@ Pass	outline-width: 0px
 Pass	outline-width: 1px	
 Pass	outline-width: .1em	
 Pass	outline-width: inherit	
-Fail	overflow: visible	
-Fail	overflow: hidden	
-Fail	overflow: scroll	
-Fail	overflow: auto	
-Fail	overflow: inherit	
+Pass	overflow: visible	
+Pass	overflow: hidden	
+Pass	overflow: scroll	
+Pass	overflow: auto	
+Pass	overflow: inherit	
 Pass	padding-top: 0px	
 Pass	padding-top: 1px	
 Pass	padding-top: .1em	
