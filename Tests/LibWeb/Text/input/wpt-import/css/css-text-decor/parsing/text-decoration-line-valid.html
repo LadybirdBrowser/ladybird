@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Decoration Test: Parsing text-decoration-line with valid values</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-text-decor-4/#text-decoration-line-property">
+<meta name="assert" content="text-decoration-line supports the full grammar 'none | [ underline || overline || line-through || blink ] | spelling-error | grammar-error'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script>
+// none
+test_valid_value("text-decoration-line", "none");
+
+// underline || overline || line-through || blink
+test_valid_value("text-decoration-line", "underline");
+test_valid_value("text-decoration-line", "overline");
+test_valid_value("text-decoration-line", "line-through");
+test_valid_value("text-decoration-line", "blink");
+test_valid_value("text-decoration-line", "underline overline");
+test_valid_value("text-decoration-line", "overline underline", "underline overline");
+test_valid_value("text-decoration-line", "underline line-through");
+test_valid_value("text-decoration-line", "line-through underline", "underline line-through");
+test_valid_value("text-decoration-line", "underline blink");
+test_valid_value("text-decoration-line", "blink underline", "underline blink");
+test_valid_value("text-decoration-line", "overline line-through");
+test_valid_value("text-decoration-line", "line-through overline", "overline line-through");
+test_valid_value("text-decoration-line", "overline blink");
+test_valid_value("text-decoration-line", "blink overline", "overline blink");
+test_valid_value("text-decoration-line", "line-through blink");
+test_valid_value("text-decoration-line", "blink line-through", "line-through blink");
+test_valid_value("text-decoration-line", "underline overline line-through");
+test_valid_value("text-decoration-line", "underline line-through overline", "underline overline line-through");
+test_valid_value("text-decoration-line", "overline underline line-through", "underline overline line-through");
+test_valid_value("text-decoration-line", "overline line-through underline", "underline overline line-through");
+test_valid_value("text-decoration-line", "line-through underline overline", "underline overline line-through");
+test_valid_value("text-decoration-line", "line-through overline underline", "underline overline line-through");
+test_valid_value("text-decoration-line", "underline overline blink");
+test_valid_value("text-decoration-line", "underline blink overline", "underline overline blink");
+test_valid_value("text-decoration-line", "overline underline blink", "underline overline blink");
+test_valid_value("text-decoration-line", "overline blink underline", "underline overline blink");
+test_valid_value("text-decoration-line", "blink underline overline", "underline overline blink");
+test_valid_value("text-decoration-line", "blink overline underline", "underline overline blink");
+test_valid_value("text-decoration-line", "underline line-through blink");
+test_valid_value("text-decoration-line", "underline blink line-through", "underline line-through blink");
+test_valid_value("text-decoration-line", "line-through underline blink", "underline line-through blink");
+test_valid_value("text-decoration-line", "line-through blink underline", "underline line-through blink");
+test_valid_value("text-decoration-line", "blink underline line-through", "underline line-through blink");
+test_valid_value("text-decoration-line", "blink line-through underline", "underline line-through blink");
+test_valid_value("text-decoration-line", "overline line-through blink");
+test_valid_value("text-decoration-line", "overline blink line-through", "overline line-through blink");
+test_valid_value("text-decoration-line", "line-through overline blink", "overline line-through blink");
+test_valid_value("text-decoration-line", "line-through blink overline", "overline line-through blink");
+test_valid_value("text-decoration-line", "blink overline line-through", "overline line-through blink");
+test_valid_value("text-decoration-line", "blink line-through overline", "overline line-through blink");
+test_valid_value("text-decoration-line", "underline overline line-through blink");
+test_valid_value("text-decoration-line", "underline overline blink line-through", "underline overline line-through blink");
+test_valid_value("text-decoration-line", "underline line-through overline blink", "underline overline line-through blink");
+test_valid_value("text-decoration-line", "underline line-through blink overline", "underline overline line-through blink");
+test_valid_value("text-decoration-line", "underline blink overline line-through", "underline overline line-through blink");
+test_valid_value("text-decoration-line", "underline blink line-through overline", "underline overline line-through blink");
+test_valid_value("text-decoration-line", "overline underline line-through blink", "underline overline line-through blink");
+test_valid_value("text-decoration-line", "overline underline blink line-through", "underline overline line-through blink");
+test_valid_value("text-decoration-line", "overline line-through underline blink", "underline overline line-through blink");
+test_valid_value("text-decoration-line", "overline line-through blink underline", "underline overline line-through blink");
+test_valid_value("text-decoration-line", "overline blink underline line-through", "underline overline line-through blink");
+test_valid_value("text-decoration-line", "overline blink line-through underline", "underline overline line-through blink");
+test_valid_value("text-decoration-line", "line-through underline overline blink", "underline overline line-through blink");
+test_valid_value("text-decoration-line", "line-through underline blink overline", "underline overline line-through blink");
+test_valid_value("text-decoration-line", "line-through overline underline blink", "underline overline line-through blink");
+test_valid_value("text-decoration-line", "line-through overline blink underline", "underline overline line-through blink");
+test_valid_value("text-decoration-line", "line-through blink underline overline", "underline overline line-through blink");
+test_valid_value("text-decoration-line", "line-through blink overline underline", "underline overline line-through blink");
+test_valid_value("text-decoration-line", "blink underline overline line-through", "underline overline line-through blink");
+test_valid_value("text-decoration-line", "blink underline line-through overline", "underline overline line-through blink");
+test_valid_value("text-decoration-line", "blink overline underline line-through", "underline overline line-through blink");
+test_valid_value("text-decoration-line", "blink overline line-through underline", "underline overline line-through blink");
+test_valid_value("text-decoration-line", "blink line-through underline overline", "underline overline line-through blink");
+test_valid_value("text-decoration-line", "blink line-through overline underline", "underline overline line-through blink");
+
+// spelling-error
+test_valid_value("text-decoration-line", "spelling-error");
+
+// grammar-error
+test_valid_value("text-decoration-line", "grammar-error");
+
+</script>

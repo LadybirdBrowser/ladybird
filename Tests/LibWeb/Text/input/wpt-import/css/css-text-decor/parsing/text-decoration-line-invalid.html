@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Decoration Test: Parsing text-decoration-line with invalid values</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-text-decor-4/#text-decoration-line-property">
+<meta name="assert" content="text-decoration-line supports only the grammar 'none | [ underline || overline || line-through || blink ] | spelling-error | grammar-error'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script>
+test_invalid_value("text-decoration-line", "auto");
+test_invalid_value("text-decoration-line", "null");
+test_invalid_value("text-decoration-line", "noone");
+test_invalid_value("text-decoration-line", "under-line");
+test_invalid_value("text-decoration-line", "over-line");
+test_invalid_value("text-decoration-line", "linethrough");
+test_invalid_value("text-decoration-line", "none underline");
+test_invalid_value("text-decoration-line", "none spelling-error");
+test_invalid_value("text-decoration-line", "underline underline");
+test_invalid_value("text-decoration-line", "underline none overline");
+test_invalid_value("text-decoration-line", "blink line-through blink");
+test_invalid_value("text-decoration-line", "spelling-error overline");
+test_invalid_value("text-decoration-line", "spelling-error grammar-error");
+test_invalid_value("text-decoration-line", "blink underline line-through grammar-error");
+</script>

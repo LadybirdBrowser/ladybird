@@ -1,0 +1,13 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 3 tests
+
+3 Pass
+Details
+Result	Test Name	MessagePass	Property text-decoration-color value 'rgb(0, 0, 255)'	
+Pass	Property text-decoration-color value 'currentcolor'	
+Pass	Property text-decoration-color value 'inherit'	

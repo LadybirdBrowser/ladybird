@@ -1,0 +1,22 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 12 tests
+
+12 Fail
+Details
+Result	Test Name	MessageFail	Property text-decoration value 'none'	
+Fail	Property text-decoration value 'line-through'	
+Fail	Property text-decoration value 'solid'	
+Fail	Property text-decoration value 'currentcolor'	
+Fail	Property text-decoration value 'double overline underline'	
+Fail	Property text-decoration value 'underline overline line-through red'	
+Fail	Property text-decoration value 'rgba(10, 20, 30, 0.4) dotted'	
+Fail	Property text-decoration value 'underline dashed rgb(0, 255, 0)'	
+Fail	Property text-decoration value 'auto'	
+Fail	Property text-decoration value 'from-font'	
+Fail	Property text-decoration value '10px'	
+Fail	Property text-decoration value 'underline red from-font'	

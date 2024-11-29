@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Decoration Test: Parsing text-decoration-style with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-text-decor-3/#text-decoration-style-property">
+<meta name="assert" content="text-decoration-style supports only the grammar 'solid | double | dotted | dashed | wavy'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script>
+test_invalid_value("text-decoration-style", "groove");
+test_invalid_value("text-decoration-style", "solid wavy");
+</script>

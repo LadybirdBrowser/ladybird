@@ -1,0 +1,25 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 14 tests
+
+12 Pass
+2 Fail
+Details
+Result	Test Name	MessagePass	e.style['text-decoration-line'] = "auto" should not set the property value	
+Pass	e.style['text-decoration-line'] = "null" should not set the property value	
+Pass	e.style['text-decoration-line'] = "noone" should not set the property value	
+Pass	e.style['text-decoration-line'] = "under-line" should not set the property value	
+Pass	e.style['text-decoration-line'] = "over-line" should not set the property value	
+Pass	e.style['text-decoration-line'] = "linethrough" should not set the property value	
+Pass	e.style['text-decoration-line'] = "none underline" should not set the property value	
+Pass	e.style['text-decoration-line'] = "none spelling-error" should not set the property value	
+Fail	e.style['text-decoration-line'] = "underline underline" should not set the property value	
+Pass	e.style['text-decoration-line'] = "underline none overline" should not set the property value	
+Fail	e.style['text-decoration-line'] = "blink line-through blink" should not set the property value	
+Pass	e.style['text-decoration-line'] = "spelling-error overline" should not set the property value	
+Pass	e.style['text-decoration-line'] = "spelling-error grammar-error" should not set the property value	
+Pass	e.style['text-decoration-line'] = "blink underline line-through grammar-error" should not set the property value	
