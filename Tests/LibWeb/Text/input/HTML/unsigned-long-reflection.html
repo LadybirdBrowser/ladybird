@@ -2,10 +2,19 @@
 <script src="../include.js"></script>
 <script>
     test(() => {
-        function testProperty(elementName, propertyName, propertyGetter, propertySetter) {
+        function testProperty(elementNameOrFactory, propertyName, propertyGetter, propertySetter) {
             const attributeName = propertyName.toLowerCase();
             function setValue(value) {
-                let element = document.createElement(elementName);
+                let element;
+                let elementName;
+                if (typeof elementNameOrFactory === "string") {
+                    element = document.createElement(elementNameOrFactory);
+                    elementName = elementNameOrFactory;
+                } else {
+                    element = elementNameOrFactory();
+                    elementName = element.tagName.toLowerCase();
+                }
+
                 element.setAttribute(attributeName, value.toString());
                 println(`${elementName}.getAttribute("${attributeName}") after ${elementName}.setAttribute("${propertyName}", "${value}"): ${element.getAttribute(`${attributeName}`)}`);
                 println(`${elementName}.${propertyName} after ${elementName}.setAttribute("${attributeName}", "${value}"): ${propertyGetter(element)}`);
@@ -16,7 +25,7 @@
                     println(`${elementName}.getAttribute("${attributeName}") after ${elementName}.${propertyName} = ${value}: ${element.getAttribute(attributeName)}`);
                     println(`${elementName}.${propertyName} after ${elementName}.${propertyName} = ${value}: ${propertyGetter(element)}`);
                 } catch (e) {
-                    println(`${elementName}.${propertyName} = ${value} threw exception of type ${e.name}`);    
+                    println(`${elementName}.${propertyName} = ${value} threw exception of type ${e.name}`);
                 }
             }
 
@@ -27,8 +36,15 @@
             setValue(4294967295);
         }
 
+        const imageButtonInputFactory = () => {
+            const input = document.createElement("input");
+            input.type = "image";
+            return input;
+        }
+
         testProperty("img", "hspace", (img) => img.hspace, (img, value) => img.hspace = value);
         testProperty("input", "size", (input) => input.size, (input, value) => input.size = value);
+        testProperty(imageButtonInputFactory, "width", (input) => input.width, (input, value) => input.width = value);
         testProperty("marquee", "scrollAmount", (marquee) => marquee.scrollAmount, (marquee, value) => marquee.scrollAmount = value);
         testProperty("marquee", "scrollDelay", (marquee) => marquee.scrollDelay, (marquee, value) => marquee.scrollDelay = value);
         testProperty("select", "size", (select) => select.size, (select, value) => select.size = value);

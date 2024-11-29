@@ -47,6 +47,7 @@
 #include <LibWeb/MimeSniff/Resource.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
@@ -1879,6 +1880,41 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_size(WebIDL::UnsignedLong value)
     if (value > 2147483647)
         value = 20;
     return set_attribute(HTML::AttributeNames::size, String::number(value));
+}
+
+// https://html.spec.whatwg.org/multipage/input.html#dom-input-width
+WebIDL::UnsignedLong HTMLInputElement::width() const
+{
+    const_cast<DOM::Document&>(document()).update_layout();
+
+    // When the input element's type attribute is not in the Image Button state, then no image is available.
+    if (type_state() != TypeAttributeState::ImageButton)
+        return 0;
+
+    // Return the rendered width of the image, in CSS pixels, if the image is being rendered.
+    if (auto* paintable_box = this->paintable_box())
+        return paintable_box->content_width().to_int();
+
+    // On setting [the width or height IDL attribute], they must act as if they reflected the respective content attributes of the same name.
+    if (auto width_string = get_attribute(HTML::AttributeNames::width); width_string.has_value()) {
+        if (auto width = parse_non_negative_integer(*width_string); width.has_value() && *width <= 2147483647)
+            return *width;
+    }
+
+    // ...or else the natural width and height of the image, in CSS pixels, if an image is available but not being rendered
+    if (auto bitmap = current_image_bitmap())
+        return bitmap->width();
+
+    // ...or else 0, if the image is not available or does not have intrinsic dimensions.
+    return 0;
+}
+
+WebIDL::ExceptionOr<void> HTMLInputElement::set_width(WebIDL::UnsignedLong value)
+{
+    if (value > 2147483647)
+        value = 0;
+
+    return set_attribute(HTML::AttributeNames::width, String::number(value));
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-string-number
