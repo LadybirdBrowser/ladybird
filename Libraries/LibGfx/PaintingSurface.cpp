@@ -56,13 +56,14 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::wrap_bitmap(Bitmap& bitmap)
 }
 
 #ifdef AK_OS_MACOS
-NonnullRefPtr<PaintingSurface> PaintingSurface::wrap_metal_surface(Gfx::MetalTexture& metal_texture, RefPtr<SkiaBackendContext> context)
+NonnullRefPtr<PaintingSurface> PaintingSurface::wrap_iosurface(Core::IOSurfaceHandle const& iosurface_handle, RefPtr<SkiaBackendContext> context)
 {
-    IntSize const size { metal_texture.width(), metal_texture.height() };
+    auto metal_texture = context->metal_context().create_texture_from_iosurface(iosurface_handle);
+    IntSize const size { metal_texture->width(), metal_texture->height() };
     auto image_info = SkImageInfo::Make(size.width(), size.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType);
     GrMtlTextureInfo mtl_info;
-    mtl_info.fTexture = sk_ret_cfp(metal_texture.texture());
-    auto backend_render_target = GrBackendRenderTargets::MakeMtl(metal_texture.width(), metal_texture.height(), mtl_info);
+    mtl_info.fTexture = sk_ret_cfp(metal_texture->texture());
+    auto backend_render_target = GrBackendRenderTargets::MakeMtl(metal_texture->width(), metal_texture->height(), mtl_info);
     auto surface = SkSurfaces::WrapBackendRenderTarget(context->sk_context(), backend_render_target, kTopLeft_GrSurfaceOrigin, kBGRA_8888_SkColorType, nullptr, nullptr);
     return adopt_ref(*new PaintingSurface(make<Impl>(size, surface, nullptr, context)));
 }

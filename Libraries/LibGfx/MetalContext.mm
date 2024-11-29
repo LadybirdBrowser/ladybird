@@ -67,7 +67,7 @@ private:
     id<MTLCommandQueue> m_queue;
 };
 
-OwnPtr<MetalContext> get_metal_context()
+RefPtr<MetalContext> get_metal_context()
 {
     auto device = MTLCreateSystemDefaultDevice();
     if (!device) {
@@ -82,7 +82,7 @@ OwnPtr<MetalContext> get_metal_context()
         return {};
     }
 
-    return make<MetalContextImpl>(device, queue);
+    return adopt_ref(*new MetalContextImpl(device, queue));
 }
 
 }

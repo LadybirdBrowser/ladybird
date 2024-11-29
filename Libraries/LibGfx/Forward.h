@@ -28,6 +28,7 @@ class Palette;
 class PaletteImpl;
 class Path;
 class ShareableBitmap;
+class SkiaBackendContext;
 struct SystemTheme;
 
 template<typename T>

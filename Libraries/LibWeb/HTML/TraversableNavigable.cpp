@@ -1408,8 +1408,7 @@ void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::
 #ifdef AK_OS_MACOS
         if (m_metal_context && m_skia_backend_context && is<Painting::IOSurfaceBackingStore>(target)) {
             auto& iosurface_backing_store = static_cast<Painting::IOSurfaceBackingStore&>(target);
-            auto texture = m_metal_context->create_texture_from_iosurface(iosurface_backing_store.iosurface_handle());
-            auto painting_surface = Gfx::PaintingSurface::wrap_metal_surface(*texture, m_skia_backend_context);
+            auto painting_surface = Gfx::PaintingSurface::wrap_iosurface(iosurface_backing_store.iosurface_handle(), *m_skia_backend_context);
             Painting::DisplayListPlayerSkia player(*m_skia_backend_context, painting_surface);
             player.execute(*display_list);
             return;
