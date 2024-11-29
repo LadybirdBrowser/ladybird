@@ -1,0 +1,36 @@
+Harness status: OK
+
+Found 31 tests
+
+31 Pass
+Pass	e.style['background-position'] = "1px" should set the property value
+Pass	e.style['background-position'] = "1px center" should set the property value
+Pass	e.style['background-position'] = "-2% -3%" should set the property value
+Pass	e.style['background-position'] = "5% top" should set the property value
+Pass	e.style['background-position'] = "center" should set the property value
+Pass	e.style['background-position'] = "center center" should set the property value
+Pass	e.style['background-position'] = "center 6px" should set the property value
+Pass	e.style['background-position'] = "center left" should set the property value
+Pass	e.style['background-position'] = "center right 7%" should set the property value
+Pass	e.style['background-position'] = "center bottom" should set the property value
+Pass	e.style['background-position'] = "center top 8px" should set the property value
+Pass	e.style['background-position'] = "left" should set the property value
+Pass	e.style['background-position'] = "right 9%" should set the property value
+Pass	e.style['background-position'] = "left 10px center" should set the property value
+Pass	e.style['background-position'] = "right 11% bottom" should set the property value
+Pass	e.style['background-position'] = "left 12px top 13px" should set the property value
+Pass	e.style['background-position'] = "right center" should set the property value
+Pass	e.style['background-position'] = "left bottom" should set the property value
+Pass	e.style['background-position'] = "right top 14%" should set the property value
+Pass	e.style['background-position'] = "bottom" should set the property value
+Pass	e.style['background-position'] = "top 15px center" should set the property value
+Pass	e.style['background-position'] = "bottom 16% left" should set the property value
+Pass	e.style['background-position'] = "top 17px right 18px" should set the property value
+Pass	e.style['background-position'] = "bottom center" should set the property value
+Pass	e.style['background-position'] = "top left" should set the property value
+Pass	e.style['background-position'] = "bottom right 19%" should set the property value
+Pass	e.style['background-position'] = "20% 0%" should set the property value
+Pass	e.style['background-position'] = "0% 0%" should set the property value
+Pass	e.style['background-position'] = "0%" should set the property value
+Pass	e.style['background-position'] = "0% center" should set the property value
+Pass	e.style['background-position'] = "center 0%" should set the property value
