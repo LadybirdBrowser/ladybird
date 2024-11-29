@@ -119,7 +119,7 @@ class IntegerOrCalculated : public CalculatedOr<i64> {
 public:
     using CalculatedOr<i64>::CalculatedOr;
 
-    [[nodiscard]] i64 resolved() const;
+    [[nodiscard]] i64 resolved(Length::ResolutionContext const&) const;
 
 private:
     virtual i64 resolve_calculated(NonnullRefPtr<CSSMathValue> const&, Layout::Node const&) const override;

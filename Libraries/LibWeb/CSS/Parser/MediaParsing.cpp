@@ -569,8 +569,7 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
         auto transaction = tokens.begin_transaction();
         tokens.discard_whitespace();
         if (auto integer = parse_integer(tokens); integer.has_value()) {
-            auto integer_value = integer.value().resolved();
-            if (integer_value == 0 || integer_value == 1) {
+            if (integer.value().is_calculated() || integer->value() == 0 || integer->value() == 1) {
                 transaction.commit();
                 return MediaFeatureValue(integer.release_value());
             }

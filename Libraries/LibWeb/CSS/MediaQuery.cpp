@@ -90,12 +90,12 @@ bool MediaFeature::evaluate(HTML::Window const& window) const
         return false;
     auto queried_value = maybe_queried_value.release_value();
 
+    auto resolution_context = Length::ResolutionContext::for_window(window);
     switch (m_type) {
     case Type::IsTrue:
         if (queried_value.is_integer())
-            return queried_value.integer().resolved() != 0;
+            return queried_value.integer().resolved(resolution_context) != 0;
         if (queried_value.is_length()) {
-            auto resolution_context = Length::ResolutionContext::for_window(window);
             auto length = queried_value.length().resolved(resolution_context);
             return length.raw_value() != 0;
         }
@@ -149,17 +149,18 @@ bool MediaFeature::compare(HTML::Window const& window, MediaFeatureValue left, C
     }
 
     if (left.is_integer()) {
+        auto resolution_context = Length::ResolutionContext::for_window(window);
         switch (comparison) {
         case Comparison::Equal:
-            return left.integer().resolved() == right.integer().resolved();
+            return left.integer().resolved(resolution_context) == right.integer().resolved(resolution_context);
         case Comparison::LessThan:
-            return left.integer().resolved() < right.integer().resolved();
+            return left.integer().resolved(resolution_context) < right.integer().resolved(resolution_context);
         case Comparison::LessThanOrEqual:
-            return left.integer().resolved() <= right.integer().resolved();
+            return left.integer().resolved(resolution_context) <= right.integer().resolved(resolution_context);
         case Comparison::GreaterThan:
-            return left.integer().resolved() > right.integer().resolved();
+            return left.integer().resolved(resolution_context) > right.integer().resolved(resolution_context);
         case Comparison::GreaterThanOrEqual:
-            return left.integer().resolved() >= right.integer().resolved();
+            return left.integer().resolved(resolution_context) >= right.integer().resolved(resolution_context);
         }
         VERIFY_NOT_REACHED();
     }

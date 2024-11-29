@@ -2797,17 +2797,47 @@ Optional<Time> CSSMathValue::resolve_time_percentage(Time const& percentage_basi
 Optional<double> CSSMathValue::resolve_number() const
 {
     auto result = m_calculation->resolve({}, {});
+
     if (result.value().has<Number>())
         return result.value().get<Number>().value();
     return {};
 }
 
+Optional<double> CSSMathValue::resolve_number(Length::ResolutionContext const& context) const
+{
+    auto result = m_calculation->resolve(context, {});
+
+    if (result.value().has<Number>())
+        return result.value().get<Number>().value();
+    return {};
+}
+
+Optional<double> CSSMathValue::resolve_number(Layout::Node const& layout_node) const
+{
+    return resolve_number(Length::ResolutionContext::for_layout_node(layout_node));
+}
+
 Optional<i64> CSSMathValue::resolve_integer() const
 {
     auto result = m_calculation->resolve({}, {});
+
     if (result.value().has<Number>())
         return result.value().get<Number>().integer_value();
     return {};
+}
+
+Optional<i64> CSSMathValue::resolve_integer(Length::ResolutionContext const& context) const
+{
+    auto result = m_calculation->resolve(context, {});
+
+    if (result.value().has<Number>())
+        return result.value().get<Number>().integer_value();
+    return {};
+}
+
+Optional<i64> CSSMathValue::resolve_integer(Layout::Node const& layout_node) const
+{
+    return resolve_integer(Length::ResolutionContext::for_layout_node(layout_node));
 }
 
 bool CSSMathValue::contains_percentage() const

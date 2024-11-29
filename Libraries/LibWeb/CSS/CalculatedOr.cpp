@@ -47,15 +47,15 @@ NonnullRefPtr<CSSStyleValue> FrequencyOrCalculated::create_style_value() const
     return FrequencyStyleValue::create(value());
 }
 
-i64 IntegerOrCalculated::resolve_calculated(NonnullRefPtr<CSSMathValue> const& calculated, Layout::Node const&) const
+i64 IntegerOrCalculated::resolve_calculated(NonnullRefPtr<CSSMathValue> const& calculated, Layout::Node const& layout_node) const
 {
-    return calculated->resolve_integer().value();
+    return calculated->resolve_integer(layout_node).value();
 }
 
-i64 IntegerOrCalculated::resolved() const
+i64 IntegerOrCalculated::resolved(Length::ResolutionContext const& context) const
 {
     if (is_calculated())
-        return calculated()->resolve_integer().value();
+        return calculated()->resolve_integer(context).value();
     return value();
 }
 
@@ -81,9 +81,9 @@ NonnullRefPtr<CSSStyleValue> LengthOrCalculated::create_style_value() const
     return LengthStyleValue::create(value());
 }
 
-double NumberOrCalculated::resolve_calculated(NonnullRefPtr<CSSMathValue> const& calculated, Layout::Node const&) const
+double NumberOrCalculated::resolve_calculated(NonnullRefPtr<CSSMathValue> const& calculated, Layout::Node const& layout_node) const
 {
-    return calculated->resolve_number().value();
+    return calculated->resolve_number(layout_node).value();
 }
 
 NonnullRefPtr<CSSStyleValue> NumberOrCalculated::create_style_value() const
