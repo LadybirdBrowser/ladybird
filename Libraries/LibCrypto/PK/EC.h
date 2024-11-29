@@ -81,7 +81,7 @@ class EC : public PKSystem<ECPrivateKey<IntegerType>, ECPublicKey<IntegerType>> 
 public:
     using KeyPairType = ECKeyPair<PublicKeyType, PrivateKeyType>;
 
-    static ErrorOr<KeyPairType> parse_ec_key(ReadonlyBytes der);
+    static ErrorOr<KeyPairType> parse_ec_key(ReadonlyBytes der, bool is_private, Vector<StringView> current_scope);
 };
 
 }

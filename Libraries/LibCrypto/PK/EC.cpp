@@ -9,6 +9,11 @@
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/Certificate/Certificate.h>
 
+namespace {
+// Used by ASN1 macros
+static String s_error_string;
+}
+
 namespace Crypto::PK {
 
 template<>
@@ -44,81 +49,103 @@ ErrorOr<ByteBuffer> ECPrivateKey<IntegerType>::export_as_der() const
     return encoder.finish();
 }
 
-// https://www.rfc-editor.org/rfc/rfc5915#section-3
-ErrorOr<EC::KeyPairType> EC::parse_ec_key(ReadonlyBytes der)
+static ErrorOr<ECPublicKey<>> read_ec_public_key(ReadonlyBytes bytes, Vector<StringView> current_scope)
 {
-    // ECPrivateKey ::= SEQUENCE {
-    //      version         INTEGER { ecPrivkeyVer1(1) }(ecPrivkeyVer1),
-    //      privateKey      OCTET STRING,
-    //      parameters  [0] ECParameters {{ NamedCurve }} OPTIONAL,
-    //      publicKey   [1] BIT STRING OPTIONAL
-    // }
+    // NOTE: Public keys do not have an ASN1 structure
+    if (bytes.size() < 1) {
+        ERROR_WITH_SCOPE("Invalid public key length");
+    }
+
+    if (bytes[0] == 0x04) {
+        auto half_size = (bytes.size() - 1) / 2;
+        if (1 + half_size * 2 != bytes.size()) {
+            ERROR_WITH_SCOPE("Invalid public key length");
+        }
+
+        return ::Crypto::PK::ECPublicKey<> {
+            UnsignedBigInteger::import_data(bytes.slice(1, half_size)),
+            UnsignedBigInteger::import_data(bytes.slice(1 + half_size, half_size)),
+        };
+    } else {
+        ERROR_WITH_SCOPE("Unsupported public key format");
+    }
+}
+
+// https://www.rfc-editor.org/rfc/rfc5915#section-3
+ErrorOr<EC::KeyPairType> EC::parse_ec_key(ReadonlyBytes der, bool is_private, Vector<StringView> current_scope)
+{
     KeyPairType keypair;
 
     ASN1::Decoder decoder(der);
 
-    auto tag = TRY(decoder.peek());
-    if (tag.kind != ASN1::Kind::Sequence) {
-        auto message = TRY(String::formatted("EC key parse failed: Expected a Sequence but got {}", ASN1::kind_name(tag.kind)));
-        return Error::from_string_view(message.bytes_as_string_view());
-    }
+    if (is_private) {
+        // ECPrivateKey ::= SEQUENCE {
+        //      version         INTEGER { ecPrivkeyVer1(1) }(ecPrivkeyVer1),
+        //      privateKey      OCTET STRING,
+        //      parameters  [0] ECParameters {{ NamedCurve }} OPTIONAL,
+        //      publicKey   [1] BIT STRING OPTIONAL
+        // }
 
-    TRY(decoder.enter());
+        ENTER_TYPED_SCOPE(Sequence, "ECPrivateKey"sv);
 
-    auto version = TRY(decoder.read<UnsignedBigInteger>());
-    if (version != 1) {
-        auto message = TRY(String::formatted("EC key parse failed: Invalid version {}", version));
-        return Error::from_string_view(message.bytes_as_string_view());
-    }
+        PUSH_SCOPE("version");
+        READ_OBJECT(Integer, Crypto::UnsignedBigInteger, version);
+        POP_SCOPE();
 
-    auto private_key = TRY(decoder.read<StringView>());
+        PUSH_SCOPE("privateKey");
+        READ_OBJECT(OctetString, StringView, private_key_bytes);
+        POP_SCOPE();
 
-    Optional<Vector<int>> parameters;
-    if (!decoder.eof()) {
-        auto tag = TRY(decoder.peek());
-        if (static_cast<u8>(tag.kind) == 0) {
-            TRY(decoder.rewrite_tag(ASN1::Kind::Sequence));
-            TRY(decoder.enter());
+        auto private_key = UnsignedBigInteger::import_data(private_key_bytes);
 
-            parameters = TRY(Crypto::Certificate::parse_ec_parameters(decoder, {}));
-
-            TRY(decoder.leave());
-        }
-    }
-
-    Optional<ECPublicKey<>> public_key;
-    if (!decoder.eof()) {
-        auto tag = TRY(decoder.peek());
-        if (static_cast<u8>(tag.kind) == 1) {
-            TRY(decoder.rewrite_tag(ASN1::Kind::Sequence));
-            TRY(decoder.enter());
-
-            auto public_key_bits = TRY(decoder.read<ASN1::BitStringView>());
-            auto public_key_bytes = TRY(public_key_bits.raw_bytes());
-            if (public_key_bytes.size() != 1 + private_key.length() * 2) {
-                return Error::from_string_literal("EC key parse failed: Invalid public key length");
+        Optional<Vector<int>> parameters;
+        if (!decoder.eof()) {
+            auto tag = TRY(decoder.peek());
+            if (static_cast<u8>(tag.kind) == 0) {
+                REWRITE_TAG(Sequence);
+                ENTER_TYPED_SCOPE(Sequence, "parameters"sv);
+                parameters = TRY(Crypto::Certificate::parse_ec_parameters(decoder, {}));
+                EXIT_SCOPE();
             }
-
-            if (public_key_bytes[0] != 0x04) {
-                return Error::from_string_literal("EC key parse failed: Unsupported public key format");
-            }
-
-            public_key = ::Crypto::PK::ECPublicKey<> {
-                UnsignedBigInteger::import_data(public_key_bytes.slice(1, private_key.length())),
-                UnsignedBigInteger::import_data(public_key_bytes.slice(1 + private_key.length(), private_key.length())),
-            };
-
-            TRY(decoder.leave());
         }
+
+        Optional<ECPublicKey<>> public_key;
+        if (!decoder.eof()) {
+            auto tag = TRY(decoder.peek());
+            if (static_cast<u8>(tag.kind) == 1) {
+                REWRITE_TAG(Sequence);
+                ENTER_TYPED_SCOPE(Sequence, "publicKey"sv);
+                READ_OBJECT(BitString, Crypto::ASN1::BitStringView, public_key_bits);
+
+                auto public_key_bytes = TRY(public_key_bits.raw_bytes());
+                auto maybe_public_key = read_ec_public_key(public_key_bytes, current_scope);
+                if (maybe_public_key.is_error()) {
+                    ERROR_WITH_SCOPE(maybe_public_key.release_error());
+                }
+
+                keypair.public_key = maybe_public_key.release_value();
+                public_key = keypair.public_key;
+                if (keypair.public_key.x().byte_length() != private_key.byte_length() || keypair.public_key.y().byte_length() != private_key.byte_length()) {
+                    ERROR_WITH_SCOPE("Invalid public key length");
+                }
+
+                EXIT_SCOPE();
+            }
+        }
+
+        keypair.private_key = ECPrivateKey { private_key, parameters, public_key };
+
+        EXIT_SCOPE();
+        return keypair;
+    } else {
+        auto maybe_key = read_ec_public_key(der, current_scope);
+        if (maybe_key.is_error()) {
+            ERROR_WITH_SCOPE(maybe_key.release_error());
+        }
+
+        keypair.public_key = maybe_key.release_value();
+        return keypair;
     }
-
-    keypair.private_key = ECPrivateKey {
-        UnsignedBigInteger::import_data(private_key),
-        parameters,
-        public_key,
-    };
-
-    return keypair;
 }
 
 }

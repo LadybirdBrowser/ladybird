@@ -395,9 +395,9 @@ ErrorOr<PrivateKey> parse_private_key_info(Crypto::ASN1::Decoder& decoder, Vecto
         return private_key;
     }
     if (private_key.algorithm.identifier.span() == ASN1::ec_public_key_encryption_oid.span()) {
-        auto maybe_key = Crypto::PK::EC::parse_ec_key(value.bytes());
+        auto maybe_key = Crypto::PK::EC::parse_ec_key(value.bytes(), true, current_scope);
         if (maybe_key.is_error()) {
-            ERROR_WITH_SCOPE(TRY(String::formatted("Invalid EC key at {}: {}", current_scope, maybe_key.release_error())));
+            ERROR_WITH_SCOPE(maybe_key.release_error());
         }
 
         private_key.ec = move(maybe_key.release_value().private_key);
