@@ -62,7 +62,7 @@ bool command_delete_action(DOM::Document& document, String const&)
     canonicalize_whitespace(active_range.start_container(), active_range.start_offset());
 
     // 3. Let node and offset be the active range's start node and offset.
-    auto node = active_range.start_container();
+    GC::Ptr<DOM::Node> node = active_range.start_container();
     int offset = active_range.start_offset();
 
     // 4. Repeat the following steps:
@@ -89,7 +89,7 @@ bool command_delete_action(DOM::Document& document, String const&)
 
         // 3. Otherwise, if offset is zero and node is an inline node, or if node is an invisible
         //    node, set offset to the index of node, then set node to its parent.
-        if ((offset == 0 && is_inline_node(node)) || is_invisible_node(node)) {
+        if ((offset == 0 && is_inline_node(*node)) || is_invisible_node(*node)) {
             offset = node->index();
             node = *node->parent();
             continue;
@@ -118,7 +118,7 @@ bool command_delete_action(DOM::Document& document, String const&)
     // 5. If node is a Text node and offset is not zero, or if node is a block node that has a child
     //    with index offset − 1 and that child is a br or hr or img:
     bool block_node_child_is_relevant_type = false;
-    if (is_block_node(node)) {
+    if (is_block_node(*node)) {
         if (auto* child_node = node->child_at_index(offset - 1)) {
             auto& child_element = static_cast<DOM::Element&>(*child_node);
             block_node_child_is_relevant_type = child_element.local_name().is_one_of(HTML::TagNames::br, HTML::TagNames::hr, HTML::TagNames::img);
@@ -139,7 +139,7 @@ bool command_delete_action(DOM::Document& document, String const&)
     }
 
     // 6. If node is an inline node, return true.
-    if (is_inline_node(node))
+    if (is_inline_node(*node))
         return true;
 
     // 7. If node is an li or dt or dd and is the first child of its parent, and offset is zero:
@@ -162,19 +162,33 @@ bool command_delete_action(DOM::Document& document, String const&)
 
         // 3. Record the values of the one-node list consisting of node, and let values be the
         //    result.
-        auto values = record_the_values_of_nodes({ node });
+        auto values = record_the_values_of_nodes({ *node });
 
         // 4. Split the parent of the one-node list consisting of node.
-        split_the_parent_of_nodes({ node });
+        split_the_parent_of_nodes({ *node });
 
         // 5. Restore the values from values.
         restore_the_values_of_nodes(values);
 
-        // FIXME: 6. If node is a dd or dt, and it is not an allowed child of any of its ancestors in the
+        // 6. If node is a dd or dt, and it is not an allowed child of any of its ancestors in the
         //    same editing host, set the tag name of node to the default single-line container name
         //    and let node be the result.
+        if (node_element.local_name().is_one_of(HTML::TagNames::dd, HTML::TagNames::dt)) {
+            ancestor = node->parent();
+            bool allowed_child_of_any_ancestor = false;
+            do {
+                if (is_in_same_editing_host(*node, *ancestor) && is_allowed_child_of_node(GC::Ref { *node }, GC::Ref { *ancestor })) {
+                    allowed_child_of_any_ancestor = true;
+                    break;
+                }
+                ancestor = ancestor->parent();
+            } while (ancestor);
+            if (!allowed_child_of_any_ancestor)
+                node = set_the_tag_name(node_element, document.default_single_line_container_name());
+        }
 
-        // FIXME: 7. Fix disallowed ancestors of node.
+        // 7. Fix disallowed ancestors of node.
+        fix_disallowed_ancestors_of_node(node);
 
         // 8. Return true.
         return true;
