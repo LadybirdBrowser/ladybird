@@ -41,6 +41,7 @@ set(SOURCES
     ContentSecurityPolicy/Directives/DirectiveFactory.cpp
     ContentSecurityPolicy/Directives/DirectiveOperations.cpp
     ContentSecurityPolicy/Directives/FontSourceDirective.cpp
+    ContentSecurityPolicy/Directives/FrameSourceDirective.cpp
     ContentSecurityPolicy/Directives/KeywordSources.cpp
     ContentSecurityPolicy/Directives/Names.cpp
     ContentSecurityPolicy/Directives/SerializedDirective.cpp
