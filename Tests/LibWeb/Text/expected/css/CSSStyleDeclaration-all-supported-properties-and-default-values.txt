@@ -443,7 +443,7 @@ All supported properties and their default values exposed from CSSStyleDeclarati
 'outline-style': 'none'
 'outlineWidth': 'medium'
 'outline-width': 'medium'
-'overflow': 'visible visible'
+'overflow': 'visible'
 'overflowX': 'visible'
 'overflow-x': 'visible'
 'overflowY': 'visible'
