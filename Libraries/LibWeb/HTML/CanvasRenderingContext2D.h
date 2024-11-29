@@ -113,6 +113,11 @@ public:
 
     [[nodiscard]] Gfx::Painter* painter();
 
+    void set_size(Gfx::IntSize const&);
+
+    RefPtr<Gfx::PaintingSurface> surface() { return m_surface; }
+    void allocate_painting_surface_if_needed();
+
 private:
     explicit CanvasRenderingContext2D(JS::Realm&, HTMLCanvasElement&);
 
@@ -148,6 +153,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-origin-clean
     bool m_origin_clean { true };
+
+    Gfx::IntSize m_size;
+    RefPtr<Gfx::PaintingSurface> m_surface;
 };
 
 enum class CanvasImageSourceUsability {
