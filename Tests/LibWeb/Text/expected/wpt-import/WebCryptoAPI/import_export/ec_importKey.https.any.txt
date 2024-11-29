@@ -137,11 +137,11 @@ Fail	Good parameters: P-521 bits (jwk, object(kty, crv, x, y, d), {name: ECDSA, 
 Fail	Good parameters: P-521 bits (jwk, object(kty, crv, x, y, d), {name: ECDSA, namedCurve: P-521}, false, [sign, sign])	
 Fail	Empty Usages: P-521 bits (jwk, object(kty, crv, x, y, d), {name: ECDSA, namedCurve: P-521}, false, [])	
 Pass	Good parameters: P-256 bits (spki, buffer(91), {name: ECDH, namedCurve: P-256}, true, [])	
-Optional Feature Unsupported	Good parameters: P-256 bits (spki, buffer(59, compressed), {name: ECDH, namedCurve: P-256}, true, [])	Compressed point format not supported: DataError: Unsupported key format
+Optional Feature Unsupported	Good parameters: P-256 bits (spki, buffer(59, compressed), {name: ECDH, namedCurve: P-256}, true, [])	Compressed point format not supported: DataError: Error parsing subjectPublicKeyInfo: [ "SubjectPublicKeyInfo"sv ]: [ "SubjectPublicKeyInfo"sv ]: [ "SubjectPublicKeyInfo"sv ]: Unsupported public key format
 Pass	Good parameters: P-256 bits (jwk, object(kty, crv, x, y), {name: ECDH, namedCurve: P-256}, true, [])	
 Pass	ECDH any JWK alg: P-256 bits (jwk, object(kty, crv, x, y, alg), {name: ECDH, namedCurve: P-256}, true, [])	
 Pass	Good parameters: P-256 bits (raw, buffer(65), {name: ECDH, namedCurve: P-256}, true, [])	
-Optional Feature Unsupported	Good parameters: P-256 bits (raw, buffer(33, compressed), {name: ECDH, namedCurve: P-256}, true, [])	Compressed point format not supported: DataError: Invalid key size
+Optional Feature Unsupported	Good parameters: P-256 bits (raw, buffer(33, compressed), {name: ECDH, namedCurve: P-256}, true, [])	Compressed point format not supported: DataError: Failed to parse key
 Pass	Good parameters: P-256 bits (pkcs8, buffer(138), {name: ECDH, namedCurve: P-256}, true, [deriveKey])	
 Pass	Good parameters: P-256 bits (pkcs8, buffer(138), {name: ECDH, namedCurve: P-256}, true, [deriveBits, deriveKey])	
 Pass	Good parameters: P-256 bits (pkcs8, buffer(138), {name: ECDH, namedCurve: P-256}, true, [deriveBits])	
@@ -157,11 +157,11 @@ Pass	Good parameters: P-256 bits (jwk, object(kty, crv, x, y, d), {name: ECDH, n
 Pass	ECDH any JWK alg: P-256 bits (jwk, object(kty, crv, x, y, d, alg), {name: ECDH, namedCurve: P-256}, true, [deriveKey, deriveBits, deriveKey, deriveBits])	
 Pass	Empty Usages: P-256 bits (jwk, object(kty, crv, x, y, d), {name: ECDH, namedCurve: P-256}, true, [])	
 Pass	Good parameters: P-256 bits (spki, buffer(91), {name: ECDH, namedCurve: P-256}, false, [])	
-Optional Feature Unsupported	Good parameters: P-256 bits (spki, buffer(59, compressed), {name: ECDH, namedCurve: P-256}, false, [])	Compressed point format not supported: DataError: Unsupported key format
+Optional Feature Unsupported	Good parameters: P-256 bits (spki, buffer(59, compressed), {name: ECDH, namedCurve: P-256}, false, [])	Compressed point format not supported: DataError: Error parsing subjectPublicKeyInfo: [ "SubjectPublicKeyInfo"sv ]: [ "SubjectPublicKeyInfo"sv ]: [ "SubjectPublicKeyInfo"sv ]: Unsupported public key format
 Pass	Good parameters: P-256 bits (jwk, object(kty, crv, x, y), {name: ECDH, namedCurve: P-256}, false, [])	
 Pass	ECDH any JWK alg: P-256 bits (jwk, object(kty, crv, x, y, alg), {name: ECDH, namedCurve: P-256}, false, [])	
 Pass	Good parameters: P-256 bits (raw, buffer(65), {name: ECDH, namedCurve: P-256}, false, [])	
-Optional Feature Unsupported	Good parameters: P-256 bits (raw, buffer(33, compressed), {name: ECDH, namedCurve: P-256}, false, [])	Compressed point format not supported: DataError: Invalid key size
+Optional Feature Unsupported	Good parameters: P-256 bits (raw, buffer(33, compressed), {name: ECDH, namedCurve: P-256}, false, [])	Compressed point format not supported: DataError: Failed to parse key
 Pass	Good parameters: P-256 bits (pkcs8, buffer(138), {name: ECDH, namedCurve: P-256}, false, [deriveKey])	
 Pass	Good parameters: P-256 bits (pkcs8, buffer(138), {name: ECDH, namedCurve: P-256}, false, [deriveBits, deriveKey])	
 Pass	Good parameters: P-256 bits (pkcs8, buffer(138), {name: ECDH, namedCurve: P-256}, false, [deriveBits])	
@@ -177,11 +177,11 @@ Pass	Good parameters: P-256 bits (jwk, object(kty, crv, x, y, d), {name: ECDH, n
 Pass	ECDH any JWK alg: P-256 bits (jwk, object(kty, crv, x, y, d, alg), {name: ECDH, namedCurve: P-256}, false, [deriveKey, deriveBits, deriveKey, deriveBits])	
 Pass	Empty Usages: P-256 bits (jwk, object(kty, crv, x, y, d), {name: ECDH, namedCurve: P-256}, false, [])	
 Pass	Good parameters: P-384 bits (spki, buffer(120), {name: ECDH, namedCurve: P-384}, true, [])	
-Optional Feature Unsupported	Good parameters: P-384 bits (spki, buffer(72, compressed), {name: ECDH, namedCurve: P-384}, true, [])	Compressed point format not supported: DataError: Unsupported key format
+Optional Feature Unsupported	Good parameters: P-384 bits (spki, buffer(72, compressed), {name: ECDH, namedCurve: P-384}, true, [])	Compressed point format not supported: DataError: Error parsing subjectPublicKeyInfo: [ "SubjectPublicKeyInfo"sv ]: [ "SubjectPublicKeyInfo"sv ]: [ "SubjectPublicKeyInfo"sv ]: Unsupported public key format
 Pass	Good parameters: P-384 bits (jwk, object(kty, crv, x, y), {name: ECDH, namedCurve: P-384}, true, [])	
 Pass	ECDH any JWK alg: P-384 bits (jwk, object(kty, crv, x, y, alg), {name: ECDH, namedCurve: P-384}, true, [])	
 Pass	Good parameters: P-384 bits (raw, buffer(97), {name: ECDH, namedCurve: P-384}, true, [])	
-Optional Feature Unsupported	Good parameters: P-384 bits (raw, buffer(49, compressed), {name: ECDH, namedCurve: P-384}, true, [])	Compressed point format not supported: DataError: Invalid key size
+Optional Feature Unsupported	Good parameters: P-384 bits (raw, buffer(49, compressed), {name: ECDH, namedCurve: P-384}, true, [])	Compressed point format not supported: DataError: Failed to parse key
 Pass	Good parameters: P-384 bits (pkcs8, buffer(185), {name: ECDH, namedCurve: P-384}, true, [deriveKey])	
 Pass	Good parameters: P-384 bits (pkcs8, buffer(185), {name: ECDH, namedCurve: P-384}, true, [deriveBits, deriveKey])	
 Pass	Good parameters: P-384 bits (pkcs8, buffer(185), {name: ECDH, namedCurve: P-384}, true, [deriveBits])	
@@ -197,11 +197,11 @@ Pass	Good parameters: P-384 bits (jwk, object(kty, crv, x, y, d), {name: ECDH, n
 Pass	ECDH any JWK alg: P-384 bits (jwk, object(kty, crv, x, y, d, alg), {name: ECDH, namedCurve: P-384}, true, [deriveKey, deriveBits, deriveKey, deriveBits])	
 Pass	Empty Usages: P-384 bits (jwk, object(kty, crv, x, y, d), {name: ECDH, namedCurve: P-384}, true, [])	
 Pass	Good parameters: P-384 bits (spki, buffer(120), {name: ECDH, namedCurve: P-384}, false, [])	
-Optional Feature Unsupported	Good parameters: P-384 bits (spki, buffer(72, compressed), {name: ECDH, namedCurve: P-384}, false, [])	Compressed point format not supported: DataError: Unsupported key format
+Optional Feature Unsupported	Good parameters: P-384 bits (spki, buffer(72, compressed), {name: ECDH, namedCurve: P-384}, false, [])	Compressed point format not supported: DataError: Error parsing subjectPublicKeyInfo: [ "SubjectPublicKeyInfo"sv ]: [ "SubjectPublicKeyInfo"sv ]: [ "SubjectPublicKeyInfo"sv ]: Unsupported public key format
 Pass	Good parameters: P-384 bits (jwk, object(kty, crv, x, y), {name: ECDH, namedCurve: P-384}, false, [])	
 Pass	ECDH any JWK alg: P-384 bits (jwk, object(kty, crv, x, y, alg), {name: ECDH, namedCurve: P-384}, false, [])	
 Pass	Good parameters: P-384 bits (raw, buffer(97), {name: ECDH, namedCurve: P-384}, false, [])	
-Optional Feature Unsupported	Good parameters: P-384 bits (raw, buffer(49, compressed), {name: ECDH, namedCurve: P-384}, false, [])	Compressed point format not supported: DataError: Invalid key size
+Optional Feature Unsupported	Good parameters: P-384 bits (raw, buffer(49, compressed), {name: ECDH, namedCurve: P-384}, false, [])	Compressed point format not supported: DataError: Failed to parse key
 Pass	Good parameters: P-384 bits (pkcs8, buffer(185), {name: ECDH, namedCurve: P-384}, false, [deriveKey])	
 Pass	Good parameters: P-384 bits (pkcs8, buffer(185), {name: ECDH, namedCurve: P-384}, false, [deriveBits, deriveKey])	
 Pass	Good parameters: P-384 bits (pkcs8, buffer(185), {name: ECDH, namedCurve: P-384}, false, [deriveBits])	
@@ -217,11 +217,11 @@ Pass	Good parameters: P-384 bits (jwk, object(kty, crv, x, y, d), {name: ECDH, n
 Pass	ECDH any JWK alg: P-384 bits (jwk, object(kty, crv, x, y, d, alg), {name: ECDH, namedCurve: P-384}, false, [deriveKey, deriveBits, deriveKey, deriveBits])	
 Pass	Empty Usages: P-384 bits (jwk, object(kty, crv, x, y, d), {name: ECDH, namedCurve: P-384}, false, [])	
 Fail	Good parameters: P-521 bits (spki, buffer(158), {name: ECDH, namedCurve: P-521}, true, [])	
-Optional Feature Unsupported	Good parameters: P-521 bits (spki, buffer(90, compressed), {name: ECDH, namedCurve: P-521}, true, [])	Compressed point format not supported: DataError: Unsupported key format
+Optional Feature Unsupported	Good parameters: P-521 bits (spki, buffer(90, compressed), {name: ECDH, namedCurve: P-521}, true, [])	Compressed point format not supported: DataError: Error parsing subjectPublicKeyInfo: [ "SubjectPublicKeyInfo"sv ]: [ "SubjectPublicKeyInfo"sv ]: [ "SubjectPublicKeyInfo"sv ]: Unsupported public key format
 Fail	Good parameters: P-521 bits (jwk, object(kty, crv, x, y), {name: ECDH, namedCurve: P-521}, true, [])	
 Pass	ECDH any JWK alg: P-521 bits (jwk, object(kty, crv, x, y, alg), {name: ECDH, namedCurve: P-521}, true, [])	
 Fail	Good parameters: P-521 bits (raw, buffer(133), {name: ECDH, namedCurve: P-521}, true, [])	
-Optional Feature Unsupported	Good parameters: P-521 bits (raw, buffer(67, compressed), {name: ECDH, namedCurve: P-521}, true, [])	Compressed point format not supported: DataError: Invalid key size
+Optional Feature Unsupported	Good parameters: P-521 bits (raw, buffer(67, compressed), {name: ECDH, namedCurve: P-521}, true, [])	Compressed point format not supported: DataError: Failed to parse key
 Fail	Good parameters: P-521 bits (pkcs8, buffer(241), {name: ECDH, namedCurve: P-521}, true, [deriveKey])	
 Fail	Good parameters: P-521 bits (pkcs8, buffer(241), {name: ECDH, namedCurve: P-521}, true, [deriveBits, deriveKey])	
 Fail	Good parameters: P-521 bits (pkcs8, buffer(241), {name: ECDH, namedCurve: P-521}, true, [deriveBits])	
@@ -237,11 +237,11 @@ Fail	Good parameters: P-521 bits (jwk, object(kty, crv, x, y, d), {name: ECDH, n
 Pass	ECDH any JWK alg: P-521 bits (jwk, object(kty, crv, x, y, d, alg), {name: ECDH, namedCurve: P-521}, true, [deriveKey, deriveBits, deriveKey, deriveBits])	
 Pass	Empty Usages: P-521 bits (jwk, object(kty, crv, x, y, d), {name: ECDH, namedCurve: P-521}, true, [])	
 Pass	Good parameters: P-521 bits (spki, buffer(158), {name: ECDH, namedCurve: P-521}, false, [])	
-Optional Feature Unsupported	Good parameters: P-521 bits (spki, buffer(90, compressed), {name: ECDH, namedCurve: P-521}, false, [])	Compressed point format not supported: DataError: Unsupported key format
+Optional Feature Unsupported	Good parameters: P-521 bits (spki, buffer(90, compressed), {name: ECDH, namedCurve: P-521}, false, [])	Compressed point format not supported: DataError: Error parsing subjectPublicKeyInfo: [ "SubjectPublicKeyInfo"sv ]: [ "SubjectPublicKeyInfo"sv ]: [ "SubjectPublicKeyInfo"sv ]: Unsupported public key format
 Pass	Good parameters: P-521 bits (jwk, object(kty, crv, x, y), {name: ECDH, namedCurve: P-521}, false, [])	
 Pass	ECDH any JWK alg: P-521 bits (jwk, object(kty, crv, x, y, alg), {name: ECDH, namedCurve: P-521}, false, [])	
 Pass	Good parameters: P-521 bits (raw, buffer(133), {name: ECDH, namedCurve: P-521}, false, [])	
-Optional Feature Unsupported	Good parameters: P-521 bits (raw, buffer(67, compressed), {name: ECDH, namedCurve: P-521}, false, [])	Compressed point format not supported: DataError: Invalid key size
+Optional Feature Unsupported	Good parameters: P-521 bits (raw, buffer(67, compressed), {name: ECDH, namedCurve: P-521}, false, [])	Compressed point format not supported: DataError: Failed to parse key
 Pass	Good parameters: P-521 bits (pkcs8, buffer(241), {name: ECDH, namedCurve: P-521}, false, [deriveKey])	
 Pass	Good parameters: P-521 bits (pkcs8, buffer(241), {name: ECDH, namedCurve: P-521}, false, [deriveBits, deriveKey])	
 Pass	Good parameters: P-521 bits (pkcs8, buffer(241), {name: ECDH, namedCurve: P-521}, false, [deriveBits])	
