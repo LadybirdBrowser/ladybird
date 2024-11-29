@@ -1179,6 +1179,7 @@ CSSPixelRect FormattingContext::content_box_rect_in_static_position_ancestor_coo
         if (current == &ancestor_box)
             return rect;
         auto const& current_state = m_state.get(*current);
+        dbgln("content_box_rect_in_static_position_ancestor_coordinate_space  offset = {}", current_state.offset);
         rect.translate_by(current_state.offset);
     }
     // If we get here, ancestor_box was not an ancestor of `box`!
@@ -1237,6 +1238,7 @@ void FormattingContext::layout_absolutely_positioned_element(Box const& box, Ava
     CSSPixelPoint used_offset;
 
     auto static_position = m_state.get(box).static_position();
+    dbgln("layout_absolutely_positioned_element  static_position = {}", static_position);
 
     if (box.computed_values().inset().top().is_auto() && box.computed_values().inset().bottom().is_auto()) {
         used_offset.set_y(static_position.y());
