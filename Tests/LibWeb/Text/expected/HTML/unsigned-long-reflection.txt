@@ -1,3 +1,43 @@
+canvas.getAttribute("width") after canvas.setAttribute("width", "0"): 0
+canvas.width after canvas.setAttribute("width", "0"): 0
+canvas.getAttribute("width") after canvas.width = 0: 0
+canvas.width after canvas.width = 0: 0
+canvas.getAttribute("width") after canvas.setAttribute("width", "1"): 1
+canvas.width after canvas.setAttribute("width", "1"): 1
+canvas.getAttribute("width") after canvas.width = 1: 1
+canvas.width after canvas.width = 1: 1
+canvas.getAttribute("width") after canvas.setAttribute("width", "2147483647"): 2147483647
+canvas.width after canvas.setAttribute("width", "2147483647"): 2147483647
+canvas.getAttribute("width") after canvas.width = 2147483647: 2147483647
+canvas.width after canvas.width = 2147483647: 2147483647
+canvas.getAttribute("width") after canvas.setAttribute("width", "2147483648"): 2147483648
+canvas.width after canvas.setAttribute("width", "2147483648"): 300
+canvas.getAttribute("width") after canvas.width = 2147483648: 300
+canvas.width after canvas.width = 2147483648: 300
+canvas.getAttribute("width") after canvas.setAttribute("width", "4294967295"): 4294967295
+canvas.width after canvas.setAttribute("width", "4294967295"): 300
+canvas.getAttribute("width") after canvas.width = 4294967295: 300
+canvas.width after canvas.width = 4294967295: 300
+canvas.getAttribute("height") after canvas.setAttribute("height", "0"): 0
+canvas.height after canvas.setAttribute("height", "0"): 0
+canvas.getAttribute("height") after canvas.height = 0: 0
+canvas.height after canvas.height = 0: 0
+canvas.getAttribute("height") after canvas.setAttribute("height", "1"): 1
+canvas.height after canvas.setAttribute("height", "1"): 1
+canvas.getAttribute("height") after canvas.height = 1: 1
+canvas.height after canvas.height = 1: 1
+canvas.getAttribute("height") after canvas.setAttribute("height", "2147483647"): 2147483647
+canvas.height after canvas.setAttribute("height", "2147483647"): 2147483647
+canvas.getAttribute("height") after canvas.height = 2147483647: 2147483647
+canvas.height after canvas.height = 2147483647: 2147483647
+canvas.getAttribute("height") after canvas.setAttribute("height", "2147483648"): 2147483648
+canvas.height after canvas.setAttribute("height", "2147483648"): 150
+canvas.getAttribute("height") after canvas.height = 2147483648: 150
+canvas.height after canvas.height = 2147483648: 150
+canvas.getAttribute("height") after canvas.setAttribute("height", "4294967295"): 4294967295
+canvas.height after canvas.setAttribute("height", "4294967295"): 150
+canvas.getAttribute("height") after canvas.height = 4294967295: 150
+canvas.height after canvas.height = 4294967295: 150
 img.getAttribute("height") after img.setAttribute("height", "0"): 0
 img.height after img.setAttribute("height", "0"): 0
 img.getAttribute("height") after img.height = 0: 0
