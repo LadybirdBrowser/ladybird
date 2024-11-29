@@ -439,11 +439,11 @@
     "-libweb-right"
   ],
   "text-decoration-line": [
-    "blink",
-    "line-through",
     "none",
+    "underline",
     "overline",
-    "underline"
+    "line-through",
+    "blink"
   ],
   "text-decoration-style": [
     "dashed",
