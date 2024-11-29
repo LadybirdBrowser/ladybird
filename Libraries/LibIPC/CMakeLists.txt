@@ -3,13 +3,16 @@ set(SOURCES
     Decoder.cpp
     Encoder.cpp
     File.cpp
-    Message.cpp
 )
 
 if (UNIX)
-    list(APPEND SOURCES TransportSocket.cpp)
+    list(APPEND SOURCES
+        Message.cpp
+        TransportSocket.cpp)
 else()
-    list(APPEND SOURCES TransportSocketWindows.cpp)
+    list(APPEND SOURCES
+        MessageWindows.cpp
+        TransportSocketWindows.cpp)
 endif()
 
 serenity_lib(LibIPC ipc)
