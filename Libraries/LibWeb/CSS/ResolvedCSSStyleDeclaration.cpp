@@ -82,20 +82,6 @@ String ResolvedCSSStyleDeclaration::item(size_t index) const
     return string_from_property_id(property_id).to_string();
 }
 
-static NonnullRefPtr<CSSStyleValue const> style_value_for_background_property(Layout::NodeWithStyle const& layout_node, Function<NonnullRefPtr<CSSStyleValue const>(BackgroundLayerData const&)> callback, Function<NonnullRefPtr<CSSStyleValue const>()> default_value)
-{
-    auto const& background_layers = layout_node.background_layers();
-    if (background_layers.is_empty())
-        return default_value();
-    if (background_layers.size() == 1)
-        return callback(background_layers.first());
-    StyleValueVector values;
-    values.ensure_capacity(background_layers.size());
-    for (auto const& layer : background_layers)
-        values.unchecked_append(callback(layer));
-    return StyleValueList::create(move(values), StyleValueList::Separator::Comma);
-}
-
 static NonnullRefPtr<CSSStyleValue const> style_value_for_length_percentage(LengthPercentage const& length_percentage)
 {
     if (length_percentage.is_auto())
@@ -453,19 +439,6 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
         //    NOTE: This is handled inside the `default` case.
 
         // NOTE: Everything below is a shorthand that requires some manual construction.
-    case PropertyID::BackgroundPosition:
-        return style_value_for_background_property(
-            layout_node,
-            [](auto& layer) -> NonnullRefPtr<CSSStyleValue> {
-                return PositionStyleValue::create(
-                    EdgeStyleValue::create(layer.position_edge_x, layer.position_offset_x),
-                    EdgeStyleValue::create(layer.position_edge_y, layer.position_offset_y));
-            },
-            []() -> NonnullRefPtr<CSSStyleValue> {
-                return PositionStyleValue::create(
-                    EdgeStyleValue::create(PositionEdge::Left, Percentage(0)),
-                    EdgeStyleValue::create(PositionEdge::Top, Percentage(0)));
-            });
     case PropertyID::Border: {
         auto width = style_value_for_property(layout_node, PropertyID::BorderWidth);
         auto style = style_value_for_property(layout_node, PropertyID::BorderStyle);
