@@ -6384,6 +6384,11 @@ RefPtr<CSSStyleValue> Parser::parse_text_decoration_line_value(TokenStream<Compo
 
     if (style_values.is_empty())
         return nullptr;
+
+    quick_sort(style_values, [](auto& left, auto& right) {
+        return *keyword_to_text_decoration_line(left->to_keyword()) < *keyword_to_text_decoration_line(right->to_keyword());
+    });
+
     return StyleValueList::create(move(style_values), StyleValueList::Separator::Space);
 }
 
