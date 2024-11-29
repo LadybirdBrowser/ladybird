@@ -128,6 +128,9 @@ public:
     WebIDL::UnsignedLong size() const;
     WebIDL::ExceptionOr<void> set_size(WebIDL::UnsignedLong value);
 
+    WebIDL::UnsignedLong width() const;
+    WebIDL::ExceptionOr<void> set_width(WebIDL::UnsignedLong value);
+
     struct SelectedCoordinate {
         int x { 0 };
         int y { 0 };

@@ -43,7 +43,7 @@ interface HTMLInputElement : HTMLElement {
     [CEReactions, LegacyNullToEmptyString] attribute DOMString value;
     attribute object? valueAsDate;
     attribute unrestricted double valueAsNumber;
-    [FIXME, CEReactions] attribute unsigned long width;
+    [CEReactions] attribute unsigned long width;
 
     undefined stepUp(optional long n = 1);
     undefined stepDown(optional long n = 1);
