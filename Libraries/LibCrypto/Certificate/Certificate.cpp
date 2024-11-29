@@ -335,6 +335,17 @@ ErrorOr<SubjectPublicKey> parse_subject_public_key_info(Crypto::ASN1::Decoder& d
         EXIT_SCOPE();
         return public_key;
     }
+    if (public_key.algorithm.identifier.span() == ASN1::ec_public_key_encryption_oid.span()) {
+        auto maybe_key = Crypto::PK::EC::parse_ec_key(public_key.raw_key, false, current_scope);
+        if (maybe_key.is_error()) {
+            ERROR_WITH_SCOPE(maybe_key.release_error());
+        }
+
+        public_key.ec = move(maybe_key.release_value().public_key);
+
+        EXIT_SCOPE();
+        return public_key;
+    }
 
     // https://datatracker.ietf.org/doc/html/rfc8410#section-9
     // For all of the OIDs, the parameters MUST be absent.

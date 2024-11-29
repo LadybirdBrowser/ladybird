@@ -2743,26 +2743,12 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
             // 1. Let publicKey be the Elliptic Curve public key identified by performing
             //    the conversion steps defined in Section 2.3.4 of [SEC1] to the subjectPublicKey field of spki.
             // The uncompressed point format MUST be supported.
+            auto public_key = spki.ec;
+
             // 2. If the implementation does not support the compressed point format and a compressed point is provided, throw a DataError.
-            if (spki.raw_key[0] != 0x04)
-                return WebIDL::DataError::create(m_realm, "Unsupported key format"_string);
-
             // 3. If a decode error occurs or an identity point is found, throw a DataError.
-            size_t coord_size;
-            if (named_curve == "P-256"sv)
-                coord_size = 32;
-            else if (named_curve == "P-384"sv)
-                coord_size = 48;
-            else if (named_curve == "P-521"sv)
-                coord_size = 66;
-            else
-                VERIFY_NOT_REACHED();
-
             // 4. Let key be a new CryptoKey that represents publicKey.
-            auto public_key = ::Crypto::PK::ECPublicKey<> {
-                ::Crypto::UnsignedBigInteger::import_data(spki.raw_key.data() + 1, coord_size),
-                ::Crypto::UnsignedBigInteger::import_data(spki.raw_key.data() + 1 + coord_size, coord_size)
-            };
+            // NOTE: We already did this in parse_a_subject_public_key_info
             key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key });
         } else {
             // Otherwise:
@@ -3047,36 +3033,18 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
         if (normalized_algorithm.named_curve.is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
             auto key_bytes = key_data.get<ByteBuffer>();
 
-            size_t coord_size;
-            if (normalized_algorithm.named_curve == "P-256"sv)
-                coord_size = 32;
-            else if (normalized_algorithm.named_curve == "P-384"sv)
-                coord_size = 48;
-            else if (normalized_algorithm.named_curve == "P-521"sv)
-                coord_size = 66;
-            else
-                VERIFY_NOT_REACHED();
-
-            if (key_bytes.size() != 1 + 2 * coord_size)
-                return WebIDL::DataError::create(m_realm, "Invalid key size"_string);
-
             // 1. Let Q be the Elliptic Curve public key on the curve identified by the namedCurve
             //          member of normalizedAlgorithm identified by performing the conversion steps
             //          defined in Section 2.3.4 of [SEC1] to keyData.
             // The uncompressed point format MUST be supported.
-
             // 2. If the implementation does not support the compressed point format and a compressed point is provided, throw a DataError.
-            if (key_bytes[0] != 0x04)
-                return WebIDL::DataError::create(m_realm, "Unsupported key format"_string);
-
             // 3. If a decode error occurs or an identity point is found, throw a DataError.
-            // 4. Let key be a new CryptoKey that represents Q.
-            auto public_key = ::Crypto::PK::ECPublicKey<> {
-                ::Crypto::UnsignedBigInteger::import_data(key_bytes.data() + 1, coord_size),
-                ::Crypto::UnsignedBigInteger::import_data(key_bytes.data() + 1 + coord_size, coord_size)
-            };
+            auto maybe_public_key = ::Crypto::PK::EC::parse_ec_key(key_bytes, false, {});
+            if (maybe_public_key.is_error())
+                return WebIDL::DataError::create(m_realm, "Failed to parse key"_string);
 
-            key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key });
+            // 4. Let key be a new CryptoKey that represents Q.
+            key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { maybe_public_key.release_value().public_key });
         } else {
             // Otherwise:
             // 1. Perform any key import steps defined by other applicable specifications, passing format, keyData and obtaining key.

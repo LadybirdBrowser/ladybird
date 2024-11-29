@@ -92,6 +92,7 @@ struct Validity {
 class SubjectPublicKey {
 public:
     Crypto::PK::RSAPublicKey<Crypto::UnsignedBigInteger> rsa;
+    Crypto::PK::ECPublicKey<Crypto::UnsignedBigInteger> ec;
 
     AlgorithmIdentifier algorithm;
     ByteBuffer raw_key;
