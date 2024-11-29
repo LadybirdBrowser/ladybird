@@ -411,6 +411,16 @@ void InlineFormattingContext::generate_line_boxes()
         }
     }
 
+    for (auto& line_box : line_boxes) {
+        for (auto& fragment : line_box.fragments()) {
+            if (fragment.layout_node().is_inline_block()) {
+                auto& box = static_cast<NodeWithStyle const&>(fragment.layout_node());
+                auto& box_state = m_state.get_mutable(box);
+                box_state.set_content_offset(fragment.offset());
+            }
+        }
+    }
+
     for (auto* box : absolute_boxes) {
         auto& box_state = m_state.get_mutable(*box);
         box_state.set_static_position_rect(calculate_static_position_rect(*box));
