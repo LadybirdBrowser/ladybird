@@ -3255,9 +3255,6 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
                     return {};
                 },
                 [&](::Crypto::PK::ECPrivateKey<> const& private_key) -> ErrorOr<void> {
-                    auto d_bytes = TRY(ByteBuffer::create_uninitialized(private_key.d().byte_length()));
-                    auto d_size = private_key.d().export_data(d_bytes);
-
                     size_t coord_size;
                     Variant<Empty, ::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1> curve;
                     if (algorithm.named_curve() == "P-256"sv) {
@@ -3273,13 +3270,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
                         VERIFY_NOT_REACHED();
                     }
 
-                    auto maybe_public_key_bytes = curve.visit(
-                        [](Empty const&) -> ErrorOr<ByteBuffer> { return Error::from_string_literal("noop error"); },
-                        [&](auto instance) { return instance.generate_public_key(d_bytes.span().slice(0, d_size)); });
+                    auto maybe_public_key = curve.visit(
+                        [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> { return Error::from_string_literal("noop error"); },
+                        [&](auto instance) { return instance.generate_public_key_point(private_key.d()); });
 
-                    auto public_key_bytes = TRY(maybe_public_key_bytes);
-                    if (public_key_bytes[0] != 0x04)
-                        return Error::from_string_literal("Unsupported public key format");
+                    auto public_key = TRY(maybe_public_key);
+                    auto public_key_bytes = TRY(public_key.to_uncompressed());
+                    VERIFY(public_key_bytes[0] == 0x04);
 
                     // 2. Set the x attribute of jwk according to the definition in Section 6.2.1.2 of JSON Web Algorithms [JWA].
                     jwk.x = TRY(encode_base64url(public_key_bytes.span().slice(1, coord_size), AK::OmitPadding::Yes));
