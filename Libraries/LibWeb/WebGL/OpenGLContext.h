@@ -6,19 +6,34 @@
 
 #pragma once
 
-#include <LibGfx/Bitmap.h>
-#include <LibWeb/WebGL/Types.h>
+#include <LibGfx/Forward.h>
+#include <LibGfx/Size.h>
 
 namespace Web::WebGL {
 
 class OpenGLContext {
 public:
-    static OwnPtr<OpenGLContext> create();
+    static OwnPtr<OpenGLContext> create(NonnullRefPtr<Gfx::SkiaBackendContext>);
 
-    virtual void present() = 0;
     void clear_buffer_to_default_values();
+    void allocate_painting_surface_if_needed();
 
-    virtual ~OpenGLContext() { }
+    struct Impl;
+    OpenGLContext(NonnullRefPtr<Gfx::SkiaBackendContext>, Impl);
+
+    ~OpenGLContext();
+
+    void make_current();
+
+    void set_size(Gfx::IntSize const&);
+
+    RefPtr<Gfx::PaintingSurface> surface();
+
+private:
+    NonnullRefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
+    Gfx::IntSize m_size;
+    RefPtr<Gfx::PaintingSurface> m_painting_surface;
+    NonnullOwnPtr<Impl> m_impl;
 };
 
 }

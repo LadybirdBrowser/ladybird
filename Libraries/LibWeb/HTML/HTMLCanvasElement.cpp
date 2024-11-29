@@ -121,8 +121,8 @@ void HTMLCanvasElement::reset_context_to_default_state()
         [](GC::Ref<CanvasRenderingContext2D>& context) {
             context->reset_to_default_state();
         },
-        [](GC::Ref<WebGL::WebGLRenderingContext>&) {
-            TODO();
+        [](GC::Ref<WebGL::WebGLRenderingContext>& context) {
+            context->reset_to_default_state();
         },
         [](Empty) {
             // Do nothing.
@@ -135,8 +135,8 @@ void HTMLCanvasElement::notify_context_about_canvas_size_change()
         [&](GC::Ref<CanvasRenderingContext2D>& context) {
             context->set_size(bitmap_size_for_canvas());
         },
-        [&](GC::Ref<WebGL::WebGLRenderingContext>&) {
-            TODO();
+        [&](GC::Ref<WebGL::WebGLRenderingContext>& context) {
+            context->set_size(bitmap_size_for_canvas());
         },
         [](Empty) {
             // Do nothing.
@@ -391,8 +391,8 @@ RefPtr<Gfx::PaintingSurface> HTMLCanvasElement::surface() const
         [&](GC::Ref<CanvasRenderingContext2D> const& context) {
             return context->surface();
         },
-        [&](GC::Ref<WebGL::WebGLRenderingContext> const&) -> RefPtr<Gfx::PaintingSurface> {
-            TODO();
+        [&](GC::Ref<WebGL::WebGLRenderingContext> const& context) -> RefPtr<Gfx::PaintingSurface> {
+            return context->surface();
         },
         [](Empty) -> RefPtr<Gfx::PaintingSurface> {
             return {};
@@ -405,8 +405,8 @@ void HTMLCanvasElement::allocate_painting_surface_if_needed()
         [&](GC::Ref<CanvasRenderingContext2D>& context) {
             context->allocate_painting_surface_if_needed();
         },
-        [&](GC::Ref<WebGL::WebGLRenderingContext>&) {
-            TODO();
+        [&](GC::Ref<WebGL::WebGLRenderingContext>& context) {
+            context->allocate_painting_surface_if_needed();
         },
         [](Empty) {
             // Do nothing.

@@ -57,12 +57,15 @@ JS::ThrowCompletionOr<GC::Ptr<WebGLRenderingContext>> WebGLRenderingContext::cre
     // We should be coming here from getContext being called on a wrapped <canvas> element.
     auto context_attributes = TRY(convert_value_to_context_attributes_dictionary(canvas_element.vm(), options));
 
-    auto context = OpenGLContext::create();
+    auto skia_backend_context = canvas_element.navigable()->traversable_navigable()->skia_backend_context();
+    auto context = OpenGLContext::create(*skia_backend_context);
 
     if (!context) {
         fire_webgl_context_creation_error(canvas_element);
         return GC::Ptr<WebGLRenderingContext> { nullptr };
     }
+
+    context->set_size(canvas_element.bitmap_size_for_canvas(1, 1));
 
     return realm.create<WebGLRenderingContext>(realm, canvas_element, context.release_nonnull(), context_attributes, context_attributes);
 }
@@ -137,9 +140,9 @@ bool WebGLRenderingContext::is_context_lost() const
     return m_context_lost;
 }
 
-void WebGLRenderingContext::set_size(Gfx::IntSize const&)
+void WebGLRenderingContext::set_size(Gfx::IntSize const& size)
 {
-    TODO();
+    m_context->set_size(size);
 }
 
 void WebGLRenderingContext::reset_to_default_state()
@@ -148,7 +151,12 @@ void WebGLRenderingContext::reset_to_default_state()
 
 RefPtr<Gfx::PaintingSurface> WebGLRenderingContext::surface()
 {
-    TODO();
+    return m_context->surface();
+}
+
+void WebGLRenderingContext::allocate_painting_surface_if_needed()
+{
+    m_context->allocate_painting_surface_if_needed();
 }
 
 Optional<Vector<String>> WebGLRenderingContext::get_supported_extensions() const
