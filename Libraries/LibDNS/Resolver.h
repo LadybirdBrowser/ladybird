@@ -453,9 +453,10 @@ private:
                 if (!lookup)
                     return Error::from_string_literal("No pending lookup found for this message");
 
-                lookup->repeat_timer->stop();
                 if (lookup->result.is_null())
                     return {}; // Message is a response to a lookup that's been purged from the cache, ignore it
+
+                lookup->repeat_timer->stop();
 
                 auto result = lookup->result.strong_ref();
                 for (auto& record : message.answers)
