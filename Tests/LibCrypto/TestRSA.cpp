@@ -5,6 +5,7 @@
  */
 
 #include <LibCrypto/ASN1/PEM.h>
+#include <LibCrypto/Certificate/Certificate.h>
 #include <LibCrypto/Hash/SHA2.h>
 #include <LibCrypto/PK/PK.h>
 #include <LibCrypto/PK/RSA.h>
@@ -123,10 +124,13 @@ c8yGzl89pYST
 -----END PRIVATE KEY-----
 )"sv;
     auto decoded = Crypto::decode_pem(keypem.bytes());
-    auto keypair = Crypto::PK::RSA::parse_rsa_key(decoded);
-    auto priv_der = MUST(keypair.private_key.export_as_der());
+    EXPECT_EQ(decoded.type, Crypto::PEMType::PrivateKey);
+    auto decoder = Crypto::ASN1::Decoder { decoded.data };
+    auto priv_key_info = MUST(Crypto::Certificate::parse_private_key_info(decoder, {}));
+    auto keypair = Crypto::PK::RSA::parse_rsa_key(priv_key_info.raw_key);
+    auto priv_der = MUST(priv_key_info.rsa.export_as_der());
     auto rsa_encryption_oid = Array<int, 7> { 1, 2, 840, 113549, 1, 1, 1 };
-    auto wrapped_priv_der = MUST(Crypto::PK::wrap_in_private_key_info(keypair.private_key, rsa_encryption_oid, nullptr));
+    auto wrapped_priv_der = MUST(Crypto::PK::wrap_in_private_key_info(priv_key_info.raw_key, rsa_encryption_oid, nullptr));
     auto priv_pem = MUST(Crypto::encode_pem(wrapped_priv_der, Crypto::PEMType::PrivateKey));
     auto rsa_from_pair = Crypto::PK::RSA(keypair.public_key, keypair.private_key);
     auto rsa_from_pem = Crypto::PK::RSA(priv_pem);
