@@ -109,15 +109,17 @@ ErrorOr<Vector<int>> parse_ec_parameters(Crypto::ASN1::Decoder& decoder, Vector<
     // }
     PUSH_SCOPE("ECParameters"sv);
     READ_OBJECT(ObjectIdentifier, Vector<int>, named_curve);
-    // Note: namedCurve sometimes has 5 nodes, but we need 7 for the comparison below to work.
-    while (named_curve.size() < 7) {
-        named_curve.append(0);
-    }
     POP_SCOPE();
+
+    constexpr static Array<Span<int const>, 3> known_curve_identifiers {
+        secp256r1_oid,
+        secp384r1_oid,
+        secp521r1_oid
+    };
 
     bool is_known_curve = false;
     for (auto const& curves : known_curve_identifiers) {
-        if (curves.span() == named_curve.span()) {
+        if (curves == named_curve.span()) {
             is_known_curve = true;
             break;
         }
@@ -139,15 +141,26 @@ static ErrorOr<AlgorithmIdentifier> parse_algorithm_identifier(Crypto::ASN1::Dec
     ENTER_TYPED_SCOPE(Sequence, "AlgorithmIdentifier"sv);
     PUSH_SCOPE("algorithm"sv);
     READ_OBJECT(ObjectIdentifier, Vector<int>, algorithm);
-    // Note: ecPublicKey only has 6 nodes, but we need 7 for the comparison below to work.
-    while (algorithm.size() < 7) {
-        algorithm.append(0);
-    }
     POP_SCOPE();
+
+    constexpr static Array<Span<int const>, 12> known_algorithm_identifiers {
+        rsa_encryption_oid,
+        rsa_md5_encryption_oid,
+        rsa_sha1_encryption_oid,
+        rsa_sha256_encryption_oid,
+        rsa_sha384_encryption_oid,
+        rsa_sha512_encryption_oid,
+        ecdsa_with_sha256_encryption_oid,
+        ecdsa_with_sha384_encryption_oid,
+        ec_public_key_encryption_oid,
+        x25519_oid,
+        ed25519_oid,
+        x448_oid,
+    };
 
     bool is_known_algorithm = false;
     for (auto const& inner : known_algorithm_identifiers) {
-        if (inner.span() == algorithm.span()) {
+        if (inner == algorithm.span()) {
             is_known_algorithm = true;
             break;
         }
@@ -166,7 +179,7 @@ static ErrorOr<AlgorithmIdentifier> parse_algorithm_identifier(Crypto::ASN1::Dec
     //      sha384WithRSAEncryption  OBJECT IDENTIFIER  ::=  { pkcs-1 12 }
     //      sha512WithRSAEncryption  OBJECT IDENTIFIER  ::=  { pkcs-1 13 }
     //      sha224WithRSAEncryption  OBJECT IDENTIFIER  ::=  { pkcs-1 14 }
-    Array<Array<int, 7>, 8> rsa_null_algorithms = {
+    constexpr static Array<Span<int const>, 8> rsa_null_algorithms = {
         rsa_encryption_oid,
         rsa_md5_encryption_oid,
         rsa_sha1_encryption_oid,
@@ -178,7 +191,7 @@ static ErrorOr<AlgorithmIdentifier> parse_algorithm_identifier(Crypto::ASN1::Dec
 
     bool is_rsa_null_algorithm = false;
     for (auto const& inner : rsa_null_algorithms) {
-        if (inner.span() == algorithm.span()) {
+        if (inner == algorithm.span()) {
             is_rsa_null_algorithm = true;
             break;
         }
@@ -202,7 +215,7 @@ static ErrorOr<AlgorithmIdentifier> parse_algorithm_identifier(Crypto::ASN1::Dec
 
     // https://datatracker.ietf.org/doc/html/rfc8410#section-9
     // For all of the OIDs, the parameters MUST be absent.
-    Array<Array<int, 7>, 8> no_parameter_algorithms = {
+    constexpr static Array<Span<int const>, 8> no_parameter_algorithms = {
         ecdsa_with_sha224_encryption_oid,
         ecdsa_with_sha256_encryption_oid,
         ecdsa_with_sha384_encryption_oid,
@@ -215,7 +228,7 @@ static ErrorOr<AlgorithmIdentifier> parse_algorithm_identifier(Crypto::ASN1::Dec
 
     bool is_no_parameter_algorithm = false;
     for (auto const& inner : no_parameter_algorithms) {
-        if (inner.span() == algorithm.span()) {
+        if (inner == algorithm.span()) {
             is_no_parameter_algorithm = true;
         }
     }
@@ -381,7 +394,7 @@ ErrorOr<SubjectPublicKey> parse_subject_public_key_info(Crypto::ASN1::Decoder& d
 
     // https://datatracker.ietf.org/doc/html/rfc8410#section-9
     // For all of the OIDs, the parameters MUST be absent.
-    Array<Array<int, 7>, 5> no_parameter_algorithms = {
+    constexpr static Array<Span<int const>, 5> no_parameter_algorithms = {
         ec_public_key_encryption_oid,
         x25519_oid,
         x448_oid,
@@ -390,7 +403,7 @@ ErrorOr<SubjectPublicKey> parse_subject_public_key_info(Crypto::ASN1::Decoder& d
     };
 
     for (auto const& inner : no_parameter_algorithms) {
-        if (public_key.algorithm.identifier.span() == inner.span()) {
+        if (public_key.algorithm.identifier.span() == inner) {
             // Note: Raw key is already stored, so we can just exit out at this point.
             EXIT_SCOPE();
             return public_key;
@@ -451,7 +464,7 @@ ErrorOr<PrivateKey> parse_private_key_info(Crypto::ASN1::Decoder& decoder, Vecto
 
     // https://datatracker.ietf.org/doc/html/rfc8410#section-9
     // For all of the OIDs, the parameters MUST be absent.
-    Array<Array<int, 7>, 5> no_parameter_algorithms = {
+    constexpr static Array<Span<int const>, 5> no_parameter_algorithms = {
         ec_public_key_encryption_oid,
         x25519_oid,
         x448_oid,
@@ -460,7 +473,7 @@ ErrorOr<PrivateKey> parse_private_key_info(Crypto::ASN1::Decoder& decoder, Vecto
     };
 
     for (auto const& inner : no_parameter_algorithms) {
-        if (private_key.algorithm.identifier.span() == inner.span()) {
+        if (private_key.algorithm.identifier.span() == inner) {
             // Note: Raw key is already stored, so we can just exit out at this point.
             EXIT_SCOPE();
             return private_key;

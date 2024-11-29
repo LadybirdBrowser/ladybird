@@ -597,9 +597,9 @@ ErrorOr<Vector<Certificate>> DefaultRootCACertificates::parse_pem_root_certifica
 
 ErrorOr<SupportedGroup> oid_to_curve(Vector<int> curve)
 {
-    if (curve == Crypto::Certificate::curve_ansip384r1)
+    if (curve == Crypto::Certificate::secp384r1_oid)
         return SupportedGroup::SECP384R1;
-    if (curve == Crypto::Certificate::curve_prime256)
+    if (curve == Crypto::Certificate::secp256r1_oid)
         return SupportedGroup::SECP256R1;
 
     return AK::Error::from_string_literal("Unknown curve oid");
