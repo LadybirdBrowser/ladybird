@@ -42,7 +42,9 @@
             return input;
         }
 
+        testProperty("img", "height", (img) => img.height, (img, value) => img.height = value);
         testProperty("img", "hspace", (img) => img.hspace, (img, value) => img.hspace = value);
+        testProperty("img", "width", (img) => img.width, (img, value) => img.width = value);
         testProperty("input", "size", (input) => input.size, (input, value) => input.size = value);
         testProperty(imageButtonInputFactory, "height", (input) => input.height, (input, value) => input.height = value);
         testProperty(imageButtonInputFactory, "width", (input) => input.width, (input, value) => input.width = value);

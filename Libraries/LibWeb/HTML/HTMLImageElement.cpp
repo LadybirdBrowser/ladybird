@@ -190,7 +190,7 @@ void HTMLImageElement::set_visible_in_viewport(bool)
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-width
-unsigned HTMLImageElement::width() const
+WebIDL::UnsignedLong HTMLImageElement::width() const
 {
     const_cast<DOM::Document&>(document()).update_layout();
 
@@ -198,9 +198,9 @@ unsigned HTMLImageElement::width() const
     if (auto* paintable_box = this->paintable_box())
         return paintable_box->content_width().to_int();
 
-    // NOTE: This step seems to not be in the spec, but all browsers do it.
+    // On setting [the width or height IDL attribute], they must act as if they reflected the respective content attributes of the same name.
     if (auto width_attr = get_attribute(HTML::AttributeNames::width); width_attr.has_value()) {
-        if (auto converted = width_attr->to_number<unsigned>(); converted.has_value())
+        if (auto converted = parse_non_negative_integer(*width_attr); converted.has_value() && *converted <= 2147483647)
             return *converted;
     }
 
@@ -213,13 +213,15 @@ unsigned HTMLImageElement::width() const
     return 0;
 }
 
-WebIDL::ExceptionOr<void> HTMLImageElement::set_width(unsigned width)
+WebIDL::ExceptionOr<void> HTMLImageElement::set_width(WebIDL::UnsignedLong width)
 {
+    if (width > 2147483647)
+        width = 0;
     return set_attribute(HTML::AttributeNames::width, String::number(width));
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-height
-unsigned HTMLImageElement::height() const
+WebIDL::UnsignedLong HTMLImageElement::height() const
 {
     const_cast<DOM::Document&>(document()).update_layout();
 
@@ -227,9 +229,9 @@ unsigned HTMLImageElement::height() const
     if (auto* paintable_box = this->paintable_box())
         return paintable_box->content_height().to_int();
 
-    // NOTE: This step seems to not be in the spec, but all browsers do it.
+    // On setting [the width or height IDL attribute], they must act as if they reflected the respective content attributes of the same name.
     if (auto height_attr = get_attribute(HTML::AttributeNames::height); height_attr.has_value()) {
-        if (auto converted = height_attr->to_number<unsigned>(); converted.has_value())
+        if (auto converted = parse_non_negative_integer(*height_attr); converted.has_value() && *converted <= 2147483647)
             return *converted;
     }
 
@@ -242,8 +244,10 @@ unsigned HTMLImageElement::height() const
     return 0;
 }
 
-WebIDL::ExceptionOr<void> HTMLImageElement::set_height(unsigned height)
+WebIDL::ExceptionOr<void> HTMLImageElement::set_height(WebIDL::UnsignedLong height)
 {
+    if (height > 2147483647)
+        height = 0;
     return set_attribute(HTML::AttributeNames::height, String::number(height));
 }
 
