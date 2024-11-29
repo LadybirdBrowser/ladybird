@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Backgrounds and Borders Module Level 3: parsing background-position with valid values</title>
+<link rel="author" title="Eric Willigers" href="mailto:ericwilligers@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds/#background-position">
+<meta name="assert" content="background-position supports the full grammar '<bg-position>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value("background-position", "1px", ["1px", "1px center"]);
+test_valid_value("background-position", "1px center", ["1px", "1px center"]);
+test_valid_value("background-position", "-2% -3%");
+test_valid_value("background-position", "5% top");
+test_valid_value("background-position", "center", ["center", "center center"]);
+test_valid_value("background-position", "center center", ["center", "center center"]);
+test_valid_value("background-position", "center 6px");
+test_valid_value("background-position", "center left", ["left center", "left"]);
+test_valid_value("background-position", "center right 7%", "right 7% center");
+test_valid_value("background-position", "center bottom", ["center bottom", "bottom"]);
+test_valid_value("background-position", "center top 8px", ["center top 8px", "center 8px"]);
+test_valid_value("background-position", "left", ["left center", "left"]);
+test_valid_value("background-position", "right 9%");
+test_valid_value("background-position", "left 10px center", ["left 10px center", "10px"]);
+test_valid_value("background-position", "right 11% bottom", ["right 11% bottom", "right 11% bottom 0%"]); // "right 11% bottom 0%" in Edge
+test_valid_value("background-position", "left 12px top 13px", ["left 12px top 13px", "12px 13px"]);
+test_valid_value("background-position", "right center", ["right center", "right"]);
+test_valid_value("background-position", "left bottom");
+test_valid_value("background-position", "right top 14%", ["right top 14%", "right 14%"]);
+test_valid_value("background-position", "bottom", ["center bottom", "bottom"]);
+test_valid_value("background-position", "top 15px center", ["center top 15px", "center 15px"]);
+test_valid_value("background-position", "bottom 16% left", ["left bottom 16%", "left 0% bottom 16%"]); // "left 0% bottom 16%" in Edge
+test_valid_value("background-position", "top 17px right 18px", "right 18px top 17px");
+test_valid_value("background-position", "bottom center", ["center bottom", "bottom"]);
+test_valid_value("background-position", "top left", "left top");
+test_valid_value("background-position", "bottom right 19%", ["right 19% bottom", "right 19% bottom 0%"]); // "right 19% bottom 0%" in Edge
+test_valid_value("background-position", "20% 0%");
+test_valid_value("background-position", "0% 0%");
+test_valid_value("background-position", "0%", ["0%", "0% center"]);
+test_valid_value("background-position", "0% center", ["0%", "0% center"]);
+test_valid_value("background-position", "center 0%");
+</script>
+</body>
+</html>

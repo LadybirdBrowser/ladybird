@@ -1325,12 +1325,12 @@ CSS::ObjectPosition StyleProperties::object_position() const
     auto const& edge_y = position.edge_y();
     if (edge_x->is_edge()) {
         auto const& edge = edge_x->as_edge();
-        object_position.edge_x = edge.edge();
+        object_position.edge_x = edge.edge().value_or(PositionEdge::Left);
         object_position.offset_x = edge.offset();
     }
     if (edge_y->is_edge()) {
         auto const& edge = edge_y->as_edge();
-        object_position.edge_y = edge.edge();
+        object_position.edge_y = edge.edge().value_or(PositionEdge::Top);
         object_position.offset_y = edge.offset();
     }
     return object_position;

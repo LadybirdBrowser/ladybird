@@ -3913,12 +3913,6 @@ RefPtr<PositionStyleValue> Parser::parse_position_value(TokenStream<ComponentVal
         }
     };
 
-    auto make_edge_style_value = [](PositionEdge position_edge, bool is_horizontal) -> NonnullRefPtr<EdgeStyleValue> {
-        if (position_edge == PositionEdge::Center)
-            return EdgeStyleValue::create(is_horizontal ? PositionEdge::Left : PositionEdge::Top, Percentage { 50 });
-        return EdgeStyleValue::create(position_edge, Length::make_px(0));
-    };
-
     // <position> = [
     //   [ left | center | right | top | bottom | <length-percentage> ]
     // |
@@ -3945,21 +3939,21 @@ RefPtr<PositionStyleValue> Parser::parse_position_value(TokenStream<ComponentVal
 
             // [ left | right ]
             if (is_horizontal(edge, false))
-                return PositionStyleValue::create(make_edge_style_value(edge, true), make_edge_style_value(PositionEdge::Center, false));
+                return PositionStyleValue::create(EdgeStyleValue::create(edge, {}), EdgeStyleValue::create(PositionEdge::Center, {}));
 
             // [ top | bottom ]
             if (is_vertical(edge, false))
-                return PositionStyleValue::create(make_edge_style_value(PositionEdge::Center, true), make_edge_style_value(edge, false));
+                return PositionStyleValue::create(EdgeStyleValue::create(PositionEdge::Center, {}), EdgeStyleValue::create(edge, {}));
 
             // [ center ]
             VERIFY(edge == PositionEdge::Center);
-            return PositionStyleValue::create(make_edge_style_value(PositionEdge::Center, true), make_edge_style_value(PositionEdge::Center, false));
+            return PositionStyleValue::create(EdgeStyleValue::create(PositionEdge::Center, {}), EdgeStyleValue::create(PositionEdge::Center, {}));
         }
 
         // [ <length-percentage> ]
         if (auto maybe_percentage = parse_length_percentage(token); maybe_percentage.has_value()) {
             transaction.commit();
-            return PositionStyleValue::create(EdgeStyleValue::create(PositionEdge::Left, *maybe_percentage), make_edge_style_value(PositionEdge::Center, false));
+            return PositionStyleValue::create(EdgeStyleValue::create({}, *maybe_percentage), EdgeStyleValue::create(PositionEdge::Center, {}));
         }
 
         return nullptr;
@@ -3994,7 +3988,7 @@ RefPtr<PositionStyleValue> Parser::parse_position_value(TokenStream<ComponentVal
         // [ left | center | right ] [ top | bottom | center ]
         if (is_horizontal(first_edge, true) && is_vertical(second_edge, true)) {
             transaction.commit();
-            return PositionStyleValue::create(make_edge_style_value(first_edge, true), make_edge_style_value(second_edge, false));
+            return PositionStyleValue::create(EdgeStyleValue::create(first_edge, {}), EdgeStyleValue::create(second_edge, {}));
         }
 
         return nullptr;
@@ -4014,14 +4008,14 @@ RefPtr<PositionStyleValue> Parser::parse_position_value(TokenStream<ComponentVal
                 bool valid = as_horizontal ? is_horizontal(position, true) : is_vertical(position, true);
                 if (!valid)
                     return nullptr;
-                return make_edge_style_value(position, as_horizontal);
+                return EdgeStyleValue::create(position, {});
             }
 
             auto maybe_length = parse_length_percentage(token);
             if (!maybe_length.has_value())
                 return nullptr;
 
-            return EdgeStyleValue::create(as_horizontal ? PositionEdge::Left : PositionEdge::Top, maybe_length.release_value());
+            return EdgeStyleValue::create({}, maybe_length);
         };
 
         // [ left | center | right | <length-percentage> ]
@@ -4157,15 +4151,15 @@ RefPtr<PositionStyleValue> Parser::parse_position_value(TokenStream<ComponentVal
         if (!is_vertical(group2.position, true))
             return nullptr;
 
-        auto to_style_value = [&](PositionAndMaybeLength const& group, bool is_horizontal) -> NonnullRefPtr<EdgeStyleValue> {
+        auto to_style_value = [&](PositionAndMaybeLength const& group) -> NonnullRefPtr<EdgeStyleValue> {
             if (group.position == PositionEdge::Center)
-                return EdgeStyleValue::create(is_horizontal ? PositionEdge::Left : PositionEdge::Top, Percentage { 50 });
+                return EdgeStyleValue::create(PositionEdge::Center, {});
 
-            return EdgeStyleValue::create(group.position, group.length.value_or(Length::make_px(0)));
+            return EdgeStyleValue::create(group.position, group.length);
         };
 
         transaction.commit();
-        return PositionStyleValue::create(to_style_value(group1, true), to_style_value(group2, false));
+        return PositionStyleValue::create(to_style_value(group1), to_style_value(group2));
     };
 
     // Note: The alternatives must be attempted in this order since shorter alternatives can match a prefix of longer ones.
@@ -4527,16 +4521,7 @@ static Optional<LengthPercentage> style_value_to_length_percentage(auto value)
 
 RefPtr<CSSStyleValue> Parser::parse_single_background_position_x_or_y_value(TokenStream<ComponentValue>& tokens, PropertyID property)
 {
-    PositionEdge relative_edge {};
-    if (property == PropertyID::BackgroundPositionX) {
-        // [ center | [ [ left | right | x-start | x-end ]? <length-percentage>? ]! ]#
-        relative_edge = PositionEdge::Left;
-    } else if (property == PropertyID::BackgroundPositionY) {
-        // [ center | [ [ top | bottom | y-start | y-end ]? <length-percentage>? ]! ]#
-        relative_edge = PositionEdge::Top;
-    } else {
-        VERIFY_NOT_REACHED();
-    }
+    Optional<PositionEdge> relative_edge {};
 
     auto transaction = tokens.begin_transaction();
     if (!tokens.has_next_token())
@@ -4550,10 +4535,10 @@ RefPtr<CSSStyleValue> Parser::parse_single_background_position_x_or_y_value(Toke
         auto keyword = value->to_keyword();
         if (keyword == Keyword::Center) {
             transaction.commit();
-            return EdgeStyleValue::create(relative_edge, Percentage { 50 });
+            return EdgeStyleValue::create(PositionEdge::Center, {});
         }
         if (auto edge = keyword_to_position_edge(keyword); edge.has_value()) {
-            relative_edge = *edge;
+            relative_edge = edge;
         } else {
             return nullptr;
         }
@@ -4561,7 +4546,7 @@ RefPtr<CSSStyleValue> Parser::parse_single_background_position_x_or_y_value(Toke
             value = parse_css_value_for_property(property, tokens);
             if (!value) {
                 transaction.commit();
-                return EdgeStyleValue::create(relative_edge, Length::make_px(0));
+                return EdgeStyleValue::create(relative_edge, {});
             }
         }
     }
@@ -4572,9 +4557,21 @@ RefPtr<CSSStyleValue> Parser::parse_single_background_position_x_or_y_value(Toke
         return EdgeStyleValue::create(relative_edge, *offset);
     }
 
+    if (!relative_edge.has_value()) {
+        if (property == PropertyID::BackgroundPositionX) {
+            // [ center | [ [ left | right | x-start | x-end ]? <length-percentage>? ]! ]#
+            relative_edge = PositionEdge::Left;
+        } else if (property == PropertyID::BackgroundPositionY) {
+            // [ center | [ [ top | bottom | y-start | y-end ]? <length-percentage>? ]! ]#
+            relative_edge = PositionEdge::Top;
+        } else {
+            VERIFY_NOT_REACHED();
+        }
+    }
+
     // If no offset is provided create this element but with an offset of default value of zero
     transaction.commit();
-    return EdgeStyleValue::create(relative_edge, Length::make_px(0));
+    return EdgeStyleValue::create(relative_edge, {});
 }
 
 RefPtr<CSSStyleValue> Parser::parse_single_background_repeat_value(TokenStream<ComponentValue>& tokens)
