@@ -8,10 +8,12 @@ set(SOURCES
 
 if (UNIX)
     list(APPEND SOURCES TransportSocket.cpp)
+else()
+    list(APPEND SOURCES TransportSocketWindows.cpp)
 endif()
 
 serenity_lib(LibIPC ipc)
-target_link_libraries(LibIPC PRIVATE LibCore LibURL LibThreading)
+target_link_libraries(LibIPC PRIVATE LibCore LibThreading LibURL)
 
 if (WIN32)
     find_package(pthread REQUIRED)
