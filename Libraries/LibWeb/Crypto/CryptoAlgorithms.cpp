@@ -11,6 +11,7 @@
 #include <AK/HashTable.h>
 #include <AK/QuickSort.h>
 #include <LibCrypto/ASN1/ASN1.h>
+#include <LibCrypto/ASN1/Constants.h>
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/Authentication/HMAC.h>
 #include <LibCrypto/Certificate/Certificate.h>
@@ -813,7 +814,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(Web::Crypto::Algorit
 
         // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
         //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
-        if (spki.algorithm.identifier != ::Crypto::Certificate::rsa_encryption_oid)
+        if (spki.algorithm.identifier != ::Crypto::ASN1::rsa_encryption_oid)
             return WebIDL::DataError::create(m_realm, "Algorithm object identifier is not the rsaEncryption object identifier"_string);
 
         // 5. Let publicKey be the result of performing the parse an ASN.1 structure algorithm,
@@ -850,7 +851,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(Web::Crypto::Algorit
 
         // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
         //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
-        if (private_key_info.algorithm.identifier != ::Crypto::Certificate::rsa_encryption_oid)
+        if (private_key_info.algorithm.identifier != ::Crypto::ASN1::rsa_encryption_oid)
             return WebIDL::DataError::create(m_realm, "Algorithm object identifier is not the rsaEncryption object identifier"_string);
 
         // 5. Let rsaPrivateKey be the result of performing the parse an ASN.1 structure algorithm,
@@ -1071,7 +1072,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAOAEP::export_key(Bindings::KeyFormat
         //   that represents the RSA public key represented by the [[handle]] internal slot of key
         auto maybe_data = handle.visit(
             [&](::Crypto::PK::RSAPublicKey<> const& public_key) -> ErrorOr<ByteBuffer> {
-                return TRY(::Crypto::PK::wrap_in_subject_public_key_info(public_key, Array { ::Crypto::Certificate::rsa_encryption_oid }, nullptr));
+                return TRY(::Crypto::PK::wrap_in_subject_public_key_info(public_key, ::Crypto::ASN1::rsa_encryption_oid, nullptr));
             },
             [](auto) -> ErrorOr<ByteBuffer> {
                 VERIFY_NOT_REACHED();
@@ -1098,7 +1099,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAOAEP::export_key(Bindings::KeyFormat
         // that represents the RSA private key represented by the [[handle]] internal slot of key
         auto maybe_data = handle.visit(
             [&](::Crypto::PK::RSAPrivateKey<> const& private_key) -> ErrorOr<ByteBuffer> {
-                return TRY(::Crypto::PK::wrap_in_private_key_info(private_key, Array { ::Crypto::Certificate::rsa_encryption_oid }, nullptr));
+                return TRY(::Crypto::PK::wrap_in_private_key_info(private_key, ::Crypto::ASN1::rsa_encryption_oid, nullptr));
             },
             [](auto) -> ErrorOr<ByteBuffer> {
                 VERIFY_NOT_REACHED();
@@ -2707,7 +2708,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
 
         // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
         //    is not equal to the id-ecPublicKey object identifier defined in [RFC5480], then throw a DataError.
-        if (spki.algorithm.identifier != ::Crypto::Certificate::ec_public_key_encryption_oid)
+        if (spki.algorithm.identifier != ::Crypto::ASN1::ec_public_key_encryption_oid)
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
 
         // 5. If the parameters field of the algorithm AlgorithmIdentifier field of spki is absent, then throw a DataError.
@@ -2722,17 +2723,17 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
         String named_curve;
 
         // 9. If params is equivalent to the secp256r1 object identifier defined in [RFC5480]:
-        if (ec_params == ::Crypto::Certificate::secp256r1_oid) {
+        if (ec_params == ::Crypto::ASN1::secp256r1_oid) {
             // Set namedCurve to "P-256".
             named_curve = "P-256"_string;
         }
         // If params is equivalent to the secp384r1 object identifier defined in [RFC5480]:
-        else if (ec_params == ::Crypto::Certificate::secp384r1_oid) {
+        else if (ec_params == ::Crypto::ASN1::secp384r1_oid) {
             // Set namedCurve to "P-384".
             named_curve = "P-384"_string;
         }
         // If params is equivalent to the secp521r1 object identifier defined in [RFC5480]:
-        else if (ec_params == ::Crypto::Certificate::secp521r1_oid) {
+        else if (ec_params == ::Crypto::ASN1::secp521r1_oid) {
             // Set namedCurve to "P-521".
             named_curve = "P-521"_string;
         }
@@ -2810,7 +2811,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
 
         // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
         //    is not equal to the id-ecPublicKey object identifier defined in [RFC5480], then throw a DataError.
-        if (private_key_info.algorithm.identifier != ::Crypto::Certificate::ec_public_key_encryption_oid)
+        if (private_key_info.algorithm.identifier != ::Crypto::ASN1::ec_public_key_encryption_oid)
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
 
         // 5. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field
@@ -2826,17 +2827,17 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
         String named_curve;
 
         // 9. If params is equivalent to the secp256r1 object identifier defined in [RFC5480]:
-        if (ec_params == ::Crypto::Certificate::secp256r1_oid) {
+        if (ec_params == ::Crypto::ASN1::secp256r1_oid) {
             // Set namedCurve to "P-256".
             named_curve = "P-256"_string;
         }
         // If params is equivalent to the secp384r1 object identifier defined in [RFC5480]:
-        else if (ec_params == ::Crypto::Certificate::secp384r1_oid) {
+        else if (ec_params == ::Crypto::ASN1::secp384r1_oid) {
             // Set namedCurve to "P-384".
             named_curve = "P-384"_string;
         }
         // If params is equivalent to the secp521r1 object identifier defined in [RFC5480]:
-        else if (ec_params == ::Crypto::Certificate::secp521r1_oid) {
+        else if (ec_params == ::Crypto::ASN1::secp521r1_oid) {
             // Set namedCurve to "P-521".
             named_curve = "P-521"_string;
         }
@@ -3146,15 +3147,15 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
 
                     Span<int const> ec_params;
                     if (algorithm.named_curve() == "P-256"sv)
-                        ec_params = ::Crypto::Certificate::secp256r1_oid;
+                        ec_params = ::Crypto::ASN1::secp256r1_oid;
                     else if (algorithm.named_curve() == "P-384"sv)
-                        ec_params = ::Crypto::Certificate::secp384r1_oid;
+                        ec_params = ::Crypto::ASN1::secp384r1_oid;
                     else if (algorithm.named_curve() == "P-521"sv)
-                        ec_params = ::Crypto::Certificate::secp521r1_oid;
+                        ec_params = ::Crypto::ASN1::secp521r1_oid;
                     else
                         VERIFY_NOT_REACHED();
 
-                    return TRY(::Crypto::PK::wrap_in_subject_public_key_info(public_key_bytes, ::Crypto::Certificate::ec_public_key_encryption_oid, ec_params));
+                    return TRY(::Crypto::PK::wrap_in_subject_public_key_info(public_key_bytes, ::Crypto::ASN1::ec_public_key_encryption_oid, ec_params));
                 },
                 [](auto) -> ErrorOr<ByteBuffer> {
                     VERIFY_NOT_REACHED();
@@ -3213,15 +3214,15 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
                 [&](::Crypto::PK::ECPrivateKey<> const& private_key) -> ErrorOr<ByteBuffer> {
                     Span<int const> ec_params;
                     if (algorithm.named_curve() == "P-256"sv)
-                        ec_params = ::Crypto::Certificate::secp256r1_oid;
+                        ec_params = ::Crypto::ASN1::secp256r1_oid;
                     else if (algorithm.named_curve() == "P-384"sv)
-                        ec_params = ::Crypto::Certificate::secp384r1_oid;
+                        ec_params = ::Crypto::ASN1::secp384r1_oid;
                     else if (algorithm.named_curve() == "P-521"sv)
-                        ec_params = ::Crypto::Certificate::secp521r1_oid;
+                        ec_params = ::Crypto::ASN1::secp521r1_oid;
                     else
                         VERIFY_NOT_REACHED();
 
-                    return TRY(::Crypto::PK::wrap_in_private_key_info(private_key, ::Crypto::Certificate::ec_public_key_encryption_oid, ec_params));
+                    return TRY(::Crypto::PK::wrap_in_private_key_info(private_key, ::Crypto::ASN1::ec_public_key_encryption_oid, ec_params));
                 },
                 [](auto) -> ErrorOr<ByteBuffer> {
                     VERIFY_NOT_REACHED();
@@ -3502,7 +3503,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(
 
         // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
         //    is not equal to the id-Ed25519 object identifier defined in [RFC8410], then throw a DataError.
-        if (spki.algorithm.identifier != ::Crypto::Certificate::ed25519_oid)
+        if (spki.algorithm.identifier != ::Crypto::ASN1::ed25519_oid)
             return WebIDL::DataError::create(m_realm, "Invalid algorithm identifier"_string);
 
         // 5. If the parameters field of the algorithm AlgorithmIdentifier field of spki is present, then throw a DataError.
@@ -3544,7 +3545,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(
 
         // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field
         //    of privateKeyInfo is not equal to the id-Ed25519 object identifier defined in [RFC8410], then throw a DataError.
-        if (private_key_info.algorithm.identifier != ::Crypto::Certificate::ed25519_oid)
+        if (private_key_info.algorithm.identifier != ::Crypto::ASN1::ed25519_oid)
             return WebIDL::DataError::create(m_realm, "Invalid algorithm identifier"_string);
 
         // 5. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of privateKeyInfo is present,
@@ -3752,7 +3753,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(Bindings::KeyFormat
         //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
         //      * Set the algorithm object identifier to the id-Ed25519 OID defined in [RFC8410].
         //    * Set the subjectPublicKey field to keyData.
-        auto ed25519_oid = ::Crypto::Certificate::ed25519_oid;
+        auto ed25519_oid = ::Crypto::ASN1::ed25519_oid;
         auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_subject_public_key_info(key_data, ed25519_oid, nullptr));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
@@ -3771,7 +3772,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(Bindings::KeyFormat
         //      * Set the algorithm object identifier to the id-Ed25519 OID defined in [RFC8410].
         //    * Set the privateKey field to the result of DER-encoding a CurvePrivateKey ASN.1 type, as defined in Section 7 of [RFC8410], that represents the Ed25519 private key represented by the [[handle]] internal slot of key
 
-        auto ed25519_oid = ::Crypto::Certificate::ed25519_oid;
+        auto ed25519_oid = ::Crypto::ASN1::ed25519_oid;
         auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_private_key_info(key_data, ed25519_oid, nullptr));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
@@ -4195,7 +4196,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key([[maybe_unused]] Web:
 
         // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
         //    is not equal to the id-X25519 object identifier defined in [RFC8410], then throw a DataError.
-        if (spki.algorithm.identifier != ::Crypto::Certificate::x25519_oid)
+        if (spki.algorithm.identifier != ::Crypto::ASN1::x25519_oid)
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
 
         // 5. If the parameters field of the algorithm AlgorithmIdentifier field of spki is present, then throw a DataError.
@@ -4236,7 +4237,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key([[maybe_unused]] Web:
 
         // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
         //    is not equal to the id-X25519 object identifier defined in [RFC8410], then throw a DataError.
-        if (private_key_info.algorithm.identifier != ::Crypto::Certificate::x25519_oid)
+        if (private_key_info.algorithm.identifier != ::Crypto::ASN1::x25519_oid)
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
 
         // 5. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of privateKeyInfo is present, then throw a DataError.
@@ -4441,7 +4442,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X25519::export_key(Bindings::KeyFormat 
         //    Set the algorithm object identifier to the id-X25519 OID defined in [RFC8410].
         //    Set the subjectPublicKey field to keyData.
         auto public_key = handle.get<ByteBuffer>();
-        auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_subject_public_key_info(public_key, Array { ::Crypto::Certificate::x25519_oid }, nullptr));
+        auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_subject_public_key_info(public_key, ::Crypto::ASN1::x25519_oid, nullptr));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
         result = JS::ArrayBuffer::create(m_realm, data);
@@ -4460,7 +4461,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X25519::export_key(Bindings::KeyFormat 
         //    Set the privateKey field to the result of DER-encoding a CurvePrivateKey ASN.1 type, as defined in Section 7 of [RFC8410],
         //    that represents the X25519 private key represented by the [[handle]] internal slot of key
         auto private_key = handle.get<ByteBuffer>();
-        auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_private_key_info(private_key, Array { ::Crypto::Certificate::x25519_oid }, nullptr));
+        auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_private_key_info(private_key, ::Crypto::ASN1::x25519_oid, nullptr));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
         result = JS::ArrayBuffer::create(m_realm, data);
@@ -4684,7 +4685,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X448::export_key(Bindings::KeyFormat fo
         //    * Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
         //      * Set the algorithm object identifier to the id-X448 OID defined in [RFC8410].
         //    * Set the subjectPublicKey field to keyData.
-        auto x448_oid = ::Crypto::Certificate::x448_oid;
+        auto x448_oid = ::Crypto::ASN1::x448_oid;
         auto data = TRY_OR_THROW_OOM(m_realm->vm(), ::Crypto::PK::wrap_in_subject_public_key_info(key_data, x448_oid, nullptr));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
@@ -4702,7 +4703,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X448::export_key(Bindings::KeyFormat fo
         //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
         //      * Set the algorithm object identifier to the id-X448 OID defined in [RFC8410].
         //    * Set the privateKey field to the result of DER-encoding a CurvePrivateKey ASN.1 type, as defined in Section 7 of [RFC8410], that represents the X448 private key represented by the [[handle]] internal slot of key
-        auto x448_oid = ::Crypto::Certificate::x448_oid;
+        auto x448_oid = ::Crypto::ASN1::x448_oid;
         auto data = TRY_OR_THROW_OOM(m_realm->vm(), ::Crypto::PK::wrap_in_private_key_info(key_data, x448_oid, nullptr));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
@@ -4780,7 +4781,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(
         auto spki = TRY(parse_a_subject_public_key_info(m_realm, key_data.get<ByteBuffer>()));
 
         // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki is not equal to the id-X448 object identifier defined in [RFC8410], then throw a DataError.
-        if (spki.algorithm.identifier != ::Crypto::Certificate::x448_oid)
+        if (spki.algorithm.identifier != ::Crypto::ASN1::x448_oid)
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
 
         // 5. If the parameters field of the algorithm AlgorithmIdentifier field of spki is present, then throw a DataError.
@@ -4823,7 +4824,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(
         auto private_key = private_key_info.raw_key;
 
         // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo is not equal to the id-X448 object identifier defined in [RFC8410], then throw a DataError.
-        if (private_key_info.algorithm.identifier != ::Crypto::Certificate::x448_oid)
+        if (private_key_info.algorithm.identifier != ::Crypto::ASN1::x448_oid)
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_string);
 
         // 5. If the parameters field of the privateKeyAlgorithm PrivateKeyAlgorithmIdentifier field of privateKeyInfo is present, then throw a DataError.

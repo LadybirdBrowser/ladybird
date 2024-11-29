@@ -33,7 +33,7 @@ TEST_CASE(test_private_key_info_decode)
     Crypto::ASN1::Decoder decoder(decoded_keyder);
     auto private_key_info = TRY_OR_FAIL(Crypto::Certificate::parse_private_key_info(decoder));
 
-    EXPECT_EQ(private_key_info.algorithm.identifier, Crypto::Certificate::rsa_encryption_oid);
+    EXPECT_EQ(private_key_info.algorithm.identifier, Crypto::ASN1::rsa_encryption_oid);
     auto& key = private_key_info.rsa;
 
     EXPECT_EQ(key.length() * 8, 512u);
