@@ -34,6 +34,8 @@ public:
     void read_into_bitmap(Bitmap&);
     void write_from_bitmap(Bitmap&);
 
+    void notify_content_will_change();
+
     IntSize size() const;
     IntRect rect() const;
 

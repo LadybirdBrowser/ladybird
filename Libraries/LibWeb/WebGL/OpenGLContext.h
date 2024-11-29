@@ -15,6 +15,7 @@ class OpenGLContext {
 public:
     static OwnPtr<OpenGLContext> create(NonnullRefPtr<Gfx::SkiaBackendContext>);
 
+    void notify_content_will_change();
     void clear_buffer_to_default_values();
     void allocate_painting_surface_if_needed();
 

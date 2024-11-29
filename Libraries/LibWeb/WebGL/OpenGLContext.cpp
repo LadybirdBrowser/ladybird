@@ -108,6 +108,11 @@ OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContex
 #endif
 }
 
+void OpenGLContext::notify_content_will_change()
+{
+    m_painting_surface->notify_content_will_change();
+}
+
 void OpenGLContext::clear_buffer_to_default_values()
 {
 }
