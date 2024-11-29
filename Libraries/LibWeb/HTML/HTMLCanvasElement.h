@@ -24,11 +24,14 @@ public:
 
     virtual ~HTMLCanvasElement() override;
 
-    bool allocate_painting_surface(size_t minimum_width = 0, size_t minimum_height = 0);
-    RefPtr<Gfx::PaintingSurface> surface() { return m_surface; }
-    RefPtr<Gfx::PaintingSurface const> surface() const { return m_surface; }
+    Gfx::IntSize bitmap_size_for_canvas(size_t minimum_width = 0, size_t minimum_height = 0) const;
 
     JS::ThrowCompletionOr<RenderingContext> get_context(String const& type, JS::Value options);
+    enum class HasOrCreatedContext {
+        No,
+        Yes,
+    };
+    HasOrCreatedContext create_2d_context();
 
     WebIDL::UnsignedLong width() const;
     WebIDL::UnsignedLong height() const;
@@ -41,6 +44,9 @@ public:
 
     void present();
 
+    RefPtr<Gfx::PaintingSurface> surface() const;
+    void allocate_painting_surface_if_needed();
+
 private:
     HTMLCanvasElement(DOM::Document&, DOM::QualifiedName);
 
@@ -52,16 +58,9 @@ private:
     virtual GC::Ptr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
     virtual void adjust_computed_style(CSS::StyleProperties&) override;
 
-    enum class HasOrCreatedContext {
-        No,
-        Yes,
-    };
-
-    HasOrCreatedContext create_2d_context();
     JS::ThrowCompletionOr<HasOrCreatedContext> create_webgl_context(JS::Value options);
     void reset_context_to_default_state();
-
-    RefPtr<Gfx::PaintingSurface> m_surface;
+    void notify_context_about_canvas_size_change();
 
     Variant<GC::Ref<HTML::CanvasRenderingContext2D>, GC::Ref<WebGL::WebGLRenderingContext>, Empty> m_context;
 };

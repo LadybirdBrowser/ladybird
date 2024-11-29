@@ -42,8 +42,10 @@ ErrorOr<GC::Ref<HTML::HTMLCanvasElement>, WebDriver::Error> draw_bounding_box_fr
     MUST(canvas.set_height(paint_height));
 
     // FIXME: 5. Let context, a canvas context mode, be the result of invoking the 2D context creation algorithm given canvas as the target.
-    if (!canvas.allocate_painting_surface(paint_width, paint_height))
-        return Error::from_code(ErrorCode::UnableToCaptureScreen, "Unable to create a screenshot bitmap"sv);
+    canvas.create_2d_context();
+    canvas.allocate_painting_surface_if_needed();
+    if (!canvas.surface())
+        return Error::from_code(ErrorCode::UnableToCaptureScreen, "Failed to allocate painting surface"sv);
 
     // 6. Complete implementation specific steps equivalent to drawing the region of the framebuffer specified by the following coordinates onto context:
     //    - X coordinate: rectangle x coordinate

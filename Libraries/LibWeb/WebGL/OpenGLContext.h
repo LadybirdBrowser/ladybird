@@ -13,7 +13,7 @@ namespace Web::WebGL {
 
 class OpenGLContext {
 public:
-    static OwnPtr<OpenGLContext> create(Gfx::PaintingSurface&);
+    static OwnPtr<OpenGLContext> create();
 
     virtual void present() = 0;
     void clear_buffer_to_default_values();

@@ -5,15 +5,12 @@
  */
 
 #include <AK/OwnPtr.h>
-#include <LibGfx/Bitmap.h>
-#include <LibGfx/Forward.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 
 namespace Web::WebGL {
 
-OwnPtr<OpenGLContext> OpenGLContext::create(Gfx::PaintingSurface& bitmap)
+OwnPtr<OpenGLContext> OpenGLContext::create()
 {
-    (void)bitmap;
     return {};
 }
 

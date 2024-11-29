@@ -21,6 +21,7 @@
 #include <LibWeb/HTML/ImageData.h>
 #include <LibWeb/HTML/Path2D.h>
 #include <LibWeb/HTML/TextMetrics.h>
+#include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Painting/Paintable.h>
@@ -41,6 +42,7 @@ CanvasRenderingContext2D::CanvasRenderingContext2D(JS::Realm& realm, HTMLCanvasE
     : PlatformObject(realm)
     , CanvasPath(static_cast<Bindings::PlatformObject&>(*this), *this)
     , m_element(element)
+    , m_size(element.bitmap_size_for_canvas())
 {
 }
 
@@ -198,12 +200,27 @@ void CanvasRenderingContext2D::did_draw(Gfx::FloatRect const&)
 Gfx::Painter* CanvasRenderingContext2D::painter()
 {
     if (!canvas_element().surface()) {
-        if (!canvas_element().allocate_painting_surface())
-            return nullptr;
+        allocate_painting_surface_if_needed();
         canvas_element().document().invalidate_display_list();
         m_painter = make<Gfx::PainterSkia>(*canvas_element().surface());
     }
     return m_painter.ptr();
+}
+
+void CanvasRenderingContext2D::set_size(Gfx::IntSize const& size)
+{
+    if (m_size == size)
+        return;
+    m_size = size;
+    m_surface = nullptr;
+}
+
+void CanvasRenderingContext2D::allocate_painting_surface_if_needed()
+{
+    if (m_surface)
+        return;
+    auto skia_backend_context = canvas_element().navigable()->traversable_navigable()->skia_backend_context();
+    m_surface = Gfx::PaintingSurface::create_with_size(skia_backend_context, canvas_element().bitmap_size_for_canvas(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
 }
 
 Gfx::Path CanvasRenderingContext2D::text_path(StringView text, float x, float y, Optional<double> max_width)

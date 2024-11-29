@@ -25,6 +25,7 @@
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Layout/CanvasBox.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWeb/WebGL/WebGLRenderingContext.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 
 namespace Web::HTML {
@@ -128,13 +129,27 @@ void HTMLCanvasElement::reset_context_to_default_state()
         });
 }
 
-WebIDL::ExceptionOr<void> HTMLCanvasElement::set_width(WebIDL::UnsignedLong value)
+void HTMLCanvasElement::notify_context_about_canvas_size_change()
+{
+    m_context.visit(
+        [&](GC::Ref<CanvasRenderingContext2D>& context) {
+            context->set_size(bitmap_size_for_canvas());
+        },
+        [&](GC::Ref<WebGL::WebGLRenderingContext>&) {
+            TODO();
+        },
+        [](Empty) {
+            // Do nothing.
+        });
+}
+
+WebIDL::ExceptionOr<void> HTMLCanvasElement::set_width(unsigned value)
 {
     if (value > 2147483647)
         value = 300;
 
     TRY(set_attribute(HTML::AttributeNames::width, String::number(value)));
-    m_surface = nullptr;
+    notify_context_about_canvas_size_change();
     reset_context_to_default_state();
     return {};
 }
@@ -145,7 +160,7 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::set_height(WebIDL::UnsignedLong val
         value = 150;
 
     TRY(set_attribute(HTML::AttributeNames::height, String::number(value)));
-    m_surface = nullptr;
+    notify_context_about_canvas_size_change();
     reset_context_to_default_state();
     return {};
 }
@@ -214,10 +229,10 @@ JS::ThrowCompletionOr<HTMLCanvasElement::RenderingContext> HTMLCanvasElement::ge
     return Empty {};
 }
 
-static Gfx::IntSize bitmap_size_for_canvas(HTMLCanvasElement const& canvas, size_t minimum_width, size_t minimum_height)
+Gfx::IntSize HTMLCanvasElement::bitmap_size_for_canvas(size_t minimum_width, size_t minimum_height) const
 {
-    auto width = max(canvas.width(), minimum_width);
-    auto height = max(canvas.height(), minimum_height);
+    auto width = max(this->width(), minimum_width);
+    auto height = max(this->height(), minimum_height);
 
     Checked<size_t> area = width;
     area *= height;
@@ -231,25 +246,6 @@ static Gfx::IntSize bitmap_size_for_canvas(HTMLCanvasElement const& canvas, size
         return {};
     }
     return Gfx::IntSize(width, height);
-}
-
-bool HTMLCanvasElement::allocate_painting_surface(size_t minimum_width, size_t minimum_height)
-{
-    if (m_surface)
-        return true;
-
-    auto traversable = document().navigable()->traversable_navigable();
-    VERIFY(traversable);
-
-    auto size = bitmap_size_for_canvas(*this, minimum_width, minimum_height);
-    if (size.is_empty()) {
-        m_surface = nullptr;
-        return false;
-    }
-    if (!m_surface || m_surface->size() != size) {
-        m_surface = Gfx::PaintingSurface::create_with_size(traversable->skia_backend_context(), size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
-    }
-    return m_surface;
 }
 
 struct SerializeBitmapResult {
@@ -283,21 +279,26 @@ static ErrorOr<SerializeBitmapResult> serialize_bitmap(Gfx::Bitmap const& bitmap
 String HTMLCanvasElement::to_data_url(StringView type, JS::Value quality)
 {
     // It is possible the the canvas doesn't have a associated bitmap so create one
-    if (!m_surface) {
-        allocate_painting_surface();
+    allocate_painting_surface_if_needed();
+    auto surface = this->surface();
+    auto size = bitmap_size_for_canvas();
+    if (!size.is_empty()) {
+        // If the context is not initialized yet, we need to allocate transparent surface for serialization
+        auto skia_backend_context = navigable()->traversable_navigable()->skia_backend_context();
+        surface = Gfx::PaintingSurface::create_with_size(skia_backend_context, size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
     }
 
     // FIXME: 1. If this canvas element's bitmap's origin-clean flag is set to false, then throw a "SecurityError" DOMException.
 
     // 2. If this canvas element's bitmap has no pixels (i.e. either its horizontal dimension or its vertical dimension is zero)
     //    then return the string "data:,". (This is the shortest data: URL; it represents the empty string in a text/plain resource.)
-    if (!m_surface)
+    if (!surface)
         return "data:,"_string;
 
     // 3. Let file be a serialization of this canvas element's bitmap as a file, passing type and quality if given.
-    auto snapshot = Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*m_surface);
-    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_surface->size()));
-    m_surface->read_into_bitmap(*bitmap);
+    auto snapshot = Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*surface);
+    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, surface->size()));
+    surface->read_into_bitmap(*bitmap);
     auto file = serialize_bitmap(bitmap, type, move(quality));
 
     // 4. If file is null then return "data:,".
@@ -318,8 +319,13 @@ String HTMLCanvasElement::to_data_url(StringView type, JS::Value quality)
 WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackType> callback, StringView type, JS::Value quality)
 {
     // It is possible the the canvas doesn't have a associated bitmap so create one
-    if (!m_surface) {
-        allocate_painting_surface();
+    allocate_painting_surface_if_needed();
+    auto surface = this->surface();
+    auto size = bitmap_size_for_canvas();
+    if (!size.is_empty()) {
+        // If the context is not initialized yet, we need to allocate transparent surface for serialization
+        auto skia_backend_context = navigable()->traversable_navigable()->skia_backend_context();
+        surface = Gfx::PaintingSurface::create_with_size(skia_backend_context, size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
     }
 
     // FIXME: 1. If this canvas element's bitmap's origin-clean flag is set to false, then throw a "SecurityError" DOMException.
@@ -329,9 +335,9 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackTyp
 
     // 3. If this canvas element's bitmap has pixels (i.e., neither its horizontal dimension nor its vertical dimension is zero),
     //    then set result to a copy of this canvas element's bitmap.
-    if (m_surface) {
-        bitmap_result = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_surface->size()));
-        m_surface->read_into_bitmap(*bitmap_result);
+    if (surface) {
+        bitmap_result = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, surface->size()));
+        surface->read_into_bitmap(*bitmap_result);
     }
 
     // 4. Run these steps in parallel:
@@ -364,9 +370,8 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackTyp
 
 void HTMLCanvasElement::present()
 {
-    if (m_surface) {
-        m_surface->flush();
-    }
+    if (auto surface = this->surface())
+        surface->flush();
 
     m_context.visit(
         [](GC::Ref<CanvasRenderingContext2D>&) {
@@ -374,6 +379,34 @@ void HTMLCanvasElement::present()
         },
         [](GC::Ref<WebGL::WebGLRenderingContext>& context) {
             context->present();
+        },
+        [](Empty) {
+            // Do nothing.
+        });
+}
+
+RefPtr<Gfx::PaintingSurface> HTMLCanvasElement::surface() const
+{
+    return m_context.visit(
+        [&](GC::Ref<CanvasRenderingContext2D> const& context) {
+            return context->surface();
+        },
+        [&](GC::Ref<WebGL::WebGLRenderingContext> const&) -> RefPtr<Gfx::PaintingSurface> {
+            TODO();
+        },
+        [](Empty) -> RefPtr<Gfx::PaintingSurface> {
+            return {};
+        });
+}
+
+void HTMLCanvasElement::allocate_painting_surface_if_needed()
+{
+    m_context.visit(
+        [&](GC::Ref<CanvasRenderingContext2D>& context) {
+            context->allocate_painting_surface_if_needed();
+        },
+        [&](GC::Ref<WebGL::WebGLRenderingContext>&) {
+            TODO();
         },
         [](Empty) {
             // Do nothing.
