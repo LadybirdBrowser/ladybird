@@ -99,7 +99,7 @@ public:
 
     bool resolves_to_length() const { return m_resolved_type.matches_length(); }
     bool resolves_to_length_percentage() const { return m_resolved_type.matches_length_percentage(); }
-    [[nodiscard]] Optional<Length> resolve_length(Length::ResolutionContext const&) const;
+    Optional<Length> resolve_length(Length::ResolutionContext const&) const;
     Optional<Length> resolve_length(Layout::Node const& layout_node) const;
     Optional<Length> resolve_length_percentage(Layout::Node const&, Length const& percentage_basis) const;
     Optional<Length> resolve_length_percentage(Layout::Node const&, CSSPixels percentage_basis) const;
@@ -119,7 +119,11 @@ public:
     bool resolves_to_number() const { return m_resolved_type.matches_number(); }
     bool resolves_to_number_percentage() const { return m_resolved_type.matches_number_percentage(); }
     Optional<double> resolve_number() const;
+    Optional<double> resolve_number(Length::ResolutionContext const&) const;
+    Optional<double> resolve_number(Layout::Node const& layout_node) const;
     Optional<i64> resolve_integer() const;
+    Optional<i64> resolve_integer(Length::ResolutionContext const&) const;
+    Optional<i64> resolve_integer(Layout::Node const& layout_node) const;
 
     bool resolves_to_dimension() const { return m_resolved_type.matches_dimension(); }
 
