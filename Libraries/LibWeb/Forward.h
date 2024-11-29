@@ -105,6 +105,7 @@ class ConnectSourceDirective;
 class Directive;
 class FontSourceDirective;
 class FrameSourceDirective;
+class ImageSourceDirective;
 struct SerializedDirective;
 }
 
