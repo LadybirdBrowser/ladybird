@@ -9,11 +9,15 @@
 
 #include <AK/IPv4Address.h>
 #include <AK/IPv6Address.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <sys/un.h>
+
+#ifndef AK_OS_WINDOWS
+#    include <arpa/inet.h>
+#    include <netinet/in.h>
+#    include <sys/socket.h>
+#    include <sys/un.h>
+#else
+#    include "SocketAddressWindows.h"
+#endif
 
 namespace Core {
 
