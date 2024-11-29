@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2023-2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,6 +12,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Infra/Strings.h>
@@ -277,11 +279,12 @@ String CSSStyleDeclaration::get_property_value(StringView property_name) const
     // 2. If property is a shorthand property, then follow these substeps:
     if (property_is_shorthand(property_id.value())) {
         // 1. Let list be a new empty array.
-        StringBuilder list;
+        Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>> list;
         Optional<Important> last_important_flag;
 
         // 2. For each longhand property longhand that property maps to, in canonical order, follow these substeps:
-        for (auto longhand_property_id : longhands_for_shorthand(property_id.value())) {
+        Vector<PropertyID> longhand_ids = longhands_for_shorthand(property_id.value());
+        for (auto longhand_property_id : longhand_ids) {
             // 1. If longhand is a case-sensitive match for a property name of a CSS declaration in the declarations, let declaration be that CSS declaration, or null otherwise.
             auto declaration = property(longhand_property_id);
 
@@ -290,9 +293,7 @@ String CSSStyleDeclaration::get_property_value(StringView property_name) const
                 return {};
 
             // 3. Append the declaration to list.
-            if (!list.is_empty())
-                list.append(' ');
-            list.append(declaration->value->to_string());
+            list.append(declaration->value);
 
             if (last_important_flag.has_value() && declaration->important != *last_important_flag)
                 return {};
@@ -300,7 +301,8 @@ String CSSStyleDeclaration::get_property_value(StringView property_name) const
         }
 
         // 3. If important flags of all declarations in list are same, then return the serialization of list.
-        return list.to_string_without_validation();
+        // NOTE: Currently we implement property-specific shorthand serialization in ShorthandStyleValue::to_string().
+        return ShorthandStyleValue::create(property_id.value(), longhand_ids, list)->to_string();
 
         // 4. Return the empty string.
         // NOTE: This is handled by the loop.

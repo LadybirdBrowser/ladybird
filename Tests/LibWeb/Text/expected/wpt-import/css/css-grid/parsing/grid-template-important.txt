@@ -6,6 +6,6 @@ Rerun
 
 Found 1 tests
 
-1 Fail
+1 Pass
 Details
-Result	Test Name	MessageFail	grid-template followed by !important	
+Result	Test Name	MessagePass	grid-template followed by !important	

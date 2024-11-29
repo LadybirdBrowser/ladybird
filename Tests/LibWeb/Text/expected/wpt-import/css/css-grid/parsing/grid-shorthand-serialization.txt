@@ -6,8 +6,8 @@ Rerun
 
 Found 121 tests
 
-26 Pass
-95 Fail
+30 Pass
+91 Fail
 Details
 Result	Test Name	MessageFail	e.style.cssText = grid: auto-flow auto / 100px 100px should set grid	
 Fail	e.style.cssText = grid: auto-flow auto / 100px 100px should set grid-template-areas	
@@ -17,7 +17,7 @@ Fail	e.style.cssText = grid: auto-flow auto / 100px 100px; grid-template-areas: 
 Fail	e.style.cssText = grid: auto-flow auto / 100px 100px; grid-template-areas: "one two" "three four" should set grid-template-areas	
 Fail	e.style.cssText = grid: 30px 40px / 50px 60px; grid-auto-flow: column should set grid	
 Pass	e.style.cssText = grid: 30px 40px / 50px 60px; grid-auto-flow: column should set grid-auto-flow	
-Fail	e.style.cssText = grid: 30px 40px / 50px 60px; grid-auto-flow: column should set grid-template	
+Pass	e.style.cssText = grid: 30px 40px / 50px 60px; grid-auto-flow: column should set grid-template	
 Fail	cssText ('grid: 30px 40px / 50px 60px; grid-auto-flow: column') must contain 'grid-template: 30px 40px / 50px 60px;' in its serialization	
 Fail	cssText ('grid: 30px 40px / 50px 60px; grid-auto-flow: column') must contain 'grid-auto-rows: auto;' in its serialization	
 Fail	cssText ('grid: 30px 40px / 50px 60px; grid-auto-flow: column') must contain 'grid-auto-columns: auto;' in its serialization	
@@ -45,10 +45,10 @@ Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-columns: repeat(aut
 Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-columns: repeat(auto-fit, 20px) should set grid	
 Fail	e.style.cssText = grid: auto-flow / 10px; grid-template-columns: repeat(auto-fit, 20px) should set grid-template-columns	
 Pass	e.style.cssText = grid: auto-flow 1px / 2px; grid-auto-flow: inherit should set grid	
-Fail	e.style.cssText = grid: 1px / 2px; grid-auto-flow: row should set grid	
+Pass	e.style.cssText = grid: 1px / 2px; grid-auto-flow: row should set grid	
 Fail	e.style.cssText = grid: none / 2px; grid-auto-flow: row should set grid	
-Fail	e.style.cssText = grid: 1px / 2px; grid-auto-columns: auto should set grid	
-Fail	e.style.cssText = grid: 1px / 2px; grid-auto-rows: auto should set grid	
+Pass	e.style.cssText = grid: 1px / 2px; grid-auto-columns: auto should set grid	
+Pass	e.style.cssText = grid: 1px / 2px; grid-auto-rows: auto should set grid	
 Fail	e.style.cssText = grid: 1px / auto-flow 2px; grid-auto-rows: auto should set grid	
 Fail	e.style.cssText = grid: 1px / auto-flow; grid-auto-columns: auto should set grid	
 Fail	e.style.cssText = grid: auto-flow 1px / 2px; grid-auto-columns: auto should set grid	
