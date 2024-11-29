@@ -136,6 +136,7 @@ class FontSourceDirective;
 class FrameSourceDirective;
 class ImageSourceDirective;
 class ManifestSourceDirective;
+class MediaSourceDirective;
 struct SerializedDirective;
 
 }
