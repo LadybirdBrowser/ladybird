@@ -5,7 +5,7 @@
         width: 100px;
         height: 100px;
         background-color: blue;
-        animation: anim 1s;
+        animation: anim 100s;
     }
     @keyframes anim {
         from {
@@ -18,5 +18,5 @@
 </style>
 <div id="foo"></div>
 <script>
-    document.getElementById("foo").getAnimations()[0].currentTime = 500;
+    document.getElementById("foo").getAnimations()[0].currentTime = 50_000; // 50 seconds
 </script>
