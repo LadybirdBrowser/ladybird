@@ -77,6 +77,26 @@ marquee.getAttribute("scrolldelay") after marquee.setAttribute("scrollDelay", "4
 marquee.scrollDelay after marquee.setAttribute("scrolldelay", "4294967295"): 85
 marquee.getAttribute("scrolldelay") after marquee.scrollDelay = 4294967295: 85
 marquee.scrollDelay after marquee.scrollDelay = 4294967295: 85
+select.getAttribute("size") after select.setAttribute("size", "0"): 0
+select.size after select.setAttribute("size", "0"): 0
+select.getAttribute("size") after select.size = 0: 0
+select.size after select.size = 0: 0
+select.getAttribute("size") after select.setAttribute("size", "1"): 1
+select.size after select.setAttribute("size", "1"): 1
+select.getAttribute("size") after select.size = 1: 1
+select.size after select.size = 1: 1
+select.getAttribute("size") after select.setAttribute("size", "2147483647"): 2147483647
+select.size after select.setAttribute("size", "2147483647"): 2147483647
+select.getAttribute("size") after select.size = 2147483647: 2147483647
+select.size after select.size = 2147483647: 2147483647
+select.getAttribute("size") after select.setAttribute("size", "2147483648"): 2147483648
+select.size after select.setAttribute("size", "2147483648"): 0
+select.getAttribute("size") after select.size = 2147483648: 0
+select.size after select.size = 2147483648: 0
+select.getAttribute("size") after select.setAttribute("size", "4294967295"): 4294967295
+select.size after select.setAttribute("size", "4294967295"): 0
+select.getAttribute("size") after select.size = 4294967295: 0
+select.size after select.size = 4294967295: 0
 textarea.getAttribute("rows") after textarea.setAttribute("rows", "0"): 0
 textarea.rows after textarea.setAttribute("rows", "0"): 2
 textarea.getAttribute("rows") after textarea.rows = 0: 2
