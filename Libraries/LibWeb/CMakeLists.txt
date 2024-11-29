@@ -44,6 +44,7 @@ set(SOURCES
     ContentSecurityPolicy/Directives/FrameSourceDirective.cpp
     ContentSecurityPolicy/Directives/ImageSourceDirective.cpp
     ContentSecurityPolicy/Directives/KeywordSources.cpp
+    ContentSecurityPolicy/Directives/ManifestSourceDirective.cpp
     ContentSecurityPolicy/Directives/Names.cpp
     ContentSecurityPolicy/Directives/SerializedDirective.cpp
     ContentSecurityPolicy/Directives/SourceExpression.cpp
