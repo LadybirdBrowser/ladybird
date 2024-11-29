@@ -22,8 +22,8 @@ public:
     double value() const;
     WebIDL::ExceptionOr<void> set_value(double);
 
-    double max() const;
-    WebIDL::ExceptionOr<void> set_max(double value);
+    WebIDL::Double max() const;
+    WebIDL::ExceptionOr<void> set_max(WebIDL::Double value);
 
     double position() const;
 

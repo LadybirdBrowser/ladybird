@@ -61,7 +61,7 @@ WebIDL::ExceptionOr<void> HTMLProgressElement::set_value(double value)
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-progress-max
-double HTMLProgressElement::max() const
+WebIDL::Double HTMLProgressElement::max() const
 {
     if (auto max_string = get_attribute(HTML::AttributeNames::max); max_string.has_value()) {
         if (auto max = parse_floating_point_number(*max_string); max.has_value())
@@ -74,7 +74,7 @@ double HTMLProgressElement::max() const
 WebIDL::ExceptionOr<void> HTMLProgressElement::set_max(double value)
 {
     if (value <= 0)
-        value = 1;
+        return {};
 
     TRY(set_attribute(HTML::AttributeNames::max, String::number(value)));
     update_progress_value_element();
