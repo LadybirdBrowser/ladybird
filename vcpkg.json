@@ -2,6 +2,10 @@
   "builtin-baseline": "b2cb0da531c2f1f740045bfe7c4dac59f0b2b69c",
   "dependencies": [
     {
+      "name": "angle",
+      "platform": "osx"
+    },
+    {
       "name": "curl",
       "features": [
         "brotli",
@@ -118,6 +122,10 @@
     "woff2"
   ],
   "overrides": [
+    {
+      "name": "angle",
+      "version": "chromium_5414#9"
+    },
     {
       "name": "curl",
       "version": "8.10.1#0"
