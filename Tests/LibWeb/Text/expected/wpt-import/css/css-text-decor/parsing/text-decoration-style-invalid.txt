@@ -1,0 +1,12 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 2 tests
+
+2 Pass
+Details
+Result	Test Name	MessagePass	e.style['text-decoration-style'] = "groove" should not set the property value	
+Pass	e.style['text-decoration-style'] = "solid wavy" should not set the property value	

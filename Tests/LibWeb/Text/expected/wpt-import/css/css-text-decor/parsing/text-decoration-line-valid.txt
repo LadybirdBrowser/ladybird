@@ -1,0 +1,78 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 67 tests
+
+16 Pass
+51 Fail
+Details
+Result	Test Name	MessagePass	e.style['text-decoration-line'] = "none" should set the property value	
+Pass	e.style['text-decoration-line'] = "underline" should set the property value	
+Pass	e.style['text-decoration-line'] = "overline" should set the property value	
+Pass	e.style['text-decoration-line'] = "line-through" should set the property value	
+Pass	e.style['text-decoration-line'] = "blink" should set the property value	
+Pass	e.style['text-decoration-line'] = "underline overline" should set the property value	
+Fail	e.style['text-decoration-line'] = "overline underline" should set the property value	
+Pass	e.style['text-decoration-line'] = "underline line-through" should set the property value	
+Fail	e.style['text-decoration-line'] = "line-through underline" should set the property value	
+Pass	e.style['text-decoration-line'] = "underline blink" should set the property value	
+Fail	e.style['text-decoration-line'] = "blink underline" should set the property value	
+Pass	e.style['text-decoration-line'] = "overline line-through" should set the property value	
+Fail	e.style['text-decoration-line'] = "line-through overline" should set the property value	
+Pass	e.style['text-decoration-line'] = "overline blink" should set the property value	
+Fail	e.style['text-decoration-line'] = "blink overline" should set the property value	
+Pass	e.style['text-decoration-line'] = "line-through blink" should set the property value	
+Fail	e.style['text-decoration-line'] = "blink line-through" should set the property value	
+Pass	e.style['text-decoration-line'] = "underline overline line-through" should set the property value	
+Fail	e.style['text-decoration-line'] = "underline line-through overline" should set the property value	
+Fail	e.style['text-decoration-line'] = "overline underline line-through" should set the property value	
+Fail	e.style['text-decoration-line'] = "overline line-through underline" should set the property value	
+Fail	e.style['text-decoration-line'] = "line-through underline overline" should set the property value	
+Fail	e.style['text-decoration-line'] = "line-through overline underline" should set the property value	
+Pass	e.style['text-decoration-line'] = "underline overline blink" should set the property value	
+Fail	e.style['text-decoration-line'] = "underline blink overline" should set the property value	
+Fail	e.style['text-decoration-line'] = "overline underline blink" should set the property value	
+Fail	e.style['text-decoration-line'] = "overline blink underline" should set the property value	
+Fail	e.style['text-decoration-line'] = "blink underline overline" should set the property value	
+Fail	e.style['text-decoration-line'] = "blink overline underline" should set the property value	
+Pass	e.style['text-decoration-line'] = "underline line-through blink" should set the property value	
+Fail	e.style['text-decoration-line'] = "underline blink line-through" should set the property value	
+Fail	e.style['text-decoration-line'] = "line-through underline blink" should set the property value	
+Fail	e.style['text-decoration-line'] = "line-through blink underline" should set the property value	
+Fail	e.style['text-decoration-line'] = "blink underline line-through" should set the property value	
+Fail	e.style['text-decoration-line'] = "blink line-through underline" should set the property value	
+Pass	e.style['text-decoration-line'] = "overline line-through blink" should set the property value	
+Fail	e.style['text-decoration-line'] = "overline blink line-through" should set the property value	
+Fail	e.style['text-decoration-line'] = "line-through overline blink" should set the property value	
+Fail	e.style['text-decoration-line'] = "line-through blink overline" should set the property value	
+Fail	e.style['text-decoration-line'] = "blink overline line-through" should set the property value	
+Fail	e.style['text-decoration-line'] = "blink line-through overline" should set the property value	
+Pass	e.style['text-decoration-line'] = "underline overline line-through blink" should set the property value	
+Fail	e.style['text-decoration-line'] = "underline overline blink line-through" should set the property value	
+Fail	e.style['text-decoration-line'] = "underline line-through overline blink" should set the property value	
+Fail	e.style['text-decoration-line'] = "underline line-through blink overline" should set the property value	
+Fail	e.style['text-decoration-line'] = "underline blink overline line-through" should set the property value	
+Fail	e.style['text-decoration-line'] = "underline blink line-through overline" should set the property value	
+Fail	e.style['text-decoration-line'] = "overline underline line-through blink" should set the property value	
+Fail	e.style['text-decoration-line'] = "overline underline blink line-through" should set the property value	
+Fail	e.style['text-decoration-line'] = "overline line-through underline blink" should set the property value	
+Fail	e.style['text-decoration-line'] = "overline line-through blink underline" should set the property value	
+Fail	e.style['text-decoration-line'] = "overline blink underline line-through" should set the property value	
+Fail	e.style['text-decoration-line'] = "overline blink line-through underline" should set the property value	
+Fail	e.style['text-decoration-line'] = "line-through underline overline blink" should set the property value	
+Fail	e.style['text-decoration-line'] = "line-through underline blink overline" should set the property value	
+Fail	e.style['text-decoration-line'] = "line-through overline underline blink" should set the property value	
+Fail	e.style['text-decoration-line'] = "line-through overline blink underline" should set the property value	
+Fail	e.style['text-decoration-line'] = "line-through blink underline overline" should set the property value	
+Fail	e.style['text-decoration-line'] = "line-through blink overline underline" should set the property value	
+Fail	e.style['text-decoration-line'] = "blink underline overline line-through" should set the property value	
+Fail	e.style['text-decoration-line'] = "blink underline line-through overline" should set the property value	
+Fail	e.style['text-decoration-line'] = "blink overline underline line-through" should set the property value	
+Fail	e.style['text-decoration-line'] = "blink overline line-through underline" should set the property value	
+Fail	e.style['text-decoration-line'] = "blink line-through underline overline" should set the property value	
+Fail	e.style['text-decoration-line'] = "blink line-through overline underline" should set the property value	
+Fail	e.style['text-decoration-line'] = "spelling-error" should set the property value	
+Fail	e.style['text-decoration-line'] = "grammar-error" should set the property value	

@@ -1,0 +1,25 @@
+Summary
+
+Harness status: OK
+
+Rerun
+
+Found 15 tests
+
+15 Fail
+Details
+Result	Test Name	MessageFail	e.style['text-decoration'] = "none" should set the property value	
+Fail	e.style['text-decoration'] = "line-through" should set the property value	
+Fail	e.style['text-decoration'] = "solid" should set the property value	
+Fail	e.style['text-decoration'] = "currentcolor" should set the property value	
+Fail	e.style['text-decoration'] = "auto" should set the property value	
+Fail	e.style['text-decoration'] = "from-font" should set the property value	
+Fail	e.style['text-decoration'] = "10px" should set the property value	
+Fail	e.style['text-decoration'] = "double overline underline" should set the property value	
+Fail	e.style['text-decoration'] = "underline overline line-through red" should set the property value	
+Fail	e.style['text-decoration'] = "rgba(10, 20, 30, 0.4) dotted" should set the property value	
+Fail	e.style['text-decoration'] = "overline green from-font" should set the property value	
+Fail	e.style['text-decoration'] = "underline dashed green" should set the property value	
+Fail	e.style['text-decoration'] = "underline auto" should set the property value	
+Fail	e.style['text-decoration'] = "line-through 20px" should set the property value	
+Fail	e.style['text-decoration'] = "overline 3em" should set the property value	

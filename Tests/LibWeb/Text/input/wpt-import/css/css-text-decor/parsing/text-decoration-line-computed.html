@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Text Decoration Test: getComputedStyle().textDecorationLine</title>
+<link rel="help" href="https://drafts.csswg.org/css-text-decor-4/#text-decoration-line-property">
+<meta name="assert" content="text-decoration-line computed value is specified keyword(s).">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+// none
+test_computed_value("text-decoration-line", "none");
+
+// underline || overline || line-through || blink
+test_computed_value("text-decoration-line", "underline");
+test_computed_value("text-decoration-line", "overline");
+test_computed_value("text-decoration-line", "line-through");
+test_computed_value("text-decoration-line", "blink");
+test_computed_value("text-decoration-line", "underline overline");
+test_computed_value("text-decoration-line", "underline line-through");
+test_computed_value("text-decoration-line", "underline blink");
+test_computed_value("text-decoration-line", "overline line-through");
+test_computed_value("text-decoration-line", "overline blink");
+test_computed_value("text-decoration-line", "line-through blink");
+test_computed_value("text-decoration-line", "underline overline line-through");
+test_computed_value("text-decoration-line", "underline overline blink");
+test_computed_value("text-decoration-line", "underline line-through blink");
+test_computed_value("text-decoration-line", "overline line-through blink");
+test_computed_value("text-decoration-line", "underline overline line-through blink");
+
+// spelling-error
+test_computed_value("text-decoration-line", "spelling-error");
+
+// grammar-error
+test_computed_value("text-decoration-line", "grammar-error");
+
+</script>
