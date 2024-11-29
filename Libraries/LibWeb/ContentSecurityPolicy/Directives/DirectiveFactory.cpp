@@ -12,6 +12,7 @@
 #include <LibWeb/ContentSecurityPolicy/Directives/FrameSourceDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/ImageSourceDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/ManifestSourceDirective.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/MediaSourceDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
 
 namespace Web::ContentSecurityPolicy::Directives {
@@ -32,6 +33,9 @@ GC::Ref<Directive> create_directive(JS::Realm& realm, String name, Vector<String
 
     if (name == Names::ManifestSrc)
         return realm.create<ManifestSourceDirective>(move(name), move(value));
+
+    if (name == Names::MediaSrc)
+        return realm.create<MediaSourceDirective>(move(name), move(value));
 
     dbgln("Potential FIXME: Creating unknown Content Security Policy directive: {}", name);
     return realm.create<Directive>(move(name), move(value));
