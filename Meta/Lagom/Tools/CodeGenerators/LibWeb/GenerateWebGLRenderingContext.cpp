@@ -205,6 +205,10 @@ public:
     m_context->make_current();
 )~~~");
 
+        if (gl_function_modifies_framebuffer(function.name)) {
+            function_impl_generator.append("    m_context->notify_content_will_change();\n"sv);
+        }
+
         Vector<ByteString> gl_call_arguments;
         for (size_t i = 0; i < function.parameters.size(); ++i) {
             auto const& parameter = function.parameters[i];

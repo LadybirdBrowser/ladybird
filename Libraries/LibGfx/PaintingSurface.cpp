@@ -114,6 +114,11 @@ SkSurface& PaintingSurface::sk_surface() const
     return *m_impl->surface;
 }
 
+void PaintingSurface::notify_content_will_change()
+{
+    m_impl->surface->notifyContentWillChange(SkSurface::kDiscard_ContentChangeMode);
+}
+
 template<>
 sk_sp<SkImage> PaintingSurface::sk_image_snapshot() const
 {
