@@ -179,7 +179,6 @@ void WebGLRenderingContext::active_texture(GLenum texture)
         return;
 
     dbgln_if(WEBGL_CONTEXT_DEBUG, "WebGLRenderingContext::active_texture(texture={:#08x})", texture);
-    m_context->gl_active_texture(texture);
 }
 
 void WebGLRenderingContext::clear(GLbitfield mask)
@@ -188,7 +187,6 @@ void WebGLRenderingContext::clear(GLbitfield mask)
         return;
 
     dbgln_if(WEBGL_CONTEXT_DEBUG, "WebGLRenderingContext::clear(mask={:#08x})", mask);
-    m_context->gl_clear(mask);
 
     // FIXME: This should only be done if this is targeting the front buffer.
     needs_to_present();
@@ -200,7 +198,6 @@ void WebGLRenderingContext::clear_color(GLclampf red, GLclampf green, GLclampf b
         return;
 
     dbgln_if(WEBGL_CONTEXT_DEBUG, "WebGLRenderingContext::clear_color(red={}, green={}, blue={}, alpha={})", red, green, blue, alpha);
-    m_context->gl_clear_color(red, green, blue, alpha);
 }
 
 void WebGLRenderingContext::clear_depth(GLclampf depth)
@@ -209,7 +206,6 @@ void WebGLRenderingContext::clear_depth(GLclampf depth)
         return;
 
     dbgln_if(WEBGL_CONTEXT_DEBUG, "WebGLRenderingContext::clear_depth(depth={})", depth);
-    m_context->gl_clear_depth(depth);
 }
 
 void WebGLRenderingContext::clear_stencil(GLint s)
@@ -218,7 +214,6 @@ void WebGLRenderingContext::clear_stencil(GLint s)
         return;
 
     dbgln_if(WEBGL_CONTEXT_DEBUG, "WebGLRenderingContext::clear_stencil(s={:#08x})", s);
-    m_context->gl_clear_stencil(s);
 }
 
 void WebGLRenderingContext::color_mask(GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha)
@@ -227,7 +222,6 @@ void WebGLRenderingContext::color_mask(GLboolean red, GLboolean green, GLboolean
         return;
 
     dbgln_if(WEBGL_CONTEXT_DEBUG, "WebGLRenderingContext::color_mask(red={}, green={}, blue={}, alpha={})", red, green, blue, alpha);
-    m_context->gl_color_mask(red, green, blue, alpha);
 }
 
 void WebGLRenderingContext::cull_face(GLenum mode)
@@ -236,7 +230,6 @@ void WebGLRenderingContext::cull_face(GLenum mode)
         return;
 
     dbgln_if(WEBGL_CONTEXT_DEBUG, "WebGLRenderingContext::cull_face(mode={:#08x})", mode);
-    m_context->gl_cull_face(mode);
 }
 
 void WebGLRenderingContext::depth_func(GLenum func)
@@ -245,7 +238,6 @@ void WebGLRenderingContext::depth_func(GLenum func)
         return;
 
     dbgln_if(WEBGL_CONTEXT_DEBUG, "WebGLRenderingContext::depth_func(func={:#08x})", func);
-    m_context->gl_depth_func(func);
 }
 
 void WebGLRenderingContext::depth_mask(GLboolean mask)
@@ -254,7 +246,6 @@ void WebGLRenderingContext::depth_mask(GLboolean mask)
         return;
 
     dbgln_if(WEBGL_CONTEXT_DEBUG, "WebGLRenderingContext::depth_mask(mask={})", mask);
-    m_context->gl_depth_mask(mask);
 }
 
 void WebGLRenderingContext::depth_range(GLclampf z_near, GLclampf z_far)
@@ -267,7 +258,6 @@ void WebGLRenderingContext::depth_range(GLclampf z_near, GLclampf z_far)
     // https://www.khronos.org/registry/webgl/specs/latest/1.0/#VIEWPORT_DEPTH_RANGE
     // "The WebGL API does not support depth ranges with where the near plane is mapped to a value greater than that of the far plane. A call to depthRange will generate an INVALID_OPERATION error if zNear is greater than zFar."
     RETURN_WITH_WEBGL_ERROR_IF(z_near > z_far, GL_INVALID_OPERATION);
-    m_context->gl_depth_range(z_near, z_far);
 }
 
 void WebGLRenderingContext::finish()
@@ -276,7 +266,6 @@ void WebGLRenderingContext::finish()
         return;
 
     dbgln_if(WEBGL_CONTEXT_DEBUG, "WebGLRenderingContext::finish()");
-    m_context->gl_finish();
 }
 
 void WebGLRenderingContext::flush()
@@ -285,7 +274,6 @@ void WebGLRenderingContext::flush()
         return;
 
     dbgln_if(WEBGL_CONTEXT_DEBUG, "WebGLRenderingContext::flush()");
-    m_context->gl_flush();
 }
 
 void WebGLRenderingContext::front_face(GLenum mode)
@@ -294,7 +282,6 @@ void WebGLRenderingContext::front_face(GLenum mode)
         return;
 
     dbgln_if(WEBGL_CONTEXT_DEBUG, "WebGLRenderingContext::front_face(mode={:#08x})", mode);
-    m_context->gl_front_face(mode);
 }
 
 GLenum WebGLRenderingContext::get_error()
@@ -310,7 +297,7 @@ GLenum WebGLRenderingContext::get_error()
         return last_error;
     }
 
-    return m_context->gl_get_error();
+    return glGetError();
 }
 
 void WebGLRenderingContext::line_width(GLfloat width)
@@ -323,7 +310,6 @@ void WebGLRenderingContext::line_width(GLfloat width)
     // https://www.khronos.org/registry/webgl/specs/latest/1.0/#NAN_LINE_WIDTH
     // "In the WebGL API, if the width parameter passed to lineWidth is set to NaN, an INVALID_VALUE error is generated and the line width is not changed."
     RETURN_WITH_WEBGL_ERROR_IF(isnan(width), GL_INVALID_VALUE);
-    m_context->gl_line_width(width);
 }
 
 void WebGLRenderingContext::polygon_offset(GLfloat factor, GLfloat units)
@@ -332,7 +318,6 @@ void WebGLRenderingContext::polygon_offset(GLfloat factor, GLfloat units)
         return;
 
     dbgln_if(WEBGL_CONTEXT_DEBUG, "WebGLRenderingContext::polygon_offset(factor={}, units={})", factor, units);
-    m_context->gl_polygon_offset(factor, units);
 }
 
 void WebGLRenderingContext::scissor(GLint x, GLint y, GLsizei width, GLsizei height)
@@ -341,7 +326,6 @@ void WebGLRenderingContext::scissor(GLint x, GLint y, GLsizei width, GLsizei hei
         return;
 
     dbgln_if(WEBGL_CONTEXT_DEBUG, "WebGLRenderingContext::scissor(x={}, y={}, width={}, height={})", x, y, width, height);
-    m_context->gl_scissor(x, y, width, height);
 }
 
 void WebGLRenderingContext::stencil_op(GLenum fail, GLenum zfail, GLenum zpass)
@@ -350,7 +334,6 @@ void WebGLRenderingContext::stencil_op(GLenum fail, GLenum zfail, GLenum zpass)
         return;
 
     dbgln_if(WEBGL_CONTEXT_DEBUG, "WebGLRenderingContext::stencil_op(fail={:#08x}, zfail={:#08x}, zpass={:#08x})", fail, zfail, zpass);
-    m_context->gl_stencil_op_separate(GL_FRONT_AND_BACK, fail, zfail, zpass);
 }
 
 void WebGLRenderingContext::stencil_op_separate(GLenum face, GLenum fail, GLenum zfail, GLenum zpass)
@@ -359,7 +342,6 @@ void WebGLRenderingContext::stencil_op_separate(GLenum face, GLenum fail, GLenum
         return;
 
     dbgln_if(WEBGL_CONTEXT_DEBUG, "WebGLRenderingContext::stencil_op_separate(face={:#08x}, fail={:#08x}, zfail={:#08x}, zpass={:#08x})", face, fail, zfail, zpass);
-    m_context->gl_stencil_op_separate(face, fail, zfail, zpass);
 }
 
 void WebGLRenderingContext::viewport(GLint x, GLint y, GLsizei width, GLsizei height)
@@ -368,7 +350,6 @@ void WebGLRenderingContext::viewport(GLint x, GLint y, GLsizei width, GLsizei he
         return;
 
     dbgln_if(WEBGL_CONTEXT_DEBUG, "WebGLRenderingContext::viewport(x={}, y={}, width={}, height={})", x, y, width, height);
-    m_context->gl_viewport(x, y, width, height);
 }
 
 }
