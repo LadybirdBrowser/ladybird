@@ -6,11 +6,11 @@
 
 #pragma once
 
-typedef unsigned int GLenum;
-typedef unsigned char GLboolean;
-typedef int GLint;
-typedef int GLsizei;
-typedef float GLfloat;
-typedef double GLdouble;
-typedef GLfloat GLclampf;
-typedef unsigned int GLbitfield;
+#include <LibGC/Root.h>
+#include <LibWeb/Forward.h>
+
+namespace Web::WebGL {
+
+using GLenum = unsigned int;
+
+}

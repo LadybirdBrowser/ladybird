@@ -123,6 +123,15 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
 namespace Web::WebGL {
 
+static Vector<GLchar> null_terminated_string(StringView string)
+{
+    Vector<GLchar> result;
+    for (auto c : string.bytes())
+        result.append(c);
+    result.append('\\0');
+    return result;
+}
+
 WebGLRenderingContextImpl::WebGLRenderingContextImpl(JS::Realm& realm, NonnullOwnPtr<OpenGLContext> context)
     : m_realm(realm)
     , m_context(move(context))
@@ -209,6 +218,140 @@ public:
             function_impl_generator.append("    m_context->notify_content_will_change();\n"sv);
         }
 
+        if (function.name == "createBuffer"sv) {
+            function_impl_generator.append(R"~~~(
+    GLuint handle = 0;
+    glGenBuffers(1, &handle);
+    return WebGLBuffer::create(m_realm, handle);
+)~~~");
+            continue;
+        }
+
+        if (function.name == "createTexture"sv) {
+            function_impl_generator.append(R"~~~(
+    GLuint handle = 0;
+    glGenTextures(1, &handle);
+    return WebGLTexture::create(m_realm, handle);
+)~~~");
+            continue;
+        }
+
+        if (function.name == "shaderSource"sv) {
+            function_impl_generator.append(R"~~~(
+    Vector<GLchar*> strings;
+    auto string = null_terminated_string(source);
+    strings.append(string.data());
+    Vector<GLint> length;
+    length.append(source.bytes().size());
+    glShaderSource(shader->handle(), 1, strings.data(), length.data());
+)~~~");
+            continue;
+        }
+
+        if (function.name == "getAttribLocation"sv) {
+            function_impl_generator.append(R"~~~(
+    auto name_str = null_terminated_string(name);
+    return glGetAttribLocation(program->handle(), name_str.data());
+)~~~");
+            continue;
+        }
+
+        if (function.name == "vertexAttribPointer"sv) {
+            function_impl_generator.append(R"~~~(
+    glVertexAttribPointer(index, size, type, normalized, stride, reinterpret_cast<void*>(offset));
+)~~~");
+            continue;
+        }
+
+        if (function.name == "getShaderParameter"sv) {
+            function_impl_generator.append(R"~~~(
+    GLint result = 0;
+    glGetShaderiv(shader->handle(), pname, &result);
+    return JS::Value(result);
+)~~~");
+            continue;
+        }
+
+        if (function.name == "getProgramParameter"sv) {
+            function_impl_generator.append(R"~~~(
+    GLint result = 0;
+    glGetProgramiv(program->handle(), pname, &result);
+    return JS::Value(result);
+)~~~");
+            continue;
+        }
+
+        if (function.name == "bufferData"sv && function.overload_index == 0) {
+            function_impl_generator.append(R"~~~(
+    glBufferData(target, size, 0, usage);
+)~~~");
+            continue;
+        }
+
+        if (function.name == "getUniformLocation"sv) {
+            function_impl_generator.append(R"~~~(
+    auto name_str = null_terminated_string(name);
+    return WebGLUniformLocation::create(m_realm, glGetUniformLocation(program->handle(), name_str.data()));
+)~~~");
+            continue;
+        }
+
+        if (function.name == "drawElements"sv) {
+            function_impl_generator.append(R"~~~(
+    glDrawElements(mode, count, type, reinterpret_cast<void*>(offset));
+    needs_to_present();
+)~~~");
+            continue;
+        }
+
+        if (function.name.starts_with("uniformMatrix"sv)) {
+            auto number_of_matrix_elements = function.name.substring_view(13, 1);
+            function_impl_generator.set("number_of_matrix_elements", number_of_matrix_elements);
+            function_impl_generator.append(R"~~~(
+    auto matrix_size = @number_of_matrix_elements@ * @number_of_matrix_elements@;
+    if (value.has<Vector<float>>()) {
+        auto& data = value.get<Vector<float>>();
+        glUniformMatrix@number_of_matrix_elements@fv(location->handle(), data.size() / matrix_size, transpose, data.data());
+        return;
+    }
+
+    auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*value.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
+    auto& float32_array = verify_cast<JS::Float32Array>(typed_array_base);
+    float const* data = float32_array.data().data();
+    auto count = float32_array.array_length().length() / matrix_size;
+    glUniformMatrix@number_of_matrix_elements@fv(location->handle(), count, transpose, data);
+)~~~");
+            continue;
+        }
+
+        if (function.name == "uniform1fv"sv || function.name == "uniform2fv"sv || function.name == "uniform3fv"sv || function.name == "uniform4fv"sv) {
+            auto number_of_matrix_elements = function.name.substring_view(7, 1);
+            function_impl_generator.set("number_of_matrix_elements", number_of_matrix_elements);
+            function_impl_generator.append(R"~~~(
+    if (v.has<Vector<float>>()) {
+        auto& data = v.get<Vector<float>>();
+        glUniform@number_of_matrix_elements@fv(location->handle(), data.size() / @number_of_matrix_elements@, data.data());
+        return;
+    }
+
+    auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*v.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
+    auto& float32_array = verify_cast<JS::Float32Array>(typed_array_base);
+    float const* data = float32_array.data().data();
+    auto count = float32_array.array_length().length() / @number_of_matrix_elements@;
+    glUniform@number_of_matrix_elements@fv(location->handle(), count, data);
+)~~~");
+            continue;
+        }
+
+        if (function.name == "getParameter"sv) {
+            function_impl_generator.append(R"~~~(
+    GLint result = 0;
+    glGetIntegerv(pname, &result);
+    return JS::Value(result);
+)~~~");
+            continue;
+        }
+
         Vector<ByteString> gl_call_arguments;
         for (size_t i = 0; i < function.parameters.size(); ++i) {
             auto const& parameter = function.parameters[i];
@@ -222,6 +365,25 @@ public:
             }
             if (is_webgl_object_type(parameter.type->name())) {
                 gl_call_arguments.append(ByteString::formatted("{} ? {}->handle() : 0", parameter.name, parameter.name));
+                continue;
+            }
+            if (parameter.type->name() == "BufferSource"sv) {
+                function_impl_generator.set("buffer_source_name", parameter.name);
+                function_impl_generator.append(R"~~~(
+    void const* ptr = nullptr;
+    size_t byte_size = 0;
+    if (@buffer_source_name@->is_typed_array_base()) {
+        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*@buffer_source_name@->raw_object());
+        ptr = typed_array_base.viewed_array_buffer()->buffer().data();
+        byte_size = typed_array_base.viewed_array_buffer()->byte_length();
+    } else if (@buffer_source_name@->is_data_view()) {
+        VERIFY_NOT_REACHED();
+    } else {
+        VERIFY_NOT_REACHED();
+    }
+)~~~");
+                gl_call_arguments.append(ByteString::formatted("byte_size"));
+                gl_call_arguments.append(ByteString::formatted("ptr"));
                 continue;
             }
             VERIFY_NOT_REACHED();

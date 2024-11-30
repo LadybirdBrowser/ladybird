@@ -3,6 +3,9 @@ typedef boolean GLboolean;
 typedef unsigned long GLbitfield;
 typedef long GLint;
 typedef long GLsizei;
+typedef long long GLintptr;
+typedef unsigned long GLuint;
+typedef long long GLsizeiptr;
 
 typedef unrestricted float GLfloat;
 typedef unrestricted float GLclampf;
