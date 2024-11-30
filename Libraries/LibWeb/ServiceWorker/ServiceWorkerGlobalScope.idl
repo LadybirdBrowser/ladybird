@@ -1,0 +1,18 @@
+#import <DOM/EventHandler.idl>
+
+// https://w3c.github.io/ServiceWorker/#serviceworkerglobalscope
+[Global=(Worker,ServiceWorker), Exposed=ServiceWorker, SecureContext]
+interface ServiceWorkerGlobalScope : WorkerGlobalScope {
+    [FIXME, SameObject] readonly attribute Clients clients;
+    [FIXME, SameObject] readonly attribute ServiceWorkerRegistration registration;
+    [FIXME, SameObject] readonly attribute ServiceWorker serviceWorker;
+
+    [FIXME, NewObject] Promise<undefined> skipWaiting();
+
+    [FIXME] attribute EventHandler oninstall;
+    [FIXME] attribute EventHandler onactivate;
+    [FIXME] attribute EventHandler onfetch;
+
+    [FIXME] attribute EventHandler onmessage;
+    [FIXME] attribute EventHandler onmessageerror;
+};
