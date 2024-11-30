@@ -90,7 +90,7 @@ void Registration::remove(StorageAPI::StorageKey const& key, URL::URL const& sco
 }
 
 // https://w3c.github.io/ServiceWorker/#get-newest-worker
-ServiceWorker* Registration::newest_worker() const
+ServiceWorkerRecord* Registration::newest_worker() const
 {
     //  FIXME: 1. Run the following steps atomically.
 

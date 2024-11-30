@@ -16,7 +16,7 @@ namespace Web::ServiceWorker {
 // This class corresponds to "service worker", not "ServiceWorker"
 // FIXME: This should be owned and managed at the user agent level
 // FIXME: A lot of the fields for this struct actually need to live in the Agent for the service worker in the WebWorker process
-struct ServiceWorker {
+struct ServiceWorkerRecord {
     Bindings::ServiceWorkerState state = Bindings::ServiceWorkerState::Parsed; // https://w3c.github.io/ServiceWorker/#dfn-state
     URL::URL script_url;                                                       // https://w3c.github.io/ServiceWorker/#dfn-script-url
     Bindings::WorkerType worker_type = Bindings::WorkerType::Classic;          // https://w3c.github.io/ServiceWorker/#dfn-type
