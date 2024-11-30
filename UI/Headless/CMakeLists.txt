@@ -16,6 +16,6 @@ if (BUILD_TESTING)
     find_package(Python3 REQUIRED)
     add_test(
         NAME LibWeb
-        COMMAND $<TARGET_FILE:headless-browser> --run-tests ${LADYBIRD_SOURCE_DIR}/Tests/LibWeb --python-executable ${Python3_EXECUTABLE} --dump-failed-ref-tests --per-test-timeout 120
+        COMMAND $<TARGET_FILE:headless-browser> --run-tests ${LADYBIRD_SOURCE_DIR}/Tests/LibWeb --python-executable ${Python3_EXECUTABLE} --dump-failed-ref-tests --per-test-timeout 120 --verbose
     )
 endif()
