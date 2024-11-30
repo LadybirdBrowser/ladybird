@@ -70,6 +70,7 @@ static NonnullRefPtr<Resolver> default_resolver()
 struct ConnectionFromClient::ActiveRequest {
     CURLM* multi { nullptr };
     CURL* easy { nullptr };
+    Vector<curl_slist*> curl_string_lists;
     i32 request_id { 0 };
     RefPtr<Core::Notifier> notifier;
     WeakPtr<ConnectionFromClient> client;
@@ -99,6 +100,9 @@ struct ConnectionFromClient::ActiveRequest {
         auto result = curl_multi_remove_handle(multi, easy);
         VERIFY(result == CURLM_OK);
         curl_easy_cleanup(easy);
+
+        for (auto* string_list : curl_string_lists)
+            curl_slist_free_all(string_list);
     }
 
     void flush_headers_if_needed()
@@ -421,7 +425,11 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString const& metho
                 auto header_string = ByteString::formatted("{}: {}", header.name, header.value);
                 curl_headers = curl_slist_append(curl_headers, header_string.characters());
             }
-            set_option(CURLOPT_HTTPHEADER, curl_headers);
+
+            if (curl_headers) {
+                set_option(CURLOPT_HTTPHEADER, curl_headers);
+                request->curl_string_lists.append(curl_headers);
+            }
 
             // FIXME: Set up proxy if applicable
             (void)proxy_data;
@@ -446,8 +454,11 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString const& metho
             }
 
             auto formatted_address = resolve_opt_builder.to_byte_string();
-            curl_slist* resolve_list = curl_slist_append(nullptr, formatted_address.characters());
-            curl_easy_setopt(easy, CURLOPT_RESOLVE, resolve_list);
+            if (curl_slist* resolve_list = curl_slist_append(nullptr, formatted_address.characters())) {
+                set_option(CURLOPT_RESOLVE, resolve_list);
+                request->curl_string_lists.append(resolve_list);
+            } else
+                VERIFY_NOT_REACHED();
 
             auto result = curl_multi_add_handle(m_curl_multi, easy);
             VERIFY(result == CURLM_OK);
