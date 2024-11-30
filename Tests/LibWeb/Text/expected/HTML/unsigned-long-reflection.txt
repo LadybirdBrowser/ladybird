@@ -253,6 +253,24 @@ select.getAttribute("size") after select.setAttribute("size", "4294967295"): 429
 select.size after select.setAttribute("size", "4294967295"): 0
 select.getAttribute("size") after select.size = 4294967295: 0
 select.size after select.size = 4294967295: 0
+textarea.getAttribute("maxlength") after textarea.setAttribute("maxLength", "0"): 0
+textarea.maxLength after textarea.setAttribute("maxlength", "0"): 0
+textarea.getAttribute("maxlength") after textarea.maxLength = 0: 0
+textarea.maxLength after textarea.maxLength = 0: 0
+textarea.getAttribute("maxlength") after textarea.setAttribute("maxLength", "1"): 1
+textarea.maxLength after textarea.setAttribute("maxlength", "1"): 1
+textarea.getAttribute("maxlength") after textarea.maxLength = 1: 1
+textarea.maxLength after textarea.maxLength = 1: 1
+textarea.getAttribute("maxlength") after textarea.setAttribute("maxLength", "2147483647"): 2147483647
+textarea.maxLength after textarea.setAttribute("maxlength", "2147483647"): 2147483647
+textarea.getAttribute("maxlength") after textarea.maxLength = 2147483647: 2147483647
+textarea.maxLength after textarea.maxLength = 2147483647: 2147483647
+textarea.getAttribute("maxlength") after textarea.setAttribute("maxLength", "2147483648"): 2147483648
+textarea.maxLength after textarea.setAttribute("maxlength", "2147483648"): -1
+textarea.maxLength = 2147483648 threw exception of type IndexSizeError
+textarea.getAttribute("maxlength") after textarea.setAttribute("maxLength", "4294967295"): 4294967295
+textarea.maxLength after textarea.setAttribute("maxlength", "4294967295"): -1
+textarea.maxLength = 4294967295 threw exception of type IndexSizeError
 textarea.getAttribute("minlength") after textarea.setAttribute("minLength", "0"): 0
 textarea.minLength after textarea.setAttribute("minlength", "0"): 0
 textarea.getAttribute("minlength") after textarea.minLength = 0: 0
@@ -266,7 +284,7 @@ textarea.minLength after textarea.setAttribute("minlength", "2147483647"): 21474
 textarea.getAttribute("minlength") after textarea.minLength = 2147483647: 2147483647
 textarea.minLength after textarea.minLength = 2147483647: 2147483647
 textarea.getAttribute("minlength") after textarea.setAttribute("minLength", "2147483648"): 2147483648
-textarea.minLength after textarea.setAttribute("minlength", "2147483648"): -2147483648
+textarea.minLength after textarea.setAttribute("minlength", "2147483648"): -1
 textarea.minLength = 2147483648 threw exception of type IndexSizeError
 textarea.getAttribute("minlength") after textarea.setAttribute("minLength", "4294967295"): 4294967295
 textarea.minLength after textarea.setAttribute("minlength", "4294967295"): -1
