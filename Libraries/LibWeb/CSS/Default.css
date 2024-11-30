@@ -48,7 +48,7 @@ input::placeholder, textarea::placeholder {
     line-height: initial;
 }
 
-button, input[type=submit], input[type=button], input[type=reset], select {
+button, input[type=submit], input[type=button], input[type=reset], select, ::file-selector-button {
     padding: 1px 4px;
     background-color: ButtonFace;
     border: 1px solid ButtonBorder;

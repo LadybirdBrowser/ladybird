@@ -41,6 +41,7 @@ public:
             SliderRunnableTrack,
             SliderThumb,
             Backdrop,
+            FileSelectorButton,
 
             // Keep this last.
             KnownPseudoElementCount,
