@@ -20,7 +20,7 @@ void initialize_strings()
 
 #define __ENUMERATE_COMMAND_NAME(name) name = #name##_fly_string;
     ENUMERATE_COMMAND_NAMES
-#undef __ENUMERATE_MATHML_TAG
+#undef __ENUMERATE_COMMAND_NAME
     delete_ = "delete"_fly_string;
 
     s_initialized = true;
