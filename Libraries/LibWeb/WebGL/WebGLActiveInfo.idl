@@ -3,7 +3,7 @@
 // https://registry.khronos.org/webgl/specs/latest/1.0/#5.11
 [Exposed=(Window,Worker)]
 interface WebGLActiveInfo {
-    [FIXME] readonly attribute GLint size;
-    [FIXME] readonly attribute GLenum type;
-    [FIXME] readonly attribute DOMString name;
+    readonly attribute GLint size;
+    readonly attribute GLenum type;
+    readonly attribute DOMString name;
 };

@@ -352,6 +352,34 @@ public:
             continue;
         }
 
+        if (function.name == "getActiveUniform"sv) {
+            function_impl_generator.append(R"~~~(
+    GLint size = 0;
+    GLenum type = 0;
+    GLsizei buf_size = 256;
+    GLsizei length = 0;
+    GLchar name[256];
+    glGetActiveUniform(program->handle(), index, buf_size, &length, &size, &type, name);
+    auto readonly_bytes = ReadonlyBytes { name, static_cast<size_t>(length) };
+    return WebGLActiveInfo::create(m_realm, String::from_utf8_without_validation(readonly_bytes), type, size);
+)~~~");
+            continue;
+        }
+
+        if (function.name == "getActiveAttrib"sv) {
+            function_impl_generator.append(R"~~~(
+    GLint size = 0;
+    GLenum type = 0;
+    GLsizei buf_size = 256;
+    GLsizei length = 0;
+    GLchar name[256];
+    glGetActiveAttrib(program->handle(), index, buf_size, &length, &size, &type, name);
+    auto readonly_bytes = ReadonlyBytes { name, static_cast<size_t>(length) };
+    return WebGLActiveInfo::create(m_realm, String::from_utf8_without_validation(readonly_bytes), type, size);
+)~~~");
+            continue;
+        }
+
         Vector<ByteString> gl_call_arguments;
         for (size_t i = 0; i < function.parameters.size(); ++i) {
             auto const& parameter = function.parameters[i];

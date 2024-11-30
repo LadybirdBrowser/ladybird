@@ -103,8 +103,8 @@ interface mixin WebGLRenderingContextBase {
 
     undefined generateMipmap(GLenum target);
 
-    [FIXME] WebGLActiveInfo? getActiveAttrib(WebGLProgram program, GLuint index);
-    [FIXME] WebGLActiveInfo? getActiveUniform(WebGLProgram program, GLuint index);
+    WebGLActiveInfo? getActiveAttrib(WebGLProgram program, GLuint index);
+    WebGLActiveInfo? getActiveUniform(WebGLProgram program, GLuint index);
     [FIXME] sequence<WebGLShader>? getAttachedShaders(WebGLProgram program);
 
     GLint getAttribLocation(WebGLProgram program, DOMString name);
