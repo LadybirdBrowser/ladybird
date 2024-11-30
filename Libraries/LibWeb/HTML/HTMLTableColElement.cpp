@@ -29,18 +29,25 @@ void HTMLTableColElement::initialize(JS::Realm& realm)
 }
 
 // https://html.spec.whatwg.org/multipage/tables.html#dom-colgroup-span
-unsigned int HTMLTableColElement::span() const
+WebIDL::UnsignedLong HTMLTableColElement::span() const
 {
     // The span IDL attribute must reflect the content attribute of the same name. It is clamped to the range [1, 1000], and its default value is 1.
     if (auto span_string = get_attribute(HTML::AttributeNames::span); span_string.has_value()) {
-        if (auto span = parse_non_negative_integer(*span_string); span.has_value())
+        if (auto span_digits = parse_non_negative_integer_digits(*span_string); span_digits.has_value()) {
+            auto span = AK::StringUtils::convert_to_int<i64>(*span_digits);
+            // NOTE: If span has no value at this point, the value must be larger than NumericLimits<i64>::max(), so return the maximum value of 1000.
+            if (!span.has_value())
+                return 1000;
             return clamp(*span, 1, 1000);
+        }
     }
     return 1;
 }
 
 WebIDL::ExceptionOr<void> HTMLTableColElement::set_span(unsigned int value)
 {
+    if (value > 2147483647)
+        value = 1;
     return set_attribute(HTML::AttributeNames::span, String::number(value));
 }
 

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
 
@@ -17,8 +18,8 @@ class HTMLTableColElement final : public HTMLElement {
 public:
     virtual ~HTMLTableColElement() override;
 
-    unsigned span() const;
-    WebIDL::ExceptionOr<void> set_span(unsigned);
+    WebIDL::UnsignedLong span() const;
+    WebIDL::ExceptionOr<void> set_span(WebIDL::UnsignedLong);
 
 private:
     HTMLTableColElement(DOM::Document&, DOM::QualifiedName);
