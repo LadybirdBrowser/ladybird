@@ -1106,15 +1106,19 @@ void PaintableBox::resolve_paint_properties()
     auto const& layout_node = this->layout_node();
 
     // Border radii
-    CSSPixelRect const border_rect { 0, 0, border_box_width(), border_box_height() };
-    auto const& border_top_left_radius = computed_values.border_top_left_radius();
-    auto const& border_top_right_radius = computed_values.border_top_right_radius();
-    auto const& border_bottom_right_radius = computed_values.border_bottom_right_radius();
-    auto const& border_bottom_left_radius = computed_values.border_bottom_left_radius();
+    BorderRadiiData radii_data {};
+    if (computed_values.has_noninitial_border_radii()) {
+        CSSPixelRect const border_rect { 0, 0, border_box_width(), border_box_height() };
 
-    auto radii_data = normalize_border_radii_data(layout_node, border_rect, border_top_left_radius,
-        border_top_right_radius, border_bottom_right_radius,
-        border_bottom_left_radius);
+        auto const& border_top_left_radius = computed_values.border_top_left_radius();
+        auto const& border_top_right_radius = computed_values.border_top_right_radius();
+        auto const& border_bottom_right_radius = computed_values.border_bottom_right_radius();
+        auto const& border_bottom_left_radius = computed_values.border_bottom_left_radius();
+
+        radii_data = normalize_border_radii_data(layout_node, border_rect, border_top_left_radius,
+            border_top_right_radius, border_bottom_right_radius,
+            border_bottom_left_radius);
+    }
     set_border_radii_data(radii_data);
 
     // Box shadows
