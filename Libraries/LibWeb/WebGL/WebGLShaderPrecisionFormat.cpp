@@ -12,7 +12,7 @@ namespace Web::WebGL {
 GC_DEFINE_ALLOCATOR(WebGLShaderPrecisionFormat);
 
 WebGLShaderPrecisionFormat::WebGLShaderPrecisionFormat(JS::Realm& realm)
-    : WebGLObject(realm)
+    : WebGLObject(realm, 0)
 {
 }
 

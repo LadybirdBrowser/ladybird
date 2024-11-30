@@ -12,7 +12,7 @@ namespace Web::WebGL {
 GC_DEFINE_ALLOCATOR(WebGLRenderbuffer);
 
 WebGLRenderbuffer::WebGLRenderbuffer(JS::Realm& realm)
-    : WebGLObject(realm)
+    : WebGLObject(realm, 0)
 {
 }
 
