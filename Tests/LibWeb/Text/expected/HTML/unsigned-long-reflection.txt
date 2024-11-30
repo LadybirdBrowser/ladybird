@@ -46,6 +46,30 @@ canvas.getAttribute("height") after canvas.setAttribute("height", "4294967296"):
 canvas.height after canvas.setAttribute("height", "4294967296"): 150
 canvas.getAttribute("height") after canvas.height = 4294967296: 0
 canvas.height after canvas.height = 4294967296: 0
+colgroup.getAttribute("span") after colgroup.setAttribute("span", "0"): 0
+colgroup.span after colgroup.setAttribute("span", "0"): 1
+colgroup.getAttribute("span") after colgroup.span = 0: 0
+colgroup.span after colgroup.span = 0: 1
+colgroup.getAttribute("span") after colgroup.setAttribute("span", "1"): 1
+colgroup.span after colgroup.setAttribute("span", "1"): 1
+colgroup.getAttribute("span") after colgroup.span = 1: 1
+colgroup.span after colgroup.span = 1: 1
+colgroup.getAttribute("span") after colgroup.setAttribute("span", "2147483647"): 2147483647
+colgroup.span after colgroup.setAttribute("span", "2147483647"): 1000
+colgroup.getAttribute("span") after colgroup.span = 2147483647: 2147483647
+colgroup.span after colgroup.span = 2147483647: 1000
+colgroup.getAttribute("span") after colgroup.setAttribute("span", "2147483648"): 2147483648
+colgroup.span after colgroup.setAttribute("span", "2147483648"): 1000
+colgroup.getAttribute("span") after colgroup.span = 2147483648: 1
+colgroup.span after colgroup.span = 2147483648: 1
+colgroup.getAttribute("span") after colgroup.setAttribute("span", "4294967295"): 4294967295
+colgroup.span after colgroup.setAttribute("span", "4294967295"): 1000
+colgroup.getAttribute("span") after colgroup.span = 4294967295: 1
+colgroup.span after colgroup.span = 4294967295: 1
+colgroup.getAttribute("span") after colgroup.setAttribute("span", "4294967296"): 4294967296
+colgroup.span after colgroup.setAttribute("span", "4294967296"): 1000
+colgroup.getAttribute("span") after colgroup.span = 4294967296: 0
+colgroup.span after colgroup.span = 4294967296: 1
 img.getAttribute("height") after img.setAttribute("height", "0"): 0
 img.height after img.setAttribute("height", "0"): 0
 img.getAttribute("height") after img.height = 0: 0
