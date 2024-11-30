@@ -753,6 +753,10 @@ public:
     FlyString const& default_single_line_container_name() const { return m_default_single_line_container_name; }
     void set_default_single_line_container_name(FlyString const& name) { m_default_single_line_container_name = name; }
 
+    // https://w3c.github.io/editing/docs/execCommand/#css-styling-flag
+    bool css_styling_flag() const { return m_css_styling_flag; }
+    void set_css_styling_flag(bool flag) { m_css_styling_flag = flag; }
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -1046,6 +1050,9 @@ private:
 
     // https://w3c.github.io/editing/docs/execCommand/#default-single-line-container-name
     FlyString m_default_single_line_container_name { HTML::TagNames::div };
+
+    // https://w3c.github.io/editing/docs/execCommand/#css-styling-flag
+    bool m_css_styling_flag { false };
 };
 
 template<>
