@@ -122,6 +122,18 @@ private:
 };
 
 template<class T>
+inline bool operator==(Root<T> const& lhs, Root<T> const& rhs)
+{
+    return lhs.ptr() == rhs.ptr();
+}
+
+template<class T>
+inline bool operator!=(Root<T> const& lhs, Root<T> const& rhs)
+{
+    return lhs.ptr() != rhs.ptr();
+}
+
+template<class T>
 inline Root<T> make_root(T* cell, SourceLocation location = SourceLocation::current())
 {
     if (!cell)

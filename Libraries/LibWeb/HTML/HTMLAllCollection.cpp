@@ -118,7 +118,7 @@ Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> HTMLAllColle
         return Empty {};
 
     // 2. Return the result of getting the "all"-indexed or named element(s) from this, given nameOrIndex.
-    return get_the_all_indexed_or_named_elements(name_or_index.value());
+    return get_the_all_indexed_or_named_elements(name_or_index.value().to_deprecated_fly_string());
 }
 
 // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#dom-htmlallcollection-nameditem
