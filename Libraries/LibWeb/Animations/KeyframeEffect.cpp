@@ -156,7 +156,7 @@ static WebIDL::ExceptionOr<KeyframeType<AL>> process_a_keyframe_like_object(JS::
 
         auto name = input_property.as_string().utf8_string();
         if (name == "all"sv) {
-            all_value = TRY(keyframe_object.get(JS::PropertyKey { name }));
+            all_value = TRY(keyframe_object.get(JS::PropertyKey { "all"sv }));
             for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
                 auto property = static_cast<CSS::PropertyID>(i);
                 if (CSS::is_animatable_property(property))
@@ -183,7 +183,7 @@ static WebIDL::ExceptionOr<KeyframeType<AL>> process_a_keyframe_like_object(JS::
         // 1. Let raw value be the result of calling the [[Get]] internal method on keyframe input, with property name
         //    as the property key and keyframe input as the receiver.
         // 2. Check the completion record of raw value.
-        JS::PropertyKey key { property_name };
+        JS::PropertyKey key { property_name.to_byte_string() };
         auto raw_value = TRY(keyframe_object.has_property(key)) ? TRY(keyframe_object.get(key)) : *all_value;
 
         using PropertyValuesType = Conditional<AL == AllowLists::Yes, Vector<String>, String>;
