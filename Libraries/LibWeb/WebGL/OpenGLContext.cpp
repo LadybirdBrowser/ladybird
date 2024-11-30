@@ -122,6 +122,7 @@ void OpenGLContext::allocate_painting_surface_if_needed()
 
     auto iosurface = Core::IOSurfaceHandle::create(m_size.width(), m_size.height());
     m_painting_surface = Gfx::PaintingSurface::wrap_iosurface(iosurface, m_skia_backend_context);
+    m_painting_surface->set_flip_vertically();
 
     auto width = m_size.width();
     auto height = m_size.height();

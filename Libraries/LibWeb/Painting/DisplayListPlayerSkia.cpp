@@ -329,7 +329,17 @@ void DisplayListPlayerSkia::draw_painting_surface(DrawPaintingSurface const& com
     auto& canvas = surface().canvas();
     auto image = sk_surface.makeImageSnapshot();
     SkPaint paint;
+    if (command.surface->flip_vertically()) {
+        canvas.save();
+        SkMatrix matrix;
+        matrix.setIdentity();
+        matrix.preScale(1, -1, dst_rect.centerX(), dst_rect.centerY());
+        canvas.concat(matrix);
+    }
     canvas.drawImageRect(image, src_rect, dst_rect, to_skia_sampling_options(command.scaling_mode), &paint, SkCanvas::kStrict_SrcRectConstraint);
+    if (command.surface->flip_vertically()) {
+        canvas.restore();
+    }
 }
 
 void DisplayListPlayerSkia::draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const& command)

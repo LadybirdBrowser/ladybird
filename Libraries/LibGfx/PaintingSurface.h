@@ -45,6 +45,9 @@ public:
 
     void flush() const;
 
+    bool flip_vertically() const { return m_flip_vertically; }
+    void set_flip_vertically() { m_flip_vertically = true; }
+
     ~PaintingSurface();
 
 private:
@@ -53,6 +56,7 @@ private:
     PaintingSurface(NonnullOwnPtr<Impl>&&);
 
     NonnullOwnPtr<Impl> m_impl;
+    bool m_flip_vertically { false };
 };
 
 }
