@@ -459,6 +459,7 @@ public:
     BorderData const& border_right() const { return m_noninherited.border_right; }
     BorderData const& border_bottom() const { return m_noninherited.border_bottom; }
 
+    bool has_noninitial_border_radii() const { return m_noninherited.has_noninitial_border_radii; }
     const CSS::BorderRadiusData& border_bottom_left_radius() const { return m_noninherited.border_bottom_left_radius; }
     const CSS::BorderRadiusData& border_bottom_right_radius() const { return m_noninherited.border_bottom_right_radius; }
     const CSS::BorderRadiusData& border_top_left_radius() const { return m_noninherited.border_top_left_radius; }
@@ -630,6 +631,7 @@ protected:
         BorderData border_top;
         BorderData border_right;
         BorderData border_bottom;
+        bool has_noninitial_border_radii;
         BorderRadiusData border_bottom_left_radius;
         BorderRadiusData border_bottom_right_radius;
         BorderRadiusData border_top_left_radius;
@@ -776,10 +778,26 @@ public:
     void set_display(CSS::Display value) { m_noninherited.display = value; }
     void set_backdrop_filter(CSS::ResolvedFilter backdrop_filter) { m_noninherited.backdrop_filter = move(backdrop_filter); }
     void set_filter(CSS::ResolvedFilter filter) { m_noninherited.filter = move(filter); }
-    void set_border_bottom_left_radius(CSS::BorderRadiusData value) { m_noninherited.border_bottom_left_radius = move(value); }
-    void set_border_bottom_right_radius(CSS::BorderRadiusData value) { m_noninherited.border_bottom_right_radius = move(value); }
-    void set_border_top_left_radius(CSS::BorderRadiusData value) { m_noninherited.border_top_left_radius = move(value); }
-    void set_border_top_right_radius(CSS::BorderRadiusData value) { m_noninherited.border_top_right_radius = move(value); }
+    void set_border_bottom_left_radius(CSS::BorderRadiusData value)
+    {
+        m_noninherited.has_noninitial_border_radii = true;
+        m_noninherited.border_bottom_left_radius = move(value);
+    }
+    void set_border_bottom_right_radius(CSS::BorderRadiusData value)
+    {
+        m_noninherited.has_noninitial_border_radii = true;
+        m_noninherited.border_bottom_right_radius = move(value);
+    }
+    void set_border_top_left_radius(CSS::BorderRadiusData value)
+    {
+        m_noninherited.has_noninitial_border_radii = true;
+        m_noninherited.border_top_left_radius = move(value);
+    }
+    void set_border_top_right_radius(CSS::BorderRadiusData value)
+    {
+        m_noninherited.has_noninitial_border_radii = true;
+        m_noninherited.border_top_right_radius = move(value);
+    }
     BorderData& border_left() { return m_noninherited.border_left; }
     BorderData& border_top() { return m_noninherited.border_top; }
     BorderData& border_right() { return m_noninherited.border_right; }
