@@ -98,6 +98,24 @@ img.getAttribute("width") after img.setAttribute("width", "4294967295"): 4294967
 img.width after img.setAttribute("width", "4294967295"): 0
 img.getAttribute("width") after img.width = 4294967295: 0
 img.width after img.width = 4294967295: 0
+input.getAttribute("maxlength") after input.setAttribute("maxLength", "0"): 0
+input.maxLength after input.setAttribute("maxlength", "0"): 0
+input.getAttribute("maxlength") after input.maxLength = 0: 0
+input.maxLength after input.maxLength = 0: 0
+input.getAttribute("maxlength") after input.setAttribute("maxLength", "1"): 1
+input.maxLength after input.setAttribute("maxlength", "1"): 1
+input.getAttribute("maxlength") after input.maxLength = 1: 1
+input.maxLength after input.maxLength = 1: 1
+input.getAttribute("maxlength") after input.setAttribute("maxLength", "2147483647"): 2147483647
+input.maxLength after input.setAttribute("maxlength", "2147483647"): 2147483647
+input.getAttribute("maxlength") after input.maxLength = 2147483647: 2147483647
+input.maxLength after input.maxLength = 2147483647: 2147483647
+input.getAttribute("maxlength") after input.setAttribute("maxLength", "2147483648"): 2147483648
+input.maxLength after input.setAttribute("maxlength", "2147483648"): -1
+input.maxLength = 2147483648 threw exception of type IndexSizeError
+input.getAttribute("maxlength") after input.setAttribute("maxLength", "4294967295"): 4294967295
+input.maxLength after input.setAttribute("maxlength", "4294967295"): -1
+input.maxLength = 4294967295 threw exception of type IndexSizeError
 input.getAttribute("size") after input.setAttribute("size", "0"): 0
 input.size after input.setAttribute("size", "0"): 20
 input.size = 0 threw exception of type IndexSizeError
