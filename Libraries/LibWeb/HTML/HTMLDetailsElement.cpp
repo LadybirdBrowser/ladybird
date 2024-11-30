@@ -124,17 +124,32 @@ WebIDL::ExceptionOr<void> HTMLDetailsElement::create_shadow_tree_if_needed()
 
     auto& realm = this->realm();
 
-    // The element is also expected to have an internal shadow tree with two slots.
+    // The details element is expected to have an internal shadow tree with three child elements:
     auto shadow_root = realm.create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
     shadow_root->set_slot_assignment(Bindings::SlotAssignmentMode::Manual);
 
-    // The first slot is expected to take the details element's first summary element child, if any.
+    // The first child element is a slot that is expected to take the details element's first summary element child, if any.
     auto summary_slot = TRY(DOM::create_element(document(), HTML::TagNames::slot, Namespace::HTML));
     MUST(shadow_root->append_child(summary_slot));
 
-    // The second slot is expected to take the details element's remaining descendants, if any.
+    // The second child element is a slot that is expected to take the details element's remaining descendants, if any.
     auto descendants_slot = TRY(DOM::create_element(document(), HTML::TagNames::slot, Namespace::HTML));
+    descendants_slot->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::DetailsContent);
     MUST(shadow_root->append_child(descendants_slot));
+
+    // The third child element is either a link or style element with the following styles for the default summary:
+    auto style = TRY(DOM::create_element(document(), HTML::TagNames::style, Namespace::HTML));
+    style->set_text_content(R"~~~(
+        :host summary {
+            display: list-item;
+            counter-increment: list-item 0;
+            list-style: disclosure-closed inside;
+        }
+        :host([open]) summary {
+            list-style-type: disclosure-open;
+        }
+    )~~~"_string);
+    MUST(shadow_root->append_child(style));
 
     m_summary_slot = static_cast<HTML::HTMLSlotElement&>(*summary_slot);
     m_descendants_slot = static_cast<HTML::HTMLSlotElement&>(*descendants_slot);
