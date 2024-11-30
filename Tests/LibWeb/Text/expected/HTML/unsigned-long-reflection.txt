@@ -328,6 +328,30 @@ td.getAttribute("colspan") after td.setAttribute("colSpan", "4294967296"): 42949
 td.colSpan after td.setAttribute("colspan", "4294967296"): 1000
 td.getAttribute("colspan") after td.colSpan = 4294967296: 0
 td.colSpan after td.colSpan = 4294967296: 1
+td.getAttribute("rowspan") after td.setAttribute("rowSpan", "0"): 0
+td.rowSpan after td.setAttribute("rowspan", "0"): 0
+td.getAttribute("rowspan") after td.rowSpan = 0: 0
+td.rowSpan after td.rowSpan = 0: 0
+td.getAttribute("rowspan") after td.setAttribute("rowSpan", "1"): 1
+td.rowSpan after td.setAttribute("rowspan", "1"): 1
+td.getAttribute("rowspan") after td.rowSpan = 1: 1
+td.rowSpan after td.rowSpan = 1: 1
+td.getAttribute("rowspan") after td.setAttribute("rowSpan", "2147483647"): 2147483647
+td.rowSpan after td.setAttribute("rowspan", "2147483647"): 65534
+td.getAttribute("rowspan") after td.rowSpan = 2147483647: 2147483647
+td.rowSpan after td.rowSpan = 2147483647: 65534
+td.getAttribute("rowspan") after td.setAttribute("rowSpan", "2147483648"): 2147483648
+td.rowSpan after td.setAttribute("rowspan", "2147483648"): 65534
+td.getAttribute("rowspan") after td.rowSpan = 2147483648: 1
+td.rowSpan after td.rowSpan = 2147483648: 1
+td.getAttribute("rowspan") after td.setAttribute("rowSpan", "4294967295"): 4294967295
+td.rowSpan after td.setAttribute("rowspan", "4294967295"): 65534
+td.getAttribute("rowspan") after td.rowSpan = 4294967295: 1
+td.rowSpan after td.rowSpan = 4294967295: 1
+td.getAttribute("rowspan") after td.setAttribute("rowSpan", "4294967296"): 4294967296
+td.rowSpan after td.setAttribute("rowspan", "4294967296"): 65534
+td.getAttribute("rowspan") after td.rowSpan = 4294967296: 0
+td.rowSpan after td.rowSpan = 4294967296: 0
 textarea.getAttribute("maxlength") after textarea.setAttribute("maxLength", "0"): 0
 textarea.maxLength after textarea.setAttribute("maxlength", "0"): 0
 textarea.getAttribute("maxlength") after textarea.maxLength = 0: 0
