@@ -81,45 +81,42 @@ ALWAYS_INLINE void dump_backtrace()
 
 extern "C" {
 
-void ak_verification_failed(char const* message)
+bool ak_colorize_output(void)
 {
 #if defined(AK_OS_SERENITY) || defined(AK_OS_ANDROID)
-    bool colorize_output = true;
+    return true;
 #elif defined(AK_OS_WINDOWS)
-    bool colorize_output = false;
+    return false;
 #else
-    bool colorize_output = isatty(STDERR_FILENO) == 1;
+    return isatty(STDERR_FILENO) == 1;
 #endif
+}
 
-    if (colorize_output)
-        ERRORLN("\033[31;1mVERIFICATION FAILED\033[0m: {}", message);
-    else
-        ERRORLN("VERIFICATION FAILED: {}", message);
-
+void ak_trap(void)
+{
 #if defined(AK_HAS_BACKTRACE_HEADER)
     dump_backtrace();
 #endif
     __builtin_trap();
 }
 
+void ak_verification_failed(char const* message)
+{
+    if (ak_colorize_output())
+        ERRORLN("\033[31;1mVERIFICATION FAILED\033[0m: {}", message);
+    else
+        ERRORLN("VERIFICATION FAILED: {}", message);
+
+    ak_trap();
+}
+
 void ak_assertion_failed(char const* message)
 {
-#if defined(AK_OS_SERENITY) || defined(AK_OS_ANDROID)
-    bool colorize_output = true;
-#elif defined(AK_OS_WINDOWS)
-    bool colorize_output = false;
-#else
-    bool colorize_output = isatty(STDERR_FILENO) == 1;
-#endif
-
-    if (colorize_output)
+    if (ak_colorize_output())
         ERRORLN("\033[31;1mASSERTION FAILED\033[0m: {}", message);
     else
         ERRORLN("ASSERTION FAILED: {}", message);
 
-#if defined(AK_HAS_BACKTRACE_HEADER)
-    dump_backtrace();
-#endif
-    __builtin_trap();
+    ak_trap();
 }
 }

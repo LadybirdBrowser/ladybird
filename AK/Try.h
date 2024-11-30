@@ -9,6 +9,9 @@
 #include <AK/Diagnostics.h>
 #include <AK/StdLibExtras.h>
 
+// This macro is redefined in `AK/Format.h` to give a nicer error message.
+#define AK_HANDLE_UNEXPECTED_ERROR(result) VERIFY(!result.is_error());
+
 // NOTE: This macro works with any result type that has the expected APIs.
 //       It's designed with AK::Result and AK::Error in mind.
 //
@@ -40,6 +43,6 @@
             auto&& _temporary_result = (expression));                                                \
         static_assert(!::AK::Detail::IsLvalueReference<decltype(_temporary_result.release_value())>, \
             "Do not return a reference from a fallible expression");                                 \
-        VERIFY(!_temporary_result.is_error());                                                       \
+        AK_HANDLE_UNEXPECTED_ERROR(_temporary_result)                                                \
         _temporary_result.release_value();                                                           \
     })

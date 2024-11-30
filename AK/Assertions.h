@@ -6,6 +6,9 @@
 
 #pragma once
 
+extern "C" bool ak_colorize_output(void);
+extern "C" __attribute__((noreturn)) void ak_trap(void);
+
 extern "C" __attribute__((noreturn)) void ak_verification_failed(char const*);
 #define __stringify_helper(x) #x
 #define __stringify(x) __stringify_helper(x)
