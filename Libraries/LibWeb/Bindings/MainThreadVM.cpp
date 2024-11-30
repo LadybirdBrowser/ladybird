@@ -3,6 +3,7 @@
  * Copyright (c) 2021-2023, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2022-2023, networkException <networkexception@serenityos.org>
  * Copyright (c) 2022-2023, Linus Groh <linusg@serenityos.org>
+ * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -45,6 +46,7 @@
 #include <LibWeb/HTML/TagNames.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
+#include <LibWeb/HTML/WorkletGlobalScope.h>
 #include <LibWeb/MathML/TagNames.h>
 #include <LibWeb/MediaSourceExtensions/EventNames.h>
 #include <LibWeb/Namespace.h>
@@ -53,6 +55,7 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/TagNames.h>
+#include <LibWeb/ServiceWorker/ServiceWorkerGlobalScope.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/InputTypes.h>
 #include <LibWeb/WebGL/EventNames.h>
@@ -435,7 +438,17 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         // 1. Let moduleMapRealm be the current realm.
         auto* module_map_realm = vm.current_realm();
 
-        // FIXME: 2. If moduleMapRealm's global object implements WorkletGlobalScope or ServiceWorkerGlobalScope and loadState is undefined, then:
+        // 2. If moduleMapRealm's global object implements WorkletGlobalScope or ServiceWorkerGlobalScope and loadState is undefined, then:
+        if ((is<HTML::WorkletGlobalScope>(module_map_realm->global_object()) || is<ServiceWorker::ServiceWorkerGlobalScope>(module_map_realm->global_object())) && !load_state) {
+            // 1. Let completion be Completion Record { [[Type]]: throw, [[Value]]: a new TypeError, [[Target]]: empty }.
+            auto completion = JS::throw_completion(JS::TypeError::create(*module_map_realm, "Dynamic Import not available for Worklets or ServiceWorkers"_string));
+
+            // 2. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, completion).
+            JS::finish_loading_imported_module(referrer, module_request, payload, completion);
+
+            // 3. Return.
+            return;
+        }
 
         // 3. Let referencingScript be null.
         Optional<HTML::Script&> referencing_script;
