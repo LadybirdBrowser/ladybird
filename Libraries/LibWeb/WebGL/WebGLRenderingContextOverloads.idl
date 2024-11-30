@@ -1,7 +1,13 @@
+#import <WebGL/Types.idl>
+
+// FIXME: BufferSource should be a Float32Array
+typedef (BufferSource or sequence<GLfloat>) Float32List;
+
 // https://registry.khronos.org/webgl/specs/latest/1.0/#5.14
 interface mixin WebGLRenderingContextOverloads {
-    [FIXME] undefined bufferData(GLenum target, GLsizeiptr size, GLenum usage);
-    [FIXME] undefined bufferData(GLenum target, AllowSharedBufferSource? data, GLenum usage);
+    undefined bufferData(GLenum target, GLsizeiptr size, GLenum usage);
+    // FIXME: BufferSource is really a AllowSharedBufferSource
+    undefined bufferData(GLenum target, BufferSource? data, GLenum usage);
     [FIXME] undefined bufferSubData(GLenum target, GLintptr offset, AllowSharedBufferSource data);
 
     [FIXME] undefined compressedTexImage2D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, [AllowShared] ArrayBufferView data);
@@ -15,17 +21,18 @@ interface mixin WebGLRenderingContextOverloads {
     [FIXME] undefined texSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, [AllowShared] ArrayBufferView? pixels);
     [FIXME] undefined texSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLenum format, GLenum type, TexImageSource source); // May throw DOMException
 
-    [FIXME] undefined uniform1fv(WebGLUniformLocation? location, Float32List v);
-    [FIXME] undefined uniform2fv(WebGLUniformLocation? location, Float32List v);
-    [FIXME] undefined uniform3fv(WebGLUniformLocation? location, Float32List v);
-    [FIXME] undefined uniform4fv(WebGLUniformLocation? location, Float32List v);
+    undefined uniform1fv(WebGLUniformLocation? location, Float32List v);
+    undefined uniform2fv(WebGLUniformLocation? location, Float32List v);
+    undefined uniform3fv(WebGLUniformLocation? location, Float32List v);
+    undefined uniform4fv(WebGLUniformLocation? location, Float32List v);
 
     [FIXME] undefined uniform1iv(WebGLUniformLocation? location, Int32List v);
     [FIXME] undefined uniform2iv(WebGLUniformLocation? location, Int32List v);
     [FIXME] undefined uniform3iv(WebGLUniformLocation? location, Int32List v);
     [FIXME] undefined uniform4iv(WebGLUniformLocation? location, Int32List v);
 
-    [FIXME] undefined uniformMatrix2fv(WebGLUniformLocation? location, GLboolean transpose, Float32List value);
-    [FIXME] undefined uniformMatrix3fv(WebGLUniformLocation? location, GLboolean transpose, Float32List value);
-    [FIXME] undefined uniformMatrix4fv(WebGLUniformLocation? location, GLboolean transpose, Float32List value);
+    // FIXME: Float32Array should be a Float32List
+    undefined uniformMatrix2fv(WebGLUniformLocation? location, GLboolean transpose, Float32List value);
+    undefined uniformMatrix3fv(WebGLUniformLocation? location, GLboolean transpose, Float32List value);
+    undefined uniformMatrix4fv(WebGLUniformLocation? location, GLboolean transpose, Float32List value);
 };
