@@ -44,6 +44,10 @@ public:
             callback(*web_view);
     }
 
+    static constexpr u8 VERBOSITY_LEVEL_LOG_TEST_DURATION = 1;
+    static constexpr u8 VERBOSITY_LEVEL_LOG_SLOWEST_TESTS = 2;
+    static constexpr u8 VERBOSITY_LEVEL_LOG_SKIPPED_TESTS = 3;
+
     int screenshot_timeout { 1 };
     ByteString resources_folder;
     bool dump_failed_ref_tests { false };
@@ -57,7 +61,7 @@ public:
     ByteString test_glob;
     bool test_dry_run { false };
     bool rebaseline { false };
-    bool verbose { false };
+    u8 verbosity { 0 };
     int per_test_timeout_in_seconds { 30 };
     int width { 800 };
     int height { 600 };

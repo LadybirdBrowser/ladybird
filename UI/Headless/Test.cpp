@@ -443,7 +443,8 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
     size_t skipped_count = 0;
     bool all_tests_ok = true;
 
-    bool is_tty = isatty(STDOUT_FILENO);
+    // Keep clearing and reusing the same line if stdout is a TTY.
+    bool log_on_one_line = app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_DURATION && isatty(STDOUT_FILENO) == 1;
     outln("Running {} tests...", tests.size());
 
     auto all_tests_complete = Core::Promise<Empty>::construct();
@@ -462,18 +463,14 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
 
             auto& test = tests[index];
             test.start_time = UnixDateTime::now();
+            test.index = index + 1;
 
-            if (is_tty) {
-                // Keep clearing and reusing the same line if stdout is a TTY.
-                out("\33[2K\r");
+            if (log_on_one_line) {
+                out("\33[2K\r{}/{}: {}", test.index, tests.size(), test.relative_path);
+                (void)fflush(stdout);
+            } else {
+                outln("{}/{}:  Start {}", test.index, tests.size(), test.relative_path);
             }
-
-            out("{}/{}: {}", index + 1, tests.size(), test.relative_path);
-
-            if (is_tty)
-                fflush(stdout);
-            else
-                outln("");
 
             Core::deferred_invoke([&]() mutable {
                 if (s_skipped_tests.contains_slow(test.input_path))
@@ -485,6 +482,11 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
 
         view.test_promise().when_resolved([&, run_next_test](auto result) {
             result.test.end_time = UnixDateTime::now();
+
+            if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_DURATION) {
+                auto duration = result.test.end_time - result.test.start_time;
+                outln("{}/{}: Finish {}: {}ms", result.test.index, tests.size(), result.test.relative_path, duration.to_milliseconds());
+            }
 
             switch (result.result) {
             case TestResult::Pass:
@@ -523,7 +525,7 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
 
     MUST(all_tests_complete->await());
 
-    if (is_tty)
+    if (log_on_one_line)
         outln("\33[2K\rDone!");
 
     outln("==========================================================");
@@ -531,13 +533,13 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
     outln("==========================================================");
 
     for (auto const& non_passing_test : non_passing_tests) {
-        if (non_passing_test.result == TestResult::Skipped && !app.verbose)
+        if (non_passing_test.result == TestResult::Skipped && app.verbosity < Application::VERBOSITY_LEVEL_LOG_SKIPPED_TESTS)
             continue;
 
         outln("{}: {}", test_result_to_string(non_passing_test.result), non_passing_test.test.relative_path);
     }
 
-    if (app.verbose) {
+    if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_SLOWEST_TESTS) {
         auto tests_to_print = min(10uz, tests.size());
         outln("\nSlowest {} tests:", tests_to_print);
 

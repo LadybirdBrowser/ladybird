@@ -45,9 +45,23 @@ void Application::create_platform_arguments(Core::ArgsParser& args_parser)
     args_parser.add_option(is_layout_test_mode, "Enable layout test mode", "layout-test-mode");
     args_parser.add_option(rebaseline, "Rebaseline any executed layout or text tests", "rebaseline");
     args_parser.add_option(per_test_timeout_in_seconds, "Per-test timeout (default: 30)", "per-test-timeout", 't', "seconds");
-    args_parser.add_option(verbose, "Log extra information about test results", "verbose", 'v');
     args_parser.add_option(width, "Set viewport width in pixels (default: 800)", "width", 'W', "pixels");
     args_parser.add_option(height, "Set viewport height in pixels (default: 600)", "height", 'H', "pixels");
+
+    args_parser.add_option(Core::ArgsParser::Option {
+        .argument_mode = Core::ArgsParser::OptionArgumentMode::Optional,
+        .help_string = "Log extra information about test results (use multiple times for more information)",
+        .long_name = "verbose",
+        .short_name = 'v',
+        .accept_value = [&](StringView value) -> ErrorOr<bool> {
+            if (value.is_empty() && verbosity < NumericLimits<u8>::max()) {
+                ++verbosity;
+                return true;
+            }
+
+            return false;
+        },
+    });
 }
 
 void Application::create_platform_options(WebView::ChromeOptions& chrome_options, WebView::WebContentOptions& web_content_options)
