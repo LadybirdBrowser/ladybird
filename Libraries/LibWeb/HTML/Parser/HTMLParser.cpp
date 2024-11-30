@@ -2467,8 +2467,6 @@ void HTMLParser::handle_in_body(HTMLToken& token)
 
         // Insert an HTML element for the token. Immediately pop the current node off the stack of open elements.
         (void)insert_html_element(token);
-
-        // Acknowledge the token's self-closing flag, if it is set.
         (void)m_stack_of_open_elements.pop();
 
         // Acknowledge the token's self-closing flag, if it is set.
