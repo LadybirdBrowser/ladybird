@@ -59,6 +59,7 @@ struct Test {
 
     ByteString input_path {};
     ByteString expectation_path {};
+    ByteString relative_path {};
 
     UnixDateTime start_time {};
     UnixDateTime end_time {};
