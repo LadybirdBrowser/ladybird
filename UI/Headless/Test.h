@@ -63,6 +63,7 @@ struct Test {
 
     UnixDateTime start_time {};
     UnixDateTime end_time {};
+    size_t index { 0 };
 
     String text {};
     bool did_finish_test { false };
