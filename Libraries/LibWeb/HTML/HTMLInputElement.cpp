@@ -1832,7 +1832,7 @@ WebIDL::Long HTMLInputElement::max_length() const
 {
     // The maxLength IDL attribute must reflect the maxlength content attribute, limited to only non-negative numbers.
     if (auto maxlength_string = get_attribute(HTML::AttributeNames::maxlength); maxlength_string.has_value()) {
-        if (auto maxlength = parse_non_negative_integer(*maxlength_string); maxlength.has_value())
+        if (auto maxlength = parse_non_negative_integer(*maxlength_string); maxlength.has_value() && *maxlength <= 2147483647)
             return *maxlength;
     }
     return -1;
