@@ -26,7 +26,6 @@ ByteString g_default_certificate_path;
 static HashMap<int, RefPtr<ConnectionFromClient>> s_connections;
 static IDAllocator s_client_ids;
 static long s_connect_timeout_seconds = 90L;
-static HashMap<ByteString, ByteString> g_dns_cache; // host -> curl "resolve" string
 static struct {
     Optional<Core::SocketAddress> server_address;
     Optional<ByteString> server_hostname;
@@ -447,7 +446,6 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString const& metho
             }
 
             auto formatted_address = resolve_opt_builder.to_byte_string();
-            g_dns_cache.set(host, formatted_address);
             curl_slist* resolve_list = curl_slist_append(nullptr, formatted_address.characters());
             curl_easy_setopt(easy, CURLOPT_RESOLVE, resolve_list);
 
