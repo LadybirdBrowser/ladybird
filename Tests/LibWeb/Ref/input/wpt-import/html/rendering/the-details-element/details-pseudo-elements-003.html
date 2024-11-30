@@ -1,0 +1,20 @@
+<!DOCTYPE HTML>
+<title>::details-content pseudo element is display: block</title>
+<link rel="match" href="../../../../../expected/wpt-import/html/rendering/the-details-element/details-pseudo-elements-003-ref.html">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#details-content-pseudo">
+<link rel="help" href="https://github.com/whatwg/html/pull/10265">
+<link rel="help" href="https://github.com/dbaron/details-styling">
+<link rel="help" href="https://crbug.com/1469418">
+<style>
+
+summary { display: block }
+details::details-content { opacity: 0.5; }
+
+details
+
+</style>
+
+<details open>
+  <summary>summary</summary>
+  contents
+</details>

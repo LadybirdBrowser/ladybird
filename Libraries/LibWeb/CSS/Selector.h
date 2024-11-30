@@ -42,6 +42,7 @@ public:
             SliderThumb,
             Backdrop,
             FileSelectorButton,
+            DetailsContent,
 
             // Keep this last.
             KnownPseudoElementCount,
