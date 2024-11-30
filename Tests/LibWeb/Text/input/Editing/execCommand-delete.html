@@ -1,0 +1,18 @@
+<script src="../include.js"></script>
+<div contenteditable="true">foobar</div>
+<script>
+    test(() => {
+        var divElm = document.querySelector('div');
+        println(`Before: ${divElm.textContent}`);
+
+        // Put cursor after 'foo'
+        var range = document.createRange();
+        range.setStart(divElm.childNodes[0], 3);
+        getSelection().addRange(range);
+
+        // Press backspace
+        document.execCommand('delete');
+
+        println(`After: ${divElm.textContent}`);
+    });
+</script>
