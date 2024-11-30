@@ -422,8 +422,9 @@ enum ExposedTo {
     AudioWorklet = 0x8,
     Window = 0x10,
     ShadowRealm = 0x20,
+    Worklet = 0x40,
     AllWorkers = DedicatedWorker | SharedWorker | ServiceWorker | AudioWorklet, // FIXME: Is "AudioWorklet" a Worker? We'll assume it is for now (here, and line below)
-    All = AllWorkers | Window | ShadowRealm
+    All = AllWorkers | Window | ShadowRealm | Worklet,
 };
 AK_ENUM_BITWISE_OPERATORS(ExposedTo);
 
@@ -454,6 +455,8 @@ static ErrorOr<ExposedTo> parse_exposure_set(IDL::Interface& interface)
         return ExposedTo::ServiceWorker;
     if (exposed == "AudioWorklet"sv)
         return ExposedTo::AudioWorklet;
+    if (exposed == "Worklet"sv)
+        return ExposedTo::Worklet;
     if (exposed == "ShadowRealm"sv)
         return ExposedTo::ShadowRealm;
 
@@ -473,6 +476,8 @@ static ErrorOr<ExposedTo> parse_exposure_set(IDL::Interface& interface)
                 whom |= ExposedTo::ServiceWorker;
             } else if (candidate == "AudioWorklet"sv) {
                 whom |= ExposedTo::AudioWorklet;
+            } else if (candidate == "Worklet"sv) {
+                whom |= ExposedTo::Worklet;
             } else if (candidate == "ShadowRealm"sv) {
                 whom |= ExposedTo::ShadowRealm;
             } else {
