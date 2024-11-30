@@ -4282,43 +4282,43 @@ private:
 static void generate_using_namespace_definitions(SourceGenerator& generator)
 {
     generator.append(R"~~~(
-    // FIXME: This is a total hack until we can figure out the namespace for a given type somehow.
-    using namespace Web::Animations;
-    using namespace Web::Clipboard;
-    using namespace Web::Crypto;
-    using namespace Web::CSS;
-    using namespace Web::DOM;
-    using namespace Web::DOMParsing;
-    using namespace Web::DOMURL;
-    using namespace Web::Encoding;
-    using namespace Web::EntriesAPI;
-    using namespace Web::EventTiming;
-    using namespace Web::Fetch;
-    using namespace Web::FileAPI;
-    using namespace Web::Geometry;
-    using namespace Web::HighResolutionTime;
-    using namespace Web::HTML;
-    using namespace Web::IndexedDB;
-    using namespace Web::Internals;
-    using namespace Web::IntersectionObserver;
-    using namespace Web::MediaCapabilitiesAPI;
-    using namespace Web::MediaSourceExtensions;
-    using namespace Web::NavigationTiming;
-    using namespace Web::PerformanceTimeline;
-    using namespace Web::RequestIdleCallback;
-    using namespace Web::ResizeObserver;
-    using namespace Web::Selection;
-    using namespace Web::StorageAPI;
-    using namespace Web::Streams;
-    using namespace Web::SVG;
-    using namespace Web::UIEvents;
-    using namespace Web::UserTiming;
-    using namespace Web::WebAssembly;
-    using namespace Web::WebAudio;
-    using namespace Web::WebGL;
-    using namespace Web::WebIDL;
-    using namespace Web::WebVTT;
-    using namespace Web::XHR;
+// FIXME: This is a total hack until we can figure out the namespace for a given type somehow.
+using namespace Web::Animations;
+using namespace Web::Clipboard;
+using namespace Web::Crypto;
+using namespace Web::CSS;
+using namespace Web::DOM;
+using namespace Web::DOMParsing;
+using namespace Web::DOMURL;
+using namespace Web::Encoding;
+using namespace Web::EntriesAPI;
+using namespace Web::EventTiming;
+using namespace Web::Fetch;
+using namespace Web::FileAPI;
+using namespace Web::Geometry;
+using namespace Web::HighResolutionTime;
+using namespace Web::HTML;
+using namespace Web::IndexedDB;
+using namespace Web::Internals;
+using namespace Web::IntersectionObserver;
+using namespace Web::MediaCapabilitiesAPI;
+using namespace Web::MediaSourceExtensions;
+using namespace Web::NavigationTiming;
+using namespace Web::PerformanceTimeline;
+using namespace Web::RequestIdleCallback;
+using namespace Web::ResizeObserver;
+using namespace Web::Selection;
+using namespace Web::StorageAPI;
+using namespace Web::Streams;
+using namespace Web::SVG;
+using namespace Web::UIEvents;
+using namespace Web::UserTiming;
+using namespace Web::WebAssembly;
+using namespace Web::WebAudio;
+using namespace Web::WebGL;
+using namespace Web::WebIDL;
+using namespace Web::WebVTT;
+using namespace Web::XHR;
 )~~~"sv);
 }
 
