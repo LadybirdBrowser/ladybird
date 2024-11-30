@@ -61,7 +61,7 @@ public:
             }
         }
 
-        if (m_cached_records.is_empty())
+        if (m_cached_records.is_empty() && m_request_done)
             m_valid = false;
     }
 
@@ -93,15 +93,17 @@ public:
     }
 
     void will_add_record_of_type(Messages::ResourceType type) { m_desired_types.set(type); }
+    void finished_request() { m_request_done = true; }
 
     void set_id(u16 id) { m_id = id; }
     u16 id() { return m_id; }
 
-    bool is_valid() const { return m_valid; }
+    bool is_valid() const { return m_valid && m_request_done; }
     Messages::DomainName const& name() const { return m_name; }
 
 private:
     bool m_valid { false };
+    bool m_request_done { false };
     Messages::DomainName m_name;
     struct RecordWithExpiration {
         Messages::ResourceRecord record;
@@ -147,6 +149,7 @@ public:
 
                 ptr->add_record({ .name = {}, .type = Messages::ResourceType::A, .class_ = Messages::Class::IN, .ttl = 0, .record = Messages::Records::A { v4 }, .raw = {} });
                 ptr->add_record({ .name = {}, .type = Messages::ResourceType::AAAA, .class_ = Messages::Class::IN, .ttl = 0, .record = Messages::Records::AAAA { v6 }, .raw = {} });
+                ptr->finished_request();
             };
 
             add_v4v6_entry("localhost"sv, { 127, 0, 0, 1 }, IPv6Address::loopback());
@@ -230,6 +233,7 @@ public:
             if (desired_types.contains_slow(Messages::ResourceType::A)) {
                 auto result = make_ref_counted<LookupResult>(Messages::DomainName {});
                 result->add_record({ .name = {}, .type = Messages::ResourceType::A, .class_ = Messages::Class::IN, .ttl = 0, .record = Messages::Records::A { maybe_ipv4.release_value() }, .raw = {} });
+                result->finished_request();
                 promise->resolve(move(result));
                 return promise;
             }
@@ -239,6 +243,7 @@ public:
             if (desired_types.contains_slow(Messages::ResourceType::AAAA)) {
                 auto result = make_ref_counted<LookupResult>(Messages::DomainName {});
                 result->add_record({ .name = {}, .type = Messages::ResourceType::AAAA, .class_ = Messages::Class::IN, .ttl = 0, .record = Messages::Records::AAAA { maybe_ipv6.release_value() }, .raw = {} });
+                result->finished_request();
                 promise->resolve(move(result));
                 return promise;
             }
@@ -269,6 +274,7 @@ public:
                 [&](IPv6Address const& address) {
                     result->add_record({ .name = {}, .type = Messages::ResourceType::AAAA, .class_ = Messages::Class::IN, .ttl = 0, .record = Messages::Records::AAAA { address }, .raw = {} });
                 });
+            result->finished_request();
             promise->resolve(result);
             return promise;
         }
@@ -455,6 +461,7 @@ private:
                 for (auto& record : message.answers)
                     result->add_record(move(record));
 
+                result->finished_request();
                 lookup->promise->resolve(*result);
                 lookups->remove(message.header.id);
                 return {};
