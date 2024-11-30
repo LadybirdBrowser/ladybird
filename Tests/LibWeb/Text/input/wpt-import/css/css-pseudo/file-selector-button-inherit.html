@@ -1,0 +1,20 @@
+<!doctype html>
+<title>CSS Pseudo Test: ::file-selector-button inherits from its originating element</title>
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#treelike">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  input { background-color: green; }
+  input::file-selector-button {
+    color: green;
+    background-color: inherit;
+  }
+</style>
+<input id="inp" type="file">
+<script>
+  test(() => {
+    const style = getComputedStyle(inp, "::file-selector-button");
+    assert_equals(style.color, "rgb(0, 128, 0)", "Check that ::file-selector-button is supported via color");
+    assert_equals(style.backgroundColor, "rgb(0, 128, 0)", "::file-selector-button inheriting background-color");
+  }, "::file-selector-button should inherit from its originating element");
+</script>

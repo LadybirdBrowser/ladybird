@@ -518,6 +518,8 @@ StringView Selector::PseudoElement::name(Selector::PseudoElement::Type pseudo_el
         return "-webkit-slider-thumb"sv;
     case Selector::PseudoElement::Type::Backdrop:
         return "backdrop"sv;
+    case Selector::PseudoElement::Type::FileSelectorButton:
+        return "file-selector-button"sv;
     case Selector::PseudoElement::Type::KnownPseudoElementCount:
         break;
     case Selector::PseudoElement::Type::UnknownWebKit:
@@ -556,6 +558,8 @@ Optional<Selector::PseudoElement> Selector::PseudoElement::from_string(FlyString
         return Selector::PseudoElement { Selector::PseudoElement::Type::Selection };
     } else if (name.equals_ignoring_ascii_case("backdrop"sv)) {
         return Selector::PseudoElement { Selector::PseudoElement::Type::Backdrop };
+    } else if (name.equals_ignoring_ascii_case("file-selector-button"sv)) {
+        return Selector::PseudoElement { Selector::PseudoElement::Type::FileSelectorButton };
     } else if (name.equals_ignoring_ascii_case("-webkit-slider-runnable-track"sv)) {
         return Selector::PseudoElement { Selector::PseudoElement::Type::SliderRunnableTrack };
     } else if (name.equals_ignoring_ascii_case("-webkit-slider-thumb"sv)) {

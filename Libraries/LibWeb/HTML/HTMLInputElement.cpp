@@ -986,6 +986,8 @@ void HTMLInputElement::create_file_input_shadow_tree()
     auto shadow_root = realm.create<DOM::ShadowRoot>(document(), *this, Bindings::ShadowRootMode::Closed);
 
     m_file_button = DOM::create_element(document(), HTML::TagNames::button, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
+    m_file_button->set_use_pseudo_element(CSS::Selector::PseudoElement::Type::FileSelectorButton);
+
     m_file_label = DOM::create_element(document(), HTML::TagNames::label, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
     MUST(m_file_label->set_attribute(HTML::AttributeNames::style, "padding-left: 4px;"_string));
 
