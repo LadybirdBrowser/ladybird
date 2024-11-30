@@ -38,12 +38,35 @@ void Location::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_default_properties);
 }
 
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-location-interface
 void Location::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Location);
 
-    // FIXME: Implement steps 2.-4.
+    auto& vm = this->vm();
+
+    // Step 2: Let valueOf be location's relevant realm.[[Intrinsics]].[[%Object.prototype.valueOf%]].
+    auto& intrinsics = realm.intrinsics();
+    auto value_of_function = intrinsics.object_prototype()->get_without_side_effects(vm.names.valueOf);
+
+    // Step 3: Perform ! location.[[DefineOwnProperty]]("valueOf", { [[Value]]: valueOf, [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }).
+    auto value_of_property_descriptor = JS::PropertyDescriptor {
+        .value = value_of_function,
+        .writable = false,
+        .enumerable = false,
+        .configurable = false,
+    };
+    MUST(internal_define_own_property(vm.names.valueOf, value_of_property_descriptor));
+
+    // Step 4: Perform ! location.[[DefineOwnProperty]](%Symbol.toPrimitive%, { [[Value]]: undefined, [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }).
+    auto to_primitive_property_descriptor = JS::PropertyDescriptor {
+        .value = JS::js_undefined(),
+        .writable = false,
+        .enumerable = false,
+        .configurable = false,
+    };
+    MUST(internal_define_own_property(vm.well_known_symbol_to_primitive(), to_primitive_property_descriptor));
 
     // 5. Set the value of the [[DefaultProperties]] internal slot of location to location.[[OwnPropertyKeys]]().
     // NOTE: In LibWeb this happens before the ESO is set up, so we must avoid location's custom [[OwnPropertyKeys]].
