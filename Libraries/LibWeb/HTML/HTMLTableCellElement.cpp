@@ -108,14 +108,25 @@ void HTMLTableCellElement::apply_presentational_hints(CSS::StyleProperties& styl
 
 // This implements step 8 in the spec here:
 // https://html.spec.whatwg.org/multipage/tables.html#algorithm-for-processing-rows
-unsigned int HTMLTableCellElement::col_span() const
+WebIDL::UnsignedLong HTMLTableCellElement::col_span() const
 {
-    auto optional_value = Web::HTML::parse_non_negative_integer(get_attribute_value(HTML::AttributeNames::colspan));
+    auto col_span_attribute = get_attribute(HTML::AttributeNames::colspan);
+    if (!col_span_attribute.has_value())
+        return 1;
+
+    auto optional_value_digits = Web::HTML::parse_non_negative_integer_digits(*col_span_attribute);
 
     // If parsing that value failed, or returned zero, or if the attribute is absent, then let colspan be 1, instead.
-    if (!optional_value.has_value() || optional_value.value() == 0) {
+    if (!optional_value_digits.has_value())
         return 1;
-    }
+
+    auto optional_value = optional_value_digits->to_number<i64>(TrimWhitespace::No);
+    if (optional_value == 0)
+        return 1;
+
+    // NOTE: If there is no value at this point the value must be larger than NumericLimits<i64>::max(), so return the maximum value of 1000.
+    if (!optional_value.has_value())
+        return 1000;
 
     auto value = optional_value.value();
 
@@ -127,8 +138,10 @@ unsigned int HTMLTableCellElement::col_span() const
     return value;
 }
 
-WebIDL::ExceptionOr<void> HTMLTableCellElement::set_col_span(unsigned int value)
+WebIDL::ExceptionOr<void> HTMLTableCellElement::set_col_span(WebIDL::UnsignedLong value)
 {
+    if (value > 2147483647)
+        value = 1;
     return set_attribute(HTML::AttributeNames::colspan, String::number(value));
 }
 
