@@ -13,7 +13,7 @@
     E(onstatechange, HTML::EventNames::statechange) \
     E(onerror, HTML::EventNames::error)
 
-namespace Web::HTML {
+namespace Web::ServiceWorker {
 
 class ServiceWorker : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(ServiceWorker, DOM::EventTarget);

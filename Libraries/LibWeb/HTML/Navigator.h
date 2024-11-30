@@ -57,7 +57,7 @@ public:
 
     Optional<FlyString> do_not_track() const;
 
-    GC::Ref<ServiceWorkerContainer> service_worker();
+    GC::Ref<ServiceWorker::ServiceWorkerContainer> service_worker();
 
     GC::Ref<MediaCapabilitiesAPI::MediaCapabilities> media_capabilities();
 
@@ -86,7 +86,7 @@ private:
     GC::Ptr<UserActivation> m_user_activation;
 
     // https://w3c.github.io/ServiceWorker/#navigator-serviceworker
-    GC::Ptr<ServiceWorkerContainer> m_service_worker_container;
+    GC::Ptr<ServiceWorker::ServiceWorkerContainer> m_service_worker_container;
 
     // https://w3c.github.io/media-capabilities/#dom-navigator-mediacapabilities
     GC::Ptr<MediaCapabilitiesAPI::MediaCapabilities> m_media_capabilities;

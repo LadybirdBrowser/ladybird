@@ -47,10 +47,10 @@ GC::Ref<MediaCapabilitiesAPI::MediaCapabilities> WorkerNavigator::media_capabili
     return *m_media_capabilities;
 }
 
-GC::Ref<ServiceWorkerContainer> WorkerNavigator::service_worker()
+GC::Ref<ServiceWorker::ServiceWorkerContainer> WorkerNavigator::service_worker()
 {
     if (!m_service_worker_container)
-        m_service_worker_container = realm().create<ServiceWorkerContainer>(realm());
+        m_service_worker_container = realm().create<ServiceWorker::ServiceWorkerContainer>(realm());
     return *m_service_worker_container;
 }
 

@@ -8,7 +8,7 @@
 
 #include <LibWeb/DOM/EventTarget.h>
 
-namespace Web::HTML {
+namespace Web::ServiceWorker {
 
 class ServiceWorkerRegistration : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(ServiceWorkerRegistration, DOM::EventTarget);

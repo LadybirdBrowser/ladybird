@@ -7,9 +7,9 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ServiceWorkerRegistrationPrototype.h>
-#include <LibWeb/HTML/ServiceWorkerRegistration.h>
+#include <LibWeb/ServiceWorker/ServiceWorkerRegistration.h>
 
-namespace Web::HTML {
+namespace Web::ServiceWorker {
 
 GC_DEFINE_ALLOCATOR(ServiceWorkerRegistration);
 

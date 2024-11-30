@@ -463,9 +463,6 @@ set(SOURCES
     HTML/Scripting/SerializedEnvironmentSettingsObject.cpp
     HTML/SelectedFile.cpp
     HTML/SelectItem.cpp
-    HTML/ServiceWorker.cpp
-    HTML/ServiceWorkerContainer.cpp
-    HTML/ServiceWorkerRegistration.cpp
     HTML/SessionHistoryEntry.cpp
     HTML/SessionHistoryTraversalQueue.cpp
     HTML/ShadowRealmGlobalScope.cpp
@@ -670,7 +667,10 @@ set(SOURCES
     SecureContexts/AbstractOperations.cpp
     ServiceWorker/Job.cpp
     ServiceWorker/Registration.cpp
+    ServiceWorker/ServiceWorker.cpp
+    ServiceWorker/ServiceWorkerContainer.cpp
     ServiceWorker/ServiceWorkerRecord.cpp
+    ServiceWorker/ServiceWorkerRegistration.cpp
     SRI/SRI.cpp
     StorageAPI/NavigatorStorage.cpp
     StorageAPI/StorageKey.cpp

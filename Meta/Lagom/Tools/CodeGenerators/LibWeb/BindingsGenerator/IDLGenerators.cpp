@@ -4308,6 +4308,7 @@ using namespace Web::PerformanceTimeline;
 using namespace Web::RequestIdleCallback;
 using namespace Web::ResizeObserver;
 using namespace Web::Selection;
+using namespace Web::ServiceWorker;
 using namespace Web::StorageAPI;
 using namespace Web::Streams;
 using namespace Web::SVG;

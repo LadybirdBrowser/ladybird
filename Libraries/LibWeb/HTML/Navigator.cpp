@@ -13,10 +13,10 @@
 #include <LibWeb/Clipboard/Clipboard.h>
 #include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/ServiceWorkerContainer.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/ServiceWorker/ServiceWorkerContainer.h>
 
 namespace Web::HTML {
 
@@ -117,10 +117,10 @@ Optional<FlyString> Navigator::do_not_track() const
     return {};
 }
 
-GC::Ref<ServiceWorkerContainer> Navigator::service_worker()
+GC::Ref<ServiceWorker::ServiceWorkerContainer> Navigator::service_worker()
 {
     if (!m_service_worker_container)
-        m_service_worker_container = realm().create<ServiceWorkerContainer>(realm());
+        m_service_worker_container = realm().create<ServiceWorker::ServiceWorkerContainer>(realm());
     return *m_service_worker_container;
 }
 

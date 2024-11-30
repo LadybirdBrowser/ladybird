@@ -7,9 +7,9 @@
 #import <HTML/NavigatorLanguage.idl>
 #import <HTML/NavigatorOnLine.idl>
 #import <HTML/PluginArray.idl>
-#import <HTML/ServiceWorkerContainer.idl>
 #import <HTML/UserActivation.idl>
 #import <MediaCapabilitiesAPI/MediaCapabilities.idl>
+#import <ServiceWorker/ServiceWorkerContainer.idl>
 #import <StorageAPI/NavigatorStorage.idl>
 
 // https://html.spec.whatwg.org/multipage/system-state.html#navigator

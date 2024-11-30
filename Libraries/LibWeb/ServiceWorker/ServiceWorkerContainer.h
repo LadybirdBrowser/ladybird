@@ -18,7 +18,7 @@
     E(onmessage, HTML::EventNames::message)                   \
     E(onmessageerror, HTML::EventNames::messageerror)
 
-namespace Web::HTML {
+namespace Web::ServiceWorker {
 
 struct RegistrationOptions {
     Optional<String> scope;
@@ -49,9 +49,9 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    void start_register(Optional<URL::URL> scope_url, URL::URL script_url, GC::Ref<WebIDL::Promise>, EnvironmentSettingsObject&, URL::URL referrer, Bindings::WorkerType, Bindings::ServiceWorkerUpdateViaCache);
+    void start_register(Optional<URL::URL> scope_url, URL::URL script_url, GC::Ref<WebIDL::Promise>, HTML::EnvironmentSettingsObject&, URL::URL referrer, Bindings::WorkerType, Bindings::ServiceWorkerUpdateViaCache);
 
-    GC::Ref<EnvironmentSettingsObject> m_service_worker_client;
+    GC::Ref<HTML::EnvironmentSettingsObject> m_service_worker_client;
 };
 
 }
