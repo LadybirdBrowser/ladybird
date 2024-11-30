@@ -8,9 +8,9 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/EventNames.h>
-#include <LibWeb/HTML/ServiceWorker.h>
+#include <LibWeb/ServiceWorker/ServiceWorker.h>
 
-namespace Web::HTML {
+namespace Web::ServiceWorker {
 
 ServiceWorker::ServiceWorker(JS::Realm& realm, String script_url)
     : DOM::EventTarget(realm)

@@ -10,17 +10,18 @@
 #include <LibWeb/Bindings/ServiceWorkerContainerPrototype.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/EventNames.h>
-#include <LibWeb/HTML/ServiceWorkerContainer.h>
 #include <LibWeb/ServiceWorker/Job.h>
+#include <LibWeb/ServiceWorker/ServiceWorker.h>
+#include <LibWeb/ServiceWorker/ServiceWorkerContainer.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 
-namespace Web::HTML {
+namespace Web::ServiceWorker {
 
 GC_DEFINE_ALLOCATOR(ServiceWorkerContainer);
 
 ServiceWorkerContainer::ServiceWorkerContainer(JS::Realm& realm)
     : DOM::EventTarget(realm)
-    , m_service_worker_client(relevant_settings_object(*this))
+    , m_service_worker_client(HTML::relevant_settings_object(*this))
 {
 }
 
@@ -61,7 +62,7 @@ GC::Ref<WebIDL::Promise> ServiceWorkerContainer::register_(String script_url, Re
     auto client = m_service_worker_client;
 
     // 4. Let scriptURL be the result of parsing scriptURL with this's relevant settings object’s API base URL.
-    auto base_url = relevant_settings_object(*this).api_base_url();
+    auto base_url = HTML::relevant_settings_object(*this).api_base_url();
     auto parsed_script_url = DOMURL::parse(script_url, base_url);
 
     // 5. Let scopeURL be null.
@@ -80,7 +81,7 @@ GC::Ref<WebIDL::Promise> ServiceWorkerContainer::register_(String script_url, Re
 }
 
 // https://w3c.github.io/ServiceWorker/#start-register-algorithm
-void ServiceWorkerContainer::start_register(Optional<URL::URL> scope_url, URL::URL script_url, GC::Ref<WebIDL::Promise> promise, EnvironmentSettingsObject& client, URL::URL referrer, Bindings::WorkerType worker_type, Bindings::ServiceWorkerUpdateViaCache update_via_cache)
+void ServiceWorkerContainer::start_register(Optional<URL::URL> scope_url, URL::URL script_url, GC::Ref<WebIDL::Promise> promise, HTML::EnvironmentSettingsObject& client, URL::URL referrer, Bindings::WorkerType worker_type, Bindings::ServiceWorkerUpdateViaCache update_via_cache)
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
@@ -155,7 +156,7 @@ void ServiceWorkerContainer::start_register(Optional<URL::URL> scope_url, URL::U
     }
 
     // 11. Let job be the result of running Create Job with register, storage key, scopeURL, scriptURL, promise, and client.
-    auto job = ServiceWorker::Job::create(vm, ServiceWorker::Job::Type::Register, storage_key.value(), scope_url.value(), script_url, promise, client);
+    auto job = Job::create(vm, Job::Type::Register, storage_key.value(), scope_url.value(), script_url, promise, client);
 
     // 12. Set job’s worker type to workerType.
     job->worker_type = worker_type;
@@ -167,7 +168,7 @@ void ServiceWorkerContainer::start_register(Optional<URL::URL> scope_url, URL::U
     job->referrer = move(referrer);
 
     // 15. Invoke Schedule Job with job.
-    ServiceWorker::schedule_job(vm, job);
+    schedule_job(vm, job);
 }
 
 #undef __ENUMERATE

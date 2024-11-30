@@ -516,8 +516,6 @@ class PluginArray;
 class PromiseRejectionEvent;
 class RadioNodeList;
 class SelectedFile;
-class ServiceWorkerContainer;
-class ServiceWorkerRegistration;
 class SessionHistoryEntry;
 class SharedResourceRequest;
 class Storage;
@@ -714,6 +712,12 @@ class ResizeObserver;
 
 namespace Web::Selection {
 class Selection;
+}
+
+namespace Web::ServiceWorker {
+class ServiceWorker;
+class ServiceWorkerContainer;
+class ServiceWorkerRegistration;
 }
 
 namespace Web::Streams {
