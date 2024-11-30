@@ -11,7 +11,7 @@
 #include <AK/Traits.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/ServiceWorkerRegistrationPrototype.h>
-#include <LibWeb/ServiceWorker/ServiceWorker.h>
+#include <LibWeb/ServiceWorker/ServiceWorkerRecord.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 
 namespace Web::ServiceWorker {
@@ -41,7 +41,7 @@ public:
 
     void set_last_update_check_time(MonotonicTime time) { m_last_update_check_time = time; }
 
-    ServiceWorker* newest_worker() const;
+    ServiceWorkerRecord* newest_worker() const;
     bool is_stale() const;
 
 private:
@@ -50,10 +50,10 @@ private:
     StorageAPI::StorageKey m_storage_key; // https://w3c.github.io/ServiceWorker/#service-worker-registration-storage-key
     URL::URL m_scope_url;                 // https://w3c.github.io/ServiceWorker/#dfn-scope-url
 
-    // NOTE: These are "service workers", not "HTML::ServiceWorker"s
-    ServiceWorker* m_installing_worker { nullptr }; // https://w3c.github.io/ServiceWorker/#dfn-installing-worker
-    ServiceWorker* m_waiting_worker { nullptr };    // https://w3c.github.io/ServiceWorker/#dfn-waiting-worker
-    ServiceWorker* m_active_worker { nullptr };     // https://w3c.github.io/ServiceWorker/#dfn-active-worker
+    // NOTE: These are "service workers", not "ServiceWorker"s - (i.e, not what is exposed over JS)
+    ServiceWorkerRecord* m_installing_worker { nullptr }; // https://w3c.github.io/ServiceWorker/#dfn-installing-worker
+    ServiceWorkerRecord* m_waiting_worker { nullptr };    // https://w3c.github.io/ServiceWorker/#dfn-waiting-worker
+    ServiceWorkerRecord* m_active_worker { nullptr };     // https://w3c.github.io/ServiceWorker/#dfn-active-worker
 
     Optional<MonotonicTime> m_last_update_check_time;                                                               // https://w3c.github.io/ServiceWorker/#dfn-last-update-check-time
     Bindings::ServiceWorkerUpdateViaCache m_update_via_cache_mode = Bindings::ServiceWorkerUpdateViaCache::Imports; // https://w3c.github.io/ServiceWorker/#dfn-update-via-cache

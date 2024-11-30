@@ -670,7 +670,7 @@ set(SOURCES
     SecureContexts/AbstractOperations.cpp
     ServiceWorker/Job.cpp
     ServiceWorker/Registration.cpp
-    ServiceWorker/ServiceWorker.cpp
+    ServiceWorker/ServiceWorkerRecord.cpp
     SRI/SRI.cpp
     StorageAPI/NavigatorStorage.cpp
     StorageAPI/StorageKey.cpp
