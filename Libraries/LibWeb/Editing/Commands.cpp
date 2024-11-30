@@ -19,6 +19,24 @@
 
 namespace Web::Editing {
 
+// https://w3c.github.io/editing/docs/execCommand/#the-stylewithcss-command
+bool command_style_with_css_action(DOM::Document& document, String const& value)
+{
+    // If value is an ASCII case-insensitive match for the string "false", set the CSS styling flag to false.
+    // Otherwise, set the CSS styling flag to true.
+    document.set_css_styling_flag(!value.equals_ignoring_ascii_case("false"sv));
+
+    // Either way, return true.
+    return true;
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-stylewithcss-command
+bool command_style_with_css_state(DOM::Document const& document)
+{
+    // True if the CSS styling flag is true, otherwise false.
+    return document.css_styling_flag();
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-defaultparagraphseparator-command
 bool command_default_paragraph_separator_action(DOM::Document& document, String const& input_value)
 {
@@ -369,6 +387,7 @@ bool command_delete_action(DOM::Document& document, String const&)
 static Array const commands {
     CommandDefinition { CommandNames::delete_, command_delete_action, {}, {}, {} },
     CommandDefinition { CommandNames::defaultParagraphSeparator, command_default_paragraph_separator_action, {}, {}, command_default_paragraph_separator_value },
+    CommandDefinition { CommandNames::styleWithCSS, command_style_with_css_action, {}, command_style_with_css_state, {} },
 };
 
 Optional<CommandDefinition const&> find_command_definition(FlyString const& command)
