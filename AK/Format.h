@@ -775,6 +775,21 @@ struct Formatter<Optional<T>> : Formatter<FormatString> {
 
 } // namespace AK
 
+#undef AK_HANDLE_UNEXPECTED_ERROR
+#define AK_HANDLE_UNEXPECTED_ERROR(result)                                    \
+    if (result.is_error()) [[unlikely]] {                                     \
+        if (ak_colorize_output()) {                                           \
+            ::AK::warn("\033[31;1mUNEXPECTED ERROR\033[0m");                  \
+        } else {                                                              \
+            ::AK::warn("UNEXPECTED ERROR");                                   \
+        }                                                                     \
+        if constexpr (::AK::HasFormatter<decltype(result.release_error())>) { \
+            ::AK::warn(": {}", result.release_error());                       \
+        }                                                                     \
+        ::AK::warnln(" at {}:{}", __FILE__, __LINE__);                        \
+        ak_trap();                                                            \
+    }
+
 #if USING_AK_GLOBALLY
 using AK::out;
 using AK::outln;
