@@ -18,10 +18,10 @@ class HTMLTableCellElement final : public HTMLElement {
 public:
     virtual ~HTMLTableCellElement() override;
 
-    unsigned col_span() const;
+    WebIDL::UnsignedLong col_span() const;
     unsigned row_span() const;
 
-    WebIDL::ExceptionOr<void> set_col_span(unsigned);
+    WebIDL::ExceptionOr<void> set_col_span(WebIDL::UnsignedLong);
     WebIDL::ExceptionOr<void> set_row_span(unsigned);
 
     WebIDL::Long cell_index() const;

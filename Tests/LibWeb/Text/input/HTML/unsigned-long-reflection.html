@@ -34,6 +34,7 @@
             setValue(2147483647);
             setValue(2147483648);
             setValue(4294967295);
+            setValue(4294967296);
         }
 
         const imageButtonInputFactory = () => {
@@ -55,6 +56,7 @@
         testProperty("marquee", "scrollAmount", (marquee) => marquee.scrollAmount, (marquee, value) => marquee.scrollAmount = value);
         testProperty("marquee", "scrollDelay", (marquee) => marquee.scrollDelay, (marquee, value) => marquee.scrollDelay = value);
         testProperty("select", "size", (select) => select.size, (select, value) => select.size = value);
+        testProperty("td", "colSpan", (tableCell) => tableCell.colSpan, (tableCell, value) => tableCell.colSpan = value);
         testProperty("textarea", "maxLength", (textarea) => textarea.maxLength, (textarea, value) => textarea.maxLength = value);
         testProperty("textarea", "minLength", (textarea) => textarea.minLength, (textarea, value) => textarea.minLength = value);
         testProperty("textarea", "rows", (textarea) => textarea.rows, (textarea, value) => textarea.rows = value);
