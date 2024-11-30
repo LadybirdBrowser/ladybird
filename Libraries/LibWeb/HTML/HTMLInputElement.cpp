@@ -1849,7 +1849,7 @@ WebIDL::Long HTMLInputElement::min_length() const
 {
     // The minLength IDL attribute must reflect the minlength content attribute, limited to only non-negative numbers.
     if (auto minlength_string = get_attribute(HTML::AttributeNames::minlength); minlength_string.has_value()) {
-        if (auto minlength = parse_non_negative_integer(*minlength_string); minlength.has_value())
+        if (auto minlength = parse_non_negative_integer(*minlength_string); minlength.has_value() && *minlength <= 2147483647)
             return *minlength;
     }
     return -1;

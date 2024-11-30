@@ -116,6 +116,24 @@ input.maxLength = 2147483648 threw exception of type IndexSizeError
 input.getAttribute("maxlength") after input.setAttribute("maxLength", "4294967295"): 4294967295
 input.maxLength after input.setAttribute("maxlength", "4294967295"): -1
 input.maxLength = 4294967295 threw exception of type IndexSizeError
+input.getAttribute("minlength") after input.setAttribute("minLength", "0"): 0
+input.minLength after input.setAttribute("minlength", "0"): 0
+input.getAttribute("minlength") after input.minLength = 0: 0
+input.minLength after input.minLength = 0: 0
+input.getAttribute("minlength") after input.setAttribute("minLength", "1"): 1
+input.minLength after input.setAttribute("minlength", "1"): 1
+input.getAttribute("minlength") after input.minLength = 1: 1
+input.minLength after input.minLength = 1: 1
+input.getAttribute("minlength") after input.setAttribute("minLength", "2147483647"): 2147483647
+input.minLength after input.setAttribute("minlength", "2147483647"): 2147483647
+input.getAttribute("minlength") after input.minLength = 2147483647: 2147483647
+input.minLength after input.minLength = 2147483647: 2147483647
+input.getAttribute("minlength") after input.setAttribute("minLength", "2147483648"): 2147483648
+input.minLength after input.setAttribute("minlength", "2147483648"): -1
+input.minLength = 2147483648 threw exception of type IndexSizeError
+input.getAttribute("minlength") after input.setAttribute("minLength", "4294967295"): 4294967295
+input.minLength after input.setAttribute("minlength", "4294967295"): -1
+input.minLength = 4294967295 threw exception of type IndexSizeError
 input.getAttribute("size") after input.setAttribute("size", "0"): 0
 input.size after input.setAttribute("size", "0"): 20
 input.size = 0 threw exception of type IndexSizeError
