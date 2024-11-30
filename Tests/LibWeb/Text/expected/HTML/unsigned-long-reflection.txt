@@ -253,6 +253,24 @@ select.getAttribute("size") after select.setAttribute("size", "4294967295"): 429
 select.size after select.setAttribute("size", "4294967295"): 0
 select.getAttribute("size") after select.size = 4294967295: 0
 select.size after select.size = 4294967295: 0
+textarea.getAttribute("minlength") after textarea.setAttribute("minLength", "0"): 0
+textarea.minLength after textarea.setAttribute("minlength", "0"): 0
+textarea.getAttribute("minlength") after textarea.minLength = 0: 0
+textarea.minLength after textarea.minLength = 0: 0
+textarea.getAttribute("minlength") after textarea.setAttribute("minLength", "1"): 1
+textarea.minLength after textarea.setAttribute("minlength", "1"): 1
+textarea.getAttribute("minlength") after textarea.minLength = 1: 1
+textarea.minLength after textarea.minLength = 1: 1
+textarea.getAttribute("minlength") after textarea.setAttribute("minLength", "2147483647"): 2147483647
+textarea.minLength after textarea.setAttribute("minlength", "2147483647"): 2147483647
+textarea.getAttribute("minlength") after textarea.minLength = 2147483647: 2147483647
+textarea.minLength after textarea.minLength = 2147483647: 2147483647
+textarea.getAttribute("minlength") after textarea.setAttribute("minLength", "2147483648"): 2147483648
+textarea.minLength after textarea.setAttribute("minlength", "2147483648"): -2147483648
+textarea.minLength = 2147483648 threw exception of type IndexSizeError
+textarea.getAttribute("minlength") after textarea.setAttribute("minLength", "4294967295"): 4294967295
+textarea.minLength after textarea.setAttribute("minlength", "4294967295"): -1
+textarea.minLength = 4294967295 threw exception of type IndexSizeError
 textarea.getAttribute("rows") after textarea.setAttribute("rows", "0"): 0
 textarea.rows after textarea.setAttribute("rows", "0"): 2
 textarea.getAttribute("rows") after textarea.rows = 0: 2
