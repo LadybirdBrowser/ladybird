@@ -48,9 +48,9 @@ GC::Ref<Range> Range::create(Document& document)
     return realm.create<Range>(document);
 }
 
-GC::Ref<Range> Range::create(Node& start_container, WebIDL::UnsignedLong start_offset, Node& end_container, WebIDL::UnsignedLong end_offset)
+GC::Ref<Range> Range::create(GC::Ref<Node> start_container, WebIDL::UnsignedLong start_offset, GC::Ref<Node> end_container, WebIDL::UnsignedLong end_offset)
 {
-    auto& realm = start_container.realm();
+    auto& realm = start_container->realm();
     return realm.create<Range>(start_container, start_offset, end_container, end_offset);
 }
 
@@ -65,7 +65,7 @@ Range::Range(Document& document)
 {
 }
 
-Range::Range(Node& start_container, WebIDL::UnsignedLong start_offset, Node& end_container, WebIDL::UnsignedLong end_offset)
+Range::Range(GC::Ref<Node> start_container, WebIDL::UnsignedLong start_offset, GC::Ref<Node> end_container, WebIDL::UnsignedLong end_offset)
     : AbstractRange(start_container, start_offset, end_container, end_offset)
 {
     live_ranges().set(this);
@@ -110,25 +110,20 @@ void Range::update_associated_selection()
 }
 
 // https://dom.spec.whatwg.org/#concept-range-root
-Node& Range::root()
+GC::Ref<Node> Range::root() const
 {
     // The root of a live range is the root of its start node.
     return m_start_container->root();
 }
 
-Node const& Range::root() const
-{
-    return m_start_container->root();
-}
-
 // https://dom.spec.whatwg.org/#concept-range-bp-position
-RelativeBoundaryPointPosition position_of_boundary_point_relative_to_other_boundary_point(Node const& node_a, u32 offset_a, Node const& node_b, u32 offset_b)
+RelativeBoundaryPointPosition position_of_boundary_point_relative_to_other_boundary_point(GC::Ref<Node> node_a, u32 offset_a, GC::Ref<Node> node_b, u32 offset_b)
 {
     // 1. Assert: nodeA and nodeB have the same root.
-    VERIFY(&node_a.root() == &node_b.root());
+    VERIFY(&node_a->root() == &node_b->root());
 
     // 2. If nodeA is nodeB, then return equal if offsetA is offsetB, before if offsetA is less than offsetB, and after if offsetA is greater than offsetB.
-    if (&node_a == &node_b) {
+    if (node_a == node_b) {
         if (offset_a == offset_b)
             return RelativeBoundaryPointPosition::Equal;
 
@@ -139,7 +134,7 @@ RelativeBoundaryPointPosition position_of_boundary_point_relative_to_other_bound
     }
 
     // 3. If nodeA is following nodeB, then if the position of (nodeB, offsetB) relative to (nodeA, offsetA) is before, return after, and if it is after, return before.
-    if (node_a.is_following(node_b)) {
+    if (node_a->is_following(node_b)) {
         auto relative_position = position_of_boundary_point_relative_to_other_boundary_point(node_b, offset_b, node_a, offset_a);
 
         if (relative_position == RelativeBoundaryPointPosition::Before)
@@ -150,12 +145,12 @@ RelativeBoundaryPointPosition position_of_boundary_point_relative_to_other_bound
     }
 
     // 4. If nodeA is an ancestor of nodeB:
-    if (node_a.is_ancestor_of(node_b)) {
+    if (node_a->is_ancestor_of(node_b)) {
         // 1. Let child be nodeB.
         GC::Ref<Node const> child = node_b;
 
         // 2. While child is not a child of nodeA, set child to its parent.
-        while (!node_a.is_parent_of(child)) {
+        while (!node_a->is_parent_of(child)) {
             auto* parent = child->parent();
             VERIFY(parent);
             child = *parent;
@@ -170,16 +165,16 @@ RelativeBoundaryPointPosition position_of_boundary_point_relative_to_other_bound
     return RelativeBoundaryPointPosition::Before;
 }
 
-WebIDL::ExceptionOr<void> Range::set_start_or_end(Node& node, u32 offset, StartOrEnd start_or_end)
+WebIDL::ExceptionOr<void> Range::set_start_or_end(GC::Ref<Node> node, u32 offset, StartOrEnd start_or_end)
 {
     // To set the start or end of a range to a boundary point (node, offset), run these steps:
 
     // 1. If node is a doctype, then throw an "InvalidNodeTypeError" DOMException.
-    if (is<DocumentType>(node))
+    if (is<DocumentType>(*node))
         return WebIDL::InvalidNodeTypeError::create(realm(), "Node cannot be a DocumentType."_string);
 
     // 2. If offset is greater than node’s length, then throw an "IndexSizeError" DOMException.
-    if (offset > node.length())
+    if (offset > node->length())
         return WebIDL::IndexSizeError::create(realm(), MUST(String::formatted("Node does not contain a child at offset {}", offset)));
 
     // 3. Let bp be the boundary point (node, offset).
@@ -188,7 +183,7 @@ WebIDL::ExceptionOr<void> Range::set_start_or_end(Node& node, u32 offset, StartO
         // -> If these steps were invoked as "set the start"
 
         // 1. If range’s root is not equal to node’s root, or if bp is after the range’s end, set range’s end to bp.
-        if (&root() != &node.root() || position_of_boundary_point_relative_to_other_boundary_point(node, offset, m_end_container, m_end_offset) == RelativeBoundaryPointPosition::After) {
+        if (root().ptr() != &node->root() || position_of_boundary_point_relative_to_other_boundary_point(node, offset, m_end_container, m_end_offset) == RelativeBoundaryPointPosition::After) {
             m_end_container = node;
             m_end_offset = offset;
         }
@@ -201,7 +196,7 @@ WebIDL::ExceptionOr<void> Range::set_start_or_end(Node& node, u32 offset, StartO
         VERIFY(start_or_end == StartOrEnd::End);
 
         // 1. If range’s root is not equal to node’s root, or if bp is before the range’s start, set range’s start to bp.
-        if (&root() != &node.root() || position_of_boundary_point_relative_to_other_boundary_point(node, offset, m_start_container, m_start_offset) == RelativeBoundaryPointPosition::Before) {
+        if (root().ptr() != &node->root() || position_of_boundary_point_relative_to_other_boundary_point(node, offset, m_start_container, m_start_offset) == RelativeBoundaryPointPosition::Before) {
             m_start_container = node;
             m_start_offset = offset;
         }
@@ -216,72 +211,72 @@ WebIDL::ExceptionOr<void> Range::set_start_or_end(Node& node, u32 offset, StartO
 }
 
 // https://dom.spec.whatwg.org/#concept-range-bp-set
-WebIDL::ExceptionOr<void> Range::set_start(Node& node, WebIDL::UnsignedLong offset)
+WebIDL::ExceptionOr<void> Range::set_start(GC::Ref<Node> node, WebIDL::UnsignedLong offset)
 {
     // The setStart(node, offset) method steps are to set the start of this to boundary point (node, offset).
     return set_start_or_end(node, offset, StartOrEnd::Start);
 }
 
-WebIDL::ExceptionOr<void> Range::set_end(Node& node, WebIDL::UnsignedLong offset)
+WebIDL::ExceptionOr<void> Range::set_end(GC::Ref<Node> node, WebIDL::UnsignedLong offset)
 {
     // The setEnd(node, offset) method steps are to set the end of this to boundary point (node, offset).
     return set_start_or_end(node, offset, StartOrEnd::End);
 }
 
 // https://dom.spec.whatwg.org/#dom-range-setstartbefore
-WebIDL::ExceptionOr<void> Range::set_start_before(Node& node)
+WebIDL::ExceptionOr<void> Range::set_start_before(GC::Ref<Node> node)
 {
     // 1. Let parent be node’s parent.
-    auto* parent = node.parent();
+    auto* parent = node->parent();
 
     // 2. If parent is null, then throw an "InvalidNodeTypeError" DOMException.
     if (!parent)
         return WebIDL::InvalidNodeTypeError::create(realm(), "Given node has no parent."_string);
 
     // 3. Set the start of this to boundary point (parent, node’s index).
-    return set_start_or_end(*parent, node.index(), StartOrEnd::Start);
+    return set_start_or_end(*parent, node->index(), StartOrEnd::Start);
 }
 
 // https://dom.spec.whatwg.org/#dom-range-setstartafter
-WebIDL::ExceptionOr<void> Range::set_start_after(Node& node)
+WebIDL::ExceptionOr<void> Range::set_start_after(GC::Ref<Node> node)
 {
     // 1. Let parent be node’s parent.
-    auto* parent = node.parent();
+    auto* parent = node->parent();
 
     // 2. If parent is null, then throw an "InvalidNodeTypeError" DOMException.
     if (!parent)
         return WebIDL::InvalidNodeTypeError::create(realm(), "Given node has no parent."_string);
 
     // 3. Set the start of this to boundary point (parent, node’s index plus 1).
-    return set_start_or_end(*parent, node.index() + 1, StartOrEnd::Start);
+    return set_start_or_end(*parent, node->index() + 1, StartOrEnd::Start);
 }
 
 // https://dom.spec.whatwg.org/#dom-range-setendbefore
-WebIDL::ExceptionOr<void> Range::set_end_before(Node& node)
+WebIDL::ExceptionOr<void> Range::set_end_before(GC::Ref<Node> node)
 {
     // 1. Let parent be node’s parent.
-    auto* parent = node.parent();
+    auto* parent = node->parent();
 
     // 2. If parent is null, then throw an "InvalidNodeTypeError" DOMException.
     if (!parent)
         return WebIDL::InvalidNodeTypeError::create(realm(), "Given node has no parent."_string);
 
     // 3. Set the end of this to boundary point (parent, node’s index).
-    return set_start_or_end(*parent, node.index(), StartOrEnd::End);
+    return set_start_or_end(*parent, node->index(), StartOrEnd::End);
 }
 
 // https://dom.spec.whatwg.org/#dom-range-setendafter
-WebIDL::ExceptionOr<void> Range::set_end_after(Node& node)
+WebIDL::ExceptionOr<void> Range::set_end_after(GC::Ref<Node> node)
 {
     // 1. Let parent be node’s parent.
-    auto* parent = node.parent();
+    auto* parent = node->parent();
 
     // 2. If parent is null, then throw an "InvalidNodeTypeError" DOMException.
     if (!parent)
         return WebIDL::InvalidNodeTypeError::create(realm(), "Given node has no parent."_string);
 
     // 3. Set the end of this to boundary point (parent, node’s index plus 1).
-    return set_start_or_end(*parent, node.index() + 1, StartOrEnd::End);
+    return set_start_or_end(*parent, node->index() + 1, StartOrEnd::End);
 }
 
 // https://dom.spec.whatwg.org/#dom-range-compareboundarypoints
@@ -297,7 +292,7 @@ WebIDL::ExceptionOr<WebIDL::Short> Range::compare_boundary_points(WebIDL::Unsign
         return WebIDL::NotSupportedError::create(realm(), MUST(String::formatted("Expected 'how' to be one of START_TO_START (0), START_TO_END (1), END_TO_END (2) or END_TO_START (3), got {}", how)));
 
     // 2. If this’s root is not the same as sourceRange’s root, then throw a "WrongDocumentError" DOMException.
-    if (&root() != &source_range.root())
+    if (root() != source_range.root())
         return WebIDL::WrongDocumentError::create(realm(), "This range is not in the same tree as the source range."_string);
 
     GC::Ptr<Node> this_point_node;
@@ -372,17 +367,17 @@ WebIDL::ExceptionOr<WebIDL::Short> Range::compare_boundary_points(WebIDL::Unsign
 }
 
 // https://dom.spec.whatwg.org/#concept-range-select
-WebIDL::ExceptionOr<void> Range::select(Node& node)
+WebIDL::ExceptionOr<void> Range::select(GC::Ref<Node> node)
 {
     // 1. Let parent be node’s parent.
-    auto* parent = node.parent();
+    auto* parent = node->parent();
 
     // 2. If parent is null, then throw an "InvalidNodeTypeError" DOMException.
     if (!parent)
         return WebIDL::InvalidNodeTypeError::create(realm(), "Given node has no parent."_string);
 
     // 3. Let index be node’s index.
-    auto index = node.index();
+    auto index = node->index();
 
     // 4. Set range’s start to boundary point (parent, index).
     m_start_container = *parent;
@@ -397,7 +392,7 @@ WebIDL::ExceptionOr<void> Range::select(Node& node)
 }
 
 // https://dom.spec.whatwg.org/#dom-range-selectnode
-WebIDL::ExceptionOr<void> Range::select_node(Node& node)
+WebIDL::ExceptionOr<void> Range::select_node(GC::Ref<Node> node)
 {
     // The selectNode(node) method steps are to select node within this.
     return select(node);
@@ -418,14 +413,14 @@ void Range::collapse(bool to_start)
 }
 
 // https://dom.spec.whatwg.org/#dom-range-selectnodecontents
-WebIDL::ExceptionOr<void> Range::select_node_contents(Node& node)
+WebIDL::ExceptionOr<void> Range::select_node_contents(GC::Ref<Node> node)
 {
     // 1. If node is a doctype, throw an "InvalidNodeTypeError" DOMException.
-    if (is<DocumentType>(node))
+    if (is<DocumentType>(*node))
         return WebIDL::InvalidNodeTypeError::create(realm(), "Node cannot be a DocumentType."_string);
 
     // 2. Let length be the length of node.
-    auto length = node.length();
+    auto length = node->length();
 
     // 3. Set start to the boundary point (node, 0).
     m_start_container = node;
@@ -481,21 +476,21 @@ GC::Ref<Node> Range::common_ancestor_container() const
 }
 
 // https://dom.spec.whatwg.org/#dom-range-intersectsnode
-bool Range::intersects_node(Node const& node) const
+bool Range::intersects_node(GC::Ref<Node> node) const
 {
     // 1. If node’s root is different from this’s root, return false.
-    if (&node.root() != &root())
+    if (&node->root() != root().ptr())
         return false;
 
     // 2. Let parent be node’s parent.
-    auto* parent = node.parent();
+    auto* parent = node->parent();
 
     // 3. If parent is null, return true.
     if (!parent)
         return true;
 
     // 4. Let offset be node’s index.
-    auto offset = node.index();
+    auto offset = node->index();
 
     // 5. If (parent, offset) is before end and (parent, offset plus 1) is after start, return true
     auto relative_position_to_end = position_of_boundary_point_relative_to_other_boundary_point(*parent, offset, m_end_container, m_end_offset);
@@ -508,18 +503,18 @@ bool Range::intersects_node(Node const& node) const
 }
 
 // https://dom.spec.whatwg.org/#dom-range-ispointinrange
-WebIDL::ExceptionOr<bool> Range::is_point_in_range(Node const& node, WebIDL::UnsignedLong offset) const
+WebIDL::ExceptionOr<bool> Range::is_point_in_range(GC::Ref<Node> node, WebIDL::UnsignedLong offset) const
 {
     // 1. If node’s root is different from this’s root, return false.
-    if (&node.root() != &root())
+    if (&node->root() != root().ptr())
         return false;
 
     // 2. If node is a doctype, then throw an "InvalidNodeTypeError" DOMException.
-    if (is<DocumentType>(node))
+    if (is<DocumentType>(*node))
         return WebIDL::InvalidNodeTypeError::create(realm(), "Node cannot be a DocumentType."_string);
 
     // 3. If offset is greater than node’s length, then throw an "IndexSizeError" DOMException.
-    if (offset > node.length())
+    if (offset > node->length())
         return WebIDL::IndexSizeError::create(realm(), MUST(String::formatted("Node does not contain a child at offset {}", offset)));
 
     // 4. If (node, offset) is before start or after end, return false.
@@ -533,18 +528,18 @@ WebIDL::ExceptionOr<bool> Range::is_point_in_range(Node const& node, WebIDL::Uns
 }
 
 // https://dom.spec.whatwg.org/#dom-range-comparepoint
-WebIDL::ExceptionOr<WebIDL::Short> Range::compare_point(Node const& node, WebIDL::UnsignedLong offset) const
+WebIDL::ExceptionOr<WebIDL::Short> Range::compare_point(GC::Ref<Node> node, WebIDL::UnsignedLong offset) const
 {
     // 1. If node’s root is different from this’s root, then throw a "WrongDocumentError" DOMException.
-    if (&node.root() != &root())
+    if (&node->root() != root().ptr())
         return WebIDL::WrongDocumentError::create(realm(), "Given node is not in the same document as the range."_string);
 
     // 2. If node is a doctype, then throw an "InvalidNodeTypeError" DOMException.
-    if (is<DocumentType>(node))
+    if (is<DocumentType>(*node))
         return WebIDL::InvalidNodeTypeError::create(realm(), "Node cannot be a DocumentType."_string);
 
     // 3. If offset is greater than node’s length, then throw an "IndexSizeError" DOMException.
-    if (offset > node.length())
+    if (offset > node->length())
         return WebIDL::IndexSizeError::create(realm(), MUST(String::formatted("Node does not contain a child at offset {}", offset)));
 
     // 4. If (node, offset) is before start, return −1.
@@ -581,7 +576,7 @@ String Range::to_string() const
     }
 
     // 4. Append the concatenation of the data of all Text nodes that are contained in this, in tree order, to s.
-    for (Node const* node = start_container(); node != end_container()->next_sibling(); node = node->next_in_pre_order()) {
+    for (GC::Ptr<Node> node = start_container(); node != end_container()->next_sibling(); node = node->next_in_pre_order()) {
         if (is<Text>(*node) && contains_node(*node))
             builder.append(static_cast<Text const&>(*node).data());
     }
@@ -790,10 +785,10 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::extract()
 }
 
 // https://dom.spec.whatwg.org/#contained
-bool Range::contains_node(Node const& node) const
+bool Range::contains_node(GC::Ref<Node> node) const
 {
     // A node node is contained in a live range range if node’s root is range’s root,
-    if (&node.root() != &root())
+    if (&node->root() != root().ptr())
         return false;
 
     // and (node, 0) is after range’s start,
@@ -801,19 +796,19 @@ bool Range::contains_node(Node const& node) const
         return false;
 
     // and (node, node’s length) is before range’s end.
-    if (position_of_boundary_point_relative_to_other_boundary_point(node, node.length(), m_end_container, m_end_offset) != RelativeBoundaryPointPosition::Before)
+    if (position_of_boundary_point_relative_to_other_boundary_point(node, node->length(), m_end_container, m_end_offset) != RelativeBoundaryPointPosition::Before)
         return false;
 
     return true;
 }
 
 // https://dom.spec.whatwg.org/#partially-contained
-bool Range::partially_contains_node(Node const& node) const
+bool Range::partially_contains_node(GC::Ref<Node> node) const
 {
     // A node is partially contained in a live range if it’s an inclusive ancestor of the live range’s start node but not its end node, or vice versa.
-    if (node.is_inclusive_ancestor_of(m_start_container) && &node != m_end_container.ptr())
+    if (node->is_inclusive_ancestor_of(m_start_container) && node != m_end_container)
         return true;
-    if (node.is_inclusive_ancestor_of(m_end_container) && &node != m_start_container.ptr())
+    if (node->is_inclusive_ancestor_of(m_end_container) && node != m_start_container)
         return true;
     return false;
 }
@@ -1109,9 +1104,9 @@ WebIDL::ExceptionOr<void> Range::delete_contents()
 
     // 4. Let nodes to remove be a list of all the nodes that are contained in this, in tree order, omitting any node whose parent is also contained in this.
     GC::MarkedVector<Node*> nodes_to_remove(heap());
-    for (Node const* node = start_container(); node != end_container()->next_sibling(); node = node->next_in_pre_order()) {
+    for (GC::Ptr<Node> node = start_container(); node != end_container()->next_sibling(); node = node->next_in_pre_order()) {
         if (contains_node(*node) && (!node->parent_node() || !contains_node(*node->parent_node())))
-            nodes_to_remove.append(const_cast<Node*>(node));
+            nodes_to_remove.append(node);
     }
 
     GC::Ptr<Node> new_node;
@@ -1168,17 +1163,17 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
     // FIXME: take Range collapsed into consideration
     // 2. Iterate the node included in Range
     auto start_node = start_container();
+    if (!is<DOM::Text>(*start_node))
+        start_node = *start_node->child_at_index(m_start_offset);
+
     auto end_node = end_container();
-    if (!is<DOM::Text>(start_node)) {
-        start_node = start_node->child_at_index(m_start_offset);
-    }
-    if (!is<DOM::Text>(end_node)) {
+    if (!is<DOM::Text>(*end_node)) {
         // end offset shouldn't be 0
         if (m_end_offset == 0)
             return Geometry::DOMRectList::create(realm(), {});
-        end_node = end_node->child_at_index(m_end_offset - 1);
+        end_node = *end_node->child_at_index(m_end_offset - 1);
     }
-    for (Node const* node = start_node; node && node != end_node->next_in_pre_order(); node = node->next_in_pre_order()) {
+    for (GC::Ptr<Node> node = start_node; node && node != end_node->next_in_pre_order(); node = node->next_in_pre_order()) {
         auto node_type = static_cast<NodeType>(node->node_type());
         if (node_type == NodeType::ELEMENT_NODE) {
             // 1. For each element selected by the range, whose parent is not selected by the range, include the border

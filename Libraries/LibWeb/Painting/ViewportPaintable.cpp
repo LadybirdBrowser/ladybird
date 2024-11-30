@@ -286,8 +286,8 @@ void ViewportPaintable::recompute_selection_states(DOM::Range& range)
         return TraversalDecision::Continue;
     });
 
-    auto* start_container = range.start_container();
-    auto* end_container = range.end_container();
+    auto start_container = range.start_container();
+    auto end_container = range.end_container();
 
     // 2. If the selection starts and ends in the same node:
     if (start_container == end_container) {

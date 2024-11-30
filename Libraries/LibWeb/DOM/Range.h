@@ -2,6 +2,7 @@
  * Copyright (c) 2020, the SerenityOS developers.
  * Copyright (c) 2022, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2022-2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -21,7 +22,7 @@ enum class RelativeBoundaryPointPosition {
 };
 
 // https://dom.spec.whatwg.org/#concept-range-bp-position
-RelativeBoundaryPointPosition position_of_boundary_point_relative_to_other_boundary_point(Node const& node_a, u32 offset_a, Node const& node_b, u32 offset_b);
+RelativeBoundaryPointPosition position_of_boundary_point_relative_to_other_boundary_point(GC::Ref<Node> node_a, u32 offset_a, GC::Ref<Node> node_b, u32 offset_b);
 
 class Range final : public AbstractRange {
     WEB_PLATFORM_OBJECT(Range, AbstractRange);
@@ -30,20 +31,20 @@ class Range final : public AbstractRange {
 public:
     [[nodiscard]] static GC::Ref<Range> create(Document&);
     [[nodiscard]] static GC::Ref<Range> create(HTML::Window&);
-    [[nodiscard]] static GC::Ref<Range> create(Node& start_container, WebIDL::UnsignedLong start_offset, Node& end_container, WebIDL::UnsignedLong end_offset);
+    [[nodiscard]] static GC::Ref<Range> create(GC::Ref<Node> start_container, WebIDL::UnsignedLong start_offset, GC::Ref<Node> end_container, WebIDL::UnsignedLong end_offset);
     static WebIDL::ExceptionOr<GC::Ref<Range>> construct_impl(JS::Realm&);
 
     virtual ~Range() override;
 
-    WebIDL::ExceptionOr<void> set_start(Node& node, WebIDL::UnsignedLong offset);
-    WebIDL::ExceptionOr<void> set_end(Node& node, WebIDL::UnsignedLong offset);
-    WebIDL::ExceptionOr<void> set_start_before(Node& node);
-    WebIDL::ExceptionOr<void> set_start_after(Node& node);
-    WebIDL::ExceptionOr<void> set_end_before(Node& node);
-    WebIDL::ExceptionOr<void> set_end_after(Node& node);
-    WebIDL::ExceptionOr<void> select_node(Node& node);
+    WebIDL::ExceptionOr<void> set_start(GC::Ref<Node> node, WebIDL::UnsignedLong offset);
+    WebIDL::ExceptionOr<void> set_end(GC::Ref<Node> node, WebIDL::UnsignedLong offset);
+    WebIDL::ExceptionOr<void> set_start_before(GC::Ref<Node> node);
+    WebIDL::ExceptionOr<void> set_start_after(GC::Ref<Node> node);
+    WebIDL::ExceptionOr<void> set_end_before(GC::Ref<Node> node);
+    WebIDL::ExceptionOr<void> set_end_after(GC::Ref<Node> node);
+    WebIDL::ExceptionOr<void> select_node(GC::Ref<Node> node);
     void collapse(bool to_start);
-    WebIDL::ExceptionOr<void> select_node_contents(Node&);
+    WebIDL::ExceptionOr<void> select_node_contents(GC::Ref<Node>);
 
     void increase_start_offset(Badge<Node>, WebIDL::UnsignedLong);
     void increase_end_offset(Badge<Node>, WebIDL::UnsignedLong);
@@ -73,9 +74,9 @@ public:
         // Note: Its functionality (disabling a Range object) was removed, but the method itself is preserved for compatibility.
     }
 
-    bool intersects_node(Node const&) const;
-    WebIDL::ExceptionOr<bool> is_point_in_range(Node const&, WebIDL::UnsignedLong offset) const;
-    WebIDL::ExceptionOr<WebIDL::Short> compare_point(Node const&, WebIDL::UnsignedLong offset) const;
+    bool intersects_node(GC::Ref<Node>) const;
+    WebIDL::ExceptionOr<bool> is_point_in_range(GC::Ref<Node>, WebIDL::UnsignedLong offset) const;
+    WebIDL::ExceptionOr<WebIDL::Short> compare_point(GC::Ref<Node>, WebIDL::UnsignedLong offset) const;
 
     WebIDL::ExceptionOr<void> delete_contents();
     WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> extract_contents();
@@ -91,7 +92,7 @@ public:
     GC::Ref<Geometry::DOMRectList> get_client_rects();
     GC::Ref<Geometry::DOMRect> get_bounding_client_rect();
 
-    bool contains_node(Node const&) const;
+    bool contains_node(GC::Ref<Node>) const;
 
     void set_associated_selection(Badge<Selection::Selection>, GC::Ptr<Selection::Selection>);
 
@@ -99,13 +100,12 @@ public:
 
 private:
     explicit Range(Document&);
-    Range(Node& start_container, WebIDL::UnsignedLong start_offset, Node& end_container, WebIDL::UnsignedLong end_offset);
+    Range(GC::Ref<Node> start_container, WebIDL::UnsignedLong start_offset, GC::Ref<Node> end_container, WebIDL::UnsignedLong end_offset);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    Node& root();
-    Node const& root() const;
+    GC::Ref<Node> root() const;
 
     void update_associated_selection();
 
@@ -114,14 +114,14 @@ private:
         End,
     };
 
-    WebIDL::ExceptionOr<void> set_start_or_end(Node& node, u32 offset, StartOrEnd start_or_end);
-    WebIDL::ExceptionOr<void> select(Node& node);
+    WebIDL::ExceptionOr<void> set_start_or_end(GC::Ref<Node> node, u32 offset, StartOrEnd start_or_end);
+    WebIDL::ExceptionOr<void> select(GC::Ref<Node> node);
 
     WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> extract();
     WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> clone_the_contents();
     WebIDL::ExceptionOr<void> insert(GC::Ref<Node>);
 
-    bool partially_contains_node(Node const&) const;
+    bool partially_contains_node(GC::Ref<Node>) const;
 
     GC::Ptr<Selection::Selection> m_associated_selection;
 };
