@@ -47,6 +47,8 @@ public:
     [[nodiscard]] bool is_readonly() const { return m_mode == Bindings::IDBTransactionMode::Readonly; }
     [[nodiscard]] bool is_readwrite() const { return m_mode == Bindings::IDBTransactionMode::Readwrite; }
 
+    WebIDL::ExceptionOr<void> abort();
+
     void set_onabort(WebIDL::CallbackType*);
     WebIDL::CallbackType* onabort();
     void set_oncomplete(WebIDL::CallbackType*);
