@@ -87,7 +87,7 @@ public:
             segments.extend(segments);
 
         // 3. Let the object's dash list be segments.
-        my_drawing_state().dash_list = segments;
+        my_drawing_state().dash_list = move(segments);
     }
 
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-getlinedash
