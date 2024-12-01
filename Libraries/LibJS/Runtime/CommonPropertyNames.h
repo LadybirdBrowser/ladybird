@@ -13,6 +13,7 @@
 namespace JS {
 
 #define ENUMERATE_STANDARD_PROPERTY_NAMES(P) \
+    P(_)                                     \
     P(__defineGetter__)                      \
     P(__defineSetter__)                      \
     P(__lookupGetter__)                      \
@@ -94,6 +95,7 @@ namespace JS {
     P(copyWithin)                            \
     P(cos)                                   \
     P(cosh)                                  \
+    P(columns)                               \
     P(count)                                 \
     P(countReset)                            \
     P(create)                                \
@@ -123,6 +125,7 @@ namespace JS {
     P(difference)                            \
     P(dir)                                   \
     P(direction)                             \
+    P(disabledFeatures)                      \
     P(disambiguation)                        \
     P(disposed)                              \
     P(done)                                  \
@@ -170,6 +173,7 @@ namespace JS {
     P(fontcolor)                             \
     P(fontsize)                              \
     P(forEach)                               \
+    P(formAssociated)                        \
     P(format)                                \
     P(formatMatcher)                         \
     P(formatRange)                           \
@@ -366,10 +370,12 @@ namespace JS {
     P(Number)                                \
     P(numberingSystem)                       \
     P(numeric)                               \
+    P(observedAttributes)                    \
     P(of)                                    \
     P(offset)                                \
     P(offsetNanoseconds)                     \
     P(omitPadding)                           \
+    P(opener)                                \
     P(overflow)                              \
     P(ownKeys)                               \
     P(padEnd)                                \
@@ -419,6 +425,7 @@ namespace JS {
     P(roundingIncrement)                     \
     P(roundingMode)                          \
     P(roundingPriority)                      \
+    P(rows)                                  \
     P(script)                                \
     P(seal)                                  \
     P(second)                                \
@@ -569,6 +576,7 @@ namespace JS {
     P(use)                                   \
     P(useGrouping)                           \
     P(UTC)                                   \
+    P(Value)                                 \
     P(value)                                 \
     P(valueOf)                               \
     P(values)                                \
