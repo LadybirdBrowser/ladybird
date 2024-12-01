@@ -473,7 +473,64 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             module_map_realm = &referencing_script->realm();
         }
 
-        // FIXME: 7. If referrer is a Cyclic Module Record and moduleRequest is equal to the first element of referrer.[[RequestedModules]], then:
+        // 7. If referrer is a Cyclic Module Record and moduleRequest is equal to the first element of referrer.[[RequestedModules]], then:
+        if (referrer.has<GC::Ref<JS::CyclicModule>>() && module_request == referrer.get<GC::Ref<JS::CyclicModule>>()->requested_modules().first()) {
+            // 1. For each ModuleRequest record requested of referrer.[[RequestedModules]]:
+            for (auto const& module_request : referrer.get<GC::Ref<JS::CyclicModule>>()->requested_modules()) {
+                // 1. If moduleRequest.[[Attributes]] contains a Record entry such that entry.[[Key]] is not "type", then:
+                for (auto const& attribute : module_request.attributes) {
+                    if (attribute.key == "type"sv)
+                        continue;
+
+                    // 1. Let completion be Completion Record { [[Type]]: throw, [[Value]]: a new SyntaxError exception, [[Target]]: empty }.
+                    auto completion = JS::throw_completion(JS::SyntaxError::create(*module_map_realm, "Module request attributes must only contain a type attribute"_string));
+
+                    // 2. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, completion).
+                    JS::finish_loading_imported_module(referrer, module_request, payload, completion);
+
+                    // 3. Return.
+                    return;
+                }
+            }
+
+            // 2. Resolve a module specifier given referencingScript and moduleRequest.[[Specifier]], catching any
+            //    exceptions. If they throw an exception, let resolutionError be the thrown exception.
+            auto maybe_exception = HTML::resolve_module_specifier(referencing_script, module_request.module_specifier);
+
+            // 3. If the previous step threw an exception, then:
+            if (maybe_exception.is_exception()) {
+                // 1. Let completion be Completion Record { [[Type]]: throw, [[Value]]: resolutionError, [[Target]]: empty }.
+                auto completion = dom_exception_to_throw_completion(main_thread_vm(), maybe_exception.exception());
+
+                // 2. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, completion).
+                JS::finish_loading_imported_module(referrer, module_request, payload, completion);
+
+                // 3. Return.
+                return;
+            }
+
+            // 4. Let moduleType be the result of running the module type from module request steps given moduleRequest.
+            auto module_type = HTML::module_type_from_module_request(module_request);
+
+            // 5. If the result of running the module type allowed steps given moduleType and moduleMapRealm is false, then:
+            if (!HTML::module_type_allowed(*module_map_realm, module_type)) {
+                // 1. Let completion be Completion Record { [[Type]]: throw, [[Value]]: a new TypeError exception, [[Target]]: empty }.
+                auto completion = JS::throw_completion(JS::SyntaxError::create(*module_map_realm, MUST(String::formatted("Module type '{}' is not supported", module_type))));
+
+                // 2. Perform FinishLoadingImportedModule(referrer, moduleRequest, payload, completion).
+                JS::finish_loading_imported_module(referrer, module_request, payload, completion);
+
+                // 3. Return
+                return;
+            }
+
+            // Spec-Note: This step is essentially validating all of the requested module specifiers and type attributes
+            //            when the first call to HostLoadImportedModule for a static module dependency list is made, to
+            //            avoid further loading operations in the case any one of the dependencies has a static error.
+            //            We treat a module with unresolvable module specifiers or unsupported type attributes the same
+            //            as one that cannot be parsed; in both cases, a syntactic issue makes it impossible to ever
+            //            contemplate linking the module later.
+        }
 
         // 8. Disallow further import maps given moduleMapRealm.
         HTML::disallow_further_import_maps(*module_map_realm);
