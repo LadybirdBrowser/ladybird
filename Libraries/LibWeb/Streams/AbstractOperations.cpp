@@ -5353,6 +5353,38 @@ bool is_non_negative_number(JS::Value value)
     return true;
 }
 
+// https://streams.spec.whatwg.org/#abstract-opdef-cancopydatablockbytes
+bool can_copy_data_block_bytes_buffer(JS::ArrayBuffer const& to_buffer, u64 to_index, JS::ArrayBuffer const& from_buffer, u64 from_index, u64 count)
+{
+    // 1. Assert: toBuffer is an Object.
+    // 2. Assert: toBuffer has an [[ArrayBufferData]] internal slot.
+    // 3. Assert: fromBuffer is an Object.
+    // 4. Assert: fromBuffer has an [[ArrayBufferData]] internal slot.
+
+    // 5. If toBuffer is fromBuffer, return false.
+    if (&to_buffer == &from_buffer)
+        return false;
+
+    // 6. If ! IsDetachedBuffer(toBuffer) is true, return false.
+    if (to_buffer.is_detached())
+        return false;
+
+    // 7. If ! IsDetachedBuffer(fromBuffer) is true, return false.
+    if (from_buffer.is_detached())
+        return false;
+
+    // 8. If toIndex + count > toBuffer.[[ArrayBufferByteLength]], return false.
+    if (to_index + count > to_buffer.byte_length())
+        return false;
+
+    // 9. If fromIndex + count > fromBuffer.[[ArrayBufferByteLength]], return false.
+    if (from_index + count > from_buffer.byte_length())
+        return false;
+
+    // 10. Return true.
+    return true;
+}
+
 // https://streams.spec.whatwg.org/#can-transfer-array-buffer
 bool can_transfer_array_buffer(JS::ArrayBuffer const& array_buffer)
 {
