@@ -327,7 +327,11 @@ void StackingContext::paint(PaintContext& context) const
         context.display_list_recorder().push_scroll_frame_id(*paintable_box().scroll_frame_id());
     }
     context.display_list_recorder().push_stacking_context(push_stacking_context_params);
-    context.display_list_recorder().apply_filters(paintable_box().computed_values().filter());
+
+    auto const& filter = computed_values.filter();
+    if (!filter.is_none()) {
+        context.display_list_recorder().apply_filters(paintable_box().computed_values().filter());
+    }
 
     if (auto mask_image = computed_values.mask_image()) {
         auto mask_display_list = DisplayList::create();
@@ -346,6 +350,10 @@ void StackingContext::paint(PaintContext& context) const
             auto masking_area_rect = context.enclosing_device_rect(*masking_area).to_type<int>();
             context.display_list_recorder().apply_mask_bitmap(masking_area_rect.location(), mask_bitmap.release_nonnull(), *paintable_box().get_mask_type());
         }
+    }
+
+    if (!filter.is_none()) {
+        context.display_list_recorder().restore();
     }
 
     paint_internal(context);
