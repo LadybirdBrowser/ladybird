@@ -35,26 +35,31 @@ String const& SourceCode::code() const
 
 void SourceCode::fill_position_cache() const
 {
-    constexpr size_t minimum_distance_between_cached_positions = 10000;
+    constexpr size_t predicted_mimimum_cached_positions = 8;
+    constexpr size_t minimum_distance_between_cached_positions = 32;
+    constexpr size_t maximum_distance_between_cached_positions = 8192;
 
     if (m_code.is_empty())
         return;
 
-    bool previous_code_point_was_carriage_return = false;
+    u32 previous_code_point = 0;
     size_t line = 1;
     size_t column = 1;
     size_t offset_of_last_starting_point = 0;
-    m_cached_positions.ensure_capacity(m_code.bytes().size() / minimum_distance_between_cached_positions);
+    m_cached_positions.ensure_capacity(predicted_mimimum_cached_positions + m_code.bytes().size() / maximum_distance_between_cached_positions);
     m_cached_positions.append({ .line = 1, .column = 1, .offset = 0 });
 
     Utf8View const view(m_code);
     for (auto it = view.begin(); it != view.end(); ++it) {
         u32 code_point = *it;
-        bool is_line_terminator = code_point == '\r' || (code_point == '\n' && !previous_code_point_was_carriage_return) || code_point == LINE_SEPARATOR || code_point == PARAGRAPH_SEPARATOR;
-        previous_code_point_was_carriage_return = code_point == '\r';
+        bool is_line_terminator = code_point == '\r' || (code_point == '\n' && previous_code_point != '\r') || code_point == LINE_SEPARATOR || code_point == PARAGRAPH_SEPARATOR;
 
         auto byte_offset = view.byte_offset_of(it);
-        if ((byte_offset - offset_of_last_starting_point) >= minimum_distance_between_cached_positions) {
+
+        bool is_nonempty_line = is_line_terminator && previous_code_point != '\n' && previous_code_point != LINE_SEPARATOR && previous_code_point != PARAGRAPH_SEPARATOR && (code_point == '\n' || previous_code_point != '\r');
+        auto distance_between_cached_position = byte_offset - offset_of_last_starting_point;
+
+        if ((distance_between_cached_position >= minimum_distance_between_cached_positions && is_nonempty_line) || distance_between_cached_position >= maximum_distance_between_cached_positions) {
             m_cached_positions.append({ .line = line, .column = column, .offset = byte_offset });
             offset_of_last_starting_point = byte_offset;
         }
@@ -65,6 +70,8 @@ void SourceCode::fill_position_cache() const
         } else {
             column += 1;
         }
+
+        previous_code_point = code_point;
     }
 }
 
@@ -93,7 +100,7 @@ SourceRange SourceCode::range_from_offsets(u32 start_offset, u32 end_offset) con
     Optional<Position> start;
     Optional<Position> end;
 
-    bool previous_code_point_was_carriage_return = false;
+    u32 previous_code_point = 0;
 
     Utf8View const view(m_code);
     for (auto it = view.iterator_at_byte_offset_without_validation(current.offset); it != view.end(); ++it) {
@@ -119,8 +126,8 @@ SourceRange SourceCode::range_from_offsets(u32 start_offset, u32 end_offset) con
 
         u32 code_point = *it;
 
-        bool const is_line_terminator = code_point == '\r' || (code_point == '\n' && !previous_code_point_was_carriage_return) || code_point == LINE_SEPARATOR || code_point == PARAGRAPH_SEPARATOR;
-        previous_code_point_was_carriage_return = code_point == '\r';
+        bool const is_line_terminator = code_point == '\r' || (code_point == '\n' && previous_code_point != '\r') || code_point == LINE_SEPARATOR || code_point == PARAGRAPH_SEPARATOR;
+        previous_code_point = code_point;
 
         if (is_line_terminator) {
             current.line += 1;
