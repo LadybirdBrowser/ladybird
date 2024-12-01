@@ -326,7 +326,9 @@ void upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 v
         request->set_result(connection);
 
         // 2. Set request’s transaction to transaction.
+        // NOTE: We need to do a two-way binding here.
         request->set_transaction(transaction);
+        transaction->set_associated_request(request);
 
         // 3. Set request’s done flag to true.
         request->set_done(true);
@@ -420,6 +422,62 @@ WebIDL::ExceptionOr<u64> delete_a_database(JS::Realm& realm, StorageAPI::Storage
 
     // 12. Return version.
     return version;
+}
+
+// https://w3c.github.io/IndexedDB/#abort-a-transaction
+void abort_a_transaction(IDBTransaction& transaction, GC::Ptr<WebIDL::DOMException> error)
+{
+    // FIXME: 1. All the changes made to the database by the transaction are reverted.
+    // For upgrade transactions this includes changes to the set of object stores and indexes, as well as the change to the version.
+    // Any object stores and indexes which were created during the transaction are now considered deleted for the purposes of other algorithms.
+
+    // FIXME: 2. If transaction is an upgrade transaction, run the steps to abort an upgrade transaction with transaction.
+    // if (transaction.is_upgrade_transaction())
+    //     abort_an_upgrade_transaction(transaction);
+
+    // 3. Set transaction’s state to finished.
+    transaction.set_state(IDBTransaction::TransactionState::Finished);
+
+    // 4. If error is not null, set transaction’s error to error.
+    if (error)
+        transaction.set_error(error);
+
+    // FIXME: 5. For each request of transaction’s request list, abort the steps to asynchronously execute a request for request,
+    //           set request’s processed flag to true, and queue a task to run these steps:
+    // FIXME: 1. Set request’s done flag to true.
+    // FIXME: 2. Set request’s result to undefined.
+    // FIXME: 3. Set request’s error to a newly created "AbortError" DOMException.
+    // FIXME: 4. Fire an event named error at request with its bubbles and cancelable attributes initialized to true.
+
+    // 6. Queue a task to run these steps:
+    HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(transaction.realm().vm().heap(), [&transaction]() {
+        // 1. If transaction is an upgrade transaction, then set transaction’s connection's associated database's upgrade transaction to null.
+        if (transaction.is_upgrade_transaction())
+            transaction.connection()->associated_database()->set_upgrade_transaction(nullptr);
+
+        // 2. Fire an event named abort at transaction with its bubbles attribute initialized to true.
+        transaction.dispatch_event(DOM::Event::create(transaction.realm(), HTML::EventNames::abort, { .bubbles = true }));
+
+        // 3. If transaction is an upgrade transaction, then:
+        if (transaction.is_upgrade_transaction()) {
+            // 1. Let request be the open request associated with transaction.
+            auto request = transaction.associated_request();
+
+            // 2. Set request’s transaction to null.
+            // NOTE: Clear the two-way binding.
+            request->set_transaction(nullptr);
+            transaction.set_associated_request(nullptr);
+
+            // 3. Set request’s result to undefined.
+            request->set_result(JS::js_undefined());
+
+            // 4. Set request’s processed flag to false.
+            request->set_processed(false);
+
+            // 5. Set request’s done flag to false.
+            request->set_done(false);
+        }
+    }));
 }
 
 }
