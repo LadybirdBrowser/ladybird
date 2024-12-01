@@ -100,13 +100,14 @@ bool Document::query_command_enabled(FlyString const& command)
     // always enabled, except for the cut command and the paste command.
     // AD-HOC: Cut and Paste are not in the Miscellaneous commands section; so Copy is assumed
     // AD-HOC: DefaultParagraphSeparator is also in the Miscellaneous commands section
-    if (command == Editing::CommandNames::copy
-        || command == Editing::CommandNames::defaultParagraphSeparator
-        || command == Editing::CommandNames::redo
-        || command == Editing::CommandNames::selectAll
-        || command == Editing::CommandNames::styleWithCSS
-        || command == Editing::CommandNames::undo
-        || command == Editing::CommandNames::useCSS)
+    if (command.is_one_of(
+            Editing::CommandNames::copy,
+            Editing::CommandNames::defaultParagraphSeparator,
+            Editing::CommandNames::redo,
+            Editing::CommandNames::selectAll,
+            Editing::CommandNames::styleWithCSS,
+            Editing::CommandNames::undo,
+            Editing::CommandNames::useCSS))
         return true;
 
     // The other commands defined here are enabled if the active range is not null,
@@ -118,11 +119,12 @@ bool Document::query_command_enabled(FlyString const& command)
         return false;
 
     // its start node is either editable or an editing host,
-    auto& start_node = *active_range->start_container();
-    if (!start_node.is_editable() && !Editing::is_editing_host(start_node))
+    auto start_node = active_range->start_container();
+    if (!start_node->is_editable() && !Editing::is_editing_host(start_node))
         return false;
 
     // FIXME: the editing host of its start node is not an EditContext editing host,
+    auto start_node_editing_host = Editing::editing_host_of_node(start_node);
 
     // its end node is either editable or an editing host,
     auto& end_node = *active_range->end_container();
@@ -133,6 +135,37 @@ bool Document::query_command_enabled(FlyString const& command)
 
     // FIXME: and there is some editing host that is an inclusive ancestor of both its start node and its
     //        end node.
+
+    // NOTE: Commands can define additional conditions for being enabled, and currently the only condition mentioned in
+    //       the spec is that certain commands must not be enabled if the editing host is in the plaintext-only state.
+    if (is<HTML::HTMLElement>(start_node_editing_host.ptr())
+        && static_cast<HTML::HTMLElement&>(*start_node_editing_host).content_editable() == "plaintext-only"sv
+        && command.is_one_of(
+            Editing::CommandNames::backColor,
+            Editing::CommandNames::bold,
+            Editing::CommandNames::createLink,
+            Editing::CommandNames::fontName,
+            Editing::CommandNames::fontSize,
+            Editing::CommandNames::foreColor,
+            Editing::CommandNames::hiliteColor,
+            Editing::CommandNames::indent,
+            Editing::CommandNames::insertHorizontalRule,
+            Editing::CommandNames::insertImage,
+            Editing::CommandNames::insertOrderedList,
+            Editing::CommandNames::insertUnorderedList,
+            Editing::CommandNames::italic,
+            Editing::CommandNames::justifyCenter,
+            Editing::CommandNames::justifyFull,
+            Editing::CommandNames::justifyLeft,
+            Editing::CommandNames::justifyRight,
+            Editing::CommandNames::outdent,
+            Editing::CommandNames::removeFormat,
+            Editing::CommandNames::strikethrough,
+            Editing::CommandNames::subscript,
+            Editing::CommandNames::superscript,
+            Editing::CommandNames::underline,
+            Editing::CommandNames::unlink))
+        return false;
 
     return true;
 }
