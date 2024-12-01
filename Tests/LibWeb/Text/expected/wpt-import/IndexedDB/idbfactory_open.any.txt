@@ -16,7 +16,7 @@ Pass	IDBFactory.open() - new database has default version
 Pass	IDBFactory.open() - new database is empty	
 Pass	IDBFactory.open() - open database with a lower version than current	
 Pass	IDBFactory.open() - open database with a higher version than current	
-Fail	IDBFactory.open() - error in version change transaction aborts open	Cannot access property "abort" on undefined object "e.target.transaction"
+Fail	IDBFactory.open() - error in version change transaction aborts open	undefined is not a function (evaluated from '<object>.abort')
 Pass	Calling open() with version argument -1 should throw TypeError.	
 Pass	Calling open() with version argument -0.5 should throw TypeError.	
 Pass	Calling open() with version argument 0 should throw TypeError.	
