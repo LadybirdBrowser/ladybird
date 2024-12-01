@@ -21,6 +21,8 @@ public:
     virtual ~IDBFactory() override;
 
     WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> open(String const& name, Optional<u64> version);
+    WebIDL::ExceptionOr<GC::Ref<IDBOpenDBRequest>> delete_database(String const& name);
+
     WebIDL::ExceptionOr<i8> cmp(JS::Value first, JS::Value second);
 
 protected:
