@@ -9,6 +9,7 @@
 
 #pragma once
 
+typedef int INT;
 typedef unsigned long ULONG;
 typedef unsigned short USHORT;
 typedef char CHAR;
@@ -19,7 +20,6 @@ typedef USHORT ADDRESS_FAMILY;
 #define FAR
 #include <inaddr.h>
 #undef WINAPI_FAMILY_PARTITION
-#undef FAR
 
 #include <afunix.h>
 
@@ -67,6 +67,7 @@ struct sockaddr {
     ADDRESS_FAMILY sa_family;
     CHAR sa_data[14];
 };
+using LPSOCKADDR = sockaddr*;
 
 struct addrinfo {
     int ai_flags;
@@ -79,4 +80,41 @@ struct addrinfo {
     addrinfo* ai_next;
 };
 
+struct SOCKET_ADDRESS {
+    sockaddr* lpSockaddr;
+    INT iSockaddrLength;
+};
+
+struct SOCKET_ADDRESS_LIST {
+    INT iAddressCount;
+    SOCKET_ADDRESS Address[1];
+};
+using PSOCKET_ADDRESS_LIST = SOCKET_ADDRESS_LIST*;
+
+struct CSADDR_INFO {
+    SOCKET_ADDRESS LocalAddr;
+    SOCKET_ADDRESS RemoteAddr;
+    INT iSocketType;
+    INT iProtocol;
+};
+using LPCSADDR_INFO = CSADDR_INFO*;
+
+struct WSABUF {
+    ULONG len;
+    CHAR* buf;
+};
+using LPWSABUF = WSABUF*;
+
+struct WSAMSG {
+    LPSOCKADDR name;
+    INT namelen;
+    LPWSABUF lpBuffers;
+    ULONG dwBufferCount;
+    WSABUF Control;
+    ULONG dwFlags;
+};
+using LPWSAMSG = WSAMSG*;
+
 extern "C" USHORT __stdcall htons(USHORT hostshort);
+
+#define _WS2DEF_ // don't include ws2def.h
