@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 29 tests
 
-23 Pass
-6 Fail
+27 Pass
+2 Fail
 Pass	IDBFactory.open() - request has no source
 Pass	IDBFactory.open() - database 'name' and 'version' are correctly set
 Pass	IDBFactory.open() - no version opens current database
@@ -11,7 +11,7 @@ Pass	IDBFactory.open() - new database has default version
 Pass	IDBFactory.open() - new database is empty
 Pass	IDBFactory.open() - open database with a lower version than current
 Pass	IDBFactory.open() - open database with a higher version than current
-Fail	IDBFactory.open() - error in version change transaction aborts open
+Pass	IDBFactory.open() - error in version change transaction aborts open
 Pass	Calling open() with version argument -1 should throw TypeError.
 Pass	Calling open() with version argument -0.5 should throw TypeError.
 Pass	Calling open() with version argument 0 should throw TypeError.
@@ -27,9 +27,9 @@ Pass	Calling open() with version argument false should throw TypeError.
 Pass	Calling open() with version argument object should throw TypeError.
 Pass	Calling open() with version argument object (second) should throw TypeError.
 Pass	Calling open() with version argument object (third) should throw TypeError.
-Fail	Calling open() with version argument 1.5 should not throw.
-Fail	Calling open() with version argument 9007199254740991 should not throw.
-Fail	Calling open() with version argument undefined should not throw.
+Pass	Calling open() with version argument 1.5 should not throw.
+Pass	Calling open() with version argument 9007199254740991 should not throw.
+Pass	Calling open() with version argument undefined should not throw.
 Fail	IDBFactory.open() - error in upgradeneeded resets db
 Fail	IDBFactory.open() - second open's transaction is available to get objectStores
 Pass	IDBFactory.open() - upgradeneeded gets VersionChangeEvent
