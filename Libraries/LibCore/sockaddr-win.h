@@ -11,6 +11,7 @@ typedef unsigned long ULONG;
 typedef unsigned short USHORT;
 typedef char CHAR;
 typedef unsigned char UCHAR;
+typedef const CHAR* PCSTR;
 typedef USHORT ADDRESS_FAMILY;
 
 #define WINAPI_FAMILY_PARTITION(x) 1
@@ -24,6 +25,13 @@ typedef USHORT ADDRESS_FAMILY;
 #define AF_LOCAL 1 // AF_UNIX
 #define AF_INET 2
 #define AF_INET6 23
+
+enum IPPROTO {
+    IPPROTO_TCP = 6,
+};
+
+#define INET_ADDRSTRLEN 22
+#define INET6_ADDRSTRLEN 65
 
 struct in6_addr {
     union {
@@ -64,6 +72,7 @@ struct sockaddr {
     ADDRESS_FAMILY sa_family;
     CHAR sa_data[14];
 };
+using SOCKADDR = sockaddr;
 using LPSOCKADDR = sockaddr*;
 
 struct addrinfo {
@@ -76,6 +85,8 @@ struct addrinfo {
     sockaddr* ai_addr;
     addrinfo* ai_next;
 };
+using ADDRINFOA = addrinfo;
+using PADDRINFOA = addrinfo*;
 
 struct SOCKET_ADDRESS {
     sockaddr* lpSockaddr;
@@ -112,6 +123,9 @@ struct WSAMSG {
 };
 using LPWSAMSG = WSAMSG*;
 
-extern "C" USHORT __stdcall htons(USHORT hostshort);
+extern "C" __stdcall USHORT htons(USHORT hostshort);
+extern "C" __stdcall INT getaddrinfo(PCSTR pNodeName, PCSTR pServiceName, const ADDRINFOA* pHints, PADDRINFOA* ppResult);
+extern "C" __stdcall void freeaddrinfo(PADDRINFOA pAddrInfo);
+extern "C" __stdcall PCSTR inet_ntop(int Family, void const* pAddr, char* pStringBuf, size_t StringBufSize);
 
 #define _WS2DEF_ // don't include ws2def.h
