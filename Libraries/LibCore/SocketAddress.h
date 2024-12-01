@@ -16,7 +16,7 @@
 #    include <sys/socket.h>
 #    include <sys/un.h>
 #else
-#    include "sockaddr-win.h"
+#    include "SockAddr-Win.h"
 #endif
 
 namespace Core {
