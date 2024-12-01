@@ -184,6 +184,21 @@ void SVGFormattingContext::run(AvailableSpace const& available_space)
     svg_box_state.set_has_definite_width(true);
     svg_box_state.set_has_definite_height(true);
 
+    if (context_box().document().is_xml_document()) { // Are we rendering a standalone SVG document?
+        // Overwrite the content width/height with the styled node width/height (from <svg width height ...>)
+
+        // NOTE: If a height had not been provided by the svg element, it was set to the height of the container
+        //       (see BlockFormattingContext::layout_viewport)
+        if (svg_box_state.node().computed_values().width().is_length())
+            svg_box_state.set_content_width(svg_box_state.node().computed_values().width().length().absolute_length_to_px());
+        if (svg_box_state.node().computed_values().height().is_length())
+            svg_box_state.set_content_height(svg_box_state.node().computed_values().height().length().absolute_length_to_px());
+
+        // FIXME: find a more precise way to determine whether we are rendering a standalone SVG document
+        // Will break for image-SVG elements without a specified viewBox included in an XML document
+        // DOM::Document::is_xml_document basically means "it is not an html document" (https://dom.spec.whatwg.org/#xml-document)
+    }
+
     auto viewbox = svg_viewport.view_box();
     // https://svgwg.org/svg2-draft/coords.html#ViewBoxAttribute
     if (viewbox.has_value()) {
