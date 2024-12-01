@@ -8,8 +8,8 @@
 #include <LibCore/EventLoopImplementationWindows.h>
 #include <LibCore/Notifier.h>
 #include <LibCore/ThreadEventQueue.h>
-#include <WinSock2.h>
-#include <io.h>
+
+#include <AK/Windows.h>
 
 struct Handle {
     HANDLE handle = NULL;
