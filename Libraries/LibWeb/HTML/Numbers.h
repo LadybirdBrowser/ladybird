@@ -14,8 +14,10 @@
 namespace Web::HTML {
 
 Optional<i32> parse_integer(StringView string);
+Optional<StringView> parse_integer_digits(StringView string);
 
 Optional<u32> parse_non_negative_integer(StringView string);
+Optional<StringView> parse_non_negative_integer_digits(StringView string);
 
 Optional<double> parse_floating_point_number(StringView string);
 

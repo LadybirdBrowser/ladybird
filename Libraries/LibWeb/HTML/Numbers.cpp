@@ -12,7 +12,7 @@
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-integers
-Optional<i32> parse_integer(StringView string)
+Optional<StringView> parse_integer_digits(StringView string)
 {
     // 1. Let input be the string being parsed.
     // 2. Let position be a pointer into input, initially pointing at the start of the string.
@@ -26,7 +26,7 @@ Optional<i32> parse_integer(StringView string)
 
     // 5. If position is past the end of input, return an error.
     if (lexer.is_eof()) {
-        return {};
+        return OptionalNone {};
     }
 
     // 6. If the character indicated by position (the first character) is a U+002D HYPHEN-MINUS character (-):
@@ -40,23 +40,33 @@ Optional<i32> parse_integer(StringView string)
 
     // 7. If the character indicated by position is not an ASCII digit, then return an error.
     if (!lexer.next_is(is_ascii_digit)) {
-        return {};
+        return OptionalNone {};
     }
 
     // 8. Collect a sequence of code points that are ASCII digits from input given position, and interpret the resulting sequence as a base-ten integer. Let value be that integer.
+    // NOTE: Integer conversion is performed by the caller.
     lexer.consume_while(is_ascii_digit);
     size_t end_index = lexer.tell();
     auto digits = lexer.input().substring_view(start_index, end_index - start_index);
-    auto optional_value = AK::StringUtils::convert_to_int<i32>(digits);
 
     // 9. If sign is "positive", return value, otherwise return the result of subtracting value from zero.
     // NOTE: Skipped, see comment on step 6.
 
-    return optional_value;
+    return digits;
+}
+
+// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-integers
+Optional<i32> parse_integer(StringView string)
+{
+    auto optional_digits = parse_integer_digits(string);
+    if (!optional_digits.has_value())
+        return {};
+
+    return optional_digits->to_number<i32>(TrimWhitespace::No);
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-non-negative-integers
-Optional<u32> parse_non_negative_integer(StringView string)
+Optional<StringView> parse_non_negative_integer_digits(StringView string)
 {
     // 1. Let input be the string being parsed.
     // 2. Let value be the result of parsing input using the rules for parsing integers.
@@ -64,19 +74,32 @@ Optional<u32> parse_non_negative_integer(StringView string)
     // NOTE: Because we call `parse_integer`, we parse all integers as signed. If we need the extra
     //       size that an unsigned integer offers, then this would need to be improved. That said,
     //       I don't think we need to support such large integers at the moment.
-    auto optional_value = parse_integer(string);
 
+    auto optional_integer_digits = parse_integer_digits(string);
     // 3. If value is an error, return an error.
-    if (!optional_value.has_value()) {
-        return {};
-    }
+    if (!optional_integer_digits.has_value())
+        return OptionalNone {};
 
     // 4. If value is less than zero, return an error.
-    if (optional_value.value() < 0) {
-        return {};
-    }
+    if (optional_integer_digits->length() > 1 && optional_integer_digits->starts_with('-') && optional_integer_digits->bytes().at(1) != '0')
+        return OptionalNone {};
 
     // 5. Return value.
+    // NOTE: Integer conversion is performed by the caller.
+    return optional_integer_digits;
+}
+
+// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-non-negative-integers
+Optional<u32> parse_non_negative_integer(StringView string)
+{
+    auto optional_digits = parse_non_negative_integer_digits(string);
+    if (!optional_digits.has_value())
+        return {};
+
+    auto optional_value = optional_digits->to_number<i64>(TrimWhitespace::No);
+    if (!optional_value.has_value() || *optional_value > NumericLimits<u32>::max())
+        return {};
+
     return static_cast<u32>(optional_value.value());
 }
 
