@@ -1499,11 +1499,15 @@ void FlexFormattingContext::align_all_flex_items_along_the_cross_axis()
                 //  Fallthrough
             case CSS::AlignItems::Start:
             case CSS::AlignItems::FlexStart:
+            case CSS::AlignItems::SelfStart:
             case CSS::AlignItems::Stretch:
+                // FIXME: 'start', 'flex-start' and 'self-start' have subtly different behavior.
+                //        The same goes for the end values.
                 item.cross_offset = -half_line_size + item.margins.cross_before + item.borders.cross_before + item.padding.cross_before;
                 break;
             case CSS::AlignItems::End:
             case CSS::AlignItems::FlexEnd:
+            case CSS::AlignItems::SelfEnd:
                 item.cross_offset = half_line_size - item.cross_size.value() - item.margins.cross_after - item.borders.cross_after - item.padding.cross_after;
                 break;
             case CSS::AlignItems::Center:
