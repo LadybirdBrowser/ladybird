@@ -1,0 +1,124 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>ClipboardItem tests</title>
+<link rel="help" href="https://w3c.github.io/clipboard-apis/#async-clipboard-api">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+
+const blob = new Blob(['hello'], {type: 'text/plain'});
+const blob2 = new Blob(['this should work'], {type: 'not a/real type'});
+
+test(() => {
+  new ClipboardItem({'text/plain': blob});
+  new ClipboardItem({'text/plain': blob, 'not a/real type': blob2});
+}, "ClipboardItem({string, Blob}) succeeds with different types");
+
+test(() => {
+  new ClipboardItem({'text/plain': blob}, {});
+}, "ClipboardItem() succeeds with empty options");
+
+test(() => {
+  assert_throws_js(TypeError, () => {new ClipboardItem({});});
+}, "ClipboardItem({}) fails with empty dictionary input");
+
+test(() => {
+  assert_throws_js(TypeError, () => {new ClipboardItem(blob);});
+}, "ClipboardItem(Blob) fails");
+
+test(() => {
+  assert_throws_js(TypeError, () => {new ClipboardItem(null);});
+}, "ClipboardItem() fails with null input");
+
+test(() => {
+  assert_throws_js(TypeError, () => {new ClipboardItem();});
+}, "ClipboardItem() fails with no input");
+
+test(() => {
+  const item = new ClipboardItem({'text/plain': blob});
+  const types = item.types;
+  assert_equals(types.length, 1);
+  assert_equals(types[0], 'text/plain');
+  const item2 =
+      new ClipboardItem({'text/plain': blob, 'not a/real type': blob2});
+  const types2 = item2.types;
+  assert_equals(types2.length, 2);
+  assert_equals(types2[0], 'text/plain');
+  assert_equals(types2[1], 'not a/real type');
+}, "types() returns correct values");
+
+promise_test(async () => {
+  const item =
+      new ClipboardItem({'text/plain': blob, 'not a/real type': blob2});
+
+  const blobOutput = await item.getType('text/plain');
+  assert_true(blobOutput.type.includes('text/plain'));
+  const text = await (new Response(blobOutput)).text();
+
+  assert_equals('hello', text);
+}, "getType(DOMString valid type) succeeds with correct output");
+
+promise_test(async () => {
+  const item =
+      new ClipboardItem({'text/plain': blob, 'not a/real type': blob2});
+
+  const blobOutput = await item.getType('not a/real type');
+  assert_true(blobOutput.type.includes('not a/real type'));
+  const text = await (new Response(blobOutput)).text();
+
+  assert_equals('this should work', text);
+}, "getType(DOMString invalid type) succeeds with correct output");
+
+promise_test(async t => {
+  const item =
+      new ClipboardItem({'text/plain': blob, 'not a/real type': blob2});
+  promise_rejects_dom(t, "NotFoundError", item.getType('type not in item'));
+  promise_rejects_dom(t, "NotFoundError", item.getType('text/plain:subtype'));
+}, "getType(DOMString type) rejects correctly when querying for missing type");
+
+promise_test(async () => {
+  const item =
+      new ClipboardItem({'text/plain': 'abc', 'not a/real type': 'xxx'});
+  const blob = await item.getType('text/plain');
+  assert_equals(blob.type, 'text/plain');
+
+  const text = await (new Response(blob)).text();
+  assert_equals(text, 'abc');
+}, "getType(DOMString valid type) converts DOMString to Blob");
+
+promise_test(async () => {
+  const item =
+      new ClipboardItem({'text/plain': 'abc', 'not a/real type': 'xxx'});
+  const blob = await item.getType('not a/real type');
+  assert_equals(blob.type, 'not a/real type');
+
+  const text = await (new Response(blob)).text();
+  assert_equals(text, 'xxx');
+}, "getType(DOMString invalid type) converts DOMString to Blob");
+
+[
+  // mandatory data types
+  ['text/plain', true],
+  ['text/html',  true],
+  ['image/png',  true],
+  // optional data types
+  ['text/uri-list', true],
+  ['image/svg+xml', true],
+  ['web foo/bar',   true],
+  ['web text/html', true],
+  // invalid types
+  ['web ',            false],
+  ['web',             false],
+  ['web foo',         false],
+  ['foo/bar',         false],
+  ['weB text/html',   false],
+  [' web text/html',  false],
+  ['not a/real type', false],
+  ['',                false],
+  [' ',               false],
+].forEach(([type, result]) => {
+  promise_test(async () => {
+    assert_equals(ClipboardItem.supports(type), result);
+  }, `supports(${type}) returns ${result ? "true" : "false"}`);
+});
+</script>

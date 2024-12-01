@@ -84,6 +84,7 @@ enum class XMLHttpRequestResponseType;
 
 namespace Web::Clipboard {
 class Clipboard;
+class ClipboardItem;
 }
 
 namespace Web::Compression {
