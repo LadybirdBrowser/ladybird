@@ -25,6 +25,7 @@ public:
     String name() const { return m_name; }
 
     void set_upgrade_transaction(GC::Ptr<IDBTransaction> transaction) { m_upgrade_transaction = transaction; }
+    [[nodiscard]] GC::Ptr<IDBTransaction> upgrade_transaction() { return m_upgrade_transaction; }
 
     void associate(GC::Ref<IDBDatabase> connection) { m_associated_connections.append(connection); }
     ReadonlySpan<GC::Ref<IDBDatabase>> associated_connections() { return m_associated_connections; }
