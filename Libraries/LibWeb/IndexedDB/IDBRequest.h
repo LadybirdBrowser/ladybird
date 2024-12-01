@@ -38,7 +38,7 @@ public:
     void set_error(GC::Ptr<WebIDL::DOMException> error) { m_error = error; }
     void set_processed(bool processed) { m_processed = processed; }
     void set_source(IDBRequestSource source) { m_source = source; }
-    void set_transaction(GC::Ref<IDBTransaction> transaction) { m_transaction = transaction; }
+    void set_transaction(GC::Ptr<IDBTransaction> transaction) { m_transaction = transaction; }
 
     void set_onsuccess(WebIDL::CallbackType*);
     WebIDL::CallbackType* onsuccess();
