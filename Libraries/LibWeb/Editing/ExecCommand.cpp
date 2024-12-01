@@ -96,12 +96,10 @@ bool Document::query_command_enabled(FlyString const& command)
         return false;
 
     // https://w3c.github.io/editing/docs/execCommand/#enabled
-    // Among commands defined in this specification, those listed in Miscellaneous commands are
-    // always enabled, except for the cut command and the paste command.
-    // AD-HOC: Cut and Paste are not in the Miscellaneous commands section; so Copy is assumed
-    // AD-HOC: DefaultParagraphSeparator is also in the Miscellaneous commands section
+    // Among commands defined in this specification, those listed in Miscellaneous commands are always enabled, except
+    // for the cut command and the paste command.
+    // NOTE: cut and paste are actually in the Clipboard commands section
     if (command.is_one_of(
-            Editing::CommandNames::copy,
             Editing::CommandNames::defaultParagraphSeparator,
             Editing::CommandNames::redo,
             Editing::CommandNames::selectAll,
