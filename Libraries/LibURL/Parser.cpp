@@ -500,7 +500,14 @@ static bool ends_in_a_number_checker(StringView input)
 // https://url.spec.whatwg.org/#concept-domain-to-ascii
 static ErrorOr<String> domain_to_ascii(StringView domain, bool be_strict)
 {
-    // 1. Let result be the result of running Unicode ToASCII with domain_name set to domain, UseSTD3ASCIIRules set to beStrict, CheckHyphens set to false, CheckBidi set to true, CheckJoiners set to true, Transitional_Processing set to false, and VerifyDnsLength set to beStrict. [UTS46]
+    // 1. Let result be the result of running Unicode ToASCII with domain_name set to domain,
+    //     CheckHyphens set to beStrict,
+    //     CheckBidi set to true,
+    //     CheckJoiners set to true,
+    //     UseSTD3ASCIIRules set to beStrict,
+    //     Transitional_Processing set to false,
+    //     VerifyDnsLength set to beStrict. [UTS46].
+
     // 2. If result is a failure value, domain-to-ASCII validation error, return failure.
 
     // OPTIMIZATION: If beStrict is false, domain is an ASCII string, and strictly splitting domain on U+002E (.)
@@ -526,7 +533,7 @@ static ErrorOr<String> domain_to_ascii(StringView domain, bool be_strict)
     }
 
     Unicode::IDNA::ToAsciiOptions const options {
-        Unicode::IDNA::CheckHyphens::No,
+        be_strict ? Unicode::IDNA::CheckHyphens::Yes : Unicode::IDNA::CheckHyphens::No,
         Unicode::IDNA::CheckBidi::Yes,
         Unicode::IDNA::CheckJoiners::Yes,
         be_strict ? Unicode::IDNA::UseStd3AsciiRules::Yes : Unicode::IDNA::UseStd3AsciiRules::No,
