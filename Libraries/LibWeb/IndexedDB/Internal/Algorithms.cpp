@@ -126,8 +126,13 @@ WebIDL::ExceptionOr<GC::Ref<IDBDatabase>> open_a_database_connection(JS::Realm& 
             return WebIDL::AbortError::create(realm, "Connection was closed"_string);
         }
 
-        // FIXME: 8. If the upgrade transaction was aborted, run the steps to close a database connection with connection,
-        // return a newly created "AbortError" DOMException and abort these steps.
+        // 8. If the upgrade transaction was aborted, run the steps to close a database connection with connection,
+        //    return a newly created "AbortError" DOMException and abort these steps.
+        auto transaction = connection->associated_database()->upgrade_transaction();
+        if (transaction->aborted()) {
+            close_a_database_connection(*connection, true);
+            return WebIDL::AbortError::create(realm, "Upgrade transaction was aborted"_string);
+        }
     }
 
     // 11. Return connection.
@@ -433,6 +438,9 @@ WebIDL::ExceptionOr<u64> delete_a_database(JS::Realm& realm, StorageAPI::Storage
 // https://w3c.github.io/IndexedDB/#abort-a-transaction
 void abort_a_transaction(IDBTransaction& transaction, GC::Ptr<WebIDL::DOMException> error)
 {
+    // NOTE: This is not spec'ed anywhere, but we need to know IF the transaction was aborted.
+    transaction.set_aborted(true);
+
     // FIXME: 1. All the changes made to the database by the transaction are reverted.
     // For upgrade transactions this includes changes to the set of object stores and indexes, as well as the change to the version.
     // Any object stores and indexes which were created during the transaction are now considered deleted for the purposes of other algorithms.
