@@ -1662,16 +1662,19 @@ bool readable_byte_stream_controller_fill_pull_into_descriptor_from_queue(Readab
     // 4. Let ready be false.
     bool ready = false;
 
-    // 5. Assert: pullIntoDescriptor’s bytes filled < pullIntoDescriptor’s minimum fill.
+    // 5. Assert: ! IsDetachedBuffer(pullIntoDescriptor’s buffer) is false.
+    VERIFY(!pull_into_descriptor.buffer->is_detached());
+
+    // 6. Assert: pullIntoDescriptor’s bytes filled < pullIntoDescriptor’s minimum fill.
     VERIFY(pull_into_descriptor.bytes_filled < pull_into_descriptor.minimum_fill);
 
-    // 6. Let remainderBytes be the remainder after dividing maxBytesFilled by pullIntoDescriptor’s element size.
+    // 7. Let remainderBytes be the remainder after dividing maxBytesFilled by pullIntoDescriptor’s element size.
     auto remainder_bytes = max_bytes_filled % pull_into_descriptor.element_size;
 
-    // 7. Let maxAlignedBytes be maxBytesFilled − remainderBytes.
+    // 8. Let maxAlignedBytes be maxBytesFilled − remainderBytes.
     auto max_aligned_bytes = max_bytes_filled - remainder_bytes;
 
-    // 8. If maxAlignedBytes ≥ pullIntoDescriptor’s minimum fill,
+    // 9. If maxAlignedBytes ≥ pullIntoDescriptor’s minimum fill,
     if (max_aligned_bytes >= pull_into_descriptor.minimum_fill) {
         // 1. Set totalBytesToCopyRemaining to maxAlignedBytes − pullIntoDescriptor’s bytes filled.
         total_bytes_to_copy_remaining = max_aligned_bytes - pull_into_descriptor.bytes_filled;
@@ -1682,10 +1685,10 @@ bool readable_byte_stream_controller_fill_pull_into_descriptor_from_queue(Readab
         // NOTE: A descriptor for a read() request that is not yet filled up to its minimum length will stay at the head of the queue, so the underlying source can keep filling it.
     }
 
-    // 9. Let queue be controller.[[queue]].
+    // 10. Let queue be controller.[[queue]].
     auto& queue = controller.queue();
 
-    // 10. While totalBytesToCopyRemaining > 0,
+    // 11. While totalBytesToCopyRemaining > 0,
     while (total_bytes_to_copy_remaining > 0) {
         // 1. Let headOfQueue be queue[0].
         auto& head_of_queue = queue.first();
@@ -1696,15 +1699,18 @@ bool readable_byte_stream_controller_fill_pull_into_descriptor_from_queue(Readab
         // 3. Let destStart be pullIntoDescriptor’s byte offset + pullIntoDescriptor’s bytes filled.
         auto dest_start = pull_into_descriptor.byte_offset + pull_into_descriptor.bytes_filled;
 
-        // 4. Perform ! CopyDataBlockBytes(pullIntoDescriptor’s buffer.[[ArrayBufferData]], destStart, headOfQueue’s buffer.[[ArrayBufferData]], headOfQueue’s byte offset, bytesToCopy).
+        // 4. Assert: ! CanCopyDataBlockBytes(pullIntoDescriptor’s buffer, destStart, headOfQueue’s buffer, headOfQueue’s byte offset, bytesToCopy) is true.
+        VERIFY(can_copy_data_block_bytes_buffer(pull_into_descriptor.buffer, dest_start, head_of_queue.buffer, head_of_queue.byte_offset, bytes_to_copy));
+
+        // 5. Perform ! CopyDataBlockBytes(pullIntoDescriptor’s buffer.[[ArrayBufferData]], destStart, headOfQueue’s buffer.[[ArrayBufferData]], headOfQueue’s byte offset, bytesToCopy).
         JS::copy_data_block_bytes(pull_into_descriptor.buffer->buffer(), dest_start, head_of_queue.buffer->buffer(), head_of_queue.byte_offset, bytes_to_copy);
 
-        // 5. If headOfQueue’s byte length is bytesToCopy,
+        // 6. If headOfQueue’s byte length is bytesToCopy,
         if (head_of_queue.byte_length == bytes_to_copy) {
             // 1. Remove queue[0].
             queue.take_first();
         }
-        // 6. Otherwise,
+        // 7. Otherwise,
         else {
             // 1. Set headOfQueue’s byte offset to headOfQueue’s byte offset + bytesToCopy.
             head_of_queue.byte_offset += bytes_to_copy;
@@ -1713,17 +1719,17 @@ bool readable_byte_stream_controller_fill_pull_into_descriptor_from_queue(Readab
             head_of_queue.byte_length -= bytes_to_copy;
         }
 
-        // 7. Set controller.[[queueTotalSize]] to controller.[[queueTotalSize]] − bytesToCopy.
+        // 8. Set controller.[[queueTotalSize]] to controller.[[queueTotalSize]] − bytesToCopy.
         controller.set_queue_total_size(controller.queue_total_size() - bytes_to_copy);
 
-        // 8, Perform ! ReadableByteStreamControllerFillHeadPullIntoDescriptor(controller, bytesToCopy, pullIntoDescriptor).
+        // 9, Perform ! ReadableByteStreamControllerFillHeadPullIntoDescriptor(controller, bytesToCopy, pullIntoDescriptor).
         readable_byte_stream_controller_fill_head_pull_into_descriptor(controller, bytes_to_copy, pull_into_descriptor);
 
-        // 9. Set totalBytesToCopyRemaining to totalBytesToCopyRemaining − bytesToCopy.
+        // 10. Set totalBytesToCopyRemaining to totalBytesToCopyRemaining − bytesToCopy.
         total_bytes_to_copy_remaining -= bytes_to_copy;
     }
 
-    // 11. If ready is false,
+    // 12. If ready is false,
     if (!ready) {
         // 1. Assert: controller.[[queueTotalSize]] is 0.
         VERIFY(controller.queue_total_size() == 0);
@@ -1735,7 +1741,7 @@ bool readable_byte_stream_controller_fill_pull_into_descriptor_from_queue(Readab
         VERIFY(pull_into_descriptor.bytes_filled < pull_into_descriptor.minimum_fill);
     }
 
-    // 12. Return ready.
+    // 13. Return ready.
     return ready;
 }
 
@@ -2259,10 +2265,16 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_in_readable_st
         // 1. Perform ? ReadableByteStreamControllerEnqueueDetachedPullIntoToQueue(controller, pullIntoDescriptor).
         TRY(readable_byte_stream_controller_enqueue_detached_pull_into_queue(controller, pull_into_descriptor));
 
-        // 2. Perform ! ReadableByteStreamControllerProcessPullIntoDescriptorsUsingQueue(controller).
-        readable_byte_stream_controller_process_pull_into_descriptors_using_queue(controller);
+        // 2. Let filledPullIntos be the result of performing ! ReadableByteStreamControllerProcessPullIntoDescriptorsUsingQueue(controller).
+        auto filled_pulled_intos = readable_byte_stream_controller_process_pull_into_descriptors_using_queue(controller);
 
-        // 3. Return.
+        // 3. For each filledPullInto of filledPullIntos,
+        for (auto& filled_pull_into : filled_pulled_intos) {
+            // 1. Perform ! ReadableByteStreamControllerCommitPullIntoDescriptor(controller.[[stream]], filledPullInto).
+            readable_byte_stream_controller_commit_pull_into_descriptor(*controller.stream(), filled_pull_into);
+        }
+
+        // 4. Return.
         return {};
     }
 
@@ -2291,8 +2303,17 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_in_readable_st
     // 8. Set pullIntoDescriptor’s bytes filled to pullIntoDescriptor’s bytes filled − remainderSize.
     pull_into_descriptor_copy.bytes_filled -= remainder_size;
 
-    // 9. Perform ! ReadableByteStreamControllerCommitPullIntoDescriptor(controller.[[stream]], pullIntoDescriptor).
+    // 9. Let filledPullIntos be the result of performing ! ReadableByteStreamControllerProcessPullIntoDescriptorsUsingQueue(controller).
+    auto filled_pulled_intos = readable_byte_stream_controller_process_pull_into_descriptors_using_queue(controller);
+
+    // 10. Perform ! ReadableByteStreamControllerCommitPullIntoDescriptor(controller.[[stream]], pullIntoDescriptor).
     readable_byte_stream_controller_commit_pull_into_descriptor(*controller.stream(), pull_into_descriptor_copy);
+
+    // 11. For each filledPullInto of filledPullIntos,
+    for (auto& filled_pull_into : filled_pulled_intos) {
+        // 1. Perform ! ReadableByteStreamControllerCommitPullIntoDescriptor(controller.[[stream]], filledPullInto).
+        readable_byte_stream_controller_commit_pull_into_descriptor(*controller.stream(), filled_pull_into);
+    }
     return {};
 }
 
@@ -2311,13 +2332,28 @@ void readable_byte_stream_controller_respond_in_closed_state(ReadableByteStreamC
 
     // 4. If ! ReadableStreamHasBYOBReader(stream) is true,
     if (readable_stream_has_byob_reader(stream)) {
-        // 1. While ! ReadableStreamGetNumReadIntoRequests(stream) > 0,
-        while (readable_stream_get_num_read_into_requests(stream) > 0) {
+        // 1. Let filledPullIntos be a new empty list.
+        SinglyLinkedList<PullIntoDescriptor> filled_pull_intos;
+
+        // 2. Let i be 0.
+        u64 i = 0;
+
+        // 1. While i < ! ReadableStreamGetNumReadIntoRequests(stream),
+        while (i < readable_stream_get_num_read_into_requests(stream)) {
             // 1. Let pullIntoDescriptor be ! ReadableByteStreamControllerShiftPendingPullInto(controller).
             auto pull_into_descriptor = readable_byte_stream_controller_shift_pending_pull_into(controller);
 
-            // 2. Perform ! ReadableByteStreamControllerCommitPullIntoDescriptor(stream, pullIntoDescriptor).
-            readable_byte_stream_controller_commit_pull_into_descriptor(stream, pull_into_descriptor);
+            // 2. Append pullIntoDescriptor to filledPullIntos.
+            filled_pull_intos.append(pull_into_descriptor);
+
+            // 3. Set i to i + 1.
+            i++;
+
+            // 4. For each filledPullInto of filledPullIntos,
+            for (auto& filled_pull_into : filled_pull_intos) {
+                // 1. Perform ! ReadableByteStreamControllerCommitPullIntoDescriptor(stream, filledPullInto).
+                readable_byte_stream_controller_commit_pull_into_descriptor(stream, filled_pull_into);
+            }
         }
     }
 }
@@ -3350,8 +3386,14 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue(ReadableByteSt
         // 1. Perform ! ReadableByteStreamControllerEnqueueChunkToQueue(controller, transferredBuffer, byteOffset, byteLength).
         readable_byte_stream_controller_enqueue_chunk_to_queue(controller, transferred_buffer, byte_offset, byte_length);
 
-        // 2. Perform ! ReadableByteStreamControllerProcessPullIntoDescriptorsUsingQueue(controller).
-        readable_byte_stream_controller_process_pull_into_descriptors_using_queue(controller);
+        // 2. Let filledPullIntos be the result of performing ! ReadableByteStreamControllerProcessPullIntoDescriptorsUsingQueue(controller).
+        auto filled_pull_intos = readable_byte_stream_controller_process_pull_into_descriptors_using_queue(controller);
+
+        // 3. For each filledPullInto of filledPullIntos,
+        for (auto& filled_pull_into : filled_pull_intos) {
+            // 1. Perform ! ReadableByteStreamControllerCommitPullIntoDescriptor(controller.[[stream]], filledPullInto).
+            readable_byte_stream_controller_commit_pull_into_descriptor(*stream, filled_pull_into);
+        }
     }
     // 11. Otherwise,
     else {
@@ -3485,16 +3527,19 @@ void readable_byte_stream_controller_commit_pull_into_descriptor(ReadableStream&
 }
 
 // https://streams.spec.whatwg.org/#readable-byte-stream-controller-process-pull-into-descriptors-using-queue
-void readable_byte_stream_controller_process_pull_into_descriptors_using_queue(ReadableByteStreamController& controller)
+SinglyLinkedList<PullIntoDescriptor> readable_byte_stream_controller_process_pull_into_descriptors_using_queue(ReadableByteStreamController& controller)
 {
     // 1. Assert: controller.[[closeRequested]] is false.
     VERIFY(!controller.close_requested());
 
-    // 2. While controller.[[pendingPullIntos]] is not empty,
+    // 2. Let filledPullIntos be a new empty list.
+    SinglyLinkedList<PullIntoDescriptor> filled_pull_intos;
+
+    // 3. While controller.[[pendingPullIntos]] is not empty,
     while (!controller.pending_pull_intos().is_empty()) {
-        // 1. If controller.[[queueTotalSize]] is 0, return.
+        // 1. If controller.[[queueTotalSize]] is 0, then break.
         if (controller.queue_total_size() == 0)
-            return;
+            break;
 
         // 2. Let pullIntoDescriptor be controller.[[pendingPullIntos]][0].
         auto& pull_into_descriptor = controller.pending_pull_intos().first();
@@ -3507,10 +3552,13 @@ void readable_byte_stream_controller_process_pull_into_descriptors_using_queue(R
             // 1. Perform ! ReadableByteStreamControllerShiftPendingPullInto(controller).
             auto descriptor = readable_byte_stream_controller_shift_pending_pull_into(controller);
 
-            // 2. Perform ! ReadableByteStreamControllerCommitPullIntoDescriptor(controller.[[stream]], pullIntoDescriptor).
-            readable_byte_stream_controller_commit_pull_into_descriptor(*controller.stream(), descriptor);
+            // 2. Append pullIntoDescriptor to filledPullIntos.
+            filled_pull_intos.append(descriptor);
         }
     }
+
+    // 4. Return filledPullIntos.
+    return filled_pull_intos;
 }
 
 // https://streams.spec.whatwg.org/#abstract-opdef-readablebytestreamcontrollerprocessreadrequestsusingqueue
