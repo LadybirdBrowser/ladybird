@@ -63,52 +63,10 @@ WebIDL::ExceptionOr<GC::Ptr<JavaScriptModuleScript>> JavaScriptModuleScript::cre
         return script;
     }
 
-    // 9. For each ModuleRequest record requested of result.[[RequestedModules]]:
-    for (auto const& requested : result.value()->requested_modules()) {
-        // FIXME: Clarify if this should be checked for all requested before running the steps below.
-        // 1. If requested.[[Attributes]] contains a Record entry such that entry.[[Key]] is not "type", then:
-        for (auto const& attribute : requested.attributes) {
-            if (attribute.key != "type"sv) {
-                // 1. Let error be a new SyntaxError exception.
-                auto error = JS::SyntaxError::create(realm, "Module request attributes must only contain a type attribute"_string);
-
-                // 2. Set script's parse error to error.
-                script->set_parse_error(error);
-
-                // 3. Return script.
-                return script;
-            }
-        }
-
-        // 2. Let url be the result of resolving a module specifier given script and requested.[[Specifier]], catching any exceptions.
-        auto url = resolve_module_specifier(*script, requested.module_specifier);
-
-        // 3. If the previous step threw an exception, then:
-        if (url.is_exception()) {
-            // FIXME: 1. Set script's parse error to that exception.
-
-            // 2. Return script.
-            return script;
-        }
-
-        // 4. Let moduleType be the result of running the module type from module request steps given requested.
-        auto module_type = module_type_from_module_request(requested);
-
-        // 5. If the result of running the module type allowed steps given moduleType and realm is false, then:
-        if (!module_type_allowed(realm, module_type)) {
-            // FIXME: 1. Let error be a new TypeError exception.
-
-            // FIXME: 2. Set script's parse error to error.
-
-            // 3. Return script.
-            return script;
-        }
-    }
-
-    // 10. Set script's record to result.
+    // 9. Set script's record to result.
     script->m_record = result.value();
 
-    // 11. Return script.
+    // 10. Return script.
     return script;
 }
 
