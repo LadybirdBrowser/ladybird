@@ -1,0 +1,119 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+test(() => {
+  assert_throws_js(TypeError, () => {
+    new NavigateEvent("navigate");
+  });
+}, "can't bypass required members by omitting the dictionary entirely");
+
+test(() => {
+  assert_throws_js(TypeError, () => {
+    new NavigateEvent("navigate", {
+      navigationType: "push",
+      canIntercept: false,
+      userInitiated: false,
+      hashChange: false,
+      signal: (new AbortController()).signal,
+      formData: null,
+      downloadRequest: null,
+      info: null,
+      sourceElement: null
+    });
+  });
+}, "destination is required");
+
+async_test(t => {
+  // We need to grab an NavigationDestination.
+  navigation.onnavigate = t.step_func_done(e => {
+    assert_throws_js(TypeError, () => {
+      new NavigateEvent("navigate", {
+        navigationType: "push",
+        destination: e.destination,
+        canIntercept: false,
+        userInitiated: false,
+        hashChange: false,
+        formData: null,
+        downloadRequest: null,
+        info: null,
+        sourceElement: null
+      });
+    });
+  });
+  history.pushState(1, null, "#1");
+}, "signal is required");
+
+async_test(t => {
+  // We need to grab an NavigationDestination.
+  navigation.onnavigate = t.step_func_done(e => {
+    const info = { some: "object with identity" };
+    const formData = new FormData();
+    const signal = (new AbortController()).signal;
+    const downloadRequest = "abc";
+    const hasUAVisualTransition = true;
+    const sourceElement = document.createElement("a");
+
+    const event = new NavigateEvent("navigate", {
+      navigationType: "replace",
+      destination: e.destination,
+      canIntercept: true,
+      userInitiated: true,
+      hashChange: true,
+      signal,
+      formData,
+      downloadRequest,
+      info,
+      hasUAVisualTransition,
+      sourceElement
+    });
+
+    assert_equals(event.navigationType, "replace");
+    assert_equals(event.destination, e.destination);
+    assert_equals(event.canIntercept, true);
+    assert_equals(event.userInitiated, true);
+    assert_equals(event.hashChange, true);
+    assert_equals(event.signal, signal);
+    assert_equals(event.formData, formData);
+    assert_equals(event.downloadRequest, downloadRequest);
+    assert_equals(event.info, info);
+    assert_equals(event.hasUAVisualTransition, hasUAVisualTransition);
+    // NavigateEvent sourceElement is still in development, so test whether it is available.
+    if ("sourceElement" in e) assert_equals(event.sourceElement, sourceElement);
+  });
+  history.pushState(2, null, "#2");
+}, "all properties are reflected back");
+
+async_test(t => {
+  // We need to grab an NavigationDestination.
+  navigation.onnavigate = t.step_func_done(e => {
+    const event = new NavigateEvent("navigate", {
+      destination: e.destination,
+      signal: (new AbortController()).signal
+    });
+
+    assert_equals(event.navigationType, "push");
+    assert_equals(event.canIntercept, false);
+    assert_equals(event.userInitiated, false);
+    assert_equals(event.hashChange, false);
+    assert_equals(event.formData, null);
+    assert_equals(event.downloadRequest, null);
+    assert_equals(event.info, undefined);
+    // NavigateEvent sourceElement is still in development, so test whether it is available.
+    if ("sourceElement" in e) assert_equals(event.sourceElement, null);
+  });
+  history.pushState(3, null, "#3");
+}, "defaults are as expected");
+
+async_test(t => {
+  navigation.onnavigate = t.step_func_done(e => {
+    const event = new NavigateEvent("navigate", {
+      destination: e.destination,
+      signal: (new AbortController()).signal
+    });
+
+    assert_false(event.hasUAVisualTransition);
+  });
+  history.pushState(3, null, "#3");
+}, "hasUAVisualTransition is default false");
+</script>

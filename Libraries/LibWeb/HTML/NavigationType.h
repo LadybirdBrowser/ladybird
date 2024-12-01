@@ -21,13 +21,13 @@ inline String idl_enum_to_string(NavigationType value)
 {
     switch (value) {
     case NavigationType::Push:
-        return "Push"_string;
+        return "push"_string;
     case NavigationType::Replace:
-        return "Replace"_string;
+        return "replace"_string;
     case NavigationType::Reload:
-        return "Reload"_string;
+        return "reload"_string;
     case NavigationType::Traverse:
-        return "Traverse"_string;
+        return "traverse"_string;
     default:
         return "<unknown>"_string;
     }
