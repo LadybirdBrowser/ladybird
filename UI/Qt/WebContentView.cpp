@@ -849,7 +849,7 @@ void WebContentView::enqueue_native_event(Web::KeyEvent::Type type, QKeyEvent co
 
         if (event.key() == Qt::Key_Enter || event.key() == Qt::Key_Return) {
             // This ensures consistent behavior between systems that treat Enter as '\n' and '\r\n'
-            return { type, Web::UIEvents::KeyCode::Key_Return, Web::UIEvents::Mod_Shift, '\n', event.isAutoRepeat(), make<KeyData>(event) };
+            return { type, Web::UIEvents::KeyCode::Key_Return, modifiers, '\n', event.isAutoRepeat(), make<KeyData>(event) };
         }
 
         return { type, keycode, modifiers, code_point, event.isAutoRepeat(), make<KeyData>(event) };
