@@ -45,6 +45,7 @@ static bool is_platform_object(Type const& type)
         "CanvasGradient"sv,
         "CanvasPattern"sv,
         "CanvasRenderingContext2D"sv,
+        "ClipboardItem"sv,
         "CloseWatcher"sv,
         "CryptoKey"sv,
         "DataTransfer"sv,
@@ -246,6 +247,9 @@ CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
 
     if (type.name() == "Function")
         return { .name = "GC::Ref<WebIDL::CallbackType>", .sequence_storage_type = SequenceStorageType::MarkedVector };
+
+    if (type.name() == "Promise")
+        return { .name = "GC::Root<WebIDL::Promise>", .sequence_storage_type = SequenceStorageType::MarkedVector };
 
     if (type.name() == "sequence") {
         auto& parameterized_type = verify_cast<ParameterizedType>(type);
@@ -4663,6 +4667,7 @@ void generate_constructor_implementation(IDL::Interface const& interface, String
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Iterator.h>
+#include <LibJS/Runtime/PromiseConstructor.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/@constructor_class@.h>

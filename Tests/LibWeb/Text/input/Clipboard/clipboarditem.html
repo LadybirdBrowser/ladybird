@@ -1,0 +1,20 @@
+<script src="../include.js"></script>
+<script type="text/javascript">
+    asyncTest(async (done) => {
+        const blob = new Blob(['https://example.com'], {type: 'text/uri-list'});
+
+        const item = new ClipboardItem({'text/plain': 'hello', 'text/uri-list': blob});
+
+        println(`types: ${item.types}`);
+
+        const blobOutput = await item.getType('text/plain');
+        const text = await (new Response(blobOutput)).text();
+        println(`getType('text/plain'): ${text}`);
+        
+        const blobOutput2 = await item.getType('text/uri-list');
+        const text2 = await (new Response(blobOutput2)).text();
+        println(`getType('text/uri-list'): ${text2}`);
+
+        done();
+    });
+</script>
