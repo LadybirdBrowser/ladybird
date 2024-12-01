@@ -346,4 +346,80 @@ void upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 v
     // FIXME: 11. Wait for transaction to finish.
 }
 
+// https://w3c.github.io/IndexedDB/#deleting-a-database
+WebIDL::ExceptionOr<u64> delete_a_database(JS::Realm& realm, StorageAPI::StorageKey storage_key, String name, GC::Ref<IDBRequest> request)
+{
+    // 1. Let queue be the connection queue for storageKey and name.
+    auto& queue = ConnectionQueueHandler::for_key_and_name(storage_key, name);
+
+    // 2. Add request to queue.
+    queue.append(request);
+
+    // 3. Wait until all previous requests in queue have been processed.
+    HTML::main_thread_event_loop().spin_until(GC::create_function(realm.vm().heap(), [queue, request]() {
+        return queue.all_previous_requests_processed(request);
+    }));
+
+    // 4. Let db be the database named name in storageKey, if one exists. Otherwise, return 0 (zero).
+    auto maybe_db = Database::for_key_and_name(storage_key, name);
+    if (!maybe_db.has_value())
+        return 0;
+
+    auto db = maybe_db.value();
+
+    // 5. Let openConnections be the set of all connections associated with db.
+    auto open_connections = db->associated_connections();
+
+    // 6. For each entry of openConnections that does not have its close pending flag set to true,
+    //    queue a task to fire a version change event named versionchange at entry with db’s version and null.
+    IGNORE_USE_IN_ESCAPING_LAMBDA u32 events_to_fire = open_connections.size();
+    IGNORE_USE_IN_ESCAPING_LAMBDA u32 events_fired = 0;
+    for (auto const& entry : open_connections) {
+        if (!entry->close_pending()) {
+            HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.vm().heap(), [&realm, entry, db, &events_fired]() {
+                fire_a_version_change_event(realm, HTML::EventNames::versionchange, *entry, db->version(), {});
+                events_fired++;
+            }));
+        } else {
+            events_fired++;
+        }
+    }
+
+    // 7. Wait for all of the events to be fired.
+    HTML::main_thread_event_loop().spin_until(GC::create_function(realm.vm().heap(), [&events_to_fire, &events_fired]() {
+        return events_fired == events_to_fire;
+    }));
+
+    // 8. If any of the connections in openConnections are still not closed, queue a task to fire a version change event named blocked at request with db’s version and null.
+    for (auto const& entry : open_connections) {
+        if (entry->state() != IDBDatabase::ConnectionState::Closed) {
+            HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.vm().heap(), [&realm, entry, db]() {
+                fire_a_version_change_event(realm, HTML::EventNames::blocked, *entry, db->version(), {});
+            }));
+        }
+    }
+
+    // 9. Wait until all connections in openConnections are closed.
+    HTML::main_thread_event_loop().spin_until(GC::create_function(realm.vm().heap(), [open_connections]() {
+        for (auto const& entry : open_connections) {
+            if (entry->state() != IDBDatabase::ConnectionState::Closed) {
+                return false;
+            }
+        }
+
+        return true;
+    }));
+
+    // 10. Let version be db’s version.
+    auto version = db->version();
+
+    // 11. Delete db. If this fails for any reason, return an appropriate error (e.g. "QuotaExceededError" or "UnknownError" DOMException).
+    auto maybe_deleted = Database::delete_for_key_and_name(storage_key, name);
+    if (maybe_deleted.is_error())
+        return WebIDL::OperationError::create(realm, "Unable to delete database"_string);
+
+    // 12. Return version.
+    return version;
+}
+
 }
