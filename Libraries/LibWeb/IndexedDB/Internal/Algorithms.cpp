@@ -321,7 +321,8 @@ void upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 v
     request->set_processed(true);
 
     // 10. Queue a task to run these steps:
-    HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.vm().heap(), [&realm, request, connection, transaction, old_version, version]() {
+    IGNORE_USE_IN_ESCAPING_LAMBDA bool wait_for_transaction = true;
+    HTML::queue_a_task(HTML::Task::Source::DatabaseAccess, nullptr, nullptr, GC::create_function(realm.vm().heap(), [&realm, request, connection, transaction, old_version, version, &wait_for_transaction]() {
         // 1. Set request’s result to connection.
         request->set_result(connection);
 
@@ -343,9 +344,14 @@ void upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 v
         transaction->set_state(IDBTransaction::TransactionState::Inactive);
 
         // FIXME: 7. If didThrow is true, run abort a transaction with transaction and a newly created "AbortError" DOMException.
+
+        wait_for_transaction = false;
     }));
 
-    // FIXME: 11. Wait for transaction to finish.
+    // 11. Wait for transaction to finish.
+    HTML::main_thread_event_loop().spin_until(GC::create_function(realm.vm().heap(), [&wait_for_transaction]() {
+        return !wait_for_transaction;
+    }));
 }
 
 // https://w3c.github.io/IndexedDB/#deleting-a-database
