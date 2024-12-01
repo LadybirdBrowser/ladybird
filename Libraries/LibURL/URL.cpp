@@ -475,23 +475,36 @@ String percent_encode(StringView input, PercentEncodeSet set, SpaceAsPlus space_
     return MUST(builder.to_string());
 }
 
+// https://url.spec.whatwg.org/#percent-decode
 ByteString percent_decode(StringView input)
 {
     if (!input.contains('%'))
         return input;
+
+    // 1. Let output be an empty byte sequence.
     StringBuilder builder;
-    Utf8View utf8_view(input);
-    for (auto it = utf8_view.begin(); !it.done(); ++it) {
-        if (*it != '%') {
-            builder.append_code_point(*it);
-        } else if (!is_ascii_hex_digit(it.peek(1).value_or(0)) || !is_ascii_hex_digit(it.peek(2).value_or(0))) {
-            builder.append_code_point(*it);
-        } else {
-            ++it;
-            u8 byte = parse_ascii_hex_digit(*it) << 4;
-            ++it;
-            byte += parse_ascii_hex_digit(*it);
-            builder.append(byte);
+
+    // 2. For each byte byte in input:
+    for (size_t i = 0; i < input.length(); ++i) {
+        // 1. If byte is not 0x25 (%), then append byte to output.
+        if (input[i] != '%') {
+            builder.append(input[i]);
+        }
+        // 2. Otherwise, if byte is 0x25 (%) and the next two bytes after byte in input are not in the ranges 0x30 (0)
+        //    to 0x39 (9), 0x41 (A) to 0x46 (F), and 0x61 (a) to 0x66 (f), all inclusive, append byte to output.
+        else if (i + 2 >= input.length() || !is_ascii_hex_digit(input[i + 1]) || !is_ascii_hex_digit(input[i + 2])) {
+            builder.append(input[i]);
+        }
+        // 3. Otherwise:
+        else {
+            // 1. Let bytePoint be the two bytes after byte in input, decoded, and then interpreted as hexadecimal number.
+            u8 byte_point = (parse_ascii_hex_digit(input[i + 1]) << 4) | parse_ascii_hex_digit(input[i + 2]);
+
+            // 2. Append a byte whose value is bytePoint to output.
+            builder.append(byte_point);
+
+            // 3. Skip the next two bytes in input.
+            i += 2;
         }
     }
     return builder.to_byte_string();
