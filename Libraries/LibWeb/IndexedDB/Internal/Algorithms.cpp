@@ -298,6 +298,7 @@ void close_a_database_connection(IDBDatabase& connection, bool forced)
         connection.dispatch_event(DOM::Event::create(connection.realm(), HTML::EventNames::close));
 }
 
+// https://w3c.github.io/IndexedDB/#upgrade-a-database
 void upgrade_a_database(JS::Realm& realm, GC::Ref<IDBDatabase> connection, u64 version, GC::Ref<IDBRequest> request)
 {
     // 1. Let db be connection’s database.
