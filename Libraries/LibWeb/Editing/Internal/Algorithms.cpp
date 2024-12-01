@@ -261,14 +261,8 @@ void canonicalize_whitespace(GC::Ref<DOM::Node> node, u32 offset, bool fix_colla
             auto* layout_node = end_node->parent()->layout_node();
             if (layout_node && is<DOM::Text>(*end_node) && end_offset == end_node->length() && precedes_a_line_break(end_node)) {
                 auto parent_white_space = layout_node->computed_values().white_space();
-
-                // FIXME: Find a way to get code points directly from the UTF-8 string
-                auto end_node_data = *end_node->text_content();
-                auto utf16_code_units = MUST(AK::utf8_to_utf16(end_node_data));
-                auto utf16_view = Utf16View { utf16_code_units };
-                auto last_code_point = utf16_view.code_point_at(utf16_view.length_in_code_points() - 1);
                 if (parent_white_space != CSS::WhiteSpace::Pre && parent_white_space != CSS::WhiteSpace::PreWrap
-                    && last_code_point == 0x20) {
+                    && end_node->text_content().value().ends_with_bytes(" "sv)) {
                     // 1. Subtract one from end offset.
                     --end_offset;
 
