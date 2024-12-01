@@ -22,6 +22,8 @@ struct ModuleWithSpecifier {
 struct ImportAttribute {
     ByteString key;
     ByteString value;
+
+    bool operator==(ImportAttribute const&) const = default;
 };
 
 // https://tc39.es/proposal-import-attributes/#modulerequest-record
@@ -42,6 +44,8 @@ struct ModuleRequest {
 
     DeprecatedFlyString module_specifier; // [[Specifier]]
     Vector<ImportAttribute> attributes;   // [[Attributes]]
+
+    bool operator==(ModuleRequest const&) const = default;
 };
 
 }
