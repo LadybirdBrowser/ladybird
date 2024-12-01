@@ -45,10 +45,15 @@ ErrorOr<String> to_ascii(Utf8View domain_name, ToAsciiOptions const& options)
         errors &= ~UIDNA_ERROR_LEADING_HYPHEN;
         errors &= ~UIDNA_ERROR_TRAILING_HYPHEN;
     }
+
     if (options.verify_dns_length == VerifyDnsLength::No) {
         errors &= ~UIDNA_ERROR_EMPTY_LABEL;
         errors &= ~UIDNA_ERROR_LABEL_TOO_LONG;
         errors &= ~UIDNA_ERROR_DOMAIN_NAME_TOO_LONG;
+    }
+
+    if (options.ignore_invalid_punycode == IgnoreInvalidPunycode::Yes) {
+        errors &= ~UIDNA_ERROR_PUNYCODE;
     }
 
     if (icu_failure(status) || errors != 0)

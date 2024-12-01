@@ -42,6 +42,11 @@ enum class VerifyDnsLength {
     Yes,
 };
 
+enum class IgnoreInvalidPunycode {
+    No,
+    Yes,
+};
+
 struct ToAsciiOptions {
     CheckHyphens check_hyphens { CheckHyphens::Yes };
     CheckBidi check_bidi { CheckBidi::Yes };
@@ -49,6 +54,7 @@ struct ToAsciiOptions {
     UseStd3AsciiRules use_std3_ascii_rules { UseStd3AsciiRules::No };
     TransitionalProcessing transitional_processing { TransitionalProcessing::No };
     VerifyDnsLength verify_dns_length { VerifyDnsLength::Yes };
+    IgnoreInvalidPunycode ignore_invalid_punycode { IgnoreInvalidPunycode::No };
 };
 
 ErrorOr<String> to_ascii(Utf8View domain_name, ToAsciiOptions const& = {});
