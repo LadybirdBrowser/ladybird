@@ -110,7 +110,3 @@ endif()
 if (ANDROID)
     target_link_libraries(LibCore PRIVATE log)
 endif()
-
-if (WIN32)
-    target_link_libraries(LibCore PRIVATE ws2_32.lib)
-endif()
