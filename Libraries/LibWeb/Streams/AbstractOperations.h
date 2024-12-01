@@ -188,6 +188,7 @@ void transform_stream_set_up(TransformStream&, GC::Ref<TransformAlgorithm>, GC::
 void transform_stream_unblock_write(TransformStream&);
 
 bool is_non_negative_number(JS::Value);
+bool can_copy_data_block_bytes_buffer(JS::ArrayBuffer const& to_buffer, u64 to_index, JS::ArrayBuffer const& from_buffer, u64 from_index, u64 count);
 bool can_transfer_array_buffer(JS::ArrayBuffer const& array_buffer);
 WebIDL::ExceptionOr<JS::Value> clone_as_uint8_array(JS::Realm&, WebIDL::ArrayBufferView&);
 WebIDL::ExceptionOr<JS::Value> structured_clone(JS::Realm&, JS::Value value);
