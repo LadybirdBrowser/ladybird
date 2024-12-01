@@ -380,7 +380,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         return JS::JobCallback::create(*s_main_thread_vm, callable, move(host_defined));
     };
 
-    // 8.1.5.5.1 HostGetImportMetaProperties(moduleRecord), https://html.spec.whatwg.org/multipage/webappapis.html#hostgetimportmetaproperties
+    // 8.1.6.7.1 HostGetImportMetaProperties(moduleRecord), https://html.spec.whatwg.org/multipage/webappapis.html#hostgetimportmetaproperties
     s_main_thread_vm->host_get_import_meta_properties = [](JS::SourceTextModule& module_record) {
         auto& realm = module_record.realm();
         auto& vm = realm.vm();
@@ -421,10 +421,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         return meta;
     };
 
-    // FIXME: Implement 8.1.5.5.2 HostImportModuleDynamically(referencingScriptOrModule, moduleRequest, promiseCapability), https://html.spec.whatwg.org/multipage/webappapis.html#hostimportmoduledynamically(referencingscriptormodule,-modulerequest,-promisecapability)
-    // FIXME: Implement 8.1.5.5.3 HostResolveImportedModule(referencingScriptOrModule, moduleRequest), https://html.spec.whatwg.org/multipage/webappapis.html#hostresolveimportedmodule(referencingscriptormodule,-modulerequest)
-
-    // 8.1.6.5.2 HostGetSupportedImportAttributes(), https://html.spec.whatwg.org/multipage/webappapis.html#hostgetsupportedimportassertions
+    // 8.1.6.7.2 HostGetSupportedImportAttributes(), https://html.spec.whatwg.org/multipage/webappapis.html#hostgetsupportedimportassertions
     s_main_thread_vm->host_get_supported_import_attributes = []() -> Vector<ByteString> {
         // 1. Return « "type" ».
         return { "type"sv };
