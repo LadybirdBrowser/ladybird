@@ -102,24 +102,37 @@ sudo xbps-install -S git bash gcc python3 curl cmake zip unzip linux-headers mak
 ### NixOS or with Nix:
 
 > [!NOTE]
-> These steps are out of date, as vcpkg does not work with Nix.
-> Please refer to the nixpkgs package for the most up-to-date build instructions.
->
+> Ladybird's build system uses vcpkg to vendor third-party dependencies, which proves undesirable to use with Nix for [several reasons](https://github.com/LadybirdBrowser/ladybird/issues/371).  
+> As a result, using `ladybird.sh` to compile and run Ladybird will fail. Therefore, it is necessary to use system packages provided by the dev-shell.
+
+To build the project, first enter the shell:
 
 ```console
 nix develop
 
-# With a custom entrypoint, for example your favorite shell
+# With a custom entrypoint, for example, your favorite shell
 nix develop --command bash
+
+# Using nix-shell
+nix-shell UI
+
+# Using nix-shell and a custom shell
+nix-shell UI --command bash
 ```
 
-On NixOS or with Nix using your host `nixpkgs` and the legacy `nix-shell` tool:
-```console
-nix-shell Ladybird
+Then invoke `cmake` directly. For example:
 
-# With a custom entrypoint, for example your favorite shell
-nix-shell --command bash Ladybird
 ```
+cmake -GNinja -BBuild/release
+```
+
+Finally, run `ninja` (or the generator you're using) to start the build:
+
+```
+ninja -CBuild/release
+```
+
+For more information, see [Custom CMake build directory](#custom-cmake-build-directory) and [Running manually](#running-manually).
 
 ### macOS:
 
