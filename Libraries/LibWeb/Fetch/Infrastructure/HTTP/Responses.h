@@ -204,7 +204,7 @@ private:
 
 public:
     [[nodiscard]] ByteBuffer const& method() const { return m_method; }
-    void set_method(ByteBuffer method) { m_method = method; }
+    void set_method(ByteBuffer method) { m_method = move(method); }
 };
 
 // https://fetch.spec.whatwg.org/#concept-filtered-response
