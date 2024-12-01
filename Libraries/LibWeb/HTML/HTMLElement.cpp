@@ -88,6 +88,7 @@ bool HTMLElement::is_editable() const
 {
     switch (m_content_editable_state) {
     case ContentEditableState::True:
+    case ContentEditableState::PlaintextOnly:
         return true;
     case ContentEditableState::False:
         return false;
@@ -100,7 +101,8 @@ bool HTMLElement::is_editable() const
 
 bool HTMLElement::is_focusable() const
 {
-    return m_content_editable_state == ContentEditableState::True;
+    return m_content_editable_state == ContentEditableState::True
+        || m_content_editable_state == ContentEditableState::PlaintextOnly;
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-iscontenteditable
@@ -118,6 +120,8 @@ StringView HTMLElement::content_editable() const
         return "true"sv;
     case ContentEditableState::False:
         return "false"sv;
+    case ContentEditableState::PlaintextOnly:
+        return "plaintext-only"sv;
     case ContentEditableState::Inherit:
         return "inherit"sv;
     }
@@ -135,11 +139,15 @@ WebIDL::ExceptionOr<void> HTMLElement::set_content_editable(StringView content_e
         MUST(set_attribute(HTML::AttributeNames::contenteditable, "true"_string));
         return {};
     }
+    if (content_editable.equals_ignoring_ascii_case("plaintext-only"sv)) {
+        MUST(set_attribute(HTML::AttributeNames::contenteditable, "plaintext-only"_string));
+        return {};
+    }
     if (content_editable.equals_ignoring_ascii_case("false"sv)) {
         MUST(set_attribute(HTML::AttributeNames::contenteditable, "false"_string));
         return {};
     }
-    return WebIDL::SyntaxError::create(realm(), "Invalid contentEditable value, must be 'true', 'false', or 'inherit'"_string);
+    return WebIDL::SyntaxError::create(realm(), "Invalid contentEditable value, must be 'true', 'false', 'plaintext-only' or 'inherit'"_string);
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#set-the-inner-text-steps
@@ -602,18 +610,20 @@ void HTMLElement::attribute_changed(FlyString const& name, Optional<String> cons
 
     if (name == HTML::AttributeNames::contenteditable) {
         if (!value.has_value()) {
+            // No value maps to the "inherit" state.
             m_content_editable_state = ContentEditableState::Inherit;
+        } else if (value->is_empty() || value->equals_ignoring_ascii_case("true"sv)) {
+            // "true", an empty string or a missing value map to the "true" state.
+            m_content_editable_state = ContentEditableState::True;
+        } else if (value->equals_ignoring_ascii_case("false"sv)) {
+            // "false" maps to the "false" state.
+            m_content_editable_state = ContentEditableState::False;
+        } else if (value->equals_ignoring_ascii_case("plaintext-only"sv)) {
+            // "plaintext-only" maps to the "plaintext-only" state.
+            m_content_editable_state = ContentEditableState::PlaintextOnly;
         } else {
-            if (value->is_empty() || value->equals_ignoring_ascii_case("true"sv)) {
-                // "true", an empty string or a missing value map to the "true" state.
-                m_content_editable_state = ContentEditableState::True;
-            } else if (value->equals_ignoring_ascii_case("false"sv)) {
-                // "false" maps to the "false" state.
-                m_content_editable_state = ContentEditableState::False;
-            } else {
-                // Having no such attribute or an invalid value maps to the "inherit" state.
-                m_content_editable_state = ContentEditableState::Inherit;
-            }
+            // Having an invalid value maps to the "inherit" state.
+            m_content_editable_state = ContentEditableState::Inherit;
         }
     }
 

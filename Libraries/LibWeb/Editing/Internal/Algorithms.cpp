@@ -816,11 +816,10 @@ bool is_editing_host(GC::Ref<DOM::Node> node)
     // An editing host is either an HTML element with its contenteditable attribute in the true
     // state or plaintext-only state, or a child HTML element of a Document whose design mode
     // enabled is true.
-    // FIXME: check contenteditable "plaintext-only"
     if (!is<HTML::HTMLElement>(*node))
         return false;
     auto const& html_element = static_cast<HTML::HTMLElement&>(*node);
-    return html_element.content_editable() == "true"sv || node->document().design_mode_enabled_state();
+    return html_element.content_editable().is_one_of("true"sv, "plaintext-only"sv) || node->document().design_mode_enabled_state();
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#element-with-inline-contents

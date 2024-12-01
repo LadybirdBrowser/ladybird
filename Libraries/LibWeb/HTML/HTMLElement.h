@@ -105,9 +105,11 @@ private:
     // https://html.spec.whatwg.org/multipage/custom-elements.html#attached-internals
     GC::Ptr<ElementInternals> m_attached_internals;
 
+    // https://html.spec.whatwg.org/#attr-contenteditable
     enum class ContentEditableState {
         True,
         False,
+        PlaintextOnly,
         Inherit,
     };
     ContentEditableState m_content_editable_state { ContentEditableState::Inherit };
