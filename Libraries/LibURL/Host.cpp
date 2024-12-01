@@ -47,44 +47,69 @@ static String serialize_ipv4_address(IPv4Address address)
     return MUST(String::formatted("{}.{}.{}.{}", output[0], output[1], output[2], output[3]));
 }
 
+// https://url.spec.whatwg.org/#find-the-ipv6-address-compressed-piece-index
+static Optional<size_t> find_the_ipv6_address_compressed_piece_index(IPv6Address const& address)
+{
+    // 1. Let longestIndex be null.
+    Optional<size_t> longest_index;
+
+    // 2. Let longestSize be 1.
+    size_t longest_size = 1;
+
+    // 3. Let foundIndex be null.
+    Optional<size_t> found_index;
+
+    // 4. Let foundSize be 0.
+    size_t found_size = 0;
+
+    // 5. For each pieceIndex of address’s pieces’s indices:
+    for (size_t piece_index = 0; piece_index < address.size(); ++piece_index) {
+        // 1. If address’s pieces[pieceIndex] is not 0:
+        if (address[piece_index] != 0) {
+            // 1. If foundSize is greater than longestSize, then set longestIndex to foundIndex and longestSize to foundSize.
+            if (found_size > longest_size) {
+                longest_index = found_index;
+                longest_size = found_size;
+            }
+
+            // 2. Set foundIndex to null.
+            found_index = {};
+
+            // 3. Set foundSize to 0.
+            found_size = 0;
+        }
+        // 2. Otherwise:
+        else {
+            // 1. If foundIndex is null, then set foundIndex to pieceIndex.
+            if (!found_index.has_value())
+                found_index = piece_index;
+
+            // 2. Increment foundSize by 1.
+            ++found_size;
+        }
+    }
+
+    // 6. If foundSize is greater than longestSize, then return foundIndex.
+    if (found_size > longest_size)
+        return found_index;
+
+    // 7. Return longestIndex.
+    return longest_index;
+}
+
 // https://url.spec.whatwg.org/#concept-ipv6-serializer
 static void serialize_ipv6_address(IPv6Address const& address, StringBuilder& output)
 {
     // 1. Let output be the empty string.
 
-    // 2. Let compress be an index to the first IPv6 piece in the first longest sequences of address’s IPv6 pieces that are 0.
-    Optional<size_t> compress;
-    size_t longest_sequence_length = 0;
-    size_t current_sequence_length = 0;
-    size_t current_sequence_start = 0;
-    for (size_t i = 0; i < 8; ++i) {
-        if (address[i] == 0) {
-            if (current_sequence_length == 0)
-                current_sequence_start = i;
-            ++current_sequence_length;
-        } else {
-            if (current_sequence_length > longest_sequence_length) {
-                longest_sequence_length = current_sequence_length;
-                compress = current_sequence_start;
-            }
-            current_sequence_length = 0;
-        }
-    }
+    // 2. Let compress be the result of finding the IPv6 address compressed piece index given address.
+    auto compress = find_the_ipv6_address_compressed_piece_index(address);
 
-    if (current_sequence_length > longest_sequence_length) {
-        longest_sequence_length = current_sequence_length;
-        compress = current_sequence_start;
-    }
-
-    // 3. If there is no sequence of address’s IPv6 pieces that are 0 that is longer than 1, then set compress to null.
-    if (longest_sequence_length <= 1)
-        compress = {};
-
-    // 4. Let ignore0 be false.
+    // 3. Let ignore0 be false.
     auto ignore0 = false;
 
-    // 5. For each pieceIndex in the range 0 to 7, inclusive:
-    for (size_t piece_index = 0; piece_index <= 7; ++piece_index) {
+    // 4. For each pieceIndex of address’s pieces’s indices:
+    for (size_t piece_index = 0; piece_index < address.size(); ++piece_index) {
         // 1. If ignore0 is true and address[pieceIndex] is 0, then continue.
         if (ignore0 && address[piece_index] == 0)
             continue;
@@ -114,7 +139,7 @@ static void serialize_ipv6_address(IPv6Address const& address, StringBuilder& ou
             output.append(':');
     }
 
-    // 6. Return output.
+    // 5. Return output.
 }
 
 // https://url.spec.whatwg.org/#concept-domain
