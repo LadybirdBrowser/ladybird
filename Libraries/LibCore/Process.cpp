@@ -346,7 +346,7 @@ ErrorOr<int> Process::wait_for_termination()
     int exit_code = -1;
     int status;
     if (waitpid(m_pid, &status, 0) == -1)
-        return Error::from_syscall("waitpid"sv, errno);
+        return Error::from_syscall("waitpid"sv, -errno);
 
     if (WIFEXITED(status)) {
         exit_code = WEXITSTATUS(status);
