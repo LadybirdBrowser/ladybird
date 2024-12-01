@@ -506,7 +506,8 @@ static ErrorOr<String> domain_to_ascii(StringView domain, bool be_strict)
     //     CheckJoiners set to true,
     //     UseSTD3ASCIIRules set to beStrict,
     //     Transitional_Processing set to false,
-    //     VerifyDnsLength set to beStrict. [UTS46].
+    //     VerifyDnsLength set to beStrict,
+    //     and IgnoreInvalidPunycode set to false. [UTS46]
 
     // 2. If result is a failure value, domain-to-ASCII validation error, return failure.
 
@@ -538,7 +539,8 @@ static ErrorOr<String> domain_to_ascii(StringView domain, bool be_strict)
         Unicode::IDNA::CheckJoiners::Yes,
         be_strict ? Unicode::IDNA::UseStd3AsciiRules::Yes : Unicode::IDNA::UseStd3AsciiRules::No,
         Unicode::IDNA::TransitionalProcessing::No,
-        be_strict ? Unicode::IDNA::VerifyDnsLength::Yes : Unicode::IDNA::VerifyDnsLength::No
+        be_strict ? Unicode::IDNA::VerifyDnsLength::Yes : Unicode::IDNA::VerifyDnsLength::No,
+        Unicode::IDNA::IgnoreInvalidPunycode::No,
     };
     auto result = TRY(Unicode::IDNA::to_ascii(Utf8View(domain), options));
 
