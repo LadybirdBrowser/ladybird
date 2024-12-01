@@ -344,10 +344,10 @@ void ReplObject::initialize(JS::Realm& realm)
             outln("Disable writing last value to '_'");
 
             // We must delete first otherwise this setter gets called recursively.
-            TRY(global_object.internal_delete(JS::PropertyKey { "_" }));
+            TRY(global_object.internal_delete(vm.names._));
 
             auto value = vm.argument(0);
-            TRY(global_object.internal_set(JS::PropertyKey { "_" }, value, &global_object));
+            TRY(global_object.internal_set(vm.names._, value, &global_object));
             return value;
         },
         attr);

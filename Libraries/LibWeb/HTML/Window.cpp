@@ -935,8 +935,7 @@ WebIDL::ExceptionOr<void> Window::set_opener(JS::Value value)
 
     // 2. If the given value is non-null, then perform ? DefinePropertyOrThrow(this, "opener", { [[Value]]: the given value, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true }).
     if (!value.is_null()) {
-        static JS::PropertyKey opener_property_key { "opener", JS::PropertyKey::StringMayBeNumber::No };
-        TRY(define_property_or_throw(opener_property_key, { .value = value, .writable = true, .enumerable = true, .configurable = true }));
+        TRY(define_property_or_throw(vm().names.opener, { .value = value, .writable = true, .enumerable = true, .configurable = true }));
     }
 
     return {};

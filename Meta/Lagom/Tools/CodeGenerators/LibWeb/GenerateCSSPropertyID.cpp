@@ -573,6 +573,7 @@ bool is_animatable_property(PropertyID property_id)
 
     properties.for_each_member([&](auto& name, auto& value) {
         VERIFY(value.is_object());
+        VERIFY(!name.is_empty() && !is_ascii_digit(name[0])); // Ensure `PropertyKey`s are not Numbers.
         if (is_legacy_alias(value.as_object()))
             return;
 

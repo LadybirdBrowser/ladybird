@@ -218,7 +218,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
         VERIFY(attribute_changed_callback_iterator != lifecycle_callbacks.end());
         if (attribute_changed_callback_iterator->value) {
             // 1. Let observedAttributesIterable be ? Get(constructor, "observedAttributes").
-            auto observed_attributes_iterable = TRY(constructor->callback->get(JS::PropertyKey { "observedAttributes" }));
+            auto observed_attributes_iterable = TRY(constructor->callback->get(vm.names.observedAttributes));
 
             // 2. If observedAttributesIterable is not undefined, then set observedAttributes to the result of converting observedAttributesIterable to a sequence<DOMString>. Rethrow any exceptions from the conversion.
             if (!observed_attributes_iterable.is_undefined())
@@ -229,7 +229,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
         Vector<String> disabled_features;
 
         // 7. Let disabledFeaturesIterable be ? Get(constructor, "disabledFeatures").
-        auto disabled_features_iterable = TRY(constructor->callback->get(JS::PropertyKey { "disabledFeatures" }));
+        auto disabled_features_iterable = TRY(constructor->callback->get(vm.names.disabledFeatures));
 
         // 8. If disabledFeaturesIterable is not undefined, then set disabledFeatures to the result of converting disabledFeaturesIterable to a sequence<DOMString>. Rethrow any exceptions from the conversion.
         if (!disabled_features_iterable.is_undefined())
@@ -242,7 +242,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
         disable_shadow = disabled_features.contains_slow("shadow"sv);
 
         // 11. Let formAssociatedValue be ? Get( constructor, "formAssociated").
-        auto form_associated_value = TRY(constructor->callback->get(JS::PropertyKey { "formAssociated" }));
+        auto form_associated_value = TRY(constructor->callback->get(vm.names.formAssociated));
 
         // 12. Set formAssociated to the result of converting formAssociatedValue to a boolean. Rethrow any exceptions from the conversion.
         // NOTE: Converting to a boolean cannot throw with ECMAScript.

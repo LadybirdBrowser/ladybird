@@ -172,7 +172,7 @@ static ThrowCompletionOr<GC::Ref<Object>> create_table_row(Realm& realm, Value r
 
     // 2. Set `row["(index)"]` to `rowIndex`
     {
-        auto key = PropertyKey("(index)");
+        auto key = PropertyKey { "(index)", PropertyKey::StringMayBeNumber::No };
         TRY(row->set(key, row_index, Object::ShouldThrowExceptions::No));
 
         add_column(key);
@@ -228,12 +228,11 @@ static ThrowCompletionOr<GC::Ref<Object>> create_table_row(Realm& realm, Value r
     }
     // 5. Otherwise,
     else {
-        PropertyKey key("Value");
         // 5.1. Set `row["Value"]` to `tabularDataItem`
-        TRY(row->set(key, tabular_data_item, Object::ShouldThrowExceptions::No));
+        TRY(row->set(vm.names.Value, tabular_data_item, Object::ShouldThrowExceptions::No));
 
         // 5.2. If `finalColumns` does not contain "Value", append "Value" to `finalColumns`
-        add_column(key);
+        add_column(vm.names.Value);
     }
 
     // 6. Return row
@@ -322,10 +321,10 @@ ThrowCompletionOr<Value> Console::table()
             auto final_data = Object::create(realm(), nullptr);
 
             // 5.2. Set `finalData["rows"]` to `finalRows`
-            TRY(final_data->set(PropertyKey("rows"), table_rows, Object::ShouldThrowExceptions::No));
+            TRY(final_data->set(vm.names.rows, table_rows, Object::ShouldThrowExceptions::No));
 
             // 5.3. Set finalData["columns"] to finalColumns
-            TRY(final_data->set(PropertyKey("columns"), table_cols, Object::ShouldThrowExceptions::No));
+            TRY(final_data->set(vm.names.columns, table_cols, Object::ShouldThrowExceptions::No));
 
             // 5.4. Perform `Printer("table", finalData)`
             GC::MarkedVector<Value> args(vm.heap());
