@@ -57,7 +57,7 @@ void SVGSVGPaintable::paint_svg_box(PaintContext& context, PaintableBox const& s
 
     auto const& filter = svg_box.computed_values().filter();
     auto masking_area = svg_box.get_masking_area();
-    auto needs_to_save_state = computed_values.opacity() < 1 || svg_box.has_css_transform() || svg_box.get_masking_area().has_value();
+    auto needs_to_save_state = svg_box.has_css_transform() || svg_box.get_masking_area().has_value();
 
     if (needs_to_save_state) {
         context.display_list_recorder().save();
@@ -96,6 +96,10 @@ void SVGSVGPaintable::paint_svg_box(PaintContext& context, PaintableBox const& s
     paint_descendants(context, svg_box, phase);
 
     if (!filter.is_none()) {
+        context.display_list_recorder().restore();
+    }
+
+    if (computed_values.opacity() < 1) {
         context.display_list_recorder().restore();
     }
 
