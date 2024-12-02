@@ -819,7 +819,9 @@ bool is_editing_host(GC::Ref<DOM::Node> node)
     if (!is<HTML::HTMLElement>(*node))
         return false;
     auto const& html_element = static_cast<HTML::HTMLElement&>(*node);
-    return html_element.content_editable().is_one_of("true"sv, "plaintext-only"sv) || node->document().design_mode_enabled_state();
+    return html_element.content_editable_state() == HTML::ContentEditableState::True
+        || html_element.content_editable_state() == HTML::ContentEditableState::PlaintextOnly
+        || node->document().design_mode_enabled_state();
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#element-with-inline-contents

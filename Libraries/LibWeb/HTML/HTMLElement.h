@@ -20,6 +20,14 @@ namespace Web::HTML {
     __ENUMERATE_HTML_ELEMENT_DIR_ATTRIBUTE(rtl) \
     __ENUMERATE_HTML_ELEMENT_DIR_ATTRIBUTE(auto)
 
+// https://html.spec.whatwg.org/#attr-contenteditable
+enum class ContentEditableState {
+    True,
+    False,
+    PlaintextOnly,
+    Inherit,
+};
+
 class HTMLElement
     : public DOM::Element
     , public HTML::GlobalEventHandlers
@@ -39,6 +47,7 @@ public:
     virtual bool is_focusable() const override;
     bool is_content_editable() const;
     StringView content_editable() const;
+    ContentEditableState content_editable_state() const { return m_content_editable_state; }
     WebIDL::ExceptionOr<void> set_content_editable(StringView);
 
     String inner_text();
@@ -106,12 +115,6 @@ private:
     GC::Ptr<ElementInternals> m_attached_internals;
 
     // https://html.spec.whatwg.org/#attr-contenteditable
-    enum class ContentEditableState {
-        True,
-        False,
-        PlaintextOnly,
-        Inherit,
-    };
     ContentEditableState m_content_editable_state { ContentEditableState::Inherit };
 
     // https://html.spec.whatwg.org/multipage/interaction.html#click-in-progress-flag
