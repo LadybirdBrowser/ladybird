@@ -49,6 +49,7 @@ enum class CompilationType {
     DirectEval,
     IndirectEval,
     Function,
+    Timer,
 };
 
 class JS_API VM : public RefCounted<VM> {

@@ -25,6 +25,9 @@
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/SyntheticHostDefined.h>
 #include <LibWeb/Bindings/WindowExposedInterfaces.h>
+#include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/KeywordSources.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
 #include <LibWeb/HTML/EventNames.h>
@@ -114,7 +117,19 @@ void initialize_main_thread_vm(AgentType type)
         return {};
     };
 
-    // FIXME: Implement 8.1.5.2 HostEnsureCanCompileStrings(callerRealm, calleeRealm), https://html.spec.whatwg.org/multipage/webappapis.html#hostensurecancompilestrings(callerrealm,-calleerealm)
+    // 8.1.6.2 HostEnsureCanCompileStrings(realm, parameterStrings, bodyString, codeString, compilationType, parameterArgs, bodyArg), https://html.spec.whatwg.org/multipage/webappapis.html#hostensurecancompilestrings(realm,-parameterstrings,-bodystring,-codestring,-compilationtype,-parameterargs,-bodyarg)
+    s_main_thread_vm->host_ensure_can_compile_strings = [](JS::Realm& realm, ReadonlySpan<String> parameter_strings, StringView body_string, StringView code_string, JS::CompilationType compilation_type, ReadonlySpan<JS::Value> parameter_args, JS::Value body_arg) -> JS::ThrowCompletionOr<void> {
+        // 1. Perform ? EnsureCSPDoesNotBlockStringCompilation(realm, parameterStrings, bodyString, codeString, compilationType, parameterArgs, bodyArg). [CSP]
+        return ContentSecurityPolicy::ensure_csp_does_not_block_string_compilation(realm, parameter_strings, body_string, code_string, compilation_type, parameter_args, body_arg);
+    };
+
+    // 8.1.6.3 HostGetCodeForEval(argument), https://html.spec.whatwg.org/multipage/webappapis.html#hostgetcodeforeval(argument)
+    s_main_thread_vm->host_get_code_for_eval = [](JS::Object const&) -> GC::Ptr<JS::PrimitiveString> {
+        // FIXME: 1. If argument is a TrustedScript object, then return argument's data.
+
+        // 2. Otherwise, return no-code.
+        return {};
+    };
 
     // 8.1.5.3 HostPromiseRejectionTracker(promise, operation), https://html.spec.whatwg.org/multipage/webappapis.html#the-hostpromiserejectiontracker-implementation
     // https://whatpr.org/html/9893/webappapis.html#the-hostpromiserejectiontracker-implementation

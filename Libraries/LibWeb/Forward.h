@@ -138,6 +138,7 @@ class ImageSourceDirective;
 class ManifestSourceDirective;
 class MediaSourceDirective;
 class ObjectSourceDirective;
+class ScriptSourceDirective;
 struct SerializedDirective;
 
 }

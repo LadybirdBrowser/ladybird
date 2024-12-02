@@ -15,6 +15,7 @@
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/Fetch/FetchMethod.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
@@ -332,7 +333,9 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
         timeout = 0;
 
     // FIXME: 5. If nesting level is greater than 5, and timeout is less than 4, then set timeout to 4.
-    // FIXME: 6. Let realm be global's relevant realm.
+
+    // 6. Let realm be global's relevant realm.
+    auto& realm = relevant_realm(this_impl());
 
     // 7. Let initiating script be the active script.
     auto const* initiating_script = Web::Bindings::active_script();
@@ -342,7 +345,7 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
     // FIXME 8. Let uniqueHandle be null.
 
     // 9. Let task be a task that runs the following substeps:
-    auto task = GC::create_function(vm.heap(), Function<void()>([this, handler = move(handler), timeout, arguments = move(arguments), repeat, id, initiating_script, previous_id]() {
+    auto task = GC::create_function(vm.heap(), Function<void()>([this, handler = move(handler), timeout, arguments = move(arguments), repeat, id, initiating_script, previous_id, &vm, &realm]() {
         // FIXME: 1. Assert: uniqueHandle is a unique internal value, not null.
 
         // 2. If id does not exist in global's map of setTimeout and setInterval IDs, then abort these steps.
@@ -352,10 +355,11 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
         // FIXME: 3. If global's map of setTimeout and setInterval IDs[id] does not equal uniqueHandle, then abort these steps.
         // FIXME: 4. Record timing info for timer handler given handler, global's relevant settings object, and repeat.
 
-        handler.visit(
+        bool continue_ = handler.visit(
             // 5. If handler is a Function, then invoke handler given arguments and "report", and with callback this value set to thisArg.
             [&](GC::Root<WebIDL::CallbackType> const& callback) {
                 (void)WebIDL::invoke_callback(*callback, &this_impl(), WebIDL::ExceptionBehavior::Report, arguments);
+                return true;
             },
             // 6. Otherwise:
             [&](String const& source) {
@@ -373,8 +377,14 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
                     // FIXME: 4. Set handler to the result of invoking the Get Trusted Type compliant string algorithm with TrustedScript, global, handler, sink, and "script".
                 }
 
-                // FIXME: 2. Assert: handler is a string.
-                // FIXME: 3. Perform EnsureCSPDoesNotBlockStringCompilation(realm, « », handler, handler, timer, « », handler). If this throws an exception, catch it, report it for global, and abort these steps.
+                // 2. Assert: handler is a string.
+                // 3. Perform EnsureCSPDoesNotBlockStringCompilation(realm, « », handler, handler, timer, « », handler).
+                //    If this throws an exception, catch it, report it for global, and abort these steps.
+                auto handler_primitive_string = JS::PrimitiveString::create(vm, source);
+                if (auto result = ContentSecurityPolicy::ensure_csp_does_not_block_string_compilation(realm, {}, source, source, JS::CompilationType::Timer, {}, handler_primitive_string); result.is_throw_completion()) {
+                    report_exception(result, realm);
+                    return false;
+                }
 
                 // 4. Let settings object be global's relevant settings object.
                 auto& settings_object = relevant_settings_object(this_impl());
@@ -405,7 +415,11 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
 
                 // 9. Run the classic script script.
                 (void)script->run();
+                return true;
             });
+
+        if (!continue_)
+            return;
 
         // 7. If id does not exist in global's map of setTimeout and setInterval IDs, then abort these steps.
         if (!m_timers.contains(id))

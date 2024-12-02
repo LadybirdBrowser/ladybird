@@ -4,18 +4,26 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Base64.h>
 #include <AK/FlyString.h>
 #include <AK/HashMap.h>
 #include <AK/Vector.h>
+#include <LibCrypto/Hash/SHA2.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/DirectiveOperations.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/KeywordSources.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/SourceExpression.h>
+#include <LibWeb/DOM/Attr.h>
+#include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/NamedNodeMap.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
+#include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/Infra/Strings.h>
+#include <LibWeb/SRI/SRI.h>
+#include <LibWeb/SVG/SVGElement.h>
 
 namespace Web::ContentSecurityPolicy::Directives {
 
@@ -602,6 +610,403 @@ MatchResult does_response_match_source_list(GC::Ref<Fetch::Infrastructure::Respo
     // FIXME: File spec issue that it does specify to pass in response here.
     VERIFY(response->url().has_value());
     return does_url_match_source_list_in_origin_with_redirect_count(response->url().value(), source_list, policy->self_origin(), request->redirect_count());
+}
+
+// https://w3c.github.io/webappsec-csp/#match-nonce-to-source-list
+MatchResult does_nonce_match_source_list(String const& nonce, Vector<String> const& source_list)
+{
+    // 1. Assert: source list is not null.
+    // Already done by only accept references.
+
+    // 2. If nonce is the empty string, return "Does Not Match".
+    if (nonce.is_empty())
+        return MatchResult::DoesNotMatch;
+
+    // 3. For each expression of source list:
+    for (auto const& expression : source_list) {
+        // 1. If expression matches the nonce-source grammar, and nonce is identical to expression’s base64-value part,
+        //    return "Matches".
+        auto nonce_source_match_result = parse_source_expression(Production::NonceSource, expression);
+        if (nonce_source_match_result.has_value()) {
+            VERIFY(nonce_source_match_result->base64_value.has_value());
+            if (nonce == nonce_source_match_result->base64_value.value())
+                return MatchResult::Matches;
+        }
+    }
+
+    // 4. Return "Does Not Match".
+    return MatchResult::DoesNotMatch;
+}
+
+// https://w3c.github.io/webappsec-csp/#match-integrity-metadata-to-source-list
+// Spec Note: Here, we verify only whether the integrity metadata is a non-empty subset of the hash-source sources in
+//            source list. We rely on the browser’s enforcement of Subresource Integrity [SRI] to block non-matching
+//            resources upon response.
+static MatchResult does_integrity_metadata_match_source_list(String const& integrity_metadata, Vector<String> const& source_list)
+{
+    // 1. Assert: source list is not null.
+    // NOTE: This is already done by passing in source_list by reference.
+
+    // 2. Let integrity expressions be the set of source expressions in source list that match the hash-source grammar.
+    Vector<SourceExpressionParseResult> integrity_expressions;
+    for (auto const& expression : source_list) {
+        auto hash_source_parse_result = parse_source_expression(Production::HashSource, expression);
+        if (hash_source_parse_result.has_value())
+            integrity_expressions.append(hash_source_parse_result.release_value());
+    }
+
+    // 3. If integrity expressions is empty, return "Does Not Match".
+    if (integrity_expressions.is_empty())
+        return MatchResult::DoesNotMatch;
+
+    // 4. Let integrity sources be the result of executing the algorithm defined in SRI § 3.3.3 Parse metadata. on
+    //    integrity metadata. [SRI]
+    auto integrity_sources = MUST(SRI::parse_metadata(integrity_metadata));
+
+    // 5. If integrity sources is "no metadata" or an empty set, return "Does Not Match".
+    // FIXME: File a spec issue stating that this is targetting an older version of the SRI spec, which does not return
+    //        "no metadata", but instead simply just returns an empty list if there is no metadata.
+    //        The up-to-date spec is located at https://w3c.github.io/webappsec-subresource-integrity/
+    if (integrity_sources.is_empty())
+        return MatchResult::DoesNotMatch;
+
+    // 6. For each source of integrity sources:
+    for (auto const& source : integrity_sources) {
+        // 1. If integrity expressions does not contain a source expression whose hash-algorithm is an ASCII
+        //    case-insensitive match for source’s hash-algorithm, and whose base64-value is identical to source’s
+        //    base64-value, return "Does Not Match".
+        auto maybe_match = integrity_expressions.find_if([&source](auto const& integrity_expression) {
+            VERIFY(integrity_expression.hash_algorithm.has_value());
+            VERIFY(integrity_expression.base64_value.has_value());
+
+            return integrity_expression.hash_algorithm.value().equals_ignoring_ascii_case(source.algorithm)
+                && integrity_expression.base64_value.value() == source.base64_value;
+        });
+
+        if (maybe_match.is_end())
+            return MatchResult::DoesNotMatch;
+    }
+
+    // 7. Return "Matches".
+    return MatchResult::Matches;
+}
+
+// https://w3c.github.io/webappsec-csp/#script-pre-request
+Directive::Result script_directives_pre_request_check(GC::Ref<Fetch::Infrastructure::Request const> request, GC::Ref<Directive const> directive, GC::Ref<Policy const> policy)
+{
+    // 1. If request’s destination is script-like:
+    if (request->destination_is_script_like()) {
+        // 1. If the result of executing § 6.7.2.3 Does nonce match source list? on request’s cryptographic nonce
+        //    metadata and this directive’s value is "Matches", return "Allowed".
+        if (does_nonce_match_source_list(request->cryptographic_nonce_metadata(), directive->value()) == MatchResult::Matches)
+            return Directive::Result::Allowed;
+
+        // 2. If the result of executing § 6.7.2.4 Does integrity metadata match source list? on request’s integrity
+        //    metadata and this directive’s value is "Matches", return "Allowed".
+        if (does_integrity_metadata_match_source_list(request->integrity_metadata(), directive->value()) == MatchResult::Matches)
+            return Directive::Result::Allowed;
+
+        // 3. If directive’s value contains a source expression that is an ASCII case-insensitive match for the
+        //    "'strict-dynamic'" keyword-source:
+        // Spec Note: "'strict-dynamic'" is explained in more detail in § 8.2 Usage of "'strict-dynamic'".
+        //            https://w3c.github.io/webappsec-csp/#strict-dynamic-usage
+        auto maybe_strict_dynamic = directive->value().find_if([](auto const& directive_value) {
+            return directive_value.equals_ignoring_ascii_case(KeywordSources::StrictDynamic);
+        });
+
+        if (!maybe_strict_dynamic.is_end()) {
+            // 1. If the request’s parser metadata is "parser-inserted", return "Blocked".
+            //    Otherwise, return "Allowed".
+            if (request->parser_metadata() == Fetch::Infrastructure::Request::ParserMetadata::ParserInserted)
+                return Directive::Result::Blocked;
+
+            return Directive::Result::Allowed;
+        }
+
+        // 4. If the result of executing § 6.7.2.5 Does request match source list? on request, directive’s value, and
+        //    policy, is "Does Not Match", return "Blocked".
+        if (does_request_match_source_list(request, directive->value(), policy) == MatchResult::DoesNotMatch)
+            return Directive::Result::Blocked;
+    }
+
+    // 2. Return "Allowed".
+    return Directive::Result::Allowed;
+}
+
+// https://w3c.github.io/webappsec-csp/#script-post-request
+Directive::Result script_directives_post_request_check(GC::Ref<Fetch::Infrastructure::Request const> request, GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ref<Directive const> directive, GC::Ref<Policy const> policy)
+{
+    // 1. If request’s destination is script-like:
+    if (request->destination_is_script_like()) {
+        // 1. If the result of executing § 6.7.2.3 Does nonce match source list? on request’s cryptographic nonce
+        //    metadata and this directive’s value is "Matches", return "Allowed".
+        if (does_nonce_match_source_list(request->cryptographic_nonce_metadata(), directive->value()) == MatchResult::Matches)
+            return Directive::Result::Allowed;
+
+        // 2. If the result of executing § 6.7.2.4 Does integrity metadata match source list? on request’s integrity
+        //    metadata and this directive’s value is "Matches", return "Allowed".
+        if (does_integrity_metadata_match_source_list(request->integrity_metadata(), directive->value()) == MatchResult::Matches)
+            return Directive::Result::Allowed;
+
+        // 3. If directive’s value contains "'strict-dynamic'":
+        // FIXME: Should this be case insensitive?
+        auto maybe_strict_dynamic = directive->value().find_if([](auto const& directive_value) {
+            return directive_value.equals_ignoring_ascii_case(KeywordSources::StrictDynamic);
+        });
+
+        if (!maybe_strict_dynamic.is_end()) {
+            // 1. If request’s parser metadata is not "parser-inserted", return "Allowed".
+            //    Otherwise, return "Blocked".
+            if (request->parser_metadata() != Fetch::Infrastructure::Request::ParserMetadata::ParserInserted)
+                return Directive::Result::Allowed;
+
+            return Directive::Result::Blocked;
+        }
+
+        // 4. If the result of executing § 6.7.2.6 Does response to request match source list? on response, request,
+        //    directive’s value, and policy, is "Does Not Match", return "Blocked".
+        if (does_response_match_source_list(response, request, directive->value(), policy) == MatchResult::DoesNotMatch)
+            return Directive::Result::Blocked;
+    }
+
+    // 2. Return "Allowed".
+    return Directive::Result::Allowed;
+}
+
+enum class [[nodiscard]] AllowsResult {
+    DoesNotAllow,
+    Allows,
+};
+
+static AllowsResult does_a_source_list_allow_all_inline_behavior_for_type(Vector<String> const& source_list, Directive::InlineType type)
+{
+    // 1. Let allow all inline be false.
+    bool allow_all_inline = false;
+
+    // 2. For each expression of list:
+    for (auto const& expression : source_list) {
+        // 1. If expression matches the nonce-source or hash-source grammar, return "Does Not Allow".
+        auto nonce_source_parse_result = parse_source_expression(Production::NonceSource, expression);
+        if (nonce_source_parse_result.has_value())
+            return AllowsResult::DoesNotAllow;
+
+        auto hash_source_parse_result = parse_source_expression(Production::HashSource, expression);
+        if (hash_source_parse_result.has_value())
+            return AllowsResult::DoesNotAllow;
+
+        // 2. If type is "script", "script attribute" or "navigation" and expression matches the keyword-source
+        //    "'strict-dynamic'", return "Does Not Allow".
+        if (type == Directive::InlineType::Script || type == Directive::InlineType::ScriptAttribute || type == Directive::InlineType::Navigation) {
+            if (expression.equals_ignoring_ascii_case(KeywordSources::StrictDynamic))
+                return AllowsResult::DoesNotAllow;
+        }
+
+        // 3. If expression is an ASCII case-insensitive match for the keyword-source "'unsafe-inline'", set allow all
+        //    inline to true.
+        if (expression.equals_ignoring_ascii_case(KeywordSources::UnsafeInline))
+            allow_all_inline = true;
+    }
+
+    // 3. If allow all inline is true, return "Allows". Otherwise, return "Does Not Allow".
+    return allow_all_inline ? AllowsResult::Allows : AllowsResult::DoesNotAllow;
+}
+
+enum class NonceableResult {
+    NotNonceable,
+    Nonceable,
+};
+
+// https://w3c.github.io/webappsec-csp/#is-element-nonceable
+[[nodiscard]] static NonceableResult is_element_nonceable(GC::Ptr<DOM::Element const> element)
+{
+    // SPEC ISSUE 7: This processing is meant to mitigate the risk of dangling markup attacks that steal the nonce from
+    //               an existing element in order to load injected script. It is fairly expensive, however, as it
+    //               requires that we walk through all attributes and their values in order to determine whether the
+    //               script should execute. Here, we try to minimize the impact by doing this check only for script
+    //               elements when a nonce is present, but we should probably consider this algorithm as "at risk"
+    //               until we know its impact. [Issue #w3c/webappsec-csp#98] (https://github.com/w3c/webappsec-csp/issues/98)
+
+    // FIXME: See FIXME in `does_element_match_source_list_for_type_and_source`
+    if (!element)
+        return NonceableResult::NotNonceable;
+
+    // 1. If element does not have an attribute named "nonce", return "Not Nonceable".
+    if (!is<HTML::HTMLElement>(element.ptr()) && !is<SVG::SVGElement>(element.ptr()))
+        return NonceableResult::NotNonceable;
+
+    if (!element->has_attribute(HTML::AttributeNames::nonce))
+        return NonceableResult::NotNonceable;
+
+    // 2. If element is a script element, then for each attribute of element’s attribute list:
+    // FIXME: File spec issue to ask if this should include SVGScriptElement.
+    if (is<HTML::HTMLScriptElement>(element.ptr())) {
+        for (size_t attribute_index = 0; attribute_index < element->attributes()->length(); ++attribute_index) {
+            auto const* attribute = element->attributes()->item(attribute_index);
+            VERIFY(attribute);
+
+            // 1. If attribute’s name contains an ASCII case-insensitive match for "<script" or "<style", return
+            //    "Not Nonceable".
+            auto attribute_name = attribute->name().to_string();
+            if (attribute_name.contains("<script"sv, CaseSensitivity::CaseInsensitive) || attribute_name.contains("<style"sv, CaseSensitivity::CaseInsensitive))
+                return NonceableResult::NotNonceable;
+
+            // 2. If attribute’s value contains an ASCII case-insensitive match for "<script" or "<style", return
+            //    "Not Nonceable".
+            auto const& attribute_value = attribute->value();
+            if (attribute_value.contains("<script"sv, CaseSensitivity::CaseInsensitive) || attribute_value.contains("<style"sv, CaseSensitivity::CaseInsensitive))
+                return NonceableResult::NotNonceable;
+        }
+    }
+
+    // 3. If element had a duplicate-attribute parse error during tokenization, return "Not Nonceable".
+    // SPEC ISSUE 6: We need some sort of hook in HTML to record this error if we’re planning on using it here.
+    //               [Issue #whatwg/html#3257] (https://github.com/whatwg/html/issues/3257)
+    if (element->had_duplicate_attribute_during_tokenization())
+        return NonceableResult::NotNonceable;
+
+    // 4. Return "Nonceable".
+    return NonceableResult::Nonceable;
+}
+
+// https://w3c.github.io/webappsec-csp/#match-element-to-source-list
+MatchResult does_element_match_source_list_for_type_and_source(GC::Ptr<DOM::Element const> element, Vector<String> const& source_list, Directive::InlineType type, String const& source)
+{
+    // Spec Note: Regardless of the encoding of the document, source will be converted to UTF-8 before applying any
+    //            hashing algorithms.
+
+    // 1. If § 6.7.3.2 Does a source list allow all inline behavior for type? returns "Allows" given list and type,
+    //    return "Matches".
+    if (does_a_source_list_allow_all_inline_behavior_for_type(source_list, type) == AllowsResult::Allows)
+        return MatchResult::Matches;
+
+    // 2. If type is "script" or "style", and § 6.7.3.1 Is element nonceable? returns "Nonceable" when executed upon
+    //    element:
+    // Spec Note: Nonces only apply to inline script and inline style, not to attributes of either element or to
+    //            javascript: navigations.
+    // FIXME: File spec issue that this algorithm doesn't handle `element` being null, which is it when doing a
+    //        javascript: URL navigation. For now, we say that the element is not nonceable if it's null, because
+    //        we simply can't pull a nonce attribute value from a null element.
+    if ((type == Directive::InlineType::Script || type == Directive::InlineType::Style) && is_element_nonceable(element) == NonceableResult::Nonceable) {
+        // 1. For each expression of list:
+        for (auto const& expression : source_list) {
+            // 1. If expression matches the nonce-source grammar, and element has a nonce attribute whose value is
+            //    expression's base64-value part, return "Matches".
+            auto nonce_source_parse_result = parse_source_expression(Production::NonceSource, expression);
+            if (nonce_source_parse_result.has_value()) {
+                VERIFY(element);
+                VERIFY(is<HTML::HTMLElement>(element.ptr()) || is<SVG::SVGElement>(element.ptr()));
+
+                String element_nonce;
+                if (is<HTML::HTMLElement>(element.ptr())) {
+                    auto const& html_element = static_cast<HTML::HTMLElement const&>(*element);
+                    element_nonce = html_element.nonce();
+                } else {
+                    auto const& svg_element = as<SVG::SVGElement>(*element);
+                    element_nonce = svg_element.nonce();
+                }
+
+                if (nonce_source_parse_result->base64_value == element_nonce)
+                    return MatchResult::Matches;
+            }
+        }
+    }
+
+    // 3. Let unsafe-hashes flag be false.
+    bool unsafe_hashes_flag = false;
+
+    // 4. For each expression of list:
+    for (auto const& expression : source_list) {
+        // 1. If expression is an ASCII case-insensitive match for the keyword-source "'unsafe-hashes'", set
+        //    unsafe-hashes flag to true. Break out of the loop.
+        if (expression.equals_ignoring_ascii_case(KeywordSources::UnsafeHashes)) {
+            unsafe_hashes_flag = true;
+            break;
+        }
+    }
+
+    // 5. If type is "script" or "style", or unsafe-hashes flag is true:
+    // NOTE: Hashes apply to inline script and inline style. If the "'unsafe-hashes'" source expression is present,
+    //       they will also apply to event handlers, style attributes and javascript: navigations.
+    // SPEC ISSUE 8:  This should handle 'strict-dynamic' for dynamically inserted inline scripts.
+    //                [Issue #w3c/webappsec-csp#426] (https://github.com/w3c/webappsec-csp/issues/426)
+    if (type == Directive::InlineType::Script || type == Directive::InlineType::Style || unsafe_hashes_flag) {
+        // 1. Set source to the result of executing UTF-8 encode on the result of executing JavaScript string
+        //    converting on source.
+        auto converted_source = MUST(Infra::convert_to_scalar_value_string(source));
+
+        // NOTE: converted_source is already UTF-8 encoded.
+        auto converted_source_bytes = converted_source.bytes();
+
+        // 2. For each expression of list:
+        for (auto const& expression : source_list) {
+            // 1. If expression matches the hash-source grammar:
+            auto hash_source_parse_result = parse_source_expression(Production::HashSource, expression);
+            if (hash_source_parse_result.has_value()) {
+                // 1. Let algorithm be null.
+                StringView algorithm;
+
+                // 2. If expression’s hash-algorithm part is an ASCII case-insensitive match for "sha256", set
+                //    algorithm to SHA-256.
+                VERIFY(hash_source_parse_result->hash_algorithm.has_value());
+                auto hash_algorithm_from_expression = hash_source_parse_result->hash_algorithm.value();
+
+                if (hash_algorithm_from_expression.equals_ignoring_ascii_case("sha256"sv))
+                    algorithm = "SHA-256"sv;
+
+                // 3. If expression’s hash-algorithm part is an ASCII case-insensitive match for "sha384", set
+                //    algorithm to SHA-384.
+                if (hash_algorithm_from_expression.equals_ignoring_ascii_case("sha384"sv))
+                    algorithm = "SHA-384"sv;
+
+                // 4. If expression’s hash-algorithm part is an ASCII case-insensitive match for "sha512", set
+                //    algorithm to SHA-512.
+                if (hash_algorithm_from_expression.equals_ignoring_ascii_case("sha512"sv))
+                    algorithm = "SHA-512"sv;
+
+                // 5. If algorithm is not null:
+                if (!algorithm.is_null()) {
+                    // 1. Let actual be the result of base64 encoding the result of applying algorithm to source.
+                    auto apply_algorithm_to_source = [&] {
+                        if (algorithm == "SHA-256"sv) {
+                            auto result = ::Crypto::Hash::SHA256::hash(converted_source_bytes);
+                            return MUST(encode_base64(result.bytes()));
+                        }
+
+                        if (algorithm == "SHA-384"sv) {
+                            auto result = ::Crypto::Hash::SHA384::hash(converted_source_bytes);
+                            return MUST(encode_base64(result.bytes()));
+                        }
+
+                        if (algorithm == "SHA-512"sv) {
+                            auto result = ::Crypto::Hash::SHA512::hash(converted_source_bytes);
+                            return MUST(encode_base64(result.bytes()));
+                        }
+
+                        VERIFY_NOT_REACHED();
+                    };
+
+                    auto actual = apply_algorithm_to_source();
+
+                    // 2. Let expected be expression’s base64-value part, with all '-' characters replaced with '+',
+                    //    and all '_' characters replaced with '/'.
+                    // Spec Note: This replacement normalizes hashes expressed in base64url encoding into base64
+                    //            encoding for matching.
+                    VERIFY(hash_source_parse_result->base64_value.has_value());
+                    auto base64_value_string = MUST(String::from_utf8(hash_source_parse_result->base64_value.value()));
+
+                    auto expected = MUST(base64_value_string.replace("-"sv, "+"sv, ReplaceMode::All));
+                    expected = MUST(expected.replace("_"sv, "/"sv, ReplaceMode::All));
+
+                    // 3. If actual is identical to expected, return "Matches".
+                    if (actual == expected)
+                        return MatchResult::Matches;
+                }
+            }
+        }
+    }
+
+    // 6. Return "Does Not Match".
+    return MatchResult::DoesNotMatch;
 }
 
 }
