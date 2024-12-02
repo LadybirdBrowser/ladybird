@@ -24,16 +24,10 @@ jobs:
         os_name: ['Linux']
         os: [ubuntu-24.04]
         fuzzer: ['NO_FUZZ']
-        toolchain: ['GNU']
-        clang_plugins: [false]
+        toolchain: ['Clang']
+        clang_plugins: [true]
 
         include:
-          - os_name: 'Linux'
-            os: ubuntu-24.04
-            fuzzer: 'NO_FUZZ'
-            toolchain: 'Clang'
-            clang_plugins: true
-
           - os_name: 'macOS'
             os: macos-15
             fuzzer: 'NO_FUZZ'
