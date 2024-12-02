@@ -3010,4 +3010,9 @@ Optional<String> Element::lang() const
     return maybe_lang.release_value();
 }
 
+void Element::set_had_duplicate_attribute_during_tokenization(Badge<HTML::HTMLParser>)
+{
+    m_had_duplicate_attribute_during_tokenization = true;
+}
+
 }
