@@ -1,34 +1,30 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 24 tests
 
-24 Pass
-Details
-Result	Test Name	MessagePass	IDL attribute getter for attribute value "true"	
-Pass	IDL attribute setter for value "true"	
-Pass	IDL attribute getter for attribute value "TRUE"	
-Pass	IDL attribute setter for value "TRUE"	
-Pass	IDL attribute getter for attribute value "false"	
-Pass	IDL attribute setter for value "false"	
-Pass	IDL attribute getter for attribute value "FALSE"	
-Pass	IDL attribute setter for value "FALSE"	
-Pass	IDL attribute getter for attribute value "inherit"	
-Pass	IDL attribute setter for value "inherit"	
-Pass	IDL attribute getter for attribute value "INHERIT"	
-Pass	IDL attribute setter for value "INHERIT"	
-Pass	IDL attribute getter for attribute value "plaintext-only"	
-Pass	IDL attribute setter for value "plaintext-only"	
-Pass	IDL attribute getter for attribute value "PLAINTEXT-ONLY"	
-Pass	IDL attribute setter for value "PLAINTEXT-ONLY"	
-Pass	IDL attribute getter for attribute value "foobar"	
-Pass	IDL attribute setter for value "foobar"	
-Pass	IDL attribute getter for attribute value "falſe"	
-Pass	IDL attribute setter for value "falſe"	
-Pass	IDL attribute getter for attribute value "plaıntext-only"	
-Pass	IDL attribute setter for value "plaıntext-only"	
-Pass	IDL attribute getter for attribute value "plaİntext-only"	
-Pass	IDL attribute setter for value "plaİntext-only"	
+20 Pass
+4 Fail
+Pass	IDL attribute getter for attribute value "true"
+Pass	IDL attribute setter for value "true"
+Pass	IDL attribute getter for attribute value "TRUE"
+Pass	IDL attribute setter for value "TRUE"
+Pass	IDL attribute getter for attribute value "false"
+Pass	IDL attribute setter for value "false"
+Pass	IDL attribute getter for attribute value "FALSE"
+Pass	IDL attribute setter for value "FALSE"
+Pass	IDL attribute getter for attribute value "inherit"
+Pass	IDL attribute setter for value "inherit"
+Pass	IDL attribute getter for attribute value "INHERIT"
+Pass	IDL attribute setter for value "INHERIT"
+Fail	IDL attribute getter for attribute value "plaintext-only"
+Fail	IDL attribute setter for value "plaintext-only"
+Fail	IDL attribute getter for attribute value "PLAINTEXT-ONLY"
+Fail	IDL attribute setter for value "PLAINTEXT-ONLY"
+Pass	IDL attribute getter for attribute value "foobar"
+Pass	IDL attribute setter for value "foobar"
+Pass	IDL attribute getter for attribute value "falſe"
+Pass	IDL attribute setter for value "falſe"
+Pass	IDL attribute getter for attribute value "plaıntext-only"
+Pass	IDL attribute setter for value "plaıntext-only"
+Pass	IDL attribute getter for attribute value "plaİntext-only"
+Pass	IDL attribute setter for value "plaİntext-only"
