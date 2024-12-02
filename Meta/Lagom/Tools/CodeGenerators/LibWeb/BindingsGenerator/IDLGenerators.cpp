@@ -747,11 +747,26 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 
     } else if (parameter.type->name() == "ArrayBufferView") {
         scoped_generator.append(R"~~~(
-    if (!@js_name@@js_suffix@.is_object() || !(is<JS::TypedArrayBase>(@js_name@@js_suffix@.as_object()) || is<JS::DataView>(@js_name@@js_suffix@.as_object())))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
-
-    auto @cpp_name@ = GC::make_root(realm.create<WebIDL::ArrayBufferView>(@js_name@@js_suffix@.as_object()));
+    GC::Root<WebIDL::ArrayBufferView> @cpp_name@;
 )~~~");
+        if (parameter.type->is_nullable()) {
+            scoped_generator.append(R"~~~(
+    if (!@js_name@@js_suffix@.is_null() && !@js_name@@js_suffix@.is_undefined()) {
+)~~~");
+        }
+
+        scoped_generator.append(R"~~~(
+        if (!@js_name@@js_suffix@.is_object() || !(is<JS::TypedArrayBase>(@js_name@@js_suffix@.as_object()) || is<JS::DataView>(@js_name@@js_suffix@.as_object())))
+            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
+
+        @cpp_name@ = GC::make_root(realm.create<WebIDL::ArrayBufferView>(@js_name@@js_suffix@.as_object()));
+)~~~");
+
+        if (parameter.type->is_nullable()) {
+            scoped_generator.append(R"~~~(
+    }
+)~~~");
+        }
         if (optional) {
             scoped_generator.append(R"~~~(
         }
