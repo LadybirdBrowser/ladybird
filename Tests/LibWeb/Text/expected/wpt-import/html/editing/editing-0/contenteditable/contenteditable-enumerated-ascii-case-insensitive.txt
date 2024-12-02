@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 24 tests
 
-20 Pass
-4 Fail
+24 Pass
 Pass	IDL attribute getter for attribute value "true"
 Pass	IDL attribute setter for value "true"
 Pass	IDL attribute getter for attribute value "TRUE"
@@ -16,10 +15,10 @@ Pass	IDL attribute getter for attribute value "inherit"
 Pass	IDL attribute setter for value "inherit"
 Pass	IDL attribute getter for attribute value "INHERIT"
 Pass	IDL attribute setter for value "INHERIT"
-Fail	IDL attribute getter for attribute value "plaintext-only"
-Fail	IDL attribute setter for value "plaintext-only"
-Fail	IDL attribute getter for attribute value "PLAINTEXT-ONLY"
-Fail	IDL attribute setter for value "PLAINTEXT-ONLY"
+Pass	IDL attribute getter for attribute value "plaintext-only"
+Pass	IDL attribute setter for value "plaintext-only"
+Pass	IDL attribute getter for attribute value "PLAINTEXT-ONLY"
+Pass	IDL attribute setter for value "PLAINTEXT-ONLY"
 Pass	IDL attribute getter for attribute value "foobar"
 Pass	IDL attribute setter for value "foobar"
 Pass	IDL attribute getter for attribute value "falſe"
