@@ -2287,8 +2287,8 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDSA::
     // NOTE: Spec jumps to 6 here for some reason
     // 6. If performing the key generation operation results in an error, then throw an OperationError.
     auto maybe_private_key_data = curve.visit(
-        [](Empty const&) -> ErrorOr<ByteBuffer> { return Error::from_string_literal("noop error"); },
-        [](auto instance) { return instance.generate_private_key(); });
+        [](Empty const&) -> ErrorOr<::Crypto::UnsignedBigInteger> { return Error::from_string_literal("noop error"); },
+        [](auto instance) { return instance.generate_private_key_scalar(); });
 
     if (maybe_private_key_data.is_error())
         return WebIDL::OperationError::create(m_realm, "Failed to create valid crypto instance"_string);
@@ -2296,13 +2296,14 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDSA::
     auto private_key_data = maybe_private_key_data.release_value();
 
     auto maybe_public_key_data = curve.visit(
-        [](Empty const&) -> ErrorOr<ByteBuffer> { return Error::from_string_literal("noop error"); },
-        [&](auto instance) { return instance.generate_public_key(private_key_data); });
+        [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> { return Error::from_string_literal("noop error"); },
+        [&](auto instance) { return instance.generate_public_key_point(private_key_data); });
 
     if (maybe_public_key_data.is_error())
         return WebIDL::OperationError::create(m_realm, "Failed to create valid crypto instance"_string);
 
     auto public_key_data = maybe_public_key_data.release_value();
+    auto ec_public_key = ::Crypto::PK::ECPublicKey<> { public_key_data.x, public_key_data.y };
 
     // 7. Let algorithm be a new EcKeyAlgorithm object.
     auto algorithm = EcKeyAlgorithm::create(m_realm);
@@ -2314,7 +2315,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDSA::
     algorithm->set_named_curve(normalized_algorithm.named_curve);
 
     // 10. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
-    auto public_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key_data });
+    auto public_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { ec_public_key });
 
     // 11. Set the [[type]] internal slot of publicKey to "public"
     public_key->set_type(Bindings::KeyType::Public);
@@ -2329,7 +2330,8 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDSA::
     public_key->set_usages(usage_intersection(key_usages, { { Bindings::KeyUsage::Verify } }));
 
     // 15. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
-    auto private_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { private_key_data });
+    auto ec_private_key = ::Crypto::PK::ECPrivateKey<> { private_key_data, {}, ec_public_key };
+    auto private_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { ec_private_key });
 
     // 16. Set the [[type]] internal slot of privateKey to "private"
     private_key->set_type(Bindings::KeyType::Private);
@@ -2425,7 +2427,7 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, GC::
     auto M = result_buffer.release_value();
 
     // 4. Let Q be the ECDSA public key associated with key.
-    auto Q = key->handle().get<ByteBuffer>();
+    auto Q = key->handle().get<::Crypto::PK::ECPublicKey<>>();
 
     // FIXME: 5. Let params be the EC domain parameters associated with key.
 
@@ -2468,7 +2470,7 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, GC::
 
         auto maybe_result = curve.visit(
             [](Empty const&) -> ErrorOr<bool> { return Error::from_string_literal("Failed to create valid crypto instance"); },
-            [&](auto instance) { return instance.verify(M, Q, encoded_signature); });
+            [&](auto instance) { return instance.verify_point(M, ::Crypto::Curves::SECPxxxr1Point { Q.x(), Q.y() }, encoded_signature); });
 
         if (maybe_result.is_error()) {
             auto error_message = MUST(String::from_utf8(maybe_result.error().string_literal()));
