@@ -120,7 +120,9 @@ GC::Ref<Node> Range::root() const
 RelativeBoundaryPointPosition position_of_boundary_point_relative_to_other_boundary_point(GC::Ref<Node> node_a, u32 offset_a, GC::Ref<Node> node_b, u32 offset_b)
 {
     // 1. Assert: nodeA and nodeB have the same root.
-    VERIFY(&node_a->root() == &node_b->root());
+    //    NOTE: Nodes may not share the same root if they belong to different shadow trees,
+    //          so we assert that they share the same shadow-including root instead.
+    VERIFY(&node_a->shadow_including_root() == &node_b->shadow_including_root());
 
     // 2. If nodeA is nodeB, then return equal if offsetA is offsetB, before if offsetA is less than offsetB, and after if offsetA is greater than offsetB.
     if (node_a == node_b) {
