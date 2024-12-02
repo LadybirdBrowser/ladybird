@@ -8,7 +8,8 @@
 {
     // default timeout is 10 seconds, test can override if needed
     var settings = {
-        output:true,
+        // Assume we are running tests if the internals object is exposed.
+        output:!window.hasOwnProperty("internals"),
         harness_timeout:{
             "normal":150000, // NOTE: Overridden for Ladybird due to slow GCC CI
             "long":300000 // NOTE: Overridden for Ladybird due to slow GCC CI
