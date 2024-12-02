@@ -41,6 +41,11 @@ struct SECPxxxr1Point {
     }
 };
 
+struct SECPxxxr1Signature {
+    UnsignedBigInteger r;
+    UnsignedBigInteger s;
+};
+
 template<size_t bit_size, SECPxxxr1CurveParameters const& CURVE_PARAMETERS>
 class SECPxxxr1 : public EllipticCurve {
 private:
@@ -197,17 +202,15 @@ public:
 
     ErrorOr<SECPxxxr1Point> compute_coordinate_point(UnsignedBigInteger scalar, SECPxxxr1Point point)
     {
-        // FIXME: this is very ugly, but it gets the job done.
-        auto scalar_bytes = TRY(ByteBuffer::create_uninitialized(scalar.byte_length()));
-        auto scalar_size = scalar.export_data(scalar_bytes.span());
-        auto point_bytes = TRY(point.to_uncompressed());
+        auto scalar_int = unsigned_big_integer_to_storage_type(scalar);
+        auto point_x_int = unsigned_big_integer_to_storage_type(point.x);
+        auto point_y_int = unsigned_big_integer_to_storage_type(point.y);
 
-        auto result_bytes = TRY(compute_coordinate(scalar_bytes.span().slice(0, scalar_size), point_bytes));
-        VERIFY(result_bytes[0] == 0x04);
+        auto result_point = TRY(compute_coordinate_internal(scalar_int, JacobianPoint { point_x_int, point_y_int, 1u }));
 
         return SECPxxxr1Point {
-            .x = UnsignedBigInteger::import_data(result_bytes.data() + 1, KEY_BYTE_SIZE),
-            .y = UnsignedBigInteger::import_data(result_bytes.data() + 1 + KEY_BYTE_SIZE, KEY_BYTE_SIZE),
+            .x = storage_type_to_unsigned_big_integer(result_point.x),
+            .y = storage_type_to_unsigned_big_integer(result_point.y),
         };
     }
 
@@ -226,44 +229,24 @@ public:
         return shared_point;
     }
 
-    ErrorOr<bool> verify_point(ReadonlyBytes hash, SECPxxxr1Point pubkey, ReadonlyBytes signature)
+    ErrorOr<bool> verify_point(ReadonlyBytes hash, SECPxxxr1Point pubkey, SECPxxxr1Signature signature)
     {
-        // FIXME: this is very ugly, but it gets the job done.
-        auto pubkey_bytes = TRY(pubkey.to_uncompressed());
-        return verify(hash, pubkey_bytes, signature);
-    }
-
-    ErrorOr<bool> verify(ReadonlyBytes hash, ReadonlyBytes pubkey, ReadonlyBytes signature)
-    {
-        Crypto::ASN1::Decoder asn1_decoder(signature);
-        TRY(asn1_decoder.enter());
-
-        auto r_bigint = TRY(asn1_decoder.read<Crypto::UnsignedBigInteger>(Crypto::ASN1::Class::Universal, Crypto::ASN1::Kind::Integer));
-        auto s_bigint = TRY(asn1_decoder.read<Crypto::UnsignedBigInteger>(Crypto::ASN1::Class::Universal, Crypto::ASN1::Kind::Integer));
-
-        size_t expected_word_count = KEY_BIT_SIZE / 32;
-        if (r_bigint.length() < expected_word_count || s_bigint.length() < expected_word_count) {
+        static constexpr size_t expected_word_count = KEY_BIT_SIZE / 32;
+        if (signature.r.length() < expected_word_count || signature.s.length() < expected_word_count) {
             return false;
         }
 
-        StorageType r = 0u;
-        StorageType s = 0u;
-        for (size_t i = 0; i < (KEY_BIT_SIZE / 32); i++) {
-            StorageType rr = r_bigint.words()[i];
-            StorageType ss = s_bigint.words()[i];
-            r |= (rr << (i * 32));
-            s |= (ss << (i * 32));
-        }
+        auto r = unsigned_big_integer_to_storage_type(signature.r);
+        auto s = unsigned_big_integer_to_storage_type(signature.s);
+        if (r.is_zero_constant_time() || s.is_zero_constant_time())
+            return false;
 
         // z is the hash
         StorageType z = 0u;
-        for (uint8_t byte : hash) {
+        for (size_t i = 0; i < KEY_BYTE_SIZE && i < hash.size(); i++) {
             z <<= 8;
-            z |= byte;
+            z |= hash[i];
         }
-
-        AK::FixedMemoryStream pubkey_stream { pubkey };
-        JacobianPoint pubkey_point = TRY(read_uncompressed_point(pubkey_stream));
 
         StorageType r_mo = to_montgomery_order(r);
         StorageType s_mo = to_montgomery_order(s);
@@ -278,7 +261,11 @@ public:
         u2 = from_montgomery_order(u2);
 
         JacobianPoint point1 = TRY(generate_public_key_internal(u1));
-        JacobianPoint point2 = TRY(compute_coordinate_internal(u2, pubkey_point));
+        JacobianPoint point2 = TRY(compute_coordinate_internal(u2, JacobianPoint {
+                                                                       unsigned_big_integer_to_storage_type(pubkey.x),
+                                                                       unsigned_big_integer_to_storage_type(pubkey.y),
+                                                                       1u,
+                                                                   }));
 
         // Convert the input point into Montgomery form
         point1.x = to_montgomery(point1.x);
@@ -312,7 +299,44 @@ public:
         return r.is_equal_to_constant_time(result.x);
     }
 
+    ErrorOr<bool> verify(ReadonlyBytes hash, ReadonlyBytes pubkey, ReadonlyBytes signature)
+    {
+        Crypto::ASN1::Decoder asn1_decoder(signature);
+        TRY(asn1_decoder.enter());
+
+        auto r_bigint = TRY(asn1_decoder.read<Crypto::UnsignedBigInteger>(Crypto::ASN1::Class::Universal, Crypto::ASN1::Kind::Integer));
+        auto s_bigint = TRY(asn1_decoder.read<Crypto::UnsignedBigInteger>(Crypto::ASN1::Class::Universal, Crypto::ASN1::Kind::Integer));
+
+        AK::FixedMemoryStream pubkey_stream { pubkey };
+        JacobianPoint pubkey_point = TRY(read_uncompressed_point(pubkey_stream));
+
+        return verify_point(hash,
+            SECPxxxr1Point { storage_type_to_unsigned_big_integer(pubkey_point.x), storage_type_to_unsigned_big_integer(pubkey_point.y) },
+            SECPxxxr1Signature { r_bigint, s_bigint });
+    }
+
 private:
+    StorageType unsigned_big_integer_to_storage_type(UnsignedBigInteger big)
+    {
+        VERIFY(big.length() >= KEY_BIT_SIZE / 32);
+
+        StorageType val = 0u;
+        for (size_t i = 0; i < (KEY_BIT_SIZE / 32); i++) {
+            StorageType rr = big.words()[i];
+            val |= (rr << (i * 32));
+        }
+        return val;
+    }
+
+    UnsignedBigInteger storage_type_to_unsigned_big_integer(StorageType val)
+    {
+        Vector<UnsignedBigInteger::Word, KEY_BIT_SIZE / 32> words;
+        for (size_t i = 0; i < (KEY_BIT_SIZE / 32); i++) {
+            words.append(static_cast<UnsignedBigInteger::Word>((val >> (i * 32)) & 0xFFFFFFFF));
+        }
+        return UnsignedBigInteger(move(words));
+    }
+
     ErrorOr<JacobianPoint> generate_public_key_internal(StorageType a)
     {
         AK::FixedMemoryStream generator_point_stream { GENERATOR_POINT };
