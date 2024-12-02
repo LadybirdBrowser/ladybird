@@ -198,8 +198,7 @@ void UniversalGlobalScopeMixin::notify_about_rejected_promises(Badge<EventLoop>)
     m_about_to_be_notified_rejected_promises_list.clear();
 
     // 4. Let global be settings object's global object.
-    // We need this as an event target for the unhandledrejection event below
-    auto& global = verify_cast<DOM::EventTarget>(this_impl());
+    auto& global = this_impl();
 
     // 5. Queue a global task on the DOM manipulation task source given global to run the following substep:
     queue_global_task(Task::Source::DOMManipulation, global, GC::create_function(realm.heap(), [this, &global, list = move(list)] {

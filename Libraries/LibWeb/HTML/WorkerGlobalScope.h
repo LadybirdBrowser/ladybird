@@ -43,8 +43,8 @@ public:
     virtual ~WorkerGlobalScope() override;
 
     // ^WindowOrWorkerGlobalScopeMixin
-    virtual Bindings::PlatformObject& this_impl() override { return *this; }
-    virtual Bindings::PlatformObject const& this_impl() const override { return *this; }
+    virtual DOM::EventTarget& this_impl() override { return *this; }
+    virtual DOM::EventTarget const& this_impl() const override { return *this; }
 
     using UniversalGlobalScopeMixin::atob;
     using UniversalGlobalScopeMixin::btoa;

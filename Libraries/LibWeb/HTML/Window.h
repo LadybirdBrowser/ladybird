@@ -76,8 +76,8 @@ public:
     virtual bool dispatch_event(DOM::Event&) override;
 
     // ^WindowOrWorkerGlobalScopeMixin
-    virtual Bindings::PlatformObject& this_impl() override { return *this; }
-    virtual Bindings::PlatformObject const& this_impl() const override { return *this; }
+    virtual DOM::EventTarget& this_impl() override { return *this; }
+    virtual DOM::EventTarget const& this_impl() const override { return *this; }
 
     // ^JS::Object
     virtual JS::ThrowCompletionOr<bool> internal_set_prototype_of(JS::Object* prototype) override;
