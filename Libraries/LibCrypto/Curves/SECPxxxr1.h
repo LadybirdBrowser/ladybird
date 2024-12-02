@@ -315,6 +315,69 @@ public:
             SECPxxxr1Signature { r_bigint, s_bigint });
     }
 
+    ErrorOr<SECPxxxr1Signature> sign_scalar(ReadonlyBytes hash, UnsignedBigInteger private_key)
+    {
+        auto d = unsigned_big_integer_to_storage_type(private_key);
+
+        auto k_int = TRY(generate_private_key_scalar());
+        auto k = unsigned_big_integer_to_storage_type(k_int);
+        auto k_mo = to_montgomery_order(k);
+
+        auto kG = TRY(generate_public_key_internal(k));
+        auto r = kG.x;
+
+        if (r.is_zero_constant_time()) {
+            // Retry with a new k
+            return sign_scalar(hash, private_key);
+        }
+
+        // Compute z from the hash
+        StorageType z = 0u;
+        for (size_t i = 0; i < KEY_BYTE_SIZE && i < hash.size(); i++) {
+            z <<= 8;
+            z |= hash[i];
+        }
+
+        // s = k^-1 * (z + r * d) mod n
+        auto r_mo = to_montgomery_order(r);
+        auto z_mo = to_montgomery_order(z);
+        auto d_mo = to_montgomery_order(d);
+
+        // r * d mod n
+        auto rd_mo = modular_multiply_order(r_mo, d_mo);
+
+        // z + (r * d) mod n
+        auto z_plus_rd_mo = modular_add_order(z_mo, rd_mo);
+
+        // k^-1 mod n
+        auto k_inv_mo = modular_inverse_order(k_mo);
+
+        // s = k^-1 * (z + r * d) mod n
+        auto s_mo = modular_multiply_order(z_plus_rd_mo, k_inv_mo);
+        auto s = from_montgomery_order(s_mo);
+
+        if (s.is_zero_constant_time()) {
+            // Retry with a new k
+            return sign_scalar(hash, private_key);
+        }
+
+        return SECPxxxr1Signature { storage_type_to_unsigned_big_integer(r), storage_type_to_unsigned_big_integer(s) };
+    }
+
+    ErrorOr<ByteBuffer> sign(ReadonlyBytes hash, ReadonlyBytes private_key_bytes)
+    {
+        auto signature = TRY(sign_scalar(hash, UnsignedBigInteger::import_data(private_key_bytes.data(), private_key_bytes.size())));
+
+        Crypto::ASN1::Encoder asn1_encoder;
+        TRY(asn1_encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
+            TRY(asn1_encoder.write(signature.r));
+            TRY(asn1_encoder.write(signature.s));
+            return {};
+        }));
+
+        return asn1_encoder.finish();
+    }
+
 private:
     StorageType unsigned_big_integer_to_storage_type(UnsignedBigInteger big)
     {
