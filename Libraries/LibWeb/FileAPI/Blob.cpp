@@ -5,6 +5,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AllOf.h>
+#include <AK/CharacterTypes.h>
 #include <AK/GenericLexer.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Completion.h>
@@ -199,16 +201,19 @@ GC::Ref<Blob> Blob::create(JS::Realm& realm, Optional<Vector<BlobPart>> const& b
     auto type = String {};
     // 3. If the type member of the options argument is not the empty string, run the following sub-steps:
     if (options.has_value() && !options->type.is_empty()) {
-        // FIXME: 1. If the type member is provided and is not the empty string, let t be set to the type dictionary member.
-        //    If t contains any characters outside the range U+0020 to U+007E, then set t to the empty string and return from these substeps.
-        // FIXME: 2. Convert every character in t to ASCII lowercase.
-
         // NOTE: The spec is out of date, and we are supposed to call into the MimeType parser here.
         if (!options->type.is_empty()) {
             auto maybe_parsed_type = Web::MimeSniff::MimeType::parse(options->type);
 
-            if (maybe_parsed_type.has_value())
+            if (maybe_parsed_type.has_value()) {
                 type = maybe_parsed_type->serialized();
+            }
+            // 1. If the type member is provided and is not the empty string, let t be set to the type dictionary member.
+            // If t contains any characters outside the range U+0020 to U+007E, then set t to the empty string and return from these substeps.
+            else if (all_of(options->type.bytes_as_string_view(), is_ascii_printable)) {
+                //2. Convert every character in t to ASCII lowercase.
+                type = options->type.to_ascii_lowercase();
+            }
         }
     }
 
