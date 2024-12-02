@@ -85,7 +85,7 @@ void PaintingSurface::read_into_bitmap(Gfx::Bitmap& bitmap)
     m_impl->surface->readPixels(pixmap, 0, 0);
 }
 
-void PaintingSurface::write_from_bitmap(Gfx::Bitmap& bitmap)
+void PaintingSurface::write_from_bitmap(Gfx::Bitmap const& bitmap)
 {
     auto color_type = to_skia_color_type(bitmap.format());
     auto alpha_type = bitmap.alpha_type() == Gfx::AlphaType::Premultiplied ? kPremul_SkAlphaType : kUnpremul_SkAlphaType;
