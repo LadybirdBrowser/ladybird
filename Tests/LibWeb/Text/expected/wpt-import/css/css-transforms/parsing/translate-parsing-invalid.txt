@@ -1,16 +1,11 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 6 tests
 
 6 Pass
-Details
-Result	Test Name	MessagePass	e.style['translate'] = "100deg" should not set the property value	
-Pass	e.style['translate'] = "100px 200px 300%" should not set the property value	
-Pass	e.style['translate'] = "100px 200px calc(30px + 30%)" should not set the property value	
-Pass	e.style['translate'] = "100px junk" should not set the property value	
-Pass	e.style['translate'] = "100px 200px junk" should not set the property value	
-Pass	e.style['translate'] = "100px 200px 300px junk" should not set the property value	
+Pass	e.style['translate'] = "100deg" should not set the property value
+Pass	e.style['translate'] = "100px 200px 300%" should not set the property value
+Pass	e.style['translate'] = "100px 200px calc(30px + 30%)" should not set the property value
+Pass	e.style['translate'] = "100px junk" should not set the property value
+Pass	e.style['translate'] = "100px 200px junk" should not set the property value
+Pass	e.style['translate'] = "100px 200px 300px junk" should not set the property value

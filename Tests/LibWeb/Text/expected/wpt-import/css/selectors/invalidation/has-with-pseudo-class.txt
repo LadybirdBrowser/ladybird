@@ -1,52 +1,47 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 41 tests
 
 37 Pass
 4 Fail
-Details
-Result	Test Name	MessagePass	Before set checked on checkbox, testing subject	
-Pass	Set checked on checkbox, testing subject	
-Pass	Unset checked on checkbox, testing subject	
-Pass	Set select on option	
-Pass	Reset select	
-Pass	Before set disabled on checkbox, testing subject	
-Pass	Set disabled on checkbox, testing subject	
-Pass	Unset disabled on checkbox, testing subject	
-Pass	Before set disabled on checkbox, testing subject3	
-Pass	Set disabled on checkbox, testing subject3	
-Pass	Unset disabled on checkbox, testing subject3	
-Pass	Before set disabled on option, testing subject	
-Pass	Set disabled on option, testing subject	
-Pass	Unset disabled on option, testing subject	
-Pass	Before set disabled on option, testing subject3	
-Pass	Set disabled on option, testing subject3	
-Pass	Unset disabled on option, testing subject3	
-Pass	Before set disabled on optgroup, testing subject	
-Pass	Set disabled on optgroup, testing subject	
-Pass	Unset disabled on optgroup, testing subject	
-Pass	Before set disabled on optgroup, testing subject2	
-Pass	Set disabled on optgroup, testing subject2	
-Pass	Unset disabled on optgroup, testing subject2	
-Pass	Before set disabled on optgroup, testing subject3	
-Pass	Set disabled on optgroup, testing subject3	
-Pass	Unset disabled on optgroup, testing subject3	
-Pass	Before set disabled on optgroup, testing subject4	
-Pass	Set disabled on optgroup, testing subject4	
-Pass	Unset disabled on optgroup, testing subject4	
-Pass	Before setting value of text_input, testing subject	
-Fail	Set value of text_input, testing subject	
-Pass	Clear value of text_input, testing subject	
-Pass	Before setting value of text_input, testing subject2	
-Fail	Set value of text_input, testing subject2	
-Pass	Clear value of text_input, testing subject2	
-Pass	Before setting value of text_input, testing subject3	
-Fail	Set value of text_input, testing subject3	
-Pass	Clear value of text_input, testing subject3	
-Pass	Before setting value of text_input, testing subject4	
-Fail	Set value of text_input, testing subject4	
-Pass	Clear value of text_input, testing subject4	
+Pass	Before set checked on checkbox, testing subject
+Pass	Set checked on checkbox, testing subject
+Pass	Unset checked on checkbox, testing subject
+Pass	Set select on option
+Pass	Reset select
+Pass	Before set disabled on checkbox, testing subject
+Pass	Set disabled on checkbox, testing subject
+Pass	Unset disabled on checkbox, testing subject
+Pass	Before set disabled on checkbox, testing subject3
+Pass	Set disabled on checkbox, testing subject3
+Pass	Unset disabled on checkbox, testing subject3
+Pass	Before set disabled on option, testing subject
+Pass	Set disabled on option, testing subject
+Pass	Unset disabled on option, testing subject
+Pass	Before set disabled on option, testing subject3
+Pass	Set disabled on option, testing subject3
+Pass	Unset disabled on option, testing subject3
+Pass	Before set disabled on optgroup, testing subject
+Pass	Set disabled on optgroup, testing subject
+Pass	Unset disabled on optgroup, testing subject
+Pass	Before set disabled on optgroup, testing subject2
+Pass	Set disabled on optgroup, testing subject2
+Pass	Unset disabled on optgroup, testing subject2
+Pass	Before set disabled on optgroup, testing subject3
+Pass	Set disabled on optgroup, testing subject3
+Pass	Unset disabled on optgroup, testing subject3
+Pass	Before set disabled on optgroup, testing subject4
+Pass	Set disabled on optgroup, testing subject4
+Pass	Unset disabled on optgroup, testing subject4
+Pass	Before setting value of text_input, testing subject
+Fail	Set value of text_input, testing subject
+Pass	Clear value of text_input, testing subject
+Pass	Before setting value of text_input, testing subject2
+Fail	Set value of text_input, testing subject2
+Pass	Clear value of text_input, testing subject2
+Pass	Before setting value of text_input, testing subject3
+Fail	Set value of text_input, testing subject3
+Pass	Clear value of text_input, testing subject3
+Pass	Before setting value of text_input, testing subject4
+Fail	Set value of text_input, testing subject4
+Pass	Clear value of text_input, testing subject4

@@ -1,23 +1,18 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 12 tests
 
 6 Pass
 6 Fail
-Details
-Result	Test Name	MessagePass	Property max-width value 'none'	
-Pass	Property max-width value 'min-content'	
-Pass	Property max-width value 'max-content'	
-Pass	Property max-width value '10px'	
-Pass	Property max-width value '20%'	
-Pass	Property max-width value 'calc(10% + 40px)'	
-Fail	Property max-width value 'calc(10px - 0.5em)'	
-Fail	Property max-width value 'calc(10px + 0.5em)'	
-Fail	Property max-width value 'fit-content(10px)'	
-Fail	Property max-width value 'fit-content(20%)'	
-Fail	Property max-width value 'fit-content(calc(10% + 40px))'	
-Fail	Property max-width value 'fit-content(calc(10px + 0.5em))'	
+Pass	Property max-width value 'none'
+Pass	Property max-width value 'min-content'
+Pass	Property max-width value 'max-content'
+Pass	Property max-width value '10px'
+Pass	Property max-width value '20%'
+Pass	Property max-width value 'calc(10% + 40px)'
+Fail	Property max-width value 'calc(10px - 0.5em)'
+Fail	Property max-width value 'calc(10px + 0.5em)'
+Fail	Property max-width value 'fit-content(10px)'
+Fail	Property max-width value 'fit-content(20%)'
+Fail	Property max-width value 'fit-content(calc(10% + 40px))'
+Fail	Property max-width value 'fit-content(calc(10px + 0.5em))'

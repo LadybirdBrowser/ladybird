@@ -1,14 +1,9 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 4 tests
 
 4 Pass
-Details
-Result	Test Name	MessagePass	Inline style declaration without whitespace between '!' and 'important'.	
-Pass	Inline style declaration with whitespace between '!' and 'important'.	
-Pass	Style set dynamically via cssText without whitespace between '!' and 'important'.	
-Pass	Style set dynamically via cssText with whitespace between '!' and 'important'.	
+Pass	Inline style declaration without whitespace between '!' and 'important'.
+Pass	Inline style declaration with whitespace between '!' and 'important'.
+Pass	Style set dynamically via cssText without whitespace between '!' and 'important'.
+Pass	Style set dynamically via cssText with whitespace between '!' and 'important'.

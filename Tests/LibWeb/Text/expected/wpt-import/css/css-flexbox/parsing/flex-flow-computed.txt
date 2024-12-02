@@ -1,12 +1,7 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 2 tests
 
 2 Pass
-Details
-Result	Test Name	MessagePass	Property flex-flow value 'column wrap-reverse'	
-Pass	Property flex-flow value 'row-reverse wrap'	
+Pass	Property flex-flow value 'column wrap-reverse'
+Pass	Property flex-flow value 'row-reverse wrap'

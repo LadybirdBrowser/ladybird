@@ -1,11 +1,6 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 1 tests
 
 1 Pass
-Details
-Result	Test Name	MessagePass	attribute selectors with missing right tokens succeed	
+Pass	attribute selectors with missing right tokens succeed

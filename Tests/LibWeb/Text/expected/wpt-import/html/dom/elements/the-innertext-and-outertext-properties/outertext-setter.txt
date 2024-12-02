@@ -1,53 +1,48 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 43 tests
 
 43 Pass
-Details
-Result	Test Name	MessagePass	Replacing a node and merging with the previous text node	
-Pass	Replacing a node and merging with the following text node	
-Pass	Replacing a node and merging with the previous and following text node	
-Pass	Only merges with the previous and following text nodes, does not completely normalize	
-Pass	Empty string	
-Pass	Empty string with surrounding text nodes	
-Pass	Setting outerText to a bunch of newlines creates a bunch of <br>s with no text nodes	
-Pass	Removing a node	
-Pass	Detached node	
-Pass	Simplest possible test	
-Pass	Newlines convert to <br> in non-white-space:pre elements	
-Pass	Newlines convert to <br> in <pre> element	
-Pass	Newlines convert to <br> in <textarea> element	
-Pass	Newlines convert to <br> in white-space:pre element	
-Pass	CRs convert to <br> in non-white-space:pre elements	
-Pass	CRs convert to <br> in <pre> element	
-Pass	Newline/CR pair converts to <br> in non-white-space:pre element	
-Pass	Newline/newline pair converts to two <br>s in non-white-space:pre element	
-Pass	CR/CR pair converts to two <br>s in non-white-space:pre element	
-Pass	CRs convert to <br> in white-space:pre element	
-Pass	< preserved	
-Pass	> preserved	
-Pass	& preserved	
-Pass	" preserved	
-Pass	' preserved	
-Pass	outerText not supported on SVG elements	
-Pass	outerText not supported on MathML elements	
-Pass	Null characters preserved	
-Pass	Tabs preserved	
-Pass	Leading whitespace preserved	
-Pass	Trailing whitespace preserved	
-Pass	Whitespace not compressed	
-Pass	Existing text deleted	
-Pass	Existing <br> deleted	
-Pass	Assigning the empty string	
-Pass	Assigning null	
-Pass	Assigning undefined	
-Pass	Start with CR	
-Pass	Start with LF	
-Pass	Start with CRLF	
-Pass	End with CR	
-Pass	End with LF	
-Pass	End with CRLF	
+Pass	Replacing a node and merging with the previous text node
+Pass	Replacing a node and merging with the following text node
+Pass	Replacing a node and merging with the previous and following text node
+Pass	Only merges with the previous and following text nodes, does not completely normalize
+Pass	Empty string
+Pass	Empty string with surrounding text nodes
+Pass	Setting outerText to a bunch of newlines creates a bunch of <br>s with no text nodes
+Pass	Removing a node
+Pass	Detached node
+Pass	Simplest possible test
+Pass	Newlines convert to <br> in non-white-space:pre elements
+Pass	Newlines convert to <br> in <pre> element
+Pass	Newlines convert to <br> in <textarea> element
+Pass	Newlines convert to <br> in white-space:pre element
+Pass	CRs convert to <br> in non-white-space:pre elements
+Pass	CRs convert to <br> in <pre> element
+Pass	Newline/CR pair converts to <br> in non-white-space:pre element
+Pass	Newline/newline pair converts to two <br>s in non-white-space:pre element
+Pass	CR/CR pair converts to two <br>s in non-white-space:pre element
+Pass	CRs convert to <br> in white-space:pre element
+Pass	< preserved
+Pass	> preserved
+Pass	& preserved
+Pass	" preserved
+Pass	' preserved
+Pass	outerText not supported on SVG elements
+Pass	outerText not supported on MathML elements
+Pass	Null characters preserved
+Pass	Tabs preserved
+Pass	Leading whitespace preserved
+Pass	Trailing whitespace preserved
+Pass	Whitespace not compressed
+Pass	Existing text deleted
+Pass	Existing <br> deleted
+Pass	Assigning the empty string
+Pass	Assigning null
+Pass	Assigning undefined
+Pass	Start with CR
+Pass	Start with LF
+Pass	Start with CRLF
+Pass	End with CR
+Pass	End with LF
+Pass	End with CRLF

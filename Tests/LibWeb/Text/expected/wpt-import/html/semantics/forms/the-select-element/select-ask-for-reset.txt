@@ -1,13 +1,8 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 3 tests
 
 3 Pass
-Details
-Result	Test Name	MessagePass	ask for reset on node remove, non multiple.	
-Pass	ask for reset on node insert, non multiple.	
-Pass	change selectedness of option, non multiple.	
+Pass	ask for reset on node remove, non multiple.
+Pass	ask for reset on node insert, non multiple.
+Pass	change selectedness of option, non multiple.

@@ -1,14 +1,9 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 4 tests
 
 4 Pass
-Details
-Result	Test Name	MessagePass	Compare in unsigned octet values (in the range [0, 255])	
-Pass	Compare values in then same length	
-Pass	Compare values in different lengths	
-Pass	Compare when the values in the range of their minimal length are the same	
+Pass	Compare in unsigned octet values (in the range [0, 255])
+Pass	Compare values in then same length
+Pass	Compare values in different lengths
+Pass	Compare when the values in the range of their minimal length are the same

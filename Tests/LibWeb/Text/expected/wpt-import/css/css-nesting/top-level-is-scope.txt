@@ -1,12 +1,7 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 2 tests
 
 2 Pass
-Details
-Result	Test Name	MessagePass	& as direct ancestor	
-Pass	& matches scoped element only, not everything	
+Pass	& as direct ancestor
+Pass	& matches scoped element only, not everything

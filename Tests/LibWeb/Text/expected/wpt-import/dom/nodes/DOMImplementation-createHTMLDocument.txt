@@ -1,23 +1,18 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 13 tests
 
 13 Pass
-Details
-Result	Test Name	MessagePass	createHTMLDocument test 0: "","",""	
-Pass	createHTMLDocument test 1: null,"null","null"	
-Pass	createHTMLDocument test 2: undefined,undefined,""	
-Pass	createHTMLDocument test 3: "foo bar baz","foo bar baz","foo bar baz"	
-Pass	createHTMLDocument test 4: "foo\t\tbar baz","foo\t\tbar baz","foo bar baz"	
-Pass	createHTMLDocument test 5: "foo\n\nbar baz","foo\n\nbar baz","foo bar baz"	
-Pass	createHTMLDocument test 6: "foo\f\fbar baz","foo\f\fbar baz","foo bar baz"	
-Pass	createHTMLDocument test 7: "foo\r\rbar baz","foo\r\rbar baz","foo bar baz"	
-Pass	Missing title argument	
-Pass	createHTMLDocument(): metadata	
-Pass	createHTMLDocument(): characterSet aliases	
-Pass	createHTMLDocument(): URL parsing	
-Pass	createHTMLDocument(): document location getter is null	
+Pass	createHTMLDocument test 0: "","",""
+Pass	createHTMLDocument test 1: null,"null","null"
+Pass	createHTMLDocument test 2: undefined,undefined,""
+Pass	createHTMLDocument test 3: "foo  bar baz","foo  bar baz","foo bar baz"
+Pass	createHTMLDocument test 4: "foo\t\tbar baz","foo\t\tbar baz","foo bar baz"
+Pass	createHTMLDocument test 5: "foo\n\nbar baz","foo\n\nbar baz","foo bar baz"
+Pass	createHTMLDocument test 6: "foo\f\fbar baz","foo\f\fbar baz","foo bar baz"
+Pass	createHTMLDocument test 7: "foo\r\rbar baz","foo\r\rbar baz","foo bar baz"
+Pass	Missing title argument
+Pass	createHTMLDocument(): metadata
+Pass	createHTMLDocument(): characterSet aliases
+Pass	createHTMLDocument(): URL parsing
+Pass	createHTMLDocument(): document location getter is null

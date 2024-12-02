@@ -1,11 +1,6 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 1 tests
 
 1 Pass
-Details
-Result	Test Name	MessagePass	test passes if it does not crash	
+Pass	test passes if it does not crash

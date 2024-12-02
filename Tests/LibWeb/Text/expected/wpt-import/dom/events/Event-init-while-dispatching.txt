@@ -1,15 +1,10 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 5 tests
 
 5 Pass
-Details
-Result	Test Name	MessagePass	Calling initKeyboardEvent while dispatching.	
-Pass	Calling initMouseEvent while dispatching.	
-Pass	Calling initCustomEvent while dispatching.	
-Pass	Calling initUIEvent while dispatching.	
-Pass	Calling initEvent while dispatching.	
+Pass	Calling initKeyboardEvent while dispatching.
+Pass	Calling initMouseEvent while dispatching.
+Pass	Calling initCustomEvent while dispatching.
+Pass	Calling initUIEvent while dispatching.
+Pass	Calling initEvent while dispatching.

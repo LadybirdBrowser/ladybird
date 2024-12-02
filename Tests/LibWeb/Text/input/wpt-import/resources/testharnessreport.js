@@ -32,12 +32,28 @@ try {
 
 add_completion_callback(function(tests, harness_status) {
     if (window.internals) {
-        // NOTE: If we're running inside the test harness,
-        //       filter out stuff we don't want to see, like local filesystem paths.
-        for (const details of document.querySelectorAll("pre, details")) {
-            details.style.display = 'none';
+        const statuses = [
+            "Pass",
+            "Fail",
+            "Timeout",
+            "Not Run",
+            "Optional Feature Unsupported",
+        ];
+        let outputLines = [];
+        outputLines.push(`Harness status: ${harness_status.format_status()}`);
+        outputLines.push("");
+        outputLines.push(`Found ${tests.length} tests`);
+        outputLines.push("");
+        for (let i = 0; i < statuses.length; ++i) {
+            let count = tests.filter(test => test.status === i).length;
+            if (count > 0) {
+                outputLines.push(`${count} ${statuses[i]}`);
+            }
         }
-        window.internals.signalTextTestIsDone(document.getElementById("log").innerText);
+        for (const test of tests) {
+            outputLines.push(`${test.format_status()}\t${test.name}`);
+        }
+        window.internals.signalTextTestIsDone(outputLines.join('\n'));
     }
 });
 

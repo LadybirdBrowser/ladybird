@@ -1,19 +1,14 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 9 tests
 
 9 Pass
-Details
-Result	Test Name	MessagePass	Property grid-template-areas value 'none'	
-Pass	Property grid-template-areas value '"first"'	
-Pass	Property grid-template-areas value '"first second"'	
-Pass	Property grid-template-areas value '"1st 2nd 3rd"'	
-Pass	Property grid-template-areas value '"first second" "third fourth"'	
-Pass	Property grid-template-areas value '"first second" "third ." "1st 2nd" "3rd 4th"'	
-Pass	Property grid-template-areas value '" a b "'	
-Pass	Property grid-template-areas value '"c d"'	
-Pass	Property grid-template-areas value '"first ..."'	
+Pass	Property grid-template-areas value 'none'
+Pass	Property grid-template-areas value '"first"'
+Pass	Property grid-template-areas value '"first second"'
+Pass	Property grid-template-areas value '"1st 2nd 3rd"'
+Pass	Property grid-template-areas value '"first second" "third fourth"'
+Pass	Property grid-template-areas value '"first second" "third ." "1st 2nd" "3rd 4th"'
+Pass	Property grid-template-areas value '"  a  	  b  "'
+Pass	Property grid-template-areas value '"c	d"'
+Pass	Property grid-template-areas value '"first ..."'

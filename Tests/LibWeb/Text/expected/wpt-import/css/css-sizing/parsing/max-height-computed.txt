@@ -1,23 +1,18 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 12 tests
 
 6 Pass
 6 Fail
-Details
-Result	Test Name	MessagePass	Property max-height value 'none'	
-Pass	Property max-height value 'min-content'	
-Pass	Property max-height value 'max-content'	
-Pass	Property max-height value '10px'	
-Pass	Property max-height value '20%'	
-Pass	Property max-height value 'calc(10% + 40px)'	
-Fail	Property max-height value 'calc(10px - 0.5em)'	
-Fail	Property max-height value 'calc(10px + 0.5em)'	
-Fail	Property max-height value 'fit-content(10px)'	
-Fail	Property max-height value 'fit-content(20%)'	
-Fail	Property max-height value 'fit-content(calc(10% + 40px))'	
-Fail	Property max-height value 'fit-content(calc(10px + 0.5em))'	
+Pass	Property max-height value 'none'
+Pass	Property max-height value 'min-content'
+Pass	Property max-height value 'max-content'
+Pass	Property max-height value '10px'
+Pass	Property max-height value '20%'
+Pass	Property max-height value 'calc(10% + 40px)'
+Fail	Property max-height value 'calc(10px - 0.5em)'
+Fail	Property max-height value 'calc(10px + 0.5em)'
+Fail	Property max-height value 'fit-content(10px)'
+Fail	Property max-height value 'fit-content(20%)'
+Fail	Property max-height value 'fit-content(calc(10% + 40px))'
+Fail	Property max-height value 'fit-content(calc(10px + 0.5em))'

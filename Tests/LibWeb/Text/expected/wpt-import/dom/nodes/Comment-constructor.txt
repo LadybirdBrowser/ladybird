@@ -1,26 +1,21 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 16 tests
 
 16 Pass
-Details
-Result	Test Name	MessagePass	new Comment(): prototype chain	
-Pass	new Comment(): instanceof	
-Pass	new Comment(): no arguments	
-Pass	new Comment(): undefined	
-Pass	new Comment(): null	
-Pass	new Comment(): 42	
-Pass	new Comment(): ""	
-Pass	new Comment(): "-"	
-Pass	new Comment(): "--"	
-Pass	new Comment(): "-->"	
-Pass	new Comment(): "<!--"	
-Pass	new Comment(): "\0"	
-Pass	new Comment(): "\0test"	
-Pass	new Comment(): "&amp;"	
-Pass	new Comment(): two arguments	
-Pass	new Comment() should get the correct ownerDocument across globals	
+Pass	new Comment(): prototype chain
+Pass	new Comment(): instanceof
+Pass	new Comment(): no arguments
+Pass	new Comment(): undefined
+Pass	new Comment(): null
+Pass	new Comment(): 42
+Pass	new Comment(): ""
+Pass	new Comment(): "-"
+Pass	new Comment(): "--"
+Pass	new Comment(): "-->"
+Pass	new Comment(): "<!--"
+Pass	new Comment(): "\0"
+Pass	new Comment(): "\0test"
+Pass	new Comment(): "&amp;"
+Pass	new Comment(): two arguments
+Pass	new Comment() should get the correct ownerDocument across globals

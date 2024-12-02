@@ -1,35 +1,30 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 24 tests
 
 8 Pass
 16 Fail
-Details
-Result	Test Name	MessagePass	check XMLSerializer.serializeToString method could parsing xmldoc to string	
-Pass	check XMLSerializer.serializeToString method could parsing document to string	
-Pass	Check if the default namespace is correctly reset.	
-Pass	Check if there is no redundant empty namespace declaration.	
-Fail	Check if redundant xmlns="..." is dropped.	
-Pass	Check if inconsistent xmlns="..." is dropped.	
-Fail	Check if an attribute with namespace and no prefix is serialized with the nearest-declared prefix	
-Fail	Check if an attribute with namespace and no prefix is serialized with the nearest-declared prefix even if the prefix is assigned to another namespace.	
-Fail	Check if the prefix of an attribute is replaced with another existing prefix mapped to the same namespace URI.	
-Fail	Check if the prefix of an attribute is NOT preserved in a case where neither its prefix nor its namespace URI is not already used.	
-Fail	Check if the prefix of an attribute is replaced with a generated one in a case where the prefix is already mapped to a different namespace URI.	
-Fail	check XMLSerializer.serializeToString escapes attribute values for roundtripping	
-Fail	Check if attribute serialization takes into account of following xmlns:* attributes	
-Fail	Check if attribute serialization takes into account of the same prefix declared in an ancestor element	
-Fail	Check if start tag serialization drops element prefix if the namespace is same as inherited default namespace.	
-Fail	Check if start tag serialization finds an appropriate prefix.	
-Fail	Check if start tag serialization takes into account of its xmlns:* attributes	
-Fail	Check if start tag serialization applied the original prefix even if it is declared in an ancestor element.	
-Fail	Check if start tag serialization does NOT apply the default namespace if its namespace is declared in an ancestor.	
-Pass		
-Fail	Check if "ns1" is generated even if the element already has xmlns:ns1.	
-Fail	Check if no special handling for XLink namespace unlike HTML serializer.	
-Pass	Check if document fragment serializes.	
-Pass	Check children were included for void elements	
+Pass	check XMLSerializer.serializeToString method could parsing xmldoc to string
+Pass	check XMLSerializer.serializeToString method could parsing document to string
+Pass	Check if the default namespace is correctly reset.
+Pass	Check if there is no redundant empty namespace declaration.
+Fail	Check if redundant xmlns="..." is dropped.
+Pass	Check if inconsistent xmlns="..." is dropped.
+Fail	Check if an attribute with namespace and no prefix is serialized with the nearest-declared prefix
+Fail	Check if an attribute with namespace and no prefix is serialized with the nearest-declared prefix even if the prefix is assigned to another namespace.
+Fail	Check if the prefix of an attribute is replaced with another existing prefix mapped to the same namespace URI.
+Fail	Check if the prefix of an attribute is NOT preserved in a case where neither its prefix nor its namespace URI is not already used.
+Fail	Check if the prefix of an attribute is replaced with a generated one in a case where the prefix is already mapped to a different namespace URI.
+Fail	check XMLSerializer.serializeToString escapes attribute values for roundtripping
+Fail	Check if attribute serialization takes into account of following xmlns:* attributes
+Fail	Check if attribute serialization takes into account of the same prefix declared in an ancestor element
+Fail	Check if start tag serialization drops element prefix if the namespace is same as inherited default namespace.
+Fail	Check if start tag serialization finds an appropriate prefix.
+Fail	Check if start tag serialization takes into account of its xmlns:* attributes
+Fail	Check if start tag serialization applied the original prefix even if it is declared in an ancestor element.
+Fail	Check if start tag serialization does NOT apply the default namespace if its namespace is declared in an ancestor.
+Pass	Check if generated prefixes match to "ns${index}".
+Fail	Check if "ns1" is generated even if the element already has xmlns:ns1.
+Fail	Check if no special handling for XLink namespace unlike HTML serializer.
+Pass	Check if document fragment serializes.
+Pass	Check children were included for void elements

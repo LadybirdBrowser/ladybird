@@ -1,23 +1,18 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 12 tests
 
 9 Pass
 3 Fail
-Details
-Result	Test Name	MessagePass	Initial State	
-Pass	Focus 'target1'	
-Pass	Focus 'target2'	
-Pass	Focus 'target1' again	
-Pass	Focus 'target2' again	
-Pass	Focus 'target1' once again	
-Fail	Detach 'container1' from the document	
-Fail	Try to focus 'target1'	
-Pass	Focus 'target2' once again	
-Pass	Attach 'container1' in 'container2'	
-Pass	Focus 'target1' for the last time	
-Fail	Move 'target1' in 'container2'	
+Pass	Initial State
+Pass	Focus 'target1'
+Pass	Focus 'target2'
+Pass	Focus 'target1' again
+Pass	Focus 'target2' again
+Pass	Focus 'target1' once again
+Fail	Detach 'container1' from the document
+Fail	Try to focus 'target1'
+Pass	Focus 'target2' once again
+Pass	Attach 'container1' in 'container2'
+Pass	Focus 'target1' for the last time
+Fail	Move 'target1' in 'container2'

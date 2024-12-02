@@ -1,16 +1,11 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 6 tests
 
 6 Pass
-Details
-Result	Test Name	MessagePass	can't bypass required members by omitting the dictionary entirely	
-Pass	destination is required	
-Pass	signal is required	
-Pass	all properties are reflected back	
-Pass	defaults are as expected	
-Pass	hasUAVisualTransition is default false	
+Pass	can't bypass required members by omitting the dictionary entirely
+Pass	destination is required
+Pass	signal is required
+Pass	all properties are reflected back
+Pass	defaults are as expected
+Pass	hasUAVisualTransition is default false

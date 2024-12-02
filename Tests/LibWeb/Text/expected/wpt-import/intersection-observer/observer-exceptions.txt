@@ -1,19 +1,14 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 9 tests
 
 9 Pass
-Details
-Result	Test Name	MessagePass	IntersectionObserver constructor with { threshold: [1.1] }	
-Pass	IntersectionObserver constructor with { threshold: ["foo"] }	
-Pass	IntersectionObserver constructor with { rootMargin: "1" }	
-Pass	IntersectionObserver constructor with { rootMargin: "2em" }	
-Pass	IntersectionObserver constructor with { rootMargin: "auto" }	
-Pass	IntersectionObserver constructor with { rootMargin: "calc(1px + 2px)" }	
-Pass	IntersectionObserver constructor with { rootMargin: "1px !important" }	
-Pass	IntersectionObserver constructor with { rootMargin: "1px 1px 1px 1px 1px" }	
-Pass	IntersectionObserver.observe("foo")	
+Pass	IntersectionObserver constructor with { threshold: [1.1] }
+Pass	IntersectionObserver constructor with { threshold: ["foo"] }
+Pass	IntersectionObserver constructor with { rootMargin: "1" }
+Pass	IntersectionObserver constructor with { rootMargin: "2em" }
+Pass	IntersectionObserver constructor with { rootMargin: "auto" }
+Pass	IntersectionObserver constructor with { rootMargin: "calc(1px + 2px)" }
+Pass	IntersectionObserver constructor with { rootMargin: "1px !important" }
+Pass	IntersectionObserver constructor with { rootMargin: "1px 1px 1px 1px 1px" }
+Pass	IntersectionObserver.observe("foo")

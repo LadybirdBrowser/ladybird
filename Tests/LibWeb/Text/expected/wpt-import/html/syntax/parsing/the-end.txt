@@ -1,14 +1,9 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 4 tests
 
 4 Pass
-Details
-Result	Test Name	MessagePass	DOMContentLoaded	
-Pass	load	
-Pass	pageshow	
-Pass	order	
+Pass	DOMContentLoaded
+Pass	load
+Pass	pageshow
+Pass	order

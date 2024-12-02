@@ -1,14 +1,9 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 4 tests
 
 4 Pass
-Details
-Result	Test Name	MessagePass	Parsing of initial style attribute	
-Pass	Parsing of invalid style attribute	
-Pass	Parsing of style attribute	
-Pass	Update style.backgroundColor	
+Pass	Parsing of initial style attribute
+Pass	Parsing of invalid style attribute
+Pass	Parsing of style attribute
+Pass	Update style.backgroundColor

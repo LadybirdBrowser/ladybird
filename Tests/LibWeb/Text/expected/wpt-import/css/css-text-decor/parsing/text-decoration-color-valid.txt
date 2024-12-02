@@ -1,13 +1,8 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 3 tests
 
 3 Pass
-Details
-Result	Test Name	MessagePass	e.style['text-decoration-color'] = "currentcolor" should set the property value	
-Pass	e.style['text-decoration-color'] = "red" should set the property value	
-Pass	e.style['text-decoration-color'] = "rgba(10, 20, 30, 0.4)" should set the property value	
+Pass	e.style['text-decoration-color'] = "currentcolor" should set the property value
+Pass	e.style['text-decoration-color'] = "red" should set the property value
+Pass	e.style['text-decoration-color'] = "rgba(10, 20, 30, 0.4)" should set the property value

@@ -1,11 +1,6 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 1 tests
 
 1 Fail
-Details
-Result	Test Name	MessageFail	The font shorthand should be serialized just like any other shorthand.	
+Fail	The font shorthand should be serialized just like any other shorthand.

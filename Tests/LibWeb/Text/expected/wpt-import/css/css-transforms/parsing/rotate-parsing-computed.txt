@@ -1,27 +1,22 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 17 tests
 
 17 Pass
-Details
-Result	Test Name	MessagePass	Property rotate value 'none'	
-Pass	Property rotate value '0deg'	
-Pass	Property rotate value '100 200 300 400grad'	
-Pass	Property rotate value '400grad 100 200 300'	
-Pass	Property rotate value '0 0 0 400grad'	
-Pass	Property rotate value 'x 400grad'	
-Pass	Property rotate value '400grad x'	
-Pass	Property rotate value '0.5 0 0 400grad'	
-Pass	Property rotate value '1 0 0 400grad'	
-Pass	Property rotate value 'y 400grad'	
-Pass	Property rotate value '400grad y'	
-Pass	Property rotate value '0 0.5 0 400grad'	
-Pass	Property rotate value '0 1 0 400grad'	
-Pass	Property rotate value '400grad'	
-Pass	Property rotate value '400grad z'	
-Pass	Property rotate value '0 0 0.5 400grad'	
-Pass	Property rotate value '0 0 1 400grad'	
+Pass	Property rotate value 'none'
+Pass	Property rotate value '0deg'
+Pass	Property rotate value '100 200 300 400grad'
+Pass	Property rotate value '400grad 100 200 300'
+Pass	Property rotate value '0 0 0 400grad'
+Pass	Property rotate value 'x 400grad'
+Pass	Property rotate value '400grad x'
+Pass	Property rotate value '0.5 0 0 400grad'
+Pass	Property rotate value '1 0 0 400grad'
+Pass	Property rotate value 'y 400grad'
+Pass	Property rotate value '400grad y'
+Pass	Property rotate value '0 0.5 0 400grad'
+Pass	Property rotate value '0 1 0 400grad'
+Pass	Property rotate value '400grad'
+Pass	Property rotate value '400grad z'
+Pass	Property rotate value '0 0 0.5 400grad'
+Pass	Property rotate value '0 0 1 400grad'

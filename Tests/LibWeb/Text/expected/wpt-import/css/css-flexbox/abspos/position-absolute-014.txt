@@ -1,11 +1,6 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 1 tests
 
 1 Pass
-Details
-Result	Test Name	MessagePass	The bottom of each pair of boxes should be the same	
+Pass	The bottom of each pair of boxes should be the same

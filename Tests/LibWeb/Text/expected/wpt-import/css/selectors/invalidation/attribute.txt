@@ -1,16 +1,11 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 6 tests
 
 6 Pass
-Details
-Result	Test Name	MessagePass	[att] selector is effective	
-Pass	[att=val] selector is effective	
-Pass	[att~=val] selector is effective	
-Pass	[att|=val] selector is effective	
-Pass	#id selector is effective	
-Pass	.class selector is effective	
+Pass	[att] selector is effective
+Pass	[att=val] selector is effective
+Pass	[att~=val] selector is effective
+Pass	[att|=val] selector is effective
+Pass	#id selector is effective
+Pass	.class selector is effective

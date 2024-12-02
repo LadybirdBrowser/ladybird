@@ -1,18 +1,13 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 8 tests
 
 8 Pass
-Details
-Result	Test Name	MessagePass	Text.substringData() splitting surrogate pairs	
-Pass	Text.replaceData() splitting and creating surrogate pairs	
-Pass	Text.deleteData() splitting and creating surrogate pairs	
-Pass	Text.insertData() splitting and creating surrogate pairs	
-Pass	Comment.substringData() splitting surrogate pairs	
-Pass	Comment.replaceData() splitting and creating surrogate pairs	
-Pass	Comment.deleteData() splitting and creating surrogate pairs	
-Pass	Comment.insertData() splitting and creating surrogate pairs	
+Pass	Text.substringData() splitting surrogate pairs
+Pass	Text.replaceData() splitting and creating surrogate pairs
+Pass	Text.deleteData() splitting and creating surrogate pairs
+Pass	Text.insertData() splitting and creating surrogate pairs
+Pass	Comment.substringData() splitting surrogate pairs
+Pass	Comment.replaceData() splitting and creating surrogate pairs
+Pass	Comment.deleteData() splitting and creating surrogate pairs
+Pass	Comment.insertData() splitting and creating surrogate pairs

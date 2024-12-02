@@ -1,12 +1,7 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 2 tests
 
 2 Pass
-Details
-Result	Test Name	MessagePass	Adding multiple nodes at once should invalidate :first-child correctly.	
-Pass	Adding multiple nodes at once should invalidate :last-child correctly.	
+Pass	Adding multiple nodes at once should invalidate :first-child correctly.
+Pass	Adding multiple nodes at once should invalidate :last-child correctly.

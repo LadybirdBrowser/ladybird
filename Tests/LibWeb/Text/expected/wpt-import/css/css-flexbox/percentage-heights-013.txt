@@ -1,14 +1,9 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 4 tests
 
 4 Pass
-Details
-Result	Test Name	MessagePass	.flexbox 1	
-Pass	.flexbox 2	
-Pass	.flexbox 3	
-Pass	.flexbox 4	
+Pass	.flexbox 1
+Pass	.flexbox 2
+Pass	.flexbox 3
+Pass	.flexbox 4

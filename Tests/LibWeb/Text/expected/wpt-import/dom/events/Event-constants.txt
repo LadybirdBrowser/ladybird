@@ -1,14 +1,9 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 4 tests
 
 4 Pass
-Details
-Result	Test Name	MessagePass	Constants for eventPhase on Event interface object.	
-Pass	Constants for eventPhase on Event prototype object.	
-Pass	Constants for eventPhase on Event object.	
-Pass	Constants for eventPhase on CustomEvent object.	
+Pass	Constants for eventPhase on Event interface object.
+Pass	Constants for eventPhase on Event prototype object.
+Pass	Constants for eventPhase on Event object.
+Pass	Constants for eventPhase on CustomEvent object.

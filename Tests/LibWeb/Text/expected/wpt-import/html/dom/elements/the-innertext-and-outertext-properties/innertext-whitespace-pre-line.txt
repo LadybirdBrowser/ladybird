@@ -1,12 +1,7 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 2 tests
 
 2 Fail
-Details
-Result	Test Name	MessageFail	innerText should be the same for the pre-line and pre examples	
-Fail	innerText has collapsed whitespace but preserved newlines with pre-line	
+Fail	innerText should be the same for the pre-line and pre examples
+Fail	innerText has collapsed whitespace but preserved newlines with pre-line
