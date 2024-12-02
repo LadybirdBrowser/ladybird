@@ -192,7 +192,7 @@ jobs:
         with:
           name: libweb-test-artifacts-${{ inputs.os_name }}-${{inputs.fuzzer}}-${{inputs.toolchain}}-${{inputs.clang-plugins}}
           path: ${{ github.workspace }}/Build/UI/Headless/test-dumps
-          retention-days: 7
+          retention-days: 0
           if-no-files-found: ignore
 
       - name: Lints
