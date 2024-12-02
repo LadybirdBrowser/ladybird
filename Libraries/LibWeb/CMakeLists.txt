@@ -55,6 +55,7 @@ set(SOURCES
     ContentSecurityPolicy/Directives/MediaSourceDirective.cpp
     ContentSecurityPolicy/Directives/Names.cpp
     ContentSecurityPolicy/Directives/ObjectSourceDirective.cpp
+    ContentSecurityPolicy/Directives/ScriptSourceDirective.cpp
     ContentSecurityPolicy/Directives/SerializedDirective.cpp
     ContentSecurityPolicy/Directives/SourceExpression.cpp
     ContentSecurityPolicy/Policy.cpp
