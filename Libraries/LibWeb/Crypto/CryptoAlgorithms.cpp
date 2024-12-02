@@ -2450,27 +2450,16 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, GC::
             return WebIDL::NotSupportedError::create(m_realm, "'P-521' is not supported yet"_string);
 
         // Perform the ECDSA verifying process, as specified in [RFC6090], Section 5.3,
-        // with M as the received message,
-        // signature as the received signature
-        // and using params as the EC domain parameters,
-        // and Q as the public key.
+        // with M as the received message, signature as the received signature
+        // and using params as the EC domain parameters, and Q as the public key.
 
-        // NOTE: verify() takes the signature in X.509 format but JS uses IEEE P1363 format, so we need to convert it
-        // FIXME: Dont construct an ASN1 object here just to pass it to verify
         auto half_size = signature.size() / 2;
         auto r = ::Crypto::UnsignedBigInteger::import_data(signature.data(), half_size);
         auto s = ::Crypto::UnsignedBigInteger::import_data(signature.data() + half_size, half_size);
 
-        ::Crypto::ASN1::Encoder encoder;
-        (void)encoder.write_constructed(::Crypto::ASN1::Class::Universal, ::Crypto::ASN1::Kind::Sequence, [&] {
-            (void)encoder.write(r);
-            (void)encoder.write(s);
-        });
-        auto encoded_signature = encoder.finish();
-
         auto maybe_result = curve.visit(
             [](Empty const&) -> ErrorOr<bool> { return Error::from_string_literal("Failed to create valid crypto instance"); },
-            [&](auto instance) { return instance.verify_point(M, ::Crypto::Curves::SECPxxxr1Point { Q.x(), Q.y() }, encoded_signature); });
+            [&](auto instance) { return instance.verify_point(M, ::Crypto::Curves::SECPxxxr1Point { Q.x(), Q.y() }, ::Crypto::Curves::SECPxxxr1Signature { r, s }); });
 
         if (maybe_result.is_error()) {
             auto error_message = MUST(String::from_utf8(maybe_result.error().string_literal()));
