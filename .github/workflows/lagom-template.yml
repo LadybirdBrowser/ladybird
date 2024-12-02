@@ -190,7 +190,7 @@ jobs:
         if: ${{ always() && inputs.fuzzer == 'NO_FUZZ' }}
         uses: actions/upload-artifact@v4
         with:
-          name: libweb-test-artifacts-${{ inputs.os_name }}
+          name: libweb-test-artifacts-${{ inputs.os_name }}-${{inputs.fuzzer}}-${{inputs.toolchain}}-${{inputs.clang-plugins}}
           path: ${{ github.workspace }}/Build/UI/Headless/test-dumps
           retention-days: 7
           if-no-files-found: ignore
