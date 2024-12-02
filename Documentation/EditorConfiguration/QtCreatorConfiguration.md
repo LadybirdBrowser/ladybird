@@ -19,14 +19,14 @@ First, make sure you have a working toolchain and can build and run Ladybird. Go
     #define SANITIZE_PTRS 1
     ```
 * Edit the `ladybird.cxxflags` file to say `-std=c++23 -fsigned-char -fconcepts -fno-exceptions -fno-semantic-interposition -fPIC`
-* Edit the `ladybird.includes` file to list the following lines:
+* Edit the `ladybird.includes` file to list the following lines (adapt to the actual path of your skia folder):
     ```
     ./
     Libraries/
     Services/
-    Build/release/
-    Build/release/Libraries/
-    Build/release/Services/
+    Build/release/Lagom/Libraries/
+    Build/release/Lagom/Services/
+    Build/release/vcpkg_installed/x64-linux/include/skia/
     AK/
     ```
 
