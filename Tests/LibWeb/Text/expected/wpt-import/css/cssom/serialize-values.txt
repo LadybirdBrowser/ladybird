@@ -1,698 +1,693 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 687 tests
 
-478 Pass
-209 Fail
-Details
-Result	Test Name	MessagePass	background-attachment: scroll	
-Pass	background-attachment: fixed	
-Pass	background-attachment: inherit	
-Pass	background-color: black	
-Pass	background-color: red	
-Pass	background-color: rgb(50, 75, 100)	
-Fail	background-color: rgba(5, 7, 10, 0.5)	
-Pass	background-color: transparent	
-Pass	background-color: inherit	
-Pass	background-image: url("http://localhost/")	
-Pass	background-image: url(http://localhost/)	
-Pass	background-image: none	
-Pass	background-image: inherit	
-Fail	background-position: 5% 5%	
-Fail	background-position: 5% .5%	
-Fail	background-position: 5% -5%	
-Fail	background-position: 5% -.5%	
-Fail	background-position: 5% 0px	
-Fail	background-position: 5% 1px	
-Fail	background-position: 5% .1em	
-Fail	background-position: 5% -0px	
-Fail	background-position: 5% -1px	
-Fail	background-position: 5% -.1em	
-Fail	background-position: 5% top	
-Fail	background-position: 5% center	
-Fail	background-position: 5% bottom	
-Fail	background-position: .5% 5%	
-Fail	background-position: .5% .5%	
-Fail	background-position: .5% -5%	
-Fail	background-position: .5% -.5%	
-Fail	background-position: .5% 0px	
-Fail	background-position: .5% 1px	
-Fail	background-position: .5% .1em	
-Fail	background-position: .5% -0px	
-Fail	background-position: .5% -1px	
-Fail	background-position: .5% -.1em	
-Fail	background-position: .5% top	
-Fail	background-position: .5% center	
-Fail	background-position: .5% bottom	
-Fail	background-position: -5% 5%	
-Fail	background-position: -5% .5%	
-Fail	background-position: -5% -5%	
-Fail	background-position: -5% -.5%	
-Fail	background-position: -5% 0px	
-Fail	background-position: -5% 1px	
-Fail	background-position: -5% .1em	
-Fail	background-position: -5% -0px	
-Fail	background-position: -5% -1px	
-Fail	background-position: -5% -.1em	
-Fail	background-position: -5% top	
-Fail	background-position: -5% center	
-Fail	background-position: -5% bottom	
-Fail	background-position: -.5% 5%	
-Fail	background-position: -.5% .5%	
-Fail	background-position: -.5% -5%	
-Fail	background-position: -.5% -.5%	
-Fail	background-position: -.5% 0px	
-Fail	background-position: -.5% 1px	
-Fail	background-position: -.5% .1em	
-Fail	background-position: -.5% -0px	
-Fail	background-position: -.5% -1px	
-Fail	background-position: -.5% -.1em	
-Fail	background-position: -.5% top	
-Fail	background-position: -.5% center	
-Fail	background-position: -.5% bottom	
-Fail	background-position: 0px 5%	
-Fail	background-position: 0px .5%	
-Fail	background-position: 0px -5%	
-Fail	background-position: 0px -.5%	
-Fail	background-position: 0px 0px	
-Fail	background-position: 0px 1px	
-Fail	background-position: 0px .1em	
-Fail	background-position: 0px -0px	
-Fail	background-position: 0px -1px	
-Fail	background-position: 0px -.1em	
-Fail	background-position: 0px top	
-Fail	background-position: 0px center	
-Fail	background-position: 0px bottom	
-Fail	background-position: 1px 5%	
-Fail	background-position: 1px .5%	
-Fail	background-position: 1px -5%	
-Fail	background-position: 1px -.5%	
-Fail	background-position: 1px 0px	
-Fail	background-position: 1px 1px	
-Fail	background-position: 1px .1em	
-Fail	background-position: 1px -0px	
-Fail	background-position: 1px -1px	
-Fail	background-position: 1px -.1em	
-Fail	background-position: 1px top	
-Fail	background-position: 1px center	
-Fail	background-position: 1px bottom	
-Fail	background-position: .1em 5%	
-Fail	background-position: .1em .5%	
-Fail	background-position: .1em -5%	
-Fail	background-position: .1em -.5%	
-Fail	background-position: .1em 0px	
-Fail	background-position: .1em 1px	
-Fail	background-position: .1em .1em	
-Fail	background-position: .1em -0px	
-Fail	background-position: .1em -1px	
-Fail	background-position: .1em -.1em	
-Fail	background-position: .1em top	
-Fail	background-position: .1em center	
-Fail	background-position: .1em bottom	
-Fail	background-position: -0px 5%	
-Fail	background-position: -0px .5%	
-Fail	background-position: -0px -5%	
-Fail	background-position: -0px -.5%	
-Fail	background-position: -0px 0px	
-Fail	background-position: -0px 1px	
-Fail	background-position: -0px .1em	
-Fail	background-position: -0px -0px	
-Fail	background-position: -0px -1px	
-Fail	background-position: -0px -.1em	
-Fail	background-position: -0px top	
-Fail	background-position: -0px center	
-Fail	background-position: -0px bottom	
-Fail	background-position: -1px 5%	
-Fail	background-position: -1px .5%	
-Fail	background-position: -1px -5%	
-Fail	background-position: -1px -.5%	
-Fail	background-position: -1px 0px	
-Fail	background-position: -1px 1px	
-Fail	background-position: -1px .1em	
-Fail	background-position: -1px -0px	
-Fail	background-position: -1px -1px	
-Fail	background-position: -1px -.1em	
-Fail	background-position: -1px top	
-Fail	background-position: -1px center	
-Fail	background-position: -1px bottom	
-Fail	background-position: -.1em 5%	
-Fail	background-position: -.1em .5%	
-Fail	background-position: -.1em -5%	
-Fail	background-position: -.1em -.5%	
-Fail	background-position: -.1em 0px	
-Fail	background-position: -.1em 1px	
-Fail	background-position: -.1em .1em	
-Fail	background-position: -.1em -0px	
-Fail	background-position: -.1em -1px	
-Fail	background-position: -.1em -.1em	
-Fail	background-position: -.1em top	
-Fail	background-position: -.1em center	
-Fail	background-position: -.1em bottom	
-Fail	background-position: left 5%	
-Fail	background-position: left .5%	
-Fail	background-position: left -5%	
-Fail	background-position: left -.5%	
-Fail	background-position: left 0px	
-Fail	background-position: left 1px	
-Fail	background-position: left .1em	
-Fail	background-position: left -0px	
-Fail	background-position: left -1px	
-Fail	background-position: left -.1em	
-Fail	background-position: left top	
-Fail	background-position: left center	
-Fail	background-position: left bottom	
-Fail	background-position: center 5%	
-Fail	background-position: center .5%	
-Fail	background-position: center -5%	
-Fail	background-position: center -.5%	
-Fail	background-position: center 0px	
-Fail	background-position: center 1px	
-Fail	background-position: center .1em	
-Fail	background-position: center -0px	
-Fail	background-position: center -1px	
-Fail	background-position: center -.1em	
-Fail	background-position: center top	
-Fail	background-position: center center	
-Fail	background-position: center bottom	
-Fail	background-position: right 5%	
-Fail	background-position: right .5%	
-Fail	background-position: right -5%	
-Fail	background-position: right -.5%	
-Fail	background-position: right 0px	
-Fail	background-position: right 1px	
-Fail	background-position: right .1em	
-Fail	background-position: right -0px	
-Fail	background-position: right -1px	
-Fail	background-position: right -.1em	
-Fail	background-position: right top	
-Fail	background-position: right center	
-Fail	background-position: right bottom	
-Pass	background-position: inherit	
-Pass	background-repeat: repeat	
-Pass	background-repeat: repeat-x	
-Pass	background-repeat: repeat-y	
-Pass	background-repeat: no-repeat	
-Pass	background-repeat: inherit	
-Pass	border-collapse: collapse	
-Pass	border-collapse: separate	
-Pass	border-collapse: inherit	
-Pass	border-spacing: 0px	
-Pass	border-spacing: 1px	
-Pass	border-spacing: .1em	
-Pass	border-spacing: inherit	
-Pass	border-top-color: black	
-Pass	border-top-color: red	
-Pass	border-top-color: rgb(50, 75, 100)	
-Fail	border-top-color: rgba(5, 7, 10, 0.5)	
-Pass	border-top-color: transparent	
-Pass	border-top-color: inherit	
-Pass	border-right-color: black	
-Pass	border-right-color: red	
-Pass	border-right-color: rgb(50, 75, 100)	
-Fail	border-right-color: rgba(5, 7, 10, 0.5)	
-Pass	border-right-color: transparent	
-Pass	border-right-color: inherit	
-Pass	border-bottom-color: black	
-Pass	border-bottom-color: red	
-Pass	border-bottom-color: rgb(50, 75, 100)	
-Fail	border-bottom-color: rgba(5, 7, 10, 0.5)	
-Pass	border-bottom-color: transparent	
-Pass	border-bottom-color: inherit	
-Pass	border-left-color: black	
-Pass	border-left-color: red	
-Pass	border-left-color: rgb(50, 75, 100)	
-Fail	border-left-color: rgba(5, 7, 10, 0.5)	
-Pass	border-left-color: transparent	
-Pass	border-left-color: inherit	
-Pass	border-top-style: none	
-Pass	border-top-style: hidden	
-Pass	border-top-style: dotted	
-Pass	border-top-style: dashed	
-Pass	border-top-style: solid	
-Pass	border-top-style: double	
-Pass	border-top-style: groove	
-Pass	border-top-style: ridge	
-Pass	border-top-style: inset	
-Pass	border-top-style: outset	
-Pass	border-top-style: inherit	
-Pass	border-right-style: none	
-Pass	border-right-style: hidden	
-Pass	border-right-style: dotted	
-Pass	border-right-style: dashed	
-Pass	border-right-style: solid	
-Pass	border-right-style: double	
-Pass	border-right-style: groove	
-Pass	border-right-style: ridge	
-Pass	border-right-style: inset	
-Pass	border-right-style: outset	
-Pass	border-right-style: inherit	
-Pass	border-bottom-style: none	
-Pass	border-bottom-style: hidden	
-Pass	border-bottom-style: dotted	
-Pass	border-bottom-style: dashed	
-Pass	border-bottom-style: solid	
-Pass	border-bottom-style: double	
-Pass	border-bottom-style: groove	
-Pass	border-bottom-style: ridge	
-Pass	border-bottom-style: inset	
-Pass	border-bottom-style: outset	
-Pass	border-bottom-style: inherit	
-Pass	border-left-style: none	
-Pass	border-left-style: hidden	
-Pass	border-left-style: dotted	
-Pass	border-left-style: dashed	
-Pass	border-left-style: solid	
-Pass	border-left-style: double	
-Pass	border-left-style: groove	
-Pass	border-left-style: ridge	
-Pass	border-left-style: inset	
-Pass	border-left-style: outset	
-Pass	border-left-style: inherit	
-Pass	border-top-width: thin	
-Pass	border-top-width: medium	
-Pass	border-top-width: thick	
-Pass	border-top-width: 0px	
-Pass	border-top-width: 1px	
-Pass	border-top-width: .1em	
-Pass	border-top-width: inherit	
-Pass	border-right-width: thin	
-Pass	border-right-width: medium	
-Pass	border-right-width: thick	
-Pass	border-right-width: 0px	
-Pass	border-right-width: 1px	
-Pass	border-right-width: .1em	
-Pass	border-right-width: inherit	
-Pass	border-bottom-width: thin	
-Pass	border-bottom-width: medium	
-Pass	border-bottom-width: thick	
-Pass	border-bottom-width: 0px	
-Pass	border-bottom-width: 1px	
-Pass	border-bottom-width: .1em	
-Pass	border-bottom-width: inherit	
-Pass	border-left-width: thin	
-Pass	border-left-width: medium	
-Pass	border-left-width: thick	
-Pass	border-left-width: 0px	
-Pass	border-left-width: 1px	
-Pass	border-left-width: .1em	
-Pass	border-left-width: inherit	
-Pass	bottom: 0px	
-Pass	bottom: 1px	
-Pass	bottom: .1em	
-Pass	bottom: 5%	
-Pass	bottom: .5%	
-Pass	bottom: auto	
-Pass	bottom: inherit	
-Pass	caption-side: top	
-Pass	caption-side: bottom	
-Pass	caption-side: inherit	
-Pass	clear: none	
-Pass	clear: left	
-Pass	clear: right	
-Pass	clear: both	
-Pass	clear: inherit	
-Pass	clip: rect(1em, auto, 0.5px, 2000em)	
-Pass	clip: auto	
-Pass	clip: inherit	
-Pass	color: black	
-Pass	color: red	
-Pass	color: rgb(50, 75, 100)	
-Fail	color: rgba(5, 7, 10, 0.5)	
-Pass	color: inherit	
-Pass	content: normal	
-Pass	content: none	
-Pass	content: "string"	
-Pass	content: 'string'	
-Fail	content: url("http://localhost/")	
-Fail	content: url(http://localhost/)	
-Pass	content: counter(par-num)	
-Pass	content: counter(par-num, decimal)	
-Pass	content: counter(par-num, upper-roman)	
-Pass	content: attr(foo-bar)	
-Pass	content: attr(foo_bar)	
-Fail	content: attr(|bar)	
-Fail	content: attr( |bar )	
-Pass	content: attr(foo-bar, "fallback")	
-Pass	content: attr(foo_bar, "fallback")	
-Fail	content: attr(|bar, "fallback")	
-Fail	content: attr(foo, "")	
-Fail	content: attr( |foo , "" )	
-Pass	content: inherit	
-Pass	cursor: auto	
-Pass	cursor: crosshair	
-Pass	cursor: default	
-Pass	cursor: pointer	
-Pass	cursor: move	
-Pass	cursor: e-resize	
-Pass	cursor: ne-resize	
-Pass	cursor: nw-resize	
-Pass	cursor: n-resize	
-Pass	cursor: se-resize	
-Pass	cursor: sw-resize	
-Pass	cursor: s-resize	
-Pass	cursor: w-resize	
-Pass	cursor: text	
-Pass	cursor: wait	
-Pass	cursor: help	
-Pass	cursor: progress	
-Pass	cursor: inherit	
-Pass	direction: ltr	
-Pass	direction: rtl	
-Pass	direction: inherit	
-Pass	display: inline	
-Pass	display: block	
-Pass	display: list-item	
-Pass	display: inline-block	
-Pass	display: table	
-Pass	display: inline-table	
-Pass	display: table-row-group	
-Pass	display: table-header-group	
-Pass	display: table-footer-group	
-Pass	display: table-row	
-Pass	display: table-column-group	
-Pass	display: table-column	
-Pass	display: table-cell	
-Pass	display: table-caption	
-Pass	display: none	
-Pass	display: inherit	
-Fail	empty-cells: show	
-Fail	empty-cells: hide	
-Fail	empty-cells: inherit	
-Pass	float: left	
-Pass	float: right	
-Pass	float: none	
-Pass	float: inherit	
-Pass	font-family: Arial	
-Pass	font-family: 'Lucida Grande'	
-Pass	font-family: serif	
-Pass	font-family: sans-serif	
-Pass	font-family: inherit	
-Pass	font-size: xx-small	
-Pass	font-size: x-small	
-Pass	font-size: small	
-Pass	font-size: medium	
-Pass	font-size: large	
-Pass	font-size: x-large	
-Pass	font-size: xx-large	
-Pass	font-size: larger	
-Pass	font-size: smaller	
-Pass	font-size: 0px	
-Pass	font-size: 1px	
-Pass	font-size: .1em	
-Pass	font-size: 5%	
-Pass	font-size: .5%	
-Pass	font-size: inherit	
-Pass	font-style: normal	
-Pass	font-style: italic	
-Pass	font-style: oblique	
-Pass	font-style: inherit	
-Pass	font-variant: normal	
-Pass	font-variant: small-caps	
-Pass	font-variant: inherit	
-Pass	font-weight: normal	
-Pass	font-weight: bold	
-Pass	font-weight: bolder	
-Pass	font-weight: lighter	
-Pass	font-weight: 100	
-Pass	font-weight: 200	
-Pass	font-weight: 300	
-Pass	font-weight: 400	
-Pass	font-weight: 500	
-Pass	font-weight: 600	
-Pass	font-weight: 700	
-Pass	font-weight: 800	
-Pass	font-weight: 900	
-Pass	font-weight: inherit	
-Pass	height: 0px	
-Pass	height: 1px	
-Pass	height: .1em	
-Pass	height: 5%	
-Pass	height: .5%	
-Pass	height: auto	
-Pass	height: inherit	
-Pass	left: 0px	
-Pass	left: 1px	
-Pass	left: .1em	
-Pass	left: 5%	
-Pass	left: .5%	
-Pass	left: auto	
-Pass	left: inherit	
-Pass	letter-spacing: normal	
-Pass	letter-spacing: 0px	
-Pass	letter-spacing: 1px	
-Pass	letter-spacing: .1em	
-Pass	letter-spacing: inherit	
-Pass	line-height: normal	
-Pass	line-height: 0	
-Pass	line-height: -0	
-Pass	line-height: 1000	
-Pass	line-height: 0.9	
-Pass	line-height: 0px	
-Pass	line-height: 1px	
-Pass	line-height: .1em	
-Pass	line-height: 5%	
-Pass	line-height: .5%	
-Pass	line-height: inherit	
-Pass	list-style-image: url("http://localhost/")	
-Pass	list-style-image: url(http://localhost/)	
-Pass	list-style-image: none	
-Pass	list-style-image: inherit	
-Pass	list-style-position: inside	
-Pass	list-style-position: outside	
-Pass	list-style-position: inherit	
-Pass	list-style-type: disc	
-Pass	list-style-type: circle	
-Pass	list-style-type: square	
-Pass	list-style-type: disclosure-open	
-Pass	list-style-type: disclosure-closed	
-Pass	list-style-type: decimal	
-Pass	list-style-type: decimal-leading-zero	
-Pass	list-style-type: lower-roman	
-Pass	list-style-type: upper-roman	
-Fail	list-style-type: lower-greek	
-Pass	list-style-type: lower-latin	
-Pass	list-style-type: upper-latin	
-Fail	list-style-type: armenian	
-Fail	list-style-type: georgian	
-Pass	list-style-type: lower-alpha	
-Pass	list-style-type: upper-alpha	
-Pass	list-style-type: none	
-Pass	list-style-type: inherit	
-Pass	margin-right: 0px	
-Pass	margin-right: 1px	
-Pass	margin-right: .1em	
-Pass	margin-right: 5%	
-Pass	margin-right: .5%	
-Pass	margin-right: auto	
-Pass	margin-right: inherit	
-Pass	margin-left: 0px	
-Pass	margin-left: 1px	
-Pass	margin-left: .1em	
-Pass	margin-left: 5%	
-Pass	margin-left: .5%	
-Pass	margin-left: auto	
-Pass	margin-left: inherit	
-Pass	margin-top: 0px	
-Pass	margin-top: 1px	
-Pass	margin-top: .1em	
-Pass	margin-top: 5%	
-Pass	margin-top: .5%	
-Pass	margin-top: auto	
-Pass	margin-top: inherit	
-Pass	margin-bottom: 0px	
-Pass	margin-bottom: 1px	
-Pass	margin-bottom: .1em	
-Pass	margin-bottom: 5%	
-Pass	margin-bottom: .5%	
-Pass	margin-bottom: auto	
-Pass	margin-bottom: inherit	
-Pass	max-height: 0px	
-Pass	max-height: 1px	
-Pass	max-height: .1em	
-Pass	max-height: 5%	
-Pass	max-height: .5%	
-Pass	max-height: none	
-Pass	max-height: inherit	
-Pass	max-width: 0px	
-Pass	max-width: 1px	
-Pass	max-width: .1em	
-Pass	max-width: 5%	
-Pass	max-width: .5%	
-Pass	max-width: none	
-Pass	max-width: inherit	
-Pass	min-height: 0px	
-Pass	min-height: 1px	
-Pass	min-height: .1em	
-Pass	min-height: 5%	
-Pass	min-height: .5%	
-Pass	min-height: inherit	
-Pass	min-width: 0px	
-Pass	min-width: 1px	
-Pass	min-width: .1em	
-Pass	min-width: 5%	
-Pass	min-width: .5%	
-Pass	min-width: inherit	
-Fail	orphans: 101	
-Fail	orphans: inherit	
-Pass	outline-color: black	
-Pass	outline-color: red	
-Pass	outline-color: rgb(50, 75, 100)	
-Fail	outline-color: rgba(5, 7, 10, 0.5)	
-Fail	outline-color: invert	
-Pass	outline-color: inherit	
-Pass	outline-style: none	
-Pass	outline-style: dotted	
-Pass	outline-style: dashed	
-Pass	outline-style: solid	
-Pass	outline-style: double	
-Pass	outline-style: groove	
-Pass	outline-style: ridge	
-Pass	outline-style: inset	
-Pass	outline-style: outset	
-Pass	outline-style: inherit	
-Pass	outline-width: thin	
-Pass	outline-width: medium	
-Pass	outline-width: thick	
-Pass	outline-width: 0px	
-Pass	outline-width: 1px	
-Pass	outline-width: .1em	
-Pass	outline-width: inherit	
-Pass	overflow: visible	
-Pass	overflow: hidden	
-Pass	overflow: scroll	
-Pass	overflow: auto	
-Pass	overflow: inherit	
-Pass	padding-top: 0px	
-Pass	padding-top: 1px	
-Pass	padding-top: .1em	
-Pass	padding-top: 5%	
-Pass	padding-top: .5%	
-Pass	padding-top: inherit	
-Pass	padding-right: 0px	
-Pass	padding-right: 1px	
-Pass	padding-right: .1em	
-Pass	padding-right: 5%	
-Pass	padding-right: .5%	
-Pass	padding-right: inherit	
-Pass	padding-bottom: 0px	
-Pass	padding-bottom: 1px	
-Pass	padding-bottom: .1em	
-Pass	padding-bottom: 5%	
-Pass	padding-bottom: .5%	
-Pass	padding-bottom: inherit	
-Pass	padding-left: 0px	
-Pass	padding-left: 1px	
-Pass	padding-left: .1em	
-Pass	padding-left: 5%	
-Pass	padding-left: .5%	
-Pass	padding-left: inherit	
-Fail	page-break-after: auto	
-Fail	page-break-after: always	
-Fail	page-break-after: avoid	
-Fail	page-break-after: left	
-Fail	page-break-after: right	
-Fail	page-break-after: inherit	
-Fail	page-break-before: auto	
-Fail	page-break-before: always	
-Fail	page-break-before: avoid	
-Fail	page-break-before: left	
-Fail	page-break-before: right	
-Fail	page-break-before: inherit	
-Fail	page-break-inside: avoid	
-Fail	page-break-inside: auto	
-Fail	page-break-inside: inherit	
-Pass	position: static	
-Pass	position: relative	
-Pass	position: absolute	
-Pass	position: fixed	
-Pass	position: inherit	
-Pass	right: 0px	
-Pass	right: 1px	
-Pass	right: .1em	
-Pass	right: 5%	
-Pass	right: .5%	
-Pass	right: auto	
-Pass	right: inherit	
-Pass	table-layout: auto	
-Pass	table-layout: fixed	
-Pass	table-layout: inherit	
-Pass	text-align: left	
-Pass	text-align: right	
-Pass	text-align: center	
-Pass	text-align: justify	
-Pass	text-align: inherit	
-Pass	text-decoration: none	
-Pass	text-decoration: underline	
-Pass	text-decoration: overline	
-Pass	text-decoration: line-through	
-Pass	text-decoration: blink	
-Pass	text-decoration: inherit	
-Pass	text-indent: 0px	
-Pass	text-indent: 1px	
-Pass	text-indent: .1em	
-Pass	text-indent: 5%	
-Pass	text-indent: .5%	
-Pass	text-indent: inherit	
-Pass	text-transform: capitalize	
-Pass	text-transform: uppercase	
-Pass	text-transform: lowercase	
-Pass	text-transform: none	
-Pass	text-transform: inherit	
-Pass	top: 0px	
-Pass	top: 1px	
-Pass	top: .1em	
-Pass	top: 5%	
-Pass	top: .5%	
-Pass	top: auto	
-Pass	top: inherit	
-Pass	unicode-bidi: normal	
-Pass	unicode-bidi: embed	
-Pass	unicode-bidi: bidi-override	
-Pass	unicode-bidi: inherit	
-Pass	vertical-align: baseline	
-Pass	vertical-align: sub	
-Pass	vertical-align: super	
-Pass	vertical-align: top	
-Pass	vertical-align: text-top	
-Pass	vertical-align: middle	
-Pass	vertical-align: bottom	
-Pass	vertical-align: text-bottom	
-Pass	vertical-align: 5%	
-Pass	vertical-align: .5%	
-Pass	vertical-align: 0px	
-Pass	vertical-align: 1px	
-Pass	vertical-align: .1em	
-Pass	vertical-align: inherit	
-Pass	visibility: visible	
-Pass	visibility: hidden	
-Pass	visibility: collapse	
-Pass	visibility: inherit	
-Pass	white-space: normal	
-Pass	white-space: pre	
-Pass	white-space: nowrap	
-Pass	white-space: pre-wrap	
-Pass	white-space: pre-line	
-Pass	white-space: inherit	
-Fail	widows: 101	
-Fail	widows: inherit	
-Pass	width: 0px	
-Pass	width: 1px	
-Pass	width: .1em	
-Pass	width: 5%	
-Pass	width: .5%	
-Pass	width: auto	
-Pass	width: inherit	
-Pass	word-spacing: normal	
-Pass	word-spacing: 0px	
-Pass	word-spacing: 1px	
-Pass	word-spacing: .1em	
-Pass	word-spacing: inherit	
-Pass	z-index: auto	
-Pass	z-index: 0	
-Pass	z-index: 101	
-Pass	z-index: -51	
-Pass	z-index: inherit	
+485 Pass
+202 Fail
+Pass	background-attachment: scroll
+Pass	background-attachment: fixed
+Pass	background-attachment: inherit
+Pass	background-color: black
+Pass	background-color: red
+Pass	background-color: rgb(50, 75, 100)
+Pass	background-color: rgba(5, 7, 10, 0.5)
+Pass	background-color: transparent
+Pass	background-color: inherit
+Pass	background-image: url("http://localhost/")
+Pass	background-image: url(http://localhost/)
+Pass	background-image: none
+Pass	background-image: inherit
+Fail	background-position: 5% 5%
+Fail	background-position: 5% .5%
+Fail	background-position: 5% -5%
+Fail	background-position: 5% -.5%
+Fail	background-position: 5% 0px
+Fail	background-position: 5% 1px
+Fail	background-position: 5% .1em
+Fail	background-position: 5% -0px
+Fail	background-position: 5% -1px
+Fail	background-position: 5% -.1em
+Fail	background-position: 5% top
+Fail	background-position: 5% center
+Fail	background-position: 5% bottom
+Fail	background-position: .5% 5%
+Fail	background-position: .5% .5%
+Fail	background-position: .5% -5%
+Fail	background-position: .5% -.5%
+Fail	background-position: .5% 0px
+Fail	background-position: .5% 1px
+Fail	background-position: .5% .1em
+Fail	background-position: .5% -0px
+Fail	background-position: .5% -1px
+Fail	background-position: .5% -.1em
+Fail	background-position: .5% top
+Fail	background-position: .5% center
+Fail	background-position: .5% bottom
+Fail	background-position: -5% 5%
+Fail	background-position: -5% .5%
+Fail	background-position: -5% -5%
+Fail	background-position: -5% -.5%
+Fail	background-position: -5% 0px
+Fail	background-position: -5% 1px
+Fail	background-position: -5% .1em
+Fail	background-position: -5% -0px
+Fail	background-position: -5% -1px
+Fail	background-position: -5% -.1em
+Fail	background-position: -5% top
+Fail	background-position: -5% center
+Fail	background-position: -5% bottom
+Fail	background-position: -.5% 5%
+Fail	background-position: -.5% .5%
+Fail	background-position: -.5% -5%
+Fail	background-position: -.5% -.5%
+Fail	background-position: -.5% 0px
+Fail	background-position: -.5% 1px
+Fail	background-position: -.5% .1em
+Fail	background-position: -.5% -0px
+Fail	background-position: -.5% -1px
+Fail	background-position: -.5% -.1em
+Fail	background-position: -.5% top
+Fail	background-position: -.5% center
+Fail	background-position: -.5% bottom
+Fail	background-position: 0px 5%
+Fail	background-position: 0px .5%
+Fail	background-position: 0px -5%
+Fail	background-position: 0px -.5%
+Fail	background-position: 0px 0px
+Fail	background-position: 0px 1px
+Fail	background-position: 0px .1em
+Fail	background-position: 0px -0px
+Fail	background-position: 0px -1px
+Fail	background-position: 0px -.1em
+Fail	background-position: 0px top
+Fail	background-position: 0px center
+Fail	background-position: 0px bottom
+Fail	background-position: 1px 5%
+Fail	background-position: 1px .5%
+Fail	background-position: 1px -5%
+Fail	background-position: 1px -.5%
+Fail	background-position: 1px 0px
+Fail	background-position: 1px 1px
+Fail	background-position: 1px .1em
+Fail	background-position: 1px -0px
+Fail	background-position: 1px -1px
+Fail	background-position: 1px -.1em
+Fail	background-position: 1px top
+Fail	background-position: 1px center
+Fail	background-position: 1px bottom
+Fail	background-position: .1em 5%
+Fail	background-position: .1em .5%
+Fail	background-position: .1em -5%
+Fail	background-position: .1em -.5%
+Fail	background-position: .1em 0px
+Fail	background-position: .1em 1px
+Fail	background-position: .1em .1em
+Fail	background-position: .1em -0px
+Fail	background-position: .1em -1px
+Fail	background-position: .1em -.1em
+Fail	background-position: .1em top
+Fail	background-position: .1em center
+Fail	background-position: .1em bottom
+Fail	background-position: -0px 5%
+Fail	background-position: -0px .5%
+Fail	background-position: -0px -5%
+Fail	background-position: -0px -.5%
+Fail	background-position: -0px 0px
+Fail	background-position: -0px 1px
+Fail	background-position: -0px .1em
+Fail	background-position: -0px -0px
+Fail	background-position: -0px -1px
+Fail	background-position: -0px -.1em
+Fail	background-position: -0px top
+Fail	background-position: -0px center
+Fail	background-position: -0px bottom
+Fail	background-position: -1px 5%
+Fail	background-position: -1px .5%
+Fail	background-position: -1px -5%
+Fail	background-position: -1px -.5%
+Fail	background-position: -1px 0px
+Fail	background-position: -1px 1px
+Fail	background-position: -1px .1em
+Fail	background-position: -1px -0px
+Fail	background-position: -1px -1px
+Fail	background-position: -1px -.1em
+Fail	background-position: -1px top
+Fail	background-position: -1px center
+Fail	background-position: -1px bottom
+Fail	background-position: -.1em 5%
+Fail	background-position: -.1em .5%
+Fail	background-position: -.1em -5%
+Fail	background-position: -.1em -.5%
+Fail	background-position: -.1em 0px
+Fail	background-position: -.1em 1px
+Fail	background-position: -.1em .1em
+Fail	background-position: -.1em -0px
+Fail	background-position: -.1em -1px
+Fail	background-position: -.1em -.1em
+Fail	background-position: -.1em top
+Fail	background-position: -.1em center
+Fail	background-position: -.1em bottom
+Fail	background-position: left 5%
+Fail	background-position: left .5%
+Fail	background-position: left -5%
+Fail	background-position: left -.5%
+Fail	background-position: left 0px
+Fail	background-position: left 1px
+Fail	background-position: left .1em
+Fail	background-position: left -0px
+Fail	background-position: left -1px
+Fail	background-position: left -.1em
+Fail	background-position: left top
+Fail	background-position: left center
+Fail	background-position: left bottom
+Fail	background-position: center 5%
+Fail	background-position: center .5%
+Fail	background-position: center -5%
+Fail	background-position: center -.5%
+Fail	background-position: center 0px
+Fail	background-position: center 1px
+Fail	background-position: center .1em
+Fail	background-position: center -0px
+Fail	background-position: center -1px
+Fail	background-position: center -.1em
+Fail	background-position: center top
+Fail	background-position: center center
+Fail	background-position: center bottom
+Fail	background-position: right 5%
+Fail	background-position: right .5%
+Fail	background-position: right -5%
+Fail	background-position: right -.5%
+Fail	background-position: right 0px
+Fail	background-position: right 1px
+Fail	background-position: right .1em
+Fail	background-position: right -0px
+Fail	background-position: right -1px
+Fail	background-position: right -.1em
+Fail	background-position: right top
+Fail	background-position: right center
+Fail	background-position: right bottom
+Pass	background-position: inherit
+Pass	background-repeat: repeat
+Pass	background-repeat: repeat-x
+Pass	background-repeat: repeat-y
+Pass	background-repeat: no-repeat
+Pass	background-repeat: inherit
+Pass	border-collapse: collapse
+Pass	border-collapse: separate
+Pass	border-collapse: inherit
+Pass	border-spacing: 0px
+Pass	border-spacing: 1px
+Pass	border-spacing: .1em
+Pass	border-spacing: inherit
+Pass	border-top-color: black
+Pass	border-top-color: red
+Pass	border-top-color: rgb(50, 75, 100)
+Pass	border-top-color: rgba(5, 7, 10, 0.5)
+Pass	border-top-color: transparent
+Pass	border-top-color: inherit
+Pass	border-right-color: black
+Pass	border-right-color: red
+Pass	border-right-color: rgb(50, 75, 100)
+Pass	border-right-color: rgba(5, 7, 10, 0.5)
+Pass	border-right-color: transparent
+Pass	border-right-color: inherit
+Pass	border-bottom-color: black
+Pass	border-bottom-color: red
+Pass	border-bottom-color: rgb(50, 75, 100)
+Pass	border-bottom-color: rgba(5, 7, 10, 0.5)
+Pass	border-bottom-color: transparent
+Pass	border-bottom-color: inherit
+Pass	border-left-color: black
+Pass	border-left-color: red
+Pass	border-left-color: rgb(50, 75, 100)
+Pass	border-left-color: rgba(5, 7, 10, 0.5)
+Pass	border-left-color: transparent
+Pass	border-left-color: inherit
+Pass	border-top-style: none
+Pass	border-top-style: hidden
+Pass	border-top-style: dotted
+Pass	border-top-style: dashed
+Pass	border-top-style: solid
+Pass	border-top-style: double
+Pass	border-top-style: groove
+Pass	border-top-style: ridge
+Pass	border-top-style: inset
+Pass	border-top-style: outset
+Pass	border-top-style: inherit
+Pass	border-right-style: none
+Pass	border-right-style: hidden
+Pass	border-right-style: dotted
+Pass	border-right-style: dashed
+Pass	border-right-style: solid
+Pass	border-right-style: double
+Pass	border-right-style: groove
+Pass	border-right-style: ridge
+Pass	border-right-style: inset
+Pass	border-right-style: outset
+Pass	border-right-style: inherit
+Pass	border-bottom-style: none
+Pass	border-bottom-style: hidden
+Pass	border-bottom-style: dotted
+Pass	border-bottom-style: dashed
+Pass	border-bottom-style: solid
+Pass	border-bottom-style: double
+Pass	border-bottom-style: groove
+Pass	border-bottom-style: ridge
+Pass	border-bottom-style: inset
+Pass	border-bottom-style: outset
+Pass	border-bottom-style: inherit
+Pass	border-left-style: none
+Pass	border-left-style: hidden
+Pass	border-left-style: dotted
+Pass	border-left-style: dashed
+Pass	border-left-style: solid
+Pass	border-left-style: double
+Pass	border-left-style: groove
+Pass	border-left-style: ridge
+Pass	border-left-style: inset
+Pass	border-left-style: outset
+Pass	border-left-style: inherit
+Pass	border-top-width: thin
+Pass	border-top-width: medium
+Pass	border-top-width: thick
+Pass	border-top-width: 0px
+Pass	border-top-width: 1px
+Pass	border-top-width: .1em
+Pass	border-top-width: inherit
+Pass	border-right-width: thin
+Pass	border-right-width: medium
+Pass	border-right-width: thick
+Pass	border-right-width: 0px
+Pass	border-right-width: 1px
+Pass	border-right-width: .1em
+Pass	border-right-width: inherit
+Pass	border-bottom-width: thin
+Pass	border-bottom-width: medium
+Pass	border-bottom-width: thick
+Pass	border-bottom-width: 0px
+Pass	border-bottom-width: 1px
+Pass	border-bottom-width: .1em
+Pass	border-bottom-width: inherit
+Pass	border-left-width: thin
+Pass	border-left-width: medium
+Pass	border-left-width: thick
+Pass	border-left-width: 0px
+Pass	border-left-width: 1px
+Pass	border-left-width: .1em
+Pass	border-left-width: inherit
+Pass	bottom: 0px
+Pass	bottom: 1px
+Pass	bottom: .1em
+Pass	bottom: 5%
+Pass	bottom: .5%
+Pass	bottom: auto
+Pass	bottom: inherit
+Pass	caption-side: top
+Pass	caption-side: bottom
+Pass	caption-side: inherit
+Pass	clear: none
+Pass	clear: left
+Pass	clear: right
+Pass	clear: both
+Pass	clear: inherit
+Pass	clip: rect(1em, auto, 0.5px, 2000em)
+Pass	clip: auto
+Pass	clip: inherit
+Pass	color: black
+Pass	color: red
+Pass	color: rgb(50, 75, 100)
+Pass	color: rgba(5, 7, 10, 0.5)
+Pass	color: inherit
+Pass	content: normal
+Pass	content: none
+Pass	content: "string"
+Pass	content: 'string'
+Fail	content: url("http://localhost/")
+Fail	content: url(http://localhost/)
+Pass	content: counter(par-num)
+Pass	content: counter(par-num, decimal)
+Pass	content: counter(par-num, upper-roman)
+Pass	content: attr(foo-bar)
+Pass	content: attr(foo_bar)
+Fail	content: attr(|bar)
+Fail	content: attr( |bar )
+Pass	content: attr(foo-bar, "fallback")
+Pass	content: attr(foo_bar, "fallback")
+Fail	content: attr(|bar, "fallback")
+Fail	content: attr(foo, "")
+Fail	content: attr( |foo ,  "" )
+Pass	content: inherit
+Pass	cursor: auto
+Pass	cursor: crosshair
+Pass	cursor: default
+Pass	cursor: pointer
+Pass	cursor: move
+Pass	cursor: e-resize
+Pass	cursor: ne-resize
+Pass	cursor: nw-resize
+Pass	cursor: n-resize
+Pass	cursor: se-resize
+Pass	cursor: sw-resize
+Pass	cursor: s-resize
+Pass	cursor: w-resize
+Pass	cursor: text
+Pass	cursor: wait
+Pass	cursor: help
+Pass	cursor: progress
+Pass	cursor: inherit
+Pass	direction: ltr
+Pass	direction: rtl
+Pass	direction: inherit
+Pass	display: inline
+Pass	display: block
+Pass	display: list-item
+Pass	display: inline-block
+Pass	display: table
+Pass	display: inline-table
+Pass	display: table-row-group
+Pass	display: table-header-group
+Pass	display: table-footer-group
+Pass	display: table-row
+Pass	display: table-column-group
+Pass	display: table-column
+Pass	display: table-cell
+Pass	display: table-caption
+Pass	display: none
+Pass	display: inherit
+Fail	empty-cells: show
+Fail	empty-cells: hide
+Fail	empty-cells: inherit
+Pass	float: left
+Pass	float: right
+Pass	float: none
+Pass	float: inherit
+Pass	font-family: Arial
+Pass	font-family: 'Lucida Grande'
+Pass	font-family: serif
+Pass	font-family: sans-serif
+Pass	font-family: inherit
+Pass	font-size: xx-small
+Pass	font-size: x-small
+Pass	font-size: small
+Pass	font-size: medium
+Pass	font-size: large
+Pass	font-size: x-large
+Pass	font-size: xx-large
+Pass	font-size: larger
+Pass	font-size: smaller
+Pass	font-size: 0px
+Pass	font-size: 1px
+Pass	font-size: .1em
+Pass	font-size: 5%
+Pass	font-size: .5%
+Pass	font-size: inherit
+Pass	font-style: normal
+Pass	font-style: italic
+Pass	font-style: oblique
+Pass	font-style: inherit
+Pass	font-variant: normal
+Pass	font-variant: small-caps
+Pass	font-variant: inherit
+Pass	font-weight: normal
+Pass	font-weight: bold
+Pass	font-weight: bolder
+Pass	font-weight: lighter
+Pass	font-weight: 100
+Pass	font-weight: 200
+Pass	font-weight: 300
+Pass	font-weight: 400
+Pass	font-weight: 500
+Pass	font-weight: 600
+Pass	font-weight: 700
+Pass	font-weight: 800
+Pass	font-weight: 900
+Pass	font-weight: inherit
+Pass	height: 0px
+Pass	height: 1px
+Pass	height: .1em
+Pass	height: 5%
+Pass	height: .5%
+Pass	height: auto
+Pass	height: inherit
+Pass	left: 0px
+Pass	left: 1px
+Pass	left: .1em
+Pass	left: 5%
+Pass	left: .5%
+Pass	left: auto
+Pass	left: inherit
+Pass	letter-spacing: normal
+Pass	letter-spacing: 0px
+Pass	letter-spacing: 1px
+Pass	letter-spacing: .1em
+Pass	letter-spacing: inherit
+Pass	line-height: normal
+Pass	line-height: 0
+Pass	line-height: -0
+Pass	line-height: 1000
+Pass	line-height: 0.9
+Pass	line-height: 0px
+Pass	line-height: 1px
+Pass	line-height: .1em
+Pass	line-height: 5%
+Pass	line-height: .5%
+Pass	line-height: inherit
+Pass	list-style-image: url("http://localhost/")
+Pass	list-style-image: url(http://localhost/)
+Pass	list-style-image: none
+Pass	list-style-image: inherit
+Pass	list-style-position: inside
+Pass	list-style-position: outside
+Pass	list-style-position: inherit
+Pass	list-style-type: disc
+Pass	list-style-type: circle
+Pass	list-style-type: square
+Pass	list-style-type: disclosure-open
+Pass	list-style-type: disclosure-closed
+Pass	list-style-type: decimal
+Pass	list-style-type: decimal-leading-zero
+Pass	list-style-type: lower-roman
+Pass	list-style-type: upper-roman
+Fail	list-style-type: lower-greek
+Pass	list-style-type: lower-latin
+Pass	list-style-type: upper-latin
+Fail	list-style-type: armenian
+Fail	list-style-type: georgian
+Pass	list-style-type: lower-alpha
+Pass	list-style-type: upper-alpha
+Pass	list-style-type: none
+Pass	list-style-type: inherit
+Pass	margin-right: 0px
+Pass	margin-right: 1px
+Pass	margin-right: .1em
+Pass	margin-right: 5%
+Pass	margin-right: .5%
+Pass	margin-right: auto
+Pass	margin-right: inherit
+Pass	margin-left: 0px
+Pass	margin-left: 1px
+Pass	margin-left: .1em
+Pass	margin-left: 5%
+Pass	margin-left: .5%
+Pass	margin-left: auto
+Pass	margin-left: inherit
+Pass	margin-top: 0px
+Pass	margin-top: 1px
+Pass	margin-top: .1em
+Pass	margin-top: 5%
+Pass	margin-top: .5%
+Pass	margin-top: auto
+Pass	margin-top: inherit
+Pass	margin-bottom: 0px
+Pass	margin-bottom: 1px
+Pass	margin-bottom: .1em
+Pass	margin-bottom: 5%
+Pass	margin-bottom: .5%
+Pass	margin-bottom: auto
+Pass	margin-bottom: inherit
+Pass	max-height: 0px
+Pass	max-height: 1px
+Pass	max-height: .1em
+Pass	max-height: 5%
+Pass	max-height: .5%
+Pass	max-height: none
+Pass	max-height: inherit
+Pass	max-width: 0px
+Pass	max-width: 1px
+Pass	max-width: .1em
+Pass	max-width: 5%
+Pass	max-width: .5%
+Pass	max-width: none
+Pass	max-width: inherit
+Pass	min-height: 0px
+Pass	min-height: 1px
+Pass	min-height: .1em
+Pass	min-height: 5%
+Pass	min-height: .5%
+Pass	min-height: inherit
+Pass	min-width: 0px
+Pass	min-width: 1px
+Pass	min-width: .1em
+Pass	min-width: 5%
+Pass	min-width: .5%
+Pass	min-width: inherit
+Fail	orphans: 101
+Fail	orphans: inherit
+Pass	outline-color: black
+Pass	outline-color: red
+Pass	outline-color: rgb(50, 75, 100)
+Pass	outline-color: rgba(5, 7, 10, 0.5)
+Fail	outline-color: invert
+Pass	outline-color: inherit
+Pass	outline-style: none
+Pass	outline-style: dotted
+Pass	outline-style: dashed
+Pass	outline-style: solid
+Pass	outline-style: double
+Pass	outline-style: groove
+Pass	outline-style: ridge
+Pass	outline-style: inset
+Pass	outline-style: outset
+Pass	outline-style: inherit
+Pass	outline-width: thin
+Pass	outline-width: medium
+Pass	outline-width: thick
+Pass	outline-width: 0px
+Pass	outline-width: 1px
+Pass	outline-width: .1em
+Pass	outline-width: inherit
+Pass	overflow: visible
+Pass	overflow: hidden
+Pass	overflow: scroll
+Pass	overflow: auto
+Pass	overflow: inherit
+Pass	padding-top: 0px
+Pass	padding-top: 1px
+Pass	padding-top: .1em
+Pass	padding-top: 5%
+Pass	padding-top: .5%
+Pass	padding-top: inherit
+Pass	padding-right: 0px
+Pass	padding-right: 1px
+Pass	padding-right: .1em
+Pass	padding-right: 5%
+Pass	padding-right: .5%
+Pass	padding-right: inherit
+Pass	padding-bottom: 0px
+Pass	padding-bottom: 1px
+Pass	padding-bottom: .1em
+Pass	padding-bottom: 5%
+Pass	padding-bottom: .5%
+Pass	padding-bottom: inherit
+Pass	padding-left: 0px
+Pass	padding-left: 1px
+Pass	padding-left: .1em
+Pass	padding-left: 5%
+Pass	padding-left: .5%
+Pass	padding-left: inherit
+Fail	page-break-after: auto
+Fail	page-break-after: always
+Fail	page-break-after: avoid
+Fail	page-break-after: left
+Fail	page-break-after: right
+Fail	page-break-after: inherit
+Fail	page-break-before: auto
+Fail	page-break-before: always
+Fail	page-break-before: avoid
+Fail	page-break-before: left
+Fail	page-break-before: right
+Fail	page-break-before: inherit
+Fail	page-break-inside: avoid
+Fail	page-break-inside: auto
+Fail	page-break-inside: inherit
+Pass	position: static
+Pass	position: relative
+Pass	position: absolute
+Pass	position: fixed
+Pass	position: inherit
+Pass	right: 0px
+Pass	right: 1px
+Pass	right: .1em
+Pass	right: 5%
+Pass	right: .5%
+Pass	right: auto
+Pass	right: inherit
+Pass	table-layout: auto
+Pass	table-layout: fixed
+Pass	table-layout: inherit
+Pass	text-align: left
+Pass	text-align: right
+Pass	text-align: center
+Pass	text-align: justify
+Pass	text-align: inherit
+Pass	text-decoration: none
+Pass	text-decoration: underline
+Pass	text-decoration: overline
+Pass	text-decoration: line-through
+Pass	text-decoration: blink
+Pass	text-decoration: inherit
+Pass	text-indent: 0px
+Pass	text-indent: 1px
+Pass	text-indent: .1em
+Pass	text-indent: 5%
+Pass	text-indent: .5%
+Pass	text-indent: inherit
+Pass	text-transform: capitalize
+Pass	text-transform: uppercase
+Pass	text-transform: lowercase
+Pass	text-transform: none
+Pass	text-transform: inherit
+Pass	top: 0px
+Pass	top: 1px
+Pass	top: .1em
+Pass	top: 5%
+Pass	top: .5%
+Pass	top: auto
+Pass	top: inherit
+Pass	unicode-bidi: normal
+Pass	unicode-bidi: embed
+Pass	unicode-bidi: bidi-override
+Pass	unicode-bidi: inherit
+Pass	vertical-align: baseline
+Pass	vertical-align: sub
+Pass	vertical-align: super
+Pass	vertical-align: top
+Pass	vertical-align: text-top
+Pass	vertical-align: middle
+Pass	vertical-align: bottom
+Pass	vertical-align: text-bottom
+Pass	vertical-align: 5%
+Pass	vertical-align: .5%
+Pass	vertical-align: 0px
+Pass	vertical-align: 1px
+Pass	vertical-align: .1em
+Pass	vertical-align: inherit
+Pass	visibility: visible
+Pass	visibility: hidden
+Pass	visibility: collapse
+Pass	visibility: inherit
+Pass	white-space: normal
+Pass	white-space: pre
+Pass	white-space: nowrap
+Pass	white-space: pre-wrap
+Pass	white-space: pre-line
+Pass	white-space: inherit
+Fail	widows: 101
+Fail	widows: inherit
+Pass	width: 0px
+Pass	width: 1px
+Pass	width: .1em
+Pass	width: 5%
+Pass	width: .5%
+Pass	width: auto
+Pass	width: inherit
+Pass	word-spacing: normal
+Pass	word-spacing: 0px
+Pass	word-spacing: 1px
+Pass	word-spacing: .1em
+Pass	word-spacing: inherit
+Pass	z-index: auto
+Pass	z-index: 0
+Pass	z-index: 101
+Pass	z-index: -51
+Pass	z-index: inherit
