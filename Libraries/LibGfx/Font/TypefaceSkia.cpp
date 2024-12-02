@@ -64,9 +64,11 @@ SkTypeface const* TypefaceSkia::sk_typeface() const
 TypefaceSkia::TypefaceSkia(NonnullOwnPtr<Impl> impl, ReadonlyBytes buffer, int ttc_index)
     : m_impl(move(impl))
     , m_buffer(buffer)
-    , m_ttc_index(ttc_index) {
+    , m_ttc_index(ttc_index)
+{
+}
 
-    };
+TypefaceSkia::~TypefaceSkia() = default;
 
 u32 TypefaceSkia::glyph_count() const
 {

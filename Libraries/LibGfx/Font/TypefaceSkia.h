@@ -34,7 +34,8 @@ private:
     Impl& impl() const { return *m_impl; }
     NonnullOwnPtr<Impl> m_impl;
 
-    explicit TypefaceSkia(NonnullOwnPtr<Impl>, ReadonlyBytes, int ttc_index = 0);
+    TypefaceSkia(NonnullOwnPtr<Impl>, ReadonlyBytes, int ttc_index = 0);
+    virtual ~TypefaceSkia() override;
 
     ReadonlyBytes m_buffer;
     unsigned m_ttc_index { 0 };
