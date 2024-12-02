@@ -226,6 +226,13 @@ public:
         return shared_point;
     }
 
+    ErrorOr<bool> verify_point(ReadonlyBytes hash, SECPxxxr1Point pubkey, ReadonlyBytes signature)
+    {
+        // FIXME: this is very ugly, but it gets the job done.
+        auto pubkey_bytes = TRY(pubkey.to_uncompressed());
+        return verify(hash, pubkey_bytes, signature);
+    }
+
     ErrorOr<bool> verify(ReadonlyBytes hash, ReadonlyBytes pubkey, ReadonlyBytes signature)
     {
         Crypto::ASN1::Decoder asn1_decoder(signature);
