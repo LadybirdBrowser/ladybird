@@ -2056,12 +2056,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesGcm::encrypt(AlgorithmParams co
     [[maybe_unused]] Bytes tag_span = tag.bytes();
 
     // FIXME: cipher.encrypt(plaintext, ciphertext_span, normalized_algorithm.iv, additional_data, tag_span);
+    return WebIDL::NotSupportedError::create(m_realm, "AES GCM encryption not yet implemented"_string);
 
     // 7. Let ciphertext be equal to C | T, where '|' denotes concatenation.
-    TRY_OR_THROW_OOM(m_realm->vm(), ciphertext.try_append(tag));
+    // TRY_OR_THROW_OOM(m_realm->vm(), ciphertext.try_append(tag));
 
     // 8. Return the result of creating an ArrayBuffer containing ciphertext.
-    return JS::ArrayBuffer::create(m_realm, ciphertext);
+    // return JS::ArrayBuffer::create(m_realm, ciphertext);
 }
 
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesGcm::decrypt(AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
@@ -2118,16 +2119,16 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesGcm::decrypt(AlgorithmParams co
     [[maybe_unused]] Bytes tag_span = tag.bytes();
 
     // FIXME: auto result = cipher.decrypt(ciphertext, plaintext_span, normalized_algorithm.iv, additional_data, tag_span);
-    auto result = ::Crypto::VerificationConsistency::Inconsistent;
+    return WebIDL::NotSupportedError::create(m_realm, "AES GCM decryption not yet implemented"_string);
 
     // If the result of the algorithm is the indication of inauthenticity, "FAIL": throw an OperationError
-    if (result == ::Crypto::VerificationConsistency::Inconsistent)
-        return WebIDL::OperationError::create(m_realm, "Decryption failed"_string);
+    // if (result == ::Crypto::VerificationConsistency::Inconsistent)
+    //     return WebIDL::OperationError::create(m_realm, "Decryption failed"_string);
 
     // Otherwise: Let plaintext be the output P of the Authenticated Decryption Function.
 
     // 9. Return the result of creating an ArrayBuffer containing plaintext.
-    return JS::ArrayBuffer::create(m_realm, plaintext);
+    // return JS::ArrayBuffer::create(m_realm, plaintext);
 }
 
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesGcm::generate_key(AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
