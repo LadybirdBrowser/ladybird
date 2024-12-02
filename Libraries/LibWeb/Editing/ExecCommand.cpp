@@ -137,7 +137,7 @@ bool Document::query_command_enabled(FlyString const& command)
     // NOTE: Commands can define additional conditions for being enabled, and currently the only condition mentioned in
     //       the spec is that certain commands must not be enabled if the editing host is in the plaintext-only state.
     if (is<HTML::HTMLElement>(start_node_editing_host.ptr())
-        && static_cast<HTML::HTMLElement&>(*start_node_editing_host).content_editable() == "plaintext-only"sv
+        && static_cast<HTML::HTMLElement&>(*start_node_editing_host).content_editable_state() == HTML::ContentEditableState::PlaintextOnly
         && command.is_one_of(
             Editing::CommandNames::backColor,
             Editing::CommandNames::bold,
