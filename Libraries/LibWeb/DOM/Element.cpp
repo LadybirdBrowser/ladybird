@@ -4071,4 +4071,9 @@ bool Element::should_indicate_focus() const
     return false;
 }
 
+void Element::set_had_duplicate_attribute_during_tokenization(Badge<HTML::HTMLParser>)
+{
+    m_had_duplicate_attribute_during_tokenization = true;
+}
+
 }
