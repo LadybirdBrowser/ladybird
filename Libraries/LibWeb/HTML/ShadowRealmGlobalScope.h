@@ -26,8 +26,8 @@ public:
 
     static GC::Ref<ShadowRealmGlobalScope> create(JS::Realm&);
 
-    virtual Bindings::PlatformObject& this_impl() override { return *this; }
-    virtual Bindings::PlatformObject const& this_impl() const override { return *this; }
+    virtual DOM::EventTarget& this_impl() override { return *this; }
+    virtual DOM::EventTarget const& this_impl() const override { return *this; }
 
     // https://whatpr.org/html/9893/webappapis.html#dom-shadowrealmglobalscope-self
     GC::Ref<ShadowRealmGlobalScope> self()

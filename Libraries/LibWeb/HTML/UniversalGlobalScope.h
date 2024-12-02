@@ -21,8 +21,8 @@ class UniversalGlobalScopeMixin {
 public:
     virtual ~UniversalGlobalScopeMixin();
 
-    virtual Bindings::PlatformObject& this_impl() = 0;
-    virtual Bindings::PlatformObject const& this_impl() const = 0;
+    virtual DOM::EventTarget& this_impl() = 0;
+    virtual DOM::EventTarget const& this_impl() const = 0;
 
     WebIDL::ExceptionOr<String> btoa(String const& data) const;
     WebIDL::ExceptionOr<String> atob(String const& data) const;

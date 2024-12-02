@@ -29,8 +29,8 @@ class WindowOrWorkerGlobalScopeMixin {
 public:
     virtual ~WindowOrWorkerGlobalScopeMixin();
 
-    virtual Bindings::PlatformObject& this_impl() = 0;
-    virtual Bindings::PlatformObject const& this_impl() const = 0;
+    virtual DOM::EventTarget& this_impl() = 0;
+    virtual DOM::EventTarget const& this_impl() const = 0;
 
     // JS API functions
     String origin() const;
