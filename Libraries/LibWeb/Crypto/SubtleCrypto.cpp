@@ -807,8 +807,8 @@ SupportedAlgorithmsMap const& supported_algorithms()
     define_an_algorithm<ECDSA, EcdsaParams>("sign"_string, "ECDSA"_string);
     define_an_algorithm<ECDSA, EcdsaParams>("verify"_string, "ECDSA"_string);
     define_an_algorithm<ECDSA, EcKeyGenParams>("generateKey"_string, "ECDSA"_string);
-    // FIXME: define_an_algorithm<ECDSA, EcKeyImportParams>("importKey"_string, "ECDSA"_string);
-    // FIXME: define_an_algorithm<ECDSA>("exportKey"_string, "ECDSA"_string);
+    define_an_algorithm<ECDSA, EcKeyImportParams>("importKey"_string, "ECDSA"_string);
+    define_an_algorithm<ECDSA>("exportKey"_string, "ECDSA"_string);
 
     // https://w3c.github.io/webcrypto/#ecdh-registration
     define_an_algorithm<ECDH, EcKeyImportParams>("importKey"_string, "ECDH"_string);
