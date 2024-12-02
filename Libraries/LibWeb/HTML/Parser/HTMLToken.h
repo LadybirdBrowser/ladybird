@@ -328,6 +328,7 @@ public:
     void set_end_position(Badge<HTMLTokenizer>, Position end_position) { m_end_position = end_position; }
 
     void normalize_attributes();
+    bool had_duplicate_attribute() const { return m_had_duplicate_attribute; }
 
 private:
     Vector<Attribute> const* tag_attributes() const
@@ -354,6 +355,11 @@ private:
     // Type::StartTag and Type::EndTag
     bool m_tag_self_closing { false };
     bool m_tag_self_closing_acknowledged { false };
+
+    // AD-HOC: We need to know if the token had duplicate attributes, as Content Security Policy disables the nonce
+    //         attribute on the element that will be created from such a token.
+    //         https://w3c.github.io/webappsec-csp/#is-element-nonceable
+    bool m_had_duplicate_attribute { false };
 
     // Type::StartTag and Type::EndTag (tag name)
     FlyString m_string_data;
