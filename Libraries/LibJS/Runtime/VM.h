@@ -48,6 +48,7 @@ enum class CompilationType {
     DirectEval,
     IndirectEval,
     Function,
+    Timer,
 };
 
 class VM : public RefCounted<VM> {
