@@ -57,7 +57,7 @@ NonnullRefPtr<Core::Promise<DecodedImage>> Client::decode_image(ReadonlyBytes en
     return promise;
 }
 
-void Client::did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Gfx::BitmapSequence const& bitmap_sequence, Vector<u32> const& durations, Gfx::FloatPoint scale)
+void Client::did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Gfx::BitmapSequence const& bitmap_sequence, Vector<u32> const& durations, Gfx::FloatPoint scale, Gfx::ColorSpace const& color_space)
 {
     auto const& bitmaps = bitmap_sequence.bitmaps;
     VERIFY(!bitmaps.is_empty());
@@ -74,6 +74,7 @@ void Client::did_decode_image(i64 image_id, bool is_animated, u32 loop_count, Gf
     image.loop_count = loop_count;
     image.scale = scale;
     image.frames.ensure_capacity(bitmaps.size());
+    image.color_space = move(color_space);
     for (size_t i = 0; i < bitmaps.size(); ++i) {
         if (!bitmaps[i].has_value()) {
             dbgln("ImageDecoderClient: Invalid bitmap for request {} at index {}", image_id, i);

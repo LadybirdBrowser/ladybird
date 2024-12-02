@@ -10,6 +10,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/RefCounted.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/ColorSpace.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
 
@@ -21,7 +22,7 @@ struct ImmutableBitmapImpl;
 
 class ImmutableBitmap final : public RefCounted<ImmutableBitmap> {
 public:
-    static NonnullRefPtr<ImmutableBitmap> create(NonnullRefPtr<Bitmap> bitmap);
+    static NonnullRefPtr<ImmutableBitmap> create(NonnullRefPtr<Bitmap> bitmap, ColorSpace color_space = {});
     static NonnullRefPtr<ImmutableBitmap> create_snapshot_from_painting_surface(NonnullRefPtr<PaintingSurface>);
 
     ~ImmutableBitmap();

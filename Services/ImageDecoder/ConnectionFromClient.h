@@ -11,6 +11,7 @@
 #include <ImageDecoder/ImageDecoderClientEndpoint.h>
 #include <ImageDecoder/ImageDecoderServerEndpoint.h>
 #include <LibGfx/BitmapSequence.h>
+#include <LibGfx/ColorSpace.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibThreading/BackgroundAction.h>
 
@@ -31,6 +32,7 @@ public:
         Gfx::FloatPoint scale { 1, 1 };
         Gfx::BitmapSequence bitmaps;
         Vector<u32> durations;
+        Gfx::ColorSpace color_profile;
     };
 
 private:

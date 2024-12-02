@@ -54,6 +54,7 @@ NonnullRefPtr<Core::Promise<Web::Platform::DecodedImage>> ImageCodecPlugin::deco
             for (auto& frame : result.frames) {
                 decoded_image.frames.empend(move(frame.bitmap), frame.duration);
             }
+            decoded_image.color_space = move(result.color_space);
             promise->resolve(move(decoded_image));
             return {};
         },

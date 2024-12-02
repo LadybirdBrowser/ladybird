@@ -104,6 +104,9 @@ static ErrorOr<ConnectionFromClient::DecodeResult> decode_image_to_details(Core:
     result.is_animated = decoder->is_animated();
     result.loop_count = decoder->loop_count();
 
+    if (auto maybe_icc_data = decoder->color_space(); !maybe_icc_data.is_error())
+        result.color_profile = maybe_icc_data.value();
+
     Vector<Optional<NonnullRefPtr<Gfx::Bitmap>>> bitmaps;
 
     if (auto maybe_metadata = decoder->metadata(); maybe_metadata.has_value() && is<Gfx::ExifMetadata>(*maybe_metadata)) {
@@ -135,7 +138,7 @@ NonnullRefPtr<ConnectionFromClient::Job> ConnectionFromClient::make_decode_image
             return TRY(decode_image_to_details(encoded_buffer, ideal_size, mime_type));
         },
         [strong_this = NonnullRefPtr(*this), image_id](DecodeResult result) -> ErrorOr<void> {
-            strong_this->async_did_decode_image(image_id, result.is_animated, result.loop_count, result.bitmaps, result.durations, result.scale);
+            strong_this->async_did_decode_image(image_id, result.is_animated, result.loop_count, result.bitmaps, result.durations, result.scale, result.color_profile);
             strong_this->m_pending_jobs.remove(image_id);
             return {};
         },
