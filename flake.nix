@@ -10,5 +10,9 @@
     pkgs = import nixpkgs { inherit system; };
   in {
     devShells.default = import ./UI { inherit pkgs; };
+    apps.default = {
+      type = "app";
+      program = "${pkgs.ladybird}/bin/Ladybird";
+    };
   });
 }
