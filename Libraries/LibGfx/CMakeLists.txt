@@ -7,6 +7,7 @@ set(SOURCES
     BitmapSequence.cpp
     CMYKBitmap.cpp
     Color.cpp
+    ColorSpace.cpp
     DeltaE.cpp
     FontCascadeList.cpp
     Font/Font.cpp
