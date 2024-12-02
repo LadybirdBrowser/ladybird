@@ -471,29 +471,25 @@ ErrorOr<NonnullRefPtr<TinyVGDecodedImageData>> TinyVGDecodedImageData::decode(St
     return TRY(adopt_nonnull_ref_or_enomem(new (nothrow) TinyVGDecodedImageData({ header.width, header.height }, move(draw_commands))));
 }
 
-void TinyVGDecodedImageData::draw_transformed(Painter& painter, AffineTransform transform) const
+void TinyVGDecodedImageData::draw(Painter& painter) const
 {
-    // FIXME: Correctly handle non-uniform scales.
-    auto scale = max(transform.x_scale(), transform.y_scale());
     for (auto const& command : draw_commands()) {
-        auto draw_path = command.path.copy_transformed(transform);
+        auto draw_path = command.path;
         if (command.fill.has_value()) {
             auto fill_path = draw_path;
             fill_path.close_all_subpaths();
             command.fill->visit(
                 [&](Color color) { painter.fill_path(fill_path, color, WindingRule::EvenOdd); },
-                [&](NonnullRefPtr<SVGGradientPaintStyle> style) {
-                    const_cast<SVGGradientPaintStyle&>(*style).set_gradient_transform(transform);
+                [&](NonnullRefPtr<SVGGradientPaintStyle> const& style) {
                     painter.fill_path(fill_path, style, 1.0f, WindingRule::EvenOdd);
                 });
         }
 
         if (command.stroke.has_value()) {
             command.stroke->visit(
-                [&](Color color) { painter.stroke_path(draw_path, color, command.stroke_width * scale); },
-                [&](NonnullRefPtr<SVGGradientPaintStyle> style) {
-                    const_cast<SVGGradientPaintStyle&>(*style).set_gradient_transform(transform);
-                    painter.stroke_path(draw_path, style, command.stroke_width * scale, 1.0f);
+                [&](Color color) { painter.stroke_path(draw_path, color, command.stroke_width); },
+                [&](NonnullRefPtr<SVGGradientPaintStyle> const& style) {
+                    painter.stroke_path(draw_path, style, command.stroke_width, 1.0f);
                 });
         }
     }
