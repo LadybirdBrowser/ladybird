@@ -274,13 +274,22 @@ else()
         cxx=\"${VCPKG_DETECTED_CMAKE_CXX_COMPILER}\"")
 endif()
 
+set(SKIA_CXX_FLAGS_DBG "${VCPKG_COMBINED_CXX_FLAGS_DEBUG}")
+set(SKIA_CXX_FLAGS_REL "${VCPKG_COMBINED_CXX_FLAGS_RELEASE}")
+
+if(VCPKG_LIBRARY_LINKAGE STREQUAL "dynamic")
+    foreach (str IN ITEMS SKIA_CXX_FLAGS_DBG SKIA_CXX_FLAGS_REL)
+        string(APPEND ${str} " -DSKCMS_API=__attribute__((visibility(\\\\\\\"default\\\\\\\")))")
+    endforeach()
+endif()
+
 string_to_gn_list(SKIA_C_FLAGS_DBG "${VCPKG_COMBINED_C_FLAGS_DEBUG}")
-string_to_gn_list(SKIA_CXX_FLAGS_DBG "${VCPKG_COMBINED_CXX_FLAGS_DEBUG}")
+string_to_gn_list(SKIA_CXX_FLAGS_DBG "${SKIA_CXX_FLAGS_DBG}")
 string(APPEND OPTIONS_DBG " \
     extra_cflags_c=${SKIA_C_FLAGS_DBG} \
     extra_cflags_cc=${SKIA_CXX_FLAGS_DBG}")
 string_to_gn_list(SKIA_C_FLAGS_REL "${VCPKG_COMBINED_C_FLAGS_RELEASE}")
-string_to_gn_list(SKIA_CXX_FLAGS_REL "${VCPKG_COMBINED_CXX_FLAGS_RELEASE}")
+string_to_gn_list(SKIA_CXX_FLAGS_REL "${SKIA_CXX_FLAGS_REL}")
 string(APPEND OPTIONS_REL " \
     extra_cflags_c=${SKIA_C_FLAGS_REL} \
     extra_cflags_cc=${SKIA_CXX_FLAGS_REL}")
@@ -309,9 +318,6 @@ file(COPY "${SOURCE_PATH}/include"
     FILES_MATCHING PATTERN "*.h"
 )
 auto_clean("${CURRENT_PACKAGES_DIR}/include/skia")
-set(skia_dll_static "0")
-set(skia_dll_dynamic "1")
-vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/include/skia/include/private/base/SkAPI.h" "defined(SKIA_DLL)" "${skia_dll_${VCPKG_LIBRARY_LINKAGE}}")
 
 # vcpkg legacy layout omits "include/" component. Just duplicate.
 file(COPY "${CURRENT_PACKAGES_DIR}/include/skia/include/" DESTINATION "${CURRENT_PACKAGES_DIR}/include/skia")
