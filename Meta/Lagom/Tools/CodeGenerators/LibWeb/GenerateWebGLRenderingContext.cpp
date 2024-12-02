@@ -171,6 +171,11 @@ public:
             continue;
         }
 
+        if (function.name == "getSupportedExtensions"sv || function.name == "getExtension"sv) {
+            // Implemented in WebGLRenderingContext
+            continue;
+        }
+
         StringBuilder function_declaration;
 
         StringBuilder function_parameters;
