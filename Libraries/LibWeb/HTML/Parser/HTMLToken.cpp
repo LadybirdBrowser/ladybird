@@ -98,6 +98,7 @@ void HTMLToken::normalize_attributes()
             // This is a duplicate attribute, remove it.
             tag_attributes.remove(i);
             --i;
+            m_had_duplicate_attribute = true;
         }
     }
 }
