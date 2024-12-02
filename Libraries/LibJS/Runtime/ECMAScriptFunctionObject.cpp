@@ -716,92 +716,75 @@ void async_function_start(VM& vm, PromiseCapability const& promise_capability, T
 }
 
 // 27.7.5.2 AsyncBlockStart ( promiseCapability, asyncBody, asyncContext ), https://tc39.es/ecma262/#sec-asyncblockstart
-// 12.7.1.1 AsyncBlockStart ( promiseCapability, asyncBody, asyncContext ), https://tc39.es/proposal-explicit-resource-management/#sec-asyncblockstart
-// 1.2.1.1 AsyncBlockStart ( promiseCapability, asyncBody, asyncContext ), https://tc39.es/proposal-array-from-async/#sec-asyncblockstart
 template<typename T>
 void async_block_start(VM& vm, T const& async_body, PromiseCapability const& promise_capability, ExecutionContext& async_context)
 {
-    // NOTE: This function is a combination between two proposals, so does not exactly match spec steps of either.
-
     auto& realm = *vm.current_realm();
 
-    // 1. Assert: promiseCapability is a PromiseCapability Record.
-
-    // 2. Let runningContext be the running execution context.
+    // 1. Let runningContext be the running execution context.
     auto& running_context = vm.running_execution_context();
 
-    // 3. Set the code evaluation state of asyncContext such that when evaluation is resumed for that execution context the following steps will be performed:
-    auto execution_steps = NativeFunction::create(realm, "", [&async_body, &promise_capability, &async_context](auto& vm) -> ThrowCompletionOr<Value> {
+    // 2. Let closure be a new Abstract Closure with no parameters that captures promiseCapability and asyncBody and performs the following steps when called:
+    auto closure = NativeFunction::create(realm, "", [&async_body, &promise_capability](auto& vm) -> ThrowCompletionOr<Value> {
         Completion result;
 
-        // a. If asyncBody is a Parse Node, then
+        // a. Let acAsyncContext be the running execution context.
+
+        // b. If asyncBody is a Parse Node, then
         if constexpr (!IsSame<T, GC::Function<Completion()>>) {
-            // a. Let result be the result of evaluating asyncBody.
-            // FIXME: Cache this executable somewhere.
+            // i. Let result be Completion(Evaluation of asyncBody).
             auto maybe_executable = Bytecode::compile(vm, async_body, FunctionKind::Async, "AsyncBlockStart"sv);
             if (maybe_executable.is_error())
                 result = maybe_executable.release_error();
             else
                 result = vm.bytecode_interpreter().run_executable(*maybe_executable.value(), {}).value;
         }
-        // b. Else,
+        // c. Else,
         else {
             // i. Assert: asyncBody is an Abstract Closure with no parameters.
             // ii. Let result be asyncBody().
             result = async_body.function()();
         }
-
-        // c. Assert: If we return here, the async function either threw an exception or performed an implicit or explicit return; all awaiting is done.
-
-        // d. Remove asyncContext from the execution context stack and restore the execution context that is at the top of the execution context stack as the running execution context.
+        // d. Assert: If we return here, the async function either threw an exception or performed an implicit or explicit return; all awaiting is done.
+        // e. Remove acAsyncContext from the execution context stack and restore the execution context that is at the top of the execution context stack as the running execution context.
         vm.pop_execution_context();
 
-        // NOTE: This does not work for Array.fromAsync, likely due to conflicts between that proposal and Explicit Resource Management proposal.
-        if constexpr (!IsCallableWithArguments<T, Completion>) {
-            // e. Let env be asyncContext's LexicalEnvironment.
-            auto env = async_context.lexical_environment;
-
-            // f. Set result to DisposeResources(env, result).
-            result = dispose_resources(vm, verify_cast<DeclarativeEnvironment>(env.ptr()), result);
-        } else {
-            (void)async_context;
-        }
-
-        // g. If result.[[Type]] is normal, then
+        // f. If result is a normal completion, then
         if (result.type() == Completion::Type::Normal) {
             // i. Perform ! Call(promiseCapability.[[Resolve]], undefined, « undefined »).
             MUST(call(vm, *promise_capability.resolve(), js_undefined(), js_undefined()));
         }
-        // h. Else if result.[[Type]] is return, then
+        // g. Else if result is a return completion, then
         else if (result.type() == Completion::Type::Return) {
             // i. Perform ! Call(promiseCapability.[[Resolve]], undefined, « result.[[Value]] »).
             MUST(call(vm, *promise_capability.resolve(), js_undefined(), *result.value()));
         }
-        // i. Else,
+        // h. Else,
         else {
-            // i. Assert: result.[[Type]] is throw.
+            // i. Assert: result is a throw completion.
             VERIFY(result.type() == Completion::Type::Throw);
 
             // ii. Perform ! Call(promiseCapability.[[Reject]], undefined, « result.[[Value]] »).
             MUST(call(vm, *promise_capability.reject(), js_undefined(), *result.value()));
         }
-        // j. Return unused.
+        // i. Return unused.
         // NOTE: We don't support returning an empty/optional/unused value here.
         return js_undefined();
     });
 
+    // 3. Set the code evaluation state of asyncContext such that when evaluation is resumed for that execution context, closure will be called with no arguments.
     // 4. Push asyncContext onto the execution context stack; asyncContext is now the running execution context.
     auto push_result = vm.push_execution_context(async_context, {});
     if (push_result.is_error())
         return;
 
     // 5. Resume the suspended evaluation of asyncContext. Let result be the value returned by the resumed computation.
-    auto result = call(vm, *execution_steps, async_context.this_value.is_empty() ? js_undefined() : async_context.this_value);
+    auto result = call(vm, *closure, async_context.this_value.is_empty() ? js_undefined() : async_context.this_value);
 
     // 6. Assert: When we return here, asyncContext has already been removed from the execution context stack and runningContext is the currently running execution context.
     VERIFY(&vm.running_execution_context() == &running_context);
 
-    // 7. Assert: result is a normal completion with a value of unused. The possible sources of this value are Await or, if the async function doesn't await anything, step 3.g above.
+    // 7. Assert: result is a normal completion with a value of unused. The possible sources of this value are Await or, if the async function doesn't await anything, step 2.i above.
     VERIFY(result.has_value() && result.value().is_undefined());
 
     // 8. Return unused.
