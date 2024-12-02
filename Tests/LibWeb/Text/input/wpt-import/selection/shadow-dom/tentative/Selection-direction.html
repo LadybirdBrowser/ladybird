@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<body>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="Selection's direction should return none, forwad, or backward">
+<link rel="help" href="https://w3c.github.io/selection-api/#dom-selection-direction">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/testdriver.js"></script>
+<script src="../../../resources/testdriver-actions.js"></script>
+<script src='../../../resources/testdriver-vendor.js'></script>
+<div id="container"></div>
+<script>
+
+test(() => {
+    getSelection().removeAllRanges();
+    assert_equals(getSelection().direction, 'none');
+}, 'direction returns "none" when there is no selection');
+
+test(() => {
+    container.innerHTML = 'hello, world';
+    getSelection().setBaseAndExtent(container.firstChild, 0, container.firstChild, 5);
+    assert_equals(getSelection().direction, 'forward');
+}, 'direction returns "forward" when there is a forward-direction selection in the document tree');
+
+test(() => {
+    container.innerHTML = 'hello, world';
+    getSelection().setBaseAndExtent(container.firstChild, 4, container.firstChild, 3);
+    assert_equals(getSelection().direction, 'backward');
+}, 'direction returns "backward" when there is a backward-direction selection in the document tree');
+
+test(() => {
+    container.innerHTML = 'a<div id="host"></div>b';
+    const shadowRoot = host.attachShadow({mode: 'closed'});
+    shadowRoot.innerHTML = 'hello, world';
+    getSelection().setBaseAndExtent(shadowRoot.firstChild, 0, shadowRoot.firstChild, 5);
+    assert_equals(getSelection().direction, 'forward');
+}, 'direction returns "forward" when there is a forward selection in the shadow tree');
+
+test(() => {
+    container.innerHTML = 'a<div id="host"></div>b';
+    const shadowRoot = host.attachShadow({mode: 'closed'});
+    shadowRoot.innerHTML = 'hello, world';
+    getSelection().setBaseAndExtent(shadowRoot.firstChild, 5, shadowRoot.firstChild, 3);
+    assert_equals(getSelection().direction, 'backward');
+}, 'direction returns "backward" when there is a backward selection in the shadow tree');
+
+test(() => {
+    container.innerHTML = 'a<div id="host"></div>b';
+    const shadowRoot = host.attachShadow({mode: 'closed'});
+    shadowRoot.innerHTML = 'hello, world';
+    getSelection().setBaseAndExtent(shadowRoot.firstChild, 7, container, 2);
+    assert_equals(getSelection().direction, 'forward');
+}, 'direction returns "forward" when there is a forward selection that crosses shadow boundaries');
+
+test(() => {
+    container.innerHTML = 'a<div id="host"></div>b';
+    const shadowRoot = host.attachShadow({mode: 'closed'});
+    shadowRoot.innerHTML = 'hello, world';
+    getSelection().setBaseAndExtent(shadowRoot.firstChild, 7, container, 1);
+    assert_equals(getSelection().direction, 'backward');
+}, 'direction returns "backward" when there is a forward selection that crosses shadow boundaries');
+
+</script>
+</body>
+</html>
