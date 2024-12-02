@@ -6,7 +6,6 @@
 
 #include <AK/MemoryStream.h>
 #include <AK/String.h>
-#include <LibGfx/PainterSkia.h>
 #include <LibGfx/Rect.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/TVGIconEngine.h>
@@ -34,12 +33,7 @@ QPixmap TVGIconEngine::pixmap(QSize const& size, QIcon::Mode mode, QIcon::State 
     auto key = pixmap_cache_key(size, mode, state);
     if (QPixmapCache::find(key, &pixmap))
         return pixmap;
-    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, { size.width(), size.height() }));
-
-    auto painter = Gfx::PainterSkia::create(bitmap);
-    painter->clear_rect(bitmap->rect().to_type<float>(), Gfx::Color::Transparent);
-
-    m_image_data->draw_into(*painter, bitmap->rect());
+    auto bitmap = MUST(m_image_data->bitmap({ size.width(), size.height() }));
 
     for (auto const& filter : m_filters) {
         if (filter->mode() == mode) {

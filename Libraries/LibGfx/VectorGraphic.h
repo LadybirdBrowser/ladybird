@@ -17,13 +17,12 @@ namespace Gfx {
 class VectorGraphic : public RefCounted<VectorGraphic> {
 public:
     virtual IntSize intrinsic_size() const = 0;
-    virtual void draw_transformed(Painter&, AffineTransform) const = 0;
+    virtual void draw(Painter&) const = 0;
 
     IntSize size() const { return intrinsic_size(); }
     IntRect rect() const { return { {}, size() }; }
 
     ErrorOr<NonnullRefPtr<Gfx::Bitmap>> bitmap(IntSize size, AffineTransform = {}) const;
-    void draw_into(Painter& painter, IntRect const& dest, AffineTransform = {}) const;
 
     virtual ~VectorGraphic() = default;
 };
