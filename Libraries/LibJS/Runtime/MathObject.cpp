@@ -10,9 +10,13 @@
 #include <AK/BuiltinWrappers.h>
 #include <AK/Function.h>
 #include <AK/Random.h>
+#include <LibJS/Runtime/AbstractOperations.h>
+#include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/MathObject.h>
 #include <LibJS/Runtime/ValueInlines.h>
+#include <float.h>
 #include <math.h>
 
 namespace JS {
@@ -65,6 +69,7 @@ void MathObject::initialize(Realm& realm)
     define_native_function(realm, vm.names.sinh, sinh, 1, attr);
     define_native_function(realm, vm.names.cosh, cosh, 1, attr);
     define_native_function(realm, vm.names.tanh, tanh, 1, attr);
+    define_native_function(realm, vm.names.sumPrecise, sum_precise, 1, attr);
 
     // 21.3.1 Value Properties of the Math Object, https://tc39.es/ecma262/#sec-value-properties-of-the-math-object
     define_direct_property(vm.names.E, Value(M_E), 0);
@@ -955,6 +960,240 @@ JS_DEFINE_NATIVE_FUNCTION(MathObject::trunc)
     return Value(number.as_double() < 0
             ? ::ceil(number.as_double())
             : ::floor(number.as_double()));
+}
+
+// https://github.com/tc39/proposal-math-sum/blob/main/polyfill/polyfill.mjs
+// NOTE: This class _must_ be compiled without `-ffast-math` and `-fassociative-math`!
+class PreciseSum {
+public:
+    // https://www-2.cs.cmu.edu/afs/cs/project/quake/public/papers/robust-arithmetic.ps
+    // Shewchuk's algorithm for exactly floating point addition
+    // as implemented in Python's fsum: https://github.com/python/cpython/blob/48dfd74a9db9d4aa9c6f23b4a67b461e5d977173/Modules/mathmodule.c#L1359-L1474
+    // adapted to handle overflow via an additional "biased" partial, representing 2**1024 times its actual value
+
+    static_assert(FLT_EVAL_METHOD == 0 || FLT_EVAL_METHOD == 1 || (FLT_EVAL_METHOD == 2 && SameAs<double, long double>));
+
+    bool add(double x)
+    {
+        ASSERT(Value(x).is_finite_number() && !Value(x).is_negative_zero());
+
+        size_t new_size = 0;
+        for (size_t i = 0; i < m_partials.size(); i++) {
+            auto y = m_partials[i];
+            if (abs(x) < abs(y))
+                swap(x, y);
+            auto hi = x + y;
+            auto lo = y - (hi - x);
+            if (abs(hi) == INFINITY) {
+                auto sign = signbit(hi) ? -1.0 : 1.0;
+                m_overflow += sign;
+                if (abs(m_overflow) >= exp2(53.0))
+                    return false;
+
+                x = (x - sign * exp2(1023.0)) - sign * exp2(1023.0);
+                if (abs(x) < abs(y))
+                    swap(x, y);
+                hi = x + y;
+                lo = y - (hi - x);
+            }
+            if (lo != 0.0)
+                m_partials[new_size++] = lo;
+            x = hi;
+        }
+        m_partials.resize(new_size);
+        m_partials.empend(x);
+
+        return true;
+    }
+
+    double compute(void)
+    {
+        // exponent 11111111110, significand all 1s
+        constexpr auto MAX_DOUBLE = 1.79769313486231570815e+308; // i.e. (2**1024 - 2**(1023 - 52))
+
+        // exponent 11111111110, significand all 1s except final 0
+        constexpr auto PENULTIMATE_DOUBLE = 1.79769313486231550856e+308; // i.e. (2**1024 - 2 * 2**(1023 - 52))
+
+        // exponent 11111001010, significand all 0s
+        constexpr auto MAX_ULP = MAX_DOUBLE - PENULTIMATE_DOUBLE; // 1.99584030953471981166e+292, i.e. 2**(1023 - 52)
+
+        if (m_partials.is_empty())
+            return -0.0;
+
+        // compute the exact sum of partials, stopping once we lose precision
+        // NOTE: iteration order matters!
+        auto ptr = m_partials.end();
+        auto end = m_partials.begin();
+        auto hi = 0.0;
+        auto lo = 0.0;
+
+        if (m_overflow != 0.0) {
+            auto next = ptr != end ? *--ptr : 0.0;
+            if (abs(m_overflow) > 1.0 || ((m_overflow > 0.0 && next > 0.0) || (m_overflow < 0.0 && next < 0.0)))
+                return m_overflow > 0.0 ? INFINITY : -INFINITY;
+            // here we actually have to do the arithmetic
+            // drop a factor of 2 so we can do it without overflow
+            // assert(Math.abs(overflow) === 1)
+            auto x = m_overflow * exp2(1023.0);
+            auto y = next / 2.0;
+            hi = x + y;
+            lo = y - (hi - x);
+            lo *= 2.0;
+            if (abs(2.0 * hi) == INFINITY) {
+                // stupid edge case: rounding to the maximum value
+                // MAX_DOUBLE has a 1 in the last place of its significand, so if we subtract exactly half a ULP from 2**1024, the result rounds away from it (i.e. to infinity) under ties-to-even
+                // but if the next partial has the opposite sign of the current value, we need to round towards MAX_DOUBLE instead
+                // this is the same as the "handle rounding" case below, but there's only one potentially-finite case we need to worry about, so we just hardcode that one
+                if (hi > 0.0) {
+                    if (hi == exp2(1023.0) && lo == -(MAX_ULP / 2.0) && ptr != end && *ptr < 0.0) [[unlikely]]
+                        return MAX_DOUBLE;
+                    return INFINITY;
+                } else {
+                    if (hi == -exp2(1023.0) && lo == (MAX_ULP / 2.0) && ptr != end && *ptr > 0.0) [[unlikely]]
+                        return -MAX_DOUBLE;
+                    return -INFINITY;
+                }
+            }
+            if (lo != 0.0) {
+                *ptr++ = lo;
+                lo = 0.0;
+            }
+            hi *= 2.0;
+        }
+
+        while (ptr != end) {
+            auto x = hi;
+            auto y = *--ptr;
+            hi = x + y;
+            lo = y - (hi - x);
+            if (lo != 0.0)
+                break;
+        }
+
+        // handle rounding
+        // when the roundoff error is exactly half of the ULP for the result, we need to check one more partial to know which way to round
+        if (ptr != end && ((lo < 0.0 && *ptr < 0.0) || (lo > 0.0 && *ptr > 0.0))) {
+            auto y = lo * 2.0;
+            auto x = hi + y;
+            if (y == x - hi)
+                hi = x;
+        }
+
+        return hi;
+    }
+
+private:
+    double m_overflow = 0; // conceptually 2**1024 times this value; the final partial
+    Vector<double> m_partials;
+};
+
+// 2 Math.sumPrecise ( items ), https://tc39.es/proposal-math-sum/#sec-math.sumprecise
+JS_DEFINE_NATIVE_FUNCTION(MathObject::sum_precise)
+{
+    enum class State {
+        Finite,
+        NotANumber,
+        PlusInfinity,
+        MinusInfinity,
+        MinusZero,
+    };
+
+    // 1. Perform ? RequireObjectCoercible(items).
+    auto items = TRY(require_object_coercible(vm, vm.argument(0)));
+
+    // 2. Let iteratorRecord be ? GetIterator(items, sync).
+    auto iterator_record = TRY(get_iterator(vm, items, IteratorHint::Sync));
+
+    // 3. Let state be minus-zero.
+    auto state = State::MinusZero;
+
+    // 4. Let sum be 0.
+    PreciseSum sum;
+
+    // 5. Let count be 0.
+    // (unused)
+
+    // 6. Let next be not-started.
+    Optional<Value> next;
+
+    // 7. Repeat, while next is not done,
+    // a. Set next to ? IteratorStepValue(iteratorRecord).
+    // b. If next is not done, then
+    for (auto next = TRY(iterator_step_value(vm, iterator_record)); next.has_value(); next = TRY(iterator_step_value(vm, iterator_record))) {
+        // i. Set count to count + 1.
+        // ii. If count ≥ 2**53, then
+        // 1. Let error be ThrowCompletion(a newly created RangeError object).
+        // 2. Return ? IteratorClose(iteratorRecord, error).
+        // iii. NOTE: The above case is not expected to be reached in practice and is included only so that implementations may rely on inputs being "reasonably sized" without violating this specification.
+        // (handled by `PreciseSum::add`)
+
+        // iv. If next is not a Number, then
+        if (!next->is_number()) {
+            // 1. Let error be ThrowCompletion(a newly created TypeError object).
+            auto error = vm.throw_completion<TypeError>(ErrorType::NotANumber, "iterator step value");
+            // 2. Return ? IteratorClose(iteratorRecord, error).
+            return iterator_close(vm, iterator_record, error);
+        }
+
+        // v. Let n be next.
+        auto& n = *next;
+        // vi. If state is not not-a-number, then
+        if (state != State::NotANumber) {
+            // 1. If n is NaN, then
+            if (n.is_nan()) {
+                // a. Set state to not-a-number.
+                state = State::NotANumber;
+            }
+            // 2. Else if n is +∞𝔽, then
+            else if (n.is_positive_infinity()) {
+                // a. If state is minus-infinity, set state to not-a-number.
+                if (state == State::MinusInfinity)
+                    state = State::NotANumber;
+                // b. Else, set state to plus-infinity.
+                else
+                    state = State::PlusInfinity;
+            }
+            // 3. Else if n is -∞𝔽, then
+            else if (n.is_negative_infinity()) {
+                // a. If state is plus-infinity, set state to not-a-number.
+                if (state == State::PlusInfinity)
+                    state = State::NotANumber;
+                // b. Else, set state to minus-infinity.
+                else
+                    state = State::MinusInfinity;
+            }
+            // 4. Else if n is not -0𝔽 and state is either minus-zero or finite, then
+            else if (!n.is_negative_zero() && (state == State::MinusZero || state == State::Finite)) {
+                // a. Set state to finite.
+                state = State::Finite;
+                // b. Set sum to sum + ℝ(n).
+                if (!sum.add(n.as_double())) {
+                    // 1. Let error be ThrowCompletion(a newly created RangeError object).
+                    auto error = vm.throw_completion<RangeError>();
+                    // 2. Return ? IteratorClose(iteratorRecord, error).
+                    return iterator_close(vm, iterator_record, error);
+                }
+            }
+        }
+    }
+
+    // 8. If state is not-a-number, return NaN.
+    if (state == State::NotANumber)
+        return NAN;
+    // 9. If state is plus-infinity, return +∞𝔽.
+    if (state == State::PlusInfinity)
+        return INFINITY;
+    // 10. If state is minus-infinity, return -∞𝔽.
+    if (state == State::MinusInfinity)
+        return -INFINITY;
+    // 11. If state is minus-zero, return -0𝔽.
+    if (state == State::MinusZero)
+        return -0.0;
+
+    // 12. Return 𝔽(sum).
+    return sum.compute();
+
+    // 13. NOTE: The value of sum can be computed without arbitrary-precision arithmetic by a variety of algorithms. One such is the "Grow-Expansion" algorithm given in Adaptive Precision Floating-Point Arithmetic and Fast Robust Geometric Predicates by Jonathan Richard Shewchuk. A more recent algorithm is given in "Fast exact summation using small and large superaccumulators", code for which is available at https://gitlab.com/radfordneal/xsum.
 }
 
 }
