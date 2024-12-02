@@ -203,6 +203,11 @@ bool command_delete_action(DOM::Document& document, String const&)
 
     // 9. Repeat the following steps:
     while (true) {
+        // AD-HOC: If start node is not a Node, return false. This prevents a crash by dereferencing a null pointer in
+        //         step 1 below. Edits outside of <body> might be prohibited: https://github.com/w3c/editing/issues/405
+        if (!start_node)
+            return false;
+
         // 1. If start offset is zero, set start offset to the index of start node and then set
         //    start node to its parent.
         if (start_offset == 0) {
