@@ -2359,35 +2359,93 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDSA::sign(AlgorithmParams const&
     auto& vm = realm.vm();
     auto const& normalized_algorithm = static_cast<EcdsaParams const&>(params);
 
-    (void)vm;
-    (void)message;
-
     // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
     if (key->type() != Bindings::KeyType::Private)
         return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_string);
 
     // 2. Let hashAlgorithm be the hash member of normalizedAlgorithm.
-    [[maybe_unused]] auto const& hash_algorithm = normalized_algorithm.hash;
+    auto const& hash_algorithm = TRY(normalized_algorithm.hash.name(vm));
 
-    // NOTE: We dont have sign() on the SECPxxxr1 curves, so we can't implement this yet
-    // FIXME: 3. Let M be the result of performing the digest operation specified by hashAlgorithm using message.
-    // FIXME: 4. Let d be the ECDSA private key associated with key.
+    // 3. Let M be the result of performing the digest operation specified by hashAlgorithm using message.
+    ::Crypto::Hash::HashKind hash_kind;
+    if (hash_algorithm == "SHA-1") {
+        hash_kind = ::Crypto::Hash::HashKind::SHA1;
+    } else if (hash_algorithm == "SHA-256") {
+        hash_kind = ::Crypto::Hash::HashKind::SHA256;
+    } else if (hash_algorithm == "SHA-384") {
+        hash_kind = ::Crypto::Hash::HashKind::SHA384;
+    } else if (hash_algorithm == "SHA-512") {
+        hash_kind = ::Crypto::Hash::HashKind::SHA512;
+    } else {
+        return WebIDL::NotSupportedError::create(m_realm, MUST(String::formatted("Invalid hash function '{}'", hash_algorithm)));
+    }
+    ::Crypto::Hash::Manager hash { hash_kind };
+    hash.update(message);
+    auto digest = hash.digest();
+
+    auto M = TRY_OR_THROW_OOM(vm, ByteBuffer::copy(digest.immutable_data(), hash.digest_size()));
+
+    // 4. Let d be the ECDSA private key associated with key.
+    auto d = key->handle().get<::Crypto::PK::ECPrivateKey<>>();
+
     // FIXME: 5. Let params be the EC domain parameters associated with key.
-    // FIXME: 6. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
 
-    // FIXME: 1. Perform the ECDSA signing process, as specified in [RFC6090], Section 5.4, with M as the message, using params as the EC domain parameters, and with d as the private key.
-    // FIXME: 2. Let r and s be the pair of integers resulting from performing the ECDSA signing process.
-    // FIXME: 3. Let result be an empty byte sequence.
-    // FIXME: 4. Let n be the smallest integer such that n * 8 is greater than the logarithm to base 2 of the order of the base point of the elliptic curve identified by params.
-    // FIXME: 5. Convert r to an octet string of length n and append this sequence of bytes to result.
-    // FIXME: 6. Convert s to an octet string of length n and append this sequence of bytes to result.
+    auto const& internal_algorithm = static_cast<EcKeyAlgorithm const&>(*key->algorithm());
+    auto const& named_curve = internal_algorithm.named_curve();
 
-    // FIXME: Otherwise, the namedCurve attribute of the [[algorithm]] internal slot of key is a value specified in an applicable specification:
-    // FIXME: Perform the ECDSA signature steps specified in that specification, passing in M, params and d and resulting in result.
+    ByteBuffer result;
+
+    // 6. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
+    if (named_curve.is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
+        size_t coord_size;
+        Variant<Empty, ::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1> curve;
+        if (named_curve == "P-256") {
+            coord_size = 32;
+            curve = ::Crypto::Curves::SECP256r1 {};
+        } else if (named_curve == "P-384") {
+            coord_size = 48;
+            curve = ::Crypto::Curves::SECP384r1 {};
+        } else if (named_curve == "P-521") {
+            // FIXME: Support P-521
+            coord_size = 66;
+            return WebIDL::NotSupportedError::create(m_realm, "'P-521' is not supported yet"_string);
+        } else {
+            VERIFY_NOT_REACHED();
+        }
+
+        // 1. Perform the ECDSA signing process, as specified in [RFC6090], Section 5.4, with M as the message,
+        //    using params as the EC domain parameters, and with d as the private key.
+        // 2. Let r and s be the pair of integers resulting from performing the ECDSA signing process.
+        auto maybe_signature = curve.visit(
+            [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Signature> { return Error::from_string_literal("Failed to create valid crypto instance"); },
+            [&](auto instance) { return instance.sign_scalar(M, d.d()); });
+
+        if (maybe_signature.is_error()) {
+            auto error_message = MUST(String::from_utf8(maybe_signature.error().string_literal()));
+            return WebIDL::OperationError::create(m_realm, error_message);
+        }
+
+        auto signature = maybe_signature.release_value();
+
+        // 3. Let result be an empty byte sequence.
+        result = TRY_OR_THROW_OOM(vm, ByteBuffer::create_zeroed(coord_size * 2));
+
+        // 4. Let n be the smallest integer such that n * 8 is greater than the logarithm to base 2 of the order of the base point of the elliptic curve identified by params.
+        // 5. Convert r to an octet string of length n and append this sequence of bytes to result.
+        VERIFY(signature.r.byte_length() <= coord_size);
+        (void)signature.r.export_data(result.span());
+
+        // 6. Convert s to an octet string of length n and append this sequence of bytes to result.
+        VERIFY(signature.s.byte_length() <= coord_size);
+        (void)signature.s.export_data(result.span().slice(coord_size));
+    } else {
+        // FIXME: Otherwise, the namedCurve attribute of the [[algorithm]] internal slot of key is a value specified in an applicable specification:
+        // FIXME: Perform the ECDSA signature steps specified in that specification, passing in M, params and d and resulting in result.
+    }
 
     // NOTE: The spec jumps to 9 here for some reason
-    // FIXME: 9. Return the result of creating an ArrayBuffer containing result.
-    return WebIDL::NotSupportedError::create(realm, "ECDSA signing is not supported yet"_string);
+    // 9. Return the result of creating an ArrayBuffer containing result.
+    return JS::ArrayBuffer::create(m_realm, result);
 }
 
 // https://w3c.github.io/webcrypto/#ecdsa-operations
@@ -2420,11 +2478,7 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, GC::
     hash.update(message);
     auto digest = hash.digest();
 
-    auto result_buffer = ByteBuffer::copy(digest.immutable_data(), hash.digest_size());
-    if (result_buffer.is_error())
-        return WebIDL::OperationError::create(m_realm, "Failed to create result buffer"_string);
-
-    auto M = result_buffer.release_value();
+    auto M = TRY_OR_THROW_OOM(realm.vm(), ByteBuffer::copy(digest.immutable_data(), hash.digest_size()));
 
     // 4. Let Q be the ECDSA public key associated with key.
     auto Q = key->handle().get<::Crypto::PK::ECPublicKey<>>();
