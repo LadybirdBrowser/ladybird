@@ -1,11 +1,6 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 1 tests
 
 1 Pass
-Details
-Result	Test Name	MessagePass	querySelectorAll must work with namespace attribute selectors on SVG	
+Pass	querySelectorAll must work with namespace attribute selectors on SVG

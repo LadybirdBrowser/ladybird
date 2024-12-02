@@ -1,11 +1,6 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 1 tests
 
 1 Fail
-Details
-Result	Test Name	MessageFail	display of first-letter and first-line	
+Fail	display of first-letter and first-line

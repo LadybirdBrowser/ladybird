@@ -1,141 +1,136 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 131 tests
 
 131 Pass
-Details
-Result	Test Name	MessagePass	label valid on div with alert role	
-Pass	label valid on div with alertdialog role	
-Pass	label valid on div with application role	
-Pass	label valid on div with article role	
-Pass	label valid on div with banner role	
-Pass	label valid on div with blockquote role	
-Pass	label valid on div with button role	
-Pass	label valid on div with cell role	
-Pass	label valid on div with checkbox role	
-Pass	label valid on div with columnheader role	
-Pass	label valid on div with combobox role	
-Pass	label valid on div with complementary role	
-Pass	label valid on div with contentinfo role	
-Pass	label valid on div with dialog role	
-Pass	label valid on div with directory role	
-Pass	label valid on div with document role	
-Pass	label valid on div with feed role	
-Pass	label valid on div with figure role	
-Pass	label valid on div with form role	
-Pass	label valid on div with grid role	
-Pass	label valid on div with gridcell role	
-Pass	label valid on div with group role	
-Pass	label valid on div with heading role	
-Pass	label valid on div with img role	
-Pass	label valid on div with link role	
-Pass	label valid on div with list role	
-Pass	label valid on div with listbox role	
-Pass	label valid on div with listitem role	
-Pass	label valid on div with log role	
-Pass	label valid on div with main role	
-Pass	label valid on div with marquee role	
-Pass	label valid on div with math role	
-Pass	label valid on div with menu role	
-Pass	label valid on div with menubar role	
-Pass	label valid on div with menuitem role	
-Pass	label valid on div with menuitemcheckbox role	
-Pass	label valid on div with menuitemradio role	
-Pass	label valid on div with meter role	
-Pass	label valid on div with navigation role	
-Pass	label valid on div with note role	
-Pass	label valid on div with option role	
-Pass	label valid on div with progressbar role	
-Pass	label valid on div with radio role	
-Pass	label valid on div with radiogroup role	
-Pass	label valid on div with region role	
-Pass	label valid on div with row role	
-Pass	label valid on div with rowgroup role	
-Pass	label valid on div with rowheader role	
-Pass	label valid on div with scrollbar role	
-Pass	label valid on div with search role	
-Pass	label valid on div with searchbox role	
-Pass	label valid on div with separator role	
-Pass	label valid on div with slider role	
-Pass	label valid on div with spinbutton role	
-Pass	label valid on div with status role	
-Pass	label valid on div with switch role	
-Pass	label valid on div with tab role	
-Pass	label valid on div with table role	
-Pass	label valid on div with tablist role	
-Pass	label valid on div with tabpanel role	
-Pass	label valid on div with textbox role	
-Pass	label valid on div with timer role	
-Pass	label valid on div with toolbar role	
-Pass	label valid on div with tooltip role	
-Pass	label valid on div with tree role	
-Pass	label valid on div with treegrid role	
-Pass	label valid on div with treeitem role	
-Pass	label valid on link element	
-Pass	label valid on article element	
-Pass	label valid on aside element	
-Pass	label valid on blockquote element	
-Pass	label valid on button element	
-Pass	label valid on dl element	
-Pass	label valid on footer element	
-Pass	label valid on fieldset element	
-Pass	label valid on figure element	
-Pass	label valid on form element	
-Pass	label valid on header element	
-Pass	label valid on h1 element	
-Pass	label valid on h2 element	
-Pass	label valid on h3 element	
-Pass	label valid on h4 element	
-Pass	label valid on h5 element	
-Pass	label valid on h6 element	
-Pass	label valid on hr element	
-Pass	label valid on img element	
-Pass	label valid on input type checkbox element	
-Pass	label valid on input type radio element	
-Pass	label valid on input type search element	
-Pass	label valid on input type text element	
-Pass	label valid on listitem element	
-Pass	label valid on main element	
-Pass	label valid on math element	
-Pass	label valid on meter element	
-Pass	label valid on nav element	
-Pass	label valid on list (ordered) element	
-Pass	label valid on section element	
-Pass	label valid on select element	
-Pass	label valid on option element	
-Pass	label valid on table element	
-Pass	label valid on thead element	
-Pass	label valid on th element with the scope of col	
-Pass	label valid on th (scope row) element	
-Pass	label valid on tbody element	
-Pass	label valid on tr element	
-Pass	label valid on td element	
-Pass	label valid on tfoot element	
-Pass	label valid on textarea element	
-Pass	label valid on list (unordered) element	
-Pass	button's hidden referenced name (display:none) supercedes aria-label	
-Pass	button's hidden referenced name (visibility:hidden) supercedes aria-label	
-Pass	button's hidden referenced name (visibility:hidden) with hidden aria-labelledby traversal falls back to aria-label	
-Pass	link's aria-labelledby name supercedes aria-label	
-Pass	img's aria-label supercedes alt attribute	
-Pass	svg's aria-label supercedes title tag	
-Pass	input with label for association is superceded by aria-label	
-Pass	button name from contents is superceded by aria-label	
-Pass	h1 text is superceded by aria-label	
-Pass	button with title is superceded by aria-label	
-Pass	textarea's name with trailing whitespace in aria-label is valid	
-Pass	link's name with leading whitespace in aria-label is valid	
-Pass	button with blank braille pattern has name as such (not treated as whitespace per Unicode standard)	
-Pass	div with role alert and carriage return in aria-label is valid	
-Pass	link's name with tab in aria-label is valid	
-Pass	button with leading form feed control character in aria-label is valid	
-Pass	nav with trailing nbsp char aria-label is valid (nbsp is preserved in name)	
-Pass	button with leading nbsp char in aria-label is valid (and uses aria-label)	
-Pass	button with empty aria-label does not use aria-label as name	
-Pass	textarea with tab character as aria-label does not use aria-label as name	
-Pass	button with carriage return as aria-label does not use aria-label as name	
-Pass	button with space characters as aria-label does not use aria-label as name	
+Pass	label valid on div with alert role
+Pass	label valid on div with alertdialog role
+Pass	label valid on div with application role
+Pass	label valid on div with article role
+Pass	label valid on div with banner role
+Pass	label valid on div with blockquote role
+Pass	label valid on div with button role
+Pass	label valid on div with cell role
+Pass	label valid on div with checkbox role
+Pass	label valid on div with columnheader role
+Pass	label valid on div with combobox role
+Pass	label valid on div with complementary role
+Pass	label valid on div with contentinfo role
+Pass	label valid on div with dialog role
+Pass	label valid on div with directory role
+Pass	label valid on div with document role
+Pass	label valid on div with feed role
+Pass	label valid on div with figure role
+Pass	label valid on div with form role
+Pass	label valid on div with grid role
+Pass	label valid on div with gridcell role
+Pass	label valid on div with group role
+Pass	label valid on div with heading role
+Pass	label valid on div with img role
+Pass	label valid on div with link role
+Pass	label valid on div with list role
+Pass	label valid on div with listbox role
+Pass	label valid on div with listitem role
+Pass	label valid on div with log role
+Pass	label valid on div with main role
+Pass	label valid on div with marquee role
+Pass	label valid on div with math role
+Pass	label valid on div with menu role
+Pass	label valid on div with menubar role
+Pass	label valid on div with menuitem role
+Pass	label valid on div with menuitemcheckbox role
+Pass	label valid on div with menuitemradio role
+Pass	label valid on div with meter role
+Pass	label valid on div with navigation role
+Pass	label valid on div with note role
+Pass	label valid on div with option role
+Pass	label valid on div with progressbar role
+Pass	label valid on div with radio role
+Pass	label valid on div with radiogroup role
+Pass	label valid on div with region role
+Pass	label valid on div with row role
+Pass	label valid on div with rowgroup role
+Pass	label valid on div with rowheader role
+Pass	label valid on div with scrollbar role
+Pass	label valid on div with search role
+Pass	label valid on div with searchbox role
+Pass	label valid on div with separator role
+Pass	label valid on div with slider role
+Pass	label valid on div with spinbutton role
+Pass	label valid on div with status role
+Pass	label valid on div with switch role
+Pass	label valid on div with tab role
+Pass	label valid on div with table role
+Pass	label valid on div with tablist role
+Pass	label valid on div with tabpanel role
+Pass	label valid on div with textbox role
+Pass	label valid on div with timer role
+Pass	label valid on div with toolbar role
+Pass	label valid on div with tooltip role
+Pass	label valid on div with tree role
+Pass	label valid on div with treegrid role
+Pass	label valid on div with treeitem role
+Pass	label valid on link element
+Pass	label valid on article element
+Pass	label valid on aside element
+Pass	label valid on blockquote element
+Pass	label valid on button element
+Pass	label valid on dl element
+Pass	label valid on footer element
+Pass	label valid on fieldset element
+Pass	label valid on figure element
+Pass	label valid on form element
+Pass	label valid on header element
+Pass	label valid on h1 element
+Pass	label valid on h2 element
+Pass	label valid on h3 element
+Pass	label valid on h4 element
+Pass	label valid on h5 element
+Pass	label valid on h6 element
+Pass	label valid on hr element
+Pass	label valid on img element
+Pass	label valid on input type checkbox element
+Pass	label valid on input type radio element
+Pass	label valid on input type search element
+Pass	label valid on input type text element
+Pass	label valid on listitem element
+Pass	label valid on main element
+Pass	label valid on math element
+Pass	label valid on meter element
+Pass	label valid on nav element
+Pass	label valid on list (ordered) element
+Pass	label valid on section element
+Pass	label valid on select element
+Pass	label valid on option element
+Pass	label valid on table element
+Pass	label valid on thead element
+Pass	label valid on th element with the scope of col
+Pass	label valid on th (scope row) element
+Pass	label valid on tbody element
+Pass	label valid on tr element
+Pass	label valid on td element
+Pass	label valid on tfoot element
+Pass	label valid on textarea element
+Pass	label valid on list (unordered) element
+Pass	button's hidden referenced name (display:none) supercedes aria-label
+Pass	button's hidden referenced name (visibility:hidden) supercedes aria-label
+Pass	button's hidden referenced name (visibility:hidden) with hidden aria-labelledby traversal falls back to aria-label
+Pass	link's aria-labelledby name supercedes aria-label
+Pass	img's aria-label supercedes alt attribute
+Pass	svg's aria-label supercedes title tag
+Pass	input with label for association is superceded by aria-label
+Pass	button name from contents is superceded by aria-label
+Pass	h1 text is superceded by aria-label
+Pass	button with title is superceded by aria-label
+Pass	textarea's name with trailing whitespace in aria-label is valid
+Pass	link's name with leading whitespace in aria-label is valid
+Pass	button with blank braille pattern has name as such (not treated as whitespace per Unicode standard)
+Pass	div with role alert and carriage return in aria-label is valid
+Pass	link's name with tab in aria-label is valid
+Pass	button with leading form feed control character in aria-label is valid
+Pass	nav with trailing nbsp char aria-label is valid (nbsp is preserved in name)
+Pass	button with leading nbsp char in aria-label is valid (and uses aria-label)
+Pass	button with empty aria-label does not use aria-label as name
+Pass	textarea with tab character as aria-label does not use aria-label as name
+Pass	button with carriage return as aria-label does not use aria-label as name
+Pass	button with space characters as aria-label does not use aria-label as name

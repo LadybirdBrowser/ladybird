@@ -1,26 +1,21 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 16 tests
 
 16 Pass
-Details
-Result	Test Name	MessagePass	new Text(): prototype chain	
-Pass	new Text(): instanceof	
-Pass	new Text(): no arguments	
-Pass	new Text(): undefined	
-Pass	new Text(): null	
-Pass	new Text(): 42	
-Pass	new Text(): ""	
-Pass	new Text(): "-"	
-Pass	new Text(): "--"	
-Pass	new Text(): "-->"	
-Pass	new Text(): "<!--"	
-Pass	new Text(): "\0"	
-Pass	new Text(): "\0test"	
-Pass	new Text(): "&amp;"	
-Pass	new Text(): two arguments	
-Pass	new Text() should get the correct ownerDocument across globals	
+Pass	new Text(): prototype chain
+Pass	new Text(): instanceof
+Pass	new Text(): no arguments
+Pass	new Text(): undefined
+Pass	new Text(): null
+Pass	new Text(): 42
+Pass	new Text(): ""
+Pass	new Text(): "-"
+Pass	new Text(): "--"
+Pass	new Text(): "-->"
+Pass	new Text(): "<!--"
+Pass	new Text(): "\0"
+Pass	new Text(): "\0test"
+Pass	new Text(): "&amp;"
+Pass	new Text(): two arguments
+Pass	new Text() should get the correct ownerDocument across globals

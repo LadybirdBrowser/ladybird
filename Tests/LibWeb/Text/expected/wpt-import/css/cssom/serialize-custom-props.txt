@@ -1,31 +1,26 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 20 tests
 
 18 Pass
 2 Fail
-Details
-Result	Test Name	MessagePass	z-index can take a 4-digit integer	
-Pass	An unregistered custom prop can take a 4-digit integer	
-Pass	An <integer> custom prop can take a 4-digit integer	
-Pass	z-index can take a custom property set to a 4-digit integer	
-Pass	z-index can take a 6-digit integer	
-Pass	An unregistered custom prop can take a 6-digit integer	
-Pass	An <integer> custom prop can take a 6-digit integer	
-Pass	z-index can take a custom property set to a 6-digit integer	
-Pass	z-index can take a 8-digit integer	
-Pass	An unregistered custom prop can take a 8-digit integer	
-Pass	An <integer> custom prop can take a 8-digit integer	
-Pass	z-index can take a custom property set to a 8-digit integer	
-Pass	z-index can take a 12-digit integer	
-Pass	An unregistered custom prop can take a 12-digit integer	
-Pass	An <integer> custom prop can take a 12-digit integer	
-Pass	z-index can take a custom property set to a 12-digit integer	
-Pass	z-index can take a 25-digit integer	
-Fail	An unregistered custom prop can take a 25-digit integer	
-Fail	An <integer> custom prop can take a 25-digit integer	
-Pass	z-index can take a custom property set to a 25-digit integer	
+Pass	z-index can take a 4-digit integer
+Pass	An unregistered custom prop can take a 4-digit integer
+Pass	An <integer> custom prop can take a 4-digit integer
+Pass	z-index can take a custom property set to a 4-digit integer
+Pass	z-index can take a 6-digit integer
+Pass	An unregistered custom prop can take a 6-digit integer
+Pass	An <integer> custom prop can take a 6-digit integer
+Pass	z-index can take a custom property set to a 6-digit integer
+Pass	z-index can take a 8-digit integer
+Pass	An unregistered custom prop can take a 8-digit integer
+Pass	An <integer> custom prop can take a 8-digit integer
+Pass	z-index can take a custom property set to a 8-digit integer
+Pass	z-index can take a 12-digit integer
+Pass	An unregistered custom prop can take a 12-digit integer
+Pass	An <integer> custom prop can take a 12-digit integer
+Pass	z-index can take a custom property set to a 12-digit integer
+Pass	z-index can take a 25-digit integer
+Fail	An unregistered custom prop can take a 25-digit integer
+Fail	An <integer> custom prop can take a 25-digit integer
+Pass	z-index can take a custom property set to a 25-digit integer

@@ -1,19 +1,14 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 9 tests
 
 9 Pass
-Details
-Result	Test Name	MessagePass	e.style['rotate'] = "100px" should not set the property value	
-Pass	e.style['rotate'] = "100 400deg" should not set the property value	
-Pass	e.style['rotate'] = "100 200 400deg" should not set the property value	
-Pass	e.style['rotate'] = "100 200 300 500 400deg" should not set the property value	
-Pass	e.style['rotate'] = "x y 45deg" should not set the property value	
-Pass	e.style['rotate'] = "45deg x y" should not set the property value	
-Pass	e.style['rotate'] = "z" should not set the property value	
-Pass	e.style['rotate'] = "1 2" should not set the property value	
-Pass	e.style['rotate'] = "1 2 3" should not set the property value	
+Pass	e.style['rotate'] = "100px" should not set the property value
+Pass	e.style['rotate'] = "100 400deg" should not set the property value
+Pass	e.style['rotate'] = "100 200 400deg" should not set the property value
+Pass	e.style['rotate'] = "100 200 300 500 400deg" should not set the property value
+Pass	e.style['rotate'] = "x y 45deg" should not set the property value
+Pass	e.style['rotate'] = "45deg x y" should not set the property value
+Pass	e.style['rotate'] = "z" should not set the property value
+Pass	e.style['rotate'] = "1 2" should not set the property value
+Pass	e.style['rotate'] = "1 2 3" should not set the property value

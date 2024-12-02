@@ -1,71 +1,66 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 60 tests
 
 36 Pass
 24 Fail
-Details
-Result	Test Name	MessagePass	Simple type selector	
-Pass	Type selector without a namespace	
-Fail	Type selector with any namespace	
-Pass	Universal selector	
-Pass	Universal selector without a namespace	
-Fail	Universal selector in any namespace	
-Pass	Type selector with namespace	
-Pass	Universal selector with namespace	
-Pass	Simple type selector followed by class	
-Pass	Simple type selector followed by id	
-Pass	Simple type selector followed by pseudo class	
-Pass	Simple type selector followed by pseudo element	
-Pass	Simple type selector followed by atttribute selector	
-Pass	Type selector without a namespace followed by class	
-Pass	Type selector without a namespace followed by id	
-Pass	Type selector without a namespace followed by pseudo class	
-Pass	Type selector without a namespace followed by pseudo element	
-Pass	Type selector without a namespace followed by attribute selector	
-Fail	Type selector with any namespace followed by class	
-Fail	Type selector with any namespace followed by id	
-Fail	Type selector with any namespace followed by pseudo class	
-Fail	Type selector with any namespace followed by pseudo element	
-Fail	Type selector with any namespace followed by attribute selector	
-Pass	Universal selector followed by class	
-Pass	Universal selector followed by id	
-Pass	Universal selector followed by pseudo class	
-Pass	Universal selector followed by pseudo element	
-Pass	Universal selector followed by attribute selector	
-Pass	Universal selector without a namespace followed by class	
-Pass	Universal selector without a namespace followed by id	
-Pass	Universal selector without a namespace followed by pseudo class	
-Pass	Universal selector without a namespace followed by pseudo element	
-Pass	Universal selector without a namespace followed by attribute selector	
-Fail	Universal selector in any namespace followed by class	
-Fail	Universal selector in any namespace followed by id	
-Fail	Universal selector in any namespace followed by pseudo class	
-Fail	Universal selector in any namespace followed by pseudo element	
-Fail	Universal selector in any namespace followed by attribute selector	
-Pass	Type selector with namespace followed by class	
-Pass	Type selector with namespace followed by id	
-Pass	Type selector with namespace followed by pseudo class	
-Pass	Type selector with namespace followed by pseudo element	
-Pass	Type selector with namespace followed by attribute selector	
-Pass	Universal selector with namespace followed by class	
-Pass	Universal selector with namespace followed by id	
-Pass	Universal selector with namespace followed by pseudo class	
-Pass	Universal selector with namespace followed by pseudo element	
-Pass	Universal selector with namespace followed by attribute selector	
-Fail	Type selector with namespace equal to default namespace	
-Fail	Universal selector with namespace equal to default namespace	
-Fail	Type selector with namespace equal to default namespace followed by class	
-Fail	Type selector with namespace equal to default namespace followed by id	
-Fail	Type selector with namespace equal to default namespace followed by pseudo class	
-Fail	Type selector with namespace equal to default namespace followed by pseudo element	
-Fail	Type selector with namespace equal to default namespace followed by attribute selector	
-Fail	Universal selector with namespace equal to default namespace followed by class	
-Fail	Universal selector with namespace equal to default namespace followed by id	
-Fail	Universal selector with namespace equal to default namespace followed by pseudo class	
-Fail	Universal selector with namespace equal to default namespace followed by pseudo element	
-Fail	Universal selector with namespace equal to default namespace followed by attribute selector	
+Pass	Simple type selector
+Pass	Type selector without a namespace
+Fail	Type selector with any namespace
+Pass	Universal selector
+Pass	Universal selector without a namespace
+Fail	Universal selector in any namespace
+Pass	Type selector with namespace
+Pass	Universal selector with namespace
+Pass	Simple type selector followed by class
+Pass	Simple type selector followed by id
+Pass	Simple type selector followed by pseudo class
+Pass	Simple type selector followed by pseudo element
+Pass	Simple type selector followed by atttribute selector
+Pass	Type selector without a namespace followed by class
+Pass	Type selector without a namespace followed by id
+Pass	Type selector without a namespace followed by pseudo class
+Pass	Type selector without a namespace followed by pseudo element
+Pass	Type selector without a namespace followed by attribute selector
+Fail	Type selector with any namespace followed by class
+Fail	Type selector with any namespace followed by id
+Fail	Type selector with any namespace followed by pseudo class
+Fail	Type selector with any namespace followed by pseudo element
+Fail	Type selector with any namespace followed by attribute selector
+Pass	Universal selector followed by class
+Pass	Universal selector followed by id
+Pass	Universal selector followed by pseudo class
+Pass	Universal selector followed by pseudo element
+Pass	Universal selector followed by attribute selector
+Pass	Universal selector without a namespace followed by class
+Pass	Universal selector without a namespace followed by id
+Pass	Universal selector without a namespace followed by pseudo class
+Pass	Universal selector without a namespace followed by pseudo element
+Pass	Universal selector without a namespace followed by attribute selector
+Fail	Universal selector in any namespace followed by class
+Fail	Universal selector in any namespace followed by id
+Fail	Universal selector in any namespace followed by pseudo class
+Fail	Universal selector in any namespace followed by pseudo element
+Fail	Universal selector in any namespace followed by attribute selector
+Pass	Type selector with namespace followed by class
+Pass	Type selector with namespace followed by id
+Pass	Type selector with namespace followed by pseudo class
+Pass	Type selector with namespace followed by pseudo element
+Pass	Type selector with namespace followed by attribute selector
+Pass	Universal selector with namespace followed by class
+Pass	Universal selector with namespace followed by id
+Pass	Universal selector with namespace followed by pseudo class
+Pass	Universal selector with namespace followed by pseudo element
+Pass	Universal selector with namespace followed by attribute selector
+Fail	Type selector with namespace equal to default namespace
+Fail	Universal selector with namespace equal to default namespace
+Fail	Type selector with namespace equal to default namespace followed by class
+Fail	Type selector with namespace equal to default namespace followed by id
+Fail	Type selector with namespace equal to default namespace followed by pseudo class
+Fail	Type selector with namespace equal to default namespace followed by pseudo element
+Fail	Type selector with namespace equal to default namespace followed by attribute selector
+Fail	Universal selector with namespace equal to default namespace followed by class
+Fail	Universal selector with namespace equal to default namespace followed by id
+Fail	Universal selector with namespace equal to default namespace followed by pseudo class
+Fail	Universal selector with namespace equal to default namespace followed by pseudo element
+Fail	Universal selector with namespace equal to default namespace followed by attribute selector

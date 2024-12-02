@@ -1,18 +1,13 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 8 tests
 
 8 Pass
-Details
-Result	Test Name	MessagePass	:not(#foo) wins over :not(.foo)	
-Pass	:not(div#foo) wins over :not(#foo)	
-Pass	:not(.bar, #foo) has same specificity as :not(#foo, .bar)	
-Pass	:not(.bar, #foo) wins over :not(.foo, .bar)	
-Pass	:not(span + span) wins over :not(span)	
-Pass	:not(span, li, p) wins over :not(span, lo, p)	
-Pass	:not(span, :not(:not(.a#foo)), p) wins over :not(span, #foo, p)	
-Pass	:not(span, #foo, p) wins over :not(span, :where(.a#foo), p)	
+Pass	:not(#foo) wins over :not(.foo)
+Pass	:not(div#foo) wins over :not(#foo)
+Pass	:not(.bar, #foo) has same specificity as :not(#foo, .bar)
+Pass	:not(.bar, #foo) wins over :not(.foo, .bar)
+Pass	:not(span + span) wins over :not(span)
+Pass	:not(span, li, p) wins over :not(span, lo, p)
+Pass	:not(span, :not(:not(.a#foo)), p) wins over :not(span, #foo, p)
+Pass	:not(span, #foo, p) wins over :not(span, :where(.a#foo), p)

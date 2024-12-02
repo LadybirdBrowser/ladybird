@@ -1,11 +1,6 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 1 tests
 
 1 Fail
-Details
-Result	Test Name	MessageFail	select setCustomValidity is correct	Cannot access property "customError" on undefined object "elem.validity"
+Fail	select setCustomValidity is correct

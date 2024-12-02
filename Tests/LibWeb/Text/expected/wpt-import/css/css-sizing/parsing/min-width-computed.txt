@@ -1,22 +1,17 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 11 tests
 
 5 Pass
 6 Fail
-Details
-Result	Test Name	MessagePass	Property min-width value 'min-content'	
-Pass	Property min-width value 'max-content'	
-Pass	Property min-width value '10px'	
-Pass	Property min-width value '20%'	
-Pass	Property min-width value 'calc(10% + 40px)'	
-Fail	Property min-width value 'calc(10px - 0.5em)'	
-Fail	Property min-width value 'calc(10px + 0.5em)'	
-Fail	Property min-width value 'fit-content(10px)'	
-Fail	Property min-width value 'fit-content(20%)'	
-Fail	Property min-width value 'fit-content(calc(10% + 40px))'	
-Fail	Property min-width value 'fit-content(calc(10px + 0.5em))'	
+Pass	Property min-width value 'min-content'
+Pass	Property min-width value 'max-content'
+Pass	Property min-width value '10px'
+Pass	Property min-width value '20%'
+Pass	Property min-width value 'calc(10% + 40px)'
+Fail	Property min-width value 'calc(10px - 0.5em)'
+Fail	Property min-width value 'calc(10px + 0.5em)'
+Fail	Property min-width value 'fit-content(10px)'
+Fail	Property min-width value 'fit-content(20%)'
+Fail	Property min-width value 'fit-content(calc(10% + 40px))'
+Fail	Property min-width value 'fit-content(calc(10px + 0.5em))'

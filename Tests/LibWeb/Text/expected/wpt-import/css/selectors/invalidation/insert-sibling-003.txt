@@ -1,11 +1,6 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 1 tests
 
 1 Pass
-Details
-Result	Test Name	MessagePass	Remove/Insert earlier sibling of ancestor	
+Pass	Remove/Insert earlier sibling of ancestor

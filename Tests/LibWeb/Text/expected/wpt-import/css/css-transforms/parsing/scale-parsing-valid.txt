@@ -1,33 +1,28 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 22 tests
 
 13 Pass
 9 Fail
-Details
-Result	Test Name	MessagePass	e.style['scale'] = "none" should set the property value	
-Pass	e.style['scale'] = "1" should set the property value	
-Pass	e.style['scale'] = "1%" should set the property value	
-Pass	e.style['scale'] = "100" should set the property value	
-Pass	e.style['scale'] = "100%" should set the property value	
-Pass	e.style['scale'] = "100 100" should set the property value	
-Pass	e.style['scale'] = "100% 100%" should set the property value	
-Fail	e.style['scale'] = "100 100 1" should set the property value	
-Fail	e.style['scale'] = "100% 100% 1" should set the property value	
-Pass	e.style['scale'] = "-100" should set the property value	
-Pass	e.style['scale'] = "-100%" should set the property value	
-Pass	e.style['scale'] = "-100 -100" should set the property value	
-Pass	e.style['scale'] = "-100% -100%" should set the property value	
-Fail	e.style['scale'] = "-100 -100 1" should set the property value	
-Fail	e.style['scale'] = "-100% -100% 1" should set the property value	
-Pass	e.style['scale'] = "100 200" should set the property value	
-Pass	e.style['scale'] = "100% 200%" should set the property value	
-Fail	e.style['scale'] = "100 200 1" should set the property value	
-Fail	e.style['scale'] = "100% 200% 1" should set the property value	
-Fail	e.style['scale'] = "100 200 300" should set the property value	
-Fail	e.style['scale'] = "100 100 2" should set the property value	
-Fail	e.style['scale'] = "100% 200% 300%" should set the property value	
+Pass	e.style['scale'] = "none" should set the property value
+Pass	e.style['scale'] = "1" should set the property value
+Pass	e.style['scale'] = "1%" should set the property value
+Pass	e.style['scale'] = "100" should set the property value
+Pass	e.style['scale'] = "100%" should set the property value
+Pass	e.style['scale'] = "100 100" should set the property value
+Pass	e.style['scale'] = "100% 100%" should set the property value
+Fail	e.style['scale'] = "100 100 1" should set the property value
+Fail	e.style['scale'] = "100% 100% 1" should set the property value
+Pass	e.style['scale'] = "-100" should set the property value
+Pass	e.style['scale'] = "-100%" should set the property value
+Pass	e.style['scale'] = "-100 -100" should set the property value
+Pass	e.style['scale'] = "-100% -100%" should set the property value
+Fail	e.style['scale'] = "-100 -100 1" should set the property value
+Fail	e.style['scale'] = "-100% -100% 1" should set the property value
+Pass	e.style['scale'] = "100 200" should set the property value
+Pass	e.style['scale'] = "100% 200%" should set the property value
+Fail	e.style['scale'] = "100 200 1" should set the property value
+Fail	e.style['scale'] = "100% 200% 1" should set the property value
+Fail	e.style['scale'] = "100 200 300" should set the property value
+Fail	e.style['scale'] = "100 100 2" should set the property value
+Fail	e.style['scale'] = "100% 200% 300%" should set the property value

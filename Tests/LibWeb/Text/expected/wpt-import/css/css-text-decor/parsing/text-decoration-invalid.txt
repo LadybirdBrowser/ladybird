@@ -1,13 +1,8 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 3 tests
 
 3 Pass
-Details
-Result	Test Name	MessagePass	e.style['text-decoration'] = "double overline underline dotted" should not set the property value	
-Pass	e.style['text-decoration'] = "red line-through green" should not set the property value	
-Pass	e.style['text-decoration'] = "overline blue underline" should not set the property value	
+Pass	e.style['text-decoration'] = "double overline underline dotted" should not set the property value
+Pass	e.style['text-decoration'] = "red line-through green" should not set the property value
+Pass	e.style['text-decoration'] = "overline blue underline" should not set the property value

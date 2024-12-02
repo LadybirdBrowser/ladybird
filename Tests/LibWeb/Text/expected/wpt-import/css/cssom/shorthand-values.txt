@@ -1,31 +1,26 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 20 tests
 
 2 Pass
 18 Fail
-Details
-Result	Test Name	MessageFail	The serialization of border: 1px; border-top: 1px; should be canonical.	
-Fail	The serialization of border: 1px solid red; should be canonical.	
-Fail	The serialization of border: 1px red; should be canonical.	
-Fail	The serialization of border: red; should be canonical.	
-Fail	The serialization of border-top: 1px; border-right: 1px; border-bottom: 1px; border-left: 1px; border-image: none; should be canonical.	
-Fail	The serialization of border-top: 1px; border-right: 1px; border-bottom: 1px; border-left: 1px; should be canonical.	
-Fail	The serialization of border-top: 1px; border-right: 2px; border-bottom: 3px; border-left: 4px; should be canonical.	
-Fail	The serialization of border: 1px; border-top: 2px; should be canonical.	
-Fail	The serialization of border: 1px; border-top: 1px !important; should be canonical.	
-Fail	The serialization of border: 1px; border-top-color: red; should be canonical.	
-Fail	The serialization of border: solid; border-style: dotted should be canonical.	
-Fail	The serialization of border-width: 1px; should be canonical.	
-Fail	The serialization of overflow-x: scroll; overflow-y: hidden; should be canonical.	
-Fail	The serialization of overflow-x: scroll; overflow-y: scroll; should be canonical.	
-Fail	The serialization of outline-width: 2px; outline-style: dotted; outline-color: blue; should be canonical.	
-Fail	The serialization of margin-top: 1px; margin-right: 2px; margin-bottom: 3px; margin-left: 4px; should be canonical.	
-Fail	The serialization of list-style-type: circle; list-style-position: inside; list-style-image: none; should be canonical.	
-Pass	The serialization of list-style-type: lower-alpha; should be canonical.	
-Pass	The serialization of font-family: sans-serif; line-height: 2em; font-size: 3em; font-style: italic; font-weight: bold; should be canonical.	
-Fail	The serialization of padding-top: 1px; padding-right: 2px; padding-bottom: 3px; padding-left: 4px; should be canonical.	
+Fail	The serialization of border: 1px; border-top: 1px; should be canonical.
+Fail	The serialization of border: 1px solid red; should be canonical.
+Fail	The serialization of border: 1px red; should be canonical.
+Fail	The serialization of border: red; should be canonical.
+Fail	The serialization of border-top: 1px; border-right: 1px; border-bottom: 1px; border-left: 1px; border-image: none; should be canonical.
+Fail	The serialization of border-top: 1px; border-right: 1px; border-bottom: 1px; border-left: 1px; should be canonical.
+Fail	The serialization of border-top: 1px; border-right: 2px; border-bottom: 3px; border-left: 4px; should be canonical.
+Fail	The serialization of border: 1px; border-top: 2px; should be canonical.
+Fail	The serialization of border: 1px; border-top: 1px !important; should be canonical.
+Fail	The serialization of border: 1px; border-top-color: red; should be canonical.
+Fail	The serialization of border: solid; border-style: dotted should be canonical.
+Fail	The serialization of border-width: 1px; should be canonical.
+Fail	The serialization of overflow-x: scroll; overflow-y: hidden; should be canonical.
+Fail	The serialization of overflow-x: scroll; overflow-y: scroll; should be canonical.
+Fail	The serialization of outline-width: 2px; outline-style: dotted; outline-color: blue; should be canonical.
+Fail	The serialization of margin-top: 1px; margin-right: 2px; margin-bottom: 3px; margin-left: 4px; should be canonical.
+Fail	The serialization of list-style-type: circle; list-style-position: inside; list-style-image: none; should be canonical.
+Pass	The serialization of list-style-type: lower-alpha; should be canonical.
+Pass	The serialization of font-family: sans-serif; line-height: 2em; font-size: 3em; font-style: italic; font-weight: bold; should be canonical.
+Fail	The serialization of padding-top: 1px; padding-right: 2px; padding-bottom: 3px; padding-left: 4px; should be canonical.

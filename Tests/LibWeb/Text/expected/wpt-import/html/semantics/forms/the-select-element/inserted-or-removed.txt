@@ -1,15 +1,10 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 5 tests
 
 5 Pass
-Details
-Result	Test Name	MessagePass	The last selected OPTION should win; Inserted by parser	
-Pass	The last selected OPTION should win; Inserted by DOM API	
-Pass	The last selected OPTION should win; Inserted by jQuery append()	
-Pass	The last selected OPTION should win; Inserted by innerHTML	
-Pass	If an OPTION says it is selected, it should be selected after it is inserted.	
+Pass	The last selected OPTION should win; Inserted by parser
+Pass	The last selected OPTION should win; Inserted by DOM API
+Pass	The last selected OPTION should win; Inserted by jQuery append()
+Pass	The last selected OPTION should win; Inserted by innerHTML
+Pass	If an OPTION says it is selected, it should be selected after it is inserted.

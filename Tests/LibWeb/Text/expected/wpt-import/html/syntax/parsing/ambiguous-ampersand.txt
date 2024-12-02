@@ -1,14 +1,9 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 3 tests
 
 2 Pass
 1 Fail
-Details
-Result	Test Name	MessagePass	Check number of divs	
-Pass	Check div structure: network	
-Fail	Check div structure: document.write	
+Pass	Check number of divs
+Pass	Check div structure: network
+Fail	Check div structure: document.write

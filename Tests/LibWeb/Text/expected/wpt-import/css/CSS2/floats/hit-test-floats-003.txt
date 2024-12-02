@@ -1,11 +1,6 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 1 tests
 
 1 Fail
-Details
-Result	Test Name	MessageFail	Miss float below something else	
+Fail	Miss float below something else

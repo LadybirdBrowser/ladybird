@@ -1,11 +1,6 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 1 tests
 
 1 Pass
-Details
-Result	Test Name	MessagePass	Nested rule responds to parent selector text change	
+Pass	Nested rule responds to parent selector text change

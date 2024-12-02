@@ -1,88 +1,83 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 78 tests
 
 78 Pass
-Details
-Result	Test Name	MessagePass	html: input[type=button]	
-Pass	html: input[type=image]	
-Pass	html: input[type=reset]	
-Pass	html: input[type=submit]	
-Pass	html: label[for] input[type=checkbox]	
-Pass	html: label[for] input[type=checkbox][value='test']	
-Pass	html: label[for] input[type=checkbox][checked]	
-Pass	html: label[for] input[type=checkbox][checked][value='test']	
-Pass	html: label[for] input[type=color]	
-Pass	html: label[for] input[type=color][value='#999999']	
-Pass	html: label[for] input[type=date]	
-Pass	html: label[for] input[type=date][value='2025-01-01']	
-Pass	html: label[for] input[type=datetime-local]	
-Pass	html: label[for] input[type=datetime-local][value='2025-01-01T00:01']	
-Pass	html: label[for] input[type=email]	
-Pass	html: label[for] input[type=email][value='test@test.com']	
-Pass	html: label[for] input[type=month]	
-Pass	html: label[for] input[type=month][value='2025-01']	
-Pass	html: label[for] input[type=number]	
-Pass	html: label[for] input[type=number][value=2025]	
-Pass	html: label[for] input[type=password]	
-Pass	html: label[for] input[type=password][value='test']	
-Pass	html: label[for] input[type=radio]	
-Pass	html: label[for] input[type=radio][value='test']	
-Pass	html: label[for] input[type=range]	
-Pass	html: label[for] input[type=range][min=0][max=10][value=5]	
-Pass	html: label[for] input[type=search]	
-Pass	html: label[for] input[type=search][value='test']	
-Pass	html: label[for] input[type=tel]	
-Pass	html: label[for] input[type=tel][value='123-45-678']	
-Pass	html: label[for] input[type=text]	
-Pass	html: label[for] input[type=text][value='test']	
-Pass	html: label[for] input[type=time]	
-Pass	html: label[for] input[type=time][value='00:01']	
-Pass	html: label[for] input[type=url]	
-Pass	html: label[for] input[type=url][value='https://www.w3.org']	
-Pass	html: label[for] input[type=week]	
-Pass	html: label[for] input[type=week][value='2025-W01']	
-Pass	html: label input[type=checkbox] encapsulation	
-Pass	html: label input[type=checkbox][value='test'] encapsulation	
-Pass	html: label input[type=checkbox][checked] encapsulation	
-Pass	html: label input[type=checkbox][value='test'][checked] encapsulation	
-Pass	html: label input[type=color] encapsulation	
-Pass	html: label input[type=color][value='#999999'] encapsulation	
-Pass	html: label input[type=date] encapsulation	
-Pass	html: label input[type=date][value='2025-01-01'] encapsulation	
-Pass	html: label input[type=datetime-local] encapsulation	
-Pass	html: label input[type=datetime-local][value='2025-01-01T00:01'] encapsulation	
-Pass	html: label input[type=email] encapsulation	
-Pass	html: label input[type=email][value='test@test.com'] encapsulation	
-Pass	html: label input[type=month] encapsulation	
-Pass	html: label input[type=month][value='2025-01'] encapsulation	
-Pass	html: label input[type=number] encapsulation	
-Pass	html: label input[type=number][value=1] encapsulation	
-Pass	html: label input[type=password] encapsulation	
-Pass	html: label input[type=password][value='test'] encapsulation	
-Pass	html: label input[type=radio] encapsulation	
-Pass	html: label input[type=radio][value='test'] encapsulation	
-Pass	html: label input[type=range] encapsulation	
-Pass	html: label input[type=range][value='5'][min='0'][max='10'] encapsulation	
-Pass	html: label input[type=search] encapsulation	
-Pass	html: label input[type=search][value='test'] encapsulation	
-Pass	html: label input[type=tel] encapsulation	
-Pass	html: label input[type=tel][value='123-45-678'] encapsulation	
-Pass	html: label[for] input[type=text] encapsulation	
-Pass	html: label[for] input[type=text][value='test'] encapsulation	
-Pass	html: label input[type=time] encapsulation	
-Pass	html: label input[type=time][value='00:01'] encapsulation	
-Pass	html: label input[type=url] encapsulation	
-Pass	html: label input[type=url][value='https://www.w3.org'] encapsulation	
-Pass	html: label input[type=week] encapsulation	
-Pass	html: label input[type=week][value='2025-W01'] encapsulation	
-Pass	html: select for/id	
-Pass	html: select encapsulation	
-Pass	html: img[alt] (non-empty)	
-Pass	html: picture > img[alt] (non-empty)	
-Pass	html: fieldset > legend	
-Pass	html: table > caption	
+Pass	html: input[type=button]
+Pass	html: input[type=image]
+Pass	html: input[type=reset]
+Pass	html: input[type=submit]
+Pass	html: label[for] input[type=checkbox]
+Pass	html: label[for] input[type=checkbox][value='test']
+Pass	html: label[for] input[type=checkbox][checked]
+Pass	html: label[for] input[type=checkbox][checked][value='test']
+Pass	html: label[for] input[type=color]
+Pass	html: label[for] input[type=color][value='#999999']
+Pass	html: label[for] input[type=date]
+Pass	html: label[for] input[type=date][value='2025-01-01']
+Pass	html: label[for] input[type=datetime-local]
+Pass	html: label[for] input[type=datetime-local][value='2025-01-01T00:01']
+Pass	html: label[for] input[type=email]
+Pass	html: label[for] input[type=email][value='test@test.com']
+Pass	html: label[for] input[type=month]
+Pass	html: label[for] input[type=month][value='2025-01']
+Pass	html: label[for] input[type=number]
+Pass	html: label[for] input[type=number][value=2025]
+Pass	html: label[for] input[type=password]
+Pass	html: label[for] input[type=password][value='test']
+Pass	html: label[for] input[type=radio]
+Pass	html: label[for] input[type=radio][value='test']
+Pass	html: label[for] input[type=range]
+Pass	html: label[for] input[type=range][min=0][max=10][value=5]
+Pass	html: label[for] input[type=search]
+Pass	html: label[for] input[type=search][value='test']
+Pass	html: label[for] input[type=tel]
+Pass	html: label[for] input[type=tel][value='123-45-678']
+Pass	html: label[for] input[type=text]
+Pass	html: label[for] input[type=text][value='test']
+Pass	html: label[for] input[type=time]
+Pass	html: label[for] input[type=time][value='00:01']
+Pass	html: label[for] input[type=url]
+Pass	html: label[for] input[type=url][value='https://www.w3.org']
+Pass	html: label[for] input[type=week]
+Pass	html: label[for] input[type=week][value='2025-W01']
+Pass	html: label input[type=checkbox] encapsulation
+Pass	html: label input[type=checkbox][value='test'] encapsulation
+Pass	html: label input[type=checkbox][checked] encapsulation
+Pass	html: label input[type=checkbox][value='test'][checked] encapsulation
+Pass	html: label input[type=color] encapsulation
+Pass	html: label input[type=color][value='#999999'] encapsulation
+Pass	html: label input[type=date] encapsulation
+Pass	html: label input[type=date][value='2025-01-01'] encapsulation
+Pass	html: label input[type=datetime-local] encapsulation
+Pass	html: label input[type=datetime-local][value='2025-01-01T00:01'] encapsulation
+Pass	html: label input[type=email] encapsulation
+Pass	html: label input[type=email][value='test@test.com'] encapsulation
+Pass	html: label input[type=month] encapsulation
+Pass	html: label input[type=month][value='2025-01'] encapsulation
+Pass	html: label input[type=number] encapsulation
+Pass	html: label input[type=number][value=1] encapsulation
+Pass	html: label input[type=password] encapsulation
+Pass	html: label input[type=password][value='test'] encapsulation
+Pass	html: label input[type=radio] encapsulation
+Pass	html: label input[type=radio][value='test'] encapsulation
+Pass	html: label input[type=range] encapsulation
+Pass	html: label input[type=range][value='5'][min='0'][max='10'] encapsulation
+Pass	html: label input[type=search] encapsulation
+Pass	html: label input[type=search][value='test'] encapsulation
+Pass	html: label input[type=tel] encapsulation
+Pass	html: label input[type=tel][value='123-45-678'] encapsulation
+Pass	html: label[for] input[type=text] encapsulation
+Pass	html: label[for] input[type=text][value='test'] encapsulation
+Pass	html: label input[type=time] encapsulation
+Pass	html: label input[type=time][value='00:01'] encapsulation
+Pass	html: label input[type=url] encapsulation
+Pass	html: label input[type=url][value='https://www.w3.org'] encapsulation
+Pass	html: label input[type=week] encapsulation
+Pass	html: label input[type=week][value='2025-W01'] encapsulation
+Pass	html: select for/id
+Pass	html: select encapsulation
+Pass	html: img[alt] (non-empty)
+Pass	html: picture > img[alt] (non-empty)
+Pass	html: fieldset > legend
+Pass	html: table > caption

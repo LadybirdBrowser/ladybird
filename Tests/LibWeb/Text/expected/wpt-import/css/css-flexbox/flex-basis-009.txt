@@ -1,11 +1,6 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 1 tests
 
 1 Fail
-Details
-Result	Test Name	MessageFail	#flexbox 1	
+Fail	#flexbox 1

@@ -1,12 +1,7 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 2 tests
 
 2 Fail
-Details
-Result	Test Name	MessageFail	#target > * 1	
-Fail	#target > * 2	
+Fail	#target > * 1
+Fail	#target > * 2

@@ -1,13 +1,8 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 3 tests
 
 3 Pass
-Details
-Result	Test Name	MessagePass	not dirty	
-Pass	dirty, selected	
-Pass	dirty, not selected	
+Pass	not dirty
+Pass	dirty, selected
+Pass	dirty, not selected

@@ -1,29 +1,24 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 18 tests
 
 16 Pass
 2 Fail
-Details
-Result	Test Name	MessagePass	Property text-decoration-line value 'none'	
-Pass	Property text-decoration-line value 'underline'	
-Pass	Property text-decoration-line value 'overline'	
-Pass	Property text-decoration-line value 'line-through'	
-Pass	Property text-decoration-line value 'blink'	
-Pass	Property text-decoration-line value 'underline overline'	
-Pass	Property text-decoration-line value 'underline line-through'	
-Pass	Property text-decoration-line value 'underline blink'	
-Pass	Property text-decoration-line value 'overline line-through'	
-Pass	Property text-decoration-line value 'overline blink'	
-Pass	Property text-decoration-line value 'line-through blink'	
-Pass	Property text-decoration-line value 'underline overline line-through'	
-Pass	Property text-decoration-line value 'underline overline blink'	
-Pass	Property text-decoration-line value 'underline line-through blink'	
-Pass	Property text-decoration-line value 'overline line-through blink'	
-Pass	Property text-decoration-line value 'underline overline line-through blink'	
-Fail	Property text-decoration-line value 'spelling-error'	
-Fail	Property text-decoration-line value 'grammar-error'	
+Pass	Property text-decoration-line value 'none'
+Pass	Property text-decoration-line value 'underline'
+Pass	Property text-decoration-line value 'overline'
+Pass	Property text-decoration-line value 'line-through'
+Pass	Property text-decoration-line value 'blink'
+Pass	Property text-decoration-line value 'underline overline'
+Pass	Property text-decoration-line value 'underline line-through'
+Pass	Property text-decoration-line value 'underline blink'
+Pass	Property text-decoration-line value 'overline line-through'
+Pass	Property text-decoration-line value 'overline blink'
+Pass	Property text-decoration-line value 'line-through blink'
+Pass	Property text-decoration-line value 'underline overline line-through'
+Pass	Property text-decoration-line value 'underline overline blink'
+Pass	Property text-decoration-line value 'underline line-through blink'
+Pass	Property text-decoration-line value 'overline line-through blink'
+Pass	Property text-decoration-line value 'underline overline line-through blink'
+Fail	Property text-decoration-line value 'spelling-error'
+Fail	Property text-decoration-line value 'grammar-error'

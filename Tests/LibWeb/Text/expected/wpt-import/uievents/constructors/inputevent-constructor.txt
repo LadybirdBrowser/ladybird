@@ -1,14 +1,9 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 4 tests
 
 4 Pass
-Details
-Result	Test Name	MessagePass	InputEvent constructor without InputEventInit.	
-Pass	InputEvent construtor with InputEventInit where data is null	
-Pass	InputEvent construtor with InputEventInit where data is empty string	
-Pass	InputEvent construtor with InputEventInit where data is non empty string	
+Pass	InputEvent constructor without InputEventInit.
+Pass	InputEvent construtor with InputEventInit where data is null
+Pass	InputEvent construtor with InputEventInit where data is empty string
+Pass	InputEvent construtor with InputEventInit where data is non empty string

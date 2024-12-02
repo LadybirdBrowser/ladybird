@@ -1,25 +1,20 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 15 tests
 
 15 Pass
-Details
-Result	Test Name	MessagePass	Declarations are serialized on one line, rules on two.	
-Pass	Mixed declarations/rules are on two lines.	
-Pass	Implicit rule is serialized	
-Pass	Implicit rule not removed	
-Pass	Implicit + empty hover rule	
-Pass	Implicit like rule not in first position	
-Pass	Two implicit-like rules	
-Pass	Implicit like rule after decls	
-Pass	Implicit like rule after decls, missing closing braces	
-Pass	Implicit like rule with other selectors	
-Pass	Implicit-like rule in style rule	
-Pass	Empty conditional rule	
-Pass	Empty style rule	
-Pass	Empty conditional inside style rule	
-Pass	Empty style inside conditional	
+Pass	Declarations are serialized on one line, rules on two.
+Pass	Mixed declarations/rules are on two lines.
+Pass	Implicit rule is serialized
+Pass	Implicit rule not removed
+Pass	Implicit + empty hover rule
+Pass	Implicit like rule not in first position
+Pass	Two implicit-like rules
+Pass	Implicit like rule after decls
+Pass	Implicit like rule after decls, missing closing braces
+Pass	Implicit like rule with other selectors
+Pass	Implicit-like rule in style rule
+Pass	Empty conditional rule
+Pass	Empty style rule
+Pass	Empty conditional inside style rule
+Pass	Empty style inside conditional

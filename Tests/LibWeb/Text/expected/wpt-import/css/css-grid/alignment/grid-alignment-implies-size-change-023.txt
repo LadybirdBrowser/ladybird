@@ -1,12 +1,7 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 2 tests
 
 2 Pass
-Details
-Result	Test Name	MessagePass	.before 1	
-Pass	.after 2	
+Pass	.before 1
+Pass	.after 2

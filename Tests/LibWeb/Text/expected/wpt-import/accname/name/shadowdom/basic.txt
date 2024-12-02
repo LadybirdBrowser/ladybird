@@ -1,12 +1,7 @@
-Summary
-
 Harness status: OK
-
-Rerun
 
 Found 2 tests
 
 2 Pass
-Details
-Result	Test Name	MessagePass	aria-labelledby reference to element with text content inside shadow DOM	
-Pass	aria-labelledby reference to element with aria-label inside shadow DOM	
+Pass	aria-labelledby reference to element with text content inside shadow DOM
+Pass	aria-labelledby reference to element with aria-label inside shadow DOM
