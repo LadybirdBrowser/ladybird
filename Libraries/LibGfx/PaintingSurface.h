@@ -32,7 +32,7 @@ public:
 #endif
 
     void read_into_bitmap(Bitmap&);
-    void write_from_bitmap(Bitmap&);
+    void write_from_bitmap(Bitmap const&);
 
     void notify_content_will_change();
 
