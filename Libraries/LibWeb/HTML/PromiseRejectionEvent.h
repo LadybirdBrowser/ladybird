@@ -17,7 +17,7 @@ namespace Web::HTML {
 
 struct PromiseRejectionEventInit : public DOM::EventInit {
     GC::Root<JS::Object> promise;
-    JS::Value reason;
+    JS::Value reason { JS::js_undefined() };
 };
 
 class PromiseRejectionEvent final : public DOM::Event {
