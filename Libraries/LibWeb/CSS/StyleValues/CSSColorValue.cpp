@@ -80,6 +80,8 @@ Optional<double> CSSColorValue::resolve_alpha(CSSStyleValue const& style_value)
 {
     // <number> | <percentage> | none
     auto normalized = [](double number) {
+        if (isnan(number))
+            number = 0;
         return clamp(number, 0.0, 1.0);
     };
 
