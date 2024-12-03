@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/GenericShorthands.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/GlobalObject.h>
@@ -119,7 +120,7 @@ ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(Function
     duration_format->set_style(style.as_string().utf8_string_view());
 
     // 24. Let prevStyle be the empty String.
-    String previous_style;
+    Optional<DurationFormat::ValueStyle> previous_style;
 
     // 25. For each row of Table 3, except the header row, in table order, do
     for (auto const& duration_instances_component : duration_instances_components) {
@@ -130,7 +131,7 @@ ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(Function
         auto display_slot = duration_instances_component.set_display_slot;
 
         // c. Let unit be the Unit value of the current row.
-        auto unit = MUST(String::from_utf8(duration_instances_component.unit));
+        auto unit = duration_instances_component.unit;
 
         // d. Let valueList be the Values value of the current row.
         auto value_list = duration_instances_component.values;
@@ -139,7 +140,7 @@ ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(Function
         auto digital_base = duration_instances_component.digital_default;
 
         // f. Let unitOptions be ? GetDurationUnitOptions(unit, options, style, valueList, digitalBase, prevStyle, twoDigitHours).
-        auto unit_options = TRY(get_duration_unit_options(vm, unit, *options, duration_format->style_string(), value_list, digital_base, previous_style, two_digit_hours));
+        auto unit_options = TRY(get_duration_unit_options(vm, unit, *options, duration_format->style(), value_list, digital_base, previous_style, two_digit_hours));
 
         // g. Set the value of the styleSlot slot of durationFormat to unitOptions.[[Style]].
         (duration_format->*style_slot)(unit_options.style);
@@ -148,9 +149,9 @@ ThrowCompletionOr<GC::Ref<Object>> DurationFormatConstructor::construct(Function
         (duration_format->*display_slot)(unit_options.display);
 
         // i. If unit is one of "hours", "minutes", "seconds", "milliseconds", or "microseconds", then
-        if (unit.is_one_of("hours"sv, "minutes"sv, "seconds"sv, "milliseconds"sv, "microseconds"sv)) {
+        if (first_is_one_of(unit, DurationFormat::Unit::Hours, DurationFormat::Unit::Minutes, DurationFormat::Unit::Seconds, DurationFormat::Unit::Milliseconds, DurationFormat::Unit::Microseconds)) {
             // i. Set prevStyle to unitOptions.[[Style]].
-            previous_style = move(unit_options.style);
+            previous_style = unit_options.style;
         }
     }
 

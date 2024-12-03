@@ -586,6 +586,7 @@ namespace JS {
     P(weekday)                               \
     P(weekend)                               \
     P(weekOfYear)                            \
+    P(week)                                  \
     P(weeks)                                 \
     P(weeksDisplay)                          \
     P(with)                                  \
