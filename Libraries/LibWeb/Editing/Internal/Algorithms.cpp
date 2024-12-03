@@ -13,9 +13,11 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/CommandNames.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
+#include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
+#include <LibWeb/HTML/HTMLLIElement.h>
 #include <LibWeb/HTML/HTMLOListElement.h>
 #include <LibWeb/HTML/HTMLUListElement.h>
 #include <LibWeb/Infra/CharacterTypes.h>
@@ -632,7 +634,7 @@ bool is_allowed_child_of_node(Variant<GC::Ref<DOM::Node>, FlyString> child, Vari
         if (child_local_name == HTML::TagNames::a) {
             DOM::Node* ancestor = &parent_html_element;
             while (ancestor) {
-                if (is<DOM::Element>(ancestor) && static_cast<DOM::Element const&>(*ancestor).local_name() == HTML::TagNames::a)
+                if (is<HTML::HTMLAnchorElement>(*ancestor))
                     return false;
                 ancestor = ancestor->parent();
             }
@@ -940,8 +942,8 @@ bool is_extraneous_line_break(GC::Ref<DOM::Node> node)
         return false;
 
     // ...except that a br that is the sole child of an li is not extraneous.
-    auto parent = node->parent();
-    if (parent && static_cast<DOM::Element&>(*parent).local_name() == HTML::TagNames::li && parent->child_count() == 1)
+    GC::Ptr<DOM::Node> parent = node->parent();
+    if (is<HTML::HTMLLIElement>(parent.ptr()) && parent->child_count() == 1)
         return false;
 
     // FIXME: ...that has no visual effect, in that removing it from the DOM

@@ -15,7 +15,9 @@
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
+#include <LibWeb/HTML/HTMLHRElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
+#include <LibWeb/HTML/HTMLLIElement.h>
 #include <LibWeb/HTML/HTMLTableElement.h>
 #include <LibWeb/Namespace.h>
 
@@ -152,9 +154,8 @@ bool command_delete_action(DOM::Document& document, String const&)
         auto items = Vector<GC::Ref<DOM::Element>>();
         GC::Ptr<DOM::Node> ancestor = node->parent();
         while (ancestor) {
-            auto& ancestor_element = static_cast<DOM::Element&>(*ancestor);
-            if (ancestor_element.local_name() == HTML::TagNames::li)
-                items.append(ancestor_element);
+            if (is<HTML::HTMLLIElement>(*ancestor))
+                items.append(static_cast<DOM::Element&>(*ancestor));
             ancestor = ancestor->parent();
         }
 
@@ -264,7 +265,7 @@ bool command_delete_action(DOM::Document& document, String const&)
     if (offset == 0 && is<DOM::Element>(offset_minus_one_child.ptr())) {
         auto& child_element = static_cast<DOM::Element&>(*offset_minus_one_child);
         auto* previous_sibling = child_element.previous_sibling();
-        if (child_element.local_name() == HTML::TagNames::hr
+        if (is<HTML::HTMLHRElement>(child_element)
             || (is<HTML::HTMLBRElement>(child_element) && previous_sibling && (is<HTML::HTMLBRElement>(*previous_sibling) || !is_inline_node(*previous_sibling)))) {
             // 1. Call collapse(start node, start offset − 1) on the context object's selection.
             MUST(selection.collapse(start_node, start_offset - 1));
