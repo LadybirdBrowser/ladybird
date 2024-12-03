@@ -36,6 +36,7 @@ set(SOURCES
     Clipboard/ClipboardItem.cpp
     Compression/CompressionStream.cpp
     Compression/DecompressionStream.cpp
+    ContentSecurityPolicy/Directives/ChildSourceDirective.cpp
     ContentSecurityPolicy/Directives/ConnectSourceDirective.cpp
     ContentSecurityPolicy/Directives/DefaultSourceDirective.cpp
     ContentSecurityPolicy/Directives/Directive.cpp
