@@ -6,7 +6,7 @@
 > Ladybird is in a pre-alpha state, and only suitable for use by developers
 >
 
-## Features
+## Features  ##
 
 We aim to build a complete, usable browser for the modern web.
 
