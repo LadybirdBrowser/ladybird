@@ -18,6 +18,8 @@ Color CSSRGB::to_color(Optional<Layout::NodeWithStyle const&>) const
     auto resolve_rgb_to_u8 = [](CSSStyleValue const& style_value) -> Optional<u8> {
         // <number> | <percentage> | none
         auto normalized = [](double number) {
+            if (isnan(number))
+                number = 0;
             return llround(clamp(number, 0.0, 255.0));
         };
 

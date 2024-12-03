@@ -1,0 +1,44 @@
+Harness status: OK
+
+Found 38 tests
+
+34 Pass
+4 Fail
+Pass	e.style['color'] = "hwb(120 30% 50%)" should set the property value
+Pass	e.style['color'] = "hwb(120 30% 50% / 0.5)" should set the property value
+Pass	e.style['color'] = "hwb(none none none)" should set the property value
+Pass	e.style['color'] = "hwb(0 0% 0%)" should set the property value
+Pass	e.style['color'] = "hwb(none none none / none)" should set the property value
+Pass	e.style['color'] = "hwb(0 0% 0% / 0)" should set the property value
+Pass	e.style['color'] = "hwb(120 none none)" should set the property value
+Pass	e.style['color'] = "hwb(120 0% 0%)" should set the property value
+Pass	e.style['color'] = "hwb(120 80% none)" should set the property value
+Pass	e.style['color'] = "hwb(120 80% 0%)" should set the property value
+Pass	e.style['color'] = "hwb(120 none 50%)" should set the property value
+Pass	e.style['color'] = "hwb(120 0% 50%)" should set the property value
+Pass	e.style['color'] = "hwb(120 30% 50% / none)" should set the property value
+Pass	e.style['color'] = "hwb(120 30% 50% / 0)" should set the property value
+Pass	e.style['color'] = "hwb(none 100% 50% / none)" should set the property value
+Pass	e.style['color'] = "hwb(0 100% 50% / 0)" should set the property value
+Pass	e.style['color'] = "hwb(120 30 50)" should set the property value
+Pass	e.style['color'] = "hwb(120 30 50 / 0.5)" should set the property value
+Pass	e.style['color'] = "hwb(120 30% 50)" should set the property value
+Pass	e.style['color'] = "hwb(120 30% 50 / 0.5)" should set the property value
+Pass	e.style['color'] = "hwb(120 30 50%)" should set the property value
+Pass	e.style['color'] = "hwb(120 30 50% / 0.5)" should set the property value
+Pass	e.style['color'] = "hwb(120 none 50)" should set the property value
+Pass	e.style['color'] = "hwb(120 none 50 / 0.5)" should set the property value
+Pass	e.style['color'] = "hwb(120 30 none)" should set the property value
+Pass	e.style['color'] = "hwb(120 30 none / 0.5)" should set the property value
+Pass	e.style['color'] = "hwb(120 30 50 / none)" should set the property value
+Pass	e.style['color'] = "hwb(320deg 30% 40%)" should set the property value
+Pass	e.style['color'] = "hwb(calc(infinity) 20% 10%)" should set the property value
+Pass	e.style['color'] = "hwb(calc(-infinity) 20% 10%)" should set the property value
+Pass	e.style['color'] = "hwb(calc(0 / 0) 20% 10%)" should set the property value
+Pass	e.style['color'] = "hwb(90 20% 10% / calc(infinity))" should set the property value
+Pass	e.style['color'] = "hwb(90 20% 10% / calc(-infinity))" should set the property value
+Pass	e.style['color'] = "hwb(90 20% 10% / calc(0 / 0))" should set the property value
+Fail	e.style['color'] = "hwb(calc(110deg + (sign(1em - 10px) * 10deg)) 30% 50% / 50%)" should set the property value
+Fail	e.style['color'] = "hwb(calc(110 + (sign(1em - 10px) * 10)) 30 50 / 0.5)" should set the property value
+Fail	e.style['color'] = "hwb(120deg 30% 50% / calc(50% + (sign(1em - 10px) * 10%)))" should set the property value
+Fail	e.style['color'] = "hwb(120 30 50 / calc(0.75 + (sign(1em - 10px) * 0.1)))" should set the property value
