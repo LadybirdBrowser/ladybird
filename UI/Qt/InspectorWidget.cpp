@@ -25,9 +25,17 @@ InspectorWidget::InspectorWidget(QWidget* tab, WebContentView& content_view)
     : QWidget(tab, Qt::Window)
 {
     m_inspector_view = new WebContentView(this);
+    m_inspector_view->on_close = [this] {
+        close();
+    };
 
     if (is_using_dark_system_theme(*this))
         m_inspector_view->update_palette(WebContentView::PaletteMode::Dark);
+
+    auto* inspector_close_action = new QAction("Close Inspector", this);
+    inspector_close_action->setShortcuts({ QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_I), QKeySequence(Qt::CTRL | Qt::Key_W), QKeySequence(Qt::Key_F12) });
+    addAction(inspector_close_action);
+    connect(inspector_close_action, &QAction::triggered, [this]() { close(); });
 
     m_inspector_client = make<WebView::InspectorClient>(content_view, *m_inspector_view);
 
@@ -206,6 +214,7 @@ void InspectorWidget::closeEvent(QCloseEvent* event)
 {
     event->accept();
     m_inspector_client->clear_selection();
+    emit closed();
 }
 
 }
