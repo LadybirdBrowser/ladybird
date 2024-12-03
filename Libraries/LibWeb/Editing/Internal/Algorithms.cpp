@@ -24,6 +24,98 @@
 
 namespace Web::Editing {
 
+// https://w3c.github.io/editing/docs/execCommand/#block-extend
+GC::Ref<DOM::Range> block_extend_a_range(DOM::Range& range)
+{
+    // 1. Let start node, start offset, end node, and end offset be the start and end nodes and offsets of range.
+    GC::Ptr<DOM::Node> start_node = range.start_container();
+    auto start_offset = range.start_offset();
+    GC::Ptr<DOM::Node> end_node = range.end_container();
+    auto end_offset = range.end_offset();
+
+    // 2. If some inclusive ancestor of start node is an li, set start offset to the index of the last such li in tree
+    //    order, and set start node to that li's parent.
+    auto ancestor = start_node;
+    do {
+        if (is<HTML::HTMLLIElement>(*ancestor)) {
+            start_offset = ancestor->index();
+            start_node = ancestor->parent();
+            break;
+        }
+        ancestor = ancestor->parent();
+    } while (ancestor);
+
+    // 3. If (start node, start offset) is not a block start point, repeat the following steps:
+    if (!is_block_start_point(*start_node, start_offset)) {
+        do {
+            // 1. If start offset is zero, set it to start node's index, then set start node to its parent.
+            if (start_offset == 0) {
+                start_offset = start_node->index();
+                start_node = start_node->parent();
+            }
+
+            // 2. Otherwise, subtract one from start offset.
+            else {
+                --start_offset;
+            }
+
+            // 3. If (start node, start offset) is a block boundary point, break from this loop.
+        } while (!is_block_boundary_point(*start_node, start_offset));
+    }
+
+    // 4. While start offset is zero and start node's parent is not null, set start offset to start node's index, then
+    //    set start node to its parent.
+    while (start_offset == 0 && start_node->parent()) {
+        start_offset = start_node->index();
+        start_node = start_node->parent();
+    }
+
+    // 5. If some inclusive ancestor of end node is an li, set end offset to one plus the index of the last such li in
+    //    tree order, and set end node to that li's parent.
+    ancestor = end_node;
+    do {
+        if (is<HTML::HTMLLIElement>(*ancestor)) {
+            end_offset = ancestor->index() + 1;
+            end_node = ancestor->parent();
+            break;
+        }
+        ancestor = ancestor->parent();
+    } while (ancestor);
+
+    // 6. If (end node, end offset) is not a block end point, repeat the following steps:
+    if (!is_block_end_point(*end_node, end_offset)) {
+        do {
+            // 1. If end offset is end node's length, set it to one plus end node's index, then set end node to its
+            //    parent.
+            if (end_offset == end_node->length()) {
+                end_offset = end_node->index() + 1;
+                end_node = end_node->parent();
+            }
+
+            // 2. Otherwise, add one to end offset.
+            else {
+                ++end_offset;
+            }
+
+            // 3. If (end node, end offset) is a block boundary point, break from this loop.
+        } while (!is_block_boundary_point(*end_node, end_offset));
+    }
+
+    // 7. While end offset is end node's length and end node's parent is not null, set end offset to one plus end node's
+    //    index, then set end node to its parent.
+    while (end_offset == end_node->length() && end_node->parent()) {
+        end_offset = end_node->index() + 1;
+        end_node = end_node->parent();
+    }
+
+    // 8. Let new range be a new range whose start and end nodes and offsets are start node, start offset, end node, and
+    //    end offset.
+    auto new_range = DOM::Range::create(*start_node, start_offset, *end_node, end_offset);
+
+    // 9. Return new range.
+    return new_range;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#canonical-space-sequence
 String canonical_space_sequence(u32 length, bool non_breaking_start, bool non_breaking_end)
 {
@@ -521,15 +613,6 @@ bool is_allowed_child_of_node(Variant<GC::Ref<DOM::Node>, FlyString> child, Vari
     auto child_local_name = child.get<FlyString>();
 
     // 6. If parent is an HTML element:
-    auto is_heading = [](FlyString const& local_name) {
-        return local_name.is_one_of(
-            HTML::TagNames::h1,
-            HTML::TagNames::h2,
-            HTML::TagNames::h3,
-            HTML::TagNames::h4,
-            HTML::TagNames::h5,
-            HTML::TagNames::h6);
-    };
     if (is<HTML::HTMLElement>(parent_node.ptr())) {
         auto& parent_html_element = static_cast<HTML::HTMLElement&>(*parent.get<GC::Ref<DOM::Node>>());
 
@@ -932,6 +1015,19 @@ bool is_name_of_an_element_with_inline_contents(FlyString const& local_name)
         HTML::TagNames::tt);
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#non-list-single-line-container
+bool is_non_list_single_line_container(GC::Ref<DOM::Node> node)
+{
+    // A non-list single-line container is an HTML element with local name "address", "divis_", "h1", "h2", "h3", "h4",
+    // "h5", "h6", "listing", "p", "pre", or "xmp".
+    if (!is<HTML::HTMLElement>(*node))
+        return false;
+    auto& local_name = static_cast<HTML::HTMLElement&>(*node).local_name();
+    return is_heading(local_name)
+        || local_name.is_one_of(HTML::TagNames::address, HTML::TagNames::div, HTML::TagNames::listing,
+            HTML::TagNames::p, HTML::TagNames::pre, HTML::TagNames::xmp);
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#prohibited-paragraph-child
 bool is_prohibited_paragraph_child(GC::Ref<DOM::Node> node)
 {
@@ -994,6 +1090,19 @@ bool is_prohibited_paragraph_child_name(FlyString const& local_name)
         HTML::TagNames::tr,
         HTML::TagNames::ul,
         HTML::TagNames::xmp);
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#single-line-container
+bool is_single_line_container(GC::Ref<DOM::Node> node)
+{
+    // A single-line container is either a non-list single-line container, or an HTML element with local name "li",
+    // "dt", or "dd".
+    if (is_non_list_single_line_container(node))
+        return true;
+    if (!is<HTML::HTMLElement>(*node))
+        return false;
+    auto& html_element = static_cast<HTML::HTMLElement&>(*node);
+    return html_element.local_name().is_one_of(HTML::TagNames::li, HTML::TagNames::dt, HTML::TagNames::dd);
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#visible
@@ -1569,6 +1678,198 @@ void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const& nodes)
     //     extraneous line breaks at the end of node list's last member's parent.
     if (!last_node->next_sibling() && last_node->parent())
         remove_extraneous_line_breaks_at_the_end_of_node(*last_node->parent());
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#wrap
+GC::Ptr<DOM::Node> wrap(
+    Vector<GC::Ref<DOM::Node>> node_list,
+    Function<bool(GC::Ref<DOM::Node>)> sibling_criteria,
+    Function<GC::Ptr<DOM::Node>()> new_parent_instructions)
+{
+    VERIFY(!node_list.is_empty());
+
+    // If not provided, sibling criteria returns false and new parent instructions returns null.
+    if (!sibling_criteria)
+        sibling_criteria = [](auto) { return false; };
+    if (!new_parent_instructions)
+        new_parent_instructions = [] { return nullptr; };
+
+    // 1. If every member of node list is invisible, and none is a br, return null and abort these steps.
+    auto any_node_visible_or_br = false;
+    for (auto& node : node_list) {
+        if (is_visible_node(node) || is<HTML::HTMLBRElement>(*node)) {
+            any_node_visible_or_br = true;
+            break;
+        }
+    }
+    if (!any_node_visible_or_br)
+        return {};
+
+    // 2. If node list's first member's parent is null, return null and abort these steps.
+    if (!node_list.first()->parent())
+        return {};
+
+    // 3. If node list's last member is an inline node that's not a br, and node list's last member's nextSibling is a
+    //    br, append that br to node list.
+    auto last_member = node_list.last();
+    if (is_inline_node(last_member) && !is<HTML::HTMLBRElement>(*last_member) && is<HTML::HTMLBRElement>(last_member->next_sibling()))
+        node_list.append(*last_member->next_sibling());
+
+    // 4. While node list's first member's previousSibling is invisible, prepend it to node list.
+    while (node_list.first()->previous_sibling() && is_invisible_node(*node_list.first()->previous_sibling()))
+        node_list.prepend(*node_list.first()->previous_sibling());
+
+    // 5. While node list's last member's nextSibling is invisible, append it to node list.
+    while (node_list.last()->next_sibling() && is_invisible_node(*node_list.last()->next_sibling()))
+        node_list.append(*node_list.last()->next_sibling());
+
+    auto new_parent = [&]() -> GC::Ptr<DOM::Node> {
+        // 6. If the previousSibling of the first member of node list is editable and running sibling criteria on it returns
+        //    true, let new parent be the previousSibling of the first member of node list.
+        GC::Ptr<DOM::Node> previous_sibling = node_list.first()->previous_sibling();
+        if (previous_sibling && previous_sibling->is_editable() && sibling_criteria(*previous_sibling))
+            return previous_sibling;
+
+        // 7. Otherwise, if the nextSibling of the last member of node list is editable and running sibling criteria on it
+        //    returns true, let new parent be the nextSibling of the last member of node list.
+        GC::Ptr<DOM::Node> next_sibling = node_list.last()->next_sibling();
+        if (next_sibling && next_sibling->is_editable() && sibling_criteria(*next_sibling))
+            return next_sibling;
+
+        // 8. Otherwise, run new parent instructions, and let new parent be the result.
+        return new_parent_instructions();
+    }();
+
+    // 9. If new parent is null, abort these steps and return null.
+    if (!new_parent)
+        return {};
+
+    // 10. If new parent's parent is null:
+    if (!new_parent->parent()) {
+        // 1. Insert new parent into the parent of the first member of node list immediately before the first member of
+        //    node list.
+        auto first_member = node_list.first();
+        first_member->parent()->insert_before(*new_parent, first_member);
+
+        // FIXME: 2. If any range has a boundary point with node equal to the parent of new parent and offset equal to the
+        //    index of new parent, add one to that boundary point's offset.
+    }
+
+    // 11. Let original parent be the parent of the first member of node list.
+    auto const original_parent = GC::Ptr { node_list.first()->parent() };
+
+    // 12. If new parent is before the first member of node list in tree order:
+    if (new_parent->is_before(node_list.first())) {
+        // 1. If new parent is not an inline node, but the last visible child of new parent and the first visible member
+        //    of node list are both inline nodes, and the last child of new parent is not a br, call createElement("br")
+        //    on the ownerDocument of new parent and append the result as the last child of new parent.
+        if (!is_inline_node(*new_parent)) {
+            auto last_visible_child = [&] -> GC::Ref<DOM::Node> {
+                GC::Ptr<DOM::Node> child = new_parent->last_child();
+                do {
+                    if (is_visible_node(*child))
+                        return *child;
+                    child = child->previous_sibling();
+                } while (child);
+                VERIFY_NOT_REACHED();
+            }();
+            auto first_visible_member = [&] -> GC::Ref<DOM::Node> {
+                for (auto& member : node_list) {
+                    if (is_visible_node(member))
+                        return member;
+                }
+                VERIFY_NOT_REACHED();
+            }();
+            if (is_inline_node(last_visible_child) && is_inline_node(first_visible_member)
+                && !is<HTML::HTMLBRElement>(new_parent->last_child())) {
+                auto br_element = MUST(DOM::create_element(*new_parent->owner_document(), HTML::TagNames::br, Namespace::HTML));
+                MUST(new_parent->append_child(br_element));
+            }
+        }
+
+        // 2. For each node in node list, append node as the last child of new parent, preserving ranges.
+        auto new_position = new_parent->child_count();
+        for (auto& node : node_list)
+            move_node_preserving_ranges(node, *new_parent, new_position++);
+    }
+
+    // 13. Otherwise:
+    else {
+        // 1. If new parent is not an inline node, but the first visible child of new parent and the last visible member
+        //    of node list are both inline nodes, and the last member of node list is not a br, call createElement("br")
+        //    on the ownerDocument of new parent and insert the result as the first child of new parent.
+        if (!is_inline_node(*new_parent)) {
+            auto first_visible_child = [&] -> GC::Ref<DOM::Node> {
+                GC::Ptr<DOM::Node> child = new_parent->first_child();
+                do {
+                    if (is_visible_node(*child))
+                        return *child;
+                    child = child->next_sibling();
+                } while (child);
+                VERIFY_NOT_REACHED();
+            }();
+            auto last_visible_member = [&] -> GC::Ref<DOM::Node> {
+                for (auto& member : node_list.in_reverse()) {
+                    if (is_visible_node(member))
+                        return member;
+                }
+                VERIFY_NOT_REACHED();
+            }();
+            if (is_inline_node(first_visible_child) && is_inline_node(last_visible_member)
+                && !is<HTML::HTMLBRElement>(*node_list.last())) {
+                auto br_element = MUST(DOM::create_element(*new_parent->owner_document(), HTML::TagNames::br, Namespace::HTML));
+                new_parent->insert_before(br_element, new_parent->first_child());
+            }
+        }
+
+        // 2. For each node in node list, in reverse order, insert node as the first child of new parent, preserving
+        //    ranges.
+        for (auto& node : node_list.in_reverse())
+            move_node_preserving_ranges(node, *new_parent, 0);
+    }
+
+    // 14. If original parent is editable and has no children, remove it from its parent.
+    if (original_parent->is_editable() && !original_parent->has_children())
+        original_parent->remove();
+
+    // 15. If new parent's nextSibling is editable and running sibling criteria on it returns true:
+    GC::Ptr<DOM::Node> next_sibling = new_parent->next_sibling();
+    if (next_sibling && next_sibling->is_editable() && sibling_criteria(*next_sibling)) {
+        // 1. If new parent is not an inline node, but new parent's last child and new parent's nextSibling's first
+        //    child are both inline nodes, and new parent's last child is not a br, call createElement("br") on the
+        //    ownerDocument of new parent and append the result as the last child of new parent.
+        if (!is_inline_node(*new_parent) && is_inline_node(*new_parent->last_child())
+            && is_inline_node(*next_sibling->first_child()) && !is<HTML::HTMLBRElement>(new_parent->last_child())) {
+            auto br_element = MUST(DOM::create_element(*new_parent->owner_document(), HTML::TagNames::br, Namespace::HTML));
+            MUST(new_parent->append_child(br_element));
+        }
+
+        // 2. While new parent's nextSibling has children, append its first child as the last child of new parent,
+        //    preserving ranges.
+        auto new_position = new_parent->child_count();
+        while (next_sibling->has_children())
+            move_node_preserving_ranges(*next_sibling->first_child(), *new_parent, new_position++);
+
+        // 3. Remove new parent's nextSibling from its parent.
+        next_sibling->remove();
+    }
+
+    // 16. Remove extraneous line breaks from new parent.
+    remove_extraneous_line_breaks_from_a_node(*new_parent);
+
+    // 17. Return new parent.
+    return new_parent;
+}
+
+bool is_heading(FlyString const& local_name)
+{
+    return local_name.is_one_of(
+        HTML::TagNames::h1,
+        HTML::TagNames::h2,
+        HTML::TagNames::h3,
+        HTML::TagNames::h4,
+        HTML::TagNames::h5,
+        HTML::TagNames::h6);
 }
 
 }

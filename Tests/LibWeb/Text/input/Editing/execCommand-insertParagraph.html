@@ -1,0 +1,18 @@
+<script src="../include.js"></script>
+<div contenteditable="true"><ul><li>foobar</li></ul></div>
+<script>
+    test(() => {
+        var divElm = document.querySelector('div');
+        println(`Before: ${divElm.innerHTML}`);
+
+        // Put cursor after 'foo'
+        var range = document.createRange();
+        range.setStart(divElm.firstChild.firstChild.firstChild, 3);
+        getSelection().addRange(range);
+
+        // Press return
+        document.execCommand('insertParagraph');
+
+        println(`After: ${divElm.innerHTML}`);
+    });
+</script>
