@@ -39,4 +39,5 @@ interface Internals {
     undefined expireCookiesWithTimeOffset(long long seconds);
 
     DOMString getComputedLabel(Element element);
+    unsigned short getEchoServerPort();
 };

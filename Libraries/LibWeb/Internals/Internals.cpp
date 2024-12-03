@@ -21,6 +21,8 @@
 
 namespace Web::Internals {
 
+static u16 s_echo_server_port { 0 };
+
 GC_DEFINE_ALLOCATOR(Internals);
 
 Internals::Internals(JS::Realm& realm)
@@ -205,6 +207,16 @@ String Internals::get_computed_label(DOM::Element& element)
 {
     auto& active_document = internals_window().associated_document();
     return MUST(element.accessible_name(active_document));
+}
+
+u16 Internals::get_echo_server_port()
+{
+    return s_echo_server_port;
+}
+
+void Internals::set_echo_server_port(u16 const port)
+{
+    s_echo_server_port = port;
 }
 
 }
