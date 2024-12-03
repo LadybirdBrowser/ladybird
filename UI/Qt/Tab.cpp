@@ -899,10 +899,23 @@ void Tab::recreate_toolbar_icons()
     m_hamburger_button->setIcon(create_tvg_icon_with_theme_colors("hamburger", palette()));
 }
 
+void Tab::recreate_inspector()
+{
+    if (m_inspector_widget)
+        m_inspector_widget->deleteLater();
+
+    m_inspector_widget = new InspectorWidget(this, view());
+
+    QObject::connect(m_inspector_widget, &InspectorWidget::closed, [this] {
+        m_inspector_widget->deleteLater();
+        m_inspector_widget = nullptr;
+    });
+}
+
 void Tab::show_inspector_window(InspectorTarget inspector_target)
 {
     if (!m_inspector_widget)
-        m_inspector_widget = new InspectorWidget(this, view());
+        recreate_inspector();
     else
         m_inspector_widget->inspect();
 
