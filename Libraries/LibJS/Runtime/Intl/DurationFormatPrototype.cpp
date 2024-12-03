@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2022, Idan Horowitz <idan.horowitz@serenityos.org>
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -52,7 +52,7 @@ JS_DEFINE_NATIVE_FUNCTION(DurationFormatPrototype::format)
     // 5. Let result be a new empty String.
     StringBuilder result;
 
-    // 6. For each Record { [[Type]], [[Value]] } part in parts, do
+    // 6. For each Record { [[Type]], [[Value]], [[Unit]] } part in parts, do
     for (auto const& part : parts) {
         // a. Set result to the string-concatenation of result and part.[[Value]].
         result.append(part.value);
@@ -81,9 +81,9 @@ JS_DEFINE_NATIVE_FUNCTION(DurationFormatPrototype::format_to_parts)
     auto result = MUST(Array::create(realm, 0));
 
     // 6. Let n be 0.
-    // 7. For each { [[Type]], [[Value]] } part in parts, do
+    // 7. For each Record { [[Type]], [[Value]], [[Unit]] } part in parts, do
     for (auto [n, part] : enumerate(parts)) {
-        // a. Let obj be OrdinaryObjectCreate(%ObjectPrototype%).
+        // a. Let obj be OrdinaryObjectCreate(%Object.prototype%).
         auto object = Object::create(realm, realm.intrinsics().object_prototype());
 
         // b. Perform ! CreateDataPropertyOrThrow(obj, "type", part.[[Type]]).
@@ -99,7 +99,7 @@ JS_DEFINE_NATIVE_FUNCTION(DurationFormatPrototype::format_to_parts)
         // e. Perform ! CreateDataPropertyOrThrow(result, ! ToString(n), obj).
         MUST(result->create_data_property_or_throw(n, object));
 
-        // f. Increment n by 1.
+        // f. Set n to n + 1.
     }
 
     // 8. Return result.
