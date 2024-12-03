@@ -109,6 +109,7 @@ struct SerializedPolicy;
 
 namespace Web::ContentSecurityPolicy::Directives {
 class ConnectSourceDirective;
+class DefaultSourceDirective;
 class Directive;
 class FontSourceDirective;
 class FrameSourceDirective;
