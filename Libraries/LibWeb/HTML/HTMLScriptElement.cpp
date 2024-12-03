@@ -419,7 +419,7 @@ void HTMLScriptElement::prepare_script()
         else if (m_script_type == ScriptType::Module) {
             // If el does not have an integrity attribute, then set options's integrity metadata to the result of resolving a module integrity metadata with url and settings object.
             if (!has_attribute(HTML::AttributeNames::integrity))
-                options.integrity_metadata = MUST(resolve_a_module_integrity_metadata(url, settings_object));
+                options.integrity_metadata = resolve_a_module_integrity_metadata(url, settings_object);
 
             // Fetch an external module script graph given url, settings object, options, and onComplete.
             fetch_external_module_script_graph(realm(), url, settings_object, options, on_complete);
