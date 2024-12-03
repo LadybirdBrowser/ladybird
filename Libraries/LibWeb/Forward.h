@@ -110,6 +110,7 @@ class ManifestSourceDirective;
 class MediaSourceDirective;
 class ObjectSourceDirective;
 class ScriptSourceDirective;
+class ScriptSourceElementDirective;
 struct SerializedDirective;
 }
 
