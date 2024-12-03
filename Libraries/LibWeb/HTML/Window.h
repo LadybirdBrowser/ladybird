@@ -21,7 +21,6 @@
 #include <LibWeb/HTML/MimeType.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Plugin.h>
-#include <LibWeb/HTML/Scripting/ImportMap.h>
 #include <LibWeb/HTML/ScrollOptions.h>
 #include <LibWeb/HTML/StructuredSerializeOptions.h>
 #include <LibWeb/HTML/UniversalGlobalScope.h>
@@ -43,6 +42,25 @@ struct ScrollToOptions : public ScrollOptions {
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#windowpostmessageoptions
 struct WindowPostMessageOptions : public StructuredSerializeOptions {
     String target_origin { "/"_string };
+};
+
+// https://html.spec.whatwg.org/multipage/webappapis.html#specifier-resolution-record
+// A specifier resolution record is a struct. It has the following items:
+struct SpecifierResolution {
+    // A serialized base URL
+    //    A string-or-null that represents the base URL of the specifier, when one exists.
+    Optional<String> serialized_base_url;
+
+    // A specifier
+    //     A string representing the specifier.
+    String specifier;
+
+    // A specifier as a URL
+    //     A URL-or-null that represents the URL in case of a URL-like module specifier.
+    //
+    // Spec-Note: Implementations can replace specifier as a URL with a boolean that indicates
+    //            that the specifier is either bare or URL-like that is special.
+    bool specifier_is_null_or_url_like_that_is_special { false };
 };
 
 class Window final
@@ -96,11 +114,12 @@ public:
 
     GC::Ptr<Navigable> navigable() const;
 
+    ImportMap& import_map() { return m_import_map; }
     ImportMap const& import_map() const { return m_import_map; }
     void set_import_map(ImportMap const& import_map) { m_import_map = import_map; }
 
-    bool import_maps_allowed() const { return m_import_maps_allowed; }
-    void set_import_maps_allowed(bool import_maps_allowed) { m_import_maps_allowed = import_maps_allowed; }
+    void append_resolved_module(SpecifierResolution resolution) { m_resolved_module_set.append(move(resolution)); }
+    Vector<SpecifierResolution> const& resolved_module_set() const { return m_resolved_module_set; }
 
     WebIDL::ExceptionOr<GC::Ptr<WindowProxy>> window_open_steps(StringView url, StringView target, StringView features);
 
@@ -269,11 +288,18 @@ private:
 
     GC::Ptr<DOM::Event> m_current_event;
 
-    // https://html.spec.whatwg.org/multipage/webappapis.html#concept-window-import-map
+    // https://html.spec.whatwg.org/multipage/webappapis.html#concept-global-import-map
+    // A global object has an import map, initially an empty import map.
     ImportMap m_import_map;
 
-    // https://html.spec.whatwg.org/multipage/webappapis.html#import-maps-allowed
-    bool m_import_maps_allowed { true };
+    // https://html.spec.whatwg.org/multipage/webappapis.html#resolved-module-set
+    // A global object has a resolved module set, a set of specifier resolution records, initially empty.
+    //
+    // Spec-Note: The resolved module set ensures that module specifier resolution returns the same result when called
+    //            multiple times with the same (referrer, specifier) pair. It does that by ensuring that import map rules
+    //            that impact the specifier in its referrer's scope cannot be defined after its initial resolution. For
+    //            now, only Window global objects have their module set data structures modified from the initial empty one.
+    Vector<SpecifierResolution> m_resolved_module_set;
 
     GC::Ptr<CSS::Screen> m_screen;
     GC::Ptr<Navigator> m_navigator;
