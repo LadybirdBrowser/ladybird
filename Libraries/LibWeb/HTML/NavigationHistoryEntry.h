@@ -18,7 +18,7 @@ class NavigationHistoryEntry : public DOM::EventTarget {
 public:
     [[nodiscard]] static GC::Ref<NavigationHistoryEntry> create(JS::Realm&, GC::Ref<SessionHistoryEntry>);
 
-    WebIDL::ExceptionOr<Optional<String>> url() const;
+    Optional<String> url() const;
     String key() const;
     String id() const;
     i64 index() const;

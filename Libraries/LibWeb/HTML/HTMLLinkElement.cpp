@@ -433,7 +433,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
                 if (m_loaded_style_sheet) {
                     Optional<String> location;
                     if (!response.url_list().is_empty())
-                        location = MUST(response.url_list().first().to_string());
+                        location = response.url_list().first().to_string();
 
                     document().style_sheets().create_a_css_style_sheet(
                         "text/css"_string,

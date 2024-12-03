@@ -593,7 +593,7 @@ String HTMLFormElement::action() const
         return document().url_string();
     }
 
-    return MUST(document().base_url().complete_url(form_action_attribute.value()).to_string());
+    return document().base_url().complete_url(form_action_attribute.value()).to_string();
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-fs-action

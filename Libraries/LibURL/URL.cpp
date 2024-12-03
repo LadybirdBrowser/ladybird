@@ -245,7 +245,7 @@ String URL::serialize_path() const
 }
 
 // https://url.spec.whatwg.org/#concept-url-serializer
-ByteString URL::serialize(ExcludeFragment exclude_fragment) const
+String URL::serialize(ExcludeFragment exclude_fragment) const
 {
     // 1. Let output be url’s scheme and U+003A (:) concatenated.
     StringBuilder output;
@@ -307,7 +307,7 @@ ByteString URL::serialize(ExcludeFragment exclude_fragment) const
     }
 
     // 7. Return output.
-    return output.to_byte_string();
+    return output.to_string_without_validation();
 }
 
 // https://url.spec.whatwg.org/#url-rendering
@@ -353,19 +353,12 @@ ByteString URL::serialize_for_display() const
     return builder.to_byte_string();
 }
 
-ErrorOr<String> URL::to_string() const
-{
-    return String::from_byte_string(serialize());
-}
-
 // https://url.spec.whatwg.org/#concept-url-origin
 Origin URL::origin() const
 {
     // The origin of a URL url is the origin returned by running these steps, switching on url’s scheme:
     // -> "blob"
     if (scheme() == "blob"sv) {
-        auto url_string = to_string().release_value_but_fixme_should_propagate_errors();
-
         // 1. If url’s blob URL entry is non-null, then return url’s blob URL entry’s environment’s origin.
         if (blob_url_entry().has_value())
             return blob_url_entry()->environment_origin;

@@ -426,7 +426,7 @@ GC::Ptr<CSSNamespaceRule> Parser::convert_to_namespace_rule(AtRule const& rule)
 
     FlyString namespace_uri;
     if (auto url = parse_url_function(tokens); url.has_value()) {
-        namespace_uri = MUST(url.value().to_string());
+        namespace_uri = url.value().to_string();
     } else if (auto& url_token = tokens.consume_a_token(); url_token.is(Token::Type::String)) {
         namespace_uri = url_token.token().string();
     } else {

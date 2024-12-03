@@ -79,17 +79,16 @@ ErrorOr<String> add_entry_to_blob_url_store(GC::Ref<Blob> object)
 }
 
 // https://w3c.github.io/FileAPI/#removeTheEntry
-ErrorOr<void> remove_entry_from_blob_url_store(StringView url)
+void remove_entry_from_blob_url_store(StringView url)
 {
     // 1. Let store be the user agent’s blob URL store;
     auto& store = blob_url_store();
 
     // 2. Let url string be the result of serializing url.
-    auto url_string = TRY(URL::URL { url }.to_string());
+    auto url_string = URL::URL { url }.to_string();
 
     // 3. Remove store[url string].
     store.remove(url_string);
-    return {};
 }
 
 // https://w3c.github.io/FileAPI/#lifeTime
@@ -117,7 +116,7 @@ Optional<BlobURLEntry const&> resolve_a_blob_url(URL::URL const& url)
     auto& store = blob_url_store();
 
     // 3. Let url string be the result of serializing url with the exclude fragment flag set.
-    auto url_string = MUST(String::from_byte_string(url.serialize(URL::ExcludeFragment::Yes)));
+    auto url_string = url.serialize(URL::ExcludeFragment::Yes);
 
     // 4. If store[url string] exists, return store[url string]; otherwise return failure.
     return store.get(url_string);

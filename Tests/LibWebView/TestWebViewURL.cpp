@@ -22,7 +22,7 @@ static bool is_sanitized_url_the_same(StringView url)
     auto sanitized_url = WebView::sanitize_url(url);
     if (!sanitized_url.has_value())
         return false;
-    return sanitized_url->to_string().value() == url;
+    return sanitized_url->to_string() == url;
 }
 
 TEST_CASE(invalid_url)

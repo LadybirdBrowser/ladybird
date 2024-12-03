@@ -247,7 +247,7 @@ void FontLoader::start_loading_next_url()
     //       request until fetch infrastructure is used here.
     auto referrer_url = ReferrerPolicy::strip_url_for_use_as_referrer(m_style_computer.document().url());
     if (referrer_url.has_value() && !request.headers().contains("Referer"))
-        request.set_header("Referer", referrer_url->serialize());
+        request.set_header("Referer", referrer_url->serialize().to_byte_string());
 
     set_resource(ResourceLoader::the().load_resource(Resource::Type::Generic, request));
 }
@@ -2836,7 +2836,7 @@ Optional<FontLoader&> StyleComputer::load_font_face(ParsedFontFace const& font_f
     for (auto const& source : font_face.sources()) {
         // FIXME: These should be loaded relative to the stylesheet URL instead of the document URL.
         if (source.local_or_url.has<URL::URL>())
-            urls.append(m_document->parse_url(MUST(source.local_or_url.get<URL::URL>().to_string())));
+            urls.append(m_document->parse_url(source.local_or_url.get<URL::URL>().to_string()));
         // FIXME: Handle local()
     }
 

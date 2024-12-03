@@ -32,7 +32,7 @@ bool Registration::is_unregistered()
 {
     // A service worker registration is said to be unregistered if registration map[this service worker registration's (storage key, serialized scope url)] is not this service worker registration.
     // FIXME: Suspect that spec should say to serialize without fragment
-    auto const key = RegistrationKey { m_storage_key, m_scope_url.serialize(URL::ExcludeFragment::Yes) };
+    auto const key = RegistrationKey { m_storage_key, m_scope_url.serialize(URL::ExcludeFragment::Yes).to_byte_string() };
     return s_registrations.get(key).map([](auto& registration) { return &registration; }).value_or(nullptr) != this;
 }
 
@@ -60,7 +60,7 @@ Optional<Registration&> Registration::get(StorageAPI::StorageKey const& key, Opt
 
     // 3. If scope is not null, set scopeString to serialized scope with the exclude fragment flag set.
     if (scope.has_value())
-        scope_string = scope.value().serialize(URL::ExcludeFragment::Yes);
+        scope_string = scope.value().serialize(URL::ExcludeFragment::Yes).to_byte_string();
 
     // 4. For each (entry storage key, entry scope) → registration of registration map:
     //   1. If storage key equals entry storage key and scopeString matches entry scope, then return registration.
@@ -79,14 +79,14 @@ Registration& Registration::set(StorageAPI::StorageKey const& storage_key, URL::
     // 5. Return registration.
 
     // FIXME: Is there a way to "ensure but always replace?"
-    auto key = RegistrationKey { storage_key, scope.serialize(URL::ExcludeFragment::Yes) };
+    auto key = RegistrationKey { storage_key, scope.serialize(URL::ExcludeFragment::Yes).to_byte_string() };
     (void)s_registrations.set(key, Registration(storage_key, scope, update_via_cache));
     return s_registrations.get(key).value();
 }
 
 void Registration::remove(StorageAPI::StorageKey const& key, URL::URL const& scope)
 {
-    (void)s_registrations.remove({ key, scope.serialize(URL::ExcludeFragment::Yes) });
+    (void)s_registrations.remove({ key, scope.serialize(URL::ExcludeFragment::Yes).to_byte_string() });
 }
 
 // https://w3c.github.io/ServiceWorker/#get-newest-worker

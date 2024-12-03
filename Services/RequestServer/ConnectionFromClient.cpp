@@ -377,7 +377,7 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString const& metho
             async_request_started(request_id, IPC::File::adopt_fd(reader_fd));
 
             auto request = make<ActiveRequest>(*this, m_curl_multi, easy, request_id, writer_fd);
-            request->url = url.to_string().value();
+            request->url = url.to_string();
 
             auto set_option = [easy](auto option, auto value) {
                 auto result = curl_easy_setopt(easy, option, value);
@@ -394,7 +394,7 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString const& metho
                 set_option(CURLOPT_CAINFO, g_default_certificate_path.characters());
 
             set_option(CURLOPT_ACCEPT_ENCODING, "gzip, deflate, br");
-            set_option(CURLOPT_URL, url.to_string().value().to_byte_string().characters());
+            set_option(CURLOPT_URL, url.to_string().to_byte_string().characters());
             set_option(CURLOPT_PORT, url.port_or_default());
             set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
 
@@ -568,7 +568,7 @@ void ConnectionFromClient::ensure_connection(URL::URL const& url, ::RequestServe
         return;
     }
 
-    auto const url_string_value = url.to_string().value();
+    auto const url_string_value = url.to_string();
 
     if (cache_level == CacheLevel::CreateConnection) {
         auto* easy = curl_easy_init();

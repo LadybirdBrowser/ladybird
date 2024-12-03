@@ -27,12 +27,12 @@ public:
     virtual ~DOMURL() override;
 
     static WebIDL::ExceptionOr<String> create_object_url(JS::VM&, GC::Ref<FileAPI::Blob> object);
-    static WebIDL::ExceptionOr<void> revoke_object_url(JS::VM&, StringView url);
+    static void revoke_object_url(JS::VM&, StringView url);
 
     static GC::Ptr<DOMURL> parse_for_bindings(JS::VM&, String const& url, Optional<String> const& base = {});
     static bool can_parse(JS::VM&, String const& url, Optional<String> const& base = {});
 
-    WebIDL::ExceptionOr<String> href() const;
+    String href() const;
     WebIDL::ExceptionOr<void> set_href(String const&);
 
     String origin() const;
@@ -75,7 +75,7 @@ public:
     WebIDL::ExceptionOr<String> hash() const;
     void set_hash(String const&);
 
-    WebIDL::ExceptionOr<String> to_json() const;
+    String to_json() const;
 
     Optional<String> const& query() const { return m_url.query(); }
     void set_query(Badge<URLSearchParams>, Optional<String> query) { m_url.set_query(move(query)); }

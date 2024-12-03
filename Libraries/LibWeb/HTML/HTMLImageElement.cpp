@@ -306,7 +306,7 @@ String HTMLImageElement::current_src() const
     auto current_url = m_current_request->current_url();
     if (!current_url.is_valid())
         return {};
-    return MUST(current_url.to_string());
+    return current_url.to_string();
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-img-decode

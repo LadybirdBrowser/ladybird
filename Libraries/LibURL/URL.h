@@ -117,10 +117,10 @@ public:
     }
 
     String serialize_path() const;
-    ByteString serialize(ExcludeFragment = ExcludeFragment::No) const;
+    String serialize(ExcludeFragment = ExcludeFragment::No) const;
     ByteString serialize_for_display() const;
-    ByteString to_byte_string() const { return serialize(); }
-    ErrorOr<String> to_string() const;
+    ByteString to_byte_string() const { return serialize().to_byte_string(); }
+    String to_string() const { return serialize(); }
 
     Origin origin() const;
 
@@ -214,5 +214,5 @@ struct AK::Formatter<URL::URL> : AK::Formatter<StringView> {
 
 template<>
 struct AK::Traits<URL::URL> : public AK::DefaultTraits<URL::URL> {
-    static unsigned hash(URL::URL const& url) { return url.to_byte_string().hash(); }
+    static unsigned hash(URL::URL const& url) { return url.to_string().hash(); }
 };

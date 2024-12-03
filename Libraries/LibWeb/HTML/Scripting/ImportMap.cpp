@@ -107,7 +107,7 @@ Optional<DeprecatedFlyString> normalise_specifier_key(JS::Realm& realm, Deprecat
 
     // 3. If url is not null, then return the serialization of url.
     if (url.has_value())
-        return url->serialize();
+        return url->serialize().to_byte_string();
 
     // 4. Return specifierKey.
     return specifier_key;
@@ -160,7 +160,7 @@ WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(
         }
 
         // 6. If specifierKey ends with U+002F (/), and the serialization of addressURL does not end with U+002F (/), then:
-        if (specifier_key.as_string().ends_with("/"sv) && !address_url->serialize().ends_with("/"sv)) {
+        if (specifier_key.as_string().ends_with("/"sv) && !address_url->serialize().ends_with('/')) {
             // 1. The user agent may report a warning to the console indicating that an invalid address was given for the specifier key specifierKey; since specifierKey ends with a slash, the address needs to as well.
             auto& console = realm.intrinsics().console_object()->console();
             console.output_debug_message(JS::Console::LogLevel::Warn,
