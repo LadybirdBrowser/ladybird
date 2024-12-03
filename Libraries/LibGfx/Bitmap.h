@@ -263,40 +263,21 @@ ALWAYS_INLINE Color Bitmap::get_pixel(int x, int y) const
     }
 }
 
-template<>
-ALWAYS_INLINE void Bitmap::set_pixel<StorageFormat::BGRx8888>(int x, int y, Color color)
+template<StorageFormat storage_format>
+ALWAYS_INLINE void Bitmap::set_pixel(int x, int y, Color color)
 {
     VERIFY(x >= 0);
     VERIFY(x < width());
-    scanline(y)[x] = color.value();
-}
 
-template<>
-ALWAYS_INLINE void Bitmap::set_pixel<StorageFormat::BGRA8888>(int x, int y, Color color)
-{
-    VERIFY(x >= 0);
-    VERIFY(x < width());
-    scanline(y)[x] = color.value(); // drop alpha
-}
-
-template<>
-ALWAYS_INLINE void Bitmap::set_pixel<StorageFormat::RGBA8888>(int x, int y, Color color)
-{
-    VERIFY(x >= 0);
-    VERIFY(x < width());
-    // FIXME: There's a lot of inaccurately named functions in the Color class right now (RGBA vs BGRA),
-    //        clear those up and then make this more convenient.
-    auto rgba = (color.alpha() << 24) | (color.blue() << 16) | (color.green() << 8) | color.red();
-    scanline(y)[x] = rgba;
-}
-
-template<>
-ALWAYS_INLINE void Bitmap::set_pixel<StorageFormat::RGBx8888>(int x, int y, Color color)
-{
-    VERIFY(x >= 0);
-    VERIFY(x < width());
-    auto rgb = (color.blue() << 16) | (color.green() << 8) | color.red();
-    scanline(y)[x] = rgb;
+    if constexpr (storage_format == StorageFormat::BGRx8888 || storage_format == StorageFormat::BGRA8888) {
+        scanline(y)[x] = color.value();
+    } else if constexpr (storage_format == StorageFormat::RGBA8888) {
+        scanline(y)[x] = (color.alpha() << 24) | (color.blue() << 16) | (color.green() << 8) | color.red();
+    } else if constexpr (storage_format == StorageFormat::RGBx8888) {
+        scanline(y)[x] = (color.blue() << 16) | (color.green() << 8) | color.red();
+    } else {
+        static_assert(false, "There's a new storage format not in Bitmap::set_pixel");
+    }
 }
 
 ALWAYS_INLINE void Bitmap::set_pixel(int x, int y, Color color)
@@ -304,19 +285,18 @@ ALWAYS_INLINE void Bitmap::set_pixel(int x, int y, Color color)
     switch (determine_storage_format(m_format)) {
     case StorageFormat::BGRx8888:
         set_pixel<StorageFormat::BGRx8888>(x, y, color);
-        break;
+        return;
     case StorageFormat::BGRA8888:
         set_pixel<StorageFormat::BGRA8888>(x, y, color);
-        break;
+        return;
     case StorageFormat::RGBA8888:
         set_pixel<StorageFormat::RGBA8888>(x, y, color);
-        break;
+        return;
     case StorageFormat::RGBx8888:
         set_pixel<StorageFormat::RGBx8888>(x, y, color);
-        break;
-    default:
-        VERIFY_NOT_REACHED();
+        return;
     }
+    VERIFY_NOT_REACHED();
 }
 
 }
