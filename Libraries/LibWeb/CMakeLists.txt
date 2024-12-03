@@ -54,6 +54,7 @@ set(SOURCES
     ContentSecurityPolicy/Directives/SerializedDirective.cpp
     ContentSecurityPolicy/Directives/SourceExpression.cpp
     ContentSecurityPolicy/Directives/StyleSourceDirective.cpp
+    ContentSecurityPolicy/Directives/StyleSourceElementDirective.cpp
     ContentSecurityPolicy/BlockingAlgorithms.cpp
     ContentSecurityPolicy/Policy.cpp
     ContentSecurityPolicy/PolicyList.cpp
