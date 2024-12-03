@@ -460,25 +460,10 @@ void HTMLScriptElement::prepare_script()
         }
         // -> "importmap"
         else if (m_script_type == ScriptType::ImportMap) {
-            // FIXME: need to check if relevant global object is a Window - is this correct?
-            auto& global = relevant_global_object(*this);
-
-            // 1. If el's relevant global object's import maps allowed is false, then queue an element task on the DOM manipulation task source given el to fire an event named error at el, and return.
-            if (is<Window>(global) && !verify_cast<Window>(global).import_maps_allowed()) {
-                queue_an_element_task(HTML::Task::Source::DOMManipulation, [this] {
-                    dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
-                });
-                return;
-            }
-
-            // 2. Set el's relevant global object's import maps allowed to false.
-            if (is<Window>(global))
-                verify_cast<Window>(global).set_import_maps_allowed(false);
-
-            // 3. Let result be the result of creating an import map parse result given source text and base URL.
+            // 1. Let result be the result of creating an import map parse result given source text and base URL.
             auto result = ImportMapParseResult::create(realm(), source_text.to_byte_string(), base_url);
 
-            // 4. Mark as ready el given result.
+            // 2. Mark as ready el given result.
             mark_as_ready(Result(move(result)));
         }
     }

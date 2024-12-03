@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script type="importmap">
+    {
+        "imports": {
+            "application1": "./import-maps-1.js"
+        }
+    }
+</script>
+<script type="importmap">
+    {
+        "imports": {
+            "application2": "./import-maps-2.js"
+        }
+    }
+</script>
+<script type="module">
+    import * as Application1 from 'application1';
+    import * as Application2 from 'application2';
+    test(() => {
+        Application1.main();
+        Application2.main();
+    });
+</script>
