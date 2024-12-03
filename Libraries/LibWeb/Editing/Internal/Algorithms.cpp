@@ -36,14 +36,14 @@ GC::Ref<DOM::Range> block_extend_a_range(DOM::Range& range)
     // 2. If some inclusive ancestor of start node is an li, set start offset to the index of the last such li in tree
     //    order, and set start node to that li's parent.
     auto ancestor = start_node;
-    do {
+    while (ancestor) {
         if (is<HTML::HTMLLIElement>(*ancestor)) {
             start_offset = ancestor->index();
             start_node = ancestor->parent();
             break;
         }
         ancestor = ancestor->parent();
-    } while (ancestor);
+    }
 
     // 3. If (start node, start offset) is not a block start point, repeat the following steps:
     if (!is_block_start_point(*start_node, start_offset)) {
@@ -73,14 +73,14 @@ GC::Ref<DOM::Range> block_extend_a_range(DOM::Range& range)
     // 5. If some inclusive ancestor of end node is an li, set end offset to one plus the index of the last such li in
     //    tree order, and set end node to that li's parent.
     ancestor = end_node;
-    do {
+    while (ancestor) {
         if (is<HTML::HTMLLIElement>(*ancestor)) {
             end_offset = ancestor->index() + 1;
             end_node = ancestor->parent();
             break;
         }
         ancestor = ancestor->parent();
-    } while (ancestor);
+    }
 
     // 6. If (end node, end offset) is not a block end point, repeat the following steps:
     if (!is_block_end_point(*end_node, end_offset)) {
@@ -453,11 +453,11 @@ GC::Ptr<DOM::Node> editing_host_of_node(GC::Ref<DOM::Node> node)
     // or the nearest ancestor of node that is an editing host, if node is editable.
     if (node->is_editable()) {
         auto* ancestor = node->parent();
-        do {
+        while (ancestor) {
             if (is_editing_host(*ancestor))
                 return ancestor;
             ancestor = ancestor->parent();
-        } while (ancestor);
+        }
         VERIFY_NOT_REACHED();
     }
 
@@ -475,13 +475,13 @@ void fix_disallowed_ancestors_of_node(GC::Ref<DOM::Node> node)
     // 2. If node is not an allowed child of any of its ancestors in the same editing host:
     bool allowed_child_of_any_ancestor = false;
     GC::Ptr<DOM::Node> ancestor = node->parent();
-    do {
+    while (ancestor) {
         if (is_in_same_editing_host(*ancestor, *node) && is_allowed_child_of_node(GC::Ref { *node }, GC::Ref { *ancestor })) {
             allowed_child_of_any_ancestor = true;
             break;
         }
         ancestor = ancestor->parent();
-    } while (ancestor);
+    }
     if (!allowed_child_of_any_ancestor) {
         // 1. If node is a dd or dt, wrap the one-node list consisting of node, with sibling criteria returning true for
         //    any dl with no attributes and false otherwise, and new parent instructions returning the result of calling
@@ -631,33 +631,33 @@ bool is_allowed_child_of_node(Variant<GC::Ref<DOM::Node>, FlyString> child, Vari
         // 1. If child is "a", and parent or some ancestor of parent is an a, return false.
         if (child_local_name == HTML::TagNames::a) {
             DOM::Node* ancestor = &parent_html_element;
-            do {
+            while (ancestor) {
                 if (is<DOM::Element>(ancestor) && static_cast<DOM::Element const&>(*ancestor).local_name() == HTML::TagNames::a)
                     return false;
                 ancestor = ancestor->parent();
-            } while (ancestor);
+            }
         }
 
         // 2. If child is a prohibited paragraph child name and parent or some ancestor of parent is an element with
         //    inline contents, return false.
         if (is_prohibited_paragraph_child_name(child_local_name)) {
             DOM::Node* ancestor = &parent_html_element;
-            do {
+            while (ancestor) {
                 if (is_element_with_inline_contents(*ancestor))
                     return false;
                 ancestor = ancestor->parent();
-            } while (ancestor);
+            }
         }
 
         // 3. If child is "h1", "h2", "h3", "h4", "h5", or "h6", and parent or some ancestor of parent is an HTML
         //    element with local name "h1", "h2", "h3", "h4", "h5", or "h6", return false.
         if (is_heading(child_local_name)) {
             DOM::Node* ancestor = &parent_html_element;
-            do {
+            while (ancestor) {
                 if (is<HTML::HTMLElement>(*ancestor) && is_heading(static_cast<DOM::Element&>(*ancestor).local_name()))
                     return false;
                 ancestor = ancestor->parent();
-            } while (ancestor);
+            }
         }
 
         // 4. Let parent be the local name of parent.
@@ -1123,12 +1123,12 @@ bool is_visible_node(GC::Ref<DOM::Node> node)
     // excluding any node with an inclusive ancestor Element whose "display" property has resolved
     // value "none".
     GC::Ptr<DOM::Node> inclusive_ancestor = node;
-    do {
+    while (inclusive_ancestor) {
         auto* layout_node = inclusive_ancestor->layout_node();
         if (layout_node && layout_node->display().is_none())
             return false;
         inclusive_ancestor = inclusive_ancestor->parent();
-    } while (inclusive_ancestor);
+    }
 
     // Something is visible if it is a node that either is a block node,
     if (is_block_node(node))
@@ -1778,11 +1778,11 @@ GC::Ptr<DOM::Node> wrap(
         if (!is_inline_node(*new_parent)) {
             auto last_visible_child = [&] -> GC::Ref<DOM::Node> {
                 GC::Ptr<DOM::Node> child = new_parent->last_child();
-                do {
+                while (child) {
                     if (is_visible_node(*child))
                         return *child;
                     child = child->previous_sibling();
-                } while (child);
+                }
                 VERIFY_NOT_REACHED();
             }();
             auto first_visible_member = [&] -> GC::Ref<DOM::Node> {
@@ -1813,11 +1813,11 @@ GC::Ptr<DOM::Node> wrap(
         if (!is_inline_node(*new_parent)) {
             auto first_visible_child = [&] -> GC::Ref<DOM::Node> {
                 GC::Ptr<DOM::Node> child = new_parent->first_child();
-                do {
+                while (child) {
                     if (is_visible_node(*child))
                         return *child;
                     child = child->next_sibling();
-                } while (child);
+                }
                 VERIFY_NOT_REACHED();
             }();
             auto last_visible_member = [&] -> GC::Ref<DOM::Node> {
