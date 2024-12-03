@@ -20,6 +20,7 @@
 #include <LibRequests/RequestClient.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Internals/Internals.h>
 #include <LibWeb/Loader/ContentFilter.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Loader/ResourceLoader.h>
@@ -106,6 +107,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     bool force_cpu_painting = false;
     bool force_fontconfig = false;
     bool collect_garbage_on_every_allocation = false;
+    StringView echo_server_port_string_view {};
 
     Core::ArgsParser args_parser;
     args_parser.add_option(command_line, "Chrome process command line", "command-line", 0, "command_line");
@@ -124,6 +126,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(force_cpu_painting, "Force CPU painting", "force-cpu-painting");
     args_parser.add_option(force_fontconfig, "Force using fontconfig for font loading", "force-fontconfig");
     args_parser.add_option(collect_garbage_on_every_allocation, "Collect garbage after every JS heap allocation", "collect-garbage-on-every-allocation");
+    args_parser.add_option(echo_server_port_string_view, "Echo server port used in test internals", "echo-server-port", 0, "echo_server_port");
 
     args_parser.parse(arguments);
 
@@ -151,6 +154,13 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     if (enable_http_cache) {
         Web::Fetch::Fetching::g_http_cache_enabled = true;
+    }
+
+    if (!echo_server_port_string_view.is_empty()) {
+        if (auto maybe_echo_server_port = echo_server_port_string_view.to_number<u16>(); maybe_echo_server_port.has_value())
+            Web::Internals::Internals::set_echo_server_port(maybe_echo_server_port.value());
+        else
+            VERIFY_NOT_REACHED();
     }
 
 #if defined(AK_OS_MACOS)

@@ -109,6 +109,11 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
     if (web_content_options.collect_garbage_on_every_allocation == WebView::CollectGarbageOnEveryAllocation::Yes)
         arguments.append("--collect-garbage-on-every-allocation"sv);
 
+    if (auto const maybe_echo_server_port = web_content_options.echo_server_port; maybe_echo_server_port.has_value()) {
+        arguments.append("--echo-server-port"sv);
+        arguments.append(ByteString::number(maybe_echo_server_port.value()));
+    }
+
     if (auto server = mach_server_name(); server.has_value()) {
         arguments.append("--mach-server-name"sv);
         arguments.append(server.value());
