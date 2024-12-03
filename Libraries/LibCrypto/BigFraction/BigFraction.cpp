@@ -185,7 +185,7 @@ void BigFraction::reduce()
     m_denominator = denominator_divide.quotient;
 }
 
-ByteString BigFraction::to_byte_string(unsigned rounding_threshold) const
+String BigFraction::to_string(unsigned rounding_threshold) const
 {
     StringBuilder builder;
     if (m_numerator.is_negative() && m_numerator != "0"_bigint)
@@ -240,7 +240,7 @@ ByteString BigFraction::to_byte_string(unsigned rounding_threshold) const
             builder.append(fractional_value);
     }
 
-    return builder.to_byte_string();
+    return MUST(builder.to_string());
 }
 
 BigFraction BigFraction::sqrt() const
