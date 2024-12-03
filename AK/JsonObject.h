@@ -11,6 +11,7 @@
 #include <AK/ByteString.h>
 #include <AK/Concepts.h>
 #include <AK/Error.h>
+#include <AK/FlyString.h>
 #include <AK/HashMap.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObjectSerializer.h>
@@ -20,7 +21,7 @@ namespace AK {
 
 class JsonObject {
     template<typename Callback>
-    using CallbackErrorType = decltype(declval<Callback>()(declval<ByteString const&>(), declval<JsonValue const&>()).release_error());
+    using CallbackErrorType = decltype(declval<Callback>()(declval<FlyString const&>(), declval<JsonValue const&>()).release_error());
 
 public:
     JsonObject();
@@ -74,7 +75,7 @@ public:
     Optional<FlatPtr> get_addr(StringView key) const;
     Optional<bool> get_bool(StringView key) const;
 
-    Optional<ByteString> get_byte_string(StringView key) const;
+    Optional<String> get_string(StringView key) const;
 
     Optional<JsonObject const&> get_object(StringView key) const;
     Optional<JsonArray const&> get_array(StringView key) const;
@@ -82,7 +83,20 @@ public:
     Optional<double> get_double_with_precision_loss(StringView key) const;
     Optional<float> get_float_with_precision_loss(StringView key) const;
 
-    void set(ByteString const& key, JsonValue value);
+    void set(FlyString const& key, JsonValue value);
+    void set(String const& key, JsonValue value)
+    {
+        set(FlyString(key), move(value));
+    }
+    void set(StringView const& key, JsonValue value)
+    {
+        set(MUST(FlyString::from_utf8(key)), move(value));
+    }
+    template<size_t N>
+    void set(char const (&key)[N], JsonValue value)
+    {
+        set(StringView { key, N - 1 }, move(value));
+    }
 
     template<typename Callback>
     void for_each_member(Callback callback) const
@@ -91,7 +105,7 @@ public:
             callback(member.key, member.value);
     }
 
-    template<FallibleFunction<ByteString const&, JsonValue const&> Callback>
+    template<FallibleFunction<FlyString const&, JsonValue const&> Callback>
     ErrorOr<void, CallbackErrorType<Callback>> try_for_each_member(Callback&& callback) const
     {
         for (auto const& member : m_members)
@@ -110,7 +124,7 @@ public:
     [[nodiscard]] ByteString to_byte_string() const;
 
 private:
-    OrderedHashMap<ByteString, JsonValue> m_members;
+    OrderedHashMap<FlyString, JsonValue> m_members;
 };
 
 template<typename Builder>
@@ -138,7 +152,7 @@ inline void JsonValue::serialize(Builder& builder) const
         [&](Empty const&) { builder.append("null"sv); },
         [&](bool const& value) { builder.append(value ? "true"sv : "false"sv); },
         [&](Arithmetic auto const& value) { builder.appendff("{}", value); },
-        [&](ByteString const& value) {
+        [&](String const& value) {
             builder.append('\"');
             builder.append_escaped_for_json(value.bytes());
             builder.append('\"');

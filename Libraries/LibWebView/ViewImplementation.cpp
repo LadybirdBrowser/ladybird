@@ -309,9 +309,9 @@ void ViewImplementation::add_dom_node_attributes(Web::UniqueNodeID node_id, Vect
     client().async_add_dom_node_attributes(page_id(), node_id, move(attributes));
 }
 
-void ViewImplementation::replace_dom_node_attribute(Web::UniqueNodeID node_id, String name, Vector<Attribute> replacement_attributes)
+void ViewImplementation::replace_dom_node_attribute(Web::UniqueNodeID node_id, FlyString name, Vector<Attribute> replacement_attributes)
 {
-    client().async_replace_dom_node_attribute(page_id(), node_id, move(name), move(replacement_attributes));
+    client().async_replace_dom_node_attribute(page_id(), node_id, name.to_string(), move(replacement_attributes));
 }
 
 void ViewImplementation::create_child_element(Web::UniqueNodeID node_id)

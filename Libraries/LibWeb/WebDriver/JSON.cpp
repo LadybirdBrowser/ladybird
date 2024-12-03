@@ -183,7 +183,7 @@ static Response internal_json_clone(HTML::BrowsingContext const& browsing_contex
     if (value.is_number())
         return JsonValue { value.as_double() };
     if (value.is_string())
-        return JsonValue { value.as_string().byte_string() };
+        return JsonValue { value.as_string().utf8_string() };
 
     // AD-HOC: BigInt and Symbol not mentioned anywhere in the WebDriver spec, as it references ES5.
     //         It assumes that all primitives are handled above, and the value is an object for the remaining steps.
@@ -257,7 +257,7 @@ static Response internal_json_clone(HTML::BrowsingContext const& browsing_contex
         if (!to_json_result.is_string())
             return WebDriver::Error::from_code(ErrorCode::JavascriptError, "toJSON did not return a String"sv);
 
-        return JsonValue { to_json_result.as_string().byte_string() };
+        return JsonValue { to_json_result.as_string().utf8_string() };
     }
 
     // -> Otherwise

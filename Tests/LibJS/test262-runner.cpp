@@ -10,6 +10,7 @@
 #include <AK/JsonObject.h>
 #include <AK/Result.h>
 #include <AK/ScopeGuard.h>
+#include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/File.h>
@@ -46,8 +47,8 @@ enum class NegativePhase {
 
 struct TestError {
     NegativePhase phase { NegativePhase::ParseOrEarly };
-    ByteString type;
-    ByteString details;
+    FlyString type;
+    String details;
     ByteString harness_file;
 };
 
@@ -60,8 +61,8 @@ static Result<ScriptOrModuleProgram, TestError> parse_program(JS::Realm& realm, 
     if (script_or_error.is_error()) {
         return TestError {
             NegativePhase::ParseOrEarly,
-            "SyntaxError",
-            script_or_error.error()[0].to_byte_string(),
+            "SyntaxError"_fly_string,
+            script_or_error.error()[0].to_string(),
             ""
         };
     }
@@ -92,22 +93,22 @@ static Result<void, TestError> run_program(InterpreterT& interpreter, ScriptOrMo
 
             auto name = object.get_without_side_effects("name");
             if (!name.is_empty() && !name.is_accessor()) {
-                error.type = name.to_string_without_side_effects().to_byte_string();
+                error.type = name.to_string_without_side_effects();
             } else {
                 auto constructor = object.get_without_side_effects("constructor");
                 if (constructor.is_object()) {
                     name = constructor.as_object().get_without_side_effects("name");
                     if (!name.is_undefined())
-                        error.type = name.to_string_without_side_effects().to_byte_string();
+                        error.type = name.to_string_without_side_effects();
                 }
             }
 
             auto message = object.get_without_side_effects("message");
             if (!message.is_empty() && !message.is_accessor())
-                error.details = message.to_string_without_side_effects().to_byte_string();
+                error.details = message.to_string_without_side_effects();
         }
         if (error.type.is_empty())
-            error.type = error_value.to_string_without_side_effects().to_byte_string();
+            error.type = error_value.to_string_without_side_effects();
         return error;
     }
     return {};
@@ -123,8 +124,8 @@ static Result<StringView, TestError> read_harness_file(StringView harness_file)
         if (file_or_error.is_error()) {
             return TestError {
                 NegativePhase::Harness,
-                "filesystem",
-                ByteString::formatted("Could not open file: {}", harness_file),
+                "filesystem"_fly_string,
+                MUST(String::formatted("Could not open file: {}", harness_file)),
                 harness_file
             };
         }
@@ -133,14 +134,14 @@ static Result<StringView, TestError> read_harness_file(StringView harness_file)
         if (contents_or_error.is_error()) {
             return TestError {
                 NegativePhase::Harness,
-                "filesystem",
-                ByteString::formatted("Could not read file: {}", harness_file),
+                "filesystem"_fly_string,
+                MUST(String::formatted("Could not read file: {}", harness_file)),
                 harness_file
             };
         }
 
         StringView contents_view = contents_or_error.value();
-        s_cached_harness_files.set(harness_file, contents_view.to_byte_string());
+        s_cached_harness_files.set(harness_file, contents_view);
         cache = s_cached_harness_files.find(harness_file);
         VERIFY(cache != s_cached_harness_files.end());
     }
@@ -205,8 +206,8 @@ static Result<void, TestError> run_test(StringView source, StringView filepath, 
         if (parser.has_errors()) {
             return TestError {
                 NegativePhase::ParseOrEarly,
-                "SyntaxError",
-                parser.errors()[0].to_byte_string(),
+                "SyntaxError"_fly_string,
+                parser.errors()[0].to_string(),
                 ""
             };
         }
@@ -407,8 +408,8 @@ static bool verify_test(Result<void, TestError>& result, TestMetadata const& met
         } else if (result.error().phase == NegativePhase::Runtime) {
             auto& error_type = result.error().type;
             auto& error_details = result.error().details;
-            if ((error_type == "InternalError"sv && error_details.starts_with("TODO("sv))
-                || (error_type == "Test262Error"sv && error_details.ends_with(" but got a InternalError"sv))) {
+            if ((error_type == "InternalError"sv && error_details.starts_with_bytes("TODO("sv))
+                || (error_type == "Test262Error"sv && error_details.ends_with_bytes(" but got a InternalError"sv))) {
                 output.set("todo_error", true);
                 output.set("result", "todo_error");
             }
@@ -416,7 +417,7 @@ static bool verify_test(Result<void, TestError>& result, TestMetadata const& met
     }
 
     if (metadata.is_async && output.has("output"sv)) {
-        auto output_messages = output.get_byte_string("output"sv);
+        auto output_messages = output.get_string("output"sv);
         VERIFY(output_messages.has_value());
         if (output_messages->contains("AsyncTestFailure:InternalError: TODO("sv)) {
             output.set("todo_error", true);

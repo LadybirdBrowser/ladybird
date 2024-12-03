@@ -140,7 +140,7 @@ bool media_feature_type_is_range(MediaFeatureID media_feature_id)
         auto member_generator = generator.fork();
         member_generator.set("name:titlecase", title_casify(name));
         VERIFY(feature.has("type"sv));
-        auto feature_type = feature.get_byte_string("type"sv);
+        auto feature_type = feature.get_string("type"sv);
         VERIFY(feature_type.has_value());
         member_generator.set("is_range", feature_type.value() == "range" ? "true"_string : "false"_string);
         member_generator.append(R"~~~(
@@ -182,7 +182,7 @@ bool media_feature_accepts_type(MediaFeatureID media_feature_id, MediaFeatureVal
                 VERIFY(type.is_string());
                 auto type_name = type.as_string();
                 // Skip keywords.
-                if (type_name[0] != '<')
+                if (!type_name.starts_with_bytes("<"sv))
                     continue;
                 if (type_name == "<mq-boolean>") {
                     append_value_type_switch_if_needed();
@@ -260,7 +260,7 @@ bool media_feature_accepts_keyword(MediaFeatureID media_feature_id, Keyword keyw
                 VERIFY(keyword.is_string());
                 auto keyword_name = keyword.as_string();
                 // Skip types.
-                if (keyword_name[0] == '<')
+                if (keyword_name.starts_with_bytes("<"sv))
                     continue;
                 append_keyword_switch_if_needed();
 
