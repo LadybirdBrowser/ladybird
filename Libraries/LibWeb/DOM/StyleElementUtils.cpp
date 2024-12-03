@@ -6,6 +6,7 @@
 
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/ContentSecurityPolicy/BlockingAlgorithms.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/StyleElementUtils.h>
@@ -50,7 +51,9 @@ void StyleElementUtils::update_a_style_block(DOM::Element& style_element)
     if (type_attribute.has_value() && !type_attribute->is_empty() && !Infra::is_ascii_case_insensitive_match(type_attribute->bytes_as_string_view(), "text/css"sv))
         return;
 
-    // FIXME: 5. If the Should element's inline behavior be blocked by Content Security Policy? algorithm returns "Blocked" when executed upon the style element, "style", and the style element's child text content, then return. [CSP]
+    // 5. If the Should element's inline behavior be blocked by Content Security Policy? algorithm returns "Blocked" when executed upon the style element, "style", and the style element's child text content, then return. [CSP]
+    if (ContentSecurityPolicy::should_elements_inline_type_behavior_be_blocked_by_content_security_policy(style_element.realm(), style_element, ContentSecurityPolicy::Directives::Directive::InlineType::Style, style_element.child_text_content()) == ContentSecurityPolicy::Directives::Directive::Result::Blocked)
+        return;
 
     // FIXME: This is a bit awkward, as the spec doesn't actually tell us when to parse the CSS text,
     //        so we just do it here and pass the parsed sheet to create_a_css_style_sheet().
