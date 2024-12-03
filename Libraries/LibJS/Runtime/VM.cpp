@@ -124,8 +124,20 @@ VM::VM(ErrorMessages error_messages)
         return Vector<String> { "type"_string };
     };
 
-    // 19.2.1.2 HostEnsureCanCompileStrings ( calleeRealm, parameterStrings, bodyString, direct ), https://tc39.es/ecma262/#sec-hostensurecancompilestrings
-    host_ensure_can_compile_strings = [](Realm&, ReadonlySpan<String>, StringView, EvalMode) -> ThrowCompletionOr<void> {
+    // 1 HostGetCodeForEval ( argument ), https://tc39.es/proposal-dynamic-code-brand-checks/#sec-hostgetcodeforeval
+    host_get_code_for_eval = [](Object const&) -> GC::Ptr<PrimitiveString> {
+        // The host-defined abstract operation HostGetCodeForEval takes argument argument (an Object) and returns a
+        // String or NO-CODE. It allows host environments to return a String of code from argument to be used by eval,
+        // rather than eval returning argument.
+        //
+        // argument represents the Object to be checked for code.
+        //
+        // The default implementation of HostGetCodeForEval is to return NO-CODE.
+        return {};
+    };
+
+    // 2 HostEnsureCanCompileStrings ( calleeRealm, parameterStrings, bodyString, codeString, compilationType, parameterArgs, bodyArg ), https://tc39.es/proposal-dynamic-code-brand-checks/#sec-hostensurecancompilestrings
+    host_ensure_can_compile_strings = [](Realm&, ReadonlySpan<String>, StringView, StringView, CompilationType, ReadonlySpan<Value>, Value) -> ThrowCompletionOr<void> {
         // The host-defined abstract operation HostEnsureCanCompileStrings takes arguments calleeRealm (a Realm Record),
         // parameterStrings (a List of Strings), bodyString (a String), and direct (a Boolean) and returns either a normal
         // completion containing unused or a throw completion.
