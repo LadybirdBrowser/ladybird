@@ -1965,6 +1965,12 @@ bool FormattingContext::should_treat_max_height_as_none(Box const& box, Availabl
         if (!m_state.get(*box.non_anonymous_containing_block()).has_definite_height())
             return true;
     }
+    if (max_height.is_fit_content() && available_height.is_intrinsic_sizing_constraint())
+        return true;
+    if (max_height.is_max_content() && available_height.is_max_content())
+        return true;
+    if (max_height.is_min_content() && available_height.is_min_content())
+        return true;
     return false;
 }
 
