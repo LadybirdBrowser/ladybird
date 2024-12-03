@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2022, Idan Horowitz <idan.horowitz@serenityos.org>
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -59,14 +59,11 @@ public:
     void set_numbering_system(String numbering_system) { m_numbering_system = move(numbering_system); }
     String const& numbering_system() const { return m_numbering_system; }
 
-    void set_hours_minutes_separator(String hours_minutes_separator) { m_hours_minutes_separator = move(hours_minutes_separator); }
-    String const& hours_minutes_separator() const { return m_hours_minutes_separator; }
+    void set_hour_minute_separator(String hour_minute_separator) { m_hour_minute_separator = move(hour_minute_separator); }
+    String const& hour_minute_separator() const { return m_hour_minute_separator; }
 
-    void set_minutes_seconds_separator(String minutes_seconds_separator) { m_minutes_seconds_separator = move(minutes_seconds_separator); }
-    String const& minutes_seconds_separator() const { return m_minutes_seconds_separator; }
-
-    void set_two_digit_hours(bool two_digit_hours) { m_two_digit_hours = two_digit_hours; }
-    bool two_digit_hours() const { return m_two_digit_hours; }
+    void set_minute_second_separator(String minute_second_separator) { m_minute_second_separator = move(minute_second_separator); }
+    String const& minute_second_separator() const { return m_minute_second_separator; }
 
     void set_style(StringView style) { m_style = style_from_string(style); }
     Style style() const { return m_style; }
@@ -168,11 +165,10 @@ private:
     static Display display_from_string(StringView display);
     static StringView display_to_string(Display);
 
-    String m_locale;                    // [[Locale]]
-    String m_numbering_system;          // [[NumberingSystem]]
-    String m_hours_minutes_separator;   // [[HourMinutesSeparator]]
-    String m_minutes_seconds_separator; // [[MinutesSecondsSeparator]]
-    bool m_two_digit_hours { false };   // [[TwoDigitHours]]
+    String m_locale;                  // [[Locale]]
+    String m_numbering_system;        // [[NumberingSystem]]
+    String m_hour_minute_separator;   // [[HourMinutesSeparator]]
+    String m_minute_second_separator; // [[MinutesSecondsSeparator]]
 
     Style m_style { Style::Long };                        // [[Style]]
     ValueStyle m_years_style { ValueStyle::Long };        // [[YearsStyle]]
@@ -224,22 +220,23 @@ struct DurationInstanceComponent {
     StringView digital_default;
 };
 
-// Table 1: Components of Duration Instances, https://tc39.es/proposal-intl-duration-format/#table-duration-component
-static constexpr AK::Array<StringView, 3> date_values = { "long"sv, "short"sv, "narrow"sv };
-static constexpr AK::Array<StringView, 5> time_values = { "long"sv, "short"sv, "narrow"sv, "numeric"sv, "2-digit"sv };
-static constexpr AK::Array<StringView, 4> sub_second_values = { "long"sv, "short"sv, "narrow"sv, "numeric"sv };
-static constexpr AK::Array<DurationInstanceComponent, 10> duration_instances_components {
-    DurationInstanceComponent { &DurationRecord::years, &DurationFormat::years_style, &DurationFormat::set_years_style, &DurationFormat::years_display, &DurationFormat::set_years_display, "years"sv, "year"sv, date_values, "short"sv },
-    DurationInstanceComponent { &DurationRecord::months, &DurationFormat::months_style, &DurationFormat::set_months_style, &DurationFormat::months_display, &DurationFormat::set_months_display, "months"sv, "month"sv, date_values, "short"sv },
-    DurationInstanceComponent { &DurationRecord::weeks, &DurationFormat::weeks_style, &DurationFormat::set_weeks_style, &DurationFormat::weeks_display, &DurationFormat::set_weeks_display, "weeks"sv, "week"sv, date_values, "short"sv },
-    DurationInstanceComponent { &DurationRecord::days, &DurationFormat::days_style, &DurationFormat::set_days_style, &DurationFormat::days_display, &DurationFormat::set_days_display, "days"sv, "day"sv, date_values, "short"sv },
-    DurationInstanceComponent { &DurationRecord::hours, &DurationFormat::hours_style, &DurationFormat::set_hours_style, &DurationFormat::hours_display, &DurationFormat::set_hours_display, "hours"sv, "hour"sv, time_values, "numeric"sv },
-    DurationInstanceComponent { &DurationRecord::minutes, &DurationFormat::minutes_style, &DurationFormat::set_minutes_style, &DurationFormat::minutes_display, &DurationFormat::set_minutes_display, "minutes"sv, "minute"sv, time_values, "numeric"sv },
-    DurationInstanceComponent { &DurationRecord::seconds, &DurationFormat::seconds_style, &DurationFormat::set_seconds_style, &DurationFormat::seconds_display, &DurationFormat::set_seconds_display, "seconds"sv, "second"sv, time_values, "numeric"sv },
-    DurationInstanceComponent { &DurationRecord::milliseconds, &DurationFormat::milliseconds_style, &DurationFormat::set_milliseconds_style, &DurationFormat::milliseconds_display, &DurationFormat::set_milliseconds_display, "milliseconds"sv, "millisecond"sv, sub_second_values, "numeric"sv },
-    DurationInstanceComponent { &DurationRecord::microseconds, &DurationFormat::microseconds_style, &DurationFormat::set_microseconds_style, &DurationFormat::microseconds_display, &DurationFormat::set_microseconds_display, "microseconds"sv, "microsecond"sv, sub_second_values, "numeric"sv },
-    DurationInstanceComponent { &DurationRecord::nanoseconds, &DurationFormat::nanoseconds_style, &DurationFormat::set_nanoseconds_style, &DurationFormat::nanoseconds_display, &DurationFormat::set_nanoseconds_display, "nanoseconds"sv, "nanosecond"sv, sub_second_values, "numeric"sv },
-};
+// Table 2: DurationFormat instance internal slots and properties relevant to PartitionDurationFormatPattern, https://tc39.es/proposal-intl-duration-format/#table-partition-duration-format-pattern
+// Table 3: Internal slots and property names of DurationFormat instances relevant to Intl.DurationFormat constructor, https://tc39.es/proposal-intl-duration-format/#table-durationformat
+static constexpr auto date_values = AK::Array { "long"sv, "short"sv, "narrow"sv };
+static constexpr auto time_values = AK::Array { "long"sv, "short"sv, "narrow"sv, "numeric"sv, "2-digit"sv };
+static constexpr auto sub_second_values = AK::Array { "long"sv, "short"sv, "narrow"sv, "numeric"sv };
+static constexpr auto duration_instances_components = to_array<DurationInstanceComponent>({
+    { &DurationRecord::years, &DurationFormat::years_style, &DurationFormat::set_years_style, &DurationFormat::years_display, &DurationFormat::set_years_display, "years"sv, "year"sv, date_values, "short"sv },
+    { &DurationRecord::months, &DurationFormat::months_style, &DurationFormat::set_months_style, &DurationFormat::months_display, &DurationFormat::set_months_display, "months"sv, "month"sv, date_values, "short"sv },
+    { &DurationRecord::weeks, &DurationFormat::weeks_style, &DurationFormat::set_weeks_style, &DurationFormat::weeks_display, &DurationFormat::set_weeks_display, "weeks"sv, "week"sv, date_values, "short"sv },
+    { &DurationRecord::days, &DurationFormat::days_style, &DurationFormat::set_days_style, &DurationFormat::days_display, &DurationFormat::set_days_display, "days"sv, "day"sv, date_values, "short"sv },
+    { &DurationRecord::hours, &DurationFormat::hours_style, &DurationFormat::set_hours_style, &DurationFormat::hours_display, &DurationFormat::set_hours_display, "hours"sv, "hour"sv, time_values, "numeric"sv },
+    { &DurationRecord::minutes, &DurationFormat::minutes_style, &DurationFormat::set_minutes_style, &DurationFormat::minutes_display, &DurationFormat::set_minutes_display, "minutes"sv, "minute"sv, time_values, "numeric"sv },
+    { &DurationRecord::seconds, &DurationFormat::seconds_style, &DurationFormat::set_seconds_style, &DurationFormat::seconds_display, &DurationFormat::set_seconds_display, "seconds"sv, "second"sv, time_values, "numeric"sv },
+    { &DurationRecord::milliseconds, &DurationFormat::milliseconds_style, &DurationFormat::set_milliseconds_style, &DurationFormat::milliseconds_display, &DurationFormat::set_milliseconds_display, "milliseconds"sv, "millisecond"sv, sub_second_values, "numeric"sv },
+    { &DurationRecord::microseconds, &DurationFormat::microseconds_style, &DurationFormat::set_microseconds_style, &DurationFormat::microseconds_display, &DurationFormat::set_microseconds_display, "microseconds"sv, "microsecond"sv, sub_second_values, "numeric"sv },
+    { &DurationRecord::nanoseconds, &DurationFormat::nanoseconds_style, &DurationFormat::set_nanoseconds_style, &DurationFormat::nanoseconds_display, &DurationFormat::set_nanoseconds_display, "nanoseconds"sv, "nanosecond"sv, sub_second_values, "numeric"sv },
+});
 
 struct DurationUnitOptions {
     String style;
@@ -255,7 +252,7 @@ struct DurationFormatPart {
 ThrowCompletionOr<DurationRecord> to_duration_record(VM&, Value input);
 i8 duration_sign(DurationRecord const&);
 ThrowCompletionOr<DurationUnitOptions> get_duration_unit_options(VM&, String const& unit, Object const& options, StringView base_style, ReadonlySpan<StringView> styles_list, StringView digital_base, StringView previous_style, bool two_digit_hours);
-double add_fractional_digits(DurationFormat const&, DurationRecord const&);
+double compute_fractional_digits(DurationFormat const&, DurationRecord const&);
 bool next_unit_fractional(DurationFormat const&, StringView unit);
 Vector<DurationFormatPart> format_numeric_hours(VM&, DurationFormat const&, double hours_value, bool sign_displayed);
 Vector<DurationFormatPart> format_numeric_minutes(VM&, DurationFormat const&, double minutes_value, bool hours_displayed, bool sign_displayed);
