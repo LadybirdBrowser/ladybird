@@ -13,6 +13,17 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 
+struct DontCopyMe {
+    constexpr DontCopyMe() { }
+    ~DontCopyMe() = default;
+    DontCopyMe(DontCopyMe&&) = default;
+    DontCopyMe& operator=(DontCopyMe&&) = default;
+    DontCopyMe(DontCopyMe const&) = delete;
+    DontCopyMe& operator=(DontCopyMe const&) = delete;
+
+    int x { 13 };
+};
+
 TEST_CASE(basic_optional)
 {
     Optional<int> x;
@@ -39,17 +50,6 @@ TEST_CASE(move_optional)
 
 TEST_CASE(optional_rvalue_ref_qualified_getters)
 {
-    struct DontCopyMe {
-        DontCopyMe() { }
-        ~DontCopyMe() = default;
-        DontCopyMe(DontCopyMe&&) = default;
-        DontCopyMe& operator=(DontCopyMe&&) = default;
-        DontCopyMe(DontCopyMe const&) = delete;
-        DontCopyMe& operator=(DontCopyMe const&) = delete;
-
-        int x { 13 };
-    };
-
     auto make_an_optional = []() -> Optional<DontCopyMe> {
         return DontCopyMe {};
     };
@@ -120,6 +120,54 @@ TEST_CASE(comparison_with_numeric_types)
     EXPECT_EQ(opt1, 7.0);
     EXPECT_EQ(opt1, 7u);
     EXPECT_NE(opt1, -2);
+}
+
+TEST_CASE(test_constexpr)
+{
+    int i = 13;
+    DontCopyMe dcm {};
+
+    EXPECT_CONSTEVAL(Optional<int> {});
+    EXPECT_CONSTEVAL(Optional<DontCopyMe> {});
+    EXPECT_CONSTEVAL(Optional<int const> {});
+    EXPECT_CONSTEVAL(Optional<DontCopyMe const> {});
+    EXPECT_CONSTEVAL(Optional<int&> {});
+    EXPECT_CONSTEVAL(Optional<DontCopyMe&> {});
+    EXPECT_CONSTEVAL(Optional<int const&> {});
+    EXPECT_CONSTEVAL(Optional<DontCopyMe const&> {});
+
+    EXPECT_CONSTEVAL(Optional<int> { 13 });
+    EXPECT_CONSTEVAL(Optional<DontCopyMe> { DontCopyMe {} });
+    EXPECT_CONSTEVAL(Optional<int const> { 13 });
+    EXPECT_CONSTEVAL(Optional<DontCopyMe const> { DontCopyMe {} });
+    EXPECT_CONSTEVAL(Optional<int&> { i });
+    EXPECT_CONSTEVAL(Optional<DontCopyMe&> { dcm });
+    EXPECT_CONSTEVAL(Optional<int const&> { 13 });
+    EXPECT_CONSTEVAL(Optional<DontCopyMe const&> { DontCopyMe {} });
+
+    static_assert(!Optional<int> {}.has_value());
+    static_assert(!Optional<DontCopyMe> {}.has_value());
+    static_assert(!Optional<int const> {}.has_value());
+    static_assert(!Optional<DontCopyMe const> {}.has_value());
+    static_assert(!Optional<int&> {}.has_value());
+    static_assert(!Optional<DontCopyMe&> {}.has_value());
+    static_assert(!Optional<int const&> {}.has_value());
+    static_assert(!Optional<DontCopyMe const&> {}.has_value());
+
+    static_assert(Optional<int> { 13 }.has_value());
+    static_assert(Optional<DontCopyMe> { DontCopyMe {} }.has_value());
+    static_assert(Optional<int const> { 13 }.has_value());
+    static_assert(Optional<DontCopyMe const> { DontCopyMe {} }.has_value());
+    static_assert(Optional<int&> { i }.has_value());
+    static_assert(Optional<DontCopyMe&> { dcm }.has_value());
+    static_assert(Optional<int const&> { 13 }.has_value());
+    static_assert(Optional<DontCopyMe const&> { DontCopyMe {} }.has_value());
+
+    static_assert(Optional<int> { 13 }.value() == 13);
+    static_assert(Optional<DontCopyMe> { DontCopyMe {} }.value().x == 13);
+    static_assert(Optional<int const> { 13 }.value() == 13);
+    static_assert(Optional<int const&> { 13 }.value() == 13);
+    static_assert(Optional<DontCopyMe const&> { DontCopyMe {} }.value().x == 13);
 }
 
 TEST_CASE(test_copy_ctor_and_dtor_called)

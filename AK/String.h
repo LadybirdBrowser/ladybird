@@ -236,38 +236,38 @@ class Optional<String> : public OptionalBase<String> {
 public:
     using ValueType = String;
 
-    Optional() = default;
+    constexpr Optional() = default;
 
     template<SameAs<OptionalNone> V>
-    Optional(V) { }
+    constexpr Optional(V) { }
 
-    Optional(Optional<String> const& other)
+    constexpr Optional(Optional<String> const& other)
     {
         if (other.has_value())
             m_value = other.m_value;
     }
 
-    Optional(Optional&& other)
+    constexpr Optional(Optional&& other)
         : m_value(move(other.m_value))
     {
     }
 
     template<typename U = String>
     requires(!IsSame<OptionalNone, RemoveCVReference<U>>)
-    explicit(!IsConvertible<U&&, String>) Optional(U&& value)
+    explicit(!IsConvertible<U&&, String>) constexpr Optional(U&& value)
     requires(!IsSame<RemoveCVReference<U>, Optional<String>> && IsConstructible<String, U &&>)
         : m_value(forward<U>(value))
     {
     }
 
     template<SameAs<OptionalNone> V>
-    Optional& operator=(V)
+    constexpr Optional& operator=(V)
     {
         clear();
         return *this;
     }
 
-    Optional& operator=(Optional const& other)
+    constexpr Optional& operator=(Optional const& other)
     {
         if (this != &other) {
             m_value = other.m_value;
@@ -275,7 +275,7 @@ public:
         return *this;
     }
 
-    Optional& operator=(Optional&& other)
+    constexpr Optional& operator=(Optional&& other)
     {
         if (this != &other) {
             m_value = move(other.m_value);
@@ -284,48 +284,48 @@ public:
     }
 
     template<typename O>
-    ALWAYS_INLINE bool operator==(Optional<O> const& other) const
+    ALWAYS_INLINE constexpr bool operator==(Optional<O> const& other) const
     {
         return has_value() == other.has_value() && (!has_value() || value() == other.value());
     }
 
     template<typename O>
-    ALWAYS_INLINE bool operator==(O const& other) const
+    ALWAYS_INLINE constexpr bool operator==(O const& other) const
     {
         return has_value() && value() == other;
     }
 
-    void clear()
+    constexpr void clear()
     {
         m_value = String(nullptr);
     }
 
-    [[nodiscard]] bool has_value() const
+    [[nodiscard]] constexpr bool has_value() const
     {
         return !m_value.is_invalid();
     }
 
-    [[nodiscard]] String& value() &
+    [[nodiscard]] constexpr String& value() &
     {
         VERIFY(has_value());
         return m_value;
     }
 
-    [[nodiscard]] String const& value() const&
+    [[nodiscard]] constexpr String const& value() const&
     {
         VERIFY(has_value());
         return m_value;
     }
 
-    [[nodiscard]] String value() &&
+    [[nodiscard]] constexpr String value() &&
     {
         return release_value();
     }
 
-    [[nodiscard]] String release_value()
+    [[nodiscard]] constexpr String release_value()
     {
         VERIFY(has_value());
-        String released_value = m_value;
+        String released_value = move(m_value);
         clear();
         return released_value;
     }
