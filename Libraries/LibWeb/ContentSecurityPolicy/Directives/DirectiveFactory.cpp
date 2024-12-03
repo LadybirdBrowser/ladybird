@@ -5,6 +5,7 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/ChildSourceDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/ConnectSourceDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/DefaultSourceDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
@@ -28,6 +29,9 @@ namespace Web::ContentSecurityPolicy::Directives {
 
 GC::Ref<Directive> create_directive(GC::Heap& heap, String name, Vector<String> value)
 {
+    if (name == Names::ChildSrc)
+        return heap.allocate<ChildSourceDirective>(move(name), move(value));
+
     if (name == Names::ConnectSrc)
         return heap.allocate<ConnectSourceDirective>(move(name), move(value));
 
