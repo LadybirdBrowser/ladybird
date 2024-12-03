@@ -12,6 +12,7 @@
 #include <LibJS/Runtime/Intl/DurationFormat.h>
 #include <LibJS/Runtime/Intl/ListFormat.h>
 #include <LibJS/Runtime/Intl/ListFormatConstructor.h>
+#include <LibJS/Runtime/Intl/MathematicalValue.h>
 #include <LibJS/Runtime/Intl/NumberFormatConstructor.h>
 #include <LibJS/Runtime/Intl/PluralRules.h>
 #include <LibJS/Runtime/Intl/PluralRulesConstructor.h>
@@ -398,10 +399,10 @@ ThrowCompletionOr<DurationUnitOptions> get_duration_unit_options(VM& vm, Duratio
 }
 
 // 1.1.7 ComputeFractionalDigits ( durationFormat, duration ), https://tc39.es/proposal-intl-duration-format/#sec-computefractionaldigits
-double compute_fractional_digits(DurationFormat const& duration_format, DurationRecord const& duration)
+Crypto::BigFraction compute_fractional_digits(DurationFormat const& duration_format, DurationRecord const& duration)
 {
     // 1. Let result be 0.
-    double result = 0;
+    Crypto::BigFraction result;
 
     // 2. Let exponent be 3.
     double exponent = 3;
@@ -417,13 +418,14 @@ double compute_fractional_digits(DurationFormat const& duration_format, Duration
             VERIFY(first_is_one_of(duration_instances_component.unit, DurationFormat::Unit::Milliseconds, DurationFormat::Unit::Microseconds, DurationFormat::Unit::Nanoseconds));
 
             // ii. Let value be the value of duration's field whose name is the Value Field value of the current row.
-            auto value = duration.*duration_instances_component.value_slot;
-
             // iii. Set value to value / 10**exponent.
-            value = value / pow(10, exponent);
+            Crypto::BigFraction value {
+                Crypto::SignedBigInteger { duration.*duration_instances_component.value_slot },
+                Crypto::UnsignedBigInteger { pow(10, exponent) }
+            };
 
             // iv. Set result to result + value.
-            result += value;
+            result = result + value;
 
             // v. Set exponent to exponent + 3.
             exponent += 3;
@@ -457,7 +459,7 @@ bool next_unit_fractional(DurationFormat const& duration_format, DurationFormat:
 }
 
 // 1.1.9 FormatNumericHours ( durationFormat, hoursValue, signDisplayed ), https://tc39.es/proposal-intl-duration-format/#sec-formatnumerichours
-Vector<DurationFormatPart> format_numeric_hours(VM& vm, DurationFormat const& duration_format, double hours_value, bool sign_displayed)
+Vector<DurationFormatPart> format_numeric_hours(VM& vm, DurationFormat const& duration_format, MathematicalValue const& hours_value, bool sign_displayed)
 {
     auto& realm = *vm.current_realm();
 
@@ -498,7 +500,7 @@ Vector<DurationFormatPart> format_numeric_hours(VM& vm, DurationFormat const& du
     auto number_format = construct_number_format(vm, duration_format, number_format_options);
 
     // 11. Let hoursParts be PartitionNumberPattern(nf, hoursValue).
-    auto hours_parts = partition_number_pattern(number_format, MathematicalValue { hours_value });
+    auto hours_parts = partition_number_pattern(number_format, hours_value);
 
     // 12. For each Record { [[Type]], [[Value]] } part of hoursParts, do
     result.ensure_capacity(hours_parts.size());
@@ -513,7 +515,7 @@ Vector<DurationFormatPart> format_numeric_hours(VM& vm, DurationFormat const& du
 }
 
 // 1.1.10 FormatNumericMinutes ( durationFormat, minutesValue, hoursDisplayed, signDisplayed ), https://tc39.es/proposal-intl-duration-format/#sec-formatnumericminutes
-Vector<DurationFormatPart> format_numeric_minutes(VM& vm, DurationFormat const& duration_format, double minutes_value, bool hours_displayed, bool sign_displayed)
+Vector<DurationFormatPart> format_numeric_minutes(VM& vm, DurationFormat const& duration_format, MathematicalValue const& minutes_value, bool hours_displayed, bool sign_displayed)
 {
     auto& realm = *vm.current_realm();
 
@@ -563,7 +565,7 @@ Vector<DurationFormatPart> format_numeric_minutes(VM& vm, DurationFormat const& 
     auto number_format = construct_number_format(vm, duration_format, number_format_options);
 
     // 12. Let minutesParts be PartitionNumberPattern(nf, minutesValue).
-    auto minutes_parts = partition_number_pattern(number_format, MathematicalValue { minutes_value });
+    auto minutes_parts = partition_number_pattern(number_format, minutes_value);
 
     // 13. For each Record { [[Type]], [[Value]] } part of minutesParts, do
     result.ensure_capacity(result.size() + minutes_parts.size());
@@ -578,7 +580,7 @@ Vector<DurationFormatPart> format_numeric_minutes(VM& vm, DurationFormat const& 
 }
 
 // 1.1.11 FormatNumericSeconds ( durationFormat, secondsValue, minutesDisplayed, signDisplayed ), https://tc39.es/proposal-intl-duration-format/#sec-formatnumericseconds
-Vector<DurationFormatPart> format_numeric_seconds(VM& vm, DurationFormat const& duration_format, double seconds_value, bool minutes_displayed, bool sign_displayed)
+Vector<DurationFormatPart> format_numeric_seconds(VM& vm, DurationFormat const& duration_format, MathematicalValue const& seconds_value, bool minutes_displayed, bool sign_displayed)
 {
     auto& realm = *vm.current_realm();
 
@@ -657,7 +659,7 @@ Vector<DurationFormatPart> format_numeric_seconds(VM& vm, DurationFormat const& 
     auto number_format = construct_number_format(vm, duration_format, number_format_options);
 
     // 17. Let secondsParts be PartitionNumberPattern(nf, secondsValue).
-    auto seconds_parts = partition_number_pattern(number_format, MathematicalValue { seconds_value });
+    auto seconds_parts = partition_number_pattern(number_format, seconds_value);
 
     // 18. For each Record { [[Type]], [[Value]] } part of secondsParts, do
     result.ensure_capacity(result.size() + seconds_parts.size());
@@ -693,12 +695,12 @@ Vector<DurationFormatPart> format_numeric_units(VM& vm, DurationFormat const& du
     auto minutes_display = duration_format.minutes_display();
 
     // 7. Let secondsValue be duration.[[Seconds]].
-    auto seconds_value = duration.seconds;
+    Crypto::BigFraction seconds_value { duration.seconds };
 
     // 8. If duration.[[Milliseconds]] is not 0 or duration.[[Microseconds]] is not 0 or duration.[[Nanoseconds]] is not 0, then
     if (duration.milliseconds != 0 || duration.microseconds != 0 || duration.nanoseconds != 0) {
         // a. Set secondsValue to secondsValue + ComputeFractionalDigits(durationFormat, duration).
-        seconds_value += compute_fractional_digits(duration_format, duration);
+        seconds_value = seconds_value + compute_fractional_digits(duration_format, duration);
     }
 
     // 9. Let secondsDisplay be durationFormat.[[SecondsDisplay]].
@@ -720,7 +722,7 @@ Vector<DurationFormatPart> format_numeric_units(VM& vm, DurationFormat const& du
     //     a. Let secondsFormatted be true.
     // 13. Else,
     //     a. Let secondsFormatted be false.
-    auto seconds_formatted = seconds_value != 0 || seconds_display == DurationFormat::Display::Always;
+    auto seconds_formatted = !seconds_value.is_zero() || seconds_display == DurationFormat::Display::Always;
 
     // 14. Let minutesFormatted be false.
     auto minutes_formatted = false;
@@ -741,17 +743,19 @@ Vector<DurationFormatPart> format_numeric_units(VM& vm, DurationFormat const& du
 
     // 16. If hoursFormatted is true, then
     if (hours_formatted) {
+        MathematicalValue hours_mv { hours_value };
+
         // a. If signDisplayed is true, then
         if (sign_displayed) {
             // i. If hoursValue is 0 and DurationSign(duration) is -1, then
             if (hours_value == 0 && duration_sign(duration) == -1) {
                 // 1. Set hoursValue to NEGATIVE-ZERO.
-                hours_value = -0.0;
+                hours_mv = MathematicalValue { MathematicalValue::Symbol::NegativeZero };
             }
         }
 
         // b. Let hoursParts be FormatNumericHours(durationFormat, hoursValue, signDisplayed).
-        auto hours_parts = format_numeric_hours(vm, duration_format, hours_value, sign_displayed);
+        auto hours_parts = format_numeric_hours(vm, duration_format, hours_mv, sign_displayed);
 
         // b. Set numericPartsList to the list-concatenation of numericPartsList and hoursParts.
         numeric_parts_list.extend(move(hours_parts));
@@ -762,17 +766,19 @@ Vector<DurationFormatPart> format_numeric_units(VM& vm, DurationFormat const& du
 
     // 17. If minutesFormatted is true, then
     if (minutes_formatted) {
+        MathematicalValue minutes_mv { minutes_value };
+
         // a. If signDisplayed is true, then
         if (sign_displayed) {
             // i. If minutesValue is 0 and DurationSign(duration) is -1, then
             if (minutes_value == 0 && duration_sign(duration) == -1) {
                 // 1. Set minutesValue to NEGATIVE-ZERO.
-                minutes_value = -0.0;
+                minutes_mv = MathematicalValue { MathematicalValue::Symbol::NegativeZero };
             }
         }
 
         // b. Let minutesParts be FormatNumericMinutes(durationFormat, minutesValue, hoursFormatted, signDisplayed).
-        auto minutes_parts = format_numeric_minutes(vm, duration_format, minutes_value, hours_formatted, sign_displayed);
+        auto minutes_parts = format_numeric_minutes(vm, duration_format, minutes_mv, hours_formatted, sign_displayed);
 
         // c. Set numericPartsList to the list-concatenation of numericPartsList and minutesParts.
         numeric_parts_list.extend(move(minutes_parts));
@@ -784,7 +790,7 @@ Vector<DurationFormatPart> format_numeric_units(VM& vm, DurationFormat const& du
     // 18. If secondsFormatted is true, then
     if (seconds_formatted) {
         // a. Let secondsParts be FormatNumericSeconds(durationFormat, secondsValue, minutesFormatted, signDisplayed).
-        auto seconds_parts = format_numeric_seconds(vm, duration_format, seconds_value, minutes_formatted, sign_displayed);
+        auto seconds_parts = format_numeric_seconds(vm, duration_format, MathematicalValue { seconds_value.to_string(9) }, minutes_formatted, sign_displayed);
 
         // b. Set numericPartsList to the list-concatenation of numericPartsList and secondsParts.
         numeric_parts_list.extend(move(seconds_parts));
@@ -904,7 +910,7 @@ Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFor
         auto const& duration_instances_component = duration_instances_components[i];
 
         // a. Let value be the value of duration's field whose name is the Value Field value of the current row.
-        auto value = duration.*duration_instances_component.value_slot;
+        Crypto::BigFraction value { duration.*duration_instances_component.value_slot };
 
         // b. Let style be the value of durationFormat's internal slot whose name is the Style Slot value of the current row.
         auto style = (duration_format.*duration_instances_component.get_style_slot)();
@@ -941,7 +947,7 @@ Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFor
                 // 1. If NextUnitFractional(durationFormat, unit) is true, then
                 if (next_unit_fractional(duration_format, unit)) {
                     // a. Set value to value + ComputeFractionalDigits(durationFormat, duration).
-                    value += compute_fractional_digits(duration_format, duration);
+                    value = value + compute_fractional_digits(duration_format, duration);
 
                     u8 maximum_fraction_digits = 0;
                     u8 minimum_fraction_digits = 0;
@@ -978,7 +984,9 @@ Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFor
             }
 
             // iii. If value is not 0 or display is "always", then
-            if (value != 0 || display == DurationFormat::Display::Always) {
+            if (!value.is_zero() || display == DurationFormat::Display::Always) {
+                MathematicalValue value_mv { value.to_string(9) };
+
                 // 1. Let numberingSystem be durationFormat.[[NumberingSystem]].
                 auto const& numbering_system = duration_format.numbering_system();
 
@@ -991,9 +999,9 @@ Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFor
                     sign_displayed = false;
 
                     // b. If value is 0 and DurationSign(duration) is -1, then
-                    if (value == 0 && duration_sign(duration) == -1) {
+                    if (value.is_zero() && duration_sign(duration) == -1) {
                         // i. Set value to NEGATIVE-ZERO.
-                        value = -0.0;
+                        value_mv = MathematicalValue { MathematicalValue::Symbol::NegativeZero };
                     }
                 }
                 // 4. Else,
@@ -1019,7 +1027,7 @@ Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFor
                 auto number_format = construct_number_format(vm, duration_format, number_format_options);
 
                 // 10. Let parts be PartitionNumberPattern(nf, value).
-                auto parts = partition_number_pattern(number_format, MathematicalValue { value });
+                auto parts = partition_number_pattern(number_format, value_mv);
 
                 // 11. Let list be a new empty List.
                 Vector<DurationFormatPart> list;
