@@ -6,6 +6,7 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/ConnectSourceDirective.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/DefaultSourceDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/DirectiveFactory.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/FontSourceDirective.h>
@@ -29,6 +30,9 @@ GC::Ref<Directive> create_directive(JS::Realm& realm, String name, Vector<String
 {
     if (name == Names::ConnectSrc)
         return realm.create<ConnectSourceDirective>(move(name), move(value));
+
+    if (name == Names::DefaultSrc)
+        return realm.create<DefaultSourceDirective>(move(name), move(value));
 
     if (name == Names::FontSrc)
         return realm.create<FontSourceDirective>(move(name), move(value));
