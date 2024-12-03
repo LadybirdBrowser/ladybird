@@ -34,16 +34,14 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     struct IndirectBinding {
-        DeprecatedFlyString name;
         GC::Ptr<Module> module;
         DeprecatedFlyString binding_name;
     };
-    IndirectBinding const* get_indirect_binding(DeprecatedFlyString const& name) const;
+    Optional<IndirectBinding const&> get_indirect_binding(DeprecatedFlyString const& name) const;
 
     virtual Optional<BindingAndIndex> find_binding_and_index(DeprecatedFlyString const& name) const override;
 
-    // FIXME: Since we always access this via the name this could be a map.
-    Vector<IndirectBinding> m_indirect_bindings;
+    HashMap<DeprecatedFlyString, IndirectBinding> m_indirect_bindings;
 };
 
 }
