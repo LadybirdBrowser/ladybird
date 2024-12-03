@@ -121,8 +121,7 @@ class HTTPTestServer {
     }
 }
 
-// FIXME: Get the port from internals
-const __httpTestServer = new HTTPTestServer("http://localhost:8123");
+const __httpTestServer = new HTTPTestServer(`http://localhost:${internals.getEchoServerPort()}`);
 function httpTestServer() {
     return __httpTestServer;
 }
