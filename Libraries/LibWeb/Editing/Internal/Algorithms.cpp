@@ -374,7 +374,7 @@ GC::Ptr<DOM::Node> editing_host_of_node(GC::Ref<DOM::Node> node)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#fix-disallowed-ancestors
-void fix_disallowed_ancestors_of_node(GC::Ptr<DOM::Node> node)
+void fix_disallowed_ancestors_of_node(GC::Ref<DOM::Node> node)
 {
     // 1. If node is not editable, abort these steps.
     if (!node->is_editable())
