@@ -105,6 +105,8 @@ public:
     virtual void set_shadow_offset_x(float) override;
     virtual float shadow_offset_y() const override;
     virtual void set_shadow_offset_y(float) override;
+    virtual float shadow_blur() const override;
+    virtual void set_shadow_blur(float) override;
     virtual String shadow_color() const override;
     virtual void set_shadow_color(String) override;
 

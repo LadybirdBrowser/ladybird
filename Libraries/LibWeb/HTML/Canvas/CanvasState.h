@@ -82,6 +82,7 @@ public:
         FillOrStrokeStyle stroke_style { Gfx::Color::Black };
         float shadow_offset_x { 0.0f };
         float shadow_offset_y { 0.0f };
+        float shadow_blur { 0.0f };
         Gfx::Color shadow_color { Gfx::Color::Transparent };
         float line_width { 1 };
         Bindings::CanvasLineCap line_cap { Bindings::CanvasLineCap::Butt };
