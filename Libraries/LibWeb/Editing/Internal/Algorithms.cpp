@@ -481,27 +481,34 @@ bool is_allowed_child_of_node(Variant<GC::Ref<DOM::Node>, FlyString> child, Vari
     if (child.has<GC::Ref<DOM::Node>>())
         child_node = child.get<GC::Ref<DOM::Node>>();
 
-    // 1. If parent is "colgroup", "table", "tbody", "tfoot", "thead", "tr", or an HTML element with local name equal to
-    //    one of those, and child is a Text node whose data does not consist solely of space characters, return false.
-    auto parent_local_name = parent.visit(
-        [](FlyString local_name) { return local_name; },
-        [](DOM::Node const* node) { return static_cast<DOM::Element const*>(node)->local_name(); });
-    auto parent_is_table_like = parent_local_name.is_one_of(HTML::TagNames::colgroup, HTML::TagNames::table,
-        HTML::TagNames::tbody, HTML::TagNames::tfoot, HTML::TagNames::thead, HTML::TagNames::tr);
-    if (parent_is_table_like && is<DOM::Text>(child_node.ptr())) {
-        auto child_text_content = child_node->text_content().release_value();
-        if (!all_of(child_text_content.bytes_as_string_view(), Infra::is_ascii_whitespace))
+    GC::Ptr<DOM::Node> parent_node;
+    if (parent.has<GC::Ref<DOM::Node>>())
+        parent_node = parent.get<GC::Ref<DOM::Node>>();
+
+    if (parent.has<FlyString>() || is<DOM::Element>(parent_node.ptr())) {
+        auto parent_local_name = parent.visit(
+            [](FlyString local_name) { return local_name; },
+            [](GC::Ref<DOM::Node> node) { return static_cast<DOM::Element&>(*node).local_name(); });
+
+        // 1. If parent is "colgroup", "table", "tbody", "tfoot", "thead", "tr", or an HTML element with local name equal to
+        //    one of those, and child is a Text node whose data does not consist solely of space characters, return false.
+        auto parent_is_table_like = parent_local_name.is_one_of(HTML::TagNames::colgroup, HTML::TagNames::table,
+            HTML::TagNames::tbody, HTML::TagNames::tfoot, HTML::TagNames::thead, HTML::TagNames::tr);
+        if (parent_is_table_like && is<DOM::Text>(child_node.ptr())) {
+            auto child_text_content = child_node->text_content().release_value();
+            if (!all_of(child_text_content.bytes_as_string_view(), Infra::is_ascii_whitespace))
+                return false;
+        }
+
+        // 2. If parent is "script", "style", "plaintext", or "xmp", or an HTML element with local name equal to one of
+        //    those, and child is not a Text node, return false.
+        if ((child.has<FlyString>() || !is<DOM::Text>(child_node.ptr()))
+            && parent_local_name.is_one_of(HTML::TagNames::script, HTML::TagNames::style, HTML::TagNames::plaintext, HTML::TagNames::xmp))
             return false;
     }
 
-    // 2. If parent is "script", "style", "plaintext", or "xmp", or an HTML element with local name equal to one of
-    //    those, and child is not a Text node, return false.
-    if ((child.has<FlyString>() || !is<DOM::Text>(*child_node))
-        && parent_local_name.is_one_of(HTML::TagNames::script, HTML::TagNames::style, HTML::TagNames::plaintext, HTML::TagNames::xmp))
-        return false;
-
     // 3. If child is a document, DocumentFragment, or DocumentType, return false.
-    if (child_node && (is<DOM::Document>(*child_node) || is<DOM::DocumentFragment>(*child_node) || is<DOM::DocumentType>(*child_node)))
+    if (is<DOM::Document>(child_node.ptr()) || is<DOM::DocumentFragment>(child_node.ptr()) || is<DOM::DocumentType>(child_node.ptr()))
         return false;
 
     // 4. If child is an HTML element, set child to the local name of child.
@@ -523,7 +530,7 @@ bool is_allowed_child_of_node(Variant<GC::Ref<DOM::Node>, FlyString> child, Vari
             HTML::TagNames::h5,
             HTML::TagNames::h6);
     };
-    if (parent.has<GC::Ref<DOM::Node>>() && is<HTML::HTMLElement>(*parent.get<GC::Ref<DOM::Node>>())) {
+    if (is<HTML::HTMLElement>(parent_node.ptr())) {
         auto& parent_html_element = static_cast<HTML::HTMLElement&>(*parent.get<GC::Ref<DOM::Node>>());
 
         // 1. If child is "a", and parent or some ancestor of parent is an a, return false.
@@ -560,19 +567,17 @@ bool is_allowed_child_of_node(Variant<GC::Ref<DOM::Node>, FlyString> child, Vari
 
         // 4. Let parent be the local name of parent.
         parent = parent_html_element.local_name();
+        parent_node = {};
     }
 
     // 7. If parent is an Element or DocumentFragment, return true.
-    if (parent.has<GC::Ref<DOM::Node>>()) {
-        auto parent_element = parent.get<GC::Ref<DOM::Node>>();
-        if (is<DOM::Element>(*parent_element) || is<DOM::DocumentFragment>(*parent_element))
-            return true;
-    }
+    if (is<DOM::Element>(parent_node.ptr()) || is<DOM::DocumentFragment>(parent_node.ptr()))
+        return true;
 
     // 8. If parent is not a string, return false.
     if (!parent.has<FlyString>())
         return false;
-    parent_local_name = parent.get<FlyString>();
+    auto parent_local_name = parent.get<FlyString>();
 
     // 9. If parent is on the left-hand side of an entry on the following list, then return true if child is listed on
     //    the right-hand side of that entry, and false otherwise.
