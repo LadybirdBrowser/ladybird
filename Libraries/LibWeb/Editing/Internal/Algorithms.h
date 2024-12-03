@@ -21,6 +21,7 @@ struct RecordedNodeValue {
 // Below algorithms are specified here:
 // https://w3c.github.io/editing/docs/execCommand/#assorted-common-algorithms
 
+GC::Ref<DOM::Range> block_extend_a_range(DOM::Range&);
 String canonical_space_sequence(u32 length, bool non_breaking_start, bool non_breaking_end);
 void canonicalize_whitespace(GC::Ref<DOM::Node>, u32 offset, bool fix_collapsed_space = true);
 void delete_the_selection(Selection::Selection const&);
@@ -40,8 +41,10 @@ bool is_in_same_editing_host(GC::Ref<DOM::Node>, GC::Ref<DOM::Node>);
 bool is_inline_node(GC::Ref<DOM::Node>);
 bool is_invisible_node(GC::Ref<DOM::Node>);
 bool is_name_of_an_element_with_inline_contents(FlyString const&);
+bool is_non_list_single_line_container(GC::Ref<DOM::Node>);
 bool is_prohibited_paragraph_child(GC::Ref<DOM::Node>);
 bool is_prohibited_paragraph_child_name(FlyString const&);
+bool is_single_line_container(GC::Ref<DOM::Node>);
 bool is_visible_node(GC::Ref<DOM::Node>);
 bool is_whitespace_node(GC::Ref<DOM::Node>);
 void move_node_preserving_ranges(GC::Ref<DOM::Node>, GC::Ref<DOM::Node> new_parent, u32 new_index);
@@ -56,5 +59,10 @@ void restore_the_values_of_nodes(Vector<RecordedNodeValue> const&);
 GC::Ref<DOM::Element> set_the_tag_name(GC::Ref<DOM::Element>, FlyString const&);
 Optional<String> specified_command_value(GC::Ref<DOM::Element>, FlyString const& command);
 void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const&);
+GC::Ptr<DOM::Node> wrap(Vector<GC::Ref<DOM::Node>>, Function<bool(GC::Ref<DOM::Node>)> sibling_criteria, Function<GC::Ptr<DOM::Node>()> new_parent_instructions);
+
+// Utility methods:
+
+bool is_heading(FlyString const&);
 
 }

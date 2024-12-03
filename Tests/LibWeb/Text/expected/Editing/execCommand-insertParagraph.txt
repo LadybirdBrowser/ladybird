@@ -1,0 +1,2 @@
+Before: <ul><li>foobar</li></ul>
+After: <ul><li>foo</li><li>bar</li></ul>
