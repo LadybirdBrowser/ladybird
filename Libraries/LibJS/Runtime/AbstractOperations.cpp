@@ -526,36 +526,61 @@ Object* get_super_constructor(VM& vm)
 }
 
 // 19.2.1.1 PerformEval ( x, strictCaller, direct ), https://tc39.es/ecma262/#sec-performeval
+// 3 PerformEval ( x, strictCaller, direct ), https://tc39.es/proposal-dynamic-code-brand-checks/#sec-performeval
 ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller, EvalMode direct)
 {
     // 1. Assert: If direct is false, then strictCaller is also false.
     VERIFY(direct == EvalMode::Direct || strict_caller == CallerMode::NonStrict);
 
-    // 2. If Type(x) is not String, return x.
-    if (!x.is_string())
-        return x;
-    auto& code_string = x.as_string();
+    GC::Ptr<PrimitiveString> code_string;
 
-    // 3. Let evalRealm be the current Realm Record.
+    // 2. If x is a String, then
+    if (x.is_string()) {
+        // a. Let xStr be x.
+        code_string = x.as_string();
+    }
+    // 3. Else if x is an Object, then
+    else if (x.is_object()) {
+        // a. Let code be HostGetCodeForEval(x).
+        auto code = vm.host_get_code_for_eval(x.as_object());
+
+        // b. If code is a String, let xStr be code.
+        if (code) {
+            code_string = code;
+        }
+        // c. Else, return x.
+        else {
+            return x;
+        }
+    }
+    // 4. Else,
+    else {
+        // a. Return x.
+        return x;
+    }
+
+    VERIFY(code_string);
+
+    // 5. Let evalRealm be the current Realm Record.
     auto& eval_realm = *vm.running_execution_context().realm;
 
-    // 4. NOTE: In the case of a direct eval, evalRealm is the realm of both the caller of eval and of the eval function itself.
-    // 5. Perform ? HostEnsureCanCompileStrings(evalRealm, « », x, direct).
-    TRY(vm.host_ensure_can_compile_strings(eval_realm, {}, code_string.utf8_string_view(), direct));
+    // 6. NOTE: In the case of a direct eval, evalRealm is the realm of both the caller of eval and of the eval function itself.
+    // 7. Perform ? HostEnsureCanCompileStrings(evalRealm, « », xStr, xStr, direct, « », x).
+    TRY(vm.host_ensure_can_compile_strings(eval_realm, {}, code_string->utf8_string_view(), code_string->utf8_string_view(), direct == EvalMode::Direct ? CompilationType::DirectEval : CompilationType::IndirectEval, {}, x));
 
-    // 6. Let inFunction be false.
+    // 8. Let inFunction be false.
     bool in_function = false;
 
-    // 7. Let inMethod be false.
+    // 9. Let inMethod be false.
     bool in_method = false;
 
-    // 8. Let inDerivedConstructor be false.
+    // 10. Let inDerivedConstructor be false.
     bool in_derived_constructor = false;
 
-    // 9. Let inClassFieldInitializer be false.
+    // 11. Let inClassFieldInitializer be false.
     bool in_class_field_initializer = false;
 
-    // 10. If direct is true, then
+    // 12. If direct is true, then
     if (direct == EvalMode::Direct) {
         // a. Let thisEnvRec be GetThisEnvironment().
         auto this_environment_record = get_this_environment(vm);
@@ -586,7 +611,7 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
         }
     }
 
-    // 11. Perform the following substeps in an implementation-defined order, possibly interleaving parsing and error detection:
+    // 13. Perform the following substeps in an implementation-defined order, possibly interleaving parsing and error detection:
     //     a. Let script be ParseText(StringToCodePoints(x), Script).
     //     c. If script Contains ScriptBody is false, return undefined.
     //     d. Let body be the ScriptBody of script.
@@ -602,7 +627,7 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
         .in_class_field_initializer = in_class_field_initializer,
     };
 
-    Parser parser { Lexer { code_string.utf8_string_view() }, Program::Type::Script, move(initial_state) };
+    Parser parser { Lexer { code_string->utf8_string_view() }, Program::Type::Script, move(initial_state) };
     auto program = parser.parse_program(strict_caller == CallerMode::Strict);
 
     //     b. If script is a List of errors, throw a SyntaxError exception.
@@ -613,22 +638,22 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
 
     bool strict_eval = false;
 
-    // 12. If strictCaller is true, let strictEval be true.
+    // 14. If strictCaller is true, let strictEval be true.
     if (strict_caller == CallerMode::Strict)
         strict_eval = true;
-    // 13. Else, let strictEval be IsStrict of script.
+    // 15. Else, let strictEval be IsStrict of script.
     else
         strict_eval = program->is_strict_mode();
 
-    // 14. Let runningContext be the running execution context.
-    // 15. NOTE: If direct is true, runningContext will be the execution context that performed the direct eval. If direct is false, runningContext will be the execution context for the invocation of the eval function.
+    // 16. Let runningContext be the running execution context.
+    // 17. NOTE: If direct is true, runningContext will be the execution context that performed the direct eval. If direct is false, runningContext will be the execution context for the invocation of the eval function.
     auto& running_context = vm.running_execution_context();
 
     Environment* lexical_environment;
     Environment* variable_environment;
     PrivateEnvironment* private_environment;
 
-    // 16. If direct is true, then
+    // 18. If direct is true, then
     if (direct == EvalMode::Direct) {
         // a. Let lexEnv be NewDeclarativeEnvironment(runningContext's LexicalEnvironment).
         lexical_environment = new_declarative_environment(*running_context.lexical_environment);
@@ -639,7 +664,7 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
         // c. Let privateEnv be runningContext's PrivateEnvironment.
         private_environment = running_context.private_environment;
     }
-    // 17. Else,
+    // 19. Else,
     else {
         // a. Let lexEnv be NewDeclarativeEnvironment(evalRealm.[[GlobalEnv]]).
         lexical_environment = new_declarative_environment(eval_realm.global_environment());
@@ -651,7 +676,7 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
         private_environment = nullptr;
     }
 
-    // 18. If strictEval is true, set varEnv to lexEnv.
+    // 20. If strictEval is true, set varEnv to lexEnv.
     if (strict_eval)
         variable_environment = lexical_environment;
 
@@ -662,15 +687,15 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
         variable_environment->set_permanently_screwed_by_eval();
     }
 
-    // 19. If runningContext is not already suspended, suspend runningContext.
-    // NOTE: Done by the push on step 27.
+    // 21. If runningContext is not already suspended, suspend runningContext.
+    // NOTE: Done by the push on step 29.
 
     // NOTE: Spec steps are rearranged in order to compute number of registers+constants+locals before construction of the execution context.
 
-    // 28. Let result be Completion(EvalDeclarationInstantiation(body, varEnv, lexEnv, privateEnv, strictEval)).
+    // 30. Let result be Completion(EvalDeclarationInstantiation(body, varEnv, lexEnv, privateEnv, strictEval)).
     TRY(eval_declaration_instantiation(vm, program, variable_environment, lexical_environment, private_environment, strict_eval));
 
-    // 29. If result.[[Type]] is normal, then
+    // 31. If result.[[Type]] is normal, then
     //     a. Set result to the result of evaluating body.
     auto executable_result = Bytecode::Generator::generate_from_ast_node(vm, program, {});
     if (executable_result.is_error())
@@ -680,38 +705,38 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
     if (Bytecode::g_dump_bytecode)
         executable->dump();
 
-    // 20. Let evalContext be a new ECMAScript code execution context.
+    // 22. Let evalContext be a new ECMAScript code execution context.
     ExecutionContext* eval_context = nullptr;
     ALLOCATE_EXECUTION_CONTEXT_ON_NATIVE_STACK(eval_context, executable->number_of_registers + executable->constants.size() + executable->local_variable_names.size(), 0);
 
-    // 21. Set evalContext's Function to null.
+    // 23. Set evalContext's Function to null.
     // NOTE: This was done in the construction of eval_context.
 
-    // 22. Set evalContext's Realm to evalRealm.
+    // 24. Set evalContext's Realm to evalRealm.
     eval_context->realm = &eval_realm;
 
-    // 23. Set evalContext's ScriptOrModule to runningContext's ScriptOrModule.
+    // 25. Set evalContext's ScriptOrModule to runningContext's ScriptOrModule.
     eval_context->script_or_module = running_context.script_or_module;
 
-    // 24. Set evalContext's VariableEnvironment to varEnv.
+    // 26. Set evalContext's VariableEnvironment to varEnv.
     eval_context->variable_environment = variable_environment;
 
-    // 25. Set evalContext's LexicalEnvironment to lexEnv.
+    // 27. Set evalContext's LexicalEnvironment to lexEnv.
     eval_context->lexical_environment = lexical_environment;
 
-    // 26. Set evalContext's PrivateEnvironment to privateEnv.
+    // 28. Set evalContext's PrivateEnvironment to privateEnv.
     eval_context->private_environment = private_environment;
 
     // NOTE: This isn't in the spec, but we require it.
     eval_context->is_strict_mode = strict_eval;
 
-    // 27. Push evalContext onto the execution context stack; evalContext is now the running execution context.
+    // 29. Push evalContext onto the execution context stack; evalContext is now the running execution context.
     TRY(vm.push_execution_context(*eval_context, {}));
 
     // NOTE: We use a ScopeGuard to automatically pop the execution context when any of the `TRY`s below return a throw completion.
     ScopeGuard pop_guard = [&] {
-        // 31. Suspend evalContext and remove it from the execution context stack.
-        // 32. Resume the context that is now on the top of the execution context stack as the running execution context.
+        // 33. Suspend evalContext and remove it from the execution context stack.
+        // 34. Resume the context that is now on the top of the execution context stack as the running execution context.
         vm.pop_execution_context();
     };
 
@@ -723,11 +748,11 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
 
     eval_result = result_or_error.return_register_value;
 
-    // 30. If result.[[Type]] is normal and result.[[Value]] is empty, then
+    // 32. If result.[[Type]] is normal and result.[[Value]] is empty, then
     //     a. Set result to NormalCompletion(undefined).
-    // NOTE: Step 31 and 32 is handled by `pop_guard` above.
-    // 33. Return ? result.
-    // NOTE: Step 33 is also performed with each use of `TRY` above.
+    // NOTE: Step 33 and 34 is handled by `pop_guard` above.
+    // 35. Return ? result.
+    // NOTE: Step 35 is also performed with each use of `TRY` above.
     return eval_result.value_or(js_undefined());
 }
 
