@@ -214,6 +214,7 @@ WebIDL::ExceptionOr<bool> DOMTokenList::supports(StringView token)
     static HashMap<FlyString, Vector<StringView>> supported_tokens_map = {
         // NOTE: The supported values for rel were taken from HTMLLinkElement::Relationship
         { HTML::AttributeNames::rel, { "alternate"sv, "stylesheet"sv, "preload"sv, "dns-prefetch"sv, "preconnect"sv, "icon"sv } },
+        { HTML::AttributeNames::sandbox, { "allow-downloads"sv, "allow-forms"sv, "allow-modals"sv, "allow-orientation-lock"sv, "allow-pointer-lock"sv, "allow-popups"sv, "allow-popups-to-escape-sandbox"sv, "allow-presentation"sv, "allow-same-origin"sv, "allow-scripts"sv, "allow-top-navigation"sv, "allow-top-navigation-by-user-activation"sv, "allow-top-navigation-to-custom-protocols"sv } },
     };
 
     // 1. If the associated attribute’s local name does not define supported tokens, throw a TypeError.
