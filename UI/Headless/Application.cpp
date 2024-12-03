@@ -93,10 +93,11 @@ ErrorOr<void> Application::launch_test_fixtures()
 
     // FIXME: Add option to only run specific fixtures from command line by name
     //        And an option to not run any fixtures at all
-    for (auto& fixture : Fixture::all()) {
-        if (auto result = fixture->setup(); result.is_error())
+    for (auto const& fixture : Fixture::all()) {
+        if (auto result = fixture->setup(web_content_options()); result.is_error())
             return result;
     }
+
     return {};
 }
 

@@ -18,7 +18,7 @@ class Fixture {
 public:
     virtual ~Fixture();
 
-    virtual ErrorOr<void> setup() = 0;
+    virtual ErrorOr<void> setup(WebView::WebContentOptions&) = 0;
 
     void teardown()
     {
