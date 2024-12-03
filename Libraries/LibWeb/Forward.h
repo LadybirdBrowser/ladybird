@@ -112,6 +112,7 @@ class ObjectSourceDirective;
 class ScriptSourceAttributeDirective;
 class ScriptSourceDirective;
 class ScriptSourceElementDirective;
+class StyleSourceDirective;
 struct SerializedDirective;
 }
 
