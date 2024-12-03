@@ -23,6 +23,6 @@ TEST_CASE(roundtrip_from_string)
     for (auto valid_number_string : valid_number_strings) {
         auto result = TRY_OR_FAIL(Crypto::BigFraction::from_string(valid_number_string));
         auto precision = valid_number_string.length() - valid_number_string.find('.').value();
-        EXPECT_EQ(result.to_byte_string(precision), valid_number_string);
+        EXPECT_EQ(result.to_string(precision), valid_number_string);
     }
 }
