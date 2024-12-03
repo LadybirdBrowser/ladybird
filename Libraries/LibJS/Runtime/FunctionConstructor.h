@@ -11,19 +11,12 @@
 
 namespace JS {
 
-struct ParameterArgumentsAndBody {
-    Vector<String> parameters;
-    String body;
-};
-
-ThrowCompletionOr<ParameterArgumentsAndBody> extract_parameter_arguments_and_body(VM&, Span<Value> arguments);
-
 class FunctionConstructor final : public NativeFunction {
     JS_OBJECT(FunctionConstructor, NativeFunction);
     GC_DECLARE_ALLOCATOR(FunctionConstructor);
 
 public:
-    static ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> create_dynamic_function(VM&, FunctionObject& constructor, FunctionObject* new_target, FunctionKind kind, ReadonlySpan<String> parameter_args, String const& body_string);
+    static ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> create_dynamic_function(VM&, FunctionObject& constructor, FunctionObject* new_target, FunctionKind kind, ReadonlySpan<Value> parameter_args, Value body_arg);
 
     virtual void initialize(Realm&) override;
     virtual ~FunctionConstructor() override = default;
