@@ -69,7 +69,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     auto properties = json.as_object();
 
     // Check we're in alphabetical order
-    ByteString most_recent_name = "";
+    FlyString most_recent_name = {};
     properties.for_each_member([&](auto& name, auto&) {
         if (name < most_recent_name) {
             warnln("`{}` is in the wrong position in `{}`. Please keep this list alphabetical!", name, properties_json_path);
@@ -91,7 +91,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
 void replace_logical_aliases(JsonObject& properties)
 {
-    AK::HashMap<ByteString, ByteString> logical_aliases;
+    AK::HashMap<FlyString, String> logical_aliases;
     properties.for_each_member([&](auto& name, auto& value) {
         VERIFY(value.is_object());
         auto const& value_as_object = value.as_object();
@@ -142,10 +142,10 @@ enum class PropertyID {
     All,
 )~~~");
 
-    Vector<ByteString> inherited_shorthand_property_ids;
-    Vector<ByteString> inherited_longhand_property_ids;
-    Vector<ByteString> noninherited_shorthand_property_ids;
-    Vector<ByteString> noninherited_longhand_property_ids;
+    Vector<FlyString> inherited_shorthand_property_ids;
+    Vector<FlyString> inherited_longhand_property_ids;
+    Vector<FlyString> noninherited_shorthand_property_ids;
+    Vector<FlyString> noninherited_longhand_property_ids;
 
     properties.for_each_member([&](auto& name, auto& value) {
         VERIFY(value.is_object());
@@ -319,7 +319,7 @@ bool property_accepts_@css_type_name@(PropertyID property_id, [[maybe_unused]] @
             return;
         if (auto maybe_valid_types = value.as_object().get_array("valid-types"sv); maybe_valid_types.has_value() && !maybe_valid_types->is_empty()) {
             for (auto valid_type : maybe_valid_types->values()) {
-                auto type_and_range = valid_type.as_string().split_view(' ');
+                auto type_and_range = valid_type.as_string().bytes_as_string_view().split_view(' ');
                 if (type_and_range.first() != css_type_name)
                     continue;
 
@@ -420,7 +420,7 @@ Optional<PropertyID> property_id_from_camel_case_string(StringView string)
         auto member_generator = generator.fork();
         member_generator.set("name", name);
         member_generator.set("name:camelcase", camel_casify(name));
-        if (auto legacy_alias_for = value.as_object().get_byte_string("legacy-alias-for"sv); legacy_alias_for.has_value()) {
+        if (auto legacy_alias_for = value.as_object().get_string("legacy-alias-for"sv); legacy_alias_for.has_value()) {
             member_generator.set("name:titlecase", title_casify(legacy_alias_for.value()));
         } else {
             member_generator.set("name:titlecase", title_casify(name));
@@ -449,7 +449,7 @@ Optional<PropertyID> property_id_from_string(StringView string)
 
         auto member_generator = generator.fork();
         member_generator.set("name", name);
-        if (auto legacy_alias_for = value.as_object().get_byte_string("legacy-alias-for"sv); legacy_alias_for.has_value()) {
+        if (auto legacy_alias_for = value.as_object().get_string("legacy-alias-for"sv); legacy_alias_for.has_value()) {
             member_generator.set("name:titlecase", title_casify(legacy_alias_for.value()));
         } else {
             member_generator.set("name:titlecase", title_casify(name));
@@ -552,7 +552,7 @@ AnimationType animation_type_from_longhand_property(PropertyID property_id)
             VERIFY_NOT_REACHED();
         }
 
-        auto animation_type = value.as_object().get_byte_string("animation-type"sv).value();
+        auto animation_type = value.as_object().get_string("animation-type"sv).value();
         member_generator.set("value", title_casify(animation_type));
         member_generator.append(R"~~~(
     case PropertyID::@name:titlecase@:
@@ -573,7 +573,7 @@ bool is_animatable_property(PropertyID property_id)
 
     properties.for_each_member([&](auto& name, auto& value) {
         VERIFY(value.is_object());
-        VERIFY(!name.is_empty() && !is_ascii_digit(name[0])); // Ensure `PropertyKey`s are not Numbers.
+        VERIFY(!name.is_empty() && !is_ascii_digit(name.bytes_as_string_view()[0])); // Ensure `PropertyKey`s are not Numbers.
         if (is_legacy_alias(value.as_object()))
             return;
 
@@ -684,7 +684,7 @@ NonnullRefPtr<CSSStyleValue> property_initial_value(Optional<JS::Realm&> context
             dbgln("No initial value specified for property '{}'", name);
             VERIFY_NOT_REACHED();
         }
-        auto initial_value = object.get_byte_string("initial"sv);
+        auto initial_value = object.get_string("initial"sv);
         VERIFY(initial_value.has_value());
         auto& initial_value_string = initial_value.value();
 
@@ -785,7 +785,7 @@ bool property_accepts_type(PropertyID property_id, ValueType value_type)
             bool did_output_accepted_type = false;
             for (auto& type : valid_types.values()) {
                 VERIFY(type.is_string());
-                auto type_name = type.as_string().split_view(' ').first();
+                auto type_name = type.as_string().bytes_as_string_view().split_view(' ').first();
                 if (type_name_is_enum(type_name))
                     continue;
 
@@ -891,7 +891,7 @@ bool property_accepts_keyword(PropertyID property_id, Keyword keyword)
         if (auto maybe_valid_types = object.get_array("valid-types"sv); maybe_valid_types.has_value() && !maybe_valid_types->is_empty()) {
             auto& valid_types = maybe_valid_types.value();
             for (auto& valid_type : valid_types.values()) {
-                auto type_name = valid_type.as_string().split_view(' ').first();
+                auto type_name = valid_type.as_string().bytes_as_string_view().split_view(' ').first();
                 if (!type_name_is_enum(type_name))
                     continue;
 
@@ -924,7 +924,7 @@ Optional<ValueType> property_resolves_percentages_relative_to(PropertyID propert
         if (is_legacy_alias(value.as_object()))
             return;
 
-        if (auto resolved_type = value.as_object().get_byte_string("percentages-resolve-to"sv); resolved_type.has_value()) {
+        if (auto resolved_type = value.as_object().get_string("percentages-resolve-to"sv); resolved_type.has_value()) {
             auto property_generator = generator.fork();
             property_generator.set("name:titlecase", title_casify(name));
             property_generator.set("resolved_type:titlecase", title_casify(resolved_type.value()));
@@ -1060,7 +1060,7 @@ bool is_animatable_property(JsonObject& properties, StringView property_name)
     auto property = properties.get_object(property_name);
     VERIFY(property.has_value());
 
-    if (auto animation_type = property.value().get_byte_string("animation-type"sv); animation_type.has_value()) {
+    if (auto animation_type = property.value().get_string("animation-type"sv); animation_type.has_value()) {
         return animation_type != "none";
     }
 

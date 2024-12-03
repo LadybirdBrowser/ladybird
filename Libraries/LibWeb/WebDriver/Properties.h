@@ -15,7 +15,7 @@
 
 namespace Web::WebDriver {
 
-template<typename PropertyType = ByteString>
+template<typename PropertyType = String>
 static ErrorOr<PropertyType, WebDriver::Error> get_property(JsonObject const& payload, StringView key)
 {
     auto property = payload.get(key);
@@ -37,7 +37,7 @@ static ErrorOr<PropertyType, WebDriver::Error> get_property(JsonObject const& pa
         return true;
     };
 
-    if constexpr (IsSame<PropertyType, ByteString>) {
+    if constexpr (IsSame<PropertyType, String>) {
         if (!property->is_string())
             return WebDriver::Error::from_code(ErrorCode::InvalidArgument, ByteString::formatted("Property '{}' is not a String", key));
         return property->as_string();
@@ -67,7 +67,7 @@ static ErrorOr<PropertyType, WebDriver::Error> get_property(JsonObject const& pa
     }
 }
 
-template<typename PropertyType = ByteString>
+template<typename PropertyType = String>
 static ErrorOr<PropertyType, WebDriver::Error> get_property(JsonValue const& payload, StringView key)
 {
     if (!payload.is_object())
@@ -75,7 +75,7 @@ static ErrorOr<PropertyType, WebDriver::Error> get_property(JsonValue const& pay
     return get_property<PropertyType>(payload.as_object(), key);
 }
 
-template<typename PropertyType = ByteString>
+template<typename PropertyType = String>
 static ErrorOr<Optional<PropertyType>, WebDriver::Error> get_optional_property(JsonObject const& object, StringView key)
 {
     if (!object.has(key))

@@ -6,13 +6,14 @@
 
 #pragma once
 
+#include <AK/FlyString.h>
 #include <AK/String.h>
 #include <LibIPC/Forward.h>
 
 namespace WebView {
 
 struct Attribute {
-    String name;
+    FlyString name;
     String value;
 };
 

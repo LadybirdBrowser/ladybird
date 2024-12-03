@@ -279,8 +279,8 @@ static bool matches_platform_name(StringView requested_platform_name, StringView
 // https://w3c.github.io/webdriver/#dfn-matching-capabilities
 static JsonValue match_capabilities(JsonObject const& capabilities)
 {
-    static auto browser_name = StringView { BROWSER_NAME, strlen(BROWSER_NAME) }.to_lowercase_string();
-    static auto platform_name = StringView { OS_STRING, strlen(OS_STRING) }.to_lowercase_string();
+    static auto browser_name = MUST(String::from_byte_string(StringView { BROWSER_NAME, strlen(BROWSER_NAME) }.to_lowercase_string()));
+    static auto platform_name = MUST(String::from_byte_string(StringView { OS_STRING, strlen(OS_STRING) }.to_lowercase_string()));
 
     // 1. Let matched capabilities be a JSON Object with the following entries:
     JsonObject matched_capabilities;
@@ -314,20 +314,20 @@ static JsonValue match_capabilities(JsonObject const& capabilities)
         // -> "browserName"
         if (name == "browserName"sv) {
             // If value is not a string equal to the "browserName" entry in matched capabilities, return success with data null.
-            if (value.as_string() != matched_capabilities.get_byte_string(name).value())
+            if (value.as_string() != matched_capabilities.get_string(name).value())
                 return AK::Error::from_string_literal("browserName");
         }
         // -> "browserVersion"
         else if (name == "browserVersion"sv) {
             // Compare value to the "browserVersion" entry in matched capabilities using an implementation-defined comparison algorithm. The comparison is to accept a value that places constraints on the version using the "<", "<=", ">", and ">=" operators.
             // If the two values do not match, return success with data null.
-            if (!matches_browser_version(value.as_string(), matched_capabilities.get_byte_string(name).value()))
+            if (!matches_browser_version(value.as_string(), matched_capabilities.get_string(name).value()))
                 return AK::Error::from_string_literal("browserVersion");
         }
         // -> "platformName"
         else if (name == "platformName"sv) {
             // If value is not a string equal to the "platformName" entry in matched capabilities, return success with data null.
-            if (!matches_platform_name(value.as_string(), matched_capabilities.get_byte_string(name).value()))
+            if (!matches_platform_name(value.as_string(), matched_capabilities.get_string(name).value()))
                 return AK::Error::from_string_literal("platformName");
         }
         // -> "acceptInsecureCerts"

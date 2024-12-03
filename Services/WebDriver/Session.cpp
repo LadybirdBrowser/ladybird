@@ -58,7 +58,7 @@ void Session::initialize_from_capabilities(JsonObject& capabilities)
     auto& connection = web_content_connection();
 
     // 1. Let strategy be the result of getting property "pageLoadStrategy" from capabilities.
-    auto strategy = capabilities.get_byte_string("pageLoadStrategy"sv);
+    auto strategy = capabilities.get_string("pageLoadStrategy"sv);
 
     // 2. If strategy is a string, set the current session’s page loading strategy to strategy. Otherwise, set the page loading strategy to normal and set a property of capabilities with name "pageLoadStrategy" and value "normal".
     if (strategy.has_value()) {
@@ -98,7 +98,7 @@ void Session::initialize_from_capabilities(JsonObject& capabilities)
     }
 
     // 8. Apply changes to the user agent for any implementation-defined capabilities selected during the capabilities processing step.
-    if (auto behavior = capabilities.get_byte_string("unhandledPromptBehavior"sv); behavior.has_value()) {
+    if (auto behavior = capabilities.get_string("unhandledPromptBehavior"sv); behavior.has_value()) {
         m_unhandled_prompt_behavior = Web::WebDriver::unhandled_prompt_behavior_from_string(*behavior);
         connection.async_set_unhandled_prompt_behavior(m_unhandled_prompt_behavior);
     } else {
@@ -133,7 +133,7 @@ ErrorOr<NonnullRefPtr<Core::LocalServer>> Session::create_server(NonnullRefPtr<S
             return;
         }
 
-        auto window_handle = MUST(String::from_byte_string(maybe_window_handle.value().as_string()));
+        auto window_handle = maybe_window_handle.value().as_string();
 
         web_content_connection->on_close = [this, window_handle]() {
             dbgln_if(WEBDRIVER_DEBUG, "Window {} was closed remotely.", window_handle);
