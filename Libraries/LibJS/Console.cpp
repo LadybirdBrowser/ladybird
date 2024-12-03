@@ -678,7 +678,7 @@ GC::MarkedVector<Value> Console::vm_arguments()
     return arguments;
 }
 
-void Console::output_debug_message(LogLevel log_level, String const& output) const
+void Console::output_debug_message(LogLevel log_level, StringView output) const
 {
     switch (log_level) {
     case Console::LogLevel::Debug:
