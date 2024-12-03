@@ -782,6 +782,22 @@ void CanvasRenderingContext2D::set_shadow_offset_y(float offsetY)
     drawing_state().shadow_offset_y = offsetY;
 }
 
+float CanvasRenderingContext2D::shadow_blur() const
+{
+    return drawing_state().shadow_blur;
+}
+
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-shadowblur
+void CanvasRenderingContext2D::set_shadow_blur(float blur_radius)
+{
+    // On setting, the attribute must be set to the new value,
+    // except if the value is negative, infinite or NaN, in which case the new value must be ignored.
+    if (blur_radius < 0 || isinf(blur_radius) || isnan(blur_radius))
+        return;
+
+    drawing_state().shadow_blur = blur_radius;
+}
+
 String CanvasRenderingContext2D::shadow_color() const
 {
     // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-shadowcolor
@@ -824,7 +840,7 @@ void CanvasRenderingContext2D::paint_shadow_for_fill_internal(Gfx::Path const& p
     Gfx::AffineTransform transform;
     transform.translate(state.shadow_offset_x, state.shadow_offset_y);
     painter->set_transform(transform);
-    painter->fill_path(path_to_fill, state.shadow_color.with_opacity(state.global_alpha), winding_rule);
+    painter->fill_path(path_to_fill, state.shadow_color.with_opacity(state.global_alpha), winding_rule, state.shadow_blur);
 
     painter->restore();
 
@@ -844,7 +860,7 @@ void CanvasRenderingContext2D::paint_shadow_for_stroke_internal(Gfx::Path const&
     Gfx::AffineTransform transform;
     transform.translate(state.shadow_offset_x, state.shadow_offset_y);
     painter->set_transform(transform);
-    painter->stroke_path(path, state.shadow_color.with_opacity(state.global_alpha), state.line_width);
+    painter->stroke_path(path, state.shadow_color.with_opacity(state.global_alpha), state.line_width, state.shadow_blur);
 
     painter->restore();
 

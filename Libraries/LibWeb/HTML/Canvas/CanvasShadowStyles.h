@@ -26,6 +26,9 @@ public:
     virtual float shadow_offset_y() const = 0;
     virtual void set_shadow_offset_y(float offsetY) = 0;
 
+    virtual float shadow_blur() const = 0;
+    virtual void set_shadow_blur(float offsetY) = 0;
+
     virtual String shadow_color() const = 0;
     virtual void set_shadow_color(String color) = 0;
 
