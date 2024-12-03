@@ -143,6 +143,7 @@ class ObjectSourceDirective;
 class ScriptSourceAttributeDirective;
 class ScriptSourceDirective;
 class ScriptSourceElementDirective;
+class StyleSourceAttributeDirective;
 class StyleSourceDirective;
 class StyleSourceElementDirective;
 struct SerializedDirective;

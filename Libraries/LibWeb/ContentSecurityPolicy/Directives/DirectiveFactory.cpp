@@ -18,6 +18,7 @@
 #include <LibWeb/ContentSecurityPolicy/Directives/ScriptSourceAttributeDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/ScriptSourceDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/ScriptSourceElementDirective.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/StyleSourceAttributeDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/StyleSourceDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/StyleSourceElementDirective.h>
 
@@ -54,6 +55,9 @@ GC::Ref<Directive> create_directive(GC::Heap& heap, String name, Vector<String> 
 
     if (name == Names::ScriptSrcElem)
         return heap.allocate<ScriptSourceElementDirective>(move(name), move(value));
+
+    if (name == Names::StyleSrcAttr)
+        return heap.allocate<StyleSourceAttributeDirective>(move(name), move(value));
 
     if (name == Names::StyleSrc)
         return heap.allocate<StyleSourceDirective>(move(name), move(value));
