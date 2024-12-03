@@ -34,7 +34,7 @@ public:
     static Application& the() { return *s_the; }
 
     static ChromeOptions const& chrome_options() { return the().m_chrome_options; }
-    static WebContentOptions const& web_content_options() { return the().m_web_content_options; }
+    static WebContentOptions& web_content_options() { return the().m_web_content_options; }
 
     static Requests::RequestClient& request_server_client() { return *the().m_request_server_client; }
     static ImageDecoderClient::Client& image_decoder_client() { return *the().m_image_decoder_client; }
