@@ -2,6 +2,7 @@ Harness status: OK
 
 Found 2 tests
 
-2 Fail
-Fail	iframe 'sandbox' ASCII case insensitive, allow-same-orİgin
+1 Pass
+1 Fail
+Pass	iframe 'sandbox' ASCII case insensitive, allow-same-orİgin
 Fail	iframe 'sandbox' ASCII case insensitive, allow-ſcripts
