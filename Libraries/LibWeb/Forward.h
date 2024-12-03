@@ -108,6 +108,7 @@ struct SerializedPolicy;
 }
 
 namespace Web::ContentSecurityPolicy::Directives {
+class ChildSourceDirective;
 class ConnectSourceDirective;
 class DefaultSourceDirective;
 class Directive;
