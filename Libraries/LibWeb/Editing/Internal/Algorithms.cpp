@@ -483,9 +483,21 @@ void fix_disallowed_ancestors_of_node(GC::Ref<DOM::Node> node)
         ancestor = ancestor->parent();
     } while (ancestor);
     if (!allowed_child_of_any_ancestor) {
-        // FIXME: 1. If node is a dd or dt, wrap the one-node list consisting of node, with sibling criteria returning true for
+        // 1. If node is a dd or dt, wrap the one-node list consisting of node, with sibling criteria returning true for
         //    any dl with no attributes and false otherwise, and new parent instructions returning the result of calling
         //    createElement("dl") on the context object. Then abort these steps.
+        if (is<DOM::Element>(*node) && static_cast<DOM::Element&>(*node).local_name().is_one_of(HTML::TagNames::dd, HTML::TagNames::dt)) {
+            wrap(
+                { node },
+                [](GC::Ref<DOM::Node> sibling) {
+                    if (!is<DOM::Element>(*sibling))
+                        return false;
+                    auto& sibling_element = static_cast<DOM::Element&>(*sibling);
+                    return sibling_element.local_name() == HTML::TagNames::dl && !sibling_element.has_attributes();
+                },
+                [&node] { return MUST(DOM::create_element(node->document(), HTML::TagNames::dl, Namespace::HTML)); });
+            return;
+        }
 
         // 2. If "p" is not an allowed child of the editing host of node, abort these steps.
         if (!is_allowed_child_of_node(HTML::TagNames::p, GC::Ref { *editing_host_of_node(*node) }))
