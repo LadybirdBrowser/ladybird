@@ -12,6 +12,7 @@
 #include <AK/String.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/Scripting/ImportMap.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
