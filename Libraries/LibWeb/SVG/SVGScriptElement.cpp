@@ -1,10 +1,13 @@
 /*
  * Copyright (c) 2023-2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2024, Pavel Shliak <shlyakpavel@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <LibWeb/Bindings/SVGScriptElementPrototype.h>
+#include <LibWeb/Fetch/Fetching/Fetching.h>
+#include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/SVG/AttributeNames.h>
@@ -40,15 +43,76 @@ void SVGScriptElement::process_the_script_element()
     if (m_already_processed || !in_a_document_tree())
         return;
 
-    auto inline_script = child_text_content();
+    IGNORE_USE_IN_ESCAPING_LAMBDA String script_content;
+    auto script_url = m_document->url();
 
-    // FIXME: 2. If the 'script' element references external script content, then the external script content
-    //           using the current value of the 'xlink:href' attribute is fetched. Further processing of the
-    //           'script' element is dependent on the external script content, and will block here until the
-    //           resource has been fetched or is determined to be an invalid IRI reference.
+    // 2. If the 'script' element references external script content, then the external script content
+    //    using the current value of the 'xlink:href' attribute is fetched. Further processing of the
+    //    'script' element is dependent on the external script content, and will block here until the
+    //    resource has been fetched or is determined to be an invalid IRI reference.
     if (has_attribute(SVG::AttributeNames::href) || has_attribute_ns(Namespace::XLink.to_string(), SVG::AttributeNames::href)) {
-        dbgln("FIXME: Unsupported external fetch of SVGScriptElement!");
-        return;
+        auto href_value = href()->base_val();
+
+        script_url = document().parse_url(href_value);
+        if (!script_url.is_valid()) {
+            dbgln("Invalid script URL: {}", href_value);
+            return;
+        }
+
+        auto& vm = realm().vm();
+        auto request = Fetch::Infrastructure::Request::create(vm);
+        request->set_url(script_url);
+        request->set_destination(Fetch::Infrastructure::Request::Destination::Script);
+        // FIXME: Use CORS state specified by the ‘crossorigin’ attribute.
+        request->set_mode(Fetch::Infrastructure::Request::Mode::NoCORS);
+        request->set_credentials_mode(Fetch::Infrastructure::Request::CredentialsMode::SameOrigin);
+        request->set_client(&document().relevant_settings_object());
+
+        IGNORE_USE_IN_ESCAPING_LAMBDA bool fetch_done = false;
+
+        Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
+        fetch_algorithms_input.process_response = [this, &script_content, &fetch_done](GC::Ref<Fetch::Infrastructure::Response> response) {
+            if (response->is_network_error()) {
+                dbgln("Failed to fetch SVG external script.");
+                fetch_done = true;
+                return;
+            }
+
+            auto& realm = this->realm();
+            auto& global = document().realm().global_object();
+
+            auto on_data_read = GC::create_function(realm.heap(), [&script_content, &fetch_done](ByteBuffer data) {
+                auto content_or_error = String::from_utf8(data);
+                if (content_or_error.is_error()) {
+                    dbgln("Failed to decode script content as UTF-8");
+                } else {
+                    script_content = content_or_error.release_value();
+                }
+                fetch_done = true;
+            });
+
+            auto on_error = GC::create_function(realm.heap(), [&fetch_done](JS::Value) {
+                dbgln("Error occurred while reading script data.");
+                fetch_done = true;
+            });
+
+            VERIFY(response->body());
+            response->body()->fully_read(realm, on_data_read, on_error, GC::Ref { global });
+        };
+
+        auto fetch_promise = Fetch::Fetching::fetch(realm(), request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
+
+        // Block until the resource has been fetched or determined invalid
+        HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&] { return fetch_done; }));
+
+        if (script_content.is_empty()) {
+            // Failed to fetch or decode
+            return;
+        }
+
+    } else {
+        // Inline script content
+        script_content = child_text_content();
     }
 
     // 3. The 'script' element's "already processed" flag is set to true.
@@ -63,10 +127,11 @@ void SVGScriptElement::process_the_script_element()
     if (!m_document->ready_to_run_scripts())
         HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&] { return m_document->ready_to_run_scripts(); }));
 
-    // FIXME: Support non-inline scripts.
-    auto base_url = document().base_url();
+    m_script = HTML::ClassicScript::create(script_url.basename(), script_content, realm(), m_document->base_url(), m_source_line_number);
 
-    m_script = HTML::ClassicScript::create(m_document->url().to_byte_string(), inline_script, realm(), base_url, m_source_line_number);
+    // FIXME: Note that a load event is dispatched on a 'script' element once it has been processed,
+    // unless it referenced external script content with an invalid IRI reference and 'externalResourcesRequired' was set to 'true'.
+
     (void)m_script->run();
 }
 
