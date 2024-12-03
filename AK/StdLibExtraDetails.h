@@ -91,6 +91,15 @@ inline constexpr bool __IsPointerHelper<T*> = true;
 template<class T>
 inline constexpr bool IsPointer = __IsPointerHelper<RemoveCV<T>>;
 
+template<class T>
+inline constexpr bool __IsMemberPointer = false;
+
+template<class T, class C>
+inline constexpr bool __IsMemberPointer<T C::*> = true;
+
+template<class T>
+inline constexpr bool IsMemberPointer = __IsMemberPointer<RemoveCV<T>>;
+
 template<class>
 inline constexpr bool IsFunction = false;
 template<class Ret, class... Args>
@@ -272,20 +281,54 @@ struct __MakeUnsigned<wchar_t> {
 template<typename T>
 using MakeUnsigned = typename __MakeUnsigned<T>::Type;
 
+template<typename T, typename = void>
+struct __AddReference {
+    using LvalueType = T;
+    using TvalueType = T;
+};
+
 template<typename T>
-auto declval() -> T;
+struct __AddReference<T, VoidType<T&>> {
+    using LvalueType = T&;
+    using RvalueType = T&&;
+};
+
+template<typename T>
+using AddLvalueReference = typename __AddReference<T>::LvalueType;
+
+template<typename T>
+using AddRvalueReference = typename __AddReference<T>::RvalueType;
+
+template<typename T>
+auto declval() -> AddRvalueReference<T>;
+
+template<typename T>
+struct __Decay {
+    typedef RemoveCVReference<T> type;
+};
+template<typename T>
+struct __Decay<T[]> {
+    typedef T* type;
+};
+template<typename T, decltype(sizeof(T)) N>
+struct __Decay<T[N]> {
+    typedef T* type;
+};
+// FIXME: Function decay
+template<typename T>
+using Decay = typename __Decay<T>::type;
 
 template<typename...>
 struct __CommonType;
 
-template<typename T>
-struct __CommonType<T> {
-    using Type = T;
-};
-
 template<typename T1, typename T2>
 struct __CommonType<T1, T2> {
-    using Type = decltype(true ? declval<T1>() : declval<T2>());
+    using Type = Decay<decltype(true ? declval<T1>() : declval<T2>())>;
+};
+
+template<typename T>
+struct __CommonType<T> {
+    using Type = __CommonType<T, T>;
 };
 
 template<typename T1, typename T2, typename... Ts>
@@ -417,24 +460,6 @@ struct __IdentityType {
 template<typename T>
 using IdentityType = typename __IdentityType<T>::Type;
 
-template<typename T, typename = void>
-struct __AddReference {
-    using LvalueType = T;
-    using TvalueType = T;
-};
-
-template<typename T>
-struct __AddReference<T, VoidType<T&>> {
-    using LvalueType = T&;
-    using RvalueType = T&&;
-};
-
-template<typename T>
-using AddLvalueReference = typename __AddReference<T>::LvalueType;
-
-template<typename T>
-using AddRvalueReference = typename __AddReference<T>::RvalueType;
-
 template<class T>
 requires(IsEnum<T>) using UnderlyingType = __underlying_type(T);
 
@@ -470,6 +495,24 @@ inline constexpr bool IsTriviallyConstructible = __is_trivially_constructible(T,
 
 template<typename From, typename To>
 inline constexpr bool IsConvertible = requires { declval<void (*)(To)>()(declval<From>()); };
+
+template<typename From, typename To>
+auto __IsNonNarrowingConvertibleHelper(int) -> decltype(declval<void(To)>()({ declval<From>() }), TrueType {});
+template<typename, typename>
+auto __IsNonNarrowingConvertibleHelper(...) -> FalseType;
+
+template<typename From, typename To>
+consteval bool __IsNonNarrowingConvertible()
+{
+    if constexpr ((IsArithmetic<From> || IsEnum<From> || IsPointer<From> || IsMemberPointer<From>) && (IsArithmetic<To> || IsEnum<To>)) {
+        return decltype(__IsNonNarrowingConvertibleHelper<From, To>(0))::value;
+    } else {
+        return IsConvertible<From, To>;
+    }
+}
+
+template<typename From, typename To>
+inline constexpr bool IsNonNarrowingConvertible = __IsNonNarrowingConvertible<From, To>();
 
 template<typename T, typename U>
 inline constexpr bool IsAssignable = requires { declval<T>() = declval<U>(); };
@@ -517,22 +560,6 @@ inline constexpr bool IsSpecializationOf = false;
 template<template<typename...> typename U, typename... Us>
 inline constexpr bool IsSpecializationOf<U<Us...>, U> = true;
 
-template<typename T>
-struct __Decay {
-    typedef RemoveCVReference<T> type;
-};
-template<typename T>
-struct __Decay<T[]> {
-    typedef T* type;
-};
-template<typename T, decltype(sizeof(T)) N>
-struct __Decay<T[N]> {
-    typedef T* type;
-};
-// FIXME: Function decay
-template<typename T>
-using Decay = typename __Decay<T>::type;
-
 template<typename T, typename U>
 inline constexpr bool IsPointerOfType = IsPointer<Decay<U>> && IsSame<T, RemoveCV<RemovePointer<Decay<U>>>>;
 
@@ -561,6 +588,7 @@ struct __InvokeResult<MethodType MethodDefBaseType::*, InstanceType, Args...> {
 };
 
 template<typename F, typename... Args>
+requires(requires { (declval<F>())(declval<Args>()...); })
 struct __InvokeResult<F, Args...> {
     using type = decltype((declval<F>())(declval<Args>()...));
 };
@@ -642,8 +670,10 @@ using AK::Detail::IsFundamental;
 using AK::Detail::IsHashCompatible;
 using AK::Detail::IsIntegral;
 using AK::Detail::IsLvalueReference;
+using AK::Detail::IsMemberPointer;
 using AK::Detail::IsMoveAssignable;
 using AK::Detail::IsMoveConstructible;
+using AK::Detail::IsNonNarrowingConvertible;
 using AK::Detail::IsNullPointer;
 using AK::Detail::IsOneOf;
 using AK::Detail::IsOneOfIgnoringCV;

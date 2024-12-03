@@ -154,7 +154,7 @@ public:
         return !is_nan() && !is_infinity();
     }
 
-    Value()
+    constexpr Value()
         : Value(EMPTY_TAG << GC::TAG_SHIFT, (u64)0)
     {
     }
@@ -419,7 +419,7 @@ private:
     ThrowCompletionOr<Value> to_numeric_slow_case(VM&) const;
     ThrowCompletionOr<Value> to_primitive_slow_case(VM&, PreferredType) const;
 
-    Value(u64 tag, u64 val)
+    constexpr Value(u64 tag, u64 val)
     {
         ASSERT(!(tag & val));
         m_value.encoded = tag | val;
@@ -544,10 +544,10 @@ class Optional<JS::Value> : public OptionalBase<JS::Value> {
 public:
     using ValueType = JS::Value;
 
-    Optional() = default;
+    constexpr Optional() = default;
 
     template<SameAs<OptionalNone> V>
-    Optional(V) { }
+    constexpr Optional(V) { }
 
     Optional(Optional<JS::Value> const& other)
     {
@@ -555,27 +555,27 @@ public:
             m_value = other.m_value;
     }
 
-    Optional(Optional&& other)
+    constexpr Optional(Optional&& other)
         : m_value(other.m_value)
     {
     }
 
     template<typename U = JS::Value>
     requires(!IsSame<OptionalNone, RemoveCVReference<U>>)
-    explicit(!IsConvertible<U&&, JS::Value>) Optional(U&& value)
+    explicit(!IsConvertible<U&&, JS::Value>) constexpr Optional(U&& value)
     requires(!IsSame<RemoveCVReference<U>, Optional<JS::Value>> && IsConstructible<JS::Value, U &&>)
         : m_value(forward<U>(value))
     {
     }
 
     template<SameAs<OptionalNone> V>
-    Optional& operator=(V)
+    constexpr Optional& operator=(V)
     {
         clear();
         return *this;
     }
 
-    Optional& operator=(Optional const& other)
+    constexpr Optional& operator=(Optional const& other)
     {
         if (this != &other) {
             clear();
@@ -584,7 +584,7 @@ public:
         return *this;
     }
 
-    Optional& operator=(Optional&& other)
+    constexpr Optional& operator=(Optional&& other)
     {
         if (this != &other) {
             clear();
@@ -594,34 +594,34 @@ public:
     }
 
     template<typename O>
-    ALWAYS_INLINE bool operator==(Optional<O> const& other) const
+    ALWAYS_INLINE constexpr bool operator==(Optional<O> const& other) const
     {
         return has_value() == other.has_value() && (!has_value() || value() == other.value());
     }
 
     template<typename O>
-    ALWAYS_INLINE bool operator==(O const& other) const
+    ALWAYS_INLINE constexpr bool operator==(O const& other) const
     {
         return has_value() && value() == other;
     }
 
-    void clear()
+    constexpr void clear()
     {
         m_value = {};
     }
 
-    [[nodiscard]] bool has_value() const
+    [[nodiscard]] constexpr bool has_value() const
     {
         return !m_value.is_empty();
     }
 
-    [[nodiscard]] JS::Value& value() &
+    [[nodiscard]] constexpr JS::Value& value() &
     {
         VERIFY(has_value());
         return m_value;
     }
 
-    [[nodiscard]] JS::Value const& value() const&
+    [[nodiscard]] constexpr JS::Value const& value() const&
     {
         VERIFY(has_value());
         return m_value;
