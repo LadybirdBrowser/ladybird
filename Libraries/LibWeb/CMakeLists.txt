@@ -56,6 +56,7 @@ set(SOURCES
     ContentSecurityPolicy/Directives/Names.cpp
     ContentSecurityPolicy/Directives/ObjectSourceDirective.cpp
     ContentSecurityPolicy/Directives/ScriptSourceDirective.cpp
+    ContentSecurityPolicy/Directives/ScriptSourceElementDirective.cpp
     ContentSecurityPolicy/Directives/SerializedDirective.cpp
     ContentSecurityPolicy/Directives/SourceExpression.cpp
     ContentSecurityPolicy/Policy.cpp
