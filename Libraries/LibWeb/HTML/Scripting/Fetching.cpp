@@ -287,7 +287,7 @@ static void set_up_module_script_request(Fetch::Infrastructure::Request& request
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#get-the-descendant-script-fetch-options
-WebIDL::ExceptionOr<ScriptFetchOptions> get_descendant_script_fetch_options(ScriptFetchOptions const& original_options, URL::URL const& url, EnvironmentSettingsObject& settings_object)
+ScriptFetchOptions get_descendant_script_fetch_options(ScriptFetchOptions const& original_options, URL::URL const& url, EnvironmentSettingsObject& settings_object)
 {
     // 1. Let newOptions be a copy of originalOptions.
     auto new_options = original_options;
@@ -297,7 +297,7 @@ WebIDL::ExceptionOr<ScriptFetchOptions> get_descendant_script_fetch_options(Scri
 
     // 3. If settingsObject's global object is a Window object, then set integrity to the result of resolving a module integrity metadata with url and settingsObject.
     if (is<Window>(settings_object.global_object()))
-        integrity = TRY(resolve_a_module_integrity_metadata(url, settings_object));
+        integrity = resolve_a_module_integrity_metadata(url, settings_object);
 
     // 4. Set newOptions's integrity metadata to integrity.
     new_options.integrity_metadata = integrity;
@@ -310,7 +310,7 @@ WebIDL::ExceptionOr<ScriptFetchOptions> get_descendant_script_fetch_options(Scri
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#resolving-a-module-integrity-metadata
-WebIDL::ExceptionOr<String> resolve_a_module_integrity_metadata(const URL::URL& url, EnvironmentSettingsObject& settings_object)
+String resolve_a_module_integrity_metadata(const URL::URL& url, EnvironmentSettingsObject& settings_object)
 {
     // 1. Assert: settingsObject's global object is a Window object.
     VERIFY(is<Window>(settings_object.global_object()));

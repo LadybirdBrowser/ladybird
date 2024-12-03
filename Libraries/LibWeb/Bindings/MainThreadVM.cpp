@@ -556,7 +556,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         auto& settings_object = HTML::principal_realm_settings_object(HTML::principal_realm(*module_map_realm));
 
         // 12. Let fetchOptions be the result of getting the descendant script fetch options given originalFetchOptions, url, and settingsObject.
-        auto fetch_options = MUST(HTML::get_descendant_script_fetch_options(original_fetch_options, url.value(), settings_object));
+        auto fetch_options = HTML::get_descendant_script_fetch_options(original_fetch_options, url.value(), settings_object);
 
         // 13. Let destination be "script".
         auto destination = Fetch::Infrastructure::Request::Destination::Script;
