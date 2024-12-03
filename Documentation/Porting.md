@@ -27,13 +27,14 @@ There are currently two supported platform ports:
 - macOS: The macOS platform port
 
 Many other POSIX desktop platforms are known to work, or have worked in the past, but are not officially supported.
-These include Alpine Linux, FreeBSD, OpenBSD, and Haiku. Support for these Unixen is community-supported, meaning there
-is no regular CI guaranteeing that each master commit keeps them working. Patches to bring them back in line
-are welcome!
+Among others, these include Alpine Linux, FreeBSD, OpenBSD, and Haiku. Support for these systems is community-driven,
+meaning there is no regular CI to ensure that each master branch commit maintains their functionality.
+Contributions to restore or improve compatibility are welcome!
 
 There is currently one in progress platform port:
 
 - Android: The Android platform port, using the Android SDK/NDK directly.
+  The removal of `LibArchive` and the `DeprecatedPainter` from the repository has left gaps, as the port previously depended on these components.
 
 ## Porting Steps
 
