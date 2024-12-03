@@ -145,6 +145,24 @@ describe("correct behavior", () => {
         const de = new Intl.DurationFormat("de", { style: "digital" });
         expect(de.format(duration)).toBe("123456:456789:789123");
     });
+
+    test("precise mathematical values", () => {
+        const en = new Intl.DurationFormat("en", { style: "digital" });
+
+        let duration = {
+            seconds: 10000000,
+            nanoseconds: 1,
+        };
+        expect(en.format(duration)).toBe("0:00:10000000.000000001");
+
+        duration = {
+            seconds: 1,
+            milliseconds: 2,
+            microseconds: 3,
+            nanoseconds: Number.MAX_SAFE_INTEGER,
+        };
+        expect(en.format(duration)).toBe("0:00:9007200.256743991");
+    });
 });
 
 describe("errors", () => {

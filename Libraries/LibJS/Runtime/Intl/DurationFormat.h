@@ -9,6 +9,7 @@
 
 #include <AK/Array.h>
 #include <AK/String.h>
+#include <LibCrypto/BigFraction/BigFraction.h>
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibUnicode/Locale.h>
@@ -263,11 +264,11 @@ struct DurationFormatPart {
 ThrowCompletionOr<DurationRecord> to_duration_record(VM&, Value input);
 i8 duration_sign(DurationRecord const&);
 ThrowCompletionOr<DurationUnitOptions> get_duration_unit_options(VM&, DurationFormat::Unit unit, Object const& options, DurationFormat::Style base_style, ReadonlySpan<StringView> styles_list, DurationFormat::ValueStyle digital_base, Optional<DurationFormat::ValueStyle> previous_style, bool two_digit_hours);
-double compute_fractional_digits(DurationFormat const&, DurationRecord const&);
+Crypto::BigFraction compute_fractional_digits(DurationFormat const&, DurationRecord const&);
 bool next_unit_fractional(DurationFormat const&, DurationFormat::Unit unit);
-Vector<DurationFormatPart> format_numeric_hours(VM&, DurationFormat const&, double hours_value, bool sign_displayed);
-Vector<DurationFormatPart> format_numeric_minutes(VM&, DurationFormat const&, double minutes_value, bool hours_displayed, bool sign_displayed);
-Vector<DurationFormatPart> format_numeric_seconds(VM&, DurationFormat const&, double seconds_value, bool minutes_displayed, bool sign_displayed);
+Vector<DurationFormatPart> format_numeric_hours(VM&, DurationFormat const&, MathematicalValue const& hours_value, bool sign_displayed);
+Vector<DurationFormatPart> format_numeric_minutes(VM&, DurationFormat const&, MathematicalValue const& minutes_value, bool hours_displayed, bool sign_displayed);
+Vector<DurationFormatPart> format_numeric_seconds(VM&, DurationFormat const&, MathematicalValue const& seconds_value, bool minutes_displayed, bool sign_displayed);
 Vector<DurationFormatPart> format_numeric_units(VM&, DurationFormat const&, DurationRecord const&, DurationFormat::Unit first_numeric_unit, bool sign_displayed);
 Vector<DurationFormatPart> list_format_parts(VM&, DurationFormat const&, Vector<Vector<DurationFormatPart>>& partitioned_parts_list);
 Vector<DurationFormatPart> partition_duration_format_pattern(VM&, DurationFormat const&, DurationRecord const&);
