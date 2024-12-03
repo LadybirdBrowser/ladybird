@@ -1,0 +1,135 @@
+<!doctype html>
+<meta charset=utf-8>
+<link rel=help href=https://dom.spec.whatwg.org/#interface-htmlcollection>
+<script src=../../resources/testharness.js></script>
+<script src=../../resources/testharnessreport.js></script>
+
+<div id=log></div>
+
+<!-- with no attribute -->
+<span></span>
+
+<!-- with `id` attribute -->
+<span id=''></span>
+<span id='some-id'></span>
+<span id='some-id'></span><!-- to ensure no duplicates -->
+
+<!-- with `name` attribute -->
+<span name=''></span>
+<span name='some-name'></span>
+<span name='some-name'></span><!-- to ensure no duplicates -->
+
+<!-- with `name` and `id` attribute -->
+<span id='another-id' name='another-name'></span>
+
+<script>
+test(function () {
+  var elements = document.getElementsByTagName("span");
+  assert_array_equals(
+    Object.getOwnPropertyNames(elements),
+    ['0', '1', '2', '3', '4', '5', '6', '7', 'some-id', 'some-name', 'another-id', 'another-name']
+  );
+}, 'Object.getOwnPropertyNames on HTMLCollection');
+
+test(function () {
+  var elem = document.createElementNS('some-random-namespace', 'foo');
+  this.add_cleanup(function () {elem.remove();});
+  elem.setAttribute("name", "some-name");
+  document.body.appendChild(elem);
+
+  var elements = document.getElementsByTagName("foo");
+  assert_array_equals(Object.getOwnPropertyNames(elements), ['0']);
+}, 'Object.getOwnPropertyNames on HTMLCollection with non-HTML namespace');
+
+test(function () {
+  var elem = document.createElement('foo');
+  this.add_cleanup(function () {elem.remove();});
+  document.body.appendChild(elem);
+
+  var elements = document.getElementsByTagName("foo");
+  elements.someProperty = "some value";
+
+  assert_array_equals(Object.getOwnPropertyNames(elements), ['0', 'someProperty']);
+}, 'Object.getOwnPropertyNames on HTMLCollection with expando object');
+
+test(function() {
+  var elements = document.getElementsByTagName("span");
+  var old_item = elements["some-id"];
+  var old_desc = Object.getOwnPropertyDescriptor(elements, "some-id");
+  assert_equals(old_desc.value, old_item);
+  assert_false(old_desc.enumerable);
+  assert_true(old_desc.configurable);
+  assert_false(old_desc.writable);
+
+  elements["some-id"] = 5;
+  assert_equals(elements["some-id"], old_item);
+  assert_throws_js(TypeError, function() {
+    "use strict";
+    elements["some-id"] = 5;
+  });
+  assert_throws_js(TypeError, function() {
+    Object.defineProperty(elements, "some-id", { value: 5 });
+  });
+
+  delete elements["some-id"];
+  assert_equals(elements["some-id"], old_item);
+
+  assert_throws_js(TypeError, function() {
+    "use strict";
+    delete elements["some-id"];
+  });
+  assert_equals(elements["some-id"], old_item);
+
+}, 'Trying to set an expando that would shadow an already-existing named property');
+
+test(function() {
+  var elements = document.getElementsByTagName("span");
+  var old_item = elements["new-id"];
+  var old_desc = Object.getOwnPropertyDescriptor(elements, "new-id");
+  assert_equals(old_item, undefined);
+  assert_equals(old_desc, undefined);
+
+  elements["new-id"] = 5;
+  assert_equals(elements["new-id"], 5);
+
+  var span = document.createElement("span");
+  this.add_cleanup(function () {span.remove();});
+  span.id = "new-id";
+  document.body.appendChild(span);
+
+  assert_equals(elements.namedItem("new-id"), span);
+  assert_equals(elements["new-id"], 5);
+
+  delete elements["new-id"];
+  assert_equals(elements["new-id"], span);
+}, 'Trying to set an expando that shadows a named property that gets added later');
+
+test(function() {
+  var elements = document.getElementsByTagName("span");
+  var old_item = elements["new-id2"];
+  var old_desc = Object.getOwnPropertyDescriptor(elements, "new-id2");
+  assert_equals(old_item, undefined);
+  assert_equals(old_desc, undefined);
+
+  Object.defineProperty(elements, "new-id2", { configurable: false, writable:
+                                              false, value: 5 });
+  assert_equals(elements["new-id2"], 5);
+
+  var span = document.createElement("span");
+  this.add_cleanup(function () {span.remove();});
+  span.id = "new-id2";
+  document.body.appendChild(span);
+
+  assert_equals(elements.namedItem("new-id2"), span);
+  assert_equals(elements["new-id2"], 5);
+
+  delete elements["new-id2"];
+  assert_equals(elements["new-id2"], 5);
+
+  assert_throws_js(TypeError, function() {
+    "use strict";
+    delete elements["new-id2"];
+  });
+  assert_equals(elements["new-id2"], 5);
+}, 'Trying to set a non-configurable expando that shadows a named property that gets added later');
+</script>
