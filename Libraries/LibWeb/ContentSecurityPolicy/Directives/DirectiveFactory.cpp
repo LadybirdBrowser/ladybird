@@ -21,6 +21,7 @@
 #include <LibWeb/ContentSecurityPolicy/Directives/StyleSourceAttributeDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/StyleSourceDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/StyleSourceElementDirective.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/WorkerSourceDirective.h>
 
 namespace Web::ContentSecurityPolicy::Directives {
 
@@ -64,6 +65,9 @@ GC::Ref<Directive> create_directive(JS::Realm& realm, String name, Vector<String
 
     if (name == Names::StyleSrcElem)
         return realm.create<StyleSourceElementDirective>(move(name), move(value));
+
+    if (name == Names::WorkerSrc)
+        return realm.create<WorkerSourceDirective>(move(name), move(value));
 
     dbgln("Potential FIXME: Creating unknown Content Security Policy directive: {}", name);
     return realm.create<Directive>(move(name), move(value));

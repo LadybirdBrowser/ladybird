@@ -122,6 +122,7 @@ class ScriptSourceElementDirective;
 class StyleSourceAttributeDirective;
 class StyleSourceDirective;
 class StyleSourceElementDirective;
+class WorkerSourceDirective;
 struct SerializedDirective;
 }
 
