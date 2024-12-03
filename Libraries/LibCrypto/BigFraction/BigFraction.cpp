@@ -140,6 +140,11 @@ double BigFraction::to_double() const
     return m_numerator.to_double() / m_denominator.to_double();
 }
 
+bool BigFraction::is_zero() const
+{
+    return m_numerator.is_zero();
+}
+
 void BigFraction::set_to_0()
 {
     m_numerator.set_to_0();

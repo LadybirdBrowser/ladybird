@@ -44,6 +44,7 @@ public:
     BigFraction invert() const;
     BigFraction sqrt() const;
 
+    bool is_zero() const;
     void set_to_0();
 
     // Return a BigFraction in "scientific notation", as an example with:
