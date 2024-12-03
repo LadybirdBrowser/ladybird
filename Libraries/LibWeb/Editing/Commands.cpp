@@ -206,7 +206,7 @@ bool command_delete_action(DOM::Document& document, String const&)
         }
 
         // 7. Fix disallowed ancestors of node.
-        fix_disallowed_ancestors_of_node(node);
+        fix_disallowed_ancestors_of_node(*node);
 
         // 8. Return true.
         return true;
