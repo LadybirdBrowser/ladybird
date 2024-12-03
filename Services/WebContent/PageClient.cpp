@@ -787,7 +787,7 @@ static void gather_style_sheets(Vector<Web::CSS::StyleSheetIdentifier>& results,
         } else {
             // We can gather this anyway, and hope it loads later
             results.append({ .type = Web::CSS::StyleSheetIdentifier::Type::ImportRule,
-                .url = MUST(import_rule->url().to_string()) });
+                .url = import_rule->url().to_string() });
         }
     }
 }

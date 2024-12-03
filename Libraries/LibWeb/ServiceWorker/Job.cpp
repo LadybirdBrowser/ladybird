@@ -569,7 +569,7 @@ void schedule_job(JS::VM& vm, GC::Ref<Job> job)
 
     // 2. Let jobScope be job’s scope url, serialized.
     // FIXME: Suspect that spec should specify to not use fragment here
-    auto job_scope = job->scope_url.serialize();
+    auto job_scope = job->scope_url.serialize().to_byte_string();
 
     // 3. If scope to job queue map[jobScope] does not exist, set scope to job queue map[jobScope] to a new job queue.
     // 4. Set jobQueue to scope to job queue map[jobScope].

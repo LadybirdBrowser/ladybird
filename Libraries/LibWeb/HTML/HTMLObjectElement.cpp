@@ -137,7 +137,7 @@ String HTMLObjectElement::data() const
     if (!data.has_value())
         return {};
 
-    return MUST(document().parse_url(*data).to_string());
+    return document().parse_url(*data).to_string();
 }
 
 GC::Ptr<Layout::Node> HTMLObjectElement::create_layout_node(CSS::StyleProperties style)

@@ -17,7 +17,7 @@ GC_DEFINE_ALLOCATOR(WorkerLocation);
 String WorkerLocation::href() const
 {
     // The href getter steps are to return this's WorkerGlobalScope object's url, serialized.
-    return MUST(String::from_byte_string(m_global_scope->url().serialize()));
+    return m_global_scope->url().serialize();
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-workerlocation-origin

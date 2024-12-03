@@ -20,7 +20,7 @@ class NavigationDestination : public Bindings::PlatformObject {
 public:
     [[nodiscard]] static GC::Ref<NavigationDestination> create(JS::Realm&);
 
-    WebIDL::ExceptionOr<String> url() const;
+    String url() const;
     String key() const;
     String id() const;
     i64 index() const;

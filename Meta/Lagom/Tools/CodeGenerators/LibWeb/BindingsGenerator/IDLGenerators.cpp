@@ -3775,7 +3775,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
 
     auto url_string = impl->document().parse_url(*content_attribute_value);
     if (url_string.is_valid())
-        return JS::PrimitiveString::create(vm, MUST(url_string.to_string()));
+        return JS::PrimitiveString::create(vm, url_string.to_string());
 )~~~");
                 }
 

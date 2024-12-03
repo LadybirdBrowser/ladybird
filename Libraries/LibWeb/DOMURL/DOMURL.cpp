@@ -131,14 +131,14 @@ WebIDL::ExceptionOr<String> DOMURL::create_object_url(JS::VM& vm, GC::Ref<FileAP
 }
 
 // https://w3c.github.io/FileAPI/#dfn-revokeObjectURL
-WebIDL::ExceptionOr<void> DOMURL::revoke_object_url(JS::VM& vm, StringView url)
+void DOMURL::revoke_object_url(JS::VM&, StringView url)
 {
     // 1. Let url record be the result of parsing url.
     auto url_record = parse(url);
 
     // 2. If url record’s scheme is not "blob", return.
     if (url_record.scheme() != "blob"sv)
-        return {};
+        return;
 
     // 3. Let origin be the origin of url record.
     auto origin = url_record.origin();
@@ -148,11 +148,10 @@ WebIDL::ExceptionOr<void> DOMURL::revoke_object_url(JS::VM& vm, StringView url)
 
     // 5. If origin is not same origin with settings’s origin, return.
     if (!origin.is_same_origin(settings.origin()))
-        return {};
+        return;
 
     // 6. Remove an entry from the Blob URL Store for url.
-    TRY_OR_THROW_OOM(vm, FileAPI::remove_entry_from_blob_url_store(url));
-    return {};
+    FileAPI::remove_entry_from_blob_url_store(url);
 }
 
 // https://url.spec.whatwg.org/#dom-url-canparse
@@ -170,21 +169,17 @@ bool DOMURL::can_parse(JS::VM&, String const& url, Optional<String> const& base)
 }
 
 // https://url.spec.whatwg.org/#dom-url-href
-WebIDL::ExceptionOr<String> DOMURL::href() const
+String DOMURL::href() const
 {
-    auto& vm = realm().vm();
-
     // The href getter steps and the toJSON() method steps are to return the serialization of this’s URL.
-    return TRY_OR_THROW_OOM(vm, String::from_byte_string(m_url.serialize()));
+    return m_url.serialize();
 }
 
 // https://url.spec.whatwg.org/#dom-url-tojson
-WebIDL::ExceptionOr<String> DOMURL::to_json() const
+String DOMURL::to_json() const
 {
-    auto& vm = realm().vm();
-
     // The href getter steps and the toJSON() method steps are to return the serialization of this’s URL.
-    return TRY_OR_THROW_OOM(vm, String::from_byte_string(m_url.serialize()));
+    return m_url.serialize();
 }
 
 // https://url.spec.whatwg.org/#ref-for-dom-url-href②

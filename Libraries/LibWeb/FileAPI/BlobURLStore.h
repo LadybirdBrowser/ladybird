@@ -27,7 +27,7 @@ using BlobURLStore = HashMap<String, BlobURLEntry>;
 BlobURLStore& blob_url_store();
 ErrorOr<String> generate_new_blob_url();
 ErrorOr<String> add_entry_to_blob_url_store(GC::Ref<Blob> object);
-ErrorOr<void> remove_entry_from_blob_url_store(StringView url);
+void remove_entry_from_blob_url_store(StringView url);
 Optional<BlobURLEntry const&> resolve_a_blob_url(URL::URL const&);
 
 void run_unloading_cleanup_steps(GC::Ref<DOM::Document>);

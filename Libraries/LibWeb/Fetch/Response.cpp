@@ -236,7 +236,7 @@ String Response::url() const
     // The url getter steps are to return the empty string if this’s response’s URL is null; otherwise this’s response’s URL, serialized with exclude fragment set to true.
     return !m_response->url().has_value()
         ? String {}
-        : MUST(String::from_byte_string(m_response->url()->serialize(URL::ExcludeFragment::Yes)));
+        : m_response->url()->serialize(URL::ExcludeFragment::Yes);
 }
 
 // https://fetch.spec.whatwg.org/#dom-response-redirected

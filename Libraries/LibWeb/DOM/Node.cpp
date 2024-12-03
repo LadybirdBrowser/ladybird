@@ -125,7 +125,7 @@ void Node::visit_edges(Cell::Visitor& visitor)
 String Node::base_uri() const
 {
     // Return this’s node document’s document base URL, serialized.
-    return MUST(document().base_url().to_string());
+    return document().base_url().to_string();
 }
 
 const HTML::HTMLAnchorElement* Node::enclosing_link_element() const

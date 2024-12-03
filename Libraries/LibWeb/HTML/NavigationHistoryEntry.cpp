@@ -44,7 +44,7 @@ void NavigationHistoryEntry::visit_edges(JS::Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigationhistoryentry-url
-WebIDL::ExceptionOr<Optional<String>> NavigationHistoryEntry::url() const
+Optional<String> NavigationHistoryEntry::url() const
 {
     // The url getter steps are:
     // 1. Let document be this's relevant global object's associated Document.
@@ -65,7 +65,7 @@ WebIDL::ExceptionOr<Optional<String>> NavigationHistoryEntry::url() const
         return OptionalNone {};
 
     // 5. Return she's URL, serialized.
-    return TRY_OR_THROW_OOM(vm(), String::from_byte_string(she->url().serialize()));
+    return she->url().serialize();
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-navigationhistoryentry-key
