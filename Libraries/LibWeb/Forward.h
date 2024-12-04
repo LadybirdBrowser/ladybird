@@ -107,6 +107,7 @@ class ConnectSourceDirective;
 class DefaultSourceDirective;
 class Directive;
 class FontSourceDirective;
+class FormActionDirective;
 class FrameSourceDirective;
 class ImageSourceDirective;
 class ManifestSourceDirective;
