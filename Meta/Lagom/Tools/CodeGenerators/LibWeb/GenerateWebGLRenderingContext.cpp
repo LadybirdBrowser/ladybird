@@ -58,6 +58,175 @@ static ByteString idl_to_gl_function_name(StringView function_name)
     return gl_function_name_builder.to_byte_string();
 }
 
+static void generate_get_parameter(SourceGenerator& generator)
+{
+    struct NameAndType {
+        StringView name;
+        struct {
+            StringView type;
+            int element_count { 0 };
+        } return_type;
+    };
+
+    Vector<NameAndType> const name_to_type = {
+        { "ACTIVE_TEXTURE"sv, { "GLenum"sv } },
+        { "ALIASED_LINE_WIDTH_RANGE"sv, { "Float32Array"sv, 2 } },
+        { "ALIASED_POINT_SIZE_RANGE"sv, { "Float32Array"sv, 2 } },
+        { "ALPHA_BITS"sv, { "GLint"sv } },
+        { "ARRAY_BUFFER_BINDING"sv, { "WebGLBuffer"sv } },
+        { "BLEND"sv, { "GLboolean"sv } },
+        { "BLEND_COLOR"sv, { "Float32Array"sv, 4 } },
+        { "BLEND_DST_ALPHA"sv, { "GLenum"sv } },
+        { "BLEND_DST_RGB"sv, { "GLenum"sv } },
+        { "BLEND_EQUATION_ALPHA"sv, { "GLenum"sv } },
+        { "BLEND_EQUATION_RGB"sv, { "GLenum"sv } },
+        { "BLEND_SRC_ALPHA"sv, { "GLenum"sv } },
+        { "BLEND_SRC_RGB"sv, { "GLenum"sv } },
+        { "BLUE_BITS"sv, { "GLint"sv } },
+        { "COLOR_CLEAR_VALUE"sv, { "Float32Array"sv, 4 } },
+        // FIXME: { "COLOR_WRITEMASK"sv, { "sequence<GLboolean>"sv, 4 } },
+        // FIXME: { "COMPRESSED_TEXTURE_FORMATS"sv, { "Uint32Array"sv } },
+        { "CULL_FACE"sv, { "GLboolean"sv } },
+        { "CULL_FACE_MODE"sv, { "GLenum"sv } },
+        { "CURRENT_PROGRAM"sv, { "WebGLProgram"sv } },
+        { "DEPTH_BITS"sv, { "GLint"sv } },
+        { "DEPTH_CLEAR_VALUE"sv, { "GLfloat"sv } },
+        { "DEPTH_FUNC"sv, { "GLenum"sv } },
+        { "DEPTH_RANGE"sv, { "Float32Array"sv, 2 } },
+        { "DEPTH_TEST"sv, { "GLboolean"sv } },
+        { "DEPTH_WRITEMASK"sv, { "GLboolean"sv } },
+        { "DITHER"sv, { "GLboolean"sv } },
+        { "ELEMENT_ARRAY_BUFFER_BINDING"sv, { "WebGLBuffer"sv } },
+        // FIXME: { "FRAMEBUFFER_BINDING"sv, { "WebGLFramebuffer"sv } },
+        { "FRONT_FACE"sv, { "GLenum"sv } },
+        { "GENERATE_MIPMAP_HINT"sv, { "GLenum"sv } },
+        { "GREEN_BITS"sv, { "GLint"sv } },
+        { "IMPLEMENTATION_COLOR_READ_FORMAT"sv, { "GLenum"sv } },
+        { "IMPLEMENTATION_COLOR_READ_TYPE"sv, { "GLenum"sv } },
+        { "LINE_WIDTH"sv, { "GLfloat"sv } },
+        { "MAX_COMBINED_TEXTURE_IMAGE_UNITS"sv, { "GLint"sv } },
+        { "MAX_CUBE_MAP_TEXTURE_SIZE"sv, { "GLint"sv } },
+        { "MAX_FRAGMENT_UNIFORM_VECTORS"sv, { "GLint"sv } },
+        { "MAX_RENDERBUFFER_SIZE"sv, { "GLint"sv } },
+        { "MAX_TEXTURE_IMAGE_UNITS"sv, { "GLint"sv } },
+        { "MAX_TEXTURE_SIZE"sv, { "GLint"sv } },
+        { "MAX_VARYING_VECTORS"sv, { "GLint"sv } },
+        { "MAX_VERTEX_ATTRIBS"sv, { "GLint"sv } },
+        { "MAX_VERTEX_TEXTURE_IMAGE_UNITS"sv, { "GLint"sv } },
+        { "MAX_VERTEX_UNIFORM_VECTORS"sv, { "GLint"sv } },
+        { "MAX_VIEWPORT_DIMS"sv, { "Int32Array"sv, 2 } },
+        { "PACK_ALIGNMENT"sv, { "GLint"sv } },
+        { "POLYGON_OFFSET_FACTOR"sv, { "GLfloat"sv } },
+        { "POLYGON_OFFSET_FILL"sv, { "GLboolean"sv } },
+        { "POLYGON_OFFSET_UNITS"sv, { "GLfloat"sv } },
+        { "RED_BITS"sv, { "GLint"sv } },
+        // FIXME: { "RENDERBUFFER_BINDING"sv, { "WebGLRenderbuffer"sv } },
+        { "RENDERER"sv, { "DOMString"sv } },
+        { "SAMPLE_ALPHA_TO_COVERAGE"sv, { "GLboolean"sv } },
+        { "SAMPLE_BUFFERS"sv, { "GLint"sv } },
+        { "SAMPLE_COVERAGE"sv, { "GLboolean"sv } },
+        { "SAMPLE_COVERAGE_INVERT"sv, { "GLboolean"sv } },
+        { "SAMPLE_COVERAGE_VALUE"sv, { "GLfloat"sv } },
+        { "SAMPLES"sv, { "GLint"sv } },
+        { "SCISSOR_BOX"sv, { "Int32Array"sv, 4 } },
+        { "SCISSOR_TEST"sv, { "GLboolean"sv } },
+        { "SHADING_LANGUAGE_VERSION"sv, { "DOMString"sv } },
+        { "STENCIL_BACK_FAIL"sv, { "GLenum"sv } },
+        { "STENCIL_BACK_FUNC"sv, { "GLenum"sv } },
+        { "STENCIL_BACK_PASS_DEPTH_FAIL"sv, { "GLenum"sv } },
+        { "STENCIL_BACK_PASS_DEPTH_PASS"sv, { "GLenum"sv } },
+        { "STENCIL_BACK_REF"sv, { "GLint"sv } },
+        { "STENCIL_BACK_VALUE_MASK"sv, { "GLuint"sv } },
+        { "STENCIL_BACK_WRITEMASK"sv, { "GLuint"sv } },
+        { "STENCIL_BITS"sv, { "GLint"sv } },
+        { "STENCIL_CLEAR_VALUE"sv, { "GLint"sv } },
+        { "STENCIL_FAIL"sv, { "GLenum"sv } },
+        { "STENCIL_FUNC"sv, { "GLenum"sv } },
+        { "STENCIL_PASS_DEPTH_FAIL"sv, { "GLenum"sv } },
+        { "STENCIL_PASS_DEPTH_PASS"sv, { "GLenum"sv } },
+        { "STENCIL_REF"sv, { "GLint"sv } },
+        { "STENCIL_TEST"sv, { "GLboolean"sv } },
+        { "STENCIL_VALUE_MASK"sv, { "GLuint"sv } },
+        { "STENCIL_WRITEMASK"sv, { "GLuint"sv } },
+        { "SUBPIXEL_BITS"sv, { "GLint"sv } },
+        { "TEXTURE_BINDING_2D"sv, { "WebGLTexture"sv } },
+        { "TEXTURE_BINDING_CUBE_MAP"sv, { "WebGLTexture"sv } },
+        { "UNPACK_ALIGNMENT"sv, { "GLint"sv } },
+        // FIXME: { "UNPACK_COLORSPACE_CONVERSION_WEBGL"sv, { "GLenum"sv } },
+        // FIXME: { "UNPACK_FLIP_Y_WEBGL"sv, { "GLboolean"sv } },
+        // FIXME: { "UNPACK_PREMULTIPLY_ALPHA_WEBGL"sv, { "GLboolean"sv } },
+        { "VENDOR"sv, { "DOMString"sv } },
+        { "VERSION"sv, { "DOMString"sv } },
+        { "VIEWPORT"sv, { "Int32Array"sv, 4 } },
+    };
+
+    auto is_primitive_type = [](StringView type) {
+        return type == "GLboolean"sv || type == "GLint"sv || type == "GLfloat"sv || type == "GLenum"sv || type == "GLuint"sv;
+    };
+
+    generator.append("    switch (pname) {");
+    for (auto const& name_and_type : name_to_type) {
+        auto const& parameter_name = name_and_type.name;
+        auto const& type_name = name_and_type.return_type.type;
+
+        StringBuilder string_builder;
+        SourceGenerator impl_generator { string_builder };
+        impl_generator.set("parameter_name", parameter_name);
+        impl_generator.set("type_name", type_name);
+        impl_generator.append(R"~~~(
+    case GL_@parameter_name@: {)~~~");
+        if (is_primitive_type(type_name)) {
+            impl_generator.append(R"~~~(
+        GLint result;
+        glGetIntegerv(GL_@parameter_name@, &result);
+        return JS::Value(result);
+)~~~");
+        } else if (type_name == "DOMString"sv) {
+            impl_generator.append(R"~~~(
+        auto result = reinterpret_cast<const char*>(glGetString(GL_@parameter_name@));
+        return JS::PrimitiveString::create(m_realm->vm(), ByteString { result });)~~~");
+        } else if (type_name == "Float32Array"sv || type_name == "Int32Array"sv) {
+            auto element_count = name_and_type.return_type.element_count;
+            impl_generator.set("element_count", MUST(String::formatted("{}", element_count)));
+            if (type_name == "Int32Array"sv) {
+                impl_generator.set("gl_function_name", "glGetIntegerv"sv);
+                impl_generator.set("element_type", "GLint"sv);
+            } else if (type_name == "Float32Array"sv) {
+                impl_generator.set("gl_function_name", "glGetFloatv"sv);
+                impl_generator.set("element_type", "GLfloat"sv);
+            } else {
+                VERIFY_NOT_REACHED();
+            }
+            impl_generator.append(R"~~~(
+        Array<@element_type@, @element_count@> result;
+        @gl_function_name@(GL_@parameter_name@, result.data());
+        auto byte_buffer = MUST(ByteBuffer::copy(result.data(), @element_count@ * sizeof(@element_type@)));
+        auto array_buffer = JS::ArrayBuffer::create(m_realm, move(byte_buffer));
+        return JS::@type_name@::create(m_realm, @element_count@, array_buffer);
+)~~~");
+        } else if (type_name == "WebGLProgram"sv || type_name == "WebGLBuffer"sv || type_name == "WebGLTexture"sv) {
+            impl_generator.append(R"~~~(
+        GLint result;
+        glGetIntegerv(GL_@parameter_name@, &result);
+        if (!result)
+            return JS::js_null();
+        return @type_name@::create(m_realm, result);
+)~~~");
+        } else {
+            VERIFY_NOT_REACHED();
+        }
+
+        impl_generator.append("    }");
+
+        generator.append(string_builder.string_view());
+    }
+
+    generator.appendln(R"~~~(
+    default:
+        TODO();
+    })~~~");
+}
+
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
     StringView generated_header_path;
@@ -362,11 +531,7 @@ public:
         }
 
         if (function.name == "getParameter"sv) {
-            function_impl_generator.append(R"~~~(
-    GLint result = 0;
-    glGetIntegerv(pname, &result);
-    return JS::Value(result);
-)~~~");
+            generate_get_parameter(function_impl_generator);
             continue;
         }
 
