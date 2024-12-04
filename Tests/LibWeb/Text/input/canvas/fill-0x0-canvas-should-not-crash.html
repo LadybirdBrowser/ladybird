@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<canvas id="myCanvas" width="0" height="0"></canvas>
+<script>
+    test(() => {
+        const canvas = document.getElementById('myCanvas');
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = 'red';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        println("PASS (didn't crash!)");
+    });
+</script>

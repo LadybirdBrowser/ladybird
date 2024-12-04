@@ -199,8 +199,9 @@ void CanvasRenderingContext2D::did_draw(Gfx::FloatRect const&)
 
 Gfx::Painter* CanvasRenderingContext2D::painter()
 {
-    if (!canvas_element().surface()) {
-        allocate_painting_surface_if_needed();
+    allocate_painting_surface_if_needed();
+    auto surface = canvas_element().surface();
+    if (!m_painter && surface) {
         canvas_element().document().invalidate_display_list();
         m_painter = make<Gfx::PainterSkia>(*canvas_element().surface());
     }
@@ -217,7 +218,7 @@ void CanvasRenderingContext2D::set_size(Gfx::IntSize const& size)
 
 void CanvasRenderingContext2D::allocate_painting_surface_if_needed()
 {
-    if (m_surface)
+    if (m_surface || m_size.is_empty())
         return;
     auto skia_backend_context = canvas_element().navigable()->traversable_navigable()->skia_backend_context();
     m_surface = Gfx::PaintingSurface::create_with_size(skia_backend_context, canvas_element().bitmap_size_for_canvas(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
