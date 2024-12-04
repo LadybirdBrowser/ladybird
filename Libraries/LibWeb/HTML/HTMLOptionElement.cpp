@@ -205,28 +205,29 @@ void HTMLOptionElement::inserted()
 
     set_selected_internal(selected());
 
-    // 1. The option HTML element insertion steps, given insertedNode, are:
-    //    If insertedNode's parent is a select element,
-    //    or insertedNode's parent is an optgroup element whose parent is a select element,
-    //    then run that select element's selectedness setting algorithm.
-    if (is<HTMLSelectElement>(*parent()))
-        static_cast<HTMLSelectElement&>(*parent()).update_selectedness();
-    else if (is<HTMLOptGroupElement>(parent()) && parent()->parent() && is<HTMLSelectElement>(*parent()->parent()))
-        static_cast<HTMLSelectElement&>(*parent()->parent()).update_selectedness();
+    // The option HTML element insertion steps, given insertedOption, are:
+    // 1. For each ancestor of insertedOption's ancestors in reverse tree order:
+    for (auto* ancestor = parent_node(); ancestor; ancestor = ancestor->parent_node()) {
+        // 1. If ancestor is a select element, then run the selectedness setting algorithm given ancestor and return.
+        if (is<HTMLSelectElement>(*ancestor)) {
+            static_cast<HTMLSelectElement&>(*ancestor).update_selectedness();
+            return;
+        }
+    }
 }
 
 void HTMLOptionElement::removed_from(Node* old_parent)
 {
     Base::removed_from(old_parent);
 
-    // The option HTML element removing steps, given removedNode and oldParent, are:
-    // 1. If oldParent is a select element, or oldParent is an optgroup element whose parent is a select element,
-    //    then run that select element's selectedness setting algorithm.
-    if (old_parent) {
-        if (is<HTMLSelectElement>(*old_parent))
-            static_cast<HTMLSelectElement&>(*old_parent).update_selectedness();
-        else if (is<HTMLOptGroupElement>(*old_parent) && old_parent->parent_element() && is<HTMLSelectElement>(old_parent->parent_element()))
-            static_cast<HTMLSelectElement&>(*old_parent->parent_element()).update_selectedness();
+    // The option HTML element removing steps, given removedOption and oldParent, are:
+    // 1. For each ancestor of oldParent's inclusive ancestors in reverse tree order:
+    for (auto* ancestor = old_parent; ancestor; ancestor = ancestor->parent_node()) {
+        // 1. If ancestor is a select element, then run the selectedness setting algorithm given ancestor and return.
+        if (is<HTMLSelectElement>(*ancestor)) {
+            static_cast<HTMLSelectElement&>(*ancestor).update_selectedness();
+            return;
+        }
     }
 }
 

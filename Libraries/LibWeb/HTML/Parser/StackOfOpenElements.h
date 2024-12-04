@@ -39,7 +39,6 @@ public:
     bool has_in_button_scope(FlyString const& tag_name) const;
     bool has_in_table_scope(FlyString const& tag_name) const;
     bool has_in_list_item_scope(FlyString const& tag_name) const;
-    bool has_in_select_scope(FlyString const& tag_name) const;
 
     bool has_in_scope(const DOM::Element&) const;
 
