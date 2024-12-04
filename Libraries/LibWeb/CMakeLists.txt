@@ -63,6 +63,7 @@ set(SOURCES
     ContentSecurityPolicy/Directives/StyleSourceAttributeDirective.cpp
     ContentSecurityPolicy/Directives/StyleSourceDirective.cpp
     ContentSecurityPolicy/Directives/StyleSourceElementDirective.cpp
+    ContentSecurityPolicy/Directives/WebRTCDirective.cpp
     ContentSecurityPolicy/Directives/WorkerSourceDirective.cpp
     ContentSecurityPolicy/BlockingAlgorithms.cpp
     ContentSecurityPolicy/Policy.cpp
