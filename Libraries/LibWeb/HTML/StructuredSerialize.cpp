@@ -567,8 +567,8 @@ WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, Vector<u32>& vector
 {
     // 13. Otherwise, if value has an [[ArrayBufferData]] internal slot, then:
 
-    // FIXME: 1.  If IsSharedArrayBuffer(value) is true, then:
-    if (false) {
+    // 1.  If IsSharedArrayBuffer(value) is true, then:
+    if (array_buffer.is_shared_array_buffer()) {
         // 1. If the current principal settings object's cross-origin isolated capability is false, then throw a "DataCloneError" DOMException.
         // NOTE: This check is only needed when serializing (and not when deserializing) as the cross-origin isolated capability cannot change
         //       over time and a SharedArrayBuffer cannot leave an agent cluster.
@@ -579,12 +579,23 @@ WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, Vector<u32>& vector
         if (for_storage)
             return WebIDL::DataCloneError::create(*vm.current_realm(), "Cannot serialize SharedArrayBuffer for storage"_string);
 
-        // FIXME: 3. If value has an [[ArrayBufferMaxByteLength]] internal slot, then set serialized to { [[Type]]: "GrowableSharedArrayBuffer",
-        //           [[ArrayBufferData]]: value.[[ArrayBufferData]], [[ArrayBufferByteLengthData]]: value.[[ArrayBufferByteLengthData]],
-        //           [[ArrayBufferMaxByteLength]]: value.[[ArrayBufferMaxByteLength]], [[AgentCluster]]: the surrounding agent's agent cluster }.
-        // FIXME: 4. Otherwise, set serialized to { [[Type]]: "SharedArrayBuffer", [[ArrayBufferData]]: value.[[ArrayBufferData]],
-        //           [[ArrayBufferByteLength]]: value.[[ArrayBufferByteLength]], [[AgentCluster]]: the surrounding agent's agent cluster }.
+        if (!array_buffer.is_fixed_length()) {
+            // 3. If value has an [[ArrayBufferMaxByteLength]] internal slot, then set serialized to { [[Type]]: "GrowableSharedArrayBuffer",
+            //           [[ArrayBufferData]]: value.[[ArrayBufferData]], [[ArrayBufferByteLengthData]]: value.[[ArrayBufferByteLengthData]],
+            //           [[ArrayBufferMaxByteLength]]: value.[[ArrayBufferMaxByteLength]],
+            //           FIXME: [[AgentCluster]]: the surrounding agent's agent cluster }.
+            serialize_enum(vector, ValueTag::GrowableSharedArrayBuffer);
+            TRY(serialize_bytes(vm, vector, array_buffer.buffer().bytes()));
+            serialize_primitive_type(vector, array_buffer.max_byte_length());
+        } else {
+            // 4. Otherwise, set serialized to { [[Type]]: "SharedArrayBuffer", [[ArrayBufferData]]: value.[[ArrayBufferData]],
+            //           [[ArrayBufferByteLength]]: value.[[ArrayBufferByteLength]],
+            //           FIXME: [[AgentCluster]]: the surrounding agent's agent cluster }.
+            serialize_enum(vector, ValueTag::SharedArrayBuffer);
+            TRY(serialize_bytes(vm, vector, array_buffer.buffer().bytes()));
+        }
     }
+
     // 2. Otherwise:
     else {
         // 1. If IsDetachedBuffer(value) is true, then throw a "DataCloneError" DOMException.
@@ -601,9 +612,12 @@ WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, Vector<u32>& vector
         // 4. Perform CopyDataBlockBytes(dataCopy, 0, value.[[ArrayBufferData]], 0, size).
         JS::copy_data_block_bytes(data_copy.buffer(), 0, array_buffer.buffer(), 0, size);
 
-        // FIXME: 5. If value has an [[ArrayBufferMaxByteLength]] internal slot, then set serialized to { [[Type]]: "ResizableArrayBuffer",
+        // 5. If value has an [[ArrayBufferMaxByteLength]] internal slot, then set serialized to { [[Type]]: "ResizableArrayBuffer",
         //    [[ArrayBufferData]]: dataCopy, [[ArrayBufferByteLength]]: size, [[ArrayBufferMaxByteLength]]: value.[[ArrayBufferMaxByteLength]] }.
-        if (false) {
+        if (!array_buffer.is_fixed_length()) {
+            serialize_enum(vector, ValueTag::ResizeableArrayBuffer);
+            TRY(serialize_bytes(vm, vector, data_copy.buffer().bytes()));
+            serialize_primitive_type(vector, array_buffer.max_byte_length());
         }
         // 6. Otherwise, set serialized to { [[Type]]: "ArrayBuffer", [[ArrayBufferData]]: dataCopy, [[ArrayBufferByteLength]]: size }.
         else {
@@ -643,10 +657,13 @@ WebIDL::ExceptionOr<void> serialize_viewed_array_buffer(JS::VM& vm, Vector<u32>&
     auto buffer_serialized = TRY(structured_serialize_internal(vm, buffer, for_storage, memory));
 
     // 4. Assert: bufferSerialized.[[Type]] is "ArrayBuffer", "ResizableArrayBuffer", "SharedArrayBuffer", or "GrowableSharedArrayBuffer".
-    // NOTE: We currently only implement this for ArrayBuffer
     // NOTE: Object reference + memory check is required when ArrayBuffer is transfered.
     auto tag = buffer_serialized[0];
-    VERIFY(tag == ValueTag::ArrayBuffer || (tag == ValueTag::ObjectReference && memory.contains(buffer)));
+    VERIFY(tag == ValueTag::ArrayBuffer
+        || tag == ValueTag::ResizeableArrayBuffer
+        || tag == ValueTag::SharedArrayBuffer
+        || tag == ValueTag::GrowableSharedArrayBuffer
+        || (tag == ValueTag::ObjectReference && memory.contains(buffer)));
 
     // 5. If value has a [[DataView]] internal slot, then set serialized to { [[Type]]: "ArrayBufferView", [[Constructor]]: "DataView",
     //    [[ArrayBufferSerialized]]: bufferSerialized, [[ByteLength]]: value.[[ByteLength]], [[ByteOffset]]: value.[[ByteOffset]] }.
@@ -776,8 +793,39 @@ public:
             value = TRY(deserialize_reg_exp_object(*m_vm.current_realm(), m_serialized, m_position));
             break;
         }
-        // FIXME: 12. Otherwise, if serialized.[[Type]] is "SharedArrayBuffer", then:
-        // FIXME: 13. Otherwise, if serialized.[[Type]] is "GrowableSharedArrayBuffer", then:
+        // 12. Otherwise, if serialized.[[Type]] is "SharedArrayBuffer", then:
+        case ValueTag::SharedArrayBuffer: {
+            // FIXME: 1. If targetRealm's corresponding agent cluster is not serialized.[[AgentCluster]], then throw a "DataCloneError" DOMException.
+            // 2. Otherwise, set value to a new SharedArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]]
+            //    and whose [[ArrayBufferByteLength]] internal slot value is serialized.[[ArrayBufferByteLength]].
+            auto* realm = m_vm.current_realm();
+            auto bytes_or_error = deserialize_bytes(m_vm, m_serialized, m_position);
+            if (bytes_or_error.is_error())
+                return WebIDL::DataCloneError::create(*realm, "out of memory"_string);
+            auto bytes = bytes_or_error.release_value();
+            JS::ArrayBuffer* buffer = TRY(JS::allocate_shared_array_buffer(m_vm, realm->intrinsics().array_buffer_constructor(), bytes.size()));
+            bytes.span().copy_to(buffer->buffer().span());
+            value = buffer;
+            break;
+        }
+        // 13. Otherwise, if serialized.[[Type]] is "GrowableSharedArrayBuffer", then:
+        case ValueTag::GrowableSharedArrayBuffer: {
+            // FIXME: 1. If targetRealm's corresponding agent cluster is not serialized.[[AgentCluster]], then throw a "DataCloneError" DOMException.
+            // 2. Otherwise, set value to a new SharedArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]],
+            //    whose [[ArrayBufferByteLengthData]] internal slot value is serialized.[[ArrayBufferByteLengthData]],
+            //    and whose [[ArrayBufferMaxByteLength]] internal slot value is serialized.[[ArrayBufferMaxByteLength]].
+            auto* realm = m_vm.current_realm();
+            auto bytes_or_error = deserialize_bytes(m_vm, m_serialized, m_position);
+            if (bytes_or_error.is_error())
+                return WebIDL::DataCloneError::create(*realm, "out of memory"_string);
+            size_t max_byte_length = deserialize_primitive_type<size_t>(m_serialized, m_position);
+            auto bytes = bytes_or_error.release_value();
+            JS::ArrayBuffer* buffer = TRY(JS::allocate_shared_array_buffer(m_vm, realm->intrinsics().array_buffer_constructor(), bytes.size()));
+            bytes.span().copy_to(buffer->buffer().span());
+            buffer->set_max_byte_length(max_byte_length);
+            value = buffer;
+            break;
+        }
         // 14. Otherwise, if serialized.[[Type]] is "ArrayBuffer", then set value to a new ArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]], and whose [[ArrayBufferByteLength]] internal slot value is serialized.[[ArrayBufferByteLength]].
         case ValueTag::ArrayBuffer: {
             auto* realm = m_vm.current_realm();
@@ -788,7 +836,19 @@ public:
             value = JS::ArrayBuffer::create(*realm, bytes_or_error.release_value());
             break;
         }
-        // FIXME: 15. Otherwise, if serialized.[[Type]] is "ResizableArrayBuffer", then set value to a new ArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]], whose [[ArrayBufferByteLength]] internal slot value is serialized.[[ArrayBufferByteLength]], and whose [[ArrayBufferMaxByteLength]] internal slot value is a serialized.[[ArrayBufferMaxByteLength]].
+        // 15. Otherwise, if serialized.[[Type]] is "ResizableArrayBuffer", then set value to a new ArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]], whose [[ArrayBufferByteLength]] internal slot value is serialized.[[ArrayBufferByteLength]], and whose [[ArrayBufferMaxByteLength]] internal slot value is a serialized.[[ArrayBufferMaxByteLength]].
+        case ValueTag::ResizeableArrayBuffer: {
+            auto* realm = m_vm.current_realm();
+            // If this throws an exception, catch it, and then throw a "DataCloneError" DOMException.
+            auto bytes_or_error = deserialize_bytes(m_vm, m_serialized, m_position);
+            if (bytes_or_error.is_error())
+                return WebIDL::DataCloneError::create(*m_vm.current_realm(), "out of memory"_string);
+            size_t max_byte_length = deserialize_primitive_type<size_t>(m_serialized, m_position);
+            auto buffer = JS::ArrayBuffer::create(*realm, bytes_or_error.release_value());
+            buffer->set_max_byte_length(max_byte_length);
+            value = buffer;
+            break;
+        }
         // 16. Otherwise, if serialized.[[Type]] is "ArrayBufferView", then:
         case ValueTag::ArrayBufferView: {
             auto* realm = m_vm.current_realm();

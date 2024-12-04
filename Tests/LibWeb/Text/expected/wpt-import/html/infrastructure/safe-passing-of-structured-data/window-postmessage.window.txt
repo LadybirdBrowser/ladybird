@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 150 tests
 
-133 Pass
-16 Fail
+134 Pass
+15 Fail
 1 Optional Feature Unsupported
 Pass	primitive undefined
 Pass	primitive null
@@ -137,7 +137,7 @@ Pass	ObjectPrototype must lose its exotic-ness when cloned
 Pass	Serializing a non-serializable platform object fails
 Pass	An object whose interface is deleted from the global must still deserialize
 Pass	A subclass instance will deserialize as its closest serializable superclass
-Fail	Resizable ArrayBuffer
+Pass	Resizable ArrayBuffer
 Fail	Growable SharedArrayBuffer
 Pass	Length-tracking TypedArray
 Pass	Length-tracking DataView
