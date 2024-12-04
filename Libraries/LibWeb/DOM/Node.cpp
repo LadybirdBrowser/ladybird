@@ -2374,13 +2374,15 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
                                 }
                             }
                         } else if (role == ARIA::Role::spinbutton || role == ARIA::Role::slider) {
+                            auto aria_valuenow = element.aria_value_now();
+                            auto aria_valuetext = element.aria_value_text();
                             // iii. Range: If the embedded control has role range (e.g., a spinbutton or slider):
                             // a. If the aria-valuetext property is present, return its value,
-                            if (element.has_attribute("aria-valuetext"_string))
-                                builder.append(element.get_attribute("aria-valuetext"_string).value());
+                            if (aria_valuetext.has_value())
+                                builder.append(aria_valuetext.value());
                             // b. Otherwise, if the aria-valuenow property is present, return its value
-                            else if (element.has_attribute("aria-valuenow"_string))
-                                builder.append(element.get_attribute("aria-valuenow"_string).value());
+                            else if (aria_valuenow.has_value())
+                                builder.append(aria_valuenow.value());
                             // c. Otherwise, use the value as specified by a host language attribute.
                             else if (is<HTML::HTMLInputElement>(*node)) {
                                 auto const& element = static_cast<HTML::HTMLInputElement const&>(*node);
