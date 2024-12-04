@@ -20,6 +20,7 @@
 #include <LibWeb/ContentSecurityPolicy/Directives/MediaSourceDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/ObjectSourceDirective.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/ReportToDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/ReportUriDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/ScriptSourceAttributeDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/ScriptSourceDirective.h>
@@ -68,6 +69,9 @@ GC::Ref<Directive> create_directive(GC::Heap& heap, String name, Vector<String> 
 
     if (name == Names::ObjectSrc)
         return heap.allocate<ObjectSourceDirective>(move(name), move(value));
+
+    if (name == Names::ReportTo)
+        return heap.allocate<ReportToDirective>(move(name), move(value));
 
     if (name == Names::ReportUri)
         return heap.allocate<ReportUriDirective>(move(name), move(value));
