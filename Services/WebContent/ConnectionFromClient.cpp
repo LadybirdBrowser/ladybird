@@ -411,13 +411,35 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString const& request,
 
     if (request == "load-reference-page") {
         if (auto* document = page->page().top_level_browsing_context().active_document()) {
-            auto maybe_link = document->query_selector("link[rel=match]"sv);
+            auto has_mismatch_selector = false;
+
+            auto maybe_link = [&]() -> Web::WebIDL::ExceptionOr<GC::Ptr<Web::DOM::Element>> {
+                auto maybe_link = document->query_selector("link[rel=match]"sv);
+                if (maybe_link.is_error() || maybe_link.value())
+                    return maybe_link;
+
+                auto maybe_mismatch_link = document->query_selector("link[rel=mismatch]"sv);
+                if (maybe_mismatch_link.is_error() || maybe_mismatch_link.value()) {
+                    has_mismatch_selector = maybe_mismatch_link.value();
+                    return maybe_mismatch_link;
+                }
+
+                return nullptr;
+            }();
+
             if (maybe_link.is_error() || !maybe_link.value()) {
                 // To make sure that we fail the ref-test if the link is missing, load the error page->
-                load_html(page_id, "<h1>Failed to find &lt;link rel=&quot;match&quot; /&gt; in ref test page!</h1> Make sure you added it.");
+                load_html(page_id, "<h1>Failed to find &lt;link rel=&quot;match&quot; /&gt; or &lt;link rel=&quot;mismatch&quot; /&gt; in ref test page!</h1> Make sure you added it.");
             } else {
                 auto link = maybe_link.release_value();
                 auto url = document->parse_url(link->get_attribute_value(Web::HTML::AttributeNames::href));
+                if (url.query().has_value() && !url.query()->is_empty()) {
+                    load_html(page_id, "<h1>Invalid ref test link - query string must be empty</h1>");
+                    return;
+                }
+                if (has_mismatch_selector)
+                    url.set_query("mismatch"_string);
+
                 load_url(page_id, url);
             }
         }

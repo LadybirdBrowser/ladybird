@@ -247,7 +247,10 @@ static void run_ref_test(HeadlessWebView& view, Test& test, URL::URL const& url,
     });
 
     auto handle_completed_test = [&test, url]() -> ErrorOr<TestResult> {
-        if (test.actual_screenshot->visually_equals(*test.expectation_screenshot))
+        VERIFY(test.ref_test_expectation_type.has_value());
+        auto should_match = test.ref_test_expectation_type == RefTestExpectationType::Match;
+        auto screenshot_matches = test.actual_screenshot->visually_equals(*test.expectation_screenshot);
+        if (should_match == screenshot_matches)
             return TestResult::Pass;
 
         if (Application::the().dump_failed_ref_tests) {
@@ -291,6 +294,11 @@ static void run_ref_test(HeadlessWebView& view, Test& test, URL::URL const& url,
 
     view.on_load_finish = [&view, &test, on_test_complete = move(on_test_complete)](auto const&) {
         if (test.actual_screenshot) {
+            if (view.url().query().has_value() && view.url().query()->equals_ignoring_ascii_case("mismatch"sv)) {
+                test.ref_test_expectation_type = RefTestExpectationType::Mismatch;
+            } else {
+                test.ref_test_expectation_type = RefTestExpectationType::Match;
+            }
             view.take_screenshot()->when_resolved([&test, on_test_complete = move(on_test_complete)](RefPtr<Gfx::Bitmap> screenshot) {
                 test.expectation_screenshot = move(screenshot);
                 on_test_complete();
