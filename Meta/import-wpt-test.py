@@ -79,13 +79,17 @@ class TestTypeIdentifier(HTMLParser):
         self.url = url
         self.test_type = TestType.TEXT
         self.reference_path = None
+        self.ref_test_link_found = False
 
     def handle_starttag(self, tag, attrs):
         if tag == "link":
             attr_dict = dict(attrs)
             if attr_dict["rel"] == "match" or attr_dict["rel"] == "mismatch":
+                if self.ref_test_link_found:
+                    raise RuntimeError("Ref tests with multiple match or mismatch links are not currently supported")
                 self.test_type = TestType.REF
                 self.reference_path = attr_dict["href"]
+                self.ref_test_link_found = True
 
 
 def map_to_path(sources, is_resource=True, resource_path=None):
