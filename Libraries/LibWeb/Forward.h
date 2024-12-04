@@ -142,6 +142,7 @@ class DefaultSourceDirective;
 class Directive;
 class FontSourceDirective;
 class FormActionDirective;
+class FrameAncestorsDirective;
 class FrameSourceDirective;
 class ImageSourceDirective;
 class ManifestSourceDirective;
