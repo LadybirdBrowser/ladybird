@@ -115,7 +115,8 @@ ErrorOr<void> PNGImageDecoderPlugin::initialize()
     u32 height = 0;
     int bit_depth = 0;
     int color_type = 0;
-    png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth, &color_type, nullptr, nullptr, nullptr);
+    int interlace_type = 0;
+    png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth, &color_type, &interlace_type, nullptr, nullptr);
     m_context->size = { static_cast<int>(width), static_cast<int>(height) };
 
     if (color_type == PNG_COLOR_TYPE_PALETTE)
@@ -132,6 +133,9 @@ ErrorOr<void> PNGImageDecoderPlugin::initialize()
 
     if (color_type == PNG_COLOR_TYPE_GRAY || color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
         png_set_gray_to_rgb(png_ptr);
+
+    if (interlace_type != PNG_INTERLACE_NONE)
+        png_set_interlace_handling(png_ptr);
 
     png_set_filler(png_ptr, 0xFF, PNG_FILLER_AFTER);
     png_set_bgr(png_ptr);
