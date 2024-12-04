@@ -86,7 +86,7 @@ Nobody is perfect, and sometimes we mess things up. That said, here are some goo
 
 **Don't:**
 
-* Submit code that's incompatible with the project licence (2-clause BSD.)
+* Submit changes that are incompatible with the project licence (2-clause BSD.)
 * Touch anything outside the stated scope of the PR.
 * Iterate excessively on your design across multiple commits.
 * Use weasel-words like "refactor" or "fix" to avoid explaining what's being changed.
@@ -96,6 +96,15 @@ Nobody is perfect, and sometimes we mess things up. That said, here are some goo
 * Attempt large architectural changes until you are familiar with the system and have worked on it for a while.
 * Engage in excessive "feng shui programming" by moving code around without quantifiable benefit.
 * Add jokes or other "funny" things to user-facing parts of the system.
+
+## On usage of AI and LLMs
+
+Usage of AI assistance is usually fine, but you are responsible for making sure the quality of the output is up to the
+standards of the project. Currently, AI-generated output is often too verbose and its quality is subpar compared to what
+most human contributors produce.
+
+Do not use an AI or LLM to generate changes, respond to issues or interact with PRs without holding the output to the
+same standards as human-written content.
 
 ## Pull Request Q&A
 
