@@ -17,7 +17,7 @@ void insertion_sort(Collection& col, ssize_t start, ssize_t end, Comparator comp
 requires(Indexable<Collection, T>)
 {
     for (ssize_t i = start + 1; i <= end; ++i) {
-        for (ssize_t j = i; j > 0 && comparator(col[j], col[j - 1]); --j)
+        for (ssize_t j = i; j > start && comparator(col[j], col[j - 1]); --j)
             swap(col[j], col[j - 1]);
     }
 }
