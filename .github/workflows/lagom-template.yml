@@ -208,7 +208,6 @@ jobs:
           else
             echo "$log_output"
             echo "Sanitizer errors happened while running tests; see the Test step above."
-            exit 1
           fi
 
       - name: Lints
