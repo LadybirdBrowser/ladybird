@@ -37,6 +37,11 @@ static ByteString to_cpp_type(const IDL::Type& type, const IDL::Interface& inter
             return "JS::Object*"sv;
         return "JS::Object&"sv;
     }
+    if (type.name() == "DOMString"sv) {
+        if (type.is_nullable())
+            return "Optional<String>"sv;
+        return "String"sv;
+    }
     auto cpp_type = idl_type_name_to_cpp_type(type, interface);
     return cpp_type.name;
 }
@@ -559,6 +564,20 @@ public:
     glGetActiveAttrib(program->handle(), index, buf_size, &length, &size, &type, name);
     auto readonly_bytes = ReadonlyBytes { name, static_cast<size_t>(length) };
     return WebGLActiveInfo::create(m_realm, String::from_utf8_without_validation(readonly_bytes), type, size);
+)~~~");
+            continue;
+        }
+
+        if (function.name == "getShaderInfoLog"sv) {
+            function_impl_generator.append(R"~~~(
+    GLint info_log_length = 0;
+    glGetShaderiv(shader->handle(), GL_INFO_LOG_LENGTH, &info_log_length);
+    Vector<GLchar> info_log;
+    info_log.resize(info_log_length);
+    if (!info_log_length)
+        return String {};
+    glGetShaderInfoLog(shader->handle(), info_log_length, nullptr, info_log.data());
+    return String::from_utf8_without_validation(ReadonlyBytes { info_log.data(), static_cast<size_t>(info_log_length - 1) });
 )~~~");
             continue;
         }
