@@ -5573,6 +5573,18 @@ void Document::reset_cursor_blink_cycle()
     m_cursor_blink_timer->restart();
 }
 
+// https://html.spec.whatwg.org/multipage/document-sequences.html#doc-container-document
+GC::Ptr<DOM::Document> Document::container_document() const
+{
+    // 1. If document's node navigable is null, then return null.
+    auto node_navigable = navigable();
+    if (!node_navigable)
+        return nullptr;
+
+    // 2. Return document's node navigable's container document.
+    return node_navigable->container_document();
+}
+
 GC::Ptr<HTML::Navigable> Document::cached_navigable()
 {
     return m_cached_navigable.ptr();

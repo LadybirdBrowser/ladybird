@@ -757,6 +757,8 @@ public:
     bool css_styling_flag() const { return m_css_styling_flag; }
     void set_css_styling_flag(bool flag) { m_css_styling_flag = flag; }
 
+    GC::Ptr<DOM::Document> container_document() const;
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
