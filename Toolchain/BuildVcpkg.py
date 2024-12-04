@@ -31,7 +31,7 @@ def main() -> int:
     subprocess.check_call(args=["git", "checkout", git_rev], cwd=vcpkg_checkout)
 
     bootstrap_script = "bootstrap-vcpkg.bat" if os.name == 'nt' else "bootstrap-vcpkg.sh"
-    subprocess.check_call(args=[vcpkg_checkout / bootstrap_script, "-disableMetrics"], cwd=vcpkg_checkout, shell=True)
+    subprocess.check_call(args=[vcpkg_checkout / bootstrap_script, "-disableMetrics"], cwd=vcpkg_checkout)
 
     return 0
 
