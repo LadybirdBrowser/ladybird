@@ -12,6 +12,7 @@
 #include <LibWeb/ContentSecurityPolicy/Directives/DirectiveFactory.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/FontSourceDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/FormActionDirective.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/FrameAncestorsDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/FrameSourceDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/ImageSourceDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/ManifestSourceDirective.h>
@@ -44,6 +45,9 @@ GC::Ref<Directive> create_directive(JS::Realm& realm, String name, Vector<String
 
     if (name == Names::FormAction)
         return realm.create<FormActionDirective>(move(name), move(value));
+
+    if (name == Names::FrameAncestors)
+        return realm.create<FrameAncestorsDirective>(move(name), move(value));
 
     if (name == Names::FrameSrc)
         return realm.create<FrameSourceDirective>(move(name), move(value));
