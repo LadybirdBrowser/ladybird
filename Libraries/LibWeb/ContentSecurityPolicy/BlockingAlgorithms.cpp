@@ -14,6 +14,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
 
@@ -554,6 +555,55 @@ JS::ThrowCompletionOr<void> ensure_csp_does_not_block_wasm_byte_compilation(JS::
     }
 
     return {};
+}
+
+// https://w3c.github.io/webappsec-csp/#allow-base-for-document
+Directives::Directive::Result is_base_allowed_for_document(JS::Realm& realm, URL::URL const& base, GC::Ref<DOM::Document const> document)
+{
+    // 1. For each policy of document’s global object’s csp list:
+    VERIFY(document->window());
+    auto csp_list = PolicyList::from_object(*document->window());
+    VERIFY(csp_list);
+    for (auto const policy : csp_list->policies()) {
+        // 1. Let source list be null.
+        // NOTE: Not necessary.
+
+        // 2. If a directive whose name is "base-uri" is present in policy’s directive set, set source list to that
+        //    directive’s value.
+        auto maybe_base_uri = policy->directives().find_if([](auto const& directive) {
+            return directive->name() == Directives::Names::BaseUri;
+        });
+
+        // 3. If source list is null, skip to the next policy.
+        if (maybe_base_uri.is_end())
+            continue;
+
+        auto const& source_list = (*maybe_base_uri)->value();
+
+        // 4. If the result of executing § 6.7.2.7 Does url match source list in origin with redirect count? on base,
+        //    source list, policy’s self-origin, and 0 is "Does Not Match":
+        // Spec Note: We compare against the fallback base URL in order to deal correctly with things like an iframe
+        //            srcdoc Document which has been sandboxed into an opaque origin.
+        if (Directives::does_url_match_source_list_in_origin_with_redirect_count(base, source_list, policy->self_origin(), 0) == Directives::MatchResult::DoesNotMatch) {
+            // 1. Let violation be the result of executing § 2.4.1 Create a violation object for global, policy, and
+            //    directive on document’s global object, policy, and "base-uri".
+            auto base_uri_string = Directives::Names::BaseUri.to_string();
+            auto violation = Violation::create_a_violation_object_for_global_policy_and_directive(realm, document->window(), policy, base_uri_string);
+
+            // 2. Set violation’s resource to "inline".
+            violation->set_resource(Violation::Resource::Inline);
+
+            // 3. Execute § 5.5 Report a violation on violation.
+            violation->report_a_violation(realm);
+
+            // 4. If policy’s disposition is "enforce", return "Blocked".
+            if (policy->disposition() == Policy::Disposition::Enforce)
+                return Directives::Directive::Result::Blocked;
+        }
+    }
+
+    // 2. Return "Allowed".
+    return Directives::Directive::Result::Allowed;
 }
 
 }
