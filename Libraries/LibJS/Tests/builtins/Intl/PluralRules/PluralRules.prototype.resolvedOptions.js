@@ -79,30 +79,17 @@ describe("correct behavior", () => {
     });
 
     test("plural categories", () => {
-        // The spec doesn't dictate an order of elements, and the generated CLDR data is ordered by
-        // hash map iteration. Instead of using toEqual(), just make sure all elements are the same.
-        const contains = (actual, expected) => {
-            if (actual.length !== expected.length) return false;
-            return expected.every(e => actual.includes(e));
-        };
-
         const enCardinal = new Intl.PluralRules("en", { type: "cardinal" }).resolvedOptions();
-        expect(enCardinal.pluralCategories).toBeDefined();
-        expect(contains(enCardinal.pluralCategories, ["other", "one"])).toBeTrue();
+        expect(enCardinal.pluralCategories).toEqual(["one", "other"]);
 
         const enOrdinal = new Intl.PluralRules("en", { type: "ordinal" }).resolvedOptions();
-        expect(enOrdinal.pluralCategories).toBeDefined();
-        expect(contains(enOrdinal.pluralCategories, ["other", "one", "two", "few"])).toBeTrue();
+        expect(enOrdinal.pluralCategories).toEqual(["one", "two", "few", "other"]);
 
         const gaCardinal = new Intl.PluralRules("ga", { type: "cardinal" }).resolvedOptions();
-        expect(gaCardinal.pluralCategories).toBeDefined();
-        expect(
-            contains(gaCardinal.pluralCategories, ["other", "one", "two", "few", "many"])
-        ).toBeTrue();
+        expect(gaCardinal.pluralCategories).toEqual(["one", "two", "few", "many", "other"]);
 
         const gaOrdinal = new Intl.PluralRules("ga", { type: "ordinal" }).resolvedOptions();
-        expect(gaOrdinal.pluralCategories).toBeDefined();
-        expect(contains(gaOrdinal.pluralCategories, ["other", "one"])).toBeTrue();
+        expect(gaOrdinal.pluralCategories).toEqual(["one", "other"]);
     });
 
     test("rounding priority", () => {

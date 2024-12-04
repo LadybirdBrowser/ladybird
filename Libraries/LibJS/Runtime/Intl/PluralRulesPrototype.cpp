@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -90,7 +90,8 @@ JS_DEFINE_NATIVE_FUNCTION(PluralRulesPrototype::resolved_options)
     // 3. Let options be OrdinaryObjectCreate(%Object.prototype%).
     auto options = Object::create(realm, realm.intrinsics().object_prototype());
 
-    // 4. Let pluralCategories be a List of Strings containing all possible results of PluralRuleSelect for the selected locale pr.[[Locale]].
+    // 4. Let pluralCategories be a List of Strings containing all possible results of PluralRuleSelect for the selected
+    //    locale pr.[[Locale]], sorted according to the following order: "zero", "one", "two", "few", "many", "other".
     auto available_categories = plural_rules->formatter().available_plural_categories();
 
     auto plural_categories = Array::create_from<Unicode::PluralCategory>(realm, available_categories, [&](auto category) {
