@@ -114,6 +114,7 @@ class ImageSourceDirective;
 class ManifestSourceDirective;
 class MediaSourceDirective;
 class ObjectSourceDirective;
+class ReportToDirective;
 class ReportUriDirective;
 class ScriptSourceAttributeDirective;
 class ScriptSourceDirective;
