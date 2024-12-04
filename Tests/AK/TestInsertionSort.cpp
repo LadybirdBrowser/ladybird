@@ -55,3 +55,26 @@ TEST_CASE(sorts_decending)
         }
     }
 }
+
+TEST_CASE(sorts_subrange_without_affecting_outside_elements)
+{
+    Vector<int> ints = { 10, 9, 8, 7, 6, 5, 4, 3, 2, 1 };
+    Vector<int> const original_ints = ints;
+
+    ssize_t const start = 3;
+    ssize_t const end = 6;
+
+    insertion_sort(ints, start, end, [](auto& a, auto& b) { return a < b; });
+
+    for (ssize_t i = start; i < end; ++i) {
+        EXPECT(ints[i] <= ints[i + 1]);
+    }
+
+    for (ssize_t i = 0; i < start; ++i) {
+        EXPECT_EQ(ints[i], original_ints[i]);
+    }
+
+    for (ssize_t i = end + 1; i < static_cast<ssize_t>(ints.size()); ++i) {
+        EXPECT_EQ(ints[i], original_ints[i]);
+    }
+}
