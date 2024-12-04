@@ -481,13 +481,13 @@ bool Lexer::is_eof() const
 
 ALWAYS_INLINE bool Lexer::is_line_terminator() const
 {
+    // OPTIMIZATION: Fast-path for ASCII characters.
     if (m_current_char == '\n' || m_current_char == '\r')
         return true;
     if (!is_unicode_character())
         return false;
 
-    auto code_point = current_code_point();
-    return code_point == LINE_SEPARATOR || code_point == PARAGRAPH_SEPARATOR;
+    return JS::is_line_terminator(current_code_point());
 }
 
 ALWAYS_INLINE bool Lexer::is_unicode_character() const
@@ -511,14 +511,13 @@ ALWAYS_INLINE u32 Lexer::current_code_point() const
 
 bool Lexer::is_whitespace() const
 {
+    // OPTIMIZATION: Fast-path for ASCII characters.
     if (is_ascii_space(m_current_char))
         return true;
     if (!is_unicode_character())
         return false;
-    auto code_point = current_code_point();
-    if (code_point == NO_BREAK_SPACE || code_point == ZERO_WIDTH_NO_BREAK_SPACE)
-        return true;
-    return Unicode::code_point_has_space_separator_general_category(code_point);
+
+    return JS::is_whitespace(current_code_point());
 }
 
 // UnicodeEscapeSequence :: https://tc39.es/ecma262/#prod-UnicodeEscapeSequence
@@ -1057,6 +1056,42 @@ TokenType Lexer::consume_regex_literal()
     }
 
     return TokenType::UnterminatedRegexLiteral;
+}
+
+// https://tc39.es/ecma262/#prod-SyntaxCharacter
+bool is_syntax_character(u32 code_point)
+{
+    // SyntaxCharacter :: one of
+    //     ^ $ \ . * + ? ( ) [ ] { } |
+    static constexpr Utf8View syntax_characters { "^$\\.*+?()[]{}|"sv };
+    return syntax_characters.contains(code_point);
+}
+
+// https://tc39.es/ecma262/#prod-WhiteSpace
+bool is_whitespace(u32 code_point)
+{
+    // WhiteSpace ::
+    //     <TAB>
+    //     <VT>
+    //     <FF>
+    //     <ZWNBSP>
+    //     <USP>
+    if (is_ascii_space(code_point))
+        return true;
+    if (code_point == NO_BREAK_SPACE || code_point == ZERO_WIDTH_NO_BREAK_SPACE)
+        return true;
+    return Unicode::code_point_has_space_separator_general_category(code_point);
+}
+
+// https://tc39.es/ecma262/#prod-LineTerminator
+bool is_line_terminator(u32 code_point)
+{
+    // LineTerminator ::
+    //     <LF>
+    //     <CR>
+    //     <LS>
+    //     <PS>
+    return code_point == '\n' || code_point == '\r' || code_point == LINE_SEPARATOR || code_point == PARAGRAPH_SEPARATOR;
 }
 
 }
