@@ -157,6 +157,7 @@ class ScriptSourceElementDirective;
 class StyleSourceAttributeDirective;
 class StyleSourceDirective;
 class StyleSourceElementDirective;
+class WebRTCDirective;
 class WorkerSourceDirective;
 struct SerializedDirective;
 

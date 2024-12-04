@@ -28,6 +28,7 @@
 #include <LibWeb/ContentSecurityPolicy/Directives/StyleSourceAttributeDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/StyleSourceDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/StyleSourceElementDirective.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/WebRTCDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/WorkerSourceDirective.h>
 
 namespace Web::ContentSecurityPolicy::Directives {
@@ -93,6 +94,9 @@ GC::Ref<Directive> create_directive(GC::Heap& heap, String name, Vector<String> 
 
     if (name == Names::StyleSrcElem)
         return heap.allocate<StyleSourceElementDirective>(move(name), move(value));
+
+    if (name == Names::WebRTC)
+        return heap.allocate<WebRTCDirective>(move(name), move(value));
 
     if (name == Names::WorkerSrc)
         return heap.allocate<WorkerSourceDirective>(move(name), move(value));
