@@ -83,7 +83,7 @@ class TestTypeIdentifier(HTMLParser):
     def handle_starttag(self, tag, attrs):
         if tag == "link":
             attr_dict = dict(attrs)
-            if attr_dict["rel"] == "match":
+            if attr_dict["rel"] == "match" or attr_dict["rel"] == "mismatch":
                 self.test_type = TestType.REF
                 self.reference_path = attr_dict["href"]
 
