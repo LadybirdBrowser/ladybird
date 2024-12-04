@@ -367,8 +367,8 @@ bool command_delete_action(DOM::Document& document, String const&)
     // 18. Call extend(node, offset) on the context object's selection.
     MUST(selection.extend(*node, offset));
 
-    // FIXME: 19. Delete the selection, with direction "backward".
-    delete_the_selection(selection);
+    // 19. Delete the selection, with direction "backward".
+    delete_the_selection(selection, true, true, Selection::Direction::Backwards);
 
     // 20. Return true.
     return true;
@@ -669,28 +669,12 @@ bool command_insert_paragraph_action(DOM::Document& document, String const&)
 
     // 32. If container has no visible children, call createElement("br") on the context object, and append the result
     //     as the last child of container.
-    bool has_visible_child = false;
-    container->for_each_child([&has_visible_child](GC::Ref<DOM::Node> child) {
-        if (is_visible_node(child)) {
-            has_visible_child = true;
-            return IterationDecision::Break;
-        }
-        return IterationDecision::Continue;
-    });
-    if (!has_visible_child)
+    if (!has_visible_children(*container))
         MUST(container->append_child(MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML))));
 
     // 33. If new container has no visible children, call createElement("br") on the context object, and append the
     //     result as the last child of new container.
-    has_visible_child = false;
-    new_container->for_each_child([&has_visible_child](GC::Ref<DOM::Node> child) {
-        if (is_visible_node(child)) {
-            has_visible_child = true;
-            return IterationDecision::Break;
-        }
-        return IterationDecision::Continue;
-    });
-    if (!has_visible_child)
+    if (!has_visible_children(*new_container))
         MUST(new_container->append_child(MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML))));
 
     // 34. Call collapse(new container, 0) on the context object's selection.
