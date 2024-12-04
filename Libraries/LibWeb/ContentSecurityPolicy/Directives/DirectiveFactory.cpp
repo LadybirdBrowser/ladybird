@@ -20,6 +20,7 @@
 #include <LibWeb/ContentSecurityPolicy/Directives/MediaSourceDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/ObjectSourceDirective.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/ReportUriDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/ScriptSourceAttributeDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/ScriptSourceDirective.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/ScriptSourceElementDirective.h>
@@ -67,6 +68,9 @@ GC::Ref<Directive> create_directive(JS::Realm& realm, String name, Vector<String
 
     if (name == Names::ObjectSrc)
         return realm.create<ObjectSourceDirective>(move(name), move(value));
+
+    if (name == Names::ReportUri)
+        return realm.create<ReportUriDirective>(move(name), move(value));
 
     if (name == Names::ScriptSrcAttr)
         return realm.create<ScriptSourceAttributeDirective>(move(name), move(value));
