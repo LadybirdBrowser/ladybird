@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -16,7 +16,7 @@ PluralRules::PluralRules(Object& prototype)
 {
 }
 
-// 16.5.4 ResolvePlural ( pluralRules, n ), https://tc39.es/ecma402/#sec-resolveplural
+// 16.5.2 ResolvePlural ( pluralRules, n ), https://tc39.es/ecma402/#sec-resolveplural
 Unicode::PluralCategory resolve_plural(PluralRules const& plural_rules, Value number)
 {
     // 1. If n is not a finite Number, then
@@ -26,17 +26,16 @@ Unicode::PluralCategory resolve_plural(PluralRules const& plural_rules, Value nu
         return Unicode::PluralCategory::Other;
     }
 
-    // 2. Let locale be pluralRules.[[Locale]].
-    // 3. Let type be pluralRules.[[Type]].
-    // 4. Let res be FormatNumericToString(pluralRules, ℝ(n)).
-    // 5. Let s be res.[[FormattedString]].
-    // 6. Let operands be GetOperands(s).
-    // 7. Let p be PluralRuleSelect(locale, type, n, operands).
-    // 8. Return the Record { [[PluralCategory]]: p, [[FormattedString]]: s }.
+    // 2. Let res be FormatNumericToString(pluralRules, ℝ(n)).
+    // 3. Let s be res.[[FormattedString]].
+    // 4. Let locale be pluralRules.[[Locale]].
+    // 5. Let type be pluralRules.[[Type]].
+    // 6. Let p be PluralRuleSelect(locale, type, s).
+    // 7. Return the Record { [[PluralCategory]]: p, [[FormattedString]]: s }.
     return plural_rules.formatter().select_plural(number.as_double());
 }
 
-// 16.5.6 ResolvePluralRange ( pluralRules, x, y ), https://tc39.es/ecma402/#sec-resolveplural
+// 16.5.4 ResolvePluralRange ( pluralRules, x, y ), https://tc39.es/ecma402/#sec-resolveplural
 ThrowCompletionOr<Unicode::PluralCategory> resolve_plural_range(VM& vm, PluralRules const& plural_rules, Value start, Value end)
 {
     // 1. If x is NaN or y is NaN, throw a RangeError exception.
