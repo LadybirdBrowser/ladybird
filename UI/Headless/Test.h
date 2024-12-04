@@ -37,6 +37,11 @@ enum class TestResult {
     Crashed,
 };
 
+enum class RefTestExpectationType {
+    Match,
+    Mismatch,
+};
+
 static constexpr StringView test_result_to_string(TestResult result)
 {
     switch (result) {
@@ -68,6 +73,8 @@ struct Test {
     String text {};
     bool did_finish_test { false };
     bool did_finish_loading { false };
+
+    Optional<RefTestExpectationType> ref_test_expectation_type {};
 
     RefPtr<Gfx::Bitmap> actual_screenshot {};
     RefPtr<Gfx::Bitmap> expectation_screenshot {};
