@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/CharacterTypes.h>
+#include <AK/Find.h>
+#include <LibJS/Lexer.h>
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/RegExpConstructor.h>
@@ -27,6 +30,8 @@ void RegExpConstructor::initialize(Realm& realm)
     // 22.2.5.1 RegExp.prototype, https://tc39.es/ecma262/#sec-regexp.prototype
     define_direct_property(vm.names.prototype, realm.intrinsics().regexp_prototype(), 0);
 
+    u8 attr = Attribute::Writable | Attribute::Configurable;
+    define_native_function(realm, vm.names.escape, escape, 1, attr);
     define_native_accessor(realm, vm.well_known_symbol_species(), symbol_species_getter, {}, Attribute::Configurable);
 
     define_direct_property(vm.names.length, Value(2), Attribute::Configurable);
@@ -140,6 +145,109 @@ ThrowCompletionOr<GC::Ref<Object>> RegExpConstructor::construct(FunctionObject& 
 
     // 8. Return ? RegExpInitialize(O, P, F).
     return TRY(regexp_object->regexp_initialize(vm, pattern_value, flags_value));
+}
+
+// 22.2.5.1.1 EncodeForRegExpEscape ( c ), https://tc39.es/proposal-regex-escaping/#sec-encodeforregexpescape
+static String encode_for_regexp_escape(u32 code_point)
+{
+    // https://tc39.es/ecma262/#table-controlescape-code-point-values
+    // Table 63: ControlEscape Code Point Values
+    struct ControlEscape {
+        u32 code_point { 0 };
+        char control_escape { 0 };
+    };
+    static constexpr auto control_escapes = to_array<ControlEscape>({
+        { 0x09, 't' },
+        { 0x0A, 'n' },
+        { 0x0B, 'v' },
+        { 0x0C, 'f' },
+        { 0x0D, 'r' },
+    });
+
+    // 1. If c is matched by SyntaxCharacter or c is U+002F (SOLIDUS), then
+    if (JS::is_syntax_character(code_point) || code_point == '/') {
+        // a. Return the string-concatenation of 0x005C (REVERSE SOLIDUS) and UTF16EncodeCodePoint(c).
+        return MUST(String::formatted("\\{}", String::from_code_point(code_point)));
+    }
+
+    // 2. Else if c is the code point listed in some cell of the “Code Point” column of Table 63, then
+    auto it = find_if(control_escapes.begin(), control_escapes.end(), [&](auto const& escape) {
+        return escape.code_point == code_point;
+    });
+
+    if (it != control_escapes.end()) {
+        // a. Return the string-concatenation of 0x005C (REVERSE SOLIDUS) and the string in the “ControlEscape” column
+        //    of the row whose “Code Point” column contains c.
+        return MUST(String::formatted("\\{}", it->control_escape));
+    }
+
+    // 3. Let otherPunctuators be the string-concatenation of ",-=<>#&!%:;@~'`" and the code unit 0x0022 (QUOTATION MARK).
+    // 4. Let toEscape be StringToCodePoints(otherPunctuators).
+    static constexpr Utf8View to_escape { ",-=<>#&!%:;@~'`\""sv };
+
+    // 5. If toEscape contains c, c is matched by either WhiteSpace or LineTerminator, or c has the same numeric value
+    //    as a leading surrogate or trailing surrogate, then
+    if (to_escape.contains(code_point) || JS::is_whitespace(code_point) || JS::is_line_terminator(code_point) || is_unicode_surrogate(code_point)) {
+        // a. Let cNum be the numeric value of c.
+        // b. If cNum ≤ 0xFF, then
+        if (code_point <= 0xFF) {
+            // i. Let hex be Number::toString(𝔽(cNum), 16).
+            // ii. Return the string-concatenation of the code unit 0x005C (REVERSE SOLIDUS), "x", and
+            //     StringPad(hex, 2, "0", START).
+            return MUST(String::formatted("\\x{:02x}", code_point));
+        }
+
+        // c. Let escaped be the empty String.
+        // d. Let codeUnits be UTF16EncodeCodePoint(c).
+        // e. For each code unit cu of codeUnits, do
+        //     i. Set escaped to the string-concatenation of escaped and UnicodeEscape(cu).
+        // f. Return escaped.
+        return MUST(String::formatted("\\u{:04x}", code_point));
+    }
+
+    // 6. Return UTF16EncodeCodePoint(c).
+    return String::from_code_point(code_point);
+}
+
+// 22.2.5.1 RegExp.escape ( S ), https://tc39.es/proposal-regex-escaping/
+JS_DEFINE_NATIVE_FUNCTION(RegExpConstructor::escape)
+{
+    auto string = vm.argument(0);
+
+    // 1. If S is not a String, throw a TypeError exception.
+    if (!string.is_string())
+        return vm.throw_completion<TypeError>(ErrorType::NotAString, string);
+
+    // 2. Let escaped be the empty String.
+    StringBuilder escaped(string.as_string().utf8_string().byte_count());
+
+    // 3. Let cpList be StringToCodePoints(S).
+    auto code_point_list = string.as_string().utf8_string();
+
+    // 4. For each code point c of cpList, do
+    for (auto code_point : code_point_list.code_points()) {
+        // a. If escaped is the empty String and c is matched by either DecimalDigit or AsciiLetter, then
+        if (escaped.is_empty() && is_ascii_alphanumeric(code_point)) {
+            // i. NOTE: Escaping a leading digit ensures that output corresponds with pattern text which may be used
+            //    after a \0 character escape or a DecimalEscape such as \1 and still match S rather than be interpreted
+            //    as an extension of the preceding escape sequence. Escaping a leading ASCII letter does the same for
+            //    the context after \c.
+
+            // ii. Let numericValue be the numeric value of c.
+            // iii. Let hex be Number::toString(𝔽(numericValue), 16).
+            // iv. Assert: The length of hex is 2.
+            // v. Set escaped to the string-concatenation of the code unit 0x005C (REVERSE SOLIDUS), "x", and hex.
+            escaped.appendff("\\x{:02x}", code_point);
+        }
+        // b. Else,
+        else {
+            // i. Set escaped to the string-concatenation of escaped and EncodeForRegExpEscape(c).
+            escaped.append(encode_for_regexp_escape(code_point));
+        }
+    }
+
+    // 5. Return escaped.
+    return JS::PrimitiveString::create(vm, MUST(escaped.to_string()));
 }
 
 // 22.2.5.2 get RegExp [ @@species ], https://tc39.es/ecma262/#sec-get-regexp-@@species

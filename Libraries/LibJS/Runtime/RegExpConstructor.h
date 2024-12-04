@@ -29,6 +29,7 @@ private:
 
     virtual bool has_constructor() const override { return true; }
 
+    JS_DECLARE_NATIVE_FUNCTION(escape);
     JS_DECLARE_NATIVE_FUNCTION(symbol_species_getter);
     JS_DECLARE_NATIVE_FUNCTION(input_getter);
     JS_DECLARE_NATIVE_FUNCTION(input_alias_getter);
