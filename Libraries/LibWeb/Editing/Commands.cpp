@@ -639,8 +639,9 @@ bool command_insert_paragraph_action(DOM::Document& document, String const&)
     Vector<GC::Ref<DOM::Node>> contained_nodes;
     auto common_ancestor = new_line_range->common_ancestor_container();
     common_ancestor->for_each_in_subtree([&](GC::Ref<DOM::Node> child_node) {
-        if (new_line_range->contains_node(child_node))
-            contained_nodes.append(child_node);
+        if (!new_line_range->contains_node(child_node))
+            return TraversalDecision::SkipChildrenAndContinue;
+        contained_nodes.append(child_node);
         return TraversalDecision::Continue;
     });
 
