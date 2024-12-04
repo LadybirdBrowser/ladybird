@@ -32,7 +32,6 @@ set(SOURCES
     ImageFormats/BooleanDecoder.cpp
     ImageFormats/CCITTDecoder.cpp
     ImageFormats/GIFLoader.cpp
-    ImageFormats/GIFWriter.cpp
     ImageFormats/ICOLoader.cpp
     ImageFormats/ImageDecoder.cpp
     ImageFormats/JPEGLoader.cpp
@@ -48,7 +47,6 @@ set(SOURCES
     ImageFormats/WebPWriterLossless.cpp
     ImageFormats/AVIFLoader.cpp
     ImmutableBitmap.cpp
-    MedianCut.cpp
     PaintingSurface.cpp
     Palette.cpp
     Path.cpp
