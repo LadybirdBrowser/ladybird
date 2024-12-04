@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -733,6 +733,7 @@ public:
             result.append(plural_category_from_string({ category, static_cast<size_t>(length) }));
         }
 
+        quick_sort(result);
         return result;
     }
 

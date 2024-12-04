@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -18,12 +18,13 @@ PluralForm plural_form_from_string(StringView);
 StringView plural_form_to_string(PluralForm);
 
 enum class PluralCategory {
-    Other,
+    // NOTE: These are sorted in preferred order for Intl.PluralRules.prototype.resolvedOptions.
     Zero,
     One,
     Two,
     Few,
     Many,
+    Other,
 
     // https://unicode.org/reports/tr35/tr35-numbers.html#Explicit_0_1_rules
     ExactlyZero,
