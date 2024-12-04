@@ -91,4 +91,8 @@ private:
     RefPtr<ParsedIdentifiers> m_parsed_identifiers;
 };
 
+bool is_syntax_character(u32 code_point);
+bool is_whitespace(u32 code_point);
+bool is_line_terminator(u32 code_point);
+
 }
