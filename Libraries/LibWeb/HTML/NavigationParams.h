@@ -97,4 +97,5 @@ struct NonFetchSchemeNavigationParams : JS::Cell {
     void visit_edges(Visitor& visitor) override;
 };
 
+bool check_a_navigation_responses_adherence_to_x_frame_options(GC::Ptr<Fetch::Infrastructure::Response> response, Navigable* navigable, URL::Origin destination_origin);
 }
