@@ -1,29 +1,29 @@
 # Contributing to Ladybird
 
-When contributing to Ladybird, make sure that the changes you wish to make are in line with the project direction. If you are not sure about this, open an issue first, so we can discuss it.
+We’re excited to have you contribute to Ladybird! Before starting, ensure your changes align with the project’s goals. If unsure, open an issue to discuss your ideas with the maintainers.
 
 **For your first couple of PRs, start with something small to get familiar with the project and its development processes. Please do not start by adding a large component.**
 
-Read [the Ladybird documentation](https://github.com/LadybirdBrowser/ladybird/blob/master/CONTRIBUTING.md), including the documents in the **Development** section of the `Documentation/README.md` file.
+ake time to read the [the Ladybird documentation](https://github.com/LadybirdBrowser/ladybird/blob/master/CONTRIBUTING.md), especially the Development section in **Development** section of the `Documentation/README.md` file.
 
 Everyone is welcome to work on the project, and while we have lots of fun, it's a serious kind of fun. :^)
 
 ## Communication
 
-Join [our Discord server](https://discord.gg/nvfjVJ4Svh) to participate in development discussion.
+Join [our Discord server](https://discord.gg/nvfjVJ4Svh) engage with the community and participate in development discussions.
 
 ## Issue policy
 
-Please file any bugs you find, keeping the following in mind:
+When filing issues, keep these points in mind:
 
-* One issue per bug. Putting multiple things in the same issue makes both discussion and completion unnecessarily complicated.
-* Follow the [detailed issue-reporting guidelines](ISSUES.md).
-* No build issues (or other support requests). If the GitHub Actions CI build succeeds, the build problem is most likely on your side. Work it out locally, or ask in the `#build-problems` channel on Discord.
-* Don't comment on issues just to add a joke or irrelevant commentary. Hundreds of people get notified about comments so let's keep them relevant.
+* One issue per bug: Avoid combining multiple bugs in one issue for better clarity.
+* Follow guidelines: Refer to the [detailed issue-reporting guidelines](ISSUES.md).
+* No build-related issues: If the GitHub Actions CI build succeeds, assume local build issues are specific to your environment. Seek help in the`#build-problems` channel on Discord.
+* Relevant comments only: Avoid unnecessary or humorous comments, as notifications affect a large audience.
 
 ## Project governance
 
-The Ladybird project is driven by the [Ladybird Browser Initiative](https://ladybird.org/), a 501(c)(3) non-profit organization.
+The project is overseen by the [Ladybird Browser Initiative](https://ladybird.org/), a 501(c)(3) non-profit organization.
 
 Pull requests are approved and merged by a group of maintainers. The current group of maintainers are (in alphabetical order):
 
@@ -33,6 +33,7 @@ Pull requests are approved and merged by a group of maintainers. The current gro
 - [Andrew Kaster (@ADKaster)](https://github.com/ADKaster)
 - [Dániel Bertalan (@BertalanD)](https://github.com/BertalanD)
 - [Jelle Raaijmakers (@GMTA)](https://github.com/gmta)
+- [Kandula Karthik (@kandula-karthik)](https://github.com/kandula-karthik)
 - [Luke Wilde (@Lubrsi)](https://github.com/Lubrsi)
 - [Sam Atkins (@AtkinsSJ)](https://github.com/AtkinsSJ)
 - [Tim Flynn (@trflynn89)](https://github.com/trflynn89)
