@@ -2343,7 +2343,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
                             // i. Textbox: If the embedded control has role textbox, return its value.
                             if (is<HTML::HTMLInputElement>(*node)) {
                                 auto const& element = static_cast<HTML::HTMLInputElement const&>(*node);
-                                if (element.has_attribute("value"_string))
+                                if (element.has_attribute(HTML::AttributeNames::value))
                                     builder.append(element.value());
                             } else
                                 builder.append(node->text_content().value());
@@ -2351,7 +2351,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
                             // ii. Combobox/Listbox: If the embedded control has role combobox or listbox, return the text alternative of the chosen option.
                             if (is<HTML::HTMLInputElement>(*node)) {
                                 auto const& element = static_cast<HTML::HTMLInputElement const&>(*node);
-                                if (element.has_attribute("value"_string))
+                                if (element.has_attribute(HTML::AttributeNames::value))
                                     builder.append(element.value());
                             } else if (is<HTML::HTMLSelectElement>(*node)) {
                                 auto const& element = static_cast<HTML::HTMLSelectElement const&>(*node);
@@ -2384,7 +2384,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
                             // c. Otherwise, use the value as specified by a host language attribute.
                             else if (is<HTML::HTMLInputElement>(*node)) {
                                 auto const& element = static_cast<HTML::HTMLInputElement const&>(*node);
-                                if (element.has_attribute("value"_string))
+                                if (element.has_attribute(HTML::AttributeNames::value))
                                     builder.append(element.value());
                             }
                         }
