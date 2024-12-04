@@ -5,7 +5,6 @@ set(TEST_SOURCES
     TestICCProfile.cpp
     TestImageDecoder.cpp
     TestImageWriter.cpp
-    TestMedianCut.cpp
     TestRect.cpp
     TestWOFF.cpp
     TestWOFF2.cpp
