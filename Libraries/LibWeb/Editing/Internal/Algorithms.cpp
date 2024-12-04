@@ -19,10 +19,16 @@
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLLIElement.h>
 #include <LibWeb/HTML/HTMLOListElement.h>
+#include <LibWeb/HTML/HTMLTableCellElement.h>
+#include <LibWeb/HTML/HTMLTableRowElement.h>
+#include <LibWeb/HTML/HTMLTableSectionElement.h>
 #include <LibWeb/HTML/HTMLUListElement.h>
 #include <LibWeb/Infra/CharacterTypes.h>
+#include <LibWeb/Layout/BreakNode.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/Painting/TextPaintable.h>
 
 namespace Web::Editing {
 
@@ -116,6 +122,18 @@ GC::Ref<DOM::Range> block_extend_a_range(DOM::Range& range)
 
     // 9. Return new range.
     return new_range;
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#block-node-of
+GC::Ptr<DOM::Node> block_node_of_node(GC::Ref<DOM::Node> input_node)
+{
+    // 1. While node is an inline node, set node to its parent.
+    GC::Ptr<DOM::Node> node = input_node;
+    while (node && is_inline_node(*node))
+        node = node->parent();
+
+    // 2. Return node.
+    return node;
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#canonical-space-sequence
@@ -436,27 +454,442 @@ void canonicalize_whitespace(GC::Ref<DOM::Node> node, u32 offset, bool fix_colla
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#delete-the-selection
-void delete_the_selection(Selection::Selection const& selection)
+void delete_the_selection(Selection& selection, bool block_merging, bool strip_wrappers, Selection::Direction direction)
 {
-    // FIXME: implement the spec
-    auto active_range = selection.range();
-    if (!active_range)
+    auto& document = *selection.document();
+
+    // 1. If the active range is null, abort these steps and do nothing.
+    // NOTE: The selection is collapsed often in this algorithm, so we shouldn't store the active range in a variable.
+    auto active_range = [&selection] { return selection.range(); };
+    if (!active_range())
         return;
-    MUST(active_range->delete_contents());
+
+    // 2. Canonicalize whitespace at the active range's start.
+    canonicalize_whitespace(active_range()->start_container(), active_range()->start_offset());
+
+    // 3. Canonicalize whitespace at the active range's end.
+    canonicalize_whitespace(active_range()->end_container(), active_range()->end_offset());
+
+    // 4. Let (start node, start offset) be the last equivalent point for the active range's start.
+    auto start = last_equivalent_point({ active_range()->start_container(), active_range()->start_offset() });
+
+    // 5. Let (end node, end offset) be the first equivalent point for the active range's end.
+    auto end = first_equivalent_point({ active_range()->end_container(), active_range()->end_offset() });
+
+    // 6. If (end node, end offset) is not after (start node, start offset):
+    auto relative_position = position_of_boundary_point_relative_to_other_boundary_point(end.node, end.offset, start.node, start.offset);
+    if (relative_position != DOM::RelativeBoundaryPointPosition::After) {
+        // 1. If direction is "forward", call collapseToStart() on the context object's selection.
+        if (direction == Selection::Direction::Forwards) {
+            MUST(selection.collapse_to_start());
+        }
+
+        // 2. Otherwise, call collapseToEnd() on the context object's selection.
+        else {
+            MUST(selection.collapse_to_end());
+        }
+
+        // 3. Abort these steps.
+        return;
+    }
+
+    // 7. If start node is a Text node and start offset is 0, set start offset to the index of start node, then set
+    //    start node to its parent.
+    if (is<DOM::Text>(*start.node) && start.offset == 0 && start.node->parent()) {
+        start = {
+            *start.node->parent(),
+            static_cast<WebIDL::UnsignedLong>(start.node->index()),
+        };
+    }
+
+    // 8. If end node is a Text node and end offset is its length, set end offset to one plus the index of end node,
+    //    then set end node to its parent.
+    if (is<DOM::Text>(*end.node) && end.offset == end.node->length() && end.node->parent()) {
+        end = {
+            *end.node->parent(),
+            static_cast<WebIDL::UnsignedLong>(end.node->index() + 1),
+        };
+    }
+
+    // 9. Call collapse(start node, start offset) on the context object's selection.
+    MUST(selection.collapse(start.node, start.offset));
+
+    // 10. Call extend(end node, end offset) on the context object's selection.
+    MUST(selection.extend(end.node, end.offset));
+
+    // 12. Let start block be the active range's start node.
+    GC::Ptr<DOM::Node> start_block = active_range()->start_container();
+
+    // 13. While start block's parent is in the same editing host and start block is an inline node, set start block to
+    //     its parent.
+    while (start_block->parent() && is_in_same_editing_host(*start_block->parent(), *start_block) && is_inline_node(*start_block))
+        start_block = *start_block->parent();
+
+    // 14. If start block is neither a block node nor an editing host, or "span" is not an allowed child of start block,
+    //     or start block is a td or th, set start block to null.
+    if ((!is_block_node(*start_block) && !start_block->is_editing_host())
+        || !is_allowed_child_of_node(HTML::TagNames::span, GC::Ref { *start_block })
+        || is<HTML::HTMLTableCellElement>(*start_block))
+        start_block = {};
+
+    // 15. Let end block be the active range's end node.
+    GC::Ptr<DOM::Node> end_block = active_range()->end_container();
+
+    // 16. While end block's parent is in the same editing host and end block is an inline node, set end block to its
+    //     parent.
+    while (end_block->parent() && is_in_same_editing_host(*end_block->parent(), *end_block) && is_inline_node(*end_block))
+        end_block = end_block->parent();
+
+    // 17. If end block is neither a block node nor an editing host, or "span" is not an allowed child of end block, or
+    //     end block is a td or th, set end block to null.
+    if ((!is_block_node(*end_block) && !end_block->is_editing_host())
+        || !is_allowed_child_of_node(HTML::TagNames::span, GC::Ref { *end_block })
+        || is<HTML::HTMLTableCellElement>(*end_block))
+        end_block = {};
+
+    // 19. Record current states and values, and let overrides be the result.
+    auto overrides = record_current_states_and_values(*active_range());
+
+    // 21. If start node and end node are the same, and start node is an editable Text node:
+    if (start.node == end.node && is<DOM::Text>(*start.node) && start.node->is_editable()) {
+        // 1. Call deleteData(start offset, end offset − start offset) on start node.
+        MUST(static_cast<DOM::Text&>(*start.node).delete_data(start.offset, end.offset - start.offset));
+
+        // 2. Canonicalize whitespace at (start node, start offset), with fix collapsed space false.
+        canonicalize_whitespace(start.node, start.offset, false);
+
+        // 3. If direction is "forward", call collapseToStart() on the context object's selection.
+        if (direction == Selection::Direction::Forwards) {
+            MUST(selection.collapse_to_start());
+        }
+
+        // 4. Otherwise, call collapseToEnd() on the context object's selection.
+        else {
+            MUST(selection.collapse_to_end());
+        }
+
+        // 5. Restore states and values from overrides.
+        restore_states_and_values(*selection.range(), overrides);
+
+        // 6. Abort these steps.
+        return;
+    }
+
+    // 22. If start node is an editable Text node, call deleteData() on it, with start offset as the first argument and
+    //     (length of start node − start offset) as the second argument.
+    if (is<DOM::Text>(*start.node) && start.node->is_editable())
+        MUST(static_cast<DOM::Text&>(*start.node).delete_data(start.offset, start.node->length() - start.offset));
+
+    // 23. Let node list be a list of nodes, initially empty.
+    Vector<GC::Ref<DOM::Node>> node_list;
+
+    // 24. For each node contained in the active range, append node to node list if the last member of node list (if
+    //     any) is not an ancestor of node; node is editable; and node is not a thead, tbody, tfoot, tr, th, or td.
+    auto common_ancestor = active_range()->common_ancestor_container();
+    common_ancestor->for_each_in_subtree([&](GC::Ref<DOM::Node> node) {
+        if (!active_range()->contains_node(node))
+            return TraversalDecision::SkipChildrenAndContinue;
+
+        if (!node_list.is_empty() && node_list.last()->is_ancestor_of(node))
+            return TraversalDecision::SkipChildrenAndContinue;
+
+        if (!node->is_editable())
+            return TraversalDecision::Continue;
+
+        if (!is<HTML::HTMLTableSectionElement>(*node) && !is<HTML::HTMLTableRowElement>(*node) && !is<HTML::HTMLTableCellElement>(*node))
+            node_list.append(node);
+
+        return TraversalDecision::Continue;
+    });
+
+    // 25. For each node in node list:
+    for (auto node : node_list) {
+        // 1. Let parent be the parent of node.
+        // NOTE: All nodes in node_list are descendants of common_ancestor and as such, always have a parent.
+        GC::Ptr<DOM::Node> parent = *node->parent();
+
+        // 2. Remove node from parent.
+        node->remove();
+
+        // 3. If the block node of parent has no visible children, and parent is editable or an editing host, call
+        //    createElement("br") on the context object and append the result as the last child of parent.
+        auto block_node_of_parent = block_node_of_node(*parent);
+        if (block_node_of_parent && !has_visible_children(*block_node_of_parent) && parent->is_editable_or_editing_host())
+            MUST(parent->append_child(MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML))));
+
+        // 4. If strip wrappers is true or parent is not an inclusive ancestor of start node, while parent is an
+        //    editable inline node with length 0, let grandparent be the parent of parent, then remove parent from
+        //    grandparent, then set parent to grandparent.
+        if (strip_wrappers || !parent->is_inclusive_ancestor_of(start.node)) {
+            while (parent->parent() && parent->is_editable() && is_inline_node(*parent) && parent->length() == 0) {
+                auto grandparent = parent->parent();
+                parent->remove();
+                parent = grandparent;
+            }
+        }
+    }
+
+    // 26. If end node is an editable Text node, call deleteData(0, end offset) on it.
+    if (end.node->is_editable() && is<DOM::Text>(*end.node))
+        MUST(static_cast<DOM::Text&>(*end.node).delete_data(0, end.offset));
+
+    // 27. Canonicalize whitespace at the active range's start, with fix collapsed space false.
+    canonicalize_whitespace(active_range()->start_container(), active_range()->start_offset(), false);
+
+    // 28. Canonicalize whitespace at the active range's end, with fix collapsed space false.
+    canonicalize_whitespace(active_range()->end_container(), active_range()->end_offset(), false);
+
+    // 30. If block merging is false, or start block or end block is null, or start block is not in the same editing
+    //     host as end block, or start block and end block are the same:
+    if (!block_merging || !start_block || !end_block || !is_in_same_editing_host(*start_block, *end_block) || start_block == end_block) {
+        // 1. If direction is "forward", call collapseToStart() on the context object's selection.
+        if (direction == Selection::Direction::Forwards) {
+            MUST(selection.collapse_to_start());
+        }
+
+        // 2. Otherwise, call collapseToEnd() on the context object's selection.
+        else {
+            MUST(selection.collapse_to_end());
+        }
+
+        // 3. Restore states and values from overrides.
+        restore_states_and_values(*selection.range(), overrides);
+
+        // 4. Abort these steps.
+        return;
+    }
+
+    // 31. If start block has one child, which is a collapsed block prop, remove its child from it.
+    if (start_block->child_count() == 1 && is_collapsed_block_prop(*start_block->first_child()))
+        start_block->first_child()->remove();
+
+    // 32. If start block is an ancestor of end block:
+    Vector<RecordedNodeValue> values;
+    if (start_block->is_ancestor_of(*end_block)) {
+        // 1. Let reference node be end block.
+        auto reference_node = end_block;
+
+        // 2. While reference node is not a child of start block, set reference node to its parent.
+        while (reference_node->parent() && reference_node->parent() != start_block.ptr())
+            reference_node = reference_node->parent();
+
+        // 3. Call collapse() on the context object's selection, with first argument start block and second argument the
+        //    index of reference node.
+        MUST(selection.collapse(start_block, reference_node->index()));
+
+        // 4. If end block has no children:
+        if (!end_block->has_children()) {
+            // 1. While end block is editable and is the only child of its parent and is not a child of start block, let
+            //    parent equal end block, then remove end block from parent, then set end block to parent.
+            while (end_block->parent() && end_block->is_editable() && end_block->parent()->child_count() == 1 && end_block->parent() != start_block.ptr()) {
+                // AD-HOC: Set end_block's parent instead of end_block itself.
+                //         See: https://github.com/w3c/editing/issues/473
+                auto parent = end_block->parent();
+                end_block->remove();
+                end_block = parent;
+            }
+
+            // 2. If end block is editable and is not an inline node, and its previousSibling and nextSibling are both
+            //    inline nodes, call createElement("br") on the context object and insert it into end block's parent
+            //    immediately after end block.
+            if (end_block->is_editable() && !is_inline_node(*end_block) && end_block->previous_sibling() && end_block->next_sibling()
+                && is_inline_node(*end_block->previous_sibling()) && is_inline_node(*end_block->next_sibling())) {
+                auto br = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
+                end_block->parent()->insert_before(br, end_block->next_sibling());
+            }
+
+            // 3. If end block is editable, remove it from its parent.
+            if (end_block->is_editable())
+                end_block->remove();
+
+            // 4. Restore states and values from overrides.
+            restore_states_and_values(*active_range(), overrides);
+
+            // 5. Abort these steps.
+            return;
+        }
+
+        // 5. If end block's firstChild is not an inline node, restore states and values from record, then abort these
+        //    steps.
+        if (!is_inline_node(*end_block->first_child())) {
+            restore_states_and_values(*active_range(), overrides);
+            return;
+        }
+
+        // 6. Let children be a list of nodes, initially empty.
+        Vector<GC::Ref<DOM::Node>> children;
+
+        // 7. Append the first child of end block to children.
+        children.append(*end_block->first_child());
+
+        // 8. While children's last member is not a br, and children's last member's nextSibling is an inline node,
+        //    append children's last member's nextSibling to children.
+        while (!is<HTML::HTMLBRElement>(*children.last()) && children.last()->next_sibling()) {
+            GC::Ref<DOM::Node> next_sibling = *children.last()->next_sibling();
+            if (!is_inline_node(next_sibling))
+                break;
+            children.append(next_sibling);
+        }
+
+        // 9. Record the values of children, and let values be the result.
+        values = record_the_values_of_nodes(children);
+
+        // 10. While children's first member's parent is not start block, split the parent of children.
+        while (children.first()->parent() != start_block)
+            split_the_parent_of_nodes(children);
+
+        // 11. If children's first member's previousSibling is an editable br, remove that br from its parent.
+        if (is<HTML::HTMLBRElement>(children.first()->previous_sibling()) && children.first()->previous_sibling()->is_editable())
+            children.first()->previous_sibling()->remove();
+    }
+
+    // 33. Otherwise, if start block is a descendant of end block:
+    else if (start_block->is_descendant_of(*end_block)) {
+        // 1. Call collapse() on the context object's selection, with first argument start block and second argument
+        //    start block's length.
+        MUST(selection.collapse(start_block, start_block->length()));
+
+        // 2. Let reference node be start block.
+        auto reference_node = start_block;
+
+        // 3. While reference node is not a child of end block, set reference node to its parent.
+        while (reference_node->parent() && reference_node->parent() != end_block)
+            reference_node = reference_node->parent();
+
+        // 4. If reference node's nextSibling is an inline node and start block's lastChild is a br, remove start
+        //    block's lastChild from it.
+        if (reference_node->next_sibling() && is_inline_node(*reference_node->next_sibling())
+            && is<HTML::HTMLBRElement>(start_block->last_child()))
+            start_block->last_child()->remove();
+
+        // 5. Let nodes to move be a list of nodes, initially empty.
+        Vector<GC::Ref<DOM::Node>> nodes_to_move;
+
+        // 6. If reference node's nextSibling is neither null nor a block node, append it to nodes to move.
+        if (reference_node->next_sibling() && !is_block_node(*reference_node->next_sibling()))
+            nodes_to_move.append(*reference_node->next_sibling());
+
+        // 7. While nodes to move is nonempty and its last member isn't a br and its last member's nextSibling is
+        //    neither null nor a block node, append its last member's nextSibling to nodes to move.
+        while (!nodes_to_move.is_empty() && !is<HTML::HTMLBRElement>(*nodes_to_move.last())
+            && nodes_to_move.last()->next_sibling() && !is_block_node(*nodes_to_move.last()->next_sibling()))
+            nodes_to_move.append(*nodes_to_move.last()->next_sibling());
+
+        // 8. Record the values of nodes to move, and let values be the result.
+        values = record_the_values_of_nodes(nodes_to_move);
+
+        // 9. For each node in nodes to move, append node as the last child of start block, preserving ranges.
+        auto new_position = start_block->length();
+        for (auto node : nodes_to_move)
+            move_node_preserving_ranges(node, *start_block, new_position++);
+    }
+
+    // 34. Otherwise:
+    else {
+        // 1. Call collapse() on the context object's selection, with first argument start block and second argument
+        //    start block's length.
+        MUST(selection.collapse(start_block, start_block->length()));
+
+        // 2. If end block's firstChild is an inline node and start block's lastChild is a br, remove start block's
+        //    lastChild from it.
+        if (end_block->first_child() && is_inline_node(*end_block->first_child())
+            && start_block->last_child() && is<HTML::HTMLBRElement>(*start_block->last_child()))
+            start_block->last_child()->remove();
+
+        // 3. Record the values of end block's children, and let values be the result.
+        Vector<GC::Ref<DOM::Node>> end_block_children;
+        end_block_children.ensure_capacity(end_block->child_count());
+        end_block->for_each_child([&end_block_children](auto& child) {
+            end_block_children.append(child);
+            return IterationDecision::Continue;
+        });
+        values = record_the_values_of_nodes(end_block_children);
+
+        // 4. While end block has children, append the first child of end block to start block, preserving ranges.
+        auto new_position = start_block->length();
+        while (end_block->has_children())
+            move_node_preserving_ranges(*end_block->first_child(), *start_block, new_position++);
+
+        // 5. While end block has no children, let parent be the parent of end block, then remove end block from parent,
+        //    then set end block to parent.
+        while (end_block->parent() && !end_block->has_children()) {
+            GC::Ptr<DOM::Node> parent = end_block->parent();
+            end_block->remove();
+            end_block = parent;
+        }
+    }
+
+    // 36. Let ancestor be start block.
+    auto ancestor = start_block;
+
+    // 37. While ancestor has an inclusive ancestor ol in the same editing host whose nextSibling is also an ol in the
+    //     same editing host, or an inclusive ancestor ul in the same editing host whose nextSibling is also a ul in the
+    //     same editing host:
+    while (true) {
+        auto inclusive_ancestor = ancestor;
+        bool has_valid_ol_or_ul_ancestor = false;
+        while (inclusive_ancestor) {
+            if (inclusive_ancestor->next_sibling() && is_in_same_editing_host(*ancestor, *inclusive_ancestor)
+                && is_in_same_editing_host(*inclusive_ancestor, *inclusive_ancestor->next_sibling())
+                && ((is<HTML::HTMLOListElement>(*inclusive_ancestor) && is<HTML::HTMLOListElement>(*inclusive_ancestor->next_sibling()))
+                    || (is<HTML::HTMLUListElement>(*inclusive_ancestor) && is<HTML::HTMLUListElement>(*inclusive_ancestor->next_sibling())))) {
+                has_valid_ol_or_ul_ancestor = true;
+                break;
+            }
+            inclusive_ancestor = inclusive_ancestor->parent();
+        }
+        if (!has_valid_ol_or_ul_ancestor)
+            break;
+
+        // 1. While ancestor and its nextSibling are not both ols in the same editing host, and are also not both uls in
+        //    the same editing host, set ancestor to its parent.
+        while (ancestor->parent()) {
+            if (ancestor->next_sibling() && is_in_same_editing_host(*ancestor, *ancestor->next_sibling())) {
+                if (is<HTML::HTMLOListElement>(*ancestor) && is<HTML::HTMLOListElement>(*ancestor->next_sibling()))
+                    break;
+                if (is<HTML::HTMLUListElement>(*ancestor) && is<HTML::HTMLUListElement>(*ancestor->next_sibling()))
+                    break;
+            }
+            ancestor = ancestor->parent();
+        }
+
+        // 2. While ancestor's nextSibling has children, append ancestor's nextSibling's firstChild as the last child of
+        //    ancestor, preserving ranges.
+        auto new_position = ancestor->length();
+        while (ancestor->next_sibling()->has_children())
+            move_node_preserving_ranges(*ancestor->next_sibling()->first_child(), *ancestor, new_position++);
+
+        // 3. Remove ancestor's nextSibling from its parent.
+        ancestor->next_sibling()->remove();
+    }
+
+    // 38. Restore the values from values.
+    restore_the_values_of_nodes(values);
+
+    // 39. If start block has no children, call createElement("br") on the context object and append the result as the
+    //     last child of start block.
+    if (!start_block->has_children())
+        MUST(start_block->append_child(MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML))));
+
+    // 40. Remove extraneous line breaks at the end of start block.
+    remove_extraneous_line_breaks_at_the_end_of_node(*start_block);
+
+    // 41. Restore states and values from overrides.
+    restore_states_and_values(*active_range(), overrides);
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#editing-host-of
 GC::Ptr<DOM::Node> editing_host_of_node(GC::Ref<DOM::Node> node)
 {
     // node itself, if node is an editing host;
-    if (is_editing_host(node))
+    if (node->is_editing_host())
         return node;
 
     // or the nearest ancestor of node that is an editing host, if node is editable.
     if (node->is_editable()) {
         auto* ancestor = node->parent();
         while (ancestor) {
-            if (is_editing_host(*ancestor))
+            if (ancestor->is_editing_host())
                 return ancestor;
             ancestor = ancestor->parent();
         }
@@ -465,6 +898,22 @@ GC::Ptr<DOM::Node> editing_host_of_node(GC::Ref<DOM::Node> node)
 
     // The editing host of node is null if node is neither editable nor an editing host;
     return {};
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#first-equivalent-point
+BoundaryPoint first_equivalent_point(BoundaryPoint boundary_point)
+{
+    // 1. While (node, offset)'s previous equivalent point is not null, set (node, offset) to its previous equivalent
+    //    point.
+    while (true) {
+        auto previous_point = previous_equivalent_point(boundary_point);
+        if (!previous_point.has_value())
+            break;
+        boundary_point = previous_point.release_value();
+    }
+
+    // 2. Return (node, offset).
+    return boundary_point;
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#fix-disallowed-ancestors
@@ -845,6 +1294,56 @@ bool is_block_start_point(GC::Ref<DOM::Node> node, u32 offset)
         && (is_block_node(*offset_minus_one_child) || is<HTML::HTMLBRElement>(*offset_minus_one_child));
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#collapsed-block-prop
+bool is_collapsed_block_prop(GC::Ref<DOM::Node> node)
+{
+    // A collapsed block prop is either a collapsed line break that is not an extraneous line break,
+    if (is_collapsed_line_break(node) && !is_extraneous_line_break(node))
+        return true;
+
+    // or an Element that is an inline node
+    if (!is<DOM::Element>(*node) || !is_inline_node(node))
+        return false;
+
+    // and whose children are all either invisible or collapsed block props
+    bool children_all_invisible_or_collapsed = true;
+    bool has_collapsed_block_prop = false;
+    node->for_each_child([&](GC::Ref<DOM::Node> child) {
+        auto child_is_collapsed_block_prop = is_collapsed_block_prop(child);
+        if (!is_invisible_node(child) && !child_is_collapsed_block_prop) {
+            children_all_invisible_or_collapsed = false;
+            return IterationDecision::Break;
+        }
+        if (child_is_collapsed_block_prop)
+            has_collapsed_block_prop = true;
+        return IterationDecision::Continue;
+    });
+    if (!children_all_invisible_or_collapsed)
+        return false;
+
+    // and that has at least one child that is a collapsed block prop.
+    return has_collapsed_block_prop;
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#collapsed-line-break
+bool is_collapsed_line_break(GC::Ref<DOM::Node> node)
+{
+    // A collapsed line break is a br
+    if (!is<HTML::HTMLBRElement>(*node))
+        return false;
+
+    // that begins a line box which has nothing else in it, and therefore has zero height.
+    auto layout_node = node->layout_node();
+    if (!layout_node)
+        return false;
+    VERIFY(is<Layout::BreakNode>(*layout_node));
+
+    // NOTE: We do not generate a TextNode for empty text after the break, so if we do not have a sibling or if that
+    //       sibling is not a TextNode, we consider it a collapsed line break.
+    auto* next_layout_node = layout_node->next_sibling();
+    return !is<Layout::TextNode>(next_layout_node);
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#collapsed-whitespace-node
 bool is_collapsed_whitespace_node(GC::Ref<DOM::Node> node)
 {
@@ -1194,6 +1693,21 @@ bool is_whitespace_node(GC::Ref<DOM::Node> node)
     return false;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#last-equivalent-point
+BoundaryPoint last_equivalent_point(BoundaryPoint boundary_point)
+{
+    // 1. While (node, offset)'s next equivalent point is not null, set (node, offset) to its next equivalent point.
+    while (true) {
+        auto next_point = next_equivalent_point(boundary_point);
+        if (!next_point.has_value())
+            break;
+        boundary_point = next_point.release_value();
+    }
+
+    // 2. Return (node, offset).
+    return boundary_point;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#preserving-ranges
 void move_node_preserving_ranges(GC::Ref<DOM::Node> node, GC::Ref<DOM::Node> new_parent, u32 new_index)
 {
@@ -1225,6 +1739,30 @@ void move_node_preserving_ranges(GC::Ref<DOM::Node> node, GC::Ref<DOM::Node> new
 
     // FIXME: 5. If a boundary point's node is old parent and its offset is greater than old index + 1,
     //    subtract one from its offset.
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#next-equivalent-point
+Optional<BoundaryPoint> next_equivalent_point(BoundaryPoint boundary_point)
+{
+    // 1. If node's length is zero, return null.
+    auto node = boundary_point.node;
+    auto node_length = node->length();
+    if (node_length == 0)
+        return {};
+
+    // 3. If offset is node's length, and node's parent is not null, and node is an inline node, return (node's parent,
+    //    1 + node's index).
+    if (boundary_point.offset == node_length && node->parent() && is_inline_node(*node))
+        return BoundaryPoint { *node->parent(), static_cast<WebIDL::UnsignedLong>(node->index() + 1) };
+
+    // 5. If node has a child with index offset, and that child's length is not zero, and that child is an inline node,
+    //    return (that child, 0).
+    auto child_at_offset = node->child_at_index(boundary_point.offset);
+    if (child_at_offset && child_at_offset->length() != 0 && is_inline_node(*child_at_offset))
+        return BoundaryPoint { *child_at_offset, 0 };
+
+    // 7. Return null.
+    return {};
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#normalize-sublists
@@ -1302,6 +1840,55 @@ bool precedes_a_line_break(GC::Ref<DOM::Node> node)
 
     // 3. Return true;
     return true;
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#previous-equivalent-point
+Optional<BoundaryPoint> previous_equivalent_point(BoundaryPoint boundary_point)
+{
+    // 1. If node's length is zero, return null.
+    auto node = boundary_point.node;
+    auto node_length = node->length();
+    if (node_length == 0)
+        return {};
+
+    // 2. If offset is 0, and node's parent is not null, and node is an inline node, return (node's parent, node's
+    //    index).
+    if (boundary_point.offset == 0 && node->parent() && is_inline_node(*node))
+        return BoundaryPoint { *node->parent(), static_cast<WebIDL::UnsignedLong>(node->index()) };
+
+    // 3. If node has a child with index offset − 1, and that child's length is not zero, and that child is an inline
+    //    node, return (that child, that child's length).
+    auto child_at_offset = node->child_at_index(boundary_point.offset - 1);
+    if (child_at_offset && child_at_offset->length() != 0 && is_inline_node(*child_at_offset))
+        return BoundaryPoint { *child_at_offset, static_cast<WebIDL::UnsignedLong>(child_at_offset->length()) };
+
+    // 4. Return null.
+    return {};
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#record-current-states-and-values
+Vector<RecordedOverride> record_current_states_and_values(GC::Ref<DOM::Range>)
+{
+    // 1. Let overrides be a list of (string, string or boolean) ordered pairs, initially empty.
+    Vector<RecordedOverride> overrides;
+
+    // FIXME: 2. Let node be the first formattable node effectively contained in the active range, or null if there is none.
+
+    // FIXME: 3. If node is null, return overrides.
+
+    // FIXME: 4. Add ("createLink", node's effective command value for "createLink") to overrides.
+
+    // FIXME: 5. For each command in the list "bold", "italic", "strikethrough", "subscript", "superscript", "underline", in
+    //    order: if node's effective command value for command is one of its inline command activated values, add
+    //    (command, true) to overrides, and otherwise add (command, false) to overrides.
+
+    // FIXME: 6. For each command in the list "fontName", "foreColor", "hiliteColor", in order: add (command, command's value)
+    //    to overrides.
+
+    // FIXME: 7. Add ("fontSize", node's effective command value for "fontSize") to overrides.
+
+    // 8. Return overrides.
+    return overrides;
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#record-the-values
@@ -1424,6 +2011,48 @@ void remove_node_preserving_its_descendants(GC::Ref<DOM::Node> node)
 
     // If it has no children, instead remove it from its parent.
     node->remove();
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#restore-states-and-values
+void restore_states_and_values(GC::Ref<DOM::Range>, Vector<RecordedOverride> const& overrides)
+{
+    // FIXME: 1. Let node be the first formattable node effectively contained in the active range, or null if there is none.
+
+    // FIXME: 2. If node is not null, then for each (command, override) pair in overrides, in order:
+    {
+        // FIXME: 1. If override is a boolean, and queryCommandState(command) returns something different from override, take
+        //    the action for command, with value equal to the empty string.
+
+        // FIXME: 2. Otherwise, if override is a string, and command is neither "createLink" nor "fontSize", and
+        //    queryCommandValue(command) returns something not equivalent to override, take the action for command, with
+        //    value equal to override.
+
+        // FIXME: 3. Otherwise, if override is a string; and command is "createLink"; and either there is a value override for
+        //    "createLink" that is not equal to override, or there is no value override for "createLink" and node's
+        //    effective command value for "createLink" is not equal to override: take the action for "createLink", with
+        //    value equal to override.
+
+        // FIXME: 4. Otherwise, if override is a string; and command is "fontSize"; and either there is a value override for
+        //    "fontSize" that is not equal to override, or there is no value override for "fontSize" and node's
+        //     effective command value for "fontSize" is not loosely equivalent to override:
+        {
+            // FIXME: 1. Convert override to an integer number of pixels, and set override to the legacy font size for the
+            //    result.
+
+            // FIXME: 2. Take the action for "fontSize", with value equal to override.
+        }
+
+        // FIXME: 5. Otherwise, continue this loop from the beginning.
+
+        // FIXME: 6. Set node to the first formattable node effectively contained in the active range, if there is one.
+    }
+
+    // 3. Otherwise, for each (command, override) pair in overrides, in order:
+    for ([[maybe_unused]] auto const& override : overrides) {
+        // FIXME: 1. If override is a boolean, set the state override for command to override.
+
+        // FIXME: 2. If override is a string, set the value override for command to override.
+    }
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#restore-the-values
@@ -1863,6 +2492,19 @@ GC::Ptr<DOM::Node> wrap(
 
     // 17. Return new parent.
     return new_parent;
+}
+
+bool has_visible_children(GC::Ref<DOM::Node> node)
+{
+    bool has_visible_child = false;
+    node->for_each_child([&has_visible_child](GC::Ref<DOM::Node> child) {
+        if (is_visible_node(child)) {
+            has_visible_child = true;
+            return IterationDecision::Break;
+        }
+        return IterationDecision::Continue;
+    });
+    return has_visible_child;
 }
 
 bool is_heading(FlyString const& local_name)
