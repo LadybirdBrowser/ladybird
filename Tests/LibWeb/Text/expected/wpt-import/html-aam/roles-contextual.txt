@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 19 tests
+
+19 Pass
+Pass	el-a
+Pass	el-aside
+Pass	el-aside-in-main
+Pass	el-aside-in-article-in-main-with-name
+Pass	el-aside-in-article-with-name
+Pass	el-aside-in-aside-with-name
+Pass	el-aside-in-nav-with-name
+Pass	el-aside-in-nav-with-role
+Pass	el-aside-in-section-with-name
+Pass	el-footer-ancestorbody
+Pass	el-header-ancestorbody
+Pass	el-section
+Pass	el-a-no-href
+Pass	el-aside-in-article-in-main
+Pass	el-aside-in-article
+Pass	el-aside-in-aside
+Pass	el-aside-in-nav
+Pass	el-aside-in-section
+Pass	el-section-no-name

@@ -734,8 +734,16 @@ Optional<ARIA::Role> HTMLElement::default_role() const
     if (local_name() == TagNames::article)
         return ARIA::Role::article;
     // https://www.w3.org/TR/html-aria/#el-aside
-    if (local_name() == TagNames::aside)
+    if (local_name() == TagNames::aside) {
+        // https://w3c.github.io/html-aam/#el-aside
+        for (auto const* ancestor = parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+            if (first_is_one_of(ancestor->local_name(), TagNames::article, TagNames::aside, TagNames::nav, TagNames::section)
+                && accessible_name(document()).value().is_empty())
+                return ARIA::Role::generic;
+        }
+        // https://w3c.github.io/html-aam/#el-aside-ancestorbodymain
         return ARIA::Role::complementary;
+    }
     // https://www.w3.org/TR/html-aria/#el-b
     if (local_name() == TagNames::b)
         return ARIA::Role::generic;
@@ -758,16 +766,22 @@ Optional<ARIA::Role> HTMLElement::default_role() const
     if (local_name() == TagNames::figure)
         return ARIA::Role::figure;
     // https://www.w3.org/TR/html-aria/#el-footer
-    if (local_name() == TagNames::footer) {
-        // TODO: If not a descendant of an article, aside, main, nav or section element, or an element with role=article, complementary, main, navigation or region then role=contentinfo
-        // Otherwise, role=generic
-        return ARIA::Role::generic;
-    }
     // https://www.w3.org/TR/html-aria/#el-header
-    if (local_name() == TagNames::header) {
-        // TODO: If not a descendant of an article, aside, main, nav or section element, or an element with role=article, complementary, main, navigation or region then role=banner
-        // Otherwise, role=generic
-        return ARIA::Role::generic;
+    if (local_name() == TagNames::footer || local_name() == TagNames::header) {
+        // If not a descendant of an article, aside, main, nav or section element, or an element with role=article,
+        // complementary, main, navigation or region then (footer) role=contentinfo (header) role=banner. Otherwise,
+        // role=generic.
+        for (auto const* ancestor = parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+            if (first_is_one_of(ancestor->local_name(), TagNames::article, TagNames::aside, TagNames::main, TagNames::nav, TagNames::section))
+                return ARIA::Role::generic;
+            if (first_is_one_of(ancestor->role_or_default(), ARIA::Role::article, ARIA::Role::complementary, ARIA::Role::main, ARIA::Role::navigation, ARIA::Role::region))
+                return ARIA::Role::generic;
+        }
+        // then (footer) role=contentinfo.
+        if (local_name() == TagNames::footer)
+            return ARIA::Role::contentinfo;
+        // (header) role=banner
+        return ARIA::Role::banner;
     }
     // https://www.w3.org/TR/html-aria/#el-hgroup
     if (local_name() == TagNames::hgroup)
@@ -792,9 +806,11 @@ Optional<ARIA::Role> HTMLElement::default_role() const
         return ARIA::Role::search;
     // https://www.w3.org/TR/html-aria/#el-section
     if (local_name() == TagNames::section) {
-        // TODO:  role=region if the section element has an accessible name
-        //        Otherwise, no corresponding role
-        return ARIA::Role::region;
+        // role=region if the section element has an accessible name
+        if (!accessible_name(document()).value().is_empty())
+            return ARIA::Role::region;
+        // Otherwise, role=generic
+        return ARIA::Role::generic;
     }
     // https://www.w3.org/TR/html-aria/#el-small
     if (local_name() == TagNames::small)

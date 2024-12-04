@@ -1,0 +1,76 @@
+<!doctype html>
+<html>
+<head>
+  <title>HTML-AAM Contextual-Specific Role Verification Tests</title>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <script src="../resources/testdriver.js"></script>
+  <script src="../resources/testdriver-vendor.js"></script>
+  <script src="../resources/testdriver-actions.js"></script>
+  <script src="../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+
+<p>Tests contextual computedrole mappings defined in <a href="https://w3c.github.io/html-aam/">HTML-AAM</a>, where the returned computed role is expected to change based on the context. Most test names correspond to a unique ID defined in the spec.<p>
+
+<p>These should remain in alphabetical order.</code></p>
+
+
+<!-- el-a -->
+<a href="#" data-testname="el-a" data-expectedrole="link" class="ex">x</a>
+<a data-testname="el-a-no-href" class="ex-generic">x</a>
+
+<!-- el-aside -->
+<aside data-testname="el-aside" data-expectedrole="complementary" class="ex">x</aside>
+<main>
+  <aside data-testname="el-aside-in-main" data-expectedrole="complementary" class="ex">x</aside>
+  <article>
+    <aside data-testname="el-aside-in-article-in-main" class="ex-generic">x</aside>
+    <aside data-testname="el-aside-in-article-in-main-with-name" data-expectedrole="complementary" aria-label="x" class="ex">x</aside>
+  </article>
+</main>
+<article>
+  <aside data-testname="el-aside-in-article" class="ex-generic">x</aside>
+  <aside data-testname="el-aside-in-article-with-name" data-expectedrole="complementary" aria-label="x" class="ex">x</aside>
+</article>
+<aside>
+  <aside data-testname="el-aside-in-aside" class="ex-generic">x</aside>
+  <aside data-testname="el-aside-in-aside-with-name" data-expectedrole="complementary" aria-label="x" class="ex">x</aside>
+</aside>
+<nav>
+  <aside data-testname="el-aside-in-nav" class="ex-generic">x</aside>
+  <aside data-testname="el-aside-in-nav-with-name" data-expectedrole="complementary" aria-label="x" class="ex">x</aside>
+  <aside data-testname="el-aside-in-nav-with-role" data-expectedrole="complementary" class="ex" role="complementary">x</aside>
+</nav>
+<!-- Spec says that the conditional aside mapping happens when nested in a sectioning content element.
+  However, this doesn't make sense if the parent <section> isn't a landmark in the first place.
+  Let's force the section to always be a landmark for now, but we should probably expand on this test
+  case pending discussions in https://github.com/w3c/html-aam/pull/484 -->
+<section aria-label="x">
+  <aside data-testname="el-aside-in-section" class="ex-generic">x</aside>
+  <aside data-testname="el-aside-in-section-with-name" data-expectedrole="complementary" aria-label="x" class="ex">x</aside>
+</section>
+
+<!-- el-footer -->
+<!-- nav>footer -> ./roles-contextual.tentative.html -->
+<footer data-testname="el-footer-ancestorbody" data-expectedrole="contentinfo" class="ex">x</footer>
+<!-- main>footer -> ./roles-contextual.tentative.html -->
+
+<!-- el-header -->
+<!-- nav>header -> ./roles-contextual.tentative.html -->
+<header data-testname="el-header-ancestorbody" data-expectedrole="banner" class="ex">x</header>
+<!-- main>header -> ./roles-contextual.tentative.html -->
+
+<!-- el-section -->
+<section data-testname="el-section" aria-label="x" data-expectedrole="region" class="ex">x</section>
+<section data-testname="el-section-no-name" class="ex-generic">x</section>
+
+
+<script>
+AriaUtils.verifyRolesBySelector(".ex");
+AriaUtils.verifyGenericRolesBySelector(".ex-generic");
+</script>
+
+</body>
+</html>

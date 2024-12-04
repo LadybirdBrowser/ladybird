@@ -2228,7 +2228,17 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
 
     if (is_element()) {
         auto const* element = static_cast<DOM::Element const*>(this);
-        auto role = element->role_or_default();
+        auto role = element->role_from_role_attribute_value();
+        // Per https://w3c.github.io/html-aam/#el-aside and https://w3c.github.io/html-aam/#el-section, computing a
+        // default role for an aside element or section element requires first computing its accessible name — that is,
+        // calling into this name_or_description code. But if we then try to determine a default role for the aside
+        // element or section element here, that’d then end up calling right back into this name_or_description code —
+        // which would cause the calls to loop infinitely. So to avoid that, we only compute a default role here if this
+        // isn’t an aside element or section element.
+        // https://github.com/w3c/aria/issues/2391
+        if (!role.has_value() && element->local_name() != HTML::TagNames::aside && element->local_name() != HTML::TagNames::section)
+            role = element->default_role();
+
         // 2. Compute the text alternative for the current node:
 
         // A. Hidden Not Referenced: If the current node is hidden and is:
