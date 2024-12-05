@@ -71,7 +71,7 @@ struct CalendarFields {
             .millisecond = {},
             .microsecond = {},
             .nanosecond = {},
-            .offset = {},
+            .offset_string = {},
             .time_zone = {},
         };
     }
@@ -88,7 +88,7 @@ struct CalendarFields {
     Optional<u16> millisecond { 0 };
     Optional<u16> microsecond { 0 };
     Optional<u16> nanosecond { 0 };
-    Optional<String> offset;
+    Optional<String> offset_string;
     Optional<String> time_zone;
 };
 

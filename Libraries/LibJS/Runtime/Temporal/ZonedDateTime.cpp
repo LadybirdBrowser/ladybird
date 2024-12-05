@@ -191,7 +191,7 @@ ThrowCompletionOr<GC::Ref<ZonedDateTime>> to_temporal_zoned_date_time(VM& vm, Va
         time_zone = fields.time_zone.release_value();
 
         // e. Let offsetString be fields.[[OffsetString]].
-        offset_string = move(fields.offset);
+        offset_string = move(fields.offset_string);
 
         // f. If offsetString is UNSET, then
         if (!offset_string.has_value()) {

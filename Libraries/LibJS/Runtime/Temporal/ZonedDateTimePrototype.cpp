@@ -415,7 +415,7 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::with)
     fields.nanosecond = iso_date_time.time.nanosecond;
 
     // 16. Set fields.[[OffsetString]] to FormatUTCOffsetNanoseconds(offsetNanoseconds).
-    fields.offset = format_utc_offset_nanoseconds(offset_nanoseconds);
+    fields.offset_string = format_utc_offset_nanoseconds(offset_nanoseconds);
 
     // 17. Let partialZonedDateTime be ? PrepareCalendarFields(calendar, temporalZonedDateTimeLike, « YEAR, MONTH, MONTH-CODE, DAY », « HOUR, MINUTE, SECOND, MILLISECOND, MICROSECOND, NANOSECOND, OFFSET », PARTIAL).
     static constexpr auto calendar_field_names = to_array({ CalendarField::Year, CalendarField::Month, CalendarField::MonthCode, CalendarField::Day });
@@ -441,7 +441,7 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::with)
     auto date_time_result = TRY(interpret_temporal_date_time_fields(vm, calendar, fields, overflow));
 
     // 24. Let newOffsetNanoseconds be ! ParseDateTimeUTCOffset(fields.[[OffsetString]]).
-    auto new_offset_nanoseconds = parse_date_time_utc_offset(*fields.offset);
+    auto new_offset_nanoseconds = parse_date_time_utc_offset(*fields.offset_string);
 
     // 25. Let epochNanoseconds be ? InterpretISODateTimeOffset(dateTimeResult.[[ISODate]], dateTimeResult.[[Time]], OPTION, newOffsetNanoseconds, timeZone, disambiguation, offset, MATCH-EXACTLY).
     auto new_epoch_nanoseconds = TRY(interpret_iso_date_time_offset(vm, date_time_result.iso_date, date_time_result.time, OffsetBehavior::Option, new_offset_nanoseconds, time_zone, disambiguation, offset, MatchBehavior::MatchExactly));
