@@ -330,6 +330,13 @@ private:
     RefPtr<CSSStyleValue> parse_font_language_override_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_font_feature_settings_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_font_variation_settings_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_font_variant(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_font_variant_alternates_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_font_variant_caps_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_font_variant_east_asian_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_font_variant_emoji(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_font_variant_ligatures_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_font_variant_numeric_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_list_style_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_math_depth_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_overflow_value(TokenStream<ComponentValue>&);
