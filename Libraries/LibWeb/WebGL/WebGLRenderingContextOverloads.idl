@@ -20,7 +20,7 @@ interface mixin WebGLRenderingContextOverloads {
     undefined bufferData(GLenum target, GLsizeiptr size, GLenum usage);
     // FIXME: BufferSource is really a AllowSharedBufferSource
     undefined bufferData(GLenum target, BufferSource? data, GLenum usage);
-    [FIXME] undefined bufferSubData(GLenum target, GLintptr offset, AllowSharedBufferSource data);
+    undefined bufferSubData(GLenum target, GLintptr offset, BufferSource data);
 
     [FIXME] undefined compressedTexImage2D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, [AllowShared] ArrayBufferView data);
     [FIXME] undefined compressedTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, [AllowShared] ArrayBufferView data);
