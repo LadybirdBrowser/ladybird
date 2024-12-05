@@ -970,7 +970,7 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::to_plain_date)
     // 3. Let isoDateTime be GetISODateTimeFor(zonedDateTime.[[TimeZone]], zonedDateTime.[[EpochNanoseconds]]).
     auto iso_date_time = get_iso_date_time_for(zoned_date_time->time_zone(), zoned_date_time->epoch_nanoseconds()->big_integer());
 
-    // 4. Return ! CreateTemporalDate(isoDateTime.[[ISODate]], zonedDateTime.[[Calendar]].).
+    // 4. Return ! CreateTemporalDate(isoDateTime.[[ISODate]], zonedDateTime.[[Calendar]]).
     return MUST(create_temporal_date(vm, iso_date_time.iso_date, zoned_date_time->calendar()));
 }
 
