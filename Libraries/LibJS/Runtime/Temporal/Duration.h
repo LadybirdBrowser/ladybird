@@ -129,7 +129,7 @@ GC::Ref<Duration> create_negated_temporal_duration(VM&, Duration const&);
 TimeDuration time_duration_from_components(double hours, double minutes, double seconds, double milliseconds, double microseconds, double nanoseconds);
 ThrowCompletionOr<TimeDuration> add_time_duration(VM&, TimeDuration const&, TimeDuration const&);
 ThrowCompletionOr<TimeDuration> add_24_hour_days_to_time_duration(VM&, TimeDuration const&, double days);
-TimeDuration add_time_duration_to_epoch_nanoseconds(TimeDuration const& duration, TimeDuration const& epoch_nanoseconds);
+Crypto::SignedBigInteger add_time_duration_to_epoch_nanoseconds(TimeDuration const& duration, Crypto::SignedBigInteger const& epoch_nanoseconds);
 i8 compare_time_duration(TimeDuration const&, TimeDuration const&);
 TimeDuration time_duration_from_epoch_nanoseconds_difference(Crypto::SignedBigInteger const&, Crypto::SignedBigInteger const&);
 ThrowCompletionOr<TimeDuration> round_time_duration_to_increment(VM&, TimeDuration const&, Crypto::UnsignedBigInteger const& increment, RoundingMode);
