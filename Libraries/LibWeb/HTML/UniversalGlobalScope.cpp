@@ -84,11 +84,9 @@ void UniversalGlobalScopeMixin::queue_microtask(WebIDL::CallbackType& callback)
     if (is<Window>(this_impl()))
         document = &static_cast<Window&>(this_impl()).associated_document();
 
-    // The queueMicrotask(callback) method must queue a microtask to invoke callback, and if callback throws an exception, report the exception.
-    HTML::queue_a_microtask(document, GC::create_function(realm.heap(), [&callback, &realm] {
-        auto result = WebIDL::invoke_callback(callback, {});
-        if (result.is_error())
-            HTML::report_exception(result, realm);
+    // The queueMicrotask(callback) method must queue a microtask to invoke callback with « » and "report".
+    HTML::queue_a_microtask(document, GC::create_function(realm.heap(), [&callback] {
+        (void)WebIDL::invoke_callback(callback, {}, WebIDL::ExceptionBehavior::Report);
     }));
 }
 
