@@ -15,10 +15,12 @@ class WebGLRenderbuffer final : public WebGLObject {
     GC_DECLARE_ALLOCATOR(WebGLRenderbuffer);
 
 public:
+    static GC::Ptr<WebGLRenderbuffer> create(JS::Realm& realm, GLuint handle);
+
     virtual ~WebGLRenderbuffer();
 
 protected:
-    explicit WebGLRenderbuffer(JS::Realm&);
+    explicit WebGLRenderbuffer(JS::Realm&, GLuint handle);
 };
 
 }
