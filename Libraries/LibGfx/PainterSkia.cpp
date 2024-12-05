@@ -126,7 +126,7 @@ static SkPoint to_skia_point(auto const& point)
     return SkPoint::Make(point.x(), point.y());
 }
 
-static SkPaint to_skia_paint(Gfx::PaintStyle const& style, Gfx::FloatRect const& bounding_rect)
+static SkPaint to_skia_paint(Gfx::PaintStyle const& style)
 {
     if (is<Gfx::CanvasLinearGradientPaintStyle>(style)) {
         auto const& linear_gradient = static_cast<Gfx::CanvasLinearGradientPaintStyle const&>(style);
@@ -171,15 +171,13 @@ static SkPaint to_skia_paint(Gfx::PaintStyle const& style, Gfx::FloatRect const&
         auto start_radius = radial_gradient.start_radius();
         auto end_radius = radial_gradient.end_radius();
 
-        start_center.translate_by(bounding_rect.location());
-        end_center.translate_by(bounding_rect.location());
-
         auto start_sk_point = to_skia_point(start_center);
         auto end_sk_point = to_skia_point(end_center);
 
         SkMatrix matrix;
         auto shader = SkGradientShader::MakeTwoPointConical(start_sk_point, start_radius, end_sk_point, end_radius, colors.data(), positions.data(), color_stops.size(), SkTileMode::kClamp, 0, &matrix);
         paint.setShader(shader);
+        return paint;
     }
     return {};
 }
@@ -222,7 +220,7 @@ void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::PaintStyle const& pain
         return;
 
     auto sk_path = to_skia_path(path);
-    auto paint = to_skia_paint(paint_style, path.bounding_box());
+    auto paint = to_skia_paint(paint_style);
     paint.setAntiAlias(true);
     paint.setAlphaf(global_alpha);
     paint.setStyle(SkPaint::Style::kStroke_Style);
@@ -255,7 +253,7 @@ void PainterSkia::fill_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_
 {
     auto sk_path = to_skia_path(path);
     sk_path.setFillType(to_skia_path_fill_type(winding_rule));
-    auto paint = to_skia_paint(paint_style, path.bounding_box());
+    auto paint = to_skia_paint(paint_style);
     paint.setAntiAlias(true);
     paint.setAlphaf(global_alpha);
     impl().canvas()->drawPath(sk_path, paint);
