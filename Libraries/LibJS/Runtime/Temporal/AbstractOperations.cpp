@@ -1201,16 +1201,10 @@ ThrowCompletionOr<ParsedISODateTime> parse_iso_date_time(VM& vm, StringView iso_
                     return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarIdentifier, *calendar);
             }
 
-            // 4. If goal is TemporalMonthDayString and parseResult does not contain a DateYear Parse Node, then
-            if (goal == Production::TemporalMonthDayString && !parse_result->date_year.has_value()) {
-                // a. Assert: goal is the last element of allowedFormats.
-                // FIXME: Spec issue: This assertion is possibly incorrect.
-                //        https://github.com/tc39/proposal-temporal/issues/3045
-                // VERIFY(goal == allowed_formats.last());
-
-                // b. Set yearAbsent to true.
+            // 4. If goal is TemporalMonthDayString and parseResult does not contain a DateYear Parse Node, set
+            //    yearAbsent to true.
+            if (goal == Production::TemporalMonthDayString && !parse_result->date_year.has_value())
                 year_absent = true;
-            }
         }
     }
 
