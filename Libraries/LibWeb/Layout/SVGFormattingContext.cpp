@@ -307,6 +307,7 @@ void SVGFormattingContext::layout_nested_viewport(Box const& viewport)
 Gfx::Path SVGFormattingContext::compute_path_for_text(SVGTextBox const& text_box)
 {
     auto& text_element = static_cast<SVG::SVGTextPositioningElement const&>(text_box.dom_node());
+    // FIXME: Use per-code-point fonts.
     auto& font = text_box.first_available_font();
     auto text_contents = text_element.text_contents();
     Utf8View text_utf8 { text_contents };
@@ -349,6 +350,7 @@ Gfx::Path SVGFormattingContext::compute_path_for_text_path(SVGTextPathBox const&
     if (!path_or_shape)
         return {};
 
+    // FIXME: Use per-code-point fonts.
     auto& font = text_path_box.first_available_font();
     auto text_contents = text_path_element.text_contents();
     Utf8View text_utf8 { text_contents };
