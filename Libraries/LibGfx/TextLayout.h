@@ -26,6 +26,13 @@ struct DrawGlyph {
     }
 };
 
+typedef struct ShapeFeature {
+    char tag[4];
+    u32 value;
+} ShapeFeature;
+
+using ShapeFeatures = Vector<ShapeFeature, 4>;
+
 class GlyphRun : public RefCounted<GlyphRun> {
 public:
     enum class TextType {
@@ -60,7 +67,7 @@ private:
     float m_width { 0 };
 };
 
-RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf8View string, Gfx::Font const& font, GlyphRun::TextType);
-float measure_text_width(Utf8View const& string, Gfx::Font const& font);
+RefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf8View string, Gfx::Font const& font, GlyphRun::TextType, ShapeFeatures const& features);
+float measure_text_width(Utf8View const& string, Gfx::Font const& font, ShapeFeatures const& features);
 
 }

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/Font/FontVariant.h>
 #include <LibWeb/Layout/BreakNode.h>
 #include <LibWeb/Layout/InlineFormattingContext.h>
 #include <LibWeb/Layout/InlineLevelIterator.h>
@@ -200,6 +201,261 @@ Gfx::GlyphRun::TextType InlineLevelIterator::resolve_text_direction_from_context
     return Gfx::GlyphRun::TextType::ContextDependent;
 }
 
+HashMap<StringView, u8> InlineLevelIterator::shape_features_map() const
+{
+    HashMap<StringView, u8> features;
+
+    auto& computed_values = m_current_node->computed_values();
+
+    // 6.4 https://drafts.csswg.org/css-fonts/#font-variant-ligatures-prop
+    auto ligature_or_null = computed_values.font_variant_ligatures();
+    if (ligature_or_null.has_value()) {
+        auto ligature = ligature_or_null.release_value();
+        if (ligature.none) {
+            /* nothing */
+        } else {
+            switch (ligature.common) {
+            case Gfx::FontVariantLigatures::Common::Common:
+                // Enables display of common ligatures (OpenType features: liga, clig).
+                features.set("liga"sv, 1);
+                features.set("clig"sv, 1);
+                break;
+            case Gfx::FontVariantLigatures::Common::NoCommon:
+                // Disables display of common ligatures (OpenType features: liga, clig).
+                features.set("liga"sv, 0);
+                features.set("clig"sv, 0);
+                break;
+            case Gfx::FontVariantLigatures::Common::Unset:
+                break;
+            }
+
+            switch (ligature.discretionary) {
+            case Gfx::FontVariantLigatures::Discretionary::Discretionary:
+                // Enables display of discretionary ligatures (OpenType feature: dlig).
+                features.set("dlig"sv, 1);
+                break;
+            case Gfx::FontVariantLigatures::Discretionary::NoDiscretionary:
+                // Disables display of discretionary ligatures (OpenType feature: dlig).
+                features.set("dlig"sv, 0);
+                break;
+            case Gfx::FontVariantLigatures::Discretionary::Unset:
+                break;
+            }
+
+            switch (ligature.historical) {
+            case Gfx::FontVariantLigatures::Historical::Historical:
+                // Enables display of historical ligatures (OpenType feature: hlig).
+                features.set("hlig"sv, 1);
+                break;
+            case Gfx::FontVariantLigatures::Historical::NoHistorical:
+                // Disables display of historical ligatures (OpenType feature: hlig).
+                features.set("hlig"sv, 0);
+                break;
+            case Gfx::FontVariantLigatures::Historical::Unset:
+                break;
+            }
+
+            switch (ligature.contextual) {
+            case Gfx::FontVariantLigatures::Contextual::Contextual:
+                // Enables display of contextual ligatures (OpenType feature: calt).
+                features.set("calt"sv, 1);
+                break;
+            case Gfx::FontVariantLigatures::Contextual::NoContextual:
+                // Disables display of contextual ligatures (OpenType feature: calt).
+                features.set("calt"sv, 0);
+                break;
+            case Gfx::FontVariantLigatures::Contextual::Unset:
+                break;
+            }
+        }
+    } else {
+        // A value of normal specifies that common default features are enabled, as described in detail in the next section.
+        features.set("liga"sv, 1);
+        features.set("clig"sv, 1);
+    }
+
+    // 6.5 https://drafts.csswg.org/css-fonts/#font-variant-position-prop
+    switch (computed_values.font_variant_position()) {
+    case CSS::FontVariantPosition::Normal:
+        // None of the features listed below are enabled.
+        break;
+    case CSS::FontVariantPosition::Sub:
+        // Enables display of subscripts (OpenType feature: subs).
+        features.set("subs"sv, 1);
+        break;
+    case CSS::FontVariantPosition::Super:
+        // Enables display of superscripts (OpenType feature: sups).
+        features.set("sups"sv, 1);
+        break;
+    default:
+        break;
+    }
+
+    // 6.6 https://drafts.csswg.org/css-fonts/#font-variant-caps-prop
+    switch (computed_values.font_variant_caps()) {
+    case CSS::FontVariantCaps::Normal:
+        // None of the features listed below are enabled.
+        break;
+    case CSS::FontVariantCaps::SmallCaps:
+        // Enables display of small capitals (OpenType feature: smcp). Small-caps glyphs typically use the form of uppercase letters but are reduced to the size of lowercase letters.
+        features.set("smcp"sv, 1);
+        break;
+    case CSS::FontVariantCaps::AllSmallCaps:
+        // Enables display of small capitals for both upper and lowercase letters (OpenType features: c2sc, smcp).
+        features.set("c2sc"sv, 1);
+        features.set("smcp"sv, 1);
+        break;
+    case CSS::FontVariantCaps::PetiteCaps:
+        // Enables display of petite capitals (OpenType feature: pcap).
+        features.set("pcap"sv, 1);
+        break;
+    case CSS::FontVariantCaps::AllPetiteCaps:
+        // Enables display of petite capitals for both upper and lowercase letters (OpenType features: c2pc, pcap).
+        features.set("c2pc"sv, 1);
+        features.set("pcap"sv, 1);
+        break;
+    case CSS::FontVariantCaps::Unicase:
+        // Enables display of mixture of small capitals for uppercase letters with normal lowercase letters (OpenType feature: unic).
+        features.set("unic"sv, 1);
+        break;
+    case CSS::FontVariantCaps::TitlingCaps:
+        // Enables display of titling capitals (OpenType feature: titl).
+        features.set("titl"sv, 1);
+        break;
+    default:
+        break;
+    }
+
+    // 6.7 https://drafts.csswg.org/css-fonts/#font-variant-numeric-prop
+    auto numeric_or_null = computed_values.font_variant_numeric();
+    if (numeric_or_null.has_value()) {
+        auto numeric = numeric_or_null.release_value();
+        if (numeric.figure == Gfx::FontVariantNumeric::Figure::Oldstyle) {
+            // Enables display of old-style numerals (OpenType feature: onum).
+            features.set("onum"sv, 1);
+        } else if (numeric.figure == Gfx::FontVariantNumeric::Figure::Lining) {
+            // Enables display of lining numerals (OpenType feature: lnum).
+            features.set("lnum"sv, 1);
+        }
+
+        if (numeric.spacing == Gfx::FontVariantNumeric::Spacing::Proportional) {
+            // Enables display of proportional numerals (OpenType feature: pnum).
+            features.set("pnum"sv, 1);
+        } else if (numeric.spacing == Gfx::FontVariantNumeric::Spacing::Tabular) {
+            // Enables display of tabular numerals (OpenType feature: tnum).
+            features.set("tnum"sv, 1);
+        }
+
+        if (numeric.fraction == Gfx::FontVariantNumeric::Fraction::Diagonal) {
+            // Enables display of diagonal fractions (OpenType feature: frac).
+            features.set("frac"sv, 1);
+        } else if (numeric.fraction == Gfx::FontVariantNumeric::Fraction::Stacked) {
+            // Enables display of stacked fractions (OpenType feature: afrc).
+            features.set("afrc"sv, 1);
+            features.set("afrc"sv, 1);
+        }
+
+        if (numeric.ordinal) {
+            // Enables display of letter forms used with ordinal numbers (OpenType feature: ordn).
+            features.set("ordn"sv, 1);
+        }
+        if (numeric.slashed_zero) {
+            // Enables display of slashed zeros (OpenType feature: zero).
+            features.set("zero"sv, 1);
+        }
+    }
+
+    // 6.10 https://drafts.csswg.org/css-fonts/#font-variant-east-asian-prop
+    auto east_asian_or_null = computed_values.font_variant_east_asian();
+    if (east_asian_or_null.has_value()) {
+        auto east_asian = east_asian_or_null.release_value();
+        switch (east_asian.variant) {
+        case Gfx::FontVariantEastAsian::Variant::Jis78:
+            // Enables display of JIS78 forms (OpenType feature: jp78).
+            features.set("jp78"sv, 1);
+            break;
+        case Gfx::FontVariantEastAsian::Variant::Jis83:
+            // Enables display of JIS83 forms (OpenType feature: jp83).
+            features.set("jp83"sv, 1);
+            break;
+        case Gfx::FontVariantEastAsian::Variant::Jis90:
+            // Enables display of JIS90 forms (OpenType feature: jp90).
+            features.set("jp90"sv, 1);
+            break;
+        case Gfx::FontVariantEastAsian::Variant::Jis04:
+            // Enables display of JIS04 forms (OpenType feature: jp04).
+            features.set("jp04"sv, 1);
+            break;
+        case Gfx::FontVariantEastAsian::Variant::Simplified:
+            // Enables display of simplified forms (OpenType feature: smpl).
+            features.set("smpl"sv, 1);
+            break;
+        case Gfx::FontVariantEastAsian::Variant::Traditional:
+            // Enables display of traditional forms (OpenType feature: trad).
+            features.set("trad"sv, 1);
+            break;
+        default:
+            break;
+        }
+        switch (east_asian.width) {
+        case Gfx::FontVariantEastAsian::Width::FullWidth:
+            // Enables display of full-width forms (OpenType feature: fwid).
+            features.set("fwid"sv, 1);
+            break;
+        case Gfx::FontVariantEastAsian::Width::Proportional:
+            // Enables display of proportional-width forms (OpenType feature: pwid).
+            features.set("pwid"sv, 1);
+            break;
+        default:
+            break;
+        }
+        if (east_asian.ruby) {
+            // Enables display of ruby forms (OpenType feature: ruby).
+            features.set("ruby"sv, 1);
+        }
+    }
+
+    return features;
+}
+
+Gfx::ShapeFeatures InlineLevelIterator::create_and_merge_font_features() const
+{
+    HashMap<StringView, u8> merged_features;
+    auto& computed_values = m_inline_formatting_context.containing_block().computed_values();
+
+    // https://www.w3.org/TR/css-fonts-3/#feature-precedence
+
+    // FIXME 1. Font features enabled by default, including features required for a given script.
+
+    // FIXME 2. If the font is defined via an @font-face rule, the font features implied by the font-feature-settings descriptor in the @font-face rule.
+
+    // 3. Font features implied by the value of the ‘font-variant’ property, the related ‘font-variant’ subproperties and any other CSS property that uses OpenType features (e.g. the ‘font-kerning’ property).
+    for (auto& it : shape_features_map()) {
+        merged_features.set(it.key, it.value);
+    }
+
+    // FIXME 4. Feature settings determined by properties other than ‘font-variant’ or ‘font-feature-settings’. For example, setting a non-default value for the ‘letter-spacing’ property disables common ligatures.
+
+    // 5. Font features implied by the value of ‘font-feature-settings’ property.
+    auto resolution_context = CSS::Length::ResolutionContext::for_layout_node(*m_current_node.ptr());
+    auto font_feature_settings = computed_values.font_feature_settings();
+    if (font_feature_settings.has_value()) {
+        auto const& feature_settings = font_feature_settings.value();
+        for (auto const& [key, feature_value] : feature_settings) {
+            merged_features.set(key, feature_value.resolved(resolution_context));
+        }
+    }
+
+    Gfx::ShapeFeatures shape_features;
+    shape_features.ensure_capacity(merged_features.size());
+
+    for (auto& it : merged_features) {
+        shape_features.append({ { it.key[0], it.key[1], it.key[2], it.key[3] }, static_cast<u32>(it.value) });
+    }
+
+    return shape_features;
+}
+
 Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead()
 {
     if (!m_current_node)
@@ -293,7 +549,8 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
             x = tab_stop_dist.to_float();
         }
 
-        auto glyph_run = Gfx::shape_text({ x, 0 }, letter_spacing.to_float(), chunk.view, chunk.font, text_type);
+        auto shape_features = create_and_merge_font_features();
+        auto glyph_run = Gfx::shape_text({ x, 0 }, letter_spacing.to_float(), chunk.view, chunk.font, text_type, shape_features);
 
         CSSPixels chunk_width = CSSPixels::nearest_value_for(glyph_run->width());
 
