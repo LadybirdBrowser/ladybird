@@ -12,6 +12,9 @@ typedef (ImageBitmap or
 // FIXME: BufferSource should be a Float32Array
 typedef (BufferSource or sequence<GLfloat>) Float32List;
 
+// FIXME: BufferSource should be a Int32Array
+typedef (BufferSource or sequence<GLint>) Int32List;
+
 // https://registry.khronos.org/webgl/specs/latest/1.0/#5.14
 interface mixin WebGLRenderingContextOverloads {
     undefined bufferData(GLenum target, GLsizeiptr size, GLenum usage);
@@ -35,10 +38,10 @@ interface mixin WebGLRenderingContextOverloads {
     undefined uniform3fv(WebGLUniformLocation? location, Float32List v);
     undefined uniform4fv(WebGLUniformLocation? location, Float32List v);
 
-    [FIXME] undefined uniform1iv(WebGLUniformLocation? location, Int32List v);
-    [FIXME] undefined uniform2iv(WebGLUniformLocation? location, Int32List v);
-    [FIXME] undefined uniform3iv(WebGLUniformLocation? location, Int32List v);
-    [FIXME] undefined uniform4iv(WebGLUniformLocation? location, Int32List v);
+    undefined uniform1iv(WebGLUniformLocation? location, Int32List v);
+    undefined uniform2iv(WebGLUniformLocation? location, Int32List v);
+    undefined uniform3iv(WebGLUniformLocation? location, Int32List v);
+    undefined uniform4iv(WebGLUniformLocation? location, Int32List v);
 
     // FIXME: Float32Array should be a Float32List
     undefined uniformMatrix2fv(WebGLUniformLocation? location, GLboolean transpose, Float32List value);

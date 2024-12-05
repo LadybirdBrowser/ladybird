@@ -633,6 +633,25 @@ public:
             continue;
         }
 
+        if (function.name == "uniform1iv"sv || function.name == "uniform2iv"sv || function.name == "uniform3iv"sv || function.name == "uniform4iv"sv) {
+            auto number_of_matrix_elements = function.name.substring_view(7, 1);
+            function_impl_generator.set("number_of_matrix_elements", number_of_matrix_elements);
+            function_impl_generator.append(R"~~~(
+    if (v.has<Vector<int>>()) {
+        auto& data = v.get<Vector<int>>();
+        glUniform@number_of_matrix_elements@iv(location->handle(), data.size() / @number_of_matrix_elements@, data.data());
+        return;
+    }
+
+    auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*v.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
+    auto& int32_array = verify_cast<JS::Int32Array>(typed_array_base);
+    int const* data = int32_array.data().data();
+    auto count = int32_array.array_length().length() / @number_of_matrix_elements@;
+    glUniform@number_of_matrix_elements@iv(location->handle(), count, data);
+)~~~");
+            continue;
+        }
+
         if (function.name == "getParameter"sv) {
             generate_get_parameter(function_impl_generator);
             continue;
