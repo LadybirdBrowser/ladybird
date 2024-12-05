@@ -125,7 +125,7 @@ static void generate_get_parameter(SourceGenerator& generator)
         { "POLYGON_OFFSET_FILL"sv, { "GLboolean"sv } },
         { "POLYGON_OFFSET_UNITS"sv, { "GLfloat"sv } },
         { "RED_BITS"sv, { "GLint"sv } },
-        // FIXME: { "RENDERBUFFER_BINDING"sv, { "WebGLRenderbuffer"sv } },
+        { "RENDERBUFFER_BINDING"sv, { "WebGLRenderbuffer"sv } },
         { "RENDERER"sv, { "DOMString"sv } },
         { "SAMPLE_ALPHA_TO_COVERAGE"sv, { "GLboolean"sv } },
         { "SAMPLE_BUFFERS"sv, { "GLint"sv } },
@@ -209,7 +209,7 @@ static void generate_get_parameter(SourceGenerator& generator)
         auto array_buffer = JS::ArrayBuffer::create(m_realm, move(byte_buffer));
         return JS::@type_name@::create(m_realm, @element_count@, array_buffer);
 )~~~");
-        } else if (type_name == "WebGLProgram"sv || type_name == "WebGLBuffer"sv || type_name == "WebGLTexture"sv || type_name == "WebGLFramebuffer"sv) {
+        } else if (type_name == "WebGLProgram"sv || type_name == "WebGLBuffer"sv || type_name == "WebGLTexture"sv || type_name == "WebGLFramebuffer"sv || type_name == "WebGLRenderbuffer"sv) {
             impl_generator.append(R"~~~(
         GLint result;
         glGetIntegerv(GL_@parameter_name@, &result);
