@@ -48,7 +48,7 @@ static NonnullRefPtr<CSSStyleValue const> with_keyword_values_resolved(DOM::Elem
     case CSS::Keyword::Unset:
         return property_initial_value(property_id);
     case CSS::Keyword::Inherit:
-        return CSS::StyleComputer::get_inherit_value(element.realm(), property_id, &element);
+        return CSS::StyleComputer::get_inherit_value(property_id, &element);
     default:
         break;
     }
