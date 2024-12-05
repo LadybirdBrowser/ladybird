@@ -70,7 +70,8 @@ int PaintableFragment::text_index_at(CSSPixelPoint position) const
 
     return m_start + m_length;
 }
-CSSPixelRect PaintableFragment::range_rect(Gfx::Font const& font, size_t start_offset, size_t end_offset) const
+
+CSSPixelRect PaintableFragment::range_rect(size_t start_offset, size_t end_offset) const
 {
     if (paintable().selection_state() == Paintable::SelectionState::None)
         return {};
@@ -82,6 +83,7 @@ CSSPixelRect PaintableFragment::range_rect(Gfx::Font const& font, size_t start_o
     auto const start_index = static_cast<unsigned>(m_start);
     auto const end_index = static_cast<unsigned>(m_start) + static_cast<unsigned>(m_length);
 
+    auto const& font = glyph_run() ? glyph_run()->font() : layout_node().first_available_font();
     auto text = string_view();
 
     if (paintable().selection_state() == Paintable::SelectionState::StartAndEnd) {
@@ -185,7 +187,7 @@ Gfx::Orientation PaintableFragment::orientation() const
     }
 }
 
-CSSPixelRect PaintableFragment::selection_rect(Gfx::Font const& font) const
+CSSPixelRect PaintableFragment::selection_rect() const
 {
     if (auto const* focused_element = paintable().document().focused_element(); focused_element && is<HTML::FormAssociatedTextControlElement>(*focused_element)) {
         HTML::FormAssociatedTextControlElement const* text_control_element = nullptr;
@@ -200,7 +202,7 @@ CSSPixelRect PaintableFragment::selection_rect(Gfx::Font const& font) const
         auto selection_end = text_control_element->selection_end();
         if (!selection_start.has_value() || !selection_end.has_value())
             return {};
-        return range_rect(font, selection_start.value(), selection_end.value());
+        return range_rect(selection_start.value(), selection_end.value());
     }
     auto selection = paintable().document().get_selection();
     if (!selection)
@@ -209,7 +211,7 @@ CSSPixelRect PaintableFragment::selection_rect(Gfx::Font const& font) const
     if (!range)
         return {};
 
-    return range_rect(font, range->start_offset(), range->end_offset());
+    return range_rect(range->start_offset(), range->end_offset());
 }
 
 StringView PaintableFragment::string_view() const
