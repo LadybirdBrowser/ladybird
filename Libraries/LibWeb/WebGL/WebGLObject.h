@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024, Luke Wilde <luke@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,8 +10,6 @@
 
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/WebGL/Types.h>
-
-typedef unsigned int GLuint;
 
 namespace Web::WebGL {
 
@@ -27,6 +26,8 @@ public:
 
 protected:
     explicit WebGLObject(JS::Realm&, GLuint handle);
+
+    virtual void initialize(JS::Realm&) override;
 
     bool invalidated() const { return m_invalidated; }
 

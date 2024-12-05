@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2024, Luke Wilde <luke@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -15,12 +16,14 @@ class WebGLFramebuffer final : public WebGLObject {
     GC_DECLARE_ALLOCATOR(WebGLFramebuffer);
 
 public:
-    static GC::Ptr<WebGLFramebuffer> create(JS::Realm& realm, GLuint handle);
+    static GC::Ref<WebGLFramebuffer> create(JS::Realm& realm, GLuint handle);
 
     virtual ~WebGLFramebuffer();
 
 protected:
     explicit WebGLFramebuffer(JS::Realm&, GLuint handle);
+
+    virtual void initialize(JS::Realm&) override;
 };
 
 }
