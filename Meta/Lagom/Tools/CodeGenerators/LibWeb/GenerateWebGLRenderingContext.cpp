@@ -726,6 +726,14 @@ public:
             continue;
         }
 
+        if (function.name == "deleteTexture"sv) {
+            function_impl_generator.append(R"~~~(
+    auto handle = texture ? texture->handle() : 0;
+    glDeleteTextures(1, &handle);
+)~~~");
+            continue;
+        }
+
         Vector<ByteString> gl_call_arguments;
         for (size_t i = 0; i < function.parameters.size(); ++i) {
             auto const& parameter = function.parameters[i];
