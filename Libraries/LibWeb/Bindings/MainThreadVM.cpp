@@ -822,12 +822,8 @@ void invoke_custom_element_reactions(Vector<GC::Root<DOM::Element>>& element_que
                 },
                 [&](DOM::CustomElementCallbackReaction& custom_element_callback_reaction) -> void {
                     // -> callback reaction
-                    //      Invoke reaction's callback function with reaction's arguments, and with element as the callback this value.
-                    auto result = WebIDL::invoke_callback(*custom_element_callback_reaction.callback, element.ptr(), custom_element_callback_reaction.arguments);
-                    // FIXME: The error from CustomElementCallbackReaction is supposed
-                    //     to use the new steps for IDL callback error reporting
-                    if (result.is_abrupt())
-                        HTML::report_exception(result, element->realm());
+                    //      Invoke reaction's callback function with reaction's arguments and "report", and callback this value set to element.
+                    (void)WebIDL::invoke_callback(*custom_element_callback_reaction.callback, element.ptr(), WebIDL::ExceptionBehavior::Report, custom_element_callback_reaction.arguments);
                 });
         }
     }
