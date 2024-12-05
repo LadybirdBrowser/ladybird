@@ -736,7 +736,7 @@ void queue_mutation_observer_microtask(DOM::Document const& document)
                 }
             }
 
-            // 4. If records is not empty, then invoke mo’s callback with « records, mo », and mo. If this throws an exception, catch it, and report the exception.
+            // 4. If records is not empty, then invoke mo’s callback with « records, mo » and "report", and with callback this value mo.
             if (!records.is_empty()) {
                 auto& callback = mutation_observer->callback();
                 auto& realm = callback.callback_context;
@@ -748,9 +748,7 @@ void queue_mutation_observer_microtask(DOM::Document const& document)
                     MUST(wrapped_records->create_data_property(property_index, record.ptr()));
                 }
 
-                auto result = WebIDL::invoke_callback(callback, mutation_observer, wrapped_records, mutation_observer);
-                if (result.is_abrupt())
-                    HTML::report_exception(result, realm);
+                (void)WebIDL::invoke_callback(callback, mutation_observer, WebIDL::ExceptionBehavior::Report, wrapped_records, mutation_observer);
             }
         }
 
