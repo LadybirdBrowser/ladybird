@@ -590,7 +590,11 @@ public:
                 continue;
             }
             if (parameter.type->is_string()) {
-                gl_call_arguments.append(ByteString::formatted("{}", parameter.name));
+                function_impl_generator.set("parameter_name", parameter.name);
+                function_impl_generator.append(R"~~~(
+    auto @parameter_name@_null_terminated = null_terminated_string(@parameter_name@);
+)~~~");
+                gl_call_arguments.append(ByteString::formatted("{}_null_terminated.data()", parameter.name));
                 continue;
             }
             if (is_webgl_object_type(parameter.type->name())) {
