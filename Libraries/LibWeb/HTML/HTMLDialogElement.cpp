@@ -254,9 +254,8 @@ void HTMLDialogElement::request_close(Optional<String> return_value)
     m_close_watcher->request_close(false);
     // 7. Set dialog's enable close watcher for requestClose() to false.
     // ADHOC: Implemented slightly differently to the spec, as the spec is unnecessarily complex.
-    // FIXME: This should be set based on dialog closedby state, when implemented.
     if (m_close_watcher)
-        m_close_watcher->set_enabled(m_is_modal);
+        m_close_watcher->set_enabled(closed_by() != "none");
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#dom-dialog-returnvalue
@@ -269,6 +268,21 @@ String HTMLDialogElement::return_value() const
 void HTMLDialogElement::set_return_value(String return_value)
 {
     m_return_value = move(return_value);
+}
+
+String HTMLDialogElement::closed_by() const
+{
+    auto value = get_attribute(HTML::AttributeNames::closedby);
+
+    if (value.has_value() && (value.value() == "none" || value.value() == "closerequest" || value.value() == "any"))
+        return value.value();
+
+    return m_is_modal ? "closerequest"_string : "none"_string;
+}
+
+WebIDL::ExceptionOr<void> HTMLDialogElement::set_closed_by(String value)
+{
+    return set_attribute(HTML::AttributeNames::closedby, value);
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#close-the-dialog
@@ -364,8 +378,7 @@ void HTMLDialogElement::set_close_watcher()
     m_close_watcher->add_event_listener_without_options(HTML::EventNames::close, DOM::IDLEventListener::create(realm(), close_callback));
     // - getEnabledState being to return true if dialog's enable close watcher for requestClose() is true or dialog's computed closed-by state is not None; otherwise false.
     // ADHOC: Implemented slightly differently to the spec, as the spec is unnecessarily complex.
-    // FIXME: This should be set based on dialog closedby state, when implemented.
-    m_close_watcher->set_enabled(m_is_modal);
+    m_close_watcher->set_enabled(closed_by() != "none");
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#dialog-focusing-steps
@@ -383,6 +396,15 @@ void HTMLDialogElement::run_dialog_focusing_steps()
 
     // 5. Run the focusing steps for control.
     run_focusing_steps(control);
+}
+
+void HTMLDialogElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+{
+    Base::attribute_changed(name, old_value, value, namespace_);
+
+    // ADHOC: This is part of the implementation of dialog close watcher's getEnabledState.
+    if (name == HTML::AttributeNames::closedby && m_close_watcher && old_value != value)
+        m_close_watcher->set_enabled(closed_by() != "none");
 }
 
 }

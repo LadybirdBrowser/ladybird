@@ -8,7 +8,7 @@ interface HTMLDialogElement : HTMLElement {
 
     [CEReactions, Reflect] attribute boolean open;
     attribute DOMString returnValue;
-    [FIXME, CEReactions] attribute DOMString closedBy;
+    [CEReactions] attribute DOMString closedBy;
     [CEReactions] undefined show();
     [CEReactions] undefined showModal();
     [CEReactions] undefined close(optional DOMString returnValue);

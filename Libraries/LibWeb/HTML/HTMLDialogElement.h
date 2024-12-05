@@ -26,6 +26,9 @@ public:
     String return_value() const;
     void set_return_value(String);
 
+    String closed_by() const;
+    WebIDL::ExceptionOr<void> set_closed_by(String);
+
     WebIDL::ExceptionOr<void> show();
     WebIDL::ExceptionOr<void> show_modal();
     void close(Optional<String> return_value);
@@ -41,6 +44,9 @@ private:
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+
+    // ^DOM::Element
+    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
     void queue_a_dialog_toggle_event_task(String old_state, String new_state);
 
