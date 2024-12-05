@@ -5,6 +5,7 @@
 #import <WebGL/WebGLObject.idl>
 #import <WebGL/WebGLProgram.idl>
 #import <WebGL/WebGLShader.idl>
+#import <WebGL/WebGLShaderPrecisionFormat.idl>
 #import <WebGL/WebGLTexture.idl>
 #import <WebGL/WebGLUniformLocation.idl>
 #import <WebGL/WebGLRenderbuffer.idl>
@@ -119,7 +120,7 @@ interface mixin WebGLRenderingContextBase {
     DOMString? getProgramInfoLog(WebGLProgram program);
     [FIXME] any getRenderbufferParameter(GLenum target, GLenum pname);
     any getShaderParameter(WebGLShader shader, GLenum pname);
-    [FIXME] WebGLShaderPrecisionFormat? getShaderPrecisionFormat(GLenum shadertype, GLenum precisiontype);
+    WebGLShaderPrecisionFormat? getShaderPrecisionFormat(GLenum shadertype, GLenum precisiontype);
     DOMString? getShaderInfoLog(WebGLShader shader);
 
     [FIXME] DOMString? getShaderSource(WebGLShader shader);

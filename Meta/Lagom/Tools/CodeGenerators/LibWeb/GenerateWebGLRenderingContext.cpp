@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024, Luke Wilde <luke@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -327,6 +328,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 #include <LibWeb/WebGL/WebGLRenderbuffer.h>
 #include <LibWeb/WebGL/WebGLRenderingContextImpl.h>
 #include <LibWeb/WebGL/WebGLShader.h>
+#include <LibWeb/WebGL/WebGLShaderPrecisionFormat.h>
 #include <LibWeb/WebGL/WebGLTexture.h>
 #include <LibWeb/WebGL/WebGLUniformLocation.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -714,6 +716,16 @@ public:
         return String {};
     glGetProgramInfoLog(program->handle(), info_log_length, nullptr, info_log.data());
     return String::from_utf8_without_validation(ReadonlyBytes { info_log.data(), static_cast<size_t>(info_log_length - 1) });
+)~~~");
+            continue;
+        }
+
+        if (function.name == "getShaderPrecisionFormat"sv) {
+            function_impl_generator.append(R"~~~(
+    GLint range[2];
+    GLint precision;
+    glGetShaderPrecisionFormat(shadertype, precisiontype, range, &precision);
+    return WebGLShaderPrecisionFormat::create(m_realm, range[0], range[1], precision);
 )~~~");
             continue;
         }
