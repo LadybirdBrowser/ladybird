@@ -1173,18 +1173,54 @@ Variant<CSS::VerticalAlign, CSS::LengthPercentage> StyleProperties::vertical_ali
     VERIFY_NOT_REACHED();
 }
 
-Optional<CSS::FontVariant> StyleProperties::font_variant() const
-{
-    auto const& value = property(CSS::PropertyID::FontVariant);
-    return keyword_to_font_variant(value.to_keyword());
-}
-
 Optional<FlyString> StyleProperties::font_language_override() const
 {
     auto const& value = property(CSS::PropertyID::FontLanguageOverride);
     if (value.is_string())
         return value.as_string().string_value();
     return {};
+}
+
+Optional<Gfx::FontVariantAlternates> StyleProperties::font_variant_alternates() const
+{
+    auto const& value = property(CSS::PropertyID::FontVariantAlternates);
+    return value.to_font_variant_alternates();
+}
+
+Optional<FontVariantCaps> StyleProperties::font_variant_caps() const
+{
+    auto const& value = property(CSS::PropertyID::FontVariantCaps);
+    return value.to_font_variant_caps();
+}
+
+Optional<Gfx::FontVariantEastAsian> StyleProperties::font_variant_east_asian() const
+{
+    auto const& value = property(CSS::PropertyID::FontVariantEastAsian);
+    return value.to_font_variant_east_asian();
+}
+
+Optional<FontVariantEmoji> StyleProperties::font_variant_emoji() const
+{
+    auto const& value = property(CSS::PropertyID::FontVariantEmoji);
+    return value.to_font_variant_emoji();
+}
+
+Optional<Gfx::FontVariantLigatures> StyleProperties::font_variant_ligatures() const
+{
+    auto const& value = property(CSS::PropertyID::FontVariantLigatures);
+    return value.to_font_variant_ligatures();
+}
+
+Optional<Gfx::FontVariantNumeric> StyleProperties::font_variant_numeric() const
+{
+    auto const& value = property(CSS::PropertyID::FontVariantNumeric);
+    return value.to_font_variant_numeric();
+}
+
+Optional<FontVariantPosition> StyleProperties::font_variant_position() const
+{
+    auto const& value = property(CSS::PropertyID::FontVariantPosition);
+    return value.to_font_variant_position();
 }
 
 Optional<HashMap<FlyString, IntegerOrCalculated>> StyleProperties::font_feature_settings() const

@@ -149,7 +149,13 @@ public:
     Optional<CSS::BoxSizing> box_sizing() const;
     Optional<CSS::PointerEvents> pointer_events() const;
     Variant<CSS::VerticalAlign, CSS::LengthPercentage> vertical_align() const;
-    Optional<CSS::FontVariant> font_variant() const;
+    Optional<Gfx::FontVariantAlternates> font_variant_alternates() const;
+    Optional<FontVariantCaps> font_variant_caps() const;
+    Optional<Gfx::FontVariantEastAsian> font_variant_east_asian() const;
+    Optional<FontVariantEmoji> font_variant_emoji() const;
+    Optional<Gfx::FontVariantLigatures> font_variant_ligatures() const;
+    Optional<Gfx::FontVariantNumeric> font_variant_numeric() const;
+    Optional<FontVariantPosition> font_variant_position() const;
     Optional<FlyString> font_language_override() const;
     Optional<HashMap<FlyString, IntegerOrCalculated>> font_feature_settings() const;
     Optional<HashMap<FlyString, NumberOrCalculated>> font_variation_settings() const;
