@@ -154,6 +154,7 @@ public:
     [[nodiscard]] GC::Ref<Location> location();
     GC::Ref<History> history() const;
     GC::Ref<Navigation> navigation();
+    void stop();
     void focus();
     void blur();
 

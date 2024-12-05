@@ -1,0 +1,9 @@
+<!doctype html>
+<p>Text</p>
+<script>
+window.stop();
+parent.step_timeout(() => {
+  document.open();
+  parent.handlers.afterOpenAsync();
+}, 10);
+</script>

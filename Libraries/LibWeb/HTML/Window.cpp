@@ -856,6 +856,18 @@ GC::Ref<History> Window::history() const
     return associated_document().history();
 }
 
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-stop
+void Window::stop()
+{
+    // 1. If this's navigable is null, then return.
+    auto navigable = this->navigable();
+    if (!navigable)
+        return;
+
+    // 2. Stop loading this's navigable.
+    navigable->stop_loading();
+}
+
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-window-focus
 void Window::focus()
 {

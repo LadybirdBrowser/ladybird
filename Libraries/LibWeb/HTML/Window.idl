@@ -30,6 +30,7 @@ interface Window : EventTarget {
     readonly attribute History history;
     readonly attribute Navigation navigation;
     readonly attribute CustomElementRegistry customElements;
+    undefined stop();
     undefined focus();
     undefined blur();
 
