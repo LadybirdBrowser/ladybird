@@ -582,6 +582,20 @@ public:
             continue;
         }
 
+        if (function.name == "getProgramInfoLog"sv) {
+            function_impl_generator.append(R"~~~(
+    GLint info_log_length = 0;
+    glGetProgramiv(program->handle(), GL_INFO_LOG_LENGTH, &info_log_length);
+    Vector<GLchar> info_log;
+    info_log.resize(info_log_length);
+    if (!info_log_length)
+        return String {};
+    glGetProgramInfoLog(program->handle(), info_log_length, nullptr, info_log.data());
+    return String::from_utf8_without_validation(ReadonlyBytes { info_log.data(), static_cast<size_t>(info_log_length - 1) });
+)~~~");
+            continue;
+        }
+
         Vector<ByteString> gl_call_arguments;
         for (size_t i = 0; i < function.parameters.size(); ++i) {
             auto const& parameter = function.parameters[i];
