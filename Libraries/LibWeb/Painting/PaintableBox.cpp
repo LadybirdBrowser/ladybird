@@ -681,7 +681,7 @@ void paint_text_fragment(PaintContext& context, TextPaintable const& paintable, 
         auto scale = context.device_pixels_per_css_pixel();
         painter.draw_text_run(baseline_start.to_type<int>(), *glyph_run, paintable.computed_values().webkit_text_fill_color(), fragment_absolute_device_rect.to_type<int>(), scale, fragment.orientation());
 
-        auto selection_rect = context.enclosing_device_rect(fragment.selection_rect(paintable.layout_node().first_available_font())).to_type<int>();
+        auto selection_rect = context.enclosing_device_rect(fragment.selection_rect()).to_type<int>();
         if (!selection_rect.is_empty()) {
             painter.fill_rect(selection_rect, CSS::SystemColor::highlight());
             DisplayListRecorderStateSaver saver(painter);

@@ -39,8 +39,8 @@ public:
     RefPtr<Gfx::GlyphRun> glyph_run() const { return m_glyph_run; }
     Gfx::Orientation orientation() const;
 
-    CSSPixelRect selection_rect(Gfx::Font const&) const;
-    CSSPixelRect range_rect(Gfx::Font const&, size_t start_offset, size_t end_offset) const;
+    CSSPixelRect selection_rect() const;
+    CSSPixelRect range_rect(size_t start_offset, size_t end_offset) const;
 
     CSSPixels width() const { return m_size.width(); }
     CSSPixels height() const { return m_size.height(); }
