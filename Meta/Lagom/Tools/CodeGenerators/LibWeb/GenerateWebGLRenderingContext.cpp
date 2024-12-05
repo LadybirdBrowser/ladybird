@@ -345,7 +345,7 @@ public:
             continue;
         }
 
-        if (function.name == "getSupportedExtensions"sv || function.name == "getExtension"sv || function.name == "getContextAttributes"sv) {
+        if (function.name == "getSupportedExtensions"sv || function.name == "getExtension"sv || function.name == "getContextAttributes"sv || function.name == "isContextLost"sv) {
             // Implemented in WebGLRenderingContext
             continue;
         }
