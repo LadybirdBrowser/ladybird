@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:jarhar@chromium.org">
+<link rel=help href="https://github.com/whatwg/html/issues/9043">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<div id=popover popover=auto>popover</div>
+<div id=popover2 popover=auto>popover</div>
+
+<script>
+test(() => {
+  assert_false(popover.matches(':popover-open'),
+    'Popover should be closed when the test starts.');
+
+  assert_true(popover.togglePopover(),
+    'togglePopover() should return true.');
+  assert_true(popover.matches(':popover-open'),
+    'togglePopover() should open the popover.');
+
+  assert_true(popover.togglePopover(/*force=*/true),
+    'togglePopover(true) should return true.');
+  assert_true(popover.matches(':popover-open'),
+    'togglePopover(true) should open the popover.');
+
+  assert_false(popover.togglePopover(),
+    'togglePopover() should return false.');
+  assert_false(popover.matches(':popover-open'),
+    'togglePopover() should close the popover.');
+
+  assert_false(popover.togglePopover(/*force=*/false),
+    'togglePopover(false) should return false.');
+  assert_false(popover.matches(':popover-open'),
+    'togglePopover(false) should close the popover.');
+}, 'togglePopover should toggle the popover and return true or false as specified.');
+
+test(() => {
+  const popover = document.getElementById('popover2');
+  popover.addEventListener('beforetoggle', event => event.preventDefault(), {once: true});
+  assert_false(popover.togglePopover(/*force=*/true),
+    'togglePopover(true) should return false when the popover does not get opened.');
+  assert_false(popover.matches(':popover-open'));
+
+  // We could also add a test for the return value of togglePopover(false),
+  // but every way to prevent that from hiding the popover also throws an
+  // exception, so the return value is not testable.
+}, `togglePopover's return value should reflect what the end state is, not just the force parameter.`);
+
+test(() => {
+  const popover = document.createElement('div');
+  document.body.appendChild(popover);
+
+  assert_throws_dom('NotSupportedError', () => popover.togglePopover(),
+    'togglePopover() should throw an exception when the element has no popover attribute.');
+  assert_throws_dom('NotSupportedError', () => popover.togglePopover(true),
+    'togglePopover(true) should throw an exception when the element has no popover attribute.');
+  assert_throws_dom('NotSupportedError', () => popover.togglePopover(false),
+    'togglePopover(false) should throw an exception when the element has no popover attribute.');
+
+  popover.setAttribute('popover', 'auto');
+  popover.remove();
+
+  assert_throws_dom('InvalidStateError', () => popover.togglePopover(),
+    'togglePopover() should throw an exception when the element is disconnected.');
+  assert_throws_dom('InvalidStateError', () => popover.togglePopover(true),
+    'togglePopover(true) should throw an exception when the element is disconnected.');
+  assert_throws_dom('InvalidStateError', () => popover.togglePopover(false),
+    'togglePopover(false) should throw an exception when the element is disconnected.');
+
+  document.body.appendChild(popover);
+  // togglePopover(false) should not throw just because the popover is already hidden.
+  popover.togglePopover(false);
+  popover.showPopover();
+  // togglePopover(true) should not throw just because the popover is already showing.
+  popover.togglePopover(true);
+
+  // cleanup
+  popover.hidePopover();
+}, 'togglePopover should throw an exception when there is no popover attribute.');
+</script>

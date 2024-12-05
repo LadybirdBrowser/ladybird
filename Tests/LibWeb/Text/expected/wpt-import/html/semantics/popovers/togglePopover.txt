@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+2 Pass
+1 Fail
+Pass	togglePopover should toggle the popover and return true or false as specified.
+Fail	togglePopover's return value should reflect what the end state is, not just the force parameter.
+Pass	togglePopover should throw an exception when there is no popover attribute.

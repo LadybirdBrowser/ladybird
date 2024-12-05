@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="author" href="mailto:masonf@chromium.org">
+<link rel=help href="https://open-ui.org/components/popover.research.explainer">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<div id="container">
+  <div popover>Popover</div>
+  <div popover=manual>Async</div>
+  <div popover=manual>Async</div>
+</div>
+<script>
+  const auto = container.querySelector('[popover=""]');
+  const manual = container.querySelectorAll('[popover=manual]')[0];
+  const manual2 = container.querySelectorAll('[popover=manual]')[1];
+  function assert_state_1(autoOpen,manualOpen,manual2Open) {
+    assert_equals(auto.matches(':popover-open'),autoOpen,'auto open state is incorrect');
+    assert_equals(manual.matches(':popover-open'),manualOpen,'manual open state is incorrect');
+    assert_equals(manual2.matches(':popover-open'),manual2Open,'manual2 open state is incorrect');
+  }
+  test(() => {
+    assert_state_1(false,false,false);
+    auto.showPopover();
+    assert_state_1(true,false,false);
+    manual.showPopover();
+    assert_state_1(true,true,false);
+    manual2.showPopover();
+    assert_state_1(true,true,true);
+    auto.hidePopover();
+    assert_state_1(false,true,true);
+    manual.hidePopover();
+    assert_state_1(false,false,true);
+    manual2.hidePopover();
+    assert_state_1(false,false,false);
+  }, 'manuals do not close popovers');
+</script>

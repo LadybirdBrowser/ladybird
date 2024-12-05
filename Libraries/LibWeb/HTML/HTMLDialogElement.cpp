@@ -163,7 +163,9 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_modal()
     if (!is_connected())
         return WebIDL::InvalidStateError::create(realm(), "Dialog not connected"_string);
 
-    // FIXME: 5. If this is in the popover showing state, then throw an "InvalidStateError" DOMException.
+    // 5. If this is in the popover showing state, then throw an "InvalidStateError" DOMException.
+    if (popover_visibility_state() == PopoverVisibilityState::Showing)
+        return WebIDL::InvalidStateError::create(realm(), "Dialog already open as popover"_string);
 
     // 6. If the result of firing an event named beforetoggle, using ToggleEvent,
     //  with the cancelable attribute initialized to true, the oldState attribute initialized to "closed",
@@ -185,7 +187,9 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_modal()
     if (!is_connected())
         return {};
 
-    // FIXME: 9. If this is in the popover showing state, then return.
+    // 9. If this is in the popover showing state, then return.
+    if (popover_visibility_state() == PopoverVisibilityState::Showing)
+        return {};
 
     // 10. Queue a dialog toggle event task given subject, "closed", and "open".
     queue_a_dialog_toggle_event_task("closed"_string, "open"_string);
