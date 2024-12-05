@@ -703,8 +703,8 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::round)
         // i. Let roundedDayNs be ! RoundTimeDurationToIncrement(dayProgressNs, dayLengthNs, roundingMode).
         auto rounded_day_nanoseconds = MUST(round_time_duration_to_increment(vm, day_progress_nanoseconds, day_length_nanoseconds.unsigned_value(), rounding_mode));
 
-        // j. Let epochNanoseconds be AddTimeDurationToEpochNanoseconds(startNs, roundedDayNs).
-        epoch_nanoseconds = add_time_duration_to_epoch_nanoseconds(start_nanoseconds, rounded_day_nanoseconds);
+        // j. Let epochNanoseconds be AddTimeDurationToEpochNanoseconds(roundedDayNs, startNs).
+        epoch_nanoseconds = add_time_duration_to_epoch_nanoseconds(rounded_day_nanoseconds, start_nanoseconds);
     }
     // 19. Else,
     else {

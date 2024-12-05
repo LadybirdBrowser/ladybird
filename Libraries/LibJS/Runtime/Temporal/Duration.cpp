@@ -734,7 +734,7 @@ ThrowCompletionOr<TimeDuration> add_24_hour_days_to_time_duration(VM& vm, TimeDu
 }
 
 // 7.5.24 AddTimeDurationToEpochNanoseconds ( d, epochNs ), https://tc39.es/proposal-temporal/#sec-temporal-addtimedurationtoepochnanoseconds
-TimeDuration add_time_duration_to_epoch_nanoseconds(TimeDuration const& duration, TimeDuration const& epoch_nanoseconds)
+Crypto::SignedBigInteger add_time_duration_to_epoch_nanoseconds(TimeDuration const& duration, Crypto::SignedBigInteger const& epoch_nanoseconds)
 {
     // 1. Return epochNs + ℤ(d).
     return epoch_nanoseconds.plus(duration);
