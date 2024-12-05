@@ -8,6 +8,7 @@
 
 #include <AK/Optional.h>
 #include <LibWeb/ARIA/ARIAMixin.h>
+#include <LibWeb/ARIA/AttributeNames.h>
 #include <LibWeb/Animations/Animatable.h>
 #include <LibWeb/Bindings/ElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -271,78 +272,22 @@ public:
     ErrorOr<void> scroll_into_view(Optional<Variant<bool, ScrollIntoViewOptions>> = {});
 
     // https://www.w3.org/TR/wai-aria-1.2/#ARIAMixin
-#define ARIA_IMPL(name, attribute)                                               \
+#define __ENUMERATE_ARIA_ATTRIBUTE(name, attribute)                              \
     Optional<String> name() const override                                       \
     {                                                                            \
-        return get_attribute(attribute);                                         \
+        return get_attribute(ARIA::AttributeNames::name);                        \
     }                                                                            \
                                                                                  \
     WebIDL::ExceptionOr<void> set_##name(Optional<String> const& value) override \
     {                                                                            \
         if (value.has_value())                                                   \
-            TRY(set_attribute(attribute, *value));                               \
+            TRY(set_attribute(ARIA::AttributeNames::name, *value));              \
         else                                                                     \
-            remove_attribute(attribute);                                         \
+            remove_attribute(ARIA::AttributeNames::name);                        \
         return {};                                                               \
     }
-
-    // https://www.w3.org/TR/wai-aria-1.2/#accessibilityroleandproperties-correspondence
-    ARIA_IMPL(role, "role"_fly_string);
-    ARIA_IMPL(aria_active_descendant, "aria-activedescendant"_fly_string);
-    ARIA_IMPL(aria_atomic, "aria-atomic"_fly_string);
-    ARIA_IMPL(aria_auto_complete, "aria-autocomplete"_fly_string);
-    ARIA_IMPL(aria_braille_label, "aria-braillelabel"_fly_string);
-    ARIA_IMPL(aria_braille_role_description, "aria-brailleroledescription"_fly_string);
-    ARIA_IMPL(aria_busy, "aria-busy"_fly_string);
-    ARIA_IMPL(aria_checked, "aria-checked"_fly_string);
-    ARIA_IMPL(aria_col_count, "aria-colcount"_fly_string);
-    ARIA_IMPL(aria_col_index, "aria-colindex"_fly_string);
-    ARIA_IMPL(aria_col_index_text, "aria-colindextext"_fly_string);
-    ARIA_IMPL(aria_col_span, "aria-colspan"_fly_string);
-    ARIA_IMPL(aria_controls, "aria-controls"_fly_string);
-    ARIA_IMPL(aria_current, "aria-current"_fly_string);
-    ARIA_IMPL(aria_described_by, "aria-describedby"_fly_string);
-    ARIA_IMPL(aria_description, "aria-description"_fly_string);
-    ARIA_IMPL(aria_details, "aria-details"_fly_string);
-    ARIA_IMPL(aria_drop_effect, "aria-dropeffect"_fly_string);
-    ARIA_IMPL(aria_error_message, "aria-errormessage"_fly_string);
-    ARIA_IMPL(aria_disabled, "aria-disabled"_fly_string);
-    ARIA_IMPL(aria_expanded, "aria-expanded"_fly_string);
-    ARIA_IMPL(aria_flow_to, "aria-flowto"_fly_string);
-    ARIA_IMPL(aria_grabbed, "aria-grabbed"_fly_string);
-    ARIA_IMPL(aria_has_popup, "aria-haspopup"_fly_string);
-    ARIA_IMPL(aria_hidden, "aria-hidden"_fly_string);
-    ARIA_IMPL(aria_invalid, "aria-invalid"_fly_string);
-    ARIA_IMPL(aria_key_shortcuts, "aria-keyshortcuts"_fly_string);
-    ARIA_IMPL(aria_label, "aria-label"_fly_string);
-    ARIA_IMPL(aria_labelled_by, "aria-labelledby"_fly_string);
-    ARIA_IMPL(aria_level, "aria-level"_fly_string);
-    ARIA_IMPL(aria_live, "aria-live"_fly_string);
-    ARIA_IMPL(aria_modal, "aria-modal"_fly_string);
-    ARIA_IMPL(aria_multi_line, "aria-multiline"_fly_string);
-    ARIA_IMPL(aria_multi_selectable, "aria-multiselectable"_fly_string);
-    ARIA_IMPL(aria_orientation, "aria-orientation"_fly_string);
-    ARIA_IMPL(aria_owns, "aria-owns"_fly_string);
-    ARIA_IMPL(aria_placeholder, "aria-placeholder"_fly_string);
-    ARIA_IMPL(aria_pos_in_set, "aria-posinset"_fly_string);
-    ARIA_IMPL(aria_pressed, "aria-pressed"_fly_string);
-    ARIA_IMPL(aria_read_only, "aria-readonly"_fly_string);
-    ARIA_IMPL(aria_relevant, "aria-relevant"_fly_string);
-    ARIA_IMPL(aria_required, "aria-required"_fly_string);
-    ARIA_IMPL(aria_role_description, "aria-roledescription"_fly_string);
-    ARIA_IMPL(aria_row_count, "aria-rowcount"_fly_string);
-    ARIA_IMPL(aria_row_index, "aria-rowindex"_fly_string);
-    ARIA_IMPL(aria_row_index_text, "aria-rowindextext"_fly_string);
-    ARIA_IMPL(aria_row_span, "aria-rowspan"_fly_string);
-    ARIA_IMPL(aria_selected, "aria-selected"_fly_string);
-    ARIA_IMPL(aria_set_size, "aria-setsize"_fly_string);
-    ARIA_IMPL(aria_sort, "aria-sort"_fly_string);
-    ARIA_IMPL(aria_value_max, "aria-valuemax"_fly_string);
-    ARIA_IMPL(aria_value_min, "aria-valuemin"_fly_string);
-    ARIA_IMPL(aria_value_now, "aria-valuenow"_fly_string);
-    ARIA_IMPL(aria_value_text, "aria-valuetext"_fly_string);
-
-#undef ARIA_IMPL
+    ENUMERATE_ARIA_ATTRIBUTES
+#undef __ENUMERATE_ARIA_ATTRIBUTE
 
     virtual bool exclude_from_accessibility_tree() const override;
 
