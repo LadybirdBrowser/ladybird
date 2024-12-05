@@ -407,8 +407,8 @@ ThrowCompletionOr<GC::Ref<PlainDate>> add_duration_to_date(VM& vm, ArithmeticOpe
     if (operation == ArithmeticOperation::Subtract)
         duration = create_negated_temporal_duration(vm, duration);
 
-    // 4. Let dateDuration be ? ToDateDurationRecordWithoutTime(duration).
-    auto date_duration = TRY(to_date_duration_record_without_time(vm, duration));
+    // 4. Let dateDuration be ToDateDurationRecordWithoutTime(duration).
+    auto date_duration = to_date_duration_record_without_time(vm, duration);
 
     // 5. Let resolvedOptions be ? GetOptionsObject(options).
     auto resolved_options = TRY(get_options_object(vm, options));

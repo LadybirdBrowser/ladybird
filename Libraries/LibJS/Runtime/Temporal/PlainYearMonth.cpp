@@ -323,8 +323,8 @@ ThrowCompletionOr<GC::Ref<PlainYearMonth>> add_duration_to_year_month(VM& vm, Ar
         date = intermediate_date;
     }
 
-    // 12. Let durationToAdd be ? ToDateDurationRecordWithoutTime(duration).
-    auto duration_to_add = TRY(to_date_duration_record_without_time(vm, duration));
+    // 12. Let durationToAdd be ToDateDurationRecordWithoutTime(duration).
+    auto duration_to_add = to_date_duration_record_without_time(vm, duration);
 
     // 13. Let addedDate be ? CalendarDateAdd(calendar, date, durationToAdd, overflow).
     auto added_date = TRY(calendar_date_add(vm, calendar, date, duration_to_add, overflow));
