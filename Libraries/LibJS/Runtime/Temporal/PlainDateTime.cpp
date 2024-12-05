@@ -300,14 +300,14 @@ InternalDuration difference_iso_date_time(VM& vm, ISODateTime const& iso_date_ti
     // 4. Let timeSign be TimeDurationSign(timeDuration).
     auto time_sign = time_duration_sign(time_duration);
 
-    // 5. Let dateSign be CompareISODate(isoDateTime2.[[ISODate]], isoDateTime1.[[ISODate]]).
-    auto date_sign = compare_iso_date(iso_date_time2.iso_date, iso_date_time1.iso_date);
+    // 5. Let dateSign be CompareISODate(isoDateTime1.[[ISODate]], isoDateTime2.[[ISODate]]).
+    auto date_sign = compare_iso_date(iso_date_time1.iso_date, iso_date_time2.iso_date);
 
     // 6. Let adjustedDate be isoDateTime2.[[ISODate]].
     auto adjusted_date = iso_date_time2.iso_date;
 
-    // 7. If timeSign = -dateSign, then
-    if (time_sign == -date_sign) {
+    // 7. If timeSign = dateSign, then
+    if (time_sign == date_sign) {
         // a. Set adjustedDate to BalanceISODate(adjustedDate.[[Year]], adjustedDate.[[Month]], adjustedDate.[[Day]] + timeSign).
         adjusted_date = balance_iso_date(adjusted_date.year, adjusted_date.month, static_cast<double>(adjusted_date.day) + time_sign);
 
