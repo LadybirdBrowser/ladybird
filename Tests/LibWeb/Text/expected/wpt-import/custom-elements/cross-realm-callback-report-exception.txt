@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 5 tests
+
+4 Pass
+1 Fail
+Fail	constructor
+Pass	connectedCallback
+Pass	disconnectedCallback
+Pass	attributeChangedCallback
+Pass	adoptedCallback
