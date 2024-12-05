@@ -85,4 +85,12 @@ describe("errors", () => {
             duration.total({ unit: "second" });
         }).toThrowWithMessage(RangeError, "Largest unit must not be year");
     });
+
+    test("relativeTo with invalid date", () => {
+        const duration = new Temporal.Duration(0, 0, 0, 31);
+
+        expect(() => {
+            duration.total({ unit: "minute", relativeTo: "-271821-04-19" });
+        }).toThrowWithMessage(RangeError, "Invalid ISO date time");
+    });
 });

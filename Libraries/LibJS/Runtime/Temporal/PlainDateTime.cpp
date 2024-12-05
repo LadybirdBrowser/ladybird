@@ -286,13 +286,14 @@ ISODateTime round_iso_date_time(ISODateTime const& iso_date_time, u64 increment,
 }
 
 // 5.5.12 DifferenceISODateTime ( isoDateTime1, isoDateTime2, calendar, largestUnit ), https://tc39.es/proposal-temporal/#sec-temporal-differenceisodatetime
-InternalDuration difference_iso_date_time(VM& vm, ISODateTime const& iso_date_time1, ISODateTime const& iso_date_time2, StringView calendar, Unit largest_unit)
+ThrowCompletionOr<InternalDuration> difference_iso_date_time(VM& vm, ISODateTime const& iso_date_time1, ISODateTime const& iso_date_time2, StringView calendar, Unit largest_unit)
 {
     // 1. Assert: ISODateTimeWithinLimits(isoDateTime1) is true.
-    VERIFY(iso_date_time_within_limits(iso_date_time1));
-
     // 2. Assert: ISODateTimeWithinLimits(isoDateTime2) is true.
-    VERIFY(iso_date_time_within_limits(iso_date_time2));
+    // FIXME: Spec issue: Rather than asserting, throw a RangeError. See:
+    //        https://github.com/tc39/proposal-temporal/issues/3015
+    if (!iso_date_time_within_limits(iso_date_time1) || !iso_date_time_within_limits(iso_date_time2))
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidISODateTime);
 
     // 3. Let timeDuration be DifferenceTime(isoDateTime1.[[Time]], isoDateTime2.[[Time]]).
     auto time_duration = difference_time(iso_date_time1.time, iso_date_time2.time);
@@ -344,7 +345,7 @@ ThrowCompletionOr<InternalDuration> difference_plain_date_time_with_rounding(VM&
     }
 
     // 2. Let diff be DifferenceISODateTime(isoDateTime1, isoDateTime2, calendar, largestUnit).
-    auto diff = difference_iso_date_time(vm, iso_date_time1, iso_date_time2, calendar, largest_unit);
+    auto diff = TRY(difference_iso_date_time(vm, iso_date_time1, iso_date_time2, calendar, largest_unit));
 
     // 3. If smallestUnit is NANOSECOND and roundingIncrement = 1, return diff.
     if (smallest_unit == Unit::Nanosecond && rounding_increment == 1)
@@ -367,7 +368,7 @@ ThrowCompletionOr<Crypto::BigFraction> difference_plain_date_time_with_total(VM&
     }
 
     // 2. Let diff be DifferenceISODateTime(isoDateTime1, isoDateTime2, calendar, unit).
-    auto diff = difference_iso_date_time(vm, iso_date_time1, iso_date_time2, calendar, unit);
+    auto diff = TRY(difference_iso_date_time(vm, iso_date_time1, iso_date_time2, calendar, unit));
 
     // 3. If unit is NANOSECOND, return diff.[[Time]].
     if (unit == Unit::Nanosecond)
