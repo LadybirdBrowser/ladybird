@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	queueMicrotask() reports the exception from its callback in the callback's global object

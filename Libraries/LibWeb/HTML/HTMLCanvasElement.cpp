@@ -375,8 +375,8 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackTyp
                 if (file_result.has_value())
                     blob_result = FileAPI::Blob::create(realm(), file_result->buffer, TRY_OR_THROW_OOM(vm(), String::from_utf8(file_result->mime_type)));
 
-                // 2. Invoke callback with « result ».
-                TRY(WebIDL::invoke_callback(*callback, {}, move(blob_result)));
+                // 2. Invoke callback with « result » and "report".
+                TRY(WebIDL::invoke_callback(*callback, {}, WebIDL::ExceptionBehavior::Report, move(blob_result)));
                 return {};
             });
             if (maybe_error.is_throw_completion())
