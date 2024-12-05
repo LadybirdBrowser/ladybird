@@ -7,14 +7,9 @@
 #pragma once
 
 #include <LibJS/Forward.h>
+#include <LibWeb/Bindings/WebGLRenderingContextPrototype.h>
 
 namespace Web::WebGL {
-
-enum class WebGLPowerPreference {
-    Default,
-    LowPower,
-    HighPerformance,
-};
 
 // https://www.khronos.org/registry/webgl/specs/latest/1.0/#WEBGLCONTEXTATTRIBUTES
 struct WebGLContextAttributes {
@@ -24,7 +19,7 @@ struct WebGLContextAttributes {
     bool antialias { true };
     bool premultiplied_alpha { true };
     bool preserve_drawing_buffer { false };
-    WebGLPowerPreference power_preference { WebGLPowerPreference::Default };
+    Bindings::WebGLPowerPreference power_preference { Bindings::WebGLPowerPreference::Default };
     bool fail_if_major_performance_caveat { false };
     bool desynchronized { false };
 };
