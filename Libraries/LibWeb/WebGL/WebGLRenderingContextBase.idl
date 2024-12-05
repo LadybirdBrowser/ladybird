@@ -98,7 +98,7 @@ interface mixin WebGLRenderingContextBase {
     undefined finish();
     undefined flush();
     [FIXME] undefined framebufferRenderbuffer(GLenum target, GLenum attachment, GLenum renderbuffertarget, WebGLRenderbuffer? renderbuffer);
-    [FIXME] undefined framebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, WebGLTexture? texture, GLint level);
+    undefined framebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, WebGLTexture? texture, GLint level);
     undefined frontFace(GLenum mode);
 
     undefined generateMipmap(GLenum target);
