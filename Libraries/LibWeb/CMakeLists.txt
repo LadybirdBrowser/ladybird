@@ -17,6 +17,7 @@ set(SOURCES
     Animations/PseudoElementParsing.cpp
     ARIA/AriaData.cpp
     ARIA/ARIAMixin.cpp
+    ARIA/AttributeNames.cpp
     ARIA/Roles.cpp
     ARIA/RoleType.cpp
     ARIA/StateAndProperties.cpp
