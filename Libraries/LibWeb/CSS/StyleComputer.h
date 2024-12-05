@@ -127,7 +127,7 @@ public:
     };
     static void for_each_property_expanding_shorthands(PropertyID, CSSStyleValue const&, AllowUnresolved, Function<void(PropertyID, CSSStyleValue const&)> const& set_longhand_property);
     static void set_property_expanding_shorthands(StyleProperties&, PropertyID, CSSStyleValue const&, CSS::CSSStyleDeclaration const*, StyleProperties const& style_for_revert, StyleProperties const& style_for_revert_layer, Important = Important::No);
-    static NonnullRefPtr<CSSStyleValue const> get_inherit_value(JS::Realm& initial_value_context_realm, CSS::PropertyID, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type> = {});
+    static NonnullRefPtr<CSSStyleValue const> get_inherit_value(CSS::PropertyID, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type> = {});
 
     static Optional<String> user_agent_style_sheet_source(StringView name);
 

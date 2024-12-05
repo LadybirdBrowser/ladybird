@@ -928,7 +928,7 @@ void StyleComputer::set_all_properties(DOM::Element& element, Optional<CSS::Sele
             if (is_inherited_property(property_id)) {
                 style.set_property(
                     property_id,
-                    get_inherit_value(document.realm(), property_id, &element, pseudo_element),
+                    get_inherit_value(property_id, &element, pseudo_element),
                     StyleProperties::Inherited::Yes,
                     important);
             } else {
@@ -1670,7 +1670,7 @@ DOM::Element const* element_to_inherit_style_from(DOM::Element const* element, O
     return parent_element;
 }
 
-NonnullRefPtr<CSSStyleValue const> StyleComputer::get_inherit_value([[maybe_unused]] JS::Realm& initial_value_context_realm, CSS::PropertyID property_id, DOM::Element const* element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element)
+NonnullRefPtr<CSSStyleValue const> StyleComputer::get_inherit_value(CSS::PropertyID property_id, DOM::Element const* element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element)
 {
     auto* parent_element = element_to_inherit_style_from(element, pseudo_element);
 
@@ -1688,7 +1688,7 @@ void StyleComputer::compute_defaulted_property_value(StyleProperties& style, DOM
         if (is_inherited_property(property_id)) {
             style.set_property(
                 property_id,
-                get_inherit_value(document().realm(), property_id, element, pseudo_element),
+                get_inherit_value(property_id, element, pseudo_element),
                 StyleProperties::Inherited::Yes,
                 Important::No);
         } else {
@@ -1703,7 +1703,7 @@ void StyleComputer::compute_defaulted_property_value(StyleProperties& style, DOM
     }
 
     if (value_slot->is_inherit()) {
-        value_slot = get_inherit_value(document().realm(), property_id, element, pseudo_element);
+        value_slot = get_inherit_value(property_id, element, pseudo_element);
         style.set_property_inherited(property_id, StyleProperties::Inherited::Yes);
         return;
     }
@@ -1713,7 +1713,7 @@ void StyleComputer::compute_defaulted_property_value(StyleProperties& style, DOM
     if (value_slot->is_unset()) {
         if (is_inherited_property(property_id)) {
             // then if it is an inherited property, this is treated as inherit,
-            value_slot = get_inherit_value(document().realm(), property_id, element, pseudo_element);
+            value_slot = get_inherit_value(property_id, element, pseudo_element);
             style.set_property_inherited(property_id, StyleProperties::Inherited::Yes);
         } else {
             // and if it is not, this is treated as initial.
@@ -1737,7 +1737,7 @@ void StyleComputer::compute_defaulted_values(StyleProperties& style, DOM::Elemen
     // In the color property, the used value of currentcolor is the inherited value.
     auto const& color = style.property(CSS::PropertyID::Color);
     if (color.to_keyword() == Keyword::Currentcolor) {
-        auto const& inherited_value = get_inherit_value(document().realm(), CSS::PropertyID::Color, element, pseudo_element);
+        auto const& inherited_value = get_inherit_value(CSS::PropertyID::Color, element, pseudo_element);
         style.set_property(CSS::PropertyID::Color, inherited_value);
     }
 }
