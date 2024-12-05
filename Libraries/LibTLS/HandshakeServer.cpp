@@ -452,13 +452,14 @@ ssize_t TLSv12::verify_ecdsa_server_key_exchange(ReadonlyBytes server_key_info_b
     }
 
     auto signature_length = AK::convert_between_host_and_network_endian(ByteReader::load16(signature_buffer.offset_pointer(2)));
-    auto signature = signature_buffer.slice(4, signature_length);
+    auto signature_bytes = signature_buffer.slice(4, signature_length);
 
     if (m_context.certificates.is_empty()) {
         dbgln("verify_ecdsa_server_key_exchange failed: Attempting to verify signature without certificates");
         return (i8)Error::NotSafe;
     }
-    ReadonlyBytes server_point = m_context.certificates.first().public_key.raw_key;
+    auto server_public_key = m_context.certificates.first().public_key.ec;
+    auto server_point = Crypto::Curves::SECPxxxr1Point { server_public_key.x(), server_public_key.y() };
 
     auto message_result = ByteBuffer::create_uninitialized(64 + server_key_info_buffer.size());
     if (message_result.is_error()) {
@@ -494,6 +495,14 @@ ssize_t TLSv12::verify_ecdsa_server_key_exchange(ReadonlyBytes server_key_info_b
         return (i8)Error::NotUnderstood;
     }
 
+    auto maybe_signature = Crypto::Curves::SECPxxxr1Signature::from_asn(signature_bytes, {});
+    if (maybe_signature.is_error()) {
+        dbgln("verify_ecdsa_server_key_exchange failed: Signature is not ASN.1 DER encoded");
+        return (i8)Error::NotUnderstood;
+    }
+
+    auto signature = maybe_signature.release_value();
+
     switch (ec_curve.release_value()) {
     case SupportedGroup::SECP256R1: {
         Crypto::Hash::Manager manager(hash_kind);
@@ -501,7 +510,7 @@ ssize_t TLSv12::verify_ecdsa_server_key_exchange(ReadonlyBytes server_key_info_b
         auto digest = manager.digest();
 
         Crypto::Curves::SECP256r1 curve;
-        res = curve.verify(digest.bytes(), server_point, signature);
+        res = curve.verify_point(digest.bytes(), server_point, signature);
         break;
     }
     case SupportedGroup::SECP384R1: {
@@ -510,7 +519,7 @@ ssize_t TLSv12::verify_ecdsa_server_key_exchange(ReadonlyBytes server_key_info_b
         auto digest = manager.digest();
 
         Crypto::Curves::SECP384r1 curve;
-        res = curve.verify(digest.bytes(), server_point, signature);
+        res = curve.verify_point(digest.bytes(), server_point, signature);
         break;
     }
     default: {
