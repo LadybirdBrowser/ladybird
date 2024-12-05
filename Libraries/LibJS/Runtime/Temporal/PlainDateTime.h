@@ -41,7 +41,7 @@ ThrowCompletionOr<GC::Ref<PlainDateTime>> create_temporal_date_time(VM&, ISODate
 String iso_date_time_to_string(ISODateTime const&, StringView calendar, SecondsStringPrecision::Precision, ShowCalendar);
 i8 compare_iso_date_time(ISODateTime const&, ISODateTime const&);
 ISODateTime round_iso_date_time(ISODateTime const&, u64 increment, Unit, RoundingMode);
-InternalDuration difference_iso_date_time(VM&, ISODateTime const&, ISODateTime const&, StringView calendar, Unit largest_unit);
+ThrowCompletionOr<InternalDuration> difference_iso_date_time(VM&, ISODateTime const&, ISODateTime const&, StringView calendar, Unit largest_unit);
 ThrowCompletionOr<InternalDuration> difference_plain_date_time_with_rounding(VM&, ISODateTime const&, ISODateTime const&, StringView calendar, Unit largest_unit, u64 rounding_increment, Unit smallest_unit, RoundingMode);
 ThrowCompletionOr<Crypto::BigFraction> difference_plain_date_time_with_total(VM&, ISODateTime const&, ISODateTime const&, StringView calendar, Unit);
 ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_date_time(VM&, DurationOperation, PlainDateTime const&, Value other, Value options);

@@ -185,6 +185,14 @@ describe("errors", () => {
         }).toThrowWithMessage(RangeError, "Largest unit must not be year");
     });
 
+    test("relativeTo with invalid date", () => {
+        const duration = new Temporal.Duration(0, 0, 0, 31);
+
+        expect(() => {
+            duration.round({ smallestUnit: "minutes", relativeTo: "-271821-04-19" });
+        }).toThrowWithMessage(RangeError, "Invalid ISO date time");
+    });
+
     // Spec Issue: https://github.com/tc39/proposal-temporal/issues/2124
     // Spec Fix: https://github.com/tc39/proposal-temporal/commit/66f7464aaec64d3cd21fb2ec37f6502743b9a730
     test("balancing calendar units with largestUnit set to 'year' and relativeTo unset throws instead of crashing", () => {
