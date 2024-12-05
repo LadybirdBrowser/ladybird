@@ -371,6 +371,17 @@ bool Context::verify_certificate_pair(Certificate const& subject, Certificate co
         return false;
     }
 
+    auto public_key = issuer.public_key.ec;
+    auto public_point = Crypto::Curves::SECPxxxr1Point { public_key.x(), public_key.y() };
+
+    auto maybe_signature = Crypto::Curves::SECPxxxr1Signature::from_asn(subject.signature_value, {});
+    if (maybe_signature.is_error()) {
+        dbgln("verify_certificate_pair: Signature is not ASN.1 DER encoded");
+        return false;
+    }
+
+    auto signature = maybe_signature.release_value();
+
     switch (ec_curve.release_value()) {
     case SupportedGroup::SECP256R1: {
         Crypto::Hash::Manager hasher(kind);
@@ -378,7 +389,7 @@ bool Context::verify_certificate_pair(Certificate const& subject, Certificate co
         auto hash = hasher.digest();
 
         Crypto::Curves::SECP256r1 curve;
-        auto result = curve.verify(hash.bytes(), issuer.public_key.raw_key, subject.signature_value);
+        auto result = curve.verify_point(hash.bytes(), public_point, signature);
         if (result.is_error()) {
             dbgln("verify_certificate_pair: Failed to check SECP256r1 signature {}", result.release_error());
             return false;
@@ -391,7 +402,7 @@ bool Context::verify_certificate_pair(Certificate const& subject, Certificate co
         auto hash = hasher.digest();
 
         Crypto::Curves::SECP384r1 curve;
-        auto result = curve.verify(hash.bytes(), issuer.public_key.raw_key, subject.signature_value);
+        auto result = curve.verify_point(hash.bytes(), public_point, signature);
         if (result.is_error()) {
             dbgln("verify_certificate_pair: Failed to check SECP384r1 signature {}", result.release_error());
             return false;
