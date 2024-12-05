@@ -102,7 +102,7 @@ static void generate_get_parameter(SourceGenerator& generator)
         { "DEPTH_WRITEMASK"sv, { "GLboolean"sv } },
         { "DITHER"sv, { "GLboolean"sv } },
         { "ELEMENT_ARRAY_BUFFER_BINDING"sv, { "WebGLBuffer"sv } },
-        // FIXME: { "FRAMEBUFFER_BINDING"sv, { "WebGLFramebuffer"sv } },
+        { "FRAMEBUFFER_BINDING"sv, { "WebGLFramebuffer"sv } },
         { "FRONT_FACE"sv, { "GLenum"sv } },
         { "GENERATE_MIPMAP_HINT"sv, { "GLenum"sv } },
         { "GREEN_BITS"sv, { "GLint"sv } },
@@ -209,7 +209,7 @@ static void generate_get_parameter(SourceGenerator& generator)
         auto array_buffer = JS::ArrayBuffer::create(m_realm, move(byte_buffer));
         return JS::@type_name@::create(m_realm, @element_count@, array_buffer);
 )~~~");
-        } else if (type_name == "WebGLProgram"sv || type_name == "WebGLBuffer"sv || type_name == "WebGLTexture"sv) {
+        } else if (type_name == "WebGLProgram"sv || type_name == "WebGLBuffer"sv || type_name == "WebGLTexture"sv || type_name == "WebGLFramebuffer"sv) {
             impl_generator.append(R"~~~(
         GLint result;
         glGetIntegerv(GL_@parameter_name@, &result);

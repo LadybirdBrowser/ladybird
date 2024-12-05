@@ -48,7 +48,7 @@ interface mixin WebGLRenderingContextBase {
     undefined attachShader(WebGLProgram program, WebGLShader shader);
     undefined bindAttribLocation(WebGLProgram program, GLuint index, DOMString name);
     undefined bindBuffer(GLenum target, WebGLBuffer? buffer);
-    [FIXME] undefined bindFramebuffer(GLenum target, WebGLFramebuffer? framebuffer);
+    undefined bindFramebuffer(GLenum target, WebGLFramebuffer? framebuffer);
     [FIXME] undefined bindRenderbuffer(GLenum target, WebGLRenderbuffer? renderbuffer);
     undefined bindTexture(GLenum target, WebGLTexture? texture);
     undefined blendColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
