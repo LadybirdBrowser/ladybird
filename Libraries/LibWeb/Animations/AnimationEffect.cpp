@@ -155,7 +155,7 @@ WebIDL::ExceptionOr<void> AnimationEffect::update_timing(OptionalEffectTiming ti
     //    [CSS-EASING-1], throw a TypeError and abort this procedure.
     RefPtr<CSS::CSSStyleValue const> easing_value;
     if (timing.easing.has_value()) {
-        easing_value = parse_easing_string(realm(), timing.easing.value());
+        easing_value = parse_easing_string(timing.easing.value());
         if (!easing_value)
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid easing function"sv };
         VERIFY(easing_value->is_easing());
@@ -589,11 +589,9 @@ Optional<double> AnimationEffect::transformed_progress() const
     return m_timing_function.evaluate_at(directed_progress.value(), before_flag);
 }
 
-RefPtr<CSS::CSSStyleValue const> AnimationEffect::parse_easing_string(JS::Realm& realm, StringView value)
+RefPtr<CSS::CSSStyleValue const> AnimationEffect::parse_easing_string(StringView value)
 {
-    auto parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext(realm), value);
-
-    if (auto style_value = parser.parse_as_css_value(CSS::PropertyID::AnimationTimingFunction)) {
+    if (auto style_value = parse_css_value(CSS::Parser::ParsingContext(), value, CSS::PropertyID::AnimationTimingFunction)) {
         if (style_value->is_easing())
             return style_value;
     }
