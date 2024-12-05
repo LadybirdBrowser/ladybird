@@ -1760,7 +1760,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         @result_expression@ JS::js_null();
     } else {
 )~~~");
-        } else if (type.is_primitive() || interface.enumerations.contains(type.name())) {
+        } else if (type.is_primitive() || interface.enumerations.contains(type.name()) || interface.dictionaries.contains(type.name())) {
             scoped_generator.append(R"~~~(
     if (!@value@.has_value()) {
         @result_expression@ JS::js_null();
@@ -1946,7 +1946,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
                 dictionary_generator.append(R"~~~(
     JS::Value @wrapped_value_name@;
 )~~~");
-                generate_wrap_statement(dictionary_generator, ByteString::formatted("{}.{}", value, member.name.to_snakecase()), member.type, interface, ByteString::formatted("{} =", wrapped_value_name), WrappingReference::No, recursion_depth + 1);
+                generate_wrap_statement(dictionary_generator, ByteString::formatted("{}{}{}", value, type.is_nullable() ? "->" : ".", member.name.to_snakecase()), member.type, interface, ByteString::formatted("{} =", wrapped_value_name), WrappingReference::No, recursion_depth + 1);
 
                 dictionary_generator.append(R"~~~(
     MUST(dictionary_object@recursion_depth@->create_data_property("@member_key@", @wrapped_value_name@));
