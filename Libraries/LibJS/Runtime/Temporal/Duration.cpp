@@ -1111,9 +1111,9 @@ ThrowCompletionOr<DurationNudgeResult> nudge_to_zoned_time(VM& vm, i8 sign, Inte
     auto unit_length_multiplied_by_increment = unit_length.multiplied_by(Crypto::UnsignedBigInteger { increment });
     auto rounded_time_duration = TRY(round_time_duration_to_increment(vm, duration.time, unit_length_multiplied_by_increment, rounding_mode));
 
-    // 11. Let beyondDaySpan be ? AddTimeDuration(roundedTimeDuration, -daySpan).
+    // 11. Let beyondDaySpan be ! AddTimeDuration(roundedTimeDuration, -daySpan).
     day_span.negate();
-    auto beyond_day_span = TRY(add_time_duration(vm, rounded_time_duration, day_span));
+    auto beyond_day_span = MUST(add_time_duration(vm, rounded_time_duration, day_span));
 
     auto did_round_beyond_day = false;
     Crypto::SignedBigInteger nudged_epoch_ns;
@@ -1145,11 +1145,11 @@ ThrowCompletionOr<DurationNudgeResult> nudge_to_zoned_time(VM& vm, i8 sign, Inte
         nudged_epoch_ns = add_time_duration_to_epoch_nanoseconds(rounded_time_duration, start_epoch_ns);
     }
 
-    // 14. Let dateDuration be ? AdjustDateDurationRecord(duration.[[Date]], duration.[[Date]].[[Days]] + dayDelta).
-    auto date_duration = TRY(adjust_date_duration_record(vm, duration.date, duration.date.days + day_delta));
+    // 14. Let dateDuration be ! AdjustDateDurationRecord(duration.[[Date]], duration.[[Date]].[[Days]] + dayDelta).
+    auto date_duration = MUST(adjust_date_duration_record(vm, duration.date, duration.date.days + day_delta));
 
-    // 15. Let resultDuration be ? CombineDateAndTimeDuration(dateDuration, roundedTimeDuration).
-    auto result_duration = TRY(combine_date_and_time_duration(vm, date_duration, move(rounded_time_duration)));
+    // 15. Let resultDuration be ! CombineDateAndTimeDuration(dateDuration, roundedTimeDuration).
+    auto result_duration = MUST(combine_date_and_time_duration(vm, date_duration, move(rounded_time_duration)));
 
     // 16. Return Duration Nudge Result Record { [[Duration]]: resultDuration, [[NudgedEpochNs]]: nudgedEpochNs, [[DidExpandCalendarUnit]]: didRoundBeyondDay }.
     return DurationNudgeResult { .duration = move(result_duration), .nudged_epoch_ns = move(nudged_epoch_ns), .did_expand_calendar_unit = did_round_beyond_day };
@@ -1208,11 +1208,11 @@ ThrowCompletionOr<DurationNudgeResult> nudge_to_day_or_time(VM& vm, InternalDura
         remainder = move(rounded_time);
     }
 
-    // 14. Let dateDuration be ? AdjustDateDurationRecord(duration.[[Date]], days).
-    auto date_duration = TRY(adjust_date_duration_record(vm, duration.date, days));
+    // 14. Let dateDuration be ! AdjustDateDurationRecord(duration.[[Date]], days).
+    auto date_duration = MUST(adjust_date_duration_record(vm, duration.date, days));
 
-    // 15. Let resultDuration be ? CombineDateAndTimeDuration(dateDuration, remainder).
-    auto result_duration = TRY(combine_date_and_time_duration(vm, date_duration, move(remainder)));
+    // 15. Let resultDuration be ! CombineDateAndTimeDuration(dateDuration, remainder).
+    auto result_duration = MUST(combine_date_and_time_duration(vm, date_duration, move(remainder)));
 
     // 16. Return Duration Nudge Result Record { [[Duration]]: resultDuration, [[NudgedEpochNs]]: nudgedEpochNs, [[DidExpandCalendarUnit]]: didExpandDays }.
     return DurationNudgeResult { .duration = move(result_duration), .nudged_epoch_ns = move(nudged_epoch_ns), .did_expand_calendar_unit = did_expand_days };
