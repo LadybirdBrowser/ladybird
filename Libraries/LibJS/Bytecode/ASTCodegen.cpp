@@ -424,8 +424,8 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> StringLiteral::generate
 Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> RegExpLiteral::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
-    auto source_index = generator.intern_string(m_pattern);
-    auto flags_index = generator.intern_string(m_flags);
+    auto source_index = generator.intern_string(m_pattern.to_byte_string());
+    auto flags_index = generator.intern_string(m_flags.to_byte_string());
     auto regex_index = generator.intern_regex(Bytecode::ParsedRegex {
         .regex = m_parsed_regex,
         .pattern = m_parsed_pattern,

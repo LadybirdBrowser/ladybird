@@ -464,7 +464,7 @@ OrderedHashTable<ByteBuffer> convert_header_names_to_a_sorted_lowercase_set(Span
 bool is_header_name(ReadonlyBytes header_name)
 {
     // A header name is a byte sequence that matches the field-name token production.
-    Regex<ECMA262Parser> regex { R"~~~(^[A-Za-z0-9!#$%&'*+\-.^_`|~]+$)~~~" };
+    Regex<ECMA262Parser> regex { R"~~~(^[A-Za-z0-9!#$%&'*+\-.^_`|~]+$)~~~"_string };
     return regex.has_match(StringView { header_name });
 }
 

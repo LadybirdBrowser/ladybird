@@ -22,8 +22,8 @@ Result<regex::RegexOptions<ECMAScriptFlags>, ByteString> regex_flags_from_string
 struct ParseRegexPatternError {
     ByteString error;
 };
-ErrorOr<ByteString, ParseRegexPatternError> parse_regex_pattern(StringView pattern, bool unicode, bool unicode_sets);
-ThrowCompletionOr<ByteString> parse_regex_pattern(VM& vm, StringView pattern, bool unicode, bool unicode_sets);
+ErrorOr<String, ParseRegexPatternError> parse_regex_pattern(StringView pattern, bool unicode, bool unicode_sets);
+ThrowCompletionOr<String> parse_regex_pattern(VM& vm, StringView pattern, bool unicode, bool unicode_sets);
 
 class RegExpObject : public Object {
     JS_OBJECT(RegExpObject, Object);

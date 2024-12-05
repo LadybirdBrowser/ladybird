@@ -32,7 +32,7 @@ regex::Parser::Result Regex<Parser>::parse_pattern(StringView pattern, typename 
 
 template<typename Parser>
 struct CacheKey {
-    ByteString pattern;
+    String pattern;
     typename ParserTraits<Parser>::OptionsType options;
 
     bool operator==(CacheKey const& other) const
@@ -49,7 +49,7 @@ static size_t s_cached_bytecode_size = 0;
 static constexpr auto MaxRegexCachedBytecodeSize = 1 * MiB;
 
 template<class Parser>
-Regex<Parser>::Regex(ByteString pattern, typename ParserTraits<Parser>::OptionsType regex_options)
+Regex<Parser>::Regex(String pattern, typename ParserTraits<Parser>::OptionsType regex_options)
     : pattern_value(move(pattern))
 {
     if (auto cache_entry = s_parser_cache<Parser>.get({ pattern_value, regex_options }); cache_entry.has_value()) {
@@ -74,7 +74,7 @@ Regex<Parser>::Regex(ByteString pattern, typename ParserTraits<Parser>::OptionsT
 }
 
 template<class Parser>
-Regex<Parser>::Regex(regex::Parser::Result parse_result, ByteString pattern, typename ParserTraits<Parser>::OptionsType regex_options)
+Regex<Parser>::Regex(regex::Parser::Result parse_result, String pattern, typename ParserTraits<Parser>::OptionsType regex_options)
     : pattern_value(move(pattern))
     , parser_result(move(parse_result))
 {
@@ -116,7 +116,7 @@ typename ParserTraits<Parser>::OptionsType Regex<Parser>::options() const
 }
 
 template<class Parser>
-ByteString Regex<Parser>::error_string(Optional<ByteString> message) const
+String Regex<Parser>::error_string(Optional<StringView> message) const
 {
     StringBuilder eb;
     eb.append("Error during parsing of regular expression:\n"sv);
@@ -125,7 +125,7 @@ ByteString Regex<Parser>::error_string(Optional<ByteString> message) const
         eb.append(' ');
 
     eb.appendff("^---- {}", message.value_or(get_error_string(parser_result.error)));
-    return eb.to_byte_string();
+    return MUST(eb.to_string());
 }
 
 template<typename Parser>

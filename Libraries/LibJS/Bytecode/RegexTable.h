@@ -17,7 +17,7 @@ AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(size_t, RegexTableIndex, Comparison);
 
 struct ParsedRegex {
     regex::Parser::Result regex;
-    ByteString pattern;
+    String pattern;
     regex::RegexOptions<ECMAScriptFlags> flags;
 };
 

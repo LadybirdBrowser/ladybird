@@ -1841,11 +1841,11 @@ NonnullRefPtr<RegExpLiteral const> Parser::parse_regexp_literal()
             parsed_flags = parsed_flags_or_error.release_value();
     }
 
-    ByteString parsed_pattern;
+    String parsed_pattern;
     auto parsed_pattern_result = parse_regex_pattern(pattern, parsed_flags.has_flag_set(ECMAScriptFlags::Unicode), parsed_flags.has_flag_set(ECMAScriptFlags::UnicodeSets));
     if (parsed_pattern_result.is_error()) {
         syntax_error(parsed_pattern_result.release_error().error, rule_start.position());
-        parsed_pattern = ByteString::empty();
+        parsed_pattern = String {};
     } else {
         parsed_pattern = parsed_pattern_result.release_value();
     }
@@ -1855,7 +1855,7 @@ NonnullRefPtr<RegExpLiteral const> Parser::parse_regexp_literal()
         syntax_error(ByteString::formatted("RegExp compile error: {}", Regex<ECMA262>(parsed_regex, parsed_pattern, parsed_flags).error_string()), rule_start.position());
 
     SourceRange range { m_source_code, rule_start.position(), position() };
-    return create_ast_node<RegExpLiteral>(move(range), move(parsed_regex), move(parsed_pattern), move(parsed_flags), pattern.to_byte_string(), move(flags));
+    return create_ast_node<RegExpLiteral>(move(range), move(parsed_regex), move(parsed_pattern), move(parsed_flags), MUST(String::from_utf8(pattern)), MUST(String::from_utf8(flags.view())));
 }
 
 static bool is_simple_assignment_target(Expression const& expression, bool allow_web_reality_call_expression = true)

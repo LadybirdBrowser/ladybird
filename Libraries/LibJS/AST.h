@@ -1261,7 +1261,7 @@ public:
 
 class RegExpLiteral final : public Expression {
 public:
-    RegExpLiteral(SourceRange source_range, regex::Parser::Result parsed_regex, ByteString parsed_pattern, regex::RegexOptions<ECMAScriptFlags> parsed_flags, ByteString pattern, ByteString flags)
+    RegExpLiteral(SourceRange source_range, regex::Parser::Result parsed_regex, String parsed_pattern, regex::RegexOptions<ECMAScriptFlags> parsed_flags, String pattern, String flags)
         : Expression(move(source_range))
         , m_parsed_regex(move(parsed_regex))
         , m_parsed_pattern(move(parsed_pattern))
@@ -1275,17 +1275,17 @@ public:
     virtual Bytecode::CodeGenerationErrorOr<Optional<Bytecode::ScopedOperand>> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
     regex::Parser::Result const& parsed_regex() const { return m_parsed_regex; }
-    ByteString const& parsed_pattern() const { return m_parsed_pattern; }
+    String const& parsed_pattern() const { return m_parsed_pattern; }
     regex::RegexOptions<ECMAScriptFlags> const& parsed_flags() const { return m_parsed_flags; }
-    ByteString const& pattern() const { return m_pattern; }
-    ByteString const& flags() const { return m_flags; }
+    String const& pattern() const { return m_pattern; }
+    String const& flags() const { return m_flags; }
 
 private:
     regex::Parser::Result m_parsed_regex;
-    ByteString m_parsed_pattern;
+    String m_parsed_pattern;
     regex::RegexOptions<ECMAScriptFlags> m_parsed_flags;
-    ByteString m_pattern;
-    ByteString m_flags;
+    String m_pattern;
+    String m_flags;
 };
 
 class PrivateIdentifier final : public Expression {

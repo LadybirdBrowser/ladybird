@@ -88,7 +88,7 @@ Result<regex::RegexOptions<ECMAScriptFlags>, ByteString> regex_flags_from_string
 }
 
 // 22.2.3.4 Static Semantics: ParsePattern ( patternText, u, v ), https://tc39.es/ecma262/#sec-parsepattern
-ErrorOr<ByteString, ParseRegexPatternError> parse_regex_pattern(StringView pattern, bool unicode, bool unicode_sets)
+ErrorOr<String, ParseRegexPatternError> parse_regex_pattern(StringView pattern, bool unicode, bool unicode_sets)
 {
     if (unicode && unicode_sets)
         return ParseRegexPatternError { ByteString::formatted(ErrorType::RegExpObjectIncompatibleFlags.message(), 'u', 'v') };
@@ -133,11 +133,11 @@ ErrorOr<ByteString, ParseRegexPatternError> parse_regex_pattern(StringView patte
             previous_code_unit_was_backslash = false;
     }
 
-    return builder.to_byte_string();
+    return MUST(builder.to_string());
 }
 
 // 22.2.3.4 Static Semantics: ParsePattern ( patternText, u, v ), https://tc39.es/ecma262/#sec-parsepattern
-ThrowCompletionOr<ByteString> parse_regex_pattern(VM& vm, StringView pattern, bool unicode, bool unicode_sets)
+ThrowCompletionOr<String> parse_regex_pattern(VM& vm, StringView pattern, bool unicode, bool unicode_sets)
 {
     auto result = parse_regex_pattern(pattern, unicode, unicode_sets);
     if (result.is_error())
@@ -223,7 +223,7 @@ ThrowCompletionOr<GC::Ref<RegExpObject>> RegExpObject::regexp_initialize(VM& vm,
         return vm.throw_completion<SyntaxError>(parsed_flags_or_error.release_error());
     auto parsed_flags = parsed_flags_or_error.release_value();
 
-    auto parsed_pattern = ByteString::empty();
+    auto parsed_pattern = String {};
     if (!pattern.is_empty()) {
         bool unicode = parsed_flags.has_flag_set(regex::ECMAScriptFlags::Unicode);
         bool unicode_sets = parsed_flags.has_flag_set(regex::ECMAScriptFlags::UnicodeSets);
