@@ -1207,6 +1207,7 @@ void BlockFormattingContext::ensure_sizes_correct_for_left_offset_calculation(Li
     if (marker_text.is_empty()) {
         marker_state.set_content_width(image_width + default_marker_width);
     } else {
+        // FIXME: Use per-code-point fonts to measure text.
         auto text_width = marker.first_available_font().width(marker_text);
         marker_state.set_content_width(image_width + CSSPixels::nearest_value_for(text_width));
     }
