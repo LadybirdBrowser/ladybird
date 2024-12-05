@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/WebGLFramebufferPrototype.h>
 #include <LibWeb/WebGL/WebGLFramebuffer.h>
 
@@ -11,8 +12,13 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLFramebuffer);
 
-WebGLFramebuffer::WebGLFramebuffer(JS::Realm& realm)
-    : WebGLObject(realm, 0)
+GC::Ptr<WebGLFramebuffer> WebGLFramebuffer::create(JS::Realm& realm, GLuint handle)
+{
+    return realm.heap().allocate<WebGLFramebuffer>(realm, handle);
+}
+
+WebGLFramebuffer::WebGLFramebuffer(JS::Realm& realm, GLuint handle)
+    : WebGLObject(realm, handle)
 {
 }
 

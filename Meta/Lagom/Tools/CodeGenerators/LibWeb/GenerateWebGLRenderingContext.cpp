@@ -415,6 +415,15 @@ public:
             continue;
         }
 
+        if (function.name == "createFramebuffer"sv) {
+            function_impl_generator.append(R"~~~(
+    GLuint handle = 0;
+    glGenFramebuffers(1, &handle);
+    return WebGLFramebuffer::create(m_realm, handle);
+)~~~");
+            continue;
+        }
+
         if (function.name == "shaderSource"sv) {
             function_impl_generator.append(R"~~~(
     Vector<GLchar*> strings;
