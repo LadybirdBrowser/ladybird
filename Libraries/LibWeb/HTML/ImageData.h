@@ -10,6 +10,7 @@
 #include <LibGfx/Forward.h>
 #include <LibWeb/Bindings/ImageDataPrototype.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Bindings/Serializable.h>
 
 namespace Web::HTML {
 
@@ -17,7 +18,9 @@ struct ImageDataSettings {
     Bindings::PredefinedColorSpace color_space;
 };
 
-class ImageData final : public Bindings::PlatformObject {
+class ImageData final
+    : public Bindings::PlatformObject
+    , public Bindings::Serializable {
     WEB_PLATFORM_OBJECT(ImageData, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(ImageData);
 
@@ -38,6 +41,10 @@ public:
 
     JS::Uint8ClampedArray* data();
     const JS::Uint8ClampedArray* data() const;
+
+    virtual StringView interface_name() const override { return "ImageData"sv; }
+    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::SerializationRecord& serialized, bool for_storage, HTML::SerializationMemory&) override;
+    virtual WebIDL::ExceptionOr<void> deserialization_steps(ReadonlySpan<u32> const& serialized, size_t& position, HTML::DeserializationMemory&) override;
 
 private:
     ImageData(JS::Realm&, NonnullRefPtr<Gfx::Bitmap>, GC::Ref<JS::Uint8ClampedArray>);
