@@ -12,5 +12,6 @@
 namespace Web::WebGL {
 
 using GLenum = unsigned int;
+using GLuint = unsigned int;
 
 }

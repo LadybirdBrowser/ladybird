@@ -7,21 +7,28 @@
 
 #pragma once
 
-#include <LibWeb/WebGL/WebGLObject.h>
+#include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/WebGL/Types.h>
 
 namespace Web::WebGL {
 
-class WebGLUniformLocation final : public WebGLObject {
-    WEB_PLATFORM_OBJECT(WebGLUniformLocation, WebGLObject);
+class WebGLUniformLocation final : public Bindings::PlatformObject {
+    WEB_PLATFORM_OBJECT(WebGLUniformLocation, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(WebGLUniformLocation);
 
 public:
-    static GC::Ptr<WebGLUniformLocation> create(JS::Realm& realm, GLuint handle);
+    static GC::Ref<WebGLUniformLocation> create(JS::Realm& realm, GLuint handle);
 
     virtual ~WebGLUniformLocation();
 
+    GLuint handle() const { return m_handle; }
+
 protected:
     explicit WebGLUniformLocation(JS::Realm&, GLuint handle);
+
+    virtual void initialize(JS::Realm&) override;
+
+    GLuint m_handle { 0 };
 };
 
 }

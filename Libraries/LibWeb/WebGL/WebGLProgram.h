@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024, Luke Wilde <luke@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -17,12 +18,14 @@ class WebGLProgram final : public WebGLObject {
     GC_DECLARE_ALLOCATOR(WebGLProgram);
 
 public:
-    static GC::Ptr<WebGLProgram> create(JS::Realm& realm, GLuint handle);
+    static GC::Ref<WebGLProgram> create(JS::Realm& realm, GLuint handle);
 
     virtual ~WebGLProgram();
 
 protected:
     explicit WebGLProgram(JS::Realm&, GLuint handle);
+
+    virtual void initialize(JS::Realm&) override;
 };
 
 }
