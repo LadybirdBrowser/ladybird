@@ -286,7 +286,7 @@ ISODateTime round_iso_date_time(ISODateTime const& iso_date_time, u64 increment,
 }
 
 // 5.5.12 DifferenceISODateTime ( isoDateTime1, isoDateTime2, calendar, largestUnit ), https://tc39.es/proposal-temporal/#sec-temporal-differenceisodatetime
-ThrowCompletionOr<InternalDuration> difference_iso_date_time(VM& vm, ISODateTime const& iso_date_time1, ISODateTime const& iso_date_time2, StringView calendar, Unit largest_unit)
+InternalDuration difference_iso_date_time(VM& vm, ISODateTime const& iso_date_time1, ISODateTime const& iso_date_time2, StringView calendar, Unit largest_unit)
 {
     // 1. Assert: ISODateTimeWithinLimits(isoDateTime1) is true.
     VERIFY(iso_date_time_within_limits(iso_date_time1));
@@ -311,8 +311,8 @@ ThrowCompletionOr<InternalDuration> difference_iso_date_time(VM& vm, ISODateTime
         // a. Set adjustedDate to BalanceISODate(adjustedDate.[[Year]], adjustedDate.[[Month]], adjustedDate.[[Day]] + timeSign).
         adjusted_date = balance_iso_date(adjusted_date.year, adjusted_date.month, static_cast<double>(adjusted_date.day) + time_sign);
 
-        // b. Set timeDuration to ? Add24HourDaysToTimeDuration(timeDuration, -timeSign).
-        time_duration = TRY(add_24_hour_days_to_time_duration(vm, time_duration, -time_sign));
+        // b. Set timeDuration to ! Add24HourDaysToTimeDuration(timeDuration, -timeSign).
+        time_duration = MUST(add_24_hour_days_to_time_duration(vm, time_duration, -time_sign));
     }
 
     // 8. Let dateLargestUnit be LargerOfTwoTemporalUnits(DAY, largestUnit).
@@ -323,15 +323,15 @@ ThrowCompletionOr<InternalDuration> difference_iso_date_time(VM& vm, ISODateTime
 
     // 10. If largestUnit is not dateLargestUnit, then
     if (largest_unit != date_largest_unit) {
-        // a. Set timeDuration to ? Add24HourDaysToTimeDuration(timeDuration, dateDifference.[[Days]]).
-        time_duration = TRY(add_24_hour_days_to_time_duration(vm, time_duration, date_difference.days));
+        // a. Set timeDuration to ! Add24HourDaysToTimeDuration(timeDuration, dateDifference.[[Days]]).
+        time_duration = MUST(add_24_hour_days_to_time_duration(vm, time_duration, date_difference.days));
 
         // b. Set dateDifference.[[Days]] to 0.
         date_difference.days = 0;
     }
 
-    // 11. Return ? CombineDateAndTimeDuration(dateDifference, timeDuration).
-    return TRY(combine_date_and_time_duration(vm, date_difference, move(time_duration)));
+    // 11. Return ! CombineDateAndTimeDuration(dateDifference, timeDuration).
+    return MUST(combine_date_and_time_duration(vm, date_difference, move(time_duration)));
 }
 
 // 5.5.13 DifferencePlainDateTimeWithRounding ( isoDateTime1, isoDateTime2, calendar, largestUnit, roundingIncrement, smallestUnit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-differenceplaindatetimewithrounding
@@ -343,8 +343,8 @@ ThrowCompletionOr<InternalDuration> difference_plain_date_time_with_rounding(VM&
         return MUST(combine_date_and_time_duration(vm, zero_date_duration(vm), TimeDuration { 0 }));
     }
 
-    // 2. Let diff be ? DifferenceISODateTime(isoDateTime1, isoDateTime2, calendar, largestUnit).
-    auto diff = TRY(difference_iso_date_time(vm, iso_date_time1, iso_date_time2, calendar, largest_unit));
+    // 2. Let diff be DifferenceISODateTime(isoDateTime1, isoDateTime2, calendar, largestUnit).
+    auto diff = difference_iso_date_time(vm, iso_date_time1, iso_date_time2, calendar, largest_unit);
 
     // 3. If smallestUnit is NANOSECOND and roundingIncrement = 1, return diff.
     if (smallest_unit == Unit::Nanosecond && rounding_increment == 1)
@@ -366,8 +366,8 @@ ThrowCompletionOr<Crypto::BigFraction> difference_plain_date_time_with_total(VM&
         return Crypto::BigFraction {};
     }
 
-    // 2. Let diff be ? DifferenceISODateTime(isoDateTime1, isoDateTime2, calendar, unit).
-    auto diff = TRY(difference_iso_date_time(vm, iso_date_time1, iso_date_time2, calendar, unit));
+    // 2. Let diff be DifferenceISODateTime(isoDateTime1, isoDateTime2, calendar, unit).
+    auto diff = difference_iso_date_time(vm, iso_date_time1, iso_date_time2, calendar, unit);
 
     // 3. If unit is NANOSECOND, return diff.[[Time]].
     if (unit == Unit::Nanosecond)
