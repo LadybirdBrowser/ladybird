@@ -475,8 +475,8 @@ ThrowCompletionOr<InternalDuration> difference_zoned_date_time(VM& vm, Crypto::S
     // 13. Let dateDifference be CalendarDateUntil(calendar, startDateTime.[[ISODate]], intermediateDateTime.[[ISODate]], dateLargestUnit).
     auto date_difference = calendar_date_until(vm, calendar, start_date_time.iso_date, intermediate_date_time.iso_date, date_largest_unit);
 
-    // 14. Return ? CombineDateAndTimeDuration(dateDifference, timeDuration).
-    return TRY(combine_date_and_time_duration(vm, date_difference, move(time_duration)));
+    // 14. Return ! CombineDateAndTimeDuration(dateDifference, timeDuration).
+    return MUST(combine_date_and_time_duration(vm, date_difference, move(time_duration)));
 }
 
 // 6.5.7 DifferenceZonedDateTimeWithRounding ( ns1, ns2, timeZone, calendar, largestUnit, roundingIncrement, smallestUnit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-differencezoneddatetimewithrounding
