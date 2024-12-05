@@ -280,6 +280,11 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     implementation_file_generator.append(R"~~~(
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/TypedArray.h>
+#include <LibWeb/HTML/HTMLCanvasElement.h>
+#include <LibWeb/HTML/HTMLImageElement.h>
+#include <LibWeb/HTML/HTMLVideoElement.h>
+#include <LibWeb/HTML/ImageBitmap.h>
+#include <LibWeb/HTML/ImageData.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLActiveInfo.h>
 #include <LibWeb/WebGL/WebGLBuffer.h>
@@ -322,8 +327,6 @@ WebGLRenderingContextImpl::WebGLRenderingContextImpl(JS::Realm& realm, NonnullOw
 #include <LibGfx/Bitmap.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/HTMLCanvasElement.h>
-#include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::WebGL {
@@ -469,6 +472,49 @@ public:
         pixels_ptr = byte_buffer.data();
     }
     glTexImage2D(target, level, internalformat, width, height, border, format, type, pixels_ptr);
+)~~~");
+            continue;
+        }
+
+        if (function.name == "texImage2D"sv && function.overload_index == 1) {
+            // FIXME: If this function is called with an ImageData whose data attribute has been neutered,
+            //        an INVALID_VALUE error is generated.
+            // FIXME: If this function is called with an ImageBitmap that has been neutered, an INVALID_VALUE
+            //        error is generated.
+            // FIXME: If this function is called with an HTMLImageElement or HTMLVideoElement whose origin
+            //        differs from the origin of the containing Document, or with an HTMLCanvasElement,
+            //        ImageBitmap or OffscreenCanvas whose bitmap's origin-clean flag is set to false,
+            //        a SECURITY_ERR exception must be thrown. See Origin Restrictions.
+            // FIXME: If source is null then an INVALID_VALUE error is generated.
+            function_impl_generator.append(R"~~~(
+    auto bitmap = source.visit(
+        [](GC::Root<HTMLImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
+            return source->immutable_bitmap();
+        },
+        [](GC::Root<HTMLCanvasElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
+            auto surface = source->surface();
+            if (!surface)
+                return {};
+            auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Premultiplied, surface->size()));
+            surface->read_into_bitmap(*bitmap);
+            return Gfx::ImmutableBitmap::create(*bitmap);
+        },
+        [](GC::Root<HTMLVideoElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
+            return Gfx::ImmutableBitmap::create(*source->bitmap());
+        },
+        [](GC::Root<ImageBitmap> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
+            return Gfx::ImmutableBitmap::create(*source->bitmap());
+        },
+        [](GC::Root<ImageData> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
+            return Gfx::ImmutableBitmap::create(source->bitmap());
+        });
+    if (!bitmap)
+        return;
+
+    void const* pixels_ptr = bitmap->bitmap()->begin();
+    int width = bitmap->width();
+    int height = bitmap->height();
+    glTexImage2D(target, level, internalformat, width, height, 0, format, type, pixels_ptr);
 )~~~");
             continue;
         }
