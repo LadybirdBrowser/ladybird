@@ -56,7 +56,7 @@ endif()
 if (MSVC)
     add_cxx_compile_options(/W4)
     # disable exceptions
-    add_cxx_compile_options(/EHsc)
+    add_cxx_compile_options(/EHs-)
     # disable floating-point expression contraction
     add_cxx_compile_options(/fp:precise)
 else()
