@@ -28,6 +28,36 @@ enum class ContentEditableState {
     Inherit,
 };
 
+struct ShowPopoverOptions {
+    GC::Ptr<HTMLElement> source;
+};
+
+struct TogglePopoverOptions : public ShowPopoverOptions {
+    Optional<bool> force {};
+};
+
+using TogglePopoverOptionsOrForceBoolean = Variant<TogglePopoverOptions, bool>;
+
+enum class ThrowExceptions {
+    Yes,
+    No,
+};
+
+enum class FocusPreviousElement {
+    Yes,
+    No,
+};
+
+enum class FireEvents {
+    Yes,
+    No,
+};
+
+enum class ExpectedToBeShowing {
+    Yes,
+    No,
+};
+
 class HTMLElement
     : public DOM::Element
     , public HTML::GlobalEventHandlers
@@ -85,6 +115,21 @@ public:
     WebIDL::ExceptionOr<void> set_popover(Optional<String> value);
     Optional<String> popover() const;
 
+    enum class PopoverVisibilityState {
+        Hidden,
+        Showing,
+    };
+    PopoverVisibilityState popover_visibility_state() const { return m_popover_visibility_state; }
+
+    WebIDL::ExceptionOr<void> show_popover_for_bindings(ShowPopoverOptions const& = {});
+    WebIDL::ExceptionOr<void> hide_popover_for_bindings();
+    WebIDL::ExceptionOr<bool> toggle_popover(TogglePopoverOptionsOrForceBoolean const&);
+
+    WebIDL::ExceptionOr<void> show_popover(ThrowExceptions throw_exceptions, GC::Ptr<HTMLElement> invoker);
+    WebIDL::ExceptionOr<void> hide_popover(FocusPreviousElement focus_previous_element, FireEvents fire_events, ThrowExceptions throw_exceptions);
+
+    WebIDL::ExceptionOr<bool> check_popover_validity(ExpectedToBeShowing expected_to_be_showing, ThrowExceptions throw_exceptions, GC::Ptr<DOM::Document>);
+
 protected:
     HTMLElement(DOM::Document&, DOM::QualifiedName);
 
@@ -119,6 +164,17 @@ private:
 
     // https://html.spec.whatwg.org/multipage/interaction.html#click-in-progress-flag
     bool m_click_in_progress { false };
+
+    // Popover API
+
+    // https://html.spec.whatwg.org/multipage/popover.html#popover-visibility-state
+    PopoverVisibilityState m_popover_visibility_state { PopoverVisibilityState::Hidden };
+
+    // https://html.spec.whatwg.org/multipage/popover.html#popover-invoker
+    GC::Ptr<HTMLElement> m_popover_invoker;
+
+    // https://html.spec.whatwg.org/multipage/popover.html#popover-showing-or-hiding
+    bool m_popover_showing_or_hiding { false };
 };
 
 }

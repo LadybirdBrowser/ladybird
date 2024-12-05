@@ -24,6 +24,7 @@
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLBaseElement.h>
 #include <LibWeb/HTML/HTMLBodyElement.h>
+#include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLLabelElement.h>
 #include <LibWeb/HTML/HTMLParagraphElement.h>
@@ -62,6 +63,7 @@ void HTMLElement::visit_edges(Cell::Visitor& visitor)
     HTMLOrSVGElement::visit_edges(visitor);
     visitor.visit(m_labels);
     visitor.visit(m_attached_internals);
+    visitor.visit(m_popover_invoker);
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-dir
@@ -923,6 +925,242 @@ void HTMLElement::adjust_computed_style(CSS::StyleProperties& style)
         if (style.display().is_contents())
             style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
     }
+}
+
+// https://html.spec.whatwg.org/multipage/popover.html#check-popover-validity
+WebIDL::ExceptionOr<bool> HTMLElement::check_popover_validity(ExpectedToBeShowing expected_to_be_showing, ThrowExceptions throw_exceptions, GC::Ptr<DOM::Document> expected_document)
+{
+    // 1. If element's popover attribute is in the no popover state, then:
+    if (!popover().has_value()) {
+        // 1.1. If throwExceptions is true, then throw a "NotSupportedError" DOMException.
+        if (throw_exceptions == ThrowExceptions::Yes)
+            return WebIDL::NotSupportedError::create(realm(), "Element is not a popover"_string);
+        // 1.2. Return false.
+        return false;
+    }
+
+    // 2. If any of the following are true:
+    // - expectedToBeShowing is true and element's popover visibility state is not showing; or
+    // - expectedToBeShowing is false and element's popover visibility state is not hidden,
+    if ((expected_to_be_showing == ExpectedToBeShowing::Yes && m_popover_visibility_state != PopoverVisibilityState::Showing) || (expected_to_be_showing == ExpectedToBeShowing::No && m_popover_visibility_state != PopoverVisibilityState::Hidden)) {
+        // then return false.
+        return false;
+    }
+
+    // 3. If any of the following are true:
+    // - element is not connected;
+    // - element's node document is not fully active;
+    // - expectedDocument is not null and element's node document is not expectedDocument;
+    // - element is a dialog element and its is modal flage is set to true; or
+    // - FIXME: element's fullscreen flag is set,
+    // then:
+    // 3.1 If throwExceptions is true, then throw an "InvalidStateError" DOMException.
+    // 3.2 Return false.
+    if (!is_connected() || !document().is_fully_active() || (expected_document && &document() != expected_document) || (is<HTMLDialogElement>(*this) && verify_cast<HTMLDialogElement>(*this).is_modal())) {
+        if (throw_exceptions == ThrowExceptions::Yes)
+            return WebIDL::InvalidStateError::create(realm(), "Element is not in a valid state to show a popover"_string);
+        return false;
+    }
+
+    // 4. Return true.
+    return true;
+}
+
+// https://html.spec.whatwg.org/multipage/popover.html#dom-showpopover
+WebIDL::ExceptionOr<void> HTMLElement::show_popover_for_bindings(ShowPopoverOptions const& options)
+{
+    // 1. Let invoker be options["source"] if it exists; otherwise, null.
+    auto invoker = options.source;
+    // 2. Run show popover given this, true, and invoker.
+    return show_popover(ThrowExceptions::Yes, invoker);
+}
+
+// https://html.spec.whatwg.org/multipage/popover.html#show-popover
+WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_exceptions, GC::Ptr<HTMLElement> invoker)
+{
+    // 1. If the result of running check popover validity given element, false, throwExceptions, and null is false, then return.
+    if (!TRY(check_popover_validity(ExpectedToBeShowing::No, throw_exceptions, nullptr)))
+        return {};
+
+    // 2. Let document be element's node document.
+    auto& document = this->document();
+
+    // 3. Assert: element's popover invoker is null.
+    VERIFY(!m_popover_invoker);
+
+    // 4. Assert: element is not in document's top layer.
+    VERIFY(!in_top_layer());
+
+    // 5. Let nestedShow be element's popover showing or hiding.
+    auto nested_show = m_popover_showing_or_hiding;
+
+    // 6. Set element's popover showing or hiding to true.
+    m_popover_showing_or_hiding = true;
+
+    // 7. Let cleanupShowingFlag be the following steps:
+    auto cleanup_showing_flag = GC::create_function(this->heap(), [&nested_show, this] {
+        // 7.1. If nestedShow is false, then set element's popover showing or hiding to false.
+        if (!nested_show)
+            m_popover_showing_or_hiding = false;
+    });
+
+    // FIXME: 8. If the result of firing an event named beforetoggle, using ToggleEvent, with the cancelable attribute initialized to true, the oldState attribute initialized to "closed", and the newState attribute initialized to "open" at element is false, then run cleanupShowingFlag and return.
+
+    // FIXME: 9. If the result of running check popover validity given element, false, throwExceptions, and document is false, then run cleanupShowingFlag and return.
+
+    // 10. Let shouldRestoreFocus be false.
+    bool should_restore_focus = false;
+
+    // 11. If element's popover attribute is in the auto state, then:
+    if (popover().has_value() && popover().value() == "auto"sv) {
+        // FIXME: 11.1. Let originalType be the value of element's popover attribute.
+        // FIXME: 11.2. Let ancestor be the result of running the topmost popover ancestor algorithm given element, invoker, and true.
+        // FIXME: 11.3. If ancestor is null, then set ancestor to document.
+        // FIXME: 11.4. Run hide all popovers until given ancestor, false, and not nestedShow.
+        // FIXME: 11.5. If originalType is not equal to the value of element's popover attribute, then throw a "InvalidStateError" DOMException.
+        // FIXME: 11.6. If the result of running check popover validity given element, false, throwExceptions, and document is false, then run cleanupShowingFlag and return.
+        // FIXME: 11.7. If the result of running topmost auto popover on document is null, then set shouldRestoreFocus to true.
+        // FIXME: 11.8. Set element's popover close watcher to the result of establishing a close watcher given element's relevant global object, with:
+        // - cancelAction being to return true.
+        // - closeAction being to hide a popover given element, true, true, and false.
+    }
+
+    // FIXME: 12. Set element's previously focused element to null.
+    // FIXME: 13. Let originallyFocusedElement be document's focused area of the document's DOM anchor.
+
+    // 14. Add an element to the top layer given element.
+    document.add_an_element_to_the_top_layer(*this);
+    // 15. Set element's popover visibility state to showing.
+    m_popover_visibility_state = PopoverVisibilityState::Showing;
+    // 16. Set element's popover invoker to invoker.
+    m_popover_invoker = invoker;
+
+    // FIXME: 17. Set element's implicit anchor element to invoker.
+
+    // FIXME: 18. Run the popover focusing steps given element.
+
+    // 19. If shouldRestoreFocus is true and element's popover attribute is not in the no popover state
+    if (should_restore_focus && popover().has_value()) {
+        // FIXME: then set element's previously focused element to originallyFocusedElement.
+    }
+
+    // FIXME: 20. Queue a popover toggle event task given element, "closed", and "open".
+    // 21. Run cleanupShowingFlag.
+    cleanup_showing_flag->function()();
+
+    return {};
+}
+
+// https://html.spec.whatwg.org/multipage/popover.html#dom-hidepopover
+WebIDL::ExceptionOr<void> HTMLElement::hide_popover_for_bindings()
+{
+    // The hidePopover() method steps are to run the hide popover algorithm given this, true, true, and true.
+    return hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::Yes);
+}
+
+// https://html.spec.whatwg.org/multipage/popover.html#hide-popover-algorithm
+WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement, FireEvents fire_events, ThrowExceptions throw_exceptions)
+{
+    // 1. If the result of running check popover validity given element, true, throwExceptions, and null is false, then return.
+    if (!TRY(check_popover_validity(ExpectedToBeShowing::Yes, throw_exceptions, nullptr)))
+        return {};
+
+    // 2. Let document be element's node document.
+    auto& document = this->document();
+
+    // 3. Let nestedHide be element's popover showing or hiding.
+    auto nested_hide = m_popover_showing_or_hiding;
+
+    // 4. Set element's popover showing or hiding to true.
+    m_popover_showing_or_hiding = true;
+
+    // 5. If nestedHide is true, then set fireEvents to false.
+    if (nested_hide)
+        fire_events = FireEvents::No;
+
+    // 6. Let cleanupSteps be the following steps:
+    auto cleanup_steps = GC::create_function(this->heap(), [&nested_hide, this] {
+        // 6.1. If nestedHide is false, then set element's popover showing or hiding to false.
+        if (nested_hide)
+            m_popover_showing_or_hiding = false;
+        // FIXME: 6.2. If element's popover close watcher is not null, then:
+        // FIXME: 6.2.1. Destroy element's popover close watcher.
+        // FIXME: 6.2.2. Set element's popover close watcher to null.
+    });
+
+    // 7. If element's popover attribute is in the auto state, then:
+    if (popover().has_value() && popover().value() == "auto"sv) {
+        // FIXME: 7.1. Run hide all popovers until given element, focusPreviousElement, and fireEvents.
+        // FIXME: 7.2. If the result of running check popover validity given element, true, and throwExceptions is false, then run cleanupSteps and return.
+    }
+    // FIXME: 8. Let autoPopoverListContainsElement be true if document's showing auto popover list's last item is element, otherwise false.
+
+    // 9. Set element's popover invoker to null.
+    m_popover_invoker = nullptr;
+
+    // 10. If fireEvents is true:
+    if (fire_events == FireEvents::Yes) {
+        // FIXME: 10.1. Fire an event named beforetoggle, using ToggleEvent, with the oldState attribute initialized to "open" and the newState attribute initialized to "closed" at element.
+        // FIXME: 10.2. If autoPopoverListContainsElement is true and document's showing auto popover list's last item is not element, then run hide all popovers until given element, focusPreviousElement, and false.
+        // FIXME: 10.3. If the result of running check popover validity given element, true, throwExceptions, and null is false, then run cleanupSteps and return.
+        // 10.4. Request an element to be removed from the top layer given element.
+        document.request_an_element_to_be_remove_from_the_top_layer(*this);
+    } else {
+        // 11. Otherwise, remove an element from the top layer immediately given element.
+        document.remove_an_element_from_the_top_layer_immediately(*this);
+    }
+
+    // 12. Set element's popover visibility state to hidden.
+    m_popover_visibility_state = PopoverVisibilityState::Hidden;
+
+    // FIXME: 13. If fireEvents is true, then queue a popover toggle event task given element, "open", and "closed".
+
+    // FIXME: 14. Let previouslyFocusedElement be element's previously focused element.
+
+    // FIXME: 15. If previouslyFocusedElement is not null, then:
+    // FIXME: 15.1. Set element's previously focused element to null.
+    // FIXME: 15.2. If focusPreviousElement is true and document's focused area of the document's DOM anchor is a shadow-including inclusive descendant of element, then run the focusing steps for previouslyFocusedElement; the viewport should not be scrolled by doing this step.
+
+    // 16. Run cleanupSteps.
+    cleanup_steps->function()();
+
+    return {};
+}
+
+// https://html.spec.whatwg.org/multipage/popover.html#dom-togglepopover
+WebIDL::ExceptionOr<bool> HTMLElement::toggle_popover(TogglePopoverOptionsOrForceBoolean const& options)
+{
+    // 1. Let force be null.
+    Optional<bool> force;
+    GC::Ptr<HTMLElement> invoker;
+
+    // 2. If options is a boolean, set force to options.
+    options.visit(
+        [&force](bool forceBool) {
+            force = forceBool;
+        },
+        [&force, &invoker](TogglePopoverOptions options) {
+            // 3. Otherwise, if options["force"] exists, set force to options["force"].
+            force = options.force;
+            // 4. Let invoker be options["source"] if it exists; otherwise, null.
+            invoker = options.source;
+        });
+
+    // 5. If this's popover visibility state is showing, and force is null or false, then run the hide popover algorithm given this, true, true, and true.
+    if (popover_visibility_state() == PopoverVisibilityState::Showing && (!force.has_value() || !force.value()))
+        TRY(hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::Yes));
+    // 6. Otherwise, if force is not present or true, then run show popover given this true, and invoker.
+    else if (!force.has_value() || force.value())
+        TRY(show_popover(ThrowExceptions::Yes, invoker));
+    // 7. Otherwise:
+    else {
+        // 7.1 Let expectedToBeShowing be true if this's popover visibility state is showing; otherwise false.
+        ExpectedToBeShowing expected_to_be_showing = popover_visibility_state() == PopoverVisibilityState::Showing ? ExpectedToBeShowing::Yes : ExpectedToBeShowing::No;
+        // 7.2 Run check popover validity given expectedToBeShowing, true, and null.
+        TRY(check_popover_validity(expected_to_be_showing, ThrowExceptions::Yes, nullptr));
+    }
+    // 8. Return true if this's popover visibility state is showing; otherwise false.
+    return popover_visibility_state() == PopoverVisibilityState::Showing;
 }
 
 void HTMLElement::did_receive_focus()
