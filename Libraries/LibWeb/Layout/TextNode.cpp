@@ -314,17 +314,15 @@ void TextNode::invalidate_text_for_rendering()
 String const& TextNode::text_for_rendering() const
 {
     if (!m_text_for_rendering.has_value())
-        const_cast<TextNode*>(this)->compute_text_for_rendering();
+        m_text_for_rendering = compute_text_for_rendering();
     return *m_text_for_rendering;
 }
 
 // NOTE: This collapses whitespace into a single ASCII space if the CSS white-space property tells us to.
-void TextNode::compute_text_for_rendering()
+String TextNode::compute_text_for_rendering() const
 {
-    if (dom_node().is_password_input()) {
-        m_text_for_rendering = MUST(String::repeated('*', dom_node().data().code_points().length()));
-        return;
-    }
+    if (dom_node().is_password_input())
+        return MUST(String::repeated('*', dom_node().data().code_points().length()));
 
     bool collapse = [](CSS::WhiteSpace white_space) {
         switch (white_space) {
@@ -350,20 +348,16 @@ void TextNode::compute_text_for_rendering()
 
     auto data_view = data.bytes_as_string_view();
 
-    if (!collapse || data.is_empty()) {
-        m_text_for_rendering = data;
-        return;
-    }
+    if (!collapse || data.is_empty())
+        return data;
 
     // NOTE: A couple fast returns to avoid unnecessarily allocating a StringBuilder.
     if (data_view.length() == 1) {
         if (is_ascii_space(data_view[0])) {
             static String s_single_space_string = " "_string;
-            m_text_for_rendering = s_single_space_string;
-        } else {
-            m_text_for_rendering = data;
+            return s_single_space_string;
         }
-        return;
+        return data;
     }
 
     bool contains_space = false;
@@ -373,10 +367,8 @@ void TextNode::compute_text_for_rendering()
             break;
         }
     }
-    if (!contains_space) {
-        m_text_for_rendering = data;
-        return;
-    }
+    if (!contains_space)
+        return data;
 
     StringBuilder builder(data_view.length());
     size_t index = 0;
@@ -397,7 +389,7 @@ void TextNode::compute_text_for_rendering()
         }
     }
 
-    m_text_for_rendering = MUST(builder.to_string());
+    return builder.to_string_without_validation();
 }
 
 Unicode::Segmenter& TextNode::grapheme_segmenter() const

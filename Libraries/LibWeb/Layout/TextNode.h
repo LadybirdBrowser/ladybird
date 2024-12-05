@@ -61,7 +61,7 @@ public:
     };
 
     void invalidate_text_for_rendering();
-    void compute_text_for_rendering();
+    String compute_text_for_rendering() const;
 
     Unicode::Segmenter& grapheme_segmenter() const;
 
@@ -70,7 +70,7 @@ public:
 private:
     virtual bool is_text_node() const final { return true; }
 
-    Optional<String> m_text_for_rendering;
+    Optional<String> mutable m_text_for_rendering;
     mutable OwnPtr<Unicode::Segmenter> m_grapheme_segmenter;
 };
 
