@@ -109,7 +109,7 @@ interface mixin WebGLRenderingContextBase {
 
     GLint getAttribLocation(WebGLProgram program, DOMString name);
 
-    [FIXME] any getBufferParameter(GLenum target, GLenum pname);
+    any getBufferParameter(GLenum target, GLenum pname);
     any getParameter(GLenum pname);
 
     GLenum getError();

@@ -63,16 +63,16 @@ static ByteString idl_to_gl_function_name(StringView function_name)
     return gl_function_name_builder.to_byte_string();
 }
 
+struct NameAndType {
+    StringView name;
+    struct {
+        StringView type;
+        int element_count { 0 };
+    } return_type;
+};
+
 static void generate_get_parameter(SourceGenerator& generator)
 {
-    struct NameAndType {
-        StringView name;
-        struct {
-            StringView type;
-            int element_count { 0 };
-        } return_type;
-    };
-
     Vector<NameAndType> const name_to_type = {
         { "ACTIVE_TEXTURE"sv, { "GLenum"sv } },
         { "ALIASED_LINE_WIDTH_RANGE"sv, { "Float32Array"sv, 2 } },
@@ -222,6 +222,40 @@ static void generate_get_parameter(SourceGenerator& generator)
         }
 
         impl_generator.append("    }");
+
+        generator.append(string_builder.string_view());
+    }
+
+    generator.appendln(R"~~~(
+    default:
+        TODO();
+    })~~~");
+}
+
+static void generate_get_buffer_parameter(SourceGenerator& generator)
+{
+    Vector<NameAndType> const name_to_type = {
+        { "BUFFER_SIZE"sv, { "GLint"sv } },
+        { "BUFFER_USAGE"sv, { "GLenum"sv } },
+    };
+
+    generator.append("    switch (pname) {");
+
+    for (auto const& name_and_type : name_to_type) {
+        auto const& parameter_name = name_and_type.name;
+        auto const& type_name = name_and_type.return_type.type;
+
+        StringBuilder string_builder;
+        SourceGenerator impl_generator { string_builder };
+        impl_generator.set("parameter_name", parameter_name);
+        impl_generator.set("type_name", type_name);
+        impl_generator.append(R"~~~(
+    case GL_@parameter_name@: {
+        GLint result;
+        glGetBufferParameteriv(target, GL_@parameter_name@, &result);
+        return JS::Value(result);
+    }
+)~~~");
 
         generator.append(string_builder.string_view());
     }
@@ -601,6 +635,11 @@ public:
 
         if (function.name == "getParameter"sv) {
             generate_get_parameter(function_impl_generator);
+            continue;
+        }
+
+        if (function.name == "getBufferParameter"sv) {
+            generate_get_buffer_parameter(function_impl_generator);
             continue;
         }
 
