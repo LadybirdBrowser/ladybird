@@ -20,6 +20,7 @@
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
 #include <LibGfx/Color.h>
+#include <LibGfx/Font/FontVariant.h>
 #include <LibURL/URL.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Keyword.h>
@@ -104,6 +105,7 @@ public:
         Edge,
         FilterValueList,
         Flex,
+        FontVariant,
         Frequency,
         GridAutoFlow,
         GridTemplateArea,
@@ -370,6 +372,13 @@ public:
     [[nodiscard]] int to_font_weight() const;
     [[nodiscard]] int to_font_slope() const;
     [[nodiscard]] int to_font_width() const;
+    [[nodiscard]] Optional<Gfx::FontVariantAlternates> to_font_variant_alternates() const;
+    [[nodiscard]] Optional<FontVariantCaps> to_font_variant_caps() const;
+    [[nodiscard]] Optional<Gfx::FontVariantEastAsian> to_font_variant_east_asian() const;
+    [[nodiscard]] Optional<FontVariantEmoji> to_font_variant_emoji() const;
+    [[nodiscard]] Optional<Gfx::FontVariantLigatures> to_font_variant_ligatures() const;
+    [[nodiscard]] Optional<Gfx::FontVariantNumeric> to_font_variant_numeric() const;
+    [[nodiscard]] Optional<FontVariantPosition> to_font_variant_position() const;
 
     virtual bool equals(CSSStyleValue const& other) const = 0;
 
