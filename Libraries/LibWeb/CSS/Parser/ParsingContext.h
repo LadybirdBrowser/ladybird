@@ -19,6 +19,7 @@ public:
         SVGPresentationAttribute, // See https://svgwg.org/svg2-draft/types.html#presentation-attribute-css-value
     };
 
+    explicit ParsingContext(Mode = Mode::Normal);
     explicit ParsingContext(JS::Realm&, Mode = Mode::Normal);
     explicit ParsingContext(JS::Realm&, URL::URL, Mode = Mode::Normal);
     explicit ParsingContext(DOM::Document const&, Mode = Mode::Normal);
@@ -36,10 +37,14 @@ public:
     PropertyID current_property_id() const { return m_current_property_id; }
     void set_current_property_id(PropertyID property_id) { m_current_property_id = property_id; }
 
-    JS::Realm& realm() const { return m_realm; }
+    JS::Realm& realm() const
+    {
+        VERIFY(m_realm);
+        return *m_realm;
+    }
 
 private:
-    GC::Ref<JS::Realm> m_realm;
+    GC::Ptr<JS::Realm> m_realm;
     GC::Ptr<DOM::Document const> m_document;
     PropertyID m_current_property_id { PropertyID::Invalid };
     URL::URL m_url;
