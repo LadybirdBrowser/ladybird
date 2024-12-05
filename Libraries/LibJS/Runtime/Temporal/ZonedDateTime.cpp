@@ -542,8 +542,8 @@ ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_zoned_date_time(VM& vm,
     // 4. Let settings be ? GetDifferenceSettings(operation, resolvedOptions, DATETIME, « », NANOSECOND, HOUR).
     auto settings = TRY(get_difference_settings(vm, operation, resolved_options, UnitGroup::DateTime, {}, Unit::Nanosecond, Unit::Hour));
 
-    // 5. If TemporalUnitCategory(settings.[[LargestUnit]]) is not DATE, then
-    if (temporal_unit_category(settings.largest_unit) != UnitCategory::Date) {
+    // 5. If TemporalUnitCategory(settings.[[LargestUnit]]) is TIME, then
+    if (temporal_unit_category(settings.largest_unit) == UnitCategory::Time) {
         // a. Let internalDuration be DifferenceInstant(zonedDateTime.[[EpochNanoseconds]], other.[[EpochNanoseconds]], settings.[[RoundingIncrement]], settings.[[SmallestUnit]], settings.[[RoundingMode]]).
         auto internal_duration = difference_instant(vm, zoned_date_time.epoch_nanoseconds()->big_integer(), other->epoch_nanoseconds()->big_integer(), settings.rounding_increment, settings.smallest_unit, settings.rounding_mode);
 
