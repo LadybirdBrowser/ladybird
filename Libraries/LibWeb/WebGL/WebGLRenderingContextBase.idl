@@ -82,7 +82,7 @@ interface mixin WebGLRenderingContextBase {
     undefined deleteProgram(WebGLProgram? program);
     [FIXME] undefined deleteRenderbuffer(WebGLRenderbuffer? renderbuffer);
     undefined deleteShader(WebGLShader? shader);
-    [FIXME] undefined deleteTexture(WebGLTexture? texture);
+    undefined deleteTexture(WebGLTexture? texture);
 
     undefined depthFunc(GLenum func);
     undefined depthMask(GLboolean flag);
