@@ -13,6 +13,11 @@
 
 namespace Web::CSS::Parser {
 
+ParsingContext::ParsingContext(Mode mode)
+    : m_mode(mode)
+{
+}
+
 ParsingContext::ParsingContext(JS::Realm& realm, Mode mode)
     : m_realm(realm)
     , m_mode(mode)
