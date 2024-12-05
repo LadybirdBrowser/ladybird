@@ -728,7 +728,6 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         return false;
     }
     case CSS::PseudoClass::Open:
-    case CSS::PseudoClass::Closed:
         return matches_open_state_pseudo_class(element, pseudo_class.type == CSS::PseudoClass::Open);
     case CSS::PseudoClass::Modal: {
         // https://drafts.csswg.org/selectors/#modal-state
