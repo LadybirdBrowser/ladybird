@@ -405,8 +405,8 @@ ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_date_time(VM& vm,
     // 6. Let internalDuration be ? DifferencePlainDateTimeWithRounding(dateTime.[[ISODateTime]], other.[[ISODateTime]], dateTime.[[Calendar]], settings.[[LargestUnit]], settings.[[RoundingIncrement]], settings.[[SmallestUnit]], settings.[[RoundingMode]]).
     auto internal_duration = TRY(difference_plain_date_time_with_rounding(vm, date_time.iso_date_time(), other->iso_date_time(), date_time.calendar(), settings.largest_unit, settings.rounding_increment, settings.smallest_unit, settings.rounding_mode));
 
-    // 7. Let result be ? TemporalDurationFromInternal(internalDuration, settings.[[LargestUnit]]).
-    auto result = TRY(temporal_duration_from_internal(vm, internal_duration, settings.largest_unit));
+    // 7. Let result be ! TemporalDurationFromInternal(internalDuration, settings.[[LargestUnit]]).
+    auto result = MUST(temporal_duration_from_internal(vm, internal_duration, settings.largest_unit));
 
     // 8. If operation is SINCE, set result to CreateNegatedTemporalDuration(result).
     if (operation == DurationOperation::Since)
