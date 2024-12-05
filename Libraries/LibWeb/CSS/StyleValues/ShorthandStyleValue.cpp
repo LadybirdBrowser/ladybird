@@ -239,7 +239,7 @@ String ShorthandStyleValue::to_string() const
         StringBuilder builder;
         auto append_if_non_default = [&](PropertyID property_id) {
             auto value = longhand(property_id);
-            if (!value->equals(property_initial_value({}, property_id))) {
+            if (!value->equals(property_initial_value(property_id))) {
                 if (!builder.is_empty())
                     builder.append(' ');
                 builder.append(value->to_string());

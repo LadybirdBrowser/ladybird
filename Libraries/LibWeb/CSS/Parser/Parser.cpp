@@ -4306,14 +4306,14 @@ RefPtr<CSSStyleValue> Parser::parse_background_value(TokenStream<ComponentValue>
     StyleValueVector background_origins;
     RefPtr<CSSStyleValue> background_color;
 
-    auto initial_background_image = property_initial_value(m_context.realm(), PropertyID::BackgroundImage);
-    auto initial_background_position = property_initial_value(m_context.realm(), PropertyID::BackgroundPosition);
-    auto initial_background_size = property_initial_value(m_context.realm(), PropertyID::BackgroundSize);
-    auto initial_background_repeat = property_initial_value(m_context.realm(), PropertyID::BackgroundRepeat);
-    auto initial_background_attachment = property_initial_value(m_context.realm(), PropertyID::BackgroundAttachment);
-    auto initial_background_clip = property_initial_value(m_context.realm(), PropertyID::BackgroundClip);
-    auto initial_background_origin = property_initial_value(m_context.realm(), PropertyID::BackgroundOrigin);
-    auto initial_background_color = property_initial_value(m_context.realm(), PropertyID::BackgroundColor);
+    auto initial_background_image = property_initial_value(PropertyID::BackgroundImage);
+    auto initial_background_position = property_initial_value(PropertyID::BackgroundPosition);
+    auto initial_background_size = property_initial_value(PropertyID::BackgroundSize);
+    auto initial_background_repeat = property_initial_value(PropertyID::BackgroundRepeat);
+    auto initial_background_attachment = property_initial_value(PropertyID::BackgroundAttachment);
+    auto initial_background_clip = property_initial_value(PropertyID::BackgroundClip);
+    auto initial_background_origin = property_initial_value(PropertyID::BackgroundOrigin);
+    auto initial_background_color = property_initial_value(PropertyID::BackgroundColor);
 
     // Per-layer values
     RefPtr<CSSStyleValue> background_image;
@@ -4750,11 +4750,11 @@ RefPtr<CSSStyleValue> Parser::parse_border_value(PropertyID property_id, TokenSt
     }
 
     if (!border_width)
-        border_width = property_initial_value(m_context.realm(), width_property);
+        border_width = property_initial_value(width_property);
     if (!border_style)
-        border_style = property_initial_value(m_context.realm(), style_property);
+        border_style = property_initial_value(style_property);
     if (!border_color)
-        border_color = property_initial_value(m_context.realm(), color_property);
+        border_color = property_initial_value(color_property);
 
     transaction.commit();
     return ShorthandStyleValue::create(property_id,
@@ -4930,9 +4930,9 @@ RefPtr<CSSStyleValue> Parser::parse_columns_value(TokenStream<ComponentValue>& t
     }
 
     if (!column_count)
-        column_count = property_initial_value(m_context.realm(), PropertyID::ColumnCount);
+        column_count = property_initial_value(PropertyID::ColumnCount);
     if (!column_width)
-        column_width = property_initial_value(m_context.realm(), PropertyID::ColumnWidth);
+        column_width = property_initial_value(PropertyID::ColumnWidth);
 
     transaction.commit();
     return ShorthandStyleValue::create(PropertyID::Columns,
@@ -5650,9 +5650,9 @@ RefPtr<CSSStyleValue> Parser::parse_flex_shorthand_value(TokenStream<ComponentVa
     }
 
     if (!flex_grow)
-        flex_grow = property_initial_value(m_context.realm(), PropertyID::FlexGrow);
+        flex_grow = property_initial_value(PropertyID::FlexGrow);
     if (!flex_shrink)
-        flex_shrink = property_initial_value(m_context.realm(), PropertyID::FlexShrink);
+        flex_shrink = property_initial_value(PropertyID::FlexShrink);
     if (!flex_basis) {
         // NOTE: The spec says that flex-basis should be 0 here, but other engines currently use 0%.
         // https://github.com/w3c/csswg-drafts/issues/5742
@@ -5692,9 +5692,9 @@ RefPtr<CSSStyleValue> Parser::parse_flex_flow_value(TokenStream<ComponentValue>&
     }
 
     if (!flex_direction)
-        flex_direction = property_initial_value(m_context.realm(), PropertyID::FlexDirection);
+        flex_direction = property_initial_value(PropertyID::FlexDirection);
     if (!flex_wrap)
-        flex_wrap = property_initial_value(m_context.realm(), PropertyID::FlexWrap);
+        flex_wrap = property_initial_value(PropertyID::FlexWrap);
 
     transaction.commit();
     return ShorthandStyleValue::create(PropertyID::FlexFlow,
@@ -5815,15 +5815,15 @@ RefPtr<CSSStyleValue> Parser::parse_font_value(TokenStream<ComponentValue>& toke
         return nullptr;
 
     if (!font_style)
-        font_style = property_initial_value(m_context.realm(), PropertyID::FontStyle);
+        font_style = property_initial_value(PropertyID::FontStyle);
     if (!font_variant)
-        font_variant = property_initial_value(m_context.realm(), PropertyID::FontVariant);
+        font_variant = property_initial_value(PropertyID::FontVariant);
     if (!font_weight)
-        font_weight = property_initial_value(m_context.realm(), PropertyID::FontWeight);
+        font_weight = property_initial_value(PropertyID::FontWeight);
     if (!font_width)
-        font_width = property_initial_value(m_context.realm(), PropertyID::FontWidth);
+        font_width = property_initial_value(PropertyID::FontWidth);
     if (!line_height)
-        line_height = property_initial_value(m_context.realm(), PropertyID::LineHeight);
+        line_height = property_initial_value(PropertyID::LineHeight);
 
     transaction.commit();
     return ShorthandStyleValue::create(PropertyID::Font,
@@ -6229,11 +6229,11 @@ RefPtr<CSSStyleValue> Parser::parse_list_style_value(TokenStream<ComponentValue>
     }
 
     if (!list_position)
-        list_position = property_initial_value(m_context.realm(), PropertyID::ListStylePosition);
+        list_position = property_initial_value(PropertyID::ListStylePosition);
     if (!list_image)
-        list_image = property_initial_value(m_context.realm(), PropertyID::ListStyleImage);
+        list_image = property_initial_value(PropertyID::ListStyleImage);
     if (!list_type)
-        list_type = property_initial_value(m_context.realm(), PropertyID::ListStyleType);
+        list_type = property_initial_value(PropertyID::ListStyleType);
 
     transaction.commit();
     return ShorthandStyleValue::create(PropertyID::ListStyle,
@@ -6463,13 +6463,13 @@ RefPtr<CSSStyleValue> Parser::parse_text_decoration_value(TokenStream<ComponentV
     }
 
     if (!decoration_line)
-        decoration_line = property_initial_value(m_context.realm(), PropertyID::TextDecorationLine);
+        decoration_line = property_initial_value(PropertyID::TextDecorationLine);
     if (!decoration_thickness)
-        decoration_thickness = property_initial_value(m_context.realm(), PropertyID::TextDecorationThickness);
+        decoration_thickness = property_initial_value(PropertyID::TextDecorationThickness);
     if (!decoration_style)
-        decoration_style = property_initial_value(m_context.realm(), PropertyID::TextDecorationStyle);
+        decoration_style = property_initial_value(PropertyID::TextDecorationStyle);
     if (!decoration_color)
-        decoration_color = property_initial_value(m_context.realm(), PropertyID::TextDecorationColor);
+        decoration_color = property_initial_value(PropertyID::TextDecorationColor);
 
     transaction.commit();
     return ShorthandStyleValue::create(PropertyID::TextDecoration,
@@ -8239,7 +8239,7 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_css_value(Prope
     }
 
     for (auto& property : unassigned_properties)
-        assigned_values.ensure(to_underlying(property)).append(property_initial_value(m_context.realm(), property));
+        assigned_values.ensure(to_underlying(property)).append(property_initial_value(property));
 
     stream.discard_whitespace();
     if (stream.has_next_token())
