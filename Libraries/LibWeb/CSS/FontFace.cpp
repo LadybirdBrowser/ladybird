@@ -57,13 +57,6 @@ static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Typeface>>> load_vector_fo
 
 GC_DEFINE_ALLOCATOR(FontFace);
 
-template<CSS::PropertyID PropertyID>
-RefPtr<CSSStyleValue const> parse_property_string(JS::Realm& realm, StringView value)
-{
-    auto parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext(realm), value);
-    return parser.parse_as_css_value(PropertyID);
-}
-
 // https://drafts.csswg.org/css-font-loading/#font-face-constructor
 GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, FontFaceSource source, FontFaceDescriptors const& descriptors)
 {
@@ -213,7 +206,7 @@ GC::Ref<WebIDL::Promise> FontFace::loaded() const
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-family
 WebIDL::ExceptionOr<void> FontFace::set_family(String const& string)
 {
-    auto property = parse_property_string<CSS::PropertyID::FontFamily>(realm(), string);
+    auto property = parse_css_value(Parser::ParsingContext(), string, CSS::PropertyID::FontFamily);
     if (!property)
         return WebIDL::SyntaxError::create(realm(), "FontFace.family setter: Invalid font descriptor"_string);
 
@@ -229,7 +222,7 @@ WebIDL::ExceptionOr<void> FontFace::set_family(String const& string)
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-style
 WebIDL::ExceptionOr<void> FontFace::set_style(String const& string)
 {
-    auto property = parse_property_string<CSS::PropertyID::FontStyle>(realm(), string);
+    auto property = parse_css_value(Parser::ParsingContext(), string, CSS::PropertyID::FontStyle);
     if (!property)
         return WebIDL::SyntaxError::create(realm(), "FontFace.style setter: Invalid font descriptor"_string);
 
@@ -245,7 +238,7 @@ WebIDL::ExceptionOr<void> FontFace::set_style(String const& string)
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-weight
 WebIDL::ExceptionOr<void> FontFace::set_weight(String const& string)
 {
-    auto property = parse_property_string<CSS::PropertyID::FontWeight>(realm(), string);
+    auto property = parse_css_value(Parser::ParsingContext(), string, CSS::PropertyID::FontWeight);
     if (!property)
         return WebIDL::SyntaxError::create(realm(), "FontFace.weight setter: Invalid font descriptor"_string);
 
@@ -262,7 +255,7 @@ WebIDL::ExceptionOr<void> FontFace::set_weight(String const& string)
 WebIDL::ExceptionOr<void> FontFace::set_stretch(String const& string)
 {
     // NOTE: font-stretch is now an alias for font-width
-    auto property = parse_property_string<CSS::PropertyID::FontWidth>(realm(), string);
+    auto property = parse_css_value(Parser::ParsingContext(), string, CSS::PropertyID::FontWidth);
     if (!property)
         return WebIDL::SyntaxError::create(realm(), "FontFace.stretch setter: Invalid font descriptor"_string);
 

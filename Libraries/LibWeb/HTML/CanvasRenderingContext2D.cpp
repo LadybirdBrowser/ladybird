@@ -806,14 +806,10 @@ String CanvasRenderingContext2D::shadow_color() const
 
 void CanvasRenderingContext2D::set_shadow_color(String color)
 {
-    auto& realm = static_cast<CanvasRenderingContext2D&>(*this).realm();
-
     // 1. Let context be this's canvas attribute's value, if that is an element; otherwise null.
-    auto parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext(realm), color);
-
-    auto style_value = parser.parse_as_css_value(CSS::PropertyID::Color);
 
     // 2. Let parsedValue be the result of parsing the given value with context if non-null.
+    auto style_value = parse_css_value(CSS::Parser::ParsingContext(), color, CSS::PropertyID::Color);
     if (style_value && style_value->has_color()) {
         auto parsedValue = style_value->to_color(OptionalNone());
 

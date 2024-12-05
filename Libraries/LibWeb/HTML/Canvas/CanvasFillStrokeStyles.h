@@ -26,19 +26,16 @@ public:
 
     void set_fill_style(FillOrStrokeStyleVariant style)
     {
-        auto& realm = static_cast<IncludingClass&>(*this).realm();
-
         // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-fillstyle
         style.visit(
             // 1. If the given value is a string, then:
             [&](String const& string) {
                 // 1. Let context be this's canvas attribute's value, if that is an element; otherwise null.
-                auto parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext(realm), string);
 
                 // 2. Let parsedValue be the result of parsing the given value with context if non-null.
                 // FIXME: Parse a color value
                 // https://drafts.csswg.org/css-color/#parse-a-css-color-value
-                auto style_value = parser.parse_as_css_value(CSS::PropertyID::Color);
+                auto style_value = parse_css_value(CSS::Parser::ParsingContext(), string, CSS::PropertyID::Color);
                 if (style_value && style_value->has_color()) {
                     auto parsedValue = style_value->to_color(OptionalNone());
 
@@ -67,20 +64,17 @@ public:
 
     void set_stroke_style(FillOrStrokeStyleVariant style)
     {
-        auto& realm = static_cast<IncludingClass&>(*this).realm();
-
         // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-strokestyle
 
         style.visit(
             // 1. If the given value is a string, then:
             [&](String const& string) {
                 // 1. Let context be this's canvas attribute's value, if that is an element; otherwise null.
-                auto parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext(realm), string);
 
                 // 2. Let parsedValue be the result of parsing the given value with context if non-null.
                 // FIXME: Parse a color value
                 // https://drafts.csswg.org/css-color/#parse-a-css-color-value
-                auto style_value = parser.parse_as_css_value(CSS::PropertyID::Color);
+                auto style_value = parse_css_value(CSS::Parser::ParsingContext(), string, CSS::PropertyID::Color);
                 if (style_value && style_value->has_color()) {
                     auto parsedValue = style_value->to_color(OptionalNone());
 

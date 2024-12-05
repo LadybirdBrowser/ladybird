@@ -542,9 +542,7 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
             if (!property_id.has_value())
                 continue;
 
-            auto parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext(realm), value_string);
-
-            if (auto style_value = parser.parse_as_css_value(*property_id)) {
+            if (auto style_value = parse_css_value(CSS::Parser::ParsingContext(), value_string, *property_id)) {
                 // Handle 'initial' here so we don't have to get the default value of the property every frame in StyleComputer
                 if (style_value->is_initial())
                     style_value = CSS::property_initial_value(*property_id);
@@ -558,7 +556,7 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
         //
         //    If parsing the "easing" property fails, throw a TypeError and abort this procedure.
         auto easing_string = keyframe.easing.get<String>();
-        auto easing_value = AnimationEffect::parse_easing_string(realm, easing_string);
+        auto easing_value = AnimationEffect::parse_easing_string(easing_string);
 
         if (!easing_value)
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Invalid animation easing value: \"{}\"", easing_string)) };
@@ -570,7 +568,7 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
     //    interface, and if any of the values fail to parse, throw a TypeError and abort this procedure.
     for (auto& unused_easing : unused_easings) {
         auto easing_string = unused_easing.get<String>();
-        auto easing_value = AnimationEffect::parse_easing_string(realm, easing_string);
+        auto easing_value = AnimationEffect::parse_easing_string(easing_string);
         if (!easing_value)
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Invalid animation easing value: \"{}\"", easing_string)) };
     }
