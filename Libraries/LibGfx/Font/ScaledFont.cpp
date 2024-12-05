@@ -58,13 +58,13 @@ ScaledFontMetrics ScaledFont::metrics() const
     return metrics;
 }
 
-float ScaledFont::width(StringView view) const { return measure_text_width(Utf8View(view), *this); }
-float ScaledFont::width(Utf8View const& view) const { return measure_text_width(view, *this); }
+float ScaledFont::width(StringView view) const { return measure_text_width(Utf8View(view), *this, {}); }
+float ScaledFont::width(Utf8View const& view) const { return measure_text_width(view, *this, {}); }
 
 float ScaledFont::glyph_width(u32 code_point) const
 {
     auto string = String::from_code_point(code_point);
-    return measure_text_width(Utf8View(string), *this);
+    return measure_text_width(Utf8View(string), *this, {});
 }
 
 NonnullRefPtr<ScaledFont> ScaledFont::scaled_with_size(float point_size) const
