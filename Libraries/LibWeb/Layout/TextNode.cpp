@@ -305,6 +305,126 @@ static String apply_text_transform(String const& string, CSS::TextTransform text
     VERIFY_NOT_REACHED();
 }
 
+static bool is_segment_break(u32 code_point)
+{
+    // FIXME: What code points are segment breaks?
+    return code_point == '\n';
+}
+
+// https://drafts.csswg.org/css-text/#white-space-phase-1
+static String apply_white_space(String&& input, CSS::WhiteSpace white_space)
+{
+    auto data_view = input.code_points();
+
+    // AD-HOC: A fast returns to avoid unnecessarily allocating a StringBuilder.
+    bool contains_space = false;
+    for (auto c : data_view) {
+        if (is_ascii_space(c)) {
+            contains_space = true;
+            break;
+        }
+    }
+    if (!contains_space)
+        return move(input);
+
+    // For each inline (including anonymous inlines; see CSS 2.1 § 9.2.2.1 Anonymous inline boxes [CSS2])
+    // within an inline formatting context, white space characters are processed as follows prior to line breaking
+    // and bidi reordering, ignoring bidi formatting characters (characters with the Bidi_Control property [UAX9])
+    // as if they were not there:
+
+    switch (white_space) {
+    case CSS::WhiteSpace::Normal:
+    case CSS::WhiteSpace::Nowrap:
+    case CSS::WhiteSpace::PreLine: {
+        // If white-space is set to normal, nowrap, or pre-line, white space characters are considered collapsible
+        // and are processed by performing the following steps:
+        StringBuilder builder(input.byte_count());
+
+        // TODO: We need to know if each line is first or last, so we gather up all of the lines before processing.
+        //       There's probably a smarter way to do this?
+        Vector<Utf8View> lines;
+        input.code_points().for_each_split_view(is_segment_break, SplitBehavior::KeepEmpty, [&](Utf8View line) {
+            lines.append(move(line));
+        });
+
+        auto collapsible_spaces_and_tabs = Utf8View(" \t"sv);
+        for (auto i = 0u; i < lines.size(); ++i) {
+            auto line = lines[i];
+            bool const is_first = i == 0;
+            bool const is_last = i == lines.size() - 1;
+
+            // 1. Any sequence of collapsible spaces and tabs immediately preceding or following a segment break is removed.
+            // NOTE: The first line doesn't follow a segment break, and the last line doesn't precede one.
+            if (!is_first)
+                line = line.trim(collapsible_spaces_and_tabs, TrimMode::Left);
+            if (!is_last)
+                line = line.trim(collapsible_spaces_and_tabs, TrimMode::Right);
+
+            // 2. Collapsible segment breaks are transformed for rendering according to the segment break transformation rules.
+            Optional<char> segment_break_character;
+            if (!is_last) {
+                // https://drafts.csswg.org/css-text/#line-break-transform
+                // When white-space is pre, pre-wrap, break-spaces, or pre-line, segment breaks are not collapsible
+                // and are instead transformed into a preserved line feed (U+000A).
+                // NOTE: Only pre-line is possible here due to the earlier switch
+                if (white_space == CSS::WhiteSpace::PreLine) {
+                    segment_break_character = '\n';
+                }
+                // For other values of white-space, segment breaks are collapsible, and are collapsed as follows:
+                else {
+                    // 1. First, any collapsible segment break immediately following another collapsible segment break is removed.
+                    // NOTE: For us, that means skipping empty lines.
+                    if (line.is_empty())
+                        continue;
+
+                    // 2. Then any remaining segment break is either transformed into a space (U+0020) or removed depending on
+                    //    the context before and after the break. The rules for this operation are UA-defined in this level.
+                    // TODO: What should we actually be doing here?
+                    if (!builder.string_view().ends_with(' '))
+                        segment_break_character = ' ';
+                }
+            }
+
+            // 3. Every collapsible tab is converted to a collapsible space (U+0020).
+            // 4. Any collapsible space immediately following another collapsible space — even one outside the boundary of the
+            //    inline containing that space, provided both spaces are within the same inline formatting context - is collapsed
+            //    to have zero advance width. (It is invisible, but retains its soft wrap opportunity, if any.)
+            bool just_saw_space = false;
+            for (auto code_point : line) {
+                // "Carriage returns (U+000D) are treated identically to spaces (U+0020) in all respects."
+                // - https://drafts.csswg.org/css-text/#white-space-processing
+                if (code_point == '\t' || code_point == ' ' || code_point == '\r') {
+                    if (just_saw_space)
+                        continue;
+                    just_saw_space = true;
+                    builder.append(' ');
+                    continue;
+                }
+                just_saw_space = false;
+                builder.append_code_point(code_point);
+            }
+
+            // NOTE: Append the segment break from step 2, but only if it wouldn't collapse with the most recent code point.
+            if (segment_break_character.has_value() && !builder.string_view().ends_with(*segment_break_character))
+                builder.append(*segment_break_character);
+        }
+
+        return builder.to_string_without_validation();
+    }
+
+    case CSS::WhiteSpace::Pre:
+    case CSS::WhiteSpace::PreWrap: {
+        // If white-space is set to pre, pre-wrap, or break-spaces, any sequence of spaces is treated as a sequence
+        // of non-breaking spaces. However, for pre-wrap, a soft wrap opportunity exists at the end of a sequence of
+        // spaces and/or tabs, while for break-spaces, a soft wrap opportunity exists after every space and every tab.
+        // FIXME: break-spaces
+        // NOTE: Soft wrap opportunities are not relevant here so we just return the input.
+        return move(input);
+    }
+    }
+    VERIFY_NOT_REACHED();
+}
+
 void TextNode::invalidate_text_for_rendering()
 {
     m_text_for_rendering = {};
@@ -324,72 +444,16 @@ String TextNode::compute_text_for_rendering() const
     if (dom_node().is_password_input())
         return MUST(String::repeated('*', dom_node().data().code_points().length()));
 
-    bool collapse = [](CSS::WhiteSpace white_space) {
-        switch (white_space) {
-        case CSS::WhiteSpace::Normal:
-        case CSS::WhiteSpace::Nowrap:
-        case CSS::WhiteSpace::PreLine:
-            return true;
-        case CSS::WhiteSpace::Pre:
-        case CSS::WhiteSpace::PreWrap:
-            return false;
-        }
-        VERIFY_NOT_REACHED();
-    }(computed_values().white_space());
-
-    if (dom_node().is_editable() && !dom_node().is_uninteresting_whitespace_node())
-        collapse = false;
-
     auto const* parent_element = dom_node().parent_element();
     auto const maybe_lang = parent_element ? parent_element->lang() : Optional<String> {};
     auto const lang = maybe_lang.has_value() ? maybe_lang.value() : Optional<StringView> {};
 
     auto data = apply_text_transform(dom_node().data(), computed_values().text_transform(), lang);
 
-    auto data_view = data.bytes_as_string_view();
-
-    if (!collapse || data.is_empty())
+    if (data.is_empty() || (dom_node().is_editable() && !dom_node().is_uninteresting_whitespace_node()))
         return data;
 
-    // NOTE: A couple fast returns to avoid unnecessarily allocating a StringBuilder.
-    if (data_view.length() == 1) {
-        if (is_ascii_space(data_view[0])) {
-            static String s_single_space_string = " "_string;
-            return s_single_space_string;
-        }
-        return data;
-    }
-
-    bool contains_space = false;
-    for (auto c : data_view) {
-        if (is_ascii_space(c)) {
-            contains_space = true;
-            break;
-        }
-    }
-    if (!contains_space)
-        return data;
-
-    StringBuilder builder(data_view.length());
-    size_t index = 0;
-
-    auto skip_over_whitespace = [&index, &data_view] {
-        while (index < data_view.length() && is_ascii_space(data_view[index]))
-            ++index;
-    };
-
-    while (index < data_view.length()) {
-        if (is_ascii_space(data_view[index])) {
-            builder.append(' ');
-            ++index;
-            skip_over_whitespace();
-        } else {
-            builder.append(data_view[index]);
-            ++index;
-        }
-    }
-
-    return builder.to_string_without_validation();
+    return apply_white_space(move(data), computed_values().white_space());
 }
 
 Unicode::Segmenter& TextNode::grapheme_segmenter() const
