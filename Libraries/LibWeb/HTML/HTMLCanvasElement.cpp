@@ -282,7 +282,7 @@ String HTMLCanvasElement::to_data_url(StringView type, JS::Value quality)
     allocate_painting_surface_if_needed();
     auto surface = this->surface();
     auto size = bitmap_size_for_canvas();
-    if (!surface) {
+    if (!surface && !size.is_empty()) {
         // If the context is not initialized yet, we need to allocate transparent surface for serialization
         auto skia_backend_context = navigable()->traversable_navigable()->skia_backend_context();
         surface = Gfx::PaintingSurface::create_with_size(skia_backend_context, size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
@@ -322,7 +322,7 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::to_blob(GC::Ref<WebIDL::CallbackTyp
     allocate_painting_surface_if_needed();
     auto surface = this->surface();
     auto size = bitmap_size_for_canvas();
-    if (!surface) {
+    if (!surface && !size.is_empty()) {
         // If the context is not initialized yet, we need to allocate transparent surface for serialization
         auto skia_backend_context = navigable()->traversable_navigable()->skia_backend_context();
         surface = Gfx::PaintingSurface::create_with_size(skia_backend_context, size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
