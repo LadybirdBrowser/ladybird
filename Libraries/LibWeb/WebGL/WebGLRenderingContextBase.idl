@@ -39,7 +39,7 @@ interface mixin WebGLRenderingContextBase {
     [FIXME] attribute PredefinedColorSpace unpackColorSpace;
 
     WebGLContextAttributes? getContextAttributes();
-    [FIXME] boolean isContextLost();
+    boolean isContextLost();
 
     sequence<DOMString>? getSupportedExtensions();
     object? getExtension(DOMString name);
