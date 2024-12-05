@@ -576,8 +576,8 @@ ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_zoned_date_time(VM& vm,
     // 9. Let internalDuration be ? DifferenceZonedDateTimeWithRounding(zonedDateTime.[[EpochNanoseconds]], other.[[EpochNanoseconds]], zonedDateTime.[[TimeZone]], zonedDateTime.[[Calendar]], settings.[[LargestUnit]], settings.[[RoundingIncrement]], settings.[[SmallestUnit]], settings.[[RoundingMode]]).
     auto internal_duration = TRY(difference_zoned_date_time_with_rounding(vm, zoned_date_time.epoch_nanoseconds()->big_integer(), other->epoch_nanoseconds()->big_integer(), zoned_date_time.time_zone(), zoned_date_time.calendar(), settings.largest_unit, settings.rounding_increment, settings.smallest_unit, settings.rounding_mode));
 
-    // 10. Let result be ? TemporalDurationFromInternal(internalDuration, HOUR).
-    auto result = TRY(temporal_duration_from_internal(vm, internal_duration, Unit::Hour));
+    // 10. Let result be ! TemporalDurationFromInternal(internalDuration, HOUR).
+    auto result = MUST(temporal_duration_from_internal(vm, internal_duration, Unit::Hour));
 
     // 11. If operation is SINCE, set result to CreateNegatedTemporalDuration(result).
     if (operation == DurationOperation::Since)

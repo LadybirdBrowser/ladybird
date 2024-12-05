@@ -259,8 +259,8 @@ ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_year_month(VM& vm
         duration = TRY(round_relative_duration(vm, move(duration), dest_epoch_ns, iso_date_time, {}, calendar, settings.largest_unit, settings.rounding_increment, settings.smallest_unit, settings.rounding_mode));
     }
 
-    // 17. Let result be ? TemporalDurationFromInternal(duration, DAY).
-    auto result = TRY(temporal_duration_from_internal(vm, duration, Unit::Day));
+    // 17. Let result be ! TemporalDurationFromInternal(duration, DAY).
+    auto result = MUST(temporal_duration_from_internal(vm, duration, Unit::Day));
 
     // 18. If operation is SINCE, set result to CreateNegatedTemporalDuration(result).
     if (operation == DurationOperation::Since)
