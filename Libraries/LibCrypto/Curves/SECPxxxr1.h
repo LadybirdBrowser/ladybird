@@ -8,6 +8,7 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/Endian.h>
+#include <AK/Error.h>
 #include <AK/MemoryStream.h>
 #include <AK/Random.h>
 #include <AK/StdLibExtras.h>
@@ -16,6 +17,11 @@
 #include <AK/UFixedBigIntDivision.h>
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/Curves/EllipticCurve.h>
+
+namespace {
+// Used by ASN1 macros
+static String s_error_string;
+}
 
 namespace Crypto::Curves {
 
@@ -31,6 +37,18 @@ struct SECPxxxr1Point {
     UnsignedBigInteger x;
     UnsignedBigInteger y;
 
+    static ErrorOr<SECPxxxr1Point> from_uncompressed(ReadonlyBytes data)
+    {
+        if (data.size() < 1 || data[0] != 0x04)
+            return Error::from_string_literal("Invalid length or not an uncompressed SECPxxxr1 point");
+
+        auto half_size = (data.size() - 1) / 2;
+        return SECPxxxr1Point {
+            UnsignedBigInteger::import_data(data.slice(1, half_size)),
+            UnsignedBigInteger::import_data(data.slice(1 + half_size, half_size)),
+        };
+    }
+
     ErrorOr<ByteBuffer> to_uncompressed() const
     {
         auto bytes = TRY(ByteBuffer::create_uninitialized(1 + x.byte_length() + y.byte_length()));
@@ -44,6 +62,27 @@ struct SECPxxxr1Point {
 struct SECPxxxr1Signature {
     UnsignedBigInteger r;
     UnsignedBigInteger s;
+
+    static ErrorOr<SECPxxxr1Signature> from_asn(ReadonlyBytes signature, Vector<StringView> current_scope)
+    {
+        ASN1::Decoder decoder(signature);
+        ENTER_TYPED_SCOPE(Sequence, "SECPxxxr1Signature");
+        READ_OBJECT(Integer, UnsignedBigInteger, r_big_int);
+        READ_OBJECT(Integer, UnsignedBigInteger, s_big_int);
+        return SECPxxxr1Signature { r_big_int, s_big_int };
+    }
+
+    ErrorOr<ByteBuffer> to_asn()
+    {
+        ASN1::Encoder encoder;
+        TRY(encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
+            TRY(encoder.write(r));
+            TRY(encoder.write(s));
+            return {};
+        }));
+
+        return encoder.finish();
+    }
 };
 
 template<size_t bit_size, SECPxxxr1CurveParameters const& CURVE_PARAMETERS>
