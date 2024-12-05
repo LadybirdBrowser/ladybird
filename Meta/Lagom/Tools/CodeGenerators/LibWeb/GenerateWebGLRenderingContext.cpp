@@ -555,6 +555,19 @@ public:
             continue;
         }
 
+        if (function.name == "texSubImage2D"sv && function.overload_index == 0) {
+            function_impl_generator.append(R"~~~(
+    void const* pixels_ptr = nullptr;
+    if (pixels) {
+        auto const& viewed_array_buffer = pixels->viewed_array_buffer();
+        auto const& byte_buffer = viewed_array_buffer->buffer();
+        pixels_ptr = byte_buffer.data();
+    }
+    glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels_ptr);
+)~~~");
+            continue;
+        }
+
         if (function.name == "getShaderParameter"sv) {
             function_impl_generator.append(R"~~~(
     GLint result = 0;
