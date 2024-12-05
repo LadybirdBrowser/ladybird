@@ -314,6 +314,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     implementation_file_generator.append(R"~~~(
 #include <LibJS/Runtime/ArrayBuffer.h>
+#include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
@@ -796,7 +797,13 @@ public:
         ptr = typed_array_base.viewed_array_buffer()->buffer().data();
         byte_size = typed_array_base.viewed_array_buffer()->byte_length();
     } else if (@buffer_source_name@->is_data_view()) {
-        VERIFY_NOT_REACHED();
+        auto& data_view = static_cast<JS::DataView&>(*@buffer_source_name@->raw_object());
+        ptr = data_view.viewed_array_buffer()->buffer().data();
+        byte_size = data_view.viewed_array_buffer()->byte_length();
+    } else if (@buffer_source_name@->is_array_buffer()) {
+        auto& array_buffer = static_cast<JS::ArrayBuffer&>(*@buffer_source_name@->raw_object());
+        ptr = array_buffer.buffer().data();
+        byte_size = array_buffer.byte_length();
     } else {
         VERIFY_NOT_REACHED();
     }
