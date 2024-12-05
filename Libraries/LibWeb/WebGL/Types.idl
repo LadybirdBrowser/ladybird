@@ -10,8 +10,3 @@ typedef long long GLsizeiptr;
 typedef unrestricted float GLfloat;
 typedef unrestricted float GLclampf;
 
-enum WebGLPowerPreference {
-    "default",
-    "low-power",
-    "high-performance"
-};

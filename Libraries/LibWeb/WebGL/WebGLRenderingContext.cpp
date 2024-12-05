@@ -131,6 +131,13 @@ bool WebGLRenderingContext::is_context_lost() const
     return m_context_lost;
 }
 
+Optional<WebGLContextAttributes> WebGLRenderingContext::get_context_attributes()
+{
+    if (is_context_lost())
+        return {};
+    return m_actual_context_parameters;
+}
+
 void WebGLRenderingContext::set_size(Gfx::IntSize const& size)
 {
     context().set_size(size);

@@ -8,3 +8,9 @@ interface WebGLRenderingContext {
 
 WebGLRenderingContext includes WebGLRenderingContextBase;
 WebGLRenderingContext includes WebGLRenderingContextOverloads;
+
+enum WebGLPowerPreference {
+    "default",
+    "low-power",
+    "high-performance"
+};
