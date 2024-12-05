@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/ByteString.h>
+#include <AK/FlyString.h>
 #include <AK/GenericLexer.h>
 #include <AK/HashMap.h>
 #include <AK/String.h>
@@ -54,6 +55,11 @@ public:
             VERIFY_NOT_REACHED();
         }
         m_mapping.set(key, move(value));
+    }
+
+    void set(StringView key, FlyString const& value)
+    {
+        set(key, value.to_string());
     }
 
     String get(StringView key) const
@@ -116,7 +122,13 @@ public:
     template<size_t N>
     void set(char const (&key)[N], String value)
     {
-        set(StringView { key, N - 1 }, value);
+        set(StringView { key, N - 1 }, move(value));
+    }
+
+    template<size_t N>
+    void set(char const (&key)[N], FlyString const& value)
+    {
+        set(key, value.to_string());
     }
 
     template<size_t N>
