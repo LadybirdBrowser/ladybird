@@ -30,7 +30,7 @@ interface mixin WebGLRenderingContextOverloads {
     undefined texImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, [AllowShared] ArrayBufferView? pixels);
     undefined texImage2D(GLenum target, GLint level, GLint internalformat, GLenum format, GLenum type, TexImageSource source); // May throw DOMException
 
-    [FIXME] undefined texSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, [AllowShared] ArrayBufferView? pixels);
+    undefined texSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, [AllowShared] ArrayBufferView? pixels);
     [FIXME] undefined texSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLenum format, GLenum type, TexImageSource source); // May throw DOMException
 
     undefined uniform1fv(WebGLUniformLocation? location, Float32List v);
