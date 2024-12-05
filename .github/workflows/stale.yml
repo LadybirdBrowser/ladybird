@@ -1,0 +1,32 @@
+name: 'Close stale PRs'
+on:
+  # Run daily at 01:30.
+  schedule:
+    - cron: '30 1 * * *'
+
+  # Allows you to run this workflow manually from the Actions tab on GitHub.
+  workflow_dispatch:
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          # Leave issues alone.
+          days-before-issue-stale: -1
+          days-before-issue-close: -1
+
+          # PRs become stale after 21 days of inactivity.
+          days-before-pr-stale: 21
+          stale-pr-label: stale
+          stale-pr-message: >
+            This pull request has been automatically marked as stale because it has not had recent activity. It will be
+            closed in 7 days if no further activity occurs. Thank you for your contributions!
+
+          # PRs get closed after 30 days (21 + 7) of inactivity (currently disabled)
+          # FIXME: change to 7 days after first run
+          days-before-pr-close: -1
+          close-pr-message: >
+              This pull request has been closed because it has not had recent activity. Feel free to re-open if you
+              wish to still contribute these changes. Thank you for your contributions!
