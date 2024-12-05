@@ -49,7 +49,7 @@ enum class CalendarFieldConversion {
     __JS_ENUMERATE(CalendarField::Millisecond, millisecond, vm.names.millisecond, CalendarFieldConversion::ToIntegerWithTruncation) \
     __JS_ENUMERATE(CalendarField::Microsecond, microsecond, vm.names.microsecond, CalendarFieldConversion::ToIntegerWithTruncation) \
     __JS_ENUMERATE(CalendarField::Nanosecond, nanosecond, vm.names.nanosecond, CalendarFieldConversion::ToIntegerWithTruncation)    \
-    __JS_ENUMERATE(CalendarField::Offset, offset, vm.names.offset, CalendarFieldConversion::ToOffsetString)                         \
+    __JS_ENUMERATE(CalendarField::Offset, offset_string, vm.names.offset, CalendarFieldConversion::ToOffsetString)                  \
     __JS_ENUMERATE(CalendarField::TimeZone, time_zone, vm.names.timeZone, CalendarFieldConversion::ToTemporalTimeZoneIdentifier)
 
 struct CalendarFieldData {

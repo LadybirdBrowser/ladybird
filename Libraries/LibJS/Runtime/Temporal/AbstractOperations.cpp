@@ -578,8 +578,8 @@ ThrowCompletionOr<RelativeTo> get_temporal_relative_to_option(VM& vm, Object con
         // g. Let timeZone be fields.[[TimeZone]].
         time_zone = move(fields.time_zone);
 
-        // h. Let offsetString be fields.[[Offset]].
-        offset_string = move(fields.offset);
+        // h. Let offsetString be fields.[[OffsetString]].
+        offset_string = move(fields.offset_string);
 
         // i. If offsetString is UNSET, then
         if (!offset_string.has_value()) {
