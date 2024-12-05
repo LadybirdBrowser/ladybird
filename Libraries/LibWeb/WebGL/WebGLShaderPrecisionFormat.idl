@@ -3,7 +3,7 @@
 // https://registry.khronos.org/webgl/specs/latest/1.0/#5.12
 [Exposed=(Window,Worker)]
 interface WebGLShaderPrecisionFormat {
-    [FIXME] readonly attribute GLint rangeMin;
-    [FIXME] readonly attribute GLint rangeMax;
-    [FIXME] readonly attribute GLint precision;
+    readonly attribute GLint rangeMin;
+    readonly attribute GLint rangeMax;
+    readonly attribute GLint precision;
 };

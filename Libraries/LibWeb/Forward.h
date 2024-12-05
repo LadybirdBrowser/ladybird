@@ -841,6 +841,7 @@ class WebGLProgram;
 class WebGLRenderbuffer;
 class WebGLRenderingContext;
 class WebGLShader;
+class WebGLShaderPrecisionFormat;
 class WebGLTexture;
 class WebGLUniformLocation;
 }
