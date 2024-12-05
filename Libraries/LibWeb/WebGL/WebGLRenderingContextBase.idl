@@ -78,7 +78,7 @@ interface mixin WebGLRenderingContextBase {
     undefined cullFace(GLenum mode);
 
     undefined deleteBuffer(WebGLBuffer? buffer);
-    [FIXME] undefined deleteFramebuffer(WebGLFramebuffer? framebuffer);
+    undefined deleteFramebuffer(WebGLFramebuffer? framebuffer);
     undefined deleteProgram(WebGLProgram? program);
     [FIXME] undefined deleteRenderbuffer(WebGLRenderbuffer? renderbuffer);
     undefined deleteShader(WebGLShader? shader);

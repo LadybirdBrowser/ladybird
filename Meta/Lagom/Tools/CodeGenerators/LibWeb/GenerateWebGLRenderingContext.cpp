@@ -726,6 +726,14 @@ public:
             continue;
         }
 
+        if (function.name == "deleteFramebuffer"sv) {
+            function_impl_generator.append(R"~~~(
+    auto handle = framebuffer ? framebuffer->handle() : 0;
+    glDeleteFramebuffers(1, &handle);
+)~~~");
+            continue;
+        }
+
         if (function.name == "deleteTexture"sv) {
             function_impl_generator.append(R"~~~(
     auto handle = texture ? texture->handle() : 0;
