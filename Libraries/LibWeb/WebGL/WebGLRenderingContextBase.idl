@@ -71,7 +71,7 @@ interface mixin WebGLRenderingContextBase {
     WebGLBuffer? createBuffer();
     WebGLFramebuffer? createFramebuffer();
     WebGLProgram? createProgram();
-    [FIXME] WebGLRenderbuffer? createRenderbuffer();
+    WebGLRenderbuffer? createRenderbuffer();
     WebGLShader? createShader(GLenum type);
     WebGLTexture? createTexture();
 
