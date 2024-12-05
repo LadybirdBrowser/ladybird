@@ -279,26 +279,26 @@ static String apply_math_auto_text_transform(String const& string)
     return MUST(builder.to_string());
 }
 
-static ErrorOr<String> apply_text_transform(String const& string, CSS::TextTransform text_transform, Optional<StringView> const& locale)
+static String apply_text_transform(String const& string, CSS::TextTransform text_transform, Optional<StringView> const& locale)
 {
     switch (text_transform) {
     case CSS::TextTransform::Uppercase:
-        return string.to_uppercase(locale);
+        return MUST(string.to_uppercase(locale));
     case CSS::TextTransform::Lowercase:
-        return string.to_lowercase(locale);
+        return MUST(string.to_lowercase(locale));
     case CSS::TextTransform::None:
         return string;
     case CSS::TextTransform::MathAuto:
         return apply_math_auto_text_transform(string);
     case CSS::TextTransform::Capitalize: {
-        return string.to_titlecase(locale, TrailingCodePointTransformation::PreserveExisting);
+        return MUST(string.to_titlecase(locale, TrailingCodePointTransformation::PreserveExisting));
     }
     case CSS::TextTransform::FullSizeKana: {
         // FIXME: Implement this!
         return string;
     }
     case CSS::TextTransform::FullWidth: {
-        return string.to_fullwidth();
+        return MUST(string.to_fullwidth());
     }
     }
 
@@ -346,7 +346,7 @@ void TextNode::compute_text_for_rendering()
     auto const maybe_lang = parent_element ? parent_element->lang() : Optional<String> {};
     auto const lang = maybe_lang.has_value() ? maybe_lang.value() : Optional<StringView> {};
 
-    auto data = apply_text_transform(dom_node().data(), computed_values().text_transform(), lang).release_value_but_fixme_should_propagate_errors();
+    auto data = apply_text_transform(dom_node().data(), computed_values().text_transform(), lang);
 
     auto data_view = data.bytes_as_string_view();
 
