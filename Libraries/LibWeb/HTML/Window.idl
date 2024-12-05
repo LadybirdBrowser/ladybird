@@ -50,7 +50,7 @@ interface Window : EventTarget {
 
     // the user agent
     readonly attribute Navigator navigator;
-    [ImplementedAs=navigator] readonly attribute Navigator clientInformation; // legacy alias of .navigator
+    [Replaceable, ImplementedAs=navigator] readonly attribute Navigator clientInformation; // legacy alias of .navigator
 
     // user prompts
     undefined alert();
