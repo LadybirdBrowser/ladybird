@@ -647,8 +647,8 @@ ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_time(VM& vm, Dura
     // 5. Set timeDuration to ! RoundTimeDuration(timeDuration, settings.[[RoundingIncrement]], settings.[[SmallestUnit]], settings.[[RoundingMode]]).
     time_duration = MUST(round_time_duration(vm, time_duration, Crypto::UnsignedBigInteger { settings.rounding_increment }, settings.smallest_unit, settings.rounding_mode));
 
-    // 6. Let duration be ! CombineDateAndTimeDuration(ZeroDateDuration(), timeDuration).
-    auto duration = MUST(combine_date_and_time_duration(vm, zero_date_duration(vm), move(time_duration)));
+    // 6. Let duration be CombineDateAndTimeDuration(ZeroDateDuration(), timeDuration).
+    auto duration = combine_date_and_time_duration(zero_date_duration(vm), move(time_duration));
 
     // 7. Let result be ! TemporalDurationFromInternal(duration, settings.[[LargestUnit]]).
     auto result = MUST(temporal_duration_from_internal(vm, duration, settings.largest_unit));

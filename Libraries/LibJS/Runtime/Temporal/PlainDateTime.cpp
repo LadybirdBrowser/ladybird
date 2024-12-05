@@ -330,8 +330,8 @@ InternalDuration difference_iso_date_time(VM& vm, ISODateTime const& iso_date_ti
         date_difference.days = 0;
     }
 
-    // 11. Return ! CombineDateAndTimeDuration(dateDifference, timeDuration).
-    return MUST(combine_date_and_time_duration(vm, date_difference, move(time_duration)));
+    // 11. Return CombineDateAndTimeDuration(dateDifference, timeDuration).
+    return combine_date_and_time_duration(date_difference, move(time_duration));
 }
 
 // 5.5.13 DifferencePlainDateTimeWithRounding ( isoDateTime1, isoDateTime2, calendar, largestUnit, roundingIncrement, smallestUnit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-differenceplaindatetimewithrounding
@@ -339,8 +339,8 @@ ThrowCompletionOr<InternalDuration> difference_plain_date_time_with_rounding(VM&
 {
     // 1. If CompareISODateTime(isoDateTime1, isoDateTime2) = 0, then
     if (compare_iso_date_time(iso_date_time1, iso_date_time2) == 0) {
-        // a. Return ! CombineDateAndTimeDuration(ZeroDateDuration(), 0).
-        return MUST(combine_date_and_time_duration(vm, zero_date_duration(vm), TimeDuration { 0 }));
+        // a. Return CombineDateAndTimeDuration(ZeroDateDuration(), 0).
+        return combine_date_and_time_duration(zero_date_duration(vm), TimeDuration { 0 });
     }
 
     // 2. Let diff be DifferenceISODateTime(isoDateTime1, isoDateTime2, calendar, largestUnit).

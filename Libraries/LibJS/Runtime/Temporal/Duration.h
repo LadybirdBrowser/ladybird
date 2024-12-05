@@ -116,7 +116,7 @@ DateDuration to_date_duration_record_without_time(VM&, Duration const&);
 ThrowCompletionOr<GC::Ref<Duration>> temporal_duration_from_internal(VM&, InternalDuration const&, Unit largest_unit);
 ThrowCompletionOr<DateDuration> create_date_duration_record(VM&, double years, double months, double weeks, double days);
 ThrowCompletionOr<DateDuration> adjust_date_duration_record(VM&, DateDuration const&, double days, Optional<double> weeks = {}, Optional<double> months = {});
-ThrowCompletionOr<InternalDuration> combine_date_and_time_duration(VM&, DateDuration, TimeDuration);
+InternalDuration combine_date_and_time_duration(DateDuration, TimeDuration);
 ThrowCompletionOr<GC::Ref<Duration>> to_temporal_duration(VM&, Value);
 i8 duration_sign(Duration const&);
 i8 date_duration_sign(DateDuration const&);

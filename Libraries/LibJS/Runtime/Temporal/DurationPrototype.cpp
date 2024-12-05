@@ -424,16 +424,16 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::round)
         // c. Let dateDuration be ? CreateDateDurationRecord(0, 0, 0, days).
         auto date_duration = TRY(create_date_duration_record(vm, 0, 0, 0, days));
 
-        // d. Set internalDuration to ! CombineDateAndTimeDuration(dateDuration, 0).
-        internal_duration = MUST(combine_date_and_time_duration(vm, date_duration, TimeDuration { 0 }));
+        // d. Set internalDuration to CombineDateAndTimeDuration(dateDuration, 0).
+        internal_duration = combine_date_and_time_duration(date_duration, TimeDuration { 0 });
     }
     // 32. Else,
     else {
         // a. Let timeDuration be ? RoundTimeDuration(internalDuration.[[Time]], roundingIncrement, smallestUnit, roundingMode).
         auto time_duration = TRY(round_time_duration(vm, internal_duration.time, Crypto::UnsignedBigInteger { rounding_increment }, smallest_unit_value, rounding_mode));
 
-        // b. Set internalDuration to ! CombineDateAndTimeDuration(ZeroDateDuration(), timeDuration).
-        internal_duration = MUST(combine_date_and_time_duration(vm, zero_date_duration(vm), move(time_duration)));
+        // b. Set internalDuration to CombineDateAndTimeDuration(ZeroDateDuration(), timeDuration).
+        internal_duration = combine_date_and_time_duration(zero_date_duration(vm), move(time_duration));
     }
 
     // 33. Return ? TemporalDurationFromInternal(internalDuration, largestUnit).
@@ -600,8 +600,8 @@ JS_DEFINE_NATIVE_FUNCTION(DurationPrototype::to_string)
     // 13. Let timeDuration be ? RoundTimeDuration(internalDuration.[[Time]], precision.[[Increment]], precision.[[Unit]], roundingMode).
     auto time_duration = TRY(round_time_duration(vm, internal_duration.time, precision.increment, precision.unit, rounding_mode));
 
-    // 14. Set internalDuration to ! CombineDateAndTimeDuration(internalDuration.[[Date]], timeDuration).
-    internal_duration = MUST(combine_date_and_time_duration(vm, internal_duration.date, move(time_duration)));
+    // 14. Set internalDuration to CombineDateAndTimeDuration(internalDuration.[[Date]], timeDuration).
+    internal_duration = combine_date_and_time_duration(internal_duration.date, move(time_duration));
 
     // 15. Let roundedLargestUnit be LargerOfTwoTemporalUnits(largestUnit, SECOND).
     auto rounded_largest_unit = larger_of_two_temporal_units(largest_unit, Unit::Second);

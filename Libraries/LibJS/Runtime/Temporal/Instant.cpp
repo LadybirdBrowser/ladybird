@@ -189,8 +189,8 @@ InternalDuration difference_instant(VM& vm, Crypto::SignedBigInteger const& nano
     // 2. Set timeDuration to ! RoundTimeDuration(timeDuration, roundingIncrement, smallestUnit, roundingMode).
     time_duration = MUST(round_time_duration(vm, time_duration, Crypto::UnsignedBigInteger { rounding_increment }, smallest_unit, rounding_mode));
 
-    // 3. Return ! CombineDateAndTimeDuration(ZeroDateDuration(), timeDuration).
-    return MUST(combine_date_and_time_duration(vm, zero_date_duration(vm), move(time_duration)));
+    // 3. Return CombineDateAndTimeDuration(ZeroDateDuration(), timeDuration).
+    return combine_date_and_time_duration(zero_date_duration(vm), move(time_duration));
 }
 
 // 8.5.7 RoundTemporalInstant ( ns, increment, unit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-roundtemporalinstant
