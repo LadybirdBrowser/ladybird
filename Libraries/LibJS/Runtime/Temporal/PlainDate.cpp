@@ -365,8 +365,8 @@ ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_date(VM& vm, Dura
     // 6. Let dateDifference be CalendarDateUntil(temporalDate.[[Calendar]], temporalDate.[[ISODate]], other.[[ISODate]], settings.[[LargestUnit]]).
     auto date_difference = calendar_date_until(vm, temporal_date.calendar(), temporal_date.iso_date(), other->iso_date(), settings.largest_unit);
 
-    // 7. Let duration be ! CombineDateAndTimeDuration(dateDifference, 0).
-    auto duration = MUST(combine_date_and_time_duration(vm, date_difference, TimeDuration { 0 }));
+    // 7. Let duration be CombineDateAndTimeDuration(dateDifference, 0).
+    auto duration = combine_date_and_time_duration(date_difference, TimeDuration { 0 });
 
     // 8. If settings.[[SmallestUnit]] is not DAY or settings.[[RoundingIncrement]] ≠ 1, then
     if (settings.smallest_unit != Unit::Day || settings.rounding_increment != 1) {

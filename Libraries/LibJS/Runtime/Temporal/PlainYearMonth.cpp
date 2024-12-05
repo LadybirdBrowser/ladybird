@@ -241,8 +241,8 @@ ThrowCompletionOr<GC::Ref<Duration>> difference_temporal_plain_year_month(VM& vm
     // 14. Let yearsMonthsDifference be ! AdjustDateDurationRecord(dateDifference, 0, 0).
     auto years_months_difference = MUST(adjust_date_duration_record(vm, date_difference, 0, 0));
 
-    // 15. Let duration be ! CombineDateAndTimeDuration(yearsMonthsDifference, 0).
-    auto duration = MUST(combine_date_and_time_duration(vm, years_months_difference, TimeDuration { 0 }));
+    // 15. Let duration be CombineDateAndTimeDuration(yearsMonthsDifference, 0).
+    auto duration = combine_date_and_time_duration(years_months_difference, TimeDuration { 0 });
 
     // 16. If settings.[[SmallestUnit]] is not MONTH or settings.[[RoundingIncrement]] ≠ 1, then
     if (settings.smallest_unit != Unit::Month || settings.rounding_increment != 1) {

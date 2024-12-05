@@ -89,8 +89,8 @@ InternalDuration to_internal_duration_record(VM& vm, Duration const& duration)
     // 2. Let timeDuration be TimeDurationFromComponents(duration.[[Hours]], duration.[[Minutes]], duration.[[Seconds]], duration.[[Milliseconds]], duration.[[Microseconds]], duration.[[Nanoseconds]]).
     auto time_duration = time_duration_from_components(duration.hours(), duration.minutes(), duration.seconds(), duration.milliseconds(), duration.microseconds(), duration.nanoseconds());
 
-    // 3. Return ! CombineDateAndTimeDuration(dateDuration, timeDuration).
-    return MUST(combine_date_and_time_duration(vm, date_duration, move(time_duration)));
+    // 3. Return CombineDateAndTimeDuration(dateDuration, timeDuration).
+    return combine_date_and_time_duration(date_duration, move(time_duration));
 }
 
 // 7.5.6 ToInternalDurationRecordWith24HourDays ( duration ), https://tc39.es/proposal-temporal/#sec-temporal-tointernaldurationrecordwith24hourdays
@@ -105,8 +105,8 @@ InternalDuration to_internal_duration_record_with_24_hour_days(VM& vm, Duration 
     // 3. Let dateDuration be ! CreateDateDurationRecord(duration.[[Years]], duration.[[Months]], duration.[[Weeks]], 0).
     auto date_duration = MUST(create_date_duration_record(vm, duration.years(), duration.months(), duration.weeks(), 0));
 
-    // 4. Return ! CombineDateAndTimeDuration(dateDuration, timeDuration).
-    return MUST(combine_date_and_time_duration(vm, date_duration, move(time_duration)));
+    // 4. Return CombineDateAndTimeDuration(dateDuration, timeDuration).
+    return combine_date_and_time_duration(date_duration, move(time_duration));
 }
 
 // 7.5.7 ToDateDurationRecordWithoutTime ( duration ), https://tc39.es/proposal-temporal/#sec-temporal-todatedurationrecordwithouttime
@@ -327,7 +327,7 @@ ThrowCompletionOr<DateDuration> adjust_date_duration_record(VM& vm, DateDuration
 }
 
 // 7.5.11 CombineDateAndTimeDuration ( dateDuration, timeDuration ), https://tc39.es/proposal-temporal/#sec-temporal-combinedateandtimeduration
-ThrowCompletionOr<InternalDuration> combine_date_and_time_duration(VM& vm, DateDuration date_duration, TimeDuration time_duration)
+InternalDuration combine_date_and_time_duration(DateDuration date_duration, TimeDuration time_duration)
 {
     // 1. Let dateSign be DateDurationSign(dateDuration).
     auto date_sign = date_duration_sign(date_duration);
@@ -335,9 +335,9 @@ ThrowCompletionOr<InternalDuration> combine_date_and_time_duration(VM& vm, DateD
     // 2. Let timeSign be TimeDurationSign(timeDuration).
     auto time_sign = time_duration_sign(time_duration);
 
-    // 3. If dateSign ≠ 0 and timeSign ≠ 0 and dateSign ≠ timeSign, throw a RangeError exception.
-    if (date_sign != 0 && time_sign != 0 && date_sign != time_sign)
-        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidDuration);
+    // 3. Assert: If dateSign ≠ 0 and timeSign ≠ 0, dateSign = timeSign.
+    if (date_sign != 0 && time_sign != 0)
+        VERIFY(date_sign == time_sign);
 
     // 4. Return Internal Duration Record { [[Date]]: dateDuration, [[Time]]: timeDuration  }.
     return InternalDuration { date_duration, move(time_duration) };
@@ -1067,8 +1067,8 @@ ThrowCompletionOr<CalendarNudgeResult> nudge_to_calendar_unit(VM& vm, i8 sign, I
         nudged_epoch_ns = move(start_epoch_ns);
     }
 
-    // 26. Set resultDuration to ! CombineDateAndTimeDuration(resultDuration, 0).
-    auto result_date_and_time_duration = MUST(combine_date_and_time_duration(vm, result_duration, TimeDuration { 0 }));
+    // 26. Set resultDuration to CombineDateAndTimeDuration(resultDuration, 0).
+    auto result_date_and_time_duration = combine_date_and_time_duration(result_duration, TimeDuration { 0 });
 
     // 27. Let nudgeResult be Duration Nudge Result Record { [[Duration]]: resultDuration, [[NudgedEpochNs]]: nudgedEpochNs, [[DidExpandCalendarUnit]]: didExpandCalendarUnit }.
     DurationNudgeResult nudge_result { .duration = move(result_date_and_time_duration), .nudged_epoch_ns = move(nudged_epoch_ns), .did_expand_calendar_unit = did_expand_calendar_unit };
@@ -1148,8 +1148,8 @@ ThrowCompletionOr<DurationNudgeResult> nudge_to_zoned_time(VM& vm, i8 sign, Inte
     // 14. Let dateDuration be ! AdjustDateDurationRecord(duration.[[Date]], duration.[[Date]].[[Days]] + dayDelta).
     auto date_duration = MUST(adjust_date_duration_record(vm, duration.date, duration.date.days + day_delta));
 
-    // 15. Let resultDuration be ! CombineDateAndTimeDuration(dateDuration, roundedTimeDuration).
-    auto result_duration = MUST(combine_date_and_time_duration(vm, date_duration, move(rounded_time_duration)));
+    // 15. Let resultDuration be CombineDateAndTimeDuration(dateDuration, roundedTimeDuration).
+    auto result_duration = combine_date_and_time_duration(date_duration, move(rounded_time_duration));
 
     // 16. Return Duration Nudge Result Record { [[Duration]]: resultDuration, [[NudgedEpochNs]]: nudgedEpochNs, [[DidExpandCalendarUnit]]: didRoundBeyondDay }.
     return DurationNudgeResult { .duration = move(result_duration), .nudged_epoch_ns = move(nudged_epoch_ns), .did_expand_calendar_unit = did_round_beyond_day };
@@ -1211,8 +1211,8 @@ ThrowCompletionOr<DurationNudgeResult> nudge_to_day_or_time(VM& vm, InternalDura
     // 14. Let dateDuration be ! AdjustDateDurationRecord(duration.[[Date]], days).
     auto date_duration = MUST(adjust_date_duration_record(vm, duration.date, days));
 
-    // 15. Let resultDuration be ! CombineDateAndTimeDuration(dateDuration, remainder).
-    auto result_duration = MUST(combine_date_and_time_duration(vm, date_duration, move(remainder)));
+    // 15. Let resultDuration be CombineDateAndTimeDuration(dateDuration, remainder).
+    auto result_duration = combine_date_and_time_duration(date_duration, move(remainder));
 
     // 16. Return Duration Nudge Result Record { [[Duration]]: resultDuration, [[NudgedEpochNs]]: nudgedEpochNs, [[DidExpandCalendarUnit]]: didExpandDays }.
     return DurationNudgeResult { .duration = move(result_duration), .nudged_epoch_ns = move(nudged_epoch_ns), .did_expand_calendar_unit = did_expand_days };
@@ -1301,8 +1301,8 @@ ThrowCompletionOr<InternalDuration> bubble_relative_duration(VM& vm, i8 sign, In
 
             // x. If beyondEndSign ≠ -sign, then
             if (beyond_end_sign != -sign) {
-                // 1. Set duration to ! CombineDateAndTimeDuration(endDuration, 0).
-                duration = MUST(combine_date_and_time_duration(vm, end_duration, TimeDuration { 0 }));
+                // 1. Set duration to CombineDateAndTimeDuration(endDuration, 0).
+                duration = combine_date_and_time_duration(end_duration, TimeDuration { 0 });
             }
             // xi. Else,
             else {
@@ -1519,8 +1519,8 @@ ThrowCompletionOr<GC::Ref<Duration>> add_durations(VM& vm, ArithmeticOperation o
     // 9. Let timeResult be ? AddTimeDuration(d1.[[Time]], d2.[[Time]]).
     auto time_result = TRY(add_time_duration(vm, duration1.time, duration2.time));
 
-    // 10. Let result be ! CombineDateAndTimeDuration(ZeroDateDuration(), timeResult).
-    auto result = MUST(combine_date_and_time_duration(vm, zero_date_duration(vm), move(time_result)));
+    // 10. Let result be CombineDateAndTimeDuration(ZeroDateDuration(), timeResult).
+    auto result = combine_date_and_time_duration(zero_date_duration(vm), move(time_result));
 
     // 11. Return ? TemporalDurationFromInternal(result, largestUnit).
     return TRY(temporal_duration_from_internal(vm, result, largest_unit));

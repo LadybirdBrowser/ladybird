@@ -408,9 +408,9 @@ ThrowCompletionOr<Crypto::SignedBigInteger> add_zoned_date_time(VM& vm, Crypto::
 // 6.5.6 DifferenceZonedDateTime ( ns1, ns2, timeZone, calendar, largestUnit ), https://tc39.es/proposal-temporal/#sec-temporal-differencezoneddatetime
 ThrowCompletionOr<InternalDuration> difference_zoned_date_time(VM& vm, Crypto::SignedBigInteger const& nanoseconds1, Crypto::SignedBigInteger const& nanoseconds2, StringView time_zone, StringView calendar, Unit largest_unit)
 {
-    // 1. If ns1 = ns2, return ! CombineDateAndTimeDuration(ZeroDateDuration(), 0).
+    // 1. If ns1 = ns2, return CombineDateAndTimeDuration(ZeroDateDuration(), 0).
     if (nanoseconds1 == nanoseconds2)
-        return MUST(combine_date_and_time_duration(vm, zero_date_duration(vm), TimeDuration { 0 }));
+        return combine_date_and_time_duration(zero_date_duration(vm), TimeDuration { 0 });
 
     // 2. Let startDateTime be GetISODateTimeFor(timeZone, ns1).
     auto start_date_time = get_iso_date_time_for(time_zone, nanoseconds1);
@@ -475,8 +475,8 @@ ThrowCompletionOr<InternalDuration> difference_zoned_date_time(VM& vm, Crypto::S
     // 13. Let dateDifference be CalendarDateUntil(calendar, startDateTime.[[ISODate]], intermediateDateTime.[[ISODate]], dateLargestUnit).
     auto date_difference = calendar_date_until(vm, calendar, start_date_time.iso_date, intermediate_date_time.iso_date, date_largest_unit);
 
-    // 14. Return ! CombineDateAndTimeDuration(dateDifference, timeDuration).
-    return MUST(combine_date_and_time_duration(vm, date_difference, move(time_duration)));
+    // 14. Return CombineDateAndTimeDuration(dateDifference, timeDuration).
+    return combine_date_and_time_duration(date_difference, move(time_duration));
 }
 
 // 6.5.7 DifferenceZonedDateTimeWithRounding ( ns1, ns2, timeZone, calendar, largestUnit, roundingIncrement, smallestUnit, roundingMode ), https://tc39.es/proposal-temporal/#sec-temporal-differencezoneddatetimewithrounding
