@@ -97,7 +97,7 @@ interface mixin WebGLRenderingContextBase {
     undefined enableVertexAttribArray(GLuint index);
     undefined finish();
     undefined flush();
-    [FIXME] undefined framebufferRenderbuffer(GLenum target, GLenum attachment, GLenum renderbuffertarget, WebGLRenderbuffer? renderbuffer);
+    undefined framebufferRenderbuffer(GLenum target, GLenum attachment, GLenum renderbuffertarget, WebGLRenderbuffer? renderbuffer);
     undefined framebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, WebGLTexture? texture, GLint level);
     undefined frontFace(GLenum mode);
 
