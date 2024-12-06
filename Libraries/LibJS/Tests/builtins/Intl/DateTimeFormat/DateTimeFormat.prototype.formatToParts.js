@@ -71,6 +71,22 @@ describe("errors", () => {
             "Cannot format Temporal.ZonedDateTime, use Temporal.ZonedDateTime.prototype.toLocaleString"
         );
     });
+
+    test("Temporal fields must overlap formatter", () => {
+        const yearFormatter = new Intl.DateTimeFormat([], { year: "numeric", calendar: "iso8601" });
+        const plainMonthDay = new Temporal.PlainMonthDay(1, 1);
+
+        const dayFormatter = new Intl.DateTimeFormat([], { day: "numeric", calendar: "iso8601" });
+        const plainYearMonth = new Temporal.PlainYearMonth(1972, 1);
+
+        expect(() => {
+            yearFormatter.formatToParts(plainMonthDay);
+        }).toThrowWithMessage(TypeError, "Unable to determine format for Temporal.PlainMonthDay");
+
+        expect(() => {
+            dayFormatter.formatToParts(plainYearMonth);
+        }).toThrowWithMessage(TypeError, "Unable to determine format for Temporal.PlainYearMonth");
+    });
 });
 
 const d = Date.UTC(1989, 0, 23, 7, 8, 9, 45);
