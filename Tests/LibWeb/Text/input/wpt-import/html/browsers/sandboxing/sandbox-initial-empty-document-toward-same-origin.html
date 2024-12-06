@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>
+  Check sandbox-flags inheritance in case of javascript window reuse.
+</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<body>
+<script>
+promise_test(async test => {
+  let message = new Promise(resolve =>
+    window.addEventListener("message", event => resolve(event.data))
+  );
+
+  // Create an initial empty document in the iframe, sandboxed. It will attempt
+  // to load a slow page, but won't have time.
+  let iframe = document.createElement("iframe");
+  iframe.setAttribute("sandbox", "allow-scripts allow-same-origin");
+  iframe.src = "/fetch/api/resources/infinite-slow-response.py";
+  document.body.appendChild(iframe);
+
+  // Remove sandbox flags. This should apply to documents committed from
+  // navigations started after this instruction.
+  iframe.removeAttribute("sandbox");
+  iframe.src = "./resources/check-sandbox-flags.html";
+
+  // The window is reused, but the new sandbox flags should be used.
+  assert_equals(await message, "document-domain-is-allowed");
+});
+</script>

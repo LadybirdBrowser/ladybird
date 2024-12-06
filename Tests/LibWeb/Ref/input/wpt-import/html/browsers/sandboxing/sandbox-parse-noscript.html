@@ -1,0 +1,7 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>noscript parsing when sandbox disables scripting</title>
+<link rel=match href=../../../../../expected/wpt-import//html/browsers/sandboxing/sandbox-parse-noscript-ref.html>
+<iframe srcdoc="<noscript>PASS</noscript>" sandbox></iframe>
+<iframe src="noscript-iframe.html" sandbox></iframe>
+<iframe srcdoc="<noscript>P<b>AS</b>S</noscript>" sandbox></iframe>

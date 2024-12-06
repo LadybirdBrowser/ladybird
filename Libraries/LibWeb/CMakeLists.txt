@@ -555,6 +555,7 @@ set(SOURCES
     HTML/PromiseRejectionEvent.cpp
     HTML/RadioNodeList.cpp
     HTML/RenderingThread.cpp
+    HTML/SandboxingFlagSet.cpp
     HTML/Scripting/Agent.cpp
     HTML/Scripting/ClassicScript.cpp
     HTML/Scripting/Environments.cpp

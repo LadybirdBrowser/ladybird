@@ -53,6 +53,11 @@ void HTMLIFrameElement::attribute_changed(FlyString const& name, Optional<String
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
+    if (name == HTML::AttributeNames::sandbox) {
+        if (m_sandbox)
+            m_sandbox->associated_attribute_changed(value.value_or(String {}));
+    }
+
     // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-iframe-element:process-the-iframe-attributes-2
     // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-iframe-element:process-the-iframe-attributes-3
     // Whenever an iframe element with a non-null content navigable has its srcdoc attribute set, changed, or removed,
@@ -62,6 +67,21 @@ void HTMLIFrameElement::attribute_changed(FlyString const& name, Optional<String
     if (m_content_navigable) {
         if (name == AttributeNames::srcdoc || (name == AttributeNames::src && !has_attribute(AttributeNames::srcdoc)))
             process_the_iframe_attributes();
+
+        // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-iframe-element:iframe-sandboxing-flag-set-2
+        // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-iframe-element:iframe-sandboxing-flag-set-3
+        // When an iframe element's sandbox attribute is set or changed while it has a non-null content navigable, the
+        // user agent must parse the sandboxing directive given the attribute's value and the iframe element's iframe
+        // sandboxing flag set.
+        // When an iframe element's sandbox attribute is removed while it has a non-null content navigable, the user
+        // agent must empty the iframe element's iframe sandboxing flag set.
+        if (name == AttributeNames::sandbox) {
+            if (value.has_value()) {
+                m_iframe_sandboxing_flag_set = parse_a_sandboxing_directive(value.value());
+            } else {
+                m_iframe_sandboxing_flag_set = {};
+            }
+        }
     }
 
     if (name == HTML::AttributeNames::width || name == HTML::AttributeNames::height) {
@@ -89,8 +109,13 @@ void HTMLIFrameElement::post_connection()
     // The iframe HTML element post-connection steps, given insertedNode, are:
     // 1. Create a new child navigable for insertedNode.
     MUST(create_new_child_navigable(GC::create_function(realm().heap(), [this] {
-        // FIXME: 2. If insertedNode has a sandbox attribute, then parse the sandboxing directive given the attribute's
-        //           value and insertedNode's iframe sandboxing flag set.
+        // 2. If insertedNode has a sandbox attribute, then parse the sandboxing directive given the attribute's
+        //    value and insertedNode's iframe sandboxing flag set.
+        if (has_attribute(AttributeNames::sandbox)) {
+            auto sandbox_attribute = attribute(AttributeNames::sandbox);
+            VERIFY(sandbox_attribute.has_value());
+            m_iframe_sandboxing_flag_set = parse_a_sandboxing_directive(sandbox_attribute.value());
+        }
 
         // 3. Process the iframe attributes for insertedNode, with initialInsertion set to true.
         process_the_iframe_attributes(InitialInsertion::Yes);

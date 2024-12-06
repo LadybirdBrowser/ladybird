@@ -1,0 +1,6 @@
+Harness status: Timeout
+
+Found 1 tests
+
+1 Timeout
+Timeout	setting sandbox attribute should not affect current document in iframe

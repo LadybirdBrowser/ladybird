@@ -293,7 +293,9 @@ bool is_scripting_enabled(JS::Realm const& realm)
     if (!document.page().is_scripting_enabled())
         return false;
 
-    // FIXME: Either settings's global object is not a Window object, or settings's global object's associated Document's active sandboxing flag set does not have its sandboxed scripts browsing context flag set.
+    // Either settings's global object is not a Window object, or settings's global object's associated Document's active sandboxing flag set does not have its sandboxed scripts browsing context flag set.
+    if (has_flag(document.active_sandboxing_flag_set(), SandboxingFlagSet::SandboxedScripts))
+        return false;
 
     return true;
 }

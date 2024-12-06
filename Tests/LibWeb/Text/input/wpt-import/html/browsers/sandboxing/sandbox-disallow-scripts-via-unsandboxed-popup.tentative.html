@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<body>
+  <script>
+    async_test(t => {
+      let i = document.createElement('iframe');
+      i.sandbox = "allow-same-origin allow-popups allow-popups-to-escape-sandbox";
+      i.srcdoc = `<a target='_blank' rel='opener'
+                     href="javascript:window.opener.top.postMessage('FAIL', '*');">Click me!</a>
+                  <a target='_blank' rel='opener'
+                     href="./resources/post-done-to-opener.html">Click me next!</a>`;
+
+      i.onload = _ => {
+        // Since the frame is sandboxed, but allow-same-origin, we can reach into it to grab the
+        // anchor element to click. We'll click the `javascript:` URL first, then pop up a new
+        // window that posts `DONE`.
+        //
+        // TODO(mkwst): This feels like a race, but it's one that we consistently win when I'm
+        // running the test locally 10,000 times. Good enough!™
+        i.contentDocument.body.querySelectorAll('a')[0].click();
+        i.contentDocument.body.querySelectorAll('a')[1].click();
+      };
+      document.body.appendChild(i);
+
+      window.addEventListener('message', t.step_func(e => {
+        assert_not_equals(e.data, "FAIL");
+        if (e.data == "DONE")
+          t.done();
+      }));
+    }, "Sandboxed => unsandboxed popup");
+  </script>
+</body>

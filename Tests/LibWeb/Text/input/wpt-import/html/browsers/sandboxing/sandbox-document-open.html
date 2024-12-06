@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>
+  Check sandbox-flags aren't lost after using document.open().
+</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<body>
+<script>
+promise_test(async test => {
+  let message = new Promise(resolve =>
+    window.addEventListener("message", event => resolve(event.data))
+  );
+
+  let iframe = document.createElement("iframe");
+  iframe.setAttribute("sandbox", "allow-scripts allow-same-origin");
+  iframe.setAttribute("src", "./resources/document-open.html")
+  document.body.appendChild(iframe);
+
+  assert_equals(await message, "document-domain-is-disallowed");
+}, "document.open()");
+
+promise_test(async test => {
+  let iframe = document.createElement("iframe");
+  iframe.setAttribute("sandbox", "allow-scripts allow-same-origin");
+  iframe.setAttribute("src", "/common/blank.html");
+  let loaded = new Promise(resolve => iframe.onload = resolve);
+  document.body.appendChild(iframe);
+  await loaded;
+
+  let message = new Promise(resolve =>
+    window.addEventListener("message", event => resolve(event.data))
+  );
+
+  iframe.contentDocument.write(`
+    <script>
+      try {
+        document.domain = document.domain;
+        parent.postMessage('document-domain-is-allowed', '*');
+      } catch (error) {
+        parent.postMessage('document-domain-is-disallowed', '*');
+      }
+    </sc`+`ript>
+  `);
+
+  assert_equals(await message, "document-domain-is-disallowed");
+}, "other_document.open()");
+</script>
+</body>
+</html>
