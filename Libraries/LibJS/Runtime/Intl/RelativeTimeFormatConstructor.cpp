@@ -63,13 +63,13 @@ ThrowCompletionOr<GC::Ref<Object>> RelativeTimeFormatConstructor::construct(Func
     // 5. Let opt be a new Record.
     LocaleOptions opt {};
 
-    // 6. Let matcher be ? GetOption(options, "localeMatcher", string, « "lookup", "best fit" », "best fit").
+    // 6. Let matcher be ? GetOption(options, "localeMatcher", STRING, « "lookup", "best fit" », "best fit").
     auto matcher = TRY(get_option(vm, *options, vm.names.localeMatcher, OptionType::String, AK::Array { "lookup"sv, "best fit"sv }, "best fit"sv));
 
     // 7. Set opt.[[LocaleMatcher]] to matcher.
     opt.locale_matcher = matcher;
 
-    // 8. Let numberingSystem be ? GetOption(options, "numberingSystem", string, empty, undefined).
+    // 8. Let numberingSystem be ? GetOption(options, "numberingSystem", STRING, EMPTY, undefined).
     auto numbering_system = TRY(get_option(vm, *options, vm.names.numberingSystem, OptionType::String, {}, Empty {}));
 
     // 9. If numberingSystem is not undefined, then
@@ -97,13 +97,13 @@ ThrowCompletionOr<GC::Ref<Object>> RelativeTimeFormatConstructor::construct(Func
     if (auto* resolved_numbering_system = result.nu.get_pointer<String>())
         relative_time_format->set_numbering_system(move(*resolved_numbering_system));
 
-    // 16. Let style be ? GetOption(options, "style", string, « "long", "short", "narrow" », "long").
+    // 16. Let style be ? GetOption(options, "style", STRING, « "long", "short", "narrow" », "long").
     auto style = TRY(get_option(vm, *options, vm.names.style, OptionType::String, { "long"sv, "short"sv, "narrow"sv }, "long"sv));
 
     // 17. Set relativeTimeFormat.[[Style]] to style.
     relative_time_format->set_style(style.as_string().utf8_string_view());
 
-    // 18. Let numeric be ? GetOption(options, "numeric", string, « "always", "auto" », "always").
+    // 18. Let numeric be ? GetOption(options, "numeric", STRING, « "always", "auto" », "always").
     auto numeric = TRY(get_option(vm, *options, vm.names.numeric, OptionType::String, { "always"sv, "auto"sv }, "always"sv));
 
     // 19. Set relativeTimeFormat.[[Numeric]] to numeric.
