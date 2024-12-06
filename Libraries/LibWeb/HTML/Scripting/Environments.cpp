@@ -11,6 +11,7 @@
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/SyntheticHostDefined.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Infrastructure/FetchRecord.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
@@ -201,17 +202,45 @@ void prepare_to_run_callback(JS::Realm& realm)
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#parse-a-url
 URL::URL EnvironmentSettingsObject::parse_url(StringView url)
 {
-    // 1. Let encoding be document's character encoding, if document was given, and environment settings object's API URL character encoding otherwise.
-    // FIXME: Pass in environment settings object's API URL character encoding.
-
-    // 2. Let baseURL be document's base URL, if document was given, and environment settings object's API base URL otherwise.
+    // 1. Let baseURL be environment's base URL, if environment is a Document object; otherwise environment's API base URL.
     auto base_url = api_base_url();
 
-    // 3. Let urlRecord be the result of applying the URL parser to url, with baseURL and encoding.
-    // 4. If urlRecord is failure, then return failure.
-    // 5. Let urlString be the result of applying the URL serializer to urlRecord.
-    // 6. Return urlString as the resulting URL string and urlRecord as the resulting URL record.
-    return base_url.complete_url(url);
+    // 2. Return the result of applying the URL parser to url, with baseURL.
+    return DOMURL::parse(url, base_url);
+}
+
+// https://html.spec.whatwg.org/multipage/urls-and-fetching.html#encoding-parsing-a-url
+URL::URL EnvironmentSettingsObject::encoding_parse_url(StringView url)
+{
+    // 1. Let encoding be UTF-8.
+    auto encoding = "UTF-8"_string;
+
+    // 2. If environment is a Document object, then set encoding to environment's character encoding.
+
+    // 3. Otherwise, if environment's relevant global object is a Window object, set encoding to environment's relevant
+    //    global object's associated Document's character encoding.
+    if (is<HTML::Window>(global_object()))
+        encoding = static_cast<HTML::Window const&>(global_object()).associated_document().encoding_or_default();
+
+    // 4. Let baseURL be environment's base URL, if environment is a Document object; otherwise environment's API base URL.
+    auto base_url = api_base_url();
+
+    // 5. Return the result of applying the URL parser to url, with baseURL and encoding.
+    return DOMURL::parse(url, base_url, encoding);
+}
+
+// https://html.spec.whatwg.org/multipage/urls-and-fetching.html#encoding-parsing-and-serializing-a-url
+Optional<String> EnvironmentSettingsObject::encoding_parse_and_serialize_url(StringView url)
+{
+    // 1. Let url be the result of encoding-parsing a URL given url, relative to environment.
+    auto parsed_url = encoding_parse_url(url);
+
+    // 2. If url is failure, then return failure.
+    if (!parsed_url.is_valid())
+        return {};
+
+    // 3. Return the result of applying the URL serializer to url.
+    return parsed_url.serialize();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#clean-up-after-running-a-callback

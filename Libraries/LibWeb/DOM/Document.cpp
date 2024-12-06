@@ -1081,7 +1081,38 @@ URL::URL Document::parse_url(StringView url) const
     auto base_url = this->base_url();
 
     // 2. Return the result of applying the URL parser to url, with baseURL.
-    return DOMURL::parse(url, base_url, Optional<StringView> { m_encoding });
+    return DOMURL::parse(url, base_url);
+}
+
+// https://html.spec.whatwg.org/multipage/urls-and-fetching.html#encoding-parsing-a-url
+URL::URL Document::encoding_parse_url(StringView url) const
+{
+    // 1. Let encoding be UTF-8.
+    // 2. If environment is a Document object, then set encoding to environment's character encoding.
+    auto encoding = encoding_or_default();
+
+    // 3. Otherwise, if environment's relevant global object is a Window object, set encoding to environment's relevant
+    //    global object's associated Document's character encoding.
+
+    // 4. Let baseURL be environment's base URL, if environment is a Document object; otherwise environment's API base URL.
+    auto base_url = this->base_url();
+
+    // 5. Return the result of applying the URL parser to url, with baseURL and encoding.
+    return DOMURL::parse(url, base_url, encoding);
+}
+
+// https://html.spec.whatwg.org/multipage/urls-and-fetching.html#encoding-parsing-and-serializing-a-url
+Optional<String> Document::encoding_parse_and_serialize_url(StringView url) const
+{
+    // 1. Let url be the result of encoding-parsing a URL given url, relative to environment.
+    auto parsed_url = encoding_parse_url(url);
+
+    // 2. If url is failure, then return failure.
+    if (!parsed_url.is_valid())
+        return {};
+
+    // 3. Return the result of applying the URL serializer to url.
+    return parsed_url.serialize();
 }
 
 void Document::set_needs_layout()

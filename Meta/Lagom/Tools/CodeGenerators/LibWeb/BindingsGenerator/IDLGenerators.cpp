@@ -3626,7 +3626,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
         }
     }
 
-    if (!has_keyword && !did_set_to_missing_value) 
+    if (!has_keyword && !did_set_to_missing_value)
         retval = "@invalid_enum_default_value@"_string;
     )~~~");
 
@@ -3782,9 +3782,9 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
     if (!content_attribute_value.has_value())
         return JS::PrimitiveString::create(vm, String {});
 
-    auto url_string = impl->document().parse_url(*content_attribute_value);
-    if (url_string.is_valid())
-        return JS::PrimitiveString::create(vm, url_string.to_string());
+    auto url_string = impl->document().encoding_parse_and_serialize_url(*content_attribute_value);
+    if (url_string.has_value())
+        return JS::PrimitiveString::create(vm, url_string.release_value());
 )~~~");
                 }
 

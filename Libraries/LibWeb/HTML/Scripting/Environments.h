@@ -88,6 +88,8 @@ public:
     virtual CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() const = 0;
 
     URL::URL parse_url(StringView);
+    URL::URL encoding_parse_url(StringView);
+    Optional<String> encoding_parse_and_serialize_url(StringView);
 
     JS::Realm& realm();
     JS::Object& global_object();

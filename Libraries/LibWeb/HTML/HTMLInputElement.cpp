@@ -1319,7 +1319,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::handle_src_attribute(String const& v
 
     // 1. Let url be the result of encoding-parsing a URL given the src attribute's value, relative to the element's
     //    node document.
-    auto url = document().parse_url(value);
+    auto url = document().encoding_parse_url(value);
 
     // 2. If url is failure, then return.
     if (!url.is_valid())

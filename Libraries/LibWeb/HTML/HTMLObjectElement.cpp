@@ -137,7 +137,7 @@ String HTMLObjectElement::data() const
     if (!data.has_value())
         return {};
 
-    return document().parse_url(*data).to_string();
+    return document().encoding_parse_url(*data).to_string();
 }
 
 GC::Ptr<Layout::Node> HTMLObjectElement::create_layout_node(CSS::StyleProperties style)
@@ -401,7 +401,7 @@ void HTMLObjectElement::load_image()
 {
     // NOTE: This currently reloads the image instead of reusing the resource we've already downloaded.
     auto data = get_attribute_value(HTML::AttributeNames::data);
-    auto url = document().parse_url(data);
+    auto url = document().encoding_parse_url(data);
     m_resource_request = HTML::SharedResourceRequest::get_or_create(realm(), document().page(), url);
     m_resource_request->add_callbacks(
         [this] {
