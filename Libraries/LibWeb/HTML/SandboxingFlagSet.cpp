@@ -10,11 +10,24 @@
 namespace Web::HTML {
 
 //  https://html.spec.whatwg.org/multipage/browsers.html#parse-a-sandboxing-directive
-SandboxingFlagSet parse_a_sandboxing_directive(String const& input)
+SandboxingFlagSet parse_a_sandboxing_directive(Variant<String, Vector<String>> input)
 {
     // 1. Split input on ASCII whitespace, to obtain tokens.
-    auto lowercase_input = input.to_ascii_lowercase();
-    auto tokens = lowercase_input.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
+    Vector<String> tokens;
+    if (input.has<String>()) {
+        auto lowercase_input = input.get<String>().to_ascii_lowercase();
+        auto token_views = lowercase_input.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
+        tokens.ensure_capacity(token_views.size());
+        for (auto token : token_views) {
+            tokens.unchecked_append(MUST(String::from_utf8(token)));
+        }
+    } else {
+        auto const& pre_parsed_tokens = input.get<Vector<String>>();
+        tokens.ensure_capacity(pre_parsed_tokens.size());
+        for (auto const& token : pre_parsed_tokens) {
+            tokens.unchecked_append(token.to_ascii_lowercase());
+        }
+    }
 
     // 2. Let output be empty.
     SandboxingFlagSet output {};
