@@ -50,6 +50,10 @@ JS::ThrowCompletionOr<GC::Ptr<WebGLRenderingContext>> WebGLRenderingContext::cre
     auto context_attributes = TRY(convert_value_to_context_attributes_dictionary(canvas_element.vm(), options));
 
     auto skia_backend_context = canvas_element.navigable()->traversable_navigable()->skia_backend_context();
+    if (!skia_backend_context) {
+        fire_webgl_context_creation_error(canvas_element);
+        return GC::Ptr<WebGLRenderingContext> { nullptr };
+    }
     auto context = OpenGLContext::create(*skia_backend_context);
     if (!context) {
         fire_webgl_context_creation_error(canvas_element);
