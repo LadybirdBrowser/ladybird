@@ -371,15 +371,15 @@ Optional<Unicode::CalendarPattern> get_date_time_format(Unicode::CalendarPattern
         return IterationDecision::Continue;
     });
 
-    // 17. If anyPresent is true and needDefaults is true, return null.
-    if (any_present && need_defaults) {
-        // FIXME: Spec issue: We can hit this when setting `bestFormat`, which should never be null. Don't return for now.
-        //        https://github.com/tc39/proposal-temporal/issues/3049
-    }
-
-    // 18. If needDefaults is true, then
+    // 17. If needDefaults is true, then
     if (need_defaults) {
-        // a. For each property name prop of defaultOptions, do
+        // a. If anyPresent is true, return null.
+        if (any_present) {
+            // FIXME: Spec issue: We can hit this when setting `bestFormat`, which should never be null. Don't return for now.
+            //        https://github.com/tc39/proposal-temporal/issues/3049
+        }
+
+        // b. For each property name prop of defaultOptions, do
         options.for_each_calendar_field_zipped_with(format_options, default_options, [&](auto const&, auto& format_option) {
             using ValueType = typename RemoveCVReference<decltype(format_option)>::ValueType;
 
@@ -391,18 +391,18 @@ Optional<Unicode::CalendarPattern> get_date_time_format(Unicode::CalendarPattern
             return IterationDecision::Continue;
         });
 
-        // b. If defaults is ZONED-DATE-TIME, then
+        // c. If defaults is ZONED-DATE-TIME, then
         if (defaults == OptionDefaults::ZonedDateTime) {
             // i. Set formatOptions.[[timeZoneName]] to "short".
             format_options.time_zone_name = Unicode::CalendarPatternStyle::Short;
         }
     }
 
-    // 19. If matcher is "basic", then
+    // 18. If matcher is "basic", then
     //     a. Let bestFormat be BasicFormatMatcher(formatOptions, formats).
-    // 20. Else,
+    // 19. Else,
     //     a. Let bestFormat be BestFitFormatMatcher(formatOptions, formats).
-    // 21. Return bestFormat.
+    // 20. Return bestFormat.
     return format_options;
 }
 
