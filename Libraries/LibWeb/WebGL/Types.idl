@@ -10,3 +10,6 @@ typedef long long GLsizeiptr;
 typedef unrestricted float GLfloat;
 typedef unrestricted float GLclampf;
 
+// WebGL 2.0
+typedef long long GLint64;
+typedef unsigned long long GLuint64;
