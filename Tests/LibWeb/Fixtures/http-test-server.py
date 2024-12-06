@@ -25,6 +25,7 @@ class Echo:
     headers: Optional[Dict[str, str]]
     body: Optional[str]
     delay_ms: Optional[str]
+    reason_phrase: Optional[str]
 
 
 # In-memory store for echo responses
@@ -56,6 +57,7 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             echo.body = data.get("body", None)
             echo.delay_ms = data.get("delay_ms", None)
             echo.headers = data.get("headers", None)
+            echo.reason_phrase = data.get("reason_phrase", None)
 
             is_using_reserved_path = echo.path.startswith("/static") or echo.path.startswith("/echo")
 
@@ -126,7 +128,7 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 time.sleep(echo.delay_ms / 1000)
 
             # Send the status code without any default headers
-            self.send_response_only(echo.status)
+            self.send_response_only(echo.status, echo.reason_phrase)
 
             # Set only the headers defined in the echo definition
             if echo.headers is not None:
