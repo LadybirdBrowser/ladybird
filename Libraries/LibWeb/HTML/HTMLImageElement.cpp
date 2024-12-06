@@ -354,7 +354,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> HTMLImageElement::decode() const
         Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, promise, &realm, &global] {
             Platform::EventLoopPlugin::the().spin_until(GC::create_function(heap(), [&] {
                 auto queue_reject_task = [&](String const& message) {
-                    queue_global_task(Task::Source::DOMManipulation, global, GC::create_function(realm.heap(), [&realm, &promise, &message] {
+                    queue_global_task(Task::Source::DOMManipulation, global, GC::create_function(realm.heap(), [&realm, promise, message = String(message)] {
                         auto exception = WebIDL::EncodingError::create(realm, message);
                         HTML::TemporaryExecutionContext context(realm);
                         WebIDL::reject_promise(realm, promise, exception);
@@ -391,7 +391,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> HTMLImageElement::decode() const
                     // FIXME: If decoding fails (for example due to invalid image data), then queue a global task on the DOM manipulation task source with global to reject promise with an "EncodingError" DOMException.
 
                     // NOTE: For now we just resolve it.
-                    queue_global_task(Task::Source::DOMManipulation, global, GC::create_function(realm.heap(), [&realm, &promise] {
+                    queue_global_task(Task::Source::DOMManipulation, global, GC::create_function(realm.heap(), [&realm, promise] {
                         HTML::TemporaryExecutionContext context(realm);
                         WebIDL::resolve_promise(realm, promise, JS::js_undefined());
                     }));
