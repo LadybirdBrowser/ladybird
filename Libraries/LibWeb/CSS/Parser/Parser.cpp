@@ -9052,7 +9052,7 @@ bool Parser::expand_variables(DOM::Element& element, Optional<Selector::PseudoEl
         if (parent->has_cycles())
             return false;
 
-        if (auto custom_property_value = get_custom_property(element, pseudo_element, custom_property_name)) {
+        if (auto custom_property_value = get_custom_property(element, pseudo_element, custom_property_name); !is_css_wide_keyword(custom_property_value->to_string())) {
             VERIFY(custom_property_value->is_unresolved());
             TokenStream custom_property_tokens { custom_property_value->as_unresolved().values() };
             if (!expand_variables(element, pseudo_element, custom_property_name, dependencies, custom_property_tokens, dest))

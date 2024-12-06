@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/css-custom-property-fallback-ref.html" />
+<style>
+    :root {
+        --custom-prop: initial;
+        --main-bg: var(--custom-prop, #00ffff);
+    }
+
+    body {
+        background-color: var(--main-bg);
+    }
+</style>
+<body></body>
