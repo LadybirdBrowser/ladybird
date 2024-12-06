@@ -73,7 +73,7 @@ private:
 
     GLenum m_error { 0 };
 
-    void set_error(GLenum error);
+    virtual void set_error(GLenum error) override;
 };
 
 }

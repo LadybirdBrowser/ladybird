@@ -72,7 +72,7 @@ private:
 
     GLenum m_error { 0 };
 
-    void set_error(GLenum error);
+    virtual void set_error(GLenum error) override;
 };
 
 void fire_webgl_context_event(HTML::HTMLCanvasElement& canvas_element, FlyString const& type);
