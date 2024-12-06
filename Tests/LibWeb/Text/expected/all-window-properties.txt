@@ -410,6 +410,7 @@ WebGLRenderingContext
 WebGLSampler
 WebGLShader
 WebGLShaderPrecisionFormat
+WebGLSync
 WebGLTexture
 WebGLUniformLocation
 WebKitCSSMatrix

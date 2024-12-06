@@ -817,6 +817,7 @@ set(SOURCES
     WebGL/WebGLSampler.cpp
     WebGL/WebGLShader.cpp
     WebGL/WebGLShaderPrecisionFormat.cpp
+    WebGL/WebGLSync.cpp
     WebGL/WebGLTexture.cpp
     WebGL/WebGLUniformLocation.cpp
     WebIDL/AbstractOperations.cpp
