@@ -845,6 +845,7 @@ class WebGLShader;
 class WebGLShaderPrecisionFormat;
 class WebGLTexture;
 class WebGLUniformLocation;
+class WebGLVertexArrayObject;
 }
 
 namespace Web::WebIDL {

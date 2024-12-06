@@ -426,8 +426,8 @@ interface mixin WebGL2RenderingContextBase {
     [FIXME] undefined uniformBlockBinding(WebGLProgram program, GLuint uniformBlockIndex, GLuint uniformBlockBinding);
 
     // Vertex Array Objects
-    [FIXME] WebGLVertexArrayObject createVertexArray();
-    [FIXME] undefined deleteVertexArray(WebGLVertexArrayObject? vertexArray);
-    [FIXME] GLboolean isVertexArray(WebGLVertexArrayObject? vertexArray); // [WebGLHandlesContextLoss]
-    [FIXME] undefined bindVertexArray(WebGLVertexArrayObject? array);
+    WebGLVertexArrayObject createVertexArray();
+    undefined deleteVertexArray(WebGLVertexArrayObject? vertexArray);
+    GLboolean isVertexArray(WebGLVertexArrayObject? vertexArray); // [WebGLHandlesContextLoss]
+    undefined bindVertexArray(WebGLVertexArrayObject? array);
 };
