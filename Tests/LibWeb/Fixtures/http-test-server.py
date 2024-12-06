@@ -25,7 +25,6 @@ class Echo:
     headers: Dict[str, str] | None
     body: str | None
     delay_ms: int | None
-    headers: dict | None
 
 
 # In-memory store for echo responses
