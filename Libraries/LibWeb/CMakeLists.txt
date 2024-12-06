@@ -490,6 +490,7 @@ set(SOURCES
     HTML/PotentialCORSRequest.cpp
     HTML/PromiseRejectionEvent.cpp
     HTML/RadioNodeList.cpp
+    HTML/SandboxingFlagSet.cpp
     HTML/Scripting/ClassicScript.cpp
     HTML/Scripting/Environments.cpp
     HTML/Scripting/EnvironmentSettingsSnapshot.cpp
