@@ -5,18 +5,18 @@
 // https://registry.khronos.org/webgl/specs/latest/2.0/#3.7
 interface mixin WebGL2RenderingContextOverloads {
     // WebGL1:
-    [FIXME] undefined bufferData(GLenum target, GLsizeiptr size, GLenum usage);
-    [FIXME] undefined bufferData(GLenum target, AllowSharedBufferSource? srcData, GLenum usage);
+    undefined bufferData(GLenum target, GLsizeiptr size, GLenum usage);
+    undefined bufferData(GLenum target, BufferSource? srcData, GLenum usage);
     [FIXME] undefined bufferSubData(GLenum target, GLintptr dstByteOffset, AllowSharedBufferSource srcData);
     // WebGL2:
     [FIXME] undefined bufferData(GLenum target, [AllowShared] ArrayBufferView srcData, GLenum usage, unsigned long long srcOffset, optional GLuint length = 0);
     [FIXME] undefined bufferSubData(GLenum target, GLintptr dstByteOffset, [AllowShared] ArrayBufferView srcData, unsigned long long srcOffset, optional GLuint length = 0);
 
     // WebGL1 legacy entrypoints:
-    [FIXME] undefined texImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, [AllowShared] ArrayBufferView? pixels);
+    undefined texImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, [AllowShared] ArrayBufferView? pixels);
 
     // May throw DOMException
-    [FIXME] undefined texImage2D(GLenum target, GLint level, GLint internalformat, GLenum format, GLenum type, TexImageSource source);
+    undefined texImage2D(GLenum target, GLint level, GLint internalformat, GLenum format, GLenum type, TexImageSource source);
 
     [FIXME] undefined texSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, [AllowShared] ArrayBufferView? pixels);
 
