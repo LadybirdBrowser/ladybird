@@ -1,0 +1,42 @@
+Harness status: OK
+
+Found 37 tests
+
+37 Pass
+Pass	the event is an instance of ToggleEvent
+Pass	the event inherts from Event
+Pass	Missing type argument
+Pass	type argument is string
+Pass	type argument is null
+Pass	event type set to undefined
+Pass	oldState has default value of empty string
+Pass	oldState is readonly
+Pass	newState has default value of empty string
+Pass	newState is readonly
+Pass	ToggleEventInit argument is null
+Pass	ToggleEventInit argument is undefined
+Pass	ToggleEventInit argument is empty dictionary
+Pass	oldState set to 'sample'
+Pass	oldState set to undefined
+Pass	oldState set to null
+Pass	oldState set to false
+Pass	oldState set to true
+Pass	oldState set to a number
+Pass	oldState set to []
+Pass	oldState set to [1, 2, 3]
+Pass	oldState set to an object
+Pass	oldState set to an object with a valueOf function
+Pass	ToggleEventInit properties set value
+Pass	ToggleEventInit properties set value 2
+Pass	ToggleEventInit properties set value 3
+Pass	ToggleEventInit properties set value 4
+Pass	newState set to 'sample'
+Pass	newState set to undefined
+Pass	newState set to null
+Pass	newState set to false
+Pass	newState set to true
+Pass	newState set to a number
+Pass	newState set to []
+Pass	newState set to [1, 2, 3]
+Pass	newState set to an object
+Pass	newState set to an object with a valueOf function
