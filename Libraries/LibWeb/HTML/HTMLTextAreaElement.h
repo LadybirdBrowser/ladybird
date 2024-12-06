@@ -157,9 +157,6 @@ private:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-fe-dirty
     bool m_dirty_value { false };
 
-    // https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element:concept-fe-mutable
-    bool m_is_mutable { true };
-
     // https://html.spec.whatwg.org/multipage/form-elements.html#concept-textarea-raw-value
     String m_raw_value;
 

@@ -137,7 +137,9 @@ public:
     // NOTE: This is intended for the JS bindings.
     u16 node_type() const { return (u16)m_type; }
 
-    virtual bool is_editable() const;
+    bool is_editable() const;
+    bool is_editing_host() const;
+    bool is_editable_or_editing_host() const { return is_editable() || is_editing_host(); }
 
     virtual bool is_dom_node() const final { return true; }
     virtual bool is_html_element() const { return false; }

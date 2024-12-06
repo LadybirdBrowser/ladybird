@@ -2,6 +2,7 @@
  * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2022, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2021, Luke Wilde <lukew@serenityos.org>
+ * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,7 +12,6 @@
 #include <LibGC/DeferGC.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibRegex/Regex.h>
-#include <LibURL/Origin.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/NodePrototype.h>
 #include <LibWeb/DOM/Attr.h>
@@ -44,16 +44,18 @@
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/HTMLStyleElement.h>
 #include <LibWeb/HTML/HTMLTableElement.h>
+#include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TextNode.h>
-#include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/MathML/MathMLElement.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGTitleElement.h>
 #include <LibWeb/XLink/AttributeNames.h>
 
@@ -1183,9 +1185,48 @@ void Node::set_document(Badge<Document>, Document& document)
     }
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#editable
 bool Node::is_editable() const
 {
-    return parent() && parent()->is_editable();
+    // Something is editable if it is a node; it is not an editing host;
+    if (is_editing_host())
+        return false;
+
+    // it does not have a contenteditable attribute set to the false state;
+    if (is<HTML::HTMLElement>(this) && static_cast<HTML::HTMLElement const&>(*this).content_editable_state() == HTML::ContentEditableState::False)
+        return false;
+
+    // its parent is an editing host or editable;
+    if (!parent() || !parent()->is_editable_or_editing_host())
+        return false;
+
+    // and either it is an HTML element,
+    if (is<HTML::HTMLElement>(this))
+        return true;
+
+    // or it is an svg or math element,
+    if (is<SVG::SVGElement>(this) || is<MathML::MathMLElement>(this))
+        return true;
+
+    // or it is not an Element and its parent is an HTML element.
+    return !is<Element>(this) && is<HTML::HTMLElement>(parent());
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#editing-host
+bool Node::is_editing_host() const
+{
+    // NOTE: Both conditions below require this to be an HTML element.
+    if (!is<HTML::HTMLElement>(this))
+        return false;
+
+    // An editing host is either an HTML element with its contenteditable attribute in the true state or
+    // plaintext-only state,
+    auto state = static_cast<HTML::HTMLElement const&>(*this).content_editable_state();
+    if (state == HTML::ContentEditableState::True || state == HTML::ContentEditableState::PlaintextOnly)
+        return true;
+
+    // or a child HTML element of a Document whose design mode enabled is true.
+    return is<Document>(parent()) && static_cast<Document const&>(*parent()).design_mode_enabled_state();
 }
 
 void Node::set_layout_node(Badge<Layout::Node>, GC::Ref<Layout::Node> layout_node)

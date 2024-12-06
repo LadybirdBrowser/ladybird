@@ -611,7 +611,7 @@ bool DragAndDropEventHandler::allow_text_drop(GC::Ref<DOM::Node> node) const
     if (!m_drag_data_store->has_text_item())
         return false;
 
-    if (node->is_editable())
+    if (node->is_editable_or_editing_host())
         return true;
 
     if (is<HTML::HTMLTextAreaElement>(*node))

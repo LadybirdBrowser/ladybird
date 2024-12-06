@@ -288,11 +288,7 @@ bool is_element_editable(Web::DOM::Element const& element)
 bool is_element_mutable(Web::DOM::Element const& element)
 {
     // Denotes elements that are editing hosts or content editable.
-    if (!is<HTML::HTMLElement>(element))
-        return false;
-
-    auto const& html_element = static_cast<HTML::HTMLElement const&>(element);
-    return html_element.is_editable();
+    return element.is_editable_or_editing_host();
 }
 
 // https://w3c.github.io/webdriver/#dfn-mutable-form-control-element

@@ -34,7 +34,6 @@ bool is_block_end_point(GC::Ref<DOM::Node>, u32 offset);
 bool is_block_node(GC::Ref<DOM::Node>);
 bool is_block_start_point(GC::Ref<DOM::Node>, u32 offset);
 bool is_collapsed_whitespace_node(GC::Ref<DOM::Node>);
-bool is_editing_host(GC::Ref<DOM::Node>);
 bool is_element_with_inline_contents(GC::Ref<DOM::Node>);
 bool is_extraneous_line_break(GC::Ref<DOM::Node>);
 bool is_in_same_editing_host(GC::Ref<DOM::Node>, GC::Ref<DOM::Node>);

@@ -411,7 +411,7 @@ static bool matches_read_write_pseudo_class(DOM::Element const& element)
         return true;
     }
     // - elements that are editing hosts or editable and are neither input elements nor textarea elements
-    return element.is_editable();
+    return element.is_editable_or_editing_host();
 }
 
 // https://www.w3.org/TR/selectors-4/#open-state
