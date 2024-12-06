@@ -596,9 +596,8 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSP
         if (m_in_mouse_selection) {
             auto hit = paint_root()->hit_test(viewport_position, Painting::HitTestType::TextCursor);
             if (m_mouse_selection_target) {
-                if (hit.has_value()) {
+                if (hit.has_value() && hit->paintable->dom_node())
                     m_mouse_selection_target->set_selection_focus(*hit->paintable->dom_node(), hit->index_in_node);
-                }
             } else {
                 if (start_index.has_value() && hit.has_value() && hit->dom_node()) {
                     if (auto selection = document.get_selection()) {
