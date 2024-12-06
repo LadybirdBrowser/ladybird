@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/EnumBits.h>
+#include <AK/String.h>
 #include <AK/Types.h>
 
 namespace Web::HTML {
@@ -34,5 +35,7 @@ enum class SandboxingFlagSet {
 
 AK_ENUM_BITWISE_OPERATORS(SandboxingFlagSet);
 inline bool is_empty(SandboxingFlagSet s) { return (to_underlying(s) & 0x1FFU) == 0; }
+
+SandboxingFlagSet parse_a_sandboxing_directive(String const& input);
 
 }
