@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // This test ensures that the Headers get() methods can handle non-ASCII latin1 characters: code points U+0080-U+00FF.
+    test(() => {
+      println("--------------------------------");
+      println("Headers constructor")
+      println("--------------------------------");
+      const headers = new Headers({
+        "Accept": "before-æøå-after",
+        "X-Test": "before-ß-after"
+      });
+      println("Accept: " + headers.get("Accept"));
+      println("X-Test: " + headers.get("X-Test"));
+
+      println("\n--------------------------------");
+      println("Headers.append()")
+      println("--------------------------------");
+      const headers2 = new Headers();
+      headers2.append("Accept", "before-æøå-after");
+      headers2.append("X-Test", "before-ß-after");
+      println("Accept: " + headers2.get("Accept"));
+      println("X-Test: " + headers2.get("X-Test"));
+
+      println("\n--------------------------------");
+      println("Headers.set()")
+      println("--------------------------------");
+      const headers3 = new Headers({
+        "X-Test": "should be overwritten"
+      });
+      headers3.set("Accept", "before-æøå-after");
+      headers3.set("X-Test", "before-ß-after");
+      println("Accept: " + headers3.get("Accept"));
+      println("X-Test: " + headers3.get("X-Test"));
+
+      println("\n--------------------------------");
+      println("Headers.getSetCookie()")
+      println("--------------------------------");
+      const headers4 = new Headers({
+        "Set-Cookie": "before-æøå-after",
+      });
+      println("Set-Cookie: " + headers4.getSetCookie());
+
+      println("\n--------------------------------");
+      println("Headers iterator")
+      println("--------------------------------");
+      const headers5 = new Headers({
+        "Accept": "before-æøå-after",
+        "X-Test": "before-ß-after"
+      });
+      for (const [key, value] of headers5) {
+        println(`${key}: ${value}`);
+      }
+
+      println("\n--------------------------------");
+      println("Headers.forEach()")
+      println("--------------------------------");
+      const headers6 = new Headers({
+        "Accept": "before-æøå-after",
+        "X-Test": "before-ß-after"
+      });
+      headers6.forEach((value, key) => {
+        println(`${key}: ${value}`);
+      });
+    });
+</script>
