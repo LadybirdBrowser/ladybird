@@ -520,14 +520,6 @@ public:
             continue;
         }
 
-        if (function.name == "getAttribLocation"sv) {
-            function_impl_generator.append(R"~~~(
-    auto name_str = null_terminated_string(name);
-    return glGetAttribLocation(program->handle(), name_str.data());
-)~~~");
-            continue;
-        }
-
         if (function.name == "vertexAttribPointer"sv) {
             function_impl_generator.append(R"~~~(
     glVertexAttribPointer(index, size, type, normalized, stride, reinterpret_cast<void*>(offset));
@@ -625,14 +617,6 @@ public:
         if (function.name == "bufferData"sv && function.overload_index == 0) {
             function_impl_generator.append(R"~~~(
     glBufferData(target, size, 0, usage);
-)~~~");
-            continue;
-        }
-
-        if (function.name == "getUniformLocation"sv) {
-            function_impl_generator.append(R"~~~(
-    auto name_str = null_terminated_string(name);
-    return WebGLUniformLocation::create(m_realm, glGetUniformLocation(program->handle(), name_str.data()));
 )~~~");
             continue;
         }
