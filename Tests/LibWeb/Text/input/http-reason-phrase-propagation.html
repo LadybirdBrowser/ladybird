@@ -1,0 +1,27 @@
+<script src="./include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const expectedStatusText = "WHF";
+
+        try {
+            const httpServer = httpTestServer();
+            const url = await httpServer.createEcho("GET", "/http-reason-phrase-test", {
+                status: 200,
+                reason_phrase: expectedStatusText,
+                headers: {
+                    "Access-Control-Allow-Origin": "*",
+                },
+            });
+
+            const result = await fetch(url);
+            const statusText = result.statusText;
+
+            if (statusText === expectedStatusText) {
+                println(`PASS: ${statusText}`);
+            }
+        } catch (err) {
+            println("FAIL - " + err);
+        }
+        done();
+    });
+</script>
