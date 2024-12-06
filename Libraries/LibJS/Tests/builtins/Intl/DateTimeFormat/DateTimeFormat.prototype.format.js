@@ -75,6 +75,22 @@ describe("errors", () => {
             "Cannot format Temporal.ZonedDateTime, use Temporal.ZonedDateTime.prototype.toLocaleString"
         );
     });
+
+    test("Temporal fields must overlap formatter", () => {
+        const yearFormatter = new Intl.DateTimeFormat([], { year: "numeric", calendar: "iso8601" });
+        const plainMonthDay = new Temporal.PlainMonthDay(1, 1);
+
+        const dayFormatter = new Intl.DateTimeFormat([], { day: "numeric", calendar: "iso8601" });
+        const plainYearMonth = new Temporal.PlainYearMonth(1972, 1);
+
+        expect(() => {
+            yearFormatter.format(plainMonthDay);
+        }).toThrowWithMessage(TypeError, "Unable to determine format for Temporal.PlainMonthDay");
+
+        expect(() => {
+            dayFormatter.format(plainYearMonth);
+        }).toThrowWithMessage(TypeError, "Unable to determine format for Temporal.PlainYearMonth");
+    });
 });
 
 const d0 = Date.UTC(2021, 11, 7, 17, 40, 50, 456);

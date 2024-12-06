@@ -373,11 +373,9 @@ Optional<Unicode::CalendarPattern> get_date_time_format(Unicode::CalendarPattern
 
     // 17. If needDefaults is true, then
     if (need_defaults) {
-        // a. If anyPresent is true, return null.
-        if (any_present) {
-            // FIXME: Spec issue: We can hit this when setting `bestFormat`, which should never be null. Don't return for now.
-            //        https://github.com/tc39/proposal-temporal/issues/3049
-        }
+        // a. If anyPresent is true and inherit is RELEVANT, return null.
+        if (any_present && inherit == OptionInherit::Relevant)
+            return {};
 
         // b. For each property name prop of defaultOptions, do
         options.for_each_calendar_field_zipped_with(format_options, default_options, [&](auto const&, auto& format_option) {

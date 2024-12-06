@@ -112,6 +112,22 @@ describe("errors", () => {
             "Cannot format a date-time range with different date-time types"
         );
     });
+
+    test("Temporal fields must overlap formatter", () => {
+        const yearFormatter = new Intl.DateTimeFormat([], { year: "numeric", calendar: "iso8601" });
+        const plainMonthDay = new Temporal.PlainMonthDay(1, 1);
+
+        const dayFormatter = new Intl.DateTimeFormat([], { day: "numeric", calendar: "iso8601" });
+        const plainYearMonth = new Temporal.PlainYearMonth(1972, 1);
+
+        expect(() => {
+            yearFormatter.formatRangeToParts(plainMonthDay, plainMonthDay);
+        }).toThrowWithMessage(TypeError, "Unable to determine format for Temporal.PlainMonthDay");
+
+        expect(() => {
+            dayFormatter.formatRangeToParts(plainYearMonth, plainYearMonth);
+        }).toThrowWithMessage(TypeError, "Unable to determine format for Temporal.PlainYearMonth");
+    });
 });
 
 const d0 = Date.UTC(1989, 0, 23, 7, 8, 9, 45);
