@@ -23,7 +23,8 @@ static bool is_webgl_object_type(StringView type_name)
         || type_name == "WebGLRenderbuffer"sv
         || type_name == "WebGLShader"sv
         || type_name == "WebGLTexture"sv
-        || type_name == "WebGLUniformLocation"sv;
+        || type_name == "WebGLUniformLocation"sv
+        || type_name == "WebGLVertexArrayObject"sv;
 }
 
 static bool gl_function_modifies_framebuffer(StringView function_name)
@@ -325,6 +326,18 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     SourceGenerator implementation_file_generator { implementation_file_string_builder };
     implementation_file_generator.set("class_name", class_name);
 
+    auto webgl_version = class_name == "WebGLRenderingContext" ? 1 : 2;
+    if (webgl_version == 1) {
+        implementation_file_generator.append(R"~~~(
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
+)~~~");
+    } else {
+        implementation_file_generator.append(R"~~~(
+#include <GLES3/gl3.h>
+)~~~");
+    }
+
     implementation_file_generator.append(R"~~~(
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DataView.h>
@@ -345,10 +358,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 #include <LibWeb/WebGL/WebGLShaderPrecisionFormat.h>
 #include <LibWeb/WebGL/WebGLTexture.h>
 #include <LibWeb/WebGL/WebGLUniformLocation.h>
+#include <LibWeb/WebGL/WebGLVertexArrayObject.h>
 #include <LibWeb/WebIDL/Buffers.h>
-
-#include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
 
 namespace Web::WebGL {
 
@@ -484,6 +495,15 @@ public:
     GLuint handle = 0;
     glGenRenderbuffers(1, &handle);
     return WebGLRenderbuffer::create(m_realm, handle);
+)~~~");
+            continue;
+        }
+
+        if (function.name == "createVertexArray"sv) {
+            function_impl_generator.append(R"~~~(
+    GLuint handle = 0;
+    glGenVertexArrays(1, &handle);
+    return WebGLVertexArrayObject::create(m_realm, handle);
 )~~~");
             continue;
         }
@@ -779,6 +799,14 @@ public:
             function_impl_generator.append(R"~~~(
     auto handle = texture ? texture->handle() : 0;
     glDeleteTextures(1, &handle);
+)~~~");
+            continue;
+        }
+
+        if (function.name == "deleteVertexArray"sv) {
+            function_impl_generator.append(R"~~~(
+    auto handle = vertexArray ? vertexArray->handle() : 0;
+    glDeleteVertexArrays(1, &handle);
 )~~~");
             continue;
         }
