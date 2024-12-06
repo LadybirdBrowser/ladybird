@@ -15,11 +15,11 @@
 
 static bool is_webgl_object_type(StringView type_name)
 {
-    return type_name == "WebGLShader"sv
-        || type_name == "WebGLBuffer"sv
+    return type_name == "WebGLBuffer"sv
         || type_name == "WebGLFramebuffer"sv
         || type_name == "WebGLProgram"sv
         || type_name == "WebGLRenderbuffer"sv
+        || type_name == "WebGLShader"sv
         || type_name == "WebGLTexture"sv
         || type_name == "WebGLUniformLocation"sv;
 }
