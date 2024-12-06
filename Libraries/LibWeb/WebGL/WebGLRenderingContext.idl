@@ -1,3 +1,4 @@
+#import <HTML/HTMLCanvasElement.idl>
 #import <WebGL/WebGLRenderingContextBase.idl>
 #import <WebGL/WebGLRenderingContextOverloads.idl>
 

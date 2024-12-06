@@ -6,6 +6,8 @@
  */
 
 #include "BindingsGenerator/IDLGenerators.h"
+
+#include <AK/LexicalPath.h>
 #include <AK/SourceGenerator.h>
 #include <AK/StringBuilder.h>
 #include <LibCore/ArgsParser.h>
@@ -275,7 +277,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     StringView webgl_context_idl_path;
 
     Core::ArgsParser args_parser;
-    args_parser.add_option(webgl_context_idl_path, "Path to the WebGLRenderingContext.idl file", "webgl-idl-path", 'i', "webgl-idl-path");
+    args_parser.add_option(webgl_context_idl_path, "Path to the WebGLRenderingContext idl file", "webgl-idl-path", 'i', "webgl-idl-path");
     args_parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
         .help_string = "Path to root of IDL file tree(s)",
@@ -287,8 +289,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
             return true;
         },
     });
-    args_parser.add_option(generated_header_path, "Path to the Enums header file to generate", "generated-header-path", 'h', "generated-header-path");
-    args_parser.add_option(generated_implementation_path, "Path to the Enums implementation file to generate", "generated-implementation-path", 'c', "generated-implementation-path");
+    args_parser.add_option(generated_header_path, "Path to the header file to generate", "generated-header-path", 'h', "generated-header-path");
+    args_parser.add_option(generated_implementation_path, "Path to the implementation file to generate", "generated-implementation-path", 'c', "generated-implementation-path");
     args_parser.parse(arguments);
 
     auto generated_header_file = TRY(Core::File::open(generated_header_path, Core::File::OpenMode::Write));
@@ -306,11 +308,20 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     IDL::Parser parser(webgl_context_idl_path, StringView(webgl_context_idl_file_content), import_base_paths);
     auto const& interface = parser.parse();
 
+    auto path = LexicalPath(generated_header_path);
+    auto title = path.title();
+    auto first_dot = title.find('.');
+    ByteString class_name = title;
+    if (first_dot.has_value())
+        class_name = title.substring_view(0, *first_dot);
+
     StringBuilder header_file_string_builder;
     SourceGenerator header_file_generator { header_file_string_builder };
+    header_file_generator.set("class_name", class_name);
 
     StringBuilder implementation_file_string_builder;
     SourceGenerator implementation_file_generator { implementation_file_string_builder };
+    implementation_file_generator.set("class_name", class_name);
 
     implementation_file_generator.append(R"~~~(
 #include <LibJS/Runtime/ArrayBuffer.h>
@@ -327,7 +338,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 #include <LibWeb/WebGL/WebGLFramebuffer.h>
 #include <LibWeb/WebGL/WebGLProgram.h>
 #include <LibWeb/WebGL/WebGLRenderbuffer.h>
-#include <LibWeb/WebGL/WebGLRenderingContextImpl.h>
+#include <LibWeb/WebGL/@class_name@.h>
 #include <LibWeb/WebGL/WebGLShader.h>
 #include <LibWeb/WebGL/WebGLShaderPrecisionFormat.h>
 #include <LibWeb/WebGL/WebGLTexture.h>
@@ -348,7 +359,7 @@ static Vector<GLchar> null_terminated_string(StringView string)
     return result;
 }
 
-WebGLRenderingContextImpl::WebGLRenderingContextImpl(JS::Realm& realm, NonnullOwnPtr<OpenGLContext> context)
+@class_name@::@class_name@(JS::Realm& realm, NonnullOwnPtr<OpenGLContext> context)
     : m_realm(realm)
     , m_context(move(context))
 {
@@ -370,9 +381,9 @@ namespace Web::WebGL {
 
 using namespace Web::HTML;
 
-class WebGLRenderingContextImpl {
+class @class_name@ {
 public:
-    WebGLRenderingContextImpl(JS::Realm&, NonnullOwnPtr<OpenGLContext>);
+    @class_name@(JS::Realm&, NonnullOwnPtr<OpenGLContext>);
 
     OpenGLContext& context() { return *m_context; }
 
@@ -418,6 +429,7 @@ public:
 
         StringBuilder function_impl;
         SourceGenerator function_impl_generator { function_impl };
+        function_impl_generator.set("class_name", class_name);
 
         ScopeGuard function_guard { [&] {
             function_impl_generator.append("}\n"sv);
@@ -428,7 +440,7 @@ public:
         function_impl_generator.set("function_parameters", function_parameters.string_view());
         function_impl_generator.set("function_return_type", to_cpp_type(*function.return_type, interface));
         function_impl_generator.append(R"~~~(
-@function_return_type@ WebGLRenderingContextImpl::@function_name@(@function_parameters@)
+@function_return_type@ @class_name@::@function_name@(@function_parameters@)
 {
     m_context->make_current();
 )~~~");

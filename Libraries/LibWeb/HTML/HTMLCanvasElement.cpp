@@ -25,6 +25,7 @@
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Layout/CanvasBox.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWeb/WebGL/WebGL2RenderingContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 
@@ -55,6 +56,9 @@ void HTMLCanvasElement::visit_edges(Cell::Visitor& visitor)
             visitor.visit(context);
         },
         [&](GC::Ref<WebGL::WebGLRenderingContext>& context) {
+            visitor.visit(context);
+        },
+        [&](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
             visitor.visit(context);
         },
         [](Empty) {
@@ -124,6 +128,9 @@ void HTMLCanvasElement::reset_context_to_default_state()
         [](GC::Ref<WebGL::WebGLRenderingContext>& context) {
             context->reset_to_default_state();
         },
+        [](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
+            context->reset_to_default_state();
+        },
         [](Empty) {
             // Do nothing.
         });
@@ -136,6 +143,9 @@ void HTMLCanvasElement::notify_context_about_canvas_size_change()
             context->set_size(bitmap_size_for_canvas());
         },
         [&](GC::Ref<WebGL::WebGLRenderingContext>& context) {
+            context->set_size(bitmap_size_for_canvas());
+        },
+        [&](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
             context->set_size(bitmap_size_for_canvas());
         },
         [](Empty) {
@@ -186,16 +196,17 @@ HTMLCanvasElement::HasOrCreatedContext HTMLCanvasElement::create_2d_context()
     return HasOrCreatedContext::Yes;
 }
 
+template<typename ContextType>
 JS::ThrowCompletionOr<HTMLCanvasElement::HasOrCreatedContext> HTMLCanvasElement::create_webgl_context(JS::Value options)
 {
     if (!m_context.has<Empty>())
-        return m_context.has<GC::Ref<WebGL::WebGLRenderingContext>>() ? HasOrCreatedContext::Yes : HasOrCreatedContext::No;
+        return m_context.has<GC::Ref<ContextType>>() ? HasOrCreatedContext::Yes : HasOrCreatedContext::No;
 
-    auto maybe_context = TRY(WebGL::WebGLRenderingContext::create(realm(), *this, options));
+    auto maybe_context = TRY(ContextType::create(realm(), *this, options));
     if (!maybe_context)
         return HasOrCreatedContext::No;
 
-    m_context = GC::Ref<WebGL::WebGLRenderingContext>(*maybe_context);
+    m_context = GC::Ref<ContextType>(*maybe_context);
     return HasOrCreatedContext::Yes;
 }
 
@@ -220,8 +231,15 @@ JS::ThrowCompletionOr<HTMLCanvasElement::RenderingContext> HTMLCanvasElement::ge
 
     // NOTE: The WebGL spec says "experimental-webgl" is also acceptable and must be equivalent to "webgl". Other engines accept this, so we do too.
     if (type.is_one_of("webgl"sv, "experimental-webgl"sv)) {
-        if (TRY(create_webgl_context(options)) == HasOrCreatedContext::Yes)
+        if (TRY(create_webgl_context<WebGL::WebGLRenderingContext>(options)) == HasOrCreatedContext::Yes)
             return GC::make_root(*m_context.get<GC::Ref<WebGL::WebGLRenderingContext>>());
+
+        return Empty {};
+    }
+
+    if (type == "webgl2"sv) {
+        if (TRY(create_webgl_context<WebGL::WebGL2RenderingContext>(options)) == HasOrCreatedContext::Yes)
+            return GC::make_root(*m_context.get<GC::Ref<WebGL::WebGL2RenderingContext>>());
 
         return Empty {};
     }
@@ -380,6 +398,9 @@ void HTMLCanvasElement::present()
         [](GC::Ref<WebGL::WebGLRenderingContext>& context) {
             context->present();
         },
+        [](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
+            context->present();
+        },
         [](Empty) {
             // Do nothing.
         });
@@ -394,6 +415,9 @@ RefPtr<Gfx::PaintingSurface> HTMLCanvasElement::surface() const
         [&](GC::Ref<WebGL::WebGLRenderingContext> const& context) -> RefPtr<Gfx::PaintingSurface> {
             return context->surface();
         },
+        [&](GC::Ref<WebGL::WebGL2RenderingContext> const& context) -> RefPtr<Gfx::PaintingSurface> {
+            return context->surface();
+        },
         [](Empty) -> RefPtr<Gfx::PaintingSurface> {
             return {};
         });
@@ -406,6 +430,9 @@ void HTMLCanvasElement::allocate_painting_surface_if_needed()
             context->allocate_painting_surface_if_needed();
         },
         [&](GC::Ref<WebGL::WebGLRenderingContext>& context) {
+            context->allocate_painting_surface_if_needed();
+        },
+        [&](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
             context->allocate_painting_surface_if_needed();
         },
         [](Empty) {
