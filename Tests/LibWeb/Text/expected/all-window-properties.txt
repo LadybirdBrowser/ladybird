@@ -414,6 +414,7 @@ WebGLSync
 WebGLTexture
 WebGLTransformFeedback
 WebGLUniformLocation
+WebGLVertexArrayObject
 WebKitCSSMatrix
 WebSocket
 WheelEvent
