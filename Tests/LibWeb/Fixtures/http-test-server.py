@@ -6,7 +6,7 @@ import os
 import socketserver
 import sys
 import time
-from typing import Dict
+from typing import Dict, Optional
 
 """
 Description:
@@ -22,9 +22,9 @@ class Echo:
     method: str
     path: str
     status: int
-    headers: Dict[str, str] | None
-    body: str | None
-    delay_ms: int | None
+    headers: Optional[Dict[str, str]]
+    body: Optional[str]
+    delay_ms: Optional[str]
 
 
 # In-memory store for echo responses
