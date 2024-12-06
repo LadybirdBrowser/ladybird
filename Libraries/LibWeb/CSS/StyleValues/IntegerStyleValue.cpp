@@ -8,7 +8,7 @@
 
 namespace Web::CSS {
 
-String IntegerStyleValue::to_string() const
+String IntegerStyleValue::to_string(SerializationMode) const
 {
     return String::number(m_value);
 }

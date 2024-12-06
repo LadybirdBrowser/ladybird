@@ -137,7 +137,7 @@ void HTMLProgressElement::computed_css_values_changed()
 
     auto const& accent_color_property = computed_css_values()->property(CSS::PropertyID::AccentColor);
     if (accent_color_property.has_color())
-        accent_color = accent_color_property.to_string();
+        accent_color = accent_color_property.to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal);
 
     if (m_progress_value_element)
         MUST(m_progress_value_element->style_for_bindings()->set_property(CSS::PropertyID::BackgroundColor, accent_color));

@@ -26,7 +26,7 @@ public:
     virtual double value() const override { return m_frequency.raw_value(); }
     virtual StringView unit() const override { return m_frequency.unit_name(); }
 
-    virtual String to_string() const override { return m_frequency.to_string(); }
+    virtual String to_string(SerializationMode) const override { return m_frequency.to_string(); }
 
     bool equals(CSSStyleValue const& other) const override
     {

@@ -13,7 +13,7 @@
 
 namespace Web::CSS {
 
-String ConicGradientStyleValue::to_string() const
+String ConicGradientStyleValue::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
     if (is_repeating())
@@ -26,11 +26,11 @@ String ConicGradientStyleValue::to_string() const
     if (has_at_position) {
         if (has_from_angle)
             builder.append(' ');
-        builder.appendff("at {}"sv, m_properties.position->to_string());
+        builder.appendff("at {}"sv, m_properties.position->to_string(mode));
     }
     if (has_from_angle || has_at_position)
         builder.append(", "sv);
-    serialize_color_stop_list(builder, m_properties.color_stop_list);
+    serialize_color_stop_list(builder, m_properties.color_stop_list, mode);
     builder.append(')');
     return MUST(builder.to_string());
 }

@@ -102,7 +102,7 @@ public:
 
     BasicShape const& basic_shape() const { return m_basic_shape; }
 
-    virtual String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
 
     bool properties_equal(BasicShapeStyleValue const& other) const { return m_basic_shape == other.m_basic_shape; }
 

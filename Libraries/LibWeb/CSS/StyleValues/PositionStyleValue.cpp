@@ -31,9 +31,9 @@ CSSPixelPoint PositionStyleValue::resolved(Layout::Node const& node, CSSPixelRec
     return CSSPixelPoint { rect.x() + x, rect.y() + y };
 }
 
-String PositionStyleValue::to_string() const
+String PositionStyleValue::to_string(SerializationMode mode) const
 {
-    return MUST(String::formatted("{} {}", m_properties.edge_x->to_string(), m_properties.edge_y->to_string()));
+    return MUST(String::formatted("{} {}", m_properties.edge_x->to_string(mode), m_properties.edge_y->to_string(mode)));
 }
 
 }

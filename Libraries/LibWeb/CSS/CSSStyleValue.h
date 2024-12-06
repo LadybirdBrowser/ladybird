@@ -360,7 +360,12 @@ public:
 
     virtual Color to_color(Optional<Layout::NodeWithStyle const&>) const { return {}; }
     Keyword to_keyword() const;
-    virtual String to_string() const = 0;
+
+    enum class SerializationMode {
+        Normal,
+        ResolvedValue,
+    };
+    virtual String to_string(SerializationMode) const = 0;
 
     [[nodiscard]] int to_font_weight() const;
     [[nodiscard]] int to_font_slope() const;
@@ -399,6 +404,6 @@ template<>
 struct AK::Formatter<Web::CSS::CSSStyleValue> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, Web::CSS::CSSStyleValue const& style_value)
     {
-        return Formatter<StringView>::format(builder, style_value.to_string());
+        return Formatter<StringView>::format(builder, style_value.to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal));
     }
 };

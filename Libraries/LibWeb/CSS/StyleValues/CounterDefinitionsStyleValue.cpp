@@ -9,7 +9,7 @@
 
 namespace Web::CSS {
 
-String CounterDefinitionsStyleValue::to_string() const
+String CounterDefinitionsStyleValue::to_string(SerializationMode mode) const
 {
     StringBuilder stb;
 
@@ -23,7 +23,7 @@ String CounterDefinitionsStyleValue::to_string() const
             stb.append(counter_definition.name);
 
         if (counter_definition.value)
-            stb.appendff(" {}", counter_definition.value->to_string());
+            stb.appendff(" {}", counter_definition.value->to_string(mode));
     }
 
     return stb.to_string_without_validation();

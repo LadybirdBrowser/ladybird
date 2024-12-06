@@ -31,7 +31,7 @@ String MediaFeatureValue::to_string() const
         [](ResolutionOrCalculated const& resolution) { return resolution.to_string(); },
         [](IntegerOrCalculated const& integer) {
             if (integer.is_calculated())
-                return integer.calculated()->to_string();
+                return integer.calculated()->to_string(CSSStyleValue::SerializationMode::Normal);
             return String::number(integer.value());
         });
 }

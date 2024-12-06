@@ -11,7 +11,7 @@
 
 namespace Web::CSS {
 
-String NumberStyleValue::to_string() const
+String NumberStyleValue::to_string(SerializationMode) const
 {
     return String::number(m_value);
 }

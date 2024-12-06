@@ -13,7 +13,7 @@
 
 namespace Web::CSS {
 
-String RadialGradientStyleValue::to_string() const
+String RadialGradientStyleValue::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
     if (is_repeating())
@@ -46,10 +46,10 @@ String RadialGradientStyleValue::to_string() const
         });
 
     if (!m_properties.position->is_center())
-        builder.appendff(" at {}"sv, m_properties.position->to_string());
+        builder.appendff(" at {}"sv, m_properties.position->to_string(mode));
 
     builder.append(", "sv);
-    serialize_color_stop_list(builder, m_properties.color_stop_list);
+    serialize_color_stop_list(builder, m_properties.color_stop_list, mode);
     builder.append(')');
     return MUST(builder.to_string());
 }

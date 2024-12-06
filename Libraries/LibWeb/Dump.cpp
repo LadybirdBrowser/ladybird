@@ -404,7 +404,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
         };
         Vector<NameAndValue> properties;
         verify_cast<DOM::Element>(*layout_node.dom_node()).computed_css_values()->for_each_property([&](auto property_id, auto& value) {
-            properties.append({ CSS::string_from_property_id(property_id), value.to_string() });
+            properties.append({ CSS::string_from_property_id(property_id), value.to_string(CSS::CSSStyleValue::SerializationMode::Normal) });
         });
         quick_sort(properties, [](auto& a, auto& b) { return a.name < b.name; });
 
@@ -827,14 +827,14 @@ void dump_declaration(StringBuilder& builder, CSS::PropertyOwningCSSStyleDeclara
     builder.appendff("Declarations ({}):\n", declaration.length());
     for (auto& property : declaration.properties()) {
         indent(builder, indent_levels);
-        builder.appendff("  {}: '{}'", CSS::string_from_property_id(property.property_id), property.value->to_string());
+        builder.appendff("  {}: '{}'", CSS::string_from_property_id(property.property_id), property.value->to_string(CSS::CSSStyleValue::SerializationMode::Normal));
         if (property.important == CSS::Important::Yes)
             builder.append(" \033[31;1m!important\033[0m"sv);
         builder.append('\n');
     }
     for (auto& property : declaration.custom_properties()) {
         indent(builder, indent_levels);
-        builder.appendff("  {}: '{}'", property.key, property.value.value->to_string());
+        builder.appendff("  {}: '{}'", property.key, property.value.value->to_string(CSS::CSSStyleValue::SerializationMode::Normal));
         if (property.value.important == CSS::Important::Yes)
             builder.append(" \033[31;1m!important\033[0m"sv);
         builder.append('\n');

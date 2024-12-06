@@ -25,7 +25,7 @@ public:
         VERIFY(!m_integer_value.is_null());
         return m_integer_value;
     }
-    virtual String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
 
     bool properties_equal(MathDepthStyleValue const& other) const;
 

@@ -19,7 +19,7 @@ AngleStyleValue::AngleStyleValue(Angle angle)
 
 AngleStyleValue::~AngleStyleValue() = default;
 
-String AngleStyleValue::to_string() const
+String AngleStyleValue::to_string(SerializationMode) const
 {
     return m_angle.to_string();
 }

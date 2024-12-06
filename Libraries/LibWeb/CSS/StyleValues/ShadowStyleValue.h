@@ -41,7 +41,7 @@ public:
     ValueComparingNonnullRefPtr<CSSStyleValue const> const& spread_distance() const { return m_properties.spread_distance; }
     ShadowPlacement placement() const { return m_properties.placement; }
 
-    virtual String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
 
     bool properties_equal(ShadowStyleValue const& other) const { return m_properties == other.m_properties; }
 

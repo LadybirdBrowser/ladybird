@@ -271,7 +271,7 @@ String CSSStyleDeclaration::get_property_value(StringView property_name) const
     if (property_id.value() == PropertyID::Custom) {
         auto maybe_custom_property = custom_property(FlyString::from_utf8_without_validation(property_name.bytes()));
         if (maybe_custom_property.has_value()) {
-            return maybe_custom_property.value().value->to_string();
+            return maybe_custom_property.value().value->to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal);
         }
         return {};
     }
@@ -302,7 +302,7 @@ String CSSStyleDeclaration::get_property_value(StringView property_name) const
 
         // 3. If important flags of all declarations in list are same, then return the serialization of list.
         // NOTE: Currently we implement property-specific shorthand serialization in ShorthandStyleValue::to_string().
-        return ShorthandStyleValue::create(property_id.value(), longhand_ids, list)->to_string();
+        return ShorthandStyleValue::create(property_id.value(), longhand_ids, list)->to_string(CSSStyleValue::SerializationMode::Normal);
 
         // 4. Return the empty string.
         // NOTE: This is handled by the loop.
@@ -311,7 +311,7 @@ String CSSStyleDeclaration::get_property_value(StringView property_name) const
     auto maybe_property = property(property_id.value());
     if (!maybe_property.has_value())
         return {};
-    return maybe_property->value->to_string();
+    return maybe_property->value->to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal);
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertypriority
@@ -427,7 +427,7 @@ String PropertyOwningCSSStyleDeclaration::serialized() const
         // NOTE: There are no shorthands for custom properties.
 
         // 5. Let value be the result of invoking serialize a CSS value of declaration.
-        auto value = declaration.value.value->to_string();
+        auto value = declaration.value.value->to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal);
 
         // 6. Let serialized declaration be the result of invoking serialize a CSS declaration with property name property, value value,
         //    and the important flag set if declaration has its important flag set.
@@ -478,7 +478,7 @@ String PropertyOwningCSSStyleDeclaration::serialized() const
         // FIXME: 4. Shorthand loop: For each shorthand in shorthands, follow these substeps: ...
 
         // 5. Let value be the result of invoking serialize a CSS value of declaration.
-        auto value = declaration.value->to_string();
+        auto value = declaration.value->to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal);
 
         // 6. Let serialized declaration be the result of invoking serialize a CSS declaration with property name property, value value,
         //    and the important flag set if declaration has its important flag set.

@@ -811,7 +811,7 @@ WebIDL::ExceptionOr<GC::MarkedVector<JS::Object*>> KeyframeEffect::get_keyframes
             TRY(object->set(vm.names.offset, keyframe.offset.has_value() ? JS::Value(keyframe.offset.value()) : JS::js_null(), ShouldThrowExceptions::Yes));
             TRY(object->set(vm.names.computedOffset, JS::Value(keyframe.computed_offset.value()), ShouldThrowExceptions::Yes));
             auto easing_value = keyframe.easing.get<NonnullRefPtr<CSS::CSSStyleValue const>>();
-            TRY(object->set(vm.names.easing, JS::PrimitiveString::create(vm, easing_value->to_string()), ShouldThrowExceptions::Yes));
+            TRY(object->set(vm.names.easing, JS::PrimitiveString::create(vm, easing_value->to_string(CSS::CSSStyleValue::SerializationMode::Normal)), ShouldThrowExceptions::Yes));
 
             if (keyframe.composite == Bindings::CompositeOperationOrAuto::Replace) {
                 TRY(object->set(vm.names.composite, JS::PrimitiveString::create(vm, "replace"sv), ShouldThrowExceptions::Yes));
@@ -824,7 +824,7 @@ WebIDL::ExceptionOr<GC::MarkedVector<JS::Object*>> KeyframeEffect::get_keyframes
             }
 
             for (auto const& [id, value] : keyframe.parsed_properties()) {
-                auto value_string = JS::PrimitiveString::create(vm, value->to_string());
+                auto value_string = JS::PrimitiveString::create(vm, value->to_string(CSS::CSSStyleValue::SerializationMode::Normal));
                 TRY(object->set(JS::PropertyKey { DeprecatedFlyString(CSS::camel_case_string_from_property_id(id)), JS::PropertyKey::StringMayBeNumber::No }, value_string, ShouldThrowExceptions::Yes));
             }
 

@@ -19,7 +19,7 @@ public:
     virtual ~GridTemplateAreaStyleValue() override = default;
 
     Vector<Vector<String>> const& grid_template_area() const { return m_grid_template_area; }
-    virtual String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
 
     bool properties_equal(GridTemplateAreaStyleValue const& other) const { return m_grid_template_area == other.m_grid_template_area; }
 

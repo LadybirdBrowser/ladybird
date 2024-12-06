@@ -9,12 +9,12 @@
 
 namespace Web::CSS {
 
-String OpenTypeTaggedStyleValue::to_string() const
+String OpenTypeTaggedStyleValue::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
     serialize_a_string(builder, m_tag);
     // FIXME: For font-feature-settings, a 1 value is implicit, so we shouldn't output it.
-    builder.appendff(" {}", m_value->to_string());
+    builder.appendff(" {}", m_value->to_string(mode));
 
     return builder.to_string_without_validation();
 }

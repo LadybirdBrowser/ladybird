@@ -33,7 +33,11 @@ public:
         auto font_weight = font_style_value.longhand(CSS::PropertyID::FontWeight);
         auto font_size = font_style_value.longhand(CSS::PropertyID::FontSize);
         auto font_family = font_style_value.longhand(CSS::PropertyID::FontFamily);
-        return ByteString::formatted("{} {} {} {}", font_style->to_string(), font_weight->to_string(), font_size->to_string(), font_family->to_string());
+        return ByteString::formatted("{} {} {} {}",
+            font_style->to_string(CSS::CSSStyleValue::SerializationMode::Normal),
+            font_weight->to_string(CSS::CSSStyleValue::SerializationMode::Normal),
+            font_size->to_string(CSS::CSSStyleValue::SerializationMode::Normal),
+            font_family->to_string(CSS::CSSStyleValue::SerializationMode::Normal));
     }
 
     void set_font(StringView font)

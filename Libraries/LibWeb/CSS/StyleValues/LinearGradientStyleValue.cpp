@@ -11,7 +11,7 @@
 
 namespace Web::CSS {
 
-String LinearGradientStyleValue::to_string() const
+String LinearGradientStyleValue::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
     auto side_or_corner_to_string = [](SideOrCorner value) {
@@ -50,7 +50,7 @@ String LinearGradientStyleValue::to_string() const
             return builder.appendff("{}, "sv, angle.to_string());
         });
 
-    serialize_color_stop_list(builder, m_properties.color_stop_list);
+    serialize_color_stop_list(builder, m_properties.color_stop_list, mode);
     builder.append(")"sv);
     return MUST(builder.to_string());
 }

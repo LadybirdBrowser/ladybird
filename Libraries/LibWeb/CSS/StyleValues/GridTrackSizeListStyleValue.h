@@ -24,7 +24,7 @@ public:
 
     CSS::GridTrackSizeList grid_track_size_list() const { return m_grid_track_size_list; }
 
-    virtual String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
 
     bool properties_equal(GridTrackSizeListStyleValue const& other) const { return m_grid_track_size_list == other.m_grid_track_size_list; }
 

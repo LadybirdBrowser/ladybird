@@ -31,7 +31,7 @@ public:
 
     virtual Color to_color(Optional<Layout::NodeWithStyle const&>) const override;
 
-    String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
 
     virtual bool equals(CSSStyleValue const& other) const override;
 

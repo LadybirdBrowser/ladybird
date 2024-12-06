@@ -24,7 +24,7 @@ public:
     virtual double value() const override { return m_value; }
     virtual StringView unit() const override { return "number"sv; }
 
-    virtual String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
 
     bool equals(CSSStyleValue const& other) const override
     {

@@ -23,7 +23,7 @@ public:
     LengthPercentage const& x() const { return m_properties.x; }
     LengthPercentage const& y() const { return m_properties.y; }
 
-    virtual String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
 
     bool properties_equal(TranslationStyleValue const& other) const { return m_properties == other.m_properties; }
 

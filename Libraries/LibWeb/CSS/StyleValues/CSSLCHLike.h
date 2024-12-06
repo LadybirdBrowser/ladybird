@@ -58,7 +58,7 @@ public:
 
     virtual Color to_color(Optional<Layout::NodeWithStyle const&>) const override;
 
-    virtual String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
 };
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssoklch
@@ -72,7 +72,7 @@ public:
 
     virtual Color to_color(Optional<Layout::NodeWithStyle const&>) const override;
 
-    String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
 };
 
 }

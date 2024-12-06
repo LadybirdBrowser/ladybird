@@ -52,7 +52,7 @@ protected:
 class CSSOKLab final : public CSSLabLike {
 public:
     virtual Color to_color(Optional<Layout::NodeWithStyle const&>) const override;
-    virtual String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
 
     CSSOKLab(Badge<CSSLabLike>, ValueComparingNonnullRefPtr<CSSStyleValue> l, ValueComparingNonnullRefPtr<CSSStyleValue> a, ValueComparingNonnullRefPtr<CSSStyleValue> b, ValueComparingNonnullRefPtr<CSSStyleValue> alpha)
         : CSSLabLike(ColorType::OKLab, move(l), move(a), move(b), move(alpha))
@@ -64,7 +64,7 @@ public:
 class CSSLab final : public CSSLabLike {
 public:
     virtual Color to_color(Optional<Layout::NodeWithStyle const&>) const override;
-    virtual String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
 
     CSSLab(Badge<CSSLabLike>, ValueComparingNonnullRefPtr<CSSStyleValue> l, ValueComparingNonnullRefPtr<CSSStyleValue> a, ValueComparingNonnullRefPtr<CSSStyleValue> b, ValueComparingNonnullRefPtr<CSSStyleValue> alpha)
         : CSSLabLike(ColorType::Lab, move(l), move(a), move(b), move(alpha))

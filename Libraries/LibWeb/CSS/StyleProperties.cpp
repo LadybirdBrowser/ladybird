@@ -183,7 +183,7 @@ CSS::Size StyleProperties::size_value(CSS::PropertyID id) const
     }
 
     // FIXME: Support `fit-content(<length>)`
-    dbgln("FIXME: Unsupported size value: `{}`, treating as `auto`", value.to_string());
+    dbgln("FIXME: Unsupported size value: `{}`, treating as `auto`", value.to_string(CSSStyleValue::SerializationMode::Normal));
     return CSS::Size::make_auto();
 }
 
@@ -269,7 +269,7 @@ CSSPixels StyleProperties::compute_line_height(CSSPixelRect const& viewport_rect
         if (line_height.as_math().resolves_to_number()) {
             auto resolved = line_height.as_math().resolve_number();
             if (!resolved.has_value()) {
-                dbgln("FIXME: Failed to resolve calc() line-height (number): {}", line_height.as_math().to_string());
+                dbgln("FIXME: Failed to resolve calc() line-height (number): {}", line_height.as_math().to_string(CSSStyleValue::SerializationMode::Normal));
                 return CSSPixels::nearest_value_for(m_data->m_font_list->first().pixel_metrics().line_spacing());
             }
             return Length(resolved.value(), Length::Type::Em).to_px(viewport_rect, font_metrics, root_font_metrics);
@@ -277,7 +277,7 @@ CSSPixels StyleProperties::compute_line_height(CSSPixelRect const& viewport_rect
 
         auto resolved = line_height.as_math().resolve_length(Length::ResolutionContext { viewport_rect, font_metrics, root_font_metrics });
         if (!resolved.has_value()) {
-            dbgln("FIXME: Failed to resolve calc() line-height: {}", line_height.as_math().to_string());
+            dbgln("FIXME: Failed to resolve calc() line-height: {}", line_height.as_math().to_string(CSSStyleValue::SerializationMode::Normal));
             return CSSPixels::nearest_value_for(m_data->m_font_list->first().pixel_metrics().line_spacing());
         }
         return resolved->to_px(viewport_rect, font_metrics, root_font_metrics);
@@ -316,13 +316,13 @@ float StyleProperties::resolve_opacity_value(CSSStyleValue const& value)
             if (maybe_percentage.has_value())
                 unclamped_opacity = maybe_percentage->as_fraction();
             else
-                dbgln("Unable to resolve calc() as opacity (percentage): {}", value.to_string());
+                dbgln("Unable to resolve calc() as opacity (percentage): {}", value.to_string(CSSStyleValue::SerializationMode::Normal));
         } else if (calculated.resolves_to_number()) {
             auto maybe_number = const_cast<CSSMathValue&>(value.as_math()).resolve_number();
             if (maybe_number.has_value())
                 unclamped_opacity = maybe_number.value();
             else
-                dbgln("Unable to resolve calc() as opacity (number): {}", value.to_string());
+                dbgln("Unable to resolve calc() as opacity (number): {}", value.to_string(CSSStyleValue::SerializationMode::Normal));
         }
     } else if (value.is_percentage()) {
         unclamped_opacity = value.as_percentage().percentage().as_fraction();
@@ -535,7 +535,7 @@ Vector<CSS::Transformation> StyleProperties::transformations_for_style_value(CSS
                 } else if (calculated.resolves_to_angle()) {
                     values.append({ calculated.resolve_angle().value() });
                 } else {
-                    dbgln("FIXME: Unsupported calc value in transform! {}", calculated.to_string());
+                    dbgln("FIXME: Unsupported calc value in transform! {}", calculated.to_string(CSSStyleValue::SerializationMode::Normal));
                 }
             } else if (transformation_value->is_length()) {
                 values.append({ transformation_value->as_length().length() });
@@ -550,7 +550,7 @@ Vector<CSS::Transformation> StyleProperties::transformations_for_style_value(CSS
             } else if (transformation_value->is_angle()) {
                 values.append({ transformation_value->as_angle().angle() });
             } else {
-                dbgln("FIXME: Unsupported value in transform! {}", transformation_value->to_string());
+                dbgln("FIXME: Unsupported value in transform! {}", transformation_value->to_string(CSSStyleValue::SerializationMode::Normal));
             }
             argument_index++;
         }
@@ -947,14 +947,14 @@ StyleProperties::ContentDataAndQuoteNestingLevel StyleProperties::content(DOM::E
                         quote_nesting_level--;
                     break;
                 default:
-                    dbgln("`{}` is not supported in `content` (yet?)", item->to_string());
+                    dbgln("`{}` is not supported in `content` (yet?)", item->to_string(CSSStyleValue::SerializationMode::Normal));
                     break;
                 }
             } else if (item->is_counter()) {
                 builder.append(item->as_counter().resolve(element));
             } else {
                 // TODO: Implement images, and other things.
-                dbgln("`{}` is not supported in `content` (yet?)", item->to_string());
+                dbgln("`{}` is not supported in `content` (yet?)", item->to_string(CSSStyleValue::SerializationMode::Normal));
             }
         }
         content_data.type = ContentData::Type::String;
@@ -968,7 +968,7 @@ StyleProperties::ContentDataAndQuoteNestingLevel StyleProperties::content(DOM::E
                 } else if (item->is_counter()) {
                     alt_text_builder.append(item->as_counter().resolve(element));
                 } else {
-                    dbgln("`{}` is not supported in `content` alt-text (yet?)", item->to_string());
+                    dbgln("`{}` is not supported in `content` alt-text (yet?)", item->to_string(CSSStyleValue::SerializationMode::Normal));
                 }
             }
             content_data.alt_text = MUST(alt_text_builder.to_string());
@@ -1034,7 +1034,7 @@ Vector<CSS::TextDecorationLine> StyleProperties::text_decoration_line() const
     if (value.is_keyword() && value.to_keyword() == Keyword::None)
         return {};
 
-    dbgln("FIXME: Unsupported value for text-decoration-line: {}", value.to_string());
+    dbgln("FIXME: Unsupported value for text-decoration-line: {}", value.to_string(CSSStyleValue::SerializationMode::Normal));
     return {};
 }
 
@@ -1439,7 +1439,7 @@ Vector<CounterData> StyleProperties::counter_data(PropertyID property_id) const
                     if (maybe_int.has_value())
                         data.value = AK::clamp_to<i32>(*maybe_int);
                 } else {
-                    dbgln("Unimplemented type for {} integer value: '{}'", string_from_property_id(property_id), counter.value->to_string());
+                    dbgln("Unimplemented type for {} integer value: '{}'", string_from_property_id(property_id), counter.value->to_string(CSSStyleValue::SerializationMode::Normal));
                 }
             }
             result.append(move(data));
@@ -1450,7 +1450,7 @@ Vector<CounterData> StyleProperties::counter_data(PropertyID property_id) const
     if (value.to_keyword() == Keyword::None)
         return {};
 
-    dbgln("Unhandled type for {} value: '{}'", string_from_property_id(property_id), value.to_string());
+    dbgln("Unhandled type for {} value: '{}'", string_from_property_id(property_id), value.to_string(CSSStyleValue::SerializationMode::Normal));
     return {};
 }
 

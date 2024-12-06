@@ -20,7 +20,7 @@ BackgroundRepeatStyleValue::BackgroundRepeatStyleValue(Repeat repeat_x, Repeat r
 
 BackgroundRepeatStyleValue::~BackgroundRepeatStyleValue() = default;
 
-String BackgroundRepeatStyleValue::to_string() const
+String BackgroundRepeatStyleValue::to_string(SerializationMode) const
 {
     if (m_properties.repeat_x == m_properties.repeat_y)
         return MUST(String::from_utf8(CSS::to_string(m_properties.repeat_x)));

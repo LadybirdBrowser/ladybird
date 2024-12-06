@@ -13,7 +13,7 @@
 
 namespace Web::CSS {
 
-String TransformationStyleValue::to_string() const
+String TransformationStyleValue::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
     builder.append(CSS::to_string(m_properties.transform_function));
@@ -32,7 +32,7 @@ String TransformationStyleValue::to_string() const
             && value->is_percentage()) {
             builder.append(String::number(value->as_percentage().percentage().as_fraction()));
         } else {
-            builder.append(value->to_string());
+            builder.append(value->to_string(mode));
         }
 
         if (i != m_properties.values.size() - 1)

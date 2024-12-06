@@ -354,7 +354,7 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString const& request,
                     dbgln("+ Element {}", element->debug_description());
                     for (size_t i = 0; i < Web::CSS::StyleProperties::number_of_properties; ++i) {
                         auto property = styles.maybe_null_property(static_cast<Web::CSS::PropertyID>(i));
-                        dbgln("|  {} = {}", Web::CSS::string_from_property_id(static_cast<Web::CSS::PropertyID>(i)), property ? property->to_string() : ""_string);
+                        dbgln("|  {} = {}", Web::CSS::string_from_property_id(static_cast<Web::CSS::PropertyID>(i)), property ? property->to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal) : ""_string);
                     }
                     dbgln("---");
                 }
@@ -516,7 +516,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
 
             auto serializer = MUST(JsonObjectSerializer<>::try_create(builder));
             properties.for_each_property([&](auto property_id, auto& value) {
-                MUST(serializer.add(Web::CSS::string_from_property_id(property_id), value.to_string().to_byte_string()));
+                MUST(serializer.add(Web::CSS::string_from_property_id(property_id), value.to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal).to_byte_string()));
             });
             MUST(serializer.finish());
 
@@ -533,7 +533,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
                 for (auto const& property : element_to_check->custom_properties(pseudo_element)) {
                     if (!seen_properties.contains(property.key)) {
                         seen_properties.set(property.key);
-                        MUST(serializer.add(property.key, property.value.value->to_string()));
+                        MUST(serializer.add(property.key, property.value.value->to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal)));
                     }
                 }
 

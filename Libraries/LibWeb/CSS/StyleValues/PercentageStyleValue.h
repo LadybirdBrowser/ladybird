@@ -26,7 +26,7 @@ public:
     virtual double value() const override { return m_percentage.value(); }
     virtual StringView unit() const override { return "percent"sv; }
 
-    virtual String to_string() const override { return m_percentage.to_string(); }
+    virtual String to_string(SerializationMode) const override { return m_percentage.to_string(); }
 
     bool equals(CSSStyleValue const& other) const override
     {

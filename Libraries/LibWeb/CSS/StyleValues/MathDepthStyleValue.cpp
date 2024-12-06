@@ -36,15 +36,15 @@ bool MathDepthStyleValue::properties_equal(MathDepthStyleValue const& other) con
         && m_integer_value == other.m_integer_value;
 }
 
-String MathDepthStyleValue::to_string() const
+String MathDepthStyleValue::to_string(SerializationMode mode) const
 {
     switch (m_type) {
     case MathDepthType::AutoAdd:
         return "auto-add"_string;
     case MathDepthType::Add:
-        return MUST(String::formatted("add({})", m_integer_value->to_string()));
+        return MUST(String::formatted("add({})", m_integer_value->to_string(mode)));
     case MathDepthType::Integer:
-        return m_integer_value->to_string();
+        return m_integer_value->to_string(mode);
     }
     VERIFY_NOT_REACHED();
 }

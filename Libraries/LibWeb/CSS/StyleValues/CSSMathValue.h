@@ -79,7 +79,7 @@ public:
         return adopt_ref(*new (nothrow) CSSMathValue(move(calculation), resolved_type));
     }
 
-    String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
     virtual bool equals(CSSStyleValue const& other) const override;
 
     bool resolves_to_angle() const { return m_resolved_type.matches_angle(); }

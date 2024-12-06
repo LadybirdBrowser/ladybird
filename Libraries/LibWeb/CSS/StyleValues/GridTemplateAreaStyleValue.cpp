@@ -17,7 +17,7 @@ ValueComparingNonnullRefPtr<GridTemplateAreaStyleValue> GridTemplateAreaStyleVal
     return adopt_ref(*new (nothrow) GridTemplateAreaStyleValue(grid_template_area));
 }
 
-String GridTemplateAreaStyleValue::to_string() const
+String GridTemplateAreaStyleValue::to_string(SerializationMode) const
 {
     if (m_grid_template_area.is_empty())
         return "none"_string;

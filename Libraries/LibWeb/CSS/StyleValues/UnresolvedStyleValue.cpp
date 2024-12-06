@@ -12,7 +12,7 @@
 
 namespace Web::CSS {
 
-String UnresolvedStyleValue::to_string() const
+String UnresolvedStyleValue::to_string(SerializationMode) const
 {
     if (m_original_source_text.has_value())
         return *m_original_source_text;
@@ -25,7 +25,7 @@ bool UnresolvedStyleValue::equals(CSSStyleValue const& other) const
     if (type() != other.type())
         return false;
     // This is a case where comparing the strings actually makes sense.
-    return to_string() == other.to_string();
+    return to_string(SerializationMode::Normal) == other.to_string(SerializationMode::Normal);
 }
 
 }

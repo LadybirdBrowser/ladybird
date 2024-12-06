@@ -30,7 +30,7 @@ public:
 
     void visit_edges(JS::Cell::Visitor& visitor) const;
 
-    virtual String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
     virtual bool equals(CSSStyleValue const& other) const override;
 
     virtual void load_any_resources(DOM::Document&) override;

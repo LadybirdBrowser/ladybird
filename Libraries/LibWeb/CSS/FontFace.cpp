@@ -214,7 +214,7 @@ WebIDL::ExceptionOr<void> FontFace::set_family(String const& string)
         // FIXME: Propagate to the CSSFontFaceRule and update the font-family property
     }
 
-    m_family = property->to_string();
+    m_family = property->to_string(CSSStyleValue::SerializationMode::Normal);
 
     return {};
 }
@@ -230,7 +230,7 @@ WebIDL::ExceptionOr<void> FontFace::set_style(String const& string)
         // FIXME: Propagate to the CSSFontFaceRule and update the font-style property
     }
 
-    m_style = property->to_string();
+    m_style = property->to_string(CSSStyleValue::SerializationMode::Normal);
 
     return {};
 }
@@ -246,7 +246,7 @@ WebIDL::ExceptionOr<void> FontFace::set_weight(String const& string)
         // FIXME: Propagate to the CSSFontFaceRule and update the font-weight property
     }
 
-    m_weight = property->to_string();
+    m_weight = property->to_string(CSSStyleValue::SerializationMode::Normal);
 
     return {};
 }
@@ -263,7 +263,7 @@ WebIDL::ExceptionOr<void> FontFace::set_stretch(String const& string)
         // FIXME: Propagate to the CSSFontFaceRule and update the font-width property
     }
 
-    m_stretch = property->to_string();
+    m_stretch = property->to_string(CSSStyleValue::SerializationMode::Normal);
 
     return {};
 }

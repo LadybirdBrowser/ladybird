@@ -14,7 +14,7 @@
 namespace Web::CSS {
 
 // https://www.w3.org/TR/2021/WD-css-transforms-2-20211109/#individual-transform-serialization
-String TranslationStyleValue::to_string() const
+String TranslationStyleValue::to_string(SerializationMode) const
 {
     auto resolve_to_string = [](LengthPercentage const& value) -> Optional<String> {
         if (value.is_length()) {
