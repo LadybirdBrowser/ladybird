@@ -5,6 +5,7 @@
  */
 
 #include <LibJS/Runtime/PromiseCapability.h>
+#include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Fetch/BodyInit.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
@@ -71,37 +72,31 @@ void Body::fully_read(JS::Realm& realm, Web::Fetch::Infrastructure::Body::Proces
     auto task_destination_object = task_destination.get<GC::Ref<JS::Object>>();
 
     // 2. Let successSteps given a byte sequence bytes be to queue a fetch task to run processBody given bytes, with taskDestination.
-    auto success_steps = [&realm, process_body, task_destination_object = task_destination_object](ReadonlyBytes bytes) -> ErrorOr<void> {
-        // Make a copy of the bytes, as the source of the bytes may disappear between the time the task is queued and executed.
-        auto bytes_copy = TRY(ByteBuffer::copy(bytes));
-        queue_fetch_task(*task_destination_object, GC::create_function(realm.heap(), [process_body, bytes_copy = move(bytes_copy)]() mutable {
-            process_body->function()(move(bytes_copy));
+    auto success_steps = [&realm, process_body, task_destination_object](ByteBuffer bytes) -> void {
+        queue_fetch_task(*task_destination_object, GC::create_function(realm.heap(), [process_body, bytes = move(bytes)]() mutable {
+            process_body->function()(move(bytes));
         }));
-        return {};
     };
 
     // 3. Let errorSteps optionally given an exception exception be to queue a fetch task to run processBodyError given exception, with taskDestination.
-    auto error_steps = [&realm, process_body_error, task_destination_object](GC::Ptr<WebIDL::DOMException> exception) {
-        queue_fetch_task(*task_destination_object, GC::create_function(realm.heap(), [process_body_error, exception]() {
-            process_body_error->function()(exception);
+    auto error_steps = [&realm, process_body_error, task_destination_object](JS::Value error) {
+        queue_fetch_task(*task_destination_object, GC::create_function(realm.heap(), [process_body_error, error]() {
+            process_body_error->function()(error);
         }));
     };
 
     // 4. Let reader be the result of getting a reader for body’s stream. If that threw an exception, then run errorSteps with that exception and return.
+    HTML::TemporaryExecutionContext const execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+    auto reader_or_exception = acquire_readable_stream_default_reader(m_stream);
+    if (reader_or_exception.is_exception()) {
+        auto throw_completion = Bindings::dom_exception_to_throw_completion(realm.vm(), reader_or_exception.release_error());
+        error_steps(*throw_completion.value());
+        return;
+    }
+    auto reader = reader_or_exception.release_value();
+
     // 5. Read all bytes from reader, given successSteps and errorSteps.
-    // FIXME: Use streams for these steps.
-    m_source.visit(
-        [&](ByteBuffer const& byte_buffer) {
-            if (auto result = success_steps(byte_buffer); result.is_error())
-                error_steps(WebIDL::UnknownError::create(realm, "Out-of-memory"_string));
-        },
-        [&](GC::Root<FileAPI::Blob> const& blob) {
-            if (auto result = success_steps(blob->raw_bytes()); result.is_error())
-                error_steps(WebIDL::UnknownError::create(realm, "Out-of-memory"_string));
-        },
-        [&](Empty) {
-            error_steps(WebIDL::DOMException::create(realm, "DOMException"_fly_string, "Reading from Blob, FormData or null source is not yet implemented"_string));
-        });
+    reader->read_all_bytes(GC::create_function(realm.heap(), move(success_steps)), GC::create_function(realm.heap(), move(error_steps)));
 }
 
 // https://fetch.spec.whatwg.org/#body-incrementally-read
