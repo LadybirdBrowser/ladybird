@@ -197,8 +197,8 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Str
 
     // 4. If url is not the empty string, then:
     if (!url.is_empty()) {
-        // FIXME: 1. Set urlRecord to the result of encoding-parsing a URL given url, relative to sourceDocument.
-        url_record = entry_settings_object().parse_url(url);
+        // 1. Set urlRecord to the result of encoding-parsing a URL given url, relative to sourceDocument.
+        url_record = source_document.encoding_parse_url(url);
 
         // 2. If urlRecord is failure, then throw a "SyntaxError" DOMException.
         if (!url_record->is_valid())

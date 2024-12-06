@@ -49,7 +49,8 @@ void HTMLTableRowElement::apply_presentational_hints(CSS::StyleProperties& style
             if (color.has_value())
                 style.set_property(CSS::PropertyID::BackgroundColor, CSS::CSSColorValue::create_from_color(color.value()));
         } else if (name == HTML::AttributeNames::background) {
-            if (auto parsed_value = document().parse_url(value); parsed_value.is_valid())
+            // https://html.spec.whatwg.org/multipage/rendering.html#tables-2:encoding-parsing-and-serializing-a-url
+            if (auto parsed_value = document().encoding_parse_url(value); parsed_value.is_valid())
                 style.set_property(CSS::PropertyID::BackgroundImage, CSS::ImageStyleValue::create(parsed_value));
         } else if (name == HTML::AttributeNames::height) {
             if (auto parsed_value = parse_dimension_value(value))
