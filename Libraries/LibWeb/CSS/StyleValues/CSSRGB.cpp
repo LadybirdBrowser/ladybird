@@ -70,7 +70,7 @@ bool CSSRGB::equals(CSSStyleValue const& other) const
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-sRGB-values
-String CSSRGB::to_string() const
+String CSSRGB::to_string(SerializationMode) const
 {
     // FIXME: Do this properly, taking unresolved calculated values into account.
     if (m_properties.name.has_value())

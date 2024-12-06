@@ -34,7 +34,7 @@ public:
 
     auto const& transitions() const { return m_transitions; }
 
-    virtual String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
 
     bool properties_equal(TransitionStyleValue const& other) const;
 

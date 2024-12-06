@@ -49,7 +49,7 @@ public:
         return adopt_ref(*new (nothrow) RadialGradientStyleValue(ending_shape, size, move(position), move(color_stop_list), repeating));
     }
 
-    virtual String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
 
     void paint(PaintContext&, DevicePixelRect const& dest_rect, CSS::ImageRendering) const override;
 

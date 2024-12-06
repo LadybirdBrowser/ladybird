@@ -27,7 +27,7 @@ public:
     LengthPercentage size_x() const { return m_properties.size_x; }
     LengthPercentage size_y() const { return m_properties.size_y; }
 
-    virtual String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
 
     bool properties_equal(BackgroundSizeStyleValue const& other) const { return m_properties == other.m_properties; }
 

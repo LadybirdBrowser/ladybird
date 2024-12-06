@@ -22,7 +22,7 @@ public:
 
     FlyString const& custom_ident() const { return m_custom_ident; }
 
-    virtual String to_string() const override { return m_custom_ident.to_string(); }
+    virtual String to_string(SerializationMode) const override { return m_custom_ident.to_string(); }
 
     bool properties_equal(CustomIdentStyleValue const& other) const { return m_custom_ident == other.m_custom_ident; }
 

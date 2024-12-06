@@ -13,7 +13,7 @@ ValueComparingNonnullRefPtr<GridAutoFlowStyleValue> GridAutoFlowStyleValue::crea
     return adopt_ref(*new GridAutoFlowStyleValue(axis, dense));
 }
 
-String GridAutoFlowStyleValue::to_string() const
+String GridAutoFlowStyleValue::to_string(SerializationMode) const
 {
     StringBuilder builder;
     if (m_row)

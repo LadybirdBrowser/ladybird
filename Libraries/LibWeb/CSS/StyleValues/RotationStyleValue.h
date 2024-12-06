@@ -24,7 +24,7 @@ public:
     ValueComparingNonnullRefPtr<CSSStyleValue const> const& rotation_y() const { return m_properties.rotation_y; }
     ValueComparingNonnullRefPtr<CSSStyleValue const> const& rotation_z() const { return m_properties.rotation_z; }
 
-    virtual String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
 
     bool properties_equal(RotationStyleValue const& other) const { return m_properties == other.m_properties; }
 

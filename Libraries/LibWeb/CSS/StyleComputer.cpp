@@ -1095,7 +1095,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
         if (!end_property.has_value()) {
             if (resolved_start_property) {
                 style_properties.set_animated_property(it.key, *resolved_start_property);
-                dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "No end property for property {}, using {}", string_from_property_id(it.key), resolved_start_property->to_string());
+                dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "No end property for property {}, using {}", string_from_property_id(it.key), resolved_start_property->to_string(CSSStyleValue::SerializationMode::Normal));
             }
             continue;
         }
@@ -1116,11 +1116,11 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
         }
 
         if (auto next_value = interpolate_property(*effect->target(), it.key, *start, *end, progress_in_keyframe)) {
-            dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} = {}", string_from_property_id(it.key), progress_in_keyframe, start->to_string(), end->to_string(), next_value->to_string());
+            dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} = {}", string_from_property_id(it.key), progress_in_keyframe, start->to_string(CSSStyleValue::SerializationMode::Normal), end->to_string(CSSStyleValue::SerializationMode::Normal), next_value->to_string(CSSStyleValue::SerializationMode::Normal));
             style_properties.set_animated_property(it.key, *next_value);
         } else {
             // If interpolate_property() fails, the element should not be rendered
-            dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} is invalid", string_from_property_id(it.key), progress_in_keyframe, start->to_string(), end->to_string());
+            dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} is invalid", string_from_property_id(it.key), progress_in_keyframe, start->to_string(CSSStyleValue::SerializationMode::Normal), end->to_string(CSSStyleValue::SerializationMode::Normal));
             style_properties.set_animated_property(PropertyID::Visibility, CSSKeywordValue::create(Keyword::Hidden));
         }
     }
@@ -1393,7 +1393,7 @@ void StyleComputer::start_needed_transitions(StyleProperties const& previous_sty
         //    there is a matching transition-property value,
         //    and the end value of the running transition is not equal to the value of the property in the after-change style, then:
         if (has_running_transition && matching_transition_properties.has_value() && !existing_transition->transition_end_value()->equals(after_change_value)) {
-            dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4. existing end value = {}, after change value = {}", existing_transition->transition_end_value()->to_string(), after_change_value.to_string());
+            dbgln_if(CSS_TRANSITIONS_DEBUG, "Transition step 4. existing end value = {}, after change value = {}", existing_transition->transition_end_value()->to_string(CSSStyleValue::SerializationMode::Normal), after_change_value.to_string(CSSStyleValue::SerializationMode::Normal));
             // 1. If the current value of the property in the running transition is equal to the value of the property in the after-change style,
             //    or if these two values are not transitionable,
             //    then implementations must cancel the running transition.
@@ -1577,7 +1577,7 @@ void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element
             return OptionalNone {};
         if (animation_name->is_string())
             return animation_name->as_string().string_value().to_string();
-        return animation_name->to_string();
+        return animation_name->to_string(CSSStyleValue::SerializationMode::Normal);
     }();
 
     if (animation_name.has_value()) {

@@ -32,7 +32,7 @@ bool CSSHSL::equals(CSSStyleValue const& other) const
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-sRGB-values
-String CSSHSL::to_string() const
+String CSSHSL::to_string(SerializationMode) const
 {
     // FIXME: Do this properly, taking unresolved calculated values into account.
     return serialize_a_srgb_value(to_color({}));

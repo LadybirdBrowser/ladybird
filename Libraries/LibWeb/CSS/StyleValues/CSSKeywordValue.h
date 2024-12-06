@@ -52,7 +52,7 @@ public:
     static bool is_color(Keyword);
     virtual bool has_color() const override;
     virtual Color to_color(Optional<Layout::NodeWithStyle const&> node) const override;
-    virtual String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
 
     bool properties_equal(CSSKeywordValue const& other) const { return m_keyword == other.m_keyword; }
 

@@ -11,7 +11,7 @@
 
 namespace Web::CSS {
 
-String BorderRadiusStyleValue::to_string() const
+String BorderRadiusStyleValue::to_string(SerializationMode) const
 {
     if (m_properties.horizontal_radius == m_properties.vertical_radius)
         return m_properties.horizontal_radius.to_string();

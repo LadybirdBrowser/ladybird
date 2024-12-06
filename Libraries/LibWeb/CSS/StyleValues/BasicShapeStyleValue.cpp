@@ -125,7 +125,7 @@ Gfx::Path Circle::to_path(CSSPixelRect reference_box, Layout::Node const& node) 
 
 String Circle::to_string() const
 {
-    return MUST(String::formatted("circle({} at {})", radius_to_string(radius), position->to_string()));
+    return MUST(String::formatted("circle({} at {})", radius_to_string(radius), position->to_string(CSSStyleValue::SerializationMode::Normal)));
 }
 
 Gfx::Path Ellipse::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
@@ -170,7 +170,7 @@ Gfx::Path Ellipse::to_path(CSSPixelRect reference_box, Layout::Node const& node)
 
 String Ellipse::to_string() const
 {
-    return MUST(String::formatted("ellipse({} {} at {})", radius_to_string(radius_x), radius_to_string(radius_y), position->to_string()));
+    return MUST(String::formatted("ellipse({} {} at {})", radius_to_string(radius_x), radius_to_string(radius_y), position->to_string(CSSStyleValue::SerializationMode::Normal)));
 }
 
 Gfx::Path Polygon::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
@@ -220,7 +220,7 @@ Gfx::Path BasicShapeStyleValue::to_path(CSSPixelRect reference_box, Layout::Node
     });
 }
 
-String BasicShapeStyleValue::to_string() const
+String BasicShapeStyleValue::to_string(SerializationMode) const
 {
     return m_basic_shape.visit([](auto const& shape) {
         return shape.to_string();

@@ -122,7 +122,7 @@ public:
     String to_string() const
     {
         if (is_calculated())
-            return m_value.template get<NonnullRefPtr<CSSMathValue>>()->to_string();
+            return m_value.template get<NonnullRefPtr<CSSMathValue>>()->to_string(CSSStyleValue::SerializationMode::Normal);
         if (is_percentage())
             return m_value.template get<Percentage>().to_string();
         return m_value.template get<T>().to_string();

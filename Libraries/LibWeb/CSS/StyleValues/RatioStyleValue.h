@@ -22,7 +22,7 @@ public:
     Ratio const& ratio() const { return m_ratio; }
     Ratio& ratio() { return m_ratio; }
 
-    virtual String to_string() const override { return m_ratio.to_string(); }
+    virtual String to_string(SerializationMode) const override { return m_ratio.to_string(); }
 
     bool properties_equal(RatioStyleValue const& other) const { return m_ratio == other.m_ratio; }
 

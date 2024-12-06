@@ -25,7 +25,7 @@ public:
     bool has_alt_text() const { return !m_properties.alt_text.is_null(); }
     StyleValueList const* alt_text() const { return m_properties.alt_text; }
 
-    virtual String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
 
     bool properties_equal(ContentStyleValue const& other) const { return m_properties == other.m_properties; }
 

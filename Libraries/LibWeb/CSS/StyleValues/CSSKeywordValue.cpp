@@ -16,7 +16,7 @@
 
 namespace Web::CSS {
 
-String CSSKeywordValue::to_string() const
+String CSSKeywordValue::to_string(SerializationMode) const
 {
     return MUST(String::from_utf8(string_from_keyword(keyword())));
 }

@@ -68,7 +68,7 @@ public:
     String to_string() const
     {
         if (is_calculated())
-            return m_value.template get<NonnullRefPtr<CSSMathValue>>()->to_string();
+            return m_value.template get<NonnullRefPtr<CSSMathValue>>()->to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal);
 
         return m_value.template get<T>().to_string();
     }

@@ -12,10 +12,10 @@
 
 namespace Web::CSS {
 
-String ShadowStyleValue::to_string() const
+String ShadowStyleValue::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
-    builder.appendff("{} {} {} {} {}", m_properties.color->to_string(), m_properties.offset_x->to_string(), m_properties.offset_y->to_string(), m_properties.blur_radius->to_string(), m_properties.spread_distance->to_string());
+    builder.appendff("{} {} {} {} {}", m_properties.color->to_string(mode), m_properties.offset_x->to_string(mode), m_properties.offset_y->to_string(mode), m_properties.blur_radius->to_string(mode), m_properties.spread_distance->to_string(mode));
     if (m_properties.placement == ShadowPlacement::Inner)
         builder.append(" inset"sv);
     return MUST(builder.to_string());

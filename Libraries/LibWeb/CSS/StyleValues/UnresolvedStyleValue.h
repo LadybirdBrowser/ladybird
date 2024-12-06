@@ -23,7 +23,7 @@ public:
     }
     virtual ~UnresolvedStyleValue() override = default;
 
-    virtual String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
 
     Vector<Parser::ComponentValue> const& values() const { return m_values; }
     bool contains_var_or_attr() const { return m_contains_var_or_attr; }

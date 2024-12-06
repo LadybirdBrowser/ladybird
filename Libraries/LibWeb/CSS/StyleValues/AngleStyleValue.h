@@ -26,7 +26,7 @@ public:
     virtual double value() const override { return m_angle.raw_value(); }
     virtual StringView unit() const override { return m_angle.unit_name(); }
 
-    virtual String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
 
     bool equals(CSSStyleValue const& other) const override;
 

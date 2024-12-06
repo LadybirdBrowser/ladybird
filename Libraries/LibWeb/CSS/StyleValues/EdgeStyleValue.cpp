@@ -8,7 +8,7 @@
 
 namespace Web::CSS {
 
-String EdgeStyleValue::to_string() const
+String EdgeStyleValue::to_string(SerializationMode) const
 {
     return MUST(String::formatted("{} {}", CSS::to_string(m_properties.edge), m_properties.offset.to_string()));
 }

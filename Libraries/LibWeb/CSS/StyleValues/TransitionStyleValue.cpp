@@ -9,7 +9,7 @@
 
 namespace Web::CSS {
 
-String TransitionStyleValue::to_string() const
+String TransitionStyleValue::to_string(SerializationMode mode) const
 {
     StringBuilder builder;
     bool first = true;
@@ -17,7 +17,7 @@ String TransitionStyleValue::to_string() const
         if (!first)
             builder.append(", "sv);
         first = false;
-        builder.appendff("{} {} {} {}", transition.property_name->to_string(), transition.duration, transition.easing->to_string(), transition.delay);
+        builder.appendff("{} {} {} {}", transition.property_name->to_string(mode), transition.duration, transition.easing->to_string(mode), transition.delay);
     }
 
     return MUST(builder.to_string());

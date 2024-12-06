@@ -20,7 +20,7 @@ public:
     virtual ~GridTrackPlacementStyleValue() override = default;
 
     GridTrackPlacement const& grid_track_placement() const { return m_grid_track_placement; }
-    virtual String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
 
     bool properties_equal(GridTrackPlacementStyleValue const& other) const { return m_grid_track_placement == other.m_grid_track_placement; }
 

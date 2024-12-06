@@ -23,7 +23,7 @@ public:
     virtual double value() const override { return m_length.raw_value(); }
     virtual StringView unit() const override { return m_length.unit_name(); }
 
-    virtual String to_string() const override { return m_length.to_string(); }
+    virtual String to_string(SerializationMode) const override { return m_length.to_string(); }
     virtual ValueComparingNonnullRefPtr<CSSStyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const override;
 
     bool equals(CSSStyleValue const& other) const override;

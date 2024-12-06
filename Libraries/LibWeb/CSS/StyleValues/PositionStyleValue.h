@@ -35,7 +35,7 @@ public:
     bool is_center() const;
     CSSPixelPoint resolved(Layout::Node const&, CSSPixelRect const&) const;
 
-    virtual String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
 
     bool properties_equal(PositionStyleValue const& other) const { return m_properties == other.m_properties; }
 

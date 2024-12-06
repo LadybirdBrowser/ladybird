@@ -91,7 +91,7 @@ static String generate_a_counter_representation(CSSStyleValue const& counter_sty
     }
     // FIXME: Handle `symbols()` function for counter_style.
 
-    dbgln("FIXME: Unsupported counter style '{}'", counter_style.to_string());
+    dbgln("FIXME: Unsupported counter style '{}'", counter_style.to_string(CSSStyleValue::SerializationMode::Normal));
     return MUST(String::formatted("{}", value));
 }
 
@@ -131,7 +131,7 @@ String CounterStyleValue::resolve(DOM::Element& element) const
 }
 
 // https://drafts.csswg.org/cssom-1/#ref-for-typedef-counter
-String CounterStyleValue::to_string() const
+String CounterStyleValue::to_string(SerializationMode mode) const
 {
     // The return value of the following algorithm:
     // 1. Let s be the empty string.
@@ -151,13 +151,13 @@ String CounterStyleValue::to_string() const
     list.append(CustomIdentStyleValue::create(m_properties.counter_name));
     if (m_properties.function == CounterFunction::Counters)
         list.append(StringStyleValue::create(m_properties.join_string.to_string()));
-    if (m_properties.counter_style->to_string() != "decimal"sv)
+    if (m_properties.counter_style->to_string(mode) != "decimal"sv)
         list.append(m_properties.counter_style);
 
     // 5. Let each item in list be the result of invoking serialize a CSS component value on that item.
     // 6. Append the result of invoking serialize a comma-separated list on list to s.
-    serialize_a_comma_separated_list(s, list, [](auto& builder, auto& item) {
-        builder.append(item->to_string());
+    serialize_a_comma_separated_list(s, list, [mode](auto& builder, auto& item) {
+        builder.append(item->to_string(mode));
     });
 
     // 7. Append ")" (U+0029) to s.

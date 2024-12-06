@@ -18,7 +18,7 @@ BackgroundSizeStyleValue::BackgroundSizeStyleValue(LengthPercentage size_x, Leng
 
 BackgroundSizeStyleValue::~BackgroundSizeStyleValue() = default;
 
-String BackgroundSizeStyleValue::to_string() const
+String BackgroundSizeStyleValue::to_string(SerializationMode) const
 {
     return MUST(String::formatted("{} {}", m_properties.size_x.to_string(), m_properties.size_y.to_string()));
 }

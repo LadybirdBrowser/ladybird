@@ -2629,7 +2629,7 @@ CSSMathValue::ResolvedType CSSMathValue::CalculationResult::resolved_type() cons
         [](Time const&) { return ResolvedType::Time; });
 }
 
-String CSSMathValue::to_string() const
+String CSSMathValue::to_string(SerializationMode) const
 {
     // FIXME: Implement this according to https://www.w3.org/TR/css-values-4/#calc-serialize once that stabilizes.
     return MUST(String::formatted("calc({})", m_calculation->to_string()));

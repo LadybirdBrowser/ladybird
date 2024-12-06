@@ -53,7 +53,7 @@ float FilterOperation::Color::resolved_amount() const
     VERIFY_NOT_REACHED();
 }
 
-String FilterValueListStyleValue::to_string() const
+String FilterValueListStyleValue::to_string(SerializationMode) const
 {
     StringBuilder builder {};
     bool first = true;

@@ -33,7 +33,7 @@ public:
         return m_properties.values[i];
     }
 
-    virtual String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
 
     bool properties_equal(StyleValueList const& other) const { return m_properties == other.m_properties; }
 

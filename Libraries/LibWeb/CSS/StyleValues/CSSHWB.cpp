@@ -42,7 +42,7 @@ bool CSSHWB::equals(CSSStyleValue const& other) const
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-sRGB-values
-String CSSHWB::to_string() const
+String CSSHWB::to_string(SerializationMode) const
 {
     // FIXME: Do this properly, taking unresolved calculated values into account.
     return serialize_a_srgb_value(to_color({}));

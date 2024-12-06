@@ -25,7 +25,7 @@ public:
     FlyString const& tag() const { return m_tag; }
     ValueComparingNonnullRefPtr<CSSStyleValue> const& value() const { return m_value; }
 
-    virtual String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
 
     bool properties_equal(OpenTypeTaggedStyleValue const&) const;
 

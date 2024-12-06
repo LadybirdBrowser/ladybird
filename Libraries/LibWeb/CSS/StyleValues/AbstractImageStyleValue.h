@@ -32,8 +32,8 @@ public:
         return {};
     }
 
-    virtual void load_any_resources(DOM::Document&) {};
-    virtual void resolve_for_size(Layout::NodeWithStyleAndBoxModelMetrics const&, CSSPixelSize) const {};
+    virtual void load_any_resources(DOM::Document&) { }
+    virtual void resolve_for_size(Layout::NodeWithStyleAndBoxModelMetrics const&, CSSPixelSize) const { }
 
     virtual bool is_paintable() const = 0;
     virtual void paint(PaintContext& context, DevicePixelRect const& dest_rect, ImageRendering) const = 0;
@@ -70,7 +70,7 @@ struct ColorStopListElement {
 using LinearColorStopListElement = ColorStopListElement<LengthPercentage>;
 using AngularColorStopListElement = ColorStopListElement<AnglePercentage>;
 
-static void serialize_color_stop_list(StringBuilder& builder, auto const& color_stop_list)
+static void serialize_color_stop_list(StringBuilder& builder, auto const& color_stop_list, CSSStyleValue::SerializationMode mode)
 {
     bool first = true;
     for (auto const& element : color_stop_list) {
@@ -80,7 +80,7 @@ static void serialize_color_stop_list(StringBuilder& builder, auto const& color_
         if (element.transition_hint.has_value())
             builder.appendff("{}, "sv, element.transition_hint->value.to_string());
 
-        builder.append(element.color_stop.color->to_string());
+        builder.append(element.color_stop.color->to_string(mode));
         for (auto position : Array { &element.color_stop.position, &element.color_stop.second_position }) {
             if (position->has_value())
                 builder.appendff(" {}"sv, (*position)->to_string());

@@ -25,7 +25,7 @@ public:
     Repeat repeat_x() const { return m_properties.repeat_x; }
     Repeat repeat_y() const { return m_properties.repeat_y; }
 
-    virtual String to_string() const override;
+    virtual String to_string(SerializationMode) const override;
 
     bool properties_equal(BackgroundRepeatStyleValue const& other) const { return m_properties == other.m_properties; }
 
