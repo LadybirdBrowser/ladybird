@@ -123,6 +123,7 @@ class MediaSourceDirective;
 class ObjectSourceDirective;
 class ReportToDirective;
 class ReportUriDirective;
+class SandboxDirective;
 class ScriptSourceAttributeDirective;
 class ScriptSourceDirective;
 class ScriptSourceElementDirective;
