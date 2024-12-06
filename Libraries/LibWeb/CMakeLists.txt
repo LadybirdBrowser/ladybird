@@ -821,6 +821,7 @@ set(SOURCES
     WebGL/WebGLTexture.cpp
     WebGL/WebGLTransformFeedback.cpp
     WebGL/WebGLUniformLocation.cpp
+    WebGL/WebGLVertexArrayObject.cpp
     WebIDL/AbstractOperations.cpp
     WebIDL/Buffers.cpp
     WebIDL/CallbackType.cpp
