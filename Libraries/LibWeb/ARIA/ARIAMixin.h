@@ -28,6 +28,7 @@ public:
     // https://www.w3.org/TR/html-aria/#docconformance
     virtual Optional<Role> default_role() const { return {}; }
 
+    Optional<Role> role_from_role_attribute_value() const;
     Optional<Role> role_or_default() const;
 
     // https://www.w3.org/TR/wai-aria-1.2/#tree_exclusion

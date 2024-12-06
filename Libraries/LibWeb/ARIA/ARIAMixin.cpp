@@ -11,12 +11,12 @@
 namespace Web::ARIA {
 
 // https://www.w3.org/TR/wai-aria-1.2/#introroles
-Optional<Role> ARIAMixin::role_or_default() const
+Optional<Role> ARIAMixin::role_from_role_attribute_value() const
 {
     // 1. Use the rules of the host language to detect that an element has a role attribute and to identify the attribute value string for it.
     auto maybe_role_string = role();
     if (!maybe_role_string.has_value())
-        return default_role();
+        return OptionalNone {};
 
     // 2. Separate the attribute value string for that attribute into a sequence of whitespace-free substrings by separating on whitespace.
     auto role_string = maybe_role_string.value();
@@ -35,6 +35,13 @@ Optional<Role> ARIAMixin::role_or_default() const
     // https://www.w3.org/TR/wai-aria-1.2/#document-handling_author-errors_roles
     // If the role attribute contains no tokens matching the name of a non-abstract WAI-ARIA role, the user agent MUST treat the element as if no role had been provided.
     // https://www.w3.org/TR/wai-aria-1.2/#implicit_semantics
+    return OptionalNone {};
+}
+
+Optional<Role> ARIAMixin::role_or_default() const
+{
+    if (auto role = role_from_role_attribute_value(); role.has_value())
+        return role;
     return default_role();
 }
 
