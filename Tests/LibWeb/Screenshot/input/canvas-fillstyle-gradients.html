@@ -1,0 +1,39 @@
+<link rel="match" href="../expected/canvas-fillstyle-gradients-ref.html" />
+<style>
+   * {
+       margin: 0;
+   }
+
+  body {
+      background-color: white;
+  }
+</style>
+<canvas width=800 height=600 id="canvas"></canvas>
+<script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    // Create a radial gradient
+    // The inner circle is at x=110, y=90, with radius=30
+    // The outer circle is at x=100, y=100, with radius=70
+    let gradient = ctx.createRadialGradient(110, 90, 30, 100, 100, 70);
+
+    gradient.addColorStop(0, "pink");
+    gradient.addColorStop(0.9, "white");
+    gradient.addColorStop(1, "green");
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(20, 20, 160, 160);
+
+    // Create a linear gradient
+    // The start gradient point is at x=20, y=0
+    // The end gradient point is at x=220, y=0
+    gradient = ctx.createLinearGradient(220, 0, 420, 0);
+
+    gradient.addColorStop(0, "green");
+    gradient.addColorStop(0.5, "cyan");
+    gradient.addColorStop(1, "green");
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(220, 20, 200, 100);
+</script>
