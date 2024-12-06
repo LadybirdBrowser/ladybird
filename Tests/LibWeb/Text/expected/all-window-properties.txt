@@ -407,6 +407,7 @@ WebGLProgram
 WebGLQuery
 WebGLRenderbuffer
 WebGLRenderingContext
+WebGLSampler
 WebGLShader
 WebGLShaderPrecisionFormat
 WebGLTexture
