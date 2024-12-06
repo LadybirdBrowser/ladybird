@@ -231,7 +231,9 @@ static void generate_get_parameter(SourceGenerator& generator)
 
     generator.appendln(R"~~~(
     default:
-        TODO();
+        dbgln("Unknown WebGL parameter name: {:x}", pname);
+        set_error(GL_INVALID_ENUM);
+        return JS::js_null();
     })~~~");
 }
 
@@ -389,6 +391,7 @@ public:
 
     virtual void present() = 0;
     virtual void needs_to_present() = 0;
+    virtual void set_error(GLenum) = 0;
 )~~~");
 
     for (auto const& function : interface.functions) {
