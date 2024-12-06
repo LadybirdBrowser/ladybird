@@ -43,7 +43,7 @@ WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::construct_impl(JS::Realm&
     auto& settings = relevant_settings_object(event_source);
 
     // 3. Let urlRecord be the result of encoding-parsing a URL given url, relative to settings.
-    auto url_record = settings.parse_url(url);
+    auto url_record = settings.encoding_parse_url(url);
 
     // 4. If urlRecord is failure, then throw a "SyntaxError" DOMException.
     if (!url_record.is_valid())

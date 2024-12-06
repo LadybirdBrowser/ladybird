@@ -486,22 +486,15 @@ void HTMLHyperlinkElementUtils::follow_the_hyperlink(Optional<String> hyperlink_
 
     // 8. Let urlString be the result of encoding-parsing-and-serializing a URL given subject's href attribute value,
     //    relative to subject's node document.
-    auto url = hyperlink_element_utils_document().parse_url(href());
+    auto url_string = hyperlink_element_utils_document().encoding_parse_and_serialize_url(href());
 
     // 9. If urlString is failure, then return.
-    if (!url.is_valid())
+    if (!url_string.has_value())
         return;
 
-    auto url_string = url.to_string();
-
     // 10. If hyperlinkSuffix is non-null, then append it to urlString.
-    if (hyperlink_suffix.has_value()) {
-        StringBuilder url_builder;
-        url_builder.append(url_string);
-        url_builder.append(*hyperlink_suffix);
-
-        url_string = MUST(url_builder.to_string());
-    }
+    if (hyperlink_suffix.has_value())
+        url_string = MUST(String::formatted("{}{}", *url_string, *hyperlink_suffix));
 
     // 11. Let referrerPolicy be the current state of subject's referrerpolicy content attribute.
     auto referrer_policy = ReferrerPolicy::from_string(hyperlink_element_utils_referrerpolicy().value_or({})).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
@@ -509,7 +502,7 @@ void HTMLHyperlinkElementUtils::follow_the_hyperlink(Optional<String> hyperlink_
     // FIXME: 12. If subject's link types includes the noreferrer keyword, then set referrerPolicy to "no-referrer".
 
     // 13. Navigate targetNavigable to urlString using subject's node document, with referrerPolicy set to referrerPolicy and userInvolvement set to userInvolvement.
-    MUST(target_navigable->navigate({ .url = url_string, .source_document = hyperlink_element_utils_document(), .referrer_policy = referrer_policy, .user_involvement = user_involvement }));
+    MUST(target_navigable->navigate({ .url = *url_string, .source_document = hyperlink_element_utils_document(), .referrer_policy = referrer_policy, .user_involvement = user_involvement }));
 }
 
 }

@@ -222,7 +222,7 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
 
     // 14. Parse a URL given action, relative to the submitter element's node document. If this fails, return.
     // 15. Let parsed action be the resulting URL record.
-    auto parsed_action = document().parse_url(action);
+    auto parsed_action = submitter->document().parse_url(action);
     if (!parsed_action.is_valid()) {
         dbgln("Failed to submit form: Invalid URL: {}", action);
         return {};

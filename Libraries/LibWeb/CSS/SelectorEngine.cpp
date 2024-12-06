@@ -464,7 +464,7 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         if (!matches_link_pseudo_class(element))
             return false;
         auto document_url = element.document().url();
-        URL::URL target_url = element.document().parse_url(element.attribute(HTML::AttributeNames::href).value_or({}));
+        URL::URL target_url = element.document().encoding_parse_url(element.attribute(HTML::AttributeNames::href).value_or({}));
         if (target_url.fragment().has_value())
             return document_url.equals(target_url, URL::ExcludeFragment::No);
         return document_url.equals(target_url, URL::ExcludeFragment::Yes);
