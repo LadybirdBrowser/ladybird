@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, the Ladybird developers.
+ * Copyright (c) 2024, Felipe Muñoz Mazur <felipe.munoz.mazur@protonmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -57,9 +58,17 @@ WebIDL::ExceptionOr<GC::Ref<CloseWatcher>> CloseWatcher::construct_impl(JS::Real
     auto close_watcher = establish(window);
 
     // 3. If options["signal"] exists, then:
-    if (options.signal) {
-        // FIXME: 3.1 If options["signal"]'s aborted, then destroy closeWatcher.
-        // FIXME: 3.2 Add the following steps to options["signal"]:
+    if (auto signal = options.signal) {
+        // 3.1 If options["signal"]'s aborted, then destroy closeWatcher.
+        if (signal->aborted()) {
+            close_watcher->destroy();
+        }
+
+        // 3.2 Add the following steps to options["signal"]:
+        signal->add_abort_algorithm([close_watcher] {
+            // 3.2.1 Destroy closeWatcher.
+            close_watcher->destroy();
+        });
     }
 
     return close_watcher;
