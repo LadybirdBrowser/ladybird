@@ -62,3 +62,22 @@ private:
 };
 
 }
+
+struct SupportedTokenKey {
+    FlyString element_name;
+    FlyString attribute_name;
+
+    constexpr bool operator==(SupportedTokenKey const& other) const = default;
+};
+
+namespace AK {
+
+template<>
+struct Traits<SupportedTokenKey> : public DefaultTraits<SupportedTokenKey> {
+    static unsigned hash(SupportedTokenKey const& key)
+    {
+        return pair_int_hash(key.element_name.hash(), key.attribute_name.hash());
+    }
+};
+
+}

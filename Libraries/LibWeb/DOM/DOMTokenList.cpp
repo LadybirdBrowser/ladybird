@@ -211,20 +211,20 @@ WebIDL::ExceptionOr<bool> DOMTokenList::replace(String const& token, String cons
 // https://dom.spec.whatwg.org/#concept-domtokenlist-validation
 WebIDL::ExceptionOr<bool> DOMTokenList::supports(StringView token)
 {
-    static HashMap<FlyString, Vector<StringView>> supported_tokens_map = {
-        // NOTE: The supported values for rel were taken from HTMLLinkElement::Relationship
-        { HTML::AttributeNames::rel, { "alternate"sv, "stylesheet"sv, "preload"sv, "dns-prefetch"sv, "preconnect"sv, "icon"sv } },
-        { HTML::AttributeNames::sandbox, { "allow-downloads"sv, "allow-forms"sv, "allow-modals"sv, "allow-orientation-lock"sv, "allow-pointer-lock"sv, "allow-popups"sv, "allow-popups-to-escape-sandbox"sv, "allow-presentation"sv, "allow-same-origin"sv, "allow-scripts"sv, "allow-top-navigation"sv, "allow-top-navigation-by-user-activation"sv, "allow-top-navigation-to-custom-protocols"sv } },
+    // https://html.spec.whatwg.org/multipage/links.html#linkTypes
+    // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#attr-iframe-sandbox
+    static HashMap<SupportedTokenKey, Vector<StringView>> supported_tokens_map = {
+        { { HTML::TagNames::link, HTML::AttributeNames::rel }, { "modulepreload"sv, "preload"sv, "preconnect"sv, "dns-prefetch"sv, "stylesheet"sv, "icon"sv, "alternate"sv, "prefetch"sv, "prerender"sv, "next"sv, "manifest"sv, "apple-touch-icon"sv, "apple-touch-icon-precomposed"sv, "canonical"sv } },
+        { { HTML::TagNames::a, HTML::AttributeNames::rel }, { "noreferrer"sv, "noopener"sv, "opener"sv } },
+        { { HTML::TagNames::area, HTML::AttributeNames::rel }, { "noreferrer"sv, "noopener"sv, "opener"sv } },
+        { { HTML::TagNames::form, HTML::AttributeNames::rel }, { "noreferrer"sv, "noopener"sv, "opener"sv } },
+        { { HTML::TagNames::iframe, HTML::AttributeNames::sandbox }, { "allow-downloads"sv, "allow-forms"sv, "allow-modals"sv, "allow-orientation-lock"sv, "allow-pointer-lock"sv, "allow-popups"sv, "allow-popups-to-escape-sandbox"sv, "allow-presentation"sv, "allow-same-origin"sv, "allow-scripts"sv, "allow-top-navigation"sv, "allow-top-navigation-by-user-activation"sv, "allow-top-navigation-to-custom-protocols"sv } },
     };
 
     // 1. If the associated attribute’s local name does not define supported tokens, throw a TypeError.
-    auto supported_tokens = supported_tokens_map.get(m_associated_attribute);
+    auto supported_tokens = supported_tokens_map.get({ m_associated_element->local_name(), m_associated_attribute });
     if (!supported_tokens.has_value())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Attribute {} does not define any supported tokens", m_associated_attribute)) };
-
-    // AD-HOC: Other browsers return false for rel attributes on non-link elements for all attribute values we currently support.
-    if (m_associated_attribute == HTML::AttributeNames::rel && !is<HTML::HTMLLinkElement>(*m_associated_element))
-        return false;
 
     // 2. Let lowercase token be a copy of token, in ASCII lowercase.
     auto lowercase_token = token.to_lowercase_string();
