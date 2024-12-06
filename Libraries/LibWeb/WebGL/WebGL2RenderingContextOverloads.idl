@@ -1,0 +1,66 @@
+#import <WebGL/Types.idl>
+#import <WebGL/WebGLRenderingContextOverloads.idl>
+#import <WebGL/WebGLUniformLocation.idl>
+
+// https://registry.khronos.org/webgl/specs/latest/2.0/#3.7
+interface mixin WebGL2RenderingContextOverloads {
+    // WebGL1:
+    [FIXME] undefined bufferData(GLenum target, GLsizeiptr size, GLenum usage);
+    [FIXME] undefined bufferData(GLenum target, AllowSharedBufferSource? srcData, GLenum usage);
+    [FIXME] undefined bufferSubData(GLenum target, GLintptr dstByteOffset, AllowSharedBufferSource srcData);
+    // WebGL2:
+    [FIXME] undefined bufferData(GLenum target, [AllowShared] ArrayBufferView srcData, GLenum usage, unsigned long long srcOffset, optional GLuint length = 0);
+    [FIXME] undefined bufferSubData(GLenum target, GLintptr dstByteOffset, [AllowShared] ArrayBufferView srcData, unsigned long long srcOffset, optional GLuint length = 0);
+
+    // WebGL1 legacy entrypoints:
+    [FIXME] undefined texImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, [AllowShared] ArrayBufferView? pixels);
+
+    // May throw DOMException
+    [FIXME] undefined texImage2D(GLenum target, GLint level, GLint internalformat, GLenum format, GLenum type, TexImageSource source);
+
+    [FIXME] undefined texSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, [AllowShared] ArrayBufferView? pixels);
+
+    // May throw DOMException
+    [FIXME] undefined texSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLenum format, GLenum type, TexImageSource source);
+
+    // WebGL2 entrypoints:
+    [FIXME] undefined texImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, GLintptr pboOffset);
+
+    // May throw DOMException
+    [FIXME] undefined texImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, TexImageSource source);
+
+    [FIXME] undefined texImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, [AllowShared] ArrayBufferView srcData, unsigned long long srcOffset);
+
+    [FIXME] undefined texSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, GLintptr pboOffset);
+
+    // May throw DOMException
+    [FIXME] undefined texSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, TexImageSource source);
+    [FIXME] undefined texSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, [AllowShared] ArrayBufferView srcData, unsigned long long srcOffset);
+
+    [FIXME] undefined compressedTexImage2D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, GLsizei imageSize, GLintptr offset);
+    [FIXME] undefined compressedTexImage2D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, [AllowShared] ArrayBufferView srcData, optional unsigned long long srcOffset = 0, optional GLuint srcLengthOverride = 0);
+
+    [FIXME] undefined compressedTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLsizei imageSize, GLintptr offset);
+    [FIXME] undefined compressedTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset,GLsizei width, GLsizei height, GLenum format, [AllowShared] ArrayBufferView srcData, optional unsigned long long srcOffset = 0, optional GLuint srcLengthOverride = 0);
+
+    [FIXME] undefined uniform1fv(WebGLUniformLocation? location, Float32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
+    [FIXME] undefined uniform2fv(WebGLUniformLocation? location, Float32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
+    [FIXME] undefined uniform3fv(WebGLUniformLocation? location, Float32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
+    [FIXME] undefined uniform4fv(WebGLUniformLocation? location, Float32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
+
+    [FIXME] undefined uniform1iv(WebGLUniformLocation? location, Int32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
+    [FIXME] undefined uniform2iv(WebGLUniformLocation? location, Int32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
+    [FIXME] undefined uniform3iv(WebGLUniformLocation? location, Int32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
+    [FIXME] undefined uniform4iv(WebGLUniformLocation? location, Int32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
+
+    [FIXME] undefined uniformMatrix2fv(WebGLUniformLocation? location, GLboolean transpose, Float32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
+    [FIXME] undefined uniformMatrix3fv(WebGLUniformLocation? location, GLboolean transpose, Float32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
+    [FIXME] undefined uniformMatrix4fv(WebGLUniformLocation? location, GLboolean transpose, Float32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
+
+    // Reading back pixels
+    // WebGL1:
+    [FIXME] undefined readPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, [AllowShared] ArrayBufferView? dstData);
+    // WebGL2:
+    [FIXME] undefined readPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLintptr offset);
+    [FIXME] undefined readPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, [AllowShared] ArrayBufferView dstData, unsigned long long dstOffset);
+};

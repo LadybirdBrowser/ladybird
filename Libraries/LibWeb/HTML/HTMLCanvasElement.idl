@@ -2,8 +2,9 @@
 #import <HTML/CanvasRenderingContext2D.idl>
 #import <HTML/HTMLElement.idl>
 #import <WebGL/WebGLRenderingContext.idl>
+#import <WebGL/WebGL2RenderingContext.idl>
 
-typedef (CanvasRenderingContext2D or WebGLRenderingContext) RenderingContext;
+typedef (CanvasRenderingContext2D or WebGLRenderingContext or WebGL2RenderingContext) RenderingContext;
 
 // https://html.spec.whatwg.org/multipage/semantics.html#htmlcanvaselement
 [Exposed=Window]

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2022, Luke Wilde <lukew@serenityos.org>
+ * Copyright (c) 2024, Andrew Kaster <andrew@ladybird.org>
  * Copyright (c) 2023, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -8,12 +9,13 @@
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLRenderingContextPrototype.h>
+#include <LibWeb/Bindings/WebGL2RenderingContextPrototype.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/WebGL/EventNames.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
+#include <LibWeb/WebGL/WebGL2RenderingContext.h>
 #include <LibWeb/WebGL/WebGLContextEvent.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
 #include <LibWeb/WebGL/WebGLShader.h>
@@ -24,27 +26,9 @@
 
 namespace Web::WebGL {
 
-GC_DEFINE_ALLOCATOR(WebGLRenderingContext);
+GC_DEFINE_ALLOCATOR(WebGL2RenderingContext);
 
-// https://www.khronos.org/registry/webgl/specs/latest/1.0/#fire-a-webgl-context-event
-void fire_webgl_context_event(HTML::HTMLCanvasElement& canvas_element, FlyString const& type)
-{
-    // To fire a WebGL context event named e means that an event using the WebGLContextEvent interface, with its type attribute [DOM4] initialized to e, its cancelable attribute initialized to true, and its isTrusted attribute [DOM4] initialized to true, is to be dispatched at the given object.
-    // FIXME: Consider setting a status message.
-    auto event = WebGLContextEvent::create(canvas_element.realm(), type, WebGLContextEventInit {});
-    event->set_is_trusted(true);
-    event->set_cancelable(true);
-    canvas_element.dispatch_event(*event);
-}
-
-// https://www.khronos.org/registry/webgl/specs/latest/1.0/#fire-a-webgl-context-creation-error
-void fire_webgl_context_creation_error(HTML::HTMLCanvasElement& canvas_element)
-{
-    // 1. Fire a WebGL context event named "webglcontextcreationerror" at canvas, optionally with its statusMessage attribute set to a platform dependent string about the nature of the failure.
-    fire_webgl_context_event(canvas_element, EventNames::webglcontextcreationerror);
-}
-
-JS::ThrowCompletionOr<GC::Ptr<WebGLRenderingContext>> WebGLRenderingContext::create(JS::Realm& realm, HTML::HTMLCanvasElement& canvas_element, JS::Value options)
+JS::ThrowCompletionOr<GC::Ptr<WebGL2RenderingContext>> WebGL2RenderingContext::create(JS::Realm& realm, HTML::HTMLCanvasElement& canvas_element, JS::Value options)
 {
     // We should be coming here from getContext being called on a wrapped <canvas> element.
     auto context_attributes = TRY(convert_value_to_context_attributes_dictionary(canvas_element.vm(), options));
@@ -52,43 +36,43 @@ JS::ThrowCompletionOr<GC::Ptr<WebGLRenderingContext>> WebGLRenderingContext::cre
     auto skia_backend_context = canvas_element.navigable()->traversable_navigable()->skia_backend_context();
     if (!skia_backend_context) {
         fire_webgl_context_creation_error(canvas_element);
-        return GC::Ptr<WebGLRenderingContext> { nullptr };
+        return GC::Ptr<WebGL2RenderingContext> { nullptr };
     }
     auto context = OpenGLContext::create(*skia_backend_context);
     if (!context) {
         fire_webgl_context_creation_error(canvas_element);
-        return GC::Ptr<WebGLRenderingContext> { nullptr };
+        return GC::Ptr<WebGL2RenderingContext> { nullptr };
     }
 
     context->set_size(canvas_element.bitmap_size_for_canvas(1, 1));
 
-    return realm.create<WebGLRenderingContext>(realm, canvas_element, context.release_nonnull(), context_attributes, context_attributes);
+    return realm.create<WebGL2RenderingContext>(realm, canvas_element, context.release_nonnull(), context_attributes, context_attributes);
 }
 
-WebGLRenderingContext::WebGLRenderingContext(JS::Realm& realm, HTML::HTMLCanvasElement& canvas_element, NonnullOwnPtr<OpenGLContext> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters)
+WebGL2RenderingContext::WebGL2RenderingContext(JS::Realm& realm, HTML::HTMLCanvasElement& canvas_element, NonnullOwnPtr<OpenGLContext> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters)
     : PlatformObject(realm)
-    , WebGLRenderingContextImpl(realm, move(context))
+    , WebGL2RenderingContextImpl(realm, move(context))
     , m_canvas_element(canvas_element)
     , m_context_creation_parameters(context_creation_parameters)
     , m_actual_context_parameters(actual_context_parameters)
 {
 }
 
-WebGLRenderingContext::~WebGLRenderingContext() = default;
+WebGL2RenderingContext::~WebGL2RenderingContext() = default;
 
-void WebGLRenderingContext::initialize(JS::Realm& realm)
+void WebGL2RenderingContext::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
-    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGLRenderingContext);
+    WEB_SET_PROTOTYPE_FOR_INTERFACE(WebGL2RenderingContext);
 }
 
-void WebGLRenderingContext::visit_edges(Cell::Visitor& visitor)
+void WebGL2RenderingContext::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_canvas_element);
 }
 
-void WebGLRenderingContext::present()
+void WebGL2RenderingContext::present()
 {
     if (!m_should_present)
         return;
@@ -106,12 +90,12 @@ void WebGLRenderingContext::present()
     }
 }
 
-GC::Ref<HTML::HTMLCanvasElement> WebGLRenderingContext::canvas_for_binding() const
+GC::Ref<HTML::HTMLCanvasElement> WebGL2RenderingContext::canvas_for_binding() const
 {
     return *m_canvas_element;
 }
 
-void WebGLRenderingContext::needs_to_present()
+void WebGL2RenderingContext::needs_to_present()
 {
     m_should_present = true;
 
@@ -120,7 +104,7 @@ void WebGLRenderingContext::needs_to_present()
     m_canvas_element->paintable()->set_needs_display();
 }
 
-void WebGLRenderingContext::set_error(GLenum error)
+void WebGL2RenderingContext::set_error(GLenum error)
 {
     auto context_error = glGetError();
     if (context_error != GL_NO_ERROR)
@@ -129,44 +113,44 @@ void WebGLRenderingContext::set_error(GLenum error)
         m_error = error;
 }
 
-bool WebGLRenderingContext::is_context_lost() const
+bool WebGL2RenderingContext::is_context_lost() const
 {
     dbgln_if(WEBGL_CONTEXT_DEBUG, "WebGLRenderingContext::is_context_lost()");
     return m_context_lost;
 }
 
-Optional<WebGLContextAttributes> WebGLRenderingContext::get_context_attributes()
+Optional<WebGLContextAttributes> WebGL2RenderingContext::get_context_attributes()
 {
     if (is_context_lost())
         return {};
     return m_actual_context_parameters;
 }
 
-void WebGLRenderingContext::set_size(Gfx::IntSize const& size)
+void WebGL2RenderingContext::set_size(Gfx::IntSize const& size)
 {
     context().set_size(size);
 }
 
-void WebGLRenderingContext::reset_to_default_state()
+void WebGL2RenderingContext::reset_to_default_state()
 {
 }
 
-RefPtr<Gfx::PaintingSurface> WebGLRenderingContext::surface()
+RefPtr<Gfx::PaintingSurface> WebGL2RenderingContext::surface()
 {
     return context().surface();
 }
 
-void WebGLRenderingContext::allocate_painting_surface_if_needed()
+void WebGL2RenderingContext::allocate_painting_surface_if_needed()
 {
     context().allocate_painting_surface_if_needed();
 }
 
-Optional<Vector<String>> WebGLRenderingContext::get_supported_extensions() const
+Optional<Vector<String>> WebGL2RenderingContext::get_supported_extensions() const
 {
     return {};
 }
 
-JS::Object* WebGLRenderingContext::get_extension(String const&)
+JS::Object* WebGL2RenderingContext::get_extension(String const&)
 {
     return nullptr;
 }

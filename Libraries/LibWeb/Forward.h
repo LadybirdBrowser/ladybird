@@ -832,6 +832,7 @@ struct OscillatorOptions;
 
 namespace Web::WebGL {
 class OpenGLContext;
+class WebGL2RenderingContext;
 class WebGLActiveInfo;
 class WebGLBuffer;
 class WebGLContextEvent;

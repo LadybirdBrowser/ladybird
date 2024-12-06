@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2022, Luke Wilde <lukew@serenityos.org>
+ * Copyright (c) 2024, Andrew Kaster <andrew@ladybird.org>
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -11,20 +12,20 @@
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebGL/Types.h>
+#include <LibWeb/WebGL/WebGL2RenderingContextImpl.h>
 #include <LibWeb/WebGL/WebGLContextAttributes.h>
-#include <LibWeb/WebGL/WebGLRenderingContextImpl.h>
 
 namespace Web::WebGL {
 
-class WebGLRenderingContext : public Bindings::PlatformObject
-    , public WebGLRenderingContextImpl {
-    WEB_PLATFORM_OBJECT(WebGLRenderingContext, Bindings::PlatformObject);
-    GC_DECLARE_ALLOCATOR(WebGLRenderingContext);
+class WebGL2RenderingContext : public Bindings::PlatformObject
+    , public WebGL2RenderingContextImpl {
+    WEB_PLATFORM_OBJECT(WebGL2RenderingContext, Bindings::PlatformObject);
+    GC_DECLARE_ALLOCATOR(WebGL2RenderingContext);
 
 public:
-    static JS::ThrowCompletionOr<GC::Ptr<WebGLRenderingContext>> create(JS::Realm&, HTML::HTMLCanvasElement& canvas_element, JS::Value options);
+    static JS::ThrowCompletionOr<GC::Ptr<WebGL2RenderingContext>> create(JS::Realm&, HTML::HTMLCanvasElement& canvas_element, JS::Value options);
 
-    virtual ~WebGLRenderingContext() override;
+    virtual ~WebGL2RenderingContext() override;
 
     void present() override;
     void needs_to_present() override;
@@ -46,7 +47,7 @@ public:
 private:
     virtual void initialize(JS::Realm&) override;
 
-    WebGLRenderingContext(JS::Realm&, HTML::HTMLCanvasElement&, NonnullOwnPtr<OpenGLContext> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters);
+    WebGL2RenderingContext(JS::Realm&, HTML::HTMLCanvasElement&, NonnullOwnPtr<OpenGLContext> context, WebGLContextAttributes context_creation_parameters, WebGLContextAttributes actual_context_parameters);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -74,8 +75,5 @@ private:
 
     void set_error(GLenum error);
 };
-
-void fire_webgl_context_event(HTML::HTMLCanvasElement& canvas_element, FlyString const& type);
-void fire_webgl_context_creation_error(HTML::HTMLCanvasElement& canvas_element);
 
 }
