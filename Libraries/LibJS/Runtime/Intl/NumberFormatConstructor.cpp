@@ -63,13 +63,13 @@ ThrowCompletionOr<GC::Ref<Object>> NumberFormatConstructor::construct(FunctionOb
     // 5. Let opt be a new Record.
     LocaleOptions opt {};
 
-    // 6. Let matcher be ? GetOption(options, "localeMatcher", string, « "lookup", "best fit" », "best fit").
+    // 6. Let matcher be ? GetOption(options, "localeMatcher", STRING, « "lookup", "best fit" », "best fit").
     auto matcher = TRY(get_option(vm, *options, vm.names.localeMatcher, OptionType::String, { "lookup"sv, "best fit"sv }, "best fit"sv));
 
     // 7. Set opt.[[localeMatcher]] to matcher.
     opt.locale_matcher = matcher;
 
-    // 8. Let numberingSystem be ? GetOption(options, "numberingSystem", string, empty, undefined).
+    // 8. Let numberingSystem be ? GetOption(options, "numberingSystem", STRING, EMPTY, undefined).
     auto numbering_system = TRY(get_option(vm, *options, vm.names.numberingSystem, OptionType::String, {}, Empty {}));
 
     // 9. If numberingSystem is not undefined, then
@@ -138,7 +138,7 @@ ThrowCompletionOr<GC::Ref<Object>> NumberFormatConstructor::construct(FunctionOb
     // 21. Perform ? SetNumberFormatDigitOptions(numberFormat, options, mnfdDefault, mxfdDefault, notation).
     TRY(set_number_format_digit_options(vm, number_format, *options, default_min_fraction_digits, default_max_fraction_digits, number_format->notation()));
 
-    // 22. Let compactDisplay be ? GetOption(options, "compactDisplay", string, « "short", "long" », "short").
+    // 22. Let compactDisplay be ? GetOption(options, "compactDisplay", STRING, « "short", "long" », "short").
     auto compact_display = TRY(get_option(vm, *options, vm.names.compactDisplay, OptionType::String, { "short"sv, "long"sv }, "short"sv));
 
     // 23. Let defaultUseGrouping be "auto".
@@ -172,7 +172,7 @@ ThrowCompletionOr<GC::Ref<Object>> NumberFormatConstructor::construct(FunctionOb
     // 29. Set numberFormat.[[UseGrouping]] to useGrouping.
     number_format->set_use_grouping(use_grouping);
 
-    // 30. Let signDisplay be ? GetOption(options, "signDisplay", string, « "auto", "never", "always", "exceptZero", "negative" », "auto").
+    // 30. Let signDisplay be ? GetOption(options, "signDisplay", STRING, « "auto", "never", "always", "exceptZero", "negative" », "auto").
     auto sign_display = TRY(get_option(vm, *options, vm.names.signDisplay, OptionType::String, { "auto"sv, "never"sv, "always"sv, "exceptZero"sv, "negative"sv }, "auto"sv));
 
     // 31. Set numberFormat.[[SignDisplay]] to signDisplay.
@@ -224,14 +224,14 @@ ThrowCompletionOr<void> set_number_format_digit_options(VM& vm, NumberFormatBase
     if (!sanctioned_rounding_increments.span().contains_slow(*rounding_increment))
         return vm.throw_completion<RangeError>(ErrorType::IntlInvalidRoundingIncrement, *rounding_increment);
 
-    // 9. Let roundingMode be ? GetOption(options, "roundingMode", string, « "ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor", "halfExpand", "halfTrunc", "halfEven" », "halfExpand").
+    // 9. Let roundingMode be ? GetOption(options, "roundingMode", STRING, « "ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor", "halfExpand", "halfTrunc", "halfEven" », "halfExpand").
     auto rounding_mode = TRY(get_option(vm, options, vm.names.roundingMode, OptionType::String, { "ceil"sv, "floor"sv, "expand"sv, "trunc"sv, "halfCeil"sv, "halfFloor"sv, "halfExpand"sv, "halfTrunc"sv, "halfEven"sv }, "halfExpand"sv));
 
-    // 10. Let roundingPriority be ? GetOption(options, "roundingPriority", string, « "auto", "morePrecision", "lessPrecision" », "auto").
+    // 10. Let roundingPriority be ? GetOption(options, "roundingPriority", STRING, « "auto", "morePrecision", "lessPrecision" », "auto").
     auto rounding_priority_option = TRY(get_option(vm, options, vm.names.roundingPriority, OptionType::String, { "auto"sv, "morePrecision"sv, "lessPrecision"sv }, "auto"sv));
     auto rounding_priority = rounding_priority_option.as_string().utf8_string_view();
 
-    // 11. Let trailingZeroDisplay be ? GetOption(options, "trailingZeroDisplay", string, « "auto", "stripIfInteger" », "auto").
+    // 11. Let trailingZeroDisplay be ? GetOption(options, "trailingZeroDisplay", STRING, « "auto", "stripIfInteger" », "auto").
     auto trailing_zero_display = TRY(get_option(vm, options, vm.names.trailingZeroDisplay, OptionType::String, { "auto"sv, "stripIfInteger"sv }, "auto"sv));
 
     // 12. NOTE: All fields required by SetNumberFormatDigitOptions have now been read from options. The remainder of this AO interprets the options and may throw exceptions.
@@ -402,13 +402,13 @@ ThrowCompletionOr<void> set_number_format_digit_options(VM& vm, NumberFormatBase
 // 16.1.3 SetNumberFormatUnitOptions ( intlObj, options ), https://tc39.es/ecma402/#sec-setnumberformatunitoptions
 ThrowCompletionOr<void> set_number_format_unit_options(VM& vm, NumberFormat& intl_object, Object const& options)
 {
-    // 1. Let style be ? GetOption(options, "style", string, « "decimal", "percent", "currency", "unit" », "decimal").
+    // 1. Let style be ? GetOption(options, "style", STRING, « "decimal", "percent", "currency", "unit" », "decimal").
     auto style = TRY(get_option(vm, options, vm.names.style, OptionType::String, { "decimal"sv, "percent"sv, "currency"sv, "unit"sv }, "decimal"sv));
 
     // 2. Set intlObj.[[Style]] to style.
     intl_object.set_style(style.as_string().utf8_string_view());
 
-    // 3. Let currency be ? GetOption(options, "currency", string, empty, undefined).
+    // 3. Let currency be ? GetOption(options, "currency", STRING, EMPTY, undefined).
     auto currency = TRY(get_option(vm, options, vm.names.currency, OptionType::String, {}, Empty {}));
 
     // 4. If currency is undefined, then
@@ -423,13 +423,13 @@ ThrowCompletionOr<void> set_number_format_unit_options(VM& vm, NumberFormat& int
         return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, currency, "currency"sv);
     }
 
-    // 6. Let currencyDisplay be ? GetOption(options, "currencyDisplay", string, « "code", "symbol", "narrowSymbol", "name" », "symbol").
+    // 6. Let currencyDisplay be ? GetOption(options, "currencyDisplay", STRING, « "code", "symbol", "narrowSymbol", "name" », "symbol").
     auto currency_display = TRY(get_option(vm, options, vm.names.currencyDisplay, OptionType::String, { "code"sv, "symbol"sv, "narrowSymbol"sv, "name"sv }, "symbol"sv));
 
-    // 7. Let currencySign be ? GetOption(options, "currencySign", string, « "standard", "accounting" », "standard").
+    // 7. Let currencySign be ? GetOption(options, "currencySign", STRING, « "standard", "accounting" », "standard").
     auto currency_sign = TRY(get_option(vm, options, vm.names.currencySign, OptionType::String, { "standard"sv, "accounting"sv }, "standard"sv));
 
-    // 8. Let unit be ? GetOption(options, "unit", string, empty, undefined).
+    // 8. Let unit be ? GetOption(options, "unit", STRING, EMPTY, undefined).
     auto unit = TRY(get_option(vm, options, vm.names.unit, OptionType::String, {}, Empty {}));
 
     // 9. If unit is undefined, then
@@ -444,7 +444,7 @@ ThrowCompletionOr<void> set_number_format_unit_options(VM& vm, NumberFormat& int
         return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, unit, "unit"sv);
     }
 
-    // 11. Let unitDisplay be ? GetOption(options, "unitDisplay", string, « "short", "narrow", "long" », "short").
+    // 11. Let unitDisplay be ? GetOption(options, "unitDisplay", STRING, « "short", "narrow", "long" », "short").
     auto unit_display = TRY(get_option(vm, options, vm.names.unitDisplay, OptionType::String, { "short"sv, "narrow"sv, "long"sv }, "short"sv));
 
     // 12. If style is "currency", then
