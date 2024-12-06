@@ -250,7 +250,11 @@
          *                    rejected in the cases the WebDriver command errors
          */
         get_computed_role: async function(element) {
-            let role = await window.test_driver_internal.get_computed_role(element);
+            // XXX: Ladybird-specific change: Upstream WPT calls
+            // window.test_driver_internal.get_computed_role(element) here,
+            // but we’ve changed that to our Ladybird-specific
+            // window.internals.getComputedRole(el).
+            let role = await window.internals.getComputedRole(element);
             return role;
         },
 
