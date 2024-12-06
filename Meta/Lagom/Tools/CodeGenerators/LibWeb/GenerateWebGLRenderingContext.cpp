@@ -422,7 +422,7 @@ public:
             auto const& parameter = function.parameters[i];
             function_parameters.append(to_cpp_type(*parameter.type, interface));
             function_parameters.append(" "sv);
-            function_parameters.append(parameter.name);
+            function_parameters.append(parameter.name.to_snakecase());
             if (i != function.parameters.size() - 1) {
                 function_parameters.append(", "sv);
             }
@@ -805,7 +805,7 @@ public:
 
         if (function.name == "deleteVertexArray"sv) {
             function_impl_generator.append(R"~~~(
-    auto handle = vertexArray ? vertexArray->handle() : 0;
+    auto handle = vertex_array ? vertex_array->handle() : 0;
     glDeleteVertexArrays(1, &handle);
 )~~~");
             continue;
@@ -814,24 +814,25 @@ public:
         Vector<ByteString> gl_call_arguments;
         for (size_t i = 0; i < function.parameters.size(); ++i) {
             auto const& parameter = function.parameters[i];
+            auto parameter_name = parameter.name.to_snakecase();
             if (parameter.type->is_numeric() || parameter.type->is_boolean()) {
-                gl_call_arguments.append(parameter.name);
+                gl_call_arguments.append(parameter_name);
                 continue;
             }
             if (parameter.type->is_string()) {
-                function_impl_generator.set("parameter_name", parameter.name);
+                function_impl_generator.set("parameter_name", parameter_name);
                 function_impl_generator.append(R"~~~(
     auto @parameter_name@_null_terminated = null_terminated_string(@parameter_name@);
 )~~~");
-                gl_call_arguments.append(ByteString::formatted("{}_null_terminated.data()", parameter.name));
+                gl_call_arguments.append(ByteString::formatted("{}_null_terminated.data()", parameter_name));
                 continue;
             }
             if (is_webgl_object_type(parameter.type->name())) {
-                gl_call_arguments.append(ByteString::formatted("{} ? {}->handle() : 0", parameter.name, parameter.name));
+                gl_call_arguments.append(ByteString::formatted("{} ? {}->handle() : 0", parameter_name, parameter_name));
                 continue;
             }
             if (parameter.type->name() == "BufferSource"sv) {
-                function_impl_generator.set("buffer_source_name", parameter.name);
+                function_impl_generator.set("buffer_source_name", parameter_name);
                 function_impl_generator.append(R"~~~(
     void const* ptr = nullptr;
     size_t byte_size = 0;
