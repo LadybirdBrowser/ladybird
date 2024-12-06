@@ -201,7 +201,7 @@ String canonical_space_sequence(u32 length, bool non_breaking_start, bool non_br
 void canonicalize_whitespace(GC::Ref<DOM::Node> node, u32 offset, bool fix_collapsed_space)
 {
     // 1. If node is neither editable nor an editing host, abort these steps.
-    if (!node->is_editable() || !is_editing_host(node))
+    if (!node->is_editable_or_editing_host())
         return;
 
     // 2. Let start node equal node and let start offset equal offset.
@@ -914,20 +914,6 @@ bool is_collapsed_whitespace_node(GC::Ref<DOM::Node> node)
 
     // 11. Return false.
     return false;
-}
-
-// https://html.spec.whatwg.org/multipage/interaction.html#editing-host
-bool is_editing_host(GC::Ref<DOM::Node> node)
-{
-    // An editing host is either an HTML element with its contenteditable attribute in the true
-    // state or plaintext-only state, or a child HTML element of a Document whose design mode
-    // enabled is true.
-    if (!is<HTML::HTMLElement>(*node))
-        return false;
-    auto const& html_element = static_cast<HTML::HTMLElement&>(*node);
-    return html_element.content_editable_state() == HTML::ContentEditableState::True
-        || html_element.content_editable_state() == HTML::ContentEditableState::PlaintextOnly
-        || node->document().design_mode_enabled_state();
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#element-with-inline-contents

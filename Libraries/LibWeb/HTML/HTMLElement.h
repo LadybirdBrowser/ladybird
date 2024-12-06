@@ -73,7 +73,6 @@ public:
     StringView dir() const;
     void set_dir(String const&);
 
-    virtual bool is_editable() const final;
     virtual bool is_focusable() const override;
     bool is_content_editable() const;
     StringView content_editable() const;

@@ -2000,11 +2000,6 @@ String const& Document::compat_mode() const
     return css1_compat;
 }
 
-bool Document::is_editable() const
-{
-    return m_editable;
-}
-
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-documentorshadowroot-activeelement
 void Document::update_active_element()
 {
@@ -2060,9 +2055,8 @@ void Document::set_focused_element(Element* element)
     if (auto* invalidation_target = find_common_ancestor(old_focused_element, m_focused_element) ?: this)
         invalidation_target->invalidate_style(StyleInvalidationReason::FocusedElementChange);
 
-    if (m_focused_element) {
+    if (m_focused_element)
         m_focused_element->did_receive_focus();
-    }
 
     if (paintable())
         paintable()->set_needs_display();
@@ -5538,7 +5532,7 @@ InputEventsTarget* Document::active_input_events_target()
         return static_cast<HTML::HTMLInputElement*>(focused_element);
     if (is<HTML::HTMLTextAreaElement>(*focused_element))
         return static_cast<HTML::HTMLTextAreaElement*>(focused_element);
-    if (is<HTML::HTMLElement>(*focused_element) && static_cast<HTML::HTMLElement*>(focused_element)->is_editable())
+    if (focused_element->is_editable_or_editing_host())
         return m_editing_host_manager;
     return nullptr;
 }
@@ -5546,9 +5540,8 @@ InputEventsTarget* Document::active_input_events_target()
 GC::Ptr<DOM::Position> Document::cursor_position() const
 {
     auto const* focused_element = this->focused_element();
-    if (!focused_element) {
+    if (!focused_element)
         return nullptr;
-    }
 
     Optional<HTML::FormAssociatedTextControlElement const&> target {};
     if (is<HTML::HTMLInputElement>(*focused_element))
@@ -5556,13 +5549,11 @@ GC::Ptr<DOM::Position> Document::cursor_position() const
     else if (is<HTML::HTMLTextAreaElement>(*focused_element))
         target = static_cast<HTML::HTMLTextAreaElement const&>(*focused_element);
 
-    if (target.has_value()) {
+    if (target.has_value())
         return target->cursor_position();
-    }
 
-    if (is<HTML::HTMLElement>(*focused_element) && static_cast<HTML::HTMLElement const*>(focused_element)->is_editable()) {
+    if (focused_element->is_editable_or_editing_host())
         return m_selection->cursor_position();
-    }
 
     return nullptr;
 }

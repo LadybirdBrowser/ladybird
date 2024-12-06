@@ -86,25 +86,9 @@ void HTMLElement::set_dir(String const& dir)
     MUST(set_attribute(HTML::AttributeNames::dir, dir));
 }
 
-bool HTMLElement::is_editable() const
-{
-    switch (m_content_editable_state) {
-    case ContentEditableState::True:
-    case ContentEditableState::PlaintextOnly:
-        return true;
-    case ContentEditableState::False:
-        return false;
-    case ContentEditableState::Inherit:
-        return parent() && parent()->is_editable();
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
 bool HTMLElement::is_focusable() const
 {
-    return m_content_editable_state == ContentEditableState::True
-        || m_content_editable_state == ContentEditableState::PlaintextOnly;
+    return is_editing_host();
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-iscontenteditable
@@ -112,7 +96,7 @@ bool HTMLElement::is_content_editable() const
 {
     // The isContentEditable IDL attribute, on getting, must return true if the element is either an editing host or
     // editable, and false otherwise.
-    return is_editable();
+    return is_editable_or_editing_host();
 }
 
 StringView HTMLElement::content_editable() const
@@ -1181,7 +1165,7 @@ WebIDL::ExceptionOr<bool> HTMLElement::toggle_popover(TogglePopoverOptionsOrForc
 
 void HTMLElement::did_receive_focus()
 {
-    if (m_content_editable_state != ContentEditableState::True)
+    if (!first_is_one_of(m_content_editable_state, ContentEditableState::True, ContentEditableState::PlaintextOnly))
         return;
 
     auto editing_host = document().editing_host_manager();
@@ -1202,7 +1186,7 @@ void HTMLElement::did_receive_focus()
 
 void HTMLElement::did_lose_focus()
 {
-    if (m_content_editable_state != ContentEditableState::True)
+    if (!first_is_one_of(m_content_editable_state, ContentEditableState::True, ContentEditableState::PlaintextOnly))
         return;
 
     document().editing_host_manager()->set_active_contenteditable_element(nullptr);

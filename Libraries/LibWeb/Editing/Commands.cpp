@@ -384,7 +384,7 @@ bool command_insert_paragraph_action(DOM::Document& document, String const&)
     // 2. If the active range's start node is neither editable nor an editing host, return true.
     auto& active_range = *selection.range();
     GC::Ptr<DOM::Node> node = active_range.start_container();
-    if (!node->is_editable() && !is_editing_host(*node))
+    if (!node->is_editable_or_editing_host())
         return true;
 
     // 3. Let node and offset be the active range's start node and offset.

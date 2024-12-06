@@ -100,8 +100,6 @@ public:
     bool indeterminate() const { return m_indeterminate; }
     void set_indeterminate(bool);
 
-    bool is_mutable() const { return m_is_mutable; }
-
     void did_pick_color(Optional<Color> picked_color, ColorPickerUpdateState state);
 
     enum class MultipleHandling {
@@ -338,9 +336,6 @@ private:
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-fe-dirty
     bool m_dirty_value { false };
-
-    // https://html.spec.whatwg.org/multipage/input.html#the-input-element:concept-fe-mutable
-    bool m_is_mutable { true };
 
     // https://html.spec.whatwg.org/multipage/input.html#the-input-element:legacy-pre-activation-behavior
     bool m_before_legacy_pre_activation_behavior_checked { false };

@@ -335,7 +335,6 @@ public:
     String const& compat_mode() const;
 
     void set_editable(bool editable) { m_editable = editable; }
-    virtual bool is_editable() const final;
 
     Element* focused_element() { return m_focused_element.ptr(); }
     Element const* focused_element() const { return m_focused_element.ptr(); }

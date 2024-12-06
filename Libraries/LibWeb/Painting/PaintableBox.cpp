@@ -564,7 +564,12 @@ void paint_cursor_if_needed(PaintContext& context, TextPaintable const& paintabl
     if (cursor_position->offset() < (unsigned)fragment.start() || cursor_position->offset() > (unsigned)(fragment.start() + fragment.length()))
         return;
 
-    if (!fragment.layout_node().dom_node() || !fragment.layout_node().dom_node()->is_editable())
+    auto active_element = document.active_element();
+    auto active_element_is_editable = is<HTML::FormAssociatedTextControlElement>(active_element)
+        && dynamic_cast<HTML::FormAssociatedTextControlElement const&>(*active_element).is_mutable();
+
+    auto dom_node = fragment.layout_node().dom_node();
+    if (!dom_node || (!dom_node->is_editable() && !active_element_is_editable))
         return;
 
     auto fragment_rect = fragment.absolute_rect();
