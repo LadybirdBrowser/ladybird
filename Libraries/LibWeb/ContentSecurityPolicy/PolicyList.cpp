@@ -6,6 +6,7 @@
 
 #include <LibGC/RootVector.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/Names.h>
 #include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/ContentSecurityPolicy/SerializedPolicy.h>
 #include <LibWeb/DOM/Document.h>
@@ -74,9 +75,38 @@ bool PolicyList::contains_header_delivered_policy() const
     return !header_delivered_entry.is_end();
 }
 
+// https://html.spec.whatwg.org/multipage/browsers.html#csp-derived-sandboxing-flags
 HTML::SandboxingFlagSet PolicyList::csp_derived_sandboxing_flags() const
 {
-    return HTML::SandboxingFlagSet {};
+    // 1. Let directives be an empty ordered set.
+    // NOTE: Since the algorithm only uses the last entry, we instead use a pointer to the last entry.
+    GC::Ptr<Directives::Directive> sandbox_directive = nullptr;
+
+    // 2. For each policy in cspList:
+    for (auto const policy : m_policies) {
+        // 1. If policy's disposition is not "enforce", then continue.
+        if (policy->disposition() != Policy::Disposition::Enforce)
+            continue;
+
+        // 2. If policy's directive set contains a directive whose name is "sandbox", then append that directive to
+        //   directives.
+        auto maybe_sandbox_directive = policy->directives().find_if([](auto const& directive) {
+            return directive->name() == Directives::Names::Sandbox;
+        });
+
+        if (!maybe_sandbox_directive.is_end())
+            sandbox_directive = *maybe_sandbox_directive;
+    }
+
+    // 3. If directives is empty, then return an empty sandboxing flag set.
+    if (!sandbox_directive)
+        return HTML::SandboxingFlagSet {};
+
+    // 4. Let directive be directives[directives's size − 1].
+    // NOTE: Already done.
+
+    // 5. Return the result of parsing the sandboxing directive directive.
+    return HTML::parse_a_sandboxing_directive(sandbox_directive->value());
 }
 
 // https://w3c.github.io/webappsec-csp/#enforced
