@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/HeadersIteratorPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Fetch/HeadersIterator.h>
+#include <LibWeb/Infra/Strings.h>
 
 namespace Web::Bindings {
 
@@ -65,8 +66,8 @@ GC::Ref<JS::Object> HeadersIterator::next()
         return create_iterator_result_object(vm(), JS::js_undefined(), true);
 
     auto const& pair = pairs[m_index++];
-    StringView pair_name { pair.name };
-    StringView pair_value { pair.value };
+    auto pair_name = Infra::isomorphic_decode(pair.name);
+    auto pair_value = Infra::isomorphic_decode(pair.value);
 
     switch (m_iteration_kind) {
     case JS::Object::PropertyKind::Key:
