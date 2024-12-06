@@ -811,6 +811,7 @@ set(SOURCES
     WebGL/WebGLFramebuffer.cpp
     WebGL/WebGLObject.cpp
     WebGL/WebGLProgram.cpp
+    WebGL/WebGLQuery.cpp
     WebGL/WebGLRenderbuffer.cpp
     WebGL/WebGLRenderingContext.cpp
     WebGL/WebGLShader.cpp
