@@ -404,6 +404,7 @@ WebGLContextEvent
 WebGLFramebuffer
 WebGLObject
 WebGLProgram
+WebGLQuery
 WebGLRenderbuffer
 WebGLRenderingContext
 WebGLShader
