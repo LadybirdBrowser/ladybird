@@ -412,6 +412,7 @@ WebGLShader
 WebGLShaderPrecisionFormat
 WebGLSync
 WebGLTexture
+WebGLTransformFeedback
 WebGLUniformLocation
 WebKitCSSMatrix
 WebSocket
