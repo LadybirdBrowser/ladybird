@@ -100,11 +100,17 @@ ThrowCompletionOr<GC::Ref<Object>> NumberFormatConstructor::construct(FunctionOb
     // 16. Let style be numberFormat.[[Style]].
     auto style = number_format->style();
 
+    // 17. Let notation be ? GetOption(options, "notation", STRING, « "standard", "scientific", "engineering", "compact" », "standard").
+    auto notation = TRY(get_option(vm, *options, vm.names.notation, OptionType::String, { "standard"sv, "scientific"sv, "engineering"sv, "compact"sv }, "standard"sv));
+
+    // 18. Set numberFormat.[[Notation]] to notation.
+    number_format->set_notation(notation.as_string().utf8_string_view());
+
     int default_min_fraction_digits = 0;
     int default_max_fraction_digits = 0;
 
-    // 17. If style is "currency", then
-    if (style == Unicode::NumberFormatStyle::Currency) {
+    // 19. If style is "currency" and notation is "standard", then
+    if (style == Unicode::NumberFormatStyle::Currency && number_format->notation() == Unicode::Notation::Standard) {
         // a. Let currency be numberFormat.[[Currency]].
         auto const& currency = number_format->currency();
 
@@ -117,7 +123,7 @@ ThrowCompletionOr<GC::Ref<Object>> NumberFormatConstructor::construct(FunctionOb
         // d. Let mxfdDefault be cDigits.
         default_max_fraction_digits = digits;
     }
-    // 18. Else,
+    // 20. Else,
     else {
         // a. Let mnfdDefault be 0.
         default_min_fraction_digits = 0;
@@ -128,12 +134,6 @@ ThrowCompletionOr<GC::Ref<Object>> NumberFormatConstructor::construct(FunctionOb
         //     i. Let mxfdDefault be 3.
         default_max_fraction_digits = style == Unicode::NumberFormatStyle::Percent ? 0 : 3;
     }
-
-    // 19. Let notation be ? GetOption(options, "notation", string, « "standard", "scientific", "engineering", "compact" », "standard").
-    auto notation = TRY(get_option(vm, *options, vm.names.notation, OptionType::String, { "standard"sv, "scientific"sv, "engineering"sv, "compact"sv }, "standard"sv));
-
-    // 20. Set numberFormat.[[Notation]] to notation.
-    number_format->set_notation(notation.as_string().utf8_string_view());
 
     // 21. Perform ? SetNumberFormatDigitOptions(numberFormat, options, mnfdDefault, mxfdDefault, notation).
     TRY(set_number_format_digit_options(vm, number_format, *options, default_min_fraction_digits, default_max_fraction_digits, number_format->notation()));
@@ -266,8 +266,8 @@ ThrowCompletionOr<void> set_number_format_digit_options(VM& vm, NumberFormatBase
         // a. Set needSd to hasSd.
         need_significant_digits = has_significant_digits;
 
-        // b. If hasSd is true, or hasFd is false and notation is "compact", then
-        if (has_significant_digits || (!has_fraction_digits && notation == Unicode::Notation::Compact)) {
+        // b. If needSd is true, or hasFd is false and notation is "compact", then
+        if (need_significant_digits || (!has_fraction_digits && notation == Unicode::Notation::Compact)) {
             // i. Set needFd to false.
             need_fraction_digits = false;
         }
@@ -390,7 +390,7 @@ ThrowCompletionOr<void> set_number_format_digit_options(VM& vm, NumberFormatBase
         if (intl_object.rounding_type() != Unicode::RoundingType::FractionDigits)
             return vm.throw_completion<TypeError>(ErrorType::IntlInvalidRoundingIncrementForRoundingType, *rounding_increment, intl_object.rounding_type_string());
 
-        // b. If intlObj.[[MaximumFractionDigits]] is not equal to intlObj.[[MinimumFractionDigits]], throw a RangeError exception.
+        // b. If intlObj.[[MaximumFractionDigits]] is not intlObj.[[MinimumFractionDigits]], throw a RangeError exception.
         if (intl_object.max_fraction_digits() != intl_object.min_fraction_digits())
             return vm.throw_completion<RangeError>(ErrorType::IntlInvalidRoundingIncrementForFractionDigits, *rounding_increment);
     }
