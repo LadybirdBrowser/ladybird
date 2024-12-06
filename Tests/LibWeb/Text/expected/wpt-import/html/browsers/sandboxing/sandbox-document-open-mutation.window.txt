@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Fail
+Fail	Using document.open() against a document from a different window must not mutate the other window's sandbox flags

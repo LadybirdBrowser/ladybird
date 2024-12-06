@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>window.open("about:srcdoc") from a sandboxed iframe</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<body>
+<script>
+// Check what happens when executing window.open("about:srcdoc") from a
+// sandboxed iframe. Srcdoc can't be loaded in the main frame. It should
+// result in an error page. The error page should be cross-origin with the
+// opener.
+//
+// This test covers an interesting edge case. A main frame should inherit
+// sandbox flags. However the document loaded is an internal error page. This
+// might trigger some assertions, especially if the implementation wrongly
+// applies the sandbox flags of the opener to the internal error page document.
+//
+// This test is mainly a coverage test. It passes if it doesn't crash.
+async_test(test => {
+  let iframe = document.createElement("iframe");
+  iframe.sandbox = "allow-scripts allow-popups allow-same-origin";
+  iframe.srcdoc = `
+    <script>
+      let w = window.open();
+      onunload = () => w.close();
+
+      let notify = () => {
+        try {
+          w.origin; // Will fail after navigating to about:srcdoc.
+          parent.postMessage("pending", "*");
+        } catch (e) {
+          parent.postMessage("done", "*");
+        };
+      };
+
+      addEventListener("message", notify);
+      notify();
+
+      w.location = "about:srcdoc"; // Error page.
+    </scr`+`ipt>
+  `;
+
+  let closed = false;
+  addEventListener("message", event => {
+    closed = (event.data === "done");
+    iframe.contentWindow.postMessage("ping","*");
+  });
+
+  document.body.appendChild(iframe);
+  test.step_wait_func_done(()=>closed);
+}, "window.open('about:srcdoc') from sandboxed srcdoc doesn't crash.");
+</script>

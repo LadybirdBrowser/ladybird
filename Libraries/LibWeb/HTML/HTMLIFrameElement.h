@@ -33,6 +33,8 @@ public:
 
     GC::Ref<DOM::DOMTokenList> sandbox();
 
+    SandboxingFlagSet iframe_sandboxing_flag_set() const { return m_iframe_sandboxing_flag_set; }
+
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
@@ -64,6 +66,9 @@ private:
     Optional<HighResolutionTime::DOMHighResTimeStamp> m_pending_resource_start_time = {};
 
     GC::Ptr<DOM::DOMTokenList> m_sandbox;
+
+    // https://html.spec.whatwg.org/multipage/browsers.html#iframe-sandboxing-flag-set
+    SandboxingFlagSet m_iframe_sandboxing_flag_set {};
 };
 
 void run_iframe_load_event_steps(HTML::HTMLIFrameElement&);

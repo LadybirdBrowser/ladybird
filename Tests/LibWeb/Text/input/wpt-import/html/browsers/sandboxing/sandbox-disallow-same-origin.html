@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Access to sandbox iframe</title>
+    <link rel="author" title="Kinuko Yasuda" href="mailto:kinuko@chromium.org">
+    <link rel="help" href="https://html.spec.whatwg.org/multipage/#sandboxed-origin-browsing-context-flag">
+    <link rel="help" href="https://html.spec.whatwg.org/multipage/#integration-with-idl">
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+  </head>
+
+  <body>
+    <h1>Access to sandbox iframe</h1>
+    <script type="text/javascript">
+      var t = async_test("Access to sandbox iframe is disallowed")
+      var called = 0;
+      function calledFromIframe() {
+        called++;
+      }
+      function loaded() {
+        t.step(() => {
+          assert_throws_dom("SecurityError", () => {
+            document.getElementById('sandboxedframe').contentWindow.document;
+          });
+          assert_equals(called, 0);
+          t.done();
+        });
+      }
+    </script>
+
+    <iframe src="../../../html/browsers/sandboxing/inner-iframe.html" style="visibility:hidden;display:none" sandbox id="sandboxedframe" onload="loaded();"></iframe>
+  </body>
+
+    <div id="log"></div>
+</html>

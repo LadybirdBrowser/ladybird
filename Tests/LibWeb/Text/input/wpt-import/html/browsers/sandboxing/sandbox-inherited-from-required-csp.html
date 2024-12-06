@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Inherit sandbox from CSP embedded enforcement</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../common/get-host-info.sub.js"></script>
+<body>
+<script>
+// Check sandbox flags are properly defined when its parent requires them and
+// the child allows it.
+
+const same_origin = get_host_info().HTTP_ORIGIN;
+const cross_origin = get_host_info().HTTP_REMOTE_ORIGIN;
+const check_sandbox_url =
+  "/html/browsers/sandboxing/resources/check-sandbox-flags.html?pipe=";
+const allow_csp_from_star = "|header(Allow-CSP-From,*)";
+
+// Return a promise, resolving when |element| triggers |event_name| event.
+const future = (element, event_name, source) => {
+  return new Promise(resolve => {
+    element.addEventListener(event_name, event => {
+      if (!source || source.contentWindow == event.source)
+        resolve(event)
+    })
+  });
+};
+
+const check_sandbox_script = `
+<script>
+  try {
+    document.domain = document.domain;
+    parent.postMessage("document-domain-is-allowed", "*");
+  } catch (exception) {
+    parent.postMessage("document-domain-is-disallowed", "*");
+  }
+</scr`+`ipt>
+`;
+
+const sandbox_policy = "sandbox allow-scripts allow-same-origin";
+
+// Test using the modern async/await primitives are easier to read/write.
+// However they run sequentially, contrary to async_test. This is the parallel
+// version, to avoid timing out.
+let promise_test_parallel = (promise, description) => {
+  async_test(test => {
+    promise(test)
+    .then(() => {test.done();})
+    .catch(test.step_func(error => { throw error; }));
+  }, description);
+};
+
+promise_test_parallel(async test => {
+  const iframe = document.createElement("iframe");
+  iframe.csp = sandbox_policy;
+
+  // The <iframe> immediately hosts the initial empty document after being
+  // appended into the DOM. It will, as long as its 'src' isn't loaded. That's
+  // why a page do not load is being used.
+  iframe.src = "/fetch/api/resources/infinite-slow-response.py";
+  document.body.appendChild(iframe);
+
+  const iframe_reply = future(window, "message", iframe);
+  iframe.contentDocument.write(check_sandbox_script);
+  const result = await iframe_reply;
+  iframe.remove();
+
+  assert_equals(result.data, "document-domain-is-disallowed");
+}, "initial empty document");
+
+promise_test_parallel(async test => {
+  const iframe = document.createElement("iframe");
+  iframe.src = "data:text/html,dummy";
+
+  const iframe_load_1 = future(iframe, "load");
+  document.body.appendChild(iframe);
+  await iframe_load_1;
+
+  const iframe_load_2 = future(iframe, "load");
+  iframe.csp = sandbox_policy;
+  iframe.src = "about:blank";
+  await iframe_load_2;
+
+  const iframe_reply = future(window, "message", iframe);
+  iframe.contentDocument.write(check_sandbox_script);
+  const result = await iframe_reply;
+
+  assert_equals(result.data, "document-domain-is-disallowed");
+}, "about:blank");
+
+promise_test_parallel(async test => {
+  const iframe = document.createElement("iframe");
+  iframe.csp = sandbox_policy;
+  iframe.src =
+    `data:text/html,${encodeURI(check_sandbox_script)}`;
+
+  const iframe_reply = future(window, "message", iframe);
+  document.body.appendChild(iframe);
+  const result = await iframe_reply;
+
+  assert_equals(result.data, "document-domain-is-disallowed");
+}, "data-url");
+
+promise_test_parallel(async test => {
+  const iframe = document.createElement("iframe");
+  iframe.csp = sandbox_policy;
+  iframe.srcdoc = check_sandbox_script;
+
+  const iframe_reply = future(window, "message", iframe);
+  document.body.appendChild(iframe);
+  const result = await iframe_reply;
+
+  assert_equals(result.data, "document-domain-is-disallowed");
+}, "srcdoc");
+
+promise_test_parallel(async test => {
+  const iframe = document.createElement("iframe");
+  iframe.csp = sandbox_policy;
+
+  const blob = new Blob([check_sandbox_script], { type: "text/html" });
+
+  iframe.src = URL.createObjectURL(blob);
+
+  const iframe_reply = future(window, "message", iframe);
+  document.body.appendChild(iframe);
+  const result = await iframe_reply;
+
+  assert_equals(result.data, "document-domain-is-disallowed");
+}, "blob URL");
+
+promise_test_parallel(async test => {
+  const iframe = document.createElement("iframe");
+  iframe.csp = sandbox_policy;
+  iframe.src = same_origin + check_sandbox_url + allow_csp_from_star;
+
+  const iframe_reply = future(window, "message", iframe);
+  document.body.appendChild(iframe);
+  const result = await iframe_reply;
+
+  assert_equals(result.data, "document-domain-is-disallowed");
+}, "same-origin");
+
+promise_test_parallel(async test => {
+  const iframe = document.createElement("iframe");
+  iframe.csp = sandbox_policy;
+  iframe.src = cross_origin + check_sandbox_url + allow_csp_from_star;
+
+  const iframe_reply = future(window, "message", iframe);
+  document.body.appendChild(iframe);
+  const result = await iframe_reply;
+
+  assert_equals(result.data, "document-domain-is-disallowed");
+}, "cross-origin");
+
+</script>
