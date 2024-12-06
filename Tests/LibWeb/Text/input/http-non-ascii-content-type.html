@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        try {
+            const httpServer = httpTestServer();
+            const url = await httpServer.createEcho("GET", "/http-non-ascii-content-type-test", {
+                status: 200,
+                headers: {
+                    "Access-Control-Allow-Origin": "*",
+                    "Content-Type": "text/html;test=ÿ;charset=gbk",
+                },
+            });
+
+            const blob = await fetch(url).then((response) => response.blob());
+            println("PASS (didn't crash)");
+        } catch (err) {
+            println("FAIL - " + err);
+        }
+        done();
+    });
+</script>
