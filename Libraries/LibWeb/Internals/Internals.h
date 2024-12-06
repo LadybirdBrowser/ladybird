@@ -48,6 +48,7 @@ public:
     void enable_cookies_on_file_domains();
     void expire_cookies_with_time_offset(WebIDL::LongLong seconds);
 
+    String get_computed_role(DOM::Element& element);
     String get_computed_label(DOM::Element& element);
 
     static u16 get_echo_server_port();

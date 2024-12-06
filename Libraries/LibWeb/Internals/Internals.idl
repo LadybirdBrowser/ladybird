@@ -38,6 +38,7 @@ interface Internals {
     undefined enableCookiesOnFileDomains();
     undefined expireCookiesWithTimeOffset(long long seconds);
 
+    DOMString getComputedRole(Element element);
     DOMString getComputedLabel(Element element);
     unsigned short getEchoServerPort();
 };

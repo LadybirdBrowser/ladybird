@@ -203,6 +203,14 @@ void Internals::expire_cookies_with_time_offset(WebIDL::LongLong seconds)
     internals_page().client().page_did_expire_cookies_with_time_offset(AK::Duration::from_seconds(seconds));
 }
 
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static
+String Internals::get_computed_role(DOM::Element& element)
+{
+    if (auto role = element.role_or_default(); role.has_value())
+        return MUST(String::from_utf8(ARIA::role_name(role.value())));
+    return String {};
+}
+
 String Internals::get_computed_label(DOM::Element& element)
 {
     auto& active_document = internals_window().associated_document();
