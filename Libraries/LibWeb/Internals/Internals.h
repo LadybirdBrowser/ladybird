@@ -32,6 +32,7 @@ public:
     void click(double x, double y);
     void doubleclick(double x, double y);
     void middle_click(double x, double y);
+    void mouse_down(double x, double y);
     void move_pointer_to(double x, double y);
     void wheel(double x, double y, double delta_x, double delta_y);
 
@@ -59,6 +60,7 @@ private:
     virtual void initialize(JS::Realm&) override;
 
     void click(double x, double y, UIEvents::MouseButton);
+    void mouse_down(double x, double y, UIEvents::MouseButton);
 
     HTML::Window& internals_window() const;
     Page& internals_page() const;
