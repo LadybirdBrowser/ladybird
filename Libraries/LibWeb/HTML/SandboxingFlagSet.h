@@ -36,6 +36,6 @@ enum class SandboxingFlagSet {
 AK_ENUM_BITWISE_OPERATORS(SandboxingFlagSet);
 inline bool is_empty(SandboxingFlagSet s) { return (to_underlying(s) & 0x1FFU) == 0; }
 
-SandboxingFlagSet parse_a_sandboxing_directive(String const& input);
+SandboxingFlagSet parse_a_sandboxing_directive(Variant<String, Vector<String>> input);
 
 }

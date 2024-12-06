@@ -55,6 +55,7 @@ set(SOURCES
     ContentSecurityPolicy/Directives/ObjectSourceDirective.cpp
     ContentSecurityPolicy/Directives/ReportToDirective.cpp
     ContentSecurityPolicy/Directives/ReportUriDirective.cpp
+    ContentSecurityPolicy/Directives/SandboxDirective.cpp
     ContentSecurityPolicy/Directives/ScriptSourceAttributeDirective.cpp
     ContentSecurityPolicy/Directives/ScriptSourceDirective.cpp
     ContentSecurityPolicy/Directives/ScriptSourceElementDirective.cpp
