@@ -24,7 +24,7 @@ class Echo:
     status: int
     headers: Optional[Dict[str, str]]
     body: Optional[str]
-    delay_ms: Optional[str]
+    delay_ms: Optional[int]
     reason_phrase: Optional[str]
 
 
