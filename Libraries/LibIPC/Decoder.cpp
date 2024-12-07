@@ -147,9 +147,13 @@ ErrorOr<Core::AnonymousBuffer> decode(Decoder& decoder)
         return Core::AnonymousBuffer {};
 
     auto size = TRY(decoder.decode_size());
+#ifndef AK_OS_WINDOWS
     auto anon_file = TRY(decoder.decode<IPC::File>());
-
     return Core::AnonymousBuffer::create_from_anon_fd(anon_file.take_fd(), size);
+#else
+    auto handle = TRY(decoder.decode<intptr_t>());
+    return Core::AnonymousBuffer::create_from_anon_fd((int)handle, size);
+#endif
 }
 
 template<>

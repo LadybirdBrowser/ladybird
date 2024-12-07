@@ -148,7 +148,11 @@ ErrorOr<void> encode(Encoder& encoder, Core::AnonymousBuffer const& buffer)
 
     if (buffer.is_valid()) {
         TRY(encoder.encode_size(buffer.size()));
+#ifndef AK_OS_WINDOWS
         TRY(encoder.encode(TRY(IPC::File::clone_fd(buffer.fd()))));
+#else
+        TRY(encoder.encode((intptr_t)buffer.fd()));
+#endif
     }
 
     return {};
