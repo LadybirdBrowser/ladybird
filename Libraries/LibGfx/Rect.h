@@ -606,48 +606,6 @@ public:
         return rect;
     }
 
-    [[nodiscard]] Rect<T> aligned_within(Size<T> const& rect_size, Point<T> const& align_at, TextAlignment alignment = TextAlignment::Center) const
-    {
-        if (rect_size.is_empty())
-            return {};
-        if (!size().contains(rect_size))
-            return {};
-        if (!contains(align_at))
-            return {};
-
-        Rect<T> rect;
-        switch (alignment) {
-        case TextAlignment::TopCenter:
-            rect = { { align_at.x() - rect_size.width() / 2, align_at.y() }, rect_size };
-            break;
-        case TextAlignment::TopLeft:
-            rect = { align_at, rect_size };
-            break;
-        case TextAlignment::TopRight:
-            rect = { { align_at.x() - rect_size.width(), align_at.y() }, rect_size };
-            break;
-        case TextAlignment::CenterLeft:
-            rect = { { align_at.x(), align_at.y() - rect_size.height() / 2 }, rect_size };
-            break;
-        case TextAlignment::Center:
-            rect = { { align_at.x() - rect_size.width() / 2, align_at.y() - rect_size.height() / 2 }, rect_size };
-            break;
-        case TextAlignment::CenterRight:
-            rect = { { align_at.x() - rect_size.width() / 2, align_at.y() }, rect_size };
-            break;
-        case TextAlignment::BottomCenter:
-            rect = { { align_at.x() - rect_size.width() / 2, align_at.y() - rect_size.width() }, rect_size };
-            break;
-        case TextAlignment::BottomLeft:
-            rect = { { align_at.x(), align_at.y() - rect_size.width() }, rect_size };
-            break;
-        case TextAlignment::BottomRight:
-            rect = { { align_at.x() - rect_size.width(), align_at.y() - rect_size.width() }, rect_size };
-            break;
-        }
-        return rect.constrained_to(*this);
-    }
-
     [[nodiscard]] Point<T> closest_to(Point<T> const& point) const
     {
         if (is_empty())
