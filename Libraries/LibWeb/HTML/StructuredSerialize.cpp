@@ -27,6 +27,7 @@
 #include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/RegExpObject.h>
 #include <LibJS/Runtime/Set.h>
+#include <LibJS/Runtime/SharedArrayBufferConstructor.h>
 #include <LibJS/Runtime/StringObject.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/VM.h>
@@ -803,7 +804,7 @@ public:
             if (bytes_or_error.is_error())
                 return WebIDL::DataCloneError::create(*realm, "out of memory"_string);
             auto bytes = bytes_or_error.release_value();
-            JS::ArrayBuffer* buffer = TRY(JS::allocate_shared_array_buffer(m_vm, realm->intrinsics().array_buffer_constructor(), bytes.size()));
+            JS::ArrayBuffer* buffer = TRY(JS::allocate_shared_array_buffer(m_vm, realm->intrinsics().shared_array_buffer_constructor(), bytes.size()));
             bytes.span().copy_to(buffer->buffer().span());
             value = buffer;
             break;
@@ -820,7 +821,7 @@ public:
                 return WebIDL::DataCloneError::create(*realm, "out of memory"_string);
             size_t max_byte_length = deserialize_primitive_type<size_t>(m_serialized, m_position);
             auto bytes = bytes_or_error.release_value();
-            JS::ArrayBuffer* buffer = TRY(JS::allocate_shared_array_buffer(m_vm, realm->intrinsics().array_buffer_constructor(), bytes.size()));
+            JS::ArrayBuffer* buffer = TRY(JS::allocate_shared_array_buffer(m_vm, realm->intrinsics().shared_array_buffer_constructor(), bytes.size()));
             bytes.span().copy_to(buffer->buffer().span());
             buffer->set_max_byte_length(max_byte_length);
             value = buffer;
