@@ -70,10 +70,10 @@ bool CSSRGB::equals(CSSStyleValue const& other) const
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-sRGB-values
-String CSSRGB::to_string(SerializationMode) const
+String CSSRGB::to_string(SerializationMode mode) const
 {
     // FIXME: Do this properly, taking unresolved calculated values into account.
-    if (m_properties.name.has_value())
+    if (mode != SerializationMode::ResolvedValue && m_properties.name.has_value())
         return m_properties.name.value().to_string().to_ascii_lowercase();
     return serialize_a_srgb_value(to_color({}));
 }
