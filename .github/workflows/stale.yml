@@ -31,8 +31,7 @@ jobs:
             closed in 7 days if no further activity occurs. Thank you for your contributions!
 
           # PRs get closed after 30 days (21 + 7) of inactivity (currently disabled)
-          # FIXME: change to 7 days after first run
-          days-before-pr-close: -1
+          days-before-pr-close: 7
           close-pr-message: >
               This pull request has been closed because it has not had recent activity. Feel free to re-open if you
               wish to still contribute these changes. Thank you for your contributions!
