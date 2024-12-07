@@ -99,23 +99,23 @@ void XMLDocumentBuilder::element_start(const XML::Name& name, HashMap<XML::Name,
         m_namespace_stack.last().depth += 1;
     }
 
-    auto qualified_name_or_err = DOM::validate_and_extract(m_document->realm(), m_namespace, MUST(FlyString::from_deprecated_fly_string(name)));
+    auto qualified_name_or_error = DOM::validate_and_extract(m_document->realm(), m_namespace, MUST(FlyString::from_deprecated_fly_string(name)));
 
-    if (qualified_name_or_err.is_error()) {
+    if (qualified_name_or_error.is_error()) {
         m_has_error = true;
         return;
     }
 
-    auto qualified_name = qualified_name_or_err.value();
+    auto qualified_name = qualified_name_or_error.value();
 
-    auto node_or_err = DOM::create_element(m_document, qualified_name.local_name(), qualified_name.namespace_(), qualified_name.prefix());
+    auto node_or_error = DOM::create_element(m_document, qualified_name.local_name(), qualified_name.namespace_(), qualified_name.prefix());
 
-    if (node_or_err.is_error()) {
+    if (node_or_error.is_error()) {
         m_has_error = true;
         return;
     }
 
-    auto node = node_or_err.value();
+    auto node = node_or_error.value();
 
     // When an XML parser with XML scripting support enabled creates a script element,
     // it must have its parser document set and its "force async" flag must be unset.
