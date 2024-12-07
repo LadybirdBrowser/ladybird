@@ -115,6 +115,8 @@ public:
     WebIDL::ExceptionOr<void> set_popover(Optional<String> value);
     Optional<String> popover() const;
 
+    virtual void removed_from(Node*) override;
+
     enum class PopoverVisibilityState {
         Hidden,
         Showing,
@@ -175,6 +177,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/popover.html#popover-showing-or-hiding
     bool m_popover_showing_or_hiding { false };
+
+    // https://html.spec.whatwg.org/multipage/popover.html#popover-close-watcher
+    GC::Ptr<CloseWatcher> m_popover_close_watcher;
 };
 
 }
