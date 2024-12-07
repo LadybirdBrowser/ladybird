@@ -1,10 +1,19 @@
 <!DOCTYPE html>
 <script src="include.js"></script>
 <object id="object" data="data:application/x-unknown,ERROR">
-<div id="fallback">Fallback</div>
+    <div id="fallback">Fallback</div>
 </object>
 <script>
-test(() => {
-    println(document.body.innerText);
-});
+    asyncTest(done => {
+        // Fetching the data: URL is performed on the following deferred tasks:
+        // 1. The element task to trigger the fetch.
+        // 2. The fetch task to parse the data URL.
+        // So we must churn the event loop twice to reliably let the fallback representation be chosen.
+        setTimeout(() => {
+            setTimeout(() => {
+                println(document.body.innerText);
+                done();
+            });
+        });
+    });
 </script>

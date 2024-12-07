@@ -12,14 +12,12 @@
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/Layout/ImageProvider.h>
-#include <LibWeb/Loader/Resource.h>
 
 namespace Web::HTML {
 
 class HTMLObjectElement final
     : public NavigableContainer
     , public FormAssociatedElement
-    , public ResourceClient
     , public Layout::ImageProvider {
     WEB_PLATFORM_OBJECT(HTMLObjectElement, NavigableContainer)
     GC_DECLARE_ALLOCATOR(HTMLObjectElement);
@@ -28,7 +26,7 @@ class HTMLObjectElement final
     enum class Representation {
         Unknown,
         Image,
-        NestedBrowsingContext,
+        ContentNavigable,
         Children,
     };
 
@@ -64,16 +62,15 @@ private:
     bool has_ancestor_media_element_or_object_element_not_showing_fallback_content() const;
 
     void queue_element_task_to_run_object_representation_steps();
-    void run_object_representation_handler_steps(Optional<ByteString> resource_type);
+    void run_object_representation_handler_steps(Fetch::Infrastructure::Response const&, MimeSniff::MimeType const&, ReadonlyBytes);
     void run_object_representation_completed_steps(Representation);
     void run_object_representation_fallback_steps();
 
     void load_image();
     void update_layout_and_child_objects(Representation);
 
-    // ^ResourceClient
-    virtual void resource_did_load() override;
-    virtual void resource_did_fail() override;
+    void resource_did_load(Fetch::Infrastructure::Response const&, ReadonlyBytes);
+    void resource_did_fail();
 
     // ^DOM::Element
     virtual i32 default_tab_index_value() const override;
@@ -87,13 +84,12 @@ private:
     virtual void set_visible_in_viewport(bool) override;
     virtual GC::Ref<DOM::Element const> to_html_element() const override { return *this; }
 
-    Representation m_representation { Representation::Unknown };
-
     GC::Ptr<DecodedImageData> image_data() const;
+
+    Representation m_representation { Representation::Unknown };
 
     GC::Ptr<SharedResourceRequest> m_resource_request;
 
-public:
     Optional<DOM::DocumentLoadEventDelayer> m_document_load_event_delayer_for_object_representation_task;
     Optional<DOM::DocumentLoadEventDelayer> m_document_load_event_delayer_for_resource_load;
 };
