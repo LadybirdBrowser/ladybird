@@ -97,7 +97,6 @@ public:
     static AspectRatio aspect_ratio() { return AspectRatio { true, {} }; }
     static CSSPixels font_size() { return 16; }
     static int font_weight() { return 400; }
-    static CSS::FontVariant font_variant() { return CSS::FontVariant::Normal; }
     static CSSPixels line_height() { return 0; }
     static CSS::Float float_() { return CSS::Float::None; }
     static CSS::Length border_spacing() { return CSS::Length::make_px(0); }
@@ -515,7 +514,13 @@ public:
     Gfx::FontCascadeList const& font_list() const { return *m_inherited.font_list; }
     CSSPixels font_size() const { return m_inherited.font_size; }
     int font_weight() const { return m_inherited.font_weight; }
-    CSS::FontVariant font_variant() const { return m_inherited.font_variant; }
+    Optional<Gfx::FontVariantAlternates> font_variant_alternates() const { return m_inherited.font_variant_alternates; }
+    FontVariantCaps font_variant_caps() const { return m_inherited.font_variant_caps; }
+    Optional<Gfx::FontVariantEastAsian> font_variant_east_asian() const { return m_inherited.font_variant_east_asian; }
+    FontVariantEmoji font_variant_emoji() const { return m_inherited.font_variant_emoji; }
+    Optional<Gfx::FontVariantLigatures> font_variant_ligatures() const { return m_inherited.font_variant_ligatures; }
+    Optional<Gfx::FontVariantNumeric> font_variant_numeric() const { return m_inherited.font_variant_numeric; }
+    FontVariantPosition font_variant_position() const { return m_inherited.font_variant_position; }
     Optional<FlyString> font_language_override() const { return m_inherited.font_language_override; }
     Optional<HashMap<FlyString, IntegerOrCalculated>> font_feature_settings() const { return m_inherited.font_feature_settings; }
     Optional<HashMap<FlyString, NumberOrCalculated>> font_variation_settings() const { return m_inherited.font_variation_settings; }
@@ -549,7 +554,13 @@ protected:
         RefPtr<Gfx::FontCascadeList> font_list {};
         CSSPixels font_size { InitialValues::font_size() };
         int font_weight { InitialValues::font_weight() };
-        CSS::FontVariant font_variant { InitialValues::font_variant() };
+        Optional<Gfx::FontVariantAlternates> font_variant_alternates;
+        FontVariantCaps font_variant_caps { FontVariantCaps::Normal };
+        Optional<Gfx::FontVariantEastAsian> font_variant_east_asian;
+        FontVariantEmoji font_variant_emoji { FontVariantEmoji::Normal };
+        Optional<Gfx::FontVariantLigatures> font_variant_ligatures;
+        Optional<Gfx::FontVariantNumeric> font_variant_numeric;
+        FontVariantPosition font_variant_position { FontVariantPosition::Normal };
         Optional<FlyString> font_language_override;
         Optional<HashMap<FlyString, IntegerOrCalculated>> font_feature_settings;
         Optional<HashMap<FlyString, NumberOrCalculated>> font_variation_settings;
@@ -725,7 +736,13 @@ public:
     void set_font_list(NonnullRefPtr<Gfx::FontCascadeList> font_list) { m_inherited.font_list = move(font_list); }
     void set_font_size(CSSPixels font_size) { m_inherited.font_size = font_size; }
     void set_font_weight(int font_weight) { m_inherited.font_weight = font_weight; }
-    void set_font_variant(CSS::FontVariant font_variant) { m_inherited.font_variant = font_variant; }
+    void set_font_variant_alternates(Optional<Gfx::FontVariantAlternates> font_variant_alternates) { m_inherited.font_variant_alternates = font_variant_alternates; }
+    void set_font_variant_caps(FontVariantCaps font_variant_caps) { m_inherited.font_variant_caps = font_variant_caps; }
+    void set_font_variant_east_asian(Optional<Gfx::FontVariantEastAsian> font_variant_east_asian) { m_inherited.font_variant_east_asian = font_variant_east_asian; }
+    void set_font_variant_emoji(FontVariantEmoji font_variant_emoji) { m_inherited.font_variant_emoji = font_variant_emoji; }
+    void set_font_variant_ligatures(Optional<Gfx::FontVariantLigatures> font_variant_ligatures) { m_inherited.font_variant_ligatures = font_variant_ligatures; }
+    void set_font_variant_numeric(Optional<Gfx::FontVariantNumeric> font_variant_numeric) { m_inherited.font_variant_numeric = font_variant_numeric; }
+    void set_font_variant_position(FontVariantPosition font_variant_position) { m_inherited.font_variant_position = font_variant_position; }
     void set_font_language_override(Optional<FlyString> font_language_override) { m_inherited.font_language_override = font_language_override; }
     void set_font_feature_settings(Optional<HashMap<FlyString, IntegerOrCalculated>> value) { m_inherited.font_feature_settings = move(value); }
     void set_font_variation_settings(Optional<HashMap<FlyString, NumberOrCalculated>> value) { m_inherited.font_variation_settings = move(value); }

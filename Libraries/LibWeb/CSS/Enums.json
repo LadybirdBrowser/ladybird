@@ -221,9 +221,64 @@
     "fallback",
     "optional"
   ],
-  "font-variant": [
+  "font-variant-alternates": [
     "normal",
-    "small-caps"
+    "historical-forms"
+  ],
+  "font-variant-caps": [
+    "normal",
+    "small-caps",
+    "all-small-caps",
+    "petite-caps",
+    "all-petite-caps",
+    "unicase",
+    "titling-caps"
+  ],
+  "font-variant-east-asian": [
+    "normal",
+    "ruby",
+    "jis78",
+    "jis83",
+    "jis90",
+    "jis04",
+    "simplified",
+    "traditional",
+    "full-width",
+    "proportional-width"
+  ],
+  "font-variant-emoji": [
+    "normal",
+    "text",
+    "emoji",
+    "unicode"
+  ],
+  "font-variant-ligatures": [
+    "normal",
+    "none",
+    "common-ligatures",
+    "no-common-ligatures",
+    "discretionary-ligatures",
+    "no-discretionary-ligatures",
+    "historical-ligatures",
+    "no-historical-ligatures",
+    "contextual",
+    "no-contextual"
+  ],
+  "font-variant-numeric": [
+    "normal",
+    "ordinal",
+    "slashed-zero",
+    "lining-nums",
+    "oldstyle-nums",
+    "proportional-nums",
+    "tabular-nums",
+    "diagonal-fractions",
+    "stacked-fractions"
+  ],
+  "font-variant-position": [
+    "normal",
+    "sub",
+    "super"
   ],
   "font-width": [
     "ultra-condensed",
