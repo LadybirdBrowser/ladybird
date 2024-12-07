@@ -162,8 +162,13 @@ ErrorOr<T> decode(Decoder& decoder)
 template<Concepts::SharedSingleProducerCircularQueue T>
 ErrorOr<T> decode(Decoder& decoder)
 {
+#ifndef AK_OS_WINDOWS
     auto anon_file = TRY(decoder.decode<IPC::File>());
     return T::create(anon_file.take_fd());
+#else
+    auto handle = TRY(decoder.decode<intptr_t>());
+    return T::create((int)handle);
+#endif
 }
 
 template<Concepts::Optional T>
