@@ -143,9 +143,7 @@ const AriaUtils = {
       }
       promise_test(async t => {
         const expectedLabel = el.getAttribute("data-expectedlabel");
-        // XXX: Ladybird-specific change: upstream WPT has test_driver.get_computed_label(el) here,
-        // but we’ve changed that to the Ladybird-specific window.internals.getComputedLabel(el).
-        let computedLabel = await window.internals.getComputedLabel(el);
+        let computedLabel = await test_driver.get_computed_label(el);
         assert_not_equals(computedLabel, null, `get_computed_label(el) shouldn't return null for ${el.outerHTML}`);
 
         // See:
