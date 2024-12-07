@@ -9,6 +9,7 @@
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/HTML/PopoverInvokerElement.h>
 
 namespace Web::HTML {
 
@@ -19,7 +20,8 @@ namespace Web::HTML {
 
 class HTMLButtonElement final
     : public HTMLElement
-    , public FormAssociatedElement {
+    , public FormAssociatedElement
+    , public PopoverInvokerElement {
     WEB_PLATFORM_OBJECT(HTMLButtonElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLButtonElement);
     FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLButtonElement)
@@ -73,6 +75,8 @@ public:
     virtual void activation_behavior(DOM::Event const&) override;
 
 private:
+    virtual void visit_edges(Visitor&) override;
+
     virtual bool is_html_button_element() const override { return true; }
 
     HTMLButtonElement(DOM::Document&, DOM::QualifiedName);

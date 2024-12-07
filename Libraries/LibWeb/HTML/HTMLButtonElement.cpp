@@ -45,6 +45,12 @@ WebIDL::ExceptionOr<void> HTMLButtonElement::set_type(String const& type)
     return set_attribute(HTML::AttributeNames::type, type);
 }
 
+void HTMLButtonElement::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    PopoverInvokerElement::visit_edges(visitor);
+}
+
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex
 i32 HTMLButtonElement::default_tab_index_value() const
 {
