@@ -46,6 +46,9 @@ void* BlockAllocator::allocate_block([[maybe_unused]] char const* name)
 
     auto* block = (HeapBlock*)mmap(nullptr, HeapBlock::block_size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     VERIFY(block != MAP_FAILED);
+#ifndef AK_ARCH_32_BIT
+    VERIFY((FlatPtr)block <= 0x00007FFFFFFFFFFF); // Always true on x86-64 Windows/Linux, trivially true on 32-bit systems.
+#endif
     LSAN_REGISTER_ROOT_REGION(block, HeapBlock::block_size);
     return block;
 }

@@ -17,6 +17,8 @@ class ForeignCell;
 class RootImpl;
 class Heap;
 class HeapBlock;
+class NanBoxedCell;
+template<size_t>
 class NanBoxedValue;
 class WeakContainer;
 
