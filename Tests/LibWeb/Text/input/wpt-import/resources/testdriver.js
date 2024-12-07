@@ -233,7 +233,11 @@
          *                    rejected in the cases the WebDriver command errors
          */
         get_computed_label: async function(element) {
-            let label = await window.test_driver_internal.get_computed_label(element);
+            // XXX: Ladybird-specific change: Upstream WPT calls
+            // window.test_driver_internal.get_computed_label(element) here,
+            // but we’ve changed that to our Ladybird-specific
+            // window.internals.getComputedLabel(el).
+            let label = await window.internals.getComputedLabel(element);
             return label;
         },
 
