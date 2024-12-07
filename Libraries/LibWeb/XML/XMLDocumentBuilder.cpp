@@ -94,12 +94,12 @@ void XMLDocumentBuilder::element_start(const XML::Name& name, HashMap<XML::Name,
 
     if (auto it = attributes.find("xmlns"); it != attributes.end()) {
         m_namespace_stack.append({ m_namespace, 1 });
-        m_namespace = MUST(FlyString::from_deprecated_fly_string(it->value));
+        m_namespace = MUST(String::from_byte_string(it->value));
     } else {
         m_namespace_stack.last().depth += 1;
     }
 
-    auto node = DOM::create_element(m_document, MUST(FlyString::from_deprecated_fly_string(name)), m_namespace).release_value_but_fixme_should_propagate_errors();
+    auto node = DOM::create_element(m_document, MUST(String::from_byte_string(name)), m_namespace).release_value_but_fixme_should_propagate_errors();
 
     // When an XML parser with XML scripting support enabled creates a script element,
     // it must have its parser document set and its "force async" flag must be unset.
@@ -122,7 +122,7 @@ void XMLDocumentBuilder::element_start(const XML::Name& name, HashMap<XML::Name,
             auto name = attribute.key;
             if (!name.is_one_of("xmlns:"sv, "xmlns:xmlns"sv)) {
                 // The prefix xmlns is used only to declare namespace bindings and is by definition bound to the namespace name http://www.w3.org/2000/xmlns/.
-                MUST(node->set_attribute_ns(Namespace::XMLNS, MUST(FlyString::from_deprecated_fly_string(name)), MUST(String::from_byte_string(attribute.value))));
+                MUST(node->set_attribute_ns(Namespace::XMLNS, MUST(String::from_byte_string(name)), MUST(String::from_byte_string(attribute.value))));
             } else {
                 m_has_error = true;
             }
@@ -131,7 +131,7 @@ void XMLDocumentBuilder::element_start(const XML::Name& name, HashMap<XML::Name,
                 m_has_error = true;
             }
         }
-        MUST(node->set_attribute(MUST(FlyString::from_deprecated_fly_string(attribute.key)), MUST(String::from_byte_string(attribute.value))));
+        MUST(node->set_attribute(MUST(String::from_byte_string(attribute.key)), MUST(String::from_byte_string(attribute.value))));
     }
 
     m_current_node = node.ptr();

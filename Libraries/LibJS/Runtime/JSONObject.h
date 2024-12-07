@@ -32,14 +32,14 @@ private:
         HashTable<GC::Ptr<Object>> seen_objects;
         ByteString indent { ByteString::empty() };
         ByteString gap;
-        Optional<Vector<ByteString>> property_list;
+        Optional<Vector<FlyString>> property_list;
     };
 
     // Stringify helpers
     static ThrowCompletionOr<Optional<ByteString>> serialize_json_property(VM&, StringifyState&, PropertyKey const& key, Object* holder);
     static ThrowCompletionOr<ByteString> serialize_json_object(VM&, StringifyState&, Object&);
     static ThrowCompletionOr<ByteString> serialize_json_array(VM&, StringifyState&, Object&);
-    static ByteString quote_json_string(ByteString);
+    static ByteString quote_json_string(StringView);
 
     // Parse helpers
     static Object* parse_json_object(VM&, JsonObject const&);

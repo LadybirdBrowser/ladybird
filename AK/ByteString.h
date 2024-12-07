@@ -86,8 +86,6 @@ public:
     {
     }
 
-    ByteString(DeprecatedFlyString const&);
-
     static ErrorOr<ByteString> from_utf8(ReadonlyBytes);
     static ErrorOr<ByteString> from_utf8(StringView string) { return from_utf8(string.bytes()); }
     static ByteString must_from_utf8(StringView string) { return MUST(from_utf8(string)); }
@@ -227,8 +225,6 @@ public:
     bool operator==(ByteString const&) const;
 
     bool operator==(StringView) const;
-
-    bool operator==(DeprecatedFlyString const&) const;
 
     bool operator<(ByteString const&) const;
     bool operator>=(ByteString const& other) const { return !(*this < other); }

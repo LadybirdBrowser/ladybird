@@ -22,8 +22,8 @@ Result<regex::RegexOptions<ECMAScriptFlags>, ByteString> regex_flags_from_string
 struct ParseRegexPatternError {
     ByteString error;
 };
-ErrorOr<ByteString, ParseRegexPatternError> parse_regex_pattern(StringView pattern, bool unicode, bool unicode_sets);
-ThrowCompletionOr<ByteString> parse_regex_pattern(VM& vm, StringView pattern, bool unicode, bool unicode_sets);
+ErrorOr<String, ParseRegexPatternError> parse_regex_pattern(StringView pattern, bool unicode, bool unicode_sets);
+ThrowCompletionOr<String> parse_regex_pattern(VM& vm, StringView pattern, bool unicode, bool unicode_sets);
 
 class RegExpObject : public Object {
     JS_OBJECT(RegExpObject, Object);
@@ -51,7 +51,7 @@ public:
     };
 
     static GC::Ref<RegExpObject> create(Realm&);
-    static GC::Ref<RegExpObject> create(Realm&, Regex<ECMA262> regex, ByteString pattern, ByteString flags);
+    static GC::Ref<RegExpObject> create(Realm&, Regex<ECMA262> regex, String pattern, String flags);
 
     ThrowCompletionOr<GC::Ref<RegExpObject>> regexp_initialize(VM&, Value pattern, Value flags);
     ByteString escape_regexp_pattern() const;
@@ -59,8 +59,8 @@ public:
     virtual void initialize(Realm&) override;
     virtual ~RegExpObject() override = default;
 
-    ByteString const& pattern() const { return m_pattern; }
-    ByteString const& flags() const { return m_flags; }
+    String const& pattern() const { return m_pattern; }
+    String const& flags() const { return m_flags; }
     Flags flag_bits() const { return m_flag_bits; }
     Regex<ECMA262> const& regex() { return *m_regex; }
     Regex<ECMA262> const& regex() const { return *m_regex; }
@@ -72,12 +72,12 @@ public:
 
 private:
     RegExpObject(Object& prototype);
-    RegExpObject(Regex<ECMA262> regex, ByteString pattern, ByteString flags, Object& prototype);
+    RegExpObject(Regex<ECMA262> regex, String pattern, String flags, Object& prototype);
 
     virtual void visit_edges(Visitor&) override;
 
-    ByteString m_pattern;
-    ByteString m_flags;
+    String m_pattern;
+    String m_flags;
     Flags m_flag_bits { 0 };
     bool m_legacy_features_enabled { false }; // [[LegacyFeaturesEnabled]]
     // Note: This is initialized in RegExpAlloc, but will be non-null afterwards

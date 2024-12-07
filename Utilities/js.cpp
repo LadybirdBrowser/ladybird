@@ -294,9 +294,9 @@ static JS::ThrowCompletionOr<JS::Value> load_ini_impl(JS::VM& vm)
         auto group_object = JS::Object::create(realm, realm.intrinsics().object_prototype());
         for (auto const& key : config_file->keys(group)) {
             auto entry = config_file->read_entry(group, key);
-            group_object->define_direct_property(key, JS::PrimitiveString::create(vm, move(entry)), JS::Attribute::Enumerable | JS::Attribute::Configurable | JS::Attribute::Writable);
+            group_object->define_direct_property(MUST(FlyString::from_utf8(key.view())), JS::PrimitiveString::create(vm, move(entry)), JS::Attribute::Enumerable | JS::Attribute::Configurable | JS::Attribute::Writable);
         }
-        object->define_direct_property(group, group_object, JS::Attribute::Enumerable | JS::Attribute::Configurable | JS::Attribute::Writable);
+        object->define_direct_property(MUST(FlyString::from_utf8(group.view())), group_object, JS::Attribute::Enumerable | JS::Attribute::Configurable | JS::Attribute::Writable);
     }
     return object;
 }
@@ -692,7 +692,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
                 CompleteProperty,
             } mode { Initial };
 
-            StringView variable_name;
+            String variable_name;
             StringView property_name;
 
             // we're only going to complete either
@@ -731,7 +731,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
                     if (js_token.type() == JS::TokenType::Identifier) {
                         // ...<name>...
                         mode = CompleteVariable;
-                        variable_name = js_token.value();
+                        variable_name = js_token.string_value();
                     } else {
                         mode = Initial;
                     }
@@ -757,7 +757,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
                     if (!descriptor.key.is_string())
                         continue;
                     auto key = descriptor.key.as_string();
-                    if (key.view().starts_with(property_pattern)) {
+                    if (key.starts_with_bytes(property_pattern)) {
                         Line::CompletionSuggestion completion { key, Line::CompletionSuggestion::ForSearch };
                         if (!results.contains_slow(completion)) { // hide duplicates
                             results.append(ByteString(key));
@@ -794,9 +794,9 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
                 list_all_properties(variable.shape(), variable_name);
 
                 for (auto const& name : global_environment.declarative_record().bindings()) {
-                    if (name.starts_with(variable_name)) {
-                        results.empend(name);
-                        results.last().invariant_offset = variable_name.length();
+                    if (name.starts_with_bytes(variable_name)) {
+                        results.empend(name.bytes_as_string_view());
+                        results.last().invariant_offset = variable_name.bytes_as_string_view().length();
                     }
                 }
 

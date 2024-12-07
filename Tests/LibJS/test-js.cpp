@@ -71,7 +71,7 @@ TESTJS_GLOBAL_FUNCTION(mark_as_garbage, markAsGarbage)
     if (!outer_environment.has_value())
         return vm.throw_completion<JS::ReferenceError>(JS::ErrorType::UnknownIdentifier, variable_name.byte_string());
 
-    auto reference = TRY(vm.resolve_binding(variable_name.byte_string(), outer_environment.value()->lexical_environment));
+    auto reference = TRY(vm.resolve_binding(variable_name.utf8_string(), outer_environment.value()->lexical_environment));
 
     auto value = TRY(reference.get_value(vm));
 
@@ -165,23 +165,23 @@ TESTJS_RUN_FILE_FUNCTION(ByteString const& test_file, JS::Realm& realm, JS::Exec
         parse_succeeded = !Test::JS::parse_script(test_file, realm).is_error();
 
     bool test_passed = true;
-    ByteString message;
-    ByteString expectation_string;
+    String message;
+    String expectation_string;
 
     switch (expectation) {
     case Early:
     case Fail:
-        expectation_string = "File should not parse";
+        expectation_string = "File should not parse"_string;
         test_passed = !parse_succeeded;
         if (!test_passed)
-            message = "Expected the file to fail parsing, but it did not";
+            message = "Expected the file to fail parsing, but it did not"_string;
         break;
     case Pass:
     case ExplicitPass:
-        expectation_string = "File should parse";
+        expectation_string = "File should parse"_string;
         test_passed = parse_succeeded;
         if (!test_passed)
-            message = "Expected the file to parse, but it did not";
+            message = "Expected the file to parse, but it did not"_string;
         break;
     }
 
@@ -193,6 +193,6 @@ TESTJS_RUN_FILE_FUNCTION(ByteString const& test_file, JS::Realm& realm, JS::Exec
         {},
         duration_ms,
         test_result,
-        { Test::Suite { test_path, "Parse file", test_result, { { expectation_string, test_result, message, static_cast<u64>(duration_ms) * 1000u } } } }
+        { Test::Suite { test_path, "Parse file"_fly_string, test_result, { { expectation_string, test_result, message, static_cast<u64>(duration_ms) * 1000u } } } }
     };
 }

@@ -20,7 +20,7 @@ ModuleEnvironment::ModuleEnvironment(Environment* outer_environment)
 }
 
 // 9.1.1.5.1 GetBindingValue ( N, S ), https://tc39.es/ecma262/#sec-module-environment-records-getbindingvalue-n-s
-ThrowCompletionOr<Value> ModuleEnvironment::get_binding_value(VM& vm, DeprecatedFlyString const& name, bool strict)
+ThrowCompletionOr<Value> ModuleEnvironment::get_binding_value(VM& vm, FlyString const& name, bool strict)
 {
     // 1. Assert: S is true.
     VERIFY(strict);
@@ -51,7 +51,7 @@ ThrowCompletionOr<Value> ModuleEnvironment::get_binding_value(VM& vm, Deprecated
 }
 
 // 9.1.1.5.2 DeleteBinding ( N ), https://tc39.es/ecma262/#sec-module-environment-records-deletebinding-n
-ThrowCompletionOr<bool> ModuleEnvironment::delete_binding(VM&, DeprecatedFlyString const&)
+ThrowCompletionOr<bool> ModuleEnvironment::delete_binding(VM&, FlyString const&)
 {
     // The DeleteBinding concrete method of a module Environment Record is never used within this specification.
     VERIFY_NOT_REACHED();
@@ -65,7 +65,7 @@ ThrowCompletionOr<Value> ModuleEnvironment::get_this_binding(VM&) const
 }
 
 // 9.1.1.5.5 CreateImportBinding ( N, M, N2 ), https://tc39.es/ecma262/#sec-createimportbinding
-ThrowCompletionOr<void> ModuleEnvironment::create_import_binding(DeprecatedFlyString name, Module* module, DeprecatedFlyString binding_name)
+ThrowCompletionOr<void> ModuleEnvironment::create_import_binding(FlyString name, Module* module, FlyString binding_name)
 {
     // 1. Assert: envRec does not already have a binding for N.
     VERIFY(!get_indirect_binding(name));
@@ -82,7 +82,7 @@ ThrowCompletionOr<void> ModuleEnvironment::create_import_binding(DeprecatedFlySt
     return {};
 }
 
-ModuleEnvironment::IndirectBinding const* ModuleEnvironment::get_indirect_binding(DeprecatedFlyString const& name) const
+ModuleEnvironment::IndirectBinding const* ModuleEnvironment::get_indirect_binding(FlyString const& name) const
 {
     auto binding_or_end = m_indirect_bindings.find_if([&](IndirectBinding const& binding) {
         return binding.name == name;
@@ -93,7 +93,7 @@ ModuleEnvironment::IndirectBinding const* ModuleEnvironment::get_indirect_bindin
     return &(*binding_or_end);
 }
 
-Optional<ModuleEnvironment::BindingAndIndex> ModuleEnvironment::find_binding_and_index(DeprecatedFlyString const& name) const
+Optional<ModuleEnvironment::BindingAndIndex> ModuleEnvironment::find_binding_and_index(FlyString const& name) const
 {
     auto* indirect_binding = get_indirect_binding(name);
     if (indirect_binding != nullptr) {

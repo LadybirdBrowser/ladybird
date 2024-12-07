@@ -88,7 +88,7 @@ Result<regex::RegexOptions<ECMAScriptFlags>, ByteString> regex_flags_from_string
 }
 
 // 22.2.3.4 Static Semantics: ParsePattern ( patternText, u, v ), https://tc39.es/ecma262/#sec-parsepattern
-ErrorOr<ByteString, ParseRegexPatternError> parse_regex_pattern(StringView pattern, bool unicode, bool unicode_sets)
+ErrorOr<String, ParseRegexPatternError> parse_regex_pattern(StringView pattern, bool unicode, bool unicode_sets)
 {
     if (unicode && unicode_sets)
         return ParseRegexPatternError { ByteString::formatted(ErrorType::RegExpObjectIncompatibleFlags.message(), 'u', 'v') };
@@ -133,11 +133,11 @@ ErrorOr<ByteString, ParseRegexPatternError> parse_regex_pattern(StringView patte
             previous_code_unit_was_backslash = false;
     }
 
-    return builder.to_byte_string();
+    return MUST(builder.to_string());
 }
 
 // 22.2.3.4 Static Semantics: ParsePattern ( patternText, u, v ), https://tc39.es/ecma262/#sec-parsepattern
-ThrowCompletionOr<ByteString> parse_regex_pattern(VM& vm, StringView pattern, bool unicode, bool unicode_sets)
+ThrowCompletionOr<String> parse_regex_pattern(VM& vm, StringView pattern, bool unicode, bool unicode_sets)
 {
     auto result = parse_regex_pattern(pattern, unicode, unicode_sets);
     if (result.is_error())
@@ -151,7 +151,7 @@ GC::Ref<RegExpObject> RegExpObject::create(Realm& realm)
     return realm.create<RegExpObject>(realm.intrinsics().regexp_prototype());
 }
 
-GC::Ref<RegExpObject> RegExpObject::create(Realm& realm, Regex<ECMA262> regex, ByteString pattern, ByteString flags)
+GC::Ref<RegExpObject> RegExpObject::create(Realm& realm, Regex<ECMA262> regex, String pattern, String flags)
 {
     return realm.create<RegExpObject>(move(regex), move(pattern), move(flags), realm.intrinsics().regexp_prototype());
 }
@@ -179,7 +179,7 @@ static RegExpObject::Flags to_flag_bits(StringView flags)
     return flag_bits;
 }
 
-RegExpObject::RegExpObject(Regex<ECMA262> regex, ByteString pattern, ByteString flags, Object& prototype)
+RegExpObject::RegExpObject(Regex<ECMA262> regex, String pattern, String flags, Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
     , m_pattern(move(pattern))
     , m_flags(move(flags))
@@ -203,14 +203,14 @@ ThrowCompletionOr<GC::Ref<RegExpObject>> RegExpObject::regexp_initialize(VM& vm,
     // 1. If pattern is undefined, let P be the empty String.
     // 2. Else, let P be ? ToString(pattern).
     auto pattern = pattern_value.is_undefined()
-        ? ByteString::empty()
-        : TRY(pattern_value.to_byte_string(vm));
+        ? String {}
+        : TRY(pattern_value.to_string(vm));
 
     // 3. If flags is undefined, let F be the empty String.
     // 4. Else, let F be ? ToString(flags).
     auto flags = flags_value.is_undefined()
-        ? ByteString::empty()
-        : TRY(flags_value.to_byte_string(vm));
+        ? String {}
+        : TRY(flags_value.to_string(vm));
 
     // 5. If F contains any code unit other than "d", "g", "i", "m", "s", "u", "v", or "y", or if F contains any code unit more than once, throw a SyntaxError exception.
     // 6. If F contains "i", let i be true; else let i be false.
@@ -223,7 +223,7 @@ ThrowCompletionOr<GC::Ref<RegExpObject>> RegExpObject::regexp_initialize(VM& vm,
         return vm.throw_completion<SyntaxError>(parsed_flags_or_error.release_error());
     auto parsed_flags = parsed_flags_or_error.release_value();
 
-    auto parsed_pattern = ByteString::empty();
+    auto parsed_pattern = String {};
     if (!pattern.is_empty()) {
         bool unicode = parsed_flags.has_flag_set(regex::ECMAScriptFlags::Unicode);
         bool unicode_sets = parsed_flags.has_flag_set(regex::ECMAScriptFlags::UnicodeSets);

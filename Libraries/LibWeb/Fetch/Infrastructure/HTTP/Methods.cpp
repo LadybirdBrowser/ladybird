@@ -17,7 +17,7 @@ namespace Web::Fetch::Infrastructure {
 bool is_method(ReadonlyBytes method)
 {
     // A method is a byte sequence that matches the method token production.
-    Regex<ECMA262Parser> regex { R"~~~(^[A-Za-z0-9!#$%&'*+\-.^_`|~]+$)~~~" };
+    Regex<ECMA262Parser> regex { R"~~~(^[A-Za-z0-9!#$%&'*+\-.^_`|~]+$)~~~"_string };
     return regex.has_match(StringView { method });
 }
 

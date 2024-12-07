@@ -229,11 +229,6 @@ GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, ByteString string)
     return *it->value;
 }
 
-GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, DeprecatedFlyString const& string)
-{
-    return create(vm, ByteString { string });
-}
-
 GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, PrimitiveString& lhs, PrimitiveString& rhs)
 {
     // We're here to concatenate two strings into a new rope string.

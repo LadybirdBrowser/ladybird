@@ -1336,7 +1336,7 @@ public:
     Operand base() const { return m_base; }
     Operand property() const { return m_property; }
 
-    Optional<DeprecatedFlyString const&> base_identifier(Bytecode::Interpreter const&) const;
+    Optional<FlyString const&> base_identifier(Bytecode::Interpreter const&) const;
 
 private:
     Operand m_dst;

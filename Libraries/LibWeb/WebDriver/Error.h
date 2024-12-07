@@ -50,22 +50,33 @@ enum class ErrorCode {
 // https://w3c.github.io/webdriver/#errors
 struct Error {
     unsigned http_status;
-    ByteString error;
-    ByteString message;
+    String error;
+    String message;
     Optional<JsonValue> data;
 
-    static Error from_code(ErrorCode, ByteString message, Optional<JsonValue> data = {});
+    static Error from_code(ErrorCode, String message, Optional<JsonValue> data = {});
 
-    Error(unsigned http_status, ByteString error, ByteString message, Optional<JsonValue> data);
+    static Error from_code(ErrorCode code, StringView message, Optional<JsonValue> data = {})
+    {
+        return Error::from_code(code, TRY(String::from_utf8(message)), data);
+    }
+
+    template<size_t N>
+    static Error from_code(ErrorCode code, char const (&message)[N], Optional<JsonValue> data = {})
+    {
+        return Error::from_code(code, StringView { message, N - 1 }, data);
+    }
+
+    Error(unsigned http_status, String error, String message, Optional<JsonValue> data);
     Error(AK::Error const&);
 };
 
 }
 
 template<>
-struct AK::Formatter<Web::WebDriver::Error> : Formatter<StringView> {
+struct AK::Formatter<Web::WebDriver::Error> : Formatter<FormatString> {
     ErrorOr<void> format(FormatBuilder& builder, Web::WebDriver::Error const& error)
     {
-        return Formatter<StringView>::format(builder, ByteString::formatted("Error {}, {}: {}", error.http_status, error.error, error.message));
+        return Formatter<FormatString>::format(builder, "Error {}, {}: {}"sv, error.http_status, error.error, error.message);
     }
 };

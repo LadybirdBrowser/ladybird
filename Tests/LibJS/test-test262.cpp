@@ -162,7 +162,7 @@ static ErrorOr<HashMap<size_t, TestResult>> run_test_files(Span<ByteString> file
             auto result_object_or_error = parser.parse();
             if (!result_object_or_error.is_error() && result_object_or_error.value().is_object()) {
                 auto& result_object = result_object_or_error.value().as_object();
-                if (auto result_string = result_object.get_byte_string("result"sv); result_string.has_value()) {
+                if (auto result_string = result_object.get_string("result"sv); result_string.has_value()) {
                     auto const& view = result_string.value();
                     // Timeout and assert fail already are the result of the stopping test
                     if (view == "timeout"sv || view == "assert_fail"sv) {

@@ -403,7 +403,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
 
             // 2. Let url be the result of resolving a module specifier given moduleScript and specifier.
             auto url = TRY(Bindings::throw_dom_exception_if_needed(vm, [&] {
-                return HTML::resolve_module_specifier(*module_script, specifier_string.to_byte_string());
+                return HTML::resolve_module_specifier(*module_script, specifier_string);
             }));
 
             // 3. Return the serialization of url.
@@ -422,9 +422,9 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
     };
 
     // 8.1.6.7.2 HostGetSupportedImportAttributes(), https://html.spec.whatwg.org/multipage/webappapis.html#hostgetsupportedimportassertions
-    s_main_thread_vm->host_get_supported_import_attributes = []() -> Vector<ByteString> {
+    s_main_thread_vm->host_get_supported_import_attributes = []() -> Vector<FlyString> {
         // 1. Return « "type" ».
-        return { "type"sv };
+        return { "type"_fly_string };
     };
 
     // 8.1.6.7.3 HostLoadImportedModule(referrer, moduleRequest, loadState, payload), https://html.spec.whatwg.org/multipage/webappapis.html#hostloadimportedmodule

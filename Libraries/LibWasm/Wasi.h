@@ -29,7 +29,7 @@ namespace Wasm::Wasi::ABI {
 
 template<auto impl>
 struct InvocationOf {
-    HostFunction operator()(Implementation&, StringView name);
+    HostFunction operator()(Implementation&, FlyString const& name);
 };
 
 template<typename T, size_t N>
@@ -850,7 +850,7 @@ struct Implementation {
 
 private:
     template<auto impl>
-    HostFunction invocation_of(StringView name) { return ABI::InvocationOf<impl> {}(*this, name); }
+    HostFunction invocation_of(FlyString const& name) { return ABI::InvocationOf<impl> {}(*this, name); }
 
     ErrorOr<Result<void>> impl$args_get(Configuration&, Pointer<Pointer<u8>> argv, Pointer<u8> argv_buf);
     ErrorOr<Result<ArgsSizes>> impl$args_sizes_get(Configuration&);

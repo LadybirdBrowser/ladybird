@@ -939,7 +939,7 @@ ErrorOr<HostFunction> Implementation::function_by_name(StringView name)
 
 #define IMPL(x)                         \
     if (name_for_comparison == names.x) \
-        return invocation_of<&Implementation::impl$##x>(#x##sv);
+        return invocation_of<&Implementation::impl$##x>(#x##_fly_string);
 
     ENUMERATE_FUNCTION_NAMES(IMPL)
 
@@ -980,7 +980,7 @@ auto CompatibleValueType = IsOneOf<HostType<T>, char, i8, i16, i32, u8, u16>
 
 template<typename RV, typename... Args, ErrorOr<RV> (Implementation::*impl)(Configuration&, Args...)>
 struct InvocationOf<impl> {
-    HostFunction operator()(Implementation& self, StringView function_name)
+    HostFunction operator()(Implementation& self, FlyString const& function_name)
     {
         using R = typename decltype([] {
             if constexpr (IsSame<RV, Result<void>>)

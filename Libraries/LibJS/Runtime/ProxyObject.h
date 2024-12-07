@@ -21,7 +21,7 @@ public:
 
     virtual ~ProxyObject() override = default;
 
-    virtual DeprecatedFlyString const& name() const override;
+    virtual FlyString const& name() const override;
     virtual bool has_constructor() const override;
 
     Object const& target() const { return m_target; }

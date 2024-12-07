@@ -243,7 +243,7 @@ inline void TestRunner::print_test_results_as_json() const
 
                 auto name = suite.name;
                 if (name == "__$$TOP_LEVEL$$__"sv)
-                    name = ByteString::empty();
+                    name = String {};
 
                 auto path = *LexicalPath::relative_path(suite.path, m_test_root);
 

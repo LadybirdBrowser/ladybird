@@ -18,7 +18,7 @@ ReadonlyBytes ShortString::bytes() const
 
 size_t ShortString::byte_count() const
 {
-    return byte_count_and_short_string_flag >> 1;
+    return byte_count_and_flags >> Flag::Count;
 }
 
 StringBase::StringBase(NonnullRefPtr<Detail::StringData const> data)
@@ -39,7 +39,7 @@ StringBase& StringBase::operator=(StringBase&& other)
         m_data->unref();
 
     m_data = exchange(other.m_data, nullptr);
-    other.m_short_string.byte_count_and_short_string_flag = SHORT_STRING_FLAG;
+    other.m_short_string.byte_count_and_flags = Flag::ShortString;
     return *this;
 }
 
@@ -78,7 +78,7 @@ size_t StringBase::byte_count() const
 {
     ASSERT(!is_invalid());
     if (is_short_string())
-        return m_short_string.byte_count_and_short_string_flag >> 1;
+        return m_short_string.byte_count_and_flags >> Flag::Count;
     return m_data->byte_count();
 }
 

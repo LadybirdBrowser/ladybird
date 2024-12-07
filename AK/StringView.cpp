@@ -7,7 +7,6 @@
 #include <AK/AnyOf.h>
 #include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
-#include <AK/DeprecatedFlyString.h>
 #include <AK/Find.h>
 #include <AK/FlyString.h>
 #include <AK/Function.h>
@@ -31,12 +30,6 @@ StringView::StringView(FlyString const& string)
 }
 
 StringView::StringView(ByteString const& string)
-    : m_characters(string.characters())
-    , m_length(string.length())
-{
-}
-
-StringView::StringView(DeprecatedFlyString const& string)
     : m_characters(string.characters())
     , m_length(string.length())
 {

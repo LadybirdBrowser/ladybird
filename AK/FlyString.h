@@ -23,10 +23,12 @@ class FlyString {
 public:
     FlyString() = default;
 
+    static FlyString const EMPTY;
+
     static ErrorOr<FlyString> from_utf8(StringView);
     static FlyString from_utf8_without_validation(ReadonlyBytes);
     template<typename T>
-    requires(IsOneOf<RemoveCVReference<T>, ByteString, DeprecatedFlyString, FlyString, String>)
+    requires(IsOneOf<RemoveCVReference<T>, ByteString, FlyString, String>)
     static ErrorOr<String> from_utf8(T&&) = delete;
 
     FlyString(String const&);
@@ -55,13 +57,6 @@ public:
 
     // This is primarily interesting to unit tests.
     [[nodiscard]] static size_t number_of_fly_strings();
-
-    // FIXME: Remove these once all code has been ported to FlyString
-    [[nodiscard]] DeprecatedFlyString to_deprecated_fly_string() const;
-    static ErrorOr<FlyString> from_deprecated_fly_string(DeprecatedFlyString const&);
-    template<typename T>
-    requires(IsSame<RemoveCVReference<T>, StringView>)
-    static ErrorOr<String> from_deprecated_fly_string(T&&) = delete;
 
     // Compare this FlyString against another string with ASCII caseless matching.
     [[nodiscard]] bool equals_ignoring_ascii_case(FlyString const&) const;
@@ -97,6 +92,8 @@ private:
 
     bool is_invalid() const { return m_data.is_invalid(); }
 };
+
+inline constexpr FlyString FlyString::EMPTY;
 
 template<>
 class Optional<FlyString> : public OptionalBase<FlyString> {

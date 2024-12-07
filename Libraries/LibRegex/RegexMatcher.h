@@ -13,6 +13,7 @@
 
 #include <AK/Forward.h>
 #include <AK/GenericLexer.h>
+#include <AK/NonnullRawPtr.h>
 #include <AK/Vector.h>
 #include <ctype.h>
 
@@ -49,7 +50,7 @@ template<class Parser>
 class Matcher final {
 
 public:
-    Matcher(Regex<Parser> const* pattern, Optional<typename ParserTraits<Parser>::OptionsType> regex_options = {})
+    Matcher(Regex<Parser> const& pattern, Optional<typename ParserTraits<Parser>::OptionsType> regex_options = {})
         : m_pattern(pattern)
         , m_regex_options(regex_options.value_or({}))
     {
@@ -64,7 +65,7 @@ public:
         return m_regex_options;
     }
 
-    void reset_pattern(Badge<Regex<Parser>>, Regex<Parser> const* pattern)
+    void reset_pattern(Badge<Regex<Parser>>, Regex<Parser> const& pattern)
     {
         m_pattern = pattern;
     }
@@ -72,28 +73,28 @@ public:
 private:
     bool execute(MatchInput const& input, MatchState& state, size_t& operations) const;
 
-    Regex<Parser> const* m_pattern;
+    NonnullRawPtr<Regex<Parser> const> m_pattern;
     typename ParserTraits<Parser>::OptionsType const m_regex_options;
 };
 
 template<class Parser>
 class Regex final {
 public:
-    ByteString pattern_value;
+    String pattern_value;
     regex::Parser::Result parser_result;
     OwnPtr<Matcher<Parser>> matcher { nullptr };
     mutable size_t start_offset { 0 };
 
     static regex::Parser::Result parse_pattern(StringView pattern, typename ParserTraits<Parser>::OptionsType regex_options = {});
 
-    explicit Regex(ByteString pattern, typename ParserTraits<Parser>::OptionsType regex_options = {});
-    Regex(regex::Parser::Result parse_result, ByteString pattern, typename ParserTraits<Parser>::OptionsType regex_options = {});
+    explicit Regex(String pattern, typename ParserTraits<Parser>::OptionsType regex_options = {});
+    Regex(regex::Parser::Result parse_result, String pattern, typename ParserTraits<Parser>::OptionsType regex_options = {});
     ~Regex() = default;
     Regex(Regex&&);
     Regex& operator=(Regex&&);
 
     typename ParserTraits<Parser>::OptionsType options() const;
-    ByteString error_string(Optional<ByteString> message = {}) const;
+    String error_string(Optional<StringView> message = {}) const;
 
     RegexResult match(RegexStringView view, Optional<typename ParserTraits<Parser>::OptionsType> regex_options = {}) const
     {
@@ -109,7 +110,7 @@ public:
         return matcher->match(views, regex_options);
     }
 
-    ByteString replace(RegexStringView view, StringView replacement_pattern, Optional<typename ParserTraits<Parser>::OptionsType> regex_options = {}) const
+    String replace(RegexStringView view, StringView replacement_pattern, Optional<typename ParserTraits<Parser>::OptionsType> regex_options = {}) const
     {
         if (!matcher || parser_result.error != Error::NoError)
             return {};
@@ -118,7 +119,7 @@ public:
         size_t start_offset = 0;
         RegexResult result = matcher->match(view, regex_options);
         if (!result.success)
-            return view.to_byte_string();
+            return view.to_string().release_value_but_fixme_should_propagate_errors();
 
         for (size_t i = 0; i < result.matches.size(); ++i) {
             auto& match = result.matches[i];
@@ -145,7 +146,7 @@ public:
 
         builder.append(view.substring_view(start_offset, view.length() - start_offset).to_byte_string());
 
-        return builder.to_byte_string();
+        return builder.to_string().release_value_but_fixme_should_propagate_errors();
     }
 
     // FIXME: replace(Vector<RegexStringView> const , ...)

@@ -88,14 +88,17 @@ static auto parse_vector(Stream& stream)
     }
 }
 
-static ParseResult<ByteString> parse_name(Stream& stream)
+static ParseResult<String> parse_name(Stream& stream)
 {
     ScopeLogger<WASM_BINPARSER_DEBUG> logger;
     auto data = TRY(parse_vector<u8>(stream));
-    auto string = ByteString::copy(data);
+    auto string = StringView { data.span() };
     if (!Utf8View(string).validate(Utf8View::AllowSurrogates::No))
         return ParseError::InvalidUtf8;
-    return string;
+    auto string_or_error = String::from_utf8(string);
+    if (string_or_error.is_error())
+        return ParseError::OutOfMemory;
+    return string_or_error.value();
 }
 
 ParseResult<ValueType> ValueType::parse(Stream& stream)

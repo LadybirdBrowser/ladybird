@@ -222,7 +222,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
                             return Wasm::Result { move(wasm_values) };
                         },
                         type,
-                        ByteString::formatted("func{}", resolved_imports.size()),
+                        MUST(String::formatted("func{}", resolved_imports.size())),
                     };
                     auto address = cache.abstract_machine().store().allocate(move(host_function));
                     dbgln_if(LIBWEB_WASM_DEBUG, "Resolved to {}", address->value());
@@ -323,7 +323,7 @@ JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webass
     return compiled_module;
 }
 
-JS::NativeFunction* create_native_function(JS::VM& vm, Wasm::FunctionAddress address, ByteString const& name, Instance* instance)
+JS::NativeFunction* create_native_function(JS::VM& vm, Wasm::FunctionAddress address, FlyString const& name, Instance* instance)
 {
     auto& realm = *vm.current_realm();
     Optional<Wasm::FunctionType> type;
@@ -471,9 +471,9 @@ JS::Value to_js_value(JS::VM& vm, Wasm::Value& wasm_value, Wasm::ValueType type)
         auto& cache = get_cache(realm);
         auto* function = cache.abstract_machine().store().get(address);
         auto name = function->visit(
-            [&](Wasm::WasmFunction& wasm_function) {
+            [&](Wasm::WasmFunction& wasm_function) -> FlyString {
                 auto index = *wasm_function.module().functions().find_first_index(address);
-                return ByteString::formatted("func{}", index);
+                return MUST(String::formatted("func{}", index));
             },
             [](Wasm::HostFunction& host_function) {
                 return host_function.name();

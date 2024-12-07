@@ -90,7 +90,7 @@ WebIDL::ExceptionOr<ImportMap> parse_import_map_string(JS::Realm& realm, ByteStr
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#normalizing-a-specifier-key
-Optional<DeprecatedFlyString> normalise_specifier_key(JS::Realm& realm, DeprecatedFlyString specifier_key, URL::URL base_url)
+Optional<FlyString> normalise_specifier_key(JS::Realm& realm, FlyString specifier_key, URL::URL base_url)
 {
     // 1. If specifierKey is the empty string, then:
     if (specifier_key.is_empty()) {
@@ -99,7 +99,7 @@ Optional<DeprecatedFlyString> normalise_specifier_key(JS::Realm& realm, Deprecat
         console.output_debug_message(JS::Console::LogLevel::Warn, "Specifier keys may not be empty"sv);
 
         // 2. Return null.
-        return Optional<DeprecatedFlyString> {};
+        return Optional<FlyString> {};
     }
 
     // 2. Let url be the result of resolving a URL-like module specifier, given specifierKey and baseURL.
@@ -107,7 +107,7 @@ Optional<DeprecatedFlyString> normalise_specifier_key(JS::Realm& realm, Deprecat
 
     // 3. If url is not null, then return the serialization of url.
     if (url.has_value())
-        return url->serialize().to_byte_string();
+        return url->serialize();
 
     // 4. Return specifierKey.
     return specifier_key;
@@ -144,7 +144,7 @@ WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(
         }
 
         // 4. Let addressURL be the result of resolving a URL-like module specifier given value and baseURL.
-        auto address_url = resolve_url_like_module_specifier(value.as_string().byte_string(), base_url);
+        auto address_url = resolve_url_like_module_specifier(value.as_string().utf8_string(), base_url);
 
         // 5. If addressURL is null, then:
         if (!address_url.has_value()) {
@@ -160,7 +160,7 @@ WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(
         }
 
         // 6. If specifierKey ends with U+002F (/), and the serialization of addressURL does not end with U+002F (/), then:
-        if (specifier_key.as_string().ends_with("/"sv) && !address_url->serialize().ends_with('/')) {
+        if (specifier_key.as_string().ends_with_bytes("/"sv) && !address_url->serialize().ends_with('/')) {
             // 1. The user agent may report a warning to the console indicating that an invalid address was given for the specifier key specifierKey; since specifierKey ends with a slash, the address needs to as well.
             auto& console = realm.intrinsics().console_object()->console();
             console.output_debug_message(JS::Console::LogLevel::Warn,

@@ -194,6 +194,16 @@ public:
             last.unchecked_append(v);
     }
 
+    void append(StringView view)
+    {
+        if (is_empty())
+            Base::append({});
+        Base::last_chunk().grow_with(ceil_div(view.length(), sizeof(ByteCodeValueType)), [=](Span<ByteCodeValueType> uninitialized_byte_code) {
+            auto uninitialized_byte_code_buffer = to_bytes(uninitialized_byte_code);
+            view.bytes().copy_to(uninitialized_byte_code_buffer);
+        });
+    }
+
     void ensure_capacity(size_t capacity)
     {
         if (is_empty())
@@ -248,9 +258,8 @@ public:
     void insert_bytecode_group_capture_right(size_t capture_groups_count, StringView name)
     {
         empend(static_cast<ByteCodeValueType>(OpCodeId::SaveRightNamedCaptureGroup));
-        empend(reinterpret_cast<ByteCodeValueType>(name.characters_without_null_termination()));
-        empend(name.length());
         empend(capture_groups_count);
+        insert_string_view(name);
     }
 
     enum class LookAroundType {
@@ -529,6 +538,12 @@ private:
             empend((ByteCodeValueType)view[i]);
     }
 
+    void insert_string_view(StringView view)
+    {
+        empend(view.length());
+        append(view);
+    }
+
     void ensure_opcodes_initialized();
     ALWAYS_INLINE OpCode& get_opcode_by_id(OpCodeId id) const;
     static OwnPtr<OpCode> s_opcodes[(size_t)OpCodeId::Last + 1];
@@ -568,6 +583,15 @@ public:
     ALWAYS_INLINE ByteCodeValueType argument(size_t offset) const
     {
         return m_bytecode->at(state().instruction_position + 1 + offset);
+    }
+
+    ALWAYS_INLINE StringView string_view_argument(size_t offset) const
+    {
+        auto length = argument(offset);
+        return StringView {
+            reinterpret_cast<char const*>(m_bytecode->find(state().instruction_position + 1 + offset + 1)),
+            length,
+        };
     }
 
     ALWAYS_INLINE StringView name() const;
@@ -743,10 +767,10 @@ class OpCode_SaveRightNamedCaptureGroup final : public OpCode {
 public:
     ExecutionResult execute(MatchInput const& input, MatchState& state) const override;
     ALWAYS_INLINE OpCodeId opcode_id() const override { return OpCodeId::SaveRightNamedCaptureGroup; }
-    ALWAYS_INLINE size_t size() const override { return 4; }
-    ALWAYS_INLINE StringView name() const { return { reinterpret_cast<char*>(argument(0)), length() }; }
+    ALWAYS_INLINE size_t size() const override { return 3 + ceil_div(length(), sizeof(ByteCodeValueType)); }
+    ALWAYS_INLINE StringView name() const { return string_view_argument(1); }
     ALWAYS_INLINE size_t length() const { return argument(1); }
-    ALWAYS_INLINE size_t id() const { return argument(2); }
+    ALWAYS_INLINE size_t id() const { return argument(0); }
     ByteString arguments_string() const override
     {
         return ByteString::formatted("name={}, length={}", name(), length());

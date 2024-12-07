@@ -4,17 +4,18 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/String.h>
 #include <LibJS/Bytecode/StringTable.h>
 
 namespace JS::Bytecode {
 
-StringTableIndex StringTable::insert(ByteString string)
+StringTableIndex StringTable::insert(String string)
 {
     m_strings.append(move(string));
     return m_strings.size() - 1;
 }
 
-ByteString const& StringTable::get(StringTableIndex index) const
+String const& StringTable::get(StringTableIndex index) const
 {
     return m_strings[index.value()];
 }

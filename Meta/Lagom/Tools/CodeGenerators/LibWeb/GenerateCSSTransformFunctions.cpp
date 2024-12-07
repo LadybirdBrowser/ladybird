@@ -171,7 +171,8 @@ TransformFunctionMetadata transform_function_metadata(TransformFunction transfor
         JsonArray const& parameters = value.as_object().get_array("parameters"sv).value();
         bool first = true;
         parameters.for_each([&](JsonValue const& value) {
-            GenericLexer lexer { value.as_object().get_byte_string("type"sv).value() };
+            auto buffer = value.as_object().get_string("type"sv).value();
+            GenericLexer lexer { buffer };
             VERIFY(lexer.consume_specific('<'));
             auto parameter_type_name = lexer.consume_until('>');
             VERIFY(lexer.consume_specific('>'));

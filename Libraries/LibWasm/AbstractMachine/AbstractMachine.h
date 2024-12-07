@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/FlyString.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
@@ -29,7 +30,7 @@ struct LinkError {
     enum OtherErrors {
         InvalidImportedModule,
     };
-    Vector<ByteString> missing_imports;
+    Vector<FlyString> missing_imports;
     Vector<OtherErrors> other_errors;
 };
 
@@ -276,7 +277,7 @@ using ExternValue = Variant<FunctionAddress, TableAddress, MemoryAddress, Global
 
 class ExportInstance {
 public:
-    explicit ExportInstance(ByteString name, ExternValue value)
+    explicit ExportInstance(FlyString name, ExternValue value)
         : m_name(move(name))
         , m_value(move(value))
     {
@@ -286,7 +287,7 @@ public:
     auto& value() const { return m_value; }
 
 private:
-    ByteString m_name;
+    FlyString m_name;
     ExternValue m_value;
 };
 
@@ -361,7 +362,7 @@ private:
 
 class HostFunction {
 public:
-    explicit HostFunction(AK::Function<Result(Configuration&, Vector<Value>&)> function, FunctionType const& type, ByteString name)
+    explicit HostFunction(AK::Function<Result(Configuration&, Vector<Value>&)> function, FunctionType const& type, FlyString name)
         : m_function(move(function))
         , m_type(type)
         , m_name(move(name))
@@ -375,7 +376,7 @@ public:
 private:
     AK::Function<Result(Configuration&, Vector<Value>&)> m_function;
     FunctionType m_type;
-    ByteString m_name;
+    FlyString m_name;
 };
 
 using FunctionInstance = Variant<WasmFunction, HostFunction>;
@@ -654,8 +655,8 @@ private:
 class Linker {
 public:
     struct Name {
-        ByteString module;
-        ByteString name;
+        FlyString module;
+        FlyString name;
         ImportSection::Import::ImportDesc type;
     };
 

@@ -599,7 +599,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
             font_list.for_each_font_entry([&serializer](Gfx::FontCascadeList::Entry const& entry) {
                 auto const& font = entry.font;
                 auto font_json_object = MUST(serializer.add_object());
-                MUST(font_json_object.add("name"sv, font->family()));
+                MUST(font_json_object.add("name"sv, font->family().to_string()));
                 MUST(font_json_object.add("size"sv, font->point_size()));
                 MUST(font_json_object.add("weight"sv, font->weight()));
                 MUST(font_json_object.finish());

@@ -32,7 +32,7 @@ regex::Parser::Result Regex<Parser>::parse_pattern(StringView pattern, typename 
 
 template<typename Parser>
 struct CacheKey {
-    ByteString pattern;
+    String pattern;
     typename ParserTraits<Parser>::OptionsType options;
 
     bool operator==(CacheKey const& other) const
@@ -49,7 +49,7 @@ static size_t s_cached_bytecode_size = 0;
 static constexpr auto MaxRegexCachedBytecodeSize = 1 * MiB;
 
 template<class Parser>
-Regex<Parser>::Regex(ByteString pattern, typename ParserTraits<Parser>::OptionsType regex_options)
+Regex<Parser>::Regex(String pattern, typename ParserTraits<Parser>::OptionsType regex_options)
     : pattern_value(move(pattern))
 {
     if (auto cache_entry = s_parser_cache<Parser>.get({ pattern_value, regex_options }); cache_entry.has_value()) {
@@ -70,17 +70,17 @@ Regex<Parser>::Regex(ByteString pattern, typename ParserTraits<Parser>::OptionsT
     }
 
     if (parser_result.error == regex::Error::NoError)
-        matcher = make<Matcher<Parser>>(this, static_cast<decltype(regex_options.value())>(parser_result.options.value()));
+        matcher = make<Matcher<Parser>>(*this, static_cast<decltype(regex_options.value())>(parser_result.options.value()));
 }
 
 template<class Parser>
-Regex<Parser>::Regex(regex::Parser::Result parse_result, ByteString pattern, typename ParserTraits<Parser>::OptionsType regex_options)
+Regex<Parser>::Regex(regex::Parser::Result parse_result, String pattern, typename ParserTraits<Parser>::OptionsType regex_options)
     : pattern_value(move(pattern))
     , parser_result(move(parse_result))
 {
     run_optimization_passes();
     if (parser_result.error == regex::Error::NoError)
-        matcher = make<Matcher<Parser>>(this, regex_options | static_cast<decltype(regex_options.value())>(parse_result.options.value()));
+        matcher = make<Matcher<Parser>>(*this, regex_options | static_cast<decltype(regex_options.value())>(parse_result.options.value()));
 }
 
 template<class Parser>
@@ -91,7 +91,7 @@ Regex<Parser>::Regex(Regex&& regex)
     , start_offset(regex.start_offset)
 {
     if (matcher)
-        matcher->reset_pattern({}, this);
+        matcher->reset_pattern({}, *this);
 }
 
 template<class Parser>
@@ -101,7 +101,7 @@ Regex<Parser>& Regex<Parser>::operator=(Regex&& regex)
     parser_result = move(regex.parser_result);
     matcher = move(regex.matcher);
     if (matcher)
-        matcher->reset_pattern({}, this);
+        matcher->reset_pattern({}, *this);
     start_offset = regex.start_offset;
     return *this;
 }
@@ -116,7 +116,7 @@ typename ParserTraits<Parser>::OptionsType Regex<Parser>::options() const
 }
 
 template<class Parser>
-ByteString Regex<Parser>::error_string(Optional<ByteString> message) const
+String Regex<Parser>::error_string(Optional<StringView> message) const
 {
     StringBuilder eb;
     eb.append("Error during parsing of regular expression:\n"sv);
@@ -125,7 +125,7 @@ ByteString Regex<Parser>::error_string(Optional<ByteString> message) const
         eb.append(' ');
 
     eb.appendff("^---- {}", message.value_or(get_error_string(parser_result.error)));
-    return eb.to_byte_string();
+    return MUST(eb.to_string());
 }
 
 template<typename Parser>

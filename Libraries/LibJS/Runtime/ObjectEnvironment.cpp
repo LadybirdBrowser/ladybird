@@ -27,7 +27,7 @@ void ObjectEnvironment::visit_edges(Cell::Visitor& visitor)
 }
 
 // 9.1.1.2.1 HasBinding ( N ), https://tc39.es/ecma262/#sec-object-environment-records-hasbinding-n
-ThrowCompletionOr<bool> ObjectEnvironment::has_binding(DeprecatedFlyString const& name, Optional<size_t>*) const
+ThrowCompletionOr<bool> ObjectEnvironment::has_binding(FlyString const& name, Optional<size_t>*) const
 {
     auto& vm = this->vm();
 
@@ -62,7 +62,7 @@ ThrowCompletionOr<bool> ObjectEnvironment::has_binding(DeprecatedFlyString const
 }
 
 // 9.1.1.2.2 CreateMutableBinding ( N, D ), https://tc39.es/ecma262/#sec-object-environment-records-createmutablebinding-n-d
-ThrowCompletionOr<void> ObjectEnvironment::create_mutable_binding(VM&, DeprecatedFlyString const& name, bool can_be_deleted)
+ThrowCompletionOr<void> ObjectEnvironment::create_mutable_binding(VM&, FlyString const& name, bool can_be_deleted)
 {
     // 1. Let bindingObject be envRec.[[BindingObject]].
     // 2. Perform ? DefinePropertyOrThrow(bindingObject, N, PropertyDescriptor { [[Value]]: undefined, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: D }).
@@ -73,14 +73,14 @@ ThrowCompletionOr<void> ObjectEnvironment::create_mutable_binding(VM&, Deprecate
 }
 
 // 9.1.1.2.3 CreateImmutableBinding ( N, S ), https://tc39.es/ecma262/#sec-object-environment-records-createimmutablebinding-n-s
-ThrowCompletionOr<void> ObjectEnvironment::create_immutable_binding(VM&, DeprecatedFlyString const&, bool)
+ThrowCompletionOr<void> ObjectEnvironment::create_immutable_binding(VM&, FlyString const&, bool)
 {
     // "The CreateImmutableBinding concrete method of an object Environment Record is never used within this specification."
     VERIFY_NOT_REACHED();
 }
 
 // 9.1.1.2.4 InitializeBinding ( N, V ), https://tc39.es/ecma262/#sec-object-environment-records-initializebinding-n-v
-ThrowCompletionOr<void> ObjectEnvironment::initialize_binding(VM& vm, DeprecatedFlyString const& name, Value value, Environment::InitializeBindingHint hint)
+ThrowCompletionOr<void> ObjectEnvironment::initialize_binding(VM& vm, FlyString const& name, Value value, Environment::InitializeBindingHint hint)
 {
     // 1. Assert: hint is normal.
     VERIFY(hint == Environment::InitializeBindingHint::Normal);
@@ -93,7 +93,7 @@ ThrowCompletionOr<void> ObjectEnvironment::initialize_binding(VM& vm, Deprecated
 }
 
 // 9.1.1.2.5 SetMutableBinding ( N, V, S ), https://tc39.es/ecma262/#sec-object-environment-records-setmutablebinding-n-v-s
-ThrowCompletionOr<void> ObjectEnvironment::set_mutable_binding(VM&, DeprecatedFlyString const& name, Value value, bool strict)
+ThrowCompletionOr<void> ObjectEnvironment::set_mutable_binding(VM&, FlyString const& name, Value value, bool strict)
 {
     auto& vm = this->vm();
 
@@ -135,7 +135,7 @@ ThrowCompletionOr<void> ObjectEnvironment::set_mutable_binding(VM&, DeprecatedFl
 }
 
 // 9.1.1.2.6 GetBindingValue ( N, S ), https://tc39.es/ecma262/#sec-object-environment-records-getbindingvalue-n-s
-ThrowCompletionOr<Value> ObjectEnvironment::get_binding_value(VM&, DeprecatedFlyString const& name, bool strict)
+ThrowCompletionOr<Value> ObjectEnvironment::get_binding_value(VM&, FlyString const& name, bool strict)
 {
     auto& vm = this->vm();
 
@@ -164,7 +164,7 @@ ThrowCompletionOr<Value> ObjectEnvironment::get_binding_value(VM&, DeprecatedFly
 }
 
 // 9.1.1.2.7 DeleteBinding ( N ), https://tc39.es/ecma262/#sec-object-environment-records-deletebinding-n
-ThrowCompletionOr<bool> ObjectEnvironment::delete_binding(VM&, DeprecatedFlyString const& name)
+ThrowCompletionOr<bool> ObjectEnvironment::delete_binding(VM&, FlyString const& name)
 {
     // 1. Let bindingObject be envRec.[[BindingObject]].
     // 2. Return ? bindingObject.[[Delete]](N).

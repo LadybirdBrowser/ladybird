@@ -121,7 +121,7 @@ VM::VM(OwnPtr<CustomData> custom_data, ErrorMessages error_messages)
     };
 
     host_get_supported_import_attributes = [&] {
-        return Vector<ByteString> { "type" };
+        return Vector<FlyString> { "type"_fly_string };
     };
 
     // 19.2.1.2 HostEnsureCanCompileStrings ( calleeRealm, parameterStrings, bodyString, direct ), https://tc39.es/ecma262/#sec-hostensurecancompilestrings
@@ -276,7 +276,7 @@ void VM::gather_roots(HashMap<GC::Cell*, GC::HeapRoot>& roots)
 }
 
 // 9.1.2.1 GetIdentifierReference ( env, name, strict ), https://tc39.es/ecma262/#sec-getidentifierreference
-ThrowCompletionOr<Reference> VM::get_identifier_reference(Environment* environment, DeprecatedFlyString name, bool strict, size_t hops)
+ThrowCompletionOr<Reference> VM::get_identifier_reference(Environment* environment, FlyString name, bool strict, size_t hops)
 {
     // 1. If env is the value null, then
     if (!environment) {
@@ -310,7 +310,7 @@ ThrowCompletionOr<Reference> VM::get_identifier_reference(Environment* environme
 }
 
 // 9.4.2 ResolveBinding ( name [ , env ] ), https://tc39.es/ecma262/#sec-resolvebinding
-ThrowCompletionOr<Reference> VM::resolve_binding(DeprecatedFlyString const& name, Environment* environment)
+ThrowCompletionOr<Reference> VM::resolve_binding(FlyString const& name, Environment* environment)
 {
     // 1. If env is not present or if env is undefined, then
     if (!environment) {
@@ -522,7 +522,7 @@ ScriptOrModule VM::get_active_script_or_module() const
     return m_execution_context_stack[0]->script_or_module;
 }
 
-VM::StoredModule* VM::get_stored_module(ImportedModuleReferrer const&, ByteString const& filename, ByteString const&)
+VM::StoredModule* VM::get_stored_module(ImportedModuleReferrer const&, ByteString const& filename, FlyString const&)
 {
     // Note the spec says:
     // If this operation is called multiple times with the same (referrer, specifier) pair and it performs
@@ -629,8 +629,8 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
         return;
     }
 
-    ByteString module_type;
-    for (auto& attribute : module_request.attributes) {
+    FlyString module_type;
+    for (auto const& attribute : module_request.attributes) {
         if (attribute.key == "type"sv) {
             module_type = attribute.value;
             break;
@@ -656,7 +656,7 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
         });
 
     LexicalPath base_path { base_filename };
-    auto filename = LexicalPath::absolute_path(base_path.dirname(), module_request.module_specifier);
+    auto filename = LexicalPath::absolute_path(base_path.dirname(), module_request.module_specifier.bytes_as_string_view());
 
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] base path: '{}'", base_path);
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] initial filename: '{}'", filename);
