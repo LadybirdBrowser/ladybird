@@ -9,9 +9,10 @@ on:
 
 jobs:
   stale:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/stale@v9
+      # replace `uses:` below with upstream actions/stale when https://github.com/actions/stale/issues/1136 is fixed
+      - uses: itchyny/actions-stale@0980a21d84c23bd4d8c62b0958f47f25822286f2
         with:
           # Leave issues alone.
           days-before-issue-stale: -1
