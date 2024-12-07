@@ -196,16 +196,31 @@ WebIDL::Long HTMLTableCellElement::cell_index() const
 
 Optional<ARIA::Role> HTMLTableCellElement::default_role() const
 {
-    // TODO: For td:
-    //       role=cell if the ancestor table element is exposed as a role=table
-    //       role=gridcell if the ancestor table element is exposed as a role=grid or treegrid
-    //       No corresponding role if the ancestor table element is not exposed as a role=table, grid or treegrid
-    //       For th:
-    //       role=columnheader, rowheader or cell if the ancestor table element is exposed as a role=table
-    //        role=columnheader, rowheader or gridcell if the ancestor table element is exposed as a role=grid or treegrid
-    //        No corresponding role if the ancestor table element is not exposed as a role=table, grid or treegrid
-    // https://www.w3.org/TR/html-aria/#el-td
-    // https://www.w3.org/TR/html-aria/#el-th
+    if (local_name() == TagNames::th) {
+        for (auto const* ancestor = parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+            // AD-HOC: The ancestor checks here aren’t explicitly defined in the spec, but implicitly follow from what
+            // the spec does state, and from the physical placement/layout of elements. Also, the el-th and el-th-in-row
+            // tests at https://wpt.fyi/results/html-aam/table-roles.html require doing these ancestor checks — and
+            // implementing them causes the behavior to match that of other engines.
+            // https://w3c.github.io/html-aam/#el-th-columnheader
+            if (get_attribute(HTML::AttributeNames::scope) == "columnheader" || ancestor->local_name() == TagNames::thead)
+                return ARIA::Role::columnheader;
+            // https://w3c.github.io/html-aam/#el-th-rowheader
+            if (get_attribute(HTML::AttributeNames::scope) == "rowheader" || ancestor->local_name() == TagNames::tbody)
+                return ARIA::Role::rowheader;
+        }
+    }
+    auto const* table_element = first_ancestor_of_type<HTMLTableElement>();
+    // https://w3c.github.io/html-aam/#el-td
+    // https://w3c.github.io/html-aam/#el-th/
+    // (ancestor table element has table role)
+    if (table_element->role_or_default() == ARIA::Role::table)
+        return ARIA::Role::cell;
+    // https://w3c.github.io/html-aam/#el-td-gridcell
+    // https://w3c.github.io/html-aam/#el-th-gridcell
+    // (ancestor table element has grid or treegrid role)
+    if (first_is_one_of(table_element->role_or_default(), ARIA::Role::grid, ARIA::Role::gridcell))
+        return ARIA::Role::gridcell;
     return {};
 }
 

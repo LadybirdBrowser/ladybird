@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+<head>
+  <title>HTML-AAM Role Verification Tests</title>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <script src="../resources/testdriver.js"></script>
+  <script src="../resources/testdriver-vendor.js"></script>
+  <script src="../resources/testdriver-actions.js"></script>
+  <script src="../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+<p>Tests the computedrole mappings for the table-related roles defined in <a href="https://w3c.github.io/html-aam/">HTML-AAM</a>. Most test names correspond to unique ID defined in the spec.<p>
+
+<!-- ARIA table roles tested in wpt/wai-aria/role/table-roles.html -->
+
+<table data-testname="el-table" data-expectedrole="table" class="ex">
+  <caption data-testname="el-caption" data-expectedrole="caption" class="ex">caption</caption>
+  <thead>
+    <tr data-testname="el-tr-thead" data-expectedrole="row" class="ex">
+      <th data-testname="el-th" data-expectedrole="columnheader" class="ex">a</th>
+      <th>b</th>
+      <th>c</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr data-testname="el-tr-tbody" data-expectedrole="row" class="ex">
+      <th data-testname="el-th-in-row" data-expectedrole="rowheader" class="ex">1</th>
+      <td data-testname="el-td" data-expectedrole="cell" class="ex">2</td>
+      <td>3</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>5</td>
+      <td>6</td>
+    </tr>
+  </tbody>
+  <tfoot>
+    <tr>
+      <th>x</th>
+      <th>y</th>
+      <th>z</th>
+    </tr>
+  </tfoot>
+</table>
+
+<script>
+AriaUtils.verifyRolesBySelector(".ex");
+</script>
+
+</body>
+</html>
