@@ -50,6 +50,9 @@ public:
 
     virtual GC::Ptr<CSSRule> parent_rule() const;
 
+    // https://drafts.csswg.org/cssom/#cssstyledeclaration-computed-flag
+    [[nodiscard]] virtual bool computed_flag() const { return false; }
+
 protected:
     explicit CSSStyleDeclaration(JS::Realm&);
 
