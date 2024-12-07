@@ -10,6 +10,9 @@ on:
 jobs:
   stale:
     runs-on: ubuntu-24.04
+    permissions:
+      actions: write  # required for cache management (see https://github.com/actions/stale/issues/1133)
+      pull-requests: write
     steps:
       # replace `uses:` below with upstream actions/stale when https://github.com/actions/stale/issues/1136 is fixed
       - uses: itchyny/actions-stale@0980a21d84c23bd4d8c62b0958f47f25822286f2
