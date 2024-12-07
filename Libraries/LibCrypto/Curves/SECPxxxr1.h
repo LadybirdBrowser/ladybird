@@ -253,14 +253,11 @@ public:
         };
     }
 
-    ErrorOr<ByteBuffer> derive_premaster_key(ReadonlyBytes shared_point) override
+    ErrorOr<ByteBuffer> derive_premaster_key(ReadonlyBytes shared_point_bytes) override
     {
-        VERIFY(shared_point.size() == POINT_BYTE_SIZE);
-        VERIFY(shared_point[0] == 0x04);
-
-        ByteBuffer premaster_key = TRY(ByteBuffer::create_uninitialized(KEY_BYTE_SIZE));
-        premaster_key.overwrite(0, shared_point.data() + 1, KEY_BYTE_SIZE);
-        return premaster_key;
+        auto shared_point = TRY(SECPxxxr1Point::from_uncompressed(shared_point_bytes));
+        auto premaster_key_point = TRY(derive_premaster_key_point(shared_point));
+        return premaster_key_point.to_uncompressed();
     }
 
     ErrorOr<SECPxxxr1Point> derive_premaster_key_point(SECPxxxr1Point shared_point)
@@ -338,20 +335,10 @@ public:
         return r.is_equal_to_constant_time(result.x);
     }
 
-    ErrorOr<bool> verify(ReadonlyBytes hash, ReadonlyBytes pubkey, ReadonlyBytes signature)
+    ErrorOr<bool> verify(ReadonlyBytes hash, ReadonlyBytes pubkey, SECPxxxr1Signature signature)
     {
-        Crypto::ASN1::Decoder asn1_decoder(signature);
-        TRY(asn1_decoder.enter());
-
-        auto r_bigint = TRY(asn1_decoder.read<Crypto::UnsignedBigInteger>(Crypto::ASN1::Class::Universal, Crypto::ASN1::Kind::Integer));
-        auto s_bigint = TRY(asn1_decoder.read<Crypto::UnsignedBigInteger>(Crypto::ASN1::Class::Universal, Crypto::ASN1::Kind::Integer));
-
-        AK::FixedMemoryStream pubkey_stream { pubkey };
-        JacobianPoint pubkey_point = TRY(read_uncompressed_point(pubkey_stream));
-
-        return verify_point(hash,
-            SECPxxxr1Point { storage_type_to_unsigned_big_integer(pubkey_point.x), storage_type_to_unsigned_big_integer(pubkey_point.y) },
-            SECPxxxr1Signature { r_bigint, s_bigint });
+        auto pubkey_point = TRY(SECPxxxr1Point::from_uncompressed(pubkey));
+        return verify_point(hash, pubkey_point, signature);
     }
 
     ErrorOr<SECPxxxr1Signature> sign_scalar(ReadonlyBytes hash, UnsignedBigInteger private_key)
@@ -403,18 +390,10 @@ public:
         return SECPxxxr1Signature { storage_type_to_unsigned_big_integer(r), storage_type_to_unsigned_big_integer(s) };
     }
 
-    ErrorOr<ByteBuffer> sign(ReadonlyBytes hash, ReadonlyBytes private_key_bytes)
+    ErrorOr<SECPxxxr1Signature> sign(ReadonlyBytes hash, ReadonlyBytes private_key_bytes)
     {
         auto signature = TRY(sign_scalar(hash, UnsignedBigInteger::import_data(private_key_bytes.data(), private_key_bytes.size())));
-
-        Crypto::ASN1::Encoder asn1_encoder;
-        TRY(asn1_encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
-            TRY(asn1_encoder.write(signature.r));
-            TRY(asn1_encoder.write(signature.s));
-            return {};
-        }));
-
-        return asn1_encoder.finish();
+        return signature;
     }
 
 private:
