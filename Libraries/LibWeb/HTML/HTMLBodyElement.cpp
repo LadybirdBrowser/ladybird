@@ -113,7 +113,8 @@ void HTMLBodyElement::attribute_changed(FlyString const& name, Optional<String> 
         if (color.has_value())
             document().set_visited_link_color(color.value());
     } else if (name.equals_ignoring_ascii_case("background"sv)) {
-        m_background_style_value = CSS::ImageStyleValue::create(document().parse_url(value.value_or(String {})));
+        // https://html.spec.whatwg.org/multipage/rendering.html#the-page:attr-background
+        m_background_style_value = CSS::ImageStyleValue::create(document().encoding_parse_url(value.value_or(String {})));
         m_background_style_value->on_animate = [this] {
             if (paintable()) {
                 paintable()->set_needs_display();
