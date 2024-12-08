@@ -45,7 +45,7 @@ ErrorOr<Vector<String>> AutoComplete::parse_google_autocomplete(Vector<JsonValue
 
     if (!json[0].is_string())
         return Error::from_string_literal("Invalid JSON, expected first element to be a string");
-    auto query = TRY(String::from_byte_string(json[0].as_string()));
+    auto query = json[0].as_string();
 
     if (!json[1].is_array())
         return Error::from_string_literal("Invalid JSON, expected second element to be an array");
@@ -57,7 +57,7 @@ ErrorOr<Vector<String>> AutoComplete::parse_google_autocomplete(Vector<JsonValue
     Vector<String> results;
     results.ensure_capacity(suggestions_array.size());
     for (auto& suggestion : suggestions_array)
-        results.unchecked_append(MUST(String::from_byte_string(suggestion.as_string())));
+        results.unchecked_append(suggestion.as_string());
 
     return results;
 }
@@ -69,7 +69,7 @@ ErrorOr<Vector<String>> AutoComplete::parse_duckduckgo_autocomplete(Vector<JsonV
         auto maybe_value = suggestion.as_object().get("phrase"sv);
         if (!maybe_value.has_value())
             continue;
-        results.append(MUST(String::from_byte_string(maybe_value->as_string())));
+        results.append(maybe_value->as_string());
     }
 
     return results;
@@ -79,7 +79,7 @@ ErrorOr<Vector<String>> AutoComplete::parse_yahoo_autocomplete(JsonObject const&
 {
     if (!json.get("q"sv).has_value() || !json.get("q"sv)->is_string())
         return Error::from_string_view("Invalid JSON, expected \"q\" to be a string"sv);
-    auto query = TRY(String::from_byte_string(json.get("q"sv)->as_string()));
+    auto query = json.get("q"sv)->as_string();
 
     if (!json.get("r"sv).has_value() || !json.get("r"sv)->is_array())
         return Error::from_string_view("Invalid JSON, expected \"r\" to be an object"sv);
@@ -98,7 +98,7 @@ ErrorOr<Vector<String>> AutoComplete::parse_yahoo_autocomplete(JsonObject const&
         if (!suggestion.get("k"sv).has_value() || !suggestion.get("k"sv)->is_string())
             return Error::from_string_view("Invalid JSON, expected \"k\" to be a string"sv);
 
-        results.unchecked_append(MUST(String::from_byte_string(suggestion.get("k"sv)->as_string())));
+        results.unchecked_append(suggestion.get("k"sv)->as_string());
     }
 
     return results;

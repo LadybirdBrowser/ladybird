@@ -370,18 +370,18 @@ inline JSFileResult TestRunner::run_file_test(ByteString const& test_path)
         file_result.logged_messages.append(message.to_string_without_side_effects().to_byte_string());
     }
 
-    test_json.value().as_object().for_each_member([&](ByteString const& suite_name, JsonValue const& suite_value) {
+    test_json.value().as_object().for_each_member([&](FlyString const& suite_name, JsonValue const& suite_value) {
         Test::Suite suite { test_path, suite_name };
 
         VERIFY(suite_value.is_object());
 
-        suite_value.as_object().for_each_member([&](ByteString const& test_name, JsonValue const& test_value) {
-            Test::Case test { test_name, Test::Result::Fail, "", 0 };
+        suite_value.as_object().for_each_member([&](FlyString const& test_name, JsonValue const& test_value) {
+            Test::Case test { test_name, Test::Result::Fail, ""_string, 0 };
 
             VERIFY(test_value.is_object());
             VERIFY(test_value.as_object().has("result"sv));
 
-            auto result = test_value.as_object().get_byte_string("result"sv);
+            auto result = test_value.as_object().get_string("result"sv);
             VERIFY(result.has_value());
             auto result_string = result.value();
             if (result_string == "pass") {
@@ -392,7 +392,7 @@ inline JSFileResult TestRunner::run_file_test(ByteString const& test_path)
                 m_counts.tests_failed++;
                 suite.most_severe_test_result = Test::Result::Fail;
                 VERIFY(test_value.as_object().has("details"sv));
-                auto details = test_value.as_object().get_byte_string("details"sv);
+                auto details = test_value.as_object().get_string("details"sv);
                 VERIFY(result.has_value());
                 test.details = details.value();
             } else if (result_string == "xfail") {
@@ -427,10 +427,10 @@ inline JSFileResult TestRunner::run_file_test(ByteString const& test_path)
     });
 
     if (top_level_result.is_error()) {
-        Test::Suite suite { test_path, "<top-level>" };
+        Test::Suite suite { test_path, "<top-level>"_string };
         suite.most_severe_test_result = Result::Crashed;
 
-        Test::Case test_case { "<top-level>", Test::Result::Fail, "", 0 };
+        Test::Case test_case { "<top-level>"_string, Test::Result::Fail, ""_string, 0 };
         auto error = top_level_result.release_error().release_value().release_value();
         if (error.is_object()) {
             StringBuilder detail_builder;
@@ -453,9 +453,9 @@ inline JSFileResult TestRunner::run_file_test(ByteString const& test_path)
                 detail_builder.append(error_as_error.stack_string());
             }
 
-            test_case.details = detail_builder.to_byte_string();
+            test_case.details = MUST(detail_builder.to_string());
         } else {
-            test_case.details = error.to_string_without_side_effects().to_byte_string();
+            test_case.details = error.to_string_without_side_effects();
         }
 
         suite.tests.append(move(test_case));

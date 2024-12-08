@@ -192,9 +192,9 @@ ErrorOr<GC::Ref<Web::DOM::Element>, WebDriver::Error> deserialize_web_element(We
     return element;
 }
 
-ByteString extract_web_element_reference(JsonObject const& object)
+String extract_web_element_reference(JsonObject const& object)
 {
-    return object.get_byte_string(web_element_identifier).release_value();
+    return object.get_string(web_element_identifier).release_value();
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-a-webelement-origin
@@ -459,7 +459,7 @@ ErrorOr<GC::Ref<Web::DOM::ShadowRoot>, WebDriver::Error> deserialize_shadow_root
         return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a Shadow Root");
 
     // 2. Let reference be the result of getting the shadow root identifier property from object.
-    auto reference = object.get_byte_string(shadow_root_identifier).release_value();
+    auto reference = object.get_string(shadow_root_identifier).release_value();
 
     // 3. Let shadow be the result of trying to get a known shadow root with session and reference.
     auto shadow = TRY(get_known_shadow_root(browsing_context, reference));

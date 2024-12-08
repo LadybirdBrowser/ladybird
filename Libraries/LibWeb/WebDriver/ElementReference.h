@@ -28,7 +28,7 @@ bool represents_a_web_element(JsonValue const&);
 bool represents_a_web_element(JS::Value);
 ErrorOr<GC::Ref<Web::DOM::Element>, WebDriver::Error> deserialize_web_element(Web::HTML::BrowsingContext const&, JsonObject const&);
 ErrorOr<GC::Ref<Web::DOM::Element>, WebDriver::Error> deserialize_web_element(Web::HTML::BrowsingContext const&, JS::Object const&);
-ByteString extract_web_element_reference(JsonObject const&);
+String extract_web_element_reference(JsonObject const&);
 ErrorOr<GC::Ref<Web::DOM::Element>, Web::WebDriver::Error> get_web_element_origin(Web::HTML::BrowsingContext const&, StringView origin);
 ErrorOr<GC::Ref<Web::DOM::Element>, Web::WebDriver::Error> get_known_element(Web::HTML::BrowsingContext const&, StringView reference);
 
