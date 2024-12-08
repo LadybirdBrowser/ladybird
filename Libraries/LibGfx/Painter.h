@@ -21,7 +21,6 @@ public:
     virtual ~Painter();
 
     virtual void clear_rect(Gfx::FloatRect const&, Gfx::Color) = 0;
-    virtual void fill_rect(Gfx::FloatRect const&, Gfx::Color) = 0;
 
     virtual void draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::ImmutableBitmap const& src_bitmap, Gfx::IntRect const& src_rect, Gfx::ScalingMode, float global_alpha) = 0;
 
