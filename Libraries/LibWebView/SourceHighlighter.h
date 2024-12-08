@@ -87,7 +87,9 @@ constexpr inline StringView HTML_HIGHLIGHTER_STYLE = R"~~~(
         }
 
         :root {
-            --comment-color: lightgreen;
+            --comment-color: dimgrey;
+            --comment-hover-color: lightgreen;
+            --details-background-color: #333;
             --keyword-color: orangered;
             --name-color: orange;
             --value-color: deepskyblue;
@@ -100,7 +102,9 @@ constexpr inline StringView HTML_HIGHLIGHTER_STYLE = R"~~~(
 
     @media (prefers-color-scheme: light) {
         :root {
-            --comment-color: green;
+            --comment-color: silver;
+            --comment-hover-color: green;
+            --details-background-color: whitesmoke;
             --keyword-color: red;
             --name-color: darkorange;
             --value-color: blue;
@@ -133,12 +137,26 @@ constexpr inline StringView HTML_HIGHLIGHTER_STYLE = R"~~~(
         color: var(--line-number-color);
     }
 
+    details, div {
+        margin-top: 4px;
+        margin-bottom: 4px;
+
+    details {
+        border: 1px solid #777;
+        border-radius: 6px;
+        padding: 2px 3px 2px 3px !important;
+        background-color: var(--details-background-color);
+    }
     .tag {
         font-weight: 600;
         color: var(--keyword-color);
     }
     .comment {
         color: var(--comment-color);
+    }
+    .comment:hover {
+        color: var(--comment-hover-color);
+        background-color: inherit !important;
     }
     .attribute-name {
         color: var(--name-color);
