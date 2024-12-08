@@ -7,13 +7,8 @@
 #pragma once
 
 #include <AK/StringView.h>
-#include <AK/Try.h>
 #include <AK/Variant.h>
 #include <errno.h>
-#include <string.h>
-#ifdef AK_OS_WINDOWS
-typedef unsigned long DWORD;
-#endif
 
 namespace AK {
 
@@ -29,7 +24,8 @@ public:
     }
 
 #ifdef AK_OS_WINDOWS
-    static Error from_windows_error(DWORD code);
+    static Error from_windows_error(u64 code);
+    static Error from_windows_error();
 #endif
 
     // NOTE: For calling this method from within kernel code, we will simply print

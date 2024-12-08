@@ -71,7 +71,7 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
         &process_info);
 
     if (!result)
-        return Error::from_windows_error(GetLastError());
+        return Error::from_windows_error();
 
     CloseHandle(process_info.hThread);
 
@@ -108,7 +108,7 @@ ErrorOr<String> Process::get_name()
 
     DWORD length = GetModuleFileNameW(NULL, path, MAX_PATH);
     if (!length)
-        return Error::from_windows_error(GetLastError());
+        return Error::from_windows_error();
 
     return String::from_utf16(Utf16View { { (u16*)path, length } });
 }
@@ -150,11 +150,11 @@ ErrorOr<int> Process::wait_for_termination()
 {
     auto result = WaitForSingleObject(m_handle, INFINITE);
     if (result == WAIT_FAILED)
-        return Error::from_windows_error(GetLastError());
+        return Error::from_windows_error();
 
     DWORD exit_code = 0;
     if (!GetExitCodeProcess(m_handle, &exit_code))
-        return Error::from_windows_error(GetLastError());
+        return Error::from_windows_error();
 
     return exit_code;
 }
