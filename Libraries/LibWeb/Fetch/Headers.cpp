@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/HeadersPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Fetch/Headers.h>
+#include <LibWeb/Infra/Strings.h>
 
 namespace Web::Fetch {
 
@@ -56,10 +57,7 @@ void Headers::visit_edges(JS::Cell::Visitor& visitor)
 WebIDL::ExceptionOr<void> Headers::append(String const& name_string, String const& value_string)
 {
     // The append(name, value) method steps are to append (name, value) to this.
-    auto header = Infrastructure::Header {
-        .name = MUST(ByteBuffer::copy(name_string.bytes())),
-        .value = MUST(ByteBuffer::copy(value_string.bytes())),
-    };
+    auto header = Infrastructure::Header::from_string_pair(name_string, value_string);
     TRY(append(move(header)));
     return {};
 }
@@ -106,7 +104,7 @@ WebIDL::ExceptionOr<Optional<String>> Headers::get(String const& name_string)
 
     // 2. Return the result of getting name from this’s header list.
     auto byte_buffer = m_header_list->get(name);
-    return byte_buffer.has_value() ? MUST(String::from_utf8(*byte_buffer)) : Optional<String> {};
+    return byte_buffer.has_value() ? Infra::isomorphic_decode(*byte_buffer) : Optional<String> {};
 }
 
 // https://fetch.spec.whatwg.org/#dom-headers-getsetcookie
@@ -123,7 +121,7 @@ Vector<String> Headers::get_set_cookie()
     //    `Set-Cookie`, in order.
     for (auto const& header : *m_header_list) {
         if (StringView { header.name }.equals_ignoring_ascii_case("Set-Cookie"sv))
-            values.append(MUST(String::from_utf8(header.value)));
+            values.append(Infra::isomorphic_decode(header.value));
     }
     return values;
 }
@@ -152,10 +150,7 @@ WebIDL::ExceptionOr<void> Headers::set(String const& name_string, String const& 
     // 1. Normalize value.
     auto normalized_value = Infrastructure::normalize_header_value(value);
 
-    auto header = Infrastructure::Header {
-        .name = MUST(ByteBuffer::copy(name)),
-        .value = move(normalized_value),
-    };
+    auto header = Infrastructure::Header::from_string_pair(name, normalized_value);
 
     // 2. If validating (name, value) for headers returns false, then return.
     if (!TRY(validate(header)))
@@ -197,7 +192,7 @@ JS::ThrowCompletionOr<void> Headers::for_each(ForEachCallback callback)
         auto const& pair = pairs[i];
 
         // 2. Invoke idlCallback with « pair’s value, pair’s key, idlObject » and with thisArg as the callback this value.
-        TRY(callback(MUST(String::from_utf8(pair.name)), MUST(String::from_utf8(pair.value))));
+        TRY(callback(Infra::isomorphic_decode(pair.name), Infra::isomorphic_decode(pair.value)));
 
         // 3. Set pairs to idlObject’s current list of value pairs to iterate over. (It might have changed.)
         pairs = value_pairs_to_iterate_over();
