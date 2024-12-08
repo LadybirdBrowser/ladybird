@@ -22,9 +22,9 @@ JS::ThrowCompletionOr<UnderlyingSource> UnderlyingSource::from_value(JS::VM& vm,
     auto& object = value.as_object();
 
     UnderlyingSource underlying_source {
-        .start = TRY(property_to_callback(vm, value, "start", WebIDL::OperationReturnsPromise::No)),
-        .pull = TRY(property_to_callback(vm, value, "pull", WebIDL::OperationReturnsPromise::Yes)),
-        .cancel = TRY(property_to_callback(vm, value, "cancel", WebIDL::OperationReturnsPromise::Yes)),
+        .start = TRY(WebIDL::property_to_callback(vm, value, "start", WebIDL::OperationReturnsPromise::No)),
+        .pull = TRY(WebIDL::property_to_callback(vm, value, "pull", WebIDL::OperationReturnsPromise::Yes)),
+        .cancel = TRY(WebIDL::property_to_callback(vm, value, "cancel", WebIDL::OperationReturnsPromise::Yes)),
         .type = {},
         .auto_allocate_chunk_size = {},
     };
