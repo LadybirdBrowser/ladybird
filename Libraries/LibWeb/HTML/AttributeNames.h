@@ -24,17 +24,17 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(allowfullscreen)            \
     __ENUMERATE_HTML_ATTRIBUTE(alt)                        \
     __ENUMERATE_HTML_ATTRIBUTE(archive)                    \
-    __ENUMERATE_HTML_ATTRIBUTE(async)                      \
     __ENUMERATE_HTML_ATTRIBUTE(as)                         \
+    __ENUMERATE_HTML_ATTRIBUTE(async)                      \
     __ENUMERATE_HTML_ATTRIBUTE(autocomplete)               \
     __ENUMERATE_HTML_ATTRIBUTE(autofocus)                  \
     __ENUMERATE_HTML_ATTRIBUTE(autoplay)                   \
     __ENUMERATE_HTML_ATTRIBUTE(axis)                       \
     __ENUMERATE_HTML_ATTRIBUTE(background)                 \
     __ENUMERATE_HTML_ATTRIBUTE(behavior)                   \
-    __ENUMERATE_HTML_ATTRIBUTE(bottommargin)               \
     __ENUMERATE_HTML_ATTRIBUTE(bgcolor)                    \
     __ENUMERATE_HTML_ATTRIBUTE(border)                     \
+    __ENUMERATE_HTML_ATTRIBUTE(bottommargin)               \
     __ENUMERATE_HTML_ATTRIBUTE(cellpadding)                \
     __ENUMERATE_HTML_ATTRIBUTE(cellspacing)                \
     __ENUMERATE_HTML_ATTRIBUTE(char_)                      \
@@ -98,11 +98,11 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(imagesrcset)                \
     __ENUMERATE_HTML_ATTRIBUTE(indeterminate)              \
     __ENUMERATE_HTML_ATTRIBUTE(inert)                      \
+    __ENUMERATE_HTML_ATTRIBUTE(inputmode)                  \
     __ENUMERATE_HTML_ATTRIBUTE(integrity)                  \
     __ENUMERATE_HTML_ATTRIBUTE(is)                         \
     __ENUMERATE_HTML_ATTRIBUTE(iscontenteditable)          \
     __ENUMERATE_HTML_ATTRIBUTE(ismap)                      \
-    __ENUMERATE_HTML_ATTRIBUTE(inputmode)                  \
     __ENUMERATE_HTML_ATTRIBUTE(itemscope)                  \
     __ENUMERATE_HTML_ATTRIBUTE(kind)                       \
     __ENUMERATE_HTML_ATTRIBUTE(label)                      \
@@ -137,7 +137,9 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(onabort)                    \
     __ENUMERATE_HTML_ATTRIBUTE(onafterprint)               \
     __ENUMERATE_HTML_ATTRIBUTE(onauxclick)                 \
+    __ENUMERATE_HTML_ATTRIBUTE(onbeforeinput)              \
     __ENUMERATE_HTML_ATTRIBUTE(onbeforeprint)              \
+    __ENUMERATE_HTML_ATTRIBUTE(onbeforetoggle)             \
     __ENUMERATE_HTML_ATTRIBUTE(onbeforeunload)             \
     __ENUMERATE_HTML_ATTRIBUTE(onblur)                     \
     __ENUMERATE_HTML_ATTRIBUTE(oncancel)                   \
@@ -147,7 +149,9 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(onclick)                    \
     __ENUMERATE_HTML_ATTRIBUTE(onclose)                    \
     __ENUMERATE_HTML_ATTRIBUTE(oncontextmenu)              \
+    __ENUMERATE_HTML_ATTRIBUTE(oncopy)                     \
     __ENUMERATE_HTML_ATTRIBUTE(oncuechange)                \
+    __ENUMERATE_HTML_ATTRIBUTE(oncut)                      \
     __ENUMERATE_HTML_ATTRIBUTE(ondblclick)                 \
     __ENUMERATE_HTML_ATTRIBUTE(ondrag)                     \
     __ENUMERATE_HTML_ATTRIBUTE(ondragend)                  \
@@ -189,7 +193,10 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(onoffline)                  \
     __ENUMERATE_HTML_ATTRIBUTE(ononline)                   \
     __ENUMERATE_HTML_ATTRIBUTE(onpagehide)                 \
+    __ENUMERATE_HTML_ATTRIBUTE(onpagereveal)               \
     __ENUMERATE_HTML_ATTRIBUTE(onpageshow)                 \
+    __ENUMERATE_HTML_ATTRIBUTE(onpageswap)                 \
+    __ENUMERATE_HTML_ATTRIBUTE(onpaste)                    \
     __ENUMERATE_HTML_ATTRIBUTE(onpause)                    \
     __ENUMERATE_HTML_ATTRIBUTE(onplay)                     \
     __ENUMERATE_HTML_ATTRIBUTE(onplaying)                  \
@@ -209,6 +216,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(onreset)                    \
     __ENUMERATE_HTML_ATTRIBUTE(onresize)                   \
     __ENUMERATE_HTML_ATTRIBUTE(onscroll)                   \
+    __ENUMERATE_HTML_ATTRIBUTE(onscrollend)                \
     __ENUMERATE_HTML_ATTRIBUTE(onsecuritypolicyviolation)  \
     __ENUMERATE_HTML_ATTRIBUTE(onseeked)                   \
     __ENUMERATE_HTML_ATTRIBUTE(onseeking)                  \
