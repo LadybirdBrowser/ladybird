@@ -21,6 +21,7 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Streams/AbstractOperations.h>
 #include <LibWeb/Streams/QueuingStrategy.h>
 #include <LibWeb/Streams/ReadableByteStreamController.h>
@@ -308,6 +309,7 @@ GC::Ref<WebIDL::Promise> readable_stream_pipe_to(ReadableStream& source, Writabl
     // FIXME: Currently a naive implementation that uses ReadableStreamDefaultReader::read_all_chunks() to read all chunks
     //        from the source and then through the callback success_steps writes those chunks to the destination.
     auto chunk_steps = GC::create_function(realm.heap(), [&realm, writer](ByteBuffer buffer) {
+        dbgln("tee stream writing chunk of size {}", buffer.size());
         auto array_buffer = JS::ArrayBuffer::create(realm, move(buffer));
         auto chunk = JS::Uint8Array::create(realm, array_buffer->byte_length(), *array_buffer);
 
@@ -317,6 +319,7 @@ GC::Ref<WebIDL::Promise> readable_stream_pipe_to(ReadableStream& source, Writabl
 
     auto success_steps = GC::create_function(realm.heap(), [promise, &realm, reader, writer](ByteBuffer) {
         // Make sure we close the acquired writer.
+        dbgln("tee stream success steps");
         WebIDL::resolve_promise(realm, writable_stream_default_writer_close(*writer), JS::js_undefined());
         readable_stream_default_reader_release(*reader);
 
@@ -324,6 +327,7 @@ GC::Ref<WebIDL::Promise> readable_stream_pipe_to(ReadableStream& source, Writabl
     });
 
     auto failure_steps = GC::create_function(realm.heap(), [promise, &realm, reader, writer](JS::Value error) {
+        dbgln("tee stream failure steps");
         // Make sure we close the acquired writer.
         WebIDL::resolve_promise(realm, writable_stream_default_writer_close(*writer), JS::js_undefined());
         readable_stream_default_reader_release(*reader);
@@ -331,7 +335,11 @@ GC::Ref<WebIDL::Promise> readable_stream_pipe_to(ReadableStream& source, Writabl
         WebIDL::reject_promise(realm, promise, error);
     });
 
+    dbgln("tee stream reading all chunks");
+
     reader->read_all_chunks(chunk_steps, success_steps, failure_steps);
+
+    // Platform::EventLoopPlugin::the().spin_until(GC::create_function(realm.heap(), [&] { return !is_readable_stream_locked(source) && !is_writable_stream_locked(dest); }));
 
     // 16. Return promise.
     return promise;
@@ -3232,7 +3240,7 @@ WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller(ReadableStream&
     auto start_promise = WebIDL::create_resolved_promise(realm, start_result);
 
     // 16. Upon fulfillment of startPromise,
-    WebIDL::upon_fulfillment(start_promise, GC::create_function(controller.heap(), [&controller](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+    auto fulfillment_steps = GC::create_function(controller.heap(), [&controller](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
         // 1. Set controller.[[started]] to true.
         controller.set_started(true);
 
@@ -3246,15 +3254,17 @@ WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller(ReadableStream&
         readable_byte_stream_controller_call_pull_if_needed(controller);
 
         return JS::js_undefined();
-    }));
+    });
 
     // 17. Upon rejection of startPromise with reason r,
-    WebIDL::upon_rejection(start_promise, GC::create_function(controller.heap(), [&controller](JS::Value r) -> WebIDL::ExceptionOr<JS::Value> {
+    auto rejection_steps = GC::create_function(controller.heap(), [&controller](JS::Value r) -> WebIDL::ExceptionOr<JS::Value> {
         // 1. Perform ! ReadableByteStreamControllerError(controller, r).
         readable_byte_stream_controller_error(controller, r);
 
         return JS::js_undefined();
-    }));
+    });
+
+    WebIDL::react_to_promise(start_promise, fulfillment_steps, rejection_steps);
 
     return {};
 }
@@ -3653,7 +3663,7 @@ void set_up_readable_stream_controller_with_byte_reading_support(ReadableStream&
     // 2. Let pullAlgorithmWrapper be an algorithm that runs these steps:
     auto pull_algorithm_wrapper = GC::create_function(realm.heap(), [&realm, pull_algorithm]() {
         // 1. Let result be the result of running pullAlgorithm, if pullAlgorithm was given, or null otherwise. If this throws an exception e, return a promise rejected with e.
-        GC::Ptr<JS::PromiseCapability> result = nullptr;
+        GC::Ptr<WebIDL::Promise> result = nullptr;
         if (pull_algorithm)
             result = pull_algorithm->function()();
 
@@ -3668,7 +3678,7 @@ void set_up_readable_stream_controller_with_byte_reading_support(ReadableStream&
     // 3. Let cancelAlgorithmWrapper be an algorithm that runs these steps:
     auto cancel_algorithm_wrapper = GC::create_function(realm.heap(), [&realm, cancel_algorithm](JS::Value c) {
         // 1. Let result be the result of running cancelAlgorithm, if cancelAlgorithm was given, or null otherwise. If this throws an exception e, return a promise rejected with e.
-        GC::Ptr<JS::PromiseCapability> result = nullptr;
+        GC::Ptr<WebIDL::Promise> result = nullptr;
         if (cancel_algorithm)
             result = cancel_algorithm->function()(c);
 
@@ -3681,6 +3691,11 @@ void set_up_readable_stream_controller_with_byte_reading_support(ReadableStream&
     });
 
     // 4. Perform ! InitializeReadableStream(stream).
+    VERIFY(stream.state() == ReadableStream::State::Readable);
+    VERIFY(!stream.reader().has_value());
+    VERIFY(stream.stored_error() == JS::js_undefined());
+    VERIFY(!stream.is_disturbed());
+
     // 5. Let controller be a new ReadableByteStreamController.
     auto controller = realm.create<ReadableByteStreamController>(realm);
 
@@ -4322,6 +4337,7 @@ GC::Ref<WebIDL::Promise> writable_stream_default_writer_write(WritableStreamDefa
 
     // 8. If ! WritableStreamCloseQueuedOrInFlight(stream) is true or state is "closed", return a promise rejected with a TypeError exception indicating that the stream is closing or closed.
     if (writable_stream_close_queued_or_in_flight(*stream) || state == WritableStream::State::Closed) {
+        dbgln("WritableStreamDefaultWriter::write: stream is closing or closed");
         auto exception = JS::TypeError::create(realm, "Cannot write to a writer whose stream is closing or already closed"sv);
         return WebIDL::create_rejected_promise(realm, exception);
     }

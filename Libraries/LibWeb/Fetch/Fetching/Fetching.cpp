@@ -575,8 +575,15 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
                         return;
                     }
 
+                    dbgln("process body for integrity metadata: bytes match");
+
+                    dbgln("bytes have a length of {}", bytes.size());
+
                     // 2. Set response’s body to bytes as a body.
                     response->set_body(Infrastructure::byte_sequence_as_body(realm, bytes));
+
+                    dbgln("handing over response");
+                    dbgln("response body length {}", response->body()->length());
 
                     // 3. Run fetch response handover given fetchParams and response.
                     fetch_response_handover(realm, fetch_params, *response);
@@ -678,13 +685,16 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
 
         // 4. Let processResponseEndOfBodyTask be the following steps:
         auto process_response_end_of_body_task = GC::create_function(vm.heap(), [&fetch_params, &response] {
+            dbgln("response is done");
             // 1. Set fetchParams’s request’s done flag.
             fetch_params.request()->set_done(true);
 
             // 2. If fetchParams’s process response end-of-body is non-null, then run fetchParams’s process response
             //    end-of-body given response.
-            if (fetch_params.algorithms()->process_response_end_of_body())
+            if (fetch_params.algorithms()->process_response_end_of_body()) {
+                dbgln("process response end of body");
                 (fetch_params.algorithms()->process_response_end_of_body())(response);
+            }
 
             // 3. If fetchParams’s request’s initiator type is non-null and fetchParams’s request’s client’s global
             //    object is fetchParams’s task destination, then run fetchParams’s controller’s report timing steps
@@ -710,7 +720,9 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
     // 4. If fetchParams’s process response is non-null, then queue a fetch task to run fetchParams’s process response
     //    given response, with fetchParams’s task destination.
     if (fetch_params.algorithms()->process_response()) {
+        dbgln("queueing process response");
         Infrastructure::queue_fetch_task(fetch_params.controller(), task_destination, GC::create_function(vm.heap(), [&fetch_params, &response]() {
+            dbgln("running process response");
             fetch_params.algorithms()->process_response()(response);
         }));
     }
@@ -720,6 +732,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
 
     // 6. If internalResponse’s body is null, then run processResponseEndOfBody.
     if (!internal_response->body()) {
+        dbgln("no internal response, process response end of body");
         process_response_end_of_body();
     }
     // 7. Otherwise:
@@ -731,6 +744,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
 
         // 2. Let identityTransformAlgorithm be an algorithm which, given chunk, enqueues chunk in transformStream.
         auto identity_transform_algorithm = GC::create_function(realm.heap(), [&realm, transform_stream](JS::Value chunk) -> GC::Ref<WebIDL::Promise> {
+            dbgln("transform algorithm, enqueuing chunk");
             MUST(Streams::transform_stream_default_controller_enqueue(*transform_stream->controller(), chunk));
             return WebIDL::create_resolved_promise(realm, JS::js_undefined());
         });
@@ -738,6 +752,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
         // 3. Set up transformStream with transformAlgorithm set to identityTransformAlgorithm and flushAlgorithm set
         //    to processResponseEndOfBody.
         auto flush_algorithm = GC::create_function(realm.heap(), [&realm, process_response_end_of_body]() -> GC::Ref<WebIDL::Promise> {
+            dbgln("flush algorithm, we process response end of body");
             process_response_end_of_body();
             return WebIDL::create_resolved_promise(realm, JS::js_undefined());
         });
@@ -751,6 +766,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
 
     // 8. If fetchParams’s process response consume body is non-null, then:
     if (fetch_params.algorithms()->process_response_consume_body()) {
+        dbgln("we have a process response consume body");
         // 1. Let processBody given nullOrBytes be this step: run fetchParams’s process response consume body given
         //    response and nullOrBytes.
         auto process_body = GC::create_function(vm.heap(), [&fetch_params, &response](ByteBuffer null_or_bytes) {
@@ -773,6 +789,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
         // 4. Otherwise, fully read internalResponse body given processBody, processBodyError, and fetchParams’s task
         //    destination.
         else {
+            dbgln("fully read internal response body");
             internal_response->body()->fully_read(realm, process_body, process_body_error, fetch_params.task_destination());
         }
     }
