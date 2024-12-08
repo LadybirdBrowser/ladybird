@@ -36,14 +36,20 @@ public:
     [[nodiscard]] GC::Ptr<WebIDL::DOMException> error() const { return m_error; }
     [[nodiscard]] GC::Ref<IDBDatabase> connection() const { return m_connection; }
     [[nodiscard]] Bindings::IDBTransactionDurability durability() const { return m_durability; }
+    [[nodiscard]] GC::Ptr<IDBRequest> associated_request() const { return m_associated_request; }
+    [[nodiscard]] bool aborted() const { return m_aborted; }
 
     void set_mode(Bindings::IDBTransactionMode mode) { m_mode = mode; }
     void set_state(TransactionState state) { m_state = state; }
     void set_error(GC::Ptr<WebIDL::DOMException> error) { m_error = error; }
+    void set_associated_request(GC::Ptr<IDBRequest> request) { m_associated_request = request; }
+    void set_aborted(bool aborted) { m_aborted = aborted; }
 
     [[nodiscard]] bool is_upgrade_transaction() const { return m_mode == Bindings::IDBTransactionMode::Versionchange; }
     [[nodiscard]] bool is_readonly() const { return m_mode == Bindings::IDBTransactionMode::Readonly; }
     [[nodiscard]] bool is_readwrite() const { return m_mode == Bindings::IDBTransactionMode::Readwrite; }
+
+    WebIDL::ExceptionOr<void> abort();
 
     void set_onabort(WebIDL::CallbackType*);
     WebIDL::CallbackType* onabort();
@@ -63,5 +69,8 @@ private:
     Bindings::IDBTransactionDurability m_durability { Bindings::IDBTransactionDurability::Default };
     TransactionState m_state;
     GC::Ptr<WebIDL::DOMException> m_error;
+
+    GC::Ptr<IDBRequest> m_associated_request;
+    bool m_aborted { false };
 };
 }

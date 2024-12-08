@@ -7,6 +7,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/IndexedDB/IDBTransaction.h>
+#include <LibWeb/IndexedDB/Internal/Algorithms.h>
 
 namespace Web::IndexedDB {
 
@@ -36,6 +37,7 @@ void IDBTransaction::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_connection);
     visitor.visit(m_error);
+    visitor.visit(m_associated_request);
 }
 
 void IDBTransaction::set_onabort(WebIDL::CallbackType* event_handler)
@@ -66,6 +68,18 @@ void IDBTransaction::set_onerror(WebIDL::CallbackType* event_handler)
 WebIDL::CallbackType* IDBTransaction::onerror()
 {
     return event_handler_attribute(HTML::EventNames::error);
+}
+
+WebIDL::ExceptionOr<void> IDBTransaction::abort()
+{
+    // 1. If this's state is committing or finished, then throw an "InvalidStateError" DOMException.
+    if (m_state == TransactionState::Committing || m_state == TransactionState::Finished)
+        return WebIDL::InvalidStateError::create(realm(), "Transaction is ending"_string);
+
+    // 2. Set this's state to inactive and run abort a transaction with this and null.
+    m_state = TransactionState::Inactive;
+    abort_a_transaction(*this, nullptr);
+    return {};
 }
 
 }
