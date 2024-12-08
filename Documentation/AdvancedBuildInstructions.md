@@ -96,3 +96,59 @@ export CCACHE_COMPILERCHECK="%compiler% -v"
 By default, ccache will include the plugins themselves in file hashes. So if a plugin changes, the hash of every file
 will change, and you will be stuck with an uncached build. This setting will prevent ccache from using plugins in the
 file hashes.
+
+## Debugging without any optimizations
+
+It’s possible that when trying to inspect certain frame variables in your debugger, you’ll get an error similar to the following:
+
+> error: Couldn't look up symbols: __ZN2AK6Detail10StringBaseD2Ev
+> Hint: The expression tried to call a function that is not present in the target, perhaps because it was optimized out by the compiler.
+
+If you do run into such an error, the rest of this section explains how to deal with it.
+
+> [!WARNING]
+> You probably only want to make the build-file change described below while you’re in the middle of examining the state of a particular build in your debugger — and then you’ll want to revert it after you’re done debugging. You otherwise probably don’t want to have the build-file change in place while you’re running WPT tests or in-tree tests and checking the results.
+
+1. At your command-line prompt in your shell environment, copy and paste the following:
+
+      ```diff
+      $ patch -p1 <<EOF
+      diff --git a/Meta/CMake/lagom_compile_options.cmake b/Meta/CMake/lagom_compile_options.cmake
+      index 7fec47ac843..45c3af87493 100644
+      --- a/Meta/CMake/lagom_compile_options.cmake
+      +++ b/Meta/CMake/lagom_compile_options.cmake
+      @@ -29,7 +29,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+           if (NOT MSVC)
+               add_cxx_compile_options(-ggdb3)
+           endif()
+      -    add_cxx_compile_options(-Og)
+      +    add_cxx_compile_options(-O0)
+       else()
+           add_cxx_compile_options(-O2)
+           if (NOT MSVC)
+      EOF
+      ```
+   …or else copy and paste that patch, and apply it in whatever way you normally use for applying patches.
+
+   That will patch the build config in such a way as to disable all compiler optimizations and make all debug symbols always available.
+
+2. At your command-line prompt in your shell environment, run the following command:
+
+      ```
+      git update-index --skip-worktree Meta/CMake/lagom_compile_options.cmake
+      ```
+
+   That will cause git to ignore the change you made to that build file. Otherwise, if you don’t run that command, git will consider that build file to have been modified, and you might then end up inadvertently committing the changes to that build file as part of some actual code change you’re making to the sources that you’re in the process of debugging.
+
+3. Run a build again with the `Debug` preset, and then go back into your debugger. You’ll now be able to inspect any frame variable that you weren’t able to previously.
+
+After you’ve finished debugging your code changes with that build, you can revert the above changes by doing this:
+
+1. At your command-line prompt in your shell environment, run the following:
+
+      ```
+      git update-index --no-skip-worktree Meta/CMake/lagom_compile_options.cmake \
+          && git checkout Meta/CMake/lagom_compile_options.cmake
+      ```
+
+That will restore your git environment to the state it was in before you patched the build file.
