@@ -73,12 +73,9 @@ void ImportMapParseResult::register_import_map(Window& global)
         return;
     }
 
-    // 2. Assert: global's import map is an empty import map.
-    VERIFY(global.import_map().imports().is_empty() && global.import_map().scopes().is_empty());
-
-    // 3. Set global's import map to result's import map.
+    // 2. Merge existing and new import maps, given global and result's import map.
     VERIFY(m_import_map.has_value());
-    global.set_import_map(m_import_map.value());
+    merge_existing_and_new_import_maps(global, m_import_map.value());
 }
 
 }

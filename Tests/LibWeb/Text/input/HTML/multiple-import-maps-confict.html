@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script type="importmap">
+    {
+        "imports": {
+            "conflict": "./import-maps-1.js"
+        }
+    }
+</script>
+<script type="importmap">
+    {
+        "imports": {
+            "conflict": "./import-maps-2.js"
+        }
+    }
+</script>
+<script type="module">
+    import * as Conflict from 'conflict';
+    test(() => {
+        Conflict.main();
+    });
+</script>

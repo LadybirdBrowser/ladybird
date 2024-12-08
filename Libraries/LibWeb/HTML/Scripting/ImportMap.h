@@ -44,5 +44,6 @@ Optional<DeprecatedFlyString> normalise_specifier_key(JS::Realm& realm, Deprecat
 WebIDL::ExceptionOr<ModuleSpecifierMap> sort_and_normalise_module_specifier_map(JS::Realm& realm, JS::Object& original_map, URL::URL base_url);
 WebIDL::ExceptionOr<HashMap<URL::URL, ModuleSpecifierMap>> sort_and_normalise_scopes(JS::Realm& realm, JS::Object& original_map, URL::URL base_url);
 WebIDL::ExceptionOr<ModuleIntegrityMap> normalize_module_integrity_map(JS::Realm& realm, JS::Object& original_map, URL::URL base_url);
+void merge_existing_and_new_import_maps(Window&, ImportMap&);
 
 }
