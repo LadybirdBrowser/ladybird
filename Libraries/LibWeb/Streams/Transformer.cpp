@@ -19,10 +19,10 @@ JS::ThrowCompletionOr<Transformer> Transformer::from_value(JS::VM& vm, JS::Value
     auto& object = value.as_object();
 
     Transformer transformer {
-        .start = TRY(property_to_callback(vm, value, "start", WebIDL::OperationReturnsPromise::No)),
-        .transform = TRY(property_to_callback(vm, value, "transform", WebIDL::OperationReturnsPromise::Yes)),
-        .flush = TRY(property_to_callback(vm, value, "flush", WebIDL::OperationReturnsPromise::Yes)),
-        .cancel = TRY(property_to_callback(vm, value, "cancel", WebIDL::OperationReturnsPromise::Yes)),
+        .start = TRY(WebIDL::property_to_callback(vm, value, "start", WebIDL::OperationReturnsPromise::No)),
+        .transform = TRY(WebIDL::property_to_callback(vm, value, "transform", WebIDL::OperationReturnsPromise::Yes)),
+        .flush = TRY(WebIDL::property_to_callback(vm, value, "flush", WebIDL::OperationReturnsPromise::Yes)),
+        .cancel = TRY(WebIDL::property_to_callback(vm, value, "cancel", WebIDL::OperationReturnsPromise::Yes)),
         .readable_type = {},
         .writable_type = {},
     };

@@ -5302,21 +5302,6 @@ WebIDL::ExceptionOr<JS::Value> structured_clone(JS::Realm& realm, JS::Value valu
     return TRY(HTML::structured_deserialize(vm, serialized, realm));
 }
 
-// Non-standard function to aid in converting a user-provided function into a WebIDL::Callback. This is essentially
-// what the Bindings generator would do at compile time, but at runtime instead.
-JS::ThrowCompletionOr<GC::Root<WebIDL::CallbackType>> property_to_callback(JS::VM& vm, JS::Value value, JS::PropertyKey const& property_key, WebIDL::OperationReturnsPromise operation_returns_promise)
-{
-    auto property = TRY(value.get(vm, property_key));
-
-    if (property.is_undefined())
-        return GC::Root<WebIDL::CallbackType> {};
-
-    if (!property.is_function())
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAFunction, property.to_string_without_side_effects());
-
-    return vm.heap().allocate<WebIDL::CallbackType>(property.as_object(), HTML::incumbent_realm(), operation_returns_promise);
-}
-
 // https://streams.spec.whatwg.org/#set-up-readable-byte-stream-controller-from-underlying-source
 WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller_from_underlying_source(ReadableStream& stream, JS::Value underlying_source, UnderlyingSource const& underlying_source_dict, double high_water_mark)
 {
