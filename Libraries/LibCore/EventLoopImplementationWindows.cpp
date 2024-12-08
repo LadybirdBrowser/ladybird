@@ -7,9 +7,10 @@
 
 #include <LibCore/EventLoopImplementationWindows.h>
 #include <LibCore/Notifier.h>
+#include <LibCore/System.h>
 #include <LibCore/ThreadEventQueue.h>
-#include <WinSock2.h>
-#include <io.h>
+
+#include <AK/Windows.h>
 
 struct Handle {
     HANDLE handle = NULL;
@@ -181,7 +182,7 @@ void EventLoopManagerWindows::register_notifier(Notifier& notifier)
 {
     HANDLE event = CreateEvent(NULL, FALSE, FALSE, NULL);
     VERIFY(event);
-    SOCKET socket = _get_osfhandle(notifier.fd());
+    SOCKET socket = (SOCKET)System::fd_to_handle(notifier.fd());
     VERIFY(socket != INVALID_SOCKET);
     int rc = WSAEventSelect(socket, event, notifier_type_to_network_event(notifier.type()));
     VERIFY(rc == 0);
