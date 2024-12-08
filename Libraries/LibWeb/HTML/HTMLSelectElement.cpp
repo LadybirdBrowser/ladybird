@@ -199,24 +199,20 @@ GC::Ref<DOM::HTMLCollection> HTMLSelectElement::selected_options()
 // https://html.spec.whatwg.org/multipage/form-elements.html#concept-select-option-list
 Vector<GC::Root<HTMLOptionElement>> HTMLSelectElement::list_of_options() const
 {
-    // The list of options for a select element consists of all the option element children of the select element,
-    // and all the option element children of all the optgroup element children of the select element, in tree order.
-    Vector<GC::Root<HTMLOptionElement>> list;
+    // 1. Let options be « ».
+    Vector<GC::Root<HTMLOptionElement>> options;
+    // 2. For each node of select's descendants in tree order except the descendants which are select elements and their subtrees:
+    for_each_in_subtree([&](auto& node) {
+        if (is<HTMLSelectElement>(node))
+            return TraversalDecision::Break;
 
-    for_each_child_of_type<HTMLOptionElement>([&](HTMLOptionElement& option_element) {
-        list.append(GC::make_root(option_element));
-        return IterationDecision::Continue;
+        // 1. If node is an option element, then append node to options.
+        if (is<HTMLOptionElement>(node))
+            options.append(GC::make_root(const_cast<HTMLOptionElement&>(static_cast<HTMLOptionElement const&>(node))));
+        return TraversalDecision::Continue;
     });
-
-    for_each_child_of_type<HTMLOptGroupElement>([&](HTMLOptGroupElement const& optgroup_element) {
-        optgroup_element.for_each_child_of_type<HTMLOptionElement>([&](HTMLOptionElement& option_element) {
-            list.append(GC::make_root(option_element));
-            return IterationDecision::Continue;
-        });
-        return IterationDecision::Continue;
-    });
-
-    return list;
+    // 3. Return options.
+    return options;
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-select-element:concept-form-reset-control
