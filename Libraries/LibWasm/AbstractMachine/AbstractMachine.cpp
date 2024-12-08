@@ -17,7 +17,7 @@ namespace Wasm {
 Optional<FunctionAddress> Store::allocate(ModuleInstance& instance, Module const& module, CodeSection::Code const& code, TypeIndex type_index)
 {
     FunctionAddress address { m_functions.size() };
-    if (type_index.value() > instance.types().size())
+    if (type_index.value() >= instance.types().size())
         return {};
 
     auto& type = instance.types()[type_index.value()];
