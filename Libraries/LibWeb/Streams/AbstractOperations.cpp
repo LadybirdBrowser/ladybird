@@ -45,6 +45,53 @@
 
 namespace Web::Streams {
 
+// https://streams.spec.whatwg.org/#close-sentinel
+// Non-standard function that implements the "close sentinel" value.
+static JS::Value create_close_sentinel()
+{
+    // The close sentinel is a unique value enqueued into [[queue]], in lieu of a chunk, to signal that the stream is closed. It is only used internally, and is never exposed to web developers.
+    // Note: We use the empty Value to signal this as, similarly to the note above, the empty value is not exposed to nor creatable by web developers.
+    return {};
+}
+
+// https://streams.spec.whatwg.org/#close-sentinel
+// Non-standard function that implements the "If value is a close sentinel" check.
+static bool is_close_sentinel(JS::Value value)
+{
+    return value.is_empty();
+}
+
+// NON-STANDARD: Can be used instead of CreateReadableStream in cases where we need to set up a newly allocated
+//               ReadableStream before initialization of said ReadableStream, i.e. ReadableStream is captured by lambdas in an uninitialized state.
+// Spec steps are taken from: https://streams.spec.whatwg.org/#create-readable-stream
+static WebIDL::ExceptionOr<void> set_up_readable_stream(JS::Realm& realm, ReadableStream& stream, GC::Ref<StartAlgorithm> start_algorithm, GC::Ref<PullAlgorithm> pull_algorithm, GC::Ref<CancelAlgorithm> cancel_algorithm, Optional<double> high_water_mark = {}, GC::Ptr<SizeAlgorithm> size_algorithm = {})
+{
+    // 1. If highWaterMark was not passed, set it to 1.
+    if (!high_water_mark.has_value())
+        high_water_mark = 1.0;
+
+    // 2. If sizeAlgorithm was not passed, set it to an algorithm that returns 1.
+    if (!size_algorithm)
+        size_algorithm = GC::create_function(realm.heap(), [](JS::Value) { return JS::normal_completion(JS::Value(1)); });
+
+    // 3. Assert: ! IsNonNegativeNumber(highWaterMark) is true.
+    VERIFY(is_non_negative_number(JS::Value { *high_water_mark }));
+
+    // 4. Let stream be a new ReadableStream.
+    //    NOTE: The ReadableStream is allocated outside the scope of this method.
+
+    // 5. Perform ! InitializeReadableStream(stream).
+    initialize_readable_stream(stream);
+
+    // 6. Let controller be a new ReadableStreamDefaultController.
+    auto controller = realm.create<ReadableStreamDefaultController>(realm);
+
+    // 7. Perform ? SetUpReadableStreamDefaultController(stream, controller, startAlgorithm, pullAlgorithm, cancelAlgorithm, highWaterMark, sizeAlgorithm).
+    TRY(set_up_readable_stream_default_controller(stream, *controller, start_algorithm, pull_algorithm, cancel_algorithm, *high_water_mark, *size_algorithm));
+
+    return {};
+}
+
 // https://streams.spec.whatwg.org/#acquire-readable-stream-reader
 WebIDL::ExceptionOr<GC::Ref<ReadableStreamDefaultReader>> acquire_readable_stream_default_reader(ReadableStream& stream)
 {
@@ -2932,37 +2979,6 @@ bool readable_byte_stream_controller_should_call_pull(ReadableByteStreamControll
     return false;
 }
 
-// NON-STANDARD: Can be used instead of CreateReadableStream in cases where we need to set up a newly allocated
-//               ReadableStream before initialization of said ReadableStream, i.e. ReadableStream is captured by lambdas in an uninitialized state.
-// Spec steps are taken from: https://streams.spec.whatwg.org/#create-readable-stream
-WebIDL::ExceptionOr<void> set_up_readable_stream(JS::Realm& realm, ReadableStream& stream, GC::Ref<StartAlgorithm> start_algorithm, GC::Ref<PullAlgorithm> pull_algorithm, GC::Ref<CancelAlgorithm> cancel_algorithm, Optional<double> high_water_mark, GC::Ptr<SizeAlgorithm> size_algorithm)
-{
-    // 1. If highWaterMark was not passed, set it to 1.
-    if (!high_water_mark.has_value())
-        high_water_mark = 1.0;
-
-    // 2. If sizeAlgorithm was not passed, set it to an algorithm that returns 1.
-    if (!size_algorithm)
-        size_algorithm = GC::create_function(realm.heap(), [](JS::Value) { return JS::normal_completion(JS::Value(1)); });
-
-    // 3. Assert: ! IsNonNegativeNumber(highWaterMark) is true.
-    VERIFY(is_non_negative_number(JS::Value { *high_water_mark }));
-
-    // 4. Let stream be a new ReadableStream.
-    //    NOTE: The ReadableStream is allocated outside the scope of this method.
-
-    // 5. Perform ! InitializeReadableStream(stream).
-    initialize_readable_stream(stream);
-
-    // 6. Let controller be a new ReadableStreamDefaultController.
-    auto controller = realm.create<ReadableStreamDefaultController>(realm);
-
-    // 7. Perform ? SetUpReadableStreamDefaultController(stream, controller, startAlgorithm, pullAlgorithm, cancelAlgorithm, highWaterMark, sizeAlgorithm).
-    TRY(set_up_readable_stream_default_controller(stream, *controller, start_algorithm, pull_algorithm, cancel_algorithm, *high_water_mark, *size_algorithm));
-
-    return {};
-}
-
 // https://streams.spec.whatwg.org/#create-readable-stream
 WebIDL::ExceptionOr<GC::Ref<ReadableStream>> create_readable_stream(JS::Realm& realm, GC::Ref<StartAlgorithm> start_algorithm, GC::Ref<PullAlgorithm> pull_algorithm, GC::Ref<CancelAlgorithm> cancel_algorithm, Optional<double> high_water_mark, GC::Ptr<SizeAlgorithm> size_algorithm)
 {
@@ -5284,22 +5300,6 @@ WebIDL::ExceptionOr<JS::Value> structured_clone(JS::Realm& realm, JS::Value valu
 
     // 2. Return ? StructuredDeserialize(serialized, the current Realm).
     return TRY(HTML::structured_deserialize(vm, serialized, realm));
-}
-
-// https://streams.spec.whatwg.org/#close-sentinel
-// Non-standard function that implements the "close sentinel" value.
-JS::Value create_close_sentinel()
-{
-    // The close sentinel is a unique value enqueued into [[queue]], in lieu of a chunk, to signal that the stream is closed. It is only used internally, and is never exposed to web developers.
-    // Note: We use the empty Value to signal this as, similarly to the note above, the empty value is not exposed to nor creatable by web developers.
-    return {};
-}
-
-// https://streams.spec.whatwg.org/#close-sentinel
-// Non-standard function that implements the "If value is a close sentinel" check.
-bool is_close_sentinel(JS::Value value)
-{
-    return value.is_empty();
 }
 
 // Non-standard function to aid in converting a user-provided function into a WebIDL::Callback. This is essentially
