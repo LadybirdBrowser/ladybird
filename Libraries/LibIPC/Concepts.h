@@ -27,54 +27,45 @@ namespace IPC::Concepts {
 
 namespace Detail {
 
+// Cannot use SpecializationOf with these templates because they have non-type parameters. See https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p1985r3.pdf
 template<typename T>
-constexpr inline bool IsHashMap = false;
-template<typename K, typename V, typename KeyTraits, typename ValueTraits, bool IsOrdered>
-constexpr inline bool IsHashMap<HashMap<K, V, KeyTraits, ValueTraits, IsOrdered>> = true;
-
-template<typename T>
-constexpr inline bool IsOptional = false;
-template<typename T>
-constexpr inline bool IsOptional<Optional<T>> = true;
-
-template<typename T>
-constexpr inline bool IsSharedSingleProducerCircularQueue = false;
-template<typename T, size_t Size>
-constexpr inline bool IsSharedSingleProducerCircularQueue<Core::SharedSingleProducerCircularQueue<T, Size>> = true;
-
-template<typename T>
-constexpr inline bool IsVariant = false;
-template<typename... Ts>
-constexpr inline bool IsVariant<Variant<Ts...>> = true;
-
-template<typename T>
-constexpr inline bool IsVector = false;
-template<typename T>
-constexpr inline bool IsVector<Vector<T>> = true;
-
-template<typename T>
-constexpr inline bool IsArray = false;
+constexpr bool IsArray = false;
 template<typename T, size_t N>
-constexpr inline bool IsArray<Array<T, N>> = true;
+constexpr bool IsArray<Array<T, N>> = true;
+
+template<typename T>
+constexpr bool IsVector = false;
+template<typename T, size_t inline_capacity>
+constexpr bool IsVector<Vector<T, inline_capacity>> = true;
+
+template<typename T>
+constexpr bool IsHashMap = false;
+template<typename K, typename V, typename KeyTraits, typename ValueTraits, bool IsOrdered>
+constexpr bool IsHashMap<HashMap<K, V, KeyTraits, ValueTraits, IsOrdered>> = true;
+
+template<typename T>
+constexpr bool IsSharedSingleProducerCircularQueue = false;
+template<typename T, size_t Size>
+constexpr bool IsSharedSingleProducerCircularQueue<Core::SharedSingleProducerCircularQueue<T, Size>> = true;
 
 }
 
 template<typename T>
-concept HashMap = Detail::IsHashMap<T>;
-
-template<typename T>
-concept Optional = Detail::IsOptional<T>;
-
-template<typename T>
-concept SharedSingleProducerCircularQueue = Detail::IsSharedSingleProducerCircularQueue<T>;
-
-template<typename T>
-concept Variant = Detail::IsVariant<T>;
+concept Array = Detail::IsArray<T>;
 
 template<typename T>
 concept Vector = Detail::IsVector<T>;
 
 template<typename T>
-concept Array = Detail::IsArray<T>;
+concept HashMap = Detail::IsHashMap<T>;
+
+template<typename T>
+concept SharedSingleProducerCircularQueue = Detail::IsSharedSingleProducerCircularQueue<T>;
+
+template<typename T>
+concept Optional = SpecializationOf<T, AK::Optional>;
+
+template<typename T>
+concept Variant = SpecializationOf<T, AK::Variant>;
 
 }
