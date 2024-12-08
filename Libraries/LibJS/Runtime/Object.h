@@ -8,7 +8,6 @@
 #pragma once
 
 #include <AK/Badge.h>
-#include <AK/HashMap.h>
 #include <AK/StringView.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/MarkedVector.h>

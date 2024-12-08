@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/ByteBuffer.h>
-#include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <AK/Noncopyable.h>
 #include <AK/RefCounted.h>

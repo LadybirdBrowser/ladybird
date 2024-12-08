@@ -12,6 +12,7 @@
 #include "RegexOptions.h"
 
 #include <AK/Forward.h>
+#include <AK/HashMap.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibUnicode/Forward.h>
