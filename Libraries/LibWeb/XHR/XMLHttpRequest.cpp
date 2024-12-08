@@ -574,15 +574,15 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
         // 2. If body is a Document, then set this’s request body to body, serialized, converted, and UTF-8 encoded.
         if (body->has<GC::Root<DOM::Document>>()) {
             auto string_serialized_document = TRY(body->get<GC::Root<DOM::Document>>().cell()->serialize_fragment(DOMParsing::RequireWellFormed::No));
-            m_request_body = TRY(Fetch::Infrastructure::byte_sequence_as_body(realm, string_serialized_document.bytes()));
+            m_request_body = Fetch::Infrastructure::byte_sequence_as_body(realm, string_serialized_document.bytes());
         }
         // 3. Otherwise:
         else {
             // 1. Let bodyWithType be the result of safely extracting body.
-            auto body_with_type = TRY(Fetch::safely_extract_body(realm, body->downcast<Fetch::BodyInitOrReadableBytes>()));
+            auto body_with_type = Fetch::safely_extract_body(realm, body->downcast<Fetch::BodyInitOrReadableBytes>());
 
             // 2. Set this’s request body to bodyWithType’s body.
-            m_request_body = move(body_with_type.body);
+            m_request_body = body_with_type.body;
 
             // 3. Set extractedContentType to bodyWithType’s type.
             extracted_content_type = move(body_with_type.type);

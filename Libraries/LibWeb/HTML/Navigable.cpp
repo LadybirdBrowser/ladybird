@@ -618,7 +618,8 @@ static GC::Ptr<DOM::Document> attempt_to_create_a_non_fetch_scheme_document(NonF
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#create-navigation-params-from-a-srcdoc-resource
-static WebIDL::ExceptionOr<GC::Ref<NavigationParams>> create_navigation_params_from_a_srcdoc_resource(GC::Ptr<SessionHistoryEntry> entry, GC::Ptr<Navigable> navigable, TargetSnapshotParams const& target_snapshot_params, Optional<String> navigation_id)
+
+static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource(GC::Ptr<SessionHistoryEntry> entry, GC::Ptr<Navigable> navigable, TargetSnapshotParams const& target_snapshot_params, Optional<String> navigation_id)
 {
     auto& vm = navigable->vm();
     VERIFY(navigable->active_window());
@@ -638,7 +639,7 @@ static WebIDL::ExceptionOr<GC::Ref<NavigationParams>> create_navigation_params_f
     auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"sv, "text/html"sv);
     response->header_list()->append(move(header));
 
-    response->set_body(TRY(Fetch::Infrastructure::byte_sequence_as_body(realm, document_resource.get<String>().bytes())));
+    response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, document_resource.get<String>().bytes()));
 
     // 3. Let responseOrigin be the result of determining the origin given response's URL, targetSnapshotParams's sandboxing flags, and entry's document state's origin.
     auto response_origin = determine_the_origin(response->url(), target_snapshot_params.sandboxing_flags, entry->document_state()->origin());
@@ -1100,7 +1101,7 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
         //    of creating navigation params from a srcdoc resource given entry, navigable,
         //    targetSnapshotParams, navigationId, and navTimingType.
         if (document_resource.has<String>()) {
-            navigation_params = TRY(create_navigation_params_from_a_srcdoc_resource(entry, this, target_snapshot_params, navigation_id));
+            navigation_params = create_navigation_params_from_a_srcdoc_resource(entry, this, target_snapshot_params, navigation_id);
         }
         // 2. Otherwise, if all of the following are true:
         //    - entry's URL's scheme is a fetch scheme; and
@@ -1377,7 +1378,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         // 1. Queue a global task on the navigation and traversal task source given navigable's active window to navigate to a javascript: URL given navigable, url, historyHandling, initiatorOriginSnapshot, and cspNavigationType.
         VERIFY(active_window());
         queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, url, history_handling, initiator_origin_snapshot, csp_navigation_type, navigation_id] {
-            (void)navigate_to_a_javascript_url(url, to_history_handling_behavior(history_handling), initiator_origin_snapshot, csp_navigation_type, navigation_id);
+            navigate_to_a_javascript_url(url, to_history_handling_behavior(history_handling), initiator_origin_snapshot, csp_navigation_type, navigation_id);
         }));
 
         // 2. Return.
@@ -1604,7 +1605,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate_to_a_fragment(URL::URL const& url,
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#evaluate-a-javascript:-url
 // https://whatpr.org/html/9893/browsing-the-web.html#evaluate-a-javascript:-url
-WebIDL::ExceptionOr<GC::Ptr<DOM::Document>> Navigable::evaluate_javascript_url(URL::URL const& url, URL::Origin const& new_document_origin, String navigation_id)
+GC::Ptr<DOM::Document> Navigable::evaluate_javascript_url(URL::URL const& url, URL::Origin const& new_document_origin, String navigation_id)
 {
     auto& vm = this->vm();
     VERIFY(active_window());
@@ -1652,7 +1653,7 @@ WebIDL::ExceptionOr<GC::Ptr<DOM::Document>> Navigable::evaluate_javascript_url(U
     auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"sv, "text/html"sv);
     response->header_list()->append(move(header));
 
-    response->set_body(TRY(Fetch::Infrastructure::byte_sequence_as_body(realm, result.bytes())));
+    response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, result.bytes()));
 
     // 12. Let policyContainer be targetNavigable's active document's policy container.
     auto const& policy_container = active_document()->policy_container();
@@ -1708,7 +1709,7 @@ WebIDL::ExceptionOr<GC::Ptr<DOM::Document>> Navigable::evaluate_javascript_url(U
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-to-a-javascript:-url
-WebIDL::ExceptionOr<void> Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlingBehavior history_handling, URL::Origin const& initiator_origin, CSPNavigationType csp_navigation_type, String navigation_id)
+void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlingBehavior history_handling, URL::Origin const& initiator_origin, CSPNavigationType csp_navigation_type, String navigation_id)
 {
     // 1. Assert: historyHandling is "replace".
     VERIFY(history_handling == HistoryHandlingBehavior::Replace);
@@ -1718,7 +1719,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate_to_a_javascript_url(URL::URL const
 
     // 3. If initiatorOrigin is not same origin-domain with targetNavigable's active document's origin, then return.
     if (!initiator_origin.is_same_origin_domain(active_document()->origin()))
-        return {};
+        return;
 
     // FIXME: 4. Let request be a new request whose URL is url.
 
@@ -1726,12 +1727,12 @@ WebIDL::ExceptionOr<void> Navigable::navigate_to_a_javascript_url(URL::URL const
     (void)csp_navigation_type;
 
     // 6. Let newDocument be the result of evaluating a javascript: URL given targetNavigable, url, and initiatorOrigin.
-    auto new_document = TRY(evaluate_javascript_url(url, initiator_origin, navigation_id));
+    auto new_document = evaluate_javascript_url(url, initiator_origin, navigation_id);
 
     // 7. If newDocument is null, then return.
     if (!new_document) {
         // NOTE: In this case, some JavaScript code was executed, but no new Document was created, so we will not perform a navigation.
-        return {};
+        return;
     }
 
     // 8. Assert: initiatorOrigin is newDocument's origin.
@@ -1776,8 +1777,6 @@ WebIDL::ExceptionOr<void> Navigable::navigate_to_a_javascript_url(URL::URL const
     traversable_navigable()->append_session_history_traversal_steps(GC::create_function(heap(), [this, history_entry, history_handling, navigation_id] {
         finalize_a_cross_document_navigation(*this, history_handling, history_entry);
     }));
-
-    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#reload

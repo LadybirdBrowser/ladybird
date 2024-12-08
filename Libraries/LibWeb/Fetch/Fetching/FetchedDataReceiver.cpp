@@ -69,7 +69,7 @@ void FetchedDataReceiver::on_data_received(ReadonlyBytes bytes)
 
             // 1. Pull from bytes buffer into stream.
             if (auto result = Streams::readable_stream_pull_from_bytes(m_stream, move(bytes)); result.is_error()) {
-                auto throw_completion = Bindings::dom_exception_to_throw_completion(m_stream->vm(), result.release_error());
+                auto throw_completion = Bindings::exception_to_throw_completion(m_stream->vm(), result.release_error());
 
                 dbgln("FetchedDataReceiver: Stream error pulling bytes");
                 HTML::report_exception(throw_completion, m_stream->realm());

@@ -23,7 +23,7 @@
 namespace Web::Fetch {
 
 // https://fetch.spec.whatwg.org/#bodyinit-safely-extract
-WebIDL::ExceptionOr<Infrastructure::BodyWithType> safely_extract_body(JS::Realm& realm, BodyInitOrReadableBytes const& object)
+Infrastructure::BodyWithType safely_extract_body(JS::Realm& realm, BodyInitOrReadableBytes const& object)
 {
     // 1. If object is a ReadableStream object, then:
     if (auto const* stream = object.get_pointer<GC::Root<Streams::ReadableStream>>()) {
@@ -32,7 +32,7 @@ WebIDL::ExceptionOr<Infrastructure::BodyWithType> safely_extract_body(JS::Realm&
     }
 
     // 2. Return the result of extracting object.
-    return extract_body(realm, object);
+    return MUST(extract_body(realm, object));
 }
 
 // https://fetch.spec.whatwg.org/#concept-bodyinit-extract
@@ -135,7 +135,6 @@ WebIDL::ExceptionOr<Infrastructure::BodyWithType> extract_body(JS::Realm& realm,
         }));
 
     // 11. If source is a byte sequence, then set action to a step that returns source and length to source’s length.
-    // For now, do it synchronously.
     if (source.has<ByteBuffer>()) {
         action = [source = MUST(ByteBuffer::copy(source.get<ByteBuffer>()))]() mutable {
             return move(source);
