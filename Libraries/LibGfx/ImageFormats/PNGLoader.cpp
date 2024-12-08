@@ -82,6 +82,17 @@ ErrorOr<Optional<ReadonlyBytes>> PNGImageDecoderPlugin::icc_data()
     return OptionalNone {};
 }
 
+static void log_png_error(png_structp png_ptr, char const* error_message)
+{
+    dbgln("libpng error: {}", error_message);
+    png_longjmp(png_ptr, 1);
+}
+
+static void log_png_warning(png_structp, char const* warning_message)
+{
+    dbgln("libpng warning: {}", warning_message);
+}
+
 ErrorOr<void> PNGImageDecoderPlugin::initialize()
 {
     png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
@@ -108,6 +119,8 @@ ErrorOr<void> PNGImageDecoderPlugin::initialize()
         memcpy(data, read_data->data(), length);
         *read_data = read_data->slice(length);
     });
+
+    png_set_error_fn(png_ptr, nullptr, log_png_error, log_png_warning);
 
     png_read_info(png_ptr, info_ptr);
 
