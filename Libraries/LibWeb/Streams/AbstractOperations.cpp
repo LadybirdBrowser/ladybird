@@ -3259,39 +3259,6 @@ WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller(ReadableStream&
     return {};
 }
 
-// https://streams.spec.whatwg.org/#readablestream-enqueue
-WebIDL::ExceptionOr<void> readable_stream_enqueue(ReadableStreamController& controller, JS::Value chunk)
-{
-    // 1. If stream.[[controller]] implements ReadableStreamDefaultController,
-    if (controller.has<GC::Ref<ReadableStreamDefaultController>>()) {
-        // 1. Perform ! ReadableStreamDefaultControllerEnqueue(stream.[[controller]], chunk).
-        return readable_stream_default_controller_enqueue(controller.get<GC::Ref<ReadableStreamDefaultController>>(), chunk);
-    }
-    // 2. Otherwise,
-    else {
-        // 1. Assert: stream.[[controller]] implements ReadableByteStreamController.
-        VERIFY(controller.has<GC::Ref<ReadableByteStreamController>>());
-        auto readable_byte_controller = controller.get<GC::Ref<ReadableByteStreamController>>();
-
-        // FIXME: 2. Assert: chunk is an ArrayBufferView.
-
-        // 3. Let byobView be the current BYOB request view for stream.
-        // FIXME: This is not what the spec means by 'current BYOB request view'
-        auto byob_view = readable_byte_controller->raw_byob_request();
-
-        // 4. If byobView is non-null, and chunk.[[ViewedArrayBuffer]] is byobView.[[ViewedArrayBuffer]], then:
-        if (byob_view) {
-            // FIXME: 1. Assert: chunk.[[ByteOffset]] is byobView.[[ByteOffset]].
-            // FIXME: 2. Assert: chunk.[[ByteLength]] ≤ byobView.[[ByteLength]].
-            // FIXME: 3. Perform ? ReadableByteStreamControllerRespond(stream.[[controller]], chunk.[[ByteLength]]).
-            TODO();
-        }
-
-        // 5. Otherwise, perform ? ReadableByteStreamControllerEnqueue(stream.[[controller]], chunk).
-        return readable_byte_stream_controller_enqueue(readable_byte_controller, chunk);
-    }
-}
-
 // https://streams.spec.whatwg.org/#readable-byte-stream-controller-enqueue
 WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue(ReadableByteStreamController& controller, JS::Value chunk)
 {
@@ -3408,49 +3375,6 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue(ReadableByteSt
 
     // 12. Perform ! ReadableByteStreamControllerCallPullIfNeeded(controller).
     readable_byte_stream_controller_call_pull_if_needed(controller);
-
-    return {};
-}
-
-// https://streams.spec.whatwg.org/#readablestream-pull-from-bytes
-WebIDL::ExceptionOr<void> readable_stream_pull_from_bytes(ReadableStream& stream, ByteBuffer bytes)
-{
-    // 1. Assert: stream.[[controller]] implements ReadableByteStreamController.
-    auto controller = stream.controller()->get<GC::Ref<ReadableByteStreamController>>();
-
-    // 2. Let available be bytes’s length.
-    auto available = bytes.size();
-
-    // 3. Let desiredSize be available.
-    auto desired_size = available;
-
-    // FIXME: 4. If stream’s current BYOB request view is non-null, then set desiredSize to stream’s current BYOB request
-    //           view's byte length.
-
-    // 5. Let pullSize be the smaller value of available and desiredSize.
-    auto pull_size = min(available, desired_size);
-
-    // 6. Let pulled be the first pullSize bytes of bytes.
-    auto pulled = pull_size == available ? move(bytes) : MUST(bytes.slice(0, pull_size));
-
-    // 7. Remove the first pullSize bytes from bytes.
-    if (pull_size != available)
-        bytes = MUST(bytes.slice(pull_size, available - pull_size));
-
-    // FIXME: 8. If stream’s current BYOB request view is non-null, then:
-    //           1. Write pulled into stream’s current BYOB request view.
-    //           2. Perform ? ReadableByteStreamControllerRespond(stream.[[controller]], pullSize).
-    // 9. Otherwise,
-    {
-        auto& realm = HTML::relevant_realm(stream);
-
-        // 1. Set view to the result of creating a Uint8Array from pulled in stream’s relevant Realm.
-        auto array_buffer = JS::ArrayBuffer::create(realm, move(pulled));
-        auto view = JS::Uint8Array::create(realm, array_buffer->byte_length(), *array_buffer);
-
-        // 2. Perform ? ReadableByteStreamControllerEnqueue(stream.[[controller]], view).
-        TRY(readable_byte_stream_controller_enqueue(controller, view));
-    }
 
     return {};
 }
@@ -3640,52 +3564,6 @@ PullIntoDescriptor readable_byte_stream_controller_shift_pending_pull_into(Reada
 
     // 4. Return descriptor.
     return descriptor;
-}
-
-// https://streams.spec.whatwg.org/#readablestream-set-up-with-byte-reading-support
-void set_up_readable_stream_controller_with_byte_reading_support(ReadableStream& stream, GC::Ptr<PullAlgorithm> pull_algorithm, GC::Ptr<CancelAlgorithm> cancel_algorithm, double high_water_mark)
-{
-    auto& realm = stream.realm();
-
-    // 1. Let startAlgorithm be an algorithm that returns undefined.
-    auto start_algorithm = GC::create_function(realm.heap(), []() -> WebIDL::ExceptionOr<JS::Value> { return JS::js_undefined(); });
-
-    // 2. Let pullAlgorithmWrapper be an algorithm that runs these steps:
-    auto pull_algorithm_wrapper = GC::create_function(realm.heap(), [&realm, pull_algorithm]() {
-        // 1. Let result be the result of running pullAlgorithm, if pullAlgorithm was given, or null otherwise. If this throws an exception e, return a promise rejected with e.
-        GC::Ptr<JS::PromiseCapability> result = nullptr;
-        if (pull_algorithm)
-            result = pull_algorithm->function()();
-
-        // 2. If result is a Promise, then return result.
-        if (result != nullptr)
-            return GC::Ref(*result);
-
-        // 3. Return a promise resolved with undefined.
-        return WebIDL::create_resolved_promise(realm, JS::js_undefined());
-    });
-
-    // 3. Let cancelAlgorithmWrapper be an algorithm that runs these steps:
-    auto cancel_algorithm_wrapper = GC::create_function(realm.heap(), [&realm, cancel_algorithm](JS::Value c) {
-        // 1. Let result be the result of running cancelAlgorithm, if cancelAlgorithm was given, or null otherwise. If this throws an exception e, return a promise rejected with e.
-        GC::Ptr<JS::PromiseCapability> result = nullptr;
-        if (cancel_algorithm)
-            result = cancel_algorithm->function()(c);
-
-        // 2. If result is a Promise, then return result.
-        if (result != nullptr)
-            return GC::Ref(*result);
-
-        // 3. Return a promise resolved with undefined.
-        return WebIDL::create_resolved_promise(realm, JS::js_undefined());
-    });
-
-    // 4. Perform ! InitializeReadableStream(stream).
-    // 5. Let controller be a new ReadableByteStreamController.
-    auto controller = realm.create<ReadableByteStreamController>(realm);
-
-    // 6. Perform ! SetUpReadableByteStreamController(stream, controller, startAlgorithm, pullAlgorithmWrapper, cancelAlgorithmWrapper, highWaterMark, undefined).
-    MUST(set_up_readable_byte_stream_controller(stream, controller, start_algorithm, pull_algorithm_wrapper, cancel_algorithm_wrapper, high_water_mark, JS::js_undefined()));
 }
 
 // https://streams.spec.whatwg.org/#writable-stream-abort

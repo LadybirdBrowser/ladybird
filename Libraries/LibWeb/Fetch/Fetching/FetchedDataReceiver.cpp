@@ -68,7 +68,7 @@ void FetchedDataReceiver::on_data_received(ReadonlyBytes bytes)
             HTML::TemporaryExecutionContext execution_context { m_stream->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
             // 1. Pull from bytes buffer into stream.
-            if (auto result = Streams::readable_stream_pull_from_bytes(m_stream, move(bytes)); result.is_error()) {
+            if (auto result = m_stream->pull_from_bytes(move(bytes)); result.is_error()) {
                 auto throw_completion = Bindings::exception_to_throw_completion(m_stream->vm(), result.release_error());
 
                 dbgln("FetchedDataReceiver: Stream error pulling bytes");

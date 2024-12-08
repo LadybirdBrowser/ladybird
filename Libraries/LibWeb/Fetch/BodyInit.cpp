@@ -56,7 +56,7 @@ WebIDL::ExceptionOr<Infrastructure::BodyWithType> extract_body(JS::Realm& realm,
     // 4. Otherwise, set stream to a new ReadableStream object, and set up stream with byte reading support.
     else {
         stream = realm.create<Streams::ReadableStream>(realm);
-        Streams::set_up_readable_stream_controller_with_byte_reading_support(*stream);
+        stream->set_up_with_byte_reading_support();
     }
 
     // 5. Assert: stream is a ReadableStream object.
@@ -156,7 +156,7 @@ WebIDL::ExceptionOr<Infrastructure::BodyWithType> extract_body(JS::Realm& realm,
                 auto array_buffer = JS::ArrayBuffer::create(stream->realm(), move(bytes));
                 auto chunk = JS::Uint8Array::create(stream->realm(), array_buffer->byte_length(), *array_buffer);
 
-                Streams::readable_stream_enqueue(*stream->controller(), chunk).release_value_but_fixme_should_propagate_errors();
+                stream->enqueue(chunk).release_value_but_fixme_should_propagate_errors();
             }
 
             // When running action is done, close stream.
