@@ -2,13 +2,13 @@ Harness status: OK
 
 Found 24 tests
 
-8 Pass
-16 Fail
+9 Pass
+15 Fail
 Pass	check XMLSerializer.serializeToString method could parsing xmldoc to string
 Pass	check XMLSerializer.serializeToString method could parsing document to string
 Pass	Check if the default namespace is correctly reset.
 Pass	Check if there is no redundant empty namespace declaration.
-Fail	Check if redundant xmlns="..." is dropped.
+Pass	Check if redundant xmlns="..." is dropped.
 Pass	Check if inconsistent xmlns="..." is dropped.
 Fail	Check if an attribute with namespace and no prefix is serialized with the nearest-declared prefix
 Fail	Check if an attribute with namespace and no prefix is serialized with the nearest-declared prefix even if the prefix is assigned to another namespace.
