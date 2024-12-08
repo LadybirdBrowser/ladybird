@@ -3307,6 +3307,48 @@
     "childrenArePresentational": false,
     "implicitValueForRole": {}
   },
+  "Mark": {
+    "specLink": "https://w3c.github.io/aria/#mark",
+    "description": "Content which is marked or highlighted for reference or notation purposes, due to the content's relevance in the enclosing context.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden",
+      "aria-invalid"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-errormessage",
+      "aria-flowto",
+      "aria-haspopup",
+      "aria-keyshortcuts",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Prohibited",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
   "Navigation": {
     "specLink": "https://www.w3.org/TR/wai-aria-1.2/#navigation",
     "description": "A landmark containing a collection of navigational elements (usually links) for navigating the document or related documents.",

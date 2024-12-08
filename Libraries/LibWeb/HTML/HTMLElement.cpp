@@ -776,6 +776,9 @@ Optional<ARIA::Role> HTMLElement::default_role() const
     // https://www.w3.org/TR/html-aria/#el-main
     if (local_name() == TagNames::main)
         return ARIA::Role::main;
+    // https://www.w3.org/TR/html-aria/#el-mark
+    if (local_name() == TagNames::mark)
+        return ARIA::Role::mark;
     // https://www.w3.org/TR/html-aria/#el-nav
     if (local_name() == TagNames::nav)
         return ARIA::Role::navigation;
