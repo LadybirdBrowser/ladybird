@@ -7,6 +7,10 @@ Independent means:
 - We implement the web platform standards ourselves: Ladybird is not a Blink/Chromium shell, not a WebKit port, not a Firefox fork.
 - We don't take money from anyone with strings attached
 
+## Is [some particular site] usable in Ladybird?
+
+Ladybird is pre-alpha software you have to build from the sources yourself in order to even try. That said, it’s getting better day-by-day at handling some of the most widely-used sites on the web. So, you may find that a given site among the sites you visit daily is already usable in Ladybird. Or you may not. The only way you can really know at this point is to follow the [build instructions](BuildInstructionsLadybird.md) to build Ladybird and try it yourself.
+
 ## Windows support when?
 
 There are very few Windows developers contributing to the project. As such, maintaining a native Windows port would be
