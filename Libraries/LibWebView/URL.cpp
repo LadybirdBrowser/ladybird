@@ -42,11 +42,12 @@ Optional<URL::URL> sanitize_url(StringView url, Optional<StringView> search_engi
     if (!(url_with_scheme.starts_with("about:"sv) || url_with_scheme.contains("://"sv) || url_with_scheme.starts_with("data:"sv)))
         url_with_scheme = ByteString::formatted("https://{}"sv, url_with_scheme);
 
-    auto result = URL::create_with_url_or_path(url_with_scheme);
-    if (!result.is_valid())
-        return format_search_engine();
+    // FIXME: Fix `is_valid` method in LibURL, this is simply a bandage
+    if (url_with_scheme.contains("."sv)) {
+        return URL::create_with_url_or_path(url_with_scheme);
+    }
 
-    return result;
+    return format_search_engine();;
 }
 
 Vector<URL::URL> sanitize_urls(ReadonlySpan<ByteString> raw_urls, URL::URL const& new_tab_page_url)
