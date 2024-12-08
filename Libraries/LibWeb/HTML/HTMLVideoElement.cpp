@@ -137,6 +137,12 @@ void HTMLVideoElement::on_paused()
         m_video_track->pause_video({});
 }
 
+void HTMLVideoElement::on_stopped()
+{
+    if (m_video_track)
+        m_video_track->stop_video({});
+}
+
 void HTMLVideoElement::on_seek(double position, MediaSeekMode seek_mode)
 {
     if (m_video_track)

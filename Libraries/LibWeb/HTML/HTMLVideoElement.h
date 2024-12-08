@@ -65,6 +65,7 @@ private:
 
     virtual void on_playing() override;
     virtual void on_paused() override;
+    virtual void on_stopped() override;
     virtual void on_seek(double, MediaSeekMode) override;
 
     WebIDL::ExceptionOr<void> determine_element_poster_frame(Optional<String> const& poster);
