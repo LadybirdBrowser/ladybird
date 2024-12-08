@@ -74,6 +74,84 @@ WebIDL::ExceptionOr<GC::Ref<TransformStream>> TransformStream::construct_impl(JS
     return stream;
 }
 
+// https://streams.spec.whatwg.org/#transformstream-set-up
+void TransformStream::set_up(GC::Ref<TransformAlgorithm> transform_algorithm, GC::Ptr<FlushAlgorithm> flush_algorithm, GC::Ptr<CancelAlgorithm> cancel_algorithm)
+{
+    auto& realm = this->realm();
+
+    // 1. Let writableHighWaterMark be 1.
+    auto writable_high_water_mark = 1.0;
+
+    // 2. Let writableSizeAlgorithm be an algorithm that returns 1.
+    auto writable_size_algorithm = GC::create_function(realm.heap(), [](JS::Value) {
+        return JS::normal_completion(JS::Value { 1 });
+    });
+
+    // 3. Let readableHighWaterMark be 0.
+    auto readable_high_water_mark = 0.0;
+
+    // 4. Let readableSizeAlgorithm be an algorithm that returns 1.
+    auto readable_size_algorithm = GC::create_function(realm.heap(), [](JS::Value) {
+        return JS::normal_completion(JS::Value { 1 });
+    });
+
+    // 5. Let transformAlgorithmWrapper be an algorithm that runs these steps given a value chunk:
+    auto transform_algorithm_wrapper = GC::create_function(realm.heap(), [&realm, transform_algorithm](JS::Value chunk) -> GC::Ref<WebIDL::Promise> {
+        // 1. Let result be the result of running transformAlgorithm given chunk. If this throws an exception e, return a promise rejected with e.
+        GC::Ptr<JS::PromiseCapability> result = nullptr;
+        result = transform_algorithm->function()(chunk);
+
+        // 2. If result is a Promise, then return result.
+        if (result)
+            return GC::Ref { *result };
+
+        // 3. Return a promise resolved with undefined.
+        return WebIDL::create_resolved_promise(realm, JS::js_undefined());
+    });
+
+    // 6. Let flushAlgorithmWrapper be an algorithm that runs these steps:
+    auto flush_algorithm_wrapper = GC::create_function(realm.heap(), [&realm, flush_algorithm]() -> GC::Ref<WebIDL::Promise> {
+        // 1. Let result be the result of running flushAlgorithm, if flushAlgorithm was given, or null otherwise. If this throws an exception e, return a promise rejected with e.
+        GC::Ptr<JS::PromiseCapability> result = nullptr;
+        if (flush_algorithm)
+            result = flush_algorithm->function()();
+
+        // 2. If result is a Promise, then return result.
+        if (result)
+            return GC::Ref { *result };
+
+        // 3. Return a promise resolved with undefined.
+        return WebIDL::create_resolved_promise(realm, JS::js_undefined());
+    });
+
+    // 7. Let cancelAlgorithmWrapper be an algorithm that runs these steps given a value reason:
+    auto cancel_algorithm_wrapper = GC::create_function(realm.heap(), [&realm, cancel_algorithm](JS::Value reason) -> GC::Ref<WebIDL::Promise> {
+        // 1. Let result be the result of running cancelAlgorithm given reason, if cancelAlgorithm was given, or null otherwise. If this throws an exception e, return a promise rejected with e.
+        GC::Ptr<JS::PromiseCapability> result = nullptr;
+        if (cancel_algorithm)
+            result = cancel_algorithm->function()(reason);
+
+        // 2. If result is a Promise, then return result.
+        if (result)
+            return GC::Ref { *result };
+
+        // 3. Return a promise resolved with undefined.
+        return WebIDL::create_resolved_promise(realm, JS::js_undefined());
+    });
+
+    // 8. Let startPromise be a promise resolved with undefined.
+    auto start_promise = WebIDL::create_resolved_promise(realm, JS::js_undefined());
+
+    // 9. Perform ! InitializeTransformStream(stream, startPromise, writableHighWaterMark, writableSizeAlgorithm, readableHighWaterMark, readableSizeAlgorithm).
+    initialize_transform_stream(*this, start_promise, writable_high_water_mark, writable_size_algorithm, readable_high_water_mark, readable_size_algorithm);
+
+    // 10. Let controller be a new TransformStreamDefaultController.
+    auto controller = realm.create<TransformStreamDefaultController>(realm);
+
+    // 11. Perform ! SetUpTransformStreamDefaultController(stream, controller, transformAlgorithmWrapper, flushAlgorithmWrapper, cancelAlgorithmWrapper).
+    set_up_transform_stream_default_controller(*this, controller, transform_algorithm_wrapper, flush_algorithm_wrapper, cancel_algorithm_wrapper);
+}
+
 TransformStream::TransformStream(JS::Realm& realm)
     : Bindings::PlatformObject(realm)
 {

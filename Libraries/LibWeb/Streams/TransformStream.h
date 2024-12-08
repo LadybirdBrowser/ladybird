@@ -9,6 +9,7 @@
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Streams/Algorithms.h>
 #include <LibWeb/Streams/QueuingStrategy.h>
 #include <LibWeb/WebIDL/Promise.h>
 
@@ -39,6 +40,8 @@ public:
 
     GC::Ptr<TransformStreamDefaultController> controller() const { return m_controller; }
     void set_controller(GC::Ptr<TransformStreamDefaultController> value) { m_controller = value; }
+
+    void set_up(GC::Ref<TransformAlgorithm>, GC::Ptr<FlushAlgorithm> = {}, GC::Ptr<CancelAlgorithm> = {});
 
 private:
     explicit TransformStream(JS::Realm& realm);
