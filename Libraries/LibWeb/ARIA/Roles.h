@@ -43,6 +43,7 @@ namespace Web::ARIA {
     __ENUMERATE_ARIA_ROLE(gridcell)         \
     __ENUMERATE_ARIA_ROLE(group)            \
     __ENUMERATE_ARIA_ROLE(heading)          \
+    __ENUMERATE_ARIA_ROLE(image)            \
     __ENUMERATE_ARIA_ROLE(img)              \
     __ENUMERATE_ARIA_ROLE(input)            \
     __ENUMERATE_ARIA_ROLE(insertion)        \

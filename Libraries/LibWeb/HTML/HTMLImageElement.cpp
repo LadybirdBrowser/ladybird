@@ -411,10 +411,15 @@ Optional<ARIA::Role> HTMLImageElement::default_role() const
 {
     // https://www.w3.org/TR/html-aria/#el-img
     // https://www.w3.org/TR/html-aria/#el-img-no-alt
+    // https://w3c.github.io/aria/#image
+    // NOTE: The "image" role value is a synonym for the older "img" role value; however, the el-img test in
+    //       https://wpt.fyi/results/html-aam/roles.html expects the value to be "image" (not "img").
     if (!alt().is_empty())
-        return ARIA::Role::img;
+        return ARIA::Role::image;
     // https://www.w3.org/TR/html-aria/#el-img-empty-alt
-    return ARIA::Role::presentation;
+    // NOTE: The "none" role value is a synonym for the older "presentation" role value; however, the el-img-alt-no-value
+    //       test in https://wpt.fyi/results/html-aam/roles.html expects the value to be "none" (not "presentation").
+    return ARIA::Role::none;
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#use-srcset-or-picture
