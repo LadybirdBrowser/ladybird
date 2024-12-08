@@ -296,7 +296,7 @@ JS::ThrowCompletionOr<bool> PlatformObject::internal_define_own_property(JS::Pro
                 precomputed_get_own_property = &get_own_property_result;
             }
         }
-        if (m_legacy_platform_object_flags->has_legacy_override_built_ins_interface_extended_attribute || precomputed_get_own_property->has_value()) {
+        if (m_legacy_platform_object_flags->has_legacy_override_built_ins_interface_extended_attribute || !precomputed_get_own_property->has_value()) {
             // 1. If creating is false and O does not implement an interface with a named property setter, then return false.
             if (!creating && !m_legacy_platform_object_flags->has_named_property_setter)
                 return false;
