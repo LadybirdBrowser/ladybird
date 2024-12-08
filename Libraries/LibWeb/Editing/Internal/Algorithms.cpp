@@ -873,20 +873,20 @@ bool is_collapsed_whitespace_node(GC::Ref<DOM::Node> node)
         ancestor = ancestor->parent();
 
     // 7. Let reference be node.
-    auto reference = node;
+    GC::Ptr<DOM::Node> reference = node;
 
     // 8. While reference is a descendant of ancestor:
     while (reference->is_descendant_of(*ancestor)) {
         // 1. Let reference be the node before it in tree order.
-        reference = *reference->previous_in_pre_order();
+        reference = reference->previous_in_pre_order();
 
         // 2. If reference is a block node or a br, return true.
-        if (is_block_node(reference) || is<HTML::HTMLBRElement>(*reference))
+        if (is_block_node(*reference) || is<HTML::HTMLBRElement>(*reference))
             return true;
 
         // 3. If reference is a Text node that is not a whitespace node, or is an img, break from
         //    this loop.
-        if ((is<DOM::Text>(*reference) && !is_whitespace_node(reference)) || is<HTML::HTMLImageElement>(*reference))
+        if ((is<DOM::Text>(*reference) && !is_whitespace_node(*reference)) || is<HTML::HTMLImageElement>(*reference))
             break;
     }
 
@@ -896,15 +896,19 @@ bool is_collapsed_whitespace_node(GC::Ref<DOM::Node> node)
     // 10. While reference is a descendant of ancestor:
     while (reference->is_descendant_of(*ancestor)) {
         // 1. Let reference be the node after it in tree order, or null if there is no such node.
-        reference = *reference->next_in_pre_order();
+        reference = reference->next_in_pre_order();
+
+        // NOTE: Both steps below and the loop condition require a reference, so break if it's null.
+        if (!reference)
+            break;
 
         // 2. If reference is a block node or a br, return true.
-        if (is_block_node(reference) || is<HTML::HTMLBRElement>(*reference))
+        if (is_block_node(*reference) || is<HTML::HTMLBRElement>(*reference))
             return true;
 
         // 3. If reference is a Text node that is not a whitespace node, or is an img, break from
         //    this loop.
-        if ((is<DOM::Text>(*reference) && !is_whitespace_node(reference)) || is<HTML::HTMLImageElement>(*reference))
+        if ((is<DOM::Text>(*reference) && !is_whitespace_node(*reference)) || is<HTML::HTMLImageElement>(*reference))
             break;
     }
 
