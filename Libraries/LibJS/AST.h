@@ -10,7 +10,6 @@
 
 #include <AK/ByteString.h>
 #include <AK/DeprecatedFlyString.h>
-#include <AK/HashMap.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Variant.h>

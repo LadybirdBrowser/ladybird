@@ -9,7 +9,6 @@
 
 #include <AK/ByteString.h>
 #include <AK/Function.h>
-#include <AK/HashMap.h>
 #include <AK/OwnPtr.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>

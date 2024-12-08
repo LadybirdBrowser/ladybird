@@ -7,7 +7,6 @@
  */
 
 #include <AK/Demangle.h>
-#include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <AK/QuickSort.h>
 #include <AK/ScopeGuard.h>
