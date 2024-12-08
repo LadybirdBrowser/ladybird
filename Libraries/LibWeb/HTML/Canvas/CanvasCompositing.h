@@ -7,8 +7,8 @@
 #pragma once
 
 #include <AK/String.h>
-#include <LibWeb/HTML/ImageData.h>
 #include <LibGfx/Color.h>
+#include <LibWeb/HTML/ImageData.h>
 
 namespace Web::HTML {
 
@@ -63,10 +63,12 @@ public:
 
     virtual String global_composite_operation() const = 0;
     virtual void set_global_composite_operation(String composite_operation) = 0;
+
 protected:
     CanvasCompositing() = default;
 
-    static constexpr Gfx::BlendMode global_composite_operation_to_blend_mode(GlobalCompositeOperation operation) {
+    static constexpr Gfx::BlendMode global_composite_operation_to_blend_mode(GlobalCompositeOperation operation)
+    {
         switch (operation) {
 #define __ENUMERATE_GLOBAL_COMPOSITE_OPERATION(name, text, gfx_mode) \
     case GlobalCompositeOperation::name:                             \

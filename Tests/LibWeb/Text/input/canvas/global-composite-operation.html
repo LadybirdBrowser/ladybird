@@ -1,0 +1,54 @@
+<script src="../include.js"></script>
+<script>
+    function colorStr(d) {
+        // Give some margin of error
+        const r = d[0] - d[0] % 5;
+        const g = d[1] - d[1] % 5;
+        const b = d[2] - d[2] % 5;
+        return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    test(() => {
+        const operations = [
+            "normal", "multiply", "screen", "overlay",
+            "darken", "lighten", "color-dodge", "color-burn",
+            "hard-light", "soft-light", "difference", "exclusion",
+            "hue", "saturation", "color", "luminosity",
+            "clear", "copy", "source-over", "destination-over",
+            "source-in", "destination-in", "source-out", "destination-out",
+            "source-atop", "destination-atop", "xor", "lighter",
+            "plus-darker", "plus-lighter"
+        ];
+
+
+        for (operation of operations) {
+            const canvas = document.createElement("canvas");
+            canvas.width = 100;
+            canvas.height = 100;
+            let ctx = canvas.getContext("2d");
+
+            ctx.fillStyle = '#007fff';
+            ctx.fillRect(0, 0, 50, 100);
+            ctx.fillStyle = '#cf6f2f';
+            ctx.fillRect(50, 0, 50, 100);
+            ctx.globalCompositeOperation = operation;
+            ctx.fillStyle = '#ff007f7f';
+            ctx.fillRect(0, 0, 100, 50);
+            ctx.fillStyle = '#2fcf6f7f';
+            ctx.fillRect(0, 50, 100, 50);
+
+            const tl = ctx.getImageData(24, 24, 1, 1).data;
+            const tr = ctx.getImageData(74, 24, 1, 1).data;
+            const bl = ctx.getImageData(24, 74, 1, 1).data;
+            const br = ctx.getImageData(74, 74, 1, 1).data;
+
+            println(`${operation}: Top Left: ${colorStr(tl)}`);
+            println(`${operation}: Top Right: ${colorStr(tr)}`);
+            println(`${operation}: Bottom Left: ${colorStr(bl)}`);
+            println(`${operation}: Bottom Right: ${colorStr(br)}`);
+
+            document.body.appendChild(canvas);
+        }
+    })
+</script>
+<body></body>
