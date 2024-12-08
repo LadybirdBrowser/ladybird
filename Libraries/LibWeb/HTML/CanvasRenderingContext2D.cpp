@@ -760,6 +760,34 @@ void CanvasRenderingContext2D::set_global_alpha(float alpha)
     drawing_state().global_alpha = alpha;
 }
 
+String CanvasRenderingContext2D::global_composite_operation() const
+{
+    // 1. return this's current compositing and blending operator.
+    switch (drawing_state().global_composite_operation) {
+#define __ENUMERATE_GLOBAL_COMPOSITE_OPERATION(name, text, gfx_mode) \
+    case GlobalCompositeOperation::name:                             \
+        return text##_string;
+        ENUMERATE_GLOBAL_COMPOSITE_OPERATIONS
+#undef __ENUMERATE_GLOBAL_COMPOSITE_OPERATION
+    }
+    VERIFY_NOT_REACHED();
+}
+
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-globalcompositeoperation
+void CanvasRenderingContext2D::set_global_composite_operation(String composite_operation)
+{
+    // 1. If the given value is not identical to any of the values that the <blend-mode> or the <composite-mode>
+    //    properties are defined to take, then return.
+    // 2. Otherwise, set this's current compositing and blending operator to the given value.
+#define __ENUMERATE_GLOBAL_COMPOSITE_OPERATION(name, text, gfx_name)                 \
+    if (composite_operation == text) {                                               \
+        drawing_state().global_composite_operation = GlobalCompositeOperation::name; \
+        return;                                                                      \
+    }
+    ENUMERATE_GLOBAL_COMPOSITE_OPERATIONS
+#undef __ENUMERATE_GLOBAL_COMPOSITE_OPERATION
+}
+
 float CanvasRenderingContext2D::shadow_offset_x() const
 {
     return drawing_state().shadow_offset_x;
