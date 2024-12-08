@@ -179,8 +179,6 @@ bool can_transfer_array_buffer(JS::ArrayBuffer const& array_buffer);
 WebIDL::ExceptionOr<JS::Value> clone_as_uint8_array(JS::Realm&, WebIDL::ArrayBufferView&);
 WebIDL::ExceptionOr<JS::Value> structured_clone(JS::Realm&, JS::Value value);
 
-JS::ThrowCompletionOr<GC::Root<WebIDL::CallbackType>> property_to_callback(JS::VM& vm, JS::Value value, JS::PropertyKey const& property_key, WebIDL::OperationReturnsPromise);
-
 // https://streams.spec.whatwg.org/#value-with-size
 struct ValueWithSize {
     JS::Value value;
