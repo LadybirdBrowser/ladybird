@@ -39,14 +39,11 @@ Optional<URL::URL> sanitize_url(StringView url, Optional<StringView> search_engi
     }
 
     ByteString url_with_scheme = url;
-    if (!(url_with_scheme.starts_with("about:"sv) || url_with_scheme.contains("://"sv) || url_with_scheme.starts_with("data:"sv)))
+    if (!(url_with_scheme.starts_with("about:"sv) || url_with_scheme.contains("://"sv) || url_with_scheme.starts_with("data:"sv) || url_with_scheme.contains("."sv)) {
         url_with_scheme = ByteString::formatted("https://{}"sv, url_with_scheme);
-
-    // FIXME: Fix `is_valid` method in LibURL, this is simply a bandage
-    if (url_with_scheme.contains("."sv)) {
         return URL::create_with_url_or_path(url_with_scheme);
     }
-
+    
     return format_search_engine();;
 }
 
