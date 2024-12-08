@@ -10,6 +10,7 @@
 #include <LibWeb/Bindings/ImageDataPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/ImageData.h>
+#include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -131,6 +132,52 @@ JS::Uint8ClampedArray* ImageData::data()
 const JS::Uint8ClampedArray* ImageData::data() const
 {
     return m_data;
+}
+
+// https://html.spec.whatwg.org/multipage/canvas.html#pixel-manipulation:serialization-steps
+WebIDL::ExceptionOr<void> ImageData::serialization_steps(HTML::SerializationRecord& serialized, bool for_storage, HTML::SerializationMemory& memory)
+{
+    auto& vm = this->vm();
+
+    // FIXME: These have to be performed out of order, since these primitive types will get the wrong value when deserializing
+    //        if they're placed after the Uint8ClampedArray.
+    // 2. Set serialized.[[Width]] to the value of value's width attribute.
+    HTML::serialize_primitive_type(serialized, width());
+
+    // 3. Set serialized.[[Height]] to the value of value's height attribute.
+    HTML::serialize_primitive_type(serialized, height());
+
+    // 1. Set serialized.[[Data]] to the sub-serialization of the value of value's data attribute.
+    serialized.extend(TRY(HTML::structured_serialize_internal(vm, m_data, for_storage, memory)));
+
+    // FIXME: 4. Set serialized.[[ColorSpace]] to the value of value's colorSpace attribute.
+
+    return {};
+}
+
+// https://html.spec.whatwg.org/multipage/canvas.html#pixel-manipulation:deserialization-steps
+WebIDL::ExceptionOr<void> ImageData::deserialization_steps(ReadonlySpan<u32> const& serialized, size_t& position, HTML::DeserializationMemory& memory)
+{
+    auto& vm = this->vm();
+    auto& realm = this->realm();
+
+    // FIXME: These have to be performed out of order, since these primitive types will get the wrong value if they're
+    //        placed after the Uint8ClampedArray.
+    // 2. Initialize value's width attribute to serialized.[[Width]].
+    // 3. Initialize value's height attribute to serialized.[[Height]].
+    auto width = HTML::deserialize_primitive_type<unsigned>(serialized, position);
+    auto height = HTML::deserialize_primitive_type<unsigned>(serialized, position);
+
+    // 1. Initialize value's data attribute to the sub-deserialization of serialized.[[Data]].
+    auto deserialized_record = TRY(HTML::structured_deserialize_internal(vm, serialized, realm, memory, position));
+    if (deserialized_record.value.has_value() && is<JS::Uint8ClampedArray>(deserialized_record.value.value().as_object()))
+        m_data = dynamic_cast<JS::Uint8ClampedArray&>(deserialized_record.value.release_value().as_object());
+
+    m_bitmap = TRY_OR_THROW_OOM(vm, Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Unpremultiplied, Gfx::IntSize(width, height), width * sizeof(u32), m_data->data().data()));
+
+    // FIXME: 4. Initialize value's colorSpace attribute to serialized.[[ColorSpace]].
+
+    return {};
 }
 
 }
