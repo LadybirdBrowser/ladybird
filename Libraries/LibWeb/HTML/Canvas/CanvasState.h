@@ -16,6 +16,7 @@
 #include <LibGfx/Path.h>
 #include <LibGfx/WindingRule.h>
 #include <LibWeb/Bindings/CanvasRenderingContext2DPrototype.h>
+#include <LibWeb/HTML/Canvas/CanvasCompositing.h>
 #include <LibWeb/HTML/CanvasGradient.h>
 #include <LibWeb/HTML/CanvasPattern.h>
 
@@ -93,6 +94,7 @@ public:
         bool image_smoothing_enabled { true };
         Bindings::ImageSmoothingQuality image_smoothing_quality { Bindings::ImageSmoothingQuality::Low };
         float global_alpha = { 1 };
+        GlobalCompositeOperation global_composite_operation { GlobalCompositeOperation::SourceOver };
         RefPtr<CSS::CSSStyleValue> font_style_value { nullptr };
         RefPtr<Gfx::Font const> current_font { nullptr };
         Bindings::CanvasTextAlign text_align { Bindings::CanvasTextAlign::Start };
