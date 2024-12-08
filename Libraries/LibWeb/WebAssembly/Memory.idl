@@ -1,6 +1,8 @@
 dictionary MemoryDescriptor {
     required [EnforceRange] unsigned long initial;
     [EnforceRange] unsigned long maximum;
+    // https://webassembly.github.io/threads/js-api/index.html#dictdef-memorydescriptor
+    boolean shared = false;
 };
 
 // https://webassembly.github.io/spec/js-api/#memories
