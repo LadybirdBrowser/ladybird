@@ -75,11 +75,21 @@ void ImagePaintable::paint(PaintContext& context, PaintPhase phase) const
             auto bitmap_aspect_ratio = (float)bitmap_rect.height() / bitmap_rect.width();
             auto image_aspect_ratio = (float)image_rect.height().value() / image_rect.width().value();
 
+            // FIXME: Scale may be wrong if device-pixels != css-pixels.
             auto scale_x = 0.0f;
             auto scale_y = 0.0f;
             Gfx::IntRect bitmap_intersect = bitmap_rect;
 
+            // https://drafts.csswg.org/css-images/#the-object-fit
             auto object_fit = m_is_svg_image ? CSS::ObjectFit::Contain : computed_values().object_fit();
+            if (object_fit == CSS::ObjectFit::ScaleDown) {
+                if (bitmap_rect.width() > image_int_rect.width() || bitmap_rect.height() > image_int_rect.height()) {
+                    object_fit = CSS::ObjectFit::Contain;
+                } else {
+                    object_fit = CSS::ObjectFit::None;
+                }
+            }
+
             switch (object_fit) {
             case CSS::ObjectFit::Fill:
                 scale_x = (float)image_int_rect.width() / bitmap_rect.width();
@@ -106,7 +116,7 @@ void ImagePaintable::paint(PaintContext& context, PaintPhase phase) const
                 }
                 break;
             case CSS::ObjectFit::ScaleDown:
-                // FIXME: Implement
+                VERIFY_NOT_REACHED(); // handled outside the switch-case
             case CSS::ObjectFit::None:
                 scale_x = 1;
                 scale_y = 1;
@@ -122,6 +132,7 @@ void ImagePaintable::paint(PaintContext& context, PaintPhase phase) const
             bitmap_intersect.set_x((bitmap_rect.width() - bitmap_intersect.width()) / 2);
             bitmap_intersect.set_y((bitmap_rect.height() - bitmap_intersect.height()) / 2);
 
+            // https://drafts.csswg.org/css-images/#the-object-position
             auto const& object_position = computed_values().object_position();
 
             auto offset_x = 0;
