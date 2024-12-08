@@ -5,6 +5,7 @@
  */
 
 #include <AK/Assertions.h>
+#include <AK/HashMap.h>
 #include <AK/IDAllocator.h>
 #include <AK/Singleton.h>
 #include <AK/TemporaryChange.h>

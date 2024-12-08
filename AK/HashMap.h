@@ -246,6 +246,7 @@ public:
     V take_first()
     requires(IsOrdered)
     {
+        VERIFY(!is_empty());
         return take(begin()->key).release_value();
     }
 

@@ -6,7 +6,7 @@
 
 #include <AK/DeprecatedFlyString.h>
 #include <AK/FlyString.h>
-#include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <AK/Singleton.h>
 #include <AK/String.h>
 #include <AK/StringData.h>

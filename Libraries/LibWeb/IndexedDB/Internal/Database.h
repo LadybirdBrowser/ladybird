@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/HashMap.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/IndexedDB/IDBDatabase.h>

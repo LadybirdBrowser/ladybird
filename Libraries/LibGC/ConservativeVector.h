@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/HashMap.h>
 #include <AK/IntrusiveList.h>
 #include <AK/Vector.h>
 #include <LibGC/Cell.h>

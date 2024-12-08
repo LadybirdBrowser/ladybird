@@ -13,7 +13,6 @@
 #include <AK/ByteString.h>
 #include <AK/COWVector.h>
 #include <AK/DeprecatedFlyString.h>
-#include <AK/HashMap.h>
 #include <AK/MemMem.h>
 #include <AK/RedBlackTree.h>
 #include <AK/StringBuilder.h>

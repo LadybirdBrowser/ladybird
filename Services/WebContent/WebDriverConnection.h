@@ -9,7 +9,6 @@
 #pragma once
 
 #include <AK/ByteString.h>
-#include <AK/HashMap.h>
 #include <AK/String.h>
 #include <LibGC/MarkedVector.h>
 #include <LibGfx/Rect.h>

@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/HashMap.h>
 #include <AK/Optional.h>
 #include <AK/Span.h>
 #include <AK/StringView.h>

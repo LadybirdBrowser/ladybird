@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <AK/HashMap.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibJS/Forward.h>

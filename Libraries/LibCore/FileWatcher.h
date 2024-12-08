@@ -10,6 +10,7 @@
 #include <AK/ByteString.h>
 #include <AK/EnumBits.h>
 #include <AK/Function.h>
+#include <AK/HashMap.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefCounted.h>

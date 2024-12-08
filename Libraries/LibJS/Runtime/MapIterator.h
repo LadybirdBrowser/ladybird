@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/HashMap.h>
 #include <LibJS/Runtime/Map.h>
 #include <LibJS/Runtime/Object.h>
 
