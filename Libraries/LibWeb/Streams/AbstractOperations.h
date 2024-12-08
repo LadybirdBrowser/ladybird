@@ -11,6 +11,7 @@
 
 #include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Streams/Algorithms.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -18,16 +19,6 @@
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::Streams {
-
-using SizeAlgorithm = GC::Function<JS::Completion(JS::Value)>;
-using PullAlgorithm = GC::Function<GC::Ref<WebIDL::Promise>()>;
-using CancelAlgorithm = GC::Function<GC::Ref<WebIDL::Promise>(JS::Value)>;
-using StartAlgorithm = GC::Function<WebIDL::ExceptionOr<JS::Value>()>;
-using AbortAlgorithm = GC::Function<GC::Ref<WebIDL::Promise>(JS::Value)>;
-using CloseAlgorithm = GC::Function<GC::Ref<WebIDL::Promise>()>;
-using WriteAlgorithm = GC::Function<GC::Ref<WebIDL::Promise>(JS::Value)>;
-using FlushAlgorithm = GC::Function<GC::Ref<WebIDL::Promise>()>;
-using TransformAlgorithm = GC::Function<GC::Ref<WebIDL::Promise>(JS::Value)>;
 
 WebIDL::ExceptionOr<GC::Ref<ReadableStreamDefaultReader>> acquire_readable_stream_default_reader(ReadableStream&);
 WebIDL::ExceptionOr<GC::Ref<ReadableStreamBYOBReader>> acquire_readable_stream_byob_reader(ReadableStream&);
