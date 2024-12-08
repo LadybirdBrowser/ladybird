@@ -12,7 +12,6 @@
 #include <LibCore/ArgsParser.h>
 #include <LibCore/Version.h>
 #include <limits.h>
-#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
