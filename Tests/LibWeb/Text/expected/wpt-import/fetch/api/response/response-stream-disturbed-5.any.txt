@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	Getting a body reader after consuming as blob (body source: fetch)
+Pass	Getting a body reader after consuming as text (body source: fetch)
+Pass	Getting a body reader after consuming as json (body source: fetch)
+Pass	Getting a body reader after consuming as arrayBuffer (body source: fetch)
+Pass	Getting a body reader after consuming as blob (body source: stream)
+Pass	Getting a body reader after consuming as text (body source: stream)
+Pass	Getting a body reader after consuming as json (body source: stream)
+Pass	Getting a body reader after consuming as arrayBuffer (body source: stream)
+Pass	Getting a body reader after consuming as blob (body source: string)
+Pass	Getting a body reader after consuming as text (body source: string)
+Pass	Getting a body reader after consuming as json (body source: string)
+Pass	Getting a body reader after consuming as arrayBuffer (body source: string)
