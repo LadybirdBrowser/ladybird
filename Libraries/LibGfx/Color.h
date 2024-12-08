@@ -19,6 +19,38 @@ namespace Gfx {
 
 typedef u32 ARGB32;
 
+enum class BlendMode {
+    Clear,
+    Src,
+    Dst,
+    SrcOver,
+    DstOver,
+    SrcIn,
+    DstIn,
+    SrcOut,
+    DstOut,
+    SrcATop,
+    DstATop,
+    Xor,
+    Plus,
+    Modulate,
+    Screen,
+    Overlay,
+    Darken,
+    Lighten,
+    ColorDodge,
+    ColorBurn,
+    HardLight,
+    SoftLight,
+    Difference,
+    Exclusion,
+    Multiply,
+    Hue,
+    Saturation,
+    Color,
+    Luminosity,
+};
+
 enum class AlphaType {
     Premultiplied,
     Unpremultiplied,

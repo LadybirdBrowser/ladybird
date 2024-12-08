@@ -15,6 +15,7 @@
 #include <LibWeb/Bindings/CanvasRenderingContext2DPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
+#include <LibWeb/HTML/Canvas/CanvasCompositing.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/ImageBitmap.h>
@@ -178,7 +179,8 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
     }
 
     if (auto* painter = this->painter()) {
-        painter->draw_bitmap(destination_rect, *bitmap, source_rect.to_rounded<int>(), scaling_mode, drawing_state().global_alpha);
+        const Gfx::BlendMode blend_mode = global_composite_operation_to_blend_mode(drawing_state().global_composite_operation);
+        painter->draw_bitmap(destination_rect, *bitmap, source_rect.to_rounded<int>(), scaling_mode, drawing_state().global_alpha, blend_mode);
         did_draw(destination_rect);
     }
 
@@ -300,13 +302,14 @@ void CanvasRenderingContext2D::stroke_internal(Gfx::Path const& path)
     paint_shadow_for_stroke_internal(path);
 
     auto& state = drawing_state();
+    const Gfx::BlendMode blend_mode = global_composite_operation_to_blend_mode(state.global_composite_operation);
 
     // FIXME: Honor state's line_cap, line_join, miter_limit, dash_list, and line_dash_offset.
 
     if (auto color = state.stroke_style.as_color(); color.has_value()) {
-        painter->stroke_path(path, color->with_opacity(state.global_alpha), state.line_width);
+        painter->stroke_path(path, color->with_opacity(state.global_alpha), state.line_width, blend_mode);
     } else {
-        painter->stroke_path(path, state.stroke_style.to_gfx_paint_style(), state.line_width, state.global_alpha);
+        painter->stroke_path(path, state.stroke_style.to_gfx_paint_style(), state.line_width, state.global_alpha, blend_mode);
     }
 
     did_draw(path.bounding_box());
@@ -343,10 +346,11 @@ void CanvasRenderingContext2D::fill_internal(Gfx::Path const& path, Gfx::Winding
     auto path_to_fill = path;
     path_to_fill.close_all_subpaths();
     auto& state = this->drawing_state();
+    const Gfx::BlendMode blend_mode = global_composite_operation_to_blend_mode(state.global_composite_operation);
     if (auto color = state.fill_style.as_color(); color.has_value()) {
-        painter->fill_path(path_to_fill, color->with_opacity(state.global_alpha), winding_rule);
+        painter->fill_path(path_to_fill, color->with_opacity(state.global_alpha), winding_rule, blend_mode);
     } else {
-        painter->fill_path(path_to_fill, state.fill_style.to_gfx_paint_style(), state.global_alpha, winding_rule);
+        painter->fill_path(path_to_fill, state.fill_style.to_gfx_paint_style(), state.global_alpha, blend_mode, winding_rule);
     }
 
     did_draw(path_to_fill.bounding_box());
@@ -438,8 +442,10 @@ WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data
     ASSERT(snapshot->alpha_type() == Gfx::AlphaType::Premultiplied);
     ASSERT(image_data->bitmap().alpha_type() == Gfx::AlphaType::Unpremultiplied);
 
+    const Gfx::BlendMode blend_mode = global_composite_operation_to_blend_mode(drawing_state().global_composite_operation);
+
     auto painter = Gfx::Painter::create(image_data->bitmap());
-    painter->draw_bitmap(image_data->bitmap().rect().to_type<float>(), *snapshot, source_rect_intersected, Gfx::ScalingMode::NearestNeighbor, drawing_state().global_alpha);
+    painter->draw_bitmap(image_data->bitmap().rect().to_type<float>(), *snapshot, source_rect_intersected, Gfx::ScalingMode::NearestNeighbor, drawing_state().global_alpha, blend_mode);
 
     // 7. Set the pixels values of imageData for areas of the source rectangle that are outside of the output bitmap to transparent black.
     // NOTE: No-op, already done during creation.
@@ -452,7 +458,7 @@ void CanvasRenderingContext2D::put_image_data(ImageData const& image_data, float
 {
     if (auto* painter = this->painter()) {
         auto dst_rect = Gfx::FloatRect(x, y, image_data.width(), image_data.height());
-        painter->draw_bitmap(dst_rect, Gfx::ImmutableBitmap::create(image_data.bitmap()), image_data.bitmap().rect(), Gfx::ScalingMode::NearestNeighbor, 1.0f);
+        painter->draw_bitmap(dst_rect, Gfx::ImmutableBitmap::create(image_data.bitmap()), image_data.bitmap().rect(), Gfx::ScalingMode::NearestNeighbor, 1.0f, Gfx::BlendMode::SrcOver);
         did_draw(dst_rect);
     }
 }
@@ -858,13 +864,14 @@ void CanvasRenderingContext2D::paint_shadow_for_fill_internal(Gfx::Path const& p
     path_to_fill.close_all_subpaths();
 
     auto& state = this->drawing_state();
+    const Gfx::BlendMode blend_mode = global_composite_operation_to_blend_mode(state.global_composite_operation);
 
     painter->save();
 
     Gfx::AffineTransform transform;
     transform.translate(state.shadow_offset_x, state.shadow_offset_y);
     painter->set_transform(transform);
-    painter->fill_path(path_to_fill, state.shadow_color.with_opacity(state.global_alpha), winding_rule, state.shadow_blur);
+    painter->fill_path(path_to_fill, state.shadow_color.with_opacity(state.global_alpha), winding_rule, state.shadow_blur, blend_mode);
 
     painter->restore();
 
@@ -878,13 +885,14 @@ void CanvasRenderingContext2D::paint_shadow_for_stroke_internal(Gfx::Path const&
         return;
 
     auto& state = drawing_state();
+    const Gfx::BlendMode blend_mode = global_composite_operation_to_blend_mode(state.global_composite_operation);
 
     painter->save();
 
     Gfx::AffineTransform transform;
     transform.translate(state.shadow_offset_x, state.shadow_offset_y);
     painter->set_transform(transform);
-    painter->stroke_path(path, state.shadow_color.with_opacity(state.global_alpha), state.line_width, state.shadow_blur);
+    painter->stroke_path(path, state.shadow_color.with_opacity(state.global_alpha), state.line_width, state.shadow_blur, blend_mode);
 
     painter->restore();
 

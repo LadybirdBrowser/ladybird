@@ -65,6 +65,17 @@ public:
     virtual void set_global_composite_operation(String composite_operation) = 0;
 protected:
     CanvasCompositing() = default;
+
+    static constexpr Gfx::BlendMode global_composite_operation_to_blend_mode(GlobalCompositeOperation operation) {
+        switch (operation) {
+#define __ENUMERATE_GLOBAL_COMPOSITE_OPERATION(name, text, gfx_mode) \
+    case GlobalCompositeOperation::name:                             \
+        return Gfx::BlendMode::gfx_mode;
+            ENUMERATE_GLOBAL_COMPOSITE_OPERATIONS
+#undef __ENUMERATE_GLOBAL_COMPOSITE_OPERATION
+        }
+        VERIFY_NOT_REACHED();
+    }
 };
 
 }

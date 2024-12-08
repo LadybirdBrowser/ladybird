@@ -481,19 +481,19 @@ void TinyVGDecodedImageData::draw_transformed(Painter& painter, AffineTransform 
             auto fill_path = draw_path;
             fill_path.close_all_subpaths();
             command.fill->visit(
-                [&](Color color) { painter.fill_path(fill_path, color, WindingRule::EvenOdd); },
+                [&](Color color) { painter.fill_path(fill_path, color, WindingRule::EvenOdd, Gfx::BlendMode::SrcOver); },
                 [&](NonnullRefPtr<SVGGradientPaintStyle> style) {
                     const_cast<SVGGradientPaintStyle&>(*style).set_gradient_transform(transform);
-                    painter.fill_path(fill_path, style, 1.0f, WindingRule::EvenOdd);
+                    painter.fill_path(fill_path, style, 1.0f, Gfx::BlendMode::SrcOver, WindingRule::EvenOdd);
                 });
         }
 
         if (command.stroke.has_value()) {
             command.stroke->visit(
-                [&](Color color) { painter.stroke_path(draw_path, color, command.stroke_width * scale); },
+                [&](Color color) { painter.stroke_path(draw_path, color, command.stroke_width * scale, Gfx::BlendMode::SrcOver); },
                 [&](NonnullRefPtr<SVGGradientPaintStyle> style) {
                     const_cast<SVGGradientPaintStyle&>(*style).set_gradient_transform(transform);
-                    painter.stroke_path(draw_path, style, command.stroke_width * scale, 1.0f);
+                    painter.stroke_path(draw_path, style, command.stroke_width * scale, 1.0f, Gfx::BlendMode::SrcOver);
                 });
         }
     }
