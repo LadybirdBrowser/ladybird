@@ -125,6 +125,8 @@ private:
 
     void close_sub_widgets();
 
+    void recreate_inspector();
+
     QBoxLayout* m_layout { nullptr };
     QToolBar* m_toolbar { nullptr };
     QToolButton* m_hamburger_button { nullptr };
