@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-python3 ./Toolchain/BuildVcpkg.py
+python3 ./BuildVcpkg.py
