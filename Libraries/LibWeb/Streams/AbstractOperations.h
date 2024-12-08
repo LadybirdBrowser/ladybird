@@ -172,7 +172,6 @@ GC::Ref<WebIDL::Promise> transform_stream_default_source_cancel_algorithm(Transf
 void transform_stream_error(TransformStream&, JS::Value error);
 void transform_stream_error_writable_and_unblock_write(TransformStream&, JS::Value error);
 void transform_stream_set_backpressure(TransformStream&, bool backpressure);
-void transform_stream_set_up(TransformStream&, GC::Ref<TransformAlgorithm>, GC::Ptr<FlushAlgorithm> = {}, GC::Ptr<CancelAlgorithm> = {});
 void transform_stream_unblock_write(TransformStream&);
 
 bool is_non_negative_number(JS::Value);
