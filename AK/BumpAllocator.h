@@ -10,7 +10,15 @@
 #include <AK/StdLibExtras.h>
 #include <AK/Types.h>
 #include <AK/kmalloc.h>
-#include <sys/mman.h>
+#if !defined(AK_OS_WINDOWS)
+#    include <sys/mman.h>
+#else
+extern "C" __declspec(dllimport) void* __stdcall VirtualAlloc(size_t dwSize, u32 flAllocationType, u32 flProtect);
+extern "C" __declspec(dllimport) bool __stdcall VirtualFree(void* lpAddress, size_t dwSize, u32 dwFreeType);
+#    define MEM_COMMIT 0x00001000
+#    define PAGE_READWRITE 0x04
+#    define MEM_RELEASE 0x00008000
+#endif
 
 namespace AK {
 
@@ -73,7 +81,11 @@ public:
             }
 
             if constexpr (use_mmap) {
+#if defined(AK_OS_WINDOWS)
+                VirtualFree((LPVOID)chunk, m_chunk_size, MEM_RELEASE);
+#else
                 munmap((void*)chunk, m_chunk_size);
+#endif
             } else {
                 kfree_sized((void*)chunk, m_chunk_size);
             }
@@ -105,11 +117,18 @@ protected:
             if constexpr (use_mmap) {
 #ifdef AK_OS_SERENITY
                 new_chunk = serenity_mmap(nullptr, m_chunk_size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_RANDOMIZED | MAP_PRIVATE, 0, 0, m_chunk_size, "BumpAllocator Chunk");
+#elif defined(AK_OS_WINDOWS)
+                new_chunk = VirtualAlloc(NULL, m_chunk_size, MEM_COMMIT, PAGE_READWRITE);
 #else
                 new_chunk = mmap(nullptr, m_chunk_size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
 #endif
+#if defined(AK_OS_WINDOWS)
+                if (new_chunk == NULL)
+                    return false;
+#else
                 if (new_chunk == MAP_FAILED)
                     return false;
+#endif
             } else {
                 new_chunk = kmalloc(m_chunk_size);
                 if (!new_chunk)
