@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	div role is caption (in div with table role)
+Pass	orphan p role is caption
+Pass	span role is cell (in div with row role, in div with rowgroup role, in div with table role)
+Pass	orphan span role is cell
+Pass	span role is columnheader (in div with row role, in div with rowgroup role, in div with table role)
+Pass	div role is row (in div with rowgroup role, in div with table role)
+Pass	div role is rowgroup (in div with table role)
+Pass	role is rowheader (in div with row role, in div with rowgroup role, in div with table role)
+Pass	div role is table
