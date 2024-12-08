@@ -155,7 +155,11 @@ ErrorOr<void> encode(Encoder& encoder, T const& hashmap)
 template<Concepts::SharedSingleProducerCircularQueue T>
 ErrorOr<void> encode(Encoder& encoder, T const& queue)
 {
+#ifndef AK_OS_WINDOWS
     TRY(encoder.encode(TRY(IPC::File::clone_fd(queue.fd()))));
+#else
+    TRY(encoder.encode((intptr_t)queue.fd()));
+#endif
     return {};
 }
 

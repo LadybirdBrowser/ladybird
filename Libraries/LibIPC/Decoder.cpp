@@ -16,6 +16,10 @@
 #include <LibURL/URL.h>
 #include <fcntl.h>
 
+#ifdef AK_OS_WINDOWS
+#    include <io.h>
+#endif
+
 namespace IPC {
 
 ErrorOr<size_t> Decoder::decode_size()
@@ -111,6 +115,7 @@ ErrorOr<URL::Origin> decode(Decoder& decoder)
     return URL::Origin { move(scheme), move(host), port };
 }
 
+#ifndef AK_OS_WINDOWS
 template<>
 ErrorOr<URL::Host> decode(Decoder& decoder)
 {
@@ -128,6 +133,17 @@ ErrorOr<File> decode(Decoder& decoder)
     TRY(Core::System::fcntl(fd, F_SETFD, fd_flags | FD_CLOEXEC));
     return file;
 }
+#else
+template<>
+ErrorOr<File> decode(Decoder& decoder)
+{
+    auto handle = TRY(decoder.decode<intptr_t>());
+    int fd = _open_osfhandle(handle, 0);
+    if (fd == -1)
+        return Error::from_string_literal("Invalid handle");
+    return File::adopt_fd(fd);
+}
+#endif
 
 template<>
 ErrorOr<Empty> decode(Decoder&)
@@ -142,9 +158,13 @@ ErrorOr<Core::AnonymousBuffer> decode(Decoder& decoder)
         return Core::AnonymousBuffer {};
 
     auto size = TRY(decoder.decode_size());
+#ifndef AK_OS_WINDOWS
     auto anon_file = TRY(decoder.decode<IPC::File>());
-
     return Core::AnonymousBuffer::create_from_anon_fd(anon_file.take_fd(), size);
+#else
+    auto handle = TRY(decoder.decode<intptr_t>());
+    return Core::AnonymousBuffer::create_from_anon_fd((int)handle, size);
+#endif
 }
 
 template<>

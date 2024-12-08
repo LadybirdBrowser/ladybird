@@ -184,4 +184,12 @@ ErrorOr<void> munmap(void* address, size_t size)
     return {};
 }
 
+ErrorOr<int> dup(int source_fd)
+{
+    int fd = _dup(source_fd);
+    if (fd < 0)
+        return Error::from_syscall("dup"sv, -errno);
+    return fd;
+}
+
 }
