@@ -30,7 +30,7 @@ ErrorOr<NonnullRefPtr<AnonymousBufferImpl>> AnonymousBufferImpl::create(size_t s
 {
     HANDLE map_handle = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, size >> 31 >> 1, size & 0xFFFFFFFF, NULL);
     if (!map_handle)
-        return Error::from_windows_error(GetLastError());
+        return Error::from_windows_error();
 
     return create((int)(intptr_t)map_handle, size);
 }
@@ -39,7 +39,7 @@ ErrorOr<NonnullRefPtr<AnonymousBufferImpl>> AnonymousBufferImpl::create(int fd, 
 {
     void* ptr = MapViewOfFile((HANDLE)(intptr_t)fd, FILE_MAP_ALL_ACCESS, 0, 0, size);
     if (!ptr)
-        return Error::from_windows_error(GetLastError());
+        return Error::from_windows_error();
 
     return adopt_nonnull_ref_or_enomem(new (nothrow) AnonymousBufferImpl(fd, size, ptr));
 }

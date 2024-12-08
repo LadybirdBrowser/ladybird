@@ -30,7 +30,7 @@ ErrorOr<int> open(StringView path, int options, mode_t mode)
         if (::stat(sz_path, &st) == 0 && (st.st_mode & S_IFDIR)) {
             HANDLE dir_handle = CreateFile(sz_path, GENERIC_ALL, 0, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
             if (dir_handle == INVALID_HANDLE_VALUE)
-                return Error::from_windows_error(GetLastError());
+                return Error::from_windows_error();
             int dir_fd = _open_osfhandle((intptr_t)dir_handle, 0);
             if (dir_fd != -1)
                 return dir_fd;
@@ -84,7 +84,7 @@ ErrorOr<void> ftruncate(int fd, off_t length)
         return result.release_error();
 
     if (SetEndOfFile((HANDLE)_get_osfhandle(fd)) == 0)
-        return Error::from_windows_error(GetLastError());
+        return Error::from_windows_error();
     return {};
 }
 
