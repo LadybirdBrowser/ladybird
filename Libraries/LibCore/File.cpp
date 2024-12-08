@@ -29,7 +29,7 @@ ErrorOr<NonnullOwnPtr<File>> File::open(StringView filename, OpenMode mode, mode
 
 ErrorOr<NonnullOwnPtr<File>> File::adopt_fd(int fd, OpenMode mode, ShouldCloseFileDescriptor should_close_file_descriptor)
 {
-    if (fd < 0) {
+    if (fd == -1) {
         return Error::from_errno(EBADF);
     }
 

@@ -25,7 +25,7 @@ Notifier::~Notifier()
 
 void Notifier::set_enabled(bool enabled)
 {
-    if (m_fd < 0)
+    if (m_fd == -1)
         return;
     if (enabled == m_is_enabled)
         return;
@@ -38,7 +38,7 @@ void Notifier::set_enabled(bool enabled)
 
 void Notifier::close()
 {
-    if (m_fd < 0)
+    if (m_fd == -1)
         return;
     set_enabled(false);
     m_fd = -1;

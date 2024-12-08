@@ -12,12 +12,57 @@
 #include <AK/ByteString.h>
 #include <AK/ScopeGuard.h>
 #include <LibCore/System.h>
-#include <Windows.h>
 #include <direct.h>
-#include <io.h>
 #include <sys/mman.h>
 
+#include <AK/Windows.h>
+
 namespace Core::System {
+
+static void invalid_parameter_handler(wchar_t const*, wchar_t const*, wchar_t const*, unsigned int, uintptr_t)
+{
+}
+
+static int init_crt_and_wsa()
+{
+    WSADATA wsa;
+    WORD version = MAKEWORD(2, 2);
+    int rc = WSAStartup(version, &wsa);
+    VERIFY(!rc && wsa.wVersion == version);
+
+    // Make _get_osfhandle return -1 instead of crashing on invalid fd in release (debug still __debugbreak's)
+    _set_invalid_parameter_handler(invalid_parameter_handler);
+    return 0;
+}
+
+static auto dummy = init_crt_and_wsa();
+
+int handle_to_fd(HANDLE handle, HandleType type)
+{
+    return handle_to_fd((intptr_t)handle, type);
+}
+
+int handle_to_fd(intptr_t handle, HandleType type)
+{
+    if (type != SocketHandle && type != FileMappingHandle)
+        return _open_osfhandle(handle, 0);
+
+    // Special treatment for socket and file mapping handles because:
+    // * _open_osfhandle doesn't support file mapping handles
+    // * _close doesn't properly support socket handles (it calls CloseHandle instead of closesocket)
+    // Handle value is held in lower 31 bits, and sign bit is set to indicate this is not a regular fd.
+    VERIFY((handle >> 31) == 0); // must be 0 ⩽ handle ⩽ 0x7FFFFFFF
+    return (1 << 31) | handle;
+}
+
+HANDLE fd_to_handle(int fd)
+{
+    if (fd >= 0)
+        return (HANDLE)_get_osfhandle(fd);
+    if (fd == -1)
+        return INVALID_HANDLE_VALUE;
+    return (HANDLE)(intptr_t)(fd & ~(1 << 31));
+}
 
 ErrorOr<int> open(StringView path, int options, mode_t mode)
 {
@@ -31,9 +76,7 @@ ErrorOr<int> open(StringView path, int options, mode_t mode)
             HANDLE dir_handle = CreateFile(sz_path, GENERIC_ALL, 0, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
             if (dir_handle == INVALID_HANDLE_VALUE)
                 return Error::from_windows_error();
-            int dir_fd = _open_osfhandle((intptr_t)dir_handle, 0);
-            if (dir_fd != -1)
-                return dir_fd;
+            return handle_to_fd(dir_handle, DirectoryHandle);
         }
         return Error::from_syscall("open"sv, -error);
     }
@@ -42,6 +85,20 @@ ErrorOr<int> open(StringView path, int options, mode_t mode)
 
 ErrorOr<void> close(int fd)
 {
+    if (fd < 0) {
+        HANDLE handle = fd_to_handle(fd);
+        if (handle == INVALID_HANDLE_VALUE)
+            return Error::from_string_literal("Invalid file descriptor");
+        if (is_socket(fd)) {
+            if (closesocket((SOCKET)handle))
+                return Error::from_windows_error();
+        } else {
+            if (!CloseHandle(handle))
+                return Error::from_windows_error();
+        }
+        return {};
+    }
+
     if (_close(fd) < 0)
         return Error::from_syscall("close"sv, -errno);
     return {};
@@ -83,7 +140,7 @@ ErrorOr<void> ftruncate(int fd, off_t length)
     if (result.is_error())
         return result.release_error();
 
-    if (SetEndOfFile((HANDLE)_get_osfhandle(fd)) == 0)
+    if (SetEndOfFile(fd_to_handle(fd)) == 0)
         return Error::from_windows_error();
     return {};
 }
@@ -187,6 +244,40 @@ ErrorOr<void> munmap(void* address, size_t size)
 int getpid()
 {
     return GetCurrentProcessId();
+}
+
+ErrorOr<int> dup(int fd)
+{
+    if (fd < 0) {
+        HANDLE handle = fd_to_handle(fd);
+        if (handle == INVALID_HANDLE_VALUE)
+            return Error::from_string_literal("Invalid file descriptor");
+
+        if (is_socket(fd)) {
+            WSAPROTOCOL_INFO pi = {};
+            if (WSADuplicateSocket((SOCKET)handle, GetCurrentProcessId(), &pi))
+                return Error::from_windows_error();
+            SOCKET socket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, &pi, 0, WSA_FLAG_OVERLAPPED | WSA_FLAG_NO_HANDLE_INHERIT);
+            if (socket == INVALID_SOCKET)
+                return Error::from_windows_error();
+            return handle_to_fd(socket, SocketHandle);
+        } else {
+            if (!DuplicateHandle(GetCurrentProcess(), handle, GetCurrentProcess(), &handle, 0, FALSE, DUPLICATE_SAME_ACCESS))
+                return Error::from_windows_error();
+            return handle_to_fd(handle, FileMappingHandle);
+        }
+    }
+
+    int new_fd = _dup(fd);
+    if (new_fd < 0)
+        return Error::from_syscall("dup"sv, -errno);
+    return new_fd;
+}
+
+bool is_socket(int fd)
+{
+    int val, len = sizeof(val);
+    return !::getsockopt((SOCKET)fd_to_handle(fd), SOL_SOCKET, SO_TYPE, (char*)&val, &len);
 }
 
 }
