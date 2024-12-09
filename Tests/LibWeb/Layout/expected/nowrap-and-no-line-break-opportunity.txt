@@ -8,11 +8,11 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
               "ABC"
           TextNode <#text>
         InlineNode <span>
-          frag 0 from TextNode start: 0, length: 1, rect: [43,9 11.5625x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 1, rect: [42.921875,9 11.5625x17] baseline: 13.296875
               "X"
           TextNode <#text>
         InlineNode <span.nowrap>
-          frag 0 from TextNode start: 0, length: 3, rect: [54,9 33.921875x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 3, rect: [54.484375,9 33.921875x17] baseline: 13.296875
               "ABC"
           TextNode <#text>
         TextNode <#text>

@@ -6,7 +6,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
             "Download "
         TextNode <#text>
       InlineNode <div>
-        frag 0 from TextNode start: 1, length: 4, rect: [150,8 39.5625x17] baseline: 13.296875
+        frag 0 from TextNode start: 1, length: 4, rect: [150.125,8 39.5625x17] baseline: 13.296875
             "News"
         TextNode <#text>
       TextNode <#text>

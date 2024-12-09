@@ -5,10 +5,8 @@
  */
 
 #include <AK/Utf8View.h>
-#include <LibWeb/DOM/Range.h>
 #include <LibWeb/Layout/LayoutState.h>
 #include <LibWeb/Layout/TextNode.h>
-#include <LibWeb/Layout/Viewport.h>
 #include <ctype.h>
 
 namespace Web::Layout {

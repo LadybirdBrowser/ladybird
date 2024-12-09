@@ -2,7 +2,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x83 [BFC] children: not-inline
     BlockContainer <body> at (8,16) content-size 784x67 children: not-inline
       BlockContainer <p> at (8,16) content-size 784x17 children: inline
-        frag 0 from TextNode start: 0, length: 36, rect: [19,16 300x17] baseline: 13.296875
+        frag 0 from TextNode start: 0, length: 36, rect: [18.625,16 300x17] baseline: 13.296875
             "P should generate a ::before pseudo."
         InlineNode <(anonymous)>
           frag 0 from TextNode start: 0, length: 1, rect: [8,16 10.625x17] baseline: 13.296875

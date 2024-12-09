@@ -269,7 +269,7 @@ void LineBuilder::update_last_line()
     for (size_t i = 0; i < line_box.fragments().size(); ++i) {
         auto& fragment = line_box.fragments()[i];
 
-        CSSPixels new_fragment_inline_offset = round(inline_offset + fragment.inline_offset());
+        CSSPixels new_fragment_inline_offset = inline_offset + fragment.inline_offset();
         CSSPixels new_fragment_block_offset = 0;
 
         auto block_offset_value_for_alignment = [&](CSS::VerticalAlign vertical_align) {

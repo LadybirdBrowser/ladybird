@@ -8,7 +8,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
           BlockContainer <(anonymous)> (not painted) children: inline
             TextNode <#text>
           BlockContainer <caption> at (8,8) content-size 59.046875x34 [BFC] children: inline
-            frag 0 from TextNode start: 1, length: 6, rect: [11,8 54.03125x17] baseline: 13.296875
+            frag 0 from TextNode start: 1, length: 6, rect: [10.5,8 54.03125x17] baseline: 13.296875
                 "A long"
             frag 1 from TextNode start: 8, length: 7, rect: [8,25 59.046875x17] baseline: 13.296875
                 "caption"
