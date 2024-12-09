@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const unforgeableProperties = [
+            "window",
+            "document",
+            "location",
+            "top",
+        ];
+
+        const windowPrototype = Object.getPrototypeOf(window);
+
+        for (const property of unforgeableProperties) { 
+            println(`${property} exists on window itself: ${Object.hasOwn(window, property)}`);
+            println(`${property} does not exist on LocationPrototype: ${!Object.hasOwn(windowPrototype, property)}`);
+            
+            const propertyDescriptor = Object.getOwnPropertyDescriptor(window, property);
+            println(`${property} descriptor is not undefined: ${propertyDescriptor !== undefined}`);
+            println(`${property} enumerable: ${propertyDescriptor.enumerable}`);
+            println(`${property} configurable: ${propertyDescriptor.configurable}`);
+            println(`${property} writable: ${propertyDescriptor.writable}`);
+        }
+    });
+</script>
