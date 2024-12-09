@@ -234,11 +234,15 @@ import_wpt()
 
     pushd "${LADYBIRD_SOURCE_DIR}" > /dev/null
         ./Meta/ladybird.sh build headless-browser
+        set +e
         for path in "${TESTS[@]}"; do
             echo "Importing test from ${path}"
-            ./Meta/import-wpt-test.py https://wpt.live/"${path}"
+            if [ ! "$(./Meta/import-wpt-test.py https://wpt.live/"${path}")" ]; then
+                continue
+            fi
             "${HEADLESS_BROWSER_BINARY}" --run-tests ./Tests/LibWeb --rebaseline -f "$path"
         done
+        set -e
     popd > /dev/null
 }
 
