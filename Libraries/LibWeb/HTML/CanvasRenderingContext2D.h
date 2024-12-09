@@ -100,6 +100,8 @@ public:
 
     virtual float global_alpha() const override;
     virtual void set_global_alpha(float) override;
+    virtual String global_composite_operation() const override;
+    virtual void set_global_composite_operation(String composite_operation) override;
 
     virtual float shadow_offset_x() const override;
     virtual void set_shadow_offset_x(float) override;
