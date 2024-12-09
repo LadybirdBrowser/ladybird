@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	el-input-checkbox-switch
+Pass	el-thead
+Pass	el-tbody
+Pass	el-tfoot

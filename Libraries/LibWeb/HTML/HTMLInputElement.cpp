@@ -2355,8 +2355,12 @@ Optional<ARIA::Role> HTMLInputElement::default_role() const
     if (type_state() == TypeAttributeState::Button)
         return ARIA::Role::button;
     // https://www.w3.org/TR/html-aria/#el-input-checkbox
-    if (type_state() == TypeAttributeState::Checkbox)
+    if (type_state() == TypeAttributeState::Checkbox) {
+        // https://github.com/w3c/html-aam/issues/496
+        if (has_attribute("switch"_string))
+            return ARIA::Role::switch_;
         return ARIA::Role::checkbox;
+    }
     // https://www.w3.org/TR/html-aria/#el-input-email
     if (type_state() == TypeAttributeState::Email && !has_attribute(AttributeNames::list))
         return ARIA::Role::textbox;
