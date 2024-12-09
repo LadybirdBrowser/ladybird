@@ -85,6 +85,7 @@ void Application::create_platform_options(WebView::ChromeOptions& chrome_options
     }
 
     web_content_options.is_layout_test_mode = is_layout_test_mode ? WebView::IsLayoutTestMode::Yes : WebView::IsLayoutTestMode::No;
+    web_content_options.is_headless = WebView::IsHeadless::Yes;
 }
 
 ErrorOr<void> Application::launch_test_fixtures()

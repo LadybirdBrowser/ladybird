@@ -32,12 +32,23 @@
 namespace WebContent {
 
 static PageClient::UseSkiaPainter s_use_skia_painter = PageClient::UseSkiaPainter::GPUBackendIfAvailable;
+static bool s_is_headless { false };
 
 GC_DEFINE_ALLOCATOR(PageClient);
 
 void PageClient::set_use_skia_painter(UseSkiaPainter use_skia_painter)
 {
     s_use_skia_painter = use_skia_painter;
+}
+
+bool PageClient::is_headless() const
+{
+    return s_is_headless;
+}
+
+void PageClient::set_is_headless(bool is_headless)
+{
+    s_is_headless = is_headless;
 }
 
 GC::Ref<PageClient> PageClient::create(JS::VM& vm, PageHost& page_host, u64 id)

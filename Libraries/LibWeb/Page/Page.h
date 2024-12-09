@@ -407,6 +407,8 @@ public:
 
     virtual DisplayListPlayerType display_list_player_type() const = 0;
 
+    virtual bool is_headless() const = 0;
+
 protected:
     virtual ~PageClient() = default;
 };
