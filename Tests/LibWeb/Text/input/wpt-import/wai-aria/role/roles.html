@@ -1,0 +1,140 @@
+<!doctype html>
+<html>
+<head>
+  <title>Simple Core ARIA Role Verification Tests</title>
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../../resources/testdriver.js"></script>
+  <script src="../../resources/testdriver-vendor.js"></script>
+  <script src="../../resources/testdriver-actions.js"></script>
+  <script src="../../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+<p>Tests most <a href="https://w3c.github.io/aria/#role_definitions">ARIA role definitions</a>. See comments for more info.</p>
+
+<script>
+
+/*
+
+Tests simple role assignment: <div role="alert">x</div>
+
+- Nested role structures (table>row>cell, etc) and
+  Abstract roles (e.g. widget, composite) are
+  commented with pointers to a separate test file.
+
+- ARIA extension specs (e.g. doc-*, graphics-*) are
+  commented with pointers to a separate spec directory.
+
+*/
+
+AriaUtils.assignAndVerifyRolesByRoleNames([
+  "alert",
+  "alertdialog",
+  "application",
+  "article",
+  // "associationlist" [AT-RISK: ARIA #1662] or possibly -> ./list-roles.html
+  // "associationlistitemkey" [AT-RISK: ARIA #1662] or possibly -> ./list-roles.html
+  // "associationlistitemvalue" [AT-RISK: ARIA #1662] or possibly -> ./list-roles.html
+  "banner",
+  "blockquote",
+  "button",
+  "caption",
+  // "cell" -> ./grid-roles.html
+  "checkbox",
+  "code",
+  // "columnheader" -> ./grid-roles.html
+  "combobox",
+  // "command" -> ./abstract-roles.html
+  // "comment" -> [AT-RISK: ARIA #1885]
+  "complementary",
+  // "composite" -> ./abstract-roles.html
+  "contentinfo",
+  "definition",
+  "deletion",
+  "dialog",
+  // "directory" -> FAIL. WONTFIX. Deprecated in ARIA 1.2; re-mapped to list role.
+  "document",
+  // doc-* roles -> TBD /dpub-aria or /dpub-aam
+  "emphasis",
+  "feed",
+  "figure",
+  // form -> ./form-roles.html
+  "generic",
+  // graphics-* roles -> /graphics-aria
+  // "grid" -> ./grid-roles.html
+  // "gridcell" -> ./grid-roles.html
+  "group",
+  "heading",
+  // "image" -> ./synonym-roles.html
+  // "img" -> ./synonym-roles.html
+  // "input" -> ./abstract-roles.html
+  "insertion",
+  // "landmark" -> ./abstract-roles.html
+  "link",
+  // "list" -> ./list-roles.html
+  // "listitem" -> ./list-roles.html
+  // "listitemkey" [See: ARIA #1662] or possibly -> ./list-roles.html
+  // "listitemvalue" [See: ARIA #1662] or possibly -> ./list-roles.html
+  // "listbox" -> ./listbox-roles.html
+  "log",
+  "main",
+  "marquee",
+  "math",
+  // "menu" -> ./menu-roles.html
+  // "menuitem" -> ./menu-roles.html
+  // "menuitemcheckbox" -> ./menu-roles.html
+  // "menuitemradio" -> ./menu-roles.html
+  // "menubar" -> ./menu-roles.html
+  "meter",
+  "navigation",
+  // "none" -> ./synonym-roles.html
+  "note",
+  // "option" -> ./listbox-roles.html
+  "paragraph",
+  // "presentation" -> ./synonym-roles.html
+  "progressbar",
+  "radio",
+  "radiogroup",
+  // "range" -> ./abstract-roles.html
+  // "region" -> ./region-roles.html
+  // "roletype" -> ./abstract-roles.html
+  // "row" -> ./grid-roles.html
+  // "rowgroup" -> ./grid-roles.html
+  // "rowheader" -> ./grid-roles.html
+  "scrollbar",
+  "search",
+  "searchbox",
+  // "section" -> ./abstract-roles.html
+  // "sectionhead" -> ./abstract-roles.html
+  // "select" -> ./abstract-roles.html
+  "separator",
+  "slider",
+  "spinbutton",
+  "status",
+  "strong",
+  // "structure" -> ./abstract-roles.html
+  "subscript",
+  "suggestion",
+  "superscript",
+  "switch",
+  // "tab" -> ./tab-roles.html
+  // "table" -> ./grid-roles.html
+  // "tablist" -> ./tab-roles.html
+  // "tabpanel" -> ./tab-roles.html
+  "term",
+  "textbox",
+  "time",
+  "timer",
+  "toolbar",
+  "tooltip",
+  // "tree" -> ./tree-roles.html
+  // "treeitem" -> ./tree-roles.html
+  // "treegrid" -> ./treegrid-roles.html
+  // "widget" -> ./abstract-roles.html
+  // "window" -> ./abstract-roles.html
+]);
+
+</script>
+</body>
+</html>

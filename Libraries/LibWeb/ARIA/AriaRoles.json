@@ -2046,6 +2046,48 @@
     "childrenArePresentational": false,
     "implicitValueForRole": {}
   },
+  "Suggestion": {
+    "specLink": "https://w3c.github.io/aria/#suggestion",
+    "description": "A single proposed change to content.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-errormessage",
+      "aria-grabbed",
+      "aria-haspopup",
+      "aria-hidden",
+      "aria-invalid"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-flowto",
+      "aria-haspopup",
+      "aria-keyshortcuts",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Prohibited",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
   "Superscript": {
     "specLink": "https://www.w3.org/TR/wai-aria-1.2/#superscript",
     "description": "One or more superscripted characters. See related superscript.",
