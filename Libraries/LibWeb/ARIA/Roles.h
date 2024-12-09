@@ -43,6 +43,7 @@ namespace Web::ARIA {
     __ENUMERATE_ARIA_ROLE(gridcell)         \
     __ENUMERATE_ARIA_ROLE(group)            \
     __ENUMERATE_ARIA_ROLE(heading)          \
+    __ENUMERATE_ARIA_ROLE(image)            \
     __ENUMERATE_ARIA_ROLE(img)              \
     __ENUMERATE_ARIA_ROLE(input)            \
     __ENUMERATE_ARIA_ROLE(insertion)        \
@@ -53,6 +54,7 @@ namespace Web::ARIA {
     __ENUMERATE_ARIA_ROLE(listitem)         \
     __ENUMERATE_ARIA_ROLE(log)              \
     __ENUMERATE_ARIA_ROLE(main)             \
+    __ENUMERATE_ARIA_ROLE(mark)             \
     __ENUMERATE_ARIA_ROLE(marquee)          \
     __ENUMERATE_ARIA_ROLE(math)             \
     __ENUMERATE_ARIA_ROLE(meter)            \

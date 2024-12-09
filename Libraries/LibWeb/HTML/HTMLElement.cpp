@@ -756,6 +756,15 @@ Optional<ARIA::Role> HTMLElement::default_role() const
     // https://www.w3.org/TR/html-aria/#el-code
     if (local_name() == TagNames::code)
         return ARIA::Role::code;
+    // https://w3c.github.io/html-aam/#el-dd
+    if (local_name() == TagNames::dd)
+        return ARIA::Role::definition;
+    // https://wpt.fyi/results/html-aam/dir-role.tentative.html
+    if (local_name() == TagNames::dir)
+        return ARIA::Role::list;
+    // https://w3c.github.io/html-aam/#el-dt
+    if (local_name() == TagNames::dt)
+        return ARIA::Role::term;
     // https://www.w3.org/TR/html-aria/#el-dfn
     if (local_name() == TagNames::dfn)
         return ARIA::Role::term;
@@ -792,6 +801,9 @@ Optional<ARIA::Role> HTMLElement::default_role() const
     // https://www.w3.org/TR/html-aria/#el-main
     if (local_name() == TagNames::main)
         return ARIA::Role::main;
+    // https://www.w3.org/TR/html-aria/#el-mark
+    if (local_name() == TagNames::mark)
+        return ARIA::Role::mark;
     // https://www.w3.org/TR/html-aria/#el-nav
     if (local_name() == TagNames::nav)
         return ARIA::Role::navigation;

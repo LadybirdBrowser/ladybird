@@ -210,6 +210,8 @@ ErrorOr<NonnullOwnPtr<RoleType>> RoleType::build_role_object(Role role, bool foc
         return adopt_nonnull_own_or_enomem(new (nothrow) Group(data));
     case Role::heading:
         return adopt_nonnull_own_or_enomem(new (nothrow) Heading(data));
+    case Role::image:
+        return adopt_nonnull_own_or_enomem(new (nothrow) Img(data));
     case Role::img:
         return adopt_nonnull_own_or_enomem(new (nothrow) Img(data));
     case Role::input:
@@ -232,6 +234,8 @@ ErrorOr<NonnullOwnPtr<RoleType>> RoleType::build_role_object(Role role, bool foc
         return adopt_nonnull_own_or_enomem(new (nothrow) Main(data));
     case Role::marquee:
         return adopt_nonnull_own_or_enomem(new (nothrow) Marquee(data));
+    case Role::mark:
+        return adopt_nonnull_own_or_enomem(new (nothrow) Mark(data));
     case Role::math:
         return adopt_nonnull_own_or_enomem(new (nothrow) Math(data));
     case Role::meter:
