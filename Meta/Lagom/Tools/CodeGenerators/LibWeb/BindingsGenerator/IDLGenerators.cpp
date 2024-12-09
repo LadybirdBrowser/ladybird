@@ -3338,8 +3338,12 @@ void @named_properties_class@::visit_edges(Visitor& visitor)
 )~~~");
 }
 
-// https://webidl.spec.whatwg.org/#interface-prototype-object
-static void generate_prototype_or_global_mixin_definitions(IDL::Interface const& interface, StringBuilder& builder)
+enum class GenerateUnforgeables {
+    No,
+    Yes,
+};
+
+static void generate_prototype_or_global_mixin_initialization(IDL::Interface const& interface, StringBuilder& builder, GenerateUnforgeables generate_unforgeables)
 {
     SourceGenerator generator { builder };
 
@@ -3357,15 +3361,27 @@ static void generate_prototype_or_global_mixin_definitions(IDL::Interface const&
         generator.set("iterator_name", ByteString::formatted("{}Iterator", interface.name));
     }
 
-    if (is_global_interface) {
-        generator.set("named_properties_class", ByteString::formatted("{}Properties", interface.name));
-        // Doing this with macros is not super nice, but simplifies codegen a lot.
-        generator.append(R"~~~(
-#define define_direct_property (object.define_direct_property)
-#define define_native_accessor (object.define_native_accessor)
-#define define_native_function (object.define_native_function)
-#define set_prototype (object.set_prototype)
+    bool define_on_existing_object = is_global_interface || generate_unforgeables == GenerateUnforgeables::Yes;
 
+    if (define_on_existing_object) {
+        generator.set("define_direct_property", "object.define_direct_property");
+        generator.set("define_native_accessor", "object.define_native_accessor");
+        generator.set("define_native_function", "object.define_native_function");
+        generator.set("set_prototype", "object.set_prototype");
+    } else {
+        generator.set("define_direct_property", "define_direct_property");
+        generator.set("define_native_accessor", "define_native_accessor");
+        generator.set("define_native_function", "define_native_function");
+        generator.set("set_prototype", "set_prototype");
+    }
+
+    if (generate_unforgeables == GenerateUnforgeables::Yes) {
+        generator.append(R"~~~(
+void @class_name@::define_unforgeable_attributes(JS::Realm& realm, [[maybe_unused]] JS::Object& object)
+{
+)~~~");
+    } else if (is_global_interface) {
+        generator.append(R"~~~(
 void @class_name@::initialize(JS::Realm& realm, JS::Object& object)
 {
 )~~~");
@@ -3376,38 +3392,49 @@ void @class_name@::initialize(JS::Realm& realm)
 )~~~");
     }
 
-    // FIXME: Currently almost everything gets default_attributes but it should be configurable per attribute.
-    //        See the spec links for details
     generator.append(R"~~~(
 
     [[maybe_unused]] auto& vm = realm.vm();
+
+)~~~");
+
+    // FIXME: Currently almost everything gets default_attributes but it should be configurable per attribute.
+    //        See the spec links for details
+    if (generate_unforgeables == GenerateUnforgeables::No) {
+        generator.append(R"~~~(
     [[maybe_unused]] u8 default_attributes = JS::Attribute::Enumerable | JS::Attribute::Configurable | JS::Attribute::Writable;
-
-)~~~");
-
-    if (interface.name == "DOMException"sv) {
-        generator.append(R"~~~(
-
-    set_prototype(realm.intrinsics().error_prototype());
-)~~~");
-    }
-
-    else if (interface.prototype_base_class == "ObjectPrototype") {
-        generator.append(R"~~~(
-
-    set_prototype(realm.intrinsics().object_prototype());
-
-)~~~");
-    } else if (is_global_interface) {
-        generator.append(R"~~~(
-    set_prototype(&ensure_web_prototype<@prototype_name@>(realm, "@name@"_fly_string));
 )~~~");
     } else {
         generator.append(R"~~~(
+    [[maybe_unused]] u8 default_attributes = JS::Attribute::Enumerable;
+)~~~");
+    }
 
-    set_prototype(&ensure_web_prototype<@prototype_base_class@>(realm, "@parent_name@"_fly_string));
+    if (generate_unforgeables == GenerateUnforgeables::No) {
+        if (interface.name == "DOMException"sv) {
+            generator.append(R"~~~(
+
+    @set_prototype@(realm.intrinsics().error_prototype());
+)~~~");
+        }
+
+        else if (interface.prototype_base_class == "ObjectPrototype") {
+            generator.append(R"~~~(
+
+    @set_prototype@(realm.intrinsics().object_prototype());
 
 )~~~");
+        } else if (is_global_interface) {
+            generator.append(R"~~~(
+    @set_prototype@(&ensure_web_prototype<@prototype_name@>(realm, "@name@"_fly_string));
+)~~~");
+        } else {
+            generator.append(R"~~~(
+
+    @set_prototype@(&ensure_web_prototype<@prototype_base_class@>(realm, "@parent_name@"_fly_string));
+
+)~~~");
+        }
     }
 
     if (interface.has_unscopable_member) {
@@ -3418,11 +3445,15 @@ void @class_name@::initialize(JS::Realm& realm)
 
     // https://webidl.spec.whatwg.org/#es-attributes
     for (auto& attribute : interface.attributes) {
+        bool has_unforgeable_attribute = attribute.extended_attributes.contains("LegacyUnforgeable"sv);
+        if ((generate_unforgeables == GenerateUnforgeables::Yes && !has_unforgeable_attribute) || (generate_unforgeables == GenerateUnforgeables::No && has_unforgeable_attribute))
+            continue;
+
         if (attribute.extended_attributes.contains("FIXME")) {
             auto fixme_attribute_generator = generator.fork();
             fixme_attribute_generator.set("attribute.name", attribute.name);
             fixme_attribute_generator.append(R"~~~(
-    define_direct_property("@attribute.name@"_fly_string, JS::js_undefined(), default_attributes | JS::Attribute::Unimplemented);
+    @define_direct_property@("@attribute.name@"_fly_string, JS::js_undefined(), default_attributes | JS::Attribute::Unimplemented);
             )~~~");
             continue;
         }
@@ -3443,36 +3474,47 @@ void @class_name@::initialize(JS::Realm& realm)
         }
 
         attribute_generator.append(R"~~~(
-    define_native_accessor(realm, "@attribute.name@"_fly_string, @attribute.getter_callback@, @attribute.setter_callback@, default_attributes);
+    @define_native_accessor@(realm, "@attribute.name@"_fly_string, @attribute.getter_callback@, @attribute.setter_callback@, default_attributes);
 )~~~");
     }
 
     for (auto& function : interface.functions) {
+        bool has_unforgeable_attribute = function.extended_attributes.contains("LegacyUnforgeable"sv);
+        if ((generate_unforgeables == GenerateUnforgeables::Yes && !has_unforgeable_attribute) || (generate_unforgeables == GenerateUnforgeables::No && has_unforgeable_attribute))
+            continue;
+
         if (function.extended_attributes.contains("FIXME")) {
             auto fixme_function_generator = generator.fork();
             fixme_function_generator.set("function.name", function.name);
             fixme_function_generator.append(R"~~~(
-        define_direct_property("@function.name@"_fly_string, JS::js_undefined(), default_attributes | JS::Attribute::Unimplemented);
+        @define_direct_property@("@function.name@"_fly_string, JS::js_undefined(), default_attributes | JS::Attribute::Unimplemented);
             )~~~");
         }
     }
 
     // https://webidl.spec.whatwg.org/#es-constants
-    for (auto& constant : interface.constants) {
-        // FIXME: Do constants need to be added to the unscopable list?
+    if (generate_unforgeables == GenerateUnforgeables::No) {
+        for (auto& constant : interface.constants) {
+            // FIXME: Do constants need to be added to the unscopable list?
 
-        auto constant_generator = generator.fork();
-        constant_generator.set("constant.name", constant.name);
+            auto constant_generator = generator.fork();
+            constant_generator.set("constant.name", constant.name);
 
-        generate_wrap_statement(constant_generator, constant.value, constant.type, interface, ByteString::formatted("auto constant_{}_value =", constant.name));
+            generate_wrap_statement(constant_generator, constant.value, constant.type, interface, ByteString::formatted("auto constant_{}_value =", constant.name));
 
-        constant_generator.append(R"~~~(
-    define_direct_property("@constant.name@"_fly_string, constant_@constant.name@_value, JS::Attribute::Enumerable);
+            constant_generator.append(R"~~~(
+    @define_direct_property@("@constant.name@"_fly_string, constant_@constant.name@_value, JS::Attribute::Enumerable);
 )~~~");
+        }
     }
 
     // https://webidl.spec.whatwg.org/#es-operations
     for (auto const& overload_set : interface.overload_sets) {
+        // NOTE: This assumes that every function in the overload set has the same attribute set.
+        bool has_unforgeable_attribute = any_of(overload_set.value, [](auto const& function) { return function.extended_attributes.contains("LegacyUnforgeable"); });
+        if ((generate_unforgeables == GenerateUnforgeables::Yes && !has_unforgeable_attribute) || (generate_unforgeables == GenerateUnforgeables::No && has_unforgeable_attribute))
+            continue;
+
         auto function_generator = generator.fork();
         function_generator.set("function.name", overload_set.key);
         function_generator.set("function.name:snakecase", make_input_acceptable_cpp(overload_set.key.to_snakecase()));
@@ -3486,95 +3528,103 @@ void @class_name@::initialize(JS::Realm& realm)
         }
 
         function_generator.append(R"~~~(
-    define_native_function(realm, "@function.name@"_fly_string, @function.name:snakecase@, @function.length@, default_attributes);
+    @define_native_function@(realm, "@function.name@"_fly_string, @function.name:snakecase@, @function.length@, default_attributes);
 )~~~");
     }
 
-    if (interface.has_stringifier) {
-        // FIXME: Do stringifiers need to be added to the unscopable list?
+    bool should_generate_stringifier = true;
+    if (interface.stringifier_attribute.has_value()) {
+        bool has_unforgeable_attribute = interface.stringifier_attribute.value().extended_attributes.contains("LegacyUnforgeable"sv);
+        if ((generate_unforgeables == GenerateUnforgeables::Yes && !has_unforgeable_attribute) || (generate_unforgeables == GenerateUnforgeables::No && has_unforgeable_attribute))
+            should_generate_stringifier = false;
+    }
 
+    if (interface.has_stringifier && should_generate_stringifier) {
+        // FIXME: Do stringifiers need to be added to the unscopable list?
         auto stringifier_generator = generator.fork();
         stringifier_generator.append(R"~~~(
-    define_native_function(realm, "toString"_fly_string, to_string, 0, default_attributes);
+    @define_native_function@(realm, "toString"_fly_string, to_string, 0, default_attributes);
 )~~~");
     }
 
     // https://webidl.spec.whatwg.org/#define-the-iteration-methods
     // This applies to this if block and the following if block.
-    if (interface.indexed_property_getter.has_value()) {
+    if (interface.indexed_property_getter.has_value() && generate_unforgeables == GenerateUnforgeables::No) {
         auto iterator_generator = generator.fork();
         iterator_generator.append(R"~~~(
-    define_direct_property(vm.well_known_symbol_iterator(), realm.intrinsics().array_prototype()->get_without_side_effects(vm.names.values), JS::Attribute::Configurable | JS::Attribute::Writable);
+    @define_direct_property@(vm.well_known_symbol_iterator(), realm.intrinsics().array_prototype()->get_without_side_effects(vm.names.values), JS::Attribute::Configurable | JS::Attribute::Writable);
 )~~~");
 
         if (interface.value_iterator_type.has_value()) {
             iterator_generator.append(R"~~~(
-    define_direct_property(vm.names.entries, realm.intrinsics().array_prototype()->get_without_side_effects(vm.names.entries), default_attributes);
-    define_direct_property(vm.names.keys, realm.intrinsics().array_prototype()->get_without_side_effects(vm.names.keys), default_attributes);
-    define_direct_property(vm.names.values, realm.intrinsics().array_prototype()->get_without_side_effects(vm.names.values), default_attributes);
-    define_direct_property(vm.names.forEach, realm.intrinsics().array_prototype()->get_without_side_effects(vm.names.forEach), default_attributes);
+    @define_direct_property@(vm.names.entries, realm.intrinsics().array_prototype()->get_without_side_effects(vm.names.entries), default_attributes);
+    @define_direct_property@(vm.names.keys, realm.intrinsics().array_prototype()->get_without_side_effects(vm.names.keys), default_attributes);
+    @define_direct_property@(vm.names.values, realm.intrinsics().array_prototype()->get_without_side_effects(vm.names.values), default_attributes);
+    @define_direct_property@(vm.names.forEach, realm.intrinsics().array_prototype()->get_without_side_effects(vm.names.forEach), default_attributes);
 )~~~");
         }
     }
 
-    if (interface.pair_iterator_types.has_value()) {
+    if (interface.pair_iterator_types.has_value() && generate_unforgeables == GenerateUnforgeables::No) {
         // FIXME: Do pair iterators need to be added to the unscopable list?
 
         auto iterator_generator = generator.fork();
         iterator_generator.append(R"~~~(
-    define_native_function(realm, vm.names.entries, entries, 0, default_attributes);
-    define_native_function(realm, vm.names.forEach, for_each, 1, default_attributes);
-    define_native_function(realm, vm.names.keys, keys, 0, default_attributes);
-    define_native_function(realm, vm.names.values, values, 0, default_attributes);
+    @define_native_function@(realm, vm.names.entries, entries, 0, default_attributes);
+    @define_native_function@(realm, vm.names.forEach, for_each, 1, default_attributes);
+    @define_native_function@(realm, vm.names.keys, keys, 0, default_attributes);
+    @define_native_function@(realm, vm.names.values, values, 0, default_attributes);
 
-    define_direct_property(vm.well_known_symbol_iterator(), get_without_side_effects(vm.names.entries), JS::Attribute::Configurable | JS::Attribute::Writable);
+    @define_direct_property@(vm.well_known_symbol_iterator(), get_without_side_effects(vm.names.entries), JS::Attribute::Configurable | JS::Attribute::Writable);
 )~~~");
     }
 
     // https://webidl.spec.whatwg.org/#js-setlike
-    if (interface.set_entry_type.has_value()) {
+    if (interface.set_entry_type.has_value() && generate_unforgeables == GenerateUnforgeables::No) {
 
         auto setlike_generator = generator.fork();
 
         setlike_generator.append(R"~~~(
-    define_native_accessor(realm, vm.names.size, get_size, nullptr, JS::Attribute::Enumerable | JS::Attribute::Configurable);
-    define_native_function(realm, vm.names.entries, entries, 0, default_attributes);
+    @define_native_accessor@(realm, vm.names.size, get_size, nullptr, JS::Attribute::Enumerable | JS::Attribute::Configurable);
+    @define_native_function@(realm, vm.names.entries, entries, 0, default_attributes);
     // NOTE: Keys intentionally returns values for setlike
-    define_native_function(realm, vm.names.keys, values, 0, default_attributes);
-    define_native_function(realm, vm.names.values, values, 0, default_attributes);
-    define_direct_property(vm.well_known_symbol_iterator(), get_without_side_effects(vm.names.values), JS::Attribute::Configurable | JS::Attribute::Writable);
-    define_native_function(realm, vm.names.forEach, for_each, 1, default_attributes);
-    define_native_function(realm, vm.names.has, has, 1, default_attributes);
+    @define_native_function@(realm, vm.names.keys, values, 0, default_attributes);
+    @define_native_function@(realm, vm.names.values, values, 0, default_attributes);
+    @define_direct_property@(vm.well_known_symbol_iterator(), get_without_side_effects(vm.names.values), JS::Attribute::Configurable | JS::Attribute::Writable);
+    @define_native_function@(realm, vm.names.forEach, for_each, 1, default_attributes);
+    @define_native_function@(realm, vm.names.has, has, 1, default_attributes);
 )~~~");
 
         if (!interface.overload_sets.contains("add"sv) && !interface.is_set_readonly) {
             setlike_generator.append(R"~~~(
-    define_native_function(realm, vm.names.add, add, 1, default_attributes);
+    @define_native_function@(realm, vm.names.add, add, 1, default_attributes);
 )~~~");
         }
         if (!interface.overload_sets.contains("delete"sv) && !interface.is_set_readonly) {
             setlike_generator.append(R"~~~(
-    define_native_function(realm, vm.names.delete_, delete_, 1, default_attributes);
+    @define_native_function@(realm, vm.names.delete_, delete_, 1, default_attributes);
 )~~~");
         }
         if (!interface.overload_sets.contains("clear"sv) && !interface.is_set_readonly) {
             setlike_generator.append(R"~~~(
-    define_native_function(realm, vm.names.clear, clear, 0, default_attributes);
+    @define_native_function@(realm, vm.names.clear, clear, 0, default_attributes);
 )~~~");
         }
     }
 
     if (interface.has_unscopable_member) {
         generator.append(R"~~~(
-    define_direct_property(vm.well_known_symbol_unscopables(), unscopable_object, JS::Attribute::Configurable);
+    @define_direct_property@(vm.well_known_symbol_unscopables(), unscopable_object, JS::Attribute::Configurable);
 )~~~");
     }
 
-    generator.append(R"~~~(
-    define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, "@namespaced_name@"_string), JS::Attribute::Configurable);
+    if (generate_unforgeables == GenerateUnforgeables::No) {
+        generator.append(R"~~~(
+    @define_direct_property@(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, "@namespaced_name@"_string), JS::Attribute::Configurable);
 )~~~");
+    }
 
-    if (!is_global_interface) {
+    if (!define_on_existing_object) {
         generator.append(R"~~~(
     Base::initialize(realm);
 )~~~");
@@ -3583,6 +3633,26 @@ void @class_name@::initialize(JS::Realm& realm)
     generator.append(R"~~~(
 }
 )~~~");
+}
+
+// https://webidl.spec.whatwg.org/#interface-prototype-object
+static void generate_prototype_or_global_mixin_definitions(IDL::Interface const& interface, StringBuilder& builder)
+{
+    SourceGenerator generator { builder };
+
+    auto is_global_interface = interface.extended_attributes.contains("Global");
+    auto class_name = is_global_interface ? interface.global_mixin_class : interface.prototype_class;
+    generator.set("name", interface.name);
+    generator.set("namespaced_name", interface.namespaced_name);
+    generator.set("class_name", class_name);
+    generator.set("fully_qualified_name", interface.fully_qualified_name);
+    generator.set("parent_name", interface.parent_name);
+    generator.set("prototype_base_class", interface.prototype_base_class);
+    generator.set("prototype_name", interface.prototype_class); // Used for Global Mixin
+
+    if (interface.pair_iterator_types.has_value()) {
+        generator.set("iterator_name", ByteString::formatted("{}Iterator", interface.name));
+    }
 
     if (!interface.attributes.is_empty() || !interface.functions.is_empty() || interface.has_stringifier) {
         generator.append(R"~~~(
@@ -4214,7 +4284,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
         auto stringifier_generator = generator.fork();
         stringifier_generator.set("class_name", class_name);
         if (interface.stringifier_attribute.has_value())
-            stringifier_generator.set("attribute.cpp_getter_name", interface.stringifier_attribute->to_snakecase());
+            stringifier_generator.set("attribute.cpp_getter_name", interface.stringifier_attribute.value().name.to_snakecase());
 
         stringifier_generator.append(R"~~~(
 JS_DEFINE_NATIVE_FUNCTION(@class_name@::to_string)
@@ -4955,6 +5025,8 @@ class @prototype_class@ : public JS::Object {
     JS_OBJECT(@prototype_class@, JS::Object);
     GC_DECLARE_ALLOCATOR(@prototype_class@);
 public:
+    static void define_unforgeable_attributes(JS::Realm&, JS::Object&);
+
     explicit @prototype_class@(JS::Realm&);
     virtual void initialize(JS::Realm&) override;
     virtual ~@prototype_class@() override;
@@ -5124,6 +5196,8 @@ void @prototype_class@::initialize(JS::Realm& realm)
         if (interface.supports_named_properties())
             generate_named_properties_object_definitions(interface, builder);
     } else {
+        generate_prototype_or_global_mixin_initialization(interface, builder, GenerateUnforgeables::No);
+        generate_prototype_or_global_mixin_initialization(interface, builder, GenerateUnforgeables::Yes);
         generate_prototype_or_global_mixin_definitions(interface, builder);
     }
 
@@ -5250,6 +5324,7 @@ namespace Web::Bindings {
 class @class_name@ {
 public:
     void initialize(JS::Realm&, JS::Object&);
+    void define_unforgeable_attributes(JS::Realm&, JS::Object&);
     @class_name@();
     virtual ~@class_name@();
 
@@ -5313,6 +5388,8 @@ namespace Web::Bindings {
 @class_name@::~@class_name@() = default;
 )~~~");
 
+    generate_prototype_or_global_mixin_initialization(interface, builder, GenerateUnforgeables::No);
+    generate_prototype_or_global_mixin_initialization(interface, builder, GenerateUnforgeables::Yes);
     generate_prototype_or_global_mixin_definitions(interface, builder);
 
     generator.append(R"~~~(

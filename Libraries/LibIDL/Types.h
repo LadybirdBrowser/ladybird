@@ -280,7 +280,7 @@ public:
     Vector<Function> functions;
     Vector<Function> static_functions;
     bool has_stringifier { false };
-    Optional<ByteString> stringifier_attribute;
+    Optional<Attribute> stringifier_attribute;
     bool has_unscopable_member { false };
 
     Optional<NonnullRefPtr<Type const>> value_iterator_type;
