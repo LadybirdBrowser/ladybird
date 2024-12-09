@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const unforgeableProperties = [
+            "isTrusted",
+        ];
+
+        for (const eventType of [Event, UIEvent, CustomEvent]) {
+            const event = new eventType("test");
+            const eventPrototype = Object.getPrototypeOf(event);
+
+            for (const property of unforgeableProperties) { 
+                println(`${property} exists on ${eventType.name} instance itself: ${Object.hasOwn(event, property)}`);
+                println(`${property} does not exist on LocationPrototype: ${!Object.hasOwn(eventPrototype, property)}`);
+                
+                const propertyDescriptor = Object.getOwnPropertyDescriptor(event, property);
+                println(`${property} descriptor is not undefined: ${propertyDescriptor !== undefined}`);
+                println(`${property} enumerable: ${propertyDescriptor.enumerable}`);
+                println(`${property} configurable: ${propertyDescriptor.configurable}`);
+                println(`${property} writable: ${propertyDescriptor.writable}`);
+            }
+        }
+    });
+</script>
