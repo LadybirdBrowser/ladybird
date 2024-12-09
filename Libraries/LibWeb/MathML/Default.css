@@ -71,8 +71,7 @@ mtd {
 
 /* Fractions */
 mfrac {
-  padding-inline-start: 1px;
-  padding-inline-end: 1px;
+  padding-inline: 1px;
 }
 mfrac > * {
   math-depth: auto-add;
