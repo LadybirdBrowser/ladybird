@@ -26,11 +26,11 @@ ThrowCompletionOr<Value> ModuleEnvironment::get_binding_value(VM& vm, Deprecated
     VERIFY(strict);
 
     // 2. Assert: envRec has a binding for N.
-    auto* indirect_binding = get_indirect_binding(name);
-    VERIFY(indirect_binding || !DeclarativeEnvironment::has_binding(name).is_error());
+    auto indirect_binding = get_indirect_binding(name);
+    VERIFY(indirect_binding.has_value() || !DeclarativeEnvironment::has_binding(name).is_error());
 
     // 3. If the binding for N is an indirect binding, then
-    if (indirect_binding) {
+    if (indirect_binding.has_value()) {
         // a. Let M and N2 be the indirection values provided when this binding for N was created.
 
         // b. Let targetEnv be M.[[Environment]].
@@ -68,35 +68,27 @@ ThrowCompletionOr<Value> ModuleEnvironment::get_this_binding(VM&) const
 ThrowCompletionOr<void> ModuleEnvironment::create_import_binding(DeprecatedFlyString name, Module* module, DeprecatedFlyString binding_name)
 {
     // 1. Assert: envRec does not already have a binding for N.
-    VERIFY(!get_indirect_binding(name));
+    VERIFY(!get_indirect_binding(name).has_value());
     // 2. Assert: When M.[[Environment]] is instantiated it will have a direct binding for N2.
     // FIXME: I don't know what this means or how to check it.
 
     // 3. Create an immutable indirect binding in envRec for N that references M and N2 as its target binding and record that the binding is initialized.
     // Note: We use the fact that the binding is in this list as it being initialized.
-    m_indirect_bindings.append({ move(name),
-        module,
-        move(binding_name) });
+    m_indirect_bindings.set(move(name), { module, move(binding_name) });
 
     // 4. Return unused.
     return {};
 }
 
-ModuleEnvironment::IndirectBinding const* ModuleEnvironment::get_indirect_binding(DeprecatedFlyString const& name) const
+Optional<ModuleEnvironment::IndirectBinding const&> ModuleEnvironment::get_indirect_binding(DeprecatedFlyString const& name) const
 {
-    auto binding_or_end = m_indirect_bindings.find_if([&](IndirectBinding const& binding) {
-        return binding.name == name;
-    });
-    if (binding_or_end.is_end())
-        return nullptr;
-
-    return &(*binding_or_end);
+    return m_indirect_bindings.get(name);
 }
 
 Optional<ModuleEnvironment::BindingAndIndex> ModuleEnvironment::find_binding_and_index(DeprecatedFlyString const& name) const
 {
-    auto* indirect_binding = get_indirect_binding(name);
-    if (indirect_binding != nullptr) {
+    auto indirect_binding = get_indirect_binding(name);
+    if (indirect_binding.has_value()) {
         auto* target_env = indirect_binding->module->environment();
         if (!target_env)
             return {};
@@ -132,7 +124,7 @@ void ModuleEnvironment::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     for (auto& indirect_binding : m_indirect_bindings)
-        visitor.visit(indirect_binding.module);
+        visitor.visit(indirect_binding.value.module);
 }
 
 }
