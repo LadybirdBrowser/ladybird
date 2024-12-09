@@ -1550,14 +1550,20 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     @union_type@ @cpp_name@ = TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
 )~~~");
             } else {
-                if (!optional_default_value.has_value() || optional_default_value == "null"sv) {
+                if (!optional_default_value.has_value()) {
                     union_generator.append(R"~~~(
+    Optional<@union_type@> @cpp_name@;
+    if (!@js_name@@js_suffix@.is_undefined())
+        @cpp_name@ = TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
+)~~~");
+                } else {
+                    if (optional_default_value == "null"sv) {
+                        union_generator.append(R"~~~(
     Optional<@union_type@> @cpp_name@;
     if (!@js_name@@js_suffix@.is_nullish())
         @cpp_name@ = TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
 )~~~");
-                } else {
-                    if (optional_default_value == "\"\"") {
+                    } else if (optional_default_value == "\"\"") {
                         union_generator.append(R"~~~(
     @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? String {} : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
 )~~~");
