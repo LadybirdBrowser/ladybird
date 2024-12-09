@@ -293,6 +293,8 @@ ErrorOr<NonnullOwnPtr<RoleType>> RoleType::build_role_object(Role role, bool foc
         return adopt_nonnull_own_or_enomem(new (nothrow) Strong(data));
     case Role::subscript:
         return adopt_nonnull_own_or_enomem(new (nothrow) Subscript(data));
+    case Role::suggestion:
+        return adopt_nonnull_own_or_enomem(new (nothrow) Suggestion(data));
     case Role::superscript:
         return adopt_nonnull_own_or_enomem(new (nothrow) Superscript(data));
     case Role::switch_:
