@@ -1,0 +1,17 @@
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const bodyStream = new ReadableStream({
+            start(controller) {
+                controller.enqueue(new TextEncoder().encode("HeLLOoo!!!!!"));
+                controller.close();
+            }
+        });
+
+        const response = new Response(bodyStream);
+        response.text().then(data => {
+            println(data);
+            done();
+        });
+    });
+</script>
