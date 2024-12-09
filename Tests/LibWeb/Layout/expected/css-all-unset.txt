@@ -6,7 +6,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
             "* { all: unset; } "
         TextNode <#text>
     InlineNode <body>
-      frag 0 from TextNode start: 0, length: 13, rect: [135,0 103.140625x17] baseline: 13.296875
+      frag 0 from TextNode start: 0, length: 13, rect: [134.984375,0 103.140625x17] baseline: 13.296875
           "Hello friends"
       TextNode <#text>
 
