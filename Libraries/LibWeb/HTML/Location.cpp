@@ -522,6 +522,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> Location::internal_get_o
         auto descriptor = MUST(Object::internal_get_own_property(property_key));
 
         // 2. If the value of the [[DefaultProperties]] internal slot of this contains P, then set desc.[[Configurable]] to true.
+        // FIXME: This doesn't align with what the other browsers do. Spec issue: https://github.com/whatwg/html/issues/4157
         auto property_key_value = property_key.is_symbol()
             ? JS::Value { property_key.as_symbol() }
             : JS::PrimitiveString::create(vm, property_key.to_string());
