@@ -55,7 +55,7 @@ Application::~Application()
     s_the = nullptr;
 }
 
-void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_page_url)
+void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_page_url, WebView::IsHeadless is_headless)
 {
     // Increase the open file limit, as the default limits on Linux cause us to run out of file descriptors with around 15 tabs open.
     if (auto result = Core::System::set_resource_limits(RLIMIT_NOFILE, 8192); result.is_error())
@@ -171,6 +171,7 @@ void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_
         .force_fontconfig = force_fontconfig ? ForceFontconfig::Yes : ForceFontconfig::No,
         .enable_autoplay = enable_autoplay ? EnableAutoplay::Yes : EnableAutoplay::No,
         .collect_garbage_on_every_allocation = collect_garbage_on_every_allocation ? CollectGarbageOnEveryAllocation::Yes : CollectGarbageOnEveryAllocation::No,
+        .is_headless = is_headless,
     };
 
     create_platform_options(m_chrome_options, m_web_content_options);

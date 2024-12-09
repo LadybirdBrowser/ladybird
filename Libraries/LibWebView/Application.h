@@ -61,10 +61,10 @@ public:
 
 protected:
     template<DerivedFrom<Application> ApplicationType>
-    static NonnullOwnPtr<ApplicationType> create(Main::Arguments& arguments, URL::URL new_tab_page_url)
+    static NonnullOwnPtr<ApplicationType> create(Main::Arguments& arguments, URL::URL new_tab_page_url, WebView::IsHeadless is_headless = WebView::IsHeadless::No)
     {
         auto app = adopt_own(*new ApplicationType { {}, arguments });
-        app->initialize(arguments, move(new_tab_page_url));
+        app->initialize(arguments, move(new_tab_page_url), is_headless);
 
         return app;
     }
@@ -79,7 +79,7 @@ protected:
     virtual Optional<ByteString> ask_user_for_download_folder() const { return {}; }
 
 private:
-    void initialize(Main::Arguments const& arguments, URL::URL new_tab_page_url);
+    void initialize(Main::Arguments const& arguments, URL::URL new_tab_page_url, WebView::IsHeadless = WebView::IsHeadless::No);
 
     ErrorOr<void> launch_request_server();
     ErrorOr<void> launch_image_decoder_server();
@@ -104,11 +104,11 @@ private:
 
 }
 
-#define WEB_VIEW_APPLICATION(ApplicationType)                                                           \
-public:                                                                                                 \
-    static NonnullOwnPtr<ApplicationType> create(Main::Arguments& arguments, URL::URL new_tab_page_url) \
-    {                                                                                                   \
-        return WebView::Application::create<ApplicationType>(arguments, move(new_tab_page_url));        \
-    }                                                                                                   \
-                                                                                                        \
+#define WEB_VIEW_APPLICATION(ApplicationType)                                                                                                                      \
+public:                                                                                                                                                            \
+    static NonnullOwnPtr<ApplicationType> create(Main::Arguments& arguments, URL::URL new_tab_page_url, WebView::IsHeadless is_headless = WebView::IsHeadless::No) \
+    {                                                                                                                                                              \
+        return WebView::Application::create<ApplicationType>(arguments, move(new_tab_page_url), is_headless);                                                      \
+    }                                                                                                                                                              \
+                                                                                                                                                                   \
     ApplicationType(Badge<WebView::Application>, Main::Arguments&);
