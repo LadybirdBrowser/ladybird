@@ -82,6 +82,7 @@ public:
     virtual bool is_ready_to_paint() const override { return true; }
 
     virtual DisplayListPlayerType display_list_player_type() const override { return m_host_page->client().display_list_player_type(); }
+    virtual bool is_headless() const override { return m_host_page->client().is_headless(); }
 
 private:
     explicit SVGPageClient(Page& host_page)

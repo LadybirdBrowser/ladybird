@@ -54,6 +54,8 @@ public:
     static u16 get_echo_server_port();
     static void set_echo_server_port(u16 port);
 
+    bool headless();
+
 private:
     explicit Internals(JS::Realm&);
     virtual void initialize(JS::Realm&) override;

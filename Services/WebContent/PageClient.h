@@ -34,6 +34,9 @@ public:
     };
     static void set_use_skia_painter(UseSkiaPainter);
 
+    virtual bool is_headless() const override;
+    static void set_is_headless(bool);
+
     virtual bool is_ready_to_paint() const override;
 
     virtual Web::Page& page() override { return *m_page; }

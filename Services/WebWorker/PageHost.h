@@ -37,6 +37,7 @@ public:
     virtual void request_file(Web::FileRequest) override;
     virtual bool is_ready_to_paint() const override { return true; }
     virtual Web::DisplayListPlayerType display_list_player_type() const override { VERIFY_NOT_REACHED(); }
+    virtual bool is_headless() const override { VERIFY_NOT_REACHED(); }
 
 private:
     explicit PageHost(ConnectionFromClient&);
