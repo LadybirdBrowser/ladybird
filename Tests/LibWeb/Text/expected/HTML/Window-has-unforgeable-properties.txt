@@ -1,0 +1,24 @@
+window exists on window itself: true
+window does not exist on LocationPrototype: true
+window descriptor is not undefined: true
+window enumerable: true
+window configurable: false
+window writable: undefined
+document exists on window itself: true
+document does not exist on LocationPrototype: true
+document descriptor is not undefined: true
+document enumerable: true
+document configurable: false
+document writable: undefined
+location exists on window itself: true
+location does not exist on LocationPrototype: true
+location descriptor is not undefined: true
+location enumerable: true
+location configurable: false
+location writable: undefined
+top exists on window itself: true
+top does not exist on LocationPrototype: true
+top descriptor is not undefined: true
+top enumerable: true
+top configurable: false
+top writable: undefined
