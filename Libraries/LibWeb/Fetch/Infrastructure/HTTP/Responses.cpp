@@ -422,7 +422,6 @@ void OpaqueFilteredResponse::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_header_list);
-    visitor.visit(m_body);
 }
 
 GC::Ref<OpaqueRedirectFilteredResponse> OpaqueRedirectFilteredResponse::create(JS::VM& vm, GC::Ref<Response> internal_response)
@@ -442,7 +441,6 @@ void OpaqueRedirectFilteredResponse::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_header_list);
-    visitor.visit(m_body);
 }
 
 }
