@@ -67,7 +67,7 @@ WebIDL::ExceptionOr<GC::Root<WebIDL::ArrayBufferView>> Crypto::get_random_values
     // FIXME: Handle SharedArrayBuffers
 
     // 3. Overwrite all elements of array with cryptographically strong random values of the appropriate type.
-    fill_with_random(array->viewed_array_buffer()->buffer());
+    fill_with_random(array->viewed_array_buffer()->buffer().bytes().slice(array->byte_offset(), array->byte_length()));
 
     // 4. Return array.
     return array;
