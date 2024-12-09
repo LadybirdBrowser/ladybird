@@ -108,22 +108,21 @@ WebIDL::ExceptionOr<String> Location::href() const
 WebIDL::ExceptionOr<void> Location::set_href(String const& new_href)
 {
     auto& realm = this->realm();
-    auto& window = verify_cast<HTML::Window>(HTML::current_principal_global_object());
 
     // 1. If this's relevant Document is null, then return.
     auto const relevant_document = this->relevant_document();
     if (!relevant_document)
         return {};
 
-    // FIXME: 2. Let url be the result of encoding-parsing a URL given the given value, relative to the entry settings object.
-    auto href_url = window.associated_document().parse_url(new_href.to_byte_string());
+    // 2. Let url be the result of encoding-parsing a URL given the given value, relative to the entry settings object.
+    auto url = entry_settings_object().encoding_parse_url(new_href.to_byte_string());
 
     // 3. If url is failure, then throw a "SyntaxError" DOMException.
-    if (!href_url.is_valid())
+    if (!url.is_valid())
         return WebIDL::SyntaxError::create(realm, MUST(String::formatted("Invalid URL '{}'", new_href)));
 
     // 4. Location-object navigate this to url.
-    TRY(navigate(href_url));
+    TRY(navigate(url));
 
     return {};
 }

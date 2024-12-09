@@ -432,7 +432,7 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString const& request,
                 load_html(page_id, "<h1>Failed to find &lt;link rel=&quot;match&quot; /&gt; or &lt;link rel=&quot;mismatch&quot; /&gt; in ref test page!</h1> Make sure you added it.");
             } else {
                 auto link = maybe_link.release_value();
-                auto url = document->parse_url(link->get_attribute_value(Web::HTML::AttributeNames::href));
+                auto url = document->encoding_parse_url(link->get_attribute_value(Web::HTML::AttributeNames::href));
                 if (url.query().has_value() && !url.query()->is_empty()) {
                     load_html(page_id, "<h1>Invalid ref test link - query string must be empty</h1>");
                     return;
