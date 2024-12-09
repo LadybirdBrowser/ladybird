@@ -131,6 +131,7 @@ bool is_document_structure_role(Role role)
         Role::separator, // TODO: Only when not focusable
         Role::strong,
         Role::subscript,
+        Role::suggestion,
         Role::superscript,
         Role::table,
         Role::term,

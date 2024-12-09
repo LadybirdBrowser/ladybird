@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 54 tests
 
-53 Pass
-1 Fail
+54 Pass
 Pass	role: alert
 Pass	role: alertdialog
 Pass	role: application
@@ -49,7 +48,7 @@ Pass	role: spinbutton
 Pass	role: status
 Pass	role: strong
 Pass	role: subscript
-Fail	role: suggestion
+Pass	role: suggestion
 Pass	role: superscript
 Pass	role: switch
 Pass	role: term
