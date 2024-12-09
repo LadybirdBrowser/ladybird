@@ -79,7 +79,7 @@ public:
 private:
     explicit Thread(ESCAPING Function<intptr_t()> action, StringView thread_name = {});
     Function<intptr_t()> m_action;
-    pthread_t m_tid { 0 };
+    pthread_t m_tid {};
     ByteString m_thread_name;
     Atomic<ThreadState> m_state { ThreadState::Startable };
 };
@@ -107,6 +107,16 @@ Result<T, ThreadError> Thread::join()
 }
 
 }
+
+#ifdef AK_OS_WINDOWS
+template<>
+struct AK::Formatter<pthread_t> : AK::Formatter<FormatString> {
+    ErrorOr<void> format(FormatBuilder& builder, pthread_t const& tid)
+    {
+        return Formatter<FormatString>::format(builder, "{}"sv, pthread_getw32threadid_np(tid));
+    }
+};
+#endif
 
 template<>
 struct AK::Formatter<Threading::Thread> : AK::Formatter<FormatString> {
