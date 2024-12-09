@@ -234,7 +234,7 @@ JS::ThrowCompletionOr<String> to_byte_string(JS::VM& vm, JS::Value value)
     // 2. If the value of any element of x is greater than 255, then throw a TypeError.
     for (auto character : x.code_points()) {
         if (character > 0xFF)
-            return vm.throw_completion<JS::TypeError>(JS::ErrorType::InvalidCodePoint);
+            return vm.throw_completion<JS::TypeError>(MUST(String::formatted("Invalid code point {}, must be integers in the range 0-255 (U+0000-U+00FF).", String::from_code_point(character))));
     }
 
     // 3. Return an IDL ByteString value whose length is the length of x, and where the value of each element is the value of the corresponding element of x.
