@@ -434,12 +434,6 @@ void HTMLParser::process_using_the_rules_for(InsertionMode mode, HTMLToken& toke
     case InsertionMode::InTableText:
         handle_in_table_text(token);
         break;
-    case InsertionMode::InSelectInTable:
-        handle_in_select_in_table(token);
-        break;
-    case InsertionMode::InSelect:
-        handle_in_select(token);
-        break;
     case InsertionMode::InCaption:
         handle_in_caption(token);
         break;
@@ -2164,7 +2158,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
     }
 
     // -> An end tag whose tag name is one of: "address", "article", "aside", "blockquote", "button", "center", "details", "dialog", "dir", "div", "dl", "fieldset", "figcaption", "figure", "footer", "header", "hgroup", "listing", "main", "menu", "nav", "ol", "pre", "search", "section", "summary", "ul"
-    if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::address, HTML::TagNames::article, HTML::TagNames::aside, HTML::TagNames::blockquote, HTML::TagNames::button, HTML::TagNames::center, HTML::TagNames::details, HTML::TagNames::dialog, HTML::TagNames::dir, HTML::TagNames::div, HTML::TagNames::dl, HTML::TagNames::fieldset, HTML::TagNames::figcaption, HTML::TagNames::figure, HTML::TagNames::footer, HTML::TagNames::header, HTML::TagNames::hgroup, HTML::TagNames::listing, HTML::TagNames::main, HTML::TagNames::menu, HTML::TagNames::nav, HTML::TagNames::ol, HTML::TagNames::pre, HTML::TagNames::search, HTML::TagNames::section, HTML::TagNames::summary, HTML::TagNames::ul)) {
+    if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::address, HTML::TagNames::article, HTML::TagNames::aside, HTML::TagNames::blockquote, HTML::TagNames::button, HTML::TagNames::center, HTML::TagNames::details, HTML::TagNames::dialog, HTML::TagNames::dir, HTML::TagNames::div, HTML::TagNames::dl, HTML::TagNames::fieldset, HTML::TagNames::figcaption, HTML::TagNames::figure, HTML::TagNames::footer, HTML::TagNames::header, HTML::TagNames::hgroup, HTML::TagNames::listing, HTML::TagNames::main, HTML::TagNames::menu, HTML::TagNames::nav, HTML::TagNames::ol, HTML::TagNames::pre, HTML::TagNames::search, HTML::TagNames::section, HTML::TagNames::summary, HTML::TagNames::ul, HTML::TagNames::select)) {
         // If the stack of open elements does not have an element in scope that is an HTML element with the same tag name as that of the token, then this is a parse error; ignore the token.
         if (!m_stack_of_open_elements.has_in_scope(token.tag_name())) {
             log_parse_error();
@@ -2514,6 +2508,16 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         if (m_stack_of_open_elements.has_in_button_scope(HTML::TagNames::p))
             close_a_p_element();
 
+        // If the stack of open elements has a select element in scope, then:
+        if (m_stack_of_open_elements.has_in_scope(HTML::TagNames::select)) {
+            // 1. Generate implied end tags.
+            generate_implied_end_tags();
+
+            // 2. If the stack of open elements has an option element in scope or has an optgroup element in scope, then this is a parse error.
+            if (m_stack_of_open_elements.has_in_scope(HTML::TagNames::option) || m_stack_of_open_elements.has_in_scope(HTML::TagNames::optgroup))
+                log_parse_error();
+        }
+
         // Insert an HTML element for the token. Immediately pop the current node off the stack of open elements.
         (void)insert_html_element(token);
         (void)m_stack_of_open_elements.pop();
@@ -2606,35 +2610,65 @@ void HTMLParser::handle_in_body(HTMLToken& token)
 
     // -> A start tag whose tag name is "select"
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::select) {
+        // If the stack of open elements has a select element in scope then:
+        if (m_stack_of_open_elements.has_in_scope(token.tag_name())) {
+            // 1. Parse error.
+            log_parse_error();
+
+            // 2. Pop elements from the stack of open elements until a select element has been popped from the stack.
+            m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(token.tag_name());
+        }
+        // Otherwise
+        else {
+            // Reconstruct the active formatting elements, if any.
+            reconstruct_the_active_formatting_elements();
+
+            // Insert an HTML element for the token.
+            (void)insert_html_element(token);
+
+            // Set the frameset-ok flag to "not ok".
+            m_frameset_ok = false;
+        }
+        return;
+    }
+
+    // -> A start tag whose tag name is "option"
+    if (token.is_start_tag() && token.tag_name() == HTML::TagNames::option) {
+        // If the stack of open elements has a select element in scope, then:
+        if (m_stack_of_open_elements.has_in_scope(HTML::TagNames::select)) {
+            // 1. Generate implied end tags except for optgroup elements.
+            generate_implied_end_tags(HTML::TagNames::optgroup);
+            // 2. If the stack of open elements has an option element in scope, then this is a parse error.
+            if (m_stack_of_open_elements.has_in_scope(HTML::TagNames::option))
+                log_parse_error();
+        }
+        // Otherwise:
+        else {
+            // 1. If the current node is an option element, then pop the current node off the stack of open elements.
+            if (current_node()->local_name() == HTML::TagNames::option)
+                (void)m_stack_of_open_elements.pop();
+        }
+
         // Reconstruct the active formatting elements, if any.
         reconstruct_the_active_formatting_elements();
 
         // Insert an HTML element for the token.
         (void)insert_html_element(token);
-
-        // Set the frameset-ok flag to "not ok".
-        m_frameset_ok = false;
-
-        // If the insertion mode is one of "in table", "in caption", "in table body", "in row", or "in cell", then switch the insertion mode to "in select in table". Otherwise, switch the insertion mode to "in select".
-        switch (m_insertion_mode) {
-        case InsertionMode::InTable:
-        case InsertionMode::InCaption:
-        case InsertionMode::InTableBody:
-        case InsertionMode::InRow:
-        case InsertionMode::InCell:
-            m_insertion_mode = InsertionMode::InSelectInTable;
-            break;
-        default:
-            m_insertion_mode = InsertionMode::InSelect;
-            break;
-        }
         return;
     }
 
-    // -> A start tag whose tag name is one of: "optgroup", "option"
-    if (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::optgroup, HTML::TagNames::option)) {
-        // If the current node is an option element, then pop the current node off the stack of open elements.
-        if (current_node()->local_name() == HTML::TagNames::option)
+    // -> A start tag whose tag name is "optgroup"
+    if (token.is_start_tag() && token.tag_name() == HTML::TagNames::optgroup) {
+        // If the stack of open elements has a select element in scope, then:
+        if (m_stack_of_open_elements.has_in_scope(HTML::TagNames::select)) {
+            // 1. Generate implied end tags.
+            generate_implied_end_tags();
+            // 2. If the stack of open elements has an option element in scope or has an optgroup element in scope, then this is a parse error.
+            if (m_stack_of_open_elements.has_in_scope(HTML::TagNames::option) || m_stack_of_open_elements.has_in_scope(HTML::TagNames::optgroup))
+                log_parse_error();
+        }
+        // Otherwise, if the current node is an option element, then pop the current node from the stack of open elements.
+        else if (current_node()->local_name() == HTML::TagNames::option)
             (void)m_stack_of_open_elements.pop();
 
         // Reconstruct the active formatting elements, if any.
@@ -3582,173 +3616,6 @@ AnythingElse:
     m_foster_parenting = false;
 }
 
-void HTMLParser::handle_in_select_in_table(HTMLToken& token)
-{
-    if (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::caption, HTML::TagNames::table, HTML::TagNames::tbody, HTML::TagNames::tfoot, HTML::TagNames::thead, HTML::TagNames::tr, HTML::TagNames::td, HTML::TagNames::th)) {
-        log_parse_error();
-        m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(HTML::TagNames::select);
-        reset_the_insertion_mode_appropriately();
-        process_using_the_rules_for(m_insertion_mode, token);
-        return;
-    }
-
-    if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::caption, HTML::TagNames::table, HTML::TagNames::tbody, HTML::TagNames::tfoot, HTML::TagNames::thead, HTML::TagNames::tr, HTML::TagNames::td, HTML::TagNames::th)) {
-        log_parse_error();
-
-        if (!m_stack_of_open_elements.has_in_table_scope(token.tag_name()))
-            return;
-
-        m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(HTML::TagNames::select);
-        reset_the_insertion_mode_appropriately();
-        process_using_the_rules_for(m_insertion_mode, token);
-        return;
-    }
-
-    process_using_the_rules_for(InsertionMode::InSelect, token);
-}
-
-void HTMLParser::handle_in_select(HTMLToken& token)
-{
-    if (token.is_character()) {
-        if (token.code_point() == 0) {
-            log_parse_error();
-            return;
-        }
-        insert_character(token.code_point());
-        return;
-    }
-
-    if (token.is_comment()) {
-        insert_comment(token);
-        return;
-    }
-
-    if (token.is_doctype()) {
-        log_parse_error();
-        return;
-    }
-
-    if (token.is_start_tag() && token.tag_name() == HTML::TagNames::html) {
-        process_using_the_rules_for(InsertionMode::InBody, token);
-        return;
-    }
-
-    if (token.is_start_tag() && token.tag_name() == HTML::TagNames::option) {
-        if (current_node()->local_name() == HTML::TagNames::option) {
-            (void)m_stack_of_open_elements.pop();
-        }
-        (void)insert_html_element(token);
-        return;
-    }
-
-    if (token.is_start_tag() && token.tag_name() == HTML::TagNames::optgroup) {
-        if (current_node()->local_name() == HTML::TagNames::option) {
-            (void)m_stack_of_open_elements.pop();
-        }
-        if (current_node()->local_name() == HTML::TagNames::optgroup) {
-            (void)m_stack_of_open_elements.pop();
-        }
-        (void)insert_html_element(token);
-        return;
-    }
-
-    // -> A start tag whose tag name is "hr"
-    if (token.is_start_tag() && token.tag_name() == HTML::TagNames::hr) {
-        // If the current node is an option element, pop that node from the stack of open elements.
-        if (current_node()->local_name() == HTML::TagNames::option) {
-            (void)m_stack_of_open_elements.pop();
-        }
-        // If the current node is an optgroup element, pop that node from the stack of open elements.
-        if (current_node()->local_name() == HTML::TagNames::optgroup) {
-            (void)m_stack_of_open_elements.pop();
-        }
-        // Insert an HTML element for the token. Immediately pop the current node off the stack of open elements.
-        (void)insert_html_element(token);
-        (void)m_stack_of_open_elements.pop();
-        // Acknowledge the token's self-closing flag, if it is set.
-        token.acknowledge_self_closing_flag_if_set();
-        return;
-    }
-
-    if (token.is_end_tag() && token.tag_name() == HTML::TagNames::optgroup) {
-        if (current_node()->local_name() == HTML::TagNames::option && node_before_current_node()->local_name() == HTML::TagNames::optgroup)
-            (void)m_stack_of_open_elements.pop();
-
-        if (current_node()->local_name() == HTML::TagNames::optgroup) {
-            (void)m_stack_of_open_elements.pop();
-        } else {
-            log_parse_error();
-            return;
-        }
-        return;
-    }
-
-    if (token.is_end_tag() && token.tag_name() == HTML::TagNames::option) {
-        if (current_node()->local_name() == HTML::TagNames::option) {
-            (void)m_stack_of_open_elements.pop();
-        } else {
-            log_parse_error();
-            return;
-        }
-        return;
-    }
-
-    if (token.is_end_tag() && token.tag_name() == HTML::TagNames::select) {
-        if (!m_stack_of_open_elements.has_in_select_scope(HTML::TagNames::select)) {
-            VERIFY(m_parsing_fragment);
-            log_parse_error();
-            return;
-        }
-        m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(HTML::TagNames::select);
-        reset_the_insertion_mode_appropriately();
-        return;
-    }
-
-    if (token.is_start_tag() && token.tag_name() == HTML::TagNames::select) {
-        log_parse_error();
-
-        if (!m_stack_of_open_elements.has_in_select_scope(HTML::TagNames::select)) {
-            VERIFY(m_parsing_fragment);
-            return;
-        }
-
-        m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(HTML::TagNames::select);
-        reset_the_insertion_mode_appropriately();
-        return;
-    }
-
-    if (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::input, HTML::TagNames::keygen, HTML::TagNames::textarea)) {
-        log_parse_error();
-
-        if (!m_stack_of_open_elements.has_in_select_scope(HTML::TagNames::select)) {
-            VERIFY(m_parsing_fragment);
-            return;
-        }
-
-        m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(HTML::TagNames::select);
-        reset_the_insertion_mode_appropriately();
-        process_using_the_rules_for(m_insertion_mode, token);
-        return;
-    }
-
-    if (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::script, HTML::TagNames::template_)) {
-        process_using_the_rules_for(InsertionMode::InHead, token);
-        return;
-    }
-
-    if (token.is_end_tag() && token.tag_name() == HTML::TagNames::template_) {
-        process_using_the_rules_for(InsertionMode::InHead, token);
-        return;
-    }
-
-    if (token.is_end_of_file()) {
-        process_using_the_rules_for(InsertionMode::InBody, token);
-        return;
-    }
-
-    log_parse_error();
-}
-
 void HTMLParser::handle_in_caption(HTMLToken& token)
 {
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::caption) {
@@ -4347,25 +4214,6 @@ void HTMLParser::reset_the_insertion_mode_appropriately()
 
         if (node->namespace_uri() != Namespace::HTML)
             continue;
-
-        if (node->local_name() == HTML::TagNames::select) {
-            if (!last) {
-                for (ssize_t j = i; j > 0; --j) {
-                    auto& ancestor = m_stack_of_open_elements.elements().at(j - 1);
-
-                    if (is<HTMLTemplateElement>(*ancestor))
-                        break;
-
-                    if (is<HTMLTableElement>(*ancestor)) {
-                        m_insertion_mode = InsertionMode::InSelectInTable;
-                        return;
-                    }
-                }
-            }
-
-            m_insertion_mode = InsertionMode::InSelect;
-            return;
-        }
 
         if (!last && node->local_name().is_one_of(HTML::TagNames::td, HTML::TagNames::th)) {
             m_insertion_mode = InsertionMode::InCell;
