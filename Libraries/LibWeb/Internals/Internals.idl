@@ -42,4 +42,6 @@ interface Internals {
     DOMString getComputedRole(Element element);
     DOMString getComputedLabel(Element element);
     unsigned short getEchoServerPort();
+
+    readonly attribute boolean headless;
 };

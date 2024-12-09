@@ -239,4 +239,9 @@ void Internals::set_echo_server_port(u16 const port)
     s_echo_server_port = port;
 }
 
+bool Internals::headless()
+{
+    return internals_page().client().is_headless();
+}
+
 }
