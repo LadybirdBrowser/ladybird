@@ -67,42 +67,41 @@ public:
     void set_type(Type type) { m_type = type; }
 
     [[nodiscard]] virtual bool aborted() const { return m_aborted; }
-    void set_aborted(bool aborted) { m_aborted = aborted; }
+    virtual void set_aborted(bool aborted) { m_aborted = aborted; }
 
     [[nodiscard]] virtual Vector<URL::URL> const& url_list() const { return m_url_list; }
     [[nodiscard]] virtual Vector<URL::URL>& url_list() { return m_url_list; }
-    void set_url_list(Vector<URL::URL> url_list) { m_url_list = move(url_list); }
+    virtual void set_url_list(Vector<URL::URL> url_list) { m_url_list = move(url_list); }
 
     [[nodiscard]] virtual Status status() const { return m_status; }
-    void set_status(Status status) { m_status = status; }
+    virtual void set_status(Status status) { m_status = status; }
 
     [[nodiscard]] virtual ReadonlyBytes status_message() const { return m_status_message; }
-    void set_status_message(ByteBuffer status_message) { m_status_message = move(status_message); }
+    virtual void set_status_message(ByteBuffer status_message) { m_status_message = move(status_message); }
 
     [[nodiscard]] virtual GC::Ref<HeaderList> header_list() const { return m_header_list; }
-    void set_header_list(GC::Ref<HeaderList> header_list) { m_header_list = header_list; }
+    virtual void set_header_list(GC::Ref<HeaderList> header_list) { m_header_list = header_list; }
 
-    [[nodiscard]] virtual GC::Ptr<Body> const& body() const { return m_body; }
-    [[nodiscard]] virtual GC::Ptr<Body>& body() { return m_body; }
-    void set_body(GC::Ptr<Body> body) { m_body = move(body); }
+    [[nodiscard]] virtual GC::Ptr<Body> body() const { return m_body; }
+    virtual void set_body(GC::Ptr<Body> body) { m_body = body; }
 
     [[nodiscard]] virtual Optional<CacheState> const& cache_state() const { return m_cache_state; }
-    void set_cache_state(Optional<CacheState> cache_state) { m_cache_state = move(cache_state); }
+    virtual void set_cache_state(Optional<CacheState> cache_state) { m_cache_state = move(cache_state); }
 
     [[nodiscard]] virtual Vector<ByteBuffer> const& cors_exposed_header_name_list() const { return m_cors_exposed_header_name_list; }
-    void set_cors_exposed_header_name_list(Vector<ByteBuffer> cors_exposed_header_name_list) { m_cors_exposed_header_name_list = move(cors_exposed_header_name_list); }
+    virtual void set_cors_exposed_header_name_list(Vector<ByteBuffer> cors_exposed_header_name_list) { m_cors_exposed_header_name_list = move(cors_exposed_header_name_list); }
 
     [[nodiscard]] virtual bool range_requested() const { return m_range_requested; }
-    void set_range_requested(bool range_requested) { m_range_requested = range_requested; }
+    virtual void set_range_requested(bool range_requested) { m_range_requested = range_requested; }
 
     [[nodiscard]] virtual bool request_includes_credentials() const { return m_request_includes_credentials; }
-    void set_request_includes_credentials(bool request_includes_credentials) { m_request_includes_credentials = request_includes_credentials; }
+    virtual void set_request_includes_credentials(bool request_includes_credentials) { m_request_includes_credentials = request_includes_credentials; }
 
     [[nodiscard]] virtual bool timing_allow_passed() const { return m_timing_allow_passed; }
-    void set_timing_allow_passed(bool timing_allow_passed) { m_timing_allow_passed = timing_allow_passed; }
+    virtual void set_timing_allow_passed(bool timing_allow_passed) { m_timing_allow_passed = timing_allow_passed; }
 
     [[nodiscard]] virtual BodyInfo const& body_info() const { return m_body_info; }
-    void set_body_info(BodyInfo body_info) { m_body_info = body_info; }
+    virtual void set_body_info(BodyInfo body_info) { m_body_info = body_info; }
 
     [[nodiscard]] bool has_cross_origin_redirects() const { return m_has_cross_origin_redirects; }
     void set_has_cross_origin_redirects(bool has_cross_origin_redirects) { m_has_cross_origin_redirects = has_cross_origin_redirects; }
@@ -216,20 +215,43 @@ public:
     virtual ~FilteredResponse() = 0;
 
     [[nodiscard]] virtual Type type() const override { return m_internal_response->type(); }
+
     [[nodiscard]] virtual bool aborted() const override { return m_internal_response->aborted(); }
+    virtual void set_aborted(bool aborted) override { m_internal_response->set_aborted(aborted); }
+
     [[nodiscard]] virtual Vector<URL::URL> const& url_list() const override { return m_internal_response->url_list(); }
     [[nodiscard]] virtual Vector<URL::URL>& url_list() override { return m_internal_response->url_list(); }
+    virtual void set_url_list(Vector<URL::URL> url_list) override { m_internal_response->set_url_list(move(url_list)); }
+
     [[nodiscard]] virtual Status status() const override { return m_internal_response->status(); }
+    virtual void set_status(Status status) override { m_internal_response->set_status(status); }
+
     [[nodiscard]] virtual ReadonlyBytes status_message() const override { return m_internal_response->status_message(); }
+    virtual void set_status_message(ByteBuffer status_message) override { m_internal_response->set_status_message(move(status_message)); }
+
     [[nodiscard]] virtual GC::Ref<HeaderList> header_list() const override { return m_internal_response->header_list(); }
-    [[nodiscard]] virtual GC::Ptr<Body> const& body() const override { return m_internal_response->body(); }
-    [[nodiscard]] virtual GC::Ptr<Body>& body() override { return m_internal_response->body(); }
+    virtual void set_header_list(GC::Ref<HeaderList> header_list) override { m_internal_response->set_header_list(header_list); }
+
+    [[nodiscard]] virtual GC::Ptr<Body> body() const override { return m_internal_response->body(); }
+    virtual void set_body(GC::Ptr<Body> body) override { m_internal_response->set_body(body); }
+
     [[nodiscard]] virtual Optional<CacheState> const& cache_state() const override { return m_internal_response->cache_state(); }
+    virtual void set_cache_state(Optional<CacheState> cache_state) override { m_internal_response->set_cache_state(move(cache_state)); }
+
     [[nodiscard]] virtual Vector<ByteBuffer> const& cors_exposed_header_name_list() const override { return m_internal_response->cors_exposed_header_name_list(); }
+    virtual void set_cors_exposed_header_name_list(Vector<ByteBuffer> cors_exposed_header_name_list) override { m_internal_response->set_cors_exposed_header_name_list(move(cors_exposed_header_name_list)); }
+
     [[nodiscard]] virtual bool range_requested() const override { return m_internal_response->range_requested(); }
+    virtual void set_range_requested(bool range_requested) override { m_internal_response->set_range_requested(range_requested); }
+
     [[nodiscard]] virtual bool request_includes_credentials() const override { return m_internal_response->request_includes_credentials(); }
+    virtual void set_request_includes_credentials(bool request_includes_credentials) override { m_internal_response->set_request_includes_credentials(request_includes_credentials); }
+
     [[nodiscard]] virtual bool timing_allow_passed() const override { return m_internal_response->timing_allow_passed(); }
+    virtual void set_timing_allow_passed(bool timing_allow_passed) override { m_internal_response->set_timing_allow_passed(timing_allow_passed); }
+
     [[nodiscard]] virtual BodyInfo const& body_info() const override { return m_internal_response->body_info(); }
+    virtual void set_body_info(BodyInfo body_info) override { m_internal_response->set_body_info(move(body_info)); }
 
     [[nodiscard]] GC::Ref<Response> internal_response() const { return m_internal_response; }
 
@@ -293,8 +315,7 @@ public:
     [[nodiscard]] virtual Status status() const override { return 0; }
     [[nodiscard]] virtual ReadonlyBytes status_message() const override { return {}; }
     [[nodiscard]] virtual GC::Ref<HeaderList> header_list() const override { return m_header_list; }
-    [[nodiscard]] virtual GC::Ptr<Body> const& body() const override { return m_body; }
-    [[nodiscard]] virtual GC::Ptr<Body>& body() override { return m_body; }
+    [[nodiscard]] virtual GC::Ptr<Body> body() const override { return nullptr; }
 
 private:
     OpaqueFilteredResponse(GC::Ref<Response>, GC::Ref<HeaderList>);
@@ -303,7 +324,6 @@ private:
 
     Vector<URL::URL> m_url_list;
     GC::Ref<HeaderList> m_header_list;
-    GC::Ptr<Body> m_body;
 };
 
 // https://fetch.spec.whatwg.org/#concept-filtered-response-opaque-redirect
@@ -318,8 +338,7 @@ public:
     [[nodiscard]] virtual Status status() const override { return 0; }
     [[nodiscard]] virtual ReadonlyBytes status_message() const override { return {}; }
     [[nodiscard]] virtual GC::Ref<HeaderList> header_list() const override { return m_header_list; }
-    [[nodiscard]] virtual GC::Ptr<Body> const& body() const override { return m_body; }
-    [[nodiscard]] virtual GC::Ptr<Body>& body() override { return m_body; }
+    [[nodiscard]] virtual GC::Ptr<Body> body() const override { return nullptr; }
 
 private:
     OpaqueRedirectFilteredResponse(GC::Ref<Response>, GC::Ref<HeaderList>);
@@ -327,6 +346,5 @@ private:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
     GC::Ref<HeaderList> m_header_list;
-    GC::Ptr<Body> m_body;
 };
 }
