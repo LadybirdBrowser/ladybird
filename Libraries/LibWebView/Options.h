@@ -113,6 +113,11 @@ enum class CollectGarbageOnEveryAllocation {
     Yes,
 };
 
+enum class IsHeadless {
+    No,
+    Yes,
+};
+
 struct WebContentOptions {
     String command_line;
     String executable_path;
@@ -128,6 +133,7 @@ struct WebContentOptions {
     EnableAutoplay enable_autoplay { EnableAutoplay::No };
     CollectGarbageOnEveryAllocation collect_garbage_on_every_allocation { CollectGarbageOnEveryAllocation::No };
     Optional<u16> echo_server_port {};
+    IsHeadless is_headless { IsHeadless::No };
 };
 
 }
