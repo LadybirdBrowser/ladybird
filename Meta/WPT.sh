@@ -58,7 +58,7 @@ print_help() {
                       Run the Web Platform Tests.
       compare:    $NAME compare [OPTIONS...] LOG_FILE [TESTS...]
                       Run the Web Platform Tests comparing the results to the expectations in LOG_FILE.
-      import:     $NAME import [TESTS...]
+      import:     $NAME import [PATHS...]
                       Fetch the given test file(s) from https://wpt.live/ and create an in-tree test and expectation files.
       list-tests: $NAME list-tests [PATHS..]
                       List the tests in the given PATHS.
@@ -220,9 +220,21 @@ import_wpt()
         item="${item#https://wpt.live/}"
         INPUT_PATHS[i]="$item"
     done
+
+    TESTS=()
+    while IFS= read -r test_file; do
+        TESTS+=("$test_file")
+    done < <(
+        "${ARG0}" list-tests "${INPUT_PATHS[@]}"
+    )
+    if [ "${#TESTS[@]}" -eq 0 ]; then
+        echo "No tests found for the given paths"
+        exit 1
+    fi
+
     pushd "${LADYBIRD_SOURCE_DIR}" > /dev/null
         ./Meta/ladybird.sh build headless-browser
-        for path in "${INPUT_PATHS[@]}"; do
+        for path in "${TESTS[@]}"; do
             echo "Importing test from ${path}"
             ./Meta/import-wpt-test.py https://wpt.live/"${path}"
             "${HEADLESS_BROWSER_BINARY}" --run-tests ./Tests/LibWeb --rebaseline -f "$path"
