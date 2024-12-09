@@ -3,7 +3,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
     BlockContainer <body> at (8,8) content-size 784x57 children: not-inline
       Box <div.grid-container> at (8,8) content-size 784x57 [GFC] children: not-inline
         BlockContainer <div.grid-item> at (28,28) content-size 744x17 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [397,28 6.34375x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 1, rect: [396.828125,28 6.34375x17] baseline: 13.296875
               "1"
           TextNode <#text>
 

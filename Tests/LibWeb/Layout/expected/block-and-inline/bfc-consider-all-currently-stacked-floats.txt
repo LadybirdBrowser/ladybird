@@ -9,12 +9,12 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
             "xxx"
         TextNode <#text>
       BlockContainer <(anonymous)> at (8,8) content-size 784x17 children: inline
-        frag 0 from TextNode start: 1, length: 3, rect: [137,8 27.640625x17] baseline: 13.296875
+        frag 0 from TextNode start: 1, length: 3, rect: [137.109375,8 27.640625x17] baseline: 13.296875
             "bar"
         TextNode <#text>
         TextNode <#text>
       BlockContainer <div> at (8,25) content-size 784x17 children: inline
-        frag 0 from TextNode start: 1, length: 3, rect: [130,25 27.203125x17] baseline: 13.296875
+        frag 0 from TextNode start: 1, length: 3, rect: [129.515625,25 27.203125x17] baseline: 13.296875
             "baz"
         TextNode <#text>
         BlockContainer <div.yyy> at (108,25) content-size 21.515625x17 floating [BFC] children: inline

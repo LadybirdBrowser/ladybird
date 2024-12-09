@@ -6,19 +6,19 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
             "H"
         TextNode <#text>
         InlineNode <span>
-          frag 0 from TextNode start: 0, length: 1, rect: [47,38 19.78125x40] baseline: 30.875
+          frag 0 from TextNode start: 0, length: 1, rect: [47.09375,38 19.78125x40] baseline: 30.875
               "e"
           TextNode <#text>
           InlineNode <span>
-            frag 0 from TextNode start: 0, length: 1, rect: [67,47 6.8125x28] baseline: 21.71875
+            frag 0 from TextNode start: 0, length: 1, rect: [66.875,47 6.8125x28] baseline: 21.71875
                 "l"
             TextNode <#text>
             InlineNode <span>
-              frag 0 from TextNode start: 0, length: 1, rect: [74,53 4.84375x20] baseline: 15.484375
+              frag 0 from TextNode start: 0, length: 1, rect: [73.6875,53 4.84375x20] baseline: 15.484375
                   "l"
               TextNode <#text>
               InlineNode <span>
-                frag 0 from TextNode start: 0, length: 1, rect: [79,58 8.40625x14] baseline: 10.890625
+                frag 0 from TextNode start: 0, length: 1, rect: [78.53125,58 8.40625x14] baseline: 10.890625
                     "o"
                 TextNode <#text>
       TextNode <#text>

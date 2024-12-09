@@ -3,11 +3,11 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
     BlockContainer <body> at (8,8) content-size 784x104 children: not-inline
       Box <div.grid-container> at (29,29) content-size 500x62 [GFC] children: not-inline
         BlockContainer <div.grid-item> at (49,49) content-size 120x22 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 3, rect: [90,49 37.28125x22] baseline: 17
+          frag 0 from TextNode start: 0, length: 3, rect: [90.359375,49 37.28125x22] baseline: 17
               "One"
           TextNode <#text>
         BlockContainer <div.grid-item> at (309,49) content-size 120x22 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 3, rect: [348,49 42.359375x22] baseline: 17
+          frag 0 from TextNode start: 0, length: 3, rect: [347.8125,49 42.359375x22] baseline: 17
               "Two"
           TextNode <#text>
 

@@ -5,7 +5,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
         BlockContainer <div.grid-item> at (68,68) content-size 17.046875x33 [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [71,68 11.890625x33] baseline: 25.5
+          frag 0 from TextNode start: 0, length: 1, rect: [70.578125,68 11.890625x33] baseline: 25.5
               "1"
           TextNode <#text>
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline

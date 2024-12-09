@@ -11,7 +11,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         TextNode <#text>
       BlockContainer <div> at (8,165) content-size 784x137 children: not-inline
         BlockContainer <(anonymous)> at (8,165) content-size 784x17 children: inline
-          frag 0 from TextNode start: 0, length: 49, rect: [191,165 418.6875x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 49, rect: [190.65625,165 418.6875x17] baseline: 13.296875
               "This text and the green square are both centered:"
           TextNode <#text>
         BlockContainer <div.square> at (350,202) content-size 100x100 children: not-inline
@@ -19,7 +19,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         TextNode <#text>
       BlockContainer <div> at (8,322) content-size 784x137 children: not-inline
         BlockContainer <(anonymous)> at (8,322) content-size 784x17 children: inline
-          frag 0 from TextNode start: 0, length: 54, rect: [345,322 447.484375x17] baseline: 13.296875
+          frag 0 from TextNode start: 0, length: 54, rect: [344.515625,322 447.484375x17] baseline: 13.296875
               "This text and the green square are both right aligned:"
           TextNode <#text>
         BlockContainer <div.square> at (672,359) content-size 100x100 children: not-inline
@@ -29,55 +29,55 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         BlockContainer <(anonymous)> at (8,479) content-size 784x17 children: inline
           frag 0 from TextNode start: 0, length: 4, rect: [8,479 35.5x17] baseline: 13.296875
               "This"
-          frag 1 from TextNode start: 4, length: 1, rect: [44,479 8x17] baseline: 13.296875
+          frag 1 from TextNode start: 4, length: 1, rect: [43.5,479 8x17] baseline: 13.296875
               " "
-          frag 2 from TextNode start: 5, length: 4, rect: [52,479 32.140625x17] baseline: 13.296875
+          frag 2 from TextNode start: 5, length: 4, rect: [51.5,479 32.140625x17] baseline: 13.296875
               "text"
-          frag 3 from TextNode start: 9, length: 1, rect: [84,479 8x17] baseline: 13.296875
+          frag 3 from TextNode start: 9, length: 1, rect: [83.640625,479 8x17] baseline: 13.296875
               " "
-          frag 4 from TextNode start: 10, length: 2, rect: [92,479 13.90625x17] baseline: 13.296875
+          frag 4 from TextNode start: 10, length: 2, rect: [91.640625,479 13.90625x17] baseline: 13.296875
               "is"
-          frag 5 from TextNode start: 12, length: 1, rect: [106,479 8x17] baseline: 13.296875
+          frag 5 from TextNode start: 12, length: 1, rect: [105.546875,479 8x17] baseline: 13.296875
               " "
-          frag 6 from TextNode start: 13, length: 1, rect: [114,479 3.625x17] baseline: 13.296875
+          frag 6 from TextNode start: 13, length: 1, rect: [113.546875,479 3.625x17] baseline: 13.296875
               "'"
-          frag 7 from TextNode start: 14, length: 4, rect: [117,479 24.671875x17] baseline: 13.296875
+          frag 7 from TextNode start: 14, length: 4, rect: [117.171875,479 24.671875x17] baseline: 13.296875
               "full"
-          frag 8 from TextNode start: 18, length: 1, rect: [142,479 6.484375x17] baseline: 13.296875
+          frag 8 from TextNode start: 18, length: 1, rect: [141.84375,479 6.484375x17] baseline: 13.296875
               "-"
-          frag 9 from TextNode start: 19, length: 9, rect: [148,479 64.5625x17] baseline: 13.296875
+          frag 9 from TextNode start: 19, length: 9, rect: [148.328125,479 64.5625x17] baseline: 13.296875
               "justified"
-          frag 10 from TextNode start: 28, length: 1, rect: [213,479 3.625x17] baseline: 13.296875
+          frag 10 from TextNode start: 28, length: 1, rect: [212.890625,479 3.625x17] baseline: 13.296875
               "'"
-          frag 11 from TextNode start: 29, length: 1, rect: [217,479 8x17] baseline: 13.296875
+          frag 11 from TextNode start: 29, length: 1, rect: [216.515625,479 8x17] baseline: 13.296875
               " "
-          frag 12 from TextNode start: 30, length: 3, rect: [225,479 26.8125x17] baseline: 13.296875
+          frag 12 from TextNode start: 30, length: 3, rect: [224.515625,479 26.8125x17] baseline: 13.296875
               "and"
-          frag 13 from TextNode start: 33, length: 1, rect: [251,479 8x17] baseline: 13.296875
+          frag 13 from TextNode start: 33, length: 1, rect: [251.328125,479 8x17] baseline: 13.296875
               " "
-          frag 14 from TextNode start: 34, length: 3, rect: [259,479 24.875x17] baseline: 13.296875
+          frag 14 from TextNode start: 34, length: 3, rect: [259.328125,479 24.875x17] baseline: 13.296875
               "the"
-          frag 15 from TextNode start: 37, length: 1, rect: [284,479 8x17] baseline: 13.296875
+          frag 15 from TextNode start: 37, length: 1, rect: [284.203125,479 8x17] baseline: 13.296875
               " "
-          frag 16 from TextNode start: 38, length: 5, rect: [292,479 43.4375x17] baseline: 13.296875
+          frag 16 from TextNode start: 38, length: 5, rect: [292.203125,479 43.4375x17] baseline: 13.296875
               "green"
-          frag 17 from TextNode start: 43, length: 1, rect: [336,479 8x17] baseline: 13.296875
+          frag 17 from TextNode start: 43, length: 1, rect: [335.640625,479 8x17] baseline: 13.296875
               " "
-          frag 18 from TextNode start: 44, length: 6, rect: [344,479 57.0625x17] baseline: 13.296875
+          frag 18 from TextNode start: 44, length: 6, rect: [343.640625,479 57.0625x17] baseline: 13.296875
               "square"
-          frag 19 from TextNode start: 50, length: 1, rect: [401,479 8x17] baseline: 13.296875
+          frag 19 from TextNode start: 50, length: 1, rect: [400.703125,479 8x17] baseline: 13.296875
               " "
-          frag 20 from TextNode start: 51, length: 2, rect: [409,479 13.90625x17] baseline: 13.296875
+          frag 20 from TextNode start: 51, length: 2, rect: [408.703125,479 13.90625x17] baseline: 13.296875
               "is"
-          frag 21 from TextNode start: 53, length: 1, rect: [423,479 8x17] baseline: 13.296875
+          frag 21 from TextNode start: 53, length: 1, rect: [422.609375,479 8x17] baseline: 13.296875
               " "
-          frag 22 from TextNode start: 54, length: 4, rect: [431,479 26.25x17] baseline: 13.296875
+          frag 22 from TextNode start: 54, length: 4, rect: [430.609375,479 26.25x17] baseline: 13.296875
               "left"
-          frag 23 from TextNode start: 58, length: 1, rect: [457,479 8x17] baseline: 13.296875
+          frag 23 from TextNode start: 58, length: 1, rect: [456.859375,479 8x17] baseline: 13.296875
               " "
-          frag 24 from TextNode start: 59, length: 7, rect: [465,479 51.890625x17] baseline: 13.296875
+          frag 24 from TextNode start: 59, length: 7, rect: [464.859375,479 51.890625x17] baseline: 13.296875
               "aligned"
-          frag 25 from TextNode start: 66, length: 1, rect: [517,479 3.78125x17] baseline: 13.296875
+          frag 25 from TextNode start: 66, length: 1, rect: [516.75,479 3.78125x17] baseline: 13.296875
               ":"
           TextNode <#text>
         BlockContainer <div.square> at (28,516) content-size 100x100 children: not-inline
@@ -86,7 +86,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x636]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x636]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x608] overflow: [8,8 784.484375x608]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x608]
       PaintableWithLines (BlockContainer<DIV>) [8,8 784x137]
         PaintableWithLines (BlockContainer(anonymous)) [8,8 784x17]
           TextPaintable (TextNode<#text>)
@@ -97,8 +97,8 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x636]
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.square) [350,202 100x100]
       PaintableWithLines (BlockContainer(anonymous)) [8,322 784x0]
-      PaintableWithLines (BlockContainer<DIV>) [8,322 784x137] overflow: [8,322 784.484375x137]
-        PaintableWithLines (BlockContainer(anonymous)) [8,322 784x17] overflow: [8,322 784.484375x17]
+      PaintableWithLines (BlockContainer<DIV>) [8,322 784x137]
+        PaintableWithLines (BlockContainer(anonymous)) [8,322 784x17]
           TextPaintable (TextNode<#text>)
         PaintableWithLines (BlockContainer<DIV>.square) [672,359 100x100]
       PaintableWithLines (BlockContainer(anonymous)) [8,479 784x0]

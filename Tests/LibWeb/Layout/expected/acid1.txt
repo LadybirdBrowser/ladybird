@@ -38,16 +38,16 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
               BlockContainer <p> at (235,65) content-size 139.96875x19 children: inline
                 frag 0 from TextNode start: 1, length: 5, rect: [235,65 27.5x19] baseline: 12.5
                     "bang "
-                frag 1 from RadioButton start: 0, length: 0, rect: [263,65 12x12] baseline: 12
+                frag 1 from RadioButton start: 0, length: 0, rect: [262.5,65 12x12] baseline: 12
                 TextNode <#text>
-                RadioButton <input> at (263,65) content-size 12x12 inline-block children: not-inline
+                RadioButton <input> at (262.5,65) content-size 12x12 inline-block children: not-inline
                 TextNode <#text>
               BlockContainer <p> at (235,84) content-size 139.96875x19 children: inline
                 frag 0 from TextNode start: 1, length: 8, rect: [235,84 45.171875x19] baseline: 12.5
                     "whimper "
-                frag 1 from RadioButton start: 0, length: 0, rect: [280,84 12x12] baseline: 12
+                frag 1 from RadioButton start: 0, length: 0, rect: [280.171875,84 12x12] baseline: 12
                 TextNode <#text>
-                RadioButton <input> at (280,84) content-size 12x12 inline-block children: not-inline
+                RadioButton <input> at (280.171875,84) content-size 12x12 inline-block children: not-inline
                 TextNode <#text>
               BlockContainer <(anonymous)> at (235,103) content-size 139.96875x0 children: inline
                 TextNode <#text>
@@ -95,22 +95,22 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
             "agents should be able to render the document elements above this paragraph"
         frag 2 from TextNode start: 167, length: 43, rect: [20,361 207.9375x13] baseline: 9.5
             "indistinguishably (to the pixel) from this "
-        frag 3 from TextNode start: 0, length: 31, rect: [331,361 159.671875x13] baseline: 9.5
+        frag 3 from TextNode start: 0, length: 31, rect: [330.96875,361 159.671875x13] baseline: 9.5
             " (except font rasterization and"
         frag 4 from TextNode start: 32, length: 89, rect: [20,374 465.09375x13] baseline: 9.5
             "form widgets). All discrepancies should be traceable to CSS1 implementation shortcomings."
         frag 5 from TextNode start: 122, length: 67, rect: [20,387 345.59375x13] baseline: 9.5
             "Once you have finished evaluating this test, you can return to the "
-        frag 6 from TextNode start: 0, length: 1, rect: [426,387 2.71875x13] baseline: 9.5
+        frag 6 from TextNode start: 0, length: 1, rect: [425.5,387 2.71875x13] baseline: 9.5
             "."
         TextNode <#text>
         InlineNode <a>
-          frag 0 from TextNode start: 0, length: 20, rect: [228,361 103.03125x13] baseline: 9.5
+          frag 0 from TextNode start: 0, length: 20, rect: [227.9375,361 103.03125x13] baseline: 9.5
               "reference rendering,"
           TextNode <#text>
         TextNode <#text>
         InlineNode <a>
-          frag 0 from TextNode start: 0, length: 11, rect: [366,387 59.90625x13] baseline: 9.5
+          frag 0 from TextNode start: 0, length: 11, rect: [365.59375,387 59.90625x13] baseline: 9.5
               "parent page"
           TextNode <#text>
         TextNode <#text>
@@ -138,10 +138,10 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
                 PaintableWithLines (InlineNode<FORM>)
               PaintableWithLines (BlockContainer<P>) [235,65 139.96875x19]
                 TextPaintable (TextNode<#text>)
-                RadioButtonPaintable (RadioButton<INPUT>) [263,65 12x12]
+                RadioButtonPaintable (RadioButton<INPUT>) [262.5,65 12x12]
               PaintableWithLines (BlockContainer<P>) [235,84 139.96875x19]
                 TextPaintable (TextNode<#text>)
-                RadioButtonPaintable (RadioButton<INPUT>) [280,84 12x12]
+                RadioButtonPaintable (RadioButton<INPUT>) [280.171875,84 12x12]
               PaintableWithLines (BlockContainer(anonymous)) [235,103 139.96875x0]
             PaintableWithLines (BlockContainer<LI>) [394.96875,45 80x120]
               TextPaintable (TextNode<#text>)
