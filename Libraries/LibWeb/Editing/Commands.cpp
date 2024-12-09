@@ -367,8 +367,8 @@ bool command_delete_action(DOM::Document& document, String const&)
     // 18. Call extend(node, offset) on the context object's selection.
     MUST(selection.extend(*node, offset));
 
-    // FIXME: 19. Delete the selection, with direction "backward".
-    delete_the_selection(selection);
+    // 19. Delete the selection, with direction "backward".
+    delete_the_selection(selection, true, true, Selection::Direction::Backwards);
 
     // 20. Return true.
     return true;
@@ -384,7 +384,7 @@ bool command_insert_paragraph_action(DOM::Document& document, String const&)
     // 2. If the active range's start node is neither editable nor an editing host, return true.
     auto& active_range = *selection.range();
     GC::Ptr<DOM::Node> node = active_range.start_container();
-    if (!node->is_editable() && !is_editing_host(*node))
+    if (!node->is_editable_or_editing_host())
         return true;
 
     // 3. Let node and offset be the active range's start node and offset.
@@ -599,8 +599,7 @@ bool command_insert_paragraph_action(DOM::Document& document, String const&)
         || ((new_line_range->start_container() == new_line_range->end_container() && new_line_range->start_offset() == new_line_range->end_offset() - 1)
             && is<HTML::HTMLBRElement>(*new_line_range->start_container()));
 
-    VERIFY(is<DOM::Element>(*container));
-    auto& container_element = static_cast<DOM::Element&>(*container);
+    auto& container_element = verify_cast<DOM::Element>(*container);
     auto new_container_name = [&] -> FlyString {
         // 18. If the local name of container is "h1", "h2", "h3", "h4", "h5", or "h6", and end of line is true, let new
         //     container name be the default single-line container name.
@@ -639,8 +638,9 @@ bool command_insert_paragraph_action(DOM::Document& document, String const&)
     Vector<GC::Ref<DOM::Node>> contained_nodes;
     auto common_ancestor = new_line_range->common_ancestor_container();
     common_ancestor->for_each_in_subtree([&](GC::Ref<DOM::Node> child_node) {
-        if (new_line_range->contains_node(child_node))
-            contained_nodes.append(child_node);
+        if (!new_line_range->contains_node(child_node))
+            return TraversalDecision::SkipChildrenAndContinue;
+        contained_nodes.append(child_node);
         return TraversalDecision::Continue;
     });
 
@@ -669,28 +669,12 @@ bool command_insert_paragraph_action(DOM::Document& document, String const&)
 
     // 32. If container has no visible children, call createElement("br") on the context object, and append the result
     //     as the last child of container.
-    bool has_visible_child = false;
-    container->for_each_child([&has_visible_child](GC::Ref<DOM::Node> child) {
-        if (is_visible_node(child)) {
-            has_visible_child = true;
-            return IterationDecision::Break;
-        }
-        return IterationDecision::Continue;
-    });
-    if (!has_visible_child)
+    if (!has_visible_children(*container))
         MUST(container->append_child(MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML))));
 
     // 33. If new container has no visible children, call createElement("br") on the context object, and append the
     //     result as the last child of new container.
-    has_visible_child = false;
-    new_container->for_each_child([&has_visible_child](GC::Ref<DOM::Node> child) {
-        if (is_visible_node(child)) {
-            has_visible_child = true;
-            return IterationDecision::Break;
-        }
-        return IterationDecision::Continue;
-    });
-    if (!has_visible_child)
+    if (!has_visible_children(*new_container))
         MUST(new_container->append_child(MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML))));
 
     // 34. Call collapse(new container, 0) on the context object's selection.

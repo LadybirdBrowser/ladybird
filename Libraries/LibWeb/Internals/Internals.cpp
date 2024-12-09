@@ -124,6 +124,18 @@ void Internals::click(double x, double y, UIEvents::MouseButton button)
     page.handle_mouseup(position, position, button, 0, 0);
 }
 
+void Internals::mouse_down(double x, double y)
+{
+    mouse_down(x, y, UIEvents::MouseButton::Primary);
+}
+
+void Internals::mouse_down(double x, double y, UIEvents::MouseButton button)
+{
+    auto& page = internals_page();
+    auto position = page.css_to_device_point({ x, y });
+    page.handle_mousedown(position, position, button, 0, 0);
+}
+
 void Internals::move_pointer_to(double x, double y)
 {
     auto& page = internals_page();

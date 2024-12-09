@@ -36,14 +36,12 @@ void EditingHostManager::handle_insert(String const& data)
     auto selection = m_document->get_selection();
 
     auto selection_range = selection->range();
-    if (!selection_range) {
+    if (!selection_range)
         return;
-    }
 
     auto node = selection->anchor_node();
-    if (!node || !node->is_editable()) {
+    if (!node || !node->is_editable_or_editing_host())
         return;
-    }
 
     if (!is<DOM::Text>(*node)) {
         auto& realm = node->realm();

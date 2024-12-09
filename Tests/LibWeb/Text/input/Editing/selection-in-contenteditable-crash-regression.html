@@ -1,0 +1,19 @@
+<script src="../include.js"></script>
+<style>
+    div {
+        font-size: 10px;
+    }
+</style>
+<div contenteditable="true">a<br><br><div id="b">b</div></div>
+<script>
+    test(() => {
+        var bDiv = document.querySelector('div#b');
+        var bBounds = bDiv.getBoundingClientRect();
+
+        // Drag a selection from inside the #b div to just above it.
+        internals.mouseDown(bBounds.x + 2, bBounds.y + 5);
+        internals.movePointerTo(bBounds.x + 2, bBounds.y - 5);
+
+        println('PASS (did not crash)');
+    });
+</script>

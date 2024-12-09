@@ -170,6 +170,9 @@ public:
     bool has_scheduled_selectionchange_event() const { return m_has_scheduled_selectionchange_event; }
     void set_scheduled_selectionchange_event(bool value) { m_has_scheduled_selectionchange_event = value; }
 
+    bool is_mutable() const { return m_is_mutable; }
+    void set_is_mutable(bool is_mutable) { m_is_mutable = is_mutable; }
+
     virtual void did_edit_text_node() = 0;
 
     virtual GC::Ptr<DOM::Text> form_associated_element_to_text_node() = 0;
@@ -205,6 +208,9 @@ private:
 
     // https://w3c.github.io/selection-api/#dfn-has-scheduled-selectionchange-event
     bool m_has_scheduled_selectionchange_event { false };
+
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#mutability
+    bool m_is_mutable { true };
 };
 
 }

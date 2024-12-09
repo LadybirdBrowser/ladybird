@@ -118,7 +118,7 @@ bool Document::query_command_enabled(FlyString const& command)
 
     // its start node is either editable or an editing host,
     auto start_node = active_range->start_container();
-    if (!start_node->is_editable() && !Editing::is_editing_host(start_node))
+    if (!start_node->is_editable_or_editing_host())
         return false;
 
     // FIXME: the editing host of its start node is not an EditContext editing host,
@@ -126,7 +126,7 @@ bool Document::query_command_enabled(FlyString const& command)
 
     // its end node is either editable or an editing host,
     auto& end_node = *active_range->end_container();
-    if (!end_node.is_editable() && !Editing::is_editing_host(end_node))
+    if (!end_node.is_editable_or_editing_host())
         return false;
 
     // FIXME: the editing host of its end node is not an EditContext editing host,

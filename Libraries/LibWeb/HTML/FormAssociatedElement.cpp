@@ -588,7 +588,7 @@ void FormAssociatedTextControlElement::set_the_selection_range(Optional<WebIDL::
 void FormAssociatedTextControlElement::handle_insert(String const& data)
 {
     auto text_node = form_associated_element_to_text_node();
-    if (!text_node || !text_node->is_editable())
+    if (!text_node || !is_mutable())
         return;
 
     String data_for_insertion = data;
@@ -613,7 +613,7 @@ void FormAssociatedTextControlElement::handle_insert(String const& data)
 void FormAssociatedTextControlElement::handle_delete(DeleteDirection direction)
 {
     auto text_node = form_associated_element_to_text_node();
-    if (!text_node || !text_node->is_editable())
+    if (!text_node || !is_mutable())
         return;
     auto selection_start = this->selection_start();
     auto selection_end = this->selection_end();

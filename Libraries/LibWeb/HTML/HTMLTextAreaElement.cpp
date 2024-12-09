@@ -394,10 +394,7 @@ void HTMLTextAreaElement::create_shadow_tree_if_needed()
 void HTMLTextAreaElement::handle_readonly_attribute(Optional<String> const& maybe_value)
 {
     // The readonly attribute is a boolean attribute that controls whether or not the user can edit the form control. When specified, the element is not mutable.
-    m_is_mutable = !maybe_value.has_value();
-
-    if (m_text_node)
-        m_text_node->set_always_editable(m_is_mutable);
+    set_is_mutable(!maybe_value.has_value());
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-maxlength

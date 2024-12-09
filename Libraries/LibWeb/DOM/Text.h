@@ -26,9 +26,6 @@ public:
 
     // ^Node
     virtual FlyString node_name() const override { return "#text"_fly_string; }
-    virtual bool is_editable() const override { return m_always_editable || CharacterData::is_editable(); }
-
-    void set_always_editable(bool b) { m_always_editable = b; }
 
     Optional<size_t> max_length() const { return m_max_length; }
     void set_max_length(Optional<size_t> max_length) { m_max_length = move(max_length); }
@@ -51,7 +48,6 @@ protected:
 private:
     GC::Ptr<Element> m_owner;
 
-    bool m_always_editable { false };
     Optional<size_t> m_max_length {};
     bool m_is_password_input { false };
 };

@@ -336,7 +336,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::show_picker()
     // The showPicker() method steps are:
 
     // 1. If this is not mutable, then throw an "InvalidStateError" DOMException.
-    if (!m_is_mutable)
+    if (!is_mutable())
         return WebIDL::InvalidStateError::create(realm(), "Element is not mutable"_string);
 
     // 2. If this's relevant settings object's origin is not same origin with this's relevant settings object's top-level origin,
@@ -712,10 +712,7 @@ void HTMLInputElement::handle_maxlength_attribute()
 void HTMLInputElement::handle_readonly_attribute(Optional<String> const& maybe_value)
 {
     // The readonly attribute is a boolean attribute that controls whether or not the user can edit the form control. When specified, the element is not mutable.
-    m_is_mutable = !maybe_value.has_value() || !is_allowed_to_be_readonly(m_type);
-
-    if (m_text_node)
-        m_text_node->set_always_editable(m_is_mutable);
+    set_is_mutable(!maybe_value.has_value() || !is_allowed_to_be_readonly(m_type));
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#the-input-element:attr-input-placeholder-3
@@ -871,12 +868,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
     MUST(element->append_child(*m_inner_text_element));
 
     m_text_node = realm().create<DOM::Text>(document(), move(initial_value));
-    if (type_state() == TypeAttributeState::FileUpload) {
-        // NOTE: file upload state is mutable, but we don't allow the text node to be modifed
-        m_text_node->set_always_editable(false);
-    } else {
-        handle_readonly_attribute(attribute(HTML::AttributeNames::readonly));
-    }
+    handle_readonly_attribute(attribute(HTML::AttributeNames::readonly));
     if (type_state() == TypeAttributeState::Password)
         m_text_node->set_is_password_input({}, true);
     handle_maxlength_attribute();
@@ -907,7 +899,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
 
         auto up_callback_function = JS::NativeFunction::create(
             realm(), [this](JS::VM&) {
-                if (m_is_mutable) {
+                if (is_mutable()) {
                     MUST(step_up());
                     user_interaction_did_change_input_value();
                 }
@@ -929,7 +921,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
 
         auto down_callback_function = JS::NativeFunction::create(
             realm(), [this](JS::VM&) {
-                if (m_is_mutable) {
+                if (is_mutable()) {
                     MUST(step_down());
                     user_interaction_did_change_input_value();
                 }
