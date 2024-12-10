@@ -6,6 +6,7 @@
  */
 
 #include <LibCore/AnonymousBuffer.h>
+#include <LibCore/System.h>
 #include <windows.h>
 
 namespace Core {
@@ -23,25 +24,25 @@ AnonymousBufferImpl::~AnonymousBufferImpl()
         VERIFY(UnmapViewOfFile(m_data));
 
     if (m_fd != -1)
-        VERIFY(CloseHandle((HANDLE)(intptr_t)m_fd));
+        MUST(System::close(m_fd));
 }
 
 ErrorOr<NonnullRefPtr<AnonymousBufferImpl>> AnonymousBufferImpl::create(size_t size)
 {
     HANDLE map_handle = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, size >> 31 >> 1, size & 0xFFFFFFFF, NULL);
     if (!map_handle)
-        return Error::from_windows_error(GetLastError());
+        return Error::from_windows_error();
 
-    return create((int)(intptr_t)map_handle, size);
+    return create(handle_to_fd(map_handle, System::FileMappingHandle), size);
 }
 
 ErrorOr<NonnullRefPtr<AnonymousBufferImpl>> AnonymousBufferImpl::create(int fd, size_t size)
 {
-    void* ptr = MapViewOfFile((HANDLE)(intptr_t)fd, FILE_MAP_ALL_ACCESS, 0, 0, size);
+    void* ptr = MapViewOfFile(System::fd_to_handle(fd), FILE_MAP_ALL_ACCESS, 0, 0, size);
     if (!ptr)
-        return Error::from_windows_error(GetLastError());
+        return Error::from_windows_error();
 
-    return adopt_nonnull_ref_or_enomem(new (nothrow) AnonymousBufferImpl(fd, size, ptr));
+    return adopt_ref(*new AnonymousBufferImpl(fd, size, ptr));
 }
 
 ErrorOr<AnonymousBuffer> AnonymousBuffer::create_with_size(size_t size)

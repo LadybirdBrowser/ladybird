@@ -10,6 +10,8 @@
 
 #if !defined(AK_OS_WINDOWS)
 #    include <LibIPC/TransportSocket.h>
+#else
+#    include <LibIPC/TransportSocketWindows.h>
 #endif
 
 namespace IPC {
@@ -18,7 +20,7 @@ namespace IPC {
 // Unix Domain Sockets
 using Transport = TransportSocket;
 #else
-#    error "LibIPC Transport has not been ported to this platform"
+using Transport = TransportSocketWindows;
 #endif
 
 }
