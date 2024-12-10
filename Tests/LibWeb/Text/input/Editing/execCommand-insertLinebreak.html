@@ -1,0 +1,40 @@
+<script src="../include.js"></script>
+<div id="a" contenteditable>foobar</div>
+<div id="b" contenteditable><p style="white-space: pre">foobar</p></div>
+<div id="c" contenteditable><p style="white-space: pre">foobar</p></div>
+<script>
+    test(() => {
+        let divA = document.querySelector('div#a');
+        let divB = document.querySelector('div#b');
+        let divC = document.querySelector('div#c');
+
+        document.body.offsetWidth // Force a layout
+
+        // A: Insert linebreak after 'foo'
+        println(`Before: "${divA.innerHTML}"`);
+        var range = document.createRange();
+        range.setStart(divA.firstChild, 3);
+        getSelection().addRange(range);
+        document.execCommand('insertLinebreak');
+        println(`After: "${divA.innerHTML}"`);
+        getSelection().empty();
+
+        // B: Insert linebreak after 'foo'
+        println(`Before: "${divB.innerHTML}"`);
+        var range = document.createRange();
+        range.setStart(divB.firstChild.firstChild, 3);
+        getSelection().addRange(range);
+        document.execCommand('insertLinebreak');
+        println(`After: "${divB.innerHTML}"`);
+        getSelection().empty();
+
+        // C: Insert linebreak after 'bar'
+        println(`Before: "${divC.innerHTML}"`);
+        var range = document.createRange();
+        range.setStart(divC.firstChild.firstChild, 6);
+        getSelection().addRange(range);
+        document.execCommand('insertLinebreak');
+        println(`After: "${divC.innerHTML}"`);
+        getSelection().empty();
+    });
+</script>

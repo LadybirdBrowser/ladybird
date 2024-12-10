@@ -19,6 +19,7 @@
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLLIElement.h>
 #include <LibWeb/HTML/HTMLTableElement.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/Namespace.h>
 
 namespace Web::Editing {
@@ -374,6 +375,81 @@ bool command_delete_action(DOM::Document& document, String const&)
     return true;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-insertlinebreak-command
+bool command_insert_linebreak_action(DOM::Document& document, String const&)
+{
+    // 1. Delete the selection, with strip wrappers false.
+    auto& selection = *document.get_selection();
+    delete_the_selection(selection, true, false);
+
+    // 2. If the active range's start node is neither editable nor an editing host, return true.
+    auto& active_range = *selection.range();
+    auto start_node = active_range.start_container();
+    if (!start_node->is_editable_or_editing_host())
+        return true;
+
+    // 3. If the active range's start node is an Element, and "br" is not an allowed child of it, return true.
+    if (is<DOM::Element>(*start_node) && !is_allowed_child_of_node(HTML::TagNames::br, start_node))
+        return true;
+
+    // 4. If the active range's start node is not an Element, and "br" is not an allowed child of the active range's
+    //    start node's parent, return true.
+    if (!is<DOM::Element>(*start_node) && start_node->parent() && !is_allowed_child_of_node(HTML::TagNames::br, GC::Ref { *start_node->parent() }))
+        return true;
+
+    // 5. If the active range's start node is a Text node and its start offset is zero, call collapse() on the context
+    //    object's selection, with first argument equal to the active range's start node's parent and second argument
+    //    equal to the active range's start node's index.
+    if (is<DOM::Text>(*start_node) && active_range.start_offset() == 0)
+        MUST(selection.collapse(start_node->parent(), start_node->index()));
+
+    // 6. If the active range's start node is a Text node and its start offset is the length of its start node, call
+    //    collapse() on the context object's selection, with first argument equal to the active range's start node's
+    //    parent and second argument equal to one plus the active range's start node's index.
+    if (is<DOM::Text>(*start_node) && active_range.start_offset() == start_node->length())
+        MUST(selection.collapse(start_node->parent(), start_node->index() + 1));
+
+    // AD-HOC: If the active range's start node is a Text node and its resolved value for "white-space" is one of "pre",
+    //         "pre-line" or "pre-wrap":
+    //         * Insert a newline (\n) character at the active range's start offset;
+    //         * Collapse the selection with active range's start node as the first argument and one plus active range's
+    //           start offset as the second argument
+    //         * Insert another newline (\n) character if the active range's start offset is equal to the length of the
+    //           active range's start node.
+    //         * Return true.
+    if (is<DOM::Text>(*start_node) && start_node->layout_node()) {
+        auto& text_node = static_cast<DOM::Text&>(*start_node);
+        auto white_space = text_node.layout_node()->computed_values().white_space();
+        if (first_is_one_of(white_space, CSS::WhiteSpace::Pre, CSS::WhiteSpace::PreLine, CSS::WhiteSpace::PreWrap)) {
+            MUST(text_node.insert_data(active_range.start_offset(), "\n"_string));
+            MUST(selection.collapse(start_node, active_range.start_offset() + 1));
+            if (selection.range()->start_offset() == start_node->length())
+                MUST(text_node.insert_data(active_range.start_offset(), "\n"_string));
+            return true;
+        }
+    }
+
+    // 7. Let br be the result of calling createElement("br") on the context object.
+    auto br = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
+
+    // 8. Call insertNode(br) on the active range.
+    MUST(active_range.insert_node(br));
+
+    // 9. Call collapse() on the context object's selection, with br's parent as the first argument and one plus br's
+    //    index as the second argument.
+    MUST(selection.collapse(br->parent(), br->index() + 1));
+
+    // 10. If br is a collapsed line break, call createElement("br") on the context object and let extra br be the
+    //     result, then call insertNode(extra br) on the active range.
+    if (is_collapsed_line_break(br)) {
+        auto extra_br = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
+        MUST(active_range.insert_node(extra_br));
+    }
+
+    // 11. Return true.
+    return true;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-insertparagraph-command
 bool command_insert_paragraph_action(DOM::Document& document, String const&)
 {
@@ -705,6 +781,7 @@ bool command_style_with_css_state(DOM::Document const& document)
 static Array const commands {
     CommandDefinition { CommandNames::delete_, command_delete_action, {}, {}, {} },
     CommandDefinition { CommandNames::defaultParagraphSeparator, command_default_paragraph_separator_action, {}, {}, command_default_paragraph_separator_value },
+    CommandDefinition { CommandNames::insertLineBreak, command_insert_linebreak_action, {}, {}, {} },
     CommandDefinition { CommandNames::insertParagraph, command_insert_paragraph_action, {}, {}, {} },
     CommandDefinition { CommandNames::styleWithCSS, command_style_with_css_action, {}, command_style_with_css_state, {} },
 };
