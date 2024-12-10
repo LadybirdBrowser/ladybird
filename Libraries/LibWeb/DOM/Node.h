@@ -248,6 +248,7 @@ public:
     Element const* parent_element() const;
 
     virtual void inserted();
+    virtual void post_connection();
     virtual void removed_from(Node*);
     virtual void children_changed() { }
     virtual void adopted_from(Document&) { }
