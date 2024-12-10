@@ -7,6 +7,7 @@
  */
 
 #include <AK/ByteBuffer.h>
+#include <AK/Enumerate.h>
 #include <AK/Math.h>
 #include <AK/NumericLimits.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -232,9 +233,9 @@ JS::ThrowCompletionOr<String> to_byte_string(JS::VM& vm, JS::Value value)
     auto x = TRY(value.to_string(vm));
 
     // 2. If the value of any element of x is greater than 255, then throw a TypeError.
-    for (auto character : x.code_points()) {
+    for (auto [i, character] : enumerate(x.code_points())) {
         if (character > 0xFF)
-            return vm.throw_completion<JS::TypeError>(JS::ErrorType::InvalidCodePoint);
+            return vm.throw_completion<JS::TypeError>(MUST(String::formatted("Invalid byte 0x{:X} at index {}, must be an integer no less than 0 and no greater than 0xFF", character, x.code_points().byte_offset_of(i))));
     }
 
     // 3. Return an IDL ByteString value whose length is the length of x, and where the value of each element is the value of the corresponding element of x.
