@@ -429,7 +429,7 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
     bool check_for_cancelation,
     IGNORE_USE_IN_ESCAPING_LAMBDA Optional<SourceSnapshotParams> source_snapshot_params,
     GC::Ptr<Navigable> initiator_to_check,
-    Optional<UserNavigationInvolvement> user_involvement_for_navigate_events,
+    IGNORE_USE_IN_ESCAPING_LAMBDA Optional<UserNavigationInvolvement> user_involvement_for_navigate_events,
     IGNORE_USE_IN_ESCAPING_LAMBDA Optional<Bindings::NavigationType> navigation_type,
     IGNORE_USE_IN_ESCAPING_LAMBDA SynchronousNavigation synchronous_navigation)
 {
@@ -487,7 +487,7 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
     }
 
     // 9. Let totalChangeJobs be the size of changingNavigables.
-    auto total_change_jobs = changing_navigables.size();
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto total_change_jobs = changing_navigables.size();
 
     // 10. Let completedChangeJobs be 0.
     IGNORE_USE_IN_ESCAPING_LAMBDA size_t completed_change_jobs = 0;
@@ -799,7 +799,7 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
     }));
 
     // 15. Let totalNonchangingJobs be the size of nonchangingNavigablesThatStillNeedUpdates.
-    auto total_non_changing_jobs = non_changing_navigables_that_still_need_updates.size();
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto total_non_changing_jobs = non_changing_navigables_that_still_need_updates.size();
 
     // 16. Let completedNonchangingJobs be 0.
     IGNORE_USE_IN_ESCAPING_LAMBDA auto completed_non_changing_jobs = 0u;
@@ -880,10 +880,10 @@ TraversableNavigable::CheckIfUnloadingIsCanceledResult TraversableNavigable::che
         documents_to_fire_beforeunload.append(navigable->active_document());
 
     // 2. Let unloadPromptShown be false.
-    auto unload_prompt_shown = false;
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto unload_prompt_shown = false;
 
     // 3. Let finalStatus be "continue".
-    auto final_status = CheckIfUnloadingIsCanceledResult::Continue;
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto final_status = CheckIfUnloadingIsCanceledResult::Continue;
 
     // 4. If traversable was given, then:
     if (traversable) {
@@ -900,7 +900,7 @@ TraversableNavigable::CheckIfUnloadingIsCanceledResult TraversableNavigable::che
             VERIFY(user_involvement_for_navigate_events.has_value());
 
             // 2. Let eventsFired be false.
-            auto events_fired = false;
+            IGNORE_USE_IN_ESCAPING_LAMBDA auto events_fired = false;
 
             // 3. Let needsBeforeunload be true if navigablesThatNeedBeforeUnload contains traversable; otherwise false.
             auto it = navigables_that_need_before_unload.find_if([&traversable](GC::Root<Navigable> navigable) {
@@ -964,10 +964,10 @@ TraversableNavigable::CheckIfUnloadingIsCanceledResult TraversableNavigable::che
     }
 
     // 5. Let totalTasks be the size of documentsThatNeedBeforeunload.
-    auto total_tasks = documents_to_fire_beforeunload.size();
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto total_tasks = documents_to_fire_beforeunload.size();
 
     // 6. Let completedTasks be 0.
-    size_t completed_tasks = 0;
+    IGNORE_USE_IN_ESCAPING_LAMBDA size_t completed_tasks = 0;
 
     // 7. For each document of documents, queue a global task on the navigation and traversal task source given document's relevant global object to run the steps:
     for (auto& document : documents_to_fire_beforeunload) {

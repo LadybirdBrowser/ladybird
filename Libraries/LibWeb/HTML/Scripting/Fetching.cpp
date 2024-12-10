@@ -475,7 +475,7 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
     auto& vm = realm.vm();
 
     // 1. Let response be null.
-    GC::Ptr<Fetch::Infrastructure::Response> response = nullptr;
+    IGNORE_USE_IN_ESCAPING_LAMBDA GC::Ptr<Fetch::Infrastructure::Response> response = nullptr;
 
     // 2. Let bodyBytes be null.
     Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes;
@@ -510,6 +510,7 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
     }
 
     // 5. Pause until response is not null.
+    // FIXME: Consider using a "response holder" to avoid needing to annotate response as IGNORE_USE_IN_ESCAPING_LAMBDA.
     auto& event_loop = settings_object.responsible_event_loop();
     event_loop.spin_until(GC::create_function(vm.heap(), [&]() -> bool {
         return response;

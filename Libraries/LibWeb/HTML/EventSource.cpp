@@ -280,7 +280,7 @@ void EventSource::announce_the_connection()
 // https://html.spec.whatwg.org/multipage/server-sent-events.html#reestablish-the-connection
 void EventSource::reestablish_the_connection()
 {
-    bool initial_task_has_run { false };
+    IGNORE_USE_IN_ESCAPING_LAMBDA bool initial_task_has_run { false };
 
     // 1. Queue a task to run the following steps:
     HTML::queue_a_task(HTML::Task::Source::RemoteEvent, nullptr, nullptr, GC::create_function(heap(), [&]() {
