@@ -84,12 +84,7 @@ public:
                                 unless(hasParent(
                                     // <lambda struct>::operator()(...)
                                     cxxOperatorCallExpr(has(declRefExpr(to(equalsBoundNode("lambda")))))))))),
-                        parmVarDecl(
-                            allOf(
-                                // It's important that the parameter has a RecordType, as a templated type can never escape its function
-                                hasType(cxxRecordDecl()),
-                                hasAnnotation("serenity::escaping")))
-                            .bind("lambda-param-ref")))),
+                        parmVarDecl(hasAnnotation("serenity::escaping")).bind("lambda-param-ref")))),
             this);
     }
 
