@@ -96,7 +96,27 @@ void FetchController::abort(JS::Realm& realm, Optional<JS::Value> error)
     m_serialized_abort_reason = structured_serialize(realm.vm(), error.value(), fallback_error);
 }
 
-// FIXME: https://fetch.spec.whatwg.org/#deserialize-a-serialized-abort-reason
+// https://fetch.spec.whatwg.org/#deserialize-a-serialized-abort-reason
+JS::Value FetchController::deserialize_a_serialized_abort_reason(JS::Realm& realm)
+{
+    // 1. Let fallbackError be an "AbortError" DOMException.
+    auto fallback_error = WebIDL::AbortError::create(realm, "Fetch was aborted"_string);
+
+    // 2. Let deserializedError be fallbackError.
+    JS::Value deserialized_error = fallback_error;
+
+    // 3. If abortReason is non-null, then set deserializedError to StructuredDeserialize(abortReason, realm).
+    //    If that threw an exception or returned undefined, then set deserializedError to fallbackError.
+    if (m_serialized_abort_reason.has_value()) {
+        auto deserialized_error_or_exception = HTML::structured_deserialize(realm.vm(), m_serialized_abort_reason.value(), realm, {});
+        if (!deserialized_error_or_exception.is_exception() && !deserialized_error_or_exception.value().is_undefined()) {
+            deserialized_error = deserialized_error_or_exception.value();
+        }
+    }
+
+    // 4. Return deserializedError.
+    return deserialized_error;
+}
 
 // https://fetch.spec.whatwg.org/#fetch-controller-terminate
 void FetchController::terminate()
@@ -135,6 +155,21 @@ void FetchController::fetch_task_queued(u64 fetch_task_id, HTML::TaskID event_id
 void FetchController::fetch_task_complete(u64 fetch_task_id)
 {
     m_ongoing_fetch_tasks.remove(fetch_task_id);
+}
+
+GC_DEFINE_ALLOCATOR(FetchControllerHolder);
+
+FetchControllerHolder::FetchControllerHolder() = default;
+
+GC::Ref<FetchControllerHolder> FetchControllerHolder::create(JS::VM& vm)
+{
+    return vm.heap().allocate<FetchControllerHolder>();
+}
+
+void FetchControllerHolder::visit_edges(JS::Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_controller);
 }
 
 }
