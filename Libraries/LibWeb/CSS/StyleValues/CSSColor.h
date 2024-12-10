@@ -34,7 +34,16 @@ private:
         Array<ValueComparingNonnullRefPtr<CSSStyleValue>, 3> channels;
         ValueComparingNonnullRefPtr<CSSStyleValue> alpha;
         bool operator==(Properties const&) const = default;
-    } m_properties;
+    };
+
+    struct Resolved {
+        Array<float, 3> channels {};
+        float alpha {};
+    };
+
+    Resolved resolve_properties() const;
+
+    Properties m_properties;
 };
 
 } // Web::CSS

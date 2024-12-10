@@ -34,6 +34,27 @@ CSSColorValue::ColorType color_type_from_string_view(StringView color_space)
     VERIFY_NOT_REACHED();
 }
 
+StringView string_view_from_color_type(CSSColorValue::ColorType color_type)
+{
+    if (color_type == CSSColorValue::ColorType::A98RGB)
+        return "a98-rgb"sv;
+    if (color_type == CSSColorValue::ColorType::DisplayP3)
+        return "display-p3"sv;
+    if (color_type == CSSColorValue::ColorType::sRGB)
+        return "srgb"sv;
+    if (color_type == CSSColorValue::ColorType::sRGBLinear)
+        return "srgb-linear"sv;
+    if (color_type == CSSColorValue::ColorType::ProPhotoRGB)
+        return "prophoto-rgb"sv;
+    if (color_type == CSSColorValue::ColorType::Rec2020)
+        return "rec2020"sv;
+    if (color_type == CSSColorValue::ColorType::XYZD50)
+        return "xyz-d50"sv;
+    if (color_type == CSSColorValue::ColorType::XYZD65)
+        return "xyz"sv;
+    VERIFY_NOT_REACHED();
+}
+
 }
 
 ValueComparingNonnullRefPtr<CSSColor> CSSColor::create(StringView color_space, ValueComparingNonnullRefPtr<CSSStyleValue> c1, ValueComparingNonnullRefPtr<CSSStyleValue> c2, ValueComparingNonnullRefPtr<CSSStyleValue> c3, ValueComparingRefPtr<CSSStyleValue> alpha)
@@ -59,19 +80,42 @@ bool CSSColor::equals(CSSStyleValue const& other) const
     return m_properties == other_lab_like.m_properties;
 }
 
+CSSColor::Resolved CSSColor::resolve_properties() const
+{
+    float const c1 = resolve_with_reference_value(m_properties.channels[0], 1).value_or(0);
+    float const c2 = resolve_with_reference_value(m_properties.channels[1], 1).value_or(0);
+    float const c3 = resolve_with_reference_value(m_properties.channels[2], 1).value_or(0);
+    float const alpha_val = resolve_alpha(m_properties.alpha).value_or(1);
+    return { .channels = { c1, c2, c3 }, .alpha = alpha_val };
+}
+
 // https://www.w3.org/TR/css-color-4/#serializing-color-function-values
 String CSSColor::to_string(SerializationMode) const
 {
     // FIXME: Do this properly, taking unresolved calculated values into account.
-    return serialize_a_srgb_value(to_color({}));
+    auto resolved = resolve_properties();
+    if (resolved.alpha == 1) {
+        return MUST(String::formatted("color({} {} {} {})",
+            string_view_from_color_type(m_color_type),
+            resolved.channels[0],
+            resolved.channels[1],
+            resolved.channels[2]));
+    }
+
+    return MUST(String::formatted("color({} {} {} {} / {})",
+        string_view_from_color_type(m_color_type),
+        resolved.channels[0],
+        resolved.channels[1],
+        resolved.channels[2],
+        resolved.alpha));
 }
 
 Color CSSColor::to_color(Optional<Layout::NodeWithStyle const&>) const
 {
-    auto const c1 = resolve_with_reference_value(m_properties.channels[0], 1).value_or(0);
-    auto const c2 = resolve_with_reference_value(m_properties.channels[1], 1).value_or(0);
-    auto const c3 = resolve_with_reference_value(m_properties.channels[2], 1).value_or(0);
-    auto const alpha_val = resolve_alpha(m_properties.alpha).value_or(1);
+    auto [channels, alpha_val] = resolve_properties();
+    auto c1 = channels[0];
+    auto c2 = channels[1];
+    auto c3 = channels[2];
 
     if (color_type() == ColorType::A98RGB)
         return Color::from_a98rgb(c1, c2, c3, alpha_val);
