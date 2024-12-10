@@ -171,4 +171,16 @@ JS::Object* WebGLRenderingContext::get_extension(String const&)
     return nullptr;
 }
 
+WebIDL::Long WebGLRenderingContext::drawing_buffer_width() const
+{
+    auto size = canvas_for_binding()->bitmap_size_for_canvas();
+    return size.width();
+}
+
+WebIDL::Long WebGLRenderingContext::drawing_buffer_height() const
+{
+    auto size = canvas_for_binding()->bitmap_size_for_canvas();
+    return size.height();
+}
+
 }
