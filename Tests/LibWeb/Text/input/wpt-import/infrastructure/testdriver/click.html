@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>TestDriver click method</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+
+<button type="button" id="button">Button</button>
+
+<script>
+async_test(t => {
+  let button = document.getElementById("button");
+  test_driver
+    .click(button)
+    .then(() => t.done())
+    .catch(t.unreached_func("click failed"));
+});
+</script>
