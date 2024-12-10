@@ -1,0 +1,28 @@
+Harness status: OK
+
+Found 23 tests
+
+23 Pass
+Pass	Create headers from no parameter
+Pass	Create headers from undefined parameter
+Pass	Create headers from empty object
+Pass	Create headers with null should throw
+Pass	Create headers with 1 should throw
+Pass	Create headers with sequence
+Pass	Create headers with record
+Pass	Create headers with existing headers
+Pass	Create headers with existing headers with custom iterator
+Pass	Check append method
+Pass	Check set method
+Pass	Check has method
+Pass	Check delete method
+Pass	Check get method
+Pass	Check keys method
+Pass	Check values method
+Pass	Check entries method
+Pass	Check Symbol.iterator method
+Pass	Check forEach method
+Pass	Iteration skips elements removed while iterating
+Pass	Removing elements already iterated over causes an element to be skipped during iteration
+Pass	Appending a value pair during iteration causes it to be reached during iteration
+Pass	Prepending a value pair before the current element position causes it to be skipped during iteration and adds the current element a second time
