@@ -60,6 +60,7 @@ ChannelMergerNode
 CharacterData
 Clipboard
 ClipboardEvent
+ClipboardItem
 CloseEvent
 CloseWatcher
 Comment

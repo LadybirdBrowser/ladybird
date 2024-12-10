@@ -33,6 +33,7 @@ set(SOURCES
     Bindings/SyntheticHostDefined.cpp
     Clipboard/Clipboard.cpp
     Clipboard/ClipboardEvent.cpp
+    Clipboard/ClipboardItem.cpp
     Compression/CompressionStream.cpp
     Compression/DecompressionStream.cpp
     Crypto/Crypto.cpp
