@@ -43,6 +43,9 @@ public:
     Optional<Vector<String>> get_supported_extensions() const;
     JS::Object* get_extension(String const& name);
 
+    WebIDL::Long drawing_buffer_width() const;
+    WebIDL::Long drawing_buffer_height() const;
+
 private:
     virtual void initialize(JS::Realm&) override;
 
