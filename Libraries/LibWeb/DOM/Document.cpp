@@ -3470,7 +3470,7 @@ void Document::destroy_a_document_and_its_descendants(GC::Ptr<GC::Function<void(
     }
 
     // 2. Let childNavigables be document's child navigables.
-    auto child_navigables = document_tree_child_navigables();
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto child_navigables = document_tree_child_navigables();
 
     // 3. Let numberDestroyed be 0.
     IGNORE_USE_IN_ESCAPING_LAMBDA size_t number_destroyed = 0;
@@ -3698,7 +3698,7 @@ void Document::unload_a_document_and_its_descendants(GC::Ptr<Document> new_docum
             descendant_navigables.append(other_navigable);
     }
 
-    auto unloaded_documents_count = descendant_navigables.size() + 1;
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto unloaded_documents_count = descendant_navigables.size() + 1;
 
     HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*this), GC::create_function(heap(), [&number_unloaded, this, new_document] {
         unload(new_document);

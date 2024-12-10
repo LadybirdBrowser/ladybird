@@ -892,7 +892,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
         }
     } else {
         // 1. Let processedResponse be false.
-        bool processed_response = false;
+        IGNORE_USE_IN_ESCAPING_LAMBDA bool processed_response = false;
 
         // 2. Let processResponseConsumeBody, given a response and nullOrFailureOrBytes, be these steps:
         auto process_response_consume_body = [this, &processed_response](GC::Ref<Fetch::Infrastructure::Response> response, Variant<Empty, Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag, ByteBuffer> null_or_failure_or_bytes) {
@@ -927,7 +927,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
 
         // 4. Let now be the present time.
         // 5. Pause until either processedResponse is true or this’s timeout is not 0 and this’s timeout milliseconds have passed since now.
-        bool did_time_out = false;
+        IGNORE_USE_IN_ESCAPING_LAMBDA bool did_time_out = false;
 
         if (m_timeout != 0) {
             auto timer = Platform::Timer::create_single_shot(heap(), m_timeout, nullptr);
