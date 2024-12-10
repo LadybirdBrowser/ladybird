@@ -1087,6 +1087,8 @@ TEST_CASE(optimizer_alternation)
         Tuple { "[0-9]{2}|[0-9]"sv, "92"sv, 2u },
         // Don't ForkJump to the next instruction, rerunning it would produce the same result. see ladybird#2398.
         Tuple { "(xxxxxxxxxxxxxxxxxxxxxxx|xxxxxxxxxxxxxxxxxxxxxxx)?b"sv, "xxxxxxxxxxxxxxxxxxxxxxx"sv, 0u },
+        // Don't take the jump in JumpNonEmpty with nonexistent checkpoints (also don't crash).
+        Tuple { "(?!\\d*|[g-ta-r]+|[h-l]|\\S|\\S|\\S){,9}|\\S{7,8}|\\d|(?<wnvdfimiwd>)|[c-mj-tb-o]*|\\s"sv, "rjvogg7pm|li4nmct mjb2|pk7s8e0"sv, 0u },
     };
 
     for (auto& test : tests) {
