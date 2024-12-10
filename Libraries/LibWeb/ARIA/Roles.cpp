@@ -102,6 +102,7 @@ bool is_document_structure_role(Role role)
         Role::blockquote,
         Role::caption,
         Role::cell,
+        Role::code,
         Role::columnheader,
         Role::definition,
         Role::deletion,
@@ -129,6 +130,7 @@ bool is_document_structure_role(Role role)
         Role::separator, // TODO: Only when not focusable
         Role::strong,
         Role::subscript,
+        Role::superscript,
         Role::table,
         Role::term,
         Role::time,
