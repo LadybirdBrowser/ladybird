@@ -240,15 +240,6 @@ requires(IsConstructible<T, Args...>) inline ErrorOr<NonnullRefPtr<T>> try_make_
     return adopt_nonnull_ref_or_enomem(new (nothrow) T(forward<Args>(args)...));
 }
 
-#ifdef AK_COMPILER_APPLE_CLANG
-// FIXME: Remove once P0960R3 is available in Apple Clang.
-template<typename T, class... Args>
-inline ErrorOr<NonnullRefPtr<T>> try_make_ref_counted(Args&&... args)
-{
-    return adopt_nonnull_ref_or_enomem(new (nothrow) T { forward<Args>(args)... });
-}
-#endif
-
 template<Formattable T>
 struct Formatter<NonnullRefPtr<T>> : Formatter<T> {
     ErrorOr<void> format(FormatBuilder& builder, NonnullRefPtr<T> const& value)
@@ -278,15 +269,6 @@ requires(IsConstructible<T, Args...>) inline NonnullRefPtr<T> make_ref_counted(A
 {
     return NonnullRefPtr<T>(NonnullRefPtr<T>::Adopt, *new T(forward<Args>(args)...));
 }
-
-#ifdef AK_COMPILER_APPLE_CLANG
-// FIXME: Remove once P0960R3 is available in Apple Clang.
-template<typename T, class... Args>
-inline NonnullRefPtr<T> make_ref_counted(Args&&... args)
-{
-    return NonnullRefPtr<T>(NonnullRefPtr<T>::Adopt, *new T { forward<Args>(args)... });
-}
-#endif
 
 template<typename T>
 struct Traits<NonnullRefPtr<T>> : public DefaultTraits<NonnullRefPtr<T>> {
