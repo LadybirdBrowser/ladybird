@@ -17,7 +17,7 @@ class Function final : public Cell {
     GC_CELL(Function, Cell);
 
 public:
-    static Ref<Function> create(Heap& heap, AK::Function<T> function)
+    static Ref<Function> create(Heap& heap, ESCAPING AK::Function<T> function)
     {
         return heap.allocate<Function>(move(function));
     }
@@ -42,7 +42,7 @@ private:
 };
 
 template<typename Callable, typename T = EquivalentFunctionType<Callable>>
-static Ref<Function<T>> create_function(Heap& heap, Callable&& function)
+static Ref<Function<T>> create_function(Heap& heap, ESCAPING Callable&& function)
 {
     return Function<T>::create(heap, AK::Function<T> { forward<Callable>(function) });
 }
