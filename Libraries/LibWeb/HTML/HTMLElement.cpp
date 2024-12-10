@@ -1014,11 +1014,11 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
     m_popover_showing_or_hiding = true;
 
     // 7. Let cleanupShowingFlag be the following steps:
-    auto cleanup_showing_flag = GC::create_function(this->heap(), [&nested_show, this] {
+    auto cleanup_showing_flag = [&nested_show, this] {
         // 7.1. If nestedShow is false, then set element's popover showing or hiding to false.
         if (!nested_show)
             m_popover_showing_or_hiding = false;
-    });
+    };
 
     // FIXME: 8. If the result of firing an event named beforetoggle, using ToggleEvent, with the cancelable attribute initialized to true, the oldState attribute initialized to "closed", and the newState attribute initialized to "open" at element is false, then run cleanupShowingFlag and return.
 
@@ -1062,7 +1062,7 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
 
     // FIXME: 20. Queue a popover toggle event task given element, "closed", and "open".
     // 21. Run cleanupShowingFlag.
-    cleanup_showing_flag->function()();
+    cleanup_showing_flag();
 
     return {};
 }
@@ -1095,14 +1095,14 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement, FireEv
         fire_events = FireEvents::No;
 
     // 6. Let cleanupSteps be the following steps:
-    auto cleanup_steps = GC::create_function(this->heap(), [&nested_hide, this] {
+    auto cleanup_steps = [&nested_hide, this] {
         // 6.1. If nestedHide is false, then set element's popover showing or hiding to false.
         if (nested_hide)
             m_popover_showing_or_hiding = false;
         // FIXME: 6.2. If element's popover close watcher is not null, then:
         // FIXME: 6.2.1. Destroy element's popover close watcher.
         // FIXME: 6.2.2. Set element's popover close watcher to null.
-    });
+    };
 
     // 7. If element's popover attribute is in the auto state, then:
     if (popover().has_value() && popover().value() == "auto"sv) {
@@ -1138,7 +1138,7 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement, FireEv
     // FIXME: 15.2. If focusPreviousElement is true and document's focused area of the document's DOM anchor is a shadow-including inclusive descendant of element, then run the focusing steps for previouslyFocusedElement; the viewport should not be scrolled by doing this step.
 
     // 16. Run cleanupSteps.
-    cleanup_steps->function()();
+    cleanup_steps();
 
     return {};
 }
