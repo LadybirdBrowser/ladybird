@@ -221,8 +221,8 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Str
     }
 
     // 9. Let noopener be the result of getting noopener for window open with sourceDocument, tokenizedFeatures, and urlRecord.
-    // FIXME: Is it safe to assume url_record has a value here?
-    auto no_opener = get_noopener_for_window_open(source_document, tokenized_features, *url_record);
+    // FIXME: Spec bug: https://github.com/whatwg/html/issues/10844
+    auto no_opener = get_noopener_for_window_open(source_document, tokenized_features, url_record.has_value() ? *url_record : URL::URL("about:blank"));
 
     // 10. Remove tokenizedFeatures["noopener"] and tokenizedFeatures["noreferrer"].
     tokenized_features.remove("noopener"sv);
