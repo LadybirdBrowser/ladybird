@@ -233,11 +233,7 @@
          *                    rejected in the cases the WebDriver command errors
          */
         get_computed_label: async function(element) {
-            // XXX: Ladybird-specific change: Upstream WPT calls
-            // window.test_driver_internal.get_computed_label(element) here,
-            // but we’ve changed that to our Ladybird-specific
-            // window.internals.getComputedLabel(el).
-            let label = await window.internals.getComputedLabel(element);
+            let label = await window.test_driver_internal.get_computed_label(element);
             return label;
         },
 
@@ -254,11 +250,7 @@
          *                    rejected in the cases the WebDriver command errors
          */
         get_computed_role: async function(element) {
-            // XXX: Ladybird-specific change: Upstream WPT calls
-            // window.test_driver_internal.get_computed_role(element) here,
-            // but we’ve changed that to our Ladybird-specific
-            // window.internals.getComputedRole(el).
-            let role = await window.internals.getComputedRole(element);
+            let role = await window.test_driver_internal.get_computed_role(element);
             return role;
         },
 
