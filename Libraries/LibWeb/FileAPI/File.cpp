@@ -58,19 +58,30 @@ WebIDL::ExceptionOr<GC::Ref<File>> File::create(JS::Realm& realm, Vector<BlobPar
     i64 last_modified = 0;
     // 3. Process FilePropertyBag dictionary argument by running the following substeps:
     if (options.has_value()) {
-        // FIXME: 1. If the type member is provided and is not the empty string, let t be set to the type dictionary member.
-        //    If t contains any characters outside the range U+0020 to U+007E, then set t to the empty string and return from these substeps.
-        // FIXME: 2. Convert every character in t to ASCII lowercase.
+        // 1. If the type member is provided and is not the empty string, let t be set to the type dictionary member.
+        type = options->type;
 
-        // NOTE: The spec is out of date, and we are supposed to call into the MimeType parser here.
-        auto maybe_parsed_type = Web::MimeSniff::MimeType::parse(options->type);
+        if (!type.is_empty()) {
+            //  If t contains any characters outside the range U+0020 to U+007E, then set t to the empty string and return from these substeps.
+            if (AK::any_of(type.bytes_as_string_view(), [](auto ch) { return ch < 0x20 || ch > 0x7E; })) {
+                // Assign an empty string
+                type = String {};
+                // Return from these substeps.
+                return realm.create<File>(realm, move(bytes), move(name), move(type), last_modified);
+            }
+            // 2. Convert every character in t to ASCII lowercase.
+            type = type.to_ascii_lowercase();
 
-        if (maybe_parsed_type.has_value())
-            type = maybe_parsed_type->serialized();
+        } else {
+            // If the type member is not provided or is the empty string, set t to the empty string.
+            type = String {};
+        }
 
-        // 3. If the lastModified member is provided, let d be set to the lastModified dictionary member. If it is not provided, set d to the current date and time represented as the number of milliseconds since the Unix Epoch (which is the equivalent of Date.now() [ECMA-262]).
-        //    Note: Since ECMA-262 Date objects convert to long long values representing the number of milliseconds since the Unix Epoch, the lastModified member could be a Date object [ECMA-262].
-        last_modified = options->last_modified.has_value() ? options->last_modified.value() : UnixDateTime::now().milliseconds_since_epoch();
+        // 3. If the lastModified member is provided, let d be set to the lastModified dictionary member.
+        //    If it is not provided, set d to the current date and time represented as the number of milliseconds since the Unix Epoch.
+        last_modified = options->last_modified.has_value()
+            ? options->last_modified.value()
+            : UnixDateTime::now().milliseconds_since_epoch();
     }
 
     // 4. Return a new File object F such that:
