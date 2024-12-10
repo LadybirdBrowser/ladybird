@@ -58,8 +58,10 @@ print_help() {
                       Run the Web Platform Tests.
       compare:    $NAME compare [OPTIONS...] LOG_FILE [TESTS...]
                       Run the Web Platform Tests comparing the results to the expectations in LOG_FILE.
-      import:     $NAME import [TESTS...]
+      import:     $NAME import [PATHS...]
                       Fetch the given test file(s) from https://wpt.live/ and create an in-tree test and expectation files.
+      list-tests: $NAME list-tests [PATHS..]
+                      List the tests in the given PATHS.
 
     Examples:
       $NAME update
@@ -76,6 +78,8 @@ print_help() {
           Run the Web Platform Tests in the 'css/CSS2' directory, comparing the results to the expectations in expectations.log; output the results to results.log.
       $NAME import html/dom/aria-attribute-reflection.html
           Import the test from https://wpt.live/html/dom/aria-attribute-reflection.html into the Ladybird test suite.
+      $NAME list-tests css/CSS2 dom
+          Show a list of all tests in the 'css/CSS2' and 'dom' directories.
 EOF
 }
 
@@ -199,6 +203,15 @@ serve_wpt()
     popd > /dev/null
 }
 
+list_tests_wpt()
+{
+    ensure_wpt_repository
+
+    pushd "${WPT_SOURCE_DIR}" > /dev/null
+        ./wpt run --list-tests ladybird "${TEST_LIST[@]}"
+    popd > /dev/null
+}
+
 import_wpt()
 {
     for i in "${!INPUT_PATHS[@]}"; do
@@ -207,13 +220,26 @@ import_wpt()
         item="${item#https://wpt.live/}"
         INPUT_PATHS[i]="$item"
     done
+
+    TESTS=()
+    mapfile -t TESTS < <( "${ARG0}" list-tests "${INPUT_PATHS[@]}" )
+    if [ "${#TESTS[@]}" -eq 0 ]; then
+        echo "No tests found for the given paths"
+        exit 1
+    fi
+
     pushd "${LADYBIRD_SOURCE_DIR}" > /dev/null
         ./Meta/ladybird.sh build headless-browser
-        for path in "${INPUT_PATHS[@]}"; do
+        set +e
+        for path in "${TESTS[@]}"; do
             echo "Importing test from ${path}"
             ./Meta/import-wpt-test.py https://wpt.live/"${path}"
+            if [ ! "$(./Meta/import-wpt-test.py https://wpt.live/"${path}")" ]; then
+                continue
+            fi
             "${HEADLESS_BROWSER_BINARY}" --run-tests ./Tests/LibWeb --rebaseline -f "$path"
         done
+        set -e
     popd > /dev/null
 }
 
@@ -229,7 +255,7 @@ compare_wpt() {
     rm -rf "${METADATA_DIR}"
 }
 
-if [[ "$CMD" =~ ^(update|run|serve|compare|import)$ ]]; then
+if [[ "$CMD" =~ ^(update|run|serve|compare|import|list-tests)$ ]]; then
     case "$CMD" in
         update)
             update_wpt
@@ -256,6 +282,9 @@ if [[ "$CMD" =~ ^(update|run|serve|compare|import)$ ]]; then
             fi
             shift
             compare_wpt
+            ;;
+        list-tests)
+            list_tests_wpt
             ;;
     esac
 else
