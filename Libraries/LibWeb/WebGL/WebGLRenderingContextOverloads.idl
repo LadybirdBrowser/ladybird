@@ -9,9 +9,6 @@ typedef (ImageBitmap or
          // FIXME: VideoFrame
          ) TexImageSource;
 
-// FIXME: BufferSource should be a Float32Array
-typedef (BufferSource or sequence<GLfloat>) Float32List;
-
 // FIXME: BufferSource should be a Int32Array
 typedef (BufferSource or sequence<GLint>) Int32List;
 
