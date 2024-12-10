@@ -527,6 +527,13 @@ public:
             continue;
         }
 
+        if (function.name == "texStorage2D") {
+            function_impl_generator.append(R"~~~(
+    glTexStorage2D(target, levels, internalformat, width, height);
+)~~~");
+            continue;
+        }
+
         if (function.name == "texImage2D"sv && function.overload_index == 0) {
             function_impl_generator.append(R"~~~(
     void const* pixels_ptr = nullptr;
