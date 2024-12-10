@@ -41,15 +41,22 @@ ThrowCompletionOr<GC::Ref<Object>> AsyncFunctionConstructor::construct(FunctionO
 {
     auto& vm = this->vm();
 
+    ReadonlySpan<Value> arguments = vm.running_execution_context().arguments;
+
+    ReadonlySpan<Value> parameter_args = arguments;
+    if (!parameter_args.is_empty())
+        parameter_args = parameter_args.slice(0, parameter_args.size() - 1);
+
     // 1. Let C be the active function object.
     auto* constructor = vm.active_function_object();
 
     // 2. If bodyArg is not present, set bodyArg to the empty String.
-    // NOTE: This does that, as well as the string extraction done inside of CreateDynamicFunction
-    auto extracted = TRY(extract_parameter_arguments_and_body(vm, vm.running_execution_context().arguments));
+    Value body_arg = &vm.empty_string();
+    if (!arguments.is_empty())
+        body_arg = arguments.last();
 
     // 3. Return ? CreateDynamicFunction(C, NewTarget, async, parameterArgs, bodyArg).
-    return TRY(FunctionConstructor::create_dynamic_function(vm, *constructor, &new_target, FunctionKind::Async, extracted.parameters, extracted.body));
+    return TRY(FunctionConstructor::create_dynamic_function(vm, *constructor, &new_target, FunctionKind::Async, parameter_args, body_arg));
 }
 
 }

@@ -111,7 +111,7 @@ URL::Origin WindowEnvironmentSettingsObject::origin() const
 }
 
 // https://html.spec.whatwg.org/multipage/window-object.html#script-settings-for-window-objects:concept-settings-object-policy-container
-PolicyContainer WindowEnvironmentSettingsObject::policy_container() const
+GC::Ref<PolicyContainer> WindowEnvironmentSettingsObject::policy_container() const
 {
     // Return the policy container of window's associated Document.
     return m_window->associated_document().policy_container();

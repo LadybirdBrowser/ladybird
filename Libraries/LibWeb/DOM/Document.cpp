@@ -39,6 +39,9 @@
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/CSS/VisualViewport.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
+#include <LibWeb/ContentSecurityPolicy/Policy.h>
+#include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/Cookie/ParsedCookie.h>
 #include <LibWeb/DOM/AdoptedStyleSheets.h>
 #include <LibWeb/DOM/Attr.h>
@@ -109,6 +112,7 @@
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/PopStateEvent.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
@@ -332,7 +336,8 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     // 11. Set window's associated Document to document.
     window->set_associated_document(*document);
 
-    // FIXME: 12. Run CSP initialization for a Document given document.
+    // 12. Run CSP initialization for a Document given document.
+    document->run_csp_initialization();
 
     // 13. If navigationParams's request is non-null, then:
     if (navigation_params.request) {
@@ -431,6 +436,7 @@ void Document::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Document);
+    Bindings::DocumentPrototype::define_unforgeable_attributes(realm, *this);
 
     m_selection = realm.create<Selection::Selection>(realm, *this);
 
@@ -533,6 +539,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_top_layer_pending_removals);
     visitor.visit(m_console_client);
     visitor.visit(m_editing_host_manager);
+    visitor.visit(m_policy_container);
 }
 
 // https://w3c.github.io/selection-api/#dom-document-getselection
@@ -3222,18 +3229,22 @@ void Document::set_active_sandboxing_flag_set(HTML::SandboxingFlagSet sandboxing
     m_active_sandboxing_flag_set = sandboxing_flag_set;
 }
 
-HTML::PolicyContainer Document::policy_container() const
+GC::Ref<HTML::PolicyContainer> Document::policy_container() const
 {
-    return m_policy_container;
+    auto& realm = this->realm();
+    if (!m_policy_container) {
+        m_policy_container = realm.create<HTML::PolicyContainer>(realm);
+    }
+    return *m_policy_container;
 }
 
-void Document::set_policy_container(HTML::PolicyContainer policy_container)
+void Document::set_policy_container(GC::Ref<HTML::PolicyContainer> policy_container)
 {
-    m_policy_container = move(policy_container);
+    m_policy_container = policy_container;
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#snapshotting-source-snapshot-params
-HTML::SourceSnapshotParams Document::snapshot_source_snapshot_params() const
+GC::Ref<HTML::SourceSnapshotParams> Document::snapshot_source_snapshot_params() const
 {
     // To snapshot source snapshot params given a Document sourceDocument, return a new source snapshot params with
 
@@ -3248,13 +3259,13 @@ HTML::SourceSnapshotParams Document::snapshot_source_snapshot_params() const
     // source policy container
     //     sourceDocument's policy container
 
-    return HTML::SourceSnapshotParams {
-        .has_transient_activation = verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).has_transient_activation(),
-        .sandboxing_flags = m_active_sandboxing_flag_set,
-        .allows_downloading = !has_flag(m_active_sandboxing_flag_set, HTML::SandboxingFlagSet::SandboxedDownloads),
-        .fetch_client = relevant_settings_object(),
-        .source_policy_container = m_policy_container
-    };
+    auto snapshot_params = realm().create<HTML::SourceSnapshotParams>();
+    snapshot_params->has_transient_activation = verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).has_transient_activation();
+    snapshot_params->sandboxing_flags = m_active_sandboxing_flag_set;
+    snapshot_params->allows_downloading = !has_flag(m_active_sandboxing_flag_set, HTML::SandboxingFlagSet::SandboxedDownloads);
+    snapshot_params->fetch_client = relevant_settings_object();
+    snapshot_params->source_policy_container = policy_container();
+    return snapshot_params;
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#descendant-navigables
@@ -5745,6 +5756,20 @@ Document::StepsToFireBeforeunloadResult Document::steps_to_fire_beforeunload(boo
 
     // 8. Return (unloadPromptShown, unloadPromptCanceled).
     return { unload_prompt_shown, unload_prompt_canceled };
+}
+
+// https://w3c.github.io/webappsec-csp/#run-document-csp-initialization
+void Document::run_csp_initialization() const
+{
+    // 1. For each policy of document’s policy container's CSP list:
+    for (auto policy : policy_container()->csp_list->policies()) {
+        // 1. For each directive of policy:
+        for (auto directive : policy->directives()) {
+            // 1. Execute directive’s initialization algorithm on document, and assert: its returned value is "Allowed".
+            auto result = directive->initialization(GC::Ref { *this }, policy);
+            VERIFY(result == ContentSecurityPolicy::Directives::Directive::Result::Allowed);
+        }
+    }
 }
 
 WebIDL::CallbackType* Document::onreadystatechange()
