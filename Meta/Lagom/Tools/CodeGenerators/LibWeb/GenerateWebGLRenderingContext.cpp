@@ -709,6 +709,24 @@ public:
             continue;
         }
 
+        if (function.name == "vertexAttrib1fv"sv || function.name == "vertexAttrib2fv"sv || function.name == "vertexAttrib3fv"sv || function.name == "vertexAttrib4fv"sv) {
+            auto number_of_vector_elements = function.name.substring_view(12, 1);
+            function_impl_generator.set("number_of_vector_elements", number_of_vector_elements);
+            function_impl_generator.append(R"~~~(
+    if (values.has<Vector<float>>()) {
+        auto& data = values.get<Vector<float>>();
+        glVertexAttrib@number_of_vector_elements@fv(index, data.data());
+        return;
+    }
+
+    auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*values.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
+    auto& float32_array = verify_cast<JS::Float32Array>(typed_array_base);
+    float const* data = float32_array.data().data();
+    glVertexAttrib@number_of_vector_elements@fv(index, data);
+)~~~");
+            continue;
+        }
+
         if (function.name == "getParameter"sv) {
             generate_get_parameter(function_impl_generator);
             continue;
