@@ -689,11 +689,34 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
 
     // 8. If suppress observers flag is unset, then queue a tree mutation record for parent with nodes, « », previousSibling, and child.
     if (!suppress_observers) {
-        queue_tree_mutation_record(move(nodes), {}, previous_sibling.ptr(), child.ptr());
+        queue_tree_mutation_record(nodes, {}, previous_sibling.ptr(), child.ptr());
     }
 
     // 9. Run the children changed steps for parent.
     children_changed();
+
+    // 10. Let staticNodeList be a list of nodes, initially « ».
+    // Spec-Note: We collect all nodes before calling the post-connection steps on any one of them, instead of calling
+    //            the post-connection steps while we’re traversing the node tree. This is because the post-connection
+    //            steps can modify the tree’s structure, making live traversal unsafe, possibly leading to the
+    //            post-connection steps being called multiple times on the same node.
+    GC::MarkedVector<GC::Ref<Node>> static_node_list(heap());
+
+    // 11. For each node of nodes, in tree order:
+    for (auto& node : nodes) {
+        // 1. For each shadow-including inclusive descendant inclusiveDescendant of node, in shadow-including tree
+        //    order, append inclusiveDescendant to staticNodeList.
+        node->for_each_shadow_including_inclusive_descendant([&static_node_list](Node& inclusive_descendant) {
+            static_node_list.append(inclusive_descendant);
+            return TraversalDecision::Continue;
+        });
+    }
+
+    // 12. For each node of staticNodeList, if node is connected, then run the post-connection steps with node.
+    for (auto& node : static_node_list) {
+        if (node->is_connected())
+            node->post_connection();
+    }
 
     if (is_connected()) {
         // FIXME: This will need to become smarter when we implement the :has() selector.
@@ -1199,6 +1222,10 @@ void Node::set_needs_style_update(bool value)
         }
         document().schedule_style_update();
     }
+}
+
+void Node::post_connection()
+{
 }
 
 void Node::inserted()
