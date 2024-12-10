@@ -540,6 +540,25 @@ public:
             continue;
         }
 
+        if (function.name == "texImage3D"sv) {
+            // FIXME: If a WebGLBuffer is bound to the PIXEL_UNPACK_BUFFER target, generates an INVALID_OPERATION error.
+            // FIXME: If srcData is null, a buffer of sufficient size initialized to 0 is passed.
+            // FIXME: If type is specified as FLOAT_32_UNSIGNED_INT_24_8_REV, srcData must be null; otherwise, generates an INVALID_OPERATION error.
+            // FIXME: If srcData is non-null, the type of srcData must match the type according to the above table; otherwise, generate an INVALID_OPERATION error.
+            // FIXME: If an attempt is made to call this function with no WebGLTexture bound (see above), generates an INVALID_OPERATION error.
+            // FIXME: If there's not enough data in srcData starting at srcOffset, generate INVALID_OPERATION.
+            function_impl_generator.append(R"~~~(
+    void const* src_data_ptr = nullptr;
+    if (src_data) {
+        auto const& viewed_array_buffer = src_data->viewed_array_buffer();
+        auto const& byte_buffer = viewed_array_buffer->buffer();
+        src_data_ptr = byte_buffer.data();
+    }
+    glTexImage3D(target, level, internalformat, width, height, depth, border, format, type, src_data_ptr);
+)~~~");
+            continue;
+        }
+
         if (function.name == "texImage2D"sv && function.overload_index == 1) {
             // FIXME: If this function is called with an ImageData whose data attribute has been neutered,
             //        an INVALID_VALUE error is generated.
