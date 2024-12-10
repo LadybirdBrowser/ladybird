@@ -1,0 +1,15 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Headers normalize values</title>
+<script>
+self.GLOBAL = {
+  isWindow: function() { return true; },
+  isWorker: function() { return false; },
+  isShadowRealm: function() { return false; },
+};
+</script>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<div id=log></div>
+<script src="../../../fetch/api/headers/headers-normalize.any.js"></script>
