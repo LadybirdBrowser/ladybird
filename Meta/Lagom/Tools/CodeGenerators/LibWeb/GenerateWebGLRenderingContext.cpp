@@ -326,7 +326,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     SourceGenerator implementation_file_generator { implementation_file_string_builder };
     implementation_file_generator.set("class_name", class_name);
 
-    auto webgl_version = class_name == "WebGLRenderingContext" ? 1 : 2;
+    auto webgl_version = class_name == "WebGLRenderingContextImpl" ? 1 : 2;
     if (webgl_version == 1) {
         implementation_file_generator.append(R"~~~(
 #include <GLES2/gl2.h>
@@ -713,17 +713,38 @@ public:
             }
             function_impl_generator.set("number_of_vector_elements", number_of_vector_elements);
             function_impl_generator.append(R"~~~(
+    @cpp_element_type@ const* data = nullptr;
+    size_t count = 0;
     if (v.has<Vector<@cpp_element_type@>>()) {
-        auto& data = v.get<Vector<@cpp_element_type@>>();
-        glUniform@number_of_vector_elements@@gl_postfix@v(location->handle(), data.size() / @number_of_vector_elements@, data.data());
-        return;
+        auto& vector = v.get<Vector<@cpp_element_type@>>();
+        data = vector.data();
+        count = vector.size();
+    } else if (v.has<GC::Root<WebIDL::BufferSource>>()) {
+        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*v.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
+        auto& typed_array = verify_cast<JS::@typed_array_type@>(typed_array_base);
+        data = typed_array.data().data();
+        count = typed_array.array_length().length();
+    } else {
+        VERIFY_NOT_REACHED();
+    }
+)~~~");
+
+            if (webgl_version == 2) {
+                function_impl_generator.append(R"~~~(
+    data += src_offset;
+    if (src_length == 0) {
+        count -= src_offset;
     }
 
-    auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*v.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-    auto& typed_array = verify_cast<JS::@typed_array_type@>(typed_array_base);
-    @cpp_element_type@ const* data = typed_array.data().data();
-    auto count = typed_array.array_length().length() / @number_of_vector_elements@;
-    glUniform@number_of_vector_elements@@gl_postfix@v(location->handle(), count, data);
+    if (src_offset + src_length <= count) {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+)~~~");
+            }
+
+            function_impl_generator.append(R"~~~(
+    glUniform@number_of_vector_elements@@gl_postfix@v(location->handle(), count / @number_of_vector_elements@, data);
 )~~~");
             continue;
         }

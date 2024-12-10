@@ -43,15 +43,15 @@ interface mixin WebGL2RenderingContextOverloads {
     [FIXME] undefined compressedTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLsizei imageSize, GLintptr offset);
     [FIXME] undefined compressedTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset,GLsizei width, GLsizei height, GLenum format, [AllowShared] ArrayBufferView srcData, optional unsigned long long srcOffset = 0, optional GLuint srcLengthOverride = 0);
 
-    [FIXME] undefined uniform1fv(WebGLUniformLocation? location, Float32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
-    [FIXME] undefined uniform2fv(WebGLUniformLocation? location, Float32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
-    [FIXME] undefined uniform3fv(WebGLUniformLocation? location, Float32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
-    [FIXME] undefined uniform4fv(WebGLUniformLocation? location, Float32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
+    undefined uniform1fv(WebGLUniformLocation? location, Float32List v, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
+    undefined uniform2fv(WebGLUniformLocation? location, Float32List v, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
+    undefined uniform3fv(WebGLUniformLocation? location, Float32List v, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
+    undefined uniform4fv(WebGLUniformLocation? location, Float32List v, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
 
-    [FIXME] undefined uniform1iv(WebGLUniformLocation? location, Int32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
-    [FIXME] undefined uniform2iv(WebGLUniformLocation? location, Int32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
-    [FIXME] undefined uniform3iv(WebGLUniformLocation? location, Int32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
-    [FIXME] undefined uniform4iv(WebGLUniformLocation? location, Int32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
+    undefined uniform1iv(WebGLUniformLocation? location, Int32List v, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
+    undefined uniform2iv(WebGLUniformLocation? location, Int32List v, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
+    undefined uniform3iv(WebGLUniformLocation? location, Int32List v, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
+    undefined uniform4iv(WebGLUniformLocation? location, Int32List v, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
 
     [FIXME] undefined uniformMatrix2fv(WebGLUniformLocation? location, GLboolean transpose, Float32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
     [FIXME] undefined uniformMatrix3fv(WebGLUniformLocation? location, GLboolean transpose, Float32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
