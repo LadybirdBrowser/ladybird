@@ -30,6 +30,8 @@ public:
 
     RefPtr<Gfx::PaintingSurface> surface();
 
+    Vector<String> get_supported_extensions();
+
 private:
     NonnullRefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     Gfx::IntSize m_size;

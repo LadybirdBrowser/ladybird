@@ -40,7 +40,7 @@ public:
     void set_size(Gfx::IntSize const&);
     void reset_to_default_state();
 
-    Optional<Vector<String>> get_supported_extensions() const;
+    Optional<Vector<String>> get_supported_extensions();
     JS::Object* get_extension(String const& name);
 
     WebIDL::Long drawing_buffer_width() const;
