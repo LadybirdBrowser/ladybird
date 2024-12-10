@@ -1,0 +1,9 @@
+Before: "foobar"
+After: "foo<br>bar"
+Before: "<p style="white-space: pre">foobar</p>"
+After: "<p style="white-space: pre">foo
+bar</p>"
+Before: "<p style="white-space: pre">foobar</p>"
+After: "<p style="white-space: pre">foobar
+
+</p>"
