@@ -368,7 +368,7 @@ interface mixin WebGL2RenderingContextBase {
     [FIXME] undefined drawRangeElements(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, GLintptr offset);
 
     // Multiple Render Targets
-    [FIXME] undefined drawBuffers(sequence<GLenum> buffers);
+    undefined drawBuffers(sequence<GLenum> buffers);
 
     [FIXME] undefined clearBufferfv(GLenum buffer, GLint drawbuffer, Float32List values, optional unsigned long long srcOffset = 0);
     [FIXME] undefined clearBufferiv(GLenum buffer, GLint drawbuffer, Int32List values,  optional unsigned long long srcOffset = 0);
