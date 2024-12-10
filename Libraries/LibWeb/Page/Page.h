@@ -121,6 +121,15 @@ public:
     bool is_webdriver_active() const { return m_is_webdriver_active; }
     void set_is_webdriver_active(bool b) { m_is_webdriver_active = b; }
 
+    bool is_hovering_link() const { return m_is_hovering_link; }
+    void set_is_hovering_link(bool b) { m_is_hovering_link = b; }
+
+    bool is_in_tooltip_area() const { return m_is_in_tooltip_area; }
+    void set_is_in_tooltip_area(bool b) { m_is_in_tooltip_area = b; }
+
+    Gfx::StandardCursor current_cursor() const { return m_current_cursor; }
+    void set_current_cursor(Gfx::StandardCursor cursor) { m_current_cursor = cursor; }
+
     DevicePixelPoint window_position() const { return m_window_position; }
     void set_window_position(DevicePixelPoint position) { m_window_position = position; }
 
@@ -245,6 +254,11 @@ private:
     // https://w3c.github.io/webdriver/#dfn-webdriver-active-flag
     // The webdriver-active flag is set to true when the user agent is under remote control. It is initially false.
     bool m_is_webdriver_active { false };
+
+    bool m_is_hovering_link { false };
+    bool m_is_in_tooltip_area { false };
+
+    Gfx::StandardCursor m_current_cursor { Gfx::StandardCursor::Arrow };
 
     DevicePixelPoint m_window_position {};
     DevicePixelSize m_window_size {};
