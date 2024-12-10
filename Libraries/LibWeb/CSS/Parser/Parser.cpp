@@ -3458,17 +3458,17 @@ RefPtr<CSSStyleValue> Parser::parse_color_function(TokenStream<ComponentValue>& 
 
     auto const& color_space = maybe_color_space.token().ident();
 
-    auto c1 = parse_number_percentage_value(inner_tokens);
+    auto c1 = parse_number_percentage_none_value(inner_tokens);
     if (!c1)
         return {};
     inner_tokens.discard_whitespace();
 
-    auto c2 = parse_number_percentage_value(inner_tokens);
+    auto c2 = parse_number_percentage_none_value(inner_tokens);
     if (!c2)
         return {};
     inner_tokens.discard_whitespace();
 
-    auto c3 = parse_number_percentage_value(inner_tokens);
+    auto c3 = parse_number_percentage_none_value(inner_tokens);
     if (!c3)
         return {};
     inner_tokens.discard_whitespace();
