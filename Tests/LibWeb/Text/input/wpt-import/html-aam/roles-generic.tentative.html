@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+<head>
+  <title>Tentative: HTML-AAM Generic Role Verification Tests</title>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <script src="../resources/testdriver.js"></script>
+  <script src="../resources/testdriver-vendor.js"></script>
+  <script src="../resources/testdriver-actions.js"></script>
+  <script src="../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+<li data-testname="el-li-orphaned" class="ex-generic">x</li><!-- todo: should orphaned roles be tested in a new ./roles-orphaned.html file? -->
+
+<script>
+AriaUtils.verifyGenericRolesBySelector(".ex-generic");
+</script>
+
+</body>
+</html>
