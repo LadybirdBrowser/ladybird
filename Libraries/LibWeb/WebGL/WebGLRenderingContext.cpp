@@ -161,9 +161,9 @@ void WebGLRenderingContext::allocate_painting_surface_if_needed()
     context().allocate_painting_surface_if_needed();
 }
 
-Optional<Vector<String>> WebGLRenderingContext::get_supported_extensions() const
+Optional<Vector<String>> WebGLRenderingContext::get_supported_extensions()
 {
-    return {};
+    return context().get_supported_extensions();
 }
 
 JS::Object* WebGLRenderingContext::get_extension(String const&)
