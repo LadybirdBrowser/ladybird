@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>TestDriver send keys method</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+
+<input type="text" id="text">Text Input</button>
+
+<script>
+async_test(t => {
+  let input_text = "Hello, wpt!";
+  let text_box = document.getElementById("text");
+  test_driver
+    .send_keys(text_box, input_text)
+    .then(() => {
+      assert_equals(text_box.value, input_text);
+      t.done();
+    })
+    .catch(t.unreached_func("send keys failed"));
+});
+</script>
