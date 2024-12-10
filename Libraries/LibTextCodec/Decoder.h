@@ -17,9 +17,14 @@ namespace TextCodec {
 
 class Decoder {
 public:
+    enum class ErrorMode {
+        Replacement,
+        Fatal,
+    };
+
     virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) = 0;
     virtual bool validate(StringView);
-    virtual ErrorOr<String> to_utf8(StringView);
+    virtual ErrorOr<String> to_utf8(StringView, String::WithBOMHandling, ErrorMode);
 
 protected:
     virtual ~Decoder() = default;
@@ -29,21 +34,21 @@ class UTF8Decoder final : public Decoder {
 public:
     virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) override;
     virtual bool validate(StringView) override;
-    virtual ErrorOr<String> to_utf8(StringView) override;
+    virtual ErrorOr<String> to_utf8(StringView, String::WithBOMHandling, ErrorMode) override;
 };
 
 class UTF16BEDecoder final : public Decoder {
 public:
     virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) override;
     virtual bool validate(StringView) override;
-    virtual ErrorOr<String> to_utf8(StringView) override;
+    virtual ErrorOr<String> to_utf8(StringView, String::WithBOMHandling, ErrorMode) override;
 };
 
 class UTF16LEDecoder final : public Decoder {
 public:
     virtual ErrorOr<void> process(StringView, Function<ErrorOr<void>(u32)> on_code_point) override;
     virtual bool validate(StringView) override;
-    virtual ErrorOr<String> to_utf8(StringView) override;
+    virtual ErrorOr<String> to_utf8(StringView, String::WithBOMHandling, ErrorMode) override;
 };
 
 template<Integral ArrayType = u32>

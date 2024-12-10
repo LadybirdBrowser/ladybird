@@ -162,7 +162,7 @@ Vector<Token> Tokenizer::tokenize(StringView input, StringView encoding)
         auto decoder = TextCodec::decoder_for(encoding);
         VERIFY(decoder.has_value());
 
-        auto decoded_input = MUST(decoder->to_utf8(input));
+        auto decoded_input = MUST(decoder->to_utf8(input, String::WithBOMHandling::Yes, TextCodec::Decoder::ErrorMode::Fatal));
 
         // OPTIMIZATION: If the input doesn't contain any filterable characters, we can skip the filtering
         bool const contains_filterable = [&] {
