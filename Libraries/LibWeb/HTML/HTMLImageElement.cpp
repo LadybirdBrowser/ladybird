@@ -352,8 +352,8 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> HTMLImageElement::decode() const
 
         // 3. Otherwise, in parallel wait for one of the following cases to occur, and perform the corresponding actions:
         Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, promise, &realm, &global] {
-            Platform::EventLoopPlugin::the().spin_until(GC::create_function(heap(), [&] {
-                auto queue_reject_task = [&](String const& message) {
+            Platform::EventLoopPlugin::the().spin_until(GC::create_function(heap(), [this, promise, &realm, &global] {
+                auto queue_reject_task = [promise, &realm, &global](String const& message) {
                     queue_global_task(Task::Source::DOMManipulation, global, GC::create_function(realm.heap(), [&realm, promise, message = String(message)] {
                         auto exception = WebIDL::EncodingError::create(realm, message);
                         HTML::TemporaryExecutionContext context(realm);

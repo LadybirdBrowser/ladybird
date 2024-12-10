@@ -917,7 +917,7 @@ TraversableNavigable::CheckIfUnloadingIsCanceledResult TraversableNavigable::che
 
             // 5. Queue a global task on the navigation and traversal task source given traversable's active window to perform the following steps:
             VERIFY(traversable->active_window());
-            queue_global_task(Task::Source::NavigationAndTraversal, *traversable->active_window(), GC::create_function(heap(), [&] {
+            queue_global_task(Task::Source::NavigationAndTraversal, *traversable->active_window(), GC::create_function(heap(), [needs_beforeunload, user_involvement_for_navigate_events, traversable, target_entry, &final_status, &unload_prompt_shown, &events_fired] {
                 // 1. if needsBeforeunload is true, then:
                 if (needs_beforeunload) {
                     // 1. Let (unloadPromptShownForThisDocument, unloadPromptCanceledByThisDocument) be the result of running the steps to fire beforeunload given traversable's active document and false.
@@ -971,7 +971,7 @@ TraversableNavigable::CheckIfUnloadingIsCanceledResult TraversableNavigable::che
 
     // 7. For each document of documents, queue a global task on the navigation and traversal task source given document's relevant global object to run the steps:
     for (auto& document : documents_to_fire_beforeunload) {
-        queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*document), GC::create_function(heap(), [&] {
+        queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*document), GC::create_function(heap(), [document, &final_status, &completed_tasks, &unload_prompt_shown] {
             // 1. Let (unloadPromptShownForThisDocument, unloadPromptCanceledByThisDocument) be the result of running the steps to fire beforeunload given document and unloadPromptShown.
             auto [unload_prompt_shown_for_this_document, unload_prompt_canceled_by_this_document] = document->steps_to_fire_beforeunload(unload_prompt_shown);
 
