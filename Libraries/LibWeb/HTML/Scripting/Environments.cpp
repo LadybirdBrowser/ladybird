@@ -279,9 +279,8 @@ bool module_type_allowed(JS::Realm const&, StringView module_type)
     return true;
 }
 
-// https://html.spec.whatwg.org/multipage/webappapis.html#disallow-further-import-maps
-// https://whatpr.org/html/9893/webappapis.html#disallow-further-import-maps
-void disallow_further_import_maps(JS::Realm& realm)
+// https://html.spec.whatwg.org/multipage/webappapis.html#add-module-to-resolved-module-set
+void add_module_to_resolved_module_set(JS::Realm& realm, String const& serialized_base_url, String const& normalized_specifier, Optional<URL::URL> const& as_url)
 {
     // 1. Let global be realm's global object.
     auto& global = realm.global_object();
@@ -290,8 +289,18 @@ void disallow_further_import_maps(JS::Realm& realm)
     if (!is<Window>(global))
         return;
 
-    // 3. Set global's import maps allowed to false.
-    verify_cast<Window>(global).set_import_maps_allowed(false);
+    // 3. Let record be a new specifier resolution record, with serialized base URL set to serializedBaseURL,
+    //    specifier set to normalizedSpecifier, and specifier as a URL set to asURL.
+    //
+    // NOTE: We set 'specifier as a URL set to asURL' as a bool to simplify logic when merging import maps.
+    SpecifierResolution resolution {
+        .serialized_base_url = serialized_base_url,
+        .specifier = normalized_specifier,
+        .specifier_is_null_or_url_like_that_is_special = !as_url.has_value() || as_url->is_special(),
+    };
+
+    // 4. Append record to global's resolved module set.
+    return verify_cast<Window>(global).append_resolved_module(move(resolution));
 }
 
 // https://whatpr.org/html/9893/webappapis.html#concept-realm-module-map

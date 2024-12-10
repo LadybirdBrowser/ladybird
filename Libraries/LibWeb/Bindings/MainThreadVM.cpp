@@ -532,14 +532,11 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             }
         }
 
-        // 8. Disallow further import maps given moduleMapRealm.
-        HTML::disallow_further_import_maps(*module_map_realm);
-
-        // 9. Let url be the result of resolving a module specifier given referencingScript and moduleRequest.[[Specifier]],
+        // 8. Let url be the result of resolving a module specifier given referencingScript and moduleRequest.[[Specifier]],
         //    catching any exceptions. If they throw an exception, let resolutionError be the thrown exception.
         auto url = HTML::resolve_module_specifier(referencing_script, module_request.module_specifier);
 
-        // 10. If the previous step threw an exception, then:
+        // 9. If the previous step threw an exception, then:
         if (url.is_exception()) {
             // 1. Let completion be Completion Record { [[Type]]: throw, [[Value]]: resolutionError, [[Target]]: empty }.
             auto completion = exception_to_throw_completion(main_thread_vm(), url.exception());
@@ -552,19 +549,19 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             return;
         }
 
-        // 11. Let settingsObject be moduleMapRealm's principal realm's settings object.
+        // 10. Let settingsObject be moduleMapRealm's principal realm's settings object.
         auto& settings_object = HTML::principal_realm_settings_object(HTML::principal_realm(*module_map_realm));
 
-        // 12. Let fetchOptions be the result of getting the descendant script fetch options given originalFetchOptions, url, and settingsObject.
+        // 11. Let fetchOptions be the result of getting the descendant script fetch options given originalFetchOptions, url, and settingsObject.
         auto fetch_options = HTML::get_descendant_script_fetch_options(original_fetch_options, url.value(), settings_object);
 
-        // 13. Let destination be "script".
+        // 12. Let destination be "script".
         auto destination = Fetch::Infrastructure::Request::Destination::Script;
 
-        // 14. Let fetchClient be moduleMapRealm's principal realm's settings object.
+        // 13. Let fetchClient be moduleMapRealm's principal realm's settings object.
         GC::Ref fetch_client { HTML::principal_realm_settings_object(HTML::principal_realm(*module_map_realm)) };
 
-        // 14. If loadState is not undefined, then:
+        // 15. If loadState is not undefined, then:
         HTML::PerformTheFetchHook perform_fetch;
         if (load_state) {
             auto& fetch_context = static_cast<HTML::FetchContext&>(*load_state);
@@ -633,7 +630,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             vm.pop_execution_context();
         });
 
-        // 15. Fetch a single imported module script given url, fetchClient, destination, fetchOptions, moduleMapRealm, fetchReferrer,
+        // 16. Fetch a single imported module script given url, fetchClient, destination, fetchOptions, moduleMapRealm, fetchReferrer,
         //     moduleRequest, and onSingleFetchComplete as defined below.
         //     If loadState is not undefined and loadState.[[PerformFetch]] is not null, pass loadState.[[PerformFetch]] along as well.
         HTML::fetch_single_imported_module_script(*module_map_realm, url.release_value(), *fetch_client, destination, fetch_options, *module_map_realm, fetch_referrer, module_request, perform_fetch, on_single_fetch_complete);
