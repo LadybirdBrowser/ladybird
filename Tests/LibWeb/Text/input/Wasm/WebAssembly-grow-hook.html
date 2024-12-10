@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const arrayBuffer = new Uint8Array([
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60, 0x00, 0x00, 0x03, 0x02,
+            0x01, 0x00, 0x05, 0x04, 0x01, 0x01, 0x01, 0x02, 0x07, 0x11, 0x02, 0x06, 0x6d, 0x65, 0x6d, 0x6f,
+            0x72, 0x79, 0x02, 0x00, 0x04, 0x6d, 0x61, 0x69, 0x6e, 0x00, 0x00, 0x0a, 0x09, 0x01, 0x07, 0x00,
+            0x41, 0x01, 0x40, 0x00, 0x1a, 0x0b
+        ]).buffer;
+
+        const wasm = await WebAssembly.instantiate(arrayBuffer, {});
+        let wasmMemoryBuffer = wasm.instance.exports.memory.buffer;
+
+        println(`Size before grow: ${wasmMemoryBuffer.byteLength}`);
+        wasm.instance.exports.main();
+        println(`Size after grow, before refresh: ${wasmMemoryBuffer.byteLength}`);
+        wasmMemoryBuffer = wasm.instance.exports.memory.buffer;
+        println(`Size after grow, after refresh: ${wasmMemoryBuffer.byteLength}`);
+        done();
+    });
+</script>

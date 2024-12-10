@@ -39,10 +39,6 @@ WebIDL::ExceptionOr<GC::Ref<Memory>> Memory::construct_impl(JS::Realm& realm, Me
 
     auto memory_object = realm.create<Memory>(realm, *address, shared ? Shared::Yes : Shared::No);
 
-    cache.abstract_machine().store().get(*address)->successful_grow_hook = [memory_object] {
-        MUST(memory_object->reset_the_memory_buffer());
-    };
-
     return memory_object;
 }
 
@@ -51,6 +47,11 @@ Memory::Memory(JS::Realm& realm, Wasm::MemoryAddress address, Shared shared)
     , m_address(address)
     , m_shared(shared)
 {
+    auto& cache = Detail::get_cache(realm);
+
+    cache.abstract_machine().store().get(address)->successful_grow_hook = [this] {
+        MUST(reset_the_memory_buffer());
+    };
 }
 
 void Memory::initialize(JS::Realm& realm)
