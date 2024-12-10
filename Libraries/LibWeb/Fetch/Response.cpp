@@ -84,6 +84,18 @@ GC::Ref<Response> Response::create(JS::Realm& realm, GC::Ref<Infrastructure::Res
     return response_object;
 }
 
+// https://httpwg.org/specs/rfc9112.html#status.line
+static bool is_valid_status_text(StringView status_text)
+{
+    // A status text is a valid status text if it matches the reason-phrase token production.
+    // reason-phrase  = 1*( HTAB / SP / VCHAR / obs-text )
+    // VCHAR          = %x21-7E
+    // obs-text       = %x80-FF
+    return all_of(status_text, [](auto c) {
+        return c == '\t' || c == ' ' || (c >= 0x21 && c <= 0x7E) || (c >= 0x80 && c <= 0xFF);
+    });
+}
+
 // https://fetch.spec.whatwg.org/#initialize-a-response
 WebIDL::ExceptionOr<void> Response::initialize_response(ResponseInit const& init, Optional<Infrastructure::BodyWithType> const& body)
 {
@@ -91,7 +103,9 @@ WebIDL::ExceptionOr<void> Response::initialize_response(ResponseInit const& init
     if (init.status < 200 || init.status > 599)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Status must be in range 200-599"sv };
 
-    // FIXME: 2. If init["statusText"] does not match the reason-phrase token production, then throw a TypeError.
+    // 2. If init["statusText"] does not match the reason-phrase token production, then throw a TypeError.
+    if (!is_valid_status_text(init.status_text))
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid statusText: does not match the reason-phrase token production"sv };
 
     // 3. Set response’s response’s status to init["status"].
     m_response->set_status(init.status);
