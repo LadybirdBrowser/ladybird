@@ -698,39 +698,39 @@ public:
         }
 
         if (function.name == "uniform1fv"sv || function.name == "uniform2fv"sv || function.name == "uniform3fv"sv || function.name == "uniform4fv"sv) {
-            auto number_of_matrix_elements = function.name.substring_view(7, 1);
-            function_impl_generator.set("number_of_matrix_elements", number_of_matrix_elements);
+            auto number_of_vector_elements = function.name.substring_view(7, 1);
+            function_impl_generator.set("number_of_vector_elements", number_of_vector_elements);
             function_impl_generator.append(R"~~~(
     if (v.has<Vector<float>>()) {
         auto& data = v.get<Vector<float>>();
-        glUniform@number_of_matrix_elements@fv(location->handle(), data.size() / @number_of_matrix_elements@, data.data());
+        glUniform@number_of_vector_elements@fv(location->handle(), data.size() / @number_of_vector_elements@, data.data());
         return;
     }
 
     auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*v.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
     auto& float32_array = verify_cast<JS::Float32Array>(typed_array_base);
     float const* data = float32_array.data().data();
-    auto count = float32_array.array_length().length() / @number_of_matrix_elements@;
-    glUniform@number_of_matrix_elements@fv(location->handle(), count, data);
+    auto count = float32_array.array_length().length() / @number_of_vector_elements@;
+    glUniform@number_of_vector_elements@fv(location->handle(), count, data);
 )~~~");
             continue;
         }
 
         if (function.name == "uniform1iv"sv || function.name == "uniform2iv"sv || function.name == "uniform3iv"sv || function.name == "uniform4iv"sv) {
-            auto number_of_matrix_elements = function.name.substring_view(7, 1);
-            function_impl_generator.set("number_of_matrix_elements", number_of_matrix_elements);
+            auto number_of_vector_elements = function.name.substring_view(7, 1);
+            function_impl_generator.set("number_of_vector_elements", number_of_vector_elements);
             function_impl_generator.append(R"~~~(
     if (v.has<Vector<int>>()) {
         auto& data = v.get<Vector<int>>();
-        glUniform@number_of_matrix_elements@iv(location->handle(), data.size() / @number_of_matrix_elements@, data.data());
+        glUniform@number_of_vector_elements@iv(location->handle(), data.size() / @number_of_vector_elements@, data.data());
         return;
     }
 
     auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*v.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
     auto& int32_array = verify_cast<JS::Int32Array>(typed_array_base);
     int const* data = int32_array.data().data();
-    auto count = int32_array.array_length().length() / @number_of_matrix_elements@;
-    glUniform@number_of_matrix_elements@iv(location->handle(), count, data);
+    auto count = int32_array.array_length().length() / @number_of_vector_elements@;
+    glUniform@number_of_vector_elements@iv(location->handle(), count, data);
 )~~~");
             continue;
         }
