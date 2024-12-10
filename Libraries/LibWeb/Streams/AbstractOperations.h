@@ -11,6 +11,7 @@
 
 #include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/Streams/Algorithms.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/WebIDL/CallbackType.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -18,16 +19,6 @@
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::Streams {
-
-using SizeAlgorithm = GC::Function<JS::Completion(JS::Value)>;
-using PullAlgorithm = GC::Function<GC::Ref<WebIDL::Promise>()>;
-using CancelAlgorithm = GC::Function<GC::Ref<WebIDL::Promise>(JS::Value)>;
-using StartAlgorithm = GC::Function<WebIDL::ExceptionOr<JS::Value>()>;
-using AbortAlgorithm = GC::Function<GC::Ref<WebIDL::Promise>(JS::Value)>;
-using CloseAlgorithm = GC::Function<GC::Ref<WebIDL::Promise>()>;
-using WriteAlgorithm = GC::Function<GC::Ref<WebIDL::Promise>(JS::Value)>;
-using FlushAlgorithm = GC::Function<GC::Ref<WebIDL::Promise>()>;
-using TransformAlgorithm = GC::Function<GC::Ref<WebIDL::Promise>(JS::Value)>;
 
 WebIDL::ExceptionOr<GC::Ref<ReadableStreamDefaultReader>> acquire_readable_stream_default_reader(ReadableStream&);
 WebIDL::ExceptionOr<GC::Ref<ReadableStreamBYOBReader>> acquire_readable_stream_byob_reader(ReadableStream&);
@@ -83,7 +74,6 @@ Optional<double> readable_stream_default_controller_get_desired_size(ReadableStr
 bool readable_stream_default_controller_can_close_or_enqueue(ReadableStreamDefaultController&);
 WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller(ReadableStream&, ReadableStreamDefaultController&, GC::Ref<StartAlgorithm>, GC::Ref<PullAlgorithm>, GC::Ref<CancelAlgorithm>, double high_water_mark, GC::Ref<SizeAlgorithm>);
 WebIDL::ExceptionOr<void> set_up_readable_stream_default_controller_from_underlying_source(ReadableStream&, JS::Value underlying_source_value, UnderlyingSource, double high_water_mark, GC::Ref<SizeAlgorithm>);
-void set_up_readable_stream_controller_with_byte_reading_support(ReadableStream&, GC::Ptr<PullAlgorithm> = {}, GC::Ptr<CancelAlgorithm> = {}, double high_water_mark = 0);
 WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller(ReadableStream&, ReadableByteStreamController&, GC::Ref<StartAlgorithm>, GC::Ref<PullAlgorithm>, GC::Ref<CancelAlgorithm>, double high_water_mark, JS::Value auto_allocate_chunk_size);
 WebIDL::ExceptionOr<void> set_up_readable_byte_stream_controller_from_underlying_source(ReadableStream&, JS::Value underlying_source, UnderlyingSource const& underlying_source_dict, double high_water_mark);
 GC::Ptr<ReadableStreamBYOBRequest> readable_byte_stream_controller_get_byob_request(GC::Ref<ReadableByteStreamController>);
@@ -94,9 +84,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_internal(Reada
 WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond(ReadableByteStreamController&, u64 bytes_written);
 WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_with_new_view(JS::Realm&, ReadableByteStreamController&, WebIDL::ArrayBufferView&);
 
-WebIDL::ExceptionOr<void> readable_stream_enqueue(ReadableStreamController& controller, JS::Value chunk);
 WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue(ReadableByteStreamController& controller, JS::Value chunk);
-WebIDL::ExceptionOr<void> readable_stream_pull_from_bytes(ReadableStream&, ByteBuffer bytes);
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> transfer_array_buffer(JS::Realm& realm, JS::ArrayBuffer& buffer);
 WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue_detached_pull_into_queue(ReadableByteStreamController& controller, PullIntoDescriptor& pull_into_descriptor);
 void readable_byte_stream_controller_commit_pull_into_descriptor(ReadableStream&, PullIntoDescriptor const&);
@@ -118,7 +106,6 @@ void readable_byte_stream_controller_handle_queue_drain(ReadableByteStreamContro
 void readable_byte_stream_controller_invalidate_byob_request(ReadableByteStreamController&);
 bool readable_byte_stream_controller_should_call_pull(ReadableByteStreamController const&);
 
-WebIDL::ExceptionOr<void> set_up_readable_stream(JS::Realm& realm, ReadableStream& stream, GC::Ref<StartAlgorithm> start_algorithm, GC::Ref<PullAlgorithm> pull_algorithm, GC::Ref<CancelAlgorithm> cancel_algorithm, Optional<double> high_water_mark = {}, GC::Ptr<SizeAlgorithm> size_algorithm = {});
 WebIDL::ExceptionOr<GC::Ref<ReadableStream>> create_readable_stream(JS::Realm& realm, GC::Ref<StartAlgorithm> start_algorithm, GC::Ref<PullAlgorithm> pull_algorithm, GC::Ref<CancelAlgorithm> cancel_algorithm, Optional<double> high_water_mark = {}, GC::Ptr<SizeAlgorithm> size_algorithm = {});
 WebIDL::ExceptionOr<GC::Ref<ReadableStream>> create_readable_byte_stream(JS::Realm& realm, GC::Ref<StartAlgorithm> start_algorithm, GC::Ref<PullAlgorithm> pull_algorithm, GC::Ref<CancelAlgorithm> cancel_algorithm);
 WebIDL::ExceptionOr<GC::Ref<WritableStream>> create_writable_stream(JS::Realm& realm, GC::Ref<StartAlgorithm> start_algorithm, GC::Ref<WriteAlgorithm> write_algorithm, GC::Ref<CloseAlgorithm> close_algorithm, GC::Ref<AbortAlgorithm> abort_algorithm, double high_water_mark, GC::Ref<SizeAlgorithm> size_algorithm);
@@ -184,7 +171,6 @@ GC::Ref<WebIDL::Promise> transform_stream_default_source_cancel_algorithm(Transf
 void transform_stream_error(TransformStream&, JS::Value error);
 void transform_stream_error_writable_and_unblock_write(TransformStream&, JS::Value error);
 void transform_stream_set_backpressure(TransformStream&, bool backpressure);
-void transform_stream_set_up(TransformStream&, GC::Ref<TransformAlgorithm>, GC::Ptr<FlushAlgorithm> = {}, GC::Ptr<CancelAlgorithm> = {});
 void transform_stream_unblock_write(TransformStream&);
 
 bool is_non_negative_number(JS::Value);
@@ -192,10 +178,6 @@ bool can_copy_data_block_bytes_buffer(JS::ArrayBuffer const& to_buffer, u64 to_i
 bool can_transfer_array_buffer(JS::ArrayBuffer const& array_buffer);
 WebIDL::ExceptionOr<JS::Value> clone_as_uint8_array(JS::Realm&, WebIDL::ArrayBufferView&);
 WebIDL::ExceptionOr<JS::Value> structured_clone(JS::Realm&, JS::Value value);
-
-JS::Value create_close_sentinel();
-bool is_close_sentinel(JS::Value);
-JS::ThrowCompletionOr<GC::Root<WebIDL::CallbackType>> property_to_callback(JS::VM& vm, JS::Value value, JS::PropertyKey const& property_key, WebIDL::OperationReturnsPromise);
 
 // https://streams.spec.whatwg.org/#value-with-size
 struct ValueWithSize {

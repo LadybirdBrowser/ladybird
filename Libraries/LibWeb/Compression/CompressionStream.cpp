@@ -76,7 +76,7 @@ WebIDL::ExceptionOr<GC::Ref<CompressionStream>> CompressionStream::construct_imp
     });
 
     // 6. Set up this's transform with transformAlgorithm set to transformAlgorithm and flushAlgorithm set to flushAlgorithm.
-    Streams::transform_stream_set_up(stream->m_transform, transform_algorithm, flush_algorithm);
+    stream->m_transform->set_up(transform_algorithm, flush_algorithm);
 
     return stream;
 }

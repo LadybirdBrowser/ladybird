@@ -741,7 +741,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
             process_response_end_of_body();
             return WebIDL::create_resolved_promise(realm, JS::js_undefined());
         });
-        Streams::transform_stream_set_up(transform_stream, identity_transform_algorithm, flush_algorithm);
+        transform_stream->set_up(identity_transform_algorithm, flush_algorithm);
 
         // 4. Set internalResponse’s body’s stream to the result of internalResponse’s body’s stream piped through transformStream.
         auto promise = Streams::readable_stream_pipe_to(internal_response->body()->stream(), transform_stream->writable(), false, false, false, {});
@@ -2305,7 +2305,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> nonstandard_resource_loader_file_o
         });
 
         // 13. Set up stream with byte reading support with pullAlgorithm set to pullAlgorithm, cancelAlgorithm set to cancelAlgorithm.
-        Streams::set_up_readable_stream_controller_with_byte_reading_support(stream, pull_algorithm, cancel_algorithm);
+        stream->set_up_with_byte_reading_support(pull_algorithm, cancel_algorithm);
 
         auto on_headers_received = GC::create_function(vm.heap(), [&vm, request, pending_response, stream](HTTP::HeaderMap const& response_headers, Optional<u32> status_code, Optional<String> const& reason_phrase) {
             (void)request;

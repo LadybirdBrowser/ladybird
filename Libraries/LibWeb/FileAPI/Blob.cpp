@@ -324,7 +324,7 @@ GC::Ref<Streams::ReadableStream> Blob::get_stream()
     auto stream = realm.create<Streams::ReadableStream>(realm);
 
     // 2. Set up stream with byte reading support.
-    set_up_readable_stream_controller_with_byte_reading_support(stream);
+    stream->set_up_with_byte_reading_support();
 
     // FIXME: 3. Run the following steps in parallel:
     {
@@ -346,7 +346,7 @@ GC::Ref<Streams::ReadableStream> Blob::get_stream()
 
                 // 3. Enqueue chunk in stream.
                 auto maybe_error = Bindings::throw_dom_exception_if_needed(realm.vm(), [&]() {
-                    return readable_stream_enqueue(*stream->controller(), chunk);
+                    return stream->enqueue(chunk);
                 });
 
                 if (maybe_error.is_error()) {

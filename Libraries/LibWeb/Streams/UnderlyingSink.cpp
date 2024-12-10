@@ -19,10 +19,10 @@ JS::ThrowCompletionOr<UnderlyingSink> UnderlyingSink::from_value(JS::VM& vm, JS:
     auto& object = value.as_object();
 
     UnderlyingSink underlying_sink {
-        .start = TRY(property_to_callback(vm, value, "start", WebIDL::OperationReturnsPromise::No)),
-        .write = TRY(property_to_callback(vm, value, "write", WebIDL::OperationReturnsPromise::Yes)),
-        .close = TRY(property_to_callback(vm, value, "close", WebIDL::OperationReturnsPromise::Yes)),
-        .abort = TRY(property_to_callback(vm, value, "abort", WebIDL::OperationReturnsPromise::Yes)),
+        .start = TRY(WebIDL::property_to_callback(vm, value, "start", WebIDL::OperationReturnsPromise::No)),
+        .write = TRY(WebIDL::property_to_callback(vm, value, "write", WebIDL::OperationReturnsPromise::Yes)),
+        .close = TRY(WebIDL::property_to_callback(vm, value, "close", WebIDL::OperationReturnsPromise::Yes)),
+        .abort = TRY(WebIDL::property_to_callback(vm, value, "abort", WebIDL::OperationReturnsPromise::Yes)),
         .type = {},
     };
 
