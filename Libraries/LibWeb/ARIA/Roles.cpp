@@ -69,6 +69,7 @@ bool is_widget_role(Role role)
         Role::link,
         Role::menuitem,
         Role::menuitemcheckbox,
+        Role::menuitemradio,
         Role::option,
         Role::progressbar,
         Role::radio,
