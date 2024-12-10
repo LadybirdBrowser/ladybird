@@ -670,6 +670,13 @@ public:
             continue;
         }
 
+        if (function.name == "drawBuffers"sv) {
+            function_impl_generator.append(R"~~~(
+    glDrawBuffers(buffers.size(), buffers.data());
+)~~~");
+            continue;
+        }
+
         if (function.name.starts_with("uniformMatrix"sv)) {
             auto number_of_matrix_elements = function.name.substring_view(13, 1);
             function_impl_generator.set("number_of_matrix_elements", number_of_matrix_elements);
