@@ -7,10 +7,7 @@
 #pragma once
 
 #include <AK/NonnullRefPtr.h>
-#include <AK/TypeCasts.h>
 #include <AK/Vector.h>
-#include <LibGC/Root.h>
-#include <LibGfx/Rect.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/StyleComputer.h>
