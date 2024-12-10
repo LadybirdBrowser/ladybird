@@ -32,8 +32,8 @@ interface mixin WebGLRenderingContextBase {
 
     // FIXME: The type should be (HTMLCanvasElement or OffscreenCanvas).
     [ImplementedAs=canvas_for_binding] readonly attribute HTMLCanvasElement canvas;
-    [FIXME] readonly attribute GLsizei drawingBufferWidth;
-    [FIXME] readonly attribute GLsizei drawingBufferHeight;
+    readonly attribute GLsizei drawingBufferWidth;
+    readonly attribute GLsizei drawingBufferHeight;
     [FIXME] readonly attribute GLenum drawingBufferFormat;
 
     [FIXME] attribute PredefinedColorSpace drawingBufferColorSpace;
