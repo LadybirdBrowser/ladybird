@@ -97,7 +97,8 @@ typename Regex<Parser>::BasicBlockList Regex<Parser>::split_basic_blocks(ByteCod
             break;
         case OpCodeId::Repeat: {
             // Repeat produces two blocks, one containing its repeated expr, and one after that.
-            auto repeat_start = state.instruction_position - static_cast<OpCode_Repeat const&>(opcode).offset();
+            auto& repeat = static_cast<OpCode_Repeat const&>(opcode);
+            auto repeat_start = state.instruction_position - repeat.offset() - repeat.size();
             if (repeat_start > end_of_last_block)
                 block_boundaries.append({ end_of_last_block, repeat_start, "Repeat"sv });
             block_boundaries.append({ repeat_start, state.instruction_position, "Repeat after"sv });
@@ -1221,6 +1222,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
                 ssize_t jump_offset;
                 auto is_jump = true;
                 auto patch_location = state.instruction_position + 1;
+                bool should_negate = false;
 
                 switch (opcode.opcode_id()) {
                 case OpCodeId::Jump:
@@ -1243,6 +1245,7 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
                     break;
                 case OpCodeId::Repeat:
                     jump_offset = static_cast<ssize_t>(0) - static_cast<ssize_t>(static_cast<OpCode_Repeat const&>(opcode).offset()) - static_cast<ssize_t>(opcode.size());
+                    should_negate = true;
                     break;
                 default:
                     is_jump = false;
@@ -1272,7 +1275,10 @@ void Optimizer::append_alternation(ByteCode& target, Span<ByteCode> alternatives
                                 intended_jump_ip);
                             VERIFY_NOT_REACHED();
                         }
-                        target[patch_location] = static_cast<ByteCodeValueType>(*target_ip - patch_location - 1);
+                        ssize_t target_value = *target_ip - patch_location - 1;
+                        if (should_negate)
+                            target_value = -target_value + 2; // from -1 to +1.
+                        target[patch_location] = static_cast<ByteCodeValueType>(target_value);
                     } else {
                         patch_locations.append({ QualifiedIP { ip.alternative_index, intended_jump_ip }, patch_location });
                     }
