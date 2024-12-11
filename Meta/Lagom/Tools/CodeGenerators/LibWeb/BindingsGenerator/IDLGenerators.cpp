@@ -3019,7 +3019,9 @@ static void collect_attribute_values_of_an_inheritance_stack(SourceGenerator& fu
                 }
             }
 
-            if (attribute.extended_attributes.contains("Reflect")) {
+            auto is_reflected = any_of(reflected_attributes, [&](auto const& reflected_attribute) { return attribute.extended_attributes.contains(reflected_attribute); });
+
+            if (is_reflected) {
                 if (attribute.type->name() != "boolean") {
                     attribute_generator.append(R"~~~(
     auto @attribute.return_value_name@ = impl->get_attribute_value("@attribute.reflect_name@"_fly_string);
@@ -3598,7 +3600,9 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
         }
 
         // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#reflecting-content-attributes-in-idl-attributes
-        if (attribute.extended_attributes.contains("Reflect")) {
+        auto is_reflected = any_of(reflected_attributes, [&](auto const& reflected_attribute) { return attribute.extended_attributes.contains(reflected_attribute); });
+
+        if (is_reflected) {
             if (attribute.type->name() == "DOMString") {
                 if (!attribute.type->is_nullable()) {
                     // If a reflected IDL attribute has the type DOMString:
@@ -3945,7 +3949,9 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
 
             generate_to_cpp(generator, attribute, "value", "", "cpp_value", interface, attribute.extended_attributes.contains("LegacyNullToEmptyString"));
 
-            if (attribute.extended_attributes.contains("Reflect")) {
+
+            auto is_reflected = any_of(reflected_attributes, [&](auto const& reflected_attribute) { return attribute.extended_attributes.contains(reflected_attribute); });
+            if (is_reflected) {
                 if (attribute.type->name() == "boolean") {
                     attribute_generator.append(R"~~~(
     if (!cpp_value)
