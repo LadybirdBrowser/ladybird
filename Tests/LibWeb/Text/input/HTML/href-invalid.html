@@ -1,0 +1,8 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const a = document.createElement("a");
+        a.href = "http://foo:b/c";
+        println(`href="${a.href}"`);
+    });
+</script>

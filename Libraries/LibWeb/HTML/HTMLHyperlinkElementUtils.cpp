@@ -427,7 +427,7 @@ String HTMLHyperlinkElementUtils::href() const
         return String {};
 
     // 4. Otherwise, if url is null, return this element's href content attribute's value.
-    if (!url->is_valid())
+    if (!url.has_value())
         return href_content_attribute.release_value();
 
     // 5. Return url, serialized.
