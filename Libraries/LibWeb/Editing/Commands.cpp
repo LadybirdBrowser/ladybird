@@ -458,14 +458,14 @@ bool command_insert_paragraph_action(DOM::Document& document, String const&)
     delete_the_selection(selection);
 
     // 2. If the active range's start node is neither editable nor an editing host, return true.
-    auto& active_range = *selection.range();
-    GC::Ptr<DOM::Node> node = active_range.start_container();
+    GC::Ref<DOM::Range> active_range = *selection.range();
+    GC::Ptr<DOM::Node> node = active_range->start_container();
     if (!node->is_editable_or_editing_host())
         return true;
 
     // 3. Let node and offset be the active range's start node and offset.
     // NOTE: node is set in step 2
-    auto offset = active_range.start_offset();
+    auto offset = active_range->start_offset();
 
     // 4. If node is a Text node, and offset is neither 0 nor the length of node, call splitText(offset) on node.
     if (is<DOM::Text>(*node) && offset != 0 && offset != node->length())
@@ -486,6 +486,7 @@ bool command_insert_paragraph_action(DOM::Document& document, String const&)
 
     // 7. Call collapse(node, offset) on the context object's selection.
     MUST(selection.collapse(node, offset));
+    active_range = *selection.range();
 
     // 8. Let container equal node.
     auto container = node;
@@ -548,14 +549,14 @@ bool command_insert_paragraph_action(DOM::Document& document, String const&)
         // 5. If node list is empty:
         if (node_list.is_empty()) {
             // 1. If tag is not an allowed child of the active range's start node, return true.
-            if (!is_allowed_child_of_node(tag, active_range.start_container()))
+            if (!is_allowed_child_of_node(tag, active_range->start_container()))
                 return true;
 
             // 2. Set container to the result of calling createElement(tag) on the context object.
             container = MUST(DOM::create_element(document, tag, Namespace::HTML));
 
             // 3. Call insertNode(container) on the active range.
-            MUST(active_range.insert_node(*container));
+            MUST(active_range->insert_node(*container));
 
             // 4. Call createElement("br") on the context object, and append the result as the last child of container.
             MUST(container->append_child(MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML))));
@@ -592,10 +593,11 @@ bool command_insert_paragraph_action(DOM::Document& document, String const&)
         auto br = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
 
         // 2. Call insertNode(br) on the active range.
-        MUST(active_range.insert_node(br));
+        MUST(active_range->insert_node(br));
 
         // 3. Call collapse(node, offset + 1) on the context object's selection.
         MUST(selection.collapse(node, offset + 1));
+        active_range = *selection.range();
 
         // 4. If br is the last descendant of container, let br be the result of calling createElement("br") on the
         //    context object, then call insertNode(br) on the active range.
@@ -604,7 +606,7 @@ bool command_insert_paragraph_action(DOM::Document& document, String const&)
             last_descendant = last_descendant->last_child();
         if (br == last_descendant) {
             br = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
-            MUST(active_range.insert_node(br));
+            MUST(active_range->insert_node(br));
         }
 
         // 5. Return true.
@@ -651,7 +653,7 @@ bool command_insert_paragraph_action(DOM::Document& document, String const&)
 
     // 14. Let new line range be a new range whose start is the same as the active range's, and whose end is (container,
     //     length of container).
-    auto new_line_range = DOM::Range::create(active_range.start_container(), active_range.start_offset(), *container, container->length());
+    auto new_line_range = DOM::Range::create(active_range->start_container(), active_range->start_offset(), *container, container->length());
 
     // 15. While new line range's start offset is zero and its start node is not a prohibited paragraph child, set its
     //     start to (parent of start node, index of start node).
