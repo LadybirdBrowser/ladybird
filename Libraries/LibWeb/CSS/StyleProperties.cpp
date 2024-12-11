@@ -138,7 +138,7 @@ Variant<LengthPercentage, NormalGap> StyleProperties::gap_value(CSS::PropertyID 
     }
 
     if (value.is_calculated())
-        return LengthPercentage { const_cast<CalculatedStyleValue&>(value.as_calculated()) };
+        return LengthPercentage { value.as_calculated() };
 
     if (value.is_percentage())
         return LengthPercentage { value.as_percentage().percentage() };
@@ -170,7 +170,7 @@ CSS::Size StyleProperties::size_value(CSS::PropertyID id) const
     }
 
     if (value.is_calculated())
-        return CSS::Size::make_calculated(const_cast<CalculatedStyleValue&>(value.as_calculated()));
+        return CSS::Size::make_calculated(value.as_calculated());
 
     if (value.is_percentage())
         return CSS::Size::make_percentage(value.as_percentage().percentage());
@@ -197,7 +197,7 @@ Optional<LengthPercentage> StyleProperties::length_percentage(CSS::PropertyID id
     auto const& value = property(id);
 
     if (value.is_calculated())
-        return LengthPercentage { const_cast<CalculatedStyleValue&>(value.as_calculated()) };
+        return LengthPercentage { value.as_calculated() };
 
     if (value.is_percentage())
         return value.as_percentage().percentage();
@@ -318,7 +318,7 @@ float StyleProperties::resolve_opacity_value(CSSStyleValue const& value)
             else
                 dbgln("Unable to resolve calc() as opacity (percentage): {}", value.to_string(CSSStyleValue::SerializationMode::Normal));
         } else if (calculated.resolves_to_number()) {
-            auto maybe_number = const_cast<CalculatedStyleValue&>(value.as_calculated()).resolve_number();
+            auto maybe_number = value.as_calculated().resolve_number();
             if (maybe_number.has_value())
                 unclamped_opacity = maybe_number.value();
             else
@@ -636,7 +636,7 @@ static Optional<LengthPercentage> length_percentage_for_style_value(CSSStyleValu
     if (value.is_percentage())
         return value.as_percentage().percentage();
     if (value.is_calculated())
-        return LengthPercentage { const_cast<CalculatedStyleValue&>(value.as_calculated()) };
+        return LengthPercentage { value.as_calculated() };
     return {};
 }
 
@@ -1168,7 +1168,7 @@ Variant<CSS::VerticalAlign, CSS::LengthPercentage> StyleProperties::vertical_ali
         return CSS::LengthPercentage(value.as_percentage().percentage());
 
     if (value.is_calculated())
-        return LengthPercentage { const_cast<CalculatedStyleValue&>(value.as_calculated()) };
+        return LengthPercentage { value.as_calculated() };
 
     VERIFY_NOT_REACHED();
 }
