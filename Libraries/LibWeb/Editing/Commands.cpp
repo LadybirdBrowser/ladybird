@@ -697,7 +697,7 @@ bool command_insert_paragraph_action(DOM::Document& document, String const&)
     }();
 
     // 22. Let new container be the result of calling createElement(new container name) on the context object.
-    GC::Ptr<DOM::Element> new_container = MUST(DOM::create_element(document, new_container_name, Namespace::HTML));
+    auto new_container = MUST(DOM::create_element(document, new_container_name, Namespace::HTML));
 
     // 23. Copy all attributes of container to new container.
     container_element.for_each_attribute([&new_container](FlyString const& name, String const& value) {
@@ -742,7 +742,7 @@ bool command_insert_paragraph_action(DOM::Document& document, String const&)
     // 31. While new container's lastChild is a prohibited paragraph child, set new container to its lastChild.
     while (new_container->last_child() && is_prohibited_paragraph_child(*new_container->last_child())) {
         // NOTE: is_prohibited_paragraph_child() ensures that last_child() is an HTML::HTMLElement
-        new_container = static_cast<HTML::HTMLElement*>(new_container->last_child());
+        new_container = static_cast<HTML::HTMLElement&>(*new_container->last_child());
     }
 
     // 32. If container has no visible children, call createElement("br") on the context object, and append the result
