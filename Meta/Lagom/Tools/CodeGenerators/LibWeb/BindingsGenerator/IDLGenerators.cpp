@@ -3588,7 +3588,9 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
         }
 
         // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#reflecting-content-attributes-in-idl-attributes
-        if (attribute.extended_attributes.contains("Reflect")) {
+        auto is_reflected = any_of(reflected_attributes, [&](auto const& reflected_attribute) { return attribute.extended_attributes.contains(reflected_attribute); });
+
+        if (is_reflected) {
             if (attribute.type->name() == "DOMString") {
                 if (!attribute.type->is_nullable()) {
                     // If a reflected IDL attribute has the type DOMString:
