@@ -37,11 +37,34 @@ LocationEdit::LocationEdit(QWidget* parent)
 
         clearFocus();
 
+        auto query = ak_string_from_qstring(text());
+
+        auto const bang_char = '!'; // should this be a setting?
+
         Optional<StringView> search_engine_url;
-        if (Settings::the()->enable_search())
+        if (Settings::the()->enable_search()) {
             search_engine_url = Settings::the()->search_engine().query_url;
 
-        auto query = ak_string_from_qstring(text());
+            auto const splits = query.split(' ');
+            if (!splits.is_error()) {
+                auto const first = splits.value().first();
+                if (first.starts_with(bang_char)) {
+                    auto exist = WebView::find_search_engine_by_bang(first);
+                    if (exist.has_value()) {
+                        search_engine_url = exist->query_url;
+                        query = MUST(query.substring_from_byte_offset(first.bytes().size() + 1));
+                    }
+                }
+                auto const last = splits.value().last();
+                if (last.starts_with(bang_char)) {
+                    auto exist = WebView::find_search_engine_by_bang(last);
+                    if (exist.has_value()) {
+                        search_engine_url = exist->query_url;
+                        query = MUST(query.substring_from_byte_offset(0, query.bytes().size() - last.bytes().size()));
+                    }
+                }
+            }
+        }
 
         if (auto url = WebView::sanitize_url(query, search_engine_url); url.has_value())
             set_url(url.release_value());
