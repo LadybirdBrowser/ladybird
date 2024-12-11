@@ -42,10 +42,6 @@ public:
         Add,
         Subtract,
     };
-    enum class ProductOperation {
-        Multiply,
-        Divide,
-    };
 
     using PercentageBasis = Variant<Empty, Angle, Flex, Frequency, Length, Time>;
 
