@@ -278,6 +278,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(step)                       \
     __ENUMERATE_HTML_ATTRIBUTE(style)                      \
     __ENUMERATE_HTML_ATTRIBUTE(summary)                    \
+    __ENUMERATE_HTML_ATTRIBUTE(switch_)                    \
     __ENUMERATE_HTML_ATTRIBUTE(tabindex)                   \
     __ENUMERATE_HTML_ATTRIBUTE(target)                     \
     __ENUMERATE_HTML_ATTRIBUTE(text)                       \
