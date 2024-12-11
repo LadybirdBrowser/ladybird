@@ -9,7 +9,7 @@
 
 namespace GC {
 
-void GC::Cell::Visitor::visit(NanBoxedValue const& value)
+void GC::Cell::Visitor::visit(NanBoxedCell const& value)
 {
     if (value.is_cell())
         visit_impl(value.as_cell());
