@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<body>
+<span id=test></span>
+</body>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        var elements = document.getElementsByTagName("span");
+        try {
+            Object.defineProperty(elements, 'test', { value: 5 });
+            println("[Fail] Object.defineProperty(HTMLCollection, key, value) succeeds");
+        } catch (e) {
+            println("[Pass] Object.defineProperty(HTMLCollection, key, value) throws");
+        }
+
+        try {
+            (function() { "use strict"; elements['test'] = 5; })();
+            println("[Fail] \"use strict\"; HTMLCollection[key] setter succeeds");
+        } catch (e) {
+            println("[Pass] \"use strict\"; HTMLCollection[key] setter throws");
+        }
+    });
+</script>
