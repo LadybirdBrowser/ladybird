@@ -3922,7 +3922,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
                 // NOTE: this is "attribute" above
 
                 // 4. If attributeDefinition indicates it contains a URL:
-                if (attribute.extended_attributes.contains("URL")) {
+                if (attribute.extended_attributes.contains("ReflectURL")) {
                     // 1. If contentAttributeValue is null, then return the empty string.
                     // 2. Let urlString be the result of encoding-parsing-and-serializing a URL given contentAttributeValue, relative to element's node document.
                     // 3. If urlString is not failure, then return urlString.

@@ -17,7 +17,7 @@ interface HTMLImageElement : HTMLElement {
     [HTMLConstructor] constructor();
 
     [CEReactions, Reflect] attribute DOMString alt;
-    [CEReactions, Reflect, URL] attribute USVString src;
+    [CEReactions, ReflectURL] attribute USVString src;
     [CEReactions, Reflect] attribute DOMString srcset;
     [CEReactions, Reflect] attribute DOMString sizes;
     [CEReactions, Enumerated=CORSSettingsAttribute, Reflect=crossorigin] attribute DOMString? crossOrigin;
@@ -38,11 +38,11 @@ interface HTMLImageElement : HTMLElement {
 
     // Obsolete
     [CEReactions, Reflect] attribute DOMString name;
-    [CEReactions, Reflect, URL] attribute USVString lowsrc;
+    [CEReactions, ReflectURL] attribute USVString lowsrc;
     [CEReactions, Reflect] attribute DOMString align;
     [CEReactions, Reflect] attribute unsigned long hspace;
     [CEReactions, Reflect] attribute unsigned long vspace;
-    [CEReactions, Reflect=longdesc, URL] attribute USVString longDesc;
+    [CEReactions, ReflectURL=longdesc] attribute USVString longDesc;
 
     [CEReactions, LegacyNullToEmptyString, Reflect] attribute DOMString border;
 

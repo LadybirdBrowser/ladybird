@@ -8,7 +8,7 @@ interface HTMLScriptElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect, URL] attribute USVString src;
+    [CEReactions, ReflectURL] attribute USVString src;
     [CEReactions, Reflect] attribute DOMString type;
     [CEReactions, Reflect=nomodule] attribute boolean noModule;
     [CEReactions] attribute boolean async;

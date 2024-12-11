@@ -30,7 +30,7 @@ interface HTMLMediaElement : HTMLElement {
     readonly attribute MediaError? error;
 
     // network state
-    [Reflect, CEReactions, URL] attribute USVString src;
+    [CEReactions, ReflectURL] attribute USVString src;
     [FIXME] attribute MediaProvider? srcObject;
     readonly attribute USVString currentSrc;
     [Reflect=crossorigin, CEReactions, Enumerated=CORSSettingsAttribute] attribute DOMString? crossOrigin;
