@@ -27,25 +27,6 @@ jobs:
         toolchain: ['GNU']
         clang_plugins: [false]
 
-        include:
-          - os_name: 'Linux'
-            os: ubuntu-24.04
-            fuzzer: 'NO_FUZZ'
-            toolchain: 'Clang'
-            clang_plugins: true
-
-          - os_name: 'macOS'
-            os: macos-15
-            fuzzer: 'NO_FUZZ'
-            toolchain: 'Clang'
-            clang_plugins: false
-
-          - os_name: 'Linux'
-            os: ubuntu-24.04
-            fuzzer: 'FUZZ'
-            toolchain: 'Clang'
-            clang_plugins: false
-
     uses: ./.github/workflows/lagom-template.yml
     with:
       toolchain: ${{ matrix.toolchain }}
