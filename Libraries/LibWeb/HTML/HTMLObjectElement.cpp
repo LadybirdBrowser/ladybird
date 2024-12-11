@@ -13,6 +13,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/DOM/DocumentLoading.h>
+#include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
@@ -54,12 +55,27 @@ void HTMLObjectElement::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLObjectElement);
+
+    m_document_observer = realm.create<DOM::DocumentObserver>(realm, document());
+
+    // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-object-element
+    // Whenever one of the following conditions occur:
+    // - the element's node document changes whether it is fully active,
+    // ...the user agent must queue an element task on the DOM manipulation task source given the object element to run
+    // the following steps to (re)determine what the object element represents.
+    m_document_observer->set_document_became_active([this]() {
+        queue_element_task_to_run_object_representation_steps();
+    });
+    m_document_observer->set_document_became_inactive([this]() {
+        queue_element_task_to_run_object_representation_steps();
+    });
 }
 
 void HTMLObjectElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_resource_request);
+    visitor.visit(m_document_observer);
 }
 
 void HTMLObjectElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const&)
@@ -186,6 +202,10 @@ bool HTMLObjectElement::has_ancestor_media_element_or_object_element_not_showing
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-object-element:queue-an-element-task
 void HTMLObjectElement::queue_element_task_to_run_object_representation_steps()
 {
+    // AD-HOC: If the document isn't fully active, this task will never run, and we will indefinitely delay the load event.
+    if (!document().is_fully_active())
+        return;
+
     // This task being queued or actively running must delay the load event of the element's node document.
     m_document_load_event_delayer_for_object_representation_task.emplace(document());
 
