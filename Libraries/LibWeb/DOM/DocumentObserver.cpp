@@ -23,6 +23,7 @@ void DocumentObserver::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_document);
+    visitor.visit(m_document_became_active);
     visitor.visit(m_document_became_inactive);
     visitor.visit(m_document_completely_loaded);
     visitor.visit(m_document_readiness_observer);
@@ -34,6 +35,14 @@ void DocumentObserver::finalize()
 {
     Base::finalize();
     m_document->unregister_document_observer({}, *this);
+}
+
+void DocumentObserver::set_document_became_active(Function<void()> callback)
+{
+    if (callback)
+        m_document_became_active = GC::create_function(vm().heap(), move(callback));
+    else
+        m_document_became_active = nullptr;
 }
 
 void DocumentObserver::set_document_became_inactive(Function<void()> callback)
