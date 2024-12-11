@@ -66,6 +66,7 @@ void HTMLMediaElement::initialize(JS::Realm& realm)
         // If the media element's node document stops being a fully active document, then the playback will stop until
         // the document is active again.
         pause_element().release_value_but_fixme_should_propagate_errors();
+        on_stopped();
     });
 
     document().page().register_media_element({}, unique_id());

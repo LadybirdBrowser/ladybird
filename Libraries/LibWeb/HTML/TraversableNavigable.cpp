@@ -147,7 +147,7 @@ WebIDL::ExceptionOr<GC::Ref<TraversableNavigable>> TraversableNavigable::create_
     //         Skip the initial navigation as well. This matches the behavior of the window open steps.
 
     if (url_matches_about_blank(initial_navigation_url)) {
-        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(traversable->heap(), [traversable, initial_navigation_url] {
+        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(traversable->heap(), [traversable] {
             // FIXME: We do this other places too when creating a new about:blank document. Perhaps it's worth a spec issue?
             HTML::HTMLParser::the_end(*traversable->active_document());
 
