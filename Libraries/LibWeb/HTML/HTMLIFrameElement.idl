@@ -8,7 +8,7 @@ interface HTMLIFrameElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect, URL] attribute USVString src;
+    [CEReactions, ReflectURL] attribute USVString src;
     [CEReactions, Reflect] attribute DOMString srcdoc;
     [CEReactions, Reflect] attribute DOMString name;
     [SameObject, PutForwards=value] readonly attribute DOMTokenList sandbox;
@@ -26,7 +26,7 @@ interface HTMLIFrameElement : HTMLElement {
     [CEReactions, Reflect] attribute DOMString align;
     [CEReactions, Reflect] attribute DOMString scrolling;
     [CEReactions, Reflect=frameborder] attribute DOMString frameBorder;
-    [CEReactions, Reflect=longdesc, URL] attribute USVString longDesc;
+    [CEReactions, ReflectURL=longdesc] attribute USVString longDesc;
 
     [CEReactions, LegacyNullToEmptyString, Reflect=marginheight] attribute DOMString marginHeight;
     [CEReactions, LegacyNullToEmptyString, Reflect=marginwidth] attribute DOMString marginWidth;

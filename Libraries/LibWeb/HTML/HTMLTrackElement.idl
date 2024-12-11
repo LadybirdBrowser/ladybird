@@ -17,7 +17,7 @@ interface HTMLTrackElement : HTMLElement {
     [HTMLConstructor] constructor();
 
     [CEReactions, Enumerated=TrackKindAttribute, Reflect] attribute DOMString kind;
-    [CEReactions, Reflect, URL] attribute USVString src;
+    [CEReactions, ReflectURL] attribute USVString src;
     [CEReactions, Reflect] attribute DOMString srclang;
     [CEReactions, Reflect] attribute DOMString label;
     [CEReactions, Reflect] attribute boolean default;

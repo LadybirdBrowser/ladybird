@@ -37,7 +37,7 @@ interface HTMLLinkElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect, URL] attribute USVString href;
+    [CEReactions, ReflectURL] attribute USVString href;
     [CEReactions, Reflect=crossorigin, Enumerated=CORSSettingsAttribute] attribute DOMString? crossOrigin;
     [CEReactions, Reflect] attribute DOMString rel;
     [CEReactions, Reflect, Enumerated=PotentialDestination] attribute DOMString as;
