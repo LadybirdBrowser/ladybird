@@ -857,3 +857,38 @@ progress {
         filter: invert(100%);
     }
 }
+
+/* https://github.com/whatwg/html/pull/9546
+ */
+input[type=checkbox][switch] {
+	appearance: none;
+	height: 1em;
+	width: 1.8em;
+	vertical-align: middle;
+	border-radius: 1em;
+	position: relative;
+	overflow: hidden;
+	border-color: transparent;
+	background-color: ButtonFace;
+}
+
+input[type=checkbox][switch]::before {
+	content: '';
+	position: absolute;
+	height: 0;
+	width: 0;
+	border: .46em solid Field;
+	border-radius: 100%;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	margin: auto;
+}
+
+input[type=checkbox][switch]:checked::before {
+	left: calc(100% - .87em);
+}
+
+input[type=checkbox][switch]:checked {
+	background-color: AccentColor;
+}

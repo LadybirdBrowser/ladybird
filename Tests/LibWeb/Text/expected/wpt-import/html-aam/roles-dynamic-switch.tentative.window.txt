@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Disconnected <input type=checkbox switch>
+Pass	Connected <input type=checkbox switch>
+Pass	Connected <input type=checkbox switch>: adding switch attribute
+Pass	Connected <input type=checkbox switch>: removing switch attribute
+Pass	Connected <input type=checkbox switch>: removing type attribute
+Pass	Connected <input type=checkbox switch>: adding type attribute

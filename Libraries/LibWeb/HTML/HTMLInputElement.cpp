@@ -2343,13 +2343,16 @@ void HTMLInputElement::set_custom_validity(String const& error)
 
 Optional<ARIA::Role> HTMLInputElement::default_role() const
 {
+    // http://wpt.live/html-aam/roles-dynamic-switch.tentative.window.html "Disconnected <input type=checkbox switch>"
+    if (!is_connected())
+        return {};
     // https://www.w3.org/TR/html-aria/#el-input-button
     if (type_state() == TypeAttributeState::Button)
         return ARIA::Role::button;
     // https://www.w3.org/TR/html-aria/#el-input-checkbox
     if (type_state() == TypeAttributeState::Checkbox) {
         // https://github.com/w3c/html-aam/issues/496
-        if (has_attribute("switch"_string))
+        if (has_attribute(HTML::AttributeNames::switch_))
             return ARIA::Role::switch_;
         return ARIA::Role::checkbox;
     }
