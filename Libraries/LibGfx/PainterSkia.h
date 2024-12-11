@@ -23,10 +23,10 @@ public:
     virtual void draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::ImmutableBitmap const& src_bitmap, Gfx::IntRect const& src_rect, Gfx::ScalingMode, float global_alpha) override;
     virtual void stroke_path(Gfx::Path const&, Gfx::Color, float thickness) override;
     virtual void stroke_path(Gfx::Path const&, Gfx::Color, float thickness, float blur_radius) override;
-    virtual void stroke_path(Gfx::Path const&, Gfx::PaintStyle const&, float thickness, float global_alpha) override;
+    virtual void stroke_path(Gfx::Path const&, Gfx::PaintStyle const&, Span<Gfx::Filter>, float thickness, float global_alpha) override;
     virtual void fill_path(Gfx::Path const&, Gfx::Color, Gfx::WindingRule) override;
     virtual void fill_path(Gfx::Path const&, Gfx::Color, Gfx::WindingRule, float blur_radius) override;
-    virtual void fill_path(Gfx::Path const&, Gfx::PaintStyle const&, float global_alpha, Gfx::WindingRule) override;
+    virtual void fill_path(Gfx::Path const&, Gfx::PaintStyle const&, Span<Gfx::Filter>, float global_alpha, Gfx::WindingRule) override;
     virtual void set_transform(Gfx::AffineTransform const&) override;
     virtual void save() override;
     virtual void restore() override;

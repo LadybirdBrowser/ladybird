@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024, Lucien Fiorini <lucienfiorini@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -12,10 +13,12 @@
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/PathSkia.h>
 
+#include "Filter.h"
 #include <AK/TypeCasts.h>
 #include <core/SkCanvas.h>
 #include <core/SkPath.h>
 #include <effects/SkBlurMaskFilter.h>
+#include <effects/SkColorMatrixFilter.h>
 #include <effects/SkGradientShader.h>
 
 namespace Gfx {
@@ -126,13 +129,17 @@ static SkPoint to_skia_point(auto const& point)
     return SkPoint::Make(point.x(), point.y());
 }
 
-static SkPaint to_skia_paint(Gfx::PaintStyle const& style)
+static void apply_paint_style(SkPaint& paint, Gfx::PaintStyle const& style, float global_alpha)
 {
-    if (is<Gfx::CanvasLinearGradientPaintStyle>(style)) {
+    if (is<Gfx::SolidColorPaintStyle>(style)) {
+        auto const& solid_color = static_cast<Gfx::SolidColorPaintStyle const&>(style);
+        auto color = solid_color.sample_color(Gfx::IntPoint(0, 0));
+
+        paint.setColor(to_skia_color(color.with_opacity(global_alpha)));
+    } else if (is<Gfx::CanvasLinearGradientPaintStyle>(style)) {
         auto const& linear_gradient = static_cast<Gfx::CanvasLinearGradientPaintStyle const&>(style);
         auto const& color_stops = linear_gradient.color_stops();
 
-        SkPaint paint;
         Vector<SkColor> colors;
         colors.ensure_capacity(color_stops.size());
         Vector<SkScalar> positions;
@@ -149,14 +156,10 @@ static SkPaint to_skia_paint(Gfx::PaintStyle const& style)
         SkMatrix matrix;
         auto shader = SkGradientShader::MakeLinear(points.data(), colors.data(), positions.data(), color_stops.size(), SkTileMode::kClamp, 0, &matrix);
         paint.setShader(shader);
-        return paint;
-    }
-
-    if (is<Gfx::CanvasRadialGradientPaintStyle>(style)) {
+    } else if (is<Gfx::CanvasRadialGradientPaintStyle>(style)) {
         auto const& radial_gradient = static_cast<Gfx::CanvasRadialGradientPaintStyle const&>(style);
         auto const& color_stops = radial_gradient.color_stops();
 
-        SkPaint paint;
         Vector<SkColor> colors;
         colors.ensure_capacity(color_stops.size());
         Vector<SkScalar> positions;
@@ -177,9 +180,54 @@ static SkPaint to_skia_paint(Gfx::PaintStyle const& style)
         SkMatrix matrix;
         auto shader = SkGradientShader::MakeTwoPointConical(start_sk_point, start_radius, end_sk_point, end_radius, colors.data(), positions.data(), color_stops.size(), SkTileMode::kClamp, 0, &matrix);
         paint.setShader(shader);
-        return paint;
     }
-    return {};
+}
+
+static void apply_filters(SkPaint& paint, Span<Gfx::Filter> filters)
+{
+    for (auto const& filter : filters) {
+        filter.visit(
+            [&](Gfx::BlurFilter blur_filter) {
+                paint.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur_filter.radius / 2));
+            },
+            [&](Gfx::ColorFilter color_filter) {
+                float const amount = color_filter.amount;
+
+                switch (color_filter.type) {
+                case Gfx::ColorFilter::Type::Brightness: {
+                    float matrix[20] = {
+                        amount, 0, 0, 0, 0,
+                        0, amount, 0, 0, 0,
+                        0, 0, amount, 0, 0,
+                        0, 0, 0, 1, 0
+                    };
+
+                    paint.setColorFilter(SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo));
+                    break;
+                }
+                default:
+                    TODO();
+                }
+            },
+            [&](Gfx::HueRotateFilter hue_rotate_filter) {
+                (void)hue_rotate_filter;
+                TODO();
+            },
+            [&](Gfx::DropShadowFilter drop_shadow_filter) {
+                (void)drop_shadow_filter;
+                TODO();
+            });
+    }
+}
+
+static SkPaint to_skia_paint(Gfx::PaintStyle const& style, Span<Gfx::Filter> filters, float global_alpha)
+{
+    SkPaint paint;
+
+    apply_paint_style(paint, style, global_alpha);
+    apply_filters(paint, filters);
+
+    return paint;
 }
 
 void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::Color color, float thickness)
@@ -213,14 +261,14 @@ void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::Color color, float thi
     impl().canvas()->drawPath(sk_path, paint);
 }
 
-void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_style, float thickness, float global_alpha)
+void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_style, Span<Gfx::Filter> filters, float thickness, float global_alpha)
 {
     // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
     if (thickness <= 0)
         return;
 
     auto sk_path = to_skia_path(path);
-    auto paint = to_skia_paint(paint_style);
+    auto paint = to_skia_paint(paint_style, filters, global_alpha);
     paint.setAntiAlias(true);
     paint.setAlphaf(global_alpha);
     paint.setStyle(SkPaint::Style::kStroke_Style);
@@ -249,11 +297,11 @@ void PainterSkia::fill_path(Gfx::Path const& path, Gfx::Color color, Gfx::Windin
     impl().canvas()->drawPath(sk_path, paint);
 }
 
-void PainterSkia::fill_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_style, float global_alpha, Gfx::WindingRule winding_rule)
+void PainterSkia::fill_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_style,  Span<Gfx::Filter> filters, float global_alpha, Gfx::WindingRule winding_rule)
 {
     auto sk_path = to_skia_path(path);
     sk_path.setFillType(to_skia_path_fill_type(winding_rule));
-    auto paint = to_skia_paint(paint_style);
+    auto paint = to_skia_paint(paint_style, filters, global_alpha);
     paint.setAntiAlias(true);
     paint.setAlphaf(global_alpha);
     impl().canvas()->drawPath(sk_path, paint);
