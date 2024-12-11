@@ -506,6 +506,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_scripts_to_execute_as_soon_as_possible);
     visitor.visit(m_node_iterators);
     visitor.visit(m_document_observers);
+    visitor.visit(m_document_observers_being_notified);
     visitor.visit(m_pending_scroll_event_targets);
     visitor.visit(m_pending_scrollend_event_targets);
     visitor.visit(m_resize_observers);
@@ -2440,10 +2441,10 @@ void Document::update_readiness(HTML::DocumentReadyState readiness_value)
         }
     }
 
-    for (auto document_observer : m_document_observers) {
-        if (document_observer->document_readiness_observer())
-            document_observer->document_readiness_observer()->function()(m_readiness);
-    }
+    notify_each_document_observer([&](auto const& document_observer) {
+        return document_observer.document_readiness_observer();
+    },
+        m_readiness);
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-lastmodified
@@ -2507,11 +2508,9 @@ void Document::completely_finish_loading()
         return;
 
     ScopeGuard notify_observers = [this] {
-        auto observers_to_notify = m_document_observers.values();
-        for (auto& document_observer : observers_to_notify) {
-            if (document_observer->document_completely_loaded())
-                document_observer->document_completely_loaded()->function()();
-        }
+        notify_each_document_observer([&](auto const& document_observer) {
+            return document_observer.document_completely_loaded();
+        });
     };
 
     // 1. Assert: document's browsing context is non-null.
@@ -2777,10 +2776,10 @@ void Document::update_the_visibility_state(HTML::VisibilityState visibility_stat
     m_visibility_state = visibility_state;
 
     // 3. Run any page visibility change steps which may be defined in other specifications, with visibility state and document.
-    for (auto document_observer : m_document_observers) {
-        if (document_observer->document_visibility_state_observer())
-            document_observer->document_visibility_state_observer()->function()(m_visibility_state);
-    }
+    notify_each_document_observer([&](auto const& document_observer) {
+        return document_observer.document_visibility_state_observer();
+    },
+        m_visibility_state);
 
     // 4. Fire an event named visibilitychange at document, with its bubbles attribute initialized to true.
     auto event = DOM::Event::create(realm(), HTML::EventNames::visibilitychange);
@@ -3090,10 +3089,10 @@ void Document::set_page_showing(bool page_showing)
 
     m_page_showing = page_showing;
 
-    for (auto document_observer : m_document_observers) {
-        if (document_observer->document_page_showing_observer())
-            document_observer->document_page_showing_observer()->function()(m_page_showing);
-    }
+    notify_each_document_observer([&](auto const& document_observer) {
+        return document_observer.document_page_showing_observer();
+    },
+        m_page_showing);
 }
 
 void Document::invalidate_stacking_context_tree()
@@ -3773,11 +3772,9 @@ void Document::did_stop_being_active_document_in_navigable()
 {
     tear_down_layout_tree();
 
-    auto observers_to_notify = m_document_observers.values();
-    for (auto& document_observer : observers_to_notify) {
-        if (document_observer->document_became_inactive())
-            document_observer->document_became_inactive()->function()();
-    }
+    notify_each_document_observer([&](auto const& document_observer) {
+        return document_observer.document_became_inactive();
+    });
 
     if (m_animation_driver_timer)
         m_animation_driver_timer->stop();

@@ -787,6 +787,21 @@ private:
 
     void dispatch_events_for_animation_if_necessary(GC::Ref<Animations::Animation>);
 
+    template<typename GetNotifier, typename... Args>
+    void notify_each_document_observer(GetNotifier&& get_notifier, Args&&... args)
+    {
+        ScopeGuard guard { [&]() { m_document_observers_being_notified.clear_with_capacity(); } };
+        m_document_observers_being_notified.ensure_capacity(m_document_observers.size());
+
+        for (auto observer : m_document_observers)
+            m_document_observers_being_notified.unchecked_append(observer);
+
+        for (auto document_observer : m_document_observers_being_notified) {
+            if (auto notifier = get_notifier(*document_observer))
+                notifier->function()(forward<Args>(args)...);
+        }
+    }
+
     GC::Ref<Page> m_page;
     OwnPtr<CSS::StyleComputer> m_style_computer;
     GC::Ptr<CSS::StyleSheetList> m_style_sheets;
@@ -897,6 +912,7 @@ private:
     HashTable<GC::Ptr<NodeIterator>> m_node_iterators;
 
     HashTable<GC::Ref<DocumentObserver>> m_document_observers;
+    Vector<GC::Ref<DocumentObserver>> m_document_observers_being_notified;
 
     // https://html.spec.whatwg.org/multipage/dom.html#is-initial-about:blank
     bool m_is_initial_about_blank { false };
