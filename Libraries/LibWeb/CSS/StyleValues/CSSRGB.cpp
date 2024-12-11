@@ -7,7 +7,7 @@
 #include "CSSRGB.h"
 #include <AK/TypeCasts.h>
 #include <LibWeb/CSS/Serialize.h>
-#include <LibWeb/CSS/StyleValues/CSSMathValue.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 
@@ -29,8 +29,8 @@ Color CSSRGB::to_color(Optional<Layout::NodeWithStyle const&>) const
         if (style_value.is_percentage())
             return normalized(style_value.as_percentage().value() * 255 / 100);
 
-        if (style_value.is_math()) {
-            auto const& calculated = style_value.as_math();
+        if (style_value.is_calculated()) {
+            auto const& calculated = style_value.as_calculated();
             if (calculated.resolves_to_number())
                 return normalized(calculated.resolve_number().value());
             if (calculated.resolves_to_percentage())

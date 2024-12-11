@@ -7,25 +7,25 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "CSSMathValue.h"
+#include "CalculatedStyleValue.h"
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/PropertyID.h>
 
 namespace Web::CSS {
 
-static bool is_number(CSSMathValue::ResolvedType type)
+static bool is_number(CalculatedStyleValue::ResolvedType type)
 {
-    return type == CSSMathValue::ResolvedType::Number || type == CSSMathValue::ResolvedType::Integer;
+    return type == CalculatedStyleValue::ResolvedType::Number || type == CalculatedStyleValue::ResolvedType::Integer;
 }
 
-static bool is_dimension(CSSMathValue::ResolvedType type)
+static bool is_dimension(CalculatedStyleValue::ResolvedType type)
 {
-    return type != CSSMathValue::ResolvedType::Number
-        && type != CSSMathValue::ResolvedType::Integer
-        && type != CSSMathValue::ResolvedType::Percentage;
+    return type != CalculatedStyleValue::ResolvedType::Number
+        && type != CalculatedStyleValue::ResolvedType::Integer
+        && type != CalculatedStyleValue::ResolvedType::Percentage;
 }
 
-static double resolve_value_radians(CSSMathValue::CalculationResult::Value value)
+static double resolve_value_radians(CalculatedStyleValue::CalculationResult::Value value)
 {
     return value.visit(
         [](Number const& number) { return number.value(); },
@@ -33,7 +33,7 @@ static double resolve_value_radians(CSSMathValue::CalculationResult::Value value
         [](auto const&) { VERIFY_NOT_REACHED(); return 0.0; });
 }
 
-static double resolve_value(CSSMathValue::CalculationResult::Value value, Optional<Length::ResolutionContext const&> context)
+static double resolve_value(CalculatedStyleValue::CalculationResult::Value value, Optional<Length::ResolutionContext const&> context)
 {
     return value.visit(
         [](Number const& number) { return number.value(); },
@@ -82,26 +82,26 @@ static Optional<CSSNumericType> add_the_types(Vector<NonnullOwnPtr<CalculationNo
     return left_type;
 }
 
-static CSSMathValue::CalculationResult to_resolved_type(CSSMathValue::ResolvedType type, double value)
+static CalculatedStyleValue::CalculationResult to_resolved_type(CalculatedStyleValue::ResolvedType type, double value)
 {
     switch (type) {
-    case CSSMathValue::ResolvedType::Integer:
+    case CalculatedStyleValue::ResolvedType::Integer:
         return { Number(Number::Type::Integer, value) };
-    case CSSMathValue::ResolvedType::Number:
+    case CalculatedStyleValue::ResolvedType::Number:
         return { Number(Number::Type::Number, value) };
-    case CSSMathValue::ResolvedType::Angle:
+    case CalculatedStyleValue::ResolvedType::Angle:
         return { Angle::make_degrees(value) };
-    case CSSMathValue::ResolvedType::Flex:
+    case CalculatedStyleValue::ResolvedType::Flex:
         return { Flex::make_fr(value) };
-    case CSSMathValue::ResolvedType::Frequency:
+    case CalculatedStyleValue::ResolvedType::Frequency:
         return { Frequency::make_hertz(value) };
-    case CSSMathValue::ResolvedType::Length:
+    case CalculatedStyleValue::ResolvedType::Length:
         return { Length::make_px(CSSPixels::nearest_value_for(value)) };
-    case CSSMathValue::ResolvedType::Percentage:
+    case CalculatedStyleValue::ResolvedType::Percentage:
         return { Percentage(value) };
-    case CSSMathValue::ResolvedType::Resolution:
+    case CalculatedStyleValue::ResolvedType::Resolution:
         return { Resolution::make_dots_per_pixel(value) };
-    case CSSMathValue::ResolvedType::Time:
+    case CalculatedStyleValue::ResolvedType::Time:
         return { Time::make_seconds(value) };
     }
 
@@ -153,17 +153,17 @@ String NumericCalculationNode::to_string() const
     return m_value.visit([](auto& value) { return value.to_string(); });
 }
 
-Optional<CSSMathValue::ResolvedType> NumericCalculationNode::resolved_type() const
+Optional<CalculatedStyleValue::ResolvedType> NumericCalculationNode::resolved_type() const
 {
     return m_value.visit(
-        [](Number const&) { return CSSMathValue::ResolvedType::Number; },
-        [](Angle const&) { return CSSMathValue::ResolvedType::Angle; },
-        [](Flex const&) { return CSSMathValue::ResolvedType::Flex; },
-        [](Frequency const&) { return CSSMathValue::ResolvedType::Frequency; },
-        [](Length const&) { return CSSMathValue::ResolvedType::Length; },
-        [](Percentage const&) { return CSSMathValue::ResolvedType::Percentage; },
-        [](Resolution const&) { return CSSMathValue::ResolvedType::Resolution; },
-        [](Time const&) { return CSSMathValue::ResolvedType::Time; });
+        [](Number const&) { return CalculatedStyleValue::ResolvedType::Number; },
+        [](Angle const&) { return CalculatedStyleValue::ResolvedType::Angle; },
+        [](Flex const&) { return CalculatedStyleValue::ResolvedType::Flex; },
+        [](Frequency const&) { return CalculatedStyleValue::ResolvedType::Frequency; },
+        [](Length const&) { return CalculatedStyleValue::ResolvedType::Length; },
+        [](Percentage const&) { return CalculatedStyleValue::ResolvedType::Percentage; },
+        [](Resolution const&) { return CalculatedStyleValue::ResolvedType::Resolution; },
+        [](Time const&) { return CalculatedStyleValue::ResolvedType::Time; });
 }
 
 // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
@@ -232,17 +232,17 @@ bool NumericCalculationNode::contains_percentage() const
     return m_value.has<Percentage>();
 }
 
-CSSMathValue::CalculationResult NumericCalculationNode::resolve(Optional<Length::ResolutionContext const&>, CSSMathValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult NumericCalculationNode::resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
     if (m_value.has<Percentage>()) {
         // NOTE: Depending on whether percentage_basis is set, the caller of resolve() is expecting a raw percentage or
         //       resolved length.
         return percentage_basis.visit(
-            [&](Empty const&) -> CSSMathValue::CalculationResult {
+            [&](Empty const&) -> CalculatedStyleValue::CalculationResult {
                 return m_value;
             },
             [&](auto const& value) {
-                return CSSMathValue::CalculationResult(value.percentage_of(m_value.get<Percentage>()));
+                return CalculatedStyleValue::CalculationResult(value.percentage_of(m_value.get<Percentage>()));
             });
     }
 
@@ -290,12 +290,12 @@ String SumCalculationNode::to_string() const
     return MUST(builder.to_string());
 }
 
-Optional<CSSMathValue::ResolvedType> SumCalculationNode::resolved_type() const
+Optional<CalculatedStyleValue::ResolvedType> SumCalculationNode::resolved_type() const
 {
     // FIXME: Implement https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
     //        For now, this is just ad-hoc, based on the old implementation.
 
-    Optional<CSSMathValue::ResolvedType> type;
+    Optional<CalculatedStyleValue::ResolvedType> type;
     for (auto const& value : m_values) {
         auto maybe_value_type = value->resolved_type();
         if (!maybe_value_type.has_value())
@@ -314,17 +314,17 @@ Optional<CSSMathValue::ResolvedType> SumCalculationNode::resolved_type() const
 
         // If one side is a <number> and the other is an <integer>, resolve to <number>.
         if (is_number(*type) && is_number(value_type)) {
-            type = CSSMathValue::ResolvedType::Number;
+            type = CalculatedStyleValue::ResolvedType::Number;
             continue;
         }
 
         // FIXME: calc() handles <percentage> by allowing them to pretend to be whatever <dimension> type is allowed at this location.
         //        Since we can't easily check what that type is, we just allow <percentage> to combine with any other <dimension> type.
-        if (type == CSSMathValue::ResolvedType::Percentage && is_dimension(value_type)) {
+        if (type == CalculatedStyleValue::ResolvedType::Percentage && is_dimension(value_type)) {
             type = value_type;
             continue;
         }
-        if (is_dimension(*type) && value_type == CSSMathValue::ResolvedType::Percentage)
+        if (is_dimension(*type) && value_type == CalculatedStyleValue::ResolvedType::Percentage)
             continue;
 
         return {};
@@ -350,9 +350,9 @@ bool SumCalculationNode::contains_percentage() const
     return false;
 }
 
-CSSMathValue::CalculationResult SumCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CSSMathValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult SumCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
-    Optional<CSSMathValue::CalculationResult> total;
+    Optional<CalculatedStyleValue::CalculationResult> total;
 
     for (auto& additional_product : m_values) {
         auto additional_value = additional_product->resolve(context, percentage_basis);
@@ -415,12 +415,12 @@ String ProductCalculationNode::to_string() const
     return MUST(builder.to_string());
 }
 
-Optional<CSSMathValue::ResolvedType> ProductCalculationNode::resolved_type() const
+Optional<CalculatedStyleValue::ResolvedType> ProductCalculationNode::resolved_type() const
 {
     // FIXME: Implement https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
     //        For now, this is just ad-hoc, based on the old implementation.
 
-    Optional<CSSMathValue::ResolvedType> type;
+    Optional<CalculatedStyleValue::ResolvedType> type;
     for (auto const& value : m_values) {
         auto maybe_value_type = value->resolved_type();
         if (!maybe_value_type.has_value())
@@ -436,8 +436,8 @@ Optional<CSSMathValue::ResolvedType> ProductCalculationNode::resolved_type() con
         if (!(is_number(*type) || is_number(value_type)))
             return {};
         // If both sides are <integer>, resolve to <integer>.
-        if (type == CSSMathValue::ResolvedType::Integer && value_type == CSSMathValue::ResolvedType::Integer) {
-            type = CSSMathValue::ResolvedType::Integer;
+        if (type == CalculatedStyleValue::ResolvedType::Integer && value_type == CalculatedStyleValue::ResolvedType::Integer) {
+            type = CalculatedStyleValue::ResolvedType::Integer;
         } else {
             // Otherwise, resolve to the type of the other side.
             if (is_number(*type))
@@ -480,9 +480,9 @@ bool ProductCalculationNode::contains_percentage() const
     return false;
 }
 
-CSSMathValue::CalculationResult ProductCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CSSMathValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult ProductCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
-    Optional<CSSMathValue::CalculationResult> total;
+    Optional<CalculatedStyleValue::CalculationResult> total;
 
     for (auto& additional_product : m_values) {
         auto additional_value = additional_product->resolve(context, percentage_basis);
@@ -536,7 +536,7 @@ String NegateCalculationNode::to_string() const
     return MUST(String::formatted("(0 - {})", m_value->to_string()));
 }
 
-Optional<CSSMathValue::ResolvedType> NegateCalculationNode::resolved_type() const
+Optional<CalculatedStyleValue::ResolvedType> NegateCalculationNode::resolved_type() const
 {
     return m_value->resolved_type();
 }
@@ -553,7 +553,7 @@ bool NegateCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-CSSMathValue::CalculationResult NegateCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CSSMathValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult NegateCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
     auto child_value = m_value->resolve(context, percentage_basis);
     child_value.negate();
@@ -593,11 +593,11 @@ String InvertCalculationNode::to_string() const
     return MUST(String::formatted("(1 / {})", m_value->to_string()));
 }
 
-Optional<CSSMathValue::ResolvedType> InvertCalculationNode::resolved_type() const
+Optional<CalculatedStyleValue::ResolvedType> InvertCalculationNode::resolved_type() const
 {
     auto type = m_value->resolved_type();
-    if (type == CSSMathValue::ResolvedType::Integer)
-        return CSSMathValue::ResolvedType::Number;
+    if (type == CalculatedStyleValue::ResolvedType::Integer)
+        return CalculatedStyleValue::ResolvedType::Number;
     return type;
 }
 
@@ -617,7 +617,7 @@ bool InvertCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-CSSMathValue::CalculationResult InvertCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CSSMathValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult InvertCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
     auto child_value = m_value->resolve(context, percentage_basis);
     child_value.invert();
@@ -665,7 +665,7 @@ String MinCalculationNode::to_string() const
     return MUST(builder.to_string());
 }
 
-Optional<CSSMathValue::ResolvedType> MinCalculationNode::resolved_type() const
+Optional<CalculatedStyleValue::ResolvedType> MinCalculationNode::resolved_type() const
 {
     // NOTE: We check during parsing that all values have the same type.
     return m_values[0]->resolved_type();
@@ -688,9 +688,9 @@ bool MinCalculationNode::contains_percentage() const
     return false;
 }
 
-CSSMathValue::CalculationResult MinCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CSSMathValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult MinCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
-    CSSMathValue::CalculationResult smallest_node = m_values.first()->resolve(context, percentage_basis);
+    CalculatedStyleValue::CalculationResult smallest_node = m_values.first()->resolve(context, percentage_basis);
     auto smallest_value = resolve_value(smallest_node.value(), context);
 
     for (size_t i = 1; i < m_values.size(); i++) {
@@ -754,7 +754,7 @@ String MaxCalculationNode::to_string() const
     return MUST(builder.to_string());
 }
 
-Optional<CSSMathValue::ResolvedType> MaxCalculationNode::resolved_type() const
+Optional<CalculatedStyleValue::ResolvedType> MaxCalculationNode::resolved_type() const
 {
     // NOTE: We check during parsing that all values have the same type.
     return m_values[0]->resolved_type();
@@ -777,9 +777,9 @@ bool MaxCalculationNode::contains_percentage() const
     return false;
 }
 
-CSSMathValue::CalculationResult MaxCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CSSMathValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult MaxCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
-    CSSMathValue::CalculationResult largest_node = m_values.first()->resolve(context, percentage_basis);
+    CalculatedStyleValue::CalculationResult largest_node = m_values.first()->resolve(context, percentage_basis);
     auto largest_value = resolve_value(largest_node.value(), context);
 
     for (size_t i = 1; i < m_values.size(); i++) {
@@ -845,7 +845,7 @@ String ClampCalculationNode::to_string() const
     return MUST(builder.to_string());
 }
 
-Optional<CSSMathValue::ResolvedType> ClampCalculationNode::resolved_type() const
+Optional<CalculatedStyleValue::ResolvedType> ClampCalculationNode::resolved_type() const
 {
     // NOTE: We check during parsing that all values have the same type.
     return m_min_value->resolved_type();
@@ -873,7 +873,7 @@ bool ClampCalculationNode::contains_percentage() const
     return m_min_value->contains_percentage() || m_center_value->contains_percentage() || m_max_value->contains_percentage();
 }
 
-CSSMathValue::CalculationResult ClampCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CSSMathValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult ClampCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
     auto min_node = m_min_value->resolve(context, percentage_basis);
     auto center_node = m_center_value->resolve(context, percentage_basis);
@@ -936,7 +936,7 @@ String AbsCalculationNode::to_string() const
     return MUST(builder.to_string());
 }
 
-Optional<CSSMathValue::ResolvedType> AbsCalculationNode::resolved_type() const
+Optional<CalculatedStyleValue::ResolvedType> AbsCalculationNode::resolved_type() const
 {
     return m_value->resolved_type();
 }
@@ -953,7 +953,7 @@ bool AbsCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-CSSMathValue::CalculationResult AbsCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CSSMathValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult AbsCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
     auto resolved_type = m_value->resolved_type().value();
     auto node_a = m_value->resolve(context, percentage_basis);
@@ -1001,9 +1001,9 @@ String SignCalculationNode::to_string() const
     return MUST(builder.to_string());
 }
 
-Optional<CSSMathValue::ResolvedType> SignCalculationNode::resolved_type() const
+Optional<CalculatedStyleValue::ResolvedType> SignCalculationNode::resolved_type() const
 {
-    return CSSMathValue::ResolvedType::Integer;
+    return CalculatedStyleValue::ResolvedType::Integer;
 }
 
 // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
@@ -1018,7 +1018,7 @@ bool SignCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-CSSMathValue::CalculationResult SignCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CSSMathValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult SignCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
     auto node_a = m_value->resolve(context, percentage_basis);
     auto node_a_value = resolve_value(node_a.value(), context);
@@ -1076,9 +1076,9 @@ String ConstantCalculationNode::to_string() const
 
     VERIFY_NOT_REACHED();
 }
-Optional<CSSMathValue::ResolvedType> ConstantCalculationNode::resolved_type() const
+Optional<CalculatedStyleValue::ResolvedType> ConstantCalculationNode::resolved_type() const
 {
-    return CSSMathValue::ResolvedType::Number;
+    return CalculatedStyleValue::ResolvedType::Number;
 }
 
 // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
@@ -1090,7 +1090,7 @@ Optional<CSSNumericType> ConstantCalculationNode::determine_type(PropertyID) con
     return CSSNumericType {};
 }
 
-CSSMathValue::CalculationResult ConstantCalculationNode::resolve([[maybe_unused]] Optional<Length::ResolutionContext const&> context, [[maybe_unused]] CSSMathValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult ConstantCalculationNode::resolve([[maybe_unused]] Optional<Length::ResolutionContext const&> context, [[maybe_unused]] CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
     switch (m_constant) {
     case CalculationNode::ConstantType::E:
@@ -1145,9 +1145,9 @@ String SinCalculationNode::to_string() const
     return MUST(builder.to_string());
 }
 
-Optional<CSSMathValue::ResolvedType> SinCalculationNode::resolved_type() const
+Optional<CalculatedStyleValue::ResolvedType> SinCalculationNode::resolved_type() const
 {
-    return CSSMathValue::ResolvedType::Number;
+    return CalculatedStyleValue::ResolvedType::Number;
 }
 
 // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
@@ -1162,7 +1162,7 @@ bool SinCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-CSSMathValue::CalculationResult SinCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CSSMathValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult SinCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
     auto node_a = m_value->resolve(context, percentage_basis);
     auto node_a_value = resolve_value_radians(node_a.value());
@@ -1207,9 +1207,9 @@ String CosCalculationNode::to_string() const
     return MUST(builder.to_string());
 }
 
-Optional<CSSMathValue::ResolvedType> CosCalculationNode::resolved_type() const
+Optional<CalculatedStyleValue::ResolvedType> CosCalculationNode::resolved_type() const
 {
-    return CSSMathValue::ResolvedType::Number;
+    return CalculatedStyleValue::ResolvedType::Number;
 }
 
 // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
@@ -1224,7 +1224,7 @@ bool CosCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-CSSMathValue::CalculationResult CosCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CSSMathValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult CosCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
     auto node_a = m_value->resolve(context, percentage_basis);
     auto node_a_value = resolve_value_radians(node_a.value());
@@ -1269,9 +1269,9 @@ String TanCalculationNode::to_string() const
     return MUST(builder.to_string());
 }
 
-Optional<CSSMathValue::ResolvedType> TanCalculationNode::resolved_type() const
+Optional<CalculatedStyleValue::ResolvedType> TanCalculationNode::resolved_type() const
 {
-    return CSSMathValue::ResolvedType::Number;
+    return CalculatedStyleValue::ResolvedType::Number;
 }
 
 // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
@@ -1286,7 +1286,7 @@ bool TanCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-CSSMathValue::CalculationResult TanCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CSSMathValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult TanCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
     auto node_a = m_value->resolve(context, percentage_basis);
     auto node_a_value = resolve_value_radians(node_a.value());
@@ -1331,9 +1331,9 @@ String AsinCalculationNode::to_string() const
     return MUST(builder.to_string());
 }
 
-Optional<CSSMathValue::ResolvedType> AsinCalculationNode::resolved_type() const
+Optional<CalculatedStyleValue::ResolvedType> AsinCalculationNode::resolved_type() const
 {
-    return CSSMathValue::ResolvedType::Angle;
+    return CalculatedStyleValue::ResolvedType::Angle;
 }
 
 // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
@@ -1348,7 +1348,7 @@ bool AsinCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-CSSMathValue::CalculationResult AsinCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CSSMathValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult AsinCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
     auto node_a = m_value->resolve(context, percentage_basis);
     auto node_a_value = resolve_value(node_a.value(), context);
@@ -1393,9 +1393,9 @@ String AcosCalculationNode::to_string() const
     return MUST(builder.to_string());
 }
 
-Optional<CSSMathValue::ResolvedType> AcosCalculationNode::resolved_type() const
+Optional<CalculatedStyleValue::ResolvedType> AcosCalculationNode::resolved_type() const
 {
-    return CSSMathValue::ResolvedType::Angle;
+    return CalculatedStyleValue::ResolvedType::Angle;
 }
 
 // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
@@ -1410,7 +1410,7 @@ bool AcosCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-CSSMathValue::CalculationResult AcosCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CSSMathValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult AcosCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
     auto node_a = m_value->resolve(context, percentage_basis);
     auto node_a_value = resolve_value(node_a.value(), context);
@@ -1455,9 +1455,9 @@ String AtanCalculationNode::to_string() const
     return MUST(builder.to_string());
 }
 
-Optional<CSSMathValue::ResolvedType> AtanCalculationNode::resolved_type() const
+Optional<CalculatedStyleValue::ResolvedType> AtanCalculationNode::resolved_type() const
 {
-    return CSSMathValue::ResolvedType::Angle;
+    return CalculatedStyleValue::ResolvedType::Angle;
 }
 
 // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
@@ -1472,7 +1472,7 @@ bool AtanCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-CSSMathValue::CalculationResult AtanCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CSSMathValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult AtanCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
     auto node_a = m_value->resolve(context, percentage_basis);
     auto node_a_value = resolve_value(node_a.value(), context);
@@ -1520,9 +1520,9 @@ String Atan2CalculationNode::to_string() const
     return MUST(builder.to_string());
 }
 
-Optional<CSSMathValue::ResolvedType> Atan2CalculationNode::resolved_type() const
+Optional<CalculatedStyleValue::ResolvedType> Atan2CalculationNode::resolved_type() const
 {
-    return CSSMathValue::ResolvedType::Angle;
+    return CalculatedStyleValue::ResolvedType::Angle;
 }
 
 // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
@@ -1537,7 +1537,7 @@ bool Atan2CalculationNode::contains_percentage() const
     return m_y->contains_percentage() || m_x->contains_percentage();
 }
 
-CSSMathValue::CalculationResult Atan2CalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CSSMathValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult Atan2CalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
     auto node_a = m_y->resolve(context, percentage_basis);
     auto node_a_value = resolve_value(node_a.value(), context);
@@ -1590,9 +1590,9 @@ String PowCalculationNode::to_string() const
     return MUST(builder.to_string());
 }
 
-Optional<CSSMathValue::ResolvedType> PowCalculationNode::resolved_type() const
+Optional<CalculatedStyleValue::ResolvedType> PowCalculationNode::resolved_type() const
 {
-    return CSSMathValue::ResolvedType::Number;
+    return CalculatedStyleValue::ResolvedType::Number;
 }
 
 // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
@@ -1602,7 +1602,7 @@ Optional<CSSNumericType> PowCalculationNode::determine_type(PropertyID) const
     return CSSNumericType {};
 }
 
-CSSMathValue::CalculationResult PowCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CSSMathValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult PowCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
     auto node_a = m_x->resolve(context, percentage_basis);
     auto node_a_value = resolve_value(node_a.value(), context);
@@ -1652,9 +1652,9 @@ String SqrtCalculationNode::to_string() const
     return MUST(builder.to_string());
 }
 
-Optional<CSSMathValue::ResolvedType> SqrtCalculationNode::resolved_type() const
+Optional<CalculatedStyleValue::ResolvedType> SqrtCalculationNode::resolved_type() const
 {
-    return CSSMathValue::ResolvedType::Number;
+    return CalculatedStyleValue::ResolvedType::Number;
 }
 
 // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
@@ -1664,7 +1664,7 @@ Optional<CSSNumericType> SqrtCalculationNode::determine_type(PropertyID) const
     return CSSNumericType {};
 }
 
-CSSMathValue::CalculationResult SqrtCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CSSMathValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult SqrtCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
     auto node_a = m_value->resolve(context, percentage_basis);
     auto node_a_value = resolve_value(node_a.value(), context);
@@ -1713,7 +1713,7 @@ String HypotCalculationNode::to_string() const
     return MUST(builder.to_string());
 }
 
-Optional<CSSMathValue::ResolvedType> HypotCalculationNode::resolved_type() const
+Optional<CalculatedStyleValue::ResolvedType> HypotCalculationNode::resolved_type() const
 {
     // NOTE: We check during parsing that all values have the same type.
     return m_values[0]->resolved_type();
@@ -1736,7 +1736,7 @@ bool HypotCalculationNode::contains_percentage() const
     return false;
 }
 
-CSSMathValue::CalculationResult HypotCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CSSMathValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult HypotCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
     double square_sum = 0.0;
 
@@ -1797,9 +1797,9 @@ String LogCalculationNode::to_string() const
     return MUST(builder.to_string());
 }
 
-Optional<CSSMathValue::ResolvedType> LogCalculationNode::resolved_type() const
+Optional<CalculatedStyleValue::ResolvedType> LogCalculationNode::resolved_type() const
 {
-    return CSSMathValue::ResolvedType::Number;
+    return CalculatedStyleValue::ResolvedType::Number;
 }
 
 // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
@@ -1809,7 +1809,7 @@ Optional<CSSNumericType> LogCalculationNode::determine_type(PropertyID) const
     return CSSNumericType {};
 }
 
-CSSMathValue::CalculationResult LogCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CSSMathValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult LogCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
     auto node_a = m_x->resolve(context, percentage_basis);
     auto node_a_value = resolve_value(node_a.value(), context);
@@ -1859,9 +1859,9 @@ String ExpCalculationNode::to_string() const
     return MUST(builder.to_string());
 }
 
-Optional<CSSMathValue::ResolvedType> ExpCalculationNode::resolved_type() const
+Optional<CalculatedStyleValue::ResolvedType> ExpCalculationNode::resolved_type() const
 {
-    return CSSMathValue::ResolvedType::Number;
+    return CalculatedStyleValue::ResolvedType::Number;
 }
 
 // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
@@ -1871,7 +1871,7 @@ Optional<CSSNumericType> ExpCalculationNode::determine_type(PropertyID) const
     return CSSNumericType {};
 }
 
-CSSMathValue::CalculationResult ExpCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CSSMathValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult ExpCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
     auto node_a = m_value->resolve(context, percentage_basis);
     auto node_a_value = resolve_value(node_a.value(), context);
@@ -1922,7 +1922,7 @@ String RoundCalculationNode::to_string() const
     return MUST(builder.to_string());
 }
 
-Optional<CSSMathValue::ResolvedType> RoundCalculationNode::resolved_type() const
+Optional<CalculatedStyleValue::ResolvedType> RoundCalculationNode::resolved_type() const
 {
     // Note: We check during parsing that all values have the same type
     return m_x->resolved_type();
@@ -1946,7 +1946,7 @@ bool RoundCalculationNode::contains_percentage() const
     return m_x->contains_percentage() || m_y->contains_percentage();
 }
 
-CSSMathValue::CalculationResult RoundCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CSSMathValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult RoundCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
     auto node_a = m_x->resolve(context, percentage_basis);
     auto node_b = m_y->resolve(context, percentage_basis);
@@ -2025,7 +2025,7 @@ String ModCalculationNode::to_string() const
     return MUST(builder.to_string());
 }
 
-Optional<CSSMathValue::ResolvedType> ModCalculationNode::resolved_type() const
+Optional<CalculatedStyleValue::ResolvedType> ModCalculationNode::resolved_type() const
 {
     // Note: We check during parsing that all values have the same type
     return m_x->resolved_type();
@@ -2049,7 +2049,7 @@ bool ModCalculationNode::contains_percentage() const
     return m_x->contains_percentage() || m_y->contains_percentage();
 }
 
-CSSMathValue::CalculationResult ModCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CSSMathValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult ModCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
     auto resolved_type = m_x->resolved_type().value();
     auto node_a = m_x->resolve(context, percentage_basis);
@@ -2103,7 +2103,7 @@ String RemCalculationNode::to_string() const
     return MUST(builder.to_string());
 }
 
-Optional<CSSMathValue::ResolvedType> RemCalculationNode::resolved_type() const
+Optional<CalculatedStyleValue::ResolvedType> RemCalculationNode::resolved_type() const
 {
     // Note: We check during parsing that all values have the same type
     return m_x->resolved_type();
@@ -2127,7 +2127,7 @@ bool RemCalculationNode::contains_percentage() const
     return m_x->contains_percentage() || m_y->contains_percentage();
 }
 
-CSSMathValue::CalculationResult RemCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CSSMathValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult RemCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
     auto resolved_type = m_x->resolved_type().value();
     auto node_a = m_x->resolve(context, percentage_basis);
@@ -2155,17 +2155,17 @@ bool RemCalculationNode::equals(CalculationNode const& other) const
         && m_y->equals(*static_cast<RemCalculationNode const&>(other).m_y);
 }
 
-void CSSMathValue::CalculationResult::add(CalculationResult const& other, Optional<Length::ResolutionContext const&> context, PercentageBasis const& percentage_basis)
+void CalculatedStyleValue::CalculationResult::add(CalculationResult const& other, Optional<Length::ResolutionContext const&> context, PercentageBasis const& percentage_basis)
 {
     add_or_subtract_internal(SumOperation::Add, other, context, percentage_basis);
 }
 
-void CSSMathValue::CalculationResult::subtract(CalculationResult const& other, Optional<Length::ResolutionContext const&> context, PercentageBasis const& percentage_basis)
+void CalculatedStyleValue::CalculationResult::subtract(CalculationResult const& other, Optional<Length::ResolutionContext const&> context, PercentageBasis const& percentage_basis)
 {
     add_or_subtract_internal(SumOperation::Subtract, other, context, percentage_basis);
 }
 
-void CSSMathValue::CalculationResult::add_or_subtract_internal(SumOperation op, CalculationResult const& other, Optional<Length::ResolutionContext const&> context, PercentageBasis const& percentage_basis)
+void CalculatedStyleValue::CalculationResult::add_or_subtract_internal(SumOperation op, CalculationResult const& other, Optional<Length::ResolutionContext const&> context, PercentageBasis const& percentage_basis)
 {
     // We know from validation when resolving the type, that "both sides have the same type, or that one side is a <number> and the other is an <integer>".
     // Though, having the same type may mean that one side is a <dimension> and the other a <percentage>.
@@ -2236,7 +2236,7 @@ void CSSMathValue::CalculationResult::add_or_subtract_internal(SumOperation op, 
         },
         [&](Length const& length) {
             if (!context.has_value()) {
-                dbgln("CSSMathValue::CalculationResult::add_or_subtract_internal: Length without context");
+                dbgln("CalculatedStyleValue::CalculationResult::add_or_subtract_internal: Length without context");
                 m_value = Length::make_px(0);
                 return;
             }
@@ -2308,7 +2308,7 @@ void CSSMathValue::CalculationResult::add_or_subtract_internal(SumOperation op, 
         });
 }
 
-void CSSMathValue::CalculationResult::multiply_by(CalculationResult const& other, Optional<Length::ResolutionContext const&> context)
+void CalculatedStyleValue::CalculationResult::multiply_by(CalculationResult const& other, Optional<Length::ResolutionContext const&> context)
 {
     // We know from validation when resolving the type, that at least one side must be a <number> or <integer>.
     // Both of these are represented as a double.
@@ -2349,7 +2349,7 @@ void CSSMathValue::CalculationResult::multiply_by(CalculationResult const& other
         });
 }
 
-void CSSMathValue::CalculationResult::divide_by(CalculationResult const& other, Optional<Length::ResolutionContext const&> context)
+void CalculatedStyleValue::CalculationResult::divide_by(CalculationResult const& other, Optional<Length::ResolutionContext const&> context)
 {
     // We know from validation when resolving the type, that `other` must be a <number> or <integer>.
     // Both of these are represented as a Number.
@@ -2387,7 +2387,7 @@ void CSSMathValue::CalculationResult::divide_by(CalculationResult const& other, 
         });
 }
 
-void CSSMathValue::CalculationResult::negate()
+void CalculatedStyleValue::CalculationResult::negate()
 {
     m_value.visit(
         [&](Number const& number) {
@@ -2416,7 +2416,7 @@ void CSSMathValue::CalculationResult::negate()
         });
 }
 
-void CSSMathValue::CalculationResult::invert()
+void CalculatedStyleValue::CalculationResult::invert()
 {
     // FIXME: Correctly handle division by zero.
     m_value.visit(
@@ -2446,7 +2446,7 @@ void CSSMathValue::CalculationResult::invert()
         });
 }
 
-CSSMathValue::ResolvedType CSSMathValue::CalculationResult::resolved_type() const
+CalculatedStyleValue::ResolvedType CalculatedStyleValue::CalculationResult::resolved_type() const
 {
     return m_value.visit(
         [](Number const&) { return ResolvedType::Number; },
@@ -2459,21 +2459,21 @@ CSSMathValue::ResolvedType CSSMathValue::CalculationResult::resolved_type() cons
         [](Time const&) { return ResolvedType::Time; });
 }
 
-String CSSMathValue::to_string(SerializationMode) const
+String CalculatedStyleValue::to_string(SerializationMode) const
 {
     // FIXME: Implement this according to https://www.w3.org/TR/css-values-4/#calc-serialize once that stabilizes.
     return MUST(String::formatted("calc({})", m_calculation->to_string()));
 }
 
-bool CSSMathValue::equals(CSSStyleValue const& other) const
+bool CalculatedStyleValue::equals(CSSStyleValue const& other) const
 {
     if (type() != other.type())
         return false;
 
-    return m_calculation->equals(*static_cast<CSSMathValue const&>(other).m_calculation);
+    return m_calculation->equals(*static_cast<CalculatedStyleValue const&>(other).m_calculation);
 }
 
-Optional<Angle> CSSMathValue::resolve_angle() const
+Optional<Angle> CalculatedStyleValue::resolve_angle() const
 {
     auto result = m_calculation->resolve({}, {});
 
@@ -2482,12 +2482,12 @@ Optional<Angle> CSSMathValue::resolve_angle() const
     return {};
 }
 
-Optional<Angle> CSSMathValue::resolve_angle(Layout::Node const& layout_node) const
+Optional<Angle> CalculatedStyleValue::resolve_angle(Layout::Node const& layout_node) const
 {
     return resolve_angle(Length::ResolutionContext::for_layout_node(layout_node));
 }
 
-Optional<Angle> CSSMathValue::resolve_angle(Length::ResolutionContext const& context) const
+Optional<Angle> CalculatedStyleValue::resolve_angle(Length::ResolutionContext const& context) const
 {
     auto result = m_calculation->resolve(context, {});
 
@@ -2496,7 +2496,7 @@ Optional<Angle> CSSMathValue::resolve_angle(Length::ResolutionContext const& con
     return {};
 }
 
-Optional<Angle> CSSMathValue::resolve_angle_percentage(Angle const& percentage_basis) const
+Optional<Angle> CalculatedStyleValue::resolve_angle_percentage(Angle const& percentage_basis) const
 {
     auto result = m_calculation->resolve({}, percentage_basis);
 
@@ -2512,7 +2512,7 @@ Optional<Angle> CSSMathValue::resolve_angle_percentage(Angle const& percentage_b
         });
 }
 
-Optional<Flex> CSSMathValue::resolve_flex() const
+Optional<Flex> CalculatedStyleValue::resolve_flex() const
 {
     auto result = m_calculation->resolve({}, {});
 
@@ -2521,7 +2521,7 @@ Optional<Flex> CSSMathValue::resolve_flex() const
     return {};
 }
 
-Optional<Frequency> CSSMathValue::resolve_frequency() const
+Optional<Frequency> CalculatedStyleValue::resolve_frequency() const
 {
     auto result = m_calculation->resolve({}, {});
 
@@ -2530,7 +2530,7 @@ Optional<Frequency> CSSMathValue::resolve_frequency() const
     return {};
 }
 
-Optional<Frequency> CSSMathValue::resolve_frequency_percentage(Frequency const& percentage_basis) const
+Optional<Frequency> CalculatedStyleValue::resolve_frequency_percentage(Frequency const& percentage_basis) const
 {
     auto result = m_calculation->resolve({}, percentage_basis);
 
@@ -2546,7 +2546,7 @@ Optional<Frequency> CSSMathValue::resolve_frequency_percentage(Frequency const& 
         });
 }
 
-Optional<Length> CSSMathValue::resolve_length(Length::ResolutionContext const& context) const
+Optional<Length> CalculatedStyleValue::resolve_length(Length::ResolutionContext const& context) const
 {
     auto result = m_calculation->resolve(context, {});
 
@@ -2555,22 +2555,22 @@ Optional<Length> CSSMathValue::resolve_length(Length::ResolutionContext const& c
     return {};
 }
 
-Optional<Length> CSSMathValue::resolve_length(Layout::Node const& layout_node) const
+Optional<Length> CalculatedStyleValue::resolve_length(Layout::Node const& layout_node) const
 {
     return resolve_length(Length::ResolutionContext::for_layout_node(layout_node));
 }
 
-Optional<Length> CSSMathValue::resolve_length_percentage(Layout::Node const& layout_node, Length const& percentage_basis) const
+Optional<Length> CalculatedStyleValue::resolve_length_percentage(Layout::Node const& layout_node, Length const& percentage_basis) const
 {
     return resolve_length_percentage(Length::ResolutionContext::for_layout_node(layout_node), percentage_basis);
 }
 
-Optional<Length> CSSMathValue::resolve_length_percentage(Layout::Node const& layout_node, CSSPixels percentage_basis) const
+Optional<Length> CalculatedStyleValue::resolve_length_percentage(Layout::Node const& layout_node, CSSPixels percentage_basis) const
 {
     return resolve_length_percentage(Length::ResolutionContext::for_layout_node(layout_node), Length::make_px(percentage_basis));
 }
 
-Optional<Length> CSSMathValue::resolve_length_percentage(Length::ResolutionContext const& resolution_context, Length const& percentage_basis) const
+Optional<Length> CalculatedStyleValue::resolve_length_percentage(Length::ResolutionContext const& resolution_context, Length const& percentage_basis) const
 {
     auto result = m_calculation->resolve(resolution_context, percentage_basis);
 
@@ -2586,7 +2586,7 @@ Optional<Length> CSSMathValue::resolve_length_percentage(Length::ResolutionConte
         });
 }
 
-Optional<Percentage> CSSMathValue::resolve_percentage() const
+Optional<Percentage> CalculatedStyleValue::resolve_percentage() const
 {
     auto result = m_calculation->resolve({}, {});
     if (result.value().has<Percentage>())
@@ -2594,7 +2594,7 @@ Optional<Percentage> CSSMathValue::resolve_percentage() const
     return {};
 }
 
-Optional<Resolution> CSSMathValue::resolve_resolution() const
+Optional<Resolution> CalculatedStyleValue::resolve_resolution() const
 {
     auto result = m_calculation->resolve({}, {});
     if (result.value().has<Resolution>())
@@ -2602,7 +2602,7 @@ Optional<Resolution> CSSMathValue::resolve_resolution() const
     return {};
 }
 
-Optional<Time> CSSMathValue::resolve_time() const
+Optional<Time> CalculatedStyleValue::resolve_time() const
 {
     auto result = m_calculation->resolve({}, {});
 
@@ -2611,7 +2611,7 @@ Optional<Time> CSSMathValue::resolve_time() const
     return {};
 }
 
-Optional<Time> CSSMathValue::resolve_time_percentage(Time const& percentage_basis) const
+Optional<Time> CalculatedStyleValue::resolve_time_percentage(Time const& percentage_basis) const
 {
     auto result = m_calculation->resolve({}, percentage_basis);
 
@@ -2624,7 +2624,7 @@ Optional<Time> CSSMathValue::resolve_time_percentage(Time const& percentage_basi
         });
 }
 
-Optional<double> CSSMathValue::resolve_number() const
+Optional<double> CalculatedStyleValue::resolve_number() const
 {
     auto result = m_calculation->resolve({}, {});
 
@@ -2633,7 +2633,7 @@ Optional<double> CSSMathValue::resolve_number() const
     return {};
 }
 
-Optional<double> CSSMathValue::resolve_number(Length::ResolutionContext const& context) const
+Optional<double> CalculatedStyleValue::resolve_number(Length::ResolutionContext const& context) const
 {
     auto result = m_calculation->resolve(context, {});
 
@@ -2642,12 +2642,12 @@ Optional<double> CSSMathValue::resolve_number(Length::ResolutionContext const& c
     return {};
 }
 
-Optional<double> CSSMathValue::resolve_number(Layout::Node const& layout_node) const
+Optional<double> CalculatedStyleValue::resolve_number(Layout::Node const& layout_node) const
 {
     return resolve_number(Length::ResolutionContext::for_layout_node(layout_node));
 }
 
-Optional<i64> CSSMathValue::resolve_integer() const
+Optional<i64> CalculatedStyleValue::resolve_integer() const
 {
     auto result = m_calculation->resolve({}, {});
 
@@ -2656,7 +2656,7 @@ Optional<i64> CSSMathValue::resolve_integer() const
     return {};
 }
 
-Optional<i64> CSSMathValue::resolve_integer(Length::ResolutionContext const& context) const
+Optional<i64> CalculatedStyleValue::resolve_integer(Length::ResolutionContext const& context) const
 {
     auto result = m_calculation->resolve(context, {});
 
@@ -2665,17 +2665,17 @@ Optional<i64> CSSMathValue::resolve_integer(Length::ResolutionContext const& con
     return {};
 }
 
-Optional<i64> CSSMathValue::resolve_integer(Layout::Node const& layout_node) const
+Optional<i64> CalculatedStyleValue::resolve_integer(Layout::Node const& layout_node) const
 {
     return resolve_integer(Length::ResolutionContext::for_layout_node(layout_node));
 }
 
-bool CSSMathValue::contains_percentage() const
+bool CalculatedStyleValue::contains_percentage() const
 {
     return m_calculation->contains_percentage();
 }
 
-String CSSMathValue::dump() const
+String CalculatedStyleValue::dump() const
 {
     StringBuilder builder;
     m_calculation->dump(builder, 0);

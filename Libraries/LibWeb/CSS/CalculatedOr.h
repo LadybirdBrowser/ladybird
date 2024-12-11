@@ -13,7 +13,7 @@
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/Resolution.h>
-#include <LibWeb/CSS/StyleValues/CSSMathValue.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/Time.h>
 
 namespace Web::CSS {
@@ -26,14 +26,14 @@ public:
     {
     }
 
-    CalculatedOr(NonnullRefPtr<CSSMathValue> calculated)
+    CalculatedOr(NonnullRefPtr<CalculatedStyleValue> calculated)
         : m_value(move(calculated))
     {
     }
 
     virtual ~CalculatedOr() = default;
 
-    bool is_calculated() const { return m_value.template has<NonnullRefPtr<CSSMathValue>>(); }
+    bool is_calculated() const { return m_value.template has<NonnullRefPtr<CalculatedStyleValue>>(); }
 
     T const& value() const
     {
@@ -48,10 +48,10 @@ public:
         return create_style_value();
     }
 
-    NonnullRefPtr<CSSMathValue> const& calculated() const
+    NonnullRefPtr<CalculatedStyleValue> const& calculated() const
     {
         VERIFY(is_calculated());
-        return m_value.template get<NonnullRefPtr<CSSMathValue>>();
+        return m_value.template get<NonnullRefPtr<CalculatedStyleValue>>();
     }
 
     T resolved(Layout::Node const& layout_node) const
@@ -60,7 +60,7 @@ public:
             [&](T const& t) {
                 return t;
             },
-            [&](NonnullRefPtr<CSSMathValue> const& calculated) {
+            [&](NonnullRefPtr<CalculatedStyleValue> const& calculated) {
                 return resolve_calculated(calculated, layout_node);
             });
     }
@@ -68,7 +68,7 @@ public:
     String to_string() const
     {
         if (is_calculated())
-            return m_value.template get<NonnullRefPtr<CSSMathValue>>()->to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal);
+            return m_value.template get<NonnullRefPtr<CalculatedStyleValue>>()->to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal);
 
         return m_value.template get<T>().to_string();
     }
@@ -81,11 +81,11 @@ public:
     }
 
 protected:
-    virtual T resolve_calculated(NonnullRefPtr<CSSMathValue> const&, Layout::Node const&) const = 0;
+    virtual T resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&) const = 0;
     virtual NonnullRefPtr<CSSStyleValue> create_style_value() const = 0;
 
 private:
-    Variant<T, NonnullRefPtr<CSSMathValue>> m_value;
+    Variant<T, NonnullRefPtr<CalculatedStyleValue>> m_value;
 };
 
 class AngleOrCalculated : public CalculatedOr<Angle> {
@@ -93,7 +93,7 @@ public:
     using CalculatedOr<Angle>::CalculatedOr;
 
 private:
-    virtual Angle resolve_calculated(NonnullRefPtr<CSSMathValue> const&, Layout::Node const&) const override;
+    virtual Angle resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&) const override;
     virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
 };
 
@@ -102,7 +102,7 @@ public:
     using CalculatedOr<Flex>::CalculatedOr;
 
 private:
-    virtual Flex resolve_calculated(NonnullRefPtr<CSSMathValue> const&, Layout::Node const&) const override;
+    virtual Flex resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&) const override;
     virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
 };
 
@@ -111,7 +111,7 @@ public:
     using CalculatedOr<Frequency>::CalculatedOr;
 
 private:
-    virtual Frequency resolve_calculated(NonnullRefPtr<CSSMathValue> const&, Layout::Node const&) const override;
+    virtual Frequency resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&) const override;
     virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
 };
 
@@ -122,7 +122,7 @@ public:
     [[nodiscard]] i64 resolved(Length::ResolutionContext const&) const;
 
 private:
-    virtual i64 resolve_calculated(NonnullRefPtr<CSSMathValue> const&, Layout::Node const&) const override;
+    virtual i64 resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&) const override;
     virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
 };
 
@@ -133,7 +133,7 @@ public:
     [[nodiscard]] Length resolved(Length::ResolutionContext const&) const;
 
 private:
-    virtual Length resolve_calculated(NonnullRefPtr<CSSMathValue> const&, Layout::Node const&) const override;
+    virtual Length resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&) const override;
     virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
 };
 
@@ -142,7 +142,7 @@ public:
     using CalculatedOr<double>::CalculatedOr;
 
 private:
-    virtual double resolve_calculated(NonnullRefPtr<CSSMathValue> const&, Layout::Node const&) const override;
+    virtual double resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&) const override;
     virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
 };
 
@@ -151,7 +151,7 @@ public:
     using CalculatedOr<Percentage>::CalculatedOr;
 
 private:
-    virtual Percentage resolve_calculated(NonnullRefPtr<CSSMathValue> const&, Layout::Node const&) const override;
+    virtual Percentage resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&) const override;
     virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
 };
 
@@ -162,7 +162,7 @@ public:
     [[nodiscard]] Resolution resolved() const;
 
 private:
-    virtual Resolution resolve_calculated(NonnullRefPtr<CSSMathValue> const&, Layout::Node const&) const override;
+    virtual Resolution resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&) const override;
     virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
 };
 
@@ -171,7 +171,7 @@ public:
     using CalculatedOr<Time>::CalculatedOr;
 
 private:
-    virtual Time resolve_calculated(NonnullRefPtr<CSSMathValue> const&, Layout::Node const&) const override;
+    virtual Time resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const&, Layout::Node const&) const override;
     virtual NonnullRefPtr<CSSStyleValue> create_style_value() const override;
 };
 
