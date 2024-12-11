@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2021, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2024, Shannon Booth <shannon@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -27,17 +28,23 @@ void HTMLHyperlinkElementUtils::reinitialize_url() const
 // https://html.spec.whatwg.org/multipage/links.html#concept-hyperlink-url-set
 void HTMLHyperlinkElementUtils::set_the_url()
 {
-    // 1. If this element's href content attribute is absent, set this element's url to null.
+    // 1. Set this element's url to null.
+    m_url = {};
+
+    // 2. If this element's href content attribute is absent, then return.
     auto href_content_attribute = hyperlink_element_utils_href();
     if (!href_content_attribute.has_value()) {
-        m_url = {};
         hyperlink_element_utils_element().invalidate_style(DOM::StyleInvalidationReason::HTMLHyperlinkElementHrefChange);
         return;
     }
 
-    // 2. Otherwise, parse this element's href content attribute value relative to this element's node document.
-    //    If parsing is successful, set this element's url to the result; otherwise, set this element's url to null.
-    m_url = hyperlink_element_utils_document().parse_url(*href_content_attribute);
+    // 3. Let url be the result of encoding-parsing a URL given this element's href content attribute's value, relative to this element's node document.
+    auto url = hyperlink_element_utils_document().encoding_parse_url(*href_content_attribute);
+
+    // 4. If url is not failure, then set this element's url to url.
+    if (url.is_valid())
+        m_url = move(url);
+
     hyperlink_element_utils_element().invalidate_style(DOM::StyleInvalidationReason::HTMLHyperlinkElementHrefChange);
 }
 
