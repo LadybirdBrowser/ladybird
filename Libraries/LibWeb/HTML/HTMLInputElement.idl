@@ -26,7 +26,7 @@ interface HTMLInputElement : HTMLElement {
     attribute boolean indeterminate;
     [FIXME] readonly attribute HTMLDataListElement? list;
     [CEReactions, Reflect] attribute DOMString max;
-    [CEReactions] attribute long maxLength;
+    [CEReactions, ReflectNonNegative] attribute long maxLength;
     [CEReactions, Reflect] attribute DOMString min;
     [CEReactions] attribute long minLength;
     [CEReactions, Reflect] attribute boolean multiple;
