@@ -800,43 +800,19 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::to_locale_string)
     // 2. Perform ? RequireInternalSlot(zonedDateTime, [[InitializedTemporalZonedDateTime]]).
     auto zoned_date_time = TRY(typed_this_object(vm));
 
-    // 3. Let timeZone be zonedDateTime.[[TimeZone]].
-    auto time_zone = zoned_date_time->time_zone();
+    // 3. Let dateTimeFormat be ? CreateDateTimeFormat(%Intl.DateTimeFormat%, locales, options, ANY, ALL, zonedDateTime.[[TimeZone]]).
+    auto date_time_format = TRY(Intl::create_date_time_format(vm, realm.intrinsics().intl_date_time_format_constructor(), locales, options, Intl::OptionRequired::Any, Intl::OptionDefaults::All, zoned_date_time->time_zone()));
 
-    // 4. Let timeZoneParseResult be ? ParseTimeZoneIdentifier(timeZone).
-    auto time_zone_parse_result = TRY(parse_time_zone_identifier(vm, time_zone));
-
-    // 5. If timeZoneParseResult.[[OffsetMinutes]] is empty, then
-    if (!time_zone_parse_result.offset_minutes.has_value()) {
-        // a. Let timeZoneIdentifierRecord be GetAvailableNamedTimeZoneIdentifier(timeZone).
-        auto time_zone_identifier_record = Intl::get_available_named_time_zone_identifier(time_zone);
-
-        // b. If timeZoneIdentifierRecord is empty, throw a RangeError exception.
-        if (!time_zone_identifier_record.has_value())
-            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidTimeZoneName, time_zone);
-
-        // c. Set timeZone to timeZoneIdentifierRecord.[[Identifier]].
-        time_zone = time_zone_identifier_record->identifier;
-    }
-    // 6. Else,
-    else {
-        // a. Set timeZone to FormatOffsetTimeZoneIdentifier(timeZoneParseResult.[[OffsetMinutes]]).
-        time_zone = format_offset_time_zone_identifier(*time_zone_parse_result.offset_minutes);
-    }
-
-    // 7. Let dateTimeFormat be ? CreateDateTimeFormat(%Intl.DateTimeFormat%, locales, options, ANY, ALL, timeZone).
-    auto date_time_format = TRY(Intl::create_date_time_format(vm, realm.intrinsics().intl_date_time_format_constructor(), locales, options, Intl::OptionRequired::Any, Intl::OptionDefaults::All, time_zone));
-
-    // 8. If zonedDateTime.[[Calendar]] is not "iso8601" and CalendarEquals(zonedDateTime.[[Calendar]], dateTimeFormat.[[Calendar]]) is false, then
+    // 4. If zonedDateTime.[[Calendar]] is not "iso8601" and CalendarEquals(zonedDateTime.[[Calendar]], dateTimeFormat.[[Calendar]]) is false, then
     if (zoned_date_time->calendar() != "iso8601"sv && !calendar_equals(zoned_date_time->calendar(), date_time_format->calendar())) {
         // a. Throw a RangeError exception.
         return vm.throw_completion<RangeError>(ErrorType::IntlTemporalInvalidCalendar, "Temporal.ZonedDateTime"sv, zoned_date_time->calendar(), date_time_format->calendar());
     }
 
-    // 9. Let instant be ! CreateTemporalInstant(zonedDateTime.[[EpochNanoseconds]]).
+    // 5. Let instant be ! CreateTemporalInstant(zonedDateTime.[[EpochNanoseconds]]).
     auto instant = MUST(create_temporal_instant(vm, zoned_date_time->epoch_nanoseconds()));
 
-    // 10. Return ? FormatDateTime(dateTimeFormat, instant).
+    // 6. Return ? FormatDateTime(dateTimeFormat, instant).
     return PrimitiveString::create(vm, TRY(Intl::format_date_time(vm, date_time_format, instant)));
 }
 
