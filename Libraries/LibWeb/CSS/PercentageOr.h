@@ -13,7 +13,7 @@
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Number.h>
 #include <LibWeb/CSS/Percentage.h>
-#include <LibWeb/CSS/StyleValues/CSSMathValue.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/Time.h>
 
 namespace Web::CSS {
@@ -31,7 +31,7 @@ public:
     {
     }
 
-    PercentageOr(NonnullRefPtr<CSSMathValue> calculated)
+    PercentageOr(NonnullRefPtr<CalculatedStyleValue> calculated)
         : m_value(move(calculated))
     {
     }
@@ -51,7 +51,7 @@ public:
     }
 
     bool is_percentage() const { return m_value.template has<Percentage>(); }
-    bool is_calculated() const { return m_value.template has<NonnullRefPtr<CSSMathValue>>(); }
+    bool is_calculated() const { return m_value.template has<NonnullRefPtr<CalculatedStyleValue>>(); }
 
     bool contains_percentage() const
     {
@@ -62,7 +62,7 @@ public:
             [&](Percentage const&) {
                 return true;
             },
-            [&](NonnullRefPtr<CSSMathValue> const& calculated) {
+            [&](NonnullRefPtr<CalculatedStyleValue> const& calculated) {
                 return calculated->contains_percentage();
             });
     }
@@ -73,10 +73,10 @@ public:
         return m_value.template get<Percentage>();
     }
 
-    NonnullRefPtr<CSSMathValue> const& calculated() const
+    NonnullRefPtr<CalculatedStyleValue> const& calculated() const
     {
         VERIFY(is_calculated());
-        return m_value.template get<NonnullRefPtr<CSSMathValue>>();
+        return m_value.template get<NonnullRefPtr<CalculatedStyleValue>>();
     }
 
     CSSPixels to_px(Layout::Node const& layout_node, CSSPixels reference_value) const
@@ -100,7 +100,7 @@ public:
             [&](Percentage const& percentage) {
                 return reference_value.percentage_of(percentage);
             },
-            [&](NonnullRefPtr<CSSMathValue> const& calculated) {
+            [&](NonnullRefPtr<CalculatedStyleValue> const& calculated) {
                 return T::resolve_calculated(calculated, layout_node, reference_value);
             });
     }
@@ -114,7 +114,7 @@ public:
             [&](Percentage const& percentage) {
                 return Length::make_px(CSSPixels(percentage.value() * reference_value) / 100);
             },
-            [&](NonnullRefPtr<CSSMathValue> const& calculated) {
+            [&](NonnullRefPtr<CalculatedStyleValue> const& calculated) {
                 return T::resolve_calculated(calculated, layout_node, reference_value);
             });
     }
@@ -122,7 +122,7 @@ public:
     String to_string() const
     {
         if (is_calculated())
-            return m_value.template get<NonnullRefPtr<CSSMathValue>>()->to_string(CSSStyleValue::SerializationMode::Normal);
+            return m_value.template get<NonnullRefPtr<CalculatedStyleValue>>()->to_string(CSSStyleValue::SerializationMode::Normal);
         if (is_percentage())
             return m_value.template get<Percentage>().to_string();
         return m_value.template get<T>().to_string();
@@ -135,7 +135,7 @@ public:
         if (is_percentage() != other.is_percentage())
             return false;
         if (is_calculated())
-            return (*m_value.template get<NonnullRefPtr<CSSMathValue>>() == *other.m_value.template get<NonnullRefPtr<CSSMathValue>>());
+            return (*m_value.template get<NonnullRefPtr<CalculatedStyleValue>>() == *other.m_value.template get<NonnullRefPtr<CalculatedStyleValue>>());
         if (is_percentage())
             return (m_value.template get<Percentage>() == other.m_value.template get<Percentage>());
         return (m_value.template get<T>() == other.m_value.template get<T>());
@@ -146,7 +146,7 @@ protected:
     T const& get_t() const { return m_value.template get<T>(); }
 
 private:
-    Variant<T, Percentage, NonnullRefPtr<CSSMathValue>> m_value;
+    Variant<T, Percentage, NonnullRefPtr<CalculatedStyleValue>> m_value;
 };
 
 template<typename T>

@@ -754,8 +754,8 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     if (transition_delay_property.is_time()) {
         auto const& transition_delay = transition_delay_property.as_time();
         computed_values.set_transition_delay(transition_delay.time());
-    } else if (transition_delay_property.is_math()) {
-        auto const& transition_delay = transition_delay_property.as_math();
+    } else if (transition_delay_property.is_calculated()) {
+        auto const& transition_delay = transition_delay_property.as_calculated();
         computed_values.set_transition_delay(transition_delay.resolve_time().value());
     }
 
@@ -776,8 +776,8 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
         } else {
             auto resolve_border_width = [&]() -> CSSPixels {
                 auto const& value = computed_style.property(width_property);
-                if (value.is_math())
-                    return max(CSSPixels { 0 }, value.as_math().resolve_length(*this)->to_px(*this));
+                if (value.is_calculated())
+                    return max(CSSPixels { 0 }, value.as_calculated().resolve_length(*this)->to_px(*this));
                 if (value.is_length())
                     return value.as_length().length().to_px(*this);
                 if (value.is_keyword()) {
@@ -897,8 +897,8 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
                 dashes.append(CSS::LengthPercentage { value->as_length().length() });
             else if (value->is_percentage())
                 dashes.append(CSS::LengthPercentage { value->as_percentage().percentage() });
-            else if (value->is_math())
-                dashes.append(CSS::LengthPercentage { value->as_math() });
+            else if (value->is_calculated())
+                dashes.append(CSS::LengthPercentage { value->as_calculated() });
             else if (value->is_number())
                 dashes.append(CSS::NumberOrCalculated { value->as_number().number() });
         }

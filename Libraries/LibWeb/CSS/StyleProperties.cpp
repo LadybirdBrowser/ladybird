@@ -137,8 +137,8 @@ Variant<LengthPercentage, NormalGap> StyleProperties::gap_value(CSS::PropertyID 
         return NormalGap {};
     }
 
-    if (value.is_math())
-        return LengthPercentage { const_cast<CSSMathValue&>(value.as_math()) };
+    if (value.is_calculated())
+        return LengthPercentage { const_cast<CalculatedStyleValue&>(value.as_calculated()) };
 
     if (value.is_percentage())
         return LengthPercentage { value.as_percentage().percentage() };
@@ -169,8 +169,8 @@ CSS::Size StyleProperties::size_value(CSS::PropertyID id) const
         }
     }
 
-    if (value.is_math())
-        return CSS::Size::make_calculated(const_cast<CSSMathValue&>(value.as_math()));
+    if (value.is_calculated())
+        return CSS::Size::make_calculated(const_cast<CalculatedStyleValue&>(value.as_calculated()));
 
     if (value.is_percentage())
         return CSS::Size::make_percentage(value.as_percentage().percentage());
@@ -196,8 +196,8 @@ Optional<LengthPercentage> StyleProperties::length_percentage(CSS::PropertyID id
 {
     auto const& value = property(id);
 
-    if (value.is_math())
-        return LengthPercentage { const_cast<CSSMathValue&>(value.as_math()) };
+    if (value.is_calculated())
+        return LengthPercentage { const_cast<CalculatedStyleValue&>(value.as_calculated()) };
 
     if (value.is_percentage())
         return value.as_percentage().percentage();
@@ -265,19 +265,19 @@ CSSPixels StyleProperties::compute_line_height(CSSPixelRect const& viewport_rect
         return Length(percentage.as_fraction(), Length::Type::Em).to_px(viewport_rect, font_metrics, root_font_metrics);
     }
 
-    if (line_height.is_math()) {
-        if (line_height.as_math().resolves_to_number()) {
-            auto resolved = line_height.as_math().resolve_number();
+    if (line_height.is_calculated()) {
+        if (line_height.as_calculated().resolves_to_number()) {
+            auto resolved = line_height.as_calculated().resolve_number();
             if (!resolved.has_value()) {
-                dbgln("FIXME: Failed to resolve calc() line-height (number): {}", line_height.as_math().to_string(CSSStyleValue::SerializationMode::Normal));
+                dbgln("FIXME: Failed to resolve calc() line-height (number): {}", line_height.as_calculated().to_string(CSSStyleValue::SerializationMode::Normal));
                 return CSSPixels::nearest_value_for(m_data->m_font_list->first().pixel_metrics().line_spacing());
             }
             return Length(resolved.value(), Length::Type::Em).to_px(viewport_rect, font_metrics, root_font_metrics);
         }
 
-        auto resolved = line_height.as_math().resolve_length(Length::ResolutionContext { viewport_rect, font_metrics, root_font_metrics });
+        auto resolved = line_height.as_calculated().resolve_length(Length::ResolutionContext { viewport_rect, font_metrics, root_font_metrics });
         if (!resolved.has_value()) {
-            dbgln("FIXME: Failed to resolve calc() line-height: {}", line_height.as_math().to_string(CSSStyleValue::SerializationMode::Normal));
+            dbgln("FIXME: Failed to resolve calc() line-height: {}", line_height.as_calculated().to_string(CSSStyleValue::SerializationMode::Normal));
             return CSSPixels::nearest_value_for(m_data->m_font_list->first().pixel_metrics().line_spacing());
         }
         return resolved->to_px(viewport_rect, font_metrics, root_font_metrics);
@@ -309,16 +309,16 @@ float StyleProperties::resolve_opacity_value(CSSStyleValue const& value)
 
     if (value.is_number()) {
         unclamped_opacity = value.as_number().number();
-    } else if (value.is_math()) {
-        auto const& calculated = value.as_math();
+    } else if (value.is_calculated()) {
+        auto const& calculated = value.as_calculated();
         if (calculated.resolves_to_percentage()) {
-            auto maybe_percentage = value.as_math().resolve_percentage();
+            auto maybe_percentage = value.as_calculated().resolve_percentage();
             if (maybe_percentage.has_value())
                 unclamped_opacity = maybe_percentage->as_fraction();
             else
                 dbgln("Unable to resolve calc() as opacity (percentage): {}", value.to_string(CSSStyleValue::SerializationMode::Normal));
         } else if (calculated.resolves_to_number()) {
-            auto maybe_number = const_cast<CSSMathValue&>(value.as_math()).resolve_number();
+            auto maybe_number = const_cast<CalculatedStyleValue&>(value.as_calculated()).resolve_number();
             if (maybe_number.has_value())
                 unclamped_opacity = maybe_number.value();
             else
@@ -359,8 +359,8 @@ NumberOrCalculated StyleProperties::stroke_miterlimit() const
 {
     auto const& value = property(CSS::PropertyID::StrokeMiterlimit);
 
-    if (value.is_math()) {
-        auto const& math_value = value.as_math();
+    if (value.is_calculated()) {
+        auto const& math_value = value.as_calculated();
         VERIFY(math_value.resolves_to_number());
         return NumberOrCalculated { math_value };
     }
@@ -449,8 +449,8 @@ CSS::Length StyleProperties::border_spacing_horizontal(Layout::Node const& layou
     auto const& value = property(CSS::PropertyID::BorderSpacing);
     if (value.is_length())
         return value.as_length().length();
-    if (value.is_math())
-        return value.as_math().resolve_length(layout_node).value_or(CSS::Length(0, CSS::Length::Type::Px));
+    if (value.is_calculated())
+        return value.as_calculated().resolve_length(layout_node).value_or(CSS::Length(0, CSS::Length::Type::Px));
     auto const& list = value.as_value_list();
     return list.value_at(0, false)->as_length().length();
 }
@@ -460,8 +460,8 @@ CSS::Length StyleProperties::border_spacing_vertical(Layout::Node const& layout_
     auto const& value = property(CSS::PropertyID::BorderSpacing);
     if (value.is_length())
         return value.as_length().length();
-    if (value.is_math())
-        return value.as_math().resolve_length(layout_node).value_or(CSS::Length(0, CSS::Length::Type::Px));
+    if (value.is_calculated())
+        return value.as_calculated().resolve_length(layout_node).value_or(CSS::Length(0, CSS::Length::Type::Px));
     auto const& list = value.as_value_list();
     return list.value_at(1, false)->as_length().length();
 }
@@ -519,8 +519,8 @@ Vector<CSS::Transformation> StyleProperties::transformations_for_style_value(CSS
         Vector<TransformValue> values;
         size_t argument_index = 0;
         for (auto& transformation_value : transformation_style_value.values()) {
-            if (transformation_value->is_math()) {
-                auto& calculated = transformation_value->as_math();
+            if (transformation_value->is_calculated()) {
+                auto& calculated = transformation_value->as_calculated();
                 if (calculated.resolves_to_length_percentage()) {
                     values.append(CSS::LengthPercentage { calculated });
                 } else if (calculated.resolves_to_percentage()) {
@@ -574,16 +574,16 @@ Optional<CSS::Transformation> StyleProperties::rotate(Layout::Node const& layout
     auto resolve_angle = [&layout_node](CSSStyleValue const& value) -> Optional<Angle> {
         if (value.is_angle())
             return value.as_angle().angle();
-        if (value.is_math() && value.as_math().resolves_to_angle())
-            return value.as_math().resolve_angle(layout_node);
+        if (value.is_calculated() && value.as_calculated().resolves_to_angle())
+            return value.as_calculated().resolve_angle(layout_node);
         return {};
     };
 
     auto resolve_number = [&](CSSStyleValue const& value) -> Optional<double> {
         if (value.is_number())
             return value.as_number().number();
-        if (value.is_math() && value.as_math().resolves_to_number())
-            return value.as_math().resolve_number();
+        if (value.is_calculated() && value.as_calculated().resolves_to_number())
+            return value.as_calculated().resolve_number();
         return {};
     };
 
@@ -635,8 +635,8 @@ static Optional<LengthPercentage> length_percentage_for_style_value(CSSStyleValu
         return value.as_length().length();
     if (value.is_percentage())
         return value.as_percentage().percentage();
-    if (value.is_math())
-        return LengthPercentage { const_cast<CSSMathValue&>(value.as_math()) };
+    if (value.is_calculated())
+        return LengthPercentage { const_cast<CalculatedStyleValue&>(value.as_calculated()) };
     return {};
 }
 
@@ -797,8 +797,8 @@ Optional<CSS::PointerEvents> StyleProperties::pointer_events() const
 Variant<LengthOrCalculated, NumberOrCalculated> StyleProperties::tab_size() const
 {
     auto const& value = property(CSS::PropertyID::TabSize);
-    if (value.is_math()) {
-        auto const& math_value = value.as_math();
+    if (value.is_calculated()) {
+        auto const& math_value = value.as_calculated();
         if (math_value.resolves_to_length()) {
             return LengthOrCalculated { math_value };
         }
@@ -822,8 +822,8 @@ Optional<CSS::WordBreak> StyleProperties::word_break() const
 Optional<CSS::LengthOrCalculated> StyleProperties::word_spacing() const
 {
     auto const& value = property(CSS::PropertyID::WordSpacing);
-    if (value.is_math()) {
-        auto& math_value = value.as_math();
+    if (value.is_calculated()) {
+        auto& math_value = value.as_calculated();
         if (math_value.resolves_to_length()) {
             return LengthOrCalculated { math_value };
         }
@@ -844,8 +844,8 @@ Optional<CSS::WhiteSpace> StyleProperties::white_space() const
 Optional<LengthOrCalculated> StyleProperties::letter_spacing() const
 {
     auto const& value = property(CSS::PropertyID::LetterSpacing);
-    if (value.is_math()) {
-        auto const& math_value = value.as_math();
+    if (value.is_calculated()) {
+        auto const& math_value = value.as_calculated();
         if (math_value.resolves_to_length()) {
             return LengthOrCalculated { math_value };
         }
@@ -1085,8 +1085,8 @@ Vector<ShadowData> StyleProperties::shadow(PropertyID property_id, Layout::Node 
     auto resolve_to_length = [&layout_node](NonnullRefPtr<CSSStyleValue const> const& value) -> Optional<Length> {
         if (value->is_length())
             return value->as_length().length();
-        if (value->is_math())
-            return value->as_math().resolve_length(layout_node);
+        if (value->is_calculated())
+            return value->as_calculated().resolve_length(layout_node);
         return {};
     };
 
@@ -1167,8 +1167,8 @@ Variant<CSS::VerticalAlign, CSS::LengthPercentage> StyleProperties::vertical_ali
     if (value.is_percentage())
         return CSS::LengthPercentage(value.as_percentage().percentage());
 
-    if (value.is_math())
-        return LengthPercentage { const_cast<CSSMathValue&>(value.as_math()) };
+    if (value.is_calculated())
+        return LengthPercentage { const_cast<CalculatedStyleValue&>(value.as_calculated()) };
 
     VERIFY_NOT_REACHED();
 }
@@ -1240,8 +1240,8 @@ Optional<HashMap<FlyString, IntegerOrCalculated>> StyleProperties::font_feature_
             if (feature_tag.value()->is_integer()) {
                 result.set(feature_tag.tag(), feature_tag.value()->as_integer().value());
             } else {
-                VERIFY(feature_tag.value()->is_math());
-                result.set(feature_tag.tag(), IntegerOrCalculated { feature_tag.value()->as_math() });
+                VERIFY(feature_tag.value()->is_calculated());
+                result.set(feature_tag.tag(), IntegerOrCalculated { feature_tag.value()->as_calculated() });
             }
         }
         return result;
@@ -1267,8 +1267,8 @@ Optional<HashMap<FlyString, NumberOrCalculated>> StyleProperties::font_variation
             if (axis_tag.value()->is_number()) {
                 result.set(axis_tag.tag(), axis_tag.value()->as_number().value());
             } else {
-                VERIFY(axis_tag.value()->is_math());
-                result.set(axis_tag.tag(), NumberOrCalculated { axis_tag.value()->as_math() });
+                VERIFY(axis_tag.value()->is_calculated());
+                result.set(axis_tag.tag(), NumberOrCalculated { axis_tag.value()->as_calculated() });
             }
         }
         return result;
@@ -1470,8 +1470,8 @@ Vector<CounterData> StyleProperties::counter_data(PropertyID property_id) const
             if (counter.value) {
                 if (counter.value->is_integer()) {
                     data.value = AK::clamp_to<i32>(counter.value->as_integer().integer());
-                } else if (counter.value->is_math()) {
-                    auto maybe_int = counter.value->as_math().resolve_integer();
+                } else if (counter.value->is_calculated()) {
+                    auto maybe_int = counter.value->as_calculated().resolve_integer();
                     if (maybe_int.has_value())
                         data.value = AK::clamp_to<i32>(*maybe_int);
                 } else {

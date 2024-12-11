@@ -122,6 +122,7 @@ set(SOURCES
     CSS/StyleValues/BackgroundSizeStyleValue.cpp
     CSS/StyleValues/BasicShapeStyleValue.cpp
     CSS/StyleValues/BorderRadiusStyleValue.cpp
+    CSS/StyleValues/CalculatedStyleValue.cpp
     CSS/StyleValues/ConicGradientStyleValue.cpp
     CSS/StyleValues/ContentStyleValue.cpp
     CSS/StyleValues/CounterDefinitionsStyleValue.cpp
@@ -133,7 +134,6 @@ set(SOURCES
     CSS/StyleValues/CSSKeywordValue.cpp
     CSS/StyleValues/CSSLabLike.cpp
     CSS/StyleValues/CSSLCHLike.cpp
-    CSS/StyleValues/CSSMathValue.cpp
     CSS/StyleValues/CSSRGB.cpp
     CSS/StyleValues/DisplayStyleValue.cpp
     CSS/StyleValues/EasingStyleValue.cpp

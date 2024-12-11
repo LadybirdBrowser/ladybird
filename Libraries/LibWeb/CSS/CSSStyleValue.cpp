@@ -18,7 +18,7 @@
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
-#include <LibWeb/CSS/StyleValues/CSSMathValue.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ConicGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
@@ -104,10 +104,10 @@ BorderRadiusStyleValue const& CSSStyleValue::as_border_radius() const
     return static_cast<BorderRadiusStyleValue const&>(*this);
 }
 
-CSSMathValue const& CSSStyleValue::as_math() const
+CalculatedStyleValue const& CSSStyleValue::as_calculated() const
 {
-    VERIFY(is_math());
-    return static_cast<CSSMathValue const&>(*this);
+    VERIFY(is_calculated());
+    return static_cast<CalculatedStyleValue const&>(*this);
 }
 
 CSSColorValue const& CSSStyleValue::as_color() const
@@ -406,8 +406,8 @@ int CSSStyleValue::to_font_weight() const
     if (is_number()) {
         return round_to<int>(as_number().number());
     }
-    if (is_math()) {
-        auto maybe_weight = const_cast<CSSMathValue&>(as_math()).resolve_integer();
+    if (is_calculated()) {
+        auto maybe_weight = const_cast<CalculatedStyleValue&>(as_calculated()).resolve_integer();
         if (maybe_weight.has_value())
             return maybe_weight.value();
     }

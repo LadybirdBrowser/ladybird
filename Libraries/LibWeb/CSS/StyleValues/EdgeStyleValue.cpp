@@ -21,10 +21,10 @@ String EdgeStyleValue::to_string(SerializationMode mode) const
             if (offset().is_length()) {
                 sum_parts.append(NegateCalculationNode::create(NumericCalculationNode::create(offset().length())));
             } else {
-                // FIXME: Flip calculated offsets (convert CSSMathValue to CalculationNode, then negate and append)
+                // FIXME: Flip calculated offsets (convert CalculatedStyleValue to CalculationNode, then negate and append)
                 return to_string(CSSStyleValue::SerializationMode::Normal);
             }
-            auto flipped_absolute = CSSMathValue::create(SumCalculationNode::create(move(sum_parts)), CSSNumericType(CSSNumericType::BaseType::Length, 1));
+            auto flipped_absolute = CalculatedStyleValue::create(SumCalculationNode::create(move(sum_parts)), CSSNumericType(CSSNumericType::BaseType::Length, 1));
             return flipped_absolute->to_string(mode);
         }
         return offset().to_string();
