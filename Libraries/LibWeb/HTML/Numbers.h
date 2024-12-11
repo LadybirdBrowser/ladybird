@@ -7,16 +7,17 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <AK/NumericLimits.h>
 #include <AK/String.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::HTML {
 
-Optional<i32> parse_integer(StringView string);
+Optional<i32> parse_integer(StringView string, Optional<i32> minimum = {}, Optional<i32> maximum = {});
 Optional<StringView> parse_integer_digits(StringView string);
 
-Optional<u32> parse_non_negative_integer(StringView string);
+Optional<u32> parse_non_negative_integer(StringView string, Optional<u32> minimum = {}, Optional<u32> maximum = AK::NumericLimits<u32>::max());
 Optional<StringView> parse_non_negative_integer_digits(StringView string);
 
 Optional<double> parse_floating_point_number(StringView string);

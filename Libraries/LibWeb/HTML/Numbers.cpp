@@ -56,13 +56,23 @@ Optional<StringView> parse_integer_digits(StringView string)
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-integers
-Optional<i32> parse_integer(StringView string)
+Optional<i32> parse_integer(StringView string, Optional<i32> minimum, Optional<i32> maximum)
 {
     auto optional_digits = parse_integer_digits(string);
     if (!optional_digits.has_value())
         return {};
 
-    return optional_digits->to_number<i32>(TrimWhitespace::No);
+    auto maybe_parsed = optional_digits->to_number<i32>(TrimWhitespace::No);
+    if (maybe_parsed.has_value())
+        return maybe_parsed;
+
+    if (minimum.has_value() && string[0] == '-')
+        return minimum;
+
+    if (maximum.has_value() && string[0] != '-')
+        return maximum;
+
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-non-negative-integers
@@ -90,15 +100,26 @@ Optional<StringView> parse_non_negative_integer_digits(StringView string)
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-non-negative-integers
-Optional<u32> parse_non_negative_integer(StringView string)
+Optional<u32> parse_non_negative_integer(StringView string, Optional<u32> minimum, Optional<u32> maximum)
 {
     auto optional_digits = parse_non_negative_integer_digits(string);
     if (!optional_digits.has_value())
         return {};
 
     auto optional_value = optional_digits->to_number<i64>(TrimWhitespace::No);
-    if (!optional_value.has_value() || *optional_value > NumericLimits<u32>::max())
+    if (!optional_value.has_value()) {
+        if (maximum.has_value())
+            return maximum;
+
         return {};
+    }
+
+    auto value = optional_value.value();
+    if (minimum.has_value() && value < minimum.value())
+        return minimum;
+
+    if (maximum.has_value() && value > maximum.value())
+        return maximum;
 
     return static_cast<u32>(optional_value.value());
 }
