@@ -3,6 +3,7 @@
  * Copyright (c) 2021-2022, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2023, MacDue <macdue@dueutil.tech>
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024, Lucien Fiorini <lucienfiorini@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -302,12 +303,7 @@ void CanvasRenderingContext2D::stroke_internal(Gfx::Path const& path)
     auto& state = drawing_state();
 
     // FIXME: Honor state's line_cap, line_join, miter_limit, dash_list, and line_dash_offset.
-
-    if (auto color = state.stroke_style.as_color(); color.has_value()) {
-        painter->stroke_path(path, color->with_opacity(state.global_alpha), state.line_width);
-    } else {
-        painter->stroke_path(path, state.stroke_style.to_gfx_paint_style(), state.line_width, state.global_alpha);
-    }
+    painter->stroke_path(path, state.stroke_style.to_gfx_paint_style(), state.filters, state.line_width, state.global_alpha);
 
     did_draw(path.bounding_box());
 }
@@ -343,11 +339,7 @@ void CanvasRenderingContext2D::fill_internal(Gfx::Path const& path, Gfx::Winding
     auto path_to_fill = path;
     path_to_fill.close_all_subpaths();
     auto& state = this->drawing_state();
-    if (auto color = state.fill_style.as_color(); color.has_value()) {
-        painter->fill_path(path_to_fill, color->with_opacity(state.global_alpha), winding_rule);
-    } else {
-        painter->fill_path(path_to_fill, state.fill_style.to_gfx_paint_style(), state.global_alpha, winding_rule);
-    }
+    painter->fill_path(path_to_fill, state.fill_style.to_gfx_paint_style(), state.filters, state.global_alpha, winding_rule);
 
     did_draw(path_to_fill.bounding_box());
 }
@@ -862,5 +854,82 @@ void CanvasRenderingContext2D::paint_shadow_for_stroke_internal(Gfx::Path const&
 
     did_draw(path.bounding_box());
 }
+
+String CanvasRenderingContext2D::filter() const
+{
+    if (!drawing_state().filters_style_value) {
+        return String::from_utf8_without_validation("none"sv.bytes());
+    }
+
+    // Note: Should it be computed?
+    return drawing_state().filters_style_value->to_string(CSS::CSSStyleValue::SerializationMode::Normal);
+}
+
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-filter
+void CanvasRenderingContext2D::set_filter(String filter)
+{
+    drawing_state().filters.clear();
+
+    // 1. If the given value is "none", then set this's current filter to "none" and return.
+    if (filter == "none"sv) {
+        return;
+    }
+
+    auto& realm = static_cast<CanvasRenderingContext2D&>(*this).realm();
+    auto parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext(realm), filter);
+
+    // 2. Let parsedValue be the result of parsing the given values as a <filter-value-list>.
+    //    If any property-independent style sheet syntax like 'inherit' or 'initial' is present,
+    //    then this parsing must return failure.
+    auto style_value = parser.parse_as_css_value(CSS::PropertyID::Filter);
+
+    if (style_value && style_value->is_filter_value_list()) {
+        auto filter_value_list = style_value->as_filter_value_list().filter_value_list();
+
+        drawing_state().filters.grow_capacity(filter_value_list.size());
+
+        // FIXME: How to get the right layout node ?
+        // auto layout_node = canvas_element().layout_node();
+
+        // 4. Set this's current filter to the given value.
+        for (auto &item : filter_value_list) {
+            item.visit(
+                [&](CSS::FilterOperation::Blur const& blur_filter) {
+                    // const float radius = blur_filter.resolved_radius(*layout_node);
+                    (void)blur_filter;
+                    const float radius = 10;
+                    drawing_state().filters.append(Gfx::BlurFilter{radius});
+                },
+                [&](CSS::FilterOperation::Color const& color) {
+                    Gfx::ColorFilter::Type color_filter_type;
+
+                    switch (color.operation) {
+                        case CSS::FilterOperation::Color::Type::Brightness:
+                            color_filter_type = Gfx::ColorFilter::Type::Brightness;
+                            break;
+                        default:
+                            TODO();
+                    }
+
+                    float const amount = color.resolved_amount();
+                    drawing_state().filters.append(Gfx::ColorFilter{color_filter_type, amount});
+                },
+                [&](CSS::FilterOperation::HueRotate const& hue_rotate) {
+                    (void)hue_rotate;
+                    TODO();
+                },
+                [&](CSS::FilterOperation::DropShadow const& drop_shadow) {
+                    (void)drop_shadow;
+                    TODO();
+                }
+            );
+        }
+
+        drawing_state().filters_style_value = style_value;
+    }
+
+    // 3. If parsedValue is failure, then return.
+}
+
 
 }
