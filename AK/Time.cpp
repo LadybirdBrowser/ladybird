@@ -8,9 +8,7 @@
 #include <AK/Time.h>
 
 #ifdef AK_OS_WINDOWS
-#    define timeval dummy_timeval
-#    include <windows.h>
-#    undef timeval
+#    include <AK/Windows.h>
 #endif
 
 namespace AK {
