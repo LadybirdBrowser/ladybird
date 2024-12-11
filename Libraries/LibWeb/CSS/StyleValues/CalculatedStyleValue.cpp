@@ -2470,7 +2470,7 @@ bool CalculatedStyleValue::equals(CSSStyleValue const& other) const
     if (type() != other.type())
         return false;
 
-    return m_calculation->equals(*static_cast<CalculatedStyleValue const&>(other).m_calculation);
+    return m_calculation->equals(*other.as_calculated().m_calculation);
 }
 
 Optional<Angle> CalculatedStyleValue::resolve_angle() const
