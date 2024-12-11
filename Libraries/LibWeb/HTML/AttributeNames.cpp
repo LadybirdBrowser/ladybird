@@ -28,6 +28,7 @@ void initialize_strings()
     for_ = "for"_fly_string;
     default_ = "default"_fly_string;
     char_ = "char"_fly_string;
+    switch_ = "switch"_fly_string;
 
     // NOTE: Special cases for attributes with dashes in them.
     accept_charset = "accept-charset"_fly_string;
@@ -81,6 +82,7 @@ bool is_boolean_attribute(FlyString const& attribute)
         || attribute.equals_ignoring_ascii_case(AttributeNames::reversed)
         || attribute.equals_ignoring_ascii_case(AttributeNames::seeking)
         || attribute.equals_ignoring_ascii_case(AttributeNames::selected)
+        || attribute.equals_ignoring_ascii_case(AttributeNames::switch_)
         || attribute.equals_ignoring_ascii_case(AttributeNames::truespeed)
         || attribute.equals_ignoring_ascii_case(AttributeNames::willvalidate);
 }

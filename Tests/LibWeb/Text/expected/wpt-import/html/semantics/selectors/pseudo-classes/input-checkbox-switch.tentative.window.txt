@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Switch control does not match :indeterminate
+Pass	Checkbox that is no longer a switch control does match :indeterminate
+Pass	Checkbox that becomes a switch control does not match :indeterminate
+Pass	Parent of a checkbox that becomes a switch control does not match :has(:indeterminate)
+Pass	Parent of a switch control that becomes a checkbox continues to match :has(:checked)
+Pass	A switch control that becomes a checkbox in a roundabout way

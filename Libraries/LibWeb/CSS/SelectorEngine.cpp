@@ -201,7 +201,9 @@ static inline bool matches_indeterminate_pseudo_class(DOM::Element const& elemen
         auto const& input_element = static_cast<HTML::HTMLInputElement const&>(element);
         switch (input_element.type_state()) {
         case HTML::HTMLInputElement::TypeAttributeState::Checkbox:
-            return input_element.indeterminate();
+            // https://whatpr.org/html-attr-input-switch/9546/semantics-other.html#selector-indeterminate
+            // input elements whose type attribute is in the Checkbox state, whose switch attribute is not set
+            return input_element.indeterminate() && !element.has_attribute(HTML::AttributeNames::switch_);
         default:
             return false;
         }
