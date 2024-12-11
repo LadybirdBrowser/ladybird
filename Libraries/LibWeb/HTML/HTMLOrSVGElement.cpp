@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/ContentSecurityPolicy/PolicyList.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLOrSVGElement.h>
@@ -94,12 +95,12 @@ void HTMLOrSVGElement<ElementBase>::inserted()
     // agent must execute the following steps on the element:
     DOM::Element& element = *static_cast<ElementBase*>(this);
 
-    // FIXME: 1. Let CSP list be element's shadow-including root's policy container's CSP list.
-    [[maybe_unused]] auto policy_container = element.shadow_including_root().document().policy_container();
+    // 1. Let CSP list be element's shadow-including root's policy container's CSP list.
+    auto csp_list = element.shadow_including_root().document().policy_container()->csp_list;
 
-    // FIXME: 2. If CSP list contains a header-delivered Content Security Policy, and element has a
-    //           nonce content attribute attr whose value is not the empty string, then:
-    if (true && element.has_attribute(HTML::AttributeNames::nonce)) {
+    // 2. If CSP list contains a header-delivered Content Security Policy, and element has a
+    //    nonce content attribute attr whose value is not the empty string, then:
+    if (csp_list->contains_header_delivered_policy() && element.has_attribute(HTML::AttributeNames::nonce)) {
         // 2.1. Let nonce be element's [[CryptographicNonce]].
         auto nonce = m_cryptographic_nonce;
 

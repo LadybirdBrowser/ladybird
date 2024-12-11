@@ -36,33 +36,8 @@ void FunctionConstructor::initialize(Realm& realm)
     define_direct_property(vm.names.length, Value(1), Attribute::Configurable);
 }
 
-// NON-STANDARD: Exists to simplify calling CreateDynamicFunction using strong types, instead of a Value.
-// Analogous to parts of the following two AO's - and basically just extracts the body and parameters as strings.
-//
-// 20.2.1.1 Function ( ...parameterArgs, bodyArg ), https://tc39.es/ecma262/#sec-function-p1-p2-pn-body
 // 20.2.1.1.1 CreateDynamicFunction ( constructor, newTarget, kind, parameterArgs, bodyArg ), https://tc39.es/ecma262/#sec-createdynamicfunction
-ThrowCompletionOr<ParameterArgumentsAndBody> extract_parameter_arguments_and_body(VM& vm, Span<Value> arguments)
-{
-    if (arguments.is_empty())
-        return ParameterArgumentsAndBody {};
-
-    auto parameter_values = arguments.slice(0, arguments.size() - 1);
-
-    Vector<String> parameters;
-    parameters.ensure_capacity(parameter_values.size());
-    for (auto const& parameter_value : parameter_values)
-        parameters.unchecked_append(TRY(parameter_value.to_string(vm)));
-
-    auto body = TRY(arguments.last().to_string(vm));
-
-    return ParameterArgumentsAndBody {
-        .parameters = move(parameters),
-        .body = move(body),
-    };
-}
-
-// 20.2.1.1.1 CreateDynamicFunction ( constructor, newTarget, kind, parameterArgs, bodyArg ), https://tc39.es/ecma262/#sec-createdynamicfunction
-ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> FunctionConstructor::create_dynamic_function(VM& vm, FunctionObject& constructor, FunctionObject* new_target, FunctionKind kind, ReadonlySpan<String> parameter_strings, String const& body_string)
+ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> FunctionConstructor::create_dynamic_function(VM& vm, FunctionObject& constructor, FunctionObject* new_target, FunctionKind kind, ReadonlySpan<Value> parameter_args, Value body_arg)
 {
     // 1. If newTarget is undefined, set newTarget to constructor.
     if (new_target == nullptr)
@@ -131,24 +106,28 @@ ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> FunctionConstructor::create
     }
 
     // 6. Let argCount be the number of elements in parameterArgs.
-    auto arg_count = parameter_strings.size();
+    auto arg_count = parameter_args.size();
 
-    // NOTE: Done by caller
     // 7. Let parameterStrings be a new empty List.
+    Vector<String> parameter_strings;
+    parameter_strings.ensure_capacity(arg_count);
+
     // 8. For each element arg of parameterArgs, do
-    //     a. Append ? ToString(arg) to parameterStrings.
+    for (auto const& parameter_value : parameter_args) {
+        // a. Append ? ToString(arg) to parameterStrings.
+        parameter_strings.unchecked_append(TRY(parameter_value.to_string(vm)));
+    }
+
     // 9. Let bodyString be ? ToString(bodyArg).
+    auto body_string = TRY(body_arg.to_string(vm));
 
     // 10. Let currentRealm be the current Realm Record.
     auto& realm = *vm.current_realm();
 
-    // 11. Perform ? HostEnsureCanCompileStrings(currentRealm, parameterStrings, bodyString, false).
-    TRY(vm.host_ensure_can_compile_strings(realm, parameter_strings, body_string, EvalMode::Indirect));
-
-    // 12. Let P be the empty String.
+    // 11. Let P be the empty String.
     String parameters_string;
 
-    // 13. If argCount > 0, then
+    // 12. If argCount > 0, then
     if (arg_count > 0) {
         // a. Set P to parameterStrings[0].
         // b. Let k be 1.
@@ -159,12 +138,15 @@ ThrowCompletionOr<GC::Ref<ECMAScriptFunctionObject>> FunctionConstructor::create
         parameters_string = MUST(String::join(',', parameter_strings));
     }
 
-    // 14. Let bodyParseString be the string-concatenation of 0x000A (LINE FEED), bodyString, and 0x000A (LINE FEED).
+    // 13. Let bodyParseString be the string-concatenation of 0x000A (LINE FEED), bodyString, and 0x000A (LINE FEED).
     auto body_parse_string = ByteString::formatted("\n{}\n", body_string);
 
-    // 15. Let sourceString be the string-concatenation of prefix, " anonymous(", P, 0x000A (LINE FEED), ") {", bodyParseString, and "}".
-    // 16. Let sourceText be StringToCodePoints(sourceString).
+    // 14. Let sourceString be the string-concatenation of prefix, " anonymous(", P, 0x000A (LINE FEED), ") {", bodyParseString, and "}".
+    // 15. Let sourceText be StringToCodePoints(sourceString).
     auto source_text = ByteString::formatted("{} anonymous({}\n) {{{}}}", prefix, parameters_string, body_parse_string);
+
+    // 16. Perform ? HostEnsureCanCompileStrings(currentRealm, parameterStrings, bodyString, sourceString, FUNCTION, parameterArgs, bodyArg).
+    TRY(vm.host_ensure_can_compile_strings(realm, parameter_strings, body_string, source_text, CompilationType::Function, parameter_args, body_arg));
 
     u8 parse_options = FunctionNodeParseOptions::CheckForFunctionAndName;
     if (kind == FunctionKind::Async || kind == FunctionKind::AsyncGenerator)
@@ -264,15 +246,22 @@ ThrowCompletionOr<GC::Ref<Object>> FunctionConstructor::construct(FunctionObject
 {
     auto& vm = this->vm();
 
+    ReadonlySpan<Value> arguments = vm.running_execution_context().arguments;
+
+    ReadonlySpan<Value> parameter_args = arguments;
+    if (!parameter_args.is_empty())
+        parameter_args = parameter_args.slice(0, parameter_args.size() - 1);
+
     // 1. Let C be the active function object.
     auto* constructor = vm.active_function_object();
 
     // 2. If bodyArg is not present, set bodyArg to the empty String.
-    // NOTE: This does that, as well as the string extraction done inside of CreateDynamicFunction
-    auto extracted = TRY(extract_parameter_arguments_and_body(vm, vm.running_execution_context().arguments));
+    Value body_arg = &vm.empty_string();
+    if (!arguments.is_empty())
+        body_arg = arguments.last();
 
     // 3. Return ? CreateDynamicFunction(C, NewTarget, normal, parameterArgs, bodyArg).
-    return TRY(create_dynamic_function(vm, *constructor, &new_target, FunctionKind::Normal, extracted.parameters, extracted.body));
+    return TRY(create_dynamic_function(vm, *constructor, &new_target, FunctionKind::Normal, parameter_args, body_arg));
 }
 
 }

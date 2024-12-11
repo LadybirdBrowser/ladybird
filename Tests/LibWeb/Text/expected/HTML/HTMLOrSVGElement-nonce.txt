@@ -5,7 +5,7 @@ nonce: "456" attribute: 456;
 nonce: "null" attribute: 456;
 insertion
 nonce: "foo" attribute: foo;
-nonce: "foo" attribute: ;
+nonce: "foo" attribute: foo;
 cloning
 nonce: "bar" attribute: bar;
 nonce: "bar" attribute: bar;

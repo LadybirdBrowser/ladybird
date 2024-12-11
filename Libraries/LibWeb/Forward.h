@@ -91,6 +91,43 @@ class CompressionStream;
 class DecompressionStream;
 }
 
+namespace Web::ContentSecurityPolicy {
+class Policy;
+class PolicyList;
+class SecurityPolicyViolationEvent;
+class Violation;
+struct SecurityPolicyViolationEventInit;
+struct SerializedPolicy;
+}
+
+namespace Web::ContentSecurityPolicy::Directives {
+class BaseUriDirective;
+class ChildSourceDirective;
+class ConnectSourceDirective;
+class DefaultSourceDirective;
+class Directive;
+class FontSourceDirective;
+class FormActionDirective;
+class FrameAncestorsDirective;
+class FrameSourceDirective;
+class ImageSourceDirective;
+class ManifestSourceDirective;
+class MediaSourceDirective;
+class ObjectSourceDirective;
+class ReportToDirective;
+class ReportUriDirective;
+class SandboxDirective;
+class ScriptSourceAttributeDirective;
+class ScriptSourceDirective;
+class ScriptSourceElementDirective;
+class StyleSourceAttributeDirective;
+class StyleSourceDirective;
+class StyleSourceElementDirective;
+class WebRTCDirective;
+class WorkerSourceDirective;
+struct SerializedDirective;
+}
+
 namespace Web::Cookie {
 struct Cookie;
 struct ParsedCookie;
@@ -560,6 +597,7 @@ struct POSTResource;
 struct ScrollOptions;
 struct ScrollToOptions;
 struct SerializedFormData;
+struct SerializedPolicyContainer;
 struct StructuredSerializeOptions;
 struct SyntheticRealmSettings;
 struct ToggleTaskTracker;

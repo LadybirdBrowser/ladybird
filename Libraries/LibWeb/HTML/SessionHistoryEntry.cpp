@@ -18,6 +18,7 @@ void SessionHistoryEntry::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_document_state);
     visitor.visit(m_original_source_browsing_context);
+    visitor.visit(m_policy_container);
 }
 
 SessionHistoryEntry::SessionHistoryEntry()

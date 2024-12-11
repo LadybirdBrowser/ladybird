@@ -100,6 +100,20 @@ TEST_CASE(should_constexpr_consume_specific_cstring)
     static_assert(sut.peek() == 'e');
 }
 
+TEST_CASE(should_constexpr_consume_specific_with_predicate)
+{
+    constexpr auto sut = [] {
+        GenericLexer sut("h e l l o !"sv);
+        for (size_t i = 0; i < 100; ++i) {
+            sut.consume_specific_with_predicate([](auto c) {
+                return is_ascii_alpha(c) || is_ascii_space(c);
+            });
+        }
+        return sut;
+    }();
+    static_assert(sut.peek() == '!');
+}
+
 TEST_CASE(should_constexpr_ignore_until)
 {
     constexpr auto sut = [] {

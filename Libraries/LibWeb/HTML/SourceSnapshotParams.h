@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024, Luke Wilde <luke@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -12,7 +13,13 @@
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#source-snapshot-params
-struct SourceSnapshotParams {
+struct SourceSnapshotParams : public JS::Cell {
+    GC_CELL(SourceSnapshotParams, JS::Cell)
+    GC_DECLARE_ALLOCATOR(SourceSnapshotParams);
+
+public:
+    virtual ~SourceSnapshotParams() = default;
+
     // a boolean
     bool has_transient_activation;
 
@@ -26,7 +33,10 @@ struct SourceSnapshotParams {
     GC::Ptr<EnvironmentSettingsObject> fetch_client;
 
     // a policy container
-    PolicyContainer source_policy_container;
+    GC::Ptr<PolicyContainer> source_policy_container;
+
+protected:
+    virtual void visit_edges(Cell::Visitor&) override;
 };
 
 }
