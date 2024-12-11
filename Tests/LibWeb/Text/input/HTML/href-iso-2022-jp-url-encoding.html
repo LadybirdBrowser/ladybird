@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="iso-2022-jp">
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const input = "\u4E05"; // 丅
+        const a = document.createElement("a");
+        a.href = "https://ladybird.org/?" + input;
+        println(a.search.substr(1));
+    })
+</script>
+</head>
+<body></body>
+</html>
