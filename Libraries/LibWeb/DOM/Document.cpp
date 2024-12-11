@@ -3887,6 +3887,10 @@ void Document::make_active()
         navigable()->traversable_navigable()->page().client().page_did_finish_loading(url());
         m_needs_to_call_page_did_load = false;
     }
+
+    notify_each_document_observer([&](auto const& document_observer) {
+        return document_observer.document_became_active();
+    });
 }
 
 HTML::ListOfAvailableImages& Document::list_of_available_images()

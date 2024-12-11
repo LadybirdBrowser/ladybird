@@ -20,6 +20,9 @@ class DocumentObserver final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(DocumentObserver);
 
 public:
+    [[nodiscard]] GC::Ptr<GC::Function<void()>> document_became_active() const { return m_document_became_active; }
+    void set_document_became_active(Function<void()>);
+
     [[nodiscard]] GC::Ptr<GC::Function<void()>> document_became_inactive() const { return m_document_became_inactive; }
     void set_document_became_inactive(Function<void()>);
 
@@ -42,6 +45,7 @@ private:
     virtual void finalize() override;
 
     GC::Ref<DOM::Document> m_document;
+    GC::Ptr<GC::Function<void()>> m_document_became_active;
     GC::Ptr<GC::Function<void()>> m_document_became_inactive;
     GC::Ptr<GC::Function<void()>> m_document_completely_loaded;
     GC::Ptr<GC::Function<void(HTML::DocumentReadyState)>> m_document_readiness_observer;
