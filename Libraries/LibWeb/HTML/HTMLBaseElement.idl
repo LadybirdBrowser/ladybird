@@ -7,6 +7,6 @@ interface HTMLBaseElement : HTMLElement {
     [HTMLConstructor] constructor();
 
     [CEReactions] attribute USVString href;
-    [CEReactions, Reflect] attribute DOMString target;
+    [CEReactions, Reflect, ReflectURL] attribute DOMString target;
 
 };
