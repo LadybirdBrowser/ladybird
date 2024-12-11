@@ -25,6 +25,7 @@ namespace Detail {
 struct Block {
     size_t start;
     size_t end;
+    StringView comment { "N/A"sv };
 };
 
 }
