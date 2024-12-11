@@ -3001,14 +3001,22 @@ static void collect_attribute_values_of_an_inheritance_stack(SourceGenerator& fu
                 attribute_generator.set("attribute.cpp_name", attribute.name.to_snakecase());
             }
 
-            if (attribute.extended_attributes.contains("Reflect")) {
-                auto attribute_name = attribute.extended_attributes.get("Reflect").value();
-                if (attribute_name.is_empty())
-                    attribute_name = attribute.name;
+            auto reflected_attributes = {
+                "Reflect",
+                "ReflectURL",
+                "ReflectPositive",
+                "ReflectNonNegative",
+            };
 
-                attribute_generator.set("attribute.reflect_name", attribute_name);
-            } else {
-                attribute_generator.set("attribute.reflect_name", attribute.name.to_snakecase());
+            for (auto const& reflected_attribute : reflected_attributes) {
+                if (attribute.extended_attributes.contains(reflected_attribute)) {
+                    auto attribute_name = attribute.extended_attributes.get(reflected_attribute).value();
+                    if (attribute_name.is_empty())
+                        attribute_name = attribute.name.to_lowercase();
+                    attribute_name = make_input_acceptable_cpp(attribute_name);
+
+                    attribute_generator.set("attribute.reflect_name", attribute_name);
+                }
             }
 
             if (attribute.extended_attributes.contains("Reflect")) {
@@ -3548,14 +3556,28 @@ void @class_name@::initialize(JS::Realm& realm)
             attribute_generator.set("attribute.cpp_name", attribute.name.to_snakecase());
         }
 
-        if (attribute.extended_attributes.contains("Reflect")) {
-            auto attribute_name = attribute.extended_attributes.get("Reflect").value();
-            if (attribute_name.is_empty())
-                attribute_name = attribute.name;
+       auto reflected_attributes = {
+            "Reflect",
+            "ReflectURL",
+            "ReflectPositive",
+            "ReflectNonNegative",
+        };
 
-            attribute_generator.set("attribute.reflect_name", attribute_name);
-        } else {
-            attribute_generator.set("attribute.reflect_name", attribute.name.to_snakecase());
+        bool found = false;
+        for (auto const& reflected_attribute : reflected_attributes) {
+            if (attribute.extended_attributes.contains(reflected_attribute)) {
+                auto attribute_name = attribute.extended_attributes.get(reflected_attribute).value();
+                if (attribute_name.is_empty())
+                    attribute_name = attribute.name.to_lowercase();
+                attribute_name = make_input_acceptable_cpp(attribute_name);
+
+                attribute_generator.set("attribute.reflect_name", attribute_name);
+                found = true;
+            }
+        }
+
+        if (!found) {
+            attribute_generator.set("attribute.reflect_name", attribute.name.to_lowercase());
         }
 
         // For [CEReactions]: https://html.spec.whatwg.org/multipage/custom-elements.html#cereactions
