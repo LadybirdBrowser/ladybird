@@ -5,7 +5,7 @@ on: [ push, pull_request ]
 jobs:
   lint:
     runs-on: macos-14
-    if: always() && github.repository == 'LadybirdBrowser/ladybird'
+    if: github.repository == 'LadybirdBrowser/ladybird'
 
     steps:
       - uses: actions/checkout@v4

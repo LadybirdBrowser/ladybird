@@ -1,6 +1,8 @@
 name: Package the js repl as a binary artifact
 
-on: [push]
+on:
+  push:
+    branches: [master]
 
 env:
   LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
@@ -11,7 +13,7 @@ env:
 jobs:
   build-and-package:
     runs-on: ${{ matrix.os }}
-    if: always() && github.repository == 'LadybirdBrowser/ladybird' && github.ref == 'refs/heads/master'
+    if: github.repository == 'LadybirdBrowser/ladybird'
     strategy:
       fail-fast: false
       matrix:
