@@ -479,21 +479,21 @@ bool CSSNumericType::matches_dimension() const
     return number_of_one_exponents == 0 || number_of_one_exponents == 1;
 }
 
-ErrorOr<String> CSSNumericType::dump() const
+String CSSNumericType::dump() const
 {
     StringBuilder builder;
-    TRY(builder.try_appendff("{{ hint: {}", m_percent_hint.map([](auto base_type) { return base_type_name(base_type); })));
+    builder.appendff("{{ hint: {}", m_percent_hint.map([](auto base_type) { return base_type_name(base_type); }));
 
     for (auto i = 0; i < to_underlying(BaseType::__Count); ++i) {
         auto base_type = static_cast<BaseType>(i);
         auto type_exponent = exponent(base_type);
 
         if (type_exponent.has_value())
-            TRY(builder.try_appendff(", \"{}\" → {}", base_type_name(base_type), type_exponent.value()));
+            builder.appendff(", \"{}\" → {}", base_type_name(base_type), type_exponent.value());
     }
 
-    TRY(builder.try_append(" }"sv));
-    return builder.to_string();
+    builder.append(" }"sv);
+    return builder.to_string_without_validation();
 }
 
 }

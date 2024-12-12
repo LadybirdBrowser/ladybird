@@ -8,6 +8,7 @@
 
 #include <AK/Array.h>
 #include <AK/Optional.h>
+#include <AK/String.h>
 #include <LibWeb/CSS/PropertyID.h>
 
 namespace Web::CSS {
@@ -93,7 +94,7 @@ public:
 
     bool operator==(CSSNumericType const& other) const = default;
 
-    ErrorOr<String> dump() const;
+    String dump() const;
 
 private:
     bool contains_all_the_non_zero_entries_of_other_with_the_same_value(CSSNumericType const& other) const;
@@ -112,3 +113,11 @@ private:
 };
 
 }
+
+template<>
+struct AK::Formatter<Web::CSS::CSSNumericType> : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::CSSNumericType const& value)
+    {
+        return Formatter<StringView>::format(builder, value.dump());
+    }
+};
