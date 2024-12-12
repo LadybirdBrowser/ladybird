@@ -18,6 +18,7 @@ public:
 
     virtual String filter() const = 0;
     virtual void set_filter(String filter) = 0;
+
 protected:
     CanvasFilters() = default;
 };
