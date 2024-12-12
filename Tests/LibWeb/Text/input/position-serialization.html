@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        const values = [
+            "center",
+            "left bottom",
+            "center top",
+            "center top 20%",
+            "left 10px top 20%",
+            "10px top",
+            "right 10px bottom 20%",
+            "center, left bottom",
+            "left 10px bottom 20%, right 10px top 20%"
+        ];
+
+        const target = document.getElementById('target');
+        for (const value of values) {
+            target.style.setProperty("background-position", value);
+            println("inline:   " + target.style.getPropertyValue("background-position"));
+            println("computed: " + getComputedStyle(target).getPropertyValue("background-position"));
+        }
+    });
+</script>

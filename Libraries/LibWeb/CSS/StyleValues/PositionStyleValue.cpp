@@ -13,10 +13,8 @@ namespace Web::CSS {
 
 bool PositionStyleValue::is_center() const
 {
-    return (edge_x()->edge() == PositionEdge::Left
-               && edge_x()->offset().is_percentage() && edge_x()->offset().percentage() == Percentage { 50 })
-        && (edge_y()->edge() == PositionEdge::Top
-            && edge_y()->offset().is_percentage() && edge_y()->offset().percentage() == Percentage { 50 });
+    return (edge_x()->offset().is_percentage() && edge_x()->offset().percentage() == Percentage { 50 })
+        && (edge_y()->offset().is_percentage() && edge_y()->offset().percentage() == Percentage { 50 });
 }
 
 CSSPixelPoint PositionStyleValue::resolved(Layout::Node const& node, CSSPixelRect const& rect) const

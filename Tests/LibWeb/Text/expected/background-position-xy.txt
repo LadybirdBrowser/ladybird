@@ -1,2 +1,2 @@
-right 0px
-bottom 0px
+100%
+100%

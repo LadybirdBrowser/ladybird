@@ -65,6 +65,8 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         auto color = longhand(PropertyID::BackgroundColor);
         auto image = longhand(PropertyID::BackgroundImage);
         auto position = longhand(PropertyID::BackgroundPosition);
+        auto position_x = position->as_shorthand().longhand(PropertyID::BackgroundPositionX);
+        auto position_y = position->as_shorthand().longhand(PropertyID::BackgroundPositionY);
         auto size = longhand(PropertyID::BackgroundSize);
         auto repeat = longhand(PropertyID::BackgroundRepeat);
         auto attachment = longhand(PropertyID::BackgroundAttachment);
@@ -75,10 +77,10 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
             return style_value->is_value_list() ? style_value->as_value_list().size() : 1;
         };
 
-        auto layer_count = max(get_layer_count(image), max(get_layer_count(position), max(get_layer_count(size), max(get_layer_count(repeat), max(get_layer_count(attachment), max(get_layer_count(origin), get_layer_count(clip)))))));
+        auto layer_count = max(get_layer_count(image), max(get_layer_count(position_x), max(get_layer_count(position_y), max(get_layer_count(size), max(get_layer_count(repeat), max(get_layer_count(attachment), max(get_layer_count(origin), get_layer_count(clip))))))));
 
         if (layer_count == 1) {
-            return MUST(String::formatted("{} {} {} {} {} {} {} {}", color->to_string(mode), image->to_string(mode), position->to_string(mode), size->to_string(mode), repeat->to_string(mode), attachment->to_string(mode), origin->to_string(mode), clip->to_string(mode)));
+            return MUST(String::formatted("{} {} {} {} {} {} {} {} {}", color->to_string(mode), image->to_string(mode), position_x->to_string(mode), position_y->to_string(mode), size->to_string(mode), repeat->to_string(mode), attachment->to_string(mode), origin->to_string(mode), clip->to_string(mode)));
         }
 
         auto get_layer_value_string = [mode](ValueComparingRefPtr<CSSStyleValue const> const& style_value, size_t index) {
@@ -93,7 +95,38 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
                 builder.append(", "sv);
             if (i == layer_count - 1)
                 builder.appendff("{} ", color->to_string(mode));
-            builder.appendff("{} {} {} {} {} {} {}", get_layer_value_string(image, i), get_layer_value_string(position, i), get_layer_value_string(size, i), get_layer_value_string(repeat, i), get_layer_value_string(attachment, i), get_layer_value_string(origin, i), get_layer_value_string(clip, i));
+            builder.appendff("{} {} {} {} {} {} {} {}", get_layer_value_string(image, i), get_layer_value_string(position_x, i), get_layer_value_string(position_y, i), get_layer_value_string(size, i), get_layer_value_string(repeat, i), get_layer_value_string(attachment, i), get_layer_value_string(origin, i), get_layer_value_string(clip, i));
+        }
+
+        return MUST(builder.to_string());
+    }
+    case Web::CSS::PropertyID::BackgroundPosition: {
+        auto x_edges = longhand(PropertyID::BackgroundPositionX);
+        auto y_edges = longhand(PropertyID::BackgroundPositionY);
+
+        auto get_layer_count = [](auto style_value) -> size_t {
+            return style_value->is_value_list() ? style_value->as_value_list().size() : 1;
+        };
+
+        // FIXME: The spec is unclear about how differing layer counts should be handled
+        auto layer_count = max(get_layer_count(x_edges), get_layer_count(y_edges));
+
+        if (layer_count == 1) {
+            return MUST(String::formatted("{} {}", x_edges->to_string(mode), y_edges->to_string(mode)));
+        }
+
+        auto get_layer_value_string = [mode](ValueComparingRefPtr<CSSStyleValue const> const& style_value, size_t index) {
+            if (style_value->is_value_list())
+                return style_value->as_value_list().value_at(index, true)->to_string(mode);
+            return style_value->to_string(mode);
+        };
+
+        StringBuilder builder;
+        for (size_t i = 0; i < layer_count; i++) {
+            if (i)
+                builder.append(", "sv);
+
+            builder.appendff("{} {}", get_layer_value_string(x_edges, i), get_layer_value_string(y_edges, i));
         }
 
         return MUST(builder.to_string());

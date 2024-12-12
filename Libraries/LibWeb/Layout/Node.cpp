@@ -428,13 +428,13 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
 
             if (auto position_value = value_for_layer(x_positions, layer_index); position_value && position_value->is_edge()) {
                 auto& position = position_value->as_edge();
-                layer.position_edge_x = position.edge();
+                layer.position_edge_x = position.edge().value_or(CSS::PositionEdge::Left);
                 layer.position_offset_x = position.offset();
             }
 
             if (auto position_value = value_for_layer(y_positions, layer_index); position_value && position_value->is_edge()) {
                 auto& position = position_value->as_edge();
-                layer.position_edge_y = position.edge();
+                layer.position_edge_y = position.edge().value_or(CSS::PositionEdge::Top);
                 layer.position_offset_y = position.offset();
             };
 
