@@ -141,6 +141,7 @@ void execute_script(HTML::BrowsingContext const& browsing_context, ByteString bo
     WebIDL::react_to_promise(promise, reaction_steps, reaction_steps);
 }
 
+// https://w3c.github.io/webdriver/#execute-async-script
 void execute_async_script(HTML::BrowsingContext const& browsing_context, ByteString body, GC::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms, GC::Ref<OnScriptComplete> on_complete)
 {
     auto const* document = browsing_context.active_document();
@@ -175,8 +176,7 @@ void execute_async_script(HTML::BrowsingContext const& browsing_context, ByteStr
         // 2. Append resolvingFunctions.[[Resolve]] to arguments.
         arguments.append(resolving_functions.resolve);
 
-        // 3. Let result be the result of calling execute a function body, with arguments body and arguments.
-        // FIXME: 'result' -> 'scriptResult' (spec issue)
+        // 3. Let scriptResult be the result of calling execute a function body, with arguments body and arguments.
         auto script_result = execute_a_function_body(browsing_context, body, move(arguments));
 
         // 4. If scriptResult.[[Type]] is not normal, then reject promise with value scriptResult.[[Value]], and abort these steps.
