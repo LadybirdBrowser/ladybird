@@ -38,7 +38,7 @@ class HTMLImageElement final
 public:
     virtual ~HTMLImageElement() override;
 
-    virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& value) override;
+    virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& value, Optional<FlyString> const&) override;
 
     Optional<String> alternative_text() const override
     {

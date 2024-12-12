@@ -439,7 +439,7 @@ void HTMLTextAreaElement::children_changed()
     }
 }
 
-void HTMLTextAreaElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& value)
+void HTMLTextAreaElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& value, Optional<FlyString> const&)
 {
     if (name == HTML::AttributeNames::placeholder) {
         if (m_placeholder_text_node)

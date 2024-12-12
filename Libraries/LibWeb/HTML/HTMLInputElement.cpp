@@ -1195,7 +1195,7 @@ void HTMLInputElement::did_lose_focus()
     commit_pending_changes();
 }
 
-void HTMLInputElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& value)
+void HTMLInputElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& value, Optional<FlyString> const&)
 {
     if (name == HTML::AttributeNames::checked) {
         if (!value.has_value()) {

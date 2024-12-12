@@ -113,7 +113,7 @@ void HTMLImageElement::apply_presentational_hints(CSS::StyleProperties& style) c
     });
 }
 
-void HTMLImageElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& value)
+void HTMLImageElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& value, Optional<FlyString> const&)
 {
     if (name == HTML::AttributeNames::crossorigin) {
         m_cors_setting = cors_setting_attribute_from_keyword(value);

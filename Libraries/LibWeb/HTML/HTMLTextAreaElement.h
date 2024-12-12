@@ -68,7 +68,7 @@ public:
 
     virtual void form_associated_element_was_inserted() override;
     virtual void form_associated_element_was_removed(DOM::Node*) override;
-    virtual void form_associated_element_attribute_changed(FlyString const&, Optional<String> const&) override;
+    virtual void form_associated_element_attribute_changed(FlyString const&, Optional<String> const&, Optional<FlyString> const&) override;
 
     virtual void children_changed() override;
 
