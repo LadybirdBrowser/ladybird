@@ -113,38 +113,36 @@ static ErrorOr<void, TestError> run_program(InterpreterT& interpreter, ScriptOrM
     return {};
 }
 
-static HashMap<ByteString, ByteString> s_cached_harness_files;
-
 static ErrorOr<StringView, TestError> read_harness_file(StringView harness_file)
 {
-    auto cache = s_cached_harness_files.find(harness_file);
-    if (cache == s_cached_harness_files.end()) {
-        auto file_or_error = Core::File::open(ByteString::formatted("{}{}", s_harness_file_directory, harness_file), Core::File::OpenMode::Read);
-        if (file_or_error.is_error()) {
-            return TestError {
-                NegativePhase::Harness,
-                "filesystem",
-                ByteString::formatted("Could not open file: {}", harness_file),
-                harness_file
-            };
-        }
+    static HashMap<ByteString, ByteBuffer> s_cached_harness_files;
 
-        auto contents_or_error = file_or_error.value()->read_until_eof();
-        if (contents_or_error.is_error()) {
-            return TestError {
-                NegativePhase::Harness,
-                "filesystem",
-                ByteString::formatted("Could not read file: {}", harness_file),
-                harness_file
-            };
-        }
+    auto cache = [&]() -> ErrorOr<StringView> {
+        if (auto it = s_cached_harness_files.find(harness_file); it != s_cached_harness_files.end())
+            return StringView { it->value };
 
-        StringView contents_view = contents_or_error.value();
-        s_cached_harness_files.set(harness_file, contents_view.to_byte_string());
-        cache = s_cached_harness_files.find(harness_file);
-        VERIFY(cache != s_cached_harness_files.end());
+        auto path = ByteString::formatted("{}{}", s_harness_file_directory, harness_file);
+        auto file = TRY(Core::File::open(path, Core::File::OpenMode::Read));
+
+        auto contents = TRY(file->read_until_eof());
+        s_cached_harness_files.set(harness_file, move(contents));
+
+        auto it = s_cached_harness_files.find(harness_file);
+        VERIFY(it != s_cached_harness_files.end());
+
+        return StringView { it->value };
+    }();
+
+    if (cache.is_error()) {
+        return TestError {
+            NegativePhase::Harness,
+            "filesystem",
+            ByteString::formatted("Could not read file: {}", harness_file),
+            harness_file
+        };
     }
-    return cache->value.view();
+
+    return cache.value();
 }
 
 static ErrorOr<GC::Ref<JS::Script>, TestError> parse_harness_files(JS::Realm& realm, StringView harness_file)
