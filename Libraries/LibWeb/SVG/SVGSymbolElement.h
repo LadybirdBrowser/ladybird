@@ -19,7 +19,7 @@ class SVGSymbolElement final : public SVGGraphicsElement
 public:
     virtual ~SVGSymbolElement() override = default;
 
-    void apply_presentational_hints(CSS::StyleProperties& style) const override;
+    virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
 
     virtual Optional<ViewBox> view_box() const override { return m_view_box; }
     virtual Optional<PreserveAspectRatio> preserve_aspect_ratio() const override

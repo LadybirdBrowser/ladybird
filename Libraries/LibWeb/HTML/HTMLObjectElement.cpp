@@ -100,49 +100,49 @@ void HTMLObjectElement::form_associated_element_was_removed(DOM::Node*)
     destroy_the_child_navigable();
 }
 
-void HTMLObjectElement::apply_presentational_hints(CSS::StyleProperties& style) const
+void HTMLObjectElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
     for_each_attribute([&](auto& name, auto& value) {
         if (name == HTML::AttributeNames::align) {
             if (value.equals_ignoring_ascii_case("center"sv))
-                style.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Center));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Center));
             else if (value.equals_ignoring_ascii_case("middle"sv))
-                style.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Middle));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Middle));
         } else if (name == HTML::AttributeNames::border) {
             if (auto parsed_value = parse_non_negative_integer(value); parsed_value.has_value()) {
                 auto width_style_value = CSS::LengthStyleValue::create(CSS::Length::make_px(*parsed_value));
-                style.set_property(CSS::PropertyID::BorderTopWidth, width_style_value);
-                style.set_property(CSS::PropertyID::BorderRightWidth, width_style_value);
-                style.set_property(CSS::PropertyID::BorderBottomWidth, width_style_value);
-                style.set_property(CSS::PropertyID::BorderLeftWidth, width_style_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderTopWidth, width_style_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderRightWidth, width_style_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderBottomWidth, width_style_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderLeftWidth, width_style_value);
 
                 auto border_style_value = CSS::CSSKeywordValue::create(CSS::Keyword::Solid);
-                style.set_property(CSS::PropertyID::BorderTopStyle, border_style_value);
-                style.set_property(CSS::PropertyID::BorderRightStyle, border_style_value);
-                style.set_property(CSS::PropertyID::BorderBottomStyle, border_style_value);
-                style.set_property(CSS::PropertyID::BorderLeftStyle, border_style_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderTopStyle, border_style_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderRightStyle, border_style_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderBottomStyle, border_style_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderLeftStyle, border_style_value);
             }
         }
         // https://html.spec.whatwg.org/multipage/rendering.html#attributes-for-embedded-content-and-images:maps-to-the-dimension-property-3
         else if (name == HTML::AttributeNames::height) {
             if (auto parsed_value = parse_dimension_value(value)) {
-                style.set_property(CSS::PropertyID::Height, *parsed_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Height, *parsed_value);
             }
         }
         // https://html.spec.whatwg.org/multipage/rendering.html#attributes-for-embedded-content-and-images:maps-to-the-dimension-property
         else if (name == HTML::AttributeNames::hspace) {
             if (auto parsed_value = parse_dimension_value(value)) {
-                style.set_property(CSS::PropertyID::MarginLeft, *parsed_value);
-                style.set_property(CSS::PropertyID::MarginRight, *parsed_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginLeft, *parsed_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginRight, *parsed_value);
             }
         } else if (name == HTML::AttributeNames::vspace) {
             if (auto parsed_value = parse_dimension_value(value)) {
-                style.set_property(CSS::PropertyID::MarginTop, *parsed_value);
-                style.set_property(CSS::PropertyID::MarginBottom, *parsed_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginTop, *parsed_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginBottom, *parsed_value);
             }
         } else if (name == HTML::AttributeNames::width) {
             if (auto parsed_value = parse_dimension_value(value)) {
-                style.set_property(CSS::PropertyID::Width, *parsed_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Width, *parsed_value);
             }
         }
     });

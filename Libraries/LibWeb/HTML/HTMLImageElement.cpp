@@ -82,32 +82,32 @@ void HTMLImageElement::visit_edges(Cell::Visitor& visitor)
     visit_lazy_loading_element(visitor);
 }
 
-void HTMLImageElement::apply_presentational_hints(CSS::StyleProperties& style) const
+void HTMLImageElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
     for_each_attribute([&](auto& name, auto& value) {
         if (name == HTML::AttributeNames::hspace) {
             if (auto parsed_value = parse_dimension_value(value)) {
-                style.set_property(CSS::PropertyID::MarginLeft, *parsed_value);
-                style.set_property(CSS::PropertyID::MarginRight, *parsed_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginLeft, *parsed_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginRight, *parsed_value);
             }
         } else if (name == HTML::AttributeNames::vspace) {
             if (auto parsed_value = parse_dimension_value(value)) {
-                style.set_property(CSS::PropertyID::MarginTop, *parsed_value);
-                style.set_property(CSS::PropertyID::MarginBottom, *parsed_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginTop, *parsed_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginBottom, *parsed_value);
             }
         } else if (name == HTML::AttributeNames::border) {
             if (auto parsed_value = parse_non_negative_integer(value); parsed_value.has_value()) {
                 auto width_value = CSS::LengthStyleValue::create(CSS::Length::make_px(*parsed_value));
-                style.set_property(CSS::PropertyID::BorderTopWidth, width_value);
-                style.set_property(CSS::PropertyID::BorderRightWidth, width_value);
-                style.set_property(CSS::PropertyID::BorderBottomWidth, width_value);
-                style.set_property(CSS::PropertyID::BorderLeftWidth, width_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderTopWidth, width_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderRightWidth, width_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderBottomWidth, width_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderLeftWidth, width_value);
 
                 auto solid_value = CSS::CSSKeywordValue::create(CSS::Keyword::Solid);
-                style.set_property(CSS::PropertyID::BorderTopStyle, solid_value);
-                style.set_property(CSS::PropertyID::BorderRightStyle, solid_value);
-                style.set_property(CSS::PropertyID::BorderBottomStyle, solid_value);
-                style.set_property(CSS::PropertyID::BorderLeftStyle, solid_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderTopStyle, solid_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderRightStyle, solid_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderBottomStyle, solid_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderLeftStyle, solid_value);
             }
         }
     });

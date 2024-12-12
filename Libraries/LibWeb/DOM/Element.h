@@ -13,6 +13,7 @@
 #include <LibWeb/Bindings/ElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ShadowRootPrototype.h>
+#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
@@ -172,7 +173,7 @@ public:
     // https://html.spec.whatwg.org/multipage/embedded-content-other.html#dimension-attributes
     virtual bool supports_dimension_attributes() const { return false; }
 
-    virtual void apply_presentational_hints(CSS::StyleProperties&) const { }
+    virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const { }
 
     void run_attribute_change_steps(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_);
 
@@ -188,6 +189,9 @@ public:
     Optional<CSS::StyleProperties> const& computed_css_values() const { return m_computed_css_values; }
     void set_computed_css_values(Optional<CSS::StyleProperties>);
     CSS::StyleProperties resolved_css_values(Optional<CSS::Selector::PseudoElement::Type> = {});
+
+    [[nodiscard]] GC::Ptr<CSS::CascadedProperties> cascaded_properties(Optional<CSS::Selector::PseudoElement::Type>) const;
+    void set_cascaded_properties(Optional<CSS::Selector::PseudoElement::Type>, GC::Ptr<CSS::CascadedProperties>);
 
     void set_pseudo_element_computed_css_values(CSS::Selector::PseudoElement::Type, Optional<CSS::StyleProperties>);
     Optional<CSS::StyleProperties&> pseudo_element_computed_css_values(CSS::Selector::PseudoElement::Type);
@@ -410,11 +414,14 @@ private:
     GC::Ptr<DOMTokenList> m_class_list;
     GC::Ptr<ShadowRoot> m_shadow_root;
 
+    GC::Ptr<CSS::CascadedProperties> m_cascaded_properties;
+
     Optional<CSS::StyleProperties> m_computed_css_values;
     HashMap<FlyString, CSS::StyleProperty> m_custom_properties;
 
     struct PseudoElement {
         GC::Ptr<Layout::NodeWithStyle> layout_node;
+        GC::Ptr<CSS::CascadedProperties> cascaded_properties;
         Optional<CSS::StyleProperties> computed_css_values;
         HashMap<FlyString, CSS::StyleProperty> custom_properties;
     };

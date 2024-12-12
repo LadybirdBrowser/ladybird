@@ -34,7 +34,7 @@ private:
     virtual bool is_html_table_cell_element() const override { return true; }
 
     virtual void initialize(JS::Realm&) override;
-    virtual void apply_presentational_hints(CSS::StyleProperties&) const override;
+    virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
 };
 
 }

@@ -15,6 +15,8 @@
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
+#include <LibWeb/CSS/CascadeOrigin.h>
+#include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleProperties.h>
 #include <LibWeb/Forward.h>
@@ -71,15 +73,6 @@ private:
     CounterType m_buckets[bucket_count];
 };
 
-// https://www.w3.org/TR/css-cascade/#origin
-enum class CascadeOrigin : u8 {
-    Author,
-    User,
-    UserAgent,
-    Animation,
-    Transition,
-};
-
 struct MatchingRule {
     GC::Ptr<DOM::ShadowRoot const> shadow_root;
     GC::Ptr<CSSRule const> rule; // Either CSSStyleRule or CSSNestedDeclarations
@@ -126,7 +119,14 @@ public:
         No,
     };
     static void for_each_property_expanding_shorthands(PropertyID, CSSStyleValue const&, AllowUnresolved, Function<void(PropertyID, CSSStyleValue const&)> const& set_longhand_property);
-    static void set_property_expanding_shorthands(StyleProperties&, PropertyID, CSSStyleValue const&, CSS::CSSStyleDeclaration const*, StyleProperties const& style_for_revert, StyleProperties const& style_for_revert_layer, Important = Important::No);
+    static void set_property_expanding_shorthands(
+        CascadedProperties&,
+        PropertyID,
+        CSSStyleValue const&,
+        GC::Ptr<CSSStyleDeclaration const>,
+        CascadeOrigin,
+        Important,
+        Optional<FlyString> layer_name);
     static NonnullRefPtr<CSSStyleValue const> get_inherit_value(CSS::PropertyID, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type> = {});
 
     static Optional<String> user_agent_style_sheet_source(StringView name);
@@ -167,11 +167,13 @@ public:
         No,
         Yes,
     };
-    void collect_animation_into(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, GC::Ref<Animations::KeyframeEffect> animation, StyleProperties& style_properties, AnimationRefresh = AnimationRefresh::No) const;
+    void collect_animation_into(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, GC::Ref<Animations::KeyframeEffect> animation, StyleProperties&, AnimationRefresh = AnimationRefresh::No) const;
 
     [[nodiscard]] bool has_has_selectors() const { return m_has_has_selectors; }
 
     size_t number_of_css_font_faces_with_loading_in_progress() const;
+
+    [[nodiscard]] StyleProperties compute_properties(DOM::Element&, Optional<Selector::PseudoElement::Type>, CascadedProperties&) const;
 
 private:
     enum class ComputeStyleMode {
@@ -184,7 +186,7 @@ private:
     [[nodiscard]] bool should_reject_with_ancestor_filter(Selector const&) const;
 
     Optional<StyleProperties> compute_style_impl(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, ComputeStyleMode) const;
-    void compute_cascaded_values(StyleProperties&, DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, bool& did_match_any_pseudo_element_rules, ComputeStyleMode) const;
+    [[nodiscard]] GC::Ref<CascadedProperties> compute_cascaded_values(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, bool& did_match_any_pseudo_element_rules, ComputeStyleMode) const;
     static RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_ascending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, bool inclusive);
     static RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_descending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, bool inclusive);
     RefPtr<Gfx::FontCascadeList const> font_matching_algorithm(FlyString const& family_name, int weight, int slope, float font_size_in_pt) const;
@@ -198,7 +200,16 @@ private:
 
     void compute_defaulted_property_value(StyleProperties&, DOM::Element const*, CSS::PropertyID, Optional<CSS::Selector::PseudoElement::Type>) const;
 
-    void set_all_properties(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, StyleProperties&, CSSStyleValue const&, DOM::Document&, CSS::CSSStyleDeclaration const*, StyleProperties const& style_for_revert, StyleProperties const& style_for_revert_layer, Important = Important::No) const;
+    void set_all_properties(
+        CascadedProperties&,
+        DOM::Element&,
+        Optional<Selector::PseudoElement::Type>,
+        CSSStyleValue const&,
+        DOM::Document&,
+        GC::Ptr<CSSStyleDeclaration const>,
+        CascadeOrigin,
+        Important,
+        Optional<FlyString> layer_name) const;
 
     template<typename Callback>
     void for_each_stylesheet(CascadeOrigin, Callback) const;
@@ -221,7 +232,14 @@ private:
         Vector<LayerMatchingRules> author_rules;
     };
 
-    void cascade_declarations(StyleProperties&, DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, Vector<MatchingRule> const&, CascadeOrigin, Important, StyleProperties const& style_for_revert, StyleProperties const& style_for_revert_layer) const;
+    void cascade_declarations(
+        CascadedProperties&,
+        DOM::Element&,
+        Optional<CSS::Selector::PseudoElement::Type>,
+        Vector<MatchingRule> const&,
+        CascadeOrigin,
+        Important,
+        Optional<FlyString> layer_name) const;
 
     void build_rule_cache();
     void build_rule_cache_if_needed() const;

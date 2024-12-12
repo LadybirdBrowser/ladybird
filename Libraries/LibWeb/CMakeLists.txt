@@ -70,6 +70,7 @@ set(SOURCES
     CSS/CSSStyleValue.cpp
     CSS/CSSSupportsRule.cpp
     CSS/CSSTransition.cpp
+    CSS/CascadedProperties.cpp
     CSS/Display.cpp
     CSS/EdgeRect.cpp
     CSS/FontFace.cpp

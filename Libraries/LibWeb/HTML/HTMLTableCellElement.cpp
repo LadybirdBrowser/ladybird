@@ -37,46 +37,46 @@ void HTMLTableCellElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLTableCellElement);
 }
 
-void HTMLTableCellElement::apply_presentational_hints(CSS::StyleProperties& style) const
+void HTMLTableCellElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
     for_each_attribute([&](auto& name, auto& value) {
         if (name == HTML::AttributeNames::bgcolor) {
             // https://html.spec.whatwg.org/multipage/rendering.html#tables-2:rules-for-parsing-a-legacy-colour-value
             auto color = parse_legacy_color_value(value);
             if (color.has_value())
-                style.set_property(CSS::PropertyID::BackgroundColor, CSS::CSSColorValue::create_from_color(color.value()));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundColor, CSS::CSSColorValue::create_from_color(color.value()));
             return;
         }
         if (name == HTML::AttributeNames::valign) {
             if (auto parsed_value = parse_css_value(CSS::Parser::ParsingContext { document() }, value, CSS::PropertyID::VerticalAlign))
-                style.set_property(CSS::PropertyID::VerticalAlign, parsed_value.release_nonnull());
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::VerticalAlign, parsed_value.release_nonnull());
             return;
         }
         if (name == HTML::AttributeNames::align) {
             if (value.equals_ignoring_ascii_case("center"sv) || value.equals_ignoring_ascii_case("middle"sv)) {
-                style.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::LibwebCenter));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::LibwebCenter));
             } else if (value.equals_ignoring_ascii_case("left"sv)) {
-                style.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::LibwebLeft));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::LibwebLeft));
             } else if (value.equals_ignoring_ascii_case("right"sv)) {
-                style.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::LibwebRight));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::LibwebRight));
             } else {
                 if (auto parsed_value = parse_css_value(CSS::Parser::ParsingContext { document() }, value, CSS::PropertyID::TextAlign))
-                    style.set_property(CSS::PropertyID::TextAlign, parsed_value.release_nonnull());
+                    cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, parsed_value.release_nonnull());
             }
             return;
         }
         if (name == HTML::AttributeNames::width) {
             if (auto parsed_value = parse_nonzero_dimension_value(value))
-                style.set_property(CSS::PropertyID::Width, parsed_value.release_nonnull());
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Width, parsed_value.release_nonnull());
             return;
         } else if (name == HTML::AttributeNames::height) {
             if (auto parsed_value = parse_nonzero_dimension_value(value))
-                style.set_property(CSS::PropertyID::Height, parsed_value.release_nonnull());
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Height, parsed_value.release_nonnull());
             return;
         } else if (name == HTML::AttributeNames::background) {
             // https://html.spec.whatwg.org/multipage/rendering.html#tables-2:encoding-parsing-and-serializing-a-url
             if (auto parsed_value = document().encoding_parse_url(value); parsed_value.is_valid())
-                style.set_property(CSS::PropertyID::BackgroundImage, CSS::ImageStyleValue::create(parsed_value));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundImage, CSS::ImageStyleValue::create(parsed_value));
             return;
         }
     });
@@ -86,10 +86,10 @@ void HTMLTableCellElement::apply_presentational_hints(CSS::StyleProperties& styl
         return;
 
     if (auto padding = table_element->padding()) {
-        style.set_property(CSS::PropertyID::PaddingTop, CSS::LengthStyleValue::create(CSS::Length::make_px(padding)));
-        style.set_property(CSS::PropertyID::PaddingBottom, CSS::LengthStyleValue::create(CSS::Length::make_px(padding)));
-        style.set_property(CSS::PropertyID::PaddingLeft, CSS::LengthStyleValue::create(CSS::Length::make_px(padding)));
-        style.set_property(CSS::PropertyID::PaddingRight, CSS::LengthStyleValue::create(CSS::Length::make_px(padding)));
+        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::PaddingTop, CSS::LengthStyleValue::create(CSS::Length::make_px(padding)));
+        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::PaddingBottom, CSS::LengthStyleValue::create(CSS::Length::make_px(padding)));
+        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::PaddingLeft, CSS::LengthStyleValue::create(CSS::Length::make_px(padding)));
+        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::PaddingRight, CSS::LengthStyleValue::create(CSS::Length::make_px(padding)));
     }
 
     auto border = table_element->border();
@@ -97,9 +97,9 @@ void HTMLTableCellElement::apply_presentational_hints(CSS::StyleProperties& styl
     if (!border)
         return;
     auto apply_border_style = [&](CSS::PropertyID style_property, CSS::PropertyID width_property, CSS::PropertyID color_property) {
-        style.set_property(style_property, CSS::CSSKeywordValue::create(CSS::Keyword::Inset));
-        style.set_property(width_property, CSS::LengthStyleValue::create(CSS::Length::make_px(1)));
-        style.set_property(color_property, table_element->computed_css_values()->property(color_property));
+        cascaded_properties->set_property_from_presentational_hint(style_property, CSS::CSSKeywordValue::create(CSS::Keyword::Inset));
+        cascaded_properties->set_property_from_presentational_hint(width_property, CSS::LengthStyleValue::create(CSS::Length::make_px(1)));
+        cascaded_properties->set_property_from_presentational_hint(color_property, table_element->computed_css_values()->property(color_property));
     };
     apply_border_style(CSS::PropertyID::BorderLeftStyle, CSS::PropertyID::BorderLeftWidth, CSS::PropertyID::BorderLeftColor);
     apply_border_style(CSS::PropertyID::BorderTopStyle, CSS::PropertyID::BorderTopWidth, CSS::PropertyID::BorderTopColor);

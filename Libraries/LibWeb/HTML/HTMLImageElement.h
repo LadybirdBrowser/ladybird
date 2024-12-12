@@ -121,7 +121,7 @@ private:
 
     virtual void adopted_from(DOM::Document&) override;
 
-    virtual void apply_presentational_hints(CSS::StyleProperties&) const override;
+    virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
 
     // https://html.spec.whatwg.org/multipage/embedded-content.html#the-img-element:dimension-attributes
     virtual bool supports_dimension_attributes() const override { return true; }

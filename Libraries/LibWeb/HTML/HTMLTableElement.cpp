@@ -51,44 +51,44 @@ static unsigned parse_border(StringView value)
     return value.to_number<unsigned>().value_or(0);
 }
 
-void HTMLTableElement::apply_presentational_hints(CSS::StyleProperties& style) const
+void HTMLTableElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
     for_each_attribute([&](auto& name, auto& value) {
         if (name == HTML::AttributeNames::width) {
             if (auto parsed_value = parse_nonzero_dimension_value(value))
-                style.set_property(CSS::PropertyID::Width, parsed_value.release_nonnull());
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Width, parsed_value.release_nonnull());
             return;
         }
         if (name == HTML::AttributeNames::height) {
             if (auto parsed_value = parse_dimension_value(value))
-                style.set_property(CSS::PropertyID::Height, parsed_value.release_nonnull());
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Height, parsed_value.release_nonnull());
             return;
         }
         if (name == HTML::AttributeNames::align) {
             if (value.equals_ignoring_ascii_case("center"sv)) {
-                style.set_property(CSS::PropertyID::MarginLeft, CSS::CSSKeywordValue::create(CSS::Keyword::Auto));
-                style.set_property(CSS::PropertyID::MarginRight, CSS::CSSKeywordValue::create(CSS::Keyword::Auto));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginLeft, CSS::CSSKeywordValue::create(CSS::Keyword::Auto));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginRight, CSS::CSSKeywordValue::create(CSS::Keyword::Auto));
             } else if (auto parsed_value = parse_css_value(CSS::Parser::ParsingContext { document() }, value, CSS::PropertyID::Float)) {
-                style.set_property(CSS::PropertyID::Float, parsed_value.release_nonnull());
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Float, parsed_value.release_nonnull());
             }
             return;
         }
         if (name == HTML::AttributeNames::background) {
             // https://html.spec.whatwg.org/multipage/rendering.html#tables-2:encoding-parsing-and-serializing-a-url
             if (auto parsed_value = document().encoding_parse_url(value); parsed_value.is_valid())
-                style.set_property(CSS::PropertyID::BackgroundImage, CSS::ImageStyleValue::create(parsed_value));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundImage, CSS::ImageStyleValue::create(parsed_value));
             return;
         }
         if (name == HTML::AttributeNames::bgcolor) {
             // https://html.spec.whatwg.org/multipage/rendering.html#tables-2:rules-for-parsing-a-legacy-colour-value
             auto color = parse_legacy_color_value(value);
             if (color.has_value())
-                style.set_property(CSS::PropertyID::BackgroundColor, CSS::CSSColorValue::create_from_color(color.value()));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundColor, CSS::CSSColorValue::create_from_color(color.value()));
             return;
         }
         if (name == HTML::AttributeNames::cellspacing) {
             if (auto parsed_value = parse_dimension_value(value))
-                style.set_property(CSS::PropertyID::BorderSpacing, parsed_value.release_nonnull());
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderSpacing, parsed_value.release_nonnull());
             return;
         }
         if (name == HTML::AttributeNames::border) {
@@ -97,9 +97,9 @@ void HTMLTableElement::apply_presentational_hints(CSS::StyleProperties& style) c
                 return;
             auto apply_border_style = [&](CSS::PropertyID style_property, CSS::PropertyID width_property, CSS::PropertyID color_property) {
                 auto legacy_line_style = CSS::CSSKeywordValue::create(CSS::Keyword::Outset);
-                style.set_property(style_property, legacy_line_style);
-                style.set_property(width_property, CSS::LengthStyleValue::create(CSS::Length::make_px(border)));
-                style.set_property(color_property, CSS::CSSColorValue::create_from_color(Color(128, 128, 128)));
+                cascaded_properties->set_property_from_presentational_hint(style_property, legacy_line_style);
+                cascaded_properties->set_property_from_presentational_hint(width_property, CSS::LengthStyleValue::create(CSS::Length::make_px(border)));
+                cascaded_properties->set_property_from_presentational_hint(color_property, CSS::CSSColorValue::create_from_color(Color(128, 128, 128)));
             };
             apply_border_style(CSS::PropertyID::BorderLeftStyle, CSS::PropertyID::BorderLeftWidth, CSS::PropertyID::BorderLeftColor);
             apply_border_style(CSS::PropertyID::BorderTopStyle, CSS::PropertyID::BorderTopWidth, CSS::PropertyID::BorderTopColor);

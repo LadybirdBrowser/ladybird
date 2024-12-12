@@ -18,7 +18,7 @@ class SVGCircleElement final : public SVGGeometryElement {
 public:
     virtual ~SVGCircleElement() override = default;
 
-    virtual void apply_presentational_hints(CSS::StyleProperties&) const override;
+    virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
 
     virtual Gfx::Path get_path(CSSPixelSize viewport_size) override;
 

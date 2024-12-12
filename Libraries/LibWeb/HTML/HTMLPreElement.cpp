@@ -28,13 +28,13 @@ void HTMLPreElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLPreElement);
 }
 
-void HTMLPreElement::apply_presentational_hints(CSS::StyleProperties& style) const
+void HTMLPreElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
-    HTMLElement::apply_presentational_hints(style);
+    HTMLElement::apply_presentational_hints(cascaded_properties);
 
     for_each_attribute([&](auto const& name, auto const&) {
         if (name.equals_ignoring_ascii_case(HTML::AttributeNames::wrap))
-            style.set_property(CSS::PropertyID::WhiteSpace, CSS::CSSKeywordValue::create(CSS::Keyword::PreWrap));
+            cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::WhiteSpace, CSS::CSSKeywordValue::create(CSS::Keyword::PreWrap));
     });
 }
 

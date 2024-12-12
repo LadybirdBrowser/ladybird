@@ -887,64 +887,47 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     set_longhand_property(property_id, value);
 }
 
-void StyleComputer::set_property_expanding_shorthands(StyleProperties& style, PropertyID property_id, CSSStyleValue const& value, CSSStyleDeclaration const* declaration, StyleProperties const& style_for_revert, StyleProperties const& style_for_revert_layer, Important important)
+void StyleComputer::set_property_expanding_shorthands(
+    CascadedProperties& cascaded_properties,
+    PropertyID property_id,
+    CSSStyleValue const& value,
+    GC::Ptr<CSSStyleDeclaration const> declaration,
+    CascadeOrigin cascade_origin,
+    Important important,
+    Optional<FlyString> layer_name)
 {
-    auto revert_shorthand = [&](PropertyID shorthand_id, StyleProperties const& style_for_revert) {
-        auto previous_value = style_for_revert.m_data->m_property_values[to_underlying(shorthand_id)];
-        if (!previous_value)
-            previous_value = CSSKeywordValue::create(Keyword::Initial);
-
-        style.set_property(shorthand_id, *previous_value, StyleProperties::Inherited::No, important);
-        if (shorthand_id == CSS::PropertyID::AnimationName)
-            style.set_animation_name_source(style_for_revert.animation_name_source());
-        if (shorthand_id == CSS::PropertyID::TransitionProperty)
-            style.set_transition_property_source(style_for_revert.transition_property_source());
-    };
-
-    for_each_property_expanding_shorthands(property_id, value, AllowUnresolved::No, [&](PropertyID shorthand_id, CSSStyleValue const& shorthand_value) {
-        if (shorthand_value.is_revert()) {
-            revert_shorthand(shorthand_id, style_for_revert);
-        } else if (shorthand_value.is_revert_layer()) {
-            revert_shorthand(shorthand_id, style_for_revert_layer);
+    for_each_property_expanding_shorthands(property_id, value, AllowUnresolved::No, [&](PropertyID longhand_id, CSSStyleValue const& longhand_value) {
+        if (longhand_value.is_revert()) {
+            cascaded_properties.revert_property(longhand_id, important, cascade_origin);
+        } else if (longhand_value.is_revert_layer()) {
+            cascaded_properties.revert_layer_property(longhand_id, important, layer_name);
         } else {
-            style.set_property(shorthand_id, shorthand_value, StyleProperties::Inherited::No, important);
-            if (shorthand_id == CSS::PropertyID::AnimationName)
-                style.set_animation_name_source(declaration);
-            if (shorthand_id == CSS::PropertyID::TransitionProperty)
-                style.set_transition_property_source(declaration);
+            cascaded_properties.set_property(longhand_id, longhand_value, important, cascade_origin, layer_name, declaration);
         }
     });
 }
 
-void StyleComputer::set_all_properties(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, StyleProperties& style, CSSStyleValue const& value, DOM::Document& document, CSS::CSSStyleDeclaration const* declaration, StyleProperties const& style_for_revert, StyleProperties const& style_for_revert_layer, Important important) const
+void StyleComputer::set_all_properties(
+    CascadedProperties& cascaded_properties,
+    DOM::Element& element,
+    Optional<Selector::PseudoElement::Type> pseudo_element,
+    CSSStyleValue const& value,
+    DOM::Document& document,
+    GC::Ptr<CSSStyleDeclaration const> declaration,
+    CascadeOrigin cascade_origin,
+    Important important,
+    Optional<FlyString> layer_name) const
 {
     for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
         auto property_id = (CSS::PropertyID)i;
 
         if (value.is_revert()) {
-            style.revert_property(property_id, style_for_revert);
+            cascaded_properties.revert_property(property_id, important, cascade_origin);
             continue;
         }
 
         if (value.is_revert_layer()) {
-            style.revert_property(property_id, style_for_revert_layer);
-            continue;
-        }
-
-        if (value.is_unset()) {
-            if (is_inherited_property(property_id)) {
-                style.set_property(
-                    property_id,
-                    get_inherit_value(property_id, &element, pseudo_element),
-                    StyleProperties::Inherited::Yes,
-                    important);
-            } else {
-                style.set_property(
-                    property_id,
-                    property_initial_value(property_id),
-                    StyleProperties::Inherited::No,
-                    important);
-            }
+            cascaded_properties.revert_layer_property(property_id, important, layer_name);
             continue;
         }
 
@@ -952,15 +935,20 @@ void StyleComputer::set_all_properties(DOM::Element& element, Optional<CSS::Sele
         if (property_value->is_unresolved())
             property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingContext { document }, element, pseudo_element, property_id, property_value->as_unresolved());
         if (!property_value->is_unresolved())
-            set_property_expanding_shorthands(style, property_id, property_value, declaration, style_for_revert, style_for_revert_layer);
+            set_property_expanding_shorthands(cascaded_properties, property_id, property_value, declaration, cascade_origin, important, layer_name);
 
-        style.set_property_important(property_id, important);
-
-        set_property_expanding_shorthands(style, property_id, value, declaration, style_for_revert, style_for_revert_layer, important);
+        set_property_expanding_shorthands(cascaded_properties, property_id, value, declaration, cascade_origin, important, layer_name);
     }
 }
 
-void StyleComputer::cascade_declarations(StyleProperties& style, DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, Vector<MatchingRule> const& matching_rules, CascadeOrigin cascade_origin, Important important, StyleProperties const& style_for_revert, StyleProperties const& style_for_revert_layer) const
+void StyleComputer::cascade_declarations(
+    CascadedProperties& cascaded_properties,
+    DOM::Element& element,
+    Optional<CSS::Selector::PseudoElement::Type> pseudo_element,
+    Vector<MatchingRule> const& matching_rules,
+    CascadeOrigin cascade_origin,
+    Important important,
+    Optional<FlyString> layer_name) const
 {
     for (auto const& match : matching_rules) {
         for (auto const& property : match.declaration().properties()) {
@@ -968,7 +956,7 @@ void StyleComputer::cascade_declarations(StyleProperties& style, DOM::Element& e
                 continue;
 
             if (property.property_id == CSS::PropertyID::All) {
-                set_all_properties(element, pseudo_element, style, property.value, m_document, &match.declaration(), style_for_revert, style_for_revert_layer, important);
+                set_all_properties(cascaded_properties, element, pseudo_element, property.value, m_document, &match.declaration(), cascade_origin, important, layer_name);
                 continue;
             }
 
@@ -976,7 +964,7 @@ void StyleComputer::cascade_declarations(StyleProperties& style, DOM::Element& e
             if (property.value->is_unresolved())
                 property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingContext { document() }, element, pseudo_element, property.property_id, property.value->as_unresolved());
             if (!property_value->is_unresolved())
-                set_property_expanding_shorthands(style, property.property_id, property_value, &match.declaration(), style_for_revert, style_for_revert_layer, important);
+                set_property_expanding_shorthands(cascaded_properties, property.property_id, property_value, &match.declaration(), cascade_origin, important, layer_name);
         }
     }
 
@@ -987,7 +975,7 @@ void StyleComputer::cascade_declarations(StyleProperties& style, DOM::Element& e
                     continue;
 
                 if (property.property_id == CSS::PropertyID::All) {
-                    set_all_properties(element, pseudo_element, style, property.value, m_document, inline_style, style_for_revert, style_for_revert_layer, important);
+                    set_all_properties(cascaded_properties, element, pseudo_element, property.value, m_document, inline_style, cascade_origin, important, layer_name);
                     continue;
                 }
 
@@ -995,7 +983,7 @@ void StyleComputer::cascade_declarations(StyleProperties& style, DOM::Element& e
                 if (property.value->is_unresolved())
                     property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingContext { document() }, element, pseudo_element, property.property_id, property.value->as_unresolved());
                 if (!property_value->is_unresolved())
-                    set_property_expanding_shorthands(style, property.property_id, property_value, inline_style, style_for_revert, style_for_revert_layer, important);
+                    set_property_expanding_shorthands(cascaded_properties, property.property_id, property_value, inline_style, cascade_origin, important, layer_name);
             }
         }
     }
@@ -1087,9 +1075,11 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
                 [&](Animations::KeyframeEffect::KeyFrameSet::UseInitial) -> RefPtr<CSSStyleValue const> {
                     if (refresh == AnimationRefresh::Yes)
                         return {};
-                    return style_properties.maybe_null_property(it.key);
+                    return style_properties.property(it.key);
                 },
                 [&](RefPtr<CSSStyleValue const> value) -> RefPtr<CSSStyleValue const> {
+                    if (value->is_revert() || value->is_revert_layer())
+                        return style_properties.property(it.key);
                     if (value->is_unresolved())
                         return Parser::Parser::resolve_unresolved_style_value(Parser::ParsingContext { element.document() }, element, pseudo_element, it.key, value->as_unresolved());
                     return value;
@@ -1133,12 +1123,12 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
     }
 }
 
-static void apply_animation_properties(DOM::Document& document, StyleProperties& style, Animations::Animation& animation)
+static void apply_animation_properties(DOM::Document& document, CascadedProperties& cascaded_properties, Animations::Animation& animation)
 {
     auto& effect = verify_cast<Animations::KeyframeEffect>(*animation.effect());
 
     Optional<CSS::Time> duration;
-    if (auto duration_value = style.maybe_null_property(PropertyID::AnimationDuration); duration_value) {
+    if (auto duration_value = cascaded_properties.property(PropertyID::AnimationDuration); duration_value) {
         if (duration_value->is_time()) {
             duration = duration_value->as_time().time();
         } else if (duration_value->is_keyword() && duration_value->as_keyword().keyword() == Keyword::Auto) {
@@ -1148,11 +1138,11 @@ static void apply_animation_properties(DOM::Document& document, StyleProperties&
     }
 
     CSS::Time delay { 0, CSS::Time::Type::S };
-    if (auto delay_value = style.maybe_null_property(PropertyID::AnimationDelay); delay_value && delay_value->is_time())
+    if (auto delay_value = cascaded_properties.property(PropertyID::AnimationDelay); delay_value && delay_value->is_time())
         delay = delay_value->as_time().time();
 
     double iteration_count = 1.0;
-    if (auto iteration_count_value = style.maybe_null_property(PropertyID::AnimationIterationCount); iteration_count_value) {
+    if (auto iteration_count_value = cascaded_properties.property(PropertyID::AnimationIterationCount); iteration_count_value) {
         if (iteration_count_value->is_keyword() && iteration_count_value->to_keyword() == Keyword::Infinite)
             iteration_count = HUGE_VAL;
         else if (iteration_count_value->is_number())
@@ -1160,25 +1150,25 @@ static void apply_animation_properties(DOM::Document& document, StyleProperties&
     }
 
     CSS::AnimationFillMode fill_mode { CSS::AnimationFillMode::None };
-    if (auto fill_mode_property = style.maybe_null_property(PropertyID::AnimationFillMode); fill_mode_property && fill_mode_property->is_keyword()) {
+    if (auto fill_mode_property = cascaded_properties.property(PropertyID::AnimationFillMode); fill_mode_property && fill_mode_property->is_keyword()) {
         if (auto fill_mode_value = keyword_to_animation_fill_mode(fill_mode_property->to_keyword()); fill_mode_value.has_value())
             fill_mode = *fill_mode_value;
     }
 
     CSS::AnimationDirection direction { CSS::AnimationDirection::Normal };
-    if (auto direction_property = style.maybe_null_property(PropertyID::AnimationDirection); direction_property && direction_property->is_keyword()) {
+    if (auto direction_property = cascaded_properties.property(PropertyID::AnimationDirection); direction_property && direction_property->is_keyword()) {
         if (auto direction_value = keyword_to_animation_direction(direction_property->to_keyword()); direction_value.has_value())
             direction = *direction_value;
     }
 
     CSS::AnimationPlayState play_state { CSS::AnimationPlayState::Running };
-    if (auto play_state_property = style.maybe_null_property(PropertyID::AnimationPlayState); play_state_property && play_state_property->is_keyword()) {
+    if (auto play_state_property = cascaded_properties.property(PropertyID::AnimationPlayState); play_state_property && play_state_property->is_keyword()) {
         if (auto play_state_value = keyword_to_animation_play_state(play_state_property->to_keyword()); play_state_value.has_value())
             play_state = *play_state_value;
     }
 
     CSS::EasingStyleValue::Function timing_function { CSS::EasingStyleValue::CubicBezier::ease() };
-    if (auto timing_property = style.maybe_null_property(PropertyID::AnimationTimingFunction); timing_property && timing_property->is_easing())
+    if (auto timing_property = cascaded_properties.property(PropertyID::AnimationTimingFunction); timing_property && timing_property->is_easing())
         timing_function = timing_property->as_easing().function();
 
     auto iteration_duration = duration.has_value()
@@ -1204,7 +1194,7 @@ static void apply_animation_properties(DOM::Document& document, StyleProperties&
     }
 }
 
-static void apply_dimension_attribute(StyleProperties& style, DOM::Element const& element, FlyString const& attribute_name, CSS::PropertyID property_id)
+static void apply_dimension_attribute(CascadedProperties& cascaded_properties, DOM::Element const& element, FlyString const& attribute_name, CSS::PropertyID property_id)
 {
     auto attribute = element.attribute(attribute_name);
     if (!attribute.has_value())
@@ -1214,7 +1204,7 @@ static void apply_dimension_attribute(StyleProperties& style, DOM::Element const
     if (!parsed_value)
         return;
 
-    style.set_property(property_id, parsed_value.release_nonnull());
+    cascaded_properties.set_property_from_presentational_hint(property_id, parsed_value.release_nonnull());
 }
 
 static void compute_transitioned_properties(StyleProperties const& style, DOM::Element& element, Optional<Selector::PseudoElement::Type> pseudo_element)
@@ -1495,8 +1485,10 @@ void StyleComputer::start_needed_transitions(StyleProperties const& previous_sty
 
 // https://www.w3.org/TR/css-cascade/#cascading
 // https://drafts.csswg.org/css-cascade-5/#layering
-void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, bool& did_match_any_pseudo_element_rules, ComputeStyleMode mode) const
+GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, bool& did_match_any_pseudo_element_rules, ComputeStyleMode mode) const
 {
+    auto cascaded_properties = m_document->heap().allocate<CascadedProperties>();
+
     // First, we collect all the CSS rules whose selectors match `element`:
     MatchingRuleSet matching_rule_set;
     matching_rule_set.user_agent_rules = collect_matching_rules(element, CascadeOrigin::UserAgent, pseudo_element);
@@ -1518,7 +1510,7 @@ void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element
         VERIFY(pseudo_element.has_value());
         if (matching_rule_set.author_rules.is_empty() && matching_rule_set.user_rules.is_empty() && matching_rule_set.user_agent_rules.is_empty()) {
             did_match_any_pseudo_element_rules = false;
-            return;
+            return cascaded_properties;
         }
         did_match_any_pseudo_element_rules = true;
     }
@@ -1535,14 +1527,10 @@ void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element
     // Then we apply the declarations from the matched rules in cascade order:
 
     // Normal user agent declarations
-    auto previous_origin_style = style;
-    auto previous_layer_style = style;
-    cascade_declarations(style, element, pseudo_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::No, previous_origin_style, previous_layer_style);
+    cascade_declarations(*cascaded_properties, element, pseudo_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::No, {});
 
     // Normal user declarations
-    previous_origin_style = style;
-    previous_layer_style = style;
-    cascade_declarations(style, element, pseudo_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::No, previous_origin_style, previous_layer_style);
+    cascade_declarations(*cascaded_properties, element, pseudo_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::No, {});
 
     // Author presentational hints
     // The spec calls this a special "Author presentational hint origin":
@@ -1550,119 +1538,40 @@ void StyleComputer::compute_cascaded_values(StyleProperties& style, DOM::Element
     // however for the purpose of the revert keyword (but not for the revert-layer keyword) it is considered
     // part of the author origin."
     // https://drafts.csswg.org/css-cascade-5/#author-presentational-hint-origin
-    previous_origin_style = style;
     if (!pseudo_element.has_value()) {
-        element.apply_presentational_hints(style);
-
+        element.apply_presentational_hints(cascaded_properties);
         if (element.supports_dimension_attributes()) {
-            apply_dimension_attribute(style, element, HTML::AttributeNames::width, CSS::PropertyID::Width);
-            apply_dimension_attribute(style, element, HTML::AttributeNames::height, CSS::PropertyID::Height);
+            apply_dimension_attribute(cascaded_properties, element, HTML::AttributeNames::width, CSS::PropertyID::Width);
+            apply_dimension_attribute(cascaded_properties, element, HTML::AttributeNames::height, CSS::PropertyID::Height);
         }
 
         // SVG presentation attributes are parsed as CSS values, so we need to handle potential custom properties here.
         if (element.is_svg_element()) {
-            // FIXME: This is not very efficient, we should only resolve the custom properties that are actually used.
-            for (auto i = to_underlying(CSS::first_property_id); i <= to_underlying(CSS::last_property_id); ++i) {
-                auto property_id = (CSS::PropertyID)i;
-                auto& property = style.m_data->m_property_values[i];
-                if (property && property->is_unresolved())
-                    property = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingContext { document() }, element, pseudo_element, property_id, property->as_unresolved());
-            }
+            cascaded_properties->resolve_unresolved_properties(element, pseudo_element);
         }
     }
 
     // Normal author declarations, ordered by @layer, with un-@layer-ed rules last
     for (auto const& layer : matching_rule_set.author_rules) {
-        previous_layer_style = style;
-        cascade_declarations(style, element, pseudo_element, layer.rules, CascadeOrigin::Author, Important::No, previous_origin_style, previous_layer_style);
-    }
-
-    // Animation declarations [css-animations-2]
-    auto animation_name = [&]() -> Optional<String> {
-        auto const* animation_name = style.maybe_null_property(PropertyID::AnimationName);
-        if (!animation_name)
-            return OptionalNone {};
-        if (animation_name->is_string())
-            return animation_name->as_string().string_value().to_string();
-        return animation_name->to_string(CSSStyleValue::SerializationMode::Normal);
-    }();
-
-    if (animation_name.has_value()) {
-        if (auto source_declaration = style.animation_name_source()) {
-            auto& realm = element.realm();
-
-            if (source_declaration != element.cached_animation_name_source(pseudo_element)) {
-                // This animation name is new, so we need to create a new animation for it.
-                if (auto existing_animation = element.cached_animation_name_animation(pseudo_element))
-                    existing_animation->cancel(Animations::Animation::ShouldInvalidate::No);
-                element.set_cached_animation_name_source(source_declaration, pseudo_element);
-
-                auto effect = Animations::KeyframeEffect::create(realm);
-                auto animation = CSSAnimation::create(realm);
-                animation->set_id(animation_name.release_value());
-                animation->set_timeline(m_document->timeline());
-                animation->set_owning_element(element);
-                animation->set_effect(effect);
-                apply_animation_properties(m_document, style, animation);
-                if (pseudo_element.has_value())
-                    effect->set_pseudo_element(Selector::PseudoElement { pseudo_element.value() });
-
-                auto const& rule_cache = rule_cache_for_cascade_origin(CascadeOrigin::Author);
-                if (auto keyframe_set = rule_cache.rules_by_animation_keyframes.get(animation->id()); keyframe_set.has_value())
-                    effect->set_key_frame_set(keyframe_set.value());
-
-                effect->set_target(&element);
-                element.set_cached_animation_name_animation(animation, pseudo_element);
-
-                HTML::TemporaryExecutionContext context(realm);
-                animation->play().release_value_but_fixme_should_propagate_errors();
-            } else {
-                // The animation hasn't changed, but some properties of the animation may have
-                apply_animation_properties(m_document, style, *element.cached_animation_name_animation(pseudo_element));
-            }
-        }
-    } else {
-        // If the element had an existing animation, cancel it
-        if (auto existing_animation = element.cached_animation_name_animation(pseudo_element)) {
-            existing_animation->cancel(Animations::Animation::ShouldInvalidate::No);
-            element.set_cached_animation_name_animation({}, pseudo_element);
-            element.set_cached_animation_name_source({}, pseudo_element);
-        }
-    }
-
-    auto animations = element.get_animations_internal(Animations::GetAnimationsOptions { .subtree = false });
-    if (animations.is_exception()) {
-        dbgln("Error getting animations for element {}", element.debug_description());
-    } else {
-        for (auto& animation : animations.value()) {
-            if (auto effect = animation->effect(); effect && effect->is_keyframe_effect()) {
-                auto& keyframe_effect = *static_cast<Animations::KeyframeEffect*>(effect.ptr());
-                if (keyframe_effect.pseudo_element_type() == pseudo_element)
-                    collect_animation_into(element, pseudo_element, keyframe_effect, style);
-            }
-        }
+        cascade_declarations(cascaded_properties, element, pseudo_element, layer.rules, CascadeOrigin::Author, Important::No, layer.qualified_layer_name);
     }
 
     // Important author declarations, with un-@layer-ed rules first, followed by each @layer in reverse order.
-    previous_origin_style = style;
     for (auto const& layer : matching_rule_set.author_rules.in_reverse()) {
-        previous_layer_style = style;
-        cascade_declarations(style, element, pseudo_element, layer.rules, CascadeOrigin::Author, Important::Yes, previous_origin_style, previous_layer_style);
+        cascade_declarations(cascaded_properties, element, pseudo_element, layer.rules, CascadeOrigin::Author, Important::Yes, {});
     }
 
     // Important user declarations
-    previous_origin_style = style;
-    previous_layer_style = style;
-    cascade_declarations(style, element, pseudo_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::Yes, previous_origin_style, previous_layer_style);
+    cascade_declarations(cascaded_properties, element, pseudo_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::Yes, {});
 
     // Important user agent declarations
-    previous_origin_style = style;
-    previous_layer_style = style;
-    cascade_declarations(style, element, pseudo_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::Yes, previous_origin_style, previous_layer_style);
+    cascade_declarations(cascaded_properties, element, pseudo_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::Yes, {});
 
     // Transition declarations [css-transitions-1]
     // Note that we have to do these after finishing computing the style,
     // so they're not done here, but as the final step in compute_style_impl()
+
+    return cascaded_properties;
 }
 
 DOM::Element const* element_to_inherit_style_from(DOM::Element const* element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element)
@@ -2377,10 +2286,11 @@ Optional<StyleProperties> StyleComputer::compute_style_impl(DOM::Element& elemen
 
     ScopeGuard guard { [&element]() { element.set_needs_style_update(false); } };
 
-    StyleProperties style = {};
     // 1. Perform the cascade. This produces the "specified style"
     bool did_match_any_pseudo_element_rules = false;
-    compute_cascaded_values(style, element, pseudo_element, did_match_any_pseudo_element_rules, mode);
+    auto cascaded_properties = compute_cascaded_values(element, pseudo_element, did_match_any_pseudo_element_rules, mode);
+
+    element.set_cascaded_properties(pseudo_element, cascaded_properties);
 
     if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {
         // NOTE: If we're computing style for a pseudo-element, we look for a number of reasons to bail early.
@@ -2393,7 +2303,7 @@ Optional<StyleProperties> StyleComputer::compute_style_impl(DOM::Element& elemen
         // - content: none
         // - content: normal (for ::before and ::after)
         bool content_is_normal = false;
-        if (auto content_value = style.maybe_null_property(CSS::PropertyID::Content)) {
+        if (auto content_value = cascaded_properties->property(CSS::PropertyID::Content)) {
             if (content_value->is_keyword()) {
                 auto content = content_value->as_keyword().keyword();
                 if (content == CSS::Keyword::None)
@@ -2411,35 +2321,140 @@ Optional<StyleProperties> StyleComputer::compute_style_impl(DOM::Element& elemen
         }
     }
 
+    return compute_properties(element, pseudo_element, cascaded_properties);
+}
+
+StyleProperties StyleComputer::compute_properties(DOM::Element& element, Optional<Selector::PseudoElement::Type> pseudo_element, CascadedProperties& cascaded_properties) const
+{
+    StyleProperties computed_style;
+
+    for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
+        auto property_id = static_cast<CSS::PropertyID>(i);
+        auto value = cascaded_properties.property(property_id);
+        if ((!value && is_inherited_property(property_id))
+            || (value && value->is_inherit())) {
+            if (auto inheritance_parent = element_to_inherit_style_from(&element, pseudo_element)) {
+                value = inheritance_parent->computed_css_values()->property(property_id);
+            } else {
+                value = property_initial_value(property_id);
+            }
+        }
+
+        if (!value || value->is_initial())
+            value = property_initial_value(property_id);
+
+        if (value->is_unset()) {
+            if (is_inherited_property(property_id))
+                value = CSSKeywordValue::create(Keyword::Inherit);
+            else
+                value = CSSKeywordValue::create(Keyword::Initial);
+        }
+
+        computed_style.set_property(property_id, value.release_nonnull());
+
+        if (property_id == PropertyID::AnimationName) {
+            computed_style.set_animation_name_source(cascaded_properties.property_source(property_id));
+        }
+        if (property_id == PropertyID::TransitionProperty) {
+            computed_style.set_transition_property_source(cascaded_properties.property_source(property_id));
+        }
+    }
+
+    // Animation declarations [css-animations-2]
+    auto animation_name = [&]() -> Optional<String> {
+        auto const animation_name = computed_style.maybe_null_property(PropertyID::AnimationName);
+        if (!animation_name)
+            return OptionalNone {};
+        if (animation_name->is_string())
+            return animation_name->as_string().string_value().to_string();
+        return animation_name->to_string(CSSStyleValue::SerializationMode::Normal);
+    }();
+
+    if (animation_name.has_value()) {
+        if (auto source_declaration = computed_style.animation_name_source()) {
+            auto& realm = element.realm();
+
+            if (source_declaration != element.cached_animation_name_source(pseudo_element)) {
+                // This animation name is new, so we need to create a new animation for it.
+                if (auto existing_animation = element.cached_animation_name_animation(pseudo_element))
+                    existing_animation->cancel(Animations::Animation::ShouldInvalidate::No);
+                element.set_cached_animation_name_source(source_declaration, pseudo_element);
+
+                auto effect = Animations::KeyframeEffect::create(realm);
+                auto animation = CSSAnimation::create(realm);
+                animation->set_id(animation_name.release_value());
+                animation->set_timeline(m_document->timeline());
+                animation->set_owning_element(element);
+                animation->set_effect(effect);
+                apply_animation_properties(m_document, cascaded_properties, animation);
+                if (pseudo_element.has_value())
+                    effect->set_pseudo_element(Selector::PseudoElement { pseudo_element.value() });
+
+                auto const& rule_cache = rule_cache_for_cascade_origin(CascadeOrigin::Author);
+                if (auto keyframe_set = rule_cache.rules_by_animation_keyframes.get(animation->id()); keyframe_set.has_value())
+                    effect->set_key_frame_set(keyframe_set.value());
+
+                effect->set_target(&element);
+                element.set_cached_animation_name_animation(animation, pseudo_element);
+
+                HTML::TemporaryExecutionContext context(realm);
+                animation->play().release_value_but_fixme_should_propagate_errors();
+            } else {
+                // The animation hasn't changed, but some properties of the animation may have
+                apply_animation_properties(m_document, cascaded_properties, *element.cached_animation_name_animation(pseudo_element));
+            }
+        }
+    } else {
+        // If the element had an existing animation, cancel it
+        if (auto existing_animation = element.cached_animation_name_animation(pseudo_element)) {
+            existing_animation->cancel(Animations::Animation::ShouldInvalidate::No);
+            element.set_cached_animation_name_animation({}, pseudo_element);
+            element.set_cached_animation_name_source({}, pseudo_element);
+        }
+    }
+
+    auto animations = element.get_animations_internal(Animations::GetAnimationsOptions { .subtree = false });
+    if (animations.is_exception()) {
+        dbgln("Error getting animations for element {}", element.debug_description());
+    } else {
+        for (auto& animation : animations.value()) {
+            if (auto effect = animation->effect(); effect && effect->is_keyframe_effect()) {
+                auto& keyframe_effect = *static_cast<Animations::KeyframeEffect*>(effect.ptr());
+                if (keyframe_effect.pseudo_element_type() == pseudo_element)
+                    collect_animation_into(element, pseudo_element, keyframe_effect, computed_style);
+            }
+        }
+    }
+
     // 2. Compute the math-depth property, since that might affect the font-size
-    compute_math_depth(style, &element, pseudo_element);
+    compute_math_depth(computed_style, &element, pseudo_element);
 
     // 3. Compute the font, since that may be needed for font-relative CSS units
-    compute_font(style, &element, pseudo_element);
+    compute_font(computed_style, &element, pseudo_element);
 
     // 4. Absolutize values, turning font/viewport relative lengths into absolute lengths
-    absolutize_values(style);
+    absolutize_values(computed_style);
 
     // 5. Default the values, applying inheritance and 'initial' as needed
-    compute_defaulted_values(style, &element, pseudo_element);
+    compute_defaulted_values(computed_style, &element, pseudo_element);
 
     // 6. Run automatic box type transformations
-    transform_box_type_if_needed(style, element, pseudo_element);
+    transform_box_type_if_needed(computed_style, element, pseudo_element);
 
     // 7. Resolve effective overflow values
-    resolve_effective_overflow_values(style);
+    resolve_effective_overflow_values(computed_style);
 
     // 8. Let the element adjust computed style
-    element.adjust_computed_style(style);
+    element.adjust_computed_style(computed_style);
 
     // 9. Transition declarations [css-transitions-1]
     // Theoretically this should be part of the cascade, but it works with computed values, which we don't have until now.
-    compute_transitioned_properties(style, element, pseudo_element);
+    compute_transitioned_properties(computed_style, element, pseudo_element);
     if (auto previous_style = element.computed_css_values(); previous_style.has_value()) {
-        start_needed_transitions(*previous_style, style, element, pseudo_element);
+        start_needed_transitions(*previous_style, computed_style, element, pseudo_element);
     }
 
-    return style;
+    return computed_style;
 }
 
 void StyleComputer::build_rule_cache_if_needed() const
