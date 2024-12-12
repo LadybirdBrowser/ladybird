@@ -8,7 +8,7 @@ on: [pull_request_target]
 jobs:
   lint:
     runs-on: ubuntu-24.04
-    if: always() && github.repository == 'LadybirdBrowser/ladybird'
+    if: github.repository == 'LadybirdBrowser/ladybird'
 
     steps:
       - name: Lint PR commits
