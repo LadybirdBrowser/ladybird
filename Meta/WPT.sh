@@ -72,6 +72,8 @@ print_help() {
           Run the Web Platform Tests in the 'css' and 'dom' directories and save the output to expectations.log.
       $NAME run --log-wptreport expectations.json --log-wptscreenshot expectations.db css dom
           Run the Web Platform Tests in the 'css' and 'dom' directories; save the output in wptreport format to expectations.json and save screenshots to expectations.db.
+      $NAME run --debug-process WebContent http://wpt.live/dom/historical.html
+          Run the 'dom/historical.html' test, attaching the debugger to the WebContent process when the browser is launched.
       $NAME compare expectations.log
           Run all of the Web Platform Tests comparing the results to the expectations in before.log.
       $NAME compare --log results.log expectations.log css/CSS2
@@ -109,10 +111,15 @@ set_logging_flags()
 
 headless=1
 ARG=$1
-while [[ "$ARG" =~ ^(--show-window|(--log(-(raw|unittest|xunit|html|mach|tbpl|grouped|chromium|wptreport|wptscreenshot))?))$ ]]; do
+while [[ "$ARG" =~ ^(--show-window|--debug-process|(--log(-(raw|unittest|xunit|html|mach|tbpl|grouped|chromium|wptreport|wptscreenshot))?))$ ]]; do
     case "$ARG" in
         --show-window)
             headless=0
+            ;;
+        --debug-process)
+            process_name="${2}"
+            shift
+            WPT_ARGS+=( "--webdriver-arg=--debug-process=${process_name}" )
             ;;
         --log)
             set_logging_flags "--log-raw" "${2}"
