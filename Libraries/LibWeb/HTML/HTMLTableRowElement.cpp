@@ -39,25 +39,25 @@ void HTMLTableRowElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLTableRowElement);
 }
 
-void HTMLTableRowElement::apply_presentational_hints(CSS::StyleProperties& style) const
+void HTMLTableRowElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
-    Base::apply_presentational_hints(style);
+    Base::apply_presentational_hints(cascaded_properties);
     for_each_attribute([&](auto& name, auto& value) {
         if (name == HTML::AttributeNames::bgcolor) {
             // https://html.spec.whatwg.org/multipage/rendering.html#tables-2:rules-for-parsing-a-legacy-colour-value
             auto color = parse_legacy_color_value(value);
             if (color.has_value())
-                style.set_property(CSS::PropertyID::BackgroundColor, CSS::CSSColorValue::create_from_color(color.value()));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundColor, CSS::CSSColorValue::create_from_color(color.value()));
         } else if (name == HTML::AttributeNames::background) {
             // https://html.spec.whatwg.org/multipage/rendering.html#tables-2:encoding-parsing-and-serializing-a-url
             if (auto parsed_value = document().encoding_parse_url(value); parsed_value.is_valid())
-                style.set_property(CSS::PropertyID::BackgroundImage, CSS::ImageStyleValue::create(parsed_value));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundImage, CSS::ImageStyleValue::create(parsed_value));
         } else if (name == HTML::AttributeNames::height) {
             if (auto parsed_value = parse_dimension_value(value))
-                style.set_property(CSS::PropertyID::Height, *parsed_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Height, *parsed_value);
         } else if (name == HTML::AttributeNames::valign) {
             if (auto parsed_value = parse_css_value(CSS::Parser::ParsingContext { document() }, value, CSS::PropertyID::VerticalAlign))
-                style.set_property(CSS::PropertyID::VerticalAlign, parsed_value.release_nonnull());
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::VerticalAlign, parsed_value.release_nonnull());
         }
     });
 }

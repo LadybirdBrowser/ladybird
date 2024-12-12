@@ -40,13 +40,13 @@ void SVGSymbolElement::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://svgwg.org/svg2-draft/struct.html#SymbolNotes
-void SVGSymbolElement::apply_presentational_hints(CSS::StyleProperties& style) const
+void SVGSymbolElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
-    Base::apply_presentational_hints(style);
+    Base::apply_presentational_hints(cascaded_properties);
 
     if (is_direct_child_of_use_shadow_tree()) {
         // The generated instance of a ‘symbol’ that is the direct referenced element of a ‘use’ element must always have a computed value of inline for the display property.
-        style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::Inline)));
+        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::Inline)));
     }
 }
 

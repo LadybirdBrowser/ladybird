@@ -101,8 +101,10 @@ void Element::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_class_list);
     visitor.visit(m_shadow_root);
     visitor.visit(m_custom_element_definition);
+    visitor.visit(m_cascaded_properties);
     if (m_pseudo_element_data) {
         for (auto& pseudo_element : *m_pseudo_element_data) {
+            visitor.visit(pseudo_element.cascaded_properties);
             visitor.visit(pseudo_element.layout_node);
         }
     }
@@ -2271,6 +2273,28 @@ bool Element::has_attributes() const
 size_t Element::attribute_list_size() const
 {
     return m_attributes->length();
+}
+
+GC::Ptr<CSS::CascadedProperties> Element::cascaded_properties(Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+{
+    if (pseudo_element.has_value()) {
+        auto pseudo_element_data = get_pseudo_element(pseudo_element.value());
+        if (pseudo_element_data.has_value())
+            return pseudo_element_data->cascaded_properties;
+        return nullptr;
+    }
+    return m_cascaded_properties;
+}
+
+void Element::set_cascaded_properties(Optional<CSS::Selector::PseudoElement::Type> pseudo_element, GC::Ptr<CSS::CascadedProperties> cascaded_properties)
+{
+    if (pseudo_element.has_value()) {
+        if (pseudo_element.value() >= CSS::Selector::PseudoElement::Type::KnownPseudoElementCount)
+            return;
+        ensure_pseudo_element(pseudo_element.value()).cascaded_properties = cascaded_properties;
+    } else {
+        m_cascaded_properties = cascaded_properties;
+    }
 }
 
 void Element::set_computed_css_values(Optional<CSS::StyleProperties> style)

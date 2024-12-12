@@ -79,26 +79,26 @@ RefPtr<CSS::CSSStyleValue> SVGSVGElement::height_style_value_from_attribute() co
     return nullptr;
 }
 
-void SVGSVGElement::apply_presentational_hints(CSS::StyleProperties& style) const
+void SVGSVGElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
-    Base::apply_presentational_hints(style);
+    Base::apply_presentational_hints(cascaded_properties);
     auto parsing_context = CSS::Parser::ParsingContext { document(), CSS::Parser::ParsingContext::Mode::SVGPresentationAttribute };
 
     auto x_attribute = attribute(SVG::AttributeNames::x);
     if (auto x_value = parse_css_value(parsing_context, x_attribute.value_or(String {}), CSS::PropertyID::X)) {
-        style.set_property(CSS::PropertyID::X, x_value.release_nonnull());
+        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::X, x_value.release_nonnull());
     }
 
     auto y_attribute = attribute(SVG::AttributeNames::y);
     if (auto y_value = parse_css_value(parsing_context, y_attribute.value_or(String {}), CSS::PropertyID::Y)) {
-        style.set_property(CSS::PropertyID::Y, y_value.release_nonnull());
+        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Y, y_value.release_nonnull());
     }
 
     if (auto width = width_style_value_from_attribute())
-        style.set_property(CSS::PropertyID::Width, width.release_nonnull());
+        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Width, width.release_nonnull());
 
     if (auto height = height_style_value_from_attribute())
-        style.set_property(CSS::PropertyID::Height, height.release_nonnull());
+        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Height, height.release_nonnull());
 }
 
 void SVGSVGElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
