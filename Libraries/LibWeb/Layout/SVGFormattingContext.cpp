@@ -18,6 +18,7 @@
 #include <LibWeb/Layout/SVGGeometryBox.h>
 #include <LibWeb/Layout/SVGImageBox.h>
 #include <LibWeb/Layout/SVGMaskBox.h>
+#include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/SVG/SVGAElement.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGForeignObjectElement.h>
@@ -176,8 +177,39 @@ void SVGFormattingContext::run(AvailableSpace const& available_space)
     // NOTE: SVG doesn't have a "formatting context" in the spec, but this is the most
     //       obvious way to drive SVG layout in our engine at the moment.
 
+    auto const& active_document = this->context_box()               // the [context] box
+                                      .root()                       // ...of the [root] viewport
+                                      .document()                   // ...of the document
+                                      .page()                       // ...on the page
+                                      .top_level_browsing_context() // ...in the browser
+                                      .active_document();           // the active document (in the browser)
+
+    bool is_standalone_svg_document = (active_document != nullptr)
+        && !active_document->is_initial_about_blank();
+    // NOTE: Given that somehow we have already made it to an SVGFormattingContext
+    //       The fact that the browser's active document [...] was initially about:blank can only mean
+    //       that we are laying out an SVG fragment of another document.
+    //       Rephrase: "We are not laying out a standalone SVG document"
+    //       Current browser behavior seems to guarantee initial about:blank for layout of SVG fragments.
+    // FIXME: Find another way to determine whether we're laying out a standalone SVG document.
+    //        Relying on top_level_browsing_context.active_document may lead to unpredictable results:
+    //        the user may open another document (possibly about:blank) while the current document
+    //        is still being rendered.
+
     auto& svg_viewport = dynamic_cast<SVG::SVGViewport const&>(*context_box().dom_node());
     auto& svg_box_state = m_state.get_mutable(context_box());
+
+    if (is_standalone_svg_document) {
+        // Overwrite the content width/height with the styled node width/height (from <svg width height ...>)
+
+        // NOTE: If a height had not been provided by the svg element, it was set to the height of the container
+        //       (see BlockFormattingContext::layout_viewport)
+        if (svg_box_state.node().computed_values().width().is_length())
+            svg_box_state.set_content_width(svg_box_state.node().computed_values().width().length().to_px(svg_box_state.node()));
+        if (svg_box_state.node().computed_values().height().is_length())
+            svg_box_state.set_content_height(svg_box_state.node().computed_values().height().length().to_px(svg_box_state.node()));
+        // FIXME: In SVG 2, the length can also be a percentage. We'll need to support that.
+    }
 
     // NOTE: We consider all SVG root elements to have definite size in both axes.
     //       I'm not sure if this is good or bad, but our viewport transform logic depends on it.
