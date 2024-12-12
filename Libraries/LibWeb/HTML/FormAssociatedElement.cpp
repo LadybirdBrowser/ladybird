@@ -9,6 +9,7 @@
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/EditingHostManager.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/SelectionchangeEventDispatching.h>
@@ -22,6 +23,7 @@
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/Painting/Paintable.h>
+#include <LibWeb/Selection/Selection.h>
 
 namespace Web::HTML {
 
@@ -691,6 +693,8 @@ void FormAssociatedTextControlElement::select_all()
 
 void FormAssociatedTextControlElement::set_selection_anchor(GC::Ref<DOM::Node> anchor_node, size_t anchor_offset)
 {
+    auto editing_host_manager = form_associated_element_to_html_element().document().editing_host_manager();
+    editing_host_manager->set_selection_anchor(anchor_node, anchor_offset);
     auto text_node = form_associated_element_to_text_node();
     if (!text_node || anchor_node != text_node)
         return;
@@ -700,6 +704,8 @@ void FormAssociatedTextControlElement::set_selection_anchor(GC::Ref<DOM::Node> a
 
 void FormAssociatedTextControlElement::set_selection_focus(GC::Ref<DOM::Node> focus_node, size_t focus_offset)
 {
+    auto editing_host_manager = form_associated_element_to_html_element().document().editing_host_manager();
+    editing_host_manager->set_selection_focus(focus_node, focus_offset);
     auto text_node = form_associated_element_to_text_node();
     if (!text_node || focus_node != text_node)
         return;
