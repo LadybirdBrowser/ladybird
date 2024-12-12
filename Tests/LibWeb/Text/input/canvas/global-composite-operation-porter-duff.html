@@ -1,0 +1,47 @@
+<script src="../include.js"></script>
+<script>
+    function colorStr(d) {
+        // Give some margin of error
+        const r = d[0] - d[0] % 5;
+        const g = d[1] - d[1] % 5;
+        const b = d[2] - d[2] % 5;
+        return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    test(() => {
+        const operations = [
+            "clear", "copy", "source-over", "destination-over",
+            "source-in", "destination-in", "source-out", "destination-out",
+            "source-atop", "destination-atop", "xor", "lighter"
+        ];
+
+
+        for (operation of operations) {
+            const canvas = document.createElement("canvas");
+            canvas.width = 100;
+            canvas.height = 100;
+            let ctx = canvas.getContext("2d");
+
+            // Destination
+            ctx.globalCompositeOperation = "source-over";
+            ctx.fillStyle = '#ffdc017f';
+            ctx.fillRect(0, 0, 75, 75);
+
+            // Source
+            ctx.globalCompositeOperation = operation;
+            ctx.fillStyle = '#68c7e87f';
+            ctx.fillRect(25, 25, 75, 75);
+
+            const dst = ctx.getImageData(0, 0, 1, 1).data;
+            const src = ctx.getImageData(99, 99, 1, 1).data;
+            const combined = ctx.getImageData(49, 49, 1, 1).data;
+
+            println(`${operation}: Destination: ${colorStr(dst)}`);
+            println(`${operation}: Source: ${colorStr(src)}`);
+            println(`${operation}: Combined: ${colorStr(combined)}`);
+
+            document.body.appendChild(canvas);
+        }
+    })
+</script>
+<body></body>
