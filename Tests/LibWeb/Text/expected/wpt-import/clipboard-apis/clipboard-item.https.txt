@@ -1,0 +1,34 @@
+Harness status: OK
+
+Found 28 tests
+
+17 Pass
+11 Fail
+Fail	ClipboardItem({string, Blob}) succeeds with different types
+Pass	ClipboardItem() succeeds with empty options
+Pass	ClipboardItem({}) fails with empty dictionary input
+Pass	ClipboardItem(Blob) fails
+Pass	ClipboardItem() fails with null input
+Pass	ClipboardItem() fails with no input
+Fail	types() returns correct values
+Fail	getType(DOMString valid type) succeeds with correct output
+Fail	getType(DOMString invalid type) succeeds with correct output
+Fail	getType(DOMString type) rejects correctly when querying for missing type
+Fail	getType(DOMString valid type) converts DOMString to Blob
+Fail	getType(DOMString invalid type) converts DOMString to Blob
+Pass	supports(text/plain) returns true
+Pass	supports(text/html) returns true
+Pass	supports(image/png) returns true
+Fail	supports(text/uri-list) returns true
+Fail	supports(image/svg+xml) returns true
+Fail	supports(web foo/bar) returns true
+Fail	supports(web text/html) returns true
+Pass	supports(web ) returns false
+Pass	supports(web) returns false
+Pass	supports(web foo) returns false
+Pass	supports(foo/bar) returns false
+Pass	supports(weB text/html) returns false
+Pass	supports( web text/html) returns false
+Pass	supports(not a/real type) returns false
+Pass	supports() returns false
+Pass	supports( ) returns false
