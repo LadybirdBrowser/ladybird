@@ -159,7 +159,7 @@ OwnPtr<CalculationNode> Parser::parse_math_function(PropertyID property_id, Func
             function_generator.set("type_check", generate_calculation_type_check("argument_type"sv, parameter_type_string));
             function_generator.append(R"~~~(
             if (!(@type_check@)) {
-                dbgln_if(CSS_PARSER_DEBUG, "@name:lowercase@() argument #{} type ({}) is not an accepted type", parsed_arguments.size(), MUST(argument_type.dump()));
+                dbgln_if(CSS_PARSER_DEBUG, "@name:lowercase@() argument #{} type ({}) is not an accepted type", parsed_arguments.size(), argument_type.dump());
                 return nullptr;
             }
 
@@ -167,7 +167,7 @@ OwnPtr<CalculationNode> Parser::parse_math_function(PropertyID property_id, Func
                 determined_argument_type = move(argument_type);
             } else {
                 if (determined_argument_type != argument_type) {
-                    dbgln_if(CSS_PARSER_DEBUG, "@name:lowercase@() argument #{} type ({}) doesn't match type of previous arguments ({})", parsed_arguments.size(), MUST(argument_type.dump()), MUST(determined_argument_type.dump()));
+                    dbgln_if(CSS_PARSER_DEBUG, "@name:lowercase@() argument #{} type ({}) doesn't match type of previous arguments ({})", parsed_arguments.size(), argument_type.dump(), determined_argument_type.dump());
                     return nullptr;
                 }
             }
@@ -287,7 +287,7 @@ OwnPtr<CalculationNode> Parser::parse_math_function(PropertyID property_id, Func
         auto argument_type_@parameter_index@ = maybe_argument_type_@parameter_index@.release_value();
 
         if (!(@type_check@)) {
-            dbgln_if(CSS_PARSER_DEBUG, "@name:lowercase@() argument '@parameter_name@' type ({}) is not an accepted type", MUST(argument_type_@parameter_index@.dump()));
+            dbgln_if(CSS_PARSER_DEBUG, "@name:lowercase@() argument '@parameter_name@' type ({}) is not an accepted type", argument_type_@parameter_index@.dump());
             return nullptr;
         }
 )~~~");
@@ -297,7 +297,7 @@ OwnPtr<CalculationNode> Parser::parse_math_function(PropertyID property_id, Func
                     if (previous_parameter_type_string == parameter_type_string) {
                         parameter_generator.append(R"~~~(
         if (argument_type_@parameter_index@ != previous_argument_type) {
-            dbgln_if(CSS_PARSER_DEBUG, "@name:lowercase@() argument '@parameter_name@' type ({}) doesn't match type of previous arguments ({})", MUST(argument_type_@parameter_index@.dump()), MUST(previous_argument_type.dump()));
+            dbgln_if(CSS_PARSER_DEBUG, "@name:lowercase@() argument '@parameter_name@' type ({}) doesn't match type of previous arguments ({})", argument_type_@parameter_index@.dump(), previous_argument_type.dump());
             return nullptr;
         }
 )~~~");
