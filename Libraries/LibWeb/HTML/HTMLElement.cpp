@@ -1023,13 +1023,13 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
     event_init.new_state = "open"_string;
     event_init.cancelable = true;
     if (!dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::beforetoggle, move(event_init)))) {
-        cleanup_showing_flag->function()();
+        cleanup_showing_flag();
         return {};
     }
 
     // 9. If the result of running check popover validity given element, false, throwExceptions, and document is false, then run cleanupShowingFlag and return.
     if (!TRY(check_popover_validity(ExpectedToBeShowing::No, throw_exceptions, nullptr))) {
-        cleanup_showing_flag->function()();
+        cleanup_showing_flag();
         return {};
     }
 
@@ -1137,7 +1137,7 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement, FireEv
 
         // 10.3. If the result of running check popover validity given element, true, throwExceptions, and null is false, then run cleanupSteps and return.
         if (!TRY(check_popover_validity(ExpectedToBeShowing::Yes, throw_exceptions, nullptr))) {
-            cleanup_steps->function()();
+            cleanup_steps();
             return {};
         }
         // 10.4. Request an element to be removed from the top layer given element.
