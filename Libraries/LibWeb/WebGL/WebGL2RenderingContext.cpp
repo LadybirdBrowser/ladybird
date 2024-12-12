@@ -145,14 +145,26 @@ void WebGL2RenderingContext::allocate_painting_surface_if_needed()
     context().allocate_painting_surface_if_needed();
 }
 
-Optional<Vector<String>> WebGL2RenderingContext::get_supported_extensions() const
+Optional<Vector<String>> WebGL2RenderingContext::get_supported_extensions()
 {
-    return {};
+    return context().get_supported_extensions();
 }
 
 JS::Object* WebGL2RenderingContext::get_extension(String const&)
 {
     return nullptr;
+}
+
+WebIDL::Long WebGL2RenderingContext::drawing_buffer_width() const
+{
+    auto size = canvas_for_binding()->bitmap_size_for_canvas();
+    return size.width();
+}
+
+WebIDL::Long WebGL2RenderingContext::drawing_buffer_height() const
+{
+    auto size = canvas_for_binding()->bitmap_size_for_canvas();
+    return size.height();
 }
 
 }

@@ -306,7 +306,7 @@ interface mixin WebGL2RenderingContextBase {
     [FIXME] undefined renderbufferStorageMultisample(GLenum target, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height);
 
     // Texture objects
-    [FIXME] undefined texStorage2D(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height);
+    undefined texStorage2D(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height);
     [FIXME] undefined texStorage3D(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth);
 
     [FIXME] undefined texImage3D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, GLintptr pboOffset);
@@ -314,7 +314,7 @@ interface mixin WebGL2RenderingContextBase {
     // May throw DOMException
     [FIXME] undefined texImage3D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, TexImageSource source);
 
-    [FIXME] undefined texImage3D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, [AllowShared] ArrayBufferView? srcData);
+    undefined texImage3D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, [AllowShared] ArrayBufferView? srcData);
     [FIXME] undefined texImage3D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, [AllowShared] ArrayBufferView srcData, unsigned long long srcOffset);
 
     [FIXME] undefined texSubImage3D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, GLintptr pboOffset);
@@ -368,7 +368,7 @@ interface mixin WebGL2RenderingContextBase {
     [FIXME] undefined drawRangeElements(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, GLintptr offset);
 
     // Multiple Render Targets
-    [FIXME] undefined drawBuffers(sequence<GLenum> buffers);
+    undefined drawBuffers(sequence<GLenum> buffers);
 
     [FIXME] undefined clearBufferfv(GLenum buffer, GLint drawbuffer, Float32List values, optional unsigned long long srcOffset = 0);
     [FIXME] undefined clearBufferiv(GLenum buffer, GLint drawbuffer, Int32List values,  optional unsigned long long srcOffset = 0);

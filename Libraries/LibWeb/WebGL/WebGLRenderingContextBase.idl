@@ -32,8 +32,8 @@ interface mixin WebGLRenderingContextBase {
 
     // FIXME: The type should be (HTMLCanvasElement or OffscreenCanvas).
     [ImplementedAs=canvas_for_binding] readonly attribute HTMLCanvasElement canvas;
-    [FIXME] readonly attribute GLsizei drawingBufferWidth;
-    [FIXME] readonly attribute GLsizei drawingBufferHeight;
+    readonly attribute GLsizei drawingBufferWidth;
+    readonly attribute GLsizei drawingBufferHeight;
     [FIXME] readonly attribute GLenum drawingBufferFormat;
 
     [FIXME] attribute PredefinedColorSpace drawingBufferColorSpace;
@@ -182,10 +182,10 @@ interface mixin WebGLRenderingContextBase {
     undefined vertexAttrib3f(GLuint index, GLfloat x, GLfloat y, GLfloat z);
     undefined vertexAttrib4f(GLuint index, GLfloat x, GLfloat y, GLfloat z, GLfloat w);
 
-    [FIXME] undefined vertexAttrib1fv(GLuint index, Float32List values);
-    [FIXME] undefined vertexAttrib2fv(GLuint index, Float32List values);
-    [FIXME] undefined vertexAttrib3fv(GLuint index, Float32List values);
-    [FIXME] undefined vertexAttrib4fv(GLuint index, Float32List values);
+    undefined vertexAttrib1fv(GLuint index, Float32List values);
+    undefined vertexAttrib2fv(GLuint index, Float32List values);
+    undefined vertexAttrib3fv(GLuint index, Float32List values);
+    undefined vertexAttrib4fv(GLuint index, Float32List values);
 
     undefined vertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, GLintptr offset);
 

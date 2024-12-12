@@ -326,7 +326,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     SourceGenerator implementation_file_generator { implementation_file_string_builder };
     implementation_file_generator.set("class_name", class_name);
 
-    auto webgl_version = class_name == "WebGLRenderingContext" ? 1 : 2;
+    auto webgl_version = class_name == "WebGLRenderingContextImpl" ? 1 : 2;
     if (webgl_version == 1) {
         implementation_file_generator.append(R"~~~(
 #include <GLES2/gl2.h>
@@ -527,6 +527,13 @@ public:
             continue;
         }
 
+        if (function.name == "texStorage2D") {
+            function_impl_generator.append(R"~~~(
+    glTexStorage2D(target, levels, internalformat, width, height);
+)~~~");
+            continue;
+        }
+
         if (function.name == "texImage2D"sv && function.overload_index == 0) {
             function_impl_generator.append(R"~~~(
     void const* pixels_ptr = nullptr;
@@ -536,6 +543,25 @@ public:
         pixels_ptr = byte_buffer.data();
     }
     glTexImage2D(target, level, internalformat, width, height, border, format, type, pixels_ptr);
+)~~~");
+            continue;
+        }
+
+        if (function.name == "texImage3D"sv) {
+            // FIXME: If a WebGLBuffer is bound to the PIXEL_UNPACK_BUFFER target, generates an INVALID_OPERATION error.
+            // FIXME: If srcData is null, a buffer of sufficient size initialized to 0 is passed.
+            // FIXME: If type is specified as FLOAT_32_UNSIGNED_INT_24_8_REV, srcData must be null; otherwise, generates an INVALID_OPERATION error.
+            // FIXME: If srcData is non-null, the type of srcData must match the type according to the above table; otherwise, generate an INVALID_OPERATION error.
+            // FIXME: If an attempt is made to call this function with no WebGLTexture bound (see above), generates an INVALID_OPERATION error.
+            // FIXME: If there's not enough data in srcData starting at srcOffset, generate INVALID_OPERATION.
+            function_impl_generator.append(R"~~~(
+    void const* src_data_ptr = nullptr;
+    if (src_data) {
+        auto const& viewed_array_buffer = src_data->viewed_array_buffer();
+        auto const& byte_buffer = viewed_array_buffer->buffer();
+        src_data_ptr = byte_buffer.data();
+    }
+    glTexImage3D(target, level, internalformat, width, height, depth, border, format, type, src_data_ptr);
 )~~~");
             continue;
         }
@@ -621,10 +647,39 @@ public:
             continue;
         }
 
+        if (function.name == "readPixels"sv) {
+            function_impl_generator.append(R"~~~(
+    if (!pixels) {
+        return;
+    }
+
+    void *ptr = nullptr;
+    if (pixels->is_data_view()) {
+        auto& data_view = static_cast<JS::DataView&>(*pixels->raw_object());
+        ptr = data_view.viewed_array_buffer()->buffer().data();
+    } else if (pixels->is_typed_array_base()) {
+        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*pixels->raw_object());
+        ptr = typed_array_base.viewed_array_buffer()->buffer().data();
+    } else {
+        VERIFY_NOT_REACHED();
+    }
+
+    glReadPixels(x, y, width, height, format, type, ptr);
+)~~~");
+            continue;
+        }
+
         if (function.name == "drawElements"sv) {
             function_impl_generator.append(R"~~~(
     glDrawElements(mode, count, type, reinterpret_cast<void*>(offset));
     needs_to_present();
+)~~~");
+            continue;
+        }
+
+        if (function.name == "drawBuffers"sv) {
+            function_impl_generator.append(R"~~~(
+    glDrawBuffers(buffers.size(), buffers.data());
 )~~~");
             continue;
         }
@@ -649,40 +704,70 @@ public:
             continue;
         }
 
-        if (function.name == "uniform1fv"sv || function.name == "uniform2fv"sv || function.name == "uniform3fv"sv || function.name == "uniform4fv"sv) {
-            auto number_of_matrix_elements = function.name.substring_view(7, 1);
-            function_impl_generator.set("number_of_matrix_elements", number_of_matrix_elements);
+        if (function.name == "uniform1fv"sv || function.name == "uniform2fv"sv || function.name == "uniform3fv"sv || function.name == "uniform4fv"sv || function.name == "uniform1iv"sv || function.name == "uniform2iv"sv || function.name == "uniform3iv"sv || function.name == "uniform4iv"sv) {
+            auto number_of_vector_elements = function.name.substring_view(7, 1);
+            auto element_type = function.name.substring_view(8, 1);
+            if (element_type == "f"sv) {
+                function_impl_generator.set("cpp_element_type", "float"sv);
+                function_impl_generator.set("typed_array_type", "Float32Array"sv);
+                function_impl_generator.set("gl_postfix", "f"sv);
+            } else if (element_type == "i"sv) {
+                function_impl_generator.set("cpp_element_type", "int"sv);
+                function_impl_generator.set("typed_array_type", "Int32Array"sv);
+                function_impl_generator.set("gl_postfix", "i"sv);
+            } else {
+                VERIFY_NOT_REACHED();
+            }
+            function_impl_generator.set("number_of_vector_elements", number_of_vector_elements);
             function_impl_generator.append(R"~~~(
-    if (v.has<Vector<float>>()) {
-        auto& data = v.get<Vector<float>>();
-        glUniform@number_of_matrix_elements@fv(location->handle(), data.size() / @number_of_matrix_elements@, data.data());
-        return;
+    @cpp_element_type@ const* data = nullptr;
+    size_t count = 0;
+    if (v.has<Vector<@cpp_element_type@>>()) {
+        auto& vector = v.get<Vector<@cpp_element_type@>>();
+        data = vector.data();
+        count = vector.size();
+    } else if (v.has<GC::Root<WebIDL::BufferSource>>()) {
+        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*v.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
+        auto& typed_array = verify_cast<JS::@typed_array_type@>(typed_array_base);
+        data = typed_array.data().data();
+        count = typed_array.array_length().length();
+    } else {
+        VERIFY_NOT_REACHED();
+    }
+)~~~");
+
+            // FIXME: If srcOffset + srcLength is longer than data.length, generate INVALID_VALUE.
+            if (webgl_version == 2) {
+                function_impl_generator.append(R"~~~(
+    data += src_offset;
+    if (src_length == 0) {
+        count -= src_offset;
     }
 
-    auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*v.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-    auto& float32_array = verify_cast<JS::Float32Array>(typed_array_base);
-    float const* data = float32_array.data().data();
-    auto count = float32_array.array_length().length() / @number_of_matrix_elements@;
-    glUniform@number_of_matrix_elements@fv(location->handle(), count, data);
+    VERIFY(src_offset + src_length <= count);
+)~~~");
+            }
+
+            function_impl_generator.append(R"~~~(
+    glUniform@number_of_vector_elements@@gl_postfix@v(location->handle(), count / @number_of_vector_elements@, data);
 )~~~");
             continue;
         }
 
-        if (function.name == "uniform1iv"sv || function.name == "uniform2iv"sv || function.name == "uniform3iv"sv || function.name == "uniform4iv"sv) {
-            auto number_of_matrix_elements = function.name.substring_view(7, 1);
-            function_impl_generator.set("number_of_matrix_elements", number_of_matrix_elements);
+        if (function.name == "vertexAttrib1fv"sv || function.name == "vertexAttrib2fv"sv || function.name == "vertexAttrib3fv"sv || function.name == "vertexAttrib4fv"sv) {
+            auto number_of_vector_elements = function.name.substring_view(12, 1);
+            function_impl_generator.set("number_of_vector_elements", number_of_vector_elements);
             function_impl_generator.append(R"~~~(
-    if (v.has<Vector<int>>()) {
-        auto& data = v.get<Vector<int>>();
-        glUniform@number_of_matrix_elements@iv(location->handle(), data.size() / @number_of_matrix_elements@, data.data());
+    if (values.has<Vector<float>>()) {
+        auto& data = values.get<Vector<float>>();
+        glVertexAttrib@number_of_vector_elements@fv(index, data.data());
         return;
     }
 
-    auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*v.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-    auto& int32_array = verify_cast<JS::Int32Array>(typed_array_base);
-    int const* data = int32_array.data().data();
-    auto count = int32_array.array_length().length() / @number_of_matrix_elements@;
-    glUniform@number_of_matrix_elements@iv(location->handle(), count, data);
+    auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*values.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
+    auto& float32_array = verify_cast<JS::Float32Array>(typed_array_base);
+    float const* data = float32_array.data().data();
+    glVertexAttrib@number_of_vector_elements@fv(index, data);
 )~~~");
             continue;
         }

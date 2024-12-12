@@ -9,9 +9,6 @@ typedef (ImageBitmap or
          // FIXME: VideoFrame
          ) TexImageSource;
 
-// FIXME: BufferSource should be a Float32Array
-typedef (BufferSource or sequence<GLfloat>) Float32List;
-
 // FIXME: BufferSource should be a Int32Array
 typedef (BufferSource or sequence<GLint>) Int32List;
 
@@ -25,7 +22,7 @@ interface mixin WebGLRenderingContextOverloads {
     [FIXME] undefined compressedTexImage2D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, [AllowShared] ArrayBufferView data);
     [FIXME] undefined compressedTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, [AllowShared] ArrayBufferView data);
 
-    [FIXME] undefined readPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, [AllowShared] ArrayBufferView? pixels);
+    undefined readPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, [AllowShared] ArrayBufferView? pixels);
 
     undefined texImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, [AllowShared] ArrayBufferView? pixels);
     undefined texImage2D(GLenum target, GLint level, GLint internalformat, GLenum format, GLenum type, TexImageSource source); // May throw DOMException
