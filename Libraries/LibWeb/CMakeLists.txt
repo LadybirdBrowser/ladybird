@@ -441,6 +441,7 @@ set(SOURCES
     HTML/Numbers.cpp
     HTML/PageTransitionEvent.cpp
     HTML/PolicyContainers.cpp
+    HTML/PopoverInvokerElement.cpp
     HTML/PopStateEvent.cpp
     HTML/Parser/Entities.cpp
     HTML/Parser/HTMLEncodingDetection.cpp
