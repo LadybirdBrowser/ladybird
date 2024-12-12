@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2022, Ali Mohammad Pur <mpfard@serenityos.org>
  * Copyright (c) 2024, Simon Wanner <simon@skyrising.xyz>
+ * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -68,18 +69,25 @@ void TextDecoder::initialize(JS::Realm& realm)
 // https://encoding.spec.whatwg.org/#dom-textdecoder-decode
 WebIDL::ExceptionOr<String> TextDecoder::decode(Optional<GC::Root<WebIDL::BufferSource>> const& input, Optional<TextDecodeOptions> const&) const
 {
+    auto bom_handling = ignore_bom() ? String::WithBOMHandling::No : String::WithBOMHandling::Yes;
+    auto error_mode = fatal() ? TextCodec::Decoder::ErrorMode::Fatal : TextCodec::Decoder::ErrorMode::Replacement;
+
     if (!input.has_value())
-        return TRY_OR_THROW_OOM(vm(), m_decoder.to_utf8({}));
+        return TRY_OR_THROW_OOM(vm(), m_decoder.to_utf8({}, bom_handling, error_mode));
 
     // FIXME: Implement the streaming stuff.
     auto data_buffer_or_error = WebIDL::get_buffer_source_copy(*input.value()->raw_object());
     if (data_buffer_or_error.is_error())
         return WebIDL::OperationError::create(realm(), "Failed to copy bytes from ArrayBuffer"_string);
+
     auto& data_buffer = data_buffer_or_error.value();
-    auto result = TRY_OR_THROW_OOM(vm(), m_decoder.to_utf8({ data_buffer.data(), data_buffer.size() }));
-    if (this->fatal() && result.contains(0xfffd))
+    auto result = m_decoder.to_utf8({ data_buffer.data(), data_buffer.size() }, bom_handling, error_mode);
+
+    if (result.is_error() && fatal())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Decoding failed"sv };
-    return result;
+
+    VERIFY(!result.is_error());
+    return result.release_value();
 }
 
 }

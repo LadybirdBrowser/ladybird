@@ -3,6 +3,7 @@
  * Copyright (c) 2022, Jelle Raaijmakers <jelle@ladybird.org>
  * Copyright (c) 2023, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2024, Simon Wanner <simon@skyrising.xyz>
+ * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -316,7 +317,7 @@ ErrorOr<String> convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte
 
     // 3. Process a queue with an instance of encoding’s decoder, ioQueue, output, and "replacement".
     // FIXME: This isn't the exact same as the spec, which is written in terms of I/O queues.
-    auto output = TRY(actual_decoder->to_utf8(input));
+    auto output = TRY(actual_decoder->to_utf8(input, String::WithBOMHandling::Yes, Decoder::ErrorMode::Replacement));
 
     // 4. Return output.
     return output;
@@ -344,7 +345,7 @@ bool Decoder::validate(StringView input)
     return !result.is_error();
 }
 
-ErrorOr<String> Decoder::to_utf8(StringView input)
+ErrorOr<String> Decoder::to_utf8(StringView input, String::WithBOMHandling, ErrorMode)
 {
     StringBuilder builder(input.length());
     TRY(process(input, [&builder](u32 c) { return builder.try_append_code_point(c); }));
@@ -364,9 +365,15 @@ bool UTF8Decoder::validate(StringView input)
     return Utf8View(input).validate();
 }
 
-ErrorOr<String> UTF8Decoder::to_utf8(StringView input)
+ErrorOr<String> UTF8Decoder::to_utf8(StringView input, String::WithBOMHandling with_bom_handling, ErrorMode error_mode)
 {
-    return String::from_utf8_with_replacement_character(input);
+    if (error_mode == ErrorMode::Replacement)
+        return String::from_utf8_with_replacement_character(input, with_bom_handling);
+
+    if (auto bytes = input.bytes(); with_bom_handling == String::WithBOMHandling::Yes && bytes.size() >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+        input = input.substring_view(3);
+
+    return String::from_utf8(input);
 }
 
 static Utf16View as_utf16(StringView view, AK::Endianness endianness)
@@ -390,11 +397,16 @@ bool UTF16BEDecoder::validate(StringView input)
     return as_utf16(input, AK::Endianness::Big).validate();
 }
 
-ErrorOr<String> UTF16BEDecoder::to_utf8(StringView input)
+ErrorOr<String> UTF16BEDecoder::to_utf8(StringView input, String::WithBOMHandling with_bom_handling, ErrorMode error_mode)
 {
+    if (error_mode == ErrorMode::Replacement)
+        return String::from_utf16_with_replacement_character(as_utf16(input, AK::Endianness::Big), with_bom_handling);
+
     // Discard the BOM
-    if (auto bytes = input.bytes(); bytes.size() >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF)
-        input = input.substring_view(2);
+    if (with_bom_handling == String::WithBOMHandling::Yes) {
+        if (auto bytes = input.bytes(); bytes.size() >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF)
+            input = input.substring_view(2);
+    }
 
     return String::from_utf16(as_utf16(input, AK::Endianness::Big));
 }
@@ -412,8 +424,11 @@ bool UTF16LEDecoder::validate(StringView input)
     return as_utf16(input, AK::Endianness::Little).validate();
 }
 
-ErrorOr<String> UTF16LEDecoder::to_utf8(StringView input)
+ErrorOr<String> UTF16LEDecoder::to_utf8(StringView input, String::WithBOMHandling with_bom_handling, ErrorMode error_mode)
 {
+    if (error_mode == ErrorMode::Replacement)
+        return String::from_utf16_with_replacement_character(as_utf16(input, AK::Endianness::Little), with_bom_handling);
+
     // Discard the BOM
     if (auto bytes = input.bytes(); bytes.size() >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE)
         input = input.substring_view(2);
