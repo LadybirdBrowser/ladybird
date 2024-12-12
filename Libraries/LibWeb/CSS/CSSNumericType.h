@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2023-2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -62,6 +62,10 @@ public:
     Optional<CSSNumericType> added_to(CSSNumericType const& other) const;
     Optional<CSSNumericType> multiplied_by(CSSNumericType const& other) const;
     CSSNumericType inverted() const;
+
+    bool has_consistent_type_with(CSSNumericType const& other) const;
+    Optional<CSSNumericType> consistent_type(CSSNumericType const& other) const;
+    Optional<CSSNumericType> made_consistent_with(CSSNumericType const& other) const;
 
     bool matches_angle() const { return matches_dimension(BaseType::Angle); }
     bool matches_angle_percentage() const { return matches_dimension_percentage(BaseType::Angle); }

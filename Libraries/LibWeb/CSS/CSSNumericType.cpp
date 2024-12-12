@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2023-2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -261,6 +261,39 @@ CSSNumericType CSSNumericType::inverted() const
 
     // 3. Return result.
     return result;
+}
+
+// https://drafts.csswg.org/css-values-4/#css-consistent-typec
+bool CSSNumericType::has_consistent_type_with(CSSNumericType const& other) const
+{
+    // Two or more calculations have a consistent type if adding the types doesn’t result in failure.
+    return added_to(other).has_value();
+}
+
+// https://drafts.csswg.org/css-values-4/#css-consistent-typec
+Optional<CSSNumericType> CSSNumericType::consistent_type(CSSNumericType const& other) const
+{
+    // The consistent type is the result of the type addition.
+    return added_to(other);
+}
+
+// https://drafts.csswg.org/css-values-4/#css-make-a-type-consistent
+Optional<CSSNumericType> CSSNumericType::made_consistent_with(CSSNumericType const& input) const
+{
+    auto base = *this;
+
+    // 1. If both base and input have different non-null percent hints, they can’t be made consistent. Return failure.
+    auto base_percent_hint = base.percent_hint();
+    auto input_percent_hint = input.percent_hint();
+    if (base_percent_hint.has_value() && input_percent_hint.has_value() && base_percent_hint != input_percent_hint)
+        return {};
+
+    // 2. If base has a null percent hint set base’s percent hint to input’s percent hint.
+    if (!base_percent_hint.has_value())
+        base.set_percent_hint(input_percent_hint);
+
+    // 3. Return base.
+    return base;
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#apply-the-percent-hint
