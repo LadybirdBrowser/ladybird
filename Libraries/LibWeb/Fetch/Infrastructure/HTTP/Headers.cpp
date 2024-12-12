@@ -58,6 +58,14 @@ Header Header::from_string_pair(StringView name, StringView value)
     };
 }
 
+Header Header::from_latin1_pair(StringView name, StringView value)
+{
+    return Header {
+        .name = MUST(ByteBuffer::copy(name.bytes())),
+        .value = MUST(ByteBuffer::copy(value.bytes())),
+    };
+}
+
 GC::Ref<HeaderList> HeaderList::create(JS::VM& vm)
 {
     return vm.heap().allocate<HeaderList>();
