@@ -26,7 +26,7 @@ interface HTMLInputElement : HTMLElement {
     attribute boolean indeterminate;
     [FIXME] readonly attribute HTMLDataListElement? list;
     [CEReactions, Reflect] attribute DOMString max;
-    [CEReactions] attribute long maxLength;
+    [CEReactions, ReflectNonNegative] attribute long maxLength;
     [CEReactions, Reflect] attribute DOMString min;
     [CEReactions] attribute long minLength;
     [CEReactions, Reflect] attribute boolean multiple;
@@ -36,7 +36,7 @@ interface HTMLInputElement : HTMLElement {
     [CEReactions, Reflect=readonly] attribute boolean readOnly;
     [CEReactions, Reflect] attribute boolean required;
     [CEReactions] attribute unsigned long size;
-    [CEReactions, Reflect, URL] attribute USVString src;
+    [CEReactions, Reflect, ReflectURL] attribute USVString src;
     [CEReactions, Reflect] attribute DOMString step;
     [CEReactions] attribute DOMString type;
     [CEReactions, Reflect=value] attribute DOMString defaultValue;
