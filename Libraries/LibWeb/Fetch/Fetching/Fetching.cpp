@@ -2330,7 +2330,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> nonstandard_resource_loader_file_o
             }
 
             for (auto const& [name, value] : response_headers.headers()) {
-                auto header = Infrastructure::Header::from_string_pair(name, value);
+                auto header = Infrastructure::Header::from_latin1_pair(name, value);
                 response->header_list()->append(move(header));
             }
 
@@ -2396,7 +2396,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> nonstandard_resource_loader_file_o
             response->set_status(status_code.value_or(200));
             response->set_body(move(body));
             for (auto const& [name, value] : response_headers.headers()) {
-                auto header = Infrastructure::Header::from_string_pair(name, value);
+                auto header = Infrastructure::Header::from_latin1_pair(name, value);
                 response->header_list()->append(move(header));
             }
 
@@ -2421,7 +2421,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> nonstandard_resource_loader_file_o
                 auto [body, _] = TRY_OR_IGNORE(extract_body(realm, data));
                 response->set_body(move(body));
                 for (auto const& [name, value] : response_headers.headers()) {
-                    auto header = Infrastructure::Header::from_string_pair(name, value);
+                    auto header = Infrastructure::Header::from_latin1_pair(name, value);
                     response->header_list()->append(move(header));
                 }
 

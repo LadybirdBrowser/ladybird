@@ -12,7 +12,8 @@
                 },
             });
 
-            const blob = await fetch(url).then((response) => response.blob());
+            const headers = await fetch(url).then((response) => response.headers);
+            println("Content-Type:" + headers.get("Content-Type"));
             println("PASS (didn't crash)");
         } catch (err) {
             println("FAIL - " + err);
