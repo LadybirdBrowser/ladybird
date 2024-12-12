@@ -53,7 +53,7 @@ public:
         return m_size;
     }
 
-    virtual void draw_transformed(Painter&, AffineTransform) const override;
+    virtual void draw(Painter&) const override;
 
     ReadonlySpan<DrawCommand> draw_commands() const
     {
