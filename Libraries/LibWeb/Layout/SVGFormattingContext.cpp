@@ -191,6 +191,10 @@ void SVGFormattingContext::run(AvailableSpace const& available_space)
     //       that we are laying out an SVG fragment of another document.
     //       Rephrase: "We are not laying out a standalone SVG document"
     //       Current browser behavior seems to guarantee initial about:blank for layout of SVG fragments.
+    // FIXME: Find another way to determine whether we're laying out a standalone SVG document.
+    //        Relying on top_level_browsing_context.active_document may lead to unpredictable results:
+    //        the user may open another document (possibly about:blank) while the current document
+    //        is still being rendered.
 
     auto& svg_viewport = dynamic_cast<SVG::SVGViewport const&>(*context_box().dom_node());
     auto& svg_box_state = m_state.get_mutable(context_box());
