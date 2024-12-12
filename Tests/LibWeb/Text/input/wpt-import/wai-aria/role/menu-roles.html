@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+<head>
+    <title>Menu-related Role Verification Tests</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../../resources/testdriver.js"></script>
+    <script src="../../resources/testdriver-vendor.js"></script>
+    <script src="../../resources/testdriver-actions.js"></script>
+    <script src="../../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<style>
+    /* Typically horizontal */
+    [role="menubar"] {
+        display: flex;
+    }
+</style>
+<body>
+
+<p>Tests <a href="https://w3c.github.io/aria/#menu">menu</a> and related roles.</p>
+
+<div role="menu" data-testname="role is menu" data-expectedrole="menu" class="ex">
+    <div role="menuitem" data-testname="role is menuitem (in menu)" data-expectedrole="menuitem" class="ex">x</div>
+    <div role="menuitem">x</div>
+    <div role="menuitem">x</div>
+    <div role="group" data-testname="role is group (in menu)" data-expectedrole="group" class="ex">
+        <div role="menuitem" data-testname="role is menuitem (in group, in menu)" data-expectedrole="menuitem" class="ex">x</div>
+        <div role="menuitem">x</div>
+    </div>
+    <div role="group">
+        <div role="menuitemradio" aria-checked="true" data-testname="role is menuitemradio (in group, in menu)" data-expectedrole="menuitemradio" class="ex">x</div>
+        <div role="menuitemradio">x</div>
+    </div>
+    <div role="group">
+        <div role="menuitemcheckbox" aria-checked="true" data-testname="role is menuitemcheckbox (in group, in menu)" data-expectedrole="menuitemcheckbox" class="ex">x</div>
+        <div role="menuitemcheckbox">x</div>
+    </div>
+</div>
+
+<div role="menubar" data-testname="role is menubar" data-expectedrole="menubar" class="ex">
+    <div role="menuitem" data-testname="role is menuitem (in menubar)" data-expectedrole="menuitem" class="ex">x</div>
+    <div role="menuitem">x</div>
+    <div role="menuitem">x</div>
+    <div role="group" data-testname="role is group (in menubar)" data-expectedrole="group" class="ex">
+        <div role="menuitem" data-testname="role is menuitem (in group, in menubar)" data-expectedrole="menuitem" class="ex">x</div>
+        <div role="menuitem">x</div>
+    </div>
+    <div role="group">
+        <div role="menuitemradio" aria-checked="true" data-testname="role is menuitemradio (in group, in menubar)" data-expectedrole="menuitemradio" class="ex">x</div>
+        <div role="menuitemradio">x</div>
+    </div>
+    <div role="group">
+        <div role="menuitemcheckbox" aria-checked="true" data-testname="role is menuitemcheckbox (in group, in menubar)" data-expectedrole="menuitemcheckbox" class="ex">x</div>
+        <div role="menuitemcheckbox">x</div>
+    </div>
+</div>
+
+<script>
+    AriaUtils.verifyRolesBySelector(".ex");
+</script>
+
+</body>
+</html>
