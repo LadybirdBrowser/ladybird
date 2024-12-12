@@ -7,6 +7,9 @@ if (VCPKG_TARGET_ANDROID)
     include("UI/Android/vcpkg_android.cmake")
 endif()
 
+# vcpkg flags depend on what linker we are using
+include("Meta/CMake/use_linker.cmake")
+
 # Pass additional information to vcpkg toolchain files if we are using vcpkg.
 if (CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg.cmake$")
     set(CMAKE_PROJECT_ladybird_INCLUDE_BEFORE "Meta/CMake/vcpkg/generate_vcpkg_toolchain_variables.cmake")
@@ -29,7 +32,6 @@ set(LADYBIRD_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 list(APPEND CMAKE_MODULE_PATH "${LADYBIRD_SOURCE_DIR}/Meta/CMake")
 
 include(UI/cmake/EnableLagom.cmake)
-include(use_linker)
 include(lagom_options NO_POLICY_SCOPE)
 include(lagom_compile_options)
 
