@@ -52,7 +52,6 @@ static Vector<ByteString> create_arguments(ByteString const& socket_path, bool f
     if (force_cpu_painting)
         arguments.append("--force-cpu-painting"sv);
 
-    dbgln("Debug process: {}", debug_process);
     if (debug_process.has_value())
         arguments.append(ByteString::formatted("--debug-process={}", debug_process.value()));
 
