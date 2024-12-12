@@ -188,12 +188,23 @@ static void apply_filters(SkPaint& paint, Span<Gfx::Filter> filters)
     for (auto const& filter : filters) {
         filter.visit(
             [&](Gfx::BlurFilter blur_filter) {
-                paint.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur_filter.radius / 2));
+                paint.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur_filter.radius));
             },
             [&](Gfx::ColorFilter color_filter) {
-                float const amount = color_filter.amount;
+                sk_sp<SkColorFilter> skia_color_filter;
+                float amount = color_filter.amount;
 
                 switch (color_filter.type) {
+                case ColorFilter::Type::Grayscale: {
+                    float matrix[20] = {
+                        0.2126f + 0.7874f * (1 - amount), 0.7152f - 0.7152f * (1 - amount), 0.0722f - 0.0722f * (1 - amount), 0, 0,
+                        0.2126f - 0.2126f * (1 - amount), 0.7152f + 0.2848f * (1 - amount), 0.0722f - 0.0722f * (1 - amount), 0, 0,
+                        0.2126f - 0.2126f * (1 - amount), 0.7152f - 0.7152f * (1 - amount), 0.0722f + 0.9278f * (1 - amount), 0, 0,
+                        0, 0, 0, 1, 0
+                    };
+                    skia_color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kYes);
+                    break;
+                }
                 case Gfx::ColorFilter::Type::Brightness: {
                     float matrix[20] = {
                         amount, 0, 0, 0, 0,
@@ -201,13 +212,65 @@ static void apply_filters(SkPaint& paint, Span<Gfx::Filter> filters)
                         0, 0, amount, 0, 0,
                         0, 0, 0, 1, 0
                     };
-
-                    paint.setColorFilter(SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo));
+                    skia_color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo);
+                    break;
+                }
+                case Gfx::ColorFilter::Type::Contrast: {
+                    float intercept = -(0.5f * amount) + 0.5f;
+                    float matrix[20] = {
+                        amount, 0, 0, 0, intercept,
+                        0, amount, 0, 0, intercept,
+                        0, 0, amount, 0, intercept,
+                        0, 0, 0, 1, 0
+                    };
+                    skia_color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo);
+                    break;
+                }
+                case Gfx::ColorFilter::Type::Invert: {
+                    float matrix[20] = {
+                        1 - 2 * amount, 0, 0, 0, amount,
+                        0, 1 - 2 * amount, 0, 0, amount,
+                        0, 0, 1 - 2 * amount, 0, amount,
+                        0, 0, 0, 1, 0
+                    };
+                    skia_color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kYes);
+                    break;
+                }
+                case Gfx::ColorFilter::Type::Opacity: {
+                    float matrix[20] = {
+                        1, 0, 0, 0, 0,
+                        0, 1, 0, 0, 0,
+                        0, 0, 1, 0, 0,
+                        0, 0, 0, amount, 0
+                    };
+                    skia_color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kYes);
+                    break;
+                }
+                case Gfx::ColorFilter::Type::Sepia: {
+                    float matrix[20] = {
+                        0.393f + 0.607f * (1 - amount), 0.769f - 0.769f * (1 - amount), 0.189f - 0.189f * (1 - amount), 0, 0,
+                        0.349f - 0.349f * (1 - amount), 0.686f + 0.314f * (1 - amount), 0.168f - 0.168f * (1 - amount), 0, 0,
+                        0.272f - 0.272f * (1 - amount), 0.534f - 0.534f * (1 - amount), 0.131f + 0.869f * (1 - amount), 0, 0,
+                        0, 0, 0, 1, 0
+                    };
+                    skia_color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kYes);
+                    break;
+                }
+                case Gfx::ColorFilter::Type::Saturate: {
+                    float matrix[20] = {
+                        0.213f + 0.787f * amount, 0.715f - 0.715f * amount, 0.072f - 0.072f * amount, 0, 0,
+                        0.213f - 0.213f * amount, 0.715f + 0.285f * amount, 0.072f - 0.072f * amount, 0, 0,
+                        0.213f - 0.213f * amount, 0.715f - 0.715f * amount, 0.072f + 0.928f * amount, 0, 0,
+                        0, 0, 0, 1, 0
+                    };
+                    skia_color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo);
                     break;
                 }
                 default:
-                    TODO();
+                    VERIFY_NOT_REACHED();
                 }
+
+                paint.setColorFilter(skia_color_filter);
             },
             [&](Gfx::HueRotateFilter hue_rotate_filter) {
                 (void)hue_rotate_filter;
@@ -297,7 +360,7 @@ void PainterSkia::fill_path(Gfx::Path const& path, Gfx::Color color, Gfx::Windin
     impl().canvas()->drawPath(sk_path, paint);
 }
 
-void PainterSkia::fill_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_style,  Span<Gfx::Filter> filters, float global_alpha, Gfx::WindingRule winding_rule)
+void PainterSkia::fill_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_style, Span<Gfx::Filter> filters, float global_alpha, Gfx::WindingRule winding_rule)
 {
     auto sk_path = to_skia_path(path);
     sk_path.setFillType(to_skia_path_fill_type(winding_rule));
