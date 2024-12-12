@@ -27,6 +27,7 @@ enum class TestMode {
     Layout,
     Text,
     Ref,
+    Crash,
 };
 
 enum class TestResult {
