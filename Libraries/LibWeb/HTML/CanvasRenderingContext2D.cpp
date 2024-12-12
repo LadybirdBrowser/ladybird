@@ -888,31 +888,48 @@ void CanvasRenderingContext2D::set_filter(String filter)
 
         drawing_state().filters.grow_capacity(filter_value_list.size());
 
-        // FIXME: How to get the right layout node ?
-        // auto layout_node = canvas_element().layout_node();
+        // Note: The layout must be updated to make sure the canvas's layout node isn't null.
+        canvas_element().document().update_layout();
+        auto layout_node = canvas_element().layout_node();
 
         // 4. Set this's current filter to the given value.
-        for (auto &item : filter_value_list) {
+        for (auto& item : filter_value_list) {
             item.visit(
                 [&](CSS::FilterOperation::Blur const& blur_filter) {
-                    // const float radius = blur_filter.resolved_radius(*layout_node);
-                    (void)blur_filter;
-                    const float radius = 10;
-                    drawing_state().filters.append(Gfx::BlurFilter{radius});
+                    float radius = blur_filter.resolved_radius(*layout_node);
+                    drawing_state().filters.append(Gfx::BlurFilter { radius });
                 },
                 [&](CSS::FilterOperation::Color const& color) {
                     Gfx::ColorFilter::Type color_filter_type;
 
                     switch (color.operation) {
-                        case CSS::FilterOperation::Color::Type::Brightness:
-                            color_filter_type = Gfx::ColorFilter::Type::Brightness;
-                            break;
-                        default:
-                            TODO();
+                    case CSS::FilterOperation::Color::Type::Saturate:
+                        color_filter_type = Gfx::ColorFilter::Type::Saturate;
+                        break;
+                    case CSS::FilterOperation::Color::Type::Brightness:
+                        color_filter_type = Gfx::ColorFilter::Type::Brightness;
+                        break;
+                    case CSS::FilterOperation::Color::Type::Contrast:
+                        color_filter_type = Gfx::ColorFilter::Type::Contrast;
+                        break;
+                    case CSS::FilterOperation::Color::Type::Grayscale:
+                        color_filter_type = Gfx::ColorFilter::Type::Grayscale;
+                        break;
+                    case CSS::FilterOperation::Color::Type::Invert:
+                        color_filter_type = Gfx::ColorFilter::Type::Invert;
+                        break;
+                    case CSS::FilterOperation::Color::Type::Opacity:
+                        color_filter_type = Gfx::ColorFilter::Type::Opacity;
+                        break;
+                    case CSS::FilterOperation::Color::Type::Sepia:
+                        color_filter_type = Gfx::ColorFilter::Type::Sepia;
+                        break;
+                    default:
+                        VERIFY_NOT_REACHED();
                     }
 
-                    float const amount = color.resolved_amount();
-                    drawing_state().filters.append(Gfx::ColorFilter{color_filter_type, amount});
+                    float amount = color.resolved_amount();
+                    drawing_state().filters.append(Gfx::ColorFilter { color_filter_type, amount });
                 },
                 [&](CSS::FilterOperation::HueRotate const& hue_rotate) {
                     (void)hue_rotate;
@@ -921,8 +938,7 @@ void CanvasRenderingContext2D::set_filter(String filter)
                 [&](CSS::FilterOperation::DropShadow const& drop_shadow) {
                     (void)drop_shadow;
                     TODO();
-                }
-            );
+                });
         }
 
         drawing_state().filters_style_value = style_value;
@@ -930,6 +946,5 @@ void CanvasRenderingContext2D::set_filter(String filter)
 
     // 3. If parsedValue is failure, then return.
 }
-
 
 }
