@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <LibGfx/Filter.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibGfx/ScalingMode.h>
@@ -27,11 +28,11 @@ public:
 
     virtual void stroke_path(Gfx::Path const&, Gfx::Color, float thickness) = 0;
     virtual void stroke_path(Gfx::Path const&, Gfx::Color, float thickness, float blur_radius) = 0;
-    virtual void stroke_path(Gfx::Path const&, Gfx::PaintStyle const&, float thickness, float global_alpha) = 0;
+    virtual void stroke_path(Gfx::Path const&, Gfx::PaintStyle const&, Span<Gfx::Filter>, float thickness, float global_alpha) = 0;
 
     virtual void fill_path(Gfx::Path const&, Gfx::Color, Gfx::WindingRule) = 0;
     virtual void fill_path(Gfx::Path const&, Gfx::Color, Gfx::WindingRule, float blur_radius) = 0;
-    virtual void fill_path(Gfx::Path const&, Gfx::PaintStyle const&, float global_alpha, Gfx::WindingRule) = 0;
+    virtual void fill_path(Gfx::Path const&, Gfx::PaintStyle const&, Span<Gfx::Filter>, float global_alpha, Gfx::WindingRule) = 0;
 
     virtual void set_transform(Gfx::AffineTransform const&) = 0;
 

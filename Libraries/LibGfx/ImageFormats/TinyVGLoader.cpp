@@ -484,7 +484,7 @@ void TinyVGDecodedImageData::draw_transformed(Painter& painter, AffineTransform 
                 [&](Color color) { painter.fill_path(fill_path, color, WindingRule::EvenOdd); },
                 [&](NonnullRefPtr<SVGGradientPaintStyle> style) {
                     const_cast<SVGGradientPaintStyle&>(*style).set_gradient_transform(transform);
-                    painter.fill_path(fill_path, style, 1.0f, WindingRule::EvenOdd);
+                    painter.fill_path(fill_path, style, {}, 1.0f, WindingRule::EvenOdd);
                 });
         }
 
@@ -493,7 +493,7 @@ void TinyVGDecodedImageData::draw_transformed(Painter& painter, AffineTransform 
                 [&](Color color) { painter.stroke_path(draw_path, color, command.stroke_width * scale); },
                 [&](NonnullRefPtr<SVGGradientPaintStyle> style) {
                     const_cast<SVGGradientPaintStyle&>(*style).set_gradient_transform(transform);
-                    painter.stroke_path(draw_path, style, command.stroke_width * scale, 1.0f);
+                    painter.stroke_path(draw_path, style, {}, command.stroke_width * scale, 1.0f);
                 });
         }
     }
