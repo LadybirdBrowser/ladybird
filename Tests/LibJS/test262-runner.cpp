@@ -145,20 +145,19 @@ static ErrorOr<StringView, TestError> read_harness_file(StringView harness_file)
     return cache.value();
 }
 
-static ErrorOr<GC::Ref<JS::Script>, TestError> parse_harness_files(JS::Realm& realm, StringView harness_file)
+static ErrorOr<GC::Ref<JS::Script>, TestError> parse_harness_contents(JS::Realm& realm, StringView harness_contents)
 {
-    auto source_or_error = read_harness_file(harness_file);
-    if (source_or_error.is_error())
-        return source_or_error.release_error();
-    auto program_or_error = parse_program<JS::Script>(realm, source_or_error.value(), harness_file);
+    auto program_or_error = parse_program<JS::Script>(realm, harness_contents, "<harness>"sv);
+
     if (program_or_error.is_error()) {
         return TestError {
             NegativePhase::Harness,
             program_or_error.error().type,
             program_or_error.error().details,
-            harness_file
+            "<harness>"sv
         };
     }
+
     return program_or_error.release_value().get<GC::Ref<JS::Script>>();
 }
 
@@ -228,15 +227,22 @@ static ErrorOr<void, TestError> run_test(StringView source, StringView filepath,
 
     auto program = TRY(parse_program(*realm, source, filepath, metadata.program_type));
 
+    StringBuilder harness_builder;
+
     for (auto harness_file : metadata.harness_files) {
-        ScriptOrModuleProgram harness_program { TRY(parse_harness_files(*realm, harness_file)) };
+        auto harness_contents = TRY(read_harness_file(harness_file));
+        harness_builder.appendff("{}\n", harness_contents);
+    }
+
+    if (!harness_builder.is_empty()) {
+        ScriptOrModuleProgram harness_program { TRY(parse_harness_contents(*realm, harness_builder.string_view())) };
 
         if (auto result = run_program(vm->bytecode_interpreter(), harness_program); result.is_error()) {
             return TestError {
                 NegativePhase::Harness,
                 result.error().type,
                 result.error().details,
-                harness_file
+                "<harness>"sv
             };
         }
     }
