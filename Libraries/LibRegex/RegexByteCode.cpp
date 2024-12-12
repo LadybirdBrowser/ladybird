@@ -1085,7 +1085,7 @@ ALWAYS_INLINE ExecutionResult OpCode_Checkpoint::execute(MatchInput const&, Matc
 ALWAYS_INLINE ExecutionResult OpCode_JumpNonEmpty::execute(MatchInput const& input, MatchState& state) const
 {
     u64 current_position = state.string_position;
-    auto checkpoint_position = state.checkpoints[checkpoint()];
+    auto checkpoint_position = state.checkpoints.get(checkpoint()).value_or(0);
 
     if (checkpoint_position != 0 && checkpoint_position != current_position + 1) {
         auto form = this->form();
