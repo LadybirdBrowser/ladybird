@@ -8,8 +8,6 @@
 
 #include <AK/Forward.h>
 #include <AK/NonnullRefPtr.h>
-#include <AK/SegmentedVector.h>
-#include <AK/Utf8View.h>
 #include <AK/Vector.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Forward.h>
@@ -106,7 +104,7 @@ public:
     void draw_text(Gfx::IntRect const&, String, Gfx::Font const&, Gfx::TextAlignment, Color);
 
     // Streamlined text drawing routine that does no wrapping/elision/alignment.
-    void draw_text_run(Gfx::IntPoint baseline_start, Gfx::GlyphRun const& glyph_run, Color color, Gfx::IntRect const& rect, double scale, Gfx::Orientation);
+    void draw_text_run(Gfx::FloatPoint baseline_start, Gfx::GlyphRun const& glyph_run, Color color, Gfx::IntRect const& rect, double scale, Gfx::Orientation);
 
     void add_clip_rect(Gfx::IntRect const& rect);
 
@@ -137,7 +135,7 @@ public:
 
     void paint_outer_box_shadow_params(PaintBoxShadowParams params);
     void paint_inner_box_shadow_params(PaintBoxShadowParams params);
-    void paint_text_shadow(int blur_radius, Gfx::IntRect bounding_rect, Gfx::IntRect text_rect, Gfx::GlyphRun const&, double glyph_run_scale, Color color, Gfx::IntPoint draw_location);
+    void paint_text_shadow(int blur_radius, Gfx::IntRect bounding_rect, Gfx::IntRect text_rect, Gfx::GlyphRun const&, double glyph_run_scale, Color color, Gfx::FloatPoint draw_location);
 
     void fill_rect_with_rounded_corners(Gfx::IntRect const& rect, Color color, CornerRadius top_left_radius, CornerRadius top_right_radius, CornerRadius bottom_right_radius, CornerRadius bottom_left_radius);
     void fill_rect_with_rounded_corners(Gfx::IntRect const& a_rect, Color color, int radius);
