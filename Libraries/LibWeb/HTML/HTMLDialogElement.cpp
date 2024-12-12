@@ -130,15 +130,18 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show()
     // 6. Add an open attribute to this, whose value is the empty string.
     TRY(set_attribute(AttributeNames::open, {}));
 
-    // FIXME: 7. Set this's previously focused element to the focused element.
+    // 7. Set the dialog close watcher with this.
+    set_the_dialog_close_watcher();
 
-    // FIXME: 8. Let hideUntil be the result of running topmost popover ancestor given this, null, and false.
+    // FIXME: 8. Set this's previously focused element to the focused element.
 
-    // FIXME: 9. If hideUntil is null, then set hideUntil to this's node document.
+    // FIXME: 9. Let hideUntil be the result of running topmost popover ancestor given this, null, and false.
 
-    // FIXME: 10. Run hide all popovers given this's node document.
+    // FIXME: 10. If hideUntil is null, then set hideUntil to this's node document.
 
-    // 11. Run the dialog focusing steps given this.
+    // FIXME: 11. Run hide all popovers given this's node document.
+
+    // 12. Run the dialog focusing steps given this.
     run_dialog_focusing_steps();
 
     return {};
@@ -206,31 +209,8 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_modal()
     if (!document().top_layer_elements().contains(*this))
         document().add_an_element_to_the_top_layer(*this);
 
-    // 15. Set this's close watcher to the result of establishing a close watcher given this's relevant global object, with:
-    m_close_watcher = CloseWatcher::establish(*document().window());
-    // - cancelAction given canPreventClose being to return the result of firing an event named cancel at this, with the cancelable attribute initialized to canPreventClose.
-    auto cancel_callback_function = JS::NativeFunction::create(
-        realm(), [this](JS::VM& vm) {
-            auto& event = verify_cast<DOM::Event>(vm.argument(0).as_object());
-            bool can_prevent_close = event.cancelable();
-            auto should_continue = dispatch_event(DOM::Event::create(realm(), HTML::EventNames::cancel, { .cancelable = can_prevent_close }));
-            if (!should_continue)
-                event.prevent_default();
-            return JS::js_undefined();
-        },
-        0, "", &realm());
-    auto cancel_callback = realm().heap().allocate<WebIDL::CallbackType>(*cancel_callback_function, realm());
-    m_close_watcher->add_event_listener_without_options(HTML::EventNames::cancel, DOM::IDLEventListener::create(realm(), cancel_callback));
-    // - closeAction being to close the dialog given this and null.
-    auto close_callback_function = JS::NativeFunction::create(
-        realm(), [this](JS::VM&) {
-            close_the_dialog({});
-
-            return JS::js_undefined();
-        },
-        0, "", &realm());
-    auto close_callback = realm().heap().allocate<WebIDL::CallbackType>(*close_callback_function, realm());
-    m_close_watcher->add_event_listener_without_options(HTML::EventNames::close, DOM::IDLEventListener::create(realm(), close_callback));
+    // 15. Set the dialog close watcher with this.
+    set_the_dialog_close_watcher();
 
     // FIXME: 16. Set this's previously focused element to the focused element.
 
@@ -254,6 +234,25 @@ void HTMLDialogElement::close(Optional<String> return_value)
     close_the_dialog(move(return_value));
 }
 
+WebIDL::ExceptionOr<void> HTMLDialogElement::request_close(Optional<String> return_value)
+{
+    // 1. If this does not have an open attribute, then return.
+    if (!has_attribute(AttributeNames::open))
+        return {};
+    // 2. If this's computed closed-by state is None, then throw an "InvalidStateError" DOMException.
+    if (closed_by() == "none")
+        return WebIDL::InvalidStateError::create(realm(), ""_string);
+    // 3. Assert: this's close watcher is not null.
+    VERIFY(m_close_watcher);
+    // 4. If returnValue is not given, then set it to null.
+    // 5. Set this's request close return value to returnValue.
+    m_request_close_return_value = move(return_value);
+    // 6. Request to close dialog's close watcher.
+    m_close_watcher->request_close();
+
+    return {};
+}
+
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#dom-dialog-returnvalue
 String HTMLDialogElement::return_value() const
 {
@@ -264,6 +263,21 @@ String HTMLDialogElement::return_value() const
 void HTMLDialogElement::set_return_value(String return_value)
 {
     m_return_value = move(return_value);
+}
+
+String HTMLDialogElement::closed_by() const
+{
+    auto value = get_attribute(HTML::AttributeNames::closedby);
+
+    if (value.has_value() && (value.value() == "none" || value.value() == "closerequest" || value.value() == "any"))
+        return value.value();
+
+    return m_is_modal ? "closerequest"_string : "none"_string;
+}
+
+WebIDL::ExceptionOr<void> HTMLDialogElement::set_closed_by(String value)
+{
+    return set_attribute(HTML::AttributeNames::closedby, value);
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#close-the-dialog
@@ -303,25 +317,59 @@ void HTMLDialogElement::close_the_dialog(Optional<String> result)
     if (result.has_value())
         set_return_value(result.release_value());
 
-    // FIXME: 10. If subject's previously focused element is not null, then:
+    // 10. Set the request close return value to null.
+    m_request_close_return_value = {};
+
+    // FIXME: 11. If subject's previously focused element is not null, then:
     //           1. Let element be subject's previously focused element.
     //           2. Set subject's previously focused element to null.
     //           3. If subject's node document's focused area of the document's DOM anchor is a shadow-including inclusive descendant of element,
     //              or wasModal is true, then run the focusing steps for element; the viewport should not be scrolled by doing this step.
 
-    // 11. Queue an element task on the user interaction task source given the subject element to fire an event named close at subject.
+    // 12. Queue an element task on the user interaction task source given the subject element to fire an event named close at subject.
     queue_an_element_task(HTML::Task::Source::UserInteraction, [this] {
         auto close_event = DOM::Event::create(realm(), HTML::EventNames::close);
         dispatch_event(close_event);
     });
 
-    // 12. If subject's close watcher is not null, then:
+    // 13. If subject's close watcher is not null, then:
     if (m_close_watcher) {
         // 9.1 Destroy subject's close watcher.
         m_close_watcher->destroy();
         // 9.2 Set subject's close watcher to null.
         m_close_watcher = nullptr;
     }
+}
+
+void HTMLDialogElement::set_the_dialog_close_watcher()
+{
+    // 1. Set dialog's close watcher to the result of establishing a close watcher given dialog's relevant global object, with:
+    m_close_watcher = CloseWatcher::establish(*document().window());
+    // - cancelAction given canPreventClose being to return the result of firing an event named cancel at dialog, with the cancelable attribute initialized to canPreventClose.
+    auto cancel_callback_function = JS::NativeFunction::create(
+        realm(), [this](JS::VM& vm) {
+            auto& event = verify_cast<DOM::Event>(vm.argument(0).as_object());
+            bool can_prevent_close = event.cancelable();
+            auto should_continue = dispatch_event(DOM::Event::create(realm(), HTML::EventNames::cancel, { .cancelable = can_prevent_close }));
+            if (!should_continue)
+                event.prevent_default();
+            return JS::js_undefined();
+        },
+        0, "", &realm());
+    auto cancel_callback = realm().heap().allocate<WebIDL::CallbackType>(*cancel_callback_function, realm());
+    m_close_watcher->add_event_listener_without_options(HTML::EventNames::cancel, DOM::IDLEventListener::create(realm(), cancel_callback));
+    // - closeAction being to close the dialog given dialog and dialog's request close return value.
+    auto close_callback_function = JS::NativeFunction::create(
+        realm(), [this](JS::VM&) {
+            close_the_dialog(m_request_close_return_value);
+
+            return JS::js_undefined();
+        },
+        0, "", &realm());
+    auto close_callback = realm().heap().allocate<WebIDL::CallbackType>(*close_callback_function, realm());
+    m_close_watcher->add_event_listener_without_options(HTML::EventNames::close, DOM::IDLEventListener::create(realm(), close_callback));
+    // - getEnabledState being to return true if dialog's computed closed-by state is not None; otherwise false.
+    m_close_watcher->set_enabled_state(closed_by() != "none");
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#dialog-focusing-steps
@@ -339,6 +387,14 @@ void HTMLDialogElement::run_dialog_focusing_steps()
 
     // 5. Run the focusing steps for control.
     run_focusing_steps(control);
+}
+
+void HTMLDialogElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+{
+    Base::attribute_changed(name, old_value, value, namespace_);
+
+    if (name == HTML::AttributeNames::closedby && m_close_watcher && old_value != value)
+        m_close_watcher->set_enabled_state(closed_by() != "none");
 }
 
 }

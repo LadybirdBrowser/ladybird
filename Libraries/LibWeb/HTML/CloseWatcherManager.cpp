@@ -75,11 +75,12 @@ bool CloseWatcherManager::process_close_watchers()
         }
         // 2.2 For each closeWatcher of group, in reverse order:
         for (auto it = group_copy.rbegin(); it != group_copy.rend(); ++it) {
-            // 2.1.1 Set processedACloseWatcher to true.
-            processed_a_close_watcher = true;
-            // 2.1.2 Let shouldProceed be the result of requesting to close closeWatcher.
+            // 2.2.1 If the result of running closeWatcher's get enabled state is true, then set processedACloseWatcher to true.
+            if ((*it)->get_enabled_state())
+                processed_a_close_watcher = true;
+            // 2.2.2 Let shouldProceed be the result of requesting to close closeWatcher.
             bool should_proceed = (*it)->request_close();
-            // 2.1.3 If shouldProceed is false, then break;
+            // 2.2.3 If shouldProceed is false, then break;
             if (!should_proceed)
                 break;
         }
