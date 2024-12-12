@@ -7,9 +7,9 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <LibGfx/Filter.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/PaintStyle.h>
-#include <LibGfx/Filter.h>
 #include <LibGfx/ScalingMode.h>
 #include <LibGfx/WindingRule.h>
 

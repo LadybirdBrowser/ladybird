@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Variant.h>
+#include <LibGfx/Color.h>
 
 namespace Gfx {
 
