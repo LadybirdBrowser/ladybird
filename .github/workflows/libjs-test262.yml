@@ -1,6 +1,8 @@
 name: Run test262 and test-wasm
 
-on: [push]
+on:
+  push:
+    branches: [master]
 
 env:
   LADYBIRD_SOURCE_DIR: ${{ github.workspace }}
@@ -9,7 +11,7 @@ env:
 jobs:
   run_and_update_results:
     runs-on: test262-runner
-    if: always() && github.repository == 'LadybirdBrowser/ladybird' && github.ref == 'refs/heads/master'
+    if: github.repository == 'LadybirdBrowser/ladybird'
 
     concurrency: libjs-test262
 
