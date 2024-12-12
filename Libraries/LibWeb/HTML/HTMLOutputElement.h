@@ -63,7 +63,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor& visitor) override;
 
-    virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& value) override;
+    virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& value, Optional<FlyString> const&) override;
 
     GC::Ptr<DOM::DOMTokenList> m_html_for;
 

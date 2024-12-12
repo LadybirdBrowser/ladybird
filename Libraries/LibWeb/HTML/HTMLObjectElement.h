@@ -33,7 +33,7 @@ class HTMLObjectElement final
 public:
     virtual ~HTMLObjectElement() override;
 
-    virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& value) override;
+    virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
     virtual void form_associated_element_was_removed(DOM::Node*) override;
 
     String data() const;
