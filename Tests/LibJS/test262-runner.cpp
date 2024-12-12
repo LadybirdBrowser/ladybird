@@ -6,9 +6,9 @@
  */
 
 #include <AK/ByteString.h>
+#include <AK/Error.h>
 #include <AK/Format.h>
 #include <AK/JsonObject.h>
-#include <AK/Result.h>
 #include <AK/ScopeGuard.h>
 #include <AK/Vector.h>
 #include <LibCore/ArgsParser.h>
@@ -54,7 +54,7 @@ struct TestError {
 using ScriptOrModuleProgram = Variant<GC::Ref<JS::Script>, GC::Ref<JS::SourceTextModule>>;
 
 template<typename ScriptType>
-static Result<ScriptOrModuleProgram, TestError> parse_program(JS::Realm& realm, StringView source, StringView filepath)
+static ErrorOr<ScriptOrModuleProgram, TestError> parse_program(JS::Realm& realm, StringView source, StringView filepath)
 {
     auto script_or_error = ScriptType::parse(source, realm, filepath);
     if (script_or_error.is_error()) {
@@ -68,7 +68,7 @@ static Result<ScriptOrModuleProgram, TestError> parse_program(JS::Realm& realm, 
     return ScriptOrModuleProgram { script_or_error.release_value() };
 }
 
-static Result<ScriptOrModuleProgram, TestError> parse_program(JS::Realm& realm, StringView source, StringView filepath, JS::Program::Type program_type)
+static ErrorOr<ScriptOrModuleProgram, TestError> parse_program(JS::Realm& realm, StringView source, StringView filepath, JS::Program::Type program_type)
 {
     if (program_type == JS::Program::Type::Script)
         return parse_program<JS::Script>(realm, source, filepath);
@@ -76,7 +76,7 @@ static Result<ScriptOrModuleProgram, TestError> parse_program(JS::Realm& realm, 
 }
 
 template<typename InterpreterT>
-static Result<void, TestError> run_program(InterpreterT& interpreter, ScriptOrModuleProgram& program)
+static ErrorOr<void, TestError> run_program(InterpreterT& interpreter, ScriptOrModuleProgram& program)
 {
     auto result = program.visit(
         [&](auto& visitor) {
@@ -115,7 +115,7 @@ static Result<void, TestError> run_program(InterpreterT& interpreter, ScriptOrMo
 
 static HashMap<ByteString, ByteString> s_cached_harness_files;
 
-static Result<StringView, TestError> read_harness_file(StringView harness_file)
+static ErrorOr<StringView, TestError> read_harness_file(StringView harness_file)
 {
     auto cache = s_cached_harness_files.find(harness_file);
     if (cache == s_cached_harness_files.end()) {
@@ -147,7 +147,7 @@ static Result<StringView, TestError> read_harness_file(StringView harness_file)
     return cache->value.view();
 }
 
-static Result<GC::Ref<JS::Script>, TestError> parse_harness_files(JS::Realm& realm, StringView harness_file)
+static ErrorOr<GC::Ref<JS::Script>, TestError> parse_harness_files(JS::Realm& realm, StringView harness_file)
 {
     auto source_or_error = read_harness_file(harness_file);
     if (source_or_error.is_error())
@@ -193,7 +193,7 @@ struct TestMetadata {
     StringView type;
 };
 
-static Result<void, TestError> run_test(StringView source, StringView filepath, TestMetadata const& metadata)
+static ErrorOr<void, TestError> run_test(StringView source, StringView filepath, TestMetadata const& metadata)
 {
     if (s_parse_only || (metadata.is_negative && metadata.phase == NegativePhase::ParseOrEarly && metadata.program_type != JS::Program::Type::Module)) {
         // Creating the vm and interpreter is heavy so we just parse directly here.
@@ -218,6 +218,7 @@ static Result<void, TestError> run_test(StringView source, StringView filepath, 
 
     GC::Ptr<JS::Realm> realm;
     GC::Ptr<JS::Test262::GlobalObject> global_object;
+
     auto root_execution_context = MUST(JS::Realm::initialize_host_defined_realm(
         *vm,
         [&](JS::Realm& realm_) -> JS::GlobalObject* {
@@ -227,17 +228,12 @@ static Result<void, TestError> run_test(StringView source, StringView filepath, 
         },
         nullptr));
 
-    auto program_or_error = parse_program(*realm, source, filepath, metadata.program_type);
-    if (program_or_error.is_error())
-        return program_or_error.release_error();
+    auto program = TRY(parse_program(*realm, source, filepath, metadata.program_type));
 
-    for (auto& harness_file : metadata.harness_files) {
-        auto harness_program_or_error = parse_harness_files(*realm, harness_file);
-        if (harness_program_or_error.is_error())
-            return harness_program_or_error.release_error();
-        ScriptOrModuleProgram harness_program { harness_program_or_error.release_value() };
-        auto result = run_program(vm->bytecode_interpreter(), harness_program);
-        if (result.is_error()) {
+    for (auto harness_file : metadata.harness_files) {
+        ScriptOrModuleProgram harness_program { TRY(parse_harness_files(*realm, harness_file)) };
+
+        if (auto result = run_program(vm->bytecode_interpreter(), harness_program); result.is_error()) {
             return TestError {
                 NegativePhase::Harness,
                 result.error().type,
@@ -247,10 +243,10 @@ static Result<void, TestError> run_test(StringView source, StringView filepath, 
         }
     }
 
-    return run_program(vm->bytecode_interpreter(), program_or_error.value());
+    return run_program(vm->bytecode_interpreter(), program);
 }
 
-static Result<TestMetadata, ByteString> extract_metadata(StringView source)
+static ErrorOr<TestMetadata, ByteString> extract_metadata(StringView source)
 {
     auto lines = source.lines();
 
@@ -397,7 +393,7 @@ static Result<TestMetadata, ByteString> extract_metadata(StringView source)
     return failed_message;
 }
 
-static bool verify_test(Result<void, TestError>& result, TestMetadata const& metadata, JsonObject& output)
+static bool verify_test(ErrorOr<void, TestError>& result, TestMetadata const& metadata, JsonObject& output)
 {
     if (result.is_error()) {
         if (result.error().phase == NegativePhase::Harness) {
