@@ -18,6 +18,7 @@
 #include <LibWeb/Layout/SVGGeometryBox.h>
 #include <LibWeb/Layout/SVGImageBox.h>
 #include <LibWeb/Layout/SVGMaskBox.h>
+#include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/SVG/SVGAElement.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGForeignObjectElement.h>
@@ -27,8 +28,6 @@
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/SVG/SVGSymbolElement.h>
 #include <LibWeb/SVG/SVGUseElement.h>
-
-#include <LibWeb/Layout/Viewport.h>
 
 namespace Web::Layout {
 
@@ -185,11 +184,11 @@ void SVGFormattingContext::run(AvailableSpace const& available_space)
                                            .top_level_browsing_context() // ...in the browser
                                            .active_document()            // the active document (in the browser)
                                            ->is_initial_about_blank();   // is it about:blank initially?
-    //  NOTE: Given that somehow we have already made it to an SVGFormattingContext:
-    //        The browser's active document [...] is initially about:blank can only mean that we are
-    //        laying out a fragment of another document.
-    //        Rephrase: we are not laying out a standalone SVG document.
-    //        Current browser behavior seems to guarantee initial about:blank for layout of SVG fragments.
+    // NOTE: Given that somehow we have already made it to an SVGFormattingContext
+    //       The fact that the browser's active document [...] was initially about:blank can only mean
+    //       that we are laying out an SVG fragment of another document.
+    //       Rephrase: "We are not laying out a standalone SVG document"
+    //       Current browser behavior seems to guarantee initial about:blank for layout of SVG fragments.
 
     auto& svg_viewport = dynamic_cast<SVG::SVGViewport const&>(*context_box().dom_node());
     auto& svg_box_state = m_state.get_mutable(context_box());
