@@ -128,7 +128,7 @@ Optional<@name:titlecase@> keyword_to_@name:snakecase@(Keyword keyword)
             auto member_generator = enum_generator.fork();
             auto member_name = member.as_string();
             if (member_name.contains('=')) {
-                auto parts = member_name.split_view('=');
+                auto parts = member_name.bytes_as_string_view().split_view('=');
                 member_generator.set("valueid:titlecase", title_casify(parts[0]));
                 member_generator.set("member:titlecase", title_casify(parts[1]));
             } else {

@@ -42,36 +42,6 @@ public:
         return {};
     }
 
-    ErrorOr<void> add(StringView key, StringView value)
-    {
-        TRY(begin_item(key));
-        if constexpr (IsLegacyBuilder<Builder>) {
-            TRY(m_builder.try_append('"'));
-            TRY(m_builder.try_append_escaped_for_json(value));
-            TRY(m_builder.try_append('"'));
-        } else {
-            TRY(m_builder.append('"'));
-            TRY(m_builder.append_escaped_for_json(value));
-            TRY(m_builder.append('"'));
-        }
-        return {};
-    }
-
-    ErrorOr<void> add(StringView key, ByteString const& value)
-    {
-        TRY(begin_item(key));
-        if constexpr (IsLegacyBuilder<Builder>) {
-            TRY(m_builder.try_append('"'));
-            TRY(m_builder.try_append_escaped_for_json(value));
-            TRY(m_builder.try_append('"'));
-        } else {
-            TRY(m_builder.append('"'));
-            TRY(m_builder.append_escaped_for_json(value));
-            TRY(m_builder.append('"'));
-        }
-        return {};
-    }
-
     ErrorOr<void> add(StringView key, char const* value)
     {
         TRY(begin_item(key));

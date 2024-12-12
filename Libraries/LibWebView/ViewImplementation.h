@@ -100,7 +100,7 @@ public:
     void set_dom_node_text(Web::UniqueNodeID node_id, String text);
     void set_dom_node_tag(Web::UniqueNodeID node_id, String name);
     void add_dom_node_attributes(Web::UniqueNodeID node_id, Vector<Attribute> attributes);
-    void replace_dom_node_attribute(Web::UniqueNodeID node_id, String name, Vector<Attribute> replacement_attributes);
+    void replace_dom_node_attribute(Web::UniqueNodeID node_id, FlyString name, Vector<Attribute> replacement_attributes);
     void create_child_element(Web::UniqueNodeID node_id);
     void create_child_text_node(Web::UniqueNodeID node_id);
     void clone_dom_node(Web::UniqueNodeID node_id);

@@ -39,7 +39,7 @@ TEST_CASE(load_form)
 
     EXPECT(form_json.is_object());
 
-    auto name = form_json.as_object().get_byte_string("name"sv);
+    auto name = form_json.as_object().get_string("name"sv);
     EXPECT(name.has_value());
 
     EXPECT_EQ(name.value(), "Form1");
@@ -49,7 +49,7 @@ TEST_CASE(load_form)
 
     widgets->for_each([&](JsonValue const& widget_value) {
         auto& widget_object = widget_value.as_object();
-        auto widget_class = widget_object.get_byte_string("class"sv).value();
+        auto widget_class = widget_object.get_string("class"sv).value();
         widget_object.for_each_member([&]([[maybe_unused]] auto& property_name, [[maybe_unused]] JsonValue const& property_value) {
         });
     });
@@ -66,7 +66,7 @@ TEST_CASE(json_string)
 {
     auto json = JsonValue::from_string("\"A\""sv).value();
     EXPECT_EQ(json.type(), JsonValue::Type::String);
-    EXPECT_EQ(json.as_string().length(), size_t { 1 });
+    EXPECT_EQ(json.as_string().bytes_as_string_view().length(), size_t { 1 });
     EXPECT_EQ(json.as_string() == "A", true);
 }
 
@@ -74,7 +74,7 @@ TEST_CASE(json_utf8_character)
 {
     auto json = JsonValue::from_string("\"\\u0041\""sv).value();
     EXPECT_EQ(json.type(), JsonValue::Type::String);
-    EXPECT_EQ(json.as_string().length(), size_t { 1 });
+    EXPECT_EQ(json.as_string().bytes_as_string_view().length(), size_t { 1 });
     EXPECT_EQ(json.as_string() == "A", true);
 }
 
@@ -83,19 +83,19 @@ TEST_CASE(json_encoded_surrogates)
     {
         auto json = JsonValue::from_string("\"\\uD83E\\uDD13\""sv).value();
         EXPECT_EQ(json.type(), JsonValue::Type::String);
-        EXPECT_EQ(json.as_string().length(), 4u);
+        EXPECT_EQ(json.as_string().bytes_as_string_view().length(), 4u);
         EXPECT_EQ(json.as_string(), "🤓"sv);
     }
     {
         auto json = JsonValue::from_string("\"\\uD83E\""sv).value();
         EXPECT_EQ(json.type(), JsonValue::Type::String);
-        EXPECT_EQ(json.as_string().length(), 3u);
+        EXPECT_EQ(json.as_string().bytes_as_string_view().length(), 3u);
         EXPECT_EQ(json.as_string(), "\xED\xA0\xBE"sv);
     }
     {
         auto json = JsonValue::from_string("\"\\uDD13\""sv).value();
         EXPECT_EQ(json.type(), JsonValue::Type::String);
-        EXPECT_EQ(json.as_string().length(), 3u);
+        EXPECT_EQ(json.as_string().bytes_as_string_view().length(), 3u);
         EXPECT_EQ(json.as_string(), "\xED\xB4\x93"sv);
     }
 }

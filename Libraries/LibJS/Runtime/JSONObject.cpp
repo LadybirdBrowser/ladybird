@@ -68,11 +68,11 @@ ThrowCompletionOr<Optional<ByteString>> JSONObject::stringify_impl(VM& vm, Value
                     if (replacer_value.is_string()) {
                         item = replacer_value.as_string().byte_string();
                     } else if (replacer_value.is_number()) {
-                        item = MUST(replacer_value.to_byte_string(vm));
+                        item = MUST(replacer_value.to_string(vm)).to_byte_string();
                     } else if (replacer_value.is_object()) {
                         auto& value_object = replacer_value.as_object();
                         if (is<StringObject>(value_object) || is<NumberObject>(value_object))
-                            item = TRY(replacer_value.to_byte_string(vm));
+                            item = TRY(replacer_value.to_string(vm)).to_byte_string();
                     }
                     if (item.has_value() && !list.contains_slow(*item)) {
                         list.append(*item);
@@ -188,7 +188,7 @@ ThrowCompletionOr<Optional<ByteString>> JSONObject::serialize_json_property(VM& 
 
     // 8. If Type(value) is String, return QuoteJSONString(value).
     if (value.is_string())
-        return quote_json_string(value.as_string().byte_string());
+        return quote_json_string(value.as_string().utf8_string());
 
     // 9. If Type(value) is Number, then
     if (value.is_number()) {
@@ -351,7 +351,7 @@ ThrowCompletionOr<ByteString> JSONObject::serialize_json_array(VM& vm, Stringify
 }
 
 // 25.5.2.2 QuoteJSONString ( value ), https://tc39.es/ecma262/#sec-quotejsonstring
-ByteString JSONObject::quote_json_string(ByteString string)
+ByteString JSONObject::quote_json_string(StringView string)
 {
     // 1. Let product be the String value consisting solely of the code unit 0x0022 (QUOTATION MARK).
     StringBuilder builder;
@@ -448,7 +448,7 @@ Object* JSONObject::parse_json_object(VM& vm, JsonObject const& json_object)
     auto& realm = *vm.current_realm();
     auto object = Object::create(realm, realm.intrinsics().object_prototype());
     json_object.for_each_member([&](auto& key, auto& value) {
-        object->define_direct_property(key, parse_json_value(vm, value), default_attributes);
+        object->define_direct_property(key.to_string().to_byte_string(), parse_json_value(vm, value), default_attributes);
     });
     return object;
 }
