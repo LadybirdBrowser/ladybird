@@ -260,7 +260,7 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface>> FontLoader::try_load_font()
         mime_type = MimeSniff::Resource::sniff(resource()->encoded_data(), Web::MimeSniff::SniffingConfiguration { .sniffing_context = Web::MimeSniff::SniffingContext::Font });
     }
     if (mime_type.has_value()) {
-        if (mime_type->essence() == "font/ttf"sv || mime_type->essence() == "application/x-font-ttf"sv) {
+        if (mime_type->essence() == "font/ttf"sv || mime_type->essence() == "application/x-font-ttf"sv || mime_type->essence() == "font/otf"sv) {
             if (auto result = Gfx::Typeface::try_load_from_externally_owned_memory(resource()->encoded_data()); !result.is_error()) {
                 return result;
             }
@@ -2110,6 +2110,14 @@ void StyleComputer::compute_font(StyleProperties& style, DOM::Element const* ele
     compute_defaulted_property_value(style, element, CSS::PropertyID::FontStyle, pseudo_element);
     compute_defaulted_property_value(style, element, CSS::PropertyID::FontWeight, pseudo_element);
     compute_defaulted_property_value(style, element, CSS::PropertyID::LineHeight, pseudo_element);
+    compute_defaulted_property_value(style, element, CSS::PropertyID::FontVariant, pseudo_element);
+    compute_defaulted_property_value(style, element, CSS::PropertyID::FontVariantAlternates, pseudo_element);
+    compute_defaulted_property_value(style, element, CSS::PropertyID::FontVariantCaps, pseudo_element);
+    compute_defaulted_property_value(style, element, CSS::PropertyID::FontVariantEmoji, pseudo_element);
+    compute_defaulted_property_value(style, element, CSS::PropertyID::FontVariantEastAsian, pseudo_element);
+    compute_defaulted_property_value(style, element, CSS::PropertyID::FontVariantLigatures, pseudo_element);
+    compute_defaulted_property_value(style, element, CSS::PropertyID::FontVariantNumeric, pseudo_element);
+    compute_defaulted_property_value(style, element, CSS::PropertyID::FontVariantPosition, pseudo_element);
 
     auto const& font_family = style.property(CSS::PropertyID::FontFamily);
     auto const& font_size = style.property(CSS::PropertyID::FontSize);
