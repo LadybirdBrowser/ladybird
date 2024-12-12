@@ -771,6 +771,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const LEFT_ARROW_KEYCODE = 37;
         const RETURN_KEYCODE = 13;
         const SPACE_KEYCODE = 32;
+        const F12_KEYCODE = 123;
+        const LETTER_I_KEYCODE = 73;
 
         const move = delta => {
             let selectedIndex = visibleDOMNodes.indexOf(selectedDOMNode);
@@ -784,6 +786,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 inspectDOMNode(visibleDOMNodes[newIndex]);
             }
         };
+
+        let isF12Close = event.keyCode == F12_KEYCODE;
+        let isCtrlShiftIClose =
+            event.keyCode == LETTER_I_KEYCODE && event.composed && event.ctrlKey && event.shiftKey;
+
+        if (isF12Close || isCtrlShiftIClose) window.close();
 
         if (document.activeElement.tagName !== "INPUT") {
             const isSummary = selectedDOMNode.parentNode.tagName === "SUMMARY";
