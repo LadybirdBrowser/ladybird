@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	role is menu
+Pass	role is menuitem (in menu)
+Pass	role is group (in menu)
+Pass	role is menuitem (in group, in menu)
+Pass	role is menuitemradio (in group, in menu)
+Pass	role is menuitemcheckbox (in group, in menu)
+Pass	role is menubar
+Pass	role is menuitem (in menubar)
+Pass	role is group (in menubar)
+Pass	role is menuitem (in group, in menubar)
+Pass	role is menuitemradio (in group, in menubar)
+Pass	role is menuitemcheckbox (in group, in menubar)
