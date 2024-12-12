@@ -736,7 +736,7 @@ void queue_mutation_observer_microtask(DOM::Document const& document)
                 }
             }
 
-            // 4. If records is not empty, then invoke mo’s callback with « records, mo », and mo. If this throws an exception, catch it, and report the exception.
+            // 4. If records is not empty, then invoke mo’s callback with « records, mo » and "report", and with callback this value mo.
             if (!records.is_empty()) {
                 auto& callback = mutation_observer->callback();
                 auto& realm = callback.callback_context;
@@ -748,9 +748,7 @@ void queue_mutation_observer_microtask(DOM::Document const& document)
                     MUST(wrapped_records->create_data_property(property_index, record.ptr()));
                 }
 
-                auto result = WebIDL::invoke_callback(callback, mutation_observer, wrapped_records, mutation_observer);
-                if (result.is_abrupt())
-                    HTML::report_exception(result, realm);
+                (void)WebIDL::invoke_callback(callback, mutation_observer, WebIDL::ExceptionBehavior::Report, wrapped_records, mutation_observer);
             }
         }
 
@@ -824,12 +822,8 @@ void invoke_custom_element_reactions(Vector<GC::Root<DOM::Element>>& element_que
                 },
                 [&](DOM::CustomElementCallbackReaction& custom_element_callback_reaction) -> void {
                     // -> callback reaction
-                    //      Invoke reaction's callback function with reaction's arguments, and with element as the callback this value.
-                    auto result = WebIDL::invoke_callback(*custom_element_callback_reaction.callback, element.ptr(), custom_element_callback_reaction.arguments);
-                    // FIXME: The error from CustomElementCallbackReaction is supposed
-                    //     to use the new steps for IDL callback error reporting
-                    if (result.is_abrupt())
-                        HTML::report_exception(result, element->realm());
+                    //      Invoke reaction's callback function with reaction's arguments and "report", and callback this value set to element.
+                    (void)WebIDL::invoke_callback(*custom_element_callback_reaction.callback, element.ptr(), WebIDL::ExceptionBehavior::Report, custom_element_callback_reaction.arguments);
                 });
         }
     }

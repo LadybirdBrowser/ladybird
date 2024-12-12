@@ -39,18 +39,31 @@ JS::Completion call_user_object_operation(WebIDL::CallbackType& callback, String
     return call_user_object_operation(callback, operation_name, move(this_argument), move(arguments_list));
 }
 
+enum class ExceptionBehavior {
+    NotSpecified,
+    Report,
+    Rethrow,
+};
+
+JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Value> this_argument, ExceptionBehavior exception_behavior, GC::MarkedVector<JS::Value> args);
 JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Value> this_argument, GC::MarkedVector<JS::Value> args);
 
 // https://webidl.spec.whatwg.org/#invoke-a-callback-function
 template<typename... Args>
-JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Value> this_argument, Args&&... args)
+JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Value> this_argument, ExceptionBehavior exception_behavior, Args&&... args)
 {
     auto& function_object = callback.callback;
 
     GC::MarkedVector<JS::Value> arguments_list { function_object->heap() };
     (arguments_list.append(forward<Args>(args)), ...);
 
-    return invoke_callback(callback, move(this_argument), move(arguments_list));
+    return invoke_callback(callback, move(this_argument), exception_behavior, move(arguments_list));
+}
+
+template<typename... Args>
+JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Value> this_argument, Args&&... args)
+{
+    return invoke_callback(callback, move(this_argument), ExceptionBehavior::NotSpecified, forward<Args>(args)...);
 }
 
 JS::Completion construct(WebIDL::CallbackType& callback, GC::MarkedVector<JS::Value> args);
