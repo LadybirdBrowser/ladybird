@@ -38,6 +38,8 @@ interface HTMLInputElement : HTMLElement {
     [CEReactions] attribute unsigned long size;
     [CEReactions, Reflect, URL] attribute USVString src;
     [CEReactions, Reflect] attribute DOMString step;
+    // https://whatpr.org/html-attr-input-switch/9546/input.html#the-input-element:dom-input-switch
+    [CEReactions, Reflect] attribute boolean switch;
     [CEReactions] attribute DOMString type;
     [CEReactions, Reflect=value] attribute DOMString defaultValue;
     [CEReactions, LegacyNullToEmptyString] attribute DOMString value;
