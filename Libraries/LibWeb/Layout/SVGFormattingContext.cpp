@@ -177,13 +177,15 @@ void SVGFormattingContext::run(AvailableSpace const& available_space)
     // NOTE: SVG doesn't have a "formatting context" in the spec, but this is the most
     //       obvious way to drive SVG layout in our engine at the moment.
 
-    bool is_standalone_svg_document = !this->context_box()               // the [context] box
-                                           .root()                       // ...of the [root] viewport
-                                           .document()                   // ...of the document
-                                           .page()                       // ...on the page
-                                           .top_level_browsing_context() // ...in the browser
-                                           .active_document()            // the active document (in the browser)
-                                           ->is_initial_about_blank();   // is it about:blank initially?
+    auto const& active_document = this->context_box()               // the [context] box
+                                      .root()                       // ...of the [root] viewport
+                                      .document()                   // ...of the document
+                                      .page()                       // ...on the page
+                                      .top_level_browsing_context() // ...in the browser
+                                      .active_document();           // the active document (in the browser)
+
+    bool is_standalone_svg_document = (active_document != nullptr)
+        && !active_document->is_initial_about_blank();
     // NOTE: Given that somehow we have already made it to an SVGFormattingContext
     //       The fact that the browser's active document [...] was initially about:blank can only mean
     //       that we are laying out an SVG fragment of another document.
