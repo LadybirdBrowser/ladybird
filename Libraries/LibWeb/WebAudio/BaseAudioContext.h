@@ -62,6 +62,7 @@ public:
     WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> create_oscillator();
     WebIDL::ExceptionOr<GC::Ref<DynamicsCompressorNode>> create_dynamics_compressor();
     WebIDL::ExceptionOr<GC::Ref<GainNode>> create_gain();
+    WebIDL::ExceptionOr<GC::Ref<PannerNode>> create_panner();
 
     GC::Ref<WebIDL::Promise> decode_audio_data(GC::Root<WebIDL::BufferSource>, GC::Ptr<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>);
 

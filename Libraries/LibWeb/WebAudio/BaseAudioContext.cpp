@@ -20,6 +20,7 @@
 #include <LibWeb/WebAudio/DynamicsCompressorNode.h>
 #include <LibWeb/WebAudio/GainNode.h>
 #include <LibWeb/WebAudio/OscillatorNode.h>
+#include <LibWeb/WebAudio/PannerNode.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Promise.h>
 
@@ -109,6 +110,13 @@ WebIDL::ExceptionOr<GC::Ref<GainNode>> BaseAudioContext::create_gain()
 {
     // Factory method for GainNode.
     return GainNode::create(realm(), *this);
+}
+
+// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createpanner
+WebIDL::ExceptionOr<GC::Ref<PannerNode>> BaseAudioContext::create_panner()
+{
+    // Factory method for a PannerNode.
+    return PannerNode::create(realm(), *this);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createbuffer
