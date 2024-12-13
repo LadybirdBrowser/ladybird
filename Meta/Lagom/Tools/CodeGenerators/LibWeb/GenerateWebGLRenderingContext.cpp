@@ -74,9 +74,10 @@ struct NameAndType {
         StringView type;
         int element_count { 0 };
     } return_type;
+    Optional<int> webgl_version { OptionalNone {} };
 };
 
-static void generate_get_parameter(SourceGenerator& generator)
+static void generate_get_parameter(SourceGenerator& generator, int webgl_version)
 {
     Vector<NameAndType> const name_to_type = {
         { "ACTIVE_TEXTURE"sv, { "GLenum"sv } },
@@ -168,6 +169,7 @@ static void generate_get_parameter(SourceGenerator& generator)
         { "VENDOR"sv, { "DOMString"sv } },
         { "VERSION"sv, { "DOMString"sv } },
         { "VIEWPORT"sv, { "Int32Array"sv, 4 } },
+        { "MAX_SAMPLES"sv, { "GLint"sv }, 2 },
     };
 
     auto is_primitive_type = [](StringView type) {
@@ -176,6 +178,9 @@ static void generate_get_parameter(SourceGenerator& generator)
 
     generator.append("    switch (pname) {");
     for (auto const& name_and_type : name_to_type) {
+        if (name_and_type.webgl_version.has_value() && name_and_type.webgl_version.value() != webgl_version)
+            continue;
+
         auto const& parameter_name = name_and_type.name;
         auto const& type_name = name_and_type.return_type.type;
 
@@ -821,7 +826,7 @@ public:
         }
 
         if (function.name == "getParameter"sv) {
-            generate_get_parameter(function_impl_generator);
+            generate_get_parameter(function_impl_generator, webgl_version);
             continue;
         }
 
