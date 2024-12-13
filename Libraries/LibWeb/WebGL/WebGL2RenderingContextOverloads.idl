@@ -5,9 +5,10 @@
 // https://registry.khronos.org/webgl/specs/latest/2.0/#3.7
 interface mixin WebGL2RenderingContextOverloads {
     // WebGL1:
+    // FIXME: BufferSource is really a AllowSharedBufferSource
     undefined bufferData(GLenum target, GLsizeiptr size, GLenum usage);
     undefined bufferData(GLenum target, BufferSource? srcData, GLenum usage);
-    [FIXME] undefined bufferSubData(GLenum target, GLintptr dstByteOffset, AllowSharedBufferSource srcData);
+    undefined bufferSubData(GLenum target, GLintptr dstByteOffset, BufferSource srcData);
     // WebGL2:
     [FIXME] undefined bufferData(GLenum target, [AllowShared] ArrayBufferView srcData, GLenum usage, unsigned long long srcOffset, optional GLuint length = 0);
     [FIXME] undefined bufferSubData(GLenum target, GLintptr dstByteOffset, [AllowShared] ArrayBufferView srcData, unsigned long long srcOffset, optional GLuint length = 0);
