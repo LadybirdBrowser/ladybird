@@ -13,11 +13,6 @@
 #include <LibCrypto/Certificate/Certificate.h>
 #include <LibCrypto/PK/RSA.h>
 
-namespace {
-// Used by ASN1 macros
-static String s_error_string;
-}
-
 namespace Crypto::PK {
 
 ErrorOr<RSA::KeyPairType> RSA::parse_rsa_key(ReadonlyBytes der, bool is_private, Vector<StringView> current_scope)
