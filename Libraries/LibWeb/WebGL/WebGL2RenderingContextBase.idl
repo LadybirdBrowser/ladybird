@@ -303,7 +303,7 @@ interface mixin WebGL2RenderingContextBase {
     [FIXME] undefined readBuffer(GLenum src);
 
     // Renderbuffer objects
-    [FIXME] any getInternalformatParameter(GLenum target, GLenum internalformat, GLenum pname);
+    any getInternalformatParameter(GLenum target, GLenum internalformat, GLenum pname);
     [FIXME] undefined renderbufferStorageMultisample(GLenum target, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height);
 
     // Texture objects

@@ -278,6 +278,26 @@ static void generate_get_buffer_parameter(SourceGenerator& generator)
     })~~~");
 }
 
+static void generate_get_internal_format_parameter(SourceGenerator& generator)
+{
+    generator.append(R"~~~(
+    switch (pname) {
+    case GL_SAMPLES: {
+        GLint num_sample_counts { 0 };
+        glGetInternalformativ(target, internalformat, GL_NUM_SAMPLE_COUNTS, 1, &num_sample_counts);
+        auto samples_buffer = MUST(ByteBuffer::create_zeroed(num_sample_counts * sizeof(GLint)));
+        glGetInternalformativ(target, internalformat, GL_SAMPLES, num_sample_counts, reinterpret_cast<GLint*>(samples_buffer.data()));
+        auto array_buffer = JS::ArrayBuffer::create(m_realm, move(samples_buffer));
+        return JS::Int32Array::create(m_realm, num_sample_counts, array_buffer);
+    }
+    default:
+        dbgln("Unknown WebGL internal format parameter name: {:x}", pname);
+        set_error(GL_INVALID_ENUM);
+        return JS::js_null();
+    }
+)~~~");
+}
+
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
     StringView generated_header_path;
@@ -832,6 +852,11 @@ public:
 
         if (function.name == "getBufferParameter"sv) {
             generate_get_buffer_parameter(function_impl_generator);
+            continue;
+        }
+
+        if (function.name == "getInternalformatParameter") {
+            generate_get_internal_format_parameter(function_impl_generator);
             continue;
         }
 
