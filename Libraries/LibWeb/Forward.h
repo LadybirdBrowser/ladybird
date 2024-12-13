@@ -822,6 +822,7 @@ class DynamicsCompressorNode;
 class GainNode;
 class OfflineAudioContext;
 class OscillatorNode;
+class PannerNode;
 class PeriodicWave;
 
 enum class AudioContextState;

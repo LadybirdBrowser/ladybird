@@ -787,6 +787,7 @@ set(SOURCES
     WebAudio/GainNode.cpp
     WebAudio/OfflineAudioContext.cpp
     WebAudio/OscillatorNode.cpp
+    WebAudio/PannerNode.cpp
     WebAudio/PeriodicWave.cpp
     WebDriver/Actions.cpp
     WebDriver/Capabilities.cpp
