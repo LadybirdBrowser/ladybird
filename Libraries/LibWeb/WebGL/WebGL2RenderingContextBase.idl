@@ -300,7 +300,7 @@ interface mixin WebGL2RenderingContextBase {
     [FIXME] undefined framebufferTextureLayer(GLenum target, GLenum attachment, WebGLTexture? texture, GLint level, GLint layer);
     [FIXME] undefined invalidateFramebuffer(GLenum target, sequence<GLenum> attachments);
     [FIXME] undefined invalidateSubFramebuffer(GLenum target, sequence<GLenum> attachments, GLint x, GLint y, GLsizei width, GLsizei height);
-    [FIXME] undefined readBuffer(GLenum src);
+    undefined readBuffer(GLenum src);
 
     // Renderbuffer objects
     any getInternalformatParameter(GLenum target, GLenum internalformat, GLenum pname);
