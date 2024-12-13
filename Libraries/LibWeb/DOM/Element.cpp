@@ -1069,6 +1069,10 @@ void Element::set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::Selector:
     if (!existing_pseudo_element.has_value() && !pseudo_element_node)
         return;
 
+    if (!CSS::Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element)) {
+        return;
+    }
+
     ensure_pseudo_element(pseudo_element).layout_node = move(pseudo_element_node);
 }
 
@@ -2279,6 +2283,11 @@ void Element::set_pseudo_element_computed_css_values(CSS::Selector::PseudoElemen
 {
     if (!m_pseudo_element_data && !style.has_value())
         return;
+
+    if (!CSS::Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element)) {
+        return;
+    }
+
     ensure_pseudo_element(pseudo_element).computed_css_values = move(style);
 }
 
@@ -2294,6 +2303,11 @@ Optional<Element::PseudoElement&> Element::get_pseudo_element(CSS::Selector::Pse
 {
     if (!m_pseudo_element_data)
         return {};
+
+    if (!CSS::Selector::PseudoElement::is_known_pseudo_element_type(type)) {
+        return {};
+    }
+
     return m_pseudo_element_data->at(to_underlying(type));
 }
 
@@ -2301,6 +2315,9 @@ Element::PseudoElement& Element::ensure_pseudo_element(CSS::Selector::PseudoElem
 {
     if (!m_pseudo_element_data)
         m_pseudo_element_data = make<PseudoElementData>();
+
+    VERIFY(CSS::Selector::PseudoElement::is_known_pseudo_element_type(type));
+
     return m_pseudo_element_data->at(to_underlying(type));
 }
 
@@ -2310,6 +2327,11 @@ void Element::set_custom_properties(Optional<CSS::Selector::PseudoElement::Type>
         m_custom_properties = move(custom_properties);
         return;
     }
+
+    if (!CSS::Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element.value())) {
+        return;
+    }
+
     ensure_pseudo_element(pseudo_element.value()).custom_properties = move(custom_properties);
 }
 
@@ -2317,6 +2339,9 @@ HashMap<FlyString, CSS::StyleProperty> const& Element::custom_properties(Optiona
 {
     if (!pseudo_element.has_value())
         return m_custom_properties;
+
+    VERIFY(CSS::Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element.value()));
+
     return ensure_pseudo_element(pseudo_element.value()).custom_properties;
 }
 
