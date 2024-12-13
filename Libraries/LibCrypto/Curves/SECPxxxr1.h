@@ -99,7 +99,7 @@ private:
 
     // Curve parameters
     static constexpr size_t KEY_BIT_SIZE = bit_size;
-    static constexpr size_t KEY_BYTE_SIZE = KEY_BIT_SIZE / 8;
+    static constexpr size_t KEY_BYTE_SIZE = ceil_div(KEY_BIT_SIZE, 8ull);
     static constexpr size_t POINT_BYTE_SIZE = 1 + 2 * KEY_BYTE_SIZE;
 
     static constexpr StorageType make_unsigned_fixed_big_int_from_string(StringView str)
@@ -216,7 +216,7 @@ public:
 
     ErrorOr<SECPxxxr1Point> generate_public_key_point(UnsignedBigInteger scalar)
     {
-        VERIFY(scalar.byte_length() == KEY_BYTE_SIZE);
+        VERIFY(scalar.byte_length() >= KEY_BYTE_SIZE);
 
         return compute_coordinate_point(scalar, SECPxxxr1Point { UnsignedBigInteger::import_data(GENERATOR_POINT.data() + 1, KEY_BYTE_SIZE), UnsignedBigInteger::import_data(GENERATOR_POINT.data() + 1 + KEY_BYTE_SIZE, KEY_BYTE_SIZE) });
     }
@@ -399,10 +399,11 @@ public:
 private:
     StorageType unsigned_big_integer_to_storage_type(UnsignedBigInteger big)
     {
-        VERIFY(big.length() >= KEY_BIT_SIZE / 32);
+        constexpr size_t word_count = (KEY_BYTE_SIZE + 4 - 1) / 4;
+        VERIFY(big.length() >= word_count);
 
         StorageType val = 0u;
-        for (size_t i = 0; i < (KEY_BIT_SIZE / 32); i++) {
+        for (size_t i = 0; i < word_count; i++) {
             StorageType rr = big.words()[i];
             val |= (rr << (i * 32));
         }
@@ -411,8 +412,9 @@ private:
 
     UnsignedBigInteger storage_type_to_unsigned_big_integer(StorageType val)
     {
-        Vector<UnsignedBigInteger::Word, KEY_BIT_SIZE / 32> words;
-        for (size_t i = 0; i < (KEY_BIT_SIZE / 32); i++) {
+        constexpr size_t word_count = (KEY_BYTE_SIZE + 4 - 1) / 4;
+        Vector<UnsignedBigInteger::Word, word_count> words;
+        for (size_t i = 0; i < word_count; i++) {
             words.append(static_cast<UnsignedBigInteger::Word>((val >> (i * 32)) & 0xFFFFFFFF));
         }
         return UnsignedBigInteger(move(words));
@@ -850,5 +852,15 @@ static constexpr SECPxxxr1CurveParameters SECP384r1_CURVE_PARAMETERS {
     .generator_point = "04_AA87CA22_BE8B0537_8EB1C71E_F320AD74_6E1D3B62_8BA79B98_59F741E0_82542A38_5502F25D_BF55296C_3A545E38_72760AB7_3617DE4A_96262C6F_5D9E98BF_9292DC29_F8F41DBD_289A147C_E9DA3113_B5F0B8C0_0A60B1CE_1D7E819D_7A431D7C_90EA0E5F"sv,
 };
 using SECP384r1 = SECPxxxr1<384, SECP384r1_CURVE_PARAMETERS>;
+
+// SECP521r1 curve
+static constexpr SECPxxxr1CurveParameters SECP521r1_CURVE_PARAMETERS {
+    .prime = "01FF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF"sv,
+    .a = "01FF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFC"sv,
+    .b = "0051_953EB961_8E1C9A1F_929A21A0_B68540EE_A2DA725B_99B315F3_B8B48991_8EF109E1_56193951_EC7E937B_1652C0BD_3BB1BF07_3573DF88_3D2C34F1_EF451FD4_6B503F00"sv,
+    .order = "01FF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFA_51868783_BF2F966B_7FCC0148_F709A5D0_3BB5C9B8_899C47AE_BB6FB71E_91386409"sv,
+    .generator_point = "04_00C6_858E06B7_0404E9CD_9E3ECB66_2395B442_9C648139_053FB521_F828AF60_6B4D3DBA_A14B5E77_EFE75928_FE1DC127_A2FFA8DE_3348B3C1_856A429B_F97E7E31_C2E5BD66_0118_39296A78_9A3BC004_5C8A5FB4_2C7D1BD9_98F54449_579B4468_17AFBD17_273E662C_97EE7299_5EF42640_C550B901_3FAD0761_353C7086_A272C240_88BE9476_9FD16650"sv,
+};
+using SECP521r1 = SECPxxxr1<521, SECP521r1_CURVE_PARAMETERS>;
 
 }
