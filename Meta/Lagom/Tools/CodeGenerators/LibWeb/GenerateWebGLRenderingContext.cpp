@@ -174,6 +174,7 @@ static void generate_get_parameter(SourceGenerator& generator, int webgl_version
         { "MAX_ARRAY_TEXTURE_LAYERS"sv, { "GLint"sv }, 2 },
         { "MAX_COLOR_ATTACHMENTS"sv, { "GLint"sv }, 2 },
         { "MAX_VERTEX_UNIFORM_COMPONENTS"sv, { "GLint"sv }, 2 },
+        { "MAX_UNIFORM_BLOCK_SIZE"sv, { "GLint64"sv }, 2 },
     };
 
     auto is_primitive_type = [](StringView type) {
@@ -199,6 +200,12 @@ static void generate_get_parameter(SourceGenerator& generator, int webgl_version
         GLint result;
         glGetIntegerv(GL_@parameter_name@, &result);
         return JS::Value(result);
+)~~~");
+        } else if (type_name == "GLint64"sv) {
+            impl_generator.append(R"~~~(
+        GLint64 result;
+        glGetInteger64v(GL_@parameter_name@, &result);
+        return JS::Value(static_cast<double>(result));
 )~~~");
         } else if (type_name == "DOMString"sv) {
             impl_generator.append(R"~~~(
