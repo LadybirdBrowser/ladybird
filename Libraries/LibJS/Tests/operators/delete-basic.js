@@ -93,6 +93,13 @@ test("deleting super property", () => {
         }
     }
 
+    class D {
+        static foo() {
+            const deleter = () => delete super.foo;
+            deleter();
+        }
+    }
+
     const obj = new B();
     expect(() => {
         obj.bar();
@@ -105,6 +112,10 @@ test("deleting super property", () => {
     Object.setPrototypeOf(C, null);
     expect(() => {
         C.foo();
+    }).toThrowWithMessage(ReferenceError, "Can't delete a property on 'super'");
+
+    expect(() => {
+        D.foo();
     }).toThrowWithMessage(ReferenceError, "Can't delete a property on 'super'");
 });
 
