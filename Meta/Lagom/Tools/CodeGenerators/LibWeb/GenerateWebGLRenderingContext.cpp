@@ -21,6 +21,7 @@ static bool is_webgl_object_type(StringView type_name)
         || type_name == "WebGLFramebuffer"sv
         || type_name == "WebGLProgram"sv
         || type_name == "WebGLRenderbuffer"sv
+        || type_name == "WebGLSampler"sv
         || type_name == "WebGLShader"sv
         || type_name == "WebGLTexture"sv
         || type_name == "WebGLUniformLocation"sv
