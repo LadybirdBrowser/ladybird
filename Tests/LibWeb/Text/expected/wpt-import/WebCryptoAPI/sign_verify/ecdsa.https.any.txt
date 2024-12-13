@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 253 tests
 
-193 Pass
-60 Fail
+205 Pass
+48 Fail
 Pass	setup
 Pass	ECDSA P-256 with SHA-1 verification
 Pass	ECDSA P-256 with SHA-256 verification
@@ -233,27 +233,27 @@ Fail	ECDSA P-521 with SHA-1 - The signature was truncated by 1 byte verification
 Fail	ECDSA P-521 with SHA-1 - The signature was made using SHA-1, however verification is being done using SHA-256 verification
 Fail	ECDSA P-521 with SHA-1 - The signature was made using SHA-1, however verification is being done using SHA-384 verification
 Fail	ECDSA P-521 with SHA-1 - The signature was made using SHA-1, however verification is being done using SHA-512 verification
-Fail	ECDSA P-521 with SHA-1 - Signature has excess padding verification
-Fail	ECDSA P-521 with SHA-1 - The signature is empty verification
-Fail	ECDSA P-521 with SHA-1 - The signature is all zeroes verification
+Pass	ECDSA P-521 with SHA-1 - Signature has excess padding verification
+Pass	ECDSA P-521 with SHA-1 - The signature is empty verification
+Pass	ECDSA P-521 with SHA-1 - The signature is all zeroes verification
 Fail	ECDSA P-521 with SHA-256 - The signature was truncated by 1 byte verification
 Fail	ECDSA P-521 with SHA-256 - The signature was made using SHA-256, however verification is being done using SHA-1 verification
 Fail	ECDSA P-521 with SHA-256 - The signature was made using SHA-256, however verification is being done using SHA-384 verification
 Fail	ECDSA P-521 with SHA-256 - The signature was made using SHA-256, however verification is being done using SHA-512 verification
-Fail	ECDSA P-521 with SHA-256 - Signature has excess padding verification
-Fail	ECDSA P-521 with SHA-256 - The signature is empty verification
-Fail	ECDSA P-521 with SHA-256 - The signature is all zeroes verification
+Pass	ECDSA P-521 with SHA-256 - Signature has excess padding verification
+Pass	ECDSA P-521 with SHA-256 - The signature is empty verification
+Pass	ECDSA P-521 with SHA-256 - The signature is all zeroes verification
 Fail	ECDSA P-521 with SHA-384 - The signature was truncated by 1 byte verification
 Fail	ECDSA P-521 with SHA-384 - The signature was made using SHA-384, however verification is being done using SHA-1 verification
 Fail	ECDSA P-521 with SHA-384 - The signature was made using SHA-384, however verification is being done using SHA-256 verification
 Fail	ECDSA P-521 with SHA-384 - The signature was made using SHA-384, however verification is being done using SHA-512 verification
-Fail	ECDSA P-521 with SHA-384 - Signature has excess padding verification
-Fail	ECDSA P-521 with SHA-384 - The signature is empty verification
-Fail	ECDSA P-521 with SHA-384 - The signature is all zeroes verification
+Pass	ECDSA P-521 with SHA-384 - Signature has excess padding verification
+Pass	ECDSA P-521 with SHA-384 - The signature is empty verification
+Pass	ECDSA P-521 with SHA-384 - The signature is all zeroes verification
 Fail	ECDSA P-521 with SHA-512 - The signature was truncated by 1 byte verification
 Fail	ECDSA P-521 with SHA-512 - The signature was made using SHA-512, however verification is being done using SHA-1 verification
 Fail	ECDSA P-521 with SHA-512 - The signature was made using SHA-512, however verification is being done using SHA-256 verification
 Fail	ECDSA P-521 with SHA-512 - The signature was made using SHA-512, however verification is being done using SHA-384 verification
-Fail	ECDSA P-521 with SHA-512 - Signature has excess padding verification
-Fail	ECDSA P-521 with SHA-512 - The signature is empty verification
-Fail	ECDSA P-521 with SHA-512 - The signature is all zeroes verification
+Pass	ECDSA P-521 with SHA-512 - Signature has excess padding verification
+Pass	ECDSA P-521 with SHA-512 - The signature is empty verification
+Pass	ECDSA P-521 with SHA-512 - The signature is all zeroes verification

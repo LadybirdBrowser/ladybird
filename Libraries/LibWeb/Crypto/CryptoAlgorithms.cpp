@@ -3,6 +3,7 @@
  * Copyright (c) 2024, stelar7 <dudedbz@gmail.com>
  * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
  * Copyright (c) 2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2024, Altomani Gianluca <altomanigianluca@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -2265,17 +2266,16 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDSA::
     // 2. If the namedCurve member of normalizedAlgorithm is "P-256", "P-384" or "P-521":
     // Generate an Elliptic Curve key pair, as defined in [RFC6090]
     // with domain parameters for the curve identified by the namedCurve member of normalizedAlgorithm.
-    Variant<Empty, ::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1> curve;
+    Variant<Empty, ::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1, ::Crypto::Curves::SECP521r1> curve;
     if (normalized_algorithm.named_curve.is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
         if (normalized_algorithm.named_curve == "P-256")
             curve = ::Crypto::Curves::SECP256r1 {};
-
-        if (normalized_algorithm.named_curve == "P-384")
+        else if (normalized_algorithm.named_curve == "P-384")
             curve = ::Crypto::Curves::SECP384r1 {};
-
-        // FIXME: Support P-521
-        if (normalized_algorithm.named_curve == "P-521")
-            return WebIDL::NotSupportedError::create(m_realm, "'P-521' is not supported yet"_string);
+        else if (normalized_algorithm.named_curve == "P-521")
+            curve = ::Crypto::Curves::SECP521r1 {};
+        else
+            VERIFY_NOT_REACHED();
     } else {
         // If the namedCurve member of normalizedAlgorithm is a value specified in an applicable specification:
         // Perform the ECDSA generation steps specified in that specification,
@@ -2399,17 +2399,16 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDSA::sign(AlgorithmParams const&
     // 6. If the namedCurve attribute of the [[algorithm]] internal slot of key is "P-256", "P-384" or "P-521":
     if (named_curve.is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
         size_t coord_size;
-        Variant<Empty, ::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1> curve;
+        Variant<Empty, ::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1, ::Crypto::Curves::SECP521r1> curve;
         if (named_curve == "P-256") {
-            coord_size = 32;
+            coord_size = 256 / 8;
             curve = ::Crypto::Curves::SECP256r1 {};
         } else if (named_curve == "P-384") {
-            coord_size = 48;
+            coord_size = 384 / 8;
             curve = ::Crypto::Curves::SECP384r1 {};
         } else if (named_curve == "P-521") {
-            // FIXME: Support P-521
-            coord_size = 66;
-            return WebIDL::NotSupportedError::create(m_realm, "'P-521' is not supported yet"_string);
+            coord_size = ceil_div(521, 8);
+            curve = ::Crypto::Curves::SECP521r1 {};
         } else {
             VERIFY_NOT_REACHED();
         }
@@ -2492,17 +2491,16 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, GC::
 
     auto result = false;
 
-    Variant<Empty, ::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1> curve;
+    Variant<Empty, ::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1, ::Crypto::Curves::SECP521r1> curve;
     if (named_curve.is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
         if (named_curve == "P-256")
             curve = ::Crypto::Curves::SECP256r1 {};
-
-        if (named_curve == "P-384")
+        else if (named_curve == "P-384")
             curve = ::Crypto::Curves::SECP384r1 {};
-
-        // FIXME: Support P-521
-        if (named_curve == "P-521")
-            return WebIDL::NotSupportedError::create(m_realm, "'P-521' is not supported yet"_string);
+        else if (named_curve == "P-521")
+            curve = ::Crypto::Curves::SECP521r1 {};
+        else
+            VERIFY_NOT_REACHED();
 
         // Perform the ECDSA verifying process, as specified in [RFC6090], Section 5.3,
         // with M as the received message, signature as the received signature
@@ -2810,11 +2808,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(AlgorithmParams const&
 
             size_t coord_size;
             if (named_curve == "P-256"sv)
-                coord_size = 32;
+                coord_size = 256 / 8;
             else if (named_curve == "P-384"sv)
-                coord_size = 48;
+                coord_size = 384 / 8;
             else if (named_curve == "P-521"sv)
-                coord_size = 66;
+                coord_size = ceil_div(521, 8);
             else
                 VERIFY_NOT_REACHED();
 
@@ -3145,16 +3143,16 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
                 },
                 [&](::Crypto::PK::ECPrivateKey<> const& private_key) -> ErrorOr<void> {
                     size_t coord_size;
-                    Variant<Empty, ::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1> curve;
+                    Variant<Empty, ::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1, ::Crypto::Curves::SECP521r1> curve;
                     if (algorithm.named_curve() == "P-256"sv) {
                         curve = ::Crypto::Curves::SECP256r1 {};
-                        coord_size = 256 / 8;
+                        coord_size = 32;
                     } else if (algorithm.named_curve() == "P-384"sv) {
                         curve = ::Crypto::Curves::SECP384r1 {};
-                        coord_size = 384 / 8;
+                        coord_size = 48;
                     } else if (algorithm.named_curve() == "P-521"sv) {
-                        // FIXME: Support P-521
-                        return {};
+                        curve = ::Crypto::Curves::SECP521r1 {};
+                        coord_size = 66;
                     } else {
                         VERIFY_NOT_REACHED();
                     }
@@ -3284,17 +3282,16 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDH::g
     // 2. If the namedCurve member of normalizedAlgorithm is "P-256", "P-384" or "P-521":
     // Generate an Elliptic Curve key pair, as defined in [RFC6090]
     // with domain parameters for the curve identified by the namedCurve member of normalizedAlgorithm.
-    Variant<Empty, ::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1> curve;
+    Variant<Empty, ::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1, ::Crypto::Curves::SECP521r1> curve;
     if (normalized_algorithm.named_curve.is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
         if (normalized_algorithm.named_curve == "P-256")
             curve = ::Crypto::Curves::SECP256r1 {};
-
-        if (normalized_algorithm.named_curve == "P-384")
+        else if (normalized_algorithm.named_curve == "P-384")
             curve = ::Crypto::Curves::SECP384r1 {};
-
-        // FIXME: Support P-521
-        if (normalized_algorithm.named_curve == "P-521")
-            return WebIDL::NotSupportedError::create(m_realm, "'P-521' is not supported yet"_string);
+        else if (normalized_algorithm.named_curve == "P-521")
+            curve = ::Crypto::Curves::SECP521r1 {};
+        else
+            VERIFY_NOT_REACHED();
     } else {
         // If the namedCurve member of normalizedAlgorithm is a value specified in an applicable specification
         // that specifies the use of that value with ECDH:
@@ -3415,15 +3412,15 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDH::derive_bits(AlgorithmParams 
         auto private_key_data = key->handle().get<::Crypto::PK::ECPrivateKey<>>();
         auto public_key_data = public_key->handle().get<::Crypto::PK::ECPublicKey<>>();
 
-        Variant<Empty, ::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1> curve;
-        if (internal_algorithm.named_curve() == "P-256"sv) {
+        Variant<Empty, ::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1, ::Crypto::Curves::SECP521r1> curve;
+        if (internal_algorithm.named_curve() == "P-256"sv)
             curve = ::Crypto::Curves::SECP256r1 {};
-        } else if (internal_algorithm.named_curve() == "P-384"sv) {
+        else if (internal_algorithm.named_curve() == "P-384"sv)
             curve = ::Crypto::Curves::SECP384r1 {};
-        } else if (internal_algorithm.named_curve() == "P-521"sv) {
-            // TODO: Support P-521
-            return WebIDL::NotSupportedError::create(m_realm, "'P-521' is not supported yet"_string);
-        }
+        else if (internal_algorithm.named_curve() == "P-521"sv)
+            curve = ::Crypto::Curves::SECP521r1 {};
+        else
+            VERIFY_NOT_REACHED();
 
         auto maybe_secret = curve.visit(
             [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> { return Error::from_string_literal("noop error"); },
@@ -3713,11 +3710,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
         if (named_curve.is_one_of("P-256"sv, "P-384"sv, "P-521"sv)) {
             size_t coord_size;
             if (named_curve == "P-256"sv)
-                coord_size = 32;
+                coord_size = 256 / 8;
             else if (named_curve == "P-384"sv)
-                coord_size = 48;
+                coord_size = 384 / 8;
             else if (named_curve == "P-521"sv)
-                coord_size = 66;
+                coord_size = ceil_div(521, 8);
             else
                 VERIFY_NOT_REACHED();
 
@@ -4039,16 +4036,16 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
                 },
                 [&](::Crypto::PK::ECPrivateKey<> const& private_key) -> ErrorOr<void> {
                     size_t coord_size;
-                    Variant<Empty, ::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1> curve;
+                    Variant<Empty, ::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1, ::Crypto::Curves::SECP521r1> curve;
                     if (algorithm.named_curve() == "P-256"sv) {
                         curve = ::Crypto::Curves::SECP256r1 {};
-                        coord_size = 256 / 8;
+                        coord_size = 32;
                     } else if (algorithm.named_curve() == "P-384"sv) {
                         curve = ::Crypto::Curves::SECP384r1 {};
-                        coord_size = 384 / 8;
+                        coord_size = 48;
                     } else if (algorithm.named_curve() == "P-521"sv) {
-                        // FIXME: Support P-521
-                        return {};
+                        curve = ::Crypto::Curves::SECP521r1 {};
+                        coord_size = 66;
                     } else {
                         VERIFY_NOT_REACHED();
                     }

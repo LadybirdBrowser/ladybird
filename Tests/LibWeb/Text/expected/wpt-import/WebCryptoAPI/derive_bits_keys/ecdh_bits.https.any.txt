@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 40 tests
 
-30 Pass
-10 Fail
+31 Pass
+9 Fail
 Pass	setup - define tests
 Fail	P-521 good parameters
 Fail	P-521 mixed case parameters
@@ -17,7 +17,7 @@ Pass	P-521 no deriveBits usage for base key
 Pass	P-521 base key is not a private key
 Pass	P-521 public property value is a private key
 Pass	P-521 public property value is a secret key
-Fail	P-521 asking for too many bits
+Pass	P-521 asking for too many bits
 Pass	P-256 good parameters
 Pass	P-256 mixed case parameters
 Pass	P-256 short result
