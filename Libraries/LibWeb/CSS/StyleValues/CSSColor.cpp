@@ -8,6 +8,7 @@
 #include <AK/TypeCasts.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 
 namespace Web::CSS {
 
@@ -90,9 +91,42 @@ CSSColor::Resolved CSSColor::resolve_properties() const
 }
 
 // https://www.w3.org/TR/css-color-4/#serializing-color-function-values
-String CSSColor::to_string(SerializationMode) const
+String CSSColor::to_string(SerializationMode mode) const
 {
-    // FIXME: Do this properly, taking unresolved calculated values into account.
+    if (mode == SerializationMode::Normal) {
+        auto convert_percentage = [](ValueComparingNonnullRefPtr<CSSStyleValue> const& value) -> RemoveReference<decltype(value)> {
+            if (value->is_percentage())
+                return NumberStyleValue::create(value->as_percentage().value() / 100);
+            return value;
+        };
+
+        auto alpha = convert_percentage(m_properties.alpha);
+
+        bool const is_alpha_required = [&]() {
+            if (alpha->is_number())
+                return alpha->as_number().value() < 1;
+            return true;
+        }();
+
+        if (alpha->is_number() && alpha->as_number().value() < 0)
+            alpha = NumberStyleValue::create(0);
+
+        if (is_alpha_required) {
+            return MUST(String::formatted("color({} {} {} {} / {})",
+                string_view_from_color_type(m_color_type),
+                convert_percentage(m_properties.channels[0])->to_string(mode),
+                convert_percentage(m_properties.channels[1])->to_string(mode),
+                convert_percentage(m_properties.channels[2])->to_string(mode),
+                alpha->to_string(mode)));
+        }
+
+        return MUST(String::formatted("color({} {} {} {})",
+            string_view_from_color_type(m_color_type),
+            convert_percentage(m_properties.channels[0])->to_string(mode),
+            convert_percentage(m_properties.channels[1])->to_string(mode),
+            convert_percentage(m_properties.channels[2])->to_string(mode)));
+    }
+
     auto resolved = resolve_properties();
     if (resolved.alpha == 1) {
         return MUST(String::formatted("color({} {} {} {})",
