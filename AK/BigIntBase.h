@@ -231,7 +231,7 @@ template<typename WordType>
 ALWAYS_INLINE constexpr WordType sub_words(WordType word1, WordType word2, bool& carry)
 {
     if (!is_constant_evaluated()) {
-#if __has_builtin(__builtin_subc) && !defined(AK_BUILTIN_SUBC_BROKEN)
+#if __has_builtin(__builtin_subc)
         WordType ncarry, output;
         if constexpr (SameAs<WordType, unsigned int>)
             output = __builtin_subc(word1, word2, carry, reinterpret_cast<unsigned int*>(&ncarry));
