@@ -1573,12 +1573,15 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCtr::import_key(AlgorithmParams const
         //              throw a DataError.
         auto data_bits = data.size() * 8;
         auto const& alg = jwk.alg;
-        if (data_bits == 128 && alg != "A128CTR") {
-            return WebIDL::DataError::create(m_realm, "Contradictory key size: key has 128 bits, but alg specifies non-128-bit algorithm"_string);
-        } else if (data_bits == 192 && alg != "A192CTR") {
-            return WebIDL::DataError::create(m_realm, "Contradictory key size: key has 192 bits, but alg specifies non-192-bit algorithm"_string);
-        } else if (data_bits == 256 && alg != "A256CTR") {
-            return WebIDL::DataError::create(m_realm, "Contradictory key size: key has 256 bits, but alg specifies non-256-bit algorithm"_string);
+        if (data_bits == 128) {
+            if (alg.has_value() && alg != "A128CTR")
+                return WebIDL::DataError::create(m_realm, "Contradictory key size: key has 128 bits, but alg specifies non-128-bit algorithm"_string);
+        } else if (data_bits == 192) {
+            if (alg.has_value() && alg != "A192CTR")
+                return WebIDL::DataError::create(m_realm, "Contradictory key size: key has 192 bits, but alg specifies non-192-bit algorithm"_string);
+        } else if (data_bits == 256) {
+            if (alg.has_value() && alg != "A256CTR")
+                return WebIDL::DataError::create(m_realm, "Contradictory key size: key has 256 bits, but alg specifies non-256-bit algorithm"_string);
         } else {
             return WebIDL::DataError::create(m_realm, MUST(String::formatted("Invalid key size: {} bits", data_bits)));
         }
@@ -1890,12 +1893,15 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesGcm::import_key(AlgorithmParams const
         //              throw a DataError.
         auto data_bits = data.size() * 8;
         auto const& alg = jwk.alg;
-        if (data_bits == 128 && alg != "A128GCM") {
-            return WebIDL::DataError::create(m_realm, "Contradictory key size: key has 128 bits, but alg specifies non-128-bit algorithm"_string);
-        } else if (data_bits == 192 && alg != "A192GCM") {
-            return WebIDL::DataError::create(m_realm, "Contradictory key size: key has 192 bits, but alg specifies non-192-bit algorithm"_string);
-        } else if (data_bits == 256 && alg != "A256GCM") {
-            return WebIDL::DataError::create(m_realm, "Contradictory key size: key has 256 bits, but alg specifies non-256-bit algorithm"_string);
+        if (data_bits == 128) {
+            if (alg.has_value() && alg != "A128GCM")
+                return WebIDL::DataError::create(m_realm, "Contradictory key size: key has 128 bits, but alg specifies non-128-bit algorithm"_string);
+        } else if (data_bits == 192) {
+            if (alg.has_value() && alg != "A192GCM")
+                return WebIDL::DataError::create(m_realm, "Contradictory key size: key has 192 bits, but alg specifies non-192-bit algorithm"_string);
+        } else if (data_bits == 256) {
+            if (alg.has_value() && alg != "A256GCM")
+                return WebIDL::DataError::create(m_realm, "Contradictory key size: key has 256 bits, but alg specifies non-256-bit algorithm"_string);
         } else {
             return WebIDL::DataError::create(m_realm, MUST(String::formatted("Invalid key size: {} bits", data_bits)));
         }
