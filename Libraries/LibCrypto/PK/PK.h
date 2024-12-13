@@ -13,6 +13,29 @@
 
 namespace Crypto::PK {
 
+template<class ByteBuffer>
+ErrorOr<ByteBuffer> wrap_in_private_key_info(ByteBuffer key, Span<int const> algorithm_identifier)
+{
+    ASN1::Encoder encoder;
+    TRY(encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
+        TRY(encoder.write(0x00u)); // version
+
+        // AlgorithmIdentifier
+        TRY(encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
+            TRY(encoder.write(algorithm_identifier)); // algorithm
+
+            return {};
+        }));
+
+        // PrivateKey
+        TRY(encoder.write(key));
+
+        return {};
+    }));
+
+    return encoder.finish();
+}
+
 template<class ByteBuffer, typename Params>
 ErrorOr<ByteBuffer> wrap_in_private_key_info(ByteBuffer key, Span<int const> algorithm_identifier, Params params)
 {
@@ -31,6 +54,33 @@ ErrorOr<ByteBuffer> wrap_in_private_key_info(ByteBuffer key, Span<int const> alg
 
         // PrivateKey
         TRY(encoder.write(key));
+
+        return {};
+    }));
+
+    return encoder.finish();
+}
+
+template<typename ExportableKey>
+ErrorOr<ByteBuffer> wrap_in_private_key_info(ExportableKey key, Span<int const> algorithm_identifier)
+requires requires(ExportableKey k) {
+    k.export_as_der();
+}
+{
+    ASN1::Encoder encoder;
+    TRY(encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
+        TRY(encoder.write(0x00u)); // version
+
+        // AlgorithmIdentifier
+        TRY(encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
+            TRY(encoder.write(algorithm_identifier)); // algorithm
+
+            return {};
+        }));
+
+        // PrivateKey
+        auto data = TRY(key.export_as_der());
+        TRY(encoder.write(data));
 
         return {};
     }));
@@ -67,6 +117,28 @@ requires requires(ExportableKey k) {
     return encoder.finish();
 }
 
+template<class ByteBuffer>
+ErrorOr<ByteBuffer> wrap_in_subject_public_key_info(ByteBuffer key, Span<int const> algorithm_identifier)
+{
+    ASN1::Encoder encoder;
+    TRY(encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
+        // AlgorithmIdentifier
+        TRY(encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
+            TRY(encoder.write(algorithm_identifier)); // algorithm
+
+            return {};
+        }));
+
+        // subjectPublicKey
+        auto bitstring = ::Crypto::ASN1::BitStringView(key, 0);
+        TRY(encoder.write(bitstring));
+
+        return {};
+    }));
+
+    return encoder.finish();
+}
+
 template<class ByteBuffer, typename ParamsType>
 ErrorOr<ByteBuffer> wrap_in_subject_public_key_info(ByteBuffer key, Span<int const> algorithm_identifier, ParamsType const& params)
 {
@@ -83,6 +155,32 @@ ErrorOr<ByteBuffer> wrap_in_subject_public_key_info(ByteBuffer key, Span<int con
 
         // subjectPublicKey
         auto bitstring = ::Crypto::ASN1::BitStringView(key, 0);
+        TRY(encoder.write(bitstring));
+
+        return {};
+    }));
+
+    return encoder.finish();
+}
+
+template<typename ExportableKey>
+ErrorOr<ByteBuffer> wrap_in_subject_public_key_info(ExportableKey key, Span<int const> algorithm_identifier)
+requires requires(ExportableKey k) {
+    k.export_as_der();
+}
+{
+    ASN1::Encoder encoder;
+    TRY(encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
+        // AlgorithmIdentifier
+        TRY(encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
+            TRY(encoder.write(algorithm_identifier)); // algorithm
+
+            return {};
+        }));
+
+        // subjectPublicKey
+        auto data = TRY(key.export_as_der());
+        auto bitstring = ::Crypto::ASN1::BitStringView(data, 0);
         TRY(encoder.write(bitstring));
 
         return {};
