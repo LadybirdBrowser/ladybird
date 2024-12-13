@@ -225,6 +225,7 @@ void HmacKeyAlgorithm::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
     define_native_accessor(realm, "hash", hash_getter, {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
+    define_native_accessor(realm, "length", length_getter, {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
 }
 
 void HmacKeyAlgorithm::visit_edges(JS::Cell::Visitor& visitor)
