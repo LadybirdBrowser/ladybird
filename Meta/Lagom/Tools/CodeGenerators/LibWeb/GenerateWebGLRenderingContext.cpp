@@ -670,6 +670,19 @@ public:
             continue;
         }
 
+        if (webgl_version == 2 && function.name == "texSubImage2D"sv && function.overload_index == 1) {
+            function_impl_generator.append(R"~~~(
+    void const* pixels_ptr = nullptr;
+    if (src_data) {
+        auto const& viewed_array_buffer = src_data->viewed_array_buffer();
+        auto const& byte_buffer = viewed_array_buffer->buffer();
+        pixels_ptr = byte_buffer.data() + src_offset;
+    }
+    glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels_ptr);
+)~~~");
+            continue;
+        }
+
         if (function.name == "texSubImage3D"sv && function.overload_index == 0) {
             function_impl_generator.append(R"~~~(
     void const* pixels_ptr = nullptr;
