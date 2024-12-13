@@ -1,0 +1,99 @@
+<script src="../include.js"></script>
+<script>
+    function dumpAudioParam(param) {
+        println(`${param} current: ${param.value}, default: ${param.defaultValue}, min: ${param.minValue}, max: ${param.maxValue}, rate: ${param.automationRate}`);
+    }
+
+    function checkThrows(func) {
+        try {
+            func();
+            println("FAIL: Did not throw!");
+        } catch (e) {
+            println(`Did throw ${e.name}: ${e.message}`);
+        }
+    }
+
+    test(() => {
+        const audioContext = new OfflineAudioContext(1, 5000, 44100);
+
+        const panner = audioContext.createPanner();
+
+        // Check prototype
+        let prototype = Object.getPrototypeOf(panner);
+
+        while (prototype) {
+            println(prototype.constructor.name);
+            prototype = Object.getPrototypeOf(prototype);
+        }
+
+        // Audio Params
+        const audioParams = [
+            panner.positionX,
+            panner.positionY,
+            panner.positionZ,
+            panner.orientationX,
+            panner.orientationY,
+            panner.orientationZ,
+        ];
+
+        for (const audioParam of audioParams) {
+            dumpAudioParam(audioParam);
+            audioParam.value = -52;
+            dumpAudioParam(audioParam);
+            audioParam.value = 100_000;
+            dumpAudioParam(audioParam);
+            audioParam.value = -22051;
+            dumpAudioParam(audioParam);
+        }
+
+        // Default values
+        println(`default panningModel: ${panner.panningModel}`);
+        println(`default distanceModel: ${panner.distanceModel}`);
+        println(`default refDistance: ${panner.refDistance}`);
+        println(`default maxDistance: ${panner.maxDistance}`);
+        println(`default rolloffFactor: ${panner.rolloffFactor}`);
+        println(`default coneInnerAngle: ${panner.coneInnerAngle}`);
+        println(`default coneOuterAngle: ${panner.coneOuterAngle}`);
+        println(`default coneOuterGain: ${panner.coneOuterGain}`);
+
+        checkThrows(() => {
+            panner.refDistance = -1;
+        });
+
+        checkThrows(() => {
+            panner.rolloffFactor = -1;
+        });
+
+        checkThrows(() => {
+            panner.maxDistance = -1;
+        });
+
+        checkThrows(() => {
+            panner.coneOuterGain = -1;
+        });
+
+        checkThrows(() => {
+            panner.coneOuterGain = 1.23;
+        });
+
+        checkThrows(() => {
+            new PannerNode(audioContext, { refDistance: -1 });
+        });
+
+        checkThrows(() => {
+            new PannerNode(audioContext, { rolloffFactor: -1 });
+        });
+
+        checkThrows(() => {
+            new PannerNode(audioContext, { maxDistance: -1 });
+        });
+
+        checkThrows(() => {
+            new PannerNode(audioContext, { coneOuterGain: -1 });
+        });
+
+        checkThrows(() => {
+            new PannerNode(audioContext, { coneOuterGain: 1.23 });
+        });
+    });
+</script>

@@ -8,6 +8,7 @@
 #import <WebAudio/DynamicsCompressorNode.idl>
 #import <WebAudio/GainNode.idl>
 #import <WebAudio/OscillatorNode.idl>
+#import <WebAudio/PannerNode.idl>
 #import <WebIDL/DOMException.idl>
 
 // https://www.w3.org/TR/webaudio/#enumdef-audiocontextstate
@@ -42,7 +43,7 @@ interface BaseAudioContext : EventTarget {
     GainNode createGain();
     [FIXME] IIRFilterNode createIIRFilter (sequence<double> feedforward, sequence<double> feedback);
     OscillatorNode createOscillator();
-    [FIXME] PannerNode createPanner ();
+    PannerNode createPanner();
     [FIXME] PeriodicWave createPeriodicWave (sequence<float> real, sequence<float> imag, optional PeriodicWaveConstraints constraints = {});
     [FIXME] ScriptProcessorNode createScriptProcessor(optional unsigned long bufferSize = 0, optional unsigned long numberOfInputChannels = 2, optional unsigned long numberOfOutputChannels = 2);
     [FIXME] StereoPannerNode createStereoPanner ();
