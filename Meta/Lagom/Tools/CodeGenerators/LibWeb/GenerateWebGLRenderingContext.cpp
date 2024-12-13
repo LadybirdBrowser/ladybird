@@ -354,6 +354,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 #include <LibWeb/WebGL/WebGLProgram.h>
 #include <LibWeb/WebGL/WebGLRenderbuffer.h>
 #include <LibWeb/WebGL/@class_name@.h>
+#include <LibWeb/WebGL/WebGLSampler.h>
 #include <LibWeb/WebGL/WebGLShader.h>
 #include <LibWeb/WebGL/WebGLShaderPrecisionFormat.h>
 #include <LibWeb/WebGL/WebGLTexture.h>
@@ -504,6 +505,15 @@ public:
     GLuint handle = 0;
     glGenVertexArrays(1, &handle);
     return WebGLVertexArrayObject::create(m_realm, handle);
+)~~~");
+            continue;
+        }
+
+        if (function.name == "createSampler"sv) {
+            function_impl_generator.append(R"~~~(
+    GLuint handle = 0;
+    glGenSamplers(1, &handle);
+    return WebGLSampler::create(m_realm, handle);
 )~~~");
             continue;
         }
