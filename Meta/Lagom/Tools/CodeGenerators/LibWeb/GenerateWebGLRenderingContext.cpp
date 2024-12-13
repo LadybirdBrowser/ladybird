@@ -172,6 +172,7 @@ static void generate_get_parameter(SourceGenerator& generator, int webgl_version
         { "MAX_SAMPLES"sv, { "GLint"sv }, 2 },
         { "MAX_3D_TEXTURE_SIZE"sv, { "GLint"sv }, 2 },
         { "MAX_ARRAY_TEXTURE_LAYERS"sv, { "GLint"sv }, 2 },
+        { "MAX_COLOR_ATTACHMENTS"sv, { "GLint"sv }, 2 },
     };
 
     auto is_primitive_type = [](StringView type) {
