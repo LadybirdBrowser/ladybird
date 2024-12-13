@@ -21,6 +21,24 @@ test("error cases", () => {
         const array = new Int32Array(4);
         Atomics.compareExchange(array, 100, 0, 0);
     }).toThrow(RangeError);
+
+    expect(() => {
+        const array = new Int32Array(4);
+
+        function detachArrayWhileAccessingIndex(array) {
+            return {
+                valueOf() {
+                    detachArrayBuffer(array.buffer);
+                    return 0;
+                },
+            };
+        }
+
+        Atomics.compareExchange(array, detachArrayWhileAccessingIndex(array), 0, 0);
+    }).toThrowWithMessage(
+        TypeError,
+        "TypedArray contains a property which references a value at an index not contained within its buffer's bounds"
+    );
 });
 
 test("basic functionality (non-BigInt)", () => {
