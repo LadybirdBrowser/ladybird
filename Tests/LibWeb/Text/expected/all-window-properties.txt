@@ -261,6 +261,7 @@ OfflineAudioContext
 Option
 OscillatorNode
 PageTransitionEvent
+PannerNode
 Path2D
 Performance
 PerformanceEntry
