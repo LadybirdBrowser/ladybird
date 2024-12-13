@@ -371,8 +371,7 @@ bool Context::verify_certificate_pair(Certificate const& subject, Certificate co
         return false;
     }
 
-    auto public_key = issuer.public_key.ec;
-    auto public_point = Crypto::Curves::SECPxxxr1Point { public_key.x(), public_key.y() };
+    auto public_point = issuer.public_key.ec.to_secpxxxr1_point();
 
     auto maybe_signature = Crypto::Curves::SECPxxxr1Signature::from_asn(subject.signature_value, {});
     if (maybe_signature.is_error()) {

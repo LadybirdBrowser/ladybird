@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023, Michiel Visser <opensource@webmichiel.nl>
+ * Copyright (c) 2024, Altomani Gianluca <altomanigianluca@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -36,6 +37,22 @@ struct SECPxxxr1CurveParameters {
 struct SECPxxxr1Point {
     UnsignedBigInteger x;
     UnsignedBigInteger y;
+    size_t size;
+
+    static ErrorOr<ByteBuffer> scalar_to_bytes(UnsignedBigInteger const& a, size_t size)
+    {
+        auto a_bytes = TRY(ByteBuffer::create_uninitialized(a.byte_length()));
+        auto a_size = a.export_data(a_bytes.span());
+        VERIFY(a_size >= size);
+
+        for (size_t i = 0; i < a_size - size; i++) {
+            if (a_bytes[i] != 0) {
+                return Error::from_string_literal("Scalar is too large for the given size");
+            }
+        }
+
+        return a_bytes.slice(a_size - size, size);
+    }
 
     static ErrorOr<SECPxxxr1Point> from_uncompressed(ReadonlyBytes data)
     {
@@ -46,16 +63,30 @@ struct SECPxxxr1Point {
         return SECPxxxr1Point {
             UnsignedBigInteger::import_data(data.slice(1, half_size)),
             UnsignedBigInteger::import_data(data.slice(1 + half_size, half_size)),
+            half_size,
         };
+    }
+
+    ErrorOr<ByteBuffer> x_bytes() const
+    {
+        return scalar_to_bytes(x, size);
+    }
+
+    ErrorOr<ByteBuffer> y_bytes() const
+    {
+        return scalar_to_bytes(y, size);
     }
 
     ErrorOr<ByteBuffer> to_uncompressed() const
     {
-        auto bytes = TRY(ByteBuffer::create_uninitialized(1 + x.byte_length() + y.byte_length()));
+        auto x = TRY(x_bytes());
+        auto y = TRY(y_bytes());
+
+        auto bytes = TRY(ByteBuffer::create_uninitialized(1 + (size * 2)));
         bytes[0] = 0x04; // uncompressed
-        auto x_size = x.export_data(bytes.span().slice(1));
-        auto y_size = y.export_data(bytes.span().slice(1 + x_size));
-        return bytes.slice(0, 1 + x_size + y_size);
+        bytes.overwrite(1, x.data(), size);
+        bytes.overwrite(1 + size, y.data(), size);
+        return bytes;
     }
 };
 
@@ -218,7 +249,11 @@ public:
     {
         VERIFY(scalar.byte_length() >= KEY_BYTE_SIZE);
 
-        return compute_coordinate_point(scalar, SECPxxxr1Point { UnsignedBigInteger::import_data(GENERATOR_POINT.data() + 1, KEY_BYTE_SIZE), UnsignedBigInteger::import_data(GENERATOR_POINT.data() + 1 + KEY_BYTE_SIZE, KEY_BYTE_SIZE) });
+        return compute_coordinate_point(scalar, SECPxxxr1Point {
+                                                    UnsignedBigInteger::import_data(GENERATOR_POINT.data() + 1, KEY_BYTE_SIZE),
+                                                    UnsignedBigInteger::import_data(GENERATOR_POINT.data() + 1 + KEY_BYTE_SIZE, KEY_BYTE_SIZE),
+                                                    KEY_BYTE_SIZE,
+                                                });
     }
 
     ErrorOr<ByteBuffer> compute_coordinate(ReadonlyBytes scalar_bytes, ReadonlyBytes point_bytes) override
@@ -248,8 +283,9 @@ public:
         auto result_point = TRY(compute_coordinate_internal(scalar_int, JacobianPoint { point_x_int, point_y_int, 1u }));
 
         return SECPxxxr1Point {
-            .x = storage_type_to_unsigned_big_integer(result_point.x),
-            .y = storage_type_to_unsigned_big_integer(result_point.y),
+            storage_type_to_unsigned_big_integer(result_point.x),
+            storage_type_to_unsigned_big_integer(result_point.y),
+            KEY_BYTE_SIZE,
         };
     }
 

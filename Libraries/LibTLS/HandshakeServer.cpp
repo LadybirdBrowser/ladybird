@@ -458,8 +458,7 @@ ssize_t TLSv12::verify_ecdsa_server_key_exchange(ReadonlyBytes server_key_info_b
         dbgln("verify_ecdsa_server_key_exchange failed: Attempting to verify signature without certificates");
         return (i8)Error::NotSafe;
     }
-    auto server_public_key = m_context.certificates.first().public_key.ec;
-    auto server_point = Crypto::Curves::SECPxxxr1Point { server_public_key.x(), server_public_key.y() };
+    auto server_point = m_context.certificates.first().public_key.ec.to_secpxxxr1_point();
 
     auto message_result = ByteBuffer::create_uninitialized(64 + server_key_info_buffer.size());
     if (message_result.is_error()) {

@@ -2304,7 +2304,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDSA::
         return WebIDL::OperationError::create(m_realm, "Failed to create valid crypto instance"_string);
 
     auto public_key_data = maybe_public_key_data.release_value();
-    auto ec_public_key = ::Crypto::PK::ECPublicKey<> { public_key_data.x, public_key_data.y };
+    auto ec_public_key = ::Crypto::PK::ECPublicKey<> { public_key_data };
 
     // 7. Let algorithm be a new EcKeyAlgorithm object.
     auto algorithm = EcKeyAlgorithm::create(m_realm);
@@ -2331,7 +2331,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDSA::
     public_key->set_usages(usage_intersection(key_usages, { { Bindings::KeyUsage::Verify } }));
 
     // 15. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
-    auto ec_private_key = ::Crypto::PK::ECPrivateKey<> { private_key_data, {}, ec_public_key };
+    auto ec_private_key = ::Crypto::PK::ECPrivateKey<> { private_key_data, public_key_data.size, {}, ec_public_key };
     auto private_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { ec_private_key });
 
     // 16. Set the [[type]] internal slot of privateKey to "private"
@@ -2512,7 +2512,7 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, GC::
 
         auto maybe_result = curve.visit(
             [](Empty const&) -> ErrorOr<bool> { return Error::from_string_literal("Failed to create valid crypto instance"); },
-            [&](auto instance) { return instance.verify_point(M, ::Crypto::Curves::SECPxxxr1Point { Q.x(), Q.y() }, ::Crypto::Curves::SECPxxxr1Signature { r, s }); });
+            [&](auto instance) { return instance.verify_point(M, Q.to_secpxxxr1_point(), ::Crypto::Curves::SECPxxxr1Signature { r, s }); });
 
         if (maybe_result.is_error()) {
             auto error_message = MUST(String::from_utf8(maybe_result.error().string_literal()));
@@ -2839,6 +2839,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(AlgorithmParams const&
             auto public_key = ::Crypto::PK::ECPublicKey<> {
                 ::Crypto::UnsignedBigInteger::import_data(x_bytes),
                 ::Crypto::UnsignedBigInteger::import_data(y_bytes),
+                coord_size,
             };
 
             // If the d field is present:
@@ -2856,6 +2857,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(AlgorithmParams const&
                 //    by interpreting jwk according to Section 6.2.2 of JSON Web Algorithms [JWA].
                 auto private_key = ::Crypto::PK::ECPrivateKey<> {
                     ::Crypto::UnsignedBigInteger::import_data(d_bytes),
+                    coord_size,
                     {},
                     public_key,
                 };
@@ -3130,46 +3132,39 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
             auto maybe_error = handle.visit(
                 [&](::Crypto::PK::ECPublicKey<> const& public_key) -> ErrorOr<void> {
                     // 2. Set the x attribute of jwk according to the definition in Section 6.2.1.2 of JSON Web Algorithms [JWA].
-                    auto x_bytes = TRY(ByteBuffer::create_uninitialized(public_key.x().byte_length()));
-                    auto x_size = public_key.x().export_data(x_bytes);
-                    jwk.x = TRY(encode_base64url(x_bytes.span().slice(0, x_size), AK::OmitPadding::Yes));
+                    auto x_bytes = TRY(public_key.x_bytes());
+                    jwk.x = TRY(encode_base64url(x_bytes, AK::OmitPadding::Yes));
 
                     // 3. Set the y attribute of jwk according to the definition in Section 6.2.1.3 of JSON Web Algorithms [JWA].
-                    auto y_bytes = TRY(ByteBuffer::create_uninitialized(public_key.y().byte_length()));
-                    auto y_size = public_key.y().export_data(y_bytes);
-                    jwk.y = TRY(encode_base64url(y_bytes.span().slice(0, y_size), AK::OmitPadding::Yes));
+                    auto y_bytes = TRY(public_key.y_bytes());
+                    jwk.y = TRY(encode_base64url(y_bytes, AK::OmitPadding::Yes));
 
                     return {};
                 },
                 [&](::Crypto::PK::ECPrivateKey<> const& private_key) -> ErrorOr<void> {
-                    size_t coord_size;
                     Variant<Empty, ::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1, ::Crypto::Curves::SECP521r1> curve;
-                    if (algorithm.named_curve() == "P-256"sv) {
+                    if (algorithm.named_curve() == "P-256"sv)
                         curve = ::Crypto::Curves::SECP256r1 {};
-                        coord_size = 32;
-                    } else if (algorithm.named_curve() == "P-384"sv) {
+                    else if (algorithm.named_curve() == "P-384"sv)
                         curve = ::Crypto::Curves::SECP384r1 {};
-                        coord_size = 48;
-                    } else if (algorithm.named_curve() == "P-521"sv) {
+                    else if (algorithm.named_curve() == "P-521"sv)
                         curve = ::Crypto::Curves::SECP521r1 {};
-                        coord_size = 66;
-                    } else {
+                    else
                         VERIFY_NOT_REACHED();
-                    }
 
                     auto maybe_public_key = curve.visit(
                         [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> { return Error::from_string_literal("noop error"); },
                         [&](auto instance) { return instance.generate_public_key_point(private_key.d()); });
 
                     auto public_key = TRY(maybe_public_key);
-                    auto public_key_bytes = TRY(public_key.to_uncompressed());
-                    VERIFY(public_key_bytes[0] == 0x04);
+                    auto x_bytes = TRY(public_key.x_bytes());
+                    auto y_bytes = TRY(public_key.y_bytes());
 
                     // 2. Set the x attribute of jwk according to the definition in Section 6.2.1.2 of JSON Web Algorithms [JWA].
-                    jwk.x = TRY(encode_base64url(public_key_bytes.span().slice(1, coord_size), AK::OmitPadding::Yes));
+                    jwk.x = TRY(encode_base64url(x_bytes, AK::OmitPadding::Yes));
 
                     // 3. Set the y attribute of jwk according to the definition in Section 6.2.1.3 of JSON Web Algorithms [JWA].
-                    jwk.y = TRY(encode_base64url(public_key_bytes.span().slice(1 + coord_size, coord_size), AK::OmitPadding::Yes));
+                    jwk.y = TRY(encode_base64url(y_bytes, AK::OmitPadding::Yes));
 
                     return {};
                 },
@@ -3185,9 +3180,8 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
                 auto maybe_error = handle.visit(
                     [&](::Crypto::PK::ECPrivateKey<> const& private_key) -> ErrorOr<void> {
                         // Set the d attribute of jwk according to the definition in Section 6.2.2.1 of JSON Web Algorithms [JWA].
-                        auto d_bytes = TRY(ByteBuffer::create_uninitialized(private_key.d().byte_length()));
-                        auto d_size = private_key.d().export_data(d_bytes);
-                        jwk.d = TRY(encode_base64url(d_bytes.span().slice(0, d_size), AK::OmitPadding::Yes));
+                        auto d_bytes = TRY(private_key.d_bytes());
+                        jwk.d = TRY(encode_base64url(d_bytes, AK::OmitPadding::Yes));
 
                         return {};
                     },
@@ -3320,7 +3314,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDH::g
         return WebIDL::OperationError::create(m_realm, "Failed to create valid crypto instance"_string);
 
     auto public_key_data = maybe_public_key_data.release_value();
-    auto ec_public_key = ::Crypto::PK::ECPublicKey<> { public_key_data.x, public_key_data.y };
+    auto ec_public_key = ::Crypto::PK::ECPublicKey<> { public_key_data };
 
     // 4. Let algorithm be a new EcKeyAlgorithm object.
     auto algorithm = EcKeyAlgorithm::create(m_realm);
@@ -3347,7 +3341,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> ECDH::g
     public_key->set_usages({});
 
     // 12. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
-    auto ec_private_key = ::Crypto::PK::ECPrivateKey<> { private_key_data, {}, ec_public_key };
+    auto ec_private_key = ::Crypto::PK::ECPrivateKey<> { private_key_data, public_key_data.size, {}, ec_public_key };
     auto private_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { ec_private_key });
 
     // 13. Set the [[type]] internal slot of privateKey to "private"
@@ -3424,7 +3418,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDH::derive_bits(AlgorithmParams 
 
         auto maybe_secret = curve.visit(
             [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> { return Error::from_string_literal("noop error"); },
-            [&private_key_data, &public_key_data](auto instance) { return instance.compute_coordinate_point(private_key_data.d(), ::Crypto::Curves::SECPxxxr1Point { public_key_data.x(), public_key_data.y() }); });
+            [&private_key_data, &public_key_data](auto instance) { return instance.compute_coordinate_point(private_key_data.d(), public_key_data.to_secpxxxr1_point()); });
 
         if (maybe_secret.is_error()) {
             auto message = TRY_OR_THROW_OOM(realm.vm(), String::formatted("Failed to compute secret: {}", maybe_secret.error()));
@@ -3741,6 +3735,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
             auto public_key = ::Crypto::PK::ECPublicKey<> {
                 ::Crypto::UnsignedBigInteger::import_data(x_bytes),
                 ::Crypto::UnsignedBigInteger::import_data(y_bytes),
+                coord_size,
             };
 
             // If the d field is present:
@@ -3758,6 +3753,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
                 //    by interpreting jwk according to Section 6.2.2 of JSON Web Algorithms [JWA].
                 auto private_key = ::Crypto::PK::ECPrivateKey<> {
                     ::Crypto::UnsignedBigInteger::import_data(d_bytes),
+                    coord_size,
                     {},
                     public_key,
                 };
@@ -4023,46 +4019,39 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
             auto maybe_error = handle.visit(
                 [&](::Crypto::PK::ECPublicKey<> const& public_key) -> ErrorOr<void> {
                     // 2. Set the x attribute of jwk according to the definition in Section 6.2.1.2 of JSON Web Algorithms [JWA].
-                    auto x_bytes = TRY(ByteBuffer::create_uninitialized(public_key.x().byte_length()));
-                    auto x_size = public_key.x().export_data(x_bytes);
-                    jwk.x = TRY(encode_base64url(x_bytes.span().slice(0, x_size), AK::OmitPadding::Yes));
+                    auto x_bytes = TRY(public_key.x_bytes());
+                    jwk.x = TRY(encode_base64url(x_bytes, AK::OmitPadding::Yes));
 
                     // 3. Set the y attribute of jwk according to the definition in Section 6.2.1.3 of JSON Web Algorithms [JWA].
-                    auto y_bytes = TRY(ByteBuffer::create_uninitialized(public_key.y().byte_length()));
-                    auto y_size = public_key.y().export_data(y_bytes);
-                    jwk.y = TRY(encode_base64url(y_bytes.span().slice(0, y_size), AK::OmitPadding::Yes));
+                    auto y_bytes = TRY(public_key.y_bytes());
+                    jwk.y = TRY(encode_base64url(y_bytes, AK::OmitPadding::Yes));
 
                     return {};
                 },
                 [&](::Crypto::PK::ECPrivateKey<> const& private_key) -> ErrorOr<void> {
-                    size_t coord_size;
                     Variant<Empty, ::Crypto::Curves::SECP256r1, ::Crypto::Curves::SECP384r1, ::Crypto::Curves::SECP521r1> curve;
-                    if (algorithm.named_curve() == "P-256"sv) {
+                    if (algorithm.named_curve() == "P-256"sv)
                         curve = ::Crypto::Curves::SECP256r1 {};
-                        coord_size = 32;
-                    } else if (algorithm.named_curve() == "P-384"sv) {
+                    else if (algorithm.named_curve() == "P-384"sv)
                         curve = ::Crypto::Curves::SECP384r1 {};
-                        coord_size = 48;
-                    } else if (algorithm.named_curve() == "P-521"sv) {
+                    else if (algorithm.named_curve() == "P-521"sv)
                         curve = ::Crypto::Curves::SECP521r1 {};
-                        coord_size = 66;
-                    } else {
+                    else
                         VERIFY_NOT_REACHED();
-                    }
 
                     auto maybe_public_key = curve.visit(
                         [](Empty const&) -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> { return Error::from_string_literal("noop error"); },
                         [&](auto instance) { return instance.generate_public_key_point(private_key.d()); });
 
                     auto public_key = TRY(maybe_public_key);
-                    auto public_key_bytes = TRY(public_key.to_uncompressed());
-                    VERIFY(public_key_bytes[0] == 0x04);
+                    auto x_bytes = TRY(public_key.x_bytes());
+                    auto y_bytes = TRY(public_key.y_bytes());
 
                     // 2. Set the x attribute of jwk according to the definition in Section 6.2.1.2 of JSON Web Algorithms [JWA].
-                    jwk.x = TRY(encode_base64url(public_key_bytes.span().slice(1, coord_size), AK::OmitPadding::Yes));
+                    jwk.x = TRY(encode_base64url(x_bytes, AK::OmitPadding::Yes));
 
                     // 3. Set the y attribute of jwk according to the definition in Section 6.2.1.3 of JSON Web Algorithms [JWA].
-                    jwk.y = TRY(encode_base64url(public_key_bytes.span().slice(1 + coord_size, coord_size), AK::OmitPadding::Yes));
+                    jwk.y = TRY(encode_base64url(y_bytes, AK::OmitPadding::Yes));
 
                     return {};
                 },
@@ -4078,9 +4067,8 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
                 auto maybe_error = handle.visit(
                     [&](::Crypto::PK::ECPrivateKey<> const& private_key) -> ErrorOr<void> {
                         // Set the d attribute of jwk according to the definition in Section 6.2.2.1 of JSON Web Algorithms [JWA].
-                        auto d_bytes = TRY(ByteBuffer::create_uninitialized(private_key.d().byte_length()));
-                        auto d_size = private_key.d().export_data(d_bytes);
-                        jwk.d = TRY(encode_base64url(d_bytes.span().slice(0, d_size), AK::OmitPadding::Yes));
+                        auto d_bytes = TRY(private_key.d_bytes());
+                        jwk.d = TRY(encode_base64url(d_bytes, AK::OmitPadding::Yes));
 
                         return {};
                     },

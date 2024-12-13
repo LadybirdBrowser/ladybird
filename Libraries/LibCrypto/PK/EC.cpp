@@ -9,11 +9,6 @@
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/Certificate/Certificate.h>
 
-namespace {
-// Used by ASN1 macros
-static String s_error_string;
-}
-
 namespace Crypto::PK {
 
 template<>
@@ -23,9 +18,8 @@ ErrorOr<ByteBuffer> ECPrivateKey<IntegerType>::export_as_der() const
     TRY(encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
         TRY(encoder.write(1u)); // version
 
-        auto d_bytes = TRY(ByteBuffer::create_uninitialized(m_d.byte_length()));
-        auto d_size = m_d.export_data(d_bytes.span());
-        TRY(encoder.write<ReadonlyBytes>(d_bytes.span().slice(0, d_size)));
+        auto d = TRY(d_bytes());
+        TRY(encoder.write<ReadonlyBytes>(d));
 
         if (m_parameters.has_value()) {
             TRY(encoder.write_constructed(ASN1::Class::Context, static_cast<ASN1::Kind>(0), [&]() -> ErrorOr<void> {
@@ -65,6 +59,7 @@ static ErrorOr<ECPublicKey<>> read_ec_public_key(ReadonlyBytes bytes, Vector<Str
         return ::Crypto::PK::ECPublicKey<> {
             UnsignedBigInteger::import_data(bytes.slice(1, half_size)),
             UnsignedBigInteger::import_data(bytes.slice(1 + half_size, half_size)),
+            half_size,
         };
     } else {
         ERROR_WITH_SCOPE("Unsupported public key format");
@@ -125,7 +120,7 @@ ErrorOr<EC::KeyPairType> EC::parse_ec_key(ReadonlyBytes der, bool is_private, Ve
 
                 keypair.public_key = maybe_public_key.release_value();
                 public_key = keypair.public_key;
-                if (keypair.public_key.x().byte_length() != private_key.byte_length() || keypair.public_key.y().byte_length() != private_key.byte_length()) {
+                if (keypair.public_key.scalar_size() != private_key_bytes.length()) {
                     ERROR_WITH_SCOPE("Invalid public key length");
                 }
 
@@ -133,7 +128,7 @@ ErrorOr<EC::KeyPairType> EC::parse_ec_key(ReadonlyBytes der, bool is_private, Ve
             }
         }
 
-        keypair.private_key = ECPrivateKey { private_key, parameters, public_key };
+        keypair.private_key = ECPrivateKey { private_key, private_key_bytes.length(), parameters, public_key };
 
         EXIT_SCOPE();
         return keypair;

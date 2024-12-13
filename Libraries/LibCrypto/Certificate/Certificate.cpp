@@ -14,11 +14,6 @@
 #include <LibCrypto/ASN1/PEM.h>
 #include <LibCrypto/PK/EC.h>
 
-namespace {
-// Used by ASN1 macros
-static String s_error_string;
-}
-
 namespace Crypto::Certificate {
 
 static ErrorOr<Crypto::UnsignedBigInteger> parse_certificate_version(Crypto::ASN1::Decoder& decoder, Vector<StringView> current_scope)

@@ -9,6 +9,7 @@
 #include <AK/ByteBuffer.h>
 #include <AK/StringView.h>
 #include <LibCrypto/ASN1/DER.h>
+#include <LibCrypto/Curves/SECPxxxr1.h>
 #include <LibCrypto/PK/PK.h>
 
 namespace Crypto::PK {
@@ -16,41 +17,62 @@ namespace Crypto::PK {
 template<typename Integer = UnsignedBigInteger>
 class ECPublicKey {
 public:
-    ECPublicKey(Integer x, Integer y)
+    ECPublicKey(Integer x, Integer y, size_t scalar_size)
         : m_x(move(x))
         , m_y(move(y))
+        , m_scalar_size(scalar_size)
+    {
+    }
+
+    ECPublicKey(Curves::SECPxxxr1Point point)
+        : m_x(move(point.x))
+        , m_y(move(point.y))
+        , m_scalar_size(point.size)
     {
     }
 
     ECPublicKey()
         : m_x(0)
         , m_y(0)
+        , m_scalar_size(0)
     {
     }
 
-    Integer const& x() const { return m_x; }
-    Integer const& y() const { return m_y; }
+    size_t scalar_size() const { return m_scalar_size; }
+
+    ErrorOr<ByteBuffer> x_bytes() const
+    {
+        return Curves::SECPxxxr1Point::scalar_to_bytes(m_x, m_scalar_size);
+    }
+
+    ErrorOr<ByteBuffer> y_bytes() const
+    {
+        return Curves::SECPxxxr1Point::scalar_to_bytes(m_y, m_scalar_size);
+    }
+
+    Curves::SECPxxxr1Point to_secpxxxr1_point() const
+    {
+        return Curves::SECPxxxr1Point { m_x, m_y, m_scalar_size };
+    }
 
     ErrorOr<ByteBuffer> to_uncompressed() const
     {
-        auto bytes = TRY(ByteBuffer::create_uninitialized(1 + m_x.byte_length() + m_y.byte_length()));
-        bytes[0] = 0x04; // uncompressed
-        auto x_size = m_x.export_data(bytes.span().slice(1));
-        auto y_size = m_y.export_data(bytes.span().slice(1 + x_size));
-        return bytes.slice(0, 1 + x_size + y_size);
+        return to_secpxxxr1_point().to_uncompressed();
     }
 
 private:
     Integer m_x;
     Integer m_y;
+    size_t m_scalar_size;
 };
 
 // https://www.rfc-editor.org/rfc/rfc5915#section-3
 template<typename Integer = UnsignedBigInteger>
 class ECPrivateKey {
 public:
-    ECPrivateKey(Integer d, Optional<Vector<int>> parameters, Optional<ECPublicKey<Integer>> public_key)
+    ECPrivateKey(Integer d, size_t scalar_size, Optional<Vector<int>> parameters, Optional<ECPublicKey<Integer>> public_key)
         : m_d(move(d))
+        , m_scalar_size(scalar_size)
         , m_parameters(parameters)
         , m_public_key(public_key)
     {
@@ -59,6 +81,11 @@ public:
     ECPrivateKey() = default;
 
     Integer const& d() const { return m_d; }
+    ErrorOr<ByteBuffer> d_bytes() const
+    {
+        return Curves::SECPxxxr1Point::scalar_to_bytes(m_d, m_scalar_size);
+    }
+
     Optional<Vector<int> const&> parameters() const { return m_parameters; }
     Optional<ECPublicKey<Integer> const&> public_key() const { return m_public_key; }
 
@@ -66,6 +93,8 @@ public:
 
 private:
     Integer m_d;
+    size_t m_scalar_size;
+
     Optional<Vector<int>> m_parameters;
     Optional<ECPublicKey<Integer>> m_public_key;
 };
