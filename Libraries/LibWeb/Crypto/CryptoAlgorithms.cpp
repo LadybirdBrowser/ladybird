@@ -4529,7 +4529,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(Bindings::KeyFormat
 
         // 4. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
         if (key->type() == Bindings::KeyType::Public) {
-            jwk.x = TRY_OR_THROW_OOM(vm, encode_base64url(key_data));
+            jwk.x = TRY_OR_THROW_OOM(vm, encode_base64url(key_data, AK::OmitPadding::Yes));
         } else {
             // The "x" parameter of the "epk" field is set as follows:
             // Apply the appropriate ECDH function to the ephemeral private key (as scalar input)
@@ -4537,13 +4537,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(Bindings::KeyFormat
             // The base64url encoding of the output is the value for the "x" parameter of the "epk" field.
             ::Crypto::Curves::Ed25519 curve;
             auto public_key = TRY_OR_THROW_OOM(vm, curve.generate_public_key(key_data));
-            jwk.x = TRY_OR_THROW_OOM(vm, encode_base64url(key_data));
+            jwk.x = TRY_OR_THROW_OOM(vm, encode_base64url(public_key, AK::OmitPadding::Yes));
         }
 
         // 5. If the [[type]] internal slot of key is "private"
         if (key->type() == Bindings::KeyType::Private) {
             // 1. Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
-            jwk.d = TRY_OR_THROW_OOM(vm, encode_base64url(key_data));
+            jwk.d = TRY_OR_THROW_OOM(vm, encode_base64url(key_data, AK::OmitPadding::Yes));
         }
 
         // 6. Set the key_ops attribute of jwk to the usages attribute of key.
