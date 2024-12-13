@@ -176,6 +176,7 @@ static void generate_get_parameter(SourceGenerator& generator, int webgl_version
         { "MAX_VERTEX_UNIFORM_COMPONENTS"sv, { "GLint"sv }, 2 },
         { "MAX_UNIFORM_BLOCK_SIZE"sv, { "GLint64"sv }, 2 },
         { "MAX_UNIFORM_BUFFER_BINDINGS"sv, { "GLint"sv }, 2 },
+        { "UNIFORM_BUFFER_OFFSET_ALIGNMENT"sv, { "GLint"sv }, 2 },
     };
 
     auto is_primitive_type = [](StringView type) {
