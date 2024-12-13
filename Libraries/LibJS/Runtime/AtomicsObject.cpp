@@ -290,12 +290,6 @@ static ThrowCompletionOr<Value> atomic_compare_exchange_impl(VM& vm, TypedArrayB
     // 1. Let byteIndexInBuffer be ? ValidateAtomicAccessOnIntegerTypedArray(typedArray, index).
     auto byte_index_in_buffer = TRY(validate_atomic_access_on_integer_typed_array(vm, typed_array, index));
 
-    // 2. Let buffer be typedArray.[[ViewedArrayBuffer]].
-    auto* buffer = typed_array.viewed_array_buffer();
-
-    // 3. Let block be buffer.[[ArrayBufferData]].
-    auto& block = buffer->buffer();
-
     Value expected;
     Value replacement;
 
@@ -318,6 +312,15 @@ static ThrowCompletionOr<Value> atomic_compare_exchange_impl(VM& vm, TypedArrayB
 
     // 6. Perform ? RevalidateAtomicAccess(typedArray, byteIndexInBuffer).
     TRY(revalidate_atomic_access(vm, typed_array, byte_index_in_buffer));
+
+    // NOTE: We defer steps 2 and 3 to ensure we have revalidated the TA before accessing these internal slots.
+    //       In our implementation, accessing [[ArrayBufferData]] on a detached buffer will fail assertions.
+
+    // 2. Let buffer be typedArray.[[ViewedArrayBuffer]].
+    auto* buffer = typed_array.viewed_array_buffer();
+
+    // 3. Let block be buffer.[[ArrayBufferData]].
+    auto& block = buffer->buffer();
 
     // 7. Let elementType be TypedArrayElementType(typedArray).
     // 8. Let elementSize be TypedArrayElementSize(typedArray).
