@@ -4491,7 +4491,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(Bindings::KeyFormat
         //      * Set the algorithm object identifier to the id-Ed25519 OID defined in [RFC8410].
         //    * Set the subjectPublicKey field to keyData.
         auto ed25519_oid = ::Crypto::ASN1::ed25519_oid;
-        auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_subject_public_key_info(key_data, ed25519_oid, nullptr));
+        auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_subject_public_key_info(key_data, ed25519_oid));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
         return JS::ArrayBuffer::create(m_realm, move(data));
@@ -4514,7 +4514,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(Bindings::KeyFormat
         TRY_OR_THROW_OOM(vm, encoder.write(key_data.bytes()));
 
         auto ed25519_oid = ::Crypto::ASN1::ed25519_oid;
-        auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_private_key_info(encoder.finish(), ed25519_oid, nullptr));
+        auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_private_key_info(encoder.finish(), ed25519_oid));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
         return JS::ArrayBuffer::create(m_realm, move(data));
@@ -5183,7 +5183,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X25519::export_key(Bindings::KeyFormat 
         //    Set the algorithm object identifier to the id-X25519 OID defined in [RFC8410].
         //    Set the subjectPublicKey field to keyData.
         auto public_key = handle.get<ByteBuffer>();
-        auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_subject_public_key_info(public_key, ::Crypto::ASN1::x25519_oid, nullptr));
+        auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_subject_public_key_info(public_key, ::Crypto::ASN1::x25519_oid));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
         result = JS::ArrayBuffer::create(m_realm, data);
@@ -5202,7 +5202,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X25519::export_key(Bindings::KeyFormat 
         //    Set the privateKey field to the result of DER-encoding a CurvePrivateKey ASN.1 type, as defined in Section 7 of [RFC8410],
         //    that represents the X25519 private key represented by the [[handle]] internal slot of key
         auto private_key = handle.get<ByteBuffer>();
-        auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_private_key_info(private_key, ::Crypto::ASN1::x25519_oid, nullptr));
+        auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_private_key_info(private_key, ::Crypto::ASN1::x25519_oid));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
         result = JS::ArrayBuffer::create(m_realm, data);
@@ -5427,7 +5427,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X448::export_key(Bindings::KeyFormat fo
         //      * Set the algorithm object identifier to the id-X448 OID defined in [RFC8410].
         //    * Set the subjectPublicKey field to keyData.
         auto x448_oid = ::Crypto::ASN1::x448_oid;
-        auto data = TRY_OR_THROW_OOM(m_realm->vm(), ::Crypto::PK::wrap_in_subject_public_key_info(key_data, x448_oid, nullptr));
+        auto data = TRY_OR_THROW_OOM(m_realm->vm(), ::Crypto::PK::wrap_in_subject_public_key_info(key_data, x448_oid));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
         return JS::ArrayBuffer::create(m_realm, data);
@@ -5445,7 +5445,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X448::export_key(Bindings::KeyFormat fo
         //      * Set the algorithm object identifier to the id-X448 OID defined in [RFC8410].
         //    * Set the privateKey field to the result of DER-encoding a CurvePrivateKey ASN.1 type, as defined in Section 7 of [RFC8410], that represents the X448 private key represented by the [[handle]] internal slot of key
         auto x448_oid = ::Crypto::ASN1::x448_oid;
-        auto data = TRY_OR_THROW_OOM(m_realm->vm(), ::Crypto::PK::wrap_in_private_key_info(key_data, x448_oid, nullptr));
+        auto data = TRY_OR_THROW_OOM(m_realm->vm(), ::Crypto::PK::wrap_in_private_key_info(key_data, x448_oid));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
         return JS::ArrayBuffer::create(m_realm, data);
