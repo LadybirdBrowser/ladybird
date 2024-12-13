@@ -812,7 +812,7 @@ CodeGenerationErrorOr<Optional<ScopedOperand>> Generator::emit_delete_reference(
                 emit<Bytecode::Op::DeleteByIdWithThis>(dst, *super_reference.base, *super_reference.this_value, identifier_table_ref);
             }
 
-            return Optional<ScopedOperand> {};
+            return dst;
         }
 
         auto object = TRY(expression.object().generate_bytecode(*this)).value();
