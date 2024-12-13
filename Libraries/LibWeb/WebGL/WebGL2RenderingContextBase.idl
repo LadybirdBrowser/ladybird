@@ -390,7 +390,7 @@ interface mixin WebGL2RenderingContextBase {
     WebGLSampler createSampler();
     [FIXME] undefined deleteSampler(WebGLSampler? sampler);
     [FIXME] GLboolean isSampler(WebGLSampler? sampler); // [WebGLHandlesContextLoss]
-    [FIXME] undefined bindSampler(GLuint unit, WebGLSampler? sampler);
+    undefined bindSampler(GLuint unit, WebGLSampler? sampler);
     [FIXME] undefined samplerParameteri(WebGLSampler sampler, GLenum pname, GLint param);
     [FIXME] undefined samplerParameterf(WebGLSampler sampler, GLenum pname, GLfloat param);
     [FIXME] any getSamplerParameter(WebGLSampler sampler, GLenum pname);
