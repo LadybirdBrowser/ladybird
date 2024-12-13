@@ -667,7 +667,7 @@ GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
                     if (value.has_value()) {
                         font_display = *value;
                     } else {
-                        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: `{}` is not a valid value for font-display", keyword_value->to_string());
+                        dbgln_if(CSS_PARSER_DEBUG, "CSSParser: `{}` is not a valid value for font-display", keyword_value->to_string(CSSStyleValue::SerializationMode::Normal));
                     }
                 }
             }
@@ -746,7 +746,7 @@ GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
                     }
                     font_feature_settings = move(settings);
                 } else {
-                    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Failed to parse font-feature-settings descriptor, not compatible with value returned from parsing font-feature-settings property: {}", value.value()->to_string());
+                    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Failed to parse font-feature-settings descriptor, not compatible with value returned from parsing font-feature-settings property: {}", value.value()->to_string(CSSStyleValue::SerializationMode::Normal));
                 }
             }
             return;
@@ -820,7 +820,7 @@ GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
                     }
                     font_variation_settings = move(settings);
                 } else {
-                    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Failed to parse font-variation-settings descriptor, not compatible with value returned from parsing font-variation-settings property: {}", value.value()->to_string());
+                    dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Failed to parse font-variation-settings descriptor, not compatible with value returned from parsing font-variation-settings property: {}", value.value()->to_string(CSSStyleValue::SerializationMode::Normal));
                 }
             }
             return;
