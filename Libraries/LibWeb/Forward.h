@@ -842,6 +842,7 @@ class WebGLObject;
 class WebGLProgram;
 class WebGLRenderbuffer;
 class WebGLRenderingContext;
+class WebGLSampler;
 class WebGLShader;
 class WebGLShaderPrecisionFormat;
 class WebGLTexture;

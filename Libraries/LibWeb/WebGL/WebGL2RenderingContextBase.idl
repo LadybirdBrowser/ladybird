@@ -7,6 +7,7 @@
 #import <WebGL/WebGLRenderingContextBase.idl>
 #import <WebGL/WebGLRenderingContextOverloads.idl>
 #import <WebGL/WebGLQuery.idl>
+#import <WebGL/WebGLSampler.idl>
 #import <WebGL/WebGLSync.idl>
 #import <WebGL/WebGLTransformFeedback.idl>
 #import <WebGL/WebGLTexture.idl>
@@ -386,7 +387,7 @@ interface mixin WebGL2RenderingContextBase {
     [FIXME] any getQueryParameter(WebGLQuery query, GLenum pname);
 
     // Sampler Objects
-    [FIXME] WebGLSampler createSampler();
+    WebGLSampler createSampler();
     [FIXME] undefined deleteSampler(WebGLSampler? sampler);
     [FIXME] GLboolean isSampler(WebGLSampler? sampler); // [WebGLHandlesContextLoss]
     [FIXME] undefined bindSampler(GLuint unit, WebGLSampler? sampler);
