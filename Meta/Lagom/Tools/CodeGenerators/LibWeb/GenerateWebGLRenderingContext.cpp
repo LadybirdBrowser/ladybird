@@ -687,19 +687,45 @@ public:
         if (function.name.starts_with("uniformMatrix"sv)) {
             auto number_of_matrix_elements = function.name.substring_view(13, 1);
             function_impl_generator.set("number_of_matrix_elements", number_of_matrix_elements);
+
+            if (webgl_version == 1) {
+                function_impl_generator.set("array_argument_name", "value");
+            } else {
+                function_impl_generator.set("array_argument_name", "data");
+            }
+
             function_impl_generator.append(R"~~~(
     auto matrix_size = @number_of_matrix_elements@ * @number_of_matrix_elements@;
-    if (value.has<Vector<float>>()) {
-        auto& data = value.get<Vector<float>>();
-        glUniformMatrix@number_of_matrix_elements@fv(location->handle(), data.size() / matrix_size, transpose, data.data());
-        return;
+    float const* raw_data = nullptr;
+    u64 count = 0;
+    if (@array_argument_name@.has<Vector<float>>()) {
+        auto& vector_data = @array_argument_name@.get<Vector<float>>();
+        raw_data = vector_data.data();
+        count = vector_data.size() / matrix_size;
+    } else {
+        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*@array_argument_name@.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
+        auto& float32_array = verify_cast<JS::Float32Array>(typed_array_base);
+        raw_data = float32_array.data().data();
+        count = float32_array.array_length().length() / matrix_size;
+    }
+)~~~");
+
+            if (webgl_version == 2) {
+                function_impl_generator.append(R"~~~(
+    raw_data += src_offset;
+    if (src_length == 0) {
+        count -= src_offset;
     }
 
-    auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*value.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-    auto& float32_array = verify_cast<JS::Float32Array>(typed_array_base);
-    float const* data = float32_array.data().data();
-    auto count = float32_array.array_length().length() / matrix_size;
-    glUniformMatrix@number_of_matrix_elements@fv(location->handle(), count, transpose, data);
+    if (src_offset + src_length <= count) {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+)~~~");
+            }
+
+            function_impl_generator.append(R"~~~(
+    glUniformMatrix@number_of_matrix_elements@fv(location->handle(), count, transpose, raw_data);
 )~~~");
             continue;
         }

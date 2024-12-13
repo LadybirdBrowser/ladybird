@@ -53,9 +53,9 @@ interface mixin WebGL2RenderingContextOverloads {
     undefined uniform3iv(WebGLUniformLocation? location, Int32List v, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
     undefined uniform4iv(WebGLUniformLocation? location, Int32List v, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
 
-    [FIXME] undefined uniformMatrix2fv(WebGLUniformLocation? location, GLboolean transpose, Float32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
-    [FIXME] undefined uniformMatrix3fv(WebGLUniformLocation? location, GLboolean transpose, Float32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
-    [FIXME] undefined uniformMatrix4fv(WebGLUniformLocation? location, GLboolean transpose, Float32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
+    undefined uniformMatrix2fv(WebGLUniformLocation? location, GLboolean transpose, Float32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
+    undefined uniformMatrix3fv(WebGLUniformLocation? location, GLboolean transpose, Float32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
+    undefined uniformMatrix4fv(WebGLUniformLocation? location, GLboolean transpose, Float32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
 
     // Reading back pixels
     // WebGL1:
