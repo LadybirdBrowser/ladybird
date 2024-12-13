@@ -116,6 +116,7 @@ static bool is_platform_object(Type const& type)
         "WebGLSampler"sv,
         "WebGLShader"sv,
         "WebGLShaderPrecisionFormat"sv,
+        "WebGLSync"sv,
         "WebGLTexture"sv,
         "WebGLUniformLocation"sv,
         "WebGLVertexArrayObject"sv,

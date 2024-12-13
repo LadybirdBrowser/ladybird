@@ -845,6 +845,7 @@ class WebGLRenderingContext;
 class WebGLSampler;
 class WebGLShader;
 class WebGLShaderPrecisionFormat;
+class WebGLSync;
 class WebGLTexture;
 class WebGLUniformLocation;
 class WebGLVertexArrayObject;

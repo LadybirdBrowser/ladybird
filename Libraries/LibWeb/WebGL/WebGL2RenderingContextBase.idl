@@ -396,7 +396,7 @@ interface mixin WebGL2RenderingContextBase {
     [FIXME] any getSamplerParameter(WebGLSampler sampler, GLenum pname);
 
     // Sync objects
-    [FIXME] WebGLSync? fenceSync(GLenum condition, GLbitfield flags);
+    WebGLSync? fenceSync(GLenum condition, GLbitfield flags);
     [FIXME] GLboolean isSync(WebGLSync? sync); // [WebGLHandlesContextLoss]
     [FIXME] undefined deleteSync(WebGLSync? sync);
     [FIXME] GLenum clientWaitSync(WebGLSync sync, GLbitfield flags, GLuint64 timeout);

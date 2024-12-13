@@ -357,6 +357,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 #include <LibWeb/WebGL/@class_name@.h>
 #include <LibWeb/WebGL/WebGLSampler.h>
 #include <LibWeb/WebGL/WebGLShader.h>
+#include <LibWeb/WebGL/WebGLSync.h>
 #include <LibWeb/WebGL/WebGLShaderPrecisionFormat.h>
 #include <LibWeb/WebGL/WebGLTexture.h>
 #include <LibWeb/WebGL/WebGLUniformLocation.h>
@@ -515,6 +516,14 @@ public:
     GLuint handle = 0;
     glGenSamplers(1, &handle);
     return WebGLSampler::create(m_realm, handle);
+)~~~");
+            continue;
+        }
+
+        if (function.name == "fenceSync"sv) {
+            function_impl_generator.append(R"~~~(
+    GLsync handle = glFenceSync(condition, flags);
+    return WebGLSync::create(m_realm, handle);
 )~~~");
             continue;
         }
