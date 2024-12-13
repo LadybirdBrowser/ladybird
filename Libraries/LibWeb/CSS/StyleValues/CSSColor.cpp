@@ -51,7 +51,7 @@ StringView string_view_from_color_type(CSSColorValue::ColorType color_type)
     if (color_type == CSSColorValue::ColorType::XYZD50)
         return "xyz-d50"sv;
     if (color_type == CSSColorValue::ColorType::XYZD65)
-        return "xyz"sv;
+        return "xyz-d65"sv;
     VERIFY_NOT_REACHED();
 }
 
