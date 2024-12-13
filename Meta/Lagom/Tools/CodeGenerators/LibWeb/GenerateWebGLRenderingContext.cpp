@@ -274,7 +274,9 @@ static void generate_get_buffer_parameter(SourceGenerator& generator)
 
     generator.appendln(R"~~~(
     default:
-        TODO();
+        dbgln("Unknown WebGL buffer parameter name: {:x}", pname);
+        set_error(GL_INVALID_ENUM);
+        return JS::js_null();
     })~~~");
 }
 
