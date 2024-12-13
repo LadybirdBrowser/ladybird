@@ -296,7 +296,7 @@ interface mixin WebGL2RenderingContextBase {
     [FIXME] undefined getBufferSubData(GLenum target, GLintptr srcByteOffset, [AllowShared] ArrayBufferView dstBuffer, optional unsigned long long dstOffset = 0, optional GLuint length = 0);
 
     // Framebuffer objects
-    [FIXME] undefined blitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter);
+    undefined blitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter);
     [FIXME] undefined framebufferTextureLayer(GLenum target, GLenum attachment, WebGLTexture? texture, GLint level, GLint layer);
     [FIXME] undefined invalidateFramebuffer(GLenum target, sequence<GLenum> attachments);
     [FIXME] undefined invalidateSubFramebuffer(GLenum target, sequence<GLenum> attachments, GLint x, GLint y, GLsizei width, GLsizei height);
