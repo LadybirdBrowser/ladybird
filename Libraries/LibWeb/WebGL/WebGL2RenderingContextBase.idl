@@ -416,7 +416,7 @@ interface mixin WebGL2RenderingContextBase {
     [FIXME] undefined resumeTransformFeedback();
 
     // Uniform Buffer Objects and Transform Feedback Buffers
-    [FIXME] undefined bindBufferBase(GLenum target, GLuint index, WebGLBuffer? buffer);
+    undefined bindBufferBase(GLenum target, GLuint index, WebGLBuffer? buffer);
     [FIXME] undefined bindBufferRange(GLenum target, GLuint index, WebGLBuffer? buffer, GLintptr offset, GLsizeiptr size);
     [FIXME] any getIndexedParameter(GLenum target, GLuint index);
     [FIXME] sequence<GLuint>? getUniformIndices(WebGLProgram program, sequence<DOMString> uniformNames);
