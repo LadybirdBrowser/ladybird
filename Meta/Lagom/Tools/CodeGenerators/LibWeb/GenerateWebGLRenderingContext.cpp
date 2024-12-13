@@ -948,6 +948,11 @@ public:
                 gl_call_arguments.append(ByteString::formatted("{} ? {}->handle() : 0", parameter_name, parameter_name));
                 continue;
             }
+            if (parameter.type->name() == "WebGLSync"sv) {
+                // FIXME: Remove the GLsync cast once sync_handle actually returns the proper GLsync type.
+                gl_call_arguments.append(ByteString::formatted("(GLsync)({} ? {}->sync_handle() : nullptr)", parameter_name, parameter_name));
+                continue;
+            }
             if (parameter.type->name() == "BufferSource"sv) {
                 function_impl_generator.set("buffer_source_name", parameter_name);
                 function_impl_generator.append(R"~~~(
