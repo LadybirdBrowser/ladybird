@@ -18,10 +18,6 @@
 
 namespace Web::HTML {
 
-#define ENUMERATE_MESSAGE_PORT_EVENT_HANDLERS(E) \
-    E(onmessage, HTML::EventNames::message)      \
-    E(onmessageerror, HTML::EventNames::messageerror)
-
 // https://html.spec.whatwg.org/multipage/web-messaging.html#message-ports
 class MessagePort final : public DOM::EventTarget
     , public Bindings::Transferable {
@@ -50,12 +46,11 @@ public:
 
     void close();
 
-#undef __ENUMERATE
-#define __ENUMERATE(attribute_name, event_name)       \
-    void set_##attribute_name(WebIDL::CallbackType*); \
-    WebIDL::CallbackType* attribute_name();
-    ENUMERATE_MESSAGE_PORT_EVENT_HANDLERS(__ENUMERATE)
-#undef __ENUMERATE
+    void set_onmessageerror(GC::Ptr<WebIDL::CallbackType>);
+    GC::Ptr<WebIDL::CallbackType> onmessageerror();
+
+    void set_onmessage(GC::Ptr<WebIDL::CallbackType>);
+    GC::Ptr<WebIDL::CallbackType> onmessage();
 
     // ^Transferable
     virtual WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataHolder&) override;
