@@ -412,7 +412,9 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
 #endif
 
     tests.remove_all_matching([&](auto const& test) {
-        return !test.input_path.matches(test_glob, CaseSensitivity::CaseSensitive);
+        bool is_support_file = test.input_path.matches("*/wpt-import/*/support/*"sv);
+        bool match_glob = test.input_path.matches(test_glob, CaseSensitivity::CaseSensitive);
+        return is_support_file || !match_glob;
     });
 
     if (app.test_dry_run) {
