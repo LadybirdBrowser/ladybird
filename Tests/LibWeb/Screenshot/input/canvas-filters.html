@@ -1,0 +1,72 @@
+<link rel="match" href="../expected/canvas-filters-ref.html"/>
+<style>
+    * {
+        margin: 0;
+        /* Hide the scrollbar. */
+        overflow: hidden;
+    }
+
+    body {
+        background-color: white;
+    }
+</style>
+<body>
+<div id="canvas-container">
+    <canvas id="canvas-none" width="400" height="300"></canvas>
+    <canvas id="canvas-blur" width="400" height="300"></canvas>
+    <canvas id="canvas-brightness" width="400" height="300"></canvas>
+    <canvas id="canvas-contrast" width="400" height="300"></canvas>
+    <canvas id="canvas-grayscale" width="400" height="300"></canvas>
+    <canvas id="canvas-hue-rotate" width="400" height="300"></canvas>
+    <canvas id="canvas-invert" width="400" height="300"></canvas>
+    <canvas id="canvas-opacity" width="400" height="300"></canvas>
+    <canvas id="canvas-saturate" width="400" height="300"></canvas>
+    <canvas id="canvas-sepia" width="400" height="300"></canvas>
+    <canvas id="canvas-drop-shadow" width="400" height="300"></canvas>
+</div>
+</body>
+<script>
+    const filters = [
+        {id: 'canvas-none', filter: 'none'},
+        {id: 'canvas-blur', filter: 'blur(5px)'},
+        {id: 'canvas-brightness', filter: 'brightness(150%)'},
+        {id: 'canvas-contrast', filter: 'contrast(150%)'},
+        {id: 'canvas-grayscale', filter: 'grayscale(100%)'},
+        {id: 'canvas-hue-rotate', filter: 'hue-rotate(90deg)'},
+        {id: 'canvas-invert', filter: 'invert(100%)'},
+        {id: 'canvas-opacity', filter: 'opacity(50%)'},
+        {id: 'canvas-saturate', filter: 'saturate(200%)'},
+        {id: 'canvas-sepia', filter: 'sepia(100%)'},
+        {id: 'canvas-drop-shadow', filter: 'drop-shadow(10px 10px 10px rgba(0, 0, 0, 0.5))'},
+    ];
+
+    const img = new Image();
+    img.src = '../data/car.png'; // Placeholder image
+    img.onload = () => {
+        filters.forEach(({id, filter}) => {
+            const canvas = document.getElementById(id);
+            const ctx = canvas.getContext('2d');
+            ctx.filter = filter;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 20, 50, 150, 100);
+
+            ctx.fillStyle = 'blue';
+            ctx.beginPath();
+            ctx.arc(100, 150, 50, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = 'green';
+            ctx.beginPath();
+            ctx.rect(200, 100, 100, 100);
+            ctx.fill();
+
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(50, 250);
+            ctx.lineTo(350, 250);
+            ctx.stroke();
+        });
+    };
+</script>
