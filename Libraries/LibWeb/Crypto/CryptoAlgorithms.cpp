@@ -5447,8 +5447,11 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X448::export_key(Bindings::KeyFormat fo
         //    * Set the privateKeyAlgorithm field to a PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
         //      * Set the algorithm object identifier to the id-X448 OID defined in [RFC8410].
         //    * Set the privateKey field to the result of DER-encoding a CurvePrivateKey ASN.1 type, as defined in Section 7 of [RFC8410], that represents the X448 private key represented by the [[handle]] internal slot of key
+        ::Crypto::ASN1::Encoder encoder;
+        TRY_OR_THROW_OOM(m_realm->vm(), encoder.write(key_data.bytes()));
+
         auto x448_oid = ::Crypto::ASN1::x448_oid;
-        auto data = TRY_OR_THROW_OOM(m_realm->vm(), ::Crypto::PK::wrap_in_private_key_info(key_data, x448_oid));
+        auto data = TRY_OR_THROW_OOM(m_realm->vm(), ::Crypto::PK::wrap_in_private_key_info(encoder.finish(), x448_oid));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
         return JS::ArrayBuffer::create(m_realm, data);
