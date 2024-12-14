@@ -5202,7 +5202,10 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X25519::export_key(Bindings::KeyFormat 
         //    Set the privateKey field to the result of DER-encoding a CurvePrivateKey ASN.1 type, as defined in Section 7 of [RFC8410],
         //    that represents the X25519 private key represented by the [[handle]] internal slot of key
         auto private_key = handle.get<ByteBuffer>();
-        auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_private_key_info(private_key, ::Crypto::ASN1::x25519_oid));
+
+        ::Crypto::ASN1::Encoder encoder;
+        TRY_OR_THROW_OOM(vm, encoder.write(private_key));
+        auto data = TRY_OR_THROW_OOM(vm, ::Crypto::PK::wrap_in_private_key_info(encoder.finish(), ::Crypto::ASN1::x25519_oid));
 
         // 3. Let result be a new ArrayBuffer associated with the relevant global object of this [HTML], and containing data.
         result = JS::ArrayBuffer::create(m_realm, data);
