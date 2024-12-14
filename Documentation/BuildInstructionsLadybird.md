@@ -114,10 +114,10 @@ nix develop
 nix develop --command bash
 
 # Using nix-shell
-nix-shell UI
+nix-shell
 
 # Using nix-shell and a custom shell
-nix-shell UI --command bash
+nix-shell --command bash
 ```
 
 Then invoke `cmake` directly. For example:

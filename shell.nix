@@ -1,15 +1,19 @@
-{ pkgs ? import <nixpkgs> { } }:
+{
+  pkgs ? import <nixpkgs> { },
+}:
 
 pkgs.mkShell {
-  packages = with pkgs; [
-    ccache
-  ] ++ (with qt6Packages; [
+  inputsFrom = [
+    pkgs.ladybird
+  ];
+
+  packages = with pkgs.qt6Packages; [
     qtbase.dev
     qttools
     qtwayland.dev
-  ]);
 
-  inputsFrom = [ pkgs.ladybird ];
+    pkgs.ccache
+  ];
 
   shellHook = ''
     # NOTE: This is required to make it find the wayland platform plugin installed
