@@ -54,6 +54,17 @@ void ImagePaintable::finalize()
     document().unregister_viewport_client(*this);
 }
 
+inline void apply_contain_fit(float& scale_x, float& scale_y, float const bitmap_aspect_ratio, float const image_aspect_ratio, Gfx::IntRect const& image_int_rect, Gfx::IntRect const& bitmap_rect)
+{
+    if (bitmap_aspect_ratio >= image_aspect_ratio) {
+        scale_x = static_cast<float>(image_int_rect.height()) / bitmap_rect.height();
+        scale_y = scale_x;
+    } else {
+        scale_x = static_cast<float>(image_int_rect.width()) / bitmap_rect.width();
+        scale_y = scale_x;
+    }
+}
+
 void ImagePaintable::paint(PaintContext& context, PaintPhase phase) const
 {
     if (!is_visible())
@@ -80,19 +91,14 @@ void ImagePaintable::paint(PaintContext& context, PaintPhase phase) const
             Gfx::IntRect bitmap_intersect = bitmap_rect;
 
             auto object_fit = m_is_svg_image ? CSS::ObjectFit::Contain : computed_values().object_fit();
+            // https://drafts.csswg.org/css-images/#the-object-fit
             switch (object_fit) {
             case CSS::ObjectFit::Fill:
                 scale_x = (float)image_int_rect.width() / bitmap_rect.width();
                 scale_y = (float)image_int_rect.height() / bitmap_rect.height();
                 break;
             case CSS::ObjectFit::Contain:
-                if (bitmap_aspect_ratio >= image_aspect_ratio) {
-                    scale_x = (float)image_int_rect.height() / bitmap_rect.height();
-                    scale_y = scale_x;
-                } else {
-                    scale_x = (float)image_int_rect.width() / bitmap_rect.width();
-                    scale_y = scale_x;
-                }
+                apply_contain_fit(scale_x, scale_y, bitmap_aspect_ratio, image_aspect_ratio, image_int_rect, bitmap_rect);
                 break;
             case CSS::ObjectFit::Cover:
                 if (bitmap_aspect_ratio >= image_aspect_ratio) {
@@ -105,8 +111,22 @@ void ImagePaintable::paint(PaintContext& context, PaintPhase phase) const
                     bitmap_intersect.set_width(bitmap_rect.height() / image_aspect_ratio);
                 }
                 break;
-            case CSS::ObjectFit::ScaleDown:
-                // FIXME: Implement
+            case CSS::ObjectFit::ScaleDown: {
+                float contain_scale_x = 0.0f;
+                float contain_scale_y = 0.0f;
+
+                apply_contain_fit(contain_scale_x, contain_scale_y, bitmap_aspect_ratio, image_aspect_ratio, image_int_rect, bitmap_rect);
+                float contain_scale = min(contain_scale_x, contain_scale_y);
+
+                if (contain_scale < 1.0f) {
+                    scale_x = contain_scale;
+                    scale_y = contain_scale;
+                    bitmap_intersect.set_size(image_int_rect.size());
+                    break;
+                }
+
+                [[fallthrough]];
+            }
             case CSS::ObjectFit::None:
                 scale_x = 1;
                 scale_y = 1;
