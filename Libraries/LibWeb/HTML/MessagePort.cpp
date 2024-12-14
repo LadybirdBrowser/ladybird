@@ -438,17 +438,28 @@ void MessagePort::close()
         disentangle();
 }
 
-#undef __ENUMERATE
-#define __ENUMERATE(attribute_name, event_name)                         \
-    void MessagePort::set_##attribute_name(WebIDL::CallbackType* value) \
-    {                                                                   \
-        set_event_handler_attribute(event_name, value);                 \
-    }                                                                   \
-    WebIDL::CallbackType* MessagePort::attribute_name()                 \
-    {                                                                   \
-        return event_handler_attribute(event_name);                     \
-    }
-ENUMERATE_MESSAGE_PORT_EVENT_HANDLERS(__ENUMERATE)
-#undef __ENUMERATE
+// https://html.spec.whatwg.org/multipage/web-messaging.html#handler-messageeventtarget-onmessageerror
+void MessagePort::set_onmessageerror(GC::Ptr<WebIDL::CallbackType> value)
+{
+    set_event_handler_attribute(EventNames::messageerror, value);
+}
+
+// https://html.spec.whatwg.org/multipage/web-messaging.html#handler-messageeventtarget-onmessageerror
+GC::Ptr<WebIDL::CallbackType> MessagePort::onmessageerror()
+{
+    return event_handler_attribute(EventNames::messageerror);
+}
+
+// https://html.spec.whatwg.org/multipage/web-messaging.html#handler-messageeventtarget-onmessage
+void MessagePort::set_onmessage(GC::Ptr<WebIDL::CallbackType> value)
+{
+    set_event_handler_attribute(EventNames::message, value);
+}
+
+// https://html.spec.whatwg.org/multipage/web-messaging.html#handler-messageeventtarget-onmessage
+GC::Ptr<WebIDL::CallbackType> MessagePort::onmessage()
+{
+    return event_handler_attribute(EventNames::message);
+}
 
 }
