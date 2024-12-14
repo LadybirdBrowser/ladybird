@@ -40,6 +40,9 @@ public:
     JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> import_key(Bindings::KeyFormat format, KeyDataType key_data, AlgorithmIdentifier algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages);
     JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> export_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key);
 
+    JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> wrap_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key, GC::Ref<CryptoKey> wrapping_key, AlgorithmIdentifier wrap_algorithm);
+    JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> unwrap_key(Bindings::KeyFormat format, KeyDataType wrapped_key, GC::Ref<CryptoKey> unwrapping_key, AlgorithmIdentifier unwrap_algorithm, AlgorithmIdentifier unwrapped_key_algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages);
+
 private:
     explicit SubtleCrypto(JS::Realm&);
     virtual void initialize(JS::Realm&) override;

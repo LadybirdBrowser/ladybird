@@ -1,0 +1,250 @@
+Harness status: OK
+
+Found 244 tests
+
+173 Pass
+71 Fail
+Pass	setup
+Pass	Can wrap and unwrap RSA-OAEP public key keys using spki and RSA-OAEP
+Pass	Can wrap and unwrap RSA-OAEP public key keys using jwk and RSA-OAEP
+Pass	Can wrap and unwrap ECDSA public key keys using spki and RSA-OAEP
+Pass	Can wrap and unwrap ECDSA public key keys using jwk and RSA-OAEP
+Pass	Can wrap and unwrap ECDSA private key keys using pkcs8 and RSA-OAEP
+Pass	Can wrap and unwrap ECDSA private key keys as non-extractable using pkcs8 and RSA-OAEP
+Pass	Can wrap and unwrap ECDSA private key keys using jwk and RSA-OAEP
+Pass	Can wrap and unwrap ECDSA private key keys as non-extractable using jwk and RSA-OAEP
+Pass	Can unwrap ECDSA private key non-extractable keys using jwk and RSA-OAEP
+Pass	Can wrap and unwrap ECDH public key keys using spki and RSA-OAEP
+Pass	Can wrap and unwrap ECDH public key keys using jwk and RSA-OAEP
+Pass	Can wrap and unwrap ECDH private key keys using pkcs8 and RSA-OAEP
+Pass	Can wrap and unwrap ECDH private key keys as non-extractable using pkcs8 and RSA-OAEP
+Pass	Can wrap and unwrap ECDH private key keys using jwk and RSA-OAEP
+Pass	Can wrap and unwrap ECDH private key keys as non-extractable using jwk and RSA-OAEP
+Pass	Can unwrap ECDH private key non-extractable keys using jwk and RSA-OAEP
+Pass	Can wrap and unwrap Ed25519 public key keys using spki and RSA-OAEP
+Pass	Can wrap and unwrap Ed25519 public key keys using jwk and RSA-OAEP
+Pass	Can wrap and unwrap Ed25519 private key keys using pkcs8 and RSA-OAEP
+Pass	Can wrap and unwrap Ed25519 private key keys as non-extractable using pkcs8 and RSA-OAEP
+Pass	Can wrap and unwrap Ed25519 private key keys using jwk and RSA-OAEP
+Pass	Can wrap and unwrap Ed25519 private key keys as non-extractable using jwk and RSA-OAEP
+Pass	Can unwrap Ed25519 private key non-extractable keys using jwk and RSA-OAEP
+Pass	Can wrap and unwrap X25519 public key keys using spki and RSA-OAEP
+Pass	Can wrap and unwrap X25519 public key keys using jwk and RSA-OAEP
+Pass	Can wrap and unwrap X25519 private key keys using pkcs8 and RSA-OAEP
+Pass	Can wrap and unwrap X25519 private key keys as non-extractable using pkcs8 and RSA-OAEP
+Pass	Can wrap and unwrap X25519 private key keys using jwk and RSA-OAEP
+Pass	Can wrap and unwrap X25519 private key keys as non-extractable using jwk and RSA-OAEP
+Pass	Can unwrap X25519 private key non-extractable keys using jwk and RSA-OAEP
+Pass	Can wrap and unwrap X448 public key keys using spki and RSA-OAEP
+Pass	Can wrap and unwrap X448 public key keys using jwk and RSA-OAEP
+Pass	Can wrap and unwrap X448 private key keys using pkcs8 and RSA-OAEP
+Pass	Can wrap and unwrap X448 private key keys as non-extractable using pkcs8 and RSA-OAEP
+Pass	Can wrap and unwrap X448 private key keys using jwk and RSA-OAEP
+Pass	Can wrap and unwrap X448 private key keys as non-extractable using jwk and RSA-OAEP
+Pass	Can unwrap X448 private key non-extractable keys using jwk and RSA-OAEP
+Pass	Can wrap and unwrap AES-CTR keys using raw and RSA-OAEP
+Pass	Can wrap and unwrap AES-CTR keys as non-extractable using raw and RSA-OAEP
+Pass	Can wrap and unwrap AES-CTR keys using jwk and RSA-OAEP
+Pass	Can wrap and unwrap AES-CTR keys as non-extractable using jwk and RSA-OAEP
+Pass	Can unwrap AES-CTR non-extractable keys using jwk and RSA-OAEP
+Pass	Can wrap and unwrap AES-CBC keys using raw and RSA-OAEP
+Pass	Can wrap and unwrap AES-CBC keys as non-extractable using raw and RSA-OAEP
+Pass	Can wrap and unwrap AES-CBC keys using jwk and RSA-OAEP
+Pass	Can wrap and unwrap AES-CBC keys as non-extractable using jwk and RSA-OAEP
+Pass	Can unwrap AES-CBC non-extractable keys using jwk and RSA-OAEP
+Pass	Can wrap and unwrap AES-GCM keys using raw and RSA-OAEP
+Fail	Can wrap and unwrap AES-GCM keys as non-extractable using raw and RSA-OAEP
+Pass	Can wrap and unwrap AES-GCM keys using jwk and RSA-OAEP
+Fail	Can wrap and unwrap AES-GCM keys as non-extractable using jwk and RSA-OAEP
+Fail	Can unwrap AES-GCM non-extractable keys using jwk and RSA-OAEP
+Pass	Can wrap and unwrap HMAC keys using raw and RSA-OAEP
+Pass	Can wrap and unwrap HMAC keys as non-extractable using raw and RSA-OAEP
+Pass	Can wrap and unwrap HMAC keys using jwk and RSA-OAEP
+Pass	Can wrap and unwrap HMAC keys as non-extractable using jwk and RSA-OAEP
+Pass	Can unwrap HMAC non-extractable keys using jwk and RSA-OAEP
+Pass	Can wrap and unwrap RSA-OAEP public key keys using spki and AES-CTR
+Pass	Can wrap and unwrap RSA-OAEP public key keys using jwk and AES-CTR
+Pass	Can wrap and unwrap RSA-OAEP private key keys using pkcs8 and AES-CTR
+Pass	Can wrap and unwrap RSA-OAEP private key keys as non-extractable using pkcs8 and AES-CTR
+Pass	Can wrap and unwrap RSA-OAEP private key keys using jwk and AES-CTR
+Pass	Can wrap and unwrap RSA-OAEP private key keys as non-extractable using jwk and AES-CTR
+Pass	Can unwrap RSA-OAEP private key non-extractable keys using jwk and AES-CTR
+Pass	Can wrap and unwrap ECDSA public key keys using spki and AES-CTR
+Pass	Can wrap and unwrap ECDSA public key keys using jwk and AES-CTR
+Pass	Can wrap and unwrap ECDSA private key keys using pkcs8 and AES-CTR
+Pass	Can wrap and unwrap ECDSA private key keys as non-extractable using pkcs8 and AES-CTR
+Pass	Can wrap and unwrap ECDSA private key keys using jwk and AES-CTR
+Pass	Can wrap and unwrap ECDSA private key keys as non-extractable using jwk and AES-CTR
+Pass	Can unwrap ECDSA private key non-extractable keys using jwk and AES-CTR
+Pass	Can wrap and unwrap ECDH public key keys using spki and AES-CTR
+Pass	Can wrap and unwrap ECDH public key keys using jwk and AES-CTR
+Pass	Can wrap and unwrap ECDH private key keys using pkcs8 and AES-CTR
+Pass	Can wrap and unwrap ECDH private key keys as non-extractable using pkcs8 and AES-CTR
+Pass	Can wrap and unwrap ECDH private key keys using jwk and AES-CTR
+Pass	Can wrap and unwrap ECDH private key keys as non-extractable using jwk and AES-CTR
+Pass	Can unwrap ECDH private key non-extractable keys using jwk and AES-CTR
+Pass	Can wrap and unwrap Ed25519 public key keys using spki and AES-CTR
+Pass	Can wrap and unwrap Ed25519 public key keys using jwk and AES-CTR
+Pass	Can wrap and unwrap Ed25519 private key keys using pkcs8 and AES-CTR
+Pass	Can wrap and unwrap Ed25519 private key keys as non-extractable using pkcs8 and AES-CTR
+Pass	Can wrap and unwrap Ed25519 private key keys using jwk and AES-CTR
+Pass	Can wrap and unwrap Ed25519 private key keys as non-extractable using jwk and AES-CTR
+Pass	Can unwrap Ed25519 private key non-extractable keys using jwk and AES-CTR
+Pass	Can wrap and unwrap X25519 public key keys using spki and AES-CTR
+Pass	Can wrap and unwrap X25519 public key keys using jwk and AES-CTR
+Pass	Can wrap and unwrap X25519 private key keys using pkcs8 and AES-CTR
+Pass	Can wrap and unwrap X25519 private key keys as non-extractable using pkcs8 and AES-CTR
+Pass	Can wrap and unwrap X25519 private key keys using jwk and AES-CTR
+Pass	Can wrap and unwrap X25519 private key keys as non-extractable using jwk and AES-CTR
+Pass	Can unwrap X25519 private key non-extractable keys using jwk and AES-CTR
+Pass	Can wrap and unwrap X448 public key keys using spki and AES-CTR
+Pass	Can wrap and unwrap X448 public key keys using jwk and AES-CTR
+Pass	Can wrap and unwrap X448 private key keys using pkcs8 and AES-CTR
+Pass	Can wrap and unwrap X448 private key keys as non-extractable using pkcs8 and AES-CTR
+Pass	Can wrap and unwrap X448 private key keys using jwk and AES-CTR
+Pass	Can wrap and unwrap X448 private key keys as non-extractable using jwk and AES-CTR
+Pass	Can unwrap X448 private key non-extractable keys using jwk and AES-CTR
+Pass	Can wrap and unwrap AES-CTR keys using raw and AES-CTR
+Pass	Can wrap and unwrap AES-CTR keys as non-extractable using raw and AES-CTR
+Pass	Can wrap and unwrap AES-CTR keys using jwk and AES-CTR
+Pass	Can wrap and unwrap AES-CTR keys as non-extractable using jwk and AES-CTR
+Pass	Can unwrap AES-CTR non-extractable keys using jwk and AES-CTR
+Pass	Can wrap and unwrap AES-CBC keys using raw and AES-CTR
+Pass	Can wrap and unwrap AES-CBC keys as non-extractable using raw and AES-CTR
+Pass	Can wrap and unwrap AES-CBC keys using jwk and AES-CTR
+Pass	Can wrap and unwrap AES-CBC keys as non-extractable using jwk and AES-CTR
+Pass	Can unwrap AES-CBC non-extractable keys using jwk and AES-CTR
+Pass	Can wrap and unwrap AES-GCM keys using raw and AES-CTR
+Fail	Can wrap and unwrap AES-GCM keys as non-extractable using raw and AES-CTR
+Pass	Can wrap and unwrap AES-GCM keys using jwk and AES-CTR
+Fail	Can wrap and unwrap AES-GCM keys as non-extractable using jwk and AES-CTR
+Fail	Can unwrap AES-GCM non-extractable keys using jwk and AES-CTR
+Pass	Can wrap and unwrap HMAC keys using raw and AES-CTR
+Pass	Can wrap and unwrap HMAC keys as non-extractable using raw and AES-CTR
+Pass	Can wrap and unwrap HMAC keys using jwk and AES-CTR
+Pass	Can wrap and unwrap HMAC keys as non-extractable using jwk and AES-CTR
+Pass	Can unwrap HMAC non-extractable keys using jwk and AES-CTR
+Pass	Can wrap and unwrap RSA-OAEP public key keys using spki and AES-CBC
+Pass	Can wrap and unwrap RSA-OAEP public key keys using jwk and AES-CBC
+Pass	Can wrap and unwrap RSA-OAEP private key keys using pkcs8 and AES-CBC
+Pass	Can wrap and unwrap RSA-OAEP private key keys as non-extractable using pkcs8 and AES-CBC
+Pass	Can wrap and unwrap RSA-OAEP private key keys using jwk and AES-CBC
+Pass	Can wrap and unwrap RSA-OAEP private key keys as non-extractable using jwk and AES-CBC
+Pass	Can unwrap RSA-OAEP private key non-extractable keys using jwk and AES-CBC
+Pass	Can wrap and unwrap ECDSA public key keys using spki and AES-CBC
+Pass	Can wrap and unwrap ECDSA public key keys using jwk and AES-CBC
+Pass	Can wrap and unwrap ECDSA private key keys using pkcs8 and AES-CBC
+Pass	Can wrap and unwrap ECDSA private key keys as non-extractable using pkcs8 and AES-CBC
+Pass	Can wrap and unwrap ECDSA private key keys using jwk and AES-CBC
+Pass	Can wrap and unwrap ECDSA private key keys as non-extractable using jwk and AES-CBC
+Pass	Can unwrap ECDSA private key non-extractable keys using jwk and AES-CBC
+Pass	Can wrap and unwrap ECDH public key keys using spki and AES-CBC
+Pass	Can wrap and unwrap ECDH public key keys using jwk and AES-CBC
+Pass	Can wrap and unwrap ECDH private key keys using pkcs8 and AES-CBC
+Pass	Can wrap and unwrap ECDH private key keys as non-extractable using pkcs8 and AES-CBC
+Pass	Can wrap and unwrap ECDH private key keys using jwk and AES-CBC
+Pass	Can wrap and unwrap ECDH private key keys as non-extractable using jwk and AES-CBC
+Pass	Can unwrap ECDH private key non-extractable keys using jwk and AES-CBC
+Pass	Can wrap and unwrap Ed25519 public key keys using spki and AES-CBC
+Pass	Can wrap and unwrap Ed25519 public key keys using jwk and AES-CBC
+Pass	Can wrap and unwrap Ed25519 private key keys using pkcs8 and AES-CBC
+Pass	Can wrap and unwrap Ed25519 private key keys as non-extractable using pkcs8 and AES-CBC
+Pass	Can wrap and unwrap Ed25519 private key keys using jwk and AES-CBC
+Pass	Can wrap and unwrap Ed25519 private key keys as non-extractable using jwk and AES-CBC
+Pass	Can unwrap Ed25519 private key non-extractable keys using jwk and AES-CBC
+Pass	Can wrap and unwrap X25519 public key keys using spki and AES-CBC
+Pass	Can wrap and unwrap X25519 public key keys using jwk and AES-CBC
+Pass	Can wrap and unwrap X25519 private key keys using pkcs8 and AES-CBC
+Pass	Can wrap and unwrap X25519 private key keys as non-extractable using pkcs8 and AES-CBC
+Pass	Can wrap and unwrap X25519 private key keys using jwk and AES-CBC
+Pass	Can wrap and unwrap X25519 private key keys as non-extractable using jwk and AES-CBC
+Pass	Can unwrap X25519 private key non-extractable keys using jwk and AES-CBC
+Pass	Can wrap and unwrap X448 public key keys using spki and AES-CBC
+Pass	Can wrap and unwrap X448 public key keys using jwk and AES-CBC
+Pass	Can wrap and unwrap X448 private key keys using pkcs8 and AES-CBC
+Pass	Can wrap and unwrap X448 private key keys as non-extractable using pkcs8 and AES-CBC
+Pass	Can wrap and unwrap X448 private key keys using jwk and AES-CBC
+Pass	Can wrap and unwrap X448 private key keys as non-extractable using jwk and AES-CBC
+Pass	Can unwrap X448 private key non-extractable keys using jwk and AES-CBC
+Pass	Can wrap and unwrap AES-CTR keys using raw and AES-CBC
+Pass	Can wrap and unwrap AES-CTR keys as non-extractable using raw and AES-CBC
+Pass	Can wrap and unwrap AES-CTR keys using jwk and AES-CBC
+Pass	Can wrap and unwrap AES-CTR keys as non-extractable using jwk and AES-CBC
+Pass	Can unwrap AES-CTR non-extractable keys using jwk and AES-CBC
+Pass	Can wrap and unwrap AES-CBC keys using raw and AES-CBC
+Pass	Can wrap and unwrap AES-CBC keys as non-extractable using raw and AES-CBC
+Pass	Can wrap and unwrap AES-CBC keys using jwk and AES-CBC
+Pass	Can wrap and unwrap AES-CBC keys as non-extractable using jwk and AES-CBC
+Pass	Can unwrap AES-CBC non-extractable keys using jwk and AES-CBC
+Pass	Can wrap and unwrap AES-GCM keys using raw and AES-CBC
+Fail	Can wrap and unwrap AES-GCM keys as non-extractable using raw and AES-CBC
+Pass	Can wrap and unwrap AES-GCM keys using jwk and AES-CBC
+Fail	Can wrap and unwrap AES-GCM keys as non-extractable using jwk and AES-CBC
+Fail	Can unwrap AES-GCM non-extractable keys using jwk and AES-CBC
+Pass	Can wrap and unwrap HMAC keys using raw and AES-CBC
+Pass	Can wrap and unwrap HMAC keys as non-extractable using raw and AES-CBC
+Pass	Can wrap and unwrap HMAC keys using jwk and AES-CBC
+Pass	Can wrap and unwrap HMAC keys as non-extractable using jwk and AES-CBC
+Pass	Can unwrap HMAC non-extractable keys using jwk and AES-CBC
+Fail	Can wrap and unwrap RSA-OAEP public key keys using spki and AES-GCM
+Fail	Can wrap and unwrap RSA-OAEP public key keys using jwk and AES-GCM
+Fail	Can wrap and unwrap RSA-OAEP private key keys using pkcs8 and AES-GCM
+Fail	Can wrap and unwrap RSA-OAEP private key keys as non-extractable using pkcs8 and AES-GCM
+Fail	Can wrap and unwrap RSA-OAEP private key keys using jwk and AES-GCM
+Fail	Can wrap and unwrap RSA-OAEP private key keys as non-extractable using jwk and AES-GCM
+Fail	Can unwrap RSA-OAEP private key non-extractable keys using jwk and AES-GCM
+Fail	Can wrap and unwrap ECDSA public key keys using spki and AES-GCM
+Fail	Can wrap and unwrap ECDSA public key keys using jwk and AES-GCM
+Fail	Can wrap and unwrap ECDSA private key keys using pkcs8 and AES-GCM
+Fail	Can wrap and unwrap ECDSA private key keys as non-extractable using pkcs8 and AES-GCM
+Fail	Can wrap and unwrap ECDSA private key keys using jwk and AES-GCM
+Fail	Can wrap and unwrap ECDSA private key keys as non-extractable using jwk and AES-GCM
+Fail	Can unwrap ECDSA private key non-extractable keys using jwk and AES-GCM
+Fail	Can wrap and unwrap ECDH public key keys using spki and AES-GCM
+Fail	Can wrap and unwrap ECDH public key keys using jwk and AES-GCM
+Fail	Can wrap and unwrap ECDH private key keys using pkcs8 and AES-GCM
+Fail	Can wrap and unwrap ECDH private key keys as non-extractable using pkcs8 and AES-GCM
+Fail	Can wrap and unwrap ECDH private key keys using jwk and AES-GCM
+Fail	Can wrap and unwrap ECDH private key keys as non-extractable using jwk and AES-GCM
+Fail	Can unwrap ECDH private key non-extractable keys using jwk and AES-GCM
+Fail	Can wrap and unwrap Ed25519 public key keys using spki and AES-GCM
+Fail	Can wrap and unwrap Ed25519 public key keys using jwk and AES-GCM
+Fail	Can wrap and unwrap Ed25519 private key keys using pkcs8 and AES-GCM
+Fail	Can wrap and unwrap Ed25519 private key keys as non-extractable using pkcs8 and AES-GCM
+Fail	Can wrap and unwrap Ed25519 private key keys using jwk and AES-GCM
+Fail	Can wrap and unwrap Ed25519 private key keys as non-extractable using jwk and AES-GCM
+Fail	Can unwrap Ed25519 private key non-extractable keys using jwk and AES-GCM
+Fail	Can wrap and unwrap X25519 public key keys using spki and AES-GCM
+Fail	Can wrap and unwrap X25519 public key keys using jwk and AES-GCM
+Fail	Can wrap and unwrap X25519 private key keys using pkcs8 and AES-GCM
+Fail	Can wrap and unwrap X25519 private key keys as non-extractable using pkcs8 and AES-GCM
+Fail	Can wrap and unwrap X25519 private key keys using jwk and AES-GCM
+Fail	Can wrap and unwrap X25519 private key keys as non-extractable using jwk and AES-GCM
+Fail	Can unwrap X25519 private key non-extractable keys using jwk and AES-GCM
+Fail	Can wrap and unwrap X448 public key keys using spki and AES-GCM
+Fail	Can wrap and unwrap X448 public key keys using jwk and AES-GCM
+Fail	Can wrap and unwrap X448 private key keys using pkcs8 and AES-GCM
+Fail	Can wrap and unwrap X448 private key keys as non-extractable using pkcs8 and AES-GCM
+Fail	Can wrap and unwrap X448 private key keys using jwk and AES-GCM
+Fail	Can wrap and unwrap X448 private key keys as non-extractable using jwk and AES-GCM
+Fail	Can unwrap X448 private key non-extractable keys using jwk and AES-GCM
+Fail	Can wrap and unwrap AES-CTR keys using raw and AES-GCM
+Fail	Can wrap and unwrap AES-CTR keys as non-extractable using raw and AES-GCM
+Fail	Can wrap and unwrap AES-CTR keys using jwk and AES-GCM
+Fail	Can wrap and unwrap AES-CTR keys as non-extractable using jwk and AES-GCM
+Fail	Can unwrap AES-CTR non-extractable keys using jwk and AES-GCM
+Fail	Can wrap and unwrap AES-CBC keys using raw and AES-GCM
+Fail	Can wrap and unwrap AES-CBC keys as non-extractable using raw and AES-GCM
+Fail	Can wrap and unwrap AES-CBC keys using jwk and AES-GCM
+Fail	Can wrap and unwrap AES-CBC keys as non-extractable using jwk and AES-GCM
+Fail	Can unwrap AES-CBC non-extractable keys using jwk and AES-GCM
+Fail	Can wrap and unwrap AES-GCM keys using raw and AES-GCM
+Fail	Can wrap and unwrap AES-GCM keys as non-extractable using raw and AES-GCM
+Fail	Can wrap and unwrap AES-GCM keys using jwk and AES-GCM
+Fail	Can wrap and unwrap AES-GCM keys as non-extractable using jwk and AES-GCM
+Fail	Can unwrap AES-GCM non-extractable keys using jwk and AES-GCM
+Fail	Can wrap and unwrap HMAC keys using raw and AES-GCM
+Fail	Can wrap and unwrap HMAC keys as non-extractable using raw and AES-GCM
+Fail	Can wrap and unwrap HMAC keys using jwk and AES-GCM
+Fail	Can wrap and unwrap HMAC keys as non-extractable using jwk and AES-GCM
+Fail	Can unwrap HMAC non-extractable keys using jwk and AES-GCM
