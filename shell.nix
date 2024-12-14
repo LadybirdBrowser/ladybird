@@ -4,7 +4,15 @@
 
 pkgs.mkShell {
   inputsFrom = [
-    pkgs.ladybird
+    (pkgs.ladybird.override (prev: {
+      # Apply fix expanding skia's public api
+      # See #4d7b717
+      skia = prev.skia.overrideAttrs (prev: {
+        gnFlags = prev.gnFlags ++ [
+          "extra_cflags+=[\"-DSKCMS_API=__attribute__((visibility(\\\"default\\\")))\"]"
+        ];
+      });
+    }))
   ];
 
   packages = with pkgs.qt6Packages; [
