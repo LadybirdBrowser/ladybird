@@ -13,8 +13,8 @@
 #if !defined(AK_OS_WINDOWS)
 #    include <sys/mman.h>
 #else
-extern "C" __declspec(dllimport) void* __stdcall VirtualAlloc(size_t dwSize, u32 flAllocationType, u32 flProtect);
-extern "C" __declspec(dllimport) bool __stdcall VirtualFree(void* lpAddress, size_t dwSize, u32 dwFreeType);
+extern "C" __declspec(dllimport) void* __stdcall VirtualAlloc(void* lpAddress, size_t size, u32 flAllocationType, u32 flProtect);
+extern "C" __declspec(dllimport) bool __stdcall VirtualFree(void* lpAddress, size_t size, u32 dwFreeType);
 #    define MEM_COMMIT 0x00001000
 #    define PAGE_READWRITE 0x04
 #    define MEM_RELEASE 0x00008000
@@ -82,7 +82,7 @@ public:
 
             if constexpr (use_mmap) {
 #if defined(AK_OS_WINDOWS)
-                VirtualFree((LPVOID)chunk, m_chunk_size, MEM_RELEASE);
+                VirtualFree((void*)chunk, m_chunk_size, MEM_RELEASE);
 #else
                 munmap((void*)chunk, m_chunk_size);
 #endif
