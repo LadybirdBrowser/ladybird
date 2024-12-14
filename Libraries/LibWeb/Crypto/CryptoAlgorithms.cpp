@@ -5463,12 +5463,18 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X448::export_key(Bindings::KeyFormat fo
         jwk.crv = "X448"_string;
 
         // 4. Set the x attribute of jwk according to the definition in Section 2 of [RFC8037].
-        jwk.x = TRY_OR_THROW_OOM(m_realm->vm(), encode_base64url(key_data));
+        if (key->type() == Bindings::KeyType::Public) {
+            jwk.x = TRY_OR_THROW_OOM(m_realm->vm(), encode_base64url(key_data, AK::OmitPadding::Yes));
+        } else {
+            ::Crypto::Curves::X448 curve;
+            auto public_key = TRY_OR_THROW_OOM(m_realm->vm(), curve.generate_public_key(key_data));
+            jwk.x = TRY_OR_THROW_OOM(m_realm->vm(), encode_base64url(public_key, AK::OmitPadding::Yes));
+        }
 
         // 5. If the [[type]] internal slot of key is "private"
         if (key->type() == Bindings::KeyType::Private) {
             // 1. Set the d attribute of jwk according to the definition in Section 2 of [RFC8037].
-            jwk.d = TRY_OR_THROW_OOM(m_realm->vm(), encode_base64url(key_data));
+            jwk.d = TRY_OR_THROW_OOM(m_realm->vm(), encode_base64url(key_data, AK::OmitPadding::Yes));
         }
 
         // 6. Set the key_ops attribute of jwk to the usages attribute of key.
