@@ -5,10 +5,10 @@
  */
 
 #include <AK/Time.h>
+#include <LibCore/System.h>
 #include <LibJS/Contrib/Test262/AgentObject.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Object.h>
-#include <unistd.h>
 
 namespace JS::Test262 {
 
@@ -41,7 +41,7 @@ JS_DEFINE_NATIVE_FUNCTION(AgentObject::monotonic_now)
 JS_DEFINE_NATIVE_FUNCTION(AgentObject::sleep)
 {
     auto milliseconds = TRY(vm.argument(0).to_i32(vm));
-    ::usleep(milliseconds * 1000);
+    (void)Core::System::sleep_ms(milliseconds);
     return js_undefined();
 }
 

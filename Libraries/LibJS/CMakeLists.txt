@@ -275,8 +275,14 @@ if("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "i.86.*")
     target_link_libraries(LibJS PRIVATE atomic)
 endif()
 
-# This flag has no effect on Windows
-if (NOT WIN32)
+if (WIN32)
+    # FIXME: Windows on ARM
+    target_link_libraries(LibJS PRIVATE clang_rt.builtins-x86_64.lib)
+    # FIXME: This is a hack to get around lld-link error undefined symbol GC::HeapBlockBase::block_size
+    #        LibGC HeapBlock.obj is given directly to LibJS linker
+    target_link_libraries(LibJS PRIVATE $<FILTER:$<TARGET_OBJECTS:LibGC>,INCLUDE,HeapBlock>)
+else()
+    # This flag has no effect on Windows
     target_compile_options(LibJS PRIVATE -fno-omit-frame-pointer)
 endif()
 
