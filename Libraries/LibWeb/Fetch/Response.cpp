@@ -85,13 +85,13 @@ GC::Ref<Response> Response::create(JS::Realm& realm, GC::Ref<Infrastructure::Res
 }
 
 // https://httpwg.org/specs/rfc9112.html#status.line
-static bool is_valid_status_text(StringView status_text)
+static bool is_valid_status_text(String const& status_text)
 {
     // A status text is valid if it is either the empty string or matches the reason-phrase token production.
     // reason-phrase  = 1*( HTAB / SP / VCHAR / obs-text )
     // VCHAR          = %x21-7E
     // obs-text       = %x80-FF
-    return all_of(status_text, [](auto c) {
+    return all_of(status_text.code_points(), [](auto c) {
         return c == '\t' || c == ' ' || (c >= 0x21 && c <= 0x7E) || (c >= 0x80 && c <= 0xFF);
     });
 }

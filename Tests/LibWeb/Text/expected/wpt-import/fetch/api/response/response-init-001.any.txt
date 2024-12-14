@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	Check default value for type attribute
+Pass	Check default value for url attribute
+Pass	Check default value for ok attribute
+Pass	Check default value for status attribute
+Pass	Check default value for statusText attribute
+Pass	Check default value for body attribute
+Pass	Check status init values and associated getter
+Pass	Check statusText init values and associated getter
+Pass	Test that Response.headers has the [SameObject] extended attribute
