@@ -337,6 +337,16 @@ public:
         return WebIDL::NotSupportedError::create(m_realm, "getKeyLength is not supported"_string);
     }
 
+    virtual WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> wrap_key(AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&)
+    {
+        return WebIDL::NotSupportedError::create(m_realm, "wrapKey is not supported"_string);
+    }
+
+    virtual WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> unwrap_key(AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&)
+    {
+        return WebIDL::NotSupportedError::create(m_realm, "unwwrapKey is not supported"_string);
+    }
+
     static NonnullOwnPtr<AlgorithmMethods> create(JS::Realm& realm) { return adopt_own(*new AlgorithmMethods(realm)); }
 
 protected:
