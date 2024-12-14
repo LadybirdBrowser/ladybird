@@ -87,7 +87,7 @@ GC::Ref<Response> Response::create(JS::Realm& realm, GC::Ref<Infrastructure::Res
 // https://httpwg.org/specs/rfc9112.html#status.line
 static bool is_valid_status_text(StringView status_text)
 {
-    // A status text is a valid status text if it matches the reason-phrase token production.
+    // A status text is valid if it is either the empty string or matches the reason-phrase token production.
     // reason-phrase  = 1*( HTAB / SP / VCHAR / obs-text )
     // VCHAR          = %x21-7E
     // obs-text       = %x80-FF
@@ -103,7 +103,7 @@ WebIDL::ExceptionOr<void> Response::initialize_response(ResponseInit const& init
     if (init.status < 200 || init.status > 599)
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "Status must be in range 200-599"sv };
 
-    // 2. If init["statusText"] does not match the reason-phrase token production, then throw a TypeError.
+    // 2. If init["statusText"] is not the empty string and does not match the reason-phrase token production, then throw a TypeError.
     if (!is_valid_status_text(init.status_text))
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid statusText: does not match the reason-phrase token production"sv };
 
