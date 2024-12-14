@@ -225,4 +225,10 @@ bool is_socket(int handle)
     return GetFileType(to_handle(handle)) == FILE_TYPE_PIPE;
 }
 
+ErrorOr<void> sleep_ms(u32 milliseconds)
+{
+    Sleep(milliseconds);
+    return {};
+}
+
 }

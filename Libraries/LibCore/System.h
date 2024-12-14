@@ -181,5 +181,6 @@ ErrorOr<void> set_resource_limits(int resource, rlim_t limit);
 
 int getpid();
 bool is_socket(int fd);
+ErrorOr<void> sleep_ms(u32 milliseconds);
 
 }
