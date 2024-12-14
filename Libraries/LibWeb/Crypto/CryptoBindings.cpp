@@ -1,15 +1,89 @@
 /*
  * Copyright (c) 2024, Andrew Kaster <akaster@serenityos.org>
+ * Copyright (c) 2024, Altomani Gianluca <altomanigianluca@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/JsonObject.h>
+#include <AK/JsonValue.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Crypto/CryptoBindings.h>
+#include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::Bindings {
+#define JWK_PARSE_STRING_PROPERTY(name)                                                                     \
+    if (json_object.has_string(#name##sv)) {                                                                \
+        key.name = TRY_OR_THROW_OOM(vm, String::from_byte_string(*json_object.get_byte_string(#name##sv))); \
+    }
+
+JS::ThrowCompletionOr<JsonWebKey> JsonWebKey::parse(JS::Realm& realm, ReadonlyBytes data)
+{
+    auto& vm = realm.vm();
+    // 1. Let data be the sequence of bytes to be parsed.
+
+    // 2. Let json be the Unicode string that results from interpreting data according to UTF-8.
+    // 3. Convert json to UTF-16.
+    auto json = TRY_OR_THROW_OOM(vm, String::from_utf8(data));
+
+    // 4. Let result be the object literal that results from executing the JSON.parse internal function
+    //    in the context of a new global object, with text argument set to a JavaScript String containing json.
+    auto maybe_json_value = JsonValue::from_string(json);
+    if (maybe_json_value.is_error())
+        return vm.throw_completion<WebIDL::SyntaxError>(JS::ErrorType::JsonMalformed);
+
+    auto json_value = maybe_json_value.release_value();
+    if (!json_value.is_object()) {
+        return vm.throw_completion<WebIDL::SyntaxError>("JSON value is not an object"_string);
+    }
+
+    auto& json_object = json_value.as_object();
+
+    // 5. Let key be the result of converting result to the IDL dictionary type of JsonWebKey.
+    JsonWebKey key {};
+    JWK_PARSE_STRING_PROPERTY(kty);
+    JWK_PARSE_STRING_PROPERTY(use);
+    JWK_PARSE_STRING_PROPERTY(alg);
+    JWK_PARSE_STRING_PROPERTY(crv);
+    JWK_PARSE_STRING_PROPERTY(x);
+    JWK_PARSE_STRING_PROPERTY(y);
+    JWK_PARSE_STRING_PROPERTY(d);
+    JWK_PARSE_STRING_PROPERTY(n);
+    JWK_PARSE_STRING_PROPERTY(e);
+    JWK_PARSE_STRING_PROPERTY(p);
+    JWK_PARSE_STRING_PROPERTY(q);
+    JWK_PARSE_STRING_PROPERTY(dp);
+    JWK_PARSE_STRING_PROPERTY(dq);
+    JWK_PARSE_STRING_PROPERTY(qi);
+    JWK_PARSE_STRING_PROPERTY(k);
+
+    key.ext = json_object.get_bool("ext"sv);
+
+    if (json_object.has_array("key_ops"sv)) {
+        auto key_ops = *json_object.get_array("key_ops"sv);
+        key.key_ops = Vector<String> {};
+        TRY_OR_THROW_OOM(vm, key.key_ops->try_ensure_capacity(key_ops.size()));
+
+        TRY(key_ops.try_for_each([&key, &vm](auto value) -> JS::Completion {
+            key.key_ops->append(TRY_OR_THROW_OOM(vm, String::from_byte_string(value.as_string())));
+            return {};
+        }));
+    }
+
+    if (json_object.has("oth"sv))
+        TODO();
+
+    // 6. If the kty field of key is not defined, then throw a DataError.
+    if (!key.kty.has_value())
+        return vm.throw_completion<WebIDL::DataError>("kty field is not defined"_string);
+
+    // 7. Return key.
+    return key;
+}
+
+#undef JWK_PARSE_STRING_PROPERTY
 
 JS::ThrowCompletionOr<GC::Ref<JS::Object>> JsonWebKey::to_object(JS::Realm& realm)
 {
