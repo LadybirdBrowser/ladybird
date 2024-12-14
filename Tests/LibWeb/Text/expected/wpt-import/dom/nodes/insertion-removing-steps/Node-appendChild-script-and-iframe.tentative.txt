@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Script inserted after an iframe in the same appendChild() call can observe the iframe's non-null contentWindow
+Pass	A script inserted atomically before an iframe (using a div) does not observe the iframe's contentWindow, since the 'script running' and 'iframe setup' both happen in order, after DOM insertion completes
+Pass	A script inserted atomically before an iframe (using a DocumentFragment) does not observe the iframe's contentWindow, since the 'script running' and 'iframe setup' both happen in order, after DOM insertion completes
+Pass	A script inserted atomically before an iframe (using a append() with multiple arguments) does not observe the iframe's contentWindow, since the 'script running' and 'iframe setup' both happen in order, after DOM insertion completes
