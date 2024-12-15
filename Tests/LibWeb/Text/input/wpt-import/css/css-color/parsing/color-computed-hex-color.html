@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Color Level 4: Computation of colors using hex color notation</title>
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#hex-notation">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#resolving-sRGB-values">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#serializing-sRGB-values">
+<link rel="author" title="Chris Nardi" href="mailto:cnardi@chromium.org">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="container">
+  <div id="target"></div>
+</div>
+<style>
+  #container {
+    color: rgb(255, 0, 0);
+  }
+</style>
+<script>
+tests = [
+    ["#fff", "rgb(255, 255, 255)", "Valid 3-digit hex"],
+    ["#ffff", "rgb(255, 255, 255)", "Valid 4-digit hex"],
+    ["#ffffff", "rgb(255, 255, 255)", "Valid 6-digit hex"],
+    ["#ffffffff", "rgb(255, 255, 255)", "Valid 8-digit hex"],
+    ["#FFCc99", "rgb(255, 204, 153)", "Valid 6-digit hex"],
+    ["#369", "rgb(51, 102, 153)", "Valid 3-digit hex"],
+];
+
+for (const test of tests) {
+    test_computed_value("color", test[0], test[1], test[2] ? `[${test[2]}]` : undefined);
+}
+</script>
+</body>
+</html>
