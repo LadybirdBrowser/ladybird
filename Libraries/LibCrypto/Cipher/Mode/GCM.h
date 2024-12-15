@@ -67,19 +67,44 @@ public:
         encrypt(in, out, ivec);
     }
 
-    void encrypt(ReadonlyBytes in, Bytes out, ReadonlyBytes iv_in, ReadonlyBytes aad, Bytes tag)
+    ByteBuffer process_iv(ReadonlyBytes iv_in)
     {
-        auto iv_buf_result = ByteBuffer::copy(iv_in);
-        // Not enough memory to figure out :shrug:
-        if (iv_buf_result.is_error()) {
-            dbgln("GCM::encrypt: Not enough memory to allocate {} bytes for IV", iv_in.size());
-            return;
+        if (iv_in.size() == 12) {
+            auto buf = MUST(ByteBuffer::create_zeroed(16));
+            buf.overwrite(0, iv_in.data(), iv_in.size());
+
+            // Increment the IV for block 0
+            auto iv = buf.bytes();
+            CTR<T>::increment(iv);
+
+            return buf;
         }
 
-        auto iv = iv_buf_result.value().bytes();
+        // https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
+        // Otherwise, the IV is padded with the minimum number of '0' bits, possibly none,
+        // so that the length of the resulting string is a multiple of 128 bits (the block size);
+        // this string in turn is appended with 64 additional '0' bits, followed by
+        // the 64-bit representation of the length of the IV, and the GHASH function
+        // is applied to the resulting string to form the precounter block.
+        auto iv_pad = iv_in.size() % 16 == 0 ? 0 : 16 - (iv_in.size() % 16);
+        auto data = MUST(ByteBuffer::create_zeroed(iv_in.size() + iv_pad + 8 + 8));
+        data.overwrite(0, iv_in.data(), iv_in.size());
+        ByteReader::store(data.data() + iv_in.size() + iv_pad + 8, AK::convert_between_host_and_big_endian<u64>(iv_in.size() * 8));
 
-        // Increment the IV for block 0
-        CTR<T>::increment(iv);
+        u32 out[4] { 0, 0, 0, 0 };
+        m_ghash->process_one(out, data);
+
+        auto buf = MUST(ByteBuffer::create_uninitialized(16));
+        for (size_t i = 0; i < 4; ++i)
+            ByteReader::store(buf.data() + (i * 4), AK::convert_between_host_and_big_endian(out[i]));
+        return buf;
+    }
+
+    void encrypt(ReadonlyBytes in, Bytes out, ReadonlyBytes iv_in, ReadonlyBytes aad, Bytes tag)
+    {
+        auto iv_buf = process_iv(iv_in);
+        auto iv = iv_buf.bytes();
+
         typename T::BlockType block0;
         block0.overwrite(iv);
         this->cipher().encrypt_block(block0, block0);
@@ -94,20 +119,14 @@ public:
 
         auto auth_tag = m_ghash->process(aad, out);
         block0.apply_initialization_vector({ auth_tag.data, array_size(auth_tag.data) });
-        block0.bytes().copy_to(tag);
+        (void)block0.bytes().copy_trimmed_to(tag);
     }
 
     VerificationConsistency decrypt(ReadonlyBytes in, Bytes out, ReadonlyBytes iv_in, ReadonlyBytes aad, ReadonlyBytes tag)
     {
-        auto iv_buf_result = ByteBuffer::copy(iv_in);
-        // Not enough memory to figure out :shrug:
-        if (iv_buf_result.is_error())
-            return VerificationConsistency::Inconsistent;
+        auto iv_buf = process_iv(iv_in);
+        auto iv = iv_buf.bytes();
 
-        auto iv = iv_buf_result.value().bytes();
-
-        // Increment the IV for block 0
-        CTR<T>::increment(iv);
         typename T::BlockType block0;
         block0.overwrite(iv);
         this->cipher().encrypt_block(block0, block0);
@@ -119,7 +138,8 @@ public:
         block0.apply_initialization_vector({ auth_tag.data, array_size(auth_tag.data) });
 
         auto test_consistency = [&] {
-            if (block0.block_size() != tag.size() || !timing_safe_compare(block0.bytes().data(), tag.data(), tag.size()))
+            VERIFY(block0.block_size() >= tag.size());
+            if (block0.block_size() < tag.size() || !timing_safe_compare(block0.bytes().data(), tag.data(), tag.size()))
                 return VerificationConsistency::Inconsistent;
 
             return VerificationConsistency::Consistent;
