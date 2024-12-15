@@ -14,12 +14,14 @@ GC_DEFINE_ALLOCATOR(ErrorEvent);
 
 GC::Ref<ErrorEvent> ErrorEvent::create(JS::Realm& realm, FlyString const& event_name, ErrorEventInit const& event_init)
 {
-    return realm.create<ErrorEvent>(realm, event_name, event_init);
+    auto event = realm.create<ErrorEvent>(realm, event_name, event_init);
+    event->set_is_trusted(true);
+    return event;
 }
 
 WebIDL::ExceptionOr<GC::Ref<ErrorEvent>> ErrorEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, ErrorEventInit const& event_init)
 {
-    return create(realm, event_name, event_init);
+    return realm.create<ErrorEvent>(realm, event_name, event_init);
 }
 
 ErrorEvent::ErrorEvent(JS::Realm& realm, FlyString const& event_name, ErrorEventInit const& event_init)

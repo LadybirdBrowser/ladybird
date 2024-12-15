@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+ <head>
+  <title>window.onerror - addEventListener</title>
+  <script src="../../../../resources/testharness.js"></script>
+  <script src="../../../../resources/testharnessreport.js"></script>
+ </head>
+ <body>
+  <div id=log></div>
+  <script>
+    setup({allow_uncaught_exception:true});
+    var t = async_test();
+    var ran = false;
+    window.addEventListener('error', t.step_func(function(e){
+        ran = true;
+        assert_true(e.isTrusted, 'isTrusted');
+    }), false);
+  </script>
+  <script>
+    undefined_variable;
+  </script>
+  <script>
+    for (;) {}
+  </script>
+  <script>
+    t.step(function(){
+        assert_true(ran, 'ran');
+        t.done();
+    });
+  </script>
+ </body>
+</html>
