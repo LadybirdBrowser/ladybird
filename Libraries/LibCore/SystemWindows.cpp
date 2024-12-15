@@ -184,4 +184,9 @@ ErrorOr<void> munmap(void* address, size_t size)
     return {};
 }
 
+int getpid()
+{
+    return GetCurrentProcessId();
+}
+
 }

@@ -999,4 +999,9 @@ ErrorOr<void> set_resource_limits(int resource, rlim_t limit)
     return {};
 }
 
+int getpid()
+{
+    return ::getpid();
+}
+
 }
