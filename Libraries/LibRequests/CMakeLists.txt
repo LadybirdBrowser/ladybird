@@ -12,3 +12,8 @@ set(GENERATED_SOURCES
 
 serenity_lib(LibRequests requests)
 target_link_libraries(LibRequests PRIVATE LibCore LibIPC)
+
+if (WIN32)
+    find_package(pthread REQUIRED)
+    target_include_directories(LibRequests PRIVATE ${PTHREAD_INCLUDE_DIR})
+endif()
