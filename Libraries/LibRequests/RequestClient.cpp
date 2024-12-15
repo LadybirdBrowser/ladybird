@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/System.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
 
@@ -19,7 +20,7 @@ RequestClient::~RequestClient() = default;
 void RequestClient::die()
 {
     // FIXME: Gracefully handle this, or relaunch and reconnect to RequestServer.
-    warnln("\033[31;1m {} Lost connection to RequestServer\033[0m", getpid());
+    warnln("\033[31;1m {} Lost connection to RequestServer\033[0m", Core::System::getpid());
 }
 
 void RequestClient::ensure_connection(URL::URL const& url, ::RequestServer::CacheLevel cache_level)
