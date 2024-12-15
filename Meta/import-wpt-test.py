@@ -96,34 +96,23 @@ class TestTypeIdentifier(HTMLParser):
                 self.ref_test_link_found = True
 
 
-def map_to_path(sources, is_resource=True, resource_path=None):
-    if is_resource:
-        # Add it as a sibling path if it's a relative resource
-        sibling_location = Path(resource_path).parent.__str__()
-        sibling_import_path = test_type.input_path + '/' + sibling_location
+def map_to_path(sources: list[str], is_resource=True, resource_path=None) -> list[PathMapping]:
+    filepaths: list[PathMapping] = []
 
-        def remapper(x):
-            if x.startswith('/'):
-                return test_type.input_path + x
-            return sibling_import_path + '/' + x
+    for source in sources:
+        if source.startswith('/') or not is_resource:
+            file_path = test_type.input_path + '/' + source
+        else:
+            # Add it as a sibling path if it's a relative resource
+            sibling_location = str(Path(resource_path).parent)
+            parent_directory = test_type.input_path + '/' + sibling_location
 
-        filepaths = list(map(remapper, sources))
-        filepaths = list(map(lambda x: Path(x), filepaths))
-    else:
-        # Add the test_type.input_path to the sources if root files
-        def remapper(x):
-            if x.startswith('/'):
-                return test_type.input_path + x
-            return test_type.input_path + '/' + x
+            file_path = parent_directory + '/' + source
 
-        filepaths = list(map(lambda x: Path(remapper(x)), sources))
+        # Map to source and destination
+        output_path = wpt_base_url + file_path.replace(test_type.input_path, '')
 
-    # Map to source and destination
-    def path_mapper(x):
-        output_path = wpt_base_url + x.__str__().replace(test_type.input_path, '')
-        return PathMapping(output_path, x.absolute())
-
-    filepaths = list(map(path_mapper, filepaths))
+        filepaths.append(PathMapping(output_path, Path(file_path).absolute()))
 
     return filepaths
 
