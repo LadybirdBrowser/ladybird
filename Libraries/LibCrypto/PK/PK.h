@@ -126,7 +126,7 @@ public:
     using PublicKeyType = PubKeyT;
     using PrivateKeyType = PrivKeyT;
 
-    PKSystem(PublicKeyType& pubkey, PrivateKeyType& privkey)
+    PKSystem(PublicKeyType const& pubkey, PrivateKeyType const& privkey)
         : m_public_key(pubkey)
         , m_private_key(privkey)
     {
