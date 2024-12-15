@@ -9,7 +9,6 @@
 
 #include <AK/OwnPtr.h>
 #include <LibGfx/PainterSkia.h>
-#include <LibGfx/Quad.h>
 #include <LibGfx/Rect.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/Bindings/CanvasRenderingContext2DPrototype.h>
