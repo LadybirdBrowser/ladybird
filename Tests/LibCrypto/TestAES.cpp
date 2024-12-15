@@ -466,7 +466,7 @@ TEST_CASE(test_AES_GCM_128bit_encrypt_empty)
     u8 result_tag[] { 0x58, 0xe2, 0xfc, 0xce, 0xfa, 0x7e, 0x30, 0x61, 0x36, 0x7f, 0x1d, 0x57, 0xa4, 0xe7, 0x45, 0x5a };
     Bytes out;
     auto tag = ByteBuffer::create_uninitialized(16).release_value();
-    cipher.encrypt({}, out, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"_b, {}, tag);
+    cipher.encrypt({}, out, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"_b, {}, tag);
     EXPECT(memcmp(result_tag, tag.data(), tag.size()) == 0);
 }
 
@@ -478,7 +478,7 @@ TEST_CASE(test_AES_GCM_128bit_encrypt_zeros)
     auto tag = ByteBuffer::create_uninitialized(16).release_value();
     auto out = ByteBuffer::create_uninitialized(16).release_value();
     auto out_bytes = out.bytes();
-    cipher.encrypt("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"_b, out_bytes, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"_b, {}, tag);
+    cipher.encrypt("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"_b, out_bytes, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"_b, {}, tag);
     EXPECT(memcmp(result_ct, out.data(), out.size()) == 0);
     EXPECT(memcmp(result_tag, tag.data(), tag.size()) == 0);
 }
@@ -494,7 +494,7 @@ TEST_CASE(test_AES_GCM_128bit_encrypt_multiple_blocks_with_iv)
     cipher.encrypt(
         "\xd9\x31\x32\x25\xf8\x84\x06\xe5\xa5\x59\x09\xc5\xaf\xf5\x26\x9a\x86\xa7\xa9\x53\x15\x34\xf7\xda\x2e\x4c\x30\x3d\x8a\x31\x8a\x72\x1c\x3c\x0c\x95\x95\x68\x09\x53\x2f\xcf\x0e\x24\x49\xa6\xb5\x25\xb1\x6a\xed\xf5\xaa\x0d\xe6\x57\xba\x63\x7b\x39\x1a\xaf\xd2\x55"_b,
         out_bytes,
-        "\xca\xfe\xba\xbe\xfa\xce\xdb\xad\xde\xca\xf8\x88\x00\x00\x00\x00"_b,
+        "\xca\xfe\xba\xbe\xfa\xce\xdb\xad\xde\xca\xf8\x88"_b,
         {},
         tag);
     EXPECT(memcmp(result_ct, out.data(), out.size()) == 0);
@@ -512,7 +512,7 @@ TEST_CASE(test_AES_GCM_128bit_encrypt_with_aad)
     cipher.encrypt(
         "\xd9\x31\x32\x25\xf8\x84\x06\xe5\xa5\x59\x09\xc5\xaf\xf5\x26\x9a\x86\xa7\xa9\x53\x15\x34\xf7\xda\x2e\x4c\x30\x3d\x8a\x31\x8a\x72\x1c\x3c\x0c\x95\x95\x68\x09\x53\x2f\xcf\x0e\x24\x49\xa6\xb5\x25\xb1\x6a\xed\xf5\xaa\x0d\xe6\x57\xba\x63\x7b\x39\x1a\xaf\xd2\x55"_b,
         out_bytes,
-        "\xca\xfe\xba\xbe\xfa\xce\xdb\xad\xde\xca\xf8\x88\x00\x00\x00\x00"_b,
+        "\xca\xfe\xba\xbe\xfa\xce\xdb\xad\xde\xca\xf8\x88"_b,
         {},
         tag);
     EXPECT(memcmp(result_ct, out.data(), out.size()) == 0);
@@ -524,7 +524,7 @@ TEST_CASE(test_AES_GCM_128bit_decrypt_empty)
     Crypto::Cipher::AESCipher::GCMMode cipher("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"_b, 128, Crypto::Cipher::Intent::Encryption);
     u8 input_tag[] { 0x58, 0xe2, 0xfc, 0xce, 0xfa, 0x7e, 0x30, 0x61, 0x36, 0x7f, 0x1d, 0x57, 0xa4, 0xe7, 0x45, 0x5a };
     Bytes out;
-    auto consistency = cipher.decrypt({}, out, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"_b, {}, { input_tag, 16 });
+    auto consistency = cipher.decrypt({}, out, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"_b, {}, { input_tag, 16 });
     EXPECT_EQ(consistency, Crypto::VerificationConsistency::Consistent);
     EXPECT_EQ(out.size(), 0u);
 }
@@ -537,7 +537,7 @@ TEST_CASE(test_AES_GCM_128bit_decrypt_zeros)
     u8 result_pt[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     auto out = ByteBuffer::create_uninitialized(16).release_value();
     auto out_bytes = out.bytes();
-    auto consistency = cipher.decrypt({ input_ct, 16 }, out_bytes, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"_b, {}, { input_tag, 16 });
+    auto consistency = cipher.decrypt({ input_ct, 16 }, out_bytes, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"_b, {}, { input_tag, 16 });
     EXPECT_EQ(consistency, Crypto::VerificationConsistency::Consistent);
     EXPECT(memcmp(result_pt, out.data(), out.size()) == 0);
 }
@@ -550,7 +550,7 @@ TEST_CASE(test_AES_GCM_128bit_decrypt_multiple_blocks_with_iv)
     u8 result_pt[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     auto out = ByteBuffer::create_uninitialized(16).release_value();
     auto out_bytes = out.bytes();
-    auto consistency = cipher.decrypt({ input_ct, 16 }, out_bytes, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"_b, {}, { input_tag, 16 });
+    auto consistency = cipher.decrypt({ input_ct, 16 }, out_bytes, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"_b, {}, { input_tag, 16 });
     EXPECT_EQ(consistency, Crypto::VerificationConsistency::Consistent);
     EXPECT(memcmp(result_pt, out.data(), out.size()) == 0);
 }
@@ -566,7 +566,7 @@ TEST_CASE(test_AES_GCM_128bit_decrypt_multiple_blocks_with_aad)
     auto consistency = cipher.decrypt(
         { input_ct, 64 },
         out_bytes,
-        "\xca\xfe\xba\xbe\xfa\xce\xdb\xad\xde\xca\xf8\x88\x00\x00\x00\x00"_b,
+        "\xca\xfe\xba\xbe\xfa\xce\xdb\xad\xde\xca\xf8\x88"_b,
         "\xde\xad\xbe\xef\xfa\xaf\x11\xcc"_b,
         { input_tag, 16 });
     EXPECT(memcmp(result_pt, out.data(), out.size()) == 0);
