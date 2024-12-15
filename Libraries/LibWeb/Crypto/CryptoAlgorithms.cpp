@@ -2021,11 +2021,15 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesGcm::encrypt(AlgorithmParams co
 {
     auto const& normalized_algorithm = static_cast<AesGcmParams const&>(params);
 
-    // FIXME: 1. If plaintext has a length greater than 2^39 - 256 bytes, then throw an OperationError.
+    // 1. If plaintext has a length greater than 2^39 - 256 bytes, then throw an OperationError.
+    if (plaintext.size() > (1ULL << 39) - 256)
+        return WebIDL::OperationError::create(m_realm, "Invalid plaintext length"_string);
 
-    // FIXME: 2. If the iv member of normalizedAlgorithm has a length greater than 2^64 - 1 bytes, then throw an OperationError.
+    // 2. If the iv member of normalizedAlgorithm has a length greater than 2^64 - 1 bytes, then throw an OperationError.
+    // NOTE: This is not possible
 
-    // FIXME: 3. If the additionalData member of normalizedAlgorithm is present and has a length greater than 2^64 - 1 bytes, then throw an OperationError.
+    // 3. If the additionalData member of normalizedAlgorithm is present and has a length greater than 2^64 - 1 bytes, then throw an OperationError.
+    // NOTE: This is not possible
 
     // 4. If the tagLength member of normalizedAlgorithm is not present: Let tagLength be 128.
     auto tag_length = 0;
@@ -2055,19 +2059,16 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesGcm::encrypt(AlgorithmParams co
     auto key_bytes = key->handle().get<ByteBuffer>();
 
     ::Crypto::Cipher::AESCipher::GCMMode cipher(key_bytes, key_length, ::Crypto::Cipher::Intent::Encryption);
-    ByteBuffer ciphertext = TRY_OR_THROW_OOM(m_realm->vm(), ByteBuffer::create_zeroed(plaintext.size()));
-    ByteBuffer tag = TRY_OR_THROW_OOM(m_realm->vm(), ByteBuffer::create_zeroed(tag_length / 8));
-    [[maybe_unused]] Bytes ciphertext_span = ciphertext.bytes();
-    [[maybe_unused]] Bytes tag_span = tag.bytes();
+    auto ciphertext = TRY_OR_THROW_OOM(m_realm->vm(), ByteBuffer::create_zeroed(plaintext.size()));
+    auto tag = TRY_OR_THROW_OOM(m_realm->vm(), ByteBuffer::create_zeroed(tag_length / 8));
 
-    // FIXME: cipher.encrypt(plaintext, ciphertext_span, normalized_algorithm.iv, additional_data, tag_span);
-    return WebIDL::NotSupportedError::create(m_realm, "AES GCM encryption not yet implemented"_string);
+    cipher.encrypt(plaintext, ciphertext.bytes(), normalized_algorithm.iv, additional_data, tag.bytes());
 
     // 7. Let ciphertext be equal to C | T, where '|' denotes concatenation.
-    // TRY_OR_THROW_OOM(m_realm->vm(), ciphertext.try_append(tag));
+    TRY_OR_THROW_OOM(m_realm->vm(), ciphertext.try_append(tag));
 
     // 8. Return the result of creating an ArrayBuffer containing ciphertext.
-    // return JS::ArrayBuffer::create(m_realm, ciphertext);
+    return JS::ArrayBuffer::create(m_realm, ciphertext);
 }
 
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesGcm::decrypt(AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
@@ -2092,16 +2093,18 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesGcm::decrypt(AlgorithmParams co
     if (ciphertext.size() < tag_length / 8)
         return WebIDL::OperationError::create(m_realm, "Invalid ciphertext length"_string);
 
-    // FIXME: 3. If the iv member of normalizedAlgorithm has a length greater than 2^64 - 1 bytes, then throw an OperationError.
+    // 3. If the iv member of normalizedAlgorithm has a length greater than 2^64 - 1 bytes, then throw an OperationError.
+    // NOTE: This is not possible
 
-    // FIXME: 4. If the additionalData member of normalizedAlgorithm is present and has a length greater than 2^64 - 1 bytes, then throw an OperationError.
+    // 4. If the additionalData member of normalizedAlgorithm is present and has a length greater than 2^64 - 1 bytes, then throw an OperationError.
+    // NOTE: This is not possible
 
     // 5. Let tag be the last tagLength bits of ciphertext.
-    auto tag_bits = tag_length / 8;
-    auto tag = TRY_OR_THROW_OOM(m_realm->vm(), ciphertext.slice(ciphertext.size() - tag_bits, tag_bits));
+    auto tag_bytes = tag_length / 8;
+    auto tag = TRY_OR_THROW_OOM(m_realm->vm(), ciphertext.slice(ciphertext.size() - tag_bytes, tag_bytes));
 
     // 6. Let actualCiphertext be the result of removing the last tagLength bits from ciphertext.
-    auto actual_ciphertext = TRY_OR_THROW_OOM(m_realm->vm(), ciphertext.slice(0, ciphertext.size() - tag_bits));
+    auto actual_ciphertext = TRY_OR_THROW_OOM(m_realm->vm(), ciphertext.slice(0, ciphertext.size() - tag_bytes));
 
     // 7. Let additionalData be the contents of the additionalData member of normalizedAlgorithm if present or the empty octet string otherwise.
     auto additional_data = normalized_algorithm.additional_data.value_or(ByteBuffer {});
@@ -2118,22 +2121,18 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesGcm::decrypt(AlgorithmParams co
     auto key_bytes = key->handle().get<ByteBuffer>();
 
     ::Crypto::Cipher::AESCipher::GCMMode cipher(key_bytes, key_length, ::Crypto::Cipher::Intent::Decryption);
-    ByteBuffer plaintext = TRY_OR_THROW_OOM(m_realm->vm(), ByteBuffer::create_zeroed(actual_ciphertext.size()));
-    [[maybe_unused]] Bytes plaintext_span = plaintext.bytes();
-    [[maybe_unused]] Bytes actual_ciphertext_span = actual_ciphertext.bytes();
-    [[maybe_unused]] Bytes tag_span = tag.bytes();
+    auto plaintext = TRY_OR_THROW_OOM(m_realm->vm(), ByteBuffer::create_zeroed(actual_ciphertext.size()));
 
-    // FIXME: auto result = cipher.decrypt(ciphertext, plaintext_span, normalized_algorithm.iv, additional_data, tag_span);
-    return WebIDL::NotSupportedError::create(m_realm, "AES GCM decryption not yet implemented"_string);
+    auto result = cipher.decrypt(actual_ciphertext.bytes(), plaintext.bytes(), normalized_algorithm.iv, additional_data, tag.bytes());
 
     // If the result of the algorithm is the indication of inauthenticity, "FAIL": throw an OperationError
-    // if (result == ::Crypto::VerificationConsistency::Inconsistent)
-    //     return WebIDL::OperationError::create(m_realm, "Decryption failed"_string);
+    if (result == ::Crypto::VerificationConsistency::Inconsistent)
+        return WebIDL::OperationError::create(m_realm, "Decryption failed"_string);
 
     // Otherwise: Let plaintext be the output P of the Authenticated Decryption Function.
 
     // 9. Return the result of creating an ArrayBuffer containing plaintext.
-    // return JS::ArrayBuffer::create(m_realm, plaintext);
+    return JS::ArrayBuffer::create(m_realm, plaintext);
 }
 
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> AesGcm::generate_key(AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
