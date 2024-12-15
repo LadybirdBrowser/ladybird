@@ -14,7 +14,7 @@ namespace Web::HTML {
 // https://html.spec.whatwg.org/multipage/webappapis.html#erroreventinit
 struct ErrorEventInit : public DOM::EventInit {
     String message;
-    String filename; // FIXME: This should be a USVString.
+    String filename;
     u32 lineno { 0 };
     u32 colno { 0 };
     JS::Value error { JS::js_null() };
