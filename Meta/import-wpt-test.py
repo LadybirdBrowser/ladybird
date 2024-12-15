@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 
-import os
-import sys
-
+from collections import namedtuple
+from dataclasses import dataclass
+from enum import Enum
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urljoin
 from urllib.request import urlopen
-from collections import namedtuple
-from enum import Enum
 import re
+import os
+import sys
 
 wpt_base_url = 'https://wpt.live/'
 
@@ -29,6 +29,18 @@ class TestType(Enum):
 
 
 PathMapping = namedtuple('PathMapping', ['source', 'destination'])
+
+
+class ResourceType(Enum):
+    INPUT = 1
+    EXPECTED = 2
+
+
+@dataclass
+class ResourceAndType:
+    resource: str
+    type: ResourceType
+
 
 test_type = TestType.TEXT
 raw_reference_path = None  # As specified in the test HTML
@@ -96,28 +108,30 @@ class TestTypeIdentifier(HTMLParser):
                 self.ref_test_link_found = True
 
 
-def map_to_path(sources: list[str], is_resource=True, resource_path=None) -> list[PathMapping]:
+def map_to_path(sources: list[ResourceAndType], is_resource=True, resource_path=None) -> list[PathMapping]:
     filepaths: list[PathMapping] = []
 
     for source in sources:
-        if source.startswith('/') or not is_resource:
-            file_path = test_type.input_path + '/' + source
+        base_directory = test_type.input_path if source.type == ResourceType.INPUT else test_type.expected_path
+
+        if source.resource.startswith('/') or not is_resource:
+            file_path = base_directory + '/' + source.resource
         else:
             # Add it as a sibling path if it's a relative resource
             sibling_location = str(Path(resource_path).parent)
-            parent_directory = test_type.input_path + '/' + sibling_location
+            parent_directory = base_directory + '/' + sibling_location
 
-            file_path = parent_directory + '/' + source
+            file_path = parent_directory + '/' + source.resource
 
         # Map to source and destination
-        output_path = wpt_base_url + file_path.replace(test_type.input_path, '')
+        output_path = wpt_base_url + file_path.replace(base_directory, '')
 
         filepaths.append(PathMapping(output_path, Path(file_path).absolute()))
 
     return filepaths
 
 
-def modify_sources(files, resources):
+def modify_sources(files, resources: list[ResourceAndType]) -> None:
     for file in files:
         # Get the distance to the wpt-imports folder
         folder_index = str(file).find(test_type.input_path)
@@ -134,7 +148,7 @@ def modify_sources(files, resources):
             page_source = f.read()
 
         # Iterate all scripts and overwrite the src attribute
-        for i, resource in enumerate(resources):
+        for i, resource in enumerate(map(lambda r: r.resource, resources)):
             if resource.startswith('/'):
                 new_src_value = parent_folder_path + resource[1::]
                 page_source = page_source.replace(resource, new_src_value)
@@ -212,7 +226,7 @@ def main():
     raw_reference_path = identifier.reference_path
     print(f"Identified {url_to_import} as type {test_type}, ref {raw_reference_path}")
 
-    main_file = [resource_path]
+    main_file = [ResourceAndType(resource_path, ResourceType.INPUT)]
     main_paths = map_to_path(main_file, False)
 
     if test_type == TestType.REF and raw_reference_path is None:
@@ -235,11 +249,21 @@ def main():
     files_to_modify = download_files(main_paths)
     create_expectation_files(main_paths)
 
-    parser = LinkedResourceFinder()
-    parser.feed(page)
+    input_parser = LinkedResourceFinder()
+    input_parser.feed(page)
+    additional_resources = list(map(lambda s: ResourceAndType(s, ResourceType.INPUT), input_parser.resources))
 
-    modify_sources(files_to_modify, parser.resources)
-    script_paths = map_to_path(parser.resources, True, resource_path)
+    expected_parser = LinkedResourceFinder()
+    for path in main_paths[1:]:
+        with urlopen(path.source) as response:
+            page = response.read().decode("utf-8")
+            expected_parser.feed(page)
+    additional_resources.extend(
+        list(map(lambda s: ResourceAndType(s, ResourceType.EXPECTED), expected_parser.resources))
+    )
+
+    modify_sources(files_to_modify, additional_resources)
+    script_paths = map_to_path(additional_resources, True, resource_path)
     download_files(script_paths)
 
 
