@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <AK/Span.h>
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibCrypto/NumberTheory/ModularFunctions.h>
@@ -64,6 +63,14 @@ private:
 template<typename Integer = UnsignedBigInteger>
 class RSAPrivateKey {
 public:
+    RSAPrivateKey(Integer n, Integer d, Integer e)
+        : m_modulus(move(n))
+        , m_private_exponent(move(d))
+        , m_public_exponent(move(e))
+        , m_length(m_modulus.trimmed_length() * sizeof(u32))
+    {
+    }
+
     RSAPrivateKey(Integer n, Integer d, Integer e, Integer p, Integer q)
         : m_modulus(move(n))
         , m_private_exponent(move(d))
@@ -175,15 +182,25 @@ public:
         return keys;
     }
 
-    RSA(IntegerType n, IntegerType d, IntegerType e)
+    RSA(KeyPairType const& pair)
+        : PKSystem<RSAPrivateKey<IntegerType>, RSAPublicKey<IntegerType>>(pair.public_key, pair.private_key)
     {
-        m_public_key.set(n, e);
-        m_private_key = { n, d, e, 0, 0, 0, 0, 0 };
     }
 
-    RSA(PublicKeyType& pubkey, PrivateKeyType& privkey)
+    RSA(PublicKeyType const& pubkey, PrivateKeyType const& privkey)
         : PKSystem<RSAPrivateKey<IntegerType>, RSAPublicKey<IntegerType>>(pubkey, privkey)
     {
+    }
+
+    RSA(PrivateKeyType const& privkey)
+    {
+        m_private_key = privkey;
+        m_public_key.set(m_private_key.modulus(), m_private_key.public_exponent());
+    }
+
+    RSA(PublicKeyType const& pubkey)
+    {
+        m_public_key = pubkey;
     }
 
     RSA(ByteBuffer const& publicKeyPEM, ByteBuffer const& privateKeyPEM)
@@ -196,14 +213,6 @@ public:
     {
         import_private_key(privKeyPEM.bytes());
         m_public_key.set(m_private_key.modulus(), m_private_key.public_exponent());
-    }
-
-    // create our own keys
-    RSA()
-    {
-        auto pair = generate_key_pair();
-        m_public_key = pair.public_key;
-        m_private_key = pair.private_key;
     }
 
     virtual void encrypt(ReadonlyBytes in, Bytes& out) override;

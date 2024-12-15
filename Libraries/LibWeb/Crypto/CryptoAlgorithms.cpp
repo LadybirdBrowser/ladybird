@@ -658,8 +658,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::encrypt(AlgorithmParams c
     auto ciphertext = TRY_OR_THROW_OOM(vm, ByteBuffer::create_uninitialized(public_key.length()));
     auto ciphertext_bytes = ciphertext.bytes();
 
-    auto rsa = ::Crypto::PK::RSA {};
-    rsa.set_public_key(public_key);
+    auto rsa = ::Crypto::PK::RSA { public_key };
     rsa.encrypt(padding, ciphertext_bytes);
 
     // 6. Return the result of creating an ArrayBuffer containing ciphertext.
@@ -687,8 +686,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::decrypt(AlgorithmParams c
     // 3. Perform the decryption operation defined in Section 7.1 of [RFC3447] with the key represented by key as the recipient's RSA private key,
     //    the contents of ciphertext as the ciphertext to be decrypted, C, and label as the label, L, and with the hash function specified by the hash attribute
     //    of the [[algorithm]] internal slot of key as the Hash option and MGF1 (defined in Section B.2.1 of [RFC3447]) as the MGF option.
-    auto rsa = ::Crypto::PK::RSA {};
-    rsa.set_private_key(private_key);
+    auto rsa = ::Crypto::PK::RSA { private_key };
     u32 private_key_length = private_key.length();
 
     auto padding = TRY_OR_THROW_OOM(vm, ByteBuffer::create_uninitialized(private_key_length));

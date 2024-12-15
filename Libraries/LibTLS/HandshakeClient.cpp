@@ -189,7 +189,7 @@ void TLSv12::build_rsa_pre_master_secret(PacketBuilder& builder)
         print_buffer(m_context.premaster_key);
     }
 
-    Crypto::PK::RSA_PKCS1_EME rsa(certificate.public_key.rsa.modulus(), 0, certificate.public_key.rsa.public_exponent());
+    Crypto::PK::RSA_PKCS1_EME rsa(certificate.public_key.rsa);
 
     Vector<u8, 32> out;
     out.resize(rsa.output_size());
