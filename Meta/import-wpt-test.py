@@ -33,7 +33,6 @@ PathMapping = namedtuple('PathMapping', ['source', 'destination'])
 test_type = TestType.TEXT
 raw_reference_path = None  # As specified in the test HTML
 reference_path = None  # With parent directories
-src_values = []
 
 
 class LinkedResourceFinder(HTMLParser):
@@ -42,17 +41,22 @@ class LinkedResourceFinder(HTMLParser):
         self._tag_stack_ = []
         self._match_css_url_ = re.compile(r"url\(\"?(?P<url>[^\")]+)\"?\)")
         self._match_css_import_string_ = re.compile(r"@import\s+\"(?P<url>[^\")]+)\"")
+        self._resources = []
+
+    @property
+    def resources(self):
+        return self._resources
 
     def handle_starttag(self, tag, attrs):
         self._tag_stack_.append(tag)
         if tag in ["script", "img"]:
             attr_dict = dict(attrs)
             if "src" in attr_dict:
-                src_values.append(attr_dict["src"])
+                self._resources.append(attr_dict["src"])
         if tag == "link":
             attr_dict = dict(attrs)
             if attr_dict["rel"] == "stylesheet":
-                src_values.append(attr_dict["href"])
+                self._resources.append(attr_dict["href"])
 
     def handle_endtag(self, tag):
         self._tag_stack_.pop()
@@ -62,11 +66,11 @@ class LinkedResourceFinder(HTMLParser):
             # Look for uses of url()
             url_iterator = self._match_css_url_.finditer(data)
             for match in url_iterator:
-                src_values.append(match.group("url"))
+                self._resources.append(match.group("url"))
             # Look for @imports that use plain strings - we already found the url() ones
             import_iterator = self._match_css_import_string_.finditer(data)
             for match in import_iterator:
-                src_values.append(match.group("url"))
+                self._resources.append(match.group("url"))
 
 
 class TestTypeIdentifier(HTMLParser):
@@ -124,7 +128,7 @@ def map_to_path(sources, is_resource=True, resource_path=None):
     return filepaths
 
 
-def modify_sources(files):
+def modify_sources(files, resources):
     for file in files:
         # Get the distance to the wpt-imports folder
         folder_index = str(file).find(test_type.input_path)
@@ -141,10 +145,10 @@ def modify_sources(files):
             page_source = f.read()
 
         # Iterate all scripts and overwrite the src attribute
-        for i, src_value in enumerate(src_values):
-            if src_value.startswith('/'):
-                new_src_value = parent_folder_path + src_value[1::]
-                page_source = page_source.replace(src_value, new_src_value)
+        for i, resource in enumerate(resources):
+            if resource.startswith('/'):
+                new_src_value = parent_folder_path + resource[1::]
+                page_source = page_source.replace(resource, new_src_value)
 
         # Look for mentions of the reference page, and update their href
         if raw_reference_path is not None:
@@ -245,8 +249,8 @@ def main():
     parser = LinkedResourceFinder()
     parser.feed(page)
 
-    modify_sources(files_to_modify)
-    script_paths = map_to_path(src_values, True, resource_path)
+    modify_sources(files_to_modify, parser.resources)
+    script_paths = map_to_path(parser.resources, True, resource_path)
     download_files(script_paths)
 
 
