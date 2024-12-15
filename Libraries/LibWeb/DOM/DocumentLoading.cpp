@@ -53,7 +53,7 @@ bool build_xml_document(DOM::Document& document, ByteBuffer const& data, Optiona
         convert_to_xml_error_document(document, "XML Document contains improperly-encoded characters"_string);
         return false;
     }
-    auto source = decoder->to_utf8(data).release_value_but_fixme_should_propagate_errors();
+    auto source = decoder->to_utf8(data, String::WithBOMHandling::Yes, TextCodec::Decoder::ErrorMode::Replacement).release_value_but_fixme_should_propagate_errors();
     XML::Parser parser(source, { .resolve_external_resource = resolve_xml_resource });
     XMLDocumentBuilder builder { document };
     auto result = parser.parse_with_listener(builder);
@@ -168,7 +168,7 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
             document->completely_finish_loading();
             return;
         }
-        auto source = decoder->to_utf8(data);
+        auto source = decoder->to_utf8(data, String::WithBOMHandling::Yes, TextCodec::Decoder::ErrorMode::Replacement);
         if (source.is_error()) {
             // FIXME: Insert error message into the document.
             dbgln("Failed to decode XML document: {}", source.error());

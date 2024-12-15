@@ -58,6 +58,7 @@ public:
 
     // Creates a new String using the replacement character for invalid bytes
     [[nodiscard]] static String from_utf8_with_replacement_character(StringView, WithBOMHandling = WithBOMHandling::Yes);
+    [[nodiscard]] static String from_utf16_with_replacement_character(Utf16View const&, WithBOMHandling = WithBOMHandling::Yes);
 
     template<typename T>
     requires(IsOneOf<RemoveCVReference<T>, ByteString, DeprecatedFlyString, FlyString, String>)
