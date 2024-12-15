@@ -14,6 +14,11 @@
 #include <math.h>
 #include <time.h>
 
+#ifdef AK_OS_WINDOWS
+#    define timegm _mkgmtime
+#    define gmtime_r(time, tm) gmtime_s(tm, time)
+#endif
+
 // V2 spec: https://color.org/specification/ICC.1-2001-04.pdf
 // V4 spec: https://color.org/specification/ICC.1-2022-05.pdf
 
