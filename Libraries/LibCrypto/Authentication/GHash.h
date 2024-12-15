@@ -48,6 +48,7 @@ public:
         return "GHash";
     }
 
+    void process_one(u32 (&tag)[4], ReadonlyBytes buf) const;
     TagType process(ReadonlyBytes aad, ReadonlyBytes cipher);
 
 private:
