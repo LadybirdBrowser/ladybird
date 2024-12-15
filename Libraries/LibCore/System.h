@@ -179,4 +179,6 @@ ErrorOr<rlimit> get_resource_limits(int resource);
 ErrorOr<void> set_resource_limits(int resource, rlim_t limit);
 #endif
 
+int getpid();
+
 }
