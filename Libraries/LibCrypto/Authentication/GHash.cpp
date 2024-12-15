@@ -27,35 +27,36 @@ static void to_u8s(u8* b, u32 const* w)
 
 namespace Crypto::Authentication {
 
+void GHash::process_one(u32 (&tag)[4], ReadonlyBytes buf) const
+{
+    size_t i = 0;
+    for (; i < buf.size(); i += 16) {
+        if (i + 16 <= buf.size()) {
+            for (auto j = 0; j < 4; ++j) {
+                tag[j] ^= to_u32(buf.offset(i + j * 4));
+            }
+            galois_multiply(tag, m_key, tag);
+        }
+    }
+
+    if (i > buf.size()) {
+        u8 buffer[16] = {};
+        Bytes buffer_bytes { buffer, 16 };
+        (void)buf.slice(i - 16).copy_to(buffer_bytes);
+
+        for (auto j = 0; j < 4; ++j) {
+            tag[j] ^= to_u32(buffer_bytes.offset(j * 4));
+        }
+        galois_multiply(tag, m_key, tag);
+    }
+}
+
 GHash::TagType GHash::process(ReadonlyBytes aad, ReadonlyBytes cipher)
 {
     u32 tag[4] { 0, 0, 0, 0 };
 
-    auto transform_one = [&](auto& buf) {
-        size_t i = 0;
-        for (; i < buf.size(); i += 16) {
-            if (i + 16 <= buf.size()) {
-                for (auto j = 0; j < 4; ++j) {
-                    tag[j] ^= to_u32(buf.offset(i + j * 4));
-                }
-                galois_multiply(tag, m_key, tag);
-            }
-        }
-
-        if (i > buf.size()) {
-            u8 buffer[16] = {};
-            Bytes buffer_bytes { buffer, 16 };
-            buf.slice(i - 16).copy_to(buffer_bytes);
-
-            for (auto j = 0; j < 4; ++j) {
-                tag[j] ^= to_u32(buffer_bytes.offset(j * 4));
-            }
-            galois_multiply(tag, m_key, tag);
-        }
-    };
-
-    transform_one(aad);
-    transform_one(cipher);
+    process_one(tag, aad);
+    process_one(tag, cipher);
 
     auto aad_bits = 8 * (u64)aad.size();
     auto cipher_bits = 8 * (u64)cipher.size();
