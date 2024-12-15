@@ -454,6 +454,11 @@ GC::Ptr<WebIDL::CallbackType> MessagePort::onmessageerror()
 void MessagePort::set_onmessage(GC::Ptr<WebIDL::CallbackType> value)
 {
     set_event_handler_attribute(EventNames::message, value);
+
+    // https://html.spec.whatwg.org/multipage/web-messaging.html#message-ports:handler-messageeventtarget-onmessage
+    // The first time a MessagePort object's onmessage IDL attribute is set, the port's port message queue must be enabled,
+    // as if the start() method had been called.
+    start();
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#handler-messageeventtarget-onmessage
