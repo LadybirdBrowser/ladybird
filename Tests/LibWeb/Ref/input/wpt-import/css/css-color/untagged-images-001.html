@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Color 4: Color Spaces of Untagged Colors</title>
+<link rel="author" title="Chris Lilley" href="mailto:chris@w3.org">
+<link rel="help" href="https://drafts.csswg.org/css-color-4/#untagged">
+<meta name="assert" content=" untagged images must be treated as being in the sRGB color space">
+<link rel="match" href="../../../../expected/wpt-import/css/css-color/009900-tagged-image-ref.html">
+
+<body>
+    <p>Test passes if you see a green square, and no red.</p>
+    <!-- solid color #009900 PNG image, no color information -->
+    <p><img src="./support/009900.png" alt="should be green"/></p>
+</body>
