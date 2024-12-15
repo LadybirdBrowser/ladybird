@@ -19,21 +19,26 @@ UnsignedBigInteger Mod(UnsignedBigInteger const& a, UnsignedBigInteger const& b)
     return result;
 }
 
-UnsignedBigInteger ModularInverse(UnsignedBigInteger const& a_, UnsignedBigInteger const& b)
+UnsignedBigInteger ModularInverse(UnsignedBigInteger const& a, UnsignedBigInteger const& b)
 {
     if (b == 1)
         return { 1 };
 
-    UnsignedBigInteger temp_1;
-    UnsignedBigInteger temp_minus;
-    UnsignedBigInteger temp_quotient;
-    UnsignedBigInteger temp_d;
-    UnsignedBigInteger temp_u;
-    UnsignedBigInteger temp_v;
-    UnsignedBigInteger temp_x;
     UnsignedBigInteger result;
+    UnsignedBigInteger temp_y;
+    UnsignedBigInteger temp_gcd;
+    UnsignedBigInteger temp_quotient;
+    UnsignedBigInteger temp_1;
+    UnsignedBigInteger temp_2;
+    UnsignedBigInteger temp_shift_result;
+    UnsignedBigInteger temp_shift_plus;
+    UnsignedBigInteger temp_shift;
+    UnsignedBigInteger temp_r;
+    UnsignedBigInteger temp_s;
+    UnsignedBigInteger temp_t;
 
-    UnsignedBigIntegerAlgorithms::modular_inverse_without_allocation(a_, b, temp_1, temp_minus, temp_quotient, temp_d, temp_u, temp_v, temp_x, result);
+    UnsignedBigIntegerAlgorithms::modular_inverse_without_allocation(a, b, result, temp_y, temp_gcd, temp_quotient, temp_1, temp_2, temp_shift_result, temp_shift_plus, temp_shift, temp_r, temp_s, temp_t);
+
     return result;
 }
 
