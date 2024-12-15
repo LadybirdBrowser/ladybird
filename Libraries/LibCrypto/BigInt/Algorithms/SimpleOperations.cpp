@@ -66,6 +66,8 @@ void UnsignedBigIntegerAlgorithms::add_into_accumulator_without_allocation(Unsig
         // Note : The accumulator couldn't add the carry directly, so we reached its end
         accumulator.m_words.append(last_carry_for_word);
     }
+
+    accumulator.m_cached_trimmed_length = {};
 }
 
 /**
