@@ -36,13 +36,13 @@ FlyString const& PerformanceEventTiming::entry_type() const
 
 HighResolutionTime::DOMHighResTimeStamp PerformanceEventTiming::processing_end() const
 {
-    dbgln("FIXME: Implement PeformanceEventTiming processing_end()");
+    dbgln("FIXME: Implement PerformanceEventTiming processing_end()");
     return 0;
 }
 
 HighResolutionTime::DOMHighResTimeStamp PerformanceEventTiming::processing_start() const
 {
-    dbgln("FIXME: Implement PeformanceEventTiming processing_start()");
+    dbgln("FIXME: Implement PerformanceEventTiming processing_start()");
     return 0;
 }
 
@@ -53,20 +53,20 @@ bool PerformanceEventTiming::cancelable() const
 
 JS::ThrowCompletionOr<GC::Ptr<DOM::Node>> PerformanceEventTiming::target()
 {
-    dbgln("FIXME: Implement PerformanceEventTiming::PeformanceEventTiming target()");
+    dbgln("FIXME: Implement PerformanceEventTiming::PerformanceEventTiming target()");
     return nullptr;
 }
 
 unsigned long long PerformanceEventTiming::interaction_id()
 {
-    dbgln("FIXME: Implement PeformanceEventTiming interaction_id()");
+    dbgln("FIXME: Implement PerformanceEventTiming interaction_id()");
     return 0;
 }
 
 // https://www.w3.org/TR/event-timing/#sec-should-add-performanceeventtiming
 PerformanceTimeline::ShouldAddEntry PerformanceEventTiming::should_add_performance_event_timing() const
 {
-    dbgln("FIXME: Implement PeformanceEventTiming should_add_performance_event_timing()");
+    dbgln("FIXME: Implement PerformanceEventTiming should_add_performance_event_timing()");
     // 1. If entry’s entryType attribute value equals to "first-input", return true.
     if (entry_type() == "first-input")
         return PerformanceTimeline::ShouldAddEntry::Yes;
@@ -89,7 +89,7 @@ PerformanceTimeline::ShouldAddEntry PerformanceEventTiming::should_add_performan
 //        the commented out if statement won't compile
 PerformanceTimeline::AvailableFromTimeline PerformanceEventTiming::available_from_timeline()
 {
-    dbgln("FIXME: Implement PeformanceEventTiming available_from_timeline()");
+    dbgln("FIXME: Implement PerformanceEventTiming available_from_timeline()");
     // if (entry_type() == "first-input")
     return PerformanceTimeline::AvailableFromTimeline::Yes;
 }
@@ -98,7 +98,7 @@ PerformanceTimeline::AvailableFromTimeline PerformanceEventTiming::available_fro
 // FIXME: Same issue as available_from_timeline() above
 Optional<u64> PerformanceEventTiming::max_buffer_size()
 {
-    dbgln("FIXME: Implement PeformanceEventTiming max_buffer_size()");
+    dbgln("FIXME: Implement PerformanceEventTiming max_buffer_size()");
     if (true) //(entry_type() == "first-input")
         return 1;
     // else return 150;

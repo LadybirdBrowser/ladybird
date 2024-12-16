@@ -137,7 +137,7 @@ InspectorClient::InspectorClient(ViewImplementation& content_web_view, ViewImple
         m_inspector_web_view.run_javascript(script);
     };
 
-    m_content_web_view.on_finshed_editing_dom_node = [this](auto const& node_id) {
+    m_content_web_view.on_finished_editing_dom_node = [this](auto const& node_id) {
         m_pending_selection = node_id;
         m_dom_tree_loaded = false;
         m_dom_node_attributes.clear();
@@ -286,7 +286,7 @@ InspectorClient::InspectorClient(ViewImplementation& content_web_view, ViewImple
 
 InspectorClient::~InspectorClient()
 {
-    m_content_web_view.on_finshed_editing_dom_node = nullptr;
+    m_content_web_view.on_finished_editing_dom_node = nullptr;
     m_content_web_view.on_received_accessibility_tree = nullptr;
     m_content_web_view.on_received_console_message = nullptr;
     m_content_web_view.on_received_console_messages = nullptr;
@@ -534,7 +534,7 @@ void InspectorClient::load_inspector()
     generator.set("INSPECTOR_JS"sv, INSPECTOR_JS);
     generator.set("INSPECTOR_STYLE"sv, HTML_HIGHLIGHTER_STYLE);
     generator.set("COMPUTED_STYLE"sv, generate_property_table("computed-style"sv));
-    generator.set("RESOVLED_STYLE"sv, generate_property_table("resolved-style"sv));
+    generator.set("RESOLVED_STYLE"sv, generate_property_table("resolved-style"sv));
     generator.set("CUSTOM_PROPERTIES"sv, generate_property_table("custom-properties"sv));
     generator.append(inspector_html->data());
 

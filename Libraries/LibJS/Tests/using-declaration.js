@@ -168,7 +168,7 @@ describe("behavior with exceptions", () => {
         expect(inCatch).toBeTrue();
     });
 
-    test.xfail("normal error and multiple disposing erorrs give chaining suppressed errors", () => {
+    test.xfail("normal error and multiple disposing errors give chaining suppressed errors", () => {
         let inCatch = false;
         try {
             using a = { [Symbol.dispose]() {
@@ -345,7 +345,7 @@ describe("using is still a valid variable name", () => {
     });
 });
 
-describe("syntax errors / werid artifacts which remain valid", () => {
+describe("syntax errors / weird artifacts which remain valid", () => {
     test("no patterns in using", () => {
         expect("using {a} = {}").not.toEval();
         expect("using a, {a} = {}").not.toEval();

@@ -82,7 +82,7 @@ enum class ConnectionStatus {
     Established,
 };
 
-enum ClientVerificationStaus {
+enum ClientVerificationStatus {
     Verified,
     VerificationNeeded,
 };
@@ -295,7 +295,7 @@ struct Context {
 
     ByteBuffer cached_handshake;
 
-    ClientVerificationStaus client_verified { Verified };
+    ClientVerificationStatus client_verified { Verified };
 
     bool connection_finished { false };
     bool close_notify { false };

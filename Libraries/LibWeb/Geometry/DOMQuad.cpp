@@ -103,17 +103,17 @@ GC::Ref<DOMRect> DOMQuad::get_bounds() const
 }
 
 // https://drafts.fxtf.org/geometry/#structured-serialization
-WebIDL::ExceptionOr<void> DOMQuad::serialization_steps(HTML::SerializationRecord& serialzied, bool for_storage, HTML::SerializationMemory& memory)
+WebIDL::ExceptionOr<void> DOMQuad::serialization_steps(HTML::SerializationRecord& serialized, bool for_storage, HTML::SerializationMemory& memory)
 {
     auto& vm = this->vm();
     // 1. Set serialized.[[P1]] to the sub-serialization of value’s point 1.
-    serialzied.extend(TRY(HTML::structured_serialize_internal(vm, m_p1, for_storage, memory)));
+    serialized.extend(TRY(HTML::structured_serialize_internal(vm, m_p1, for_storage, memory)));
     // 2. Set serialized.[[P2]] to the sub-serialization of value’s point 2.
-    serialzied.extend(TRY(HTML::structured_serialize_internal(vm, m_p2, for_storage, memory)));
+    serialized.extend(TRY(HTML::structured_serialize_internal(vm, m_p2, for_storage, memory)));
     // 3. Set serialized.[[P3]] to the sub-serialization of value’s point 3.
-    serialzied.extend(TRY(HTML::structured_serialize_internal(vm, m_p3, for_storage, memory)));
+    serialized.extend(TRY(HTML::structured_serialize_internal(vm, m_p3, for_storage, memory)));
     // 4. Set serialized.[[P4]] to the sub-serialization of value’s point 4.
-    serialzied.extend(TRY(HTML::structured_serialize_internal(vm, m_p4, for_storage, memory)));
+    serialized.extend(TRY(HTML::structured_serialize_internal(vm, m_p4, for_storage, memory)));
 
     return {};
 }

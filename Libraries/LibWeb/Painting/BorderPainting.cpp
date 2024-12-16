@@ -212,7 +212,7 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
                 VERIFY_NOT_REACHED();
             }
         }
-        // FIXME: this middle point rule seems not exacly the same as main browsers
+        // FIXME: this middle point rule seems not exactly the same as main browsers
         // compute the midpoint based on point whose tangent slope of 1
         // https://math.stackexchange.com/questions/3325134/find-the-points-on-the-ellipse-where-the-slope-of-the-tangent-line-is-1
         return Gfx::FloatPoint(

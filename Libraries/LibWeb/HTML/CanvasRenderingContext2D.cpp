@@ -262,10 +262,10 @@ Gfx::Path CanvasRenderingContext2D::text_path(StringView text, float x, float y,
     }
 
     // Apply text baseline
-    // FIXME: Implement CanvasTextBasline::Hanging, Bindings::CanvasTextAlign::Alphabetic and Bindings::CanvasTextAlign::Ideographic for real
+    // FIXME: Implement CanvasTextBaseline::Hanging, Bindings::CanvasTextAlign::Alphabetic and Bindings::CanvasTextAlign::Ideographic for real
     //        right now they are just handled as textBaseline = top or bottom.
     //        https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-textbaseline-hanging
-    // Default baseline of draw_text is top so do nothing by CanvasTextBaseline::Top and CanvasTextBasline::Hanging
+    // Default baseline of draw_text is top so do nothing by CanvasTextBaseline::Top and CanvasTextBaseline::Hanging
     if (drawing_state.text_baseline == Bindings::CanvasTextBaseline::Middle) {
         transform = Gfx::AffineTransform {}.set_translation({ 0, font->pixel_size() / 2 }).multiply(transform);
     }

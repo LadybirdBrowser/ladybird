@@ -568,7 +568,7 @@ ErrorOr<Vector<Certificate>> DefaultRootCACertificates::parse_pem_root_certifica
     for (auto& cert : certs) {
         auto certificate_result = Certificate::parse_certificate(cert.data);
         if (certificate_result.is_error()) {
-            // FIXME: It would be nice to have more informations about the certificate we failed to parse.
+            // FIXME: It would be nice to have more information about the certificate we failed to parse.
             //        Like: Issuer, Algorithm, CN, etc
             dbgln("Failed to load certificate: {}", certificate_result.error());
             continue;

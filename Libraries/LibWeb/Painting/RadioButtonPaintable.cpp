@@ -38,7 +38,7 @@ void RadioButtonPaintable::paint(PaintContext& context, PaintPhase phase) const
         return;
 
     auto draw_circle = [&](auto const& rect, Color color) {
-        // Note: Doing this is a bit more forgiving than draw_circle() which will round to the nearset even radius.
+        // Note: Doing this is a bit more forgiving than draw_circle() which will round to the nearest even radius.
         // This will fudge it (which works better here).
         context.display_list_recorder().fill_rect_with_rounded_corners(rect, color, rect.width() / 2);
     };

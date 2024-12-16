@@ -518,8 +518,8 @@ ByteString invert_case(StringView str)
     return builder.to_byte_string();
 }
 
-// Finishes the replacing algorithm once it is known that ita least one
-// replacemnet is going to be done. Otherwise the caller may want to follow a
+// Finishes the replacing algorithm once it is known that at least one
+// replacement is going to be done. Otherwise the caller may want to follow a
 // different route to construct its output.
 static StringBuilder replace_into_builder(StringView str, StringView needle, StringView replacement, ReplaceMode replace_mode, size_t first_replacement_position)
 {

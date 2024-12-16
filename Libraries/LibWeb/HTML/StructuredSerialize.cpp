@@ -658,7 +658,7 @@ WebIDL::ExceptionOr<void> serialize_viewed_array_buffer(JS::VM& vm, Vector<u32>&
     auto buffer_serialized = TRY(structured_serialize_internal(vm, buffer, for_storage, memory));
 
     // 4. Assert: bufferSerialized.[[Type]] is "ArrayBuffer", "ResizableArrayBuffer", "SharedArrayBuffer", or "GrowableSharedArrayBuffer".
-    // NOTE: Object reference + memory check is required when ArrayBuffer is transfered.
+    // NOTE: Object reference + memory check is required when ArrayBuffer is transferred.
     auto tag = buffer_serialized[0];
     VERIFY(tag == ValueTag::ArrayBuffer
         || tag == ValueTag::ResizeableArrayBuffer

@@ -18,7 +18,7 @@ public:
     WebIDL::Double device_memory() const
     {
         // The value is calculated by using the actual device memory in MiB then rounding it to the
-        // nearest number where only the most signicant bit can be set and the rest are zeros
+        // nearest number where only the most significant bit can be set and the rest are zeros
         // (nearest power of two).
         auto memory_in_bytes = Core::System::physical_memory_bytes();
         auto memory_in_mib = memory_in_bytes / MiB;

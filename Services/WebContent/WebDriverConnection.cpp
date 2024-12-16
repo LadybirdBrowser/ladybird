@@ -2778,7 +2778,7 @@ void WebDriverConnection::wait_for_navigation_to_complete(OnNavigationComplete o
 
 void WebDriverConnection::page_did_open_dialog(Badge<PageClient>)
 {
-    // OPTMIZATION: If a dialog is opened while we are awaiting a specific document readiness state, that state will
+    // OPTIMIZATION: If a dialog is opened while we are awaiting a specific document readiness state, that state will
     //              never be reached, as the dialog will block the HTML event loop from any further processing. Instead
     //              of waiting for the session's page load timeout to expire, unblock the waiter immediately. This also
     //              seems to match how other browsers behave.

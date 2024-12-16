@@ -126,11 +126,11 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL& url_record, V
     VERIFY(window_or_worker);
     auto origin_string = window_or_worker->origin().to_byte_string();
 
-    Vector<ByteString> protcol_byte_strings;
+    Vector<ByteString> protocol_byte_strings;
     for (auto const& protocol : protocols)
-        TRY(protcol_byte_strings.try_append(protocol.to_byte_string()));
+        TRY(protocol_byte_strings.try_append(protocol.to_byte_string()));
 
-    m_websocket = ResourceLoader::the().request_client().websocket_connect(url_record, origin_string, protcol_byte_strings);
+    m_websocket = ResourceLoader::the().request_client().websocket_connect(url_record, origin_string, protocol_byte_strings);
 
     m_websocket->on_open = [weak_this = make_weak_ptr<WebSocket>()] {
         if (!weak_this)
