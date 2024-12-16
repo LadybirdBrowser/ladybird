@@ -1128,6 +1128,14 @@ public:
             continue;
         }
 
+        if (function.name == "deleteRenderbuffer"sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "renderbuffer"sv, ""sv);
+            function_impl_generator.append(R"~~~(
+    glDeleteRenderbuffers(1, &renderbuffer_handle);
+)~~~");
+            continue;
+        }
+
         if (function.name == "deleteTexture"sv) {
             generate_webgl_object_handle_unwrap(function_impl_generator, "texture"sv, ""sv);
             function_impl_generator.append(R"~~~(
