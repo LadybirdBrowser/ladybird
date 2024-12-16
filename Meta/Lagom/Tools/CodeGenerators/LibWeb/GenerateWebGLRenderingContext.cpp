@@ -29,7 +29,11 @@ static bool is_webgl_object_type(StringView type_name)
 
 static bool gl_function_modifies_framebuffer(StringView function_name)
 {
-    return function_name == "clearColor"sv || function_name == "drawArrays"sv || function_name == "drawElements"sv;
+    return function_name == "clearColor"sv
+        || function_name == "drawArrays"sv
+        || function_name == "drawElements"sv
+        || function_name == "blitFramebuffer"sv
+        || function_name == "invalidateFramebuffer"sv;
 }
 
 static ByteString to_cpp_type(const IDL::Type& type, const IDL::Interface& interface)
@@ -572,6 +576,14 @@ public:
     GLuint handle = 0;
     glGenRenderbuffers(1, &handle);
     return WebGLRenderbuffer::create(m_realm, *this, handle);
+)~~~");
+            continue;
+        }
+
+        if (function.name == "invalidateFramebuffer"sv) {
+            function_impl_generator.append(R"~~~(
+    glInvalidateFramebuffer(target, attachments.size(), attachments.data());
+    needs_to_present();
 )~~~");
             continue;
         }
