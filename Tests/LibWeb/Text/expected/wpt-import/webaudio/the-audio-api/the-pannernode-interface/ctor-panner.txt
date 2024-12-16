@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 125 tests
 
-121 Pass
-4 Fail
+125 Pass
 Pass	# AUDIT TASK RUNNER STARTED.
 Pass	Executing "initialize"
 Pass	Executing "invalid constructor"
@@ -110,14 +109,14 @@ Pass	< [test AudioNodeOptions] All assertions passed. (total 54 assertions)
 Pass	> [constructor with options] 
 Pass	  node = new PannerNode(c, {"panningModel":"HRTF","positionX":1.4142135623730951,"positionY":2.8284271247461903,"positionZ":4.242640687119286,"orientationX":-1.4142135623730951,"orientationY":-2.8284271247461903,"orientationZ":-4.242640687119286,"distanceModel":"linear","refDistance":3.141592653589793,"maxDistance":6.283185307179586,"rolloffFactor":9.42477796076938,"coneInnerAngle":12.566370614359172,"coneOuterAngle":15.707963267948966,"coneOuterGain":0.3141592653589793}) did not throw an exception.
 Pass	  node instanceof PannerNode is equal to true.
-Fail	X node.panningModel is not equal to HRTF. Got equalpower.
+Pass	  node.panningModel is equal to HRTF.
 Pass	  node.positionX.value is equal to 1.4142135381698608.
 Pass	  node.positionY.value is equal to 2.8284270763397217.
 Pass	  node.positionZ.value is equal to 4.242640495300293.
 Pass	  node.orientationX.value is equal to -1.4142135381698608.
 Pass	  node.orientationY.value is equal to -2.8284270763397217.
 Pass	  node.orientationZ.value is equal to -4.242640495300293.
-Fail	X node.distanceModel is not equal to linear. Got inverse.
+Pass	  node.distanceModel is equal to linear.
 Pass	  node.refDistance is equal to 3.141592653589793.
 Pass	  node.maxDistance is equal to 6.283185307179586.
 Pass	  node.rolloffFactor is equal to 9.42477796076938.
@@ -127,5 +126,5 @@ Pass	  node.coneOuterGain is equal to 0.3141592653589793.
 Pass	  node.channelCount is equal to 2.
 Pass	  node.channelCountMode is equal to clamped-max.
 Pass	  node.channelInterpretation is equal to speakers.
-Fail	< [constructor with options] 2 out of 19 assertions were failed.
-Fail	# AUDIT TASK RUNNER FINISHED: 1 out of 5 tasks were failed.
+Pass	< [constructor with options] All assertions passed. (total 19 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 5 tasks ran successfully.
