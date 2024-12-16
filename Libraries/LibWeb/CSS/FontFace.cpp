@@ -175,7 +175,7 @@ FontFace::FontFace(JS::Realm& realm, GC::Ref<WebIDL::Promise> font_status_promis
     m_line_gap_override = descriptors.line_gap_override;
 
     // FIXME: Parse from descriptor
-    // FIXME: Have gettter reflect this member instead of the string
+    // FIXME: Have getter reflect this member instead of the string
     m_unicode_ranges.empend(0x0u, 0x10FFFFu);
 
     if (verify_cast<JS::Promise>(*m_font_status_promise->promise()).state() == JS::Promise::State::Rejected)

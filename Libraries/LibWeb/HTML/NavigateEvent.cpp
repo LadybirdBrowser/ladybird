@@ -101,7 +101,7 @@ WebIDL::ExceptionOr<void> NavigateEvent::intercept(NavigationInterceptOptions co
         if (m_focus_reset_behavior.has_value() && *m_focus_reset_behavior != *options.focus_reset) {
             auto& console = realm.intrinsics().console_object()->console();
             console.output_debug_message(JS::Console::LogLevel::Warn,
-                TRY_OR_THROW_OOM(vm, String::formatted("focusReset behavior on NavigationEvent overriden (was: {}, now: {})", *m_focus_reset_behavior, *options.focus_reset)));
+                TRY_OR_THROW_OOM(vm, String::formatted("focusReset behavior on NavigationEvent overridden (was: {}, now: {})", *m_focus_reset_behavior, *options.focus_reset)));
         }
 
         // 2. Set this's focus reset behavior to options["focusReset"].
@@ -116,7 +116,7 @@ WebIDL::ExceptionOr<void> NavigateEvent::intercept(NavigationInterceptOptions co
         if (m_scroll_behavior.has_value() && *m_scroll_behavior != *options.scroll) {
             auto& console = realm.intrinsics().console_object()->console();
             console.output_debug_message(JS::Console::LogLevel::Warn,
-                TRY_OR_THROW_OOM(vm, String::formatted("scroll option on NavigationEvent overriden (was: {}, now: {})", *m_scroll_behavior, *options.scroll)));
+                TRY_OR_THROW_OOM(vm, String::formatted("scroll option on NavigationEvent overridden (was: {}, now: {})", *m_scroll_behavior, *options.scroll)));
         }
 
         // 2. Set this's scroll behavior to options["scroll"].

@@ -9,7 +9,7 @@
 #include <AK/Endian.h>
 #include <AK/IPv4Address.h>
 
-TEST_CASE(should_default_contructor_with_0s)
+TEST_CASE(should_default_constructor_with_0s)
 {
     constexpr IPv4Address addr {};
 

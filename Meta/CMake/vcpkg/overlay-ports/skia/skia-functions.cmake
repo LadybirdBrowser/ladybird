@@ -30,7 +30,7 @@ function(declare_external_from_vcpkg name)
 endfunction()
 
 # Download and integrate named external dependencies.
-# Downlods must be handled before vcpkg in order to support --only-downloads mode.
+# Downloads must be handled before vcpkg in order to support --only-downloads mode.
 function(get_externals)
     set(licenses_dir "${SOURCE_PATH}/third_party_licenses")
     file(REMOVE_RECURSE "${licenses_dir}")

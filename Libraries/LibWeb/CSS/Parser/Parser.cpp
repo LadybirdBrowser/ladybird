@@ -732,7 +732,7 @@ ComponentValue Parser::consume_a_component_value(TokenStream<T>& input)
 template<>
 void Parser::consume_a_component_value_and_do_nothing<ComponentValue>(TokenStream<ComponentValue>& tokens)
 {
-    // AD-HOC: To avoid unnecessairy allocations, we explicitly define a "do nothing" variant that discards the result immediately.
+    // AD-HOC: To avoid unnecessarily allocations, we explicitly define a "do nothing" variant that discards the result immediately.
     // Note: This overload is called once tokens have already been converted into component values,
     //       so we do not need to do the work in the more general overload.
     (void)tokens.consume_a_token();
@@ -743,7 +743,7 @@ void Parser::consume_a_component_value_and_do_nothing<ComponentValue>(TokenStrea
 template<typename T>
 void Parser::consume_a_component_value_and_do_nothing(TokenStream<T>& input)
 {
-    // AD-HOC: To avoid unnecessairy allocations, we explicitly define a "do nothing" variant that discards the result immediately.
+    // AD-HOC: To avoid unnecessarily allocations, we explicitly define a "do nothing" variant that discards the result immediately.
     // To consume a component value from a token stream input:
 
     // Process input:
@@ -865,7 +865,7 @@ SimpleBlock Parser::consume_a_simple_block(TokenStream<T>& input)
 template<typename T>
 void Parser::consume_a_simple_block_and_do_nothing(TokenStream<T>& input)
 {
-    // AD-HOC: To avoid unnecessairy allocations, we explicitly define a "do nothing" variant that discards the result immediately.
+    // AD-HOC: To avoid unnecessarily allocations, we explicitly define a "do nothing" variant that discards the result immediately.
     // To consume a simple block from a token stream input:
 
     // Assert: the next token of input is <{-token>, <[-token>, or <(-token>.
@@ -943,7 +943,7 @@ Function Parser::consume_a_function(TokenStream<T>& input)
 template<typename T>
 void Parser::consume_a_function_and_do_nothing(TokenStream<T>& input)
 {
-    // AD-HOC: To avoid unnecessairy allocations, we explicitly define a "do nothing" variant that discards the result immediately.
+    // AD-HOC: To avoid unnecessarily allocations, we explicitly define a "do nothing" variant that discards the result immediately.
     // To consume a function from a token stream input:
 
     // Assert: The next token is a <function-token>.

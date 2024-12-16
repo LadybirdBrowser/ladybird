@@ -81,7 +81,7 @@ void CanvasPath::bezier_curve_to(double cp1x, double cp1y, double cp2x, double c
     // 2. Ensure there is a subpath for (cp1x, cp1y)
     ensure_subpath(cp1x, cp1y);
 
-    // 3. Connect the last point in the subpath to the given point (x, y) using a cubic Bézier curve with control poits (cp1x, cp1y) and (cp2x, cp2y).
+    // 3. Connect the last point in the subpath to the given point (x, y) using a cubic Bézier curve with control points (cp1x, cp1y) and (cp2x, cp2y).
     // 4. Add the point (x, y) to the subpath.
     m_path.cubic_bezier_curve_to(
         Gfx::FloatPoint { cp1x, cp1y }, Gfx::FloatPoint { cp2x, cp2y }, Gfx::FloatPoint { x, y });

@@ -11,7 +11,7 @@ namespace Web::HTML {
 
 void WebWorkerClient::die()
 {
-    // FIXME: Notify WorkerAgent that the worker is ded
+    // FIXME: Notify WorkerAgent that the worker is dead
 }
 
 void WebWorkerClient::did_close_worker()

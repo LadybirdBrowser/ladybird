@@ -57,7 +57,7 @@ private:
     GC::Ptr<DOM::Element> referenced_element();
 
     void fetch_the_document(URL::URL const& url);
-    bool is_referrenced_element_same_document() const;
+    bool is_referenced_element_same_document() const;
 
     void clone_element_tree_as_our_shadow_tree(Element* to_clone);
     bool is_valid_reference_element(Element const& reference_element) const;

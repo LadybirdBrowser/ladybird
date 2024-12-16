@@ -198,7 +198,7 @@ public:
     Function<void(Web::CSS::StyleSheetIdentifier const&)> on_inspector_requested_style_sheet_source;
     Function<void(Web::CSS::StyleSheetIdentifier const&, URL::URL const&, String const&)> on_received_style_sheet_source;
     Function<void(Web::UniqueNodeID)> on_received_hovered_node_id;
-    Function<void(Optional<Web::UniqueNodeID> const& node_id)> on_finshed_editing_dom_node;
+    Function<void(Optional<Web::UniqueNodeID> const& node_id)> on_finished_editing_dom_node;
     Function<void(String const&)> on_received_dom_node_html;
     Function<void(i32 message_id)> on_received_console_message;
     Function<void(i32 start_index, Vector<ByteString> const& message_types, Vector<ByteString> const& messages)> on_received_console_messages;
