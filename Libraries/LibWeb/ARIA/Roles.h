@@ -82,7 +82,9 @@ namespace Web::ARIA {
     __ENUMERATE_ARIA_ROLE(search)           \
     __ENUMERATE_ARIA_ROLE(searchbox)        \
     __ENUMERATE_ARIA_ROLE(section)          \
+    __ENUMERATE_ARIA_ROLE(sectionfooter)    \
     __ENUMERATE_ARIA_ROLE(sectionhead)      \
+    __ENUMERATE_ARIA_ROLE(sectionheader)    \
     __ENUMERATE_ARIA_ROLE(select)           \
     __ENUMERATE_ARIA_ROLE(separator)        \
     __ENUMERATE_ARIA_ROLE(slider)           \
