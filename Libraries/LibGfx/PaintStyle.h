@@ -38,7 +38,7 @@ private:
     virtual Color sample_color(IntPoint) const { return Color(); }
 };
 
-class SolidColorPaintStyle final : public PaintStyle {
+class SolidColorPaintStyle : public PaintStyle {
 public:
     static ErrorOr<NonnullRefPtr<SolidColorPaintStyle>> create(Color color)
     {
@@ -90,7 +90,7 @@ private:
 // These gradients are (unlike CSS ones) not relative to the painted shape, and do not
 // support premultiplied alpha.
 
-class CanvasLinearGradientPaintStyle final : public GradientPaintStyle {
+class CanvasLinearGradientPaintStyle : public GradientPaintStyle {
 public:
     static ErrorOr<NonnullRefPtr<CanvasLinearGradientPaintStyle>> create(FloatPoint p0, FloatPoint p1)
     {
@@ -113,7 +113,7 @@ private:
     FloatPoint m_p1;
 };
 
-class CanvasConicGradientPaintStyle final : public GradientPaintStyle {
+class CanvasConicGradientPaintStyle : public GradientPaintStyle {
 public:
     static ErrorOr<NonnullRefPtr<CanvasConicGradientPaintStyle>> create(FloatPoint center, float start_angle = 0.0f)
     {
@@ -133,7 +133,7 @@ private:
     float m_start_angle { 0.0f };
 };
 
-class CanvasRadialGradientPaintStyle final : public GradientPaintStyle {
+class CanvasRadialGradientPaintStyle : public GradientPaintStyle {
 public:
     static ErrorOr<NonnullRefPtr<CanvasRadialGradientPaintStyle>> create(FloatPoint start_center, float start_radius, FloatPoint end_center, float end_radius)
     {
@@ -190,7 +190,7 @@ private:
     SpreadMethod m_spread_method { SpreadMethod::Pad };
 };
 
-class SVGLinearGradientPaintStyle final : public SVGGradientPaintStyle {
+class SVGLinearGradientPaintStyle : public SVGGradientPaintStyle {
 public:
     static ErrorOr<NonnullRefPtr<SVGLinearGradientPaintStyle>> create(FloatPoint p0, FloatPoint p1)
     {
