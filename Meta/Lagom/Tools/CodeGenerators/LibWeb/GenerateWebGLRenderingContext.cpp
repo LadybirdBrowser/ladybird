@@ -341,6 +341,40 @@ static void generate_webgl_object_handle_unwrap(SourceGenerator& generator, Stri
     generator.append(unwrap_generator.as_string_view());
 }
 
+static void generate_get_active_uniform_block_parameter(SourceGenerator& generator)
+{
+    generate_webgl_object_handle_unwrap(generator, "program"sv, "JS::js_null()"sv);
+    generator.append(R"~~~(
+    switch (pname) {
+    case GL_UNIFORM_BLOCK_BINDING:
+    case GL_UNIFORM_BLOCK_DATA_SIZE:
+    case GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS: {
+        GLint result = 0;
+        glGetActiveUniformBlockiv(program_handle, uniform_block_index, pname, &result);
+        return JS::Value(result);
+    }
+    case GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES: {
+        GLint num_active_uniforms = 0;
+        glGetActiveUniformBlockiv(program_handle, uniform_block_index, GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS, &num_active_uniforms);
+        auto active_uniform_indices_buffer = MUST(ByteBuffer::create_zeroed(num_active_uniforms * sizeof(GLint)));
+        glGetActiveUniformBlockiv(program_handle, uniform_block_index, GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES, reinterpret_cast<GLint*>(active_uniform_indices_buffer.data()));
+        auto array_buffer = JS::ArrayBuffer::create(m_realm, move(active_uniform_indices_buffer));
+        return JS::Uint32Array::create(m_realm, num_active_uniforms, array_buffer);
+    }
+    case GL_UNIFORM_BLOCK_REFERENCED_BY_VERTEX_SHADER:
+    case GL_UNIFORM_BLOCK_REFERENCED_BY_FRAGMENT_SHADER: {
+        GLint result = 0;
+        glGetActiveUniformBlockiv(program_handle, uniform_block_index, pname, &result);
+        return JS::Value(result == GL_TRUE);
+    }
+    default:
+        dbgln("Unknown WebGL active uniform block parameter name: {:x}", pname);
+        set_error(GL_INVALID_ENUM);
+        return JS::js_null();
+    }
+)~~~");
+}
+
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
     StringView generated_header_path;
@@ -804,6 +838,11 @@ public:
     glGetProgramiv(program_handle, pname, &result);
     return JS::Value(result);
 )~~~");
+            continue;
+        }
+
+        if (function.name == "getActiveUniformBlockParameter"sv) {
+            generate_get_active_uniform_block_parameter(function_impl_generator);
             continue;
         }
 
