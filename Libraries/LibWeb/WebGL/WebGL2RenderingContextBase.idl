@@ -423,7 +423,7 @@ interface mixin WebGL2RenderingContextBase {
     [FIXME] any getActiveUniforms(WebGLProgram program, sequence<GLuint> uniformIndices, GLenum pname);
     [FIXME] GLuint getUniformBlockIndex(WebGLProgram program, DOMString uniformBlockName);
     [FIXME] any getActiveUniformBlockParameter(WebGLProgram program, GLuint uniformBlockIndex, GLenum pname);
-    [FIXME] DOMString? getActiveUniformBlockName(WebGLProgram program, GLuint uniformBlockIndex);
+    DOMString? getActiveUniformBlockName(WebGLProgram program, GLuint uniformBlockIndex);
     undefined uniformBlockBinding(WebGLProgram program, GLuint uniformBlockIndex, GLuint uniformBlockBinding);
 
     // Vertex Array Objects
