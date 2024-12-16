@@ -12,10 +12,10 @@ namespace Web::Editing {
 
 struct CommandDefinition {
     FlyString const& command;
-    Function<bool(DOM::Document&, String const&)> action;
-    Function<bool(DOM::Document const&)> indeterminate;
-    Function<bool(DOM::Document const&)> state;
-    Function<String(DOM::Document const&)> value;
+    Function<bool(DOM::Document&, String const&)> action {};
+    Function<bool(DOM::Document const&)> indeterminate {};
+    Function<bool(DOM::Document const&)> state {};
+    Function<String(DOM::Document const&)> value {};
 };
 
 Optional<CommandDefinition const&> find_command_definition(FlyString const&);

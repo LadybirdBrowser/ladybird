@@ -781,11 +781,28 @@ bool command_style_with_css_state(DOM::Document const& document)
 }
 
 static Array const commands {
-    CommandDefinition { CommandNames::delete_, command_delete_action, {}, {}, {} },
-    CommandDefinition { CommandNames::defaultParagraphSeparator, command_default_paragraph_separator_action, {}, {}, command_default_paragraph_separator_value },
-    CommandDefinition { CommandNames::insertLineBreak, command_insert_linebreak_action, {}, {}, {} },
-    CommandDefinition { CommandNames::insertParagraph, command_insert_paragraph_action, {}, {}, {} },
-    CommandDefinition { CommandNames::styleWithCSS, command_style_with_css_action, {}, command_style_with_css_state, {} },
+    CommandDefinition {
+        .command = CommandNames::delete_,
+        .action = command_delete_action,
+    },
+    CommandDefinition {
+        .command = CommandNames::defaultParagraphSeparator,
+        .action = command_default_paragraph_separator_action,
+        .value = command_default_paragraph_separator_value,
+    },
+    CommandDefinition {
+        .command = CommandNames::insertLineBreak,
+        .action = command_insert_linebreak_action,
+    },
+    CommandDefinition {
+        .command = CommandNames::insertParagraph,
+        .action = command_insert_paragraph_action,
+    },
+    CommandDefinition {
+        .command = CommandNames::styleWithCSS,
+        .action = command_style_with_css_action,
+        .state = command_style_with_css_state,
+    },
 };
 
 Optional<CommandDefinition const&> find_command_definition(FlyString const& command)
