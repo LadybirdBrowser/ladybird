@@ -14,3 +14,8 @@ set(GENERATED_SOURCES
 
 serenity_lib(LibImageDecoderClient imagedecoderclient)
 target_link_libraries(LibImageDecoderClient PRIVATE LibCore LibIPC LibGfx)
+
+if (WIN32)
+    find_package(pthread REQUIRED)
+    target_include_directories(LibImageDecoderClient PRIVATE ${PTHREAD_INCLUDE_DIR})
+endif()
