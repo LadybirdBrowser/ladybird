@@ -1091,6 +1091,14 @@ public:
             continue;
         }
 
+        if (function.name == "deleteRenderbuffer"sv) {
+            function_impl_generator.append(R"~~~(
+    auto handle = renderbuffer ? renderbuffer->handle() : 0;
+    glDeleteRenderbuffers(1, &handle);
+)~~~");
+            continue;
+        }
+
         if (function.name == "deleteTexture"sv) {
             function_impl_generator.append(R"~~~(
     auto handle = texture ? texture->handle() : 0;
