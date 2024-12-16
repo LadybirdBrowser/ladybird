@@ -5,7 +5,6 @@
  */
 
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
-#include <LibCrypto/Checksum/Adler32.h>
 #include <LibCrypto/Cipher/AES.h>
 #include <LibTest/TestCase.h>
 #include <cstring>
@@ -571,4 +570,160 @@ TEST_CASE(test_AES_GCM_128bit_decrypt_multiple_blocks_with_aad)
         { input_tag, 16 });
     EXPECT(memcmp(result_pt, out.data(), out.size()) == 0);
     EXPECT_EQ(consistency, Crypto::VerificationConsistency::Consistent);
+}
+
+TEST_CASE(test_AES_KW_encrypt_128bits_with_128bit_key)
+{
+    Crypto::Cipher::AESCipher::KWMode cipher("\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F"_b, 128, Crypto::Cipher::Intent::Encryption);
+
+    auto wrap_result = "\x1F\xA6\x8B\x0A\x81\x12\xB4\x47\xAE\xF3\x4B\xD8\xFB\x5A\x7B\x82\x9D\x3E\x86\x23\x71\xD2\xCF\xE5"_b;
+    auto in = "\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xAA\xBB\xCC\xDD\xEE\xFF"_b;
+
+    auto wrapped = MUST(ByteBuffer::create_zeroed(in.size() + 8));
+    auto wrapped_bytes = wrapped.bytes();
+    cipher.wrap(in, wrapped_bytes);
+    EXPECT(memcmp(wrapped_bytes.data(), wrap_result.data(), wrapped_bytes.size()) == 0);
+}
+
+TEST_CASE(test_AES_KW_decrypt_128bits_with_128bit_key)
+{
+    Crypto::Cipher::AESCipher::KWMode cipher("\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F"_b, 128, Crypto::Cipher::Intent::Decryption);
+
+    auto unwrap_result = "\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xAA\xBB\xCC\xDD\xEE\xFF"_b;
+    auto in = "\x1F\xA6\x8B\x0A\x81\x12\xB4\x47\xAE\xF3\x4B\xD8\xFB\x5A\x7B\x82\x9D\x3E\x86\x23\x71\xD2\xCF\xE5"_b;
+
+    auto unwrapped = MUST(ByteBuffer::create_zeroed(in.size() - 8));
+    auto unwrapped_bytes = unwrapped.bytes();
+    EXPECT_EQ(cipher.unwrap(in, unwrapped_bytes), Crypto::VerificationConsistency::Consistent);
+    EXPECT(memcmp(unwrapped_bytes.data(), unwrap_result.data(), unwrap_result.size()) == 0);
+}
+
+TEST_CASE(test_AES_KW_encrypt_128bits_with_192bit_key)
+{
+    Crypto::Cipher::AESCipher::KWMode cipher("\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17"_b, 192, Crypto::Cipher::Intent::Encryption);
+
+    auto wrap_result = "\x96\x77\x8B\x25\xAE\x6C\xA4\x35\xF9\x2B\x5B\x97\xC0\x50\xAE\xD2\x46\x8A\xB8\xA1\x7A\xD8\x4E\x5D"_b;
+    auto in = "\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xAA\xBB\xCC\xDD\xEE\xFF"_b;
+
+    auto wrapped = MUST(ByteBuffer::create_zeroed(in.size() + 8));
+    auto wrapped_bytes = wrapped.bytes();
+    cipher.wrap(in, wrapped_bytes);
+    EXPECT(memcmp(wrapped_bytes.data(), wrap_result.data(), wrapped_bytes.size()) == 0);
+}
+
+TEST_CASE(test_AES_KW_decrypt_128bits_with_192bit_key)
+{
+    Crypto::Cipher::AESCipher::KWMode cipher("\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17"_b, 192, Crypto::Cipher::Intent::Decryption);
+
+    auto unwrap_result = "\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xAA\xBB\xCC\xDD\xEE\xFF"_b;
+    auto in = "\x96\x77\x8B\x25\xAE\x6C\xA4\x35\xF9\x2B\x5B\x97\xC0\x50\xAE\xD2\x46\x8A\xB8\xA1\x7A\xD8\x4E\x5D"_b;
+
+    auto unwrapped = MUST(ByteBuffer::create_zeroed(in.size() - 8));
+    auto unwrapped_bytes = unwrapped.bytes();
+    EXPECT_EQ(cipher.unwrap(in, unwrapped_bytes), Crypto::VerificationConsistency::Consistent);
+    EXPECT(memcmp(unwrapped_bytes.data(), unwrap_result.data(), unwrap_result.size()) == 0);
+}
+
+TEST_CASE(test_AES_KW_encrypt_128bits_with_256bit_key)
+{
+    Crypto::Cipher::AESCipher::KWMode cipher("\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F"_b, 256, Crypto::Cipher::Intent::Encryption);
+
+    auto wrap_result = "\x64\xE8\xC3\xF9\xCE\x0F\x5B\xA2\x63\xE9\x77\x79\x05\x81\x8A\x2A\x93\xC8\x19\x1E\x7D\x6E\x8A\xE7"_b;
+    auto in = "\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xAA\xBB\xCC\xDD\xEE\xFF"_b;
+
+    auto wrapped = MUST(ByteBuffer::create_zeroed(in.size() + 8));
+    auto wrapped_bytes = wrapped.bytes();
+    cipher.wrap(in, wrapped_bytes);
+    EXPECT(memcmp(wrapped_bytes.data(), wrap_result.data(), wrapped_bytes.size()) == 0);
+}
+
+TEST_CASE(test_AES_KW_decrypt_128bits_with_256bit_key)
+{
+    Crypto::Cipher::AESCipher::KWMode cipher("\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F"_b, 256, Crypto::Cipher::Intent::Decryption);
+
+    auto unwrap_result = "\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xAA\xBB\xCC\xDD\xEE\xFF"_b;
+    auto in = "\x64\xE8\xC3\xF9\xCE\x0F\x5B\xA2\x63\xE9\x77\x79\x05\x81\x8A\x2A\x93\xC8\x19\x1E\x7D\x6E\x8A\xE7"_b;
+
+    auto unwrapped = MUST(ByteBuffer::create_zeroed(in.size() - 8));
+    auto unwrapped_bytes = unwrapped.bytes();
+    EXPECT_EQ(cipher.unwrap(in, unwrapped_bytes), Crypto::VerificationConsistency::Consistent);
+    EXPECT(memcmp(unwrapped_bytes.data(), unwrap_result.data(), unwrap_result.size()) == 0);
+}
+
+TEST_CASE(test_AES_KW_encrypt_192bits_with_192bit_key)
+{
+    Crypto::Cipher::AESCipher::KWMode cipher("\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17"_b, 192, Crypto::Cipher::Intent::Encryption);
+
+    auto wrap_result = "\x03\x1D\x33\x26\x4E\x15\xD3\x32\x68\xF2\x4E\xC2\x60\x74\x3E\xDC\xE1\xC6\xC7\xDD\xEE\x72\x5A\x93\x6B\xA8\x14\x91\x5C\x67\x62\xD2"_b;
+    auto in = "\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xAA\xBB\xCC\xDD\xEE\xFF\x00\x01\x02\x03\x04\x05\x06\x07"_b;
+
+    auto wrapped = MUST(ByteBuffer::create_zeroed(in.size() + 8));
+    auto wrapped_bytes = wrapped.bytes();
+    cipher.wrap(in, wrapped_bytes);
+    EXPECT(memcmp(wrapped_bytes.data(), wrap_result.data(), wrapped_bytes.size()) == 0);
+}
+
+TEST_CASE(test_AES_KW_decrypt_192bits_with_192bit_key)
+{
+    Crypto::Cipher::AESCipher::KWMode cipher("\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17"_b, 192, Crypto::Cipher::Intent::Decryption);
+
+    auto unwrap_result = "\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xAA\xBB\xCC\xDD\xEE\xFF\x00\x01\x02\x03\x04\x05\x06\x07"_b;
+    auto in = "\x03\x1D\x33\x26\x4E\x15\xD3\x32\x68\xF2\x4E\xC2\x60\x74\x3E\xDC\xE1\xC6\xC7\xDD\xEE\x72\x5A\x93\x6B\xA8\x14\x91\x5C\x67\x62\xD2"_b;
+
+    auto unwrapped = MUST(ByteBuffer::create_zeroed(in.size() - 8));
+    auto unwrapped_bytes = unwrapped.bytes();
+    EXPECT_EQ(cipher.unwrap(in, unwrapped_bytes), Crypto::VerificationConsistency::Consistent);
+    EXPECT(memcmp(unwrapped_bytes.data(), unwrap_result.data(), unwrap_result.size()) == 0);
+}
+
+TEST_CASE(test_AES_KW_encrypt_192bits_with_256bit_key)
+{
+    Crypto::Cipher::AESCipher::KWMode cipher("\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F"_b, 256, Crypto::Cipher::Intent::Encryption);
+
+    auto wrap_result = "\xA8\xF9\xBC\x16\x12\xC6\x8B\x3F\xF6\xE6\xF4\xFB\xE3\x0E\x71\xE4\x76\x9C\x8B\x80\xA3\x2C\xB8\x95\x8C\xD5\xD1\x7D\x6B\x25\x4D\xA1"_b;
+    auto in = "\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xAA\xBB\xCC\xDD\xEE\xFF\x00\x01\x02\x03\x04\x05\x06\x07"_b;
+
+    auto wrapped = MUST(ByteBuffer::create_zeroed(in.size() + 8));
+    auto wrapped_bytes = wrapped.bytes();
+    cipher.wrap(in, wrapped_bytes);
+    EXPECT(memcmp(wrapped_bytes.data(), wrap_result.data(), wrapped_bytes.size()) == 0);
+}
+
+TEST_CASE(test_AES_KW_decrypt_192bits_with_256bit_key)
+{
+    Crypto::Cipher::AESCipher::KWMode cipher("\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F"_b, 256, Crypto::Cipher::Intent::Decryption);
+
+    auto unwrap_result = "\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xAA\xBB\xCC\xDD\xEE\xFF\x00\x01\x02\x03\x04\x05\x06\x07"_b;
+    auto in = "\xA8\xF9\xBC\x16\x12\xC6\x8B\x3F\xF6\xE6\xF4\xFB\xE3\x0E\x71\xE4\x76\x9C\x8B\x80\xA3\x2C\xB8\x95\x8C\xD5\xD1\x7D\x6B\x25\x4D\xA1"_b;
+
+    auto unwrapped = MUST(ByteBuffer::create_zeroed(in.size() - 8));
+    auto unwrapped_bytes = unwrapped.bytes();
+    EXPECT_EQ(cipher.unwrap(in, unwrapped_bytes), Crypto::VerificationConsistency::Consistent);
+    EXPECT(memcmp(unwrapped_bytes.data(), unwrap_result.data(), unwrap_result.size()) == 0);
+}
+
+TEST_CASE(test_AES_KW_encrypt_256bits_with_256bit_key)
+{
+    Crypto::Cipher::AESCipher::KWMode cipher("\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F"_b, 256, Crypto::Cipher::Intent::Encryption);
+
+    auto wrap_result = "\x28\xC9\xF4\x04\xC4\xB8\x10\xF4\xCB\xCC\xB3\x5C\xFB\x87\xF8\x26\x3F\x57\x86\xE2\xD8\x0E\xD3\x26\xCB\xC7\xF0\xE7\x1A\x99\xF4\x3B\xFB\x98\x8B\x9B\x7A\x02\xDD\x21"_b;
+    auto in = "\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xAA\xBB\xCC\xDD\xEE\xFF\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F"_b;
+
+    auto wrapped = MUST(ByteBuffer::create_zeroed(in.size() + 8));
+    auto wrapped_bytes = wrapped.bytes();
+    cipher.wrap(in, wrapped_bytes);
+    EXPECT(memcmp(wrapped_bytes.data(), wrap_result.data(), wrapped_bytes.size()) == 0);
+}
+
+TEST_CASE(test_AES_KW_decrypt_256bits_with_256bit_key)
+{
+    Crypto::Cipher::AESCipher::KWMode cipher("\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F"_b, 256, Crypto::Cipher::Intent::Decryption);
+
+    auto unwrap_result = "\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xAA\xBB\xCC\xDD\xEE\xFF\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F"_b;
+    auto in = "\x28\xC9\xF4\x04\xC4\xB8\x10\xF4\xCB\xCC\xB3\x5C\xFB\x87\xF8\x26\x3F\x57\x86\xE2\xD8\x0E\xD3\x26\xCB\xC7\xF0\xE7\x1A\x99\xF4\x3B\xFB\x98\x8B\x9B\x7A\x02\xDD\x21"_b;
+
+    auto unwrapped = MUST(ByteBuffer::create_zeroed(in.size() - 8));
+    auto unwrapped_bytes = unwrapped.bytes();
+    EXPECT_EQ(cipher.unwrap(in, unwrapped_bytes), Crypto::VerificationConsistency::Consistent);
+    EXPECT(memcmp(unwrapped_bytes.data(), unwrap_result.data(), unwrap_result.size()) == 0);
 }
