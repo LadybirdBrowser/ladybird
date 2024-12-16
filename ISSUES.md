@@ -66,3 +66,11 @@ You can take your reduced test case and post it online at a site such as the fol
 That will give you a URL which you can then include in the issue you raise for the problem.
 
 *[Credits: The “How you can write a reduced test case” details above are largely taken from https://webkit.org/test-case-reduction/.]*
+
+## Debugging
+
+When investigating a bug, it can be helpful to use the `--enable-idl-tracing` command-line flag when running Ladybird. This will output detailed information about the calls being made to the browser's internal interfaces, which can help pinpoint where a problem is occurring.
+
+```bash
+./Meta/ladybird.sh run ladybird --enable-idl-tracing
+```
