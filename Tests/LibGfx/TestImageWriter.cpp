@@ -6,9 +6,6 @@
 
 #include <AK/MemoryStream.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/ICC/BinaryWriter.h>
-#include <LibGfx/ICC/Profile.h>
-#include <LibGfx/ICC/WellKnownProfiles.h>
 #include <LibGfx/ImageFormats/AnimationWriter.h>
 #include <LibGfx/ImageFormats/BMPLoader.h>
 #include <LibGfx/ImageFormats/BMPWriter.h>
@@ -186,23 +183,6 @@ TEST_CASE(test_webp_color_indexing_transform_single_channel)
         auto decoded_bitmap_without_color_indexing = TRY_OR_FAIL(expect_single_frame_of_size(*TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(encoded_data)), bitmap->size()));
         expect_bitmaps_equal(*decoded_bitmap_without_color_indexing, *decoded_bitmap);
     }
-}
-
-TEST_CASE(test_webp_icc)
-{
-    auto sRGB_icc_profile = MUST(Gfx::ICC::sRGB());
-    auto sRGB_icc_data = MUST(Gfx::ICC::encode(sRGB_icc_profile));
-
-    auto rgba_bitmap = TRY_OR_FAIL(create_test_rgba_bitmap());
-    Gfx::WebPEncoderOptions options;
-    options.icc_data = sRGB_icc_data;
-    auto encoded_rgba_bitmap = TRY_OR_FAIL((encode_bitmap<Gfx::WebPWriter>(rgba_bitmap, options)));
-
-    auto decoded_rgba_plugin = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(encoded_rgba_bitmap));
-    expect_bitmaps_equal(*TRY_OR_FAIL(expect_single_frame_of_size(*decoded_rgba_plugin, rgba_bitmap->size())), rgba_bitmap);
-    auto decoded_rgba_profile = TRY_OR_FAIL(Gfx::ICC::Profile::try_load_from_externally_owned_memory(TRY_OR_FAIL(decoded_rgba_plugin->icc_data()).value()));
-    auto reencoded_icc_data = TRY_OR_FAIL(Gfx::ICC::encode(decoded_rgba_profile));
-    EXPECT_EQ(sRGB_icc_data, reencoded_icc_data);
 }
 
 TEST_CASE(test_webp_animation)

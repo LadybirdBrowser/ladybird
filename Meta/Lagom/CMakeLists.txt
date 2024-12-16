@@ -452,7 +452,6 @@ lagom_utility(dns SOURCES ../../Utilities/dns.cpp LIBS LibDNS LibMain LibTLS Lib
 
 if (ENABLE_GUI_TARGETS)
     lagom_utility(animation SOURCES ../../Utilities/animation.cpp LIBS LibGfx LibMain)
-    lagom_utility(icc SOURCES ../../Utilities/icc.cpp LIBS LibGfx LibMain LibURL)
     lagom_utility(image SOURCES ../../Utilities/image.cpp LIBS LibGfx LibMain)
 endif()
 
