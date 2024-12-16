@@ -10,7 +10,7 @@ interface mixin WebGL2RenderingContextOverloads {
     undefined bufferData(GLenum target, BufferSource? srcData, GLenum usage);
     undefined bufferSubData(GLenum target, GLintptr dstByteOffset, BufferSource srcData);
     // WebGL2:
-    [FIXME] undefined bufferData(GLenum target, [AllowShared] ArrayBufferView srcData, GLenum usage, unsigned long long srcOffset, optional GLuint length = 0);
+    undefined bufferData(GLenum target, [AllowShared] ArrayBufferView srcData, GLenum usage, unsigned long long srcOffset, optional GLuint length = 0);
     [FIXME] undefined bufferSubData(GLenum target, GLintptr dstByteOffset, [AllowShared] ArrayBufferView srcData, unsigned long long srcOffset, optional GLuint length = 0);
 
     // WebGL1 legacy entrypoints:
