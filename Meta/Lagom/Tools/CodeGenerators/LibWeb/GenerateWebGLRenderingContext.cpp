@@ -890,14 +890,16 @@ public:
 
             if (webgl_version == 2) {
                 function_impl_generator.append(R"~~~(
+    if (src_offset + src_length > count) {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+
     raw_data += src_offset;
     if (src_length == 0) {
         count -= src_offset;
-    }
-
-    if (src_offset + src_length <= count) {
-        set_error(GL_INVALID_VALUE);
-        return;
+    } else {
+        count = src_length;
     }
 )~~~");
             }
@@ -942,14 +944,16 @@ public:
 
             if (webgl_version == 2) {
                 function_impl_generator.append(R"~~~(
+    if (src_offset + src_length > count) {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+
     data += src_offset;
     if (src_length == 0) {
         count -= src_offset;
-    }
-
-    if (src_offset + src_length <= count) {
-        set_error(GL_INVALID_VALUE);
-        return;
+    } else {
+        count = src_length;
     }
 )~~~");
             }
