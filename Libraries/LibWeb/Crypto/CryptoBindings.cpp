@@ -14,19 +14,21 @@
 #include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::Bindings {
-#define JWK_PARSE_STRING_PROPERTY(name)                                                                     \
-    if (json_object.has_string(#name##sv)) {                                                                \
-        key.name = TRY_OR_THROW_OOM(vm, String::from_byte_string(*json_object.get_byte_string(#name##sv))); \
+
+#define JWK_PARSE_STRING_PROPERTY(name)                                                     \
+    if (json_object.has_string(#name##sv)) {                                                \
+        key.name = MUST(String::from_byte_string(*json_object.get_byte_string(#name##sv))); \
     }
 
 JS::ThrowCompletionOr<JsonWebKey> JsonWebKey::parse(JS::Realm& realm, ReadonlyBytes data)
 {
     auto& vm = realm.vm();
+
     // 1. Let data be the sequence of bytes to be parsed.
 
     // 2. Let json be the Unicode string that results from interpreting data according to UTF-8.
     // 3. Convert json to UTF-16.
-    auto json = TRY_OR_THROW_OOM(vm, String::from_utf8(data));
+    auto json = MUST(String::from_utf8(data));
 
     // 4. Let result be the object literal that results from executing the JSON.parse internal function
     //    in the context of a new global object, with text argument set to a JavaScript String containing json.
@@ -39,7 +41,7 @@ JS::ThrowCompletionOr<JsonWebKey> JsonWebKey::parse(JS::Realm& realm, ReadonlyBy
         return vm.throw_completion<WebIDL::SyntaxError>("JSON value is not an object"_string);
     }
 
-    auto& json_object = json_value.as_object();
+    auto const& json_object = json_value.as_object();
 
     // 5. Let key be the result of converting result to the IDL dictionary type of JsonWebKey.
     JsonWebKey key {};
@@ -61,15 +63,13 @@ JS::ThrowCompletionOr<JsonWebKey> JsonWebKey::parse(JS::Realm& realm, ReadonlyBy
 
     key.ext = json_object.get_bool("ext"sv);
 
-    if (json_object.has_array("key_ops"sv)) {
-        auto key_ops = *json_object.get_array("key_ops"sv);
+    if (auto key_ops = json_object.get_array("key_ops"sv); key_ops.has_value()) {
         key.key_ops = Vector<String> {};
-        TRY_OR_THROW_OOM(vm, key.key_ops->try_ensure_capacity(key_ops.size()));
+        key.key_ops->ensure_capacity(key_ops->size());
 
-        TRY(key_ops.try_for_each([&key, &vm](auto value) -> JS::Completion {
-            key.key_ops->append(TRY_OR_THROW_OOM(vm, String::from_byte_string(value.as_string())));
-            return {};
-        }));
+        key_ops->for_each([&](auto const& value) {
+            key.key_ops->append(MUST(String::from_byte_string(value.as_string())));
+        });
     }
 
     if (json_object.has("oth"sv))
