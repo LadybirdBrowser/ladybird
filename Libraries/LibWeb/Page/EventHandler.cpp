@@ -80,7 +80,7 @@ static bool parent_element_for_event_dispatch(Painting::Paintable& paintable, GC
             continue;
         node = layout_node->dom_node();
     }
-    return node && layout_node;
+    return node && layout_node && !layout_node->is_anonymous();
 }
 
 static Gfx::StandardCursor cursor_css_to_gfx(Optional<CSS::Cursor> cursor)

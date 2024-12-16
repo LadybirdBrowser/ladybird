@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<style>
+    div:before {
+        content: "test";
+        translate: 100px;
+    }
+</style>
+<div id="test"></div>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const div = document.getElementById("test");
+        const rect = div.getBoundingClientRect();
+        internals.movePointerTo(rect.x + 100, rect.y);
+        println("PASS (didn't crash)");
+    });
+</script>
