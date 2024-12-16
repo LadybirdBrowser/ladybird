@@ -422,7 +422,7 @@ interface mixin WebGL2RenderingContextBase {
     [FIXME] sequence<GLuint>? getUniformIndices(WebGLProgram program, sequence<DOMString> uniformNames);
     [FIXME] any getActiveUniforms(WebGLProgram program, sequence<GLuint> uniformIndices, GLenum pname);
     [FIXME] GLuint getUniformBlockIndex(WebGLProgram program, DOMString uniformBlockName);
-    [FIXME] any getActiveUniformBlockParameter(WebGLProgram program, GLuint uniformBlockIndex, GLenum pname);
+    any getActiveUniformBlockParameter(WebGLProgram program, GLuint uniformBlockIndex, GLenum pname);
     DOMString? getActiveUniformBlockName(WebGLProgram program, GLuint uniformBlockIndex);
     undefined uniformBlockBinding(WebGLProgram program, GLuint uniformBlockIndex, GLuint uniformBlockBinding);
 
