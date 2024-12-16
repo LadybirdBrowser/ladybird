@@ -9,7 +9,6 @@ set(FUZZER_TARGETS
     GIFLoader
     GzipDecompression
     GzipRoundtrip
-    ICCProfile
     ICOLoader
     JPEGLoader
     Js
@@ -56,7 +55,6 @@ set(FUZZER_DEPENDENCIES_ELF LibELF)
 set(FUZZER_DEPENDENCIES_GIFLoader LibGfx)
 set(FUZZER_DEPENDENCIES_GzipDecompression LibCompress)
 set(FUZZER_DEPENDENCIES_GzipRoundtrip LibCompress)
-set(FUZZER_DEPENDENCIES_ICCProfile LibGfx)
 set(FUZZER_DEPENDENCIES_ICOLoader LibGfx)
 set(FUZZER_DEPENDENCIES_JPEGLoader LibGfx)
 set(FUZZER_DEPENDENCIES_Js LibJS LibGC)

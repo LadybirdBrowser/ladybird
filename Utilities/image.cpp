@@ -7,7 +7,6 @@
 #include <LibCore/ArgsParser.h>
 #include <LibCore/File.h>
 #include <LibCore/MappedFile.h>
-#include <LibGfx/ICC/Profile.h>
 #include <LibGfx/ImageFormats/BMPWriter.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
 #include <LibGfx/ImageFormats/JPEGWriter.h>
@@ -122,41 +121,6 @@ static ErrorOr<void> strip_alpha(LoadedImage& image)
     return {};
 }
 
-static ErrorOr<OwnPtr<Core::MappedFile>> convert_image_profile(LoadedImage& image, StringView convert_color_profile_path, OwnPtr<Core::MappedFile> maybe_source_icc_file)
-{
-    if (!image.icc_data.has_value())
-        return Error::from_string_literal("No source color space embedded in image. Pass one with --assign-color-profile.");
-
-    auto source_icc_file = move(maybe_source_icc_file);
-    auto source_icc_data = image.icc_data.value();
-    auto icc_file = TRY(Core::MappedFile::map(convert_color_profile_path));
-    image.icc_data = icc_file->bytes();
-
-    auto source_profile = TRY(Gfx::ICC::Profile::try_load_from_externally_owned_memory(source_icc_data));
-    auto destination_profile = TRY(Gfx::ICC::Profile::try_load_from_externally_owned_memory(icc_file->bytes()));
-
-    if (destination_profile->data_color_space() != Gfx::ICC::ColorSpace::RGB)
-        return Error::from_string_literal("Can only convert to RGB at the moment, but destination color space is not RGB");
-
-    if (image.bitmap.has<RefPtr<Gfx::CMYKBitmap>>()) {
-        if (source_profile->data_color_space() != Gfx::ICC::ColorSpace::CMYK)
-            return Error::from_string_literal("Source image data is CMYK but source color space is not CMYK");
-
-        auto& cmyk_frame = image.bitmap.get<RefPtr<Gfx::CMYKBitmap>>();
-        auto rgb_frame = TRY(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRx8888, cmyk_frame->size()));
-        TRY(destination_profile->convert_cmyk_image(*rgb_frame, *cmyk_frame, *source_profile));
-        image.bitmap = RefPtr(move(rgb_frame));
-        image.internal_format = Gfx::NaturalFrameFormat::RGB;
-    } else {
-        // FIXME: This likely wrong for grayscale images because they've been converted to
-        //        RGB at this point, but their embedded color profile is still for grayscale.
-        auto& frame = image.bitmap.get<RefPtr<Gfx::Bitmap>>();
-        TRY(destination_profile->convert_image(*frame, *source_profile));
-    }
-
-    return icc_file;
-}
-
 static ErrorOr<void> save_image(LoadedImage& image, StringView out_path, u8 jpeg_quality, Optional<unsigned> webp_allowed_transforms)
 {
     auto stream = [out_path]() -> ErrorOr<NonnullOwnPtr<Core::OutputBufferedFile>> {
@@ -262,8 +226,6 @@ static ErrorOr<Options> parse_options(Main::Arguments arguments)
     args_parser.add_option(options.move_alpha_to_rgb, "Copy alpha channel to rgb, clear alpha", "move-alpha-to-rgb", {});
     args_parser.add_option(options.strip_alpha, "Remove alpha channel", "strip-alpha", {});
     args_parser.add_option(options.assign_color_profile_path, "Load color profile from file and assign it to output image", "assign-color-profile", {}, "FILE");
-    args_parser.add_option(options.convert_color_profile_path, "Load color profile from file and convert output image from current profile to loaded profile", "convert-to-color-profile", {}, "FILE");
-    args_parser.add_option(options.strip_color_profile, "Do not write color profile to output", "strip-color-profile", {});
     args_parser.add_option(options.quality, "Quality used for the JPEG encoder, the default value is 75 on a scale from 0 to 100", "quality", {}, {});
     StringView webp_allowed_transforms = "default"sv;
     args_parser.add_option(webp_allowed_transforms, "Comma-separated list of allowed transforms (predictor,p,color,c,subtract-green,sg,color-indexing,ci) for WebP output (default: all allowed)", "webp-allowed-transforms", {}, {});
@@ -308,9 +270,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         icc_file = TRY(Core::MappedFile::map(options.assign_color_profile_path));
         image.icc_data = icc_file->bytes();
     }
-
-    if (!options.convert_color_profile_path.is_empty())
-        icc_file = TRY(convert_image_profile(image, options.convert_color_profile_path, move(icc_file)));
 
     if (options.strip_color_profile)
         image.icc_data.clear();

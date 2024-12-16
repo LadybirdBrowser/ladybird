@@ -8,7 +8,6 @@ set(SOURCES
     CMYKBitmap.cpp
     Color.cpp
     ColorSpace.cpp
-    DeltaE.cpp
     FontCascadeList.cpp
     Font/Font.cpp
     Font/FontData.cpp
@@ -21,12 +20,6 @@ set(SOURCES
     Font/WOFF/Loader.cpp
     Font/WOFF2/Loader.cpp
     GradientPainting.cpp
-    ICC/BinaryWriter.cpp
-    ICC/Enums.cpp
-    ICC/Profile.cpp
-    ICC/Tags.cpp
-    ICC/TagTypes.cpp
-    ICC/WellKnownProfiles.cpp
     ImageFormats/AnimationWriter.cpp
     ImageFormats/BMPLoader.cpp
     ImageFormats/BMPWriter.cpp
