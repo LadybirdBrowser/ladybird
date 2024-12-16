@@ -31,6 +31,8 @@
 
 namespace Web::Painting {
 
+bool g_paint_viewport_scrollbars = true;
+
 GC::Ref<PaintableWithLines> PaintableWithLines::create(Layout::BlockContainer const& block_container)
 {
     return block_container.heap().allocate<PaintableWithLines>(block_container);
@@ -381,13 +383,15 @@ void PaintableBox::paint(PaintContext& context, PaintPhase phase) const
         }
     }
 
-    auto scrollbar_width = computed_values().scrollbar_width();
-    if (phase == PaintPhase::Overlay && scrollbar_width != CSS::ScrollbarWidth::None) {
-        if (auto scrollbar_data = compute_scrollbar_data(ScrollDirection::Vertical); scrollbar_data.has_value()) {
-            context.display_list_recorder().paint_scrollbar(own_scroll_frame_id().value(), context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>(), scrollbar_data->scroll_length, true);
-        }
-        if (auto scrollbar_data = compute_scrollbar_data(ScrollDirection::Horizontal); scrollbar_data.has_value()) {
-            context.display_list_recorder().paint_scrollbar(own_scroll_frame_id().value(), context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>(), scrollbar_data->scroll_length, false);
+    if (g_paint_viewport_scrollbars || !is_viewport()) {
+        auto scrollbar_width = computed_values().scrollbar_width();
+        if (phase == PaintPhase::Overlay && scrollbar_width != CSS::ScrollbarWidth::None) {
+            if (auto scrollbar_data = compute_scrollbar_data(ScrollDirection::Vertical); scrollbar_data.has_value()) {
+                context.display_list_recorder().paint_scrollbar(own_scroll_frame_id().value(), context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>(), scrollbar_data->scroll_length, true);
+            }
+            if (auto scrollbar_data = compute_scrollbar_data(ScrollDirection::Horizontal); scrollbar_data.has_value()) {
+                context.display_list_recorder().paint_scrollbar(own_scroll_frame_id().value(), context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>(), scrollbar_data->scroll_length, false);
+            }
         }
     }
 

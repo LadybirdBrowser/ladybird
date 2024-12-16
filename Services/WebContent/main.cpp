@@ -24,6 +24,7 @@
 #include <LibWeb/Loader/ContentFilter.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Loader/ResourceLoader.h>
+#include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/PermissionsPolicy/AutoplayAllowlist.h>
 #include <LibWeb/Platform/AudioCodecPluginAgnostic.h>
 #include <LibWeb/Platform/EventLoopPluginSerenity.h>
@@ -105,6 +106,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     bool force_fontconfig = false;
     bool collect_garbage_on_every_allocation = false;
     bool is_headless = false;
+    bool disable_scrollbar_painting = false;
     StringView echo_server_port_string_view {};
 
     Core::ArgsParser args_parser;
@@ -124,6 +126,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     args_parser.add_option(force_cpu_painting, "Force CPU painting", "force-cpu-painting");
     args_parser.add_option(force_fontconfig, "Force using fontconfig for font loading", "force-fontconfig");
     args_parser.add_option(collect_garbage_on_every_allocation, "Collect garbage after every JS heap allocation", "collect-garbage-on-every-allocation");
+    args_parser.add_option(disable_scrollbar_painting, "Don't paint horizontal or vertical viewport scrollbars", "disable-scrollbar-painting");
     args_parser.add_option(echo_server_port_string_view, "Echo server port used in test internals", "echo-server-port", 0, "echo_server_port");
     args_parser.add_option(is_headless, "Report that the browser is running in headless mode", "headless");
 
@@ -156,6 +159,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     if (enable_http_cache) {
         Web::Fetch::Fetching::g_http_cache_enabled = true;
     }
+
+    Web::Painting::g_paint_viewport_scrollbars = !disable_scrollbar_painting;
 
     if (!echo_server_port_string_view.is_empty()) {
         if (auto maybe_echo_server_port = echo_server_port_string_view.to_number<u16>(); maybe_echo_server_port.has_value())
