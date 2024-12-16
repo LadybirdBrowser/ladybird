@@ -1130,12 +1130,12 @@ SupportedAlgorithmsMap const& supported_algorithms()
     define_an_algorithm<AesGcm, AesDerivedKeyParams>("get key length"_string, "AES-GCM"_string);
 
     // https://w3c.github.io/webcrypto/#aes-kw-registration
-    // FIXME: define_an_algorithm<AesKw>("wrapKey"_string, "AES-KW"_string);
-    // FIXME: define_an_algorithm<AesKw>("unwrapKey"_string, "AES-KW"_string);
-    // FIXME: define_an_algorithm<AesKw, AesKeyGenParams>("generateKey"_string, "AES-KW"_string);
-    // FIXME: define_an_algorithm<AesKw>("importKey"_string, "AES-KW"_string);
-    // FIXME: define_an_algorithm<AesKw>("exportKey"_string, "AES-KW"_string);
-    // FIXME: define_an_algorithm<AesKw, AesDerivedKeyParams>("get key length"_string, "AES-KW"_string);
+    define_an_algorithm<AesKw>("wrapKey"_string, "AES-KW"_string);
+    define_an_algorithm<AesKw>("unwrapKey"_string, "AES-KW"_string);
+    define_an_algorithm<AesKw, AesKeyGenParams>("generateKey"_string, "AES-KW"_string);
+    define_an_algorithm<AesKw>("importKey"_string, "AES-KW"_string);
+    define_an_algorithm<AesKw>("exportKey"_string, "AES-KW"_string);
+    define_an_algorithm<AesKw, AesDerivedKeyParams>("get key length"_string, "AES-KW"_string);
 
     // https://w3c.github.io/webcrypto/#hmac-registration
     define_an_algorithm<HMAC>("sign"_string, "HMAC"_string);
