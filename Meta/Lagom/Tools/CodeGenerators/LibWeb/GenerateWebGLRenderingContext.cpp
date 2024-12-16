@@ -1112,6 +1112,21 @@ public:
             continue;
         }
 
+        if (function.name == "getActiveUniformBlockName"sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "program"sv, "OptionalNone {}"sv);
+            function_impl_generator.append(R"~~~(
+    GLint uniform_block_name_length = 0;
+    glGetActiveUniformBlockiv(program_handle, uniform_block_index, GL_UNIFORM_BLOCK_NAME_LENGTH, &uniform_block_name_length);
+    Vector<GLchar> uniform_block_name;
+    uniform_block_name.resize(uniform_block_name_length);
+    if (!uniform_block_name_length)
+        return String {};
+    glGetActiveUniformBlockName(program_handle, uniform_block_index, uniform_block_name_length, nullptr, uniform_block_name.data());
+    return String::from_utf8_without_validation(ReadonlyBytes { uniform_block_name.data(), static_cast<size_t>(uniform_block_name_length - 1) });
+)~~~");
+            continue;
+        }
+
         if (function.name == "deleteBuffer"sv) {
             generate_webgl_object_handle_unwrap(function_impl_generator, "buffer"sv, ""sv);
             function_impl_generator.append(R"~~~(
