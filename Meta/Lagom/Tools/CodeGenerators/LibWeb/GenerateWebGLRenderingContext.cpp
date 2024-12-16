@@ -29,7 +29,7 @@ static bool is_webgl_object_type(StringView type_name)
 
 static bool gl_function_modifies_framebuffer(StringView function_name)
 {
-    return function_name == "clearColor"sv
+    return function_name == "clear"sv
         || function_name == "drawArrays"sv
         || function_name == "drawElements"sv
         || function_name == "blitFramebuffer"sv
