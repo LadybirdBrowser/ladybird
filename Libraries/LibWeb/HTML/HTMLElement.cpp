@@ -766,10 +766,16 @@ Optional<ARIA::Role> HTMLElement::default_role() const
         // complementary, main, navigation or region then (footer) role=contentinfo (header) role=banner. Otherwise,
         // role=generic.
         for (auto const* ancestor = parent_element(); ancestor; ancestor = ancestor->parent_element()) {
-            if (first_is_one_of(ancestor->local_name(), TagNames::article, TagNames::aside, TagNames::main, TagNames::nav, TagNames::section))
-                return ARIA::Role::generic;
-            if (first_is_one_of(ancestor->role_or_default(), ARIA::Role::article, ARIA::Role::complementary, ARIA::Role::main, ARIA::Role::navigation, ARIA::Role::region))
-                return ARIA::Role::generic;
+            if (first_is_one_of(ancestor->local_name(), TagNames::article, TagNames::aside, TagNames::main, TagNames::nav, TagNames::section)) {
+                if (local_name() == TagNames::footer)
+                    return ARIA::Role::sectionfooter;
+                return ARIA::Role::sectionheader;
+            }
+            if (first_is_one_of(ancestor->role_or_default(), ARIA::Role::article, ARIA::Role::complementary, ARIA::Role::main, ARIA::Role::navigation, ARIA::Role::region)) {
+                if (local_name() == TagNames::footer)
+                    return ARIA::Role::sectionfooter;
+                return ARIA::Role::sectionheader;
+            }
         }
         // then (footer) role=contentinfo.
         if (local_name() == TagNames::footer)

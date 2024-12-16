@@ -496,6 +496,98 @@
     "childrenArePresentational": false,
     "implicitValueForRole": {}
   },
+  "SectionFooter": {
+    "specLink": "https://w3c.github.io/aria/#sectionfooter",
+    "description": "A set of user interface objects and information representing information about its closest ancestral content group.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden",
+      "aria-invalid"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-dropeffect",
+      "aria-errormessage",
+      "aria-flowto",
+      "aria-haspopup",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "SectionHeader": {
+    "specLink": "https://w3c.github.io/aria/#sectionheader",
+    "description": "A set of user interface objects and information that represents a collection of introductory items for the element's closest ancestral content group.",
+    "superClassRoles": [
+      "Section"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden",
+      "aria-invalid"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-dropeffect",
+      "aria-errormessage",
+      "aria-flowto",
+      "aria-haspopup",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
   "Input": {
     "specLink": "https://www.w3.org/TR/wai-aria-1.2/#input",
     "description": "A generic type of widget that allows user input.",

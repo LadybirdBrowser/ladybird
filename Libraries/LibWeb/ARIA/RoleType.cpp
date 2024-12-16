@@ -282,6 +282,10 @@ ErrorOr<NonnullOwnPtr<RoleType>> RoleType::build_role_object(Role role, bool foc
         return adopt_nonnull_own_or_enomem(new (nothrow) Search(data));
     case Role::searchbox:
         return adopt_nonnull_own_or_enomem(new (nothrow) SearchBox(data));
+    case Role::sectionfooter:
+        return adopt_nonnull_own_or_enomem(new (nothrow) SectionFooter(data));
+    case Role::sectionheader:
+        return adopt_nonnull_own_or_enomem(new (nothrow) SectionHeader(data));
     case Role::separator:
         if (focusable)
             return adopt_nonnull_own_or_enomem(new (nothrow) FocusableSeparator(data));
