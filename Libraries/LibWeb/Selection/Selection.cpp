@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SelectionPrototype.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
@@ -134,8 +135,14 @@ String Selection::direction() const
 // https://w3c.github.io/selection-api/#dom-selection-getrangeat
 WebIDL::ExceptionOr<GC::Ptr<DOM::Range>> Selection::get_range_at(unsigned index)
 {
-    // The method must throw an IndexSizeError exception if index is not 0, or if this is empty.
-    if (index != 0 || is_empty())
+    GC::Ptr<DOM::Node> focus = focus_node();
+    GC::Ptr<DOM::Node> anchor = anchor_node();
+
+    // The method must throw an IndexSizeError exception if index is not 0, or if this is empty or either focus or anchor is not in the document tree.
+    auto is_focus_in_document_tree = focus && &focus->document() == document();
+    auto is_anchor_in_document_tree = anchor && &anchor->document() == document();
+
+    if (index != 0 || is_empty() || !is_focus_in_document_tree || !is_anchor_in_document_tree)
         return WebIDL::IndexSizeError::create(realm(), "Selection.getRangeAt() on empty Selection or with invalid argument"_string);
 
     // Otherwise, it must return a reference to (not a copy of) this's range.
