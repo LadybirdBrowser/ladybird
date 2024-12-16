@@ -77,6 +77,10 @@ public:
     WebIDL::ExceptionOr<void> set_position(float x, float y, float z);
     WebIDL::ExceptionOr<void> set_orientation(float x, float y, float z);
 
+    // ^AudioNode
+    virtual WebIDL::ExceptionOr<void> set_channel_count(WebIDL::UnsignedLong) override;
+    virtual WebIDL::ExceptionOr<void> set_channel_count_mode(Bindings::ChannelCountMode) override;
+
 protected:
     PannerNode(JS::Realm&, GC::Ref<BaseAudioContext>, PannerOptions const& = {});
 

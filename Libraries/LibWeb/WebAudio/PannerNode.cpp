@@ -163,4 +163,24 @@ WebIDL::ExceptionOr<void> PannerNode::set_orientation(float x, float y, float z)
     return {};
 }
 
+// https://webaudio.github.io/web-audio-api/#dom-audionode-channelcountmode
+WebIDL::ExceptionOr<void> PannerNode::set_channel_count_mode(Bindings::ChannelCountMode mode)
+{
+    if (mode == Bindings::ChannelCountMode::Max) {
+        return WebIDL::NotSupportedError::create(realm(), "PannerNode does not support 'max' as channelCountMode."_string);
+    }
+
+    return AudioNode::set_channel_count_mode(mode);
+}
+
+// https://webaudio.github.io/web-audio-api/#dom-audionode-channelcount
+WebIDL::ExceptionOr<void> PannerNode::set_channel_count(WebIDL::UnsignedLong channel_count)
+{
+    if (channel_count > 2) {
+        return WebIDL::NotSupportedError::create(realm(), "PannerNode does not support channel count greater than 2"_string);
+    }
+
+    return AudioNode::set_channel_count(channel_count);
+}
+
 }
