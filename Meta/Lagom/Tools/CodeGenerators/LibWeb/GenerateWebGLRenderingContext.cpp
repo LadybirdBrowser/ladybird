@@ -802,6 +802,34 @@ public:
             continue;
         }
 
+        if (webgl_version == 2 && function.name == "bufferData"sv && function.overload_index == 2) {
+            function_impl_generator.append(R"~~~(
+    VERIFY(src_data);
+    auto const& viewed_array_buffer = src_data->viewed_array_buffer();
+    auto const& byte_buffer = viewed_array_buffer->buffer();
+    auto src_data_length = src_data->byte_length();
+    auto src_data_element_size = src_data->element_size();
+    u8 const* buffer_ptr = byte_buffer.data();
+
+    u64 copy_length = length == 0 ? src_data_length - src_offset : length;
+    copy_length *= src_data_element_size;
+
+    if (src_offset > src_data_length) {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+
+    if (src_offset + copy_length > src_data_length) {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+
+    buffer_ptr += src_offset * src_data_element_size;
+    glBufferData(target, copy_length, buffer_ptr, usage);
+)~~~");
+            continue;
+        }
+
         if (function.name == "readPixels"sv) {
             function_impl_generator.append(R"~~~(
     if (!pixels) {
