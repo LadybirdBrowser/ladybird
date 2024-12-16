@@ -81,11 +81,9 @@ WebIDL::ExceptionOr<void> DynamicsCompressorNode::set_channel_count_mode(Binding
 WebIDL::ExceptionOr<void> DynamicsCompressorNode::set_channel_count(WebIDL::UnsignedLong channel_count)
 {
     if (channel_count > 2) {
-        // Return a NotSupportedError if 'max' is used
         return WebIDL::NotSupportedError::create(realm(), "DynamicsCompressorNode does not support channel count greater than 2"_string);
     }
 
-    // If the mode is valid, call the base class implementation
     return AudioNode::set_channel_count(channel_count);
 }
 
