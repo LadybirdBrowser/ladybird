@@ -2006,6 +2006,12 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
             font_list->extend(*other_font_list);
     }
 
+    auto fallback_font = Platform::FontPlugin::the().default_font().with_size(font_size_in_pt);
+    if (font_list->is_empty()) {
+        // FIXME: Opinion: Platform::FontPlugin::the().default_font() (now: 'sans') should match the 'html' (top) style in Default.css ('serif')
+        font_list->add(*fallback_font);
+    }
+
     if (auto emoji_font = Platform::FontPlugin::the().default_emoji_font(font_size_in_pt); emoji_font) {
         font_list->add(*emoji_font);
     }
