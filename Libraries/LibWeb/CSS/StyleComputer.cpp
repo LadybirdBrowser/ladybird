@@ -36,6 +36,7 @@
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSTransition.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Interpolation.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/SelectorEngine.h>
@@ -2016,8 +2017,8 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
         font_list->add(*emoji_font);
     }
 
-    auto found_font = ComputedProperties::font_fallback(monospace, bold);
-    font_list->set_last_resort_font(found_font->with_size(font_size_in_pt));
+    auto last_resort_font = ComputedProperties::font_fallback(monospace, bold);
+    font_list->set_last_resort_font(last_resort_font->with_size(font_size_in_pt));
 
     return font_list;
 }
