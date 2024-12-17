@@ -15,13 +15,13 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLShader);
 
-GC::Ref<WebGLShader> WebGLShader::create(JS::Realm& realm, GLuint handle)
+GC::Ref<WebGLShader> WebGLShader::create(JS::Realm& realm, WebGLRenderingContextBase& context, GLuint handle)
 {
-    return realm.create<WebGLShader>(realm, handle);
+    return realm.create<WebGLShader>(realm, context, handle);
 }
 
-WebGLShader::WebGLShader(JS::Realm& realm, GLuint handle)
-    : WebGLObject(realm, handle)
+WebGLShader::WebGLShader(JS::Realm& realm, WebGLRenderingContextBase& context, GLuint handle)
+    : WebGLObject(realm, context, handle)
 {
 }
 

@@ -16,12 +16,12 @@ class WebGLQuery : public WebGLObject {
     GC_DECLARE_ALLOCATOR(WebGLQuery);
 
 public:
-    static GC::Ref<WebGLQuery> create(JS::Realm& realm, GLuint handle);
+    static GC::Ref<WebGLQuery> create(JS::Realm& realm, WebGLRenderingContextBase&, GLuint handle);
 
     virtual ~WebGLQuery() override;
 
 protected:
-    explicit WebGLQuery(JS::Realm&, GLuint handle);
+    explicit WebGLQuery(JS::Realm&, WebGLRenderingContextBase&, GLuint handle);
 
     virtual void initialize(JS::Realm&) override;
 };

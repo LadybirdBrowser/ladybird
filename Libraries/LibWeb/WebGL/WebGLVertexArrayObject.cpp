@@ -13,13 +13,13 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLVertexArrayObject);
 
-GC::Ref<WebGLVertexArrayObject> WebGLVertexArrayObject::create(JS::Realm& realm, GLuint handle)
+GC::Ref<WebGLVertexArrayObject> WebGLVertexArrayObject::create(JS::Realm& realm, WebGLRenderingContextBase& context, GLuint handle)
 {
-    return realm.create<WebGLVertexArrayObject>(realm, handle);
+    return realm.create<WebGLVertexArrayObject>(realm, context, handle);
 }
 
-WebGLVertexArrayObject::WebGLVertexArrayObject(JS::Realm& realm, GLuint handle)
-    : WebGLObject(realm, handle)
+WebGLVertexArrayObject::WebGLVertexArrayObject(JS::Realm& realm, WebGLRenderingContextBase& context, GLuint handle)
+    : WebGLObject(realm, context, handle)
 {
 }
 

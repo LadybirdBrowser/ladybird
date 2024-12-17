@@ -26,6 +26,10 @@ public:
 
     virtual ~WebGLRenderingContext() override;
 
+    // FIXME: This is a hack required to visit context from WebGLObject.
+    //        It should be gone once WebGLRenderingContextBase inherits from PlatformObject.
+    GC::Cell const* gc_cell() const override { return this; }
+
     void present() override;
     void needs_to_present() override;
 

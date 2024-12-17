@@ -18,12 +18,12 @@ class WebGLTexture final : public WebGLObject {
     GC_DECLARE_ALLOCATOR(WebGLTexture);
 
 public:
-    static GC::Ref<WebGLTexture> create(JS::Realm& realm, GLuint handle);
+    static GC::Ref<WebGLTexture> create(JS::Realm& realm, WebGLRenderingContextBase&, GLuint handle);
 
     virtual ~WebGLTexture();
 
 protected:
-    explicit WebGLTexture(JS::Realm&, GLuint handle);
+    explicit WebGLTexture(JS::Realm&, WebGLRenderingContextBase&, GLuint handle);
 
     virtual void initialize(JS::Realm&) override;
 };

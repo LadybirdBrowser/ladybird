@@ -14,13 +14,13 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLFramebuffer);
 
-GC::Ref<WebGLFramebuffer> WebGLFramebuffer::create(JS::Realm& realm, GLuint handle)
+GC::Ref<WebGLFramebuffer> WebGLFramebuffer::create(JS::Realm& realm, WebGLRenderingContextBase& context, GLuint handle)
 {
-    return realm.create<WebGLFramebuffer>(realm, handle);
+    return realm.create<WebGLFramebuffer>(realm, context, handle);
 }
 
-WebGLFramebuffer::WebGLFramebuffer(JS::Realm& realm, GLuint handle)
-    : WebGLObject(realm, handle)
+WebGLFramebuffer::WebGLFramebuffer(JS::Realm& realm, WebGLRenderingContextBase& context, GLuint handle)
+    : WebGLObject(realm, context, handle)
 {
 }
 

@@ -18,12 +18,12 @@ class WebGLProgram final : public WebGLObject {
     GC_DECLARE_ALLOCATOR(WebGLProgram);
 
 public:
-    static GC::Ref<WebGLProgram> create(JS::Realm& realm, GLuint handle);
+    static GC::Ref<WebGLProgram> create(JS::Realm& realm, WebGLRenderingContextBase&, GLuint handle);
 
     virtual ~WebGLProgram();
 
 protected:
-    explicit WebGLProgram(JS::Realm&, GLuint handle);
+    explicit WebGLProgram(JS::Realm&, WebGLRenderingContextBase&, GLuint handle);
 
     virtual void initialize(JS::Realm&) override;
 };
