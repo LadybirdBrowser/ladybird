@@ -29,6 +29,11 @@ typedef USHORT ADDRESS_FAMILY;
 #define AF_INET 2
 #define AF_INET6 23
 
+#define SOCK_STREAM 1
+#define SOCK_DGRAM 2
+
+#define INADDR_LOOPBACK 0x7f000001
+
 enum IPPROTO {
     IPPROTO_TCP = 6
 };
