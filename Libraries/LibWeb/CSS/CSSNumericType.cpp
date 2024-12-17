@@ -131,7 +131,7 @@ Optional<CSSNumericType> CSSNumericType::added_to(CSSNumericType const& other) c
         return {};
     }
     //    If type1 has a non-null percent hint hint and type2 doesn’t
-    else if (type1.percent_hint().has_value() && !type2.percent_hint().has_value()) {
+    if (type1.percent_hint().has_value() && !type2.percent_hint().has_value()) {
         // Apply the percent hint hint to type2.
         type2.apply_percent_hint(type1.percent_hint().value());
     }
@@ -154,7 +154,7 @@ Optional<CSSNumericType> CSSNumericType::added_to(CSSNumericType const& other) c
     }
     //    If type1 and/or type2 contain "percent" with a non-zero value,
     //    and type1 and/or type2 contain a key other than "percent" with a non-zero value
-    else if ((type1.exponent(BaseType::Percent) != 0 || type2.exponent(BaseType::Percent) != 0)
+    if ((type1.exponent(BaseType::Percent) != 0 || type2.exponent(BaseType::Percent) != 0)
         && (type1.contains_a_key_other_than_percent_with_a_non_zero_value() || type2.contains_a_key_other_than_percent_with_a_non_zero_value())) {
         // For each base type other than "percent" hint:
         for (auto hint_int = 0; hint_int < to_underlying(BaseType::__Count); ++hint_int) {
@@ -247,8 +247,9 @@ CSSNumericType CSSNumericType::inverted() const
 {
     // To invert a type type, perform the following steps:
 
-    // 1. Let result be a new type with an initially empty ordered map and an initially null percent hint
+    // 1. Let result be a new type with an initially empty ordered map and a percent hint matching that of type.
     CSSNumericType result;
+    result.set_percent_hint(percent_hint());
 
     // 2. For each unit → exponent of type, set result[unit] to (-1 * exponent).
     for (auto i = 0; i < to_underlying(BaseType::__Count); ++i) {
@@ -299,20 +300,25 @@ Optional<CSSNumericType> CSSNumericType::made_consistent_with(CSSNumericType con
 // https://drafts.css-houdini.org/css-typed-om-1/#apply-the-percent-hint
 void CSSNumericType::apply_percent_hint(BaseType hint)
 {
-    // To apply the percent hint hint to a type, perform the following steps:
+    // To apply the percent hint hint to a type without a percent hint, perform the following steps:
+    VERIFY(!percent_hint().has_value());
 
-    // 1. If type doesn’t contain hint, set type[hint] to 0.
+    // 1. Set type’s percent hint to hint.
+    set_percent_hint(hint);
+
+    // 2. If type doesn’t contain hint, set type[hint] to 0.
     if (!exponent(hint).has_value())
         set_exponent(hint, 0);
 
-    // 2. If type contains "percent", add type["percent"] to type[hint], then set type["percent"] to 0.
-    if (exponent(BaseType::Percent).has_value()) {
+    // 3. If hint is anything other than "percent", and type contains "percent",
+    //    add type["percent"] to type[hint], then set type["percent"] to 0.
+    if (hint != BaseType::Percent && exponent(BaseType::Percent).has_value()) {
         set_exponent(hint, exponent(BaseType::Percent).value() + exponent(hint).value());
         set_exponent(BaseType::Percent, 0);
     }
 
-    // 3. Set type’s percent hint to hint.
-    set_percent_hint(hint);
+    // 4. Return type.
+    // FIXME: Is this needed? Nothing uses the value. https://github.com/w3c/css-houdini-drafts/issues/1135
 }
 
 bool CSSNumericType::contains_all_the_non_zero_entries_of_other_with_the_same_value(CSSNumericType const& other) const
@@ -351,76 +357,82 @@ void CSSNumericType::copy_all_entries_from(CSSNumericType const& other, SkipIfAl
     }
 }
 
-// https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-match
-bool CSSNumericType::matches_dimension(BaseType type) const
+Optional<CSSNumericType::BaseType> CSSNumericType::entry_with_value_1_while_all_others_are_0() const
 {
-    // A type matches <length> if its only non-zero entry is «[ "length" → 1 ]» and its percent hint is null.
-    // Similarly for <angle>, <time>, <frequency>, <resolution>, and <flex>.
-
-    if (percent_hint().has_value())
-        return false;
-
+    Optional<BaseType> result;
     for (auto i = 0; i < to_underlying(BaseType::__Count); ++i) {
         auto base_type = static_cast<BaseType>(i);
         auto type_exponent = exponent(base_type);
-        if (base_type == type) {
-            if (type_exponent != 1)
-                return false;
-        } else {
-            if (type_exponent.has_value() && type_exponent != 0)
-                return false;
+        if (type_exponent == 1) {
+            if (result.has_value())
+                return {};
+            result = base_type;
+        } else if (type_exponent.has_value() && type_exponent != 0) {
+            return {};
         }
     }
+    return result;
+}
 
-    return true;
+// https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-match
+bool CSSNumericType::matches_dimension(BaseType type) const
+{
+    // A type matches <length> if its only non-zero entry is «[ "length" → 1 ]».
+    // Similarly for <angle>, <time>, <frequency>, <resolution>, and <flex>.
+    //
+    // If the context in which the value is used allows <percentage> values, and those percentages are resolved
+    // against another type, then for the type to be considered matching it must either have a null percent hint,
+    // or the percent hint must match the other type.
+    //
+    // If the context does not allow <percentage> values to be mixed with <length>/etc values (or doesn’t allow
+    // <percentage> values at all, such as border-width), then for the type to be considered matching the percent
+    // hint must be null.
+
+    // FIXME: Somehow we need to know what type percentages would be resolved against.
+    //        I'm not at all sure if this check is correct.
+    if (percent_hint().has_value() && percent_hint() != type)
+        return false;
+
+    return entry_with_value_1_while_all_others_are_0() == type;
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-match
 bool CSSNumericType::matches_percentage() const
 {
-    // A type matches <percentage> if its only non-zero entry is «[ "percent" → 1 ]».
-    for (auto i = 0; i < to_underlying(BaseType::__Count); ++i) {
-        auto base_type = static_cast<BaseType>(i);
-        auto type_exponent = exponent(base_type);
-        if (base_type == BaseType::Percent) {
-            if (type_exponent != 1)
-                return false;
-        } else {
-            if (type_exponent.has_value() && type_exponent != 0)
-                return false;
-        }
-    }
-    return true;
+    // A type matches <percentage> if its only non-zero entry is «[ "percent" → 1 ]», and its percent hint is either
+    // null or "percent".
+    if (percent_hint().has_value() && percent_hint() != BaseType::Percent)
+        return false;
+
+    return entry_with_value_1_while_all_others_are_0() == BaseType::Percent;
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-match
 bool CSSNumericType::matches_dimension_percentage(BaseType type) const
 {
-    // A type matches <length-percentage> if its only non-zero entry is either «[ "length" → 1 ]»
-    // or «[ "percent" → 1 ]» Same for <angle-percentage>, <time-percentage>, etc.
-
-    // Check for percent -> 1 or type -> 1, but not both
-    if ((exponent(type) == 1) == (exponent(BaseType::Percent) == 1))
-        return false;
-
-    // Ensure all other types are absent or 0
-    for (auto i = 0; i < to_underlying(BaseType::__Count); ++i) {
-        auto base_type = static_cast<BaseType>(i);
-        auto type_exponent = exponent(base_type);
-        if (base_type == type || base_type == BaseType::Percent)
-            continue;
-
-        if (type_exponent.has_value() && type_exponent != 0)
-            return false;
-    }
-
-    return true;
+    // A type matches <length-percentage> if it matches <length> or matches <percentage>.
+    // Same for <angle-percentage>, <time-percentage>, etc.
+    return matches_percentage() || matches_dimension(type);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-match
 bool CSSNumericType::matches_number() const
 {
-    // A type matches <number> if it has no non-zero entries and its percent hint is null.
+    // A type matches <number> if it has no non-zero entries.
+    //
+    // If the context in which the value is used allows <percentage> values, and those percentages are resolved
+    // against a type other than <number>, then for the type to be considered matching the percent hint must
+    // either be null or match the other type.
+    //
+    // If the context allows <percentage> values, but either doesn’t resolve them against another type or resolves
+    // them against a <number>, then for the type to be considered matching the percent hint must either be null
+    // or "percent".
+    //
+    // If the context does not allow <percentage> values, then for the type to be considered matching the percent
+    // hint must be null.
+
+    // FIXME: Somehow we need to know what type percentages would be resolved against.
+    //        For now, just require no percent hint.
     if (percent_hint().has_value())
         return false;
 
@@ -437,20 +449,9 @@ bool CSSNumericType::matches_number() const
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-match
 bool CSSNumericType::matches_number_percentage() const
 {
-    // A type matches <number-percentage> if it has no non-zero entries, or its only non-zero entry is «[ "percent" → 1 ]».
-    for (auto i = 0; i < to_underlying(BaseType::__Count); ++i) {
-        auto base_type = static_cast<BaseType>(i);
-        auto type_exponent = exponent(base_type);
-
-        if (base_type == BaseType::Percent) {
-            if (type_exponent.has_value() && type_exponent != 0 && type_exponent != 1)
-                return false;
-        } else if (type_exponent.has_value() && type_exponent != 0) {
-            return false;
-        }
-    }
-
-    return true;
+    // FIXME: This is incorrect. <number-percentage> is not a legal type. Instead we should check separately if this
+    //        matches a number, or if it matches a percentage.
+    return matches_number() || matches_percentage();
 }
 
 bool CSSNumericType::matches_dimension() const

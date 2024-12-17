@@ -105,6 +105,7 @@ private:
     };
     void copy_all_entries_from(CSSNumericType const& other, SkipIfAlreadyPresent);
 
+    Optional<BaseType> entry_with_value_1_while_all_others_are_0() const;
     bool matches_dimension(BaseType) const;
     bool matches_dimension_percentage(BaseType) const;
 
