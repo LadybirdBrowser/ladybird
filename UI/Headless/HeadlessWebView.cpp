@@ -184,6 +184,10 @@ void HeadlessWebView::did_receive_screenshot(Badge<WebView::WebContentClient>, G
 
 void HeadlessWebView::on_test_complete(TestCompletion completion)
 {
+    m_pending_screenshot.clear();
+    m_pending_dialog = Web::Page::PendingDialog::None;
+    m_pending_prompt_text.clear();
+
     m_test_promise->resolve(move(completion));
 }
 
