@@ -24,7 +24,6 @@ static bool is_webgl_object_type(StringView type_name)
         || type_name == "WebGLSampler"sv
         || type_name == "WebGLShader"sv
         || type_name == "WebGLTexture"sv
-        || type_name == "WebGLUniformLocation"sv
         || type_name == "WebGLVertexArrayObject"sv;
 }
 
@@ -1061,6 +1060,10 @@ public:
                 continue;
             }
             if (is_webgl_object_type(parameter.type->name())) {
+                gl_call_arguments.append(ByteString::formatted("{} ? {}->handle() : 0", parameter_name, parameter_name));
+                continue;
+            }
+            if (parameter.type->name() == "WebGLUniformLocation"sv) {
                 gl_call_arguments.append(ByteString::formatted("{} ? {}->handle() : 0", parameter_name, parameter_name));
                 continue;
             }
