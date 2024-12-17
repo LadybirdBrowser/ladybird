@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 40 tests
 
-31 Pass
-9 Fail
+35 Pass
+5 Fail
 Pass	setup - define tests
 Fail	P-521 good parameters
 Fail	P-521 mixed case parameters
@@ -21,7 +21,7 @@ Pass	P-521 asking for too many bits
 Pass	P-256 good parameters
 Pass	P-256 mixed case parameters
 Pass	P-256 short result
-Fail	P-256 non-multiple of 8 bits
+Pass	P-256 non-multiple of 8 bits
 Pass	P-256 missing public curve
 Pass	P-256 public property of algorithm is not a CryptoKey
 Pass	P-256 mismatched curves
@@ -30,11 +30,11 @@ Pass	P-256 no deriveBits usage for base key
 Pass	P-256 base key is not a private key
 Pass	P-256 public property value is a private key
 Pass	P-256 public property value is a secret key
-Fail	P-256 asking for too many bits
+Pass	P-256 asking for too many bits
 Pass	P-384 good parameters
 Pass	P-384 mixed case parameters
 Pass	P-384 short result
-Fail	P-384 non-multiple of 8 bits
+Pass	P-384 non-multiple of 8 bits
 Pass	P-384 missing public curve
 Pass	P-384 public property of algorithm is not a CryptoKey
 Pass	P-384 mismatched curves
@@ -43,4 +43,4 @@ Pass	P-384 no deriveBits usage for base key
 Pass	P-384 base key is not a private key
 Pass	P-384 public property value is a private key
 Pass	P-384 public property value is a secret key
-Fail	P-384 asking for too many bits
+Pass	P-384 asking for too many bits

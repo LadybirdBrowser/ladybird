@@ -1,0 +1,34 @@
+Harness status: OK
+
+Found 29 tests
+
+29 Pass
+Pass	setup - define tests
+Pass	HKDF derivation with 256 as 'length' parameter
+Pass	HKDF derivation with 384 as 'length' parameter
+Pass	HKDF derivation with 230 as 'length' parameter
+Pass	HKDF derivation with 0 as 'length' parameter
+Pass	HKDF derivation with null as 'length' parameter
+Pass	HKDF derivation with undefined as 'length' parameter
+Pass	HKDF derivation with omitted as 'length' parameter
+Pass	PBKDF2 derivation with 256 as 'length' parameter
+Pass	PBKDF2 derivation with 384 as 'length' parameter
+Pass	PBKDF2 derivation with 230 as 'length' parameter
+Pass	PBKDF2 derivation with 0 as 'length' parameter
+Pass	PBKDF2 derivation with null as 'length' parameter
+Pass	PBKDF2 derivation with undefined as 'length' parameter
+Pass	PBKDF2 derivation with omitted as 'length' parameter
+Pass	ECDH derivation with 256 as 'length' parameter
+Pass	ECDH derivation with 384 as 'length' parameter
+Pass	ECDH derivation with 230 as 'length' parameter
+Pass	ECDH derivation with 0 as 'length' parameter
+Pass	ECDH derivation with null as 'length' parameter
+Pass	ECDH derivation with undefined as 'length' parameter
+Pass	ECDH derivation with omitted as 'length' parameter
+Pass	X25519 derivation with 256 as 'length' parameter
+Pass	X25519 derivation with 384 as 'length' parameter
+Pass	X25519 derivation with 230 as 'length' parameter
+Pass	X25519 derivation with 0 as 'length' parameter
+Pass	X25519 derivation with null as 'length' parameter
+Pass	X25519 derivation with undefined as 'length' parameter
+Pass	X25519 derivation with omitted as 'length' parameter
