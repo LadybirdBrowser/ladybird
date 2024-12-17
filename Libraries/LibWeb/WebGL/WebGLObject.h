@@ -23,7 +23,7 @@ public:
     String label() const { return m_label; }
     void set_label(String const& label) { m_label = label; }
 
-    GLuint handle() const { return m_handle; }
+    ErrorOr<GLuint> handle(WebGLRenderingContextBase const* context) const;
 
 protected:
     explicit WebGLObject(JS::Realm&, WebGLRenderingContextBase&, GLuint handle);
