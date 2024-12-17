@@ -23,6 +23,7 @@ GOOD_LICENSE_HEADER_PATTERN = re.compile(
 LICENSE_HEADER_CHECK_EXCLUDES = {
     'AK/Checked.h',
     'AK/Function.h',
+    'Libraries/LibCore/SocketpairWindows.cpp',
 }
 
 # We check that "#pragma once" is present

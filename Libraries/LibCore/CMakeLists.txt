@@ -12,7 +12,9 @@ set(SOURCES
 )
 
 if (WIN32)
-    list(APPEND SOURCES SystemWindows.cpp)
+    list(APPEND SOURCES
+        SocketpairWindows.cpp
+        SystemWindows.cpp)
 else()
     list(APPEND SOURCES System.cpp)
 endif()

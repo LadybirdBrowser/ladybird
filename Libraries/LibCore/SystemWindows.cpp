@@ -4,7 +4,7 @@
  * Copyright (c) 2021-2022, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2022, Matthias Zimmerman <matthias291999@gmail.com>
  * Copyright (c) 2023, Cameron Youell <cameronyouell@gmail.com>
- * Copyright (c) 2024, stasoid <stasoid@yahoo.com>
+ * Copyright (c) 2024-2025, stasoid <stasoid@yahoo.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -18,6 +18,8 @@
 #include <AK/Windows.h>
 
 namespace Core::System {
+
+int windows_socketpair(SOCKET socks[2], int make_overlapped);
 
 static void invalid_parameter_handler(wchar_t const*, wchar_t const*, wchar_t const*, unsigned int, uintptr_t)
 {
@@ -223,6 +225,20 @@ bool is_socket(int handle)
 {
     // FILE_TYPE_PIPE is returned for sockets and pipes. We don't use Windows pipes.
     return GetFileType(to_handle(handle)) == FILE_TYPE_PIPE;
+}
+
+ErrorOr<void> socketpair(int domain, int type, int protocol, int sv[2])
+{
+    if (domain != AF_LOCAL || type != SOCK_STREAM || protocol != 0)
+        return Error::from_string_literal("Unsupported argument value");
+
+    SOCKET socks[2] = {};
+    if (windows_socketpair(socks, true))
+        return Error::from_windows_error();
+
+    sv[0] = socks[0];
+    sv[1] = socks[1];
+    return {};
 }
 
 ErrorOr<void> sleep_ms(u32 milliseconds)
