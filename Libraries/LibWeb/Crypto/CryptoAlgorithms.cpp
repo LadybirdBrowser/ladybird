@@ -3734,7 +3734,10 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDH::derive_bits(AlgorithmParams 
         auto secret_data = maybe_secret_data.release_value();
         VERIFY(secret_data[0] == 0x04);
 
-        secret = TRY_OR_THROW_OOM(realm.vm(), secret_data.slice(1, secret_data.size() - 1));
+        // NOTE: Use the x-coordinate as shared secret. RFC6090 section 4.2:
+        //   In the ECDH key exchange protocol, after the element g^(j*k) has been
+        //   computed, the x-coordinate of that value can be used as the shared secret.
+        secret = TRY_OR_THROW_OOM(realm.vm(), secret_data.slice(1, secret_data.size() / 2));
     } else {
         // If the namedCurve property of the [[algorithm]] internal slot of key is a value specified
         // in an applicable specification that specifies the use of that value with ECDH:
@@ -3747,7 +3750,6 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDH::derive_bits(AlgorithmParams 
 
     // 8. If length is null: Return secret
     if (!length_optional.has_value()) {
-        auto result = TRY_OR_THROW_OOM(realm.vm(), ByteBuffer::copy(secret));
         return JS::ArrayBuffer::create(realm, move(secret));
     }
 
@@ -3757,7 +3759,12 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDH::derive_bits(AlgorithmParams 
         return WebIDL::OperationError::create(realm, "Secret is too short"_string);
 
     // Otherwise: Return an octet string containing the first length bits of secret.
-    auto slice = TRY_OR_THROW_OOM(realm.vm(), secret.slice(0, length / 8));
+    auto slice = TRY_OR_THROW_OOM(realm.vm(), secret.slice(0, ceil_div(length, 8)));
+    if (length % 8 != 0) {
+        // Zero out the last bits
+        slice[slice.size() - 1] &= 0xFF << (8 - (length % 8));
+    }
+
     return JS::ArrayBuffer::create(realm, move(slice));
 }
 
@@ -4938,11 +4945,9 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> HKDF::derive_bits(AlgorithmParams 
     auto& realm = *m_realm;
     auto const& normalized_algorithm = static_cast<HKDFParams const&>(params);
 
-    // 1. If length is null or zero, or is not a multiple of 8, then throw an OperationError.
-    auto length = length_optional.value_or(0);
-
-    if (length == 0 || length % 8 != 0)
-        return WebIDL::OperationError::create(realm, "Length must be greater than 0 and divisible by 8"_string);
+    // 1. If length is null or is not a multiple of 8, then throw an OperationError.
+    if (!length_optional.has_value() || *length_optional % 8 != 0)
+        return WebIDL::OperationError::create(realm, "Length must be specified and divisible by 8"_string);
 
     // 2. Let keyDerivationKey be the secret represented by [[handle]] internal slot of key as the message.
     auto key_derivation_key = key->handle().get<ByteBuffer>();
@@ -4960,13 +4965,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> HKDF::derive_bits(AlgorithmParams 
     auto const& hash_algorithm = TRY(normalized_algorithm.hash.name(realm.vm()));
     ErrorOr<ByteBuffer> result = Error::from_string_literal("noop error");
     if (hash_algorithm == "SHA-1") {
-        result = ::Crypto::Hash::HKDF<::Crypto::Hash::SHA1>::derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, length / 8);
+        result = ::Crypto::Hash::HKDF<::Crypto::Hash::SHA1>::derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, *length_optional / 8);
     } else if (hash_algorithm == "SHA-256") {
-        result = ::Crypto::Hash::HKDF<::Crypto::Hash::SHA256>::derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, length / 8);
+        result = ::Crypto::Hash::HKDF<::Crypto::Hash::SHA256>::derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, *length_optional / 8);
     } else if (hash_algorithm == "SHA-384") {
-        result = ::Crypto::Hash::HKDF<::Crypto::Hash::SHA384>::derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, length / 8);
+        result = ::Crypto::Hash::HKDF<::Crypto::Hash::SHA384>::derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, *length_optional / 8);
     } else if (hash_algorithm == "SHA-512") {
-        result = ::Crypto::Hash::HKDF<::Crypto::Hash::SHA512>::derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, length / 8);
+        result = ::Crypto::Hash::HKDF<::Crypto::Hash::SHA512>::derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, *length_optional / 8);
     } else {
         return WebIDL::NotSupportedError::create(m_realm, MUST(String::formatted("Invalid hash function '{}'", hash_algorithm)));
     }
@@ -4991,9 +4996,8 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> PBKDF2::derive_bits(AlgorithmParam
     auto& realm = *m_realm;
     auto const& normalized_algorithm = static_cast<PBKDF2Params const&>(params);
 
-    // 1. If length is null or zero, or is not a multiple of 8, then throw an OperationError.
-    auto length = length_optional.value_or(0);
-    if (length == 0 || length % 8 != 0)
+    // 1. If length is null or is not a multiple of 8, then throw an OperationError.
+    if (!length_optional.has_value() || *length_optional % 8 != 0)
         return WebIDL::OperationError::create(realm, "Length must be greater than 0 and divisible by 8"_string);
 
     // 2. If the iterations member of normalizedAlgorithm is zero, then throw an OperationError.
@@ -5015,7 +5019,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> PBKDF2::derive_bits(AlgorithmParam
 
     auto salt = normalized_algorithm.salt;
     auto iterations = normalized_algorithm.iterations;
-    auto derived_key_length_bytes = length / 8;
+    auto derived_key_length_bytes = *length_optional / 8;
 
     if (hash_algorithm == "SHA-1") {
         result = ::Crypto::Hash::PBKDF2::derive_key<::Crypto::Authentication::HMAC<::Crypto::Hash::SHA1>>(password, salt, iterations, derived_key_length_bytes);
@@ -5141,7 +5145,12 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> X25519::derive_bits(AlgorithmParam
         return WebIDL::OperationError::create(realm, "Secret is too short"_string);
 
     // Otherwise: Return an octet string containing the first length bits of secret.
-    auto slice = TRY_OR_THROW_OOM(realm.vm(), secret.slice(0, length / 8));
+    auto slice = TRY_OR_THROW_OOM(realm.vm(), secret.slice(0, ceil_div(length, 8)));
+    if (length % 8 != 0) {
+        // Zero out the last bits
+        slice[slice.size() - 1] &= 0xFF << (8 - (length % 8));
+    }
+
     return JS::ArrayBuffer::create(realm, move(slice));
 }
 
@@ -5634,7 +5643,12 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> X448::derive_bits(
     if (secret.size() * 8 < length)
         return WebIDL::OperationError::create(m_realm, "Secret is too short"_string);
 
-    auto slice = TRY_OR_THROW_OOM(m_realm->vm(), secret.slice(0, length / 8));
+    auto slice = TRY_OR_THROW_OOM(m_realm->vm(), secret.slice(0, ceil_div(length, 8)));
+    if (length % 8 != 0) {
+        // Zero out the last bits
+        slice[slice.size() - 1] &= 0xFF << (8 - (length % 8));
+    }
+
     return JS::ArrayBuffer::create(m_realm, move(slice));
 }
 
