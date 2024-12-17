@@ -57,8 +57,8 @@ ErrorOr<IPC::File> ConnectionFromClient::connect_new_client()
 
     auto client_socket_or_error = Core::LocalSocket::adopt_fd(socket_fds[0]);
     if (client_socket_or_error.is_error()) {
-        close(socket_fds[0]);
-        close(socket_fds[1]);
+        (void)Core::System::close(socket_fds[0]);
+        (void)Core::System::close(socket_fds[1]);
         return client_socket_or_error.release_error();
     }
 
