@@ -512,8 +512,7 @@ void do_message_for_proxy(SourceGenerator message_generator, Endpoint const& end
         auto result = m_connection.template send_sync_but_allow_failure<Messages::@endpoint.name@::@message.pascal_name@>()~~~");
         } else {
             message_generator.append(R"~~~(
-        // FIXME: Handle post_message failures.
-        (void) m_connection.post_message(Messages::@endpoint.name@::@message.pascal_name@ { )~~~");
+        MUST(m_connection.post_message(Messages::@endpoint.name@::@message.pascal_name@ { )~~~");
         }
 
         for (size_t i = 0; i < parameters.size(); ++i) {
@@ -555,7 +554,7 @@ void do_message_for_proxy(SourceGenerator message_generator, Endpoint const& end
         return { };)~~~");
             }
         } else {
-            message_generator.appendln(" });");
+            message_generator.appendln(" }));");
         }
 
         message_generator.appendln(R"~~~(
