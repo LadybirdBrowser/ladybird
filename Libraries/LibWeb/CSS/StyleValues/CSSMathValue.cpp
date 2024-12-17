@@ -366,14 +366,6 @@ CSSMathValue::CalculationResult SumCalculationNode::resolve(Optional<Length::Res
     return total.value();
 }
 
-void SumCalculationNode::for_each_child_node(Function<void(NonnullOwnPtr<CalculationNode>&)> const& callback)
-{
-    for (auto& item : m_values) {
-        item->for_each_child_node(callback);
-        callback(item);
-    }
-}
-
 void SumCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}SUM:\n", "", indent);
@@ -504,14 +496,6 @@ CSSMathValue::CalculationResult ProductCalculationNode::resolve(Optional<Length:
     return total.value();
 }
 
-void ProductCalculationNode::for_each_child_node(Function<void(NonnullOwnPtr<CalculationNode>&)> const& callback)
-{
-    for (auto& item : m_values) {
-        item->for_each_child_node(callback);
-        callback(item);
-    }
-}
-
 void ProductCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}PRODUCT:\n", "", indent);
@@ -576,12 +560,6 @@ CSSMathValue::CalculationResult NegateCalculationNode::resolve(Optional<Length::
     return child_value;
 }
 
-void NegateCalculationNode::for_each_child_node(Function<void(NonnullOwnPtr<CalculationNode>&)> const& callback)
-{
-    m_value->for_each_child_node(callback);
-    callback(m_value);
-}
-
 void NegateCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}NEGATE:\n", "", indent);
@@ -644,12 +622,6 @@ CSSMathValue::CalculationResult InvertCalculationNode::resolve(Optional<Length::
     auto child_value = m_value->resolve(context, percentage_basis);
     child_value.invert();
     return child_value;
-}
-
-void InvertCalculationNode::for_each_child_node(Function<void(NonnullOwnPtr<CalculationNode>&)> const& callback)
-{
-    m_value->for_each_child_node(callback);
-    callback(m_value);
 }
 
 void InvertCalculationNode::dump(StringBuilder& builder, int indent) const
@@ -732,14 +704,6 @@ CSSMathValue::CalculationResult MinCalculationNode::resolve(Optional<Length::Res
     }
 
     return smallest_node;
-}
-
-void MinCalculationNode::for_each_child_node(Function<void(NonnullOwnPtr<CalculationNode>&)> const& callback)
-{
-    for (auto& value : m_values) {
-        value->for_each_child_node(callback);
-        callback(value);
-    }
 }
 
 void MinCalculationNode::dump(StringBuilder& builder, int indent) const
@@ -829,14 +793,6 @@ CSSMathValue::CalculationResult MaxCalculationNode::resolve(Optional<Length::Res
     }
 
     return largest_node;
-}
-
-void MaxCalculationNode::for_each_child_node(Function<void(NonnullOwnPtr<CalculationNode>&)> const& callback)
-{
-    for (auto& value : m_values) {
-        value->for_each_child_node(callback);
-        callback(value);
-    }
 }
 
 void MaxCalculationNode::dump(StringBuilder& builder, int indent) const
@@ -939,16 +895,6 @@ CSSMathValue::CalculationResult ClampCalculationNode::resolve(Optional<Length::R
     VERIFY_NOT_REACHED();
 }
 
-void ClampCalculationNode::for_each_child_node(Function<void(NonnullOwnPtr<CalculationNode>&)> const& callback)
-{
-    m_min_value->for_each_child_node(callback);
-    m_center_value->for_each_child_node(callback);
-    m_max_value->for_each_child_node(callback);
-    callback(m_min_value);
-    callback(m_center_value);
-    callback(m_max_value);
-}
-
 void ClampCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}CLAMP:\n", "", indent);
@@ -1019,12 +965,6 @@ CSSMathValue::CalculationResult AbsCalculationNode::resolve(Optional<Length::Res
     return node_a;
 }
 
-void AbsCalculationNode::for_each_child_node(Function<void(NonnullOwnPtr<CalculationNode>&)> const& callback)
-{
-    m_value->for_each_child_node(callback);
-    callback(m_value);
-}
-
 void AbsCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}ABS: {}\n", "", indent, to_string());
@@ -1090,12 +1030,6 @@ CSSMathValue::CalculationResult SignCalculationNode::resolve(Optional<Length::Re
         return { Number(Number::Type::Integer, 1) };
 
     return { Number(Number::Type::Integer, 0) };
-}
-
-void SignCalculationNode::for_each_child_node(Function<void(NonnullOwnPtr<CalculationNode>&)> const& callback)
-{
-    m_value->for_each_child_node(callback);
-    callback(m_value);
 }
 
 void SignCalculationNode::dump(StringBuilder& builder, int indent) const
@@ -1237,12 +1171,6 @@ CSSMathValue::CalculationResult SinCalculationNode::resolve(Optional<Length::Res
     return { Number(Number::Type::Number, result) };
 }
 
-void SinCalculationNode::for_each_child_node(Function<void(NonnullOwnPtr<CalculationNode>&)> const& callback)
-{
-    m_value->for_each_child_node(callback);
-    callback(m_value);
-}
-
 void SinCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}SIN: {}\n", "", indent, to_string());
@@ -1303,12 +1231,6 @@ CSSMathValue::CalculationResult CosCalculationNode::resolve(Optional<Length::Res
     auto result = cos(node_a_value);
 
     return { Number(Number::Type::Number, result) };
-}
-
-void CosCalculationNode::for_each_child_node(Function<void(NonnullOwnPtr<CalculationNode>&)> const& callback)
-{
-    m_value->for_each_child_node(callback);
-    callback(m_value);
 }
 
 void CosCalculationNode::dump(StringBuilder& builder, int indent) const
@@ -1373,12 +1295,6 @@ CSSMathValue::CalculationResult TanCalculationNode::resolve(Optional<Length::Res
     return { Number(Number::Type::Number, result) };
 }
 
-void TanCalculationNode::for_each_child_node(Function<void(NonnullOwnPtr<CalculationNode>&)> const& callback)
-{
-    m_value->for_each_child_node(callback);
-    callback(m_value);
-}
-
 void TanCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}TAN: {}\n", "", indent, to_string());
@@ -1439,12 +1355,6 @@ CSSMathValue::CalculationResult AsinCalculationNode::resolve(Optional<Length::Re
     auto result = asin(node_a_value);
 
     return { Angle(result, Angle::Type::Rad) };
-}
-
-void AsinCalculationNode::for_each_child_node(Function<void(NonnullOwnPtr<CalculationNode>&)> const& callback)
-{
-    m_value->for_each_child_node(callback);
-    callback(m_value);
 }
 
 void AsinCalculationNode::dump(StringBuilder& builder, int indent) const
@@ -1509,12 +1419,6 @@ CSSMathValue::CalculationResult AcosCalculationNode::resolve(Optional<Length::Re
     return { Angle(result, Angle::Type::Rad) };
 }
 
-void AcosCalculationNode::for_each_child_node(Function<void(NonnullOwnPtr<CalculationNode>&)> const& callback)
-{
-    m_value->for_each_child_node(callback);
-    callback(m_value);
-}
-
 void AcosCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}ACOS: {}\n", "", indent, to_string());
@@ -1575,12 +1479,6 @@ CSSMathValue::CalculationResult AtanCalculationNode::resolve(Optional<Length::Re
     auto result = atan(node_a_value);
 
     return { Angle(result, Angle::Type::Rad) };
-}
-
-void AtanCalculationNode::for_each_child_node(Function<void(NonnullOwnPtr<CalculationNode>&)> const& callback)
-{
-    m_value->for_each_child_node(callback);
-    callback(m_value);
 }
 
 void AtanCalculationNode::dump(StringBuilder& builder, int indent) const
@@ -1652,14 +1550,6 @@ CSSMathValue::CalculationResult Atan2CalculationNode::resolve(Optional<Length::R
     return { Angle(result, Angle::Type::Rad) };
 }
 
-void Atan2CalculationNode::for_each_child_node(Function<void(NonnullOwnPtr<CalculationNode>&)> const& callback)
-{
-    m_y->for_each_child_node(callback);
-    m_x->for_each_child_node(callback);
-    callback(m_y);
-    callback(m_x);
-}
-
 void Atan2CalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}ATAN2: {}\n", "", indent, to_string());
@@ -1725,14 +1615,6 @@ CSSMathValue::CalculationResult PowCalculationNode::resolve(Optional<Length::Res
     return { Number(Number::Type::Number, result) };
 }
 
-void PowCalculationNode::for_each_child_node(Function<void(NonnullOwnPtr<CalculationNode>&)> const& callback)
-{
-    m_x->for_each_child_node(callback);
-    m_y->for_each_child_node(callback);
-    callback(m_x);
-    callback(m_y);
-}
-
 void PowCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}POW: {}\n", "", indent, to_string());
@@ -1789,12 +1671,6 @@ CSSMathValue::CalculationResult SqrtCalculationNode::resolve(Optional<Length::Re
     auto result = sqrt(node_a_value);
 
     return { Number(Number::Type::Number, result) };
-}
-
-void SqrtCalculationNode::for_each_child_node(Function<void(NonnullOwnPtr<CalculationNode>&)> const& callback)
-{
-    m_value->for_each_child_node(callback);
-    callback(m_value);
 }
 
 void SqrtCalculationNode::dump(StringBuilder& builder, int indent) const
@@ -1876,14 +1752,6 @@ CSSMathValue::CalculationResult HypotCalculationNode::resolve(Optional<Length::R
     return to_resolved_type(resolved_type().value(), result);
 }
 
-void HypotCalculationNode::for_each_child_node(Function<void(NonnullOwnPtr<CalculationNode>&)> const& callback)
-{
-    for (auto& value : m_values) {
-        value->for_each_child_node(callback);
-        callback(value);
-    }
-}
-
 void HypotCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}HYPOT:\n", "", indent);
@@ -1954,14 +1822,6 @@ CSSMathValue::CalculationResult LogCalculationNode::resolve(Optional<Length::Res
     return { Number(Number::Type::Number, result) };
 }
 
-void LogCalculationNode::for_each_child_node(Function<void(NonnullOwnPtr<CalculationNode>&)> const& callback)
-{
-    m_x->for_each_child_node(callback);
-    m_y->for_each_child_node(callback);
-    callback(m_x);
-    callback(m_y);
-}
-
 void LogCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}LOG: {}\n", "", indent, to_string());
@@ -2018,12 +1878,6 @@ CSSMathValue::CalculationResult ExpCalculationNode::resolve(Optional<Length::Res
     auto result = exp(node_a_value);
 
     return { Number(Number::Type::Number, result) };
-}
-
-void ExpCalculationNode::for_each_child_node(Function<void(NonnullOwnPtr<CalculationNode>&)> const& callback)
-{
-    m_value->for_each_child_node(callback);
-    callback(m_value);
 }
 
 void ExpCalculationNode::dump(StringBuilder& builder, int indent) const
@@ -2130,14 +1984,6 @@ CSSMathValue::CalculationResult RoundCalculationNode::resolve(Optional<Length::R
     VERIFY_NOT_REACHED();
 }
 
-void RoundCalculationNode::for_each_child_node(Function<void(NonnullOwnPtr<CalculationNode>&)> const& callback)
-{
-    m_x->for_each_child_node(callback);
-    m_y->for_each_child_node(callback);
-    callback(m_x);
-    callback(m_y);
-}
-
 void RoundCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}ROUND: {}\n", "", indent, to_string());
@@ -2217,14 +2063,6 @@ CSSMathValue::CalculationResult ModCalculationNode::resolve(Optional<Length::Res
     return to_resolved_type(resolved_type, value);
 }
 
-void ModCalculationNode::for_each_child_node(Function<void(NonnullOwnPtr<CalculationNode>&)> const& callback)
-{
-    m_x->for_each_child_node(callback);
-    m_y->for_each_child_node(callback);
-    callback(m_x);
-    callback(m_y);
-}
-
 void ModCalculationNode::dump(StringBuilder& builder, int indent) const
 {
     builder.appendff("{: >{}}MOD: {}\n", "", indent, to_string());
@@ -2300,14 +2138,6 @@ CSSMathValue::CalculationResult RemCalculationNode::resolve(Optional<Length::Res
 
     auto value = fmod(node_a_value, node_b_value);
     return to_resolved_type(resolved_type, value);
-}
-
-void RemCalculationNode::for_each_child_node(Function<void(NonnullOwnPtr<CalculationNode>&)> const& callback)
-{
-    m_x->for_each_child_node(callback);
-    m_y->for_each_child_node(callback);
-    callback(m_x);
-    callback(m_y);
 }
 
 void RemCalculationNode::dump(StringBuilder& builder, int indent) const
