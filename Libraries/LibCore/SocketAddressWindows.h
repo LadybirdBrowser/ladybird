@@ -16,6 +16,7 @@ typedef char CHAR;
 typedef unsigned char UCHAR;
 typedef const CHAR* PCSTR;
 typedef USHORT ADDRESS_FAMILY;
+typedef int socklen_t;
 
 #define WINAPI_FAMILY_PARTITION(x) 1
 #define FAR
