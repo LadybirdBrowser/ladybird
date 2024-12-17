@@ -107,6 +107,11 @@ public:
         return percentage();
     }
 
+    String to_string() const
+    {
+        return m_value.visit([](auto const& it) { return it.to_string(); });
+    }
+
 private:
     Variant<Angle, Flex, Frequency, Length, Percentage, Resolution, Time> m_value;
 };
