@@ -49,6 +49,7 @@ static Vector<ByteString> create_arguments(ByteString const& socket_path, bool f
     arguments.append("--allow-popups"sv);
     arguments.append("--force-new-process"sv);
     arguments.append("--enable-autoplay"sv);
+    arguments.append("--disable-scrollbar-painting"sv);
     if (force_cpu_painting)
         arguments.append("--force-cpu-painting"sv);
 
