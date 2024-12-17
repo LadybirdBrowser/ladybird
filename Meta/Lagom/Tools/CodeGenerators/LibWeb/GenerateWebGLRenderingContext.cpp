@@ -316,6 +316,27 @@ static void generate_get_internal_format_parameter(SourceGenerator& generator)
 )~~~");
 }
 
+static void generate_webgl_object_handle_unwrap(SourceGenerator& generator, StringView object_name, StringView early_return_value)
+{
+    StringBuilder string_builder;
+    SourceGenerator unwrap_generator { string_builder };
+    unwrap_generator.set("object_name", object_name);
+    unwrap_generator.set("early_return_value", early_return_value);
+    unwrap_generator.append(R"~~~(
+    GLuint @object_name@_handle = 0;
+    if (@object_name@) {
+        auto handle_or_error = @object_name@->handle(this);
+        if (handle_or_error.is_error()) {
+            set_error(GL_INVALID_OPERATION);
+            return @early_return_value@;
+        }
+        @object_name@_handle = handle_or_error.release_value();
+    }
+)~~~");
+
+    generator.append(unwrap_generator.as_string_view());
+}
+
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
     StringView generated_header_path;
@@ -511,9 +532,10 @@ public:
         }
 
         if (function.name == "getUniformLocation"sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "program"sv, "{}"sv);
             function_impl_generator.append(R"~~~(
     auto name_null_terminated = null_terminated_string(name);
-    return WebGLUniformLocation::create(m_realm, glGetUniformLocation(program ? program->handle() : 0, name_null_terminated.data()));
+    return WebGLUniformLocation::create(m_realm, glGetUniformLocation(program_handle, name_null_terminated.data()));
 )~~~");
             continue;
         }
@@ -581,13 +603,14 @@ public:
         }
 
         if (function.name == "shaderSource"sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "shader"sv, ""sv);
             function_impl_generator.append(R"~~~(
     Vector<GLchar*> strings;
     auto string = null_terminated_string(source);
     strings.append(string.data());
     Vector<GLint> length;
     length.append(source.bytes().size());
-    glShaderSource(shader->handle(), 1, strings.data(), length.data());
+    glShaderSource(shader_handle, 1, strings.data(), length.data());
 )~~~");
             continue;
         }
@@ -753,18 +776,20 @@ public:
         }
 
         if (function.name == "getShaderParameter"sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "shader"sv, "JS::js_null()"sv);
             function_impl_generator.append(R"~~~(
     GLint result = 0;
-    glGetShaderiv(shader->handle(), pname, &result);
+    glGetShaderiv(shader_handle, pname, &result);
     return JS::Value(result);
 )~~~");
             continue;
         }
 
         if (function.name == "getProgramParameter"sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "program"sv, "JS::js_null()"sv);
             function_impl_generator.append(R"~~~(
     GLint result = 0;
-    glGetProgramiv(program->handle(), pname, &result);
+    glGetProgramiv(program_handle, pname, &result);
     return JS::Value(result);
 )~~~");
             continue;
@@ -946,13 +971,14 @@ public:
         }
 
         if (function.name == "getActiveUniform"sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "program"sv, "{}"sv);
             function_impl_generator.append(R"~~~(
     GLint size = 0;
     GLenum type = 0;
     GLsizei buf_size = 256;
     GLsizei length = 0;
     GLchar name[256];
-    glGetActiveUniform(program->handle(), index, buf_size, &length, &size, &type, name);
+    glGetActiveUniform(program_handle, index, buf_size, &length, &size, &type, name);
     auto readonly_bytes = ReadonlyBytes { name, static_cast<size_t>(length) };
     return WebGLActiveInfo::create(m_realm, String::from_utf8_without_validation(readonly_bytes), type, size);
 )~~~");
@@ -960,13 +986,14 @@ public:
         }
 
         if (function.name == "getActiveAttrib"sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "program"sv, "{}"sv);
             function_impl_generator.append(R"~~~(
     GLint size = 0;
     GLenum type = 0;
     GLsizei buf_size = 256;
     GLsizei length = 0;
     GLchar name[256];
-    glGetActiveAttrib(program->handle(), index, buf_size, &length, &size, &type, name);
+    glGetActiveAttrib(program_handle, index, buf_size, &length, &size, &type, name);
     auto readonly_bytes = ReadonlyBytes { name, static_cast<size_t>(length) };
     return WebGLActiveInfo::create(m_realm, String::from_utf8_without_validation(readonly_bytes), type, size);
 )~~~");
@@ -974,28 +1001,30 @@ public:
         }
 
         if (function.name == "getShaderInfoLog"sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "shader"sv, "{}"sv);
             function_impl_generator.append(R"~~~(
     GLint info_log_length = 0;
-    glGetShaderiv(shader->handle(), GL_INFO_LOG_LENGTH, &info_log_length);
+    glGetShaderiv(shader_handle, GL_INFO_LOG_LENGTH, &info_log_length);
     Vector<GLchar> info_log;
     info_log.resize(info_log_length);
     if (!info_log_length)
         return String {};
-    glGetShaderInfoLog(shader->handle(), info_log_length, nullptr, info_log.data());
+    glGetShaderInfoLog(shader_handle, info_log_length, nullptr, info_log.data());
     return String::from_utf8_without_validation(ReadonlyBytes { info_log.data(), static_cast<size_t>(info_log_length - 1) });
 )~~~");
             continue;
         }
 
         if (function.name == "getProgramInfoLog"sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "program"sv, "{}"sv);
             function_impl_generator.append(R"~~~(
     GLint info_log_length = 0;
-    glGetProgramiv(program->handle(), GL_INFO_LOG_LENGTH, &info_log_length);
+    glGetProgramiv(program_handle, GL_INFO_LOG_LENGTH, &info_log_length);
     Vector<GLchar> info_log;
     info_log.resize(info_log_length);
     if (!info_log_length)
         return String {};
-    glGetProgramInfoLog(program->handle(), info_log_length, nullptr, info_log.data());
+    glGetProgramInfoLog(program_handle, info_log_length, nullptr, info_log.data());
     return String::from_utf8_without_validation(ReadonlyBytes { info_log.data(), static_cast<size_t>(info_log_length - 1) });
 )~~~");
             continue;
@@ -1012,33 +1041,33 @@ public:
         }
 
         if (function.name == "deleteBuffer"sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "buffer"sv, ""sv);
             function_impl_generator.append(R"~~~(
-    auto handle = buffer ? buffer->handle() : 0;
-    glDeleteBuffers(1, &handle);
+    glDeleteBuffers(1, &buffer_handle);
 )~~~");
             continue;
         }
 
         if (function.name == "deleteFramebuffer"sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "framebuffer"sv, ""sv);
             function_impl_generator.append(R"~~~(
-    auto handle = framebuffer ? framebuffer->handle() : 0;
-    glDeleteFramebuffers(1, &handle);
+    glDeleteFramebuffers(1, &framebuffer_handle);
 )~~~");
             continue;
         }
 
         if (function.name == "deleteTexture"sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "texture"sv, ""sv);
             function_impl_generator.append(R"~~~(
-    auto handle = texture ? texture->handle() : 0;
-    glDeleteTextures(1, &handle);
+    glDeleteTextures(1, &texture_handle);
 )~~~");
             continue;
         }
 
         if (function.name == "deleteVertexArray"sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "vertex_array"sv, ""sv);
             function_impl_generator.append(R"~~~(
-    auto handle = vertex_array ? vertex_array->handle() : 0;
-    glDeleteVertexArrays(1, &handle);
+    glDeleteVertexArrays(1, &vertex_array_handle);
 )~~~");
             continue;
         }
@@ -1060,7 +1089,28 @@ public:
                 continue;
             }
             if (is_webgl_object_type(parameter.type->name())) {
-                gl_call_arguments.append(ByteString::formatted("{} ? {}->handle() : 0", parameter_name, parameter_name));
+                if (function.return_type->name() == "undefined"sv) {
+                    function_impl_generator.set("early_return_value", "");
+                } else if (function.return_type->is_integer()) {
+                    function_impl_generator.set("early_return_value", "-1");
+                } else if (function.return_type->is_boolean()) {
+                    function_impl_generator.set("early_return_value", "false");
+                } else {
+                    VERIFY_NOT_REACHED();
+                }
+                function_impl_generator.set("handle_parameter_name", parameter_name);
+                function_impl_generator.append(R"~~~(
+    auto @handle_parameter_name@_handle = 0;
+    if (@handle_parameter_name@) {
+        auto handle_or_error = @handle_parameter_name@->handle(this);
+        if (handle_or_error.is_error()) {
+            set_error(GL_INVALID_OPERATION);
+            return @early_return_value@;
+        }
+        @handle_parameter_name@_handle = handle_or_error.release_value();
+    }
+)~~~");
+                gl_call_arguments.append(ByteString::formatted("{}_handle", parameter_name));
                 continue;
             }
             if (parameter.type->name() == "WebGLUniformLocation"sv) {
