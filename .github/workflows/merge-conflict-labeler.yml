@@ -1,0 +1,22 @@
+name: 'Label PRs with merge conflicts'
+on:
+  # PRs typically get conflicted after a push to master.
+  push:
+    branches: [master]
+
+  # If a PR targeting master is (re)opened or updated, recheck for conflicts and update the label.
+  # NOTE: This runs against the target branch, not the PR branch.
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+    branches: [master]
+
+jobs:
+  auto-labeler:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: mschilde/auto-label-merge-conflicts@591722e97f3c4142df3eca156ed0dcf2bcd362bd
+        with:
+          CONFLICT_LABEL_NAME: 'conflicts'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MAX_RETRIES: 3
+          WAIT_MS: 15000
