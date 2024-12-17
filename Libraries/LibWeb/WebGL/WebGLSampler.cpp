@@ -13,13 +13,13 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLSampler);
 
-GC::Ref<WebGLSampler> WebGLSampler::create(JS::Realm& realm, GLuint handle)
+GC::Ref<WebGLSampler> WebGLSampler::create(JS::Realm& realm, WebGLRenderingContextBase& context, GLuint handle)
 {
-    return realm.create<WebGLSampler>(realm, handle);
+    return realm.create<WebGLSampler>(realm, context, handle);
 }
 
-WebGLSampler::WebGLSampler(JS::Realm& realm, GLuint handle)
-    : WebGLObject(realm, handle)
+WebGLSampler::WebGLSampler(JS::Realm& realm, WebGLRenderingContextBase& context, GLuint handle)
+    : WebGLObject(realm, context, handle)
 {
 }
 

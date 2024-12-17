@@ -18,12 +18,12 @@ class WebGLShader final : public WebGLObject {
     GC_DECLARE_ALLOCATOR(WebGLShader);
 
 public:
-    static GC::Ref<WebGLShader> create(JS::Realm& realm, GLuint handle);
+    static GC::Ref<WebGLShader> create(JS::Realm& realm, WebGLRenderingContextBase&, GLuint handle);
 
     virtual ~WebGLShader();
 
 protected:
-    explicit WebGLShader(JS::Realm&, GLuint handle);
+    explicit WebGLShader(JS::Realm&, WebGLRenderingContextBase&, GLuint handle);
 
     virtual void initialize(JS::Realm&) override;
 };

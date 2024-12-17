@@ -242,7 +242,7 @@ static void generate_get_parameter(SourceGenerator& generator, int webgl_version
         glGetIntegerv(GL_@parameter_name@, &result);
         if (!result)
             return JS::js_null();
-        return @type_name@::create(m_realm, result);
+        return @type_name@::create(m_realm, *this, result);
 )~~~");
         } else {
             VERIFY_NOT_REACHED();
@@ -435,13 +435,14 @@ static Vector<GLchar> null_terminated_string(StringView string)
 #include <LibGfx/Bitmap.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/WebGL/WebGLRenderingContextBase.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::WebGL {
 
 using namespace Web::HTML;
 
-class @class_name@ {
+class @class_name@ : public WebGLRenderingContextBase {
 public:
     @class_name@(JS::Realm&, NonnullOwnPtr<OpenGLContext>);
 
@@ -510,11 +511,19 @@ public:
             function_impl_generator.append("    m_context->notify_content_will_change();\n"sv);
         }
 
+        if (function.name == "getUniformLocation"sv) {
+            function_impl_generator.append(R"~~~(
+    auto name_null_terminated = null_terminated_string(name);
+    return WebGLUniformLocation::create(m_realm, glGetUniformLocation(program ? program->handle() : 0, name_null_terminated.data()));
+)~~~");
+            continue;
+        }
+
         if (function.name == "createBuffer"sv) {
             function_impl_generator.append(R"~~~(
     GLuint handle = 0;
     glGenBuffers(1, &handle);
-    return WebGLBuffer::create(m_realm, handle);
+    return WebGLBuffer::create(m_realm, *this, handle);
 )~~~");
             continue;
         }
@@ -523,7 +532,7 @@ public:
             function_impl_generator.append(R"~~~(
     GLuint handle = 0;
     glGenTextures(1, &handle);
-    return WebGLTexture::create(m_realm, handle);
+    return WebGLTexture::create(m_realm, *this, handle);
 )~~~");
             continue;
         }
@@ -532,7 +541,7 @@ public:
             function_impl_generator.append(R"~~~(
     GLuint handle = 0;
     glGenFramebuffers(1, &handle);
-    return WebGLFramebuffer::create(m_realm, handle);
+    return WebGLFramebuffer::create(m_realm, *this, handle);
 )~~~");
             continue;
         }
@@ -541,7 +550,7 @@ public:
             function_impl_generator.append(R"~~~(
     GLuint handle = 0;
     glGenRenderbuffers(1, &handle);
-    return WebGLRenderbuffer::create(m_realm, handle);
+    return WebGLRenderbuffer::create(m_realm, *this, handle);
 )~~~");
             continue;
         }
@@ -550,7 +559,7 @@ public:
             function_impl_generator.append(R"~~~(
     GLuint handle = 0;
     glGenVertexArrays(1, &handle);
-    return WebGLVertexArrayObject::create(m_realm, handle);
+    return WebGLVertexArrayObject::create(m_realm, *this, handle);
 )~~~");
             continue;
         }
@@ -559,7 +568,7 @@ public:
             function_impl_generator.append(R"~~~(
     GLuint handle = 0;
     glGenSamplers(1, &handle);
-    return WebGLSampler::create(m_realm, handle);
+    return WebGLSampler::create(m_realm, *this, handle);
 )~~~");
             continue;
         }
@@ -567,7 +576,7 @@ public:
         if (function.name == "fenceSync"sv) {
             function_impl_generator.append(R"~~~(
     GLsync handle = glFenceSync(condition, flags);
-    return WebGLSync::create(m_realm, handle);
+    return WebGLSync::create(m_realm, *this, handle);
 )~~~");
             continue;
         }
@@ -1104,7 +1113,7 @@ public:
             function_impl_generator.append("    return @call_string@;"sv);
         } else if (is_webgl_object_type(function.return_type->name())) {
             function_impl_generator.set("return_type_name", function.return_type->name());
-            function_impl_generator.append("    return @return_type_name@::create(m_realm, @call_string@);"sv);
+            function_impl_generator.append("    return @return_type_name@::create(m_realm, *this, @call_string@);"sv);
         } else {
             VERIFY_NOT_REACHED();
         }

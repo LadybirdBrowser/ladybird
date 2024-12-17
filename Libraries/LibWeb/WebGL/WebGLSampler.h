@@ -16,12 +16,12 @@ class WebGLSampler : public WebGLObject {
     GC_DECLARE_ALLOCATOR(WebGLSampler);
 
 public:
-    static GC::Ref<WebGLSampler> create(JS::Realm& realm, GLuint handle);
+    static GC::Ref<WebGLSampler> create(JS::Realm& realm, WebGLRenderingContextBase& context, GLuint handle);
 
     virtual ~WebGLSampler() override;
 
 protected:
-    explicit WebGLSampler(JS::Realm&, GLuint handle);
+    explicit WebGLSampler(JS::Realm&, WebGLRenderingContextBase&, GLuint handle);
 
     virtual void initialize(JS::Realm&) override;
 };

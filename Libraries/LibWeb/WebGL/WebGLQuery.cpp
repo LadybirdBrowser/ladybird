@@ -13,13 +13,13 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLQuery);
 
-GC::Ref<WebGLQuery> WebGLQuery::create(JS::Realm& realm, GLuint handle)
+GC::Ref<WebGLQuery> WebGLQuery::create(JS::Realm& realm, WebGLRenderingContextBase& context, GLuint handle)
 {
-    return realm.create<WebGLQuery>(realm, handle);
+    return realm.create<WebGLQuery>(realm, context, handle);
 }
 
-WebGLQuery::WebGLQuery(JS::Realm& realm, GLuint handle)
-    : WebGLObject(realm, handle)
+WebGLQuery::WebGLQuery(JS::Realm& realm, WebGLRenderingContextBase& context, GLuint handle)
+    : WebGLObject(realm, context, handle)
 {
 }
 
