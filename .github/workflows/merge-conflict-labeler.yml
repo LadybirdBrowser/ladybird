@@ -17,9 +17,12 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: mschilde/auto-label-merge-conflicts@591722e97f3c4142df3eca156ed0dcf2bcd362bd
+      - uses: eps1lon/actions-label-merge-conflict@v3
         with:
-          CONFLICT_LABEL_NAME: 'conflicts'
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MAX_RETRIES: 3
-          WAIT_MS: 15000
+          commentOnDirty: >
+            Your pull request has conflicts that need to be resolved before it can be reviewed and merged. Make sure to
+            [rebase](https://www.youtube.com/watch?v=ElRzTuYln0M) your branch on top of the latest `master`.
+          dirtyLabel: 'conflicts'
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          retryAfter: 15
+          retryMax: 3
