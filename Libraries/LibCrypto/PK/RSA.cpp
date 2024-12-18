@@ -141,10 +141,8 @@ void RSA::decrypt(ReadonlyBytes in, Bytes& out)
     } else {
         auto m1 = NumberTheory::ModularPower(in_integer, m_private_key.exponent1(), m_private_key.prime1());
         auto m2 = NumberTheory::ModularPower(in_integer, m_private_key.exponent2(), m_private_key.prime2());
-        if (m1 < m2)
+        while (m1 < m2)
             m1 = m1.plus(m_private_key.prime1());
-
-        VERIFY(m1 >= m2);
 
         auto h = NumberTheory::Mod(m1.minus(m2).multiplied_by(m_private_key.coefficient()), m_private_key.prime1());
         m = m2.plus(h.multiplied_by(m_private_key.prime2()));
