@@ -2523,22 +2523,23 @@ static void generate_html_constructor(SourceGenerator& generator, IDL::Construct
     constructor_generator.append(R"~~~(
     auto& window = verify_cast<HTML::Window>(HTML::current_principal_global_object());
 
-    // 1. Let registry be the current global object's CustomElementRegistry object.
+    // 1. Let registry be current global object's custom element registry.
     auto registry = TRY(throw_dom_exception_if_needed(vm, [&] { return window.custom_elements(); }));
 
     // 2. If NewTarget is equal to the active function object, then throw a TypeError.
     if (&new_target == vm.active_function_object())
         return vm.throw_completion<JS::TypeError>("Cannot directly construct an HTML element, it must be inherited"sv);
 
-    // 3. Let definition be the entry in registry with constructor equal to NewTarget. If there is no such definition, then throw a TypeError.
+    // 3. Let definition be the item in registry's custom element definition set with constructor equal to NewTarget.
+    //    If there is no such item, then throw a TypeError.
     auto definition = registry->get_definition_from_new_target(new_target);
     if (!definition)
         return vm.throw_completion<JS::TypeError>("There is no custom element definition assigned to the given constructor"sv);
 
-    // 4. Let is value be null.
+    // 4. Let isValue be null.
     Optional<String> is_value;
 
-    // 5. If definition's local name is equal to definition's name (i.e., definition is for an autonomous custom element), then:
+    // 5. If definition's local name is equal to definition's name (i.e., definition is for an autonomous custom element):
     if (definition->local_name() == definition->name()) {
         // 1. If the active function object is not HTMLElement, then throw a TypeError.
 )~~~");
@@ -2565,11 +2566,11 @@ static void generate_html_constructor(SourceGenerator& generator, IDL::Construct
         if (!valid_local_names.contains_slow(definition->local_name()))
             return vm.throw_completion<JS::TypeError>(MUST(String::formatted("Local name '{}' of customized built-in element is not a valid local name for @name@"sv, definition->local_name())));
 
-        // 3. Set is value to definition's name.
+        // 3. Set isValue to definition's name.
         is_value = definition->name();
     }
 
-    // 7. If definition's construction stack is empty, then:
+    // 7. If definition's construction stack is empty:
     if (definition->construction_stack().is_empty()) {
         // 1. Let element be the result of internally creating a new object implementing the interface to which the active function object corresponds, given the current Realm Record and NewTarget.
         // 2. Set element's node document to the current global object's associated Document.
@@ -2599,7 +2600,7 @@ static void generate_html_constructor(SourceGenerator& generator, IDL::Construct
 
         // 6. Set element's custom element state to "custom".
         // 7. Set element's custom element definition to definition.
-        // 8. Set element's is value to is value.
+        // 8. Set element's is value to isValue.
         element->setup_custom_element_from_constructor(*definition, is_value);
 
         // 9. Return element.

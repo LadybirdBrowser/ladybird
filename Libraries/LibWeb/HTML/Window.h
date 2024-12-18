@@ -310,7 +310,8 @@ private:
     GC::Ptr<Navigation> m_navigation;
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#custom-elements-api
-    // Each Window object is associated with a unique instance of a CustomElementRegistry object, allocated when the Window object is created.
+    // Each Window object has an associated custom element registry (a CustomElementRegistry object).
+    // It is set to a new CustomElementRegistry object when the Window object is created.
     GC::Ptr<CustomElementRegistry> m_custom_element_registry;
 
     GC::Ptr<AnimationFrameCallbackDriver> m_animation_frame_callback_driver;
