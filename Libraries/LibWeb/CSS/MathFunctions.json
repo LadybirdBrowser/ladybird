@@ -36,6 +36,7 @@
     ]
   },
   "atan2": {
+    "parameter-validation": "consistent",
     "parameters": [
       {
         "name": "y",
@@ -50,6 +51,7 @@
     ]
   },
   "clamp": {
+    "parameter-validation": "consistent",
     "parameters": [
       {
         "name": "min",
@@ -87,6 +89,7 @@
     ]
   },
   "hypot": {
+    "parameter-validation": "consistent",
     "is-variadic": true,
     "parameters": [
       {
@@ -97,6 +100,7 @@
     ]
   },
   "log": {
+    "parameter-validation": "same",
     "parameters": [
       {
         "name": "value",
@@ -112,6 +116,7 @@
     ]
   },
   "max": {
+    "parameter-validation": "consistent",
     "is-variadic": true,
     "parameters": [
       {
@@ -122,6 +127,7 @@
     ]
   },
   "min": {
+    "parameter-validation": "consistent",
     "is-variadic": true,
     "parameters": [
       {
@@ -132,6 +138,7 @@
     ]
   },
   "mod": {
+    "parameter-validation": "same",
     "parameters": [
       {
         "name": "value",
@@ -146,6 +153,7 @@
     ]
   },
   "pow": {
+    "parameter-validation": "consistent",
     "parameters": [
       {
         "name": "value",
@@ -160,6 +168,7 @@
     ]
   },
   "rem": {
+    "parameter-validation": "same",
     "parameters": [
       {
         "name": "value",
@@ -174,6 +183,7 @@
     ]
   },
   "round": {
+    "parameter-validation": "consistent",
     "parameters": [
       {
         "name": "strategy",
