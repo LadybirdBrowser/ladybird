@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/CSS/ResolvedCSSStyleDeclaration.h>
+#include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
@@ -16,6 +17,7 @@
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/CommandNames.h>
+#include <LibWeb/Editing/Commands.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
@@ -901,6 +903,148 @@ GC::Ptr<DOM::Node> editing_host_of_node(GC::Ref<DOM::Node> node)
     return {};
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#effective-command-value
+Optional<String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString const& command)
+{
+    VERIFY(node);
+
+    // 1. If neither node nor its parent is an Element, return null.
+    // 2. If node is not an Element, return the effective command value of its parent for command.
+    if (!is<DOM::Element>(*node)) {
+        if (!node->parent() || !is<DOM::Element>(*node->parent()))
+            return {};
+        return effective_command_value(node->parent(), command);
+    }
+
+    // 3. If command is "createLink" or "unlink":
+    auto node_as_element = [&] -> GC::Ref<DOM::Element> { return static_cast<DOM::Element&>(*node); };
+    if (command.is_one_of(CommandNames::createLink, CommandNames::unlink)) {
+        // 1. While node is not null, and is not an a element that has an href attribute, set node to its parent.
+        while (node && !(is<HTML::HTMLAnchorElement>(*node) && node_as_element()->has_attribute(HTML::AttributeNames::href)))
+            node = node->parent();
+
+        // 2. If node is null, return null.
+        if (!node)
+            return {};
+
+        // 3. Return the value of node's href attribute.
+        return node_as_element()->get_attribute_value(HTML::AttributeNames::href);
+    }
+
+    // 4. If command is "backColor" or "hiliteColor":
+    if (command.is_one_of(CommandNames::backColor, CommandNames::hiliteColor)) {
+        // 1. While the resolved value of "background-color" on node is any fully transparent value, and node's parent
+        //    is an Element, set node to its parent.
+        auto resolved_background_color = [&] { return resolved_value(*node, CSS::PropertyID::BackgroundColor); };
+        auto resolved_background_alpha = [&] {
+            auto background_color = resolved_background_color();
+            if (!background_color.has_value())
+                return NumericLimits<u8>::max();
+            VERIFY(is<Layout::NodeWithStyle>(node->layout_node()));
+            return background_color.value()->to_color(*static_cast<Layout::NodeWithStyle*>(node->layout_node())).alpha();
+        };
+        while (resolved_background_alpha() == 0 && node->parent() && is<DOM::Element>(*node->parent()))
+            node = node->parent();
+
+        // 2. Return the resolved value of "background-color" for node.
+        auto resolved_value = resolved_background_color();
+        if (!resolved_value.has_value())
+            return {};
+        return resolved_value.value()->to_string(CSS::CSSStyleValue::SerializationMode::ResolvedValue);
+    }
+
+    // 5. If command is "subscript" or "superscript":
+    if (command.is_one_of(CommandNames::subscript, CommandNames::superscript)) {
+        // 1. Let affected by subscript and affected by superscript be two boolean variables, both initially false.
+        bool affected_by_subscript = false;
+        bool affected_by_superscript = false;
+
+        // 2. While node is an inline node:
+        while (node && is_inline_node(*node)) {
+            // 1. If node is a sub, set affected by subscript to true.
+            if (is<DOM::Element>(*node) && node_as_element()->local_name() == HTML::TagNames::sub) {
+                affected_by_subscript = true;
+            }
+
+            // 2. Otherwise, if node is a sup, set affected by superscript to true.
+            else if (is<DOM::Element>(*node) && node_as_element()->local_name() == HTML::TagNames::sup) {
+                affected_by_superscript = true;
+            }
+
+            // 3. Set node to its parent.
+            node = node->parent();
+        }
+
+        // 3. If affected by subscript and affected by superscript are both true, return the string "mixed".
+        if (affected_by_subscript && affected_by_superscript)
+            return "mixed"_string;
+
+        // 4. If affected by subscript is true, return "subscript".
+        if (affected_by_subscript)
+            return "subscript"_string;
+
+        // 5. If affected by superscript is true, return "superscript".
+        if (affected_by_superscript)
+            return "superscript"_string;
+
+        // 6. Return null.
+        return {};
+    }
+
+    // 6. If command is "strikethrough", and the "text-decoration" property of node or any of its ancestors has resolved
+    //    value containing "line-through", return "line-through". Otherwise, return null.
+    if (command == CommandNames::strikethrough) {
+        auto inclusive_ancestor = node;
+        do {
+            auto text_decoration_line = resolved_value(*node, CSS::PropertyID::TextDecorationLine);
+            if (text_decoration_line.has_value() && text_decoration_line.value()->is_value_list()) {
+                auto const& line_value_list = text_decoration_line.value()->as_value_list();
+                auto has_line_through = line_value_list.values().find_first_index_if([](CSS::CSSStyleValue const& value) {
+                    return value.is_keyword() && value.as_keyword().keyword() == CSS::Keyword::LineThrough;
+                });
+                if (has_line_through.has_value())
+                    return "line-through"_string;
+            }
+            inclusive_ancestor = inclusive_ancestor->parent();
+        } while (inclusive_ancestor);
+
+        return {};
+    }
+
+    // 7. If command is "underline", and the "text-decoration" property of node or any of its ancestors has resolved
+    //    value containing "underline", return "underline". Otherwise, return null.
+    if (command == CommandNames::underline) {
+        auto inclusive_ancestor = node;
+        do {
+            auto text_decoration_line = resolved_value(*node, CSS::PropertyID::TextDecorationLine);
+            if (text_decoration_line.has_value() && text_decoration_line.value()->is_value_list()) {
+                auto const& line_value_list = text_decoration_line.value()->as_value_list();
+                auto has_line_through = line_value_list.values().find_first_index_if([](CSS::CSSStyleValue const& value) {
+                    return value.is_keyword() && value.as_keyword().keyword() == CSS::Keyword::Underline;
+                });
+                if (has_line_through.has_value())
+                    return "line-through"_string;
+            }
+            inclusive_ancestor = inclusive_ancestor->parent();
+        } while (inclusive_ancestor);
+
+        return {};
+    }
+
+    // 8. Return the resolved value for node of the relevant CSS property for command.
+    auto optional_command_definition = find_command_definition(command);
+    // FIXME: change this to VERIFY(command_definition.has_value()) once all command definitions are in place.
+    if (!optional_command_definition.has_value())
+        return {};
+    auto const& command_definition = optional_command_definition.release_value();
+    VERIFY(command_definition.relevant_css_property.has_value());
+
+    auto optional_value = resolved_value(*node, command_definition.relevant_css_property.value());
+    if (!optional_value.has_value())
+        return {};
+    return optional_value.value()->to_string(CSS::CSSStyleValue::SerializationMode::ResolvedValue);
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#first-equivalent-point
 BoundaryPoint first_equivalent_point(BoundaryPoint boundary_point)
 {
@@ -1421,6 +1565,48 @@ bool is_collapsed_whitespace_node(GC::Ref<DOM::Node> node)
     return false;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#effectively-contained
+bool is_effectively_contained_in_range(GC::Ref<DOM::Node> node, GC::Ref<DOM::Range> range)
+{
+    // A node node is effectively contained in a range range if range is not collapsed, and at least one of the
+    // following holds:
+    if (range->collapsed())
+        return false;
+
+    // * node is contained in range.
+    if (range->contains_node(node))
+        return true;
+
+    // * node is range's start node, it is a Text node, and its length is different from range's start offset.
+    if (node == range->start_container() && is<DOM::Text>(*node) && node->length() != range->start_offset())
+        return true;
+
+    // * node is range's end node, it is a Text node, and range's end offset is not 0.
+    if (node == range->end_container() && is<DOM::Text>(*node) && range->end_offset() != 0)
+        return true;
+
+    // * node has at least one child; and all its children are effectively contained in range;
+    if (!node->has_children())
+        return false;
+    for (auto* child = node->first_child(); child; child = child->next_sibling()) {
+        if (!is_effectively_contained_in_range(*child, range))
+            return false;
+    }
+
+    // and either range's start node is not a descendant of node or is not a Text node or range's start offset is zero;
+    auto start_node = range->start_container();
+    if (start_node->is_descendant_of(node) && is<DOM::Text>(*start_node) && range->start_offset() != 0)
+        return false;
+
+    // and either range's end node is not a descendant of node or is not a Text node or range's end offset is its end
+    // node's length.
+    auto end_node = range->end_container();
+    if (end_node->is_descendant_of(node) && is<DOM::Text>(*end_node) && range->end_offset() != end_node->length())
+        return false;
+
+    return true;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#element-with-inline-contents
 bool is_element_with_inline_contents(GC::Ref<DOM::Node> node)
 {
@@ -1445,6 +1631,13 @@ bool is_extraneous_line_break(GC::Ref<DOM::Node> node)
     //        would not change layout,
 
     return false;
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#formattable-node
+bool is_formattable_node(GC::Ref<DOM::Node> node)
+{
+    // A formattable node is an editable visible node that is either a Text node, an img, or a br.
+    return is<DOM::Text>(*node) || is<HTML::HTMLImageElement>(*node) || is<HTML::HTMLBRElement>(*node);
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#in-the-same-editing-host
@@ -1873,25 +2066,55 @@ Optional<BoundaryPoint> previous_equivalent_point(BoundaryPoint boundary_point)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#record-current-states-and-values
-Vector<RecordedOverride> record_current_states_and_values(GC::Ref<DOM::Range>)
+Vector<RecordedOverride> record_current_states_and_values(GC::Ref<DOM::Range> active_range)
 {
     // 1. Let overrides be a list of (string, string or boolean) ordered pairs, initially empty.
     Vector<RecordedOverride> overrides;
 
-    // FIXME: 2. Let node be the first formattable node effectively contained in the active range, or null if there is none.
+    // 2. Let node be the first formattable node effectively contained in the active range, or null if there is none.
+    GC::Ptr<DOM::Node> node;
+    auto common_ancestor = active_range->common_ancestor_container();
+    common_ancestor->for_each_in_subtree([&](GC::Ref<DOM::Node> descendant) {
+        if (is_formattable_node(descendant) && is_effectively_contained_in_range(descendant, active_range)) {
+            node = descendant;
+            return TraversalDecision::Break;
+        }
+        return TraversalDecision::Continue;
+    });
 
-    // FIXME: 3. If node is null, return overrides.
+    // 3. If node is null, return overrides.
+    if (!node)
+        return overrides;
 
-    // FIXME: 4. Add ("createLink", node's effective command value for "createLink") to overrides.
+    // 4. Add ("createLink", node's effective command value for "createLink") to overrides.
+    auto effective_value = effective_command_value(node, CommandNames::createLink);
+    if (effective_value.has_value())
+        overrides.empend(CommandNames::createLink, effective_value.release_value());
 
-    // FIXME: 5. For each command in the list "bold", "italic", "strikethrough", "subscript", "superscript", "underline", in
+    // 5. For each command in the list "bold", "italic", "strikethrough", "subscript", "superscript", "underline", in
     //    order: if node's effective command value for command is one of its inline command activated values, add
     //    (command, true) to overrides, and otherwise add (command, false) to overrides.
+    for (auto const& command : { CommandNames::bold, CommandNames::italic, CommandNames::strikethrough,
+             CommandNames::subscript, CommandNames::superscript, CommandNames::underline }) {
+        auto command_definition = find_command_definition(command);
+        // FIXME: change this to VERIFY(command_definition.has_value()) once all command definitions are in place.
+        if (!command_definition.has_value())
+            continue;
 
-    // FIXME: 6. For each command in the list "fontName", "foreColor", "hiliteColor", in order: add (command, command's value)
+        effective_value = effective_command_value(node, command);
+        auto& inline_activated_values = command_definition.value().inline_activated_values;
+        overrides.empend(command, effective_value.has_value() && inline_activated_values.contains_slow(*effective_value));
+    }
+
+    // 6. For each command in the list "fontName", "foreColor", "hiliteColor", in order: add (command, command's value)
     //    to overrides.
+    for (auto const& command : { CommandNames::fontName, CommandNames::foreColor, CommandNames::hiliteColor })
+        overrides.empend(command, node->document().query_command_value(command));
 
-    // FIXME: 7. Add ("fontSize", node's effective command value for "fontSize") to overrides.
+    // 7. Add ("fontSize", node's effective command value for "fontSize") to overrides.
+    effective_value = effective_command_value(node, CommandNames::fontSize);
+    if (effective_value.has_value())
+        overrides.empend(CommandNames::fontSize, effective_value.release_value());
 
     // 8. Return overrides.
     return overrides;
@@ -2124,14 +2347,14 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
 {
     // 1. If command is "backColor" or "hiliteColor" and the Element's display property does not have resolved value
     //    "inline", return null.
-    if (command == CommandNames::backColor || command == CommandNames::hiliteColor) {
+    if (command.is_one_of(CommandNames::backColor, CommandNames::hiliteColor)) {
         auto display = resolved_display(element);
         if (!display.has_value() || !display->is_inline_outside() || !display->is_flow_inside())
             return {};
     }
 
     // 2. If command is "createLink" or "unlink":
-    if (command == CommandNames::createLink || command == CommandNames::unlink) {
+    if (command.is_one_of(CommandNames::createLink, CommandNames::unlink)) {
         // 1. If element is an a element and has an href attribute, return the value of that attribute.
         auto href_attribute = element->get_attribute(HTML::AttributeNames::href);
         if (href_attribute.has_value())
@@ -2142,7 +2365,7 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
     }
 
     // 3. If command is "subscript" or "superscript":
-    if (command == CommandNames::subscript || command == CommandNames::superscript) {
+    if (command.is_one_of(CommandNames::subscript, CommandNames::superscript)) {
         // 1. If element is a sup, return "superscript".
         if (element->local_name() == HTML::TagNames::sup)
             return "superscript"_string;
@@ -2164,7 +2387,7 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
     }
 
     // 5. If command is "strikethrough" and element is an s or strike element, return "line-through".
-    if (command == CommandNames::strikethrough && (element->local_name() == HTML::TagNames::s || element->local_name() == HTML::TagNames::strike))
+    if (command == CommandNames::strikethrough && element->local_name().is_one_of(HTML::TagNames::s, HTML::TagNames::strike))
         return "line-through"_string;
 
     // FIXME: 6. If command is "underline", and element has a style attribute set, and that attribute sets "text-decoration":
@@ -2179,9 +2402,16 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
     if (command == CommandNames::underline && element->local_name() == HTML::TagNames::u)
         return "underline"_string;
 
-    // FIXME: 8. Let property be the relevant CSS property for command.
+    // 8. Let property be the relevant CSS property for command.
+    auto command_definition = find_command_definition(command);
+    // FIXME: change this to VERIFY(command_definition.has_value()) once all command definitions are in place.
+    if (!command_definition.has_value())
+        return {};
+    auto property = command_definition.value().relevant_css_property;
 
-    // FIXME: 9. If property is null, return null.
+    // 9. If property is null, return null.
+    if (!property.has_value())
+        return {};
 
     // FIXME: 10. If element has a style attribute set, and that attribute has the effect of setting property, return the value
     //     that it sets property to.
@@ -2190,10 +2420,14 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
     //     property, return the value that the hint sets property to. (For a size of 7, this will be the non-CSS value
     //     "xxx-large".)
 
-    // FIXME: 12. If element is in the following list, and property is equal to the CSS property name listed for it, return the
+    // 12. If element is in the following list, and property is equal to the CSS property name listed for it, return the
     //     string listed for it.
     //     * b, strong: font-weight: "bold"
     //     * i, em: font-style: "italic"
+    if (element->local_name().is_one_of(HTML::TagNames::b, HTML::TagNames::strong) && *property == CSS::PropertyID::FontWeight)
+        return "bold"_string;
+    if (element->local_name().is_one_of(HTML::TagNames::i, HTML::TagNames::em) && *property == CSS::PropertyID::FontStyle)
+        return "italic"_string;
 
     // 13. Return null.
     return {};
