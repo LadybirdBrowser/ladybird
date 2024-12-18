@@ -11,6 +11,7 @@
 #include <AK/Vector.h>
 #include <LibGfx/AffineTransform.h>
 #include <LibGfx/Color.h>
+#include <LibGfx/Filter.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibGfx/Path.h>
@@ -84,6 +85,8 @@ public:
         float shadow_offset_y { 0.0f };
         float shadow_blur { 0.0f };
         Gfx::Color shadow_color { Gfx::Color::Transparent };
+        Vector<Gfx::Filter> filters;
+        Optional<String> filters_string;
         float line_width { 1 };
         Bindings::CanvasLineCap line_cap { Bindings::CanvasLineCap::Butt };
         Bindings::CanvasLineJoin line_join { Bindings::CanvasLineJoin::Miter };

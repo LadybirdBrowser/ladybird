@@ -3,6 +3,7 @@
  * Copyright (c) 2021-2022, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2023, MacDue <macdue@dueutil.tech>
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024, Lucien Fiorini <lucienfiorini@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -177,7 +178,7 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
     }
 
     if (auto* painter = this->painter()) {
-        painter->draw_bitmap(destination_rect, *bitmap, source_rect.to_rounded<int>(), scaling_mode, drawing_state().global_alpha);
+        painter->draw_bitmap(destination_rect, *bitmap, source_rect.to_rounded<int>(), scaling_mode, drawing_state().filters, drawing_state().global_alpha);
         did_draw(destination_rect);
     }
 
@@ -301,12 +302,7 @@ void CanvasRenderingContext2D::stroke_internal(Gfx::Path const& path)
     auto& state = drawing_state();
 
     // FIXME: Honor state's line_cap, line_join, miter_limit, dash_list, and line_dash_offset.
-
-    if (auto color = state.stroke_style.as_color(); color.has_value()) {
-        painter->stroke_path(path, color->with_opacity(state.global_alpha), state.line_width);
-    } else {
-        painter->stroke_path(path, state.stroke_style.to_gfx_paint_style(), state.line_width, state.global_alpha);
-    }
+    painter->stroke_path(path, state.stroke_style.to_gfx_paint_style(), state.filters, state.line_width, state.global_alpha);
 
     did_draw(path.bounding_box());
 }
@@ -342,11 +338,7 @@ void CanvasRenderingContext2D::fill_internal(Gfx::Path const& path, Gfx::Winding
     auto path_to_fill = path;
     path_to_fill.close_all_subpaths();
     auto& state = this->drawing_state();
-    if (auto color = state.fill_style.as_color(); color.has_value()) {
-        painter->fill_path(path_to_fill, color->with_opacity(state.global_alpha), winding_rule);
-    } else {
-        painter->fill_path(path_to_fill, state.fill_style.to_gfx_paint_style(), state.global_alpha, winding_rule);
-    }
+    painter->fill_path(path_to_fill, state.fill_style.to_gfx_paint_style(), state.filters, state.global_alpha, winding_rule);
 
     did_draw(path_to_fill.bounding_box());
 }
@@ -438,7 +430,7 @@ WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data
     ASSERT(image_data->bitmap().alpha_type() == Gfx::AlphaType::Unpremultiplied);
 
     auto painter = Gfx::Painter::create(image_data->bitmap());
-    painter->draw_bitmap(image_data->bitmap().rect().to_type<float>(), *snapshot, source_rect_intersected, Gfx::ScalingMode::NearestNeighbor, drawing_state().global_alpha);
+    painter->draw_bitmap(image_data->bitmap().rect().to_type<float>(), *snapshot, source_rect_intersected, Gfx::ScalingMode::NearestNeighbor, {}, drawing_state().global_alpha);
 
     // 7. Set the pixels values of imageData for areas of the source rectangle that are outside of the output bitmap to transparent black.
     // NOTE: No-op, already done during creation.
@@ -451,7 +443,7 @@ void CanvasRenderingContext2D::put_image_data(ImageData const& image_data, float
 {
     if (auto* painter = this->painter()) {
         auto dst_rect = Gfx::FloatRect(x, y, image_data.width(), image_data.height());
-        painter->draw_bitmap(dst_rect, Gfx::ImmutableBitmap::create(image_data.bitmap()), image_data.bitmap().rect(), Gfx::ScalingMode::NearestNeighbor, 1.0f);
+        painter->draw_bitmap(dst_rect, Gfx::ImmutableBitmap::create(image_data.bitmap()), image_data.bitmap().rect(), Gfx::ScalingMode::NearestNeighbor, drawing_state().filters, 1.0f);
         did_draw(dst_rect);
     }
 }
@@ -860,6 +852,82 @@ void CanvasRenderingContext2D::paint_shadow_for_stroke_internal(Gfx::Path const&
     painter->restore();
 
     did_draw(path.bounding_box());
+}
+
+String CanvasRenderingContext2D::filter() const
+{
+    if (!drawing_state().filters_string.has_value()) {
+        return String::from_utf8_without_validation("none"sv.bytes());
+    }
+
+    return drawing_state().filters_string.value();
+}
+
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-filter
+void CanvasRenderingContext2D::set_filter(String filter)
+{
+    drawing_state().filters.clear();
+
+    // 1. If the given value is "none", then set this's current filter to "none" and return.
+    if (filter == "none"sv) {
+        drawing_state().filters_string.clear();
+        return;
+    }
+
+    auto& realm = static_cast<CanvasRenderingContext2D&>(*this).realm();
+    auto parser = CSS::Parser::Parser::create(CSS::Parser::ParsingContext(realm), filter);
+
+    // 2. Let parsedValue be the result of parsing the given values as a <filter-value-list>.
+    //    If any property-independent style sheet syntax like 'inherit' or 'initial' is present,
+    //    then this parsing must return failure.
+    auto style_value = parser.parse_as_css_value(CSS::PropertyID::Filter);
+
+    if (style_value && style_value->is_filter_value_list()) {
+        auto filter_value_list = style_value->as_filter_value_list().filter_value_list();
+
+        drawing_state().filters.grow_capacity(filter_value_list.size());
+
+        // Note: The layout must be updated to make sure the canvas's layout node isn't null.
+        canvas_element().document().update_layout();
+        auto layout_node = canvas_element().layout_node();
+
+        // 4. Set this's current filter to the given value.
+        for (auto& item : filter_value_list) {
+            // FIXME: Add support for SVG filters when they get implement by the CSS parser.
+            item.visit(
+                [&](CSS::FilterOperation::Blur const& blur_filter) {
+                    float radius = blur_filter.resolved_radius(*layout_node);
+                    drawing_state().filters.append(Gfx::BlurFilter { radius });
+                },
+                [&](CSS::FilterOperation::Color const& color) {
+                    float amount = color.resolved_amount();
+                    drawing_state().filters.append(Gfx::ColorFilter { color.operation, amount });
+                },
+                [&](CSS::FilterOperation::HueRotate const& hue_rotate) {
+                    float angle = hue_rotate.angle_degrees(*layout_node);
+                    drawing_state().filters.append(Gfx::HueRotateFilter { angle });
+                },
+                [&](CSS::FilterOperation::DropShadow const& drop_shadow) {
+                    auto resolution_context = CSS::Length::ResolutionContext::for_layout_node(*layout_node);
+
+                    float offset_x = static_cast<float>(drop_shadow.offset_x.resolved(resolution_context).raw_value());
+                    float offset_y = static_cast<float>(drop_shadow.offset_y.resolved(resolution_context).raw_value());
+
+                    float radius = 0.0f;
+                    if (drop_shadow.radius.has_value()) {
+                        radius = drop_shadow.radius->resolved(resolution_context).raw_value();
+                    };
+
+                    auto color = drop_shadow.color.value_or(Gfx::Color { 0, 0, 0, 255 });
+
+                    drawing_state().filters.append(Gfx::DropShadowFilter { offset_x, offset_y, radius, color });
+                });
+        }
+
+        drawing_state().filters_string = move(filter);
+    }
+
+    // 3. If parsedValue is failure, then return.
 }
 
 }

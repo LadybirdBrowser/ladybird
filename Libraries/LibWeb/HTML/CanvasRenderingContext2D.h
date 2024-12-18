@@ -19,6 +19,7 @@
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawPath.h>
 #include <LibWeb/HTML/Canvas/CanvasFillStrokeStyles.h>
+#include <LibWeb/HTML/Canvas/CanvasFilters.h>
 #include <LibWeb/HTML/Canvas/CanvasImageData.h>
 #include <LibWeb/HTML/Canvas/CanvasImageSmoothing.h>
 #include <LibWeb/HTML/Canvas/CanvasPath.h>
@@ -43,6 +44,7 @@ class CanvasRenderingContext2D
     , public CanvasTransform<CanvasRenderingContext2D>
     , public CanvasFillStrokeStyles<CanvasRenderingContext2D>
     , public CanvasShadowStyles<CanvasRenderingContext2D>
+    , public CanvasFilters
     , public CanvasRect
     , public CanvasDrawPath
     , public CanvasText
@@ -100,6 +102,9 @@ public:
 
     virtual float global_alpha() const override;
     virtual void set_global_alpha(float) override;
+
+    virtual String filter() const override;
+    virtual void set_filter(String) override;
 
     virtual float shadow_offset_x() const override;
     virtual void set_shadow_offset_x(float) override;

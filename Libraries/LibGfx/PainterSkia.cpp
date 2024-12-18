@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024, Lucien Fiorini <lucienfiorini@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,6 +9,7 @@
 #define AK_DONT_REPLACE_STD
 
 #include <AK/OwnPtr.h>
+#include <LibGfx/Filter.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/PathSkia.h>
@@ -128,9 +130,10 @@ void PainterSkia::fill_rect(Gfx::FloatRect const& rect, Color color)
     impl().canvas()->drawRect(to_skia_rect(rect), paint);
 }
 
-void PainterSkia::draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::ImmutableBitmap const& src_bitmap, Gfx::IntRect const& src_rect, Gfx::ScalingMode scaling_mode, float global_alpha)
+void PainterSkia::draw_bitmap(Gfx::FloatRect const& dst_rect, Gfx::ImmutableBitmap const& src_bitmap, Gfx::IntRect const& src_rect, Gfx::ScalingMode scaling_mode, ReadonlySpan<Gfx::Filter> filters, float global_alpha)
 {
     SkPaint paint;
+    apply_filters(paint, filters);
     paint.setAlpha(static_cast<u8>(global_alpha * 255));
 
     impl().canvas()->drawImageRect(
@@ -183,14 +186,14 @@ void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::Color color, float thi
     impl().canvas()->drawPath(sk_path, paint);
 }
 
-void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_style, float thickness, float global_alpha)
+void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_style, ReadonlySpan<Gfx::Filter> filters, float thickness, float global_alpha)
 {
     // Skia treats zero thickness as a special case and will draw a hairline, while we want to draw nothing.
     if (thickness <= 0)
         return;
 
     auto sk_path = to_skia_path(path);
-    auto paint = to_skia_paint(paint_style, {});
+    auto paint = to_skia_paint(paint_style, filters);
     paint.setAntiAlias(true);
     paint.setAlphaf(global_alpha);
     paint.setStyle(SkPaint::Style::kStroke_Style);
@@ -219,11 +222,11 @@ void PainterSkia::fill_path(Gfx::Path const& path, Gfx::Color color, Gfx::Windin
     impl().canvas()->drawPath(sk_path, paint);
 }
 
-void PainterSkia::fill_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_style, float global_alpha, Gfx::WindingRule winding_rule)
+void PainterSkia::fill_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_style, ReadonlySpan<Gfx::Filter> filters, float global_alpha, Gfx::WindingRule winding_rule)
 {
     auto sk_path = to_skia_path(path);
     sk_path.setFillType(to_skia_path_fill_type(winding_rule));
-    auto paint = to_skia_paint(paint_style, {});
+    auto paint = to_skia_paint(paint_style, filters);
     paint.setAntiAlias(true);
     paint.setAlphaf(global_alpha);
     impl().canvas()->drawPath(sk_path, paint);
