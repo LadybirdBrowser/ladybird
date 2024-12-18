@@ -1,0 +1,7 @@
+<!DOCTYPE html>
+<script>
+    const abortController = new AbortController();
+    const signal = AbortSignal.any([abortController.signal]);
+    abortController.signal.addEventListener("abort", () => { AbortSignal.any([signal]) });
+    abortController.abort();
+</script>
