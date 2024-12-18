@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/DOM/Comment.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentFragment.h>
@@ -417,10 +418,11 @@ bool command_insert_linebreak_action(DOM::Document& document, String const&)
     //         * Insert another newline (\n) character if the active range's start offset is equal to the length of the
     //           active range's start node.
     //         * Return true.
-    if (is<DOM::Text>(*start_node) && start_node->layout_node()) {
+    if (is<DOM::Text>(*start_node)) {
         auto& text_node = static_cast<DOM::Text&>(*start_node);
-        auto white_space = text_node.layout_node()->computed_values().white_space();
-        if (first_is_one_of(white_space, CSS::WhiteSpace::Pre, CSS::WhiteSpace::PreLine, CSS::WhiteSpace::PreWrap)) {
+        auto resolved_white_space = resolved_keyword(*start_node, CSS::PropertyID::WhiteSpace);
+        if (resolved_white_space.has_value()
+            && first_is_one_of(resolved_white_space.value(), CSS::Keyword::Pre, CSS::Keyword::PreLine, CSS::Keyword::PreWrap)) {
             MUST(text_node.insert_data(active_range.start_offset(), "\n"_string));
             MUST(selection.collapse(start_node, active_range.start_offset() + 1));
             if (selection.range()->start_offset() == start_node->length())

@@ -4,6 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/ResolvedCSSStyleDeclaration.h>
+#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
+#include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/DocumentFragment.h>
 #include <LibWeb/DOM/DocumentType.h>
@@ -250,15 +254,14 @@ void canonicalize_whitespace(GC::Ref<DOM::Node> node, u32 offset, bool fix_colla
         //    "white-space" is neither "pre" nor "pre-wrap" and start offset is not zero and the
         //    (start offset − 1)st code unit of start node's data is a space (0x0020) or
         //    non-breaking space (0x00A0), subtract one from start offset.
-        auto* layout_node = start_node->parent()->layout_node();
-        if (layout_node && is<DOM::Text>(*start_node) && start_offset != 0) {
-            auto parent_white_space = layout_node->computed_values().white_space();
+        if (is<DOM::Text>(*start_node) && start_offset != 0) {
+            auto parent_white_space = resolved_keyword(*start_node->parent(), CSS::PropertyID::WhiteSpace);
 
             // FIXME: Find a way to get code points directly from the UTF-8 string
             auto start_node_data = *start_node->text_content();
             auto utf16_code_units = MUST(AK::utf8_to_utf16(start_node_data));
             auto offset_minus_one_code_point = Utf16View { utf16_code_units }.code_point_at(start_offset - 1);
-            if (parent_white_space != CSS::WhiteSpace::Pre && parent_white_space != CSS::WhiteSpace::PreWrap
+            if (parent_white_space != CSS::Keyword::Pre && parent_white_space != CSS::Keyword::PreWrap
                 && (offset_minus_one_code_point == 0x20 || offset_minus_one_code_point == 0xA0)) {
                 --start_offset;
                 continue;
@@ -304,15 +307,14 @@ void canonicalize_whitespace(GC::Ref<DOM::Node> node, u32 offset, bool fix_colla
         //    "white-space" is neither "pre" nor "pre-wrap" and end offset is not end node's length
         //    and the end offsetth code unit of end node's data is a space (0x0020) or non-breaking
         //    space (0x00A0):
-        auto* layout_node = end_node->parent()->layout_node();
-        if (layout_node && is<DOM::Text>(*end_node) && end_offset != end_node->length()) {
-            auto parent_white_space = layout_node->computed_values().white_space();
+        if (is<DOM::Text>(*end_node) && end_offset != end_node->length()) {
+            auto parent_white_space = resolved_keyword(*end_node->parent(), CSS::PropertyID::WhiteSpace);
 
             // FIXME: Find a way to get code points directly from the UTF-8 string
             auto end_node_data = *end_node->text_content();
             auto utf16_code_units = MUST(AK::utf8_to_utf16(end_node_data));
             auto offset_code_point = Utf16View { utf16_code_units }.code_point_at(end_offset);
-            if (parent_white_space != CSS::WhiteSpace::Pre && parent_white_space != CSS::WhiteSpace::PreWrap
+            if (parent_white_space != CSS::Keyword::Pre && parent_white_space != CSS::Keyword::PreWrap
                 && (offset_code_point == 0x20 || offset_code_point == 0xA0)) {
                 // 1. If fix collapsed space is true, and collapse spaces is true, and the end offsetth
                 //    code unit of end node's data is a space (0x0020): call deleteData(end offset, 1)
@@ -370,10 +372,9 @@ void canonicalize_whitespace(GC::Ref<DOM::Node> node, u32 offset, bool fix_colla
             //    "white-space" is neither "pre" nor "pre-wrap" and end offset is end node's length and
             //    the last code unit of end node's data is a space (0x0020) and end node precedes a line
             //    break:
-            auto* layout_node = end_node->parent()->layout_node();
-            if (layout_node && is<DOM::Text>(*end_node) && end_offset == end_node->length() && precedes_a_line_break(end_node)) {
-                auto parent_white_space = layout_node->computed_values().white_space();
-                if (parent_white_space != CSS::WhiteSpace::Pre && parent_white_space != CSS::WhiteSpace::PreWrap
+            if (is<DOM::Text>(*end_node) && end_offset == end_node->length() && precedes_a_line_break(end_node)) {
+                auto parent_white_space = resolved_keyword(*end_node->parent(), CSS::PropertyID::WhiteSpace);
+                if (parent_white_space != CSS::Keyword::Pre && parent_white_space != CSS::Keyword::PreWrap
                     && end_node->text_content().value().ends_with_bytes(" "sv)) {
                     // 1. Subtract one from end offset.
                     --end_offset;
@@ -1267,14 +1268,14 @@ bool is_block_node(GC::Ref<DOM::Node> node)
     if (is<DOM::Document>(*node) || is<DOM::DocumentFragment>(*node))
         return true;
 
-    auto layout_node = node->layout_node();
-    if (!layout_node)
+    if (!is<DOM::Element>(*node))
         return false;
 
-    auto display = layout_node->display();
-    return is<DOM::Element>(*node)
-        && !(display.is_inline_outside() && (display.is_flow_inside() || display.is_flow_root_inside() || display.is_table_inside()))
-        && !display.is_none();
+    auto display = resolved_display(node);
+    if (!display.has_value())
+        return true;
+    return !(display->is_inline_outside() && (display->is_flow_inside() || display->is_flow_root_inside() || display->is_table_inside()))
+        && !display->is_none();
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#block-start-point
@@ -1364,8 +1365,13 @@ bool is_collapsed_whitespace_node(GC::Ref<DOM::Node> node)
         return true;
 
     // 5. If the "display" property of some ancestor of node has resolved value "none", return true.
-    if (ancestor->layout_node() && ancestor->layout_node()->display().is_none())
-        return true;
+    GC::Ptr<DOM::Node> some_ancestor = node->parent();
+    while (some_ancestor) {
+        auto display = resolved_display(*some_ancestor);
+        if (display.has_value() && display->is_none())
+            return true;
+        some_ancestor = some_ancestor->parent();
+    }
 
     // 6. While ancestor is not a block node and its parent is not null, set ancestor to its parent.
     while (!is_block_node(*ancestor) && ancestor->parent())
@@ -1615,8 +1621,8 @@ bool is_visible_node(GC::Ref<DOM::Node> node)
     // value "none".
     GC::Ptr<DOM::Node> inclusive_ancestor = node;
     while (inclusive_ancestor) {
-        auto* layout_node = inclusive_ancestor->layout_node();
-        if (layout_node && layout_node->display().is_none())
+        auto display = resolved_display(*inclusive_ancestor);
+        if (display.has_value() && display->is_none())
             return false;
         inclusive_ancestor = inclusive_ancestor->parent();
     }
@@ -1666,10 +1672,10 @@ bool is_whitespace_node(GC::Ref<DOM::Node> node)
     GC::Ptr<DOM::Node> parent = node->parent();
     if (!is<DOM::Element>(parent.ptr()))
         return false;
-    auto* layout_node = parent->layout_node();
-    if (!layout_node)
+    auto resolved_white_space = resolved_keyword(*parent, CSS::PropertyID::WhiteSpace);
+    if (!resolved_white_space.has_value())
         return false;
-    auto white_space = layout_node->computed_values().white_space();
+    auto white_space = resolved_white_space.value();
 
     // or a Text node whose data consists only of one or more tabs (0x0009), line feeds (0x000A),
     // carriage returns (0x000D), and/or spaces (0x0020), and whose parent is an Element whose
@@ -1678,7 +1684,7 @@ bool is_whitespace_node(GC::Ref<DOM::Node> node)
         return codepoint == '\t' || codepoint == '\n' || codepoint == '\r' || codepoint == ' ';
     };
     auto code_points = character_data.data().code_points();
-    if (all_of(code_points, is_tab_lf_cr_or_space) && (white_space == CSS::WhiteSpace::Normal || white_space == CSS::WhiteSpace::Nowrap))
+    if (all_of(code_points, is_tab_lf_cr_or_space) && (white_space == CSS::Keyword::Normal || white_space == CSS::Keyword::Nowrap))
         return true;
 
     // or a Text node whose data consists only of one or more tabs (0x0009), carriage returns
@@ -1687,7 +1693,7 @@ bool is_whitespace_node(GC::Ref<DOM::Node> node)
     auto is_tab_cr_or_space = [](u32 codepoint) {
         return codepoint == '\t' || codepoint == '\r' || codepoint == ' ';
     };
-    if (all_of(code_points, is_tab_cr_or_space) && white_space == CSS::WhiteSpace::PreLine)
+    if (all_of(code_points, is_tab_cr_or_space) && white_space == CSS::Keyword::PreLine)
         return true;
 
     return false;
@@ -2116,10 +2122,11 @@ GC::Ref<DOM::Element> set_the_tag_name(GC::Ref<DOM::Element> element, FlyString 
 // https://w3c.github.io/editing/docs/execCommand/#specified-command-value
 Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyString const& command)
 {
-    // 1. If command is "backColor" or "hiliteColor" and the Element's display property does not have resolved value "inline", return null.
-    auto layout_node = element->layout_node();
-    if ((command == CommandNames::backColor || command == CommandNames::hiliteColor) && layout_node) {
-        if (layout_node->computed_values().display().is_inline_outside())
+    // 1. If command is "backColor" or "hiliteColor" and the Element's display property does not have resolved value
+    //    "inline", return null.
+    if (command == CommandNames::backColor || command == CommandNames::hiliteColor) {
+        auto display = resolved_display(element);
+        if (!display.has_value() || !display->is_inline_outside() || !display->is_flow_inside())
             return {};
     }
 
@@ -2516,6 +2523,39 @@ bool is_heading(FlyString const& local_name)
         HTML::TagNames::h4,
         HTML::TagNames::h5,
         HTML::TagNames::h6);
+}
+
+Optional<CSS::Display> resolved_display(GC::Ref<DOM::Node> node)
+{
+    auto resolved_property = resolved_value(node, CSS::PropertyID::Display);
+    if (!resolved_property.has_value() || !resolved_property.value()->is_display())
+        return {};
+    return resolved_property.value()->as_display().display();
+}
+
+Optional<CSS::Keyword> resolved_keyword(GC::Ref<DOM::Node> node, CSS::PropertyID property_id)
+{
+    auto resolved_property = resolved_value(node, property_id);
+    if (!resolved_property.has_value() || !resolved_property.value()->is_keyword())
+        return {};
+    return resolved_property.value()->as_keyword().keyword();
+}
+
+Optional<NonnullRefPtr<CSS::CSSStyleValue const>> resolved_value(GC::Ref<DOM::Node> node, CSS::PropertyID property_id)
+{
+    // Find the nearest inclusive ancestor of node that is an Element. This allows for passing in a DOM::Text node.
+    GC::Ptr<DOM::Node> element = node;
+    while (element && !is<DOM::Element>(*element))
+        element = element->parent();
+    if (!element)
+        return {};
+
+    // Retrieve resolved style value
+    auto resolved_css_style_declaration = CSS::ResolvedCSSStyleDeclaration::create(static_cast<DOM::Element&>(*element));
+    auto optional_style_property = resolved_css_style_declaration->property(property_id);
+    if (!optional_style_property.has_value())
+        return {};
+    return optional_style_property.value().value;
 }
 
 }
