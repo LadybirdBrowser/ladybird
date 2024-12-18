@@ -90,5 +90,8 @@ GC::Ptr<DOM::Node> wrap(Vector<GC::Ref<DOM::Node>>, Function<bool(GC::Ref<DOM::N
 
 bool has_visible_children(GC::Ref<DOM::Node>);
 bool is_heading(FlyString const&);
+Optional<CSS::Display> resolved_display(GC::Ref<DOM::Node>);
+Optional<CSS::Keyword> resolved_keyword(GC::Ref<DOM::Node>, CSS::PropertyID);
+Optional<NonnullRefPtr<CSS::CSSStyleValue const>> resolved_value(GC::Ref<DOM::Node>, CSS::PropertyID);
 
 }
