@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+<head>
+  <title>New Core ARIA Role Verification Tests</title>
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../../resources/testdriver.js"></script>
+  <script src="../../resources/testdriver-vendor.js"></script>
+  <script src="../../resources/testdriver-actions.js"></script>
+  <script src="../../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+<p>Tests new <a href="https://w3c.github.io/aria/#role_definitions">ARIA role definitions</a>. See comments for more info.</p>
+
+<script>
+
+/*
+
+Tests simple role assignment: <div role="alert">x</div>
+
+*/
+
+AriaUtils.assignAndVerifyRolesByRoleNames([
+  "sectionheader", // See ARIA pull #1931
+  "sectionfooter", // See ARIA pull #1931
+]);
+
+</script>
+</body>
+</html>

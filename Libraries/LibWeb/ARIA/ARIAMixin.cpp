@@ -28,7 +28,7 @@ Optional<Role> ARIAMixin::role_from_role_attribute_value() const
         auto role = role_from_string(role_name);
         if (!role.has_value())
             continue;
-        if (is_non_abstract_role(*role))
+        if (!is_abstract_role(*role))
             return *role;
     }
 
