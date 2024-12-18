@@ -66,6 +66,7 @@ public:
     [[nodiscard]] ErrorOr<String> to_base(u16 N) const;
     [[nodiscard]] ByteString to_base_deprecated(u16 N) const;
 
+    [[nodiscard]] i32 to_i32() const;
     [[nodiscard]] u64 to_u64() const;
     [[nodiscard]] double to_double(UnsignedBigInteger::RoundingMode rounding_mode = UnsignedBigInteger::RoundingMode::IEEERoundAndTiesToEvenMantissa) const;
 

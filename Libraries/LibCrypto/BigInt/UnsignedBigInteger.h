@@ -69,6 +69,7 @@ public:
     [[nodiscard]] ErrorOr<String> to_base(u16 N) const;
     [[nodiscard]] ByteString to_base_deprecated(u16 N) const;
 
+    [[nodiscard]] u32 to_u32() const;
     [[nodiscard]] u64 to_u64() const;
 
     enum class RoundingMode {

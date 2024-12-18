@@ -178,6 +178,14 @@ ByteString UnsignedBigInteger::to_base_deprecated(u16 N) const
     return MUST(to_base(N)).to_byte_string();
 }
 
+u32 UnsignedBigInteger::to_u32() const
+{
+    static_assert(sizeof(Word) == 4);
+    if (!length())
+        return 0;
+    return m_words[0];
+}
+
 u64 UnsignedBigInteger::to_u64() const
 {
     static_assert(sizeof(Word) == 4);
