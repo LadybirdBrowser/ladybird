@@ -14,8 +14,3 @@ serenity_lib(LibTLS tls)
 target_link_libraries(LibTLS PRIVATE LibCore LibCrypto LibFileSystem)
 
 include(ca_certificates_data)
-
-if (WIN32)
-    find_package(pthread REQUIRED)
-    target_include_directories(LibTLS PRIVATE ${PTHREAD_INCLUDE_DIR})
-endif()

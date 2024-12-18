@@ -228,6 +228,16 @@ function(lagom_lib target_name fs_name)
         target_link_libraries(${target_name} PRIVATE AK)
     endif()
 
+    if (WIN32)
+        find_package(pthread REQUIRED)
+        target_include_directories(${target_name} PRIVATE ${PTHREAD_INCLUDE_DIR})
+        target_link_libraries(${target_name} PRIVATE ${PTHREAD_LIBRARY})
+
+        find_package(mman REQUIRED)
+        target_include_directories(${target_name} PRIVATE ${MMAN_INCLUDE_DIR})
+        target_link_libraries(${target_name} PRIVATE ${MMAN_LIBRARY})
+    endif()
+
     # FIXME: Clean these up so that we don't need so many include dirs
     if (ENABLE_INSTALL_HEADERS)
         target_include_directories(${target_name} INTERFACE

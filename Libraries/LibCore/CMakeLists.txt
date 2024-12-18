@@ -22,10 +22,6 @@ serenity_lib(LibCoreMinimal coreminimal)
 if (WIN32)
     find_path(DIRENT_INCLUDE_DIR dirent.h REQUIRED)
     target_include_directories(LibCoreMinimal PRIVATE ${DIRENT_INCLUDE_DIR})
-
-    find_package(mman REQUIRED)
-    target_include_directories(LibCoreMinimal PRIVATE ${MMAN_INCLUDE_DIR})
-    target_link_libraries(LibCoreMinimal PRIVATE ${MMAN_LIBRARY})
 endif()
 
 if (LAGOM_TOOLS_ONLY)
@@ -116,11 +112,5 @@ if (ANDROID)
 endif()
 
 if (WIN32)
-    target_include_directories(LibCore PRIVATE ${MMAN_INCLUDE_DIR})
-
-    find_package(pthread REQUIRED)
-    target_include_directories(LibCore PRIVATE ${PTHREAD_INCLUDE_DIR})
-    target_link_libraries(LibCore PRIVATE ${PTHREAD_LIBRARY})
-
     target_link_libraries(LibCore PRIVATE ws2_32.lib)
 endif()
