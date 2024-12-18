@@ -296,7 +296,7 @@ WebIDL::ExceptionOr<void> Selection::extend(GC::Ref<DOM::Node> node, unsigned of
         TRY(new_range->set_end(new_focus_node, new_focus_offset));
     }
     // 6. Otherwise, if oldAnchor is before or equal to newFocus, set the start newRange's start to oldAnchor, then set its end to newFocus.
-    else if (position_of_boundary_point_relative_to_other_boundary_point(old_anchor_node, old_anchor_offset, new_focus_node, new_focus_offset) != DOM::RelativeBoundaryPointPosition::After) {
+    else if (DOM::position_of_boundary_point_relative_to_other_boundary_point({ old_anchor_node, old_anchor_offset }, { new_focus_node, new_focus_offset }) != DOM::RelativeBoundaryPointPosition::After) {
         TRY(new_range->set_start(old_anchor_node, old_anchor_offset));
         TRY(new_range->set_end(new_focus_node, new_focus_offset));
     }
@@ -310,7 +310,7 @@ WebIDL::ExceptionOr<void> Selection::extend(GC::Ref<DOM::Node> node, unsigned of
     set_range(new_range);
 
     // 9. If newFocus is before oldAnchor, set this's direction to backwards. Otherwise, set it to forwards.
-    if (position_of_boundary_point_relative_to_other_boundary_point(new_focus_node, new_focus_offset, old_anchor_node, old_anchor_offset) == DOM::RelativeBoundaryPointPosition::Before) {
+    if (DOM::position_of_boundary_point_relative_to_other_boundary_point({ new_focus_node, new_focus_offset }, { old_anchor_node, old_anchor_offset }) == DOM::RelativeBoundaryPointPosition::Before) {
         m_direction = Direction::Backwards;
     } else {
         m_direction = Direction::Forwards;
@@ -339,7 +339,7 @@ WebIDL::ExceptionOr<void> Selection::set_base_and_extent(GC::Ref<DOM::Node> anch
     auto new_range = DOM::Range::create(*m_document);
 
     // 5. If anchor is before focus, set the start the newRange's start to anchor and its end to focus. Otherwise, set the start them to focus and anchor respectively.
-    auto position_of_anchor_relative_to_focus = DOM::position_of_boundary_point_relative_to_other_boundary_point(anchor_node, anchor_offset, focus_node, focus_offset);
+    auto position_of_anchor_relative_to_focus = DOM::position_of_boundary_point_relative_to_other_boundary_point({ anchor_node, anchor_offset }, { focus_node, focus_offset });
     if (position_of_anchor_relative_to_focus == DOM::RelativeBoundaryPointPosition::Before) {
         TRY(new_range->set_start(anchor_node, anchor_offset));
         TRY(new_range->set_end(focus_node, focus_offset));
@@ -414,16 +414,8 @@ bool Selection::contains_node(GC::Ref<DOM::Node> node, bool allow_partial_contai
     // start of its range is before or visually equivalent to the first boundary point in the node
     // and end of its range is after or visually equivalent to the last boundary point in the node.
     if (!allow_partial_containment) {
-        auto start_relative_position = DOM::position_of_boundary_point_relative_to_other_boundary_point(
-            *m_range->start_container(),
-            m_range->start_offset(),
-            node,
-            0);
-        auto end_relative_position = DOM::position_of_boundary_point_relative_to_other_boundary_point(
-            *m_range->end_container(),
-            m_range->end_offset(),
-            node,
-            node->length());
+        auto start_relative_position = DOM::position_of_boundary_point_relative_to_other_boundary_point(m_range->start(), { node, 0 });
+        auto end_relative_position = DOM::position_of_boundary_point_relative_to_other_boundary_point(m_range->end(), { node, static_cast<WebIDL::UnsignedLong>(node->length()) });
 
         return (start_relative_position == DOM::RelativeBoundaryPointPosition::Before || start_relative_position == DOM::RelativeBoundaryPointPosition::Equal)
             && (end_relative_position == DOM::RelativeBoundaryPointPosition::Equal || end_relative_position == DOM::RelativeBoundaryPointPosition::After);
@@ -433,16 +425,8 @@ bool Selection::contains_node(GC::Ref<DOM::Node> node, bool allow_partial_contai
     // start of its range is before or visually equivalent to the last boundary point in the node
     // and end of its range is after or visually equivalent to the first boundary point in the node.
 
-    auto start_relative_position = DOM::position_of_boundary_point_relative_to_other_boundary_point(
-        *m_range->start_container(),
-        m_range->start_offset(),
-        node,
-        node->length());
-    auto end_relative_position = DOM::position_of_boundary_point_relative_to_other_boundary_point(
-        *m_range->end_container(),
-        m_range->end_offset(),
-        node,
-        0);
+    auto start_relative_position = DOM::position_of_boundary_point_relative_to_other_boundary_point(m_range->start(), { node, static_cast<WebIDL::UnsignedLong>(node->length()) });
+    auto end_relative_position = DOM::position_of_boundary_point_relative_to_other_boundary_point(m_range->end(), { node, 0 });
 
     return (start_relative_position == DOM::RelativeBoundaryPointPosition::Before || start_relative_position == DOM::RelativeBoundaryPointPosition::Equal)
         && (end_relative_position == DOM::RelativeBoundaryPointPosition::Equal || end_relative_position == DOM::RelativeBoundaryPointPosition::After);

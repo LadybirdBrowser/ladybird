@@ -65,7 +65,7 @@ bool command_delete_action(DOM::Document& document, String const&)
     }
 
     // 2. Canonicalize whitespace at the active range's start.
-    canonicalize_whitespace(active_range.start_container(), active_range.start_offset());
+    canonicalize_whitespace(active_range.start());
 
     // 3. Let node and offset be the active range's start node and offset.
     GC::Ptr<DOM::Node> node = active_range.start_container();
