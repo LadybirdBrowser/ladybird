@@ -133,7 +133,7 @@ public:
     void add_rounded_rect_clip(CornerRadii corner_radii, Gfx::IntRect border_rect, CornerClip corner_clip);
     void add_mask(RefPtr<DisplayList> display_list, Gfx::IntRect rect);
 
-    void apply_backdrop_filter(Gfx::IntRect const& backdrop_region, BorderRadiiData const& border_radii_data, CSS::ResolvedFilter const& backdrop_filter);
+    void apply_backdrop_filter(Gfx::IntRect const& backdrop_region, BorderRadiiData const& border_radii_data, Vector<Gfx::Filter> const& backdrop_filter);
 
     void paint_outer_box_shadow_params(PaintBoxShadowParams params);
     void paint_inner_box_shadow_params(PaintBoxShadowParams params);
@@ -148,7 +148,7 @@ public:
     void paint_scrollbar(int scroll_frame_id, Gfx::IntRect, CSSPixelFraction scroll_size, bool vertical);
 
     void apply_opacity(float opacity);
-    void apply_filters(CSS::ResolvedFilter filter);
+    void apply_filters(Vector<Gfx::Filter> filter);
     void apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4);
     void apply_mask_bitmap(Gfx::IntPoint origin, Gfx::ImmutableBitmap const&, Gfx::Bitmap::MaskKind);
 

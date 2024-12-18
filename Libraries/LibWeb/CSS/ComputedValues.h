@@ -9,6 +9,7 @@
 #include <AK/FlyString.h>
 #include <AK/HashMap.h>
 #include <AK/Optional.h>
+#include <LibGfx/Filter.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/ScalingMode.h>
 #include <LibWeb/CSS/CalculatedOr.h>
@@ -57,34 +58,6 @@ struct QuotesData {
     Vector<Array<FlyString, 2>> strings {};
 };
 
-struct ResolvedFilter {
-    struct Blur {
-        float radius;
-    };
-
-    struct DropShadow {
-        double offset_x;
-        double offset_y;
-        double radius;
-        Gfx::Color color;
-    };
-
-    struct HueRotate {
-        float angle_degrees;
-    };
-
-    struct Color {
-        FilterOperation::Color::Type type;
-        float amount;
-    };
-
-    using FilterFunction = Variant<Blur, DropShadow, HueRotate, Color>;
-
-    bool is_none() const { return filters.size() == 0; }
-
-    Vector<FilterFunction> filters;
-};
-
 struct ObjectPosition {
     PositionEdge edge_x { PositionEdge::Left };
     CSS::LengthPercentage offset_x { Percentage(50) };
@@ -122,8 +95,8 @@ public:
     static CSS::Display display() { return CSS::Display { CSS::DisplayOutside::Inline, CSS::DisplayInside::Flow }; }
     static Color color() { return Color::Black; }
     static Color stop_color() { return Color::Black; }
-    static CSS::ResolvedFilter backdrop_filter() { return ResolvedFilter { .filters = {} }; }
-    static CSS::ResolvedFilter filter() { return ResolvedFilter { .filters = {} }; }
+    static Vector<Gfx::Filter> backdrop_filter() { return {}; }
+    static Vector<Gfx::Filter> filter() { return {}; }
     static Color background_color() { return Color::Transparent; }
     static CSS::ListStyleType list_style_type() { return CSS::ListStyleType::Disc; }
     static CSS::ListStylePosition list_style_position() { return CSS::ListStylePosition::Outside; }
@@ -416,8 +389,8 @@ public:
     CSS::JustifyContent justify_content() const { return m_noninherited.justify_content; }
     CSS::JustifySelf justify_self() const { return m_noninherited.justify_self; }
     CSS::JustifyItems justify_items() const { return m_noninherited.justify_items; }
-    CSS::ResolvedFilter const& backdrop_filter() const { return m_noninherited.backdrop_filter; }
-    CSS::ResolvedFilter const& filter() const { return m_noninherited.filter; }
+    Vector<Gfx::Filter> const& backdrop_filter() const { return m_noninherited.backdrop_filter; }
+    Vector<Gfx::Filter> const& filter() const { return m_noninherited.filter; }
     Vector<ShadowData> const& box_shadow() const { return m_noninherited.box_shadow; }
     CSS::BoxSizing box_sizing() const { return m_noninherited.box_sizing; }
     CSS::Size const& width() const { return m_noninherited.width; }
@@ -636,8 +609,8 @@ protected:
         CSS::LengthBox inset { InitialValues::inset() };
         CSS::LengthBox margin { InitialValues::margin() };
         CSS::LengthBox padding { InitialValues::padding() };
-        CSS::ResolvedFilter backdrop_filter { InitialValues::backdrop_filter() };
-        CSS::ResolvedFilter filter { InitialValues::filter() };
+        Vector<Gfx::Filter> backdrop_filter { InitialValues::backdrop_filter() };
+        Vector<Gfx::Filter> filter { InitialValues::filter() };
         BorderData border_left;
         BorderData border_top;
         BorderData border_right;
@@ -793,8 +766,8 @@ public:
     void set_list_style_type(CSS::ListStyleType value) { m_inherited.list_style_type = value; }
     void set_list_style_position(CSS::ListStylePosition value) { m_inherited.list_style_position = value; }
     void set_display(CSS::Display value) { m_noninherited.display = value; }
-    void set_backdrop_filter(CSS::ResolvedFilter backdrop_filter) { m_noninherited.backdrop_filter = move(backdrop_filter); }
-    void set_filter(CSS::ResolvedFilter filter) { m_noninherited.filter = move(filter); }
+    void set_backdrop_filter(Vector<Gfx::Filter> backdrop_filter) { m_noninherited.backdrop_filter = move(backdrop_filter); }
+    void set_filter(Vector<Gfx::Filter> filter) { m_noninherited.filter = move(filter); }
     void set_border_bottom_left_radius(CSS::BorderRadiusData value)
     {
         m_noninherited.has_noninitial_border_radii = true;

@@ -41,6 +41,7 @@ set(SOURCES
     ImageFormats/WebPWriterLossless.cpp
     ImageFormats/AVIFLoader.cpp
     ImmutableBitmap.cpp
+    SkiaUtils.cpp
     PaintingSurface.cpp
     Palette.cpp
     Path.cpp

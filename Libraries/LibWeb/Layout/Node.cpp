@@ -204,7 +204,7 @@ bool Node::establishes_stacking_context() const
     // [CSS21] and a Containing Block for absolute and fixed position descendants, unless the
     // element it applies to is a document root element in the current browsing context.
     // Spec Note: This rule works in the same way as for the filter property.
-    if (!computed_values().backdrop_filter().is_none() || !computed_values().filter().is_none())
+    if (!computed_values().backdrop_filter().is_empty() || !computed_values().filter().is_empty())
         return true;
 
     // Element with any of the following properties with value other than none:
@@ -541,31 +541,31 @@ void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
     computed_values.set_order(computed_style.order());
     computed_values.set_clip(computed_style.clip());
 
-    auto resolve_filter = [this](CSS::Filter const& computed_filter) -> CSS::ResolvedFilter {
-        CSS::ResolvedFilter resolved_filter;
+    auto resolve_filter = [this](CSS::Filter const& computed_filter) -> Vector<Gfx::Filter> {
+        Vector<Gfx::Filter> resolved_filter;
         for (auto const& filter : computed_filter.filters()) {
             filter.visit(
                 [&](CSS::FilterOperation::Blur const& blur) {
-                    resolved_filter.filters.append(CSS::ResolvedFilter::Blur {
+                    resolved_filter.append(Gfx::BlurFilter {
                         .radius = blur.resolved_radius(*this) });
                 },
                 [&](CSS::FilterOperation::DropShadow const& drop_shadow) {
                     auto context = CSS::Length::ResolutionContext::for_layout_node(*this);
                     // The default value for omitted values is missing length values set to 0
                     // and the missing used color is taken from the color property.
-                    resolved_filter.filters.append(CSS::ResolvedFilter::DropShadow {
-                        .offset_x = drop_shadow.offset_x.resolved(context).to_px(*this).to_double(),
-                        .offset_y = drop_shadow.offset_y.resolved(context).to_px(*this).to_double(),
-                        .radius = drop_shadow.radius.has_value() ? drop_shadow.radius->resolved(context).to_px(*this).to_double() : 0.0,
+                    resolved_filter.append(Gfx::DropShadowFilter {
+                        .offset_x = static_cast<float>(drop_shadow.offset_x.resolved(context).to_px(*this).to_double()),
+                        .offset_y = static_cast<float>(drop_shadow.offset_y.resolved(context).to_px(*this).to_double()),
+                        .radius = static_cast<float>(drop_shadow.radius.has_value() ? drop_shadow.radius->resolved(context).to_px(*this).to_double() : 0.0),
                         .color = drop_shadow.color.has_value() ? *drop_shadow.color : this->computed_values().color() });
                 },
                 [&](CSS::FilterOperation::Color const& color_operation) {
-                    resolved_filter.filters.append(CSS::ResolvedFilter::Color {
+                    resolved_filter.append(Gfx::ColorFilter {
                         .type = color_operation.operation,
                         .amount = color_operation.resolved_amount() });
                 },
                 [&](CSS::FilterOperation::HueRotate const& hue_rotate) {
-                    resolved_filter.filters.append(CSS::ResolvedFilter::HueRotate { .angle_degrees = hue_rotate.angle_degrees(*this) });
+                    resolved_filter.append(Gfx::HueRotateFilter { .angle_degrees = hue_rotate.angle_degrees(*this) });
                 });
         }
         return resolved_filter;
