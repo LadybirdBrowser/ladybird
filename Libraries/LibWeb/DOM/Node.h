@@ -389,39 +389,6 @@ public:
         return index;
     }
 
-    Optional<size_t> index_of_child(Node const& search_child)
-    {
-        VERIFY(search_child.parent() == this);
-        size_t index = 0;
-        auto* child = first_child();
-        VERIFY(child);
-
-        do {
-            if (child == &search_child)
-                return index;
-            index++;
-        } while (child && (child = child->next_sibling()));
-        return {};
-    }
-
-    template<typename ChildType>
-    Optional<size_t> index_of_child(Node const& search_child)
-    {
-        VERIFY(search_child.parent() == this);
-        size_t index = 0;
-        auto* child = first_child();
-        VERIFY(child);
-
-        do {
-            if (!is<ChildType>(child))
-                continue;
-            if (child == &search_child)
-                return index;
-            index++;
-        } while (child && (child = child->next_sibling()));
-        return {};
-    }
-
     bool is_ancestor_of(Node const&) const;
     bool is_inclusive_ancestor_of(Node const&) const;
     bool is_descendant_of(Node const&) const;
