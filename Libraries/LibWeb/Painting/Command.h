@@ -300,7 +300,7 @@ struct DrawLine {
 struct ApplyBackdropFilter {
     Gfx::IntRect backdrop_region;
     BorderRadiiData border_radii_data;
-    CSS::ResolvedFilter backdrop_filter;
+    Vector<Gfx::Filter> backdrop_filter;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return backdrop_region; }
 
@@ -408,7 +408,7 @@ struct ApplyOpacity {
 };
 
 struct ApplyFilters {
-    CSS::ResolvedFilter filter;
+    Vector<Gfx::Filter> filter;
 };
 
 struct ApplyTransform {

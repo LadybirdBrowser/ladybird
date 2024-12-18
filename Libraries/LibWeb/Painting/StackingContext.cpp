@@ -329,7 +329,7 @@ void StackingContext::paint(PaintContext& context) const
     context.display_list_recorder().push_stacking_context(push_stacking_context_params);
 
     auto const& filter = computed_values.filter();
-    if (!filter.is_none()) {
+    if (!filter.is_empty()) {
         context.display_list_recorder().apply_filters(paintable_box().computed_values().filter());
     }
 
@@ -354,7 +354,7 @@ void StackingContext::paint(PaintContext& context) const
 
     paint_internal(context);
 
-    if (!filter.is_none()) {
+    if (!filter.is_empty()) {
         context.display_list_recorder().restore();
     }
 

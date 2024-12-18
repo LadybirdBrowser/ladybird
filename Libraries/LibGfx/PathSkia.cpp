@@ -10,6 +10,7 @@
 #include <LibGfx/Font/ScaledFont.h>
 #include <LibGfx/PathSkia.h>
 #include <LibGfx/Rect.h>
+#include <LibGfx/SkiaUtils.h>
 #include <core/SkFont.h>
 #include <core/SkPath.h>
 #include <core/SkPathMeasure.h>
@@ -203,17 +204,6 @@ Gfx::FloatRect PathImplSkia::bounding_box() const
 {
     auto bounds = m_path->getBounds();
     return { bounds.fLeft, bounds.fTop, bounds.fRight - bounds.fLeft, bounds.fBottom - bounds.fTop };
-}
-
-static SkPathFillType to_skia_path_fill_type(Gfx::WindingRule winding_rule)
-{
-    switch (winding_rule) {
-    case Gfx::WindingRule::Nonzero:
-        return SkPathFillType::kWinding;
-    case Gfx::WindingRule::EvenOdd:
-        return SkPathFillType::kEvenOdd;
-    }
-    VERIFY_NOT_REACHED();
 }
 
 bool PathImplSkia::contains(FloatPoint point, Gfx::WindingRule winding_rule) const

@@ -92,19 +92,19 @@ String FilterValueListStyleValue::to_string(SerializationMode) const
                 builder.appendff("{}(",
                     [&] {
                         switch (color.operation) {
-                        case FilterOperation::Color::Type::Brightness:
+                        case Gfx::ColorFilter::Type::Brightness:
                             return "brightness"sv;
-                        case FilterOperation::Color::Type::Contrast:
+                        case Gfx::ColorFilter::Type::Contrast:
                             return "contrast"sv;
-                        case FilterOperation::Color::Type::Grayscale:
+                        case Gfx::ColorFilter::Type::Grayscale:
                             return "grayscale"sv;
-                        case FilterOperation::Color::Type::Invert:
+                        case Gfx::ColorFilter::Type::Invert:
                             return "invert"sv;
-                        case FilterOperation::Color::Type::Opacity:
+                        case Gfx::ColorFilter::Type::Opacity:
                             return "opacity"sv;
-                        case FilterOperation::Color::Type::Saturate:
+                        case Gfx::ColorFilter::Type::Saturate:
                             return "saturate"sv;
-                        case FilterOperation::Color::Type::Sepia:
+                        case Gfx::ColorFilter::Type::Sepia:
                             return "sepia"sv;
                         default:
                             VERIFY_NOT_REACHED();

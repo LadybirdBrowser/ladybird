@@ -310,7 +310,7 @@ void DisplayListRecorder::pop_stacking_context()
     append(PopStackingContext {});
 }
 
-void DisplayListRecorder::apply_backdrop_filter(Gfx::IntRect const& backdrop_region, BorderRadiiData const& border_radii_data, CSS::ResolvedFilter const& backdrop_filter)
+void DisplayListRecorder::apply_backdrop_filter(Gfx::IntRect const& backdrop_region, BorderRadiiData const& border_radii_data, Vector<Gfx::Filter> const& backdrop_filter)
 {
     if (backdrop_region.is_empty())
         return;
@@ -407,9 +407,9 @@ void DisplayListRecorder::apply_opacity(float opacity)
     append(ApplyOpacity { .opacity = opacity });
 }
 
-void DisplayListRecorder::apply_filters(CSS::ResolvedFilter filter)
+void DisplayListRecorder::apply_filters(Vector<Gfx::Filter> filter)
 {
-    append(ApplyFilters { .filter = filter });
+    append(ApplyFilters { .filter = move(filter) });
 }
 
 void DisplayListRecorder::apply_transform(Gfx::FloatPoint origin, Gfx::FloatMatrix4x4 matrix)

@@ -26,6 +26,7 @@
 
 #include <LibGfx/Font/ScaledFont.h>
 #include <LibGfx/PathSkia.h>
+#include <LibGfx/SkiaUtils.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/ShadowPainting.h>
@@ -64,169 +65,6 @@ DisplayListPlayerSkia::~DisplayListPlayerSkia()
     }
 }
 
-static SkPoint to_skia_point(auto const& point)
-{
-    return SkPoint::Make(point.x(), point.y());
-}
-
-static SkRect to_skia_rect(auto const& rect)
-{
-    return SkRect::MakeXYWH(rect.x(), rect.y(), rect.width(), rect.height());
-}
-
-static SkColor to_skia_color(Gfx::Color const& color)
-{
-    return SkColorSetARGB(color.alpha(), color.red(), color.green(), color.blue());
-}
-
-static SkColor4f to_skia_color4f(Gfx::Color const& color)
-{
-    return {
-        .fR = color.red() / 255.0f,
-        .fG = color.green() / 255.0f,
-        .fB = color.blue() / 255.0f,
-        .fA = color.alpha() / 255.0f,
-    };
-}
-
-static sk_sp<SkImageFilter> to_skia_image_filter(CSS::ResolvedFilter::FilterFunction const& function)
-{
-    // See: https://drafts.fxtf.org/filter-effects-1/#supported-filter-functions
-    return function.visit(
-        [&](CSS::ResolvedFilter::Blur const& blur_filter) {
-            return SkImageFilters::Blur(blur_filter.radius, blur_filter.radius, nullptr);
-        },
-        [&](CSS::ResolvedFilter::Color const& color) {
-            auto amount = color.amount;
-
-            // Matrices are taken from https://drafts.fxtf.org/filter-effects-1/#FilterPrimitiveRepresentation
-            sk_sp<SkColorFilter> color_filter;
-            switch (color.type) {
-            case CSS::FilterOperation::Color::Type::Grayscale: {
-                float matrix[20] = {
-                    0.2126f + 0.7874f * (1 - amount), 0.7152f - 0.7152f * (1 - amount), 0.0722f - 0.0722f * (1 - amount), 0, 0,
-                    0.2126f - 0.2126f * (1 - amount), 0.7152f + 0.2848f * (1 - amount), 0.0722f - 0.0722f * (1 - amount), 0, 0,
-                    0.2126f - 0.2126f * (1 - amount), 0.7152f - 0.7152f * (1 - amount), 0.0722f + 0.9278f * (1 - amount), 0, 0,
-                    0, 0, 0, 1, 0
-                };
-                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kYes);
-                break;
-            }
-            case CSS::FilterOperation::Color::Type::Brightness: {
-                float matrix[20] = {
-                    amount, 0, 0, 0, 0,
-                    0, amount, 0, 0, 0,
-                    0, 0, amount, 0, 0,
-                    0, 0, 0, 1, 0
-                };
-                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo);
-                break;
-            }
-            case CSS::FilterOperation::Color::Type::Contrast: {
-                float intercept = -(0.5f * amount) + 0.5f;
-                float matrix[20] = {
-                    amount, 0, 0, 0, intercept,
-                    0, amount, 0, 0, intercept,
-                    0, 0, amount, 0, intercept,
-                    0, 0, 0, 1, 0
-                };
-                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo);
-                break;
-            }
-            case CSS::FilterOperation::Color::Type::Invert: {
-                float matrix[20] = {
-                    1 - 2 * amount, 0, 0, 0, amount,
-                    0, 1 - 2 * amount, 0, 0, amount,
-                    0, 0, 1 - 2 * amount, 0, amount,
-                    0, 0, 0, 1, 0
-                };
-                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kYes);
-                break;
-            }
-            case CSS::FilterOperation::Color::Type::Opacity: {
-                float matrix[20] = {
-                    1, 0, 0, 0, 0,
-                    0, 1, 0, 0, 0,
-                    0, 0, 1, 0, 0,
-                    0, 0, 0, amount, 0
-                };
-                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kYes);
-                break;
-            }
-            case CSS::FilterOperation::Color::Type::Sepia: {
-                float matrix[20] = {
-                    0.393f + 0.607f * (1 - amount), 0.769f - 0.769f * (1 - amount), 0.189f - 0.189f * (1 - amount), 0, 0,
-                    0.349f - 0.349f * (1 - amount), 0.686f + 0.314f * (1 - amount), 0.168f - 0.168f * (1 - amount), 0, 0,
-                    0.272f - 0.272f * (1 - amount), 0.534f - 0.534f * (1 - amount), 0.131f + 0.869f * (1 - amount), 0, 0,
-                    0, 0, 0, 1, 0
-                };
-                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kYes);
-                break;
-            }
-            case CSS::FilterOperation::Color::Type::Saturate: {
-                float matrix[20] = {
-                    0.213f + 0.787f * amount, 0.715f - 0.715f * amount, 0.072f - 0.072f * amount, 0, 0,
-                    0.213f - 0.213f * amount, 0.715f + 0.285f * amount, 0.072f - 0.072f * amount, 0, 0,
-                    0.213f - 0.213f * amount, 0.715f - 0.715f * amount, 0.072f + 0.928f * amount, 0, 0,
-                    0, 0, 0, 1, 0
-                };
-                color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo);
-                break;
-            }
-            default:
-                VERIFY_NOT_REACHED();
-            }
-
-            return SkImageFilters::ColorFilter(color_filter, nullptr);
-        },
-        [&](CSS::ResolvedFilter::HueRotate const& hue_rotate) {
-            float radians = AK::to_radians(hue_rotate.angle_degrees);
-
-            auto cosA = cos(radians);
-            auto sinA = sin(radians);
-
-            auto a00 = 0.213f + cosA * 0.787f - sinA * 0.213f;
-            auto a01 = 0.715f - cosA * 0.715f - sinA * 0.715f;
-            auto a02 = 0.072f - cosA * 0.072f + sinA * 0.928f;
-            auto a10 = 0.213f - cosA * 0.213f + sinA * 0.143f;
-            auto a11 = 0.715f + cosA * 0.285f + sinA * 0.140f;
-            auto a12 = 0.072f - cosA * 0.072f - sinA * 0.283f;
-            auto a20 = 0.213f - cosA * 0.213f - sinA * 0.787f;
-            auto a21 = 0.715f - cosA * 0.715f + sinA * 0.715f;
-            auto a22 = 0.072f + cosA * 0.928f + sinA * 0.072f;
-
-            float matrix[20] = {
-                a00, a01, a02, 0, 0,
-                a10, a11, a12, 0, 0,
-                a20, a21, a22, 0, 0,
-                0, 0, 0, 1, 0
-            };
-
-            auto color_filter = SkColorFilters::Matrix(matrix, SkColorFilters::Clamp::kNo);
-            return SkImageFilters::ColorFilter(color_filter, nullptr);
-        },
-        [&](CSS::ResolvedFilter::DropShadow const& command) {
-            auto shadow_color = to_skia_color(command.color);
-            return SkImageFilters::DropShadow(command.offset_x, command.offset_y, command.radius, command.radius, shadow_color, nullptr);
-        });
-}
-
-static SkPath to_skia_path(Gfx::Path const& path)
-{
-    return static_cast<Gfx::PathImplSkia const&>(path.impl()).sk_path();
-}
-
-static SkPathFillType to_skia_path_fill_type(Gfx::WindingRule winding_rule)
-{
-    switch (winding_rule) {
-    case Gfx::WindingRule::Nonzero:
-        return SkPathFillType::kWinding;
-    case Gfx::WindingRule::EvenOdd:
-        return SkPathFillType::kEvenOdd;
-    }
-    VERIFY_NOT_REACHED();
-}
-
 static SkRRect to_skia_rrect(auto const& rect, CornerRadii const& corner_radii)
 {
     SkRRect rrect;
@@ -252,21 +90,6 @@ static SkMatrix to_skia_matrix(Gfx::AffineTransform const& affine_transform)
     SkMatrix matrix;
     matrix.setAffine(affine);
     return matrix;
-}
-
-static SkSamplingOptions to_skia_sampling_options(Gfx::ScalingMode scaling_mode)
-{
-    switch (scaling_mode) {
-    case Gfx::ScalingMode::NearestNeighbor:
-    case Gfx::ScalingMode::SmoothPixels:
-        return SkSamplingOptions(SkFilterMode::kNearest);
-    case Gfx::ScalingMode::BilinearBlend:
-        return SkSamplingOptions(SkFilterMode::kLinear);
-    case Gfx::ScalingMode::BoxSampling:
-        return SkSamplingOptions(SkCubicResampler::Mitchell());
-    default:
-        VERIFY_NOT_REACHED();
-    }
 }
 
 Gfx::PaintingSurface& DisplayListPlayerSkia::surface() const
@@ -916,8 +739,8 @@ void DisplayListPlayerSkia::apply_backdrop_filter(ApplyBackdropFilter const& com
     canvas.clipRect(rect);
     ScopeGuard guard = [&] { canvas.restore(); };
 
-    for (auto const& filter_function : command.backdrop_filter.filters) {
-        auto image_filter = to_skia_image_filter(filter_function);
+    for (auto const& filter : command.backdrop_filter) {
+        auto image_filter = to_skia_image_filter(filter);
         canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, nullptr, image_filter.get(), 0));
         canvas.restore();
     }
@@ -1091,7 +914,7 @@ void DisplayListPlayerSkia::apply_opacity(ApplyOpacity const& command)
 
 void DisplayListPlayerSkia::apply_filters(ApplyFilters const& command)
 {
-    if (command.filter.is_none()) {
+    if (command.filter.is_empty()) {
         return;
     }
     sk_sp<SkImageFilter> image_filter;
@@ -1103,7 +926,7 @@ void DisplayListPlayerSkia::apply_filters(ApplyFilters const& command)
     };
 
     // Apply filters in order
-    for (auto filter : command.filter.filters) {
+    for (auto filter : command.filter) {
         append_filter(to_skia_image_filter(filter));
     }
 
@@ -1111,7 +934,6 @@ void DisplayListPlayerSkia::apply_filters(ApplyFilters const& command)
     paint.setImageFilter(image_filter);
     auto& canvas = surface().canvas();
     canvas.saveLayer(nullptr, &paint);
-    return;
 }
 
 void DisplayListPlayerSkia::apply_transform(ApplyTransform const& command)

@@ -67,7 +67,7 @@ void SVGSVGPaintable::paint_svg_box(PaintContext& context, PaintableBox const& s
         context.display_list_recorder().apply_opacity(computed_values.opacity());
     }
 
-    if (!filter.is_none()) {
+    if (!filter.is_empty()) {
         context.display_list_recorder().apply_filters(filter);
     }
 
@@ -95,7 +95,7 @@ void SVGSVGPaintable::paint_svg_box(PaintContext& context, PaintableBox const& s
 
     paint_descendants(context, svg_box, phase);
 
-    if (!filter.is_none()) {
+    if (!filter.is_empty()) {
         context.display_list_recorder().restore();
     }
 

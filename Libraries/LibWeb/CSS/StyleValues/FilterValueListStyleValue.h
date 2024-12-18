@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <LibGfx/Filter.h>
 #include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/CalculatedOr.h>
 #include <LibWeb/CSS/Length.h>
@@ -44,15 +45,7 @@ struct HueRotate {
 };
 
 struct Color {
-    enum class Type {
-        Brightness,
-        Contrast,
-        Grayscale,
-        Invert,
-        Opacity,
-        Saturate,
-        Sepia
-    } operation;
+    Gfx::ColorFilter::Type operation;
     Optional<NumberPercentage> amount {};
     float resolved_amount() const;
     bool operator==(Color const&) const = default;

@@ -470,7 +470,7 @@ void PaintableBox::paint_border(PaintContext& context) const
 void PaintableBox::paint_backdrop_filter(PaintContext& context) const
 {
     auto const& backdrop_filter = computed_values().backdrop_filter();
-    if (backdrop_filter.is_none()) {
+    if (backdrop_filter.is_empty()) {
         return;
     }
 
