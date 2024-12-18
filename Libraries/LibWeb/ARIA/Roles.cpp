@@ -173,15 +173,6 @@ bool is_windows_role(Role role)
         Role::dialog);
 }
 
-bool is_non_abstract_role(Role role)
-{
-    return is_widget_role(role)
-        || is_document_structure_role(role)
-        || is_landmark_role(role)
-        || is_live_region_role(role)
-        || is_windows_role(role);
-}
-
 // https://www.w3.org/TR/wai-aria-1.2/#namefromcontent
 bool allows_name_from_content(Role role)
 {

@@ -128,7 +128,6 @@ bool is_landmark_role(Role);
 bool is_live_region_role(Role);
 bool is_windows_role(Role);
 
-bool is_non_abstract_role(Role);
 bool allows_name_from_content(Role);
 
 }
