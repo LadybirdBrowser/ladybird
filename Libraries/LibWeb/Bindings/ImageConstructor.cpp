@@ -45,7 +45,7 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> ImageConstructor::construct(FunctionO
     auto& window = verify_cast<HTML::Window>(HTML::current_principal_global_object());
     auto& document = window.associated_document();
 
-    // 2. Let img be the result of creating an element given document, img, and the HTML namespace.
+    // 2. Let img be the result of creating an element given document, "img", and the HTML namespace.
     auto image_element = TRY(Bindings::throw_dom_exception_if_needed(vm, [&]() { return DOM::create_element(document, HTML::TagNames::img, Namespace::HTML); }));
 
     // 3. If width is given, then set an attribute value for img using "width" and width.

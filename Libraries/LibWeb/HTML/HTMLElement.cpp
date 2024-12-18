@@ -237,7 +237,7 @@ GC::Ref<DOM::DocumentFragment> HTMLElement::rendered_text_fragment(StringView in
                 input = input.substring_view(1);
             }
 
-            // 3. Append the result of creating an element given document, br, and the HTML namespace to fragment.
+            // 3. Append the result of creating an element given document, "br", and the HTML namespace to fragment.
             auto br_element = DOM::create_element(document(), HTML::TagNames::br, Namespace::HTML).release_value();
             MUST(fragment->append_child(br_element));
         }

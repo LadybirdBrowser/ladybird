@@ -101,7 +101,8 @@ void Attr::handle_attribute_changes(Element& element, Optional<String> const& ol
     // 1. Queue a mutation record of "attributes" for element with attribute’s local name, attribute’s namespace, oldValue, « », « », null, and null.
     element.queue_mutation_record(MutationType::attributes, local_name(), namespace_uri(), old_value, {}, {}, nullptr, nullptr);
 
-    // 2. If element is custom, then enqueue a custom element callback reaction with element, callback name "attributeChangedCallback", and an argument list containing attribute’s local name, oldValue, newValue, and attribute’s namespace.
+    // 2. If element is custom, then enqueue a custom element callback reaction with element, callback name "attributeChangedCallback",
+    //    and « attribute’s local name, oldValue, newValue, attribute’s namespace ».
     if (element.is_custom()) {
         auto& vm = this->vm();
 

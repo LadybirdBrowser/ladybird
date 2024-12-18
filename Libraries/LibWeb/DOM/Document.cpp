@@ -442,13 +442,13 @@ void Document::initialize(JS::Realm& realm)
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#populate-with-html/head/body
 WebIDL::ExceptionOr<void> Document::populate_with_html_head_and_body()
 {
-    // 1. Let html be the result of creating an element given document, html, and the HTML namespace.
+    // 1. Let html be the result of creating an element given document, "html", and the HTML namespace.
     auto html = TRY(DOM::create_element(*this, HTML::TagNames::html, Namespace::HTML));
 
-    // 2. Let head be the result of creating an element given document, head, and the HTML namespace.
+    // 2. Let head be the result of creating an element given document, "head", and the HTML namespace.
     auto head = TRY(DOM::create_element(*this, HTML::TagNames::head, Namespace::HTML));
 
-    // 3. Let body be the result of creating an element given document, body, and the HTML namespace.
+    // 3. Let body be the result of creating an element given document, "body", and the HTML namespace.
     auto body = TRY(DOM::create_element(*this, HTML::TagNames::body, Namespace::HTML));
 
     // 4. Append html to document.
@@ -930,7 +930,7 @@ WebIDL::ExceptionOr<void> Document::set_title(String const& title)
         }
         // 2. Otherwise:
         else {
-            // 1. Let element be the result of creating an element given the document element's node document, title,
+            // 1. Let element be the result of creating an element given the document element's node document, "title",
             //    and the SVG namespace.
             element = TRY(DOM::create_element(*this, HTML::TagNames::title, Namespace::SVG));
 
@@ -959,7 +959,7 @@ WebIDL::ExceptionOr<void> Document::set_title(String const& title)
         }
         // 3. Otherwise:
         else {
-            // 1. Let element be the result of creating an element given the document element's node document, title,
+            // 1. Let element be the result of creating an element given the document element's node document, "title",
             //    and the HTML namespace.
             element = TRY(DOM::create_element(*this, HTML::TagNames::title, Namespace::HTML));
 

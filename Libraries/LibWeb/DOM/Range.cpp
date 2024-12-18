@@ -1275,7 +1275,7 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::create_contextual_fragment
     //    - element's namespace is the HTML namespace;
     if (!element || is<HTML::HTMLHtmlElement>(*element)) {
         // then set element to the result of creating an element given this's node document,
-        // body, and the HTML namespace.
+        // "body", and the HTML namespace.
         element = TRY(DOM::create_element(node->document(), HTML::TagNames::body, Namespace::HTML));
     }
 
