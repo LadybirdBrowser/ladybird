@@ -97,7 +97,7 @@ void HTMLImageElement::apply_presentational_hints(CSS::StyleProperties& style) c
             }
         } else if (name == HTML::AttributeNames::border) {
             if (auto parsed_value = parse_non_negative_integer(value); parsed_value.has_value()) {
-                auto width_value = CSS::LengthStyleValue::create(CSS::Length::make_px(*parsed_value));
+                auto width_value = CSS::LengthStyleValue::create(CSS::Length::make_px(parsed_value->to_u32()));
                 style.set_property(CSS::PropertyID::BorderTopWidth, width_value);
                 style.set_property(CSS::PropertyID::BorderRightWidth, width_value);
                 style.set_property(CSS::PropertyID::BorderBottomWidth, width_value);
@@ -201,7 +201,7 @@ WebIDL::UnsignedLong HTMLImageElement::width() const
     // On setting [the width or height IDL attribute], they must act as if they reflected the respective content attributes of the same name.
     if (auto width_attr = get_attribute(HTML::AttributeNames::width); width_attr.has_value()) {
         if (auto converted = parse_non_negative_integer(*width_attr); converted.has_value() && *converted <= 2147483647)
-            return *converted;
+            return converted->to_u32();
     }
 
     // ...or else the density-corrected intrinsic width and height of the image, in CSS pixels,
@@ -232,7 +232,7 @@ WebIDL::UnsignedLong HTMLImageElement::height() const
     // On setting [the width or height IDL attribute], they must act as if they reflected the respective content attributes of the same name.
     if (auto height_attr = get_attribute(HTML::AttributeNames::height); height_attr.has_value()) {
         if (auto converted = parse_non_negative_integer(*height_attr); converted.has_value() && *converted <= 2147483647)
-            return *converted;
+            return converted->to_u32();
     }
 
     // ...or else the density-corrected intrinsic height and height of the image, in CSS pixels,

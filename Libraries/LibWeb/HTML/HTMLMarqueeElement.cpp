@@ -68,7 +68,7 @@ WebIDL::UnsignedLong HTMLMarqueeElement::scroll_amount()
     // The scrollAmount IDL attribute must reflect the scrollamount content attribute. The default value is 6.
     if (auto scroll_amount_string = get_attribute(HTML::AttributeNames::scrollamount); scroll_amount_string.has_value()) {
         if (auto scroll_amount = parse_non_negative_integer(*scroll_amount_string); scroll_amount.has_value() && *scroll_amount <= 2147483647)
-            return *scroll_amount;
+            return scroll_amount->to_u32();
     }
     return 6;
 }
@@ -87,7 +87,7 @@ WebIDL::UnsignedLong HTMLMarqueeElement::scroll_delay()
     // The scrollDelay IDL attribute must reflect the scrolldelay content attribute. The default value is 85.
     if (auto scroll_delay_string = get_attribute(HTML::AttributeNames::scrolldelay); scroll_delay_string.has_value()) {
         if (auto scroll_delay = parse_non_negative_integer(*scroll_delay_string); scroll_delay.has_value() && *scroll_delay <= 2147483647)
-            return *scroll_delay;
+            return scroll_delay->to_u32();
     }
     return 85;
 }

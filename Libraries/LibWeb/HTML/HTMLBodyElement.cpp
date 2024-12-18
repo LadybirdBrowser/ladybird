@@ -84,7 +84,7 @@ void HTMLBodyElement::apply_presentational_hints(CSS::StyleProperties& style) co
         if (!value.has_value())
             return;
         if (auto parsed_value = parse_non_negative_integer(value.value()); parsed_value.has_value())
-            style.set_property(property_id, CSS::LengthStyleValue::create(CSS::Length::make_px(*parsed_value)));
+            style.set_property(property_id, CSS::LengthStyleValue::create(CSS::Length::make_px(parsed_value->to_u32())));
     };
 
     apply_margin_value(CSS::PropertyID::MarginTop, margin_top_value);

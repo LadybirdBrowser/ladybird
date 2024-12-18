@@ -1132,7 +1132,7 @@ i32 Element::tab_index() const
 
     if (!maybe_table_index.has_value())
         return default_tab_index_value();
-    return maybe_table_index.value();
+    return maybe_table_index.value().to_i32();
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex

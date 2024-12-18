@@ -82,7 +82,7 @@ void HTMLCanvasElement::apply_presentational_hints(CSS::StyleProperties& style) 
         style.set_property(CSS::PropertyID::AspectRatio,
             CSS::StyleValueList::create(CSS::StyleValueVector {
                                             CSS::CSSKeywordValue::create(CSS::Keyword::Auto),
-                                            CSS::RatioStyleValue::create(CSS::Ratio { static_cast<double>(w.value()), static_cast<double>(h.value()) }) },
+                                            CSS::RatioStyleValue::create(CSS::Ratio { static_cast<double>(w->to_u32()), static_cast<double>(h->to_u32()) }) },
 
                 CSS::StyleValueList::Separator::Space));
 }
@@ -97,7 +97,7 @@ WebIDL::UnsignedLong HTMLCanvasElement::width() const
     // The width attribute defaults to 300
     if (auto width_string = get_attribute(HTML::AttributeNames::width); width_string.has_value()) {
         if (auto width = parse_non_negative_integer(*width_string); width.has_value() && *width <= 2147483647)
-            return *width;
+            return width->to_u32();
     }
 
     return 300;
@@ -113,7 +113,7 @@ WebIDL::UnsignedLong HTMLCanvasElement::height() const
     // the height attribute defaults to 150
     if (auto height_string = get_attribute(HTML::AttributeNames::height); height_string.has_value()) {
         if (auto height = parse_non_negative_integer(*height_string); height.has_value() && *height <= 2147483647)
-            return *height;
+            return height->to_u32();
     }
 
     return 150;

@@ -32,7 +32,7 @@ WebIDL::Long HTMLOListElement::start()
     // The start IDL attribute must reflect the content attribute of the same name, with a default value of 1.
     auto content_attribute_value = get_attribute(AttributeNames::start).value_or("1"_string);
     if (auto maybe_number = HTML::parse_integer(content_attribute_value); maybe_number.has_value())
-        return *maybe_number;
+        return maybe_number->to_i32();
     return 1;
 }
 

@@ -56,13 +56,17 @@ Optional<StringView> parse_integer_digits(StringView string)
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-integers
-Optional<i32> parse_integer(StringView string)
+Optional<::Crypto::SignedBigInteger> parse_integer(StringView string)
 {
     auto optional_digits = parse_integer_digits(string);
     if (!optional_digits.has_value())
         return {};
 
-    return optional_digits->to_number<i32>(TrimWhitespace::No);
+    auto optional_value = ::Crypto::SignedBigInteger::from_base(10, optional_digits.value());
+    if (optional_value.is_error())
+        return {};
+
+    return optional_value.value();
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-non-negative-integers
@@ -90,17 +94,17 @@ Optional<StringView> parse_non_negative_integer_digits(StringView string)
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-non-negative-integers
-Optional<u32> parse_non_negative_integer(StringView string)
+Optional<::Crypto::UnsignedBigInteger> parse_non_negative_integer(StringView string)
 {
     auto optional_digits = parse_non_negative_integer_digits(string);
     if (!optional_digits.has_value())
         return {};
 
-    auto optional_value = optional_digits->to_number<i64>(TrimWhitespace::No);
-    if (!optional_value.has_value() || *optional_value > NumericLimits<u32>::max())
+    auto optional_value = ::Crypto::UnsignedBigInteger::from_base(10, optional_digits.value());
+    if (optional_value.is_error())
         return {};
 
-    return static_cast<u32>(optional_value.value());
+    return optional_value.value();
 }
 
 // https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#rules-for-parsing-floating-point-number-values

@@ -138,6 +138,18 @@ ErrorOr<UnsignedBigInteger> UnsignedBigInteger::from_base(u16 N, StringView str)
     UnsignedBigInteger result;
     UnsignedBigInteger base { N };
 
+    if (str.length() > 1) {
+        auto maybe_sign = str[0];
+        if (maybe_sign == '+')
+            str = str.substring_view(1);
+
+        // NOTE: -0 is a valid unsigned integer
+        if (maybe_sign == '-' && str.length() == 2) {
+            if (str[1] == '0')
+                return UnsignedBigInteger { 0 };
+        }
+    }
+
     for (auto const& c : str) {
         if (c == '_')
             continue;
