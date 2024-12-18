@@ -20,6 +20,7 @@
 namespace Wasm {
 
 class Configuration;
+class Result;
 struct Interpreter;
 
 struct InstantiationError {
