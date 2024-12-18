@@ -936,17 +936,20 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::fetch_resource(URL::URL const& url_r
     auto& realm = this->realm();
     auto& vm = realm.vm();
 
-    // 1. If the algorithm was invoked with media provider object or a URL record whose blob URL entry is a blob URL entry whose object is a media provider
-    //    object, then let mode be local. Otherwise let mode be remote.
-    // FIXME: Detect media provider object / blob URLs with a media provider object.
+    // 1. Let mode be remote.
     auto mode = FetchMode::Remote;
 
-    // FIXME: 2. If mode is remote, then let the current media resource be the resource given by the URL record passed to this algorithm; otherwise, let the
+    // FIXME: 2. If the algorithm was invoked with media provider object, then set mode to local.
+    //           Otherwise:
+    //           1. Let object be the result of obtaining a blob object using the URL record's blob URL entry and the media
+    //              element's node document's relevant settings object.
+    //           2. If object is a media provider object, then set mode to local.
+    // FIXME: 3. If mode is remote, then let the current media resource be the resource given by the URL record passed to this algorithm; otherwise, let the
     //           current media resource be the resource given by the media provider object. Either way, the current media resource is now the element's media
     //           resource.
-    // FIXME: 3. Remove all media-resource-specific text tracks from the media element's list of pending text tracks, if any.
+    // FIXME: 4. Remove all media-resource-specific text tracks from the media element's list of pending text tracks, if any.
 
-    // 4. Run the appropriate steps from the following list:
+    // 5. Run the appropriate steps from the following list:
     switch (mode) {
     // -> If mode is remote
     case FetchMode::Remote: {
