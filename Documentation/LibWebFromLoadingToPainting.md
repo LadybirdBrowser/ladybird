@@ -104,7 +104,7 @@ A number of tree fix-ups are also performed:
 Layout starts at the ICB (initial containing block), which is the layout node that corresponds to the DOM document node.
 CSS says that the ICB should be the size of the viewport, so the very first thing layout does is assign these dimensions.
 
-Layout works through a mechanism call formatting contexts. CSS defines a number of different formatting contexts:
+Layout works through a mechanism called formatting contexts. CSS defines a number of different formatting contexts:
 - Block Formatting Context (BFC)
 - Inline Formatting Context (IFC)
 - Table Formatting Context (TFC)
@@ -139,7 +139,7 @@ When a line box is filled up, we insert a break and begin a new box after it.
 
 We always keep track of how much space is available on the current line. When starting a new line, this is reset by computing the width of the IFC's containing block and then subtracting the size occupied by floating boxes on both sides. We get this information by querying the parent BFC about floating boxes intersecting the Y coordinate of the new line.
 
-The result of performing a layout is a LayoutState object. This object contains the CSS "used values" (final metrics, including line boxes) for all box that were in scope of the layout. The LayoutState can either be committed (via `commit()`) or simply discarded. This allows us to perform non-destructive (or "immutable") layouts if we're only interested in measuring something.
+The result of performing a layout is a LayoutState object. This object contains the CSS "used values" (final metrics, including line boxes) for all boxes that were in scope of the layout. The LayoutState can either be committed (via `commit()`) or simply discarded. This allows us to perform non-destructive (or "immutable") layouts if we're only interested in measuring something.
 
 ### Paintable and the paint tree
 
