@@ -10,12 +10,24 @@
 #include <AK/Random.h>
 #include <AK/Span.h>
 #include <AK/Tuple.h>
+#include <LibCore/System.h>
 #include <LibWasm/AbstractMachine/Configuration.h>
 #include <LibWasm/Wasi.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <time.h>
-#include <unistd.h>
+
+#ifndef AK_OS_WINDOWS
+#    include <unistd.h>
+#endif
+
+#define RETURN_ERRNO_IF_ERROR(result)                             \
+    if (result.is_error()) {                                      \
+        if (result.error().is_errno())                            \
+            return errno_value_from_errno(result.error().code()); \
+        else                                                      \
+            return Errno::Invalid;                                \
+    }
 
 namespace Wasm::Wasi::ABI {
 
@@ -310,8 +322,10 @@ static ErrorOr<size_t> copy_string_excluding_terminating_null(Configuration& con
 }
 
 static Errno errno_value_from_errno(int value);
+#ifndef AK_OS_WINDOWS
 static FileType file_type_of(struct stat const& buf);
 static FDFlags fd_flags_of(struct stat const& buf);
+#endif
 
 Vector<AK::String> const& Implementation::arguments() const
 {
@@ -434,8 +448,8 @@ ErrorOr<Result<void>> Implementation::impl$fd_close(Configuration&, FD fd)
 {
     return map_fd(fd).visit(
         [&](u32 fd) -> Result<void> {
-            if (close(bit_cast<i32>(fd)) != 0)
-                return errno_value_from_errno(errno);
+            auto result = Core::System::close(bit_cast<i32>(fd));
+            RETURN_ERRNO_IF_ERROR(result);
             return {};
         },
         [&](PreopenedDirectoryDescriptor) -> Result<void> {
@@ -456,10 +470,9 @@ ErrorOr<Result<Size>> Implementation::impl$fd_write(Configuration& configuration
     Size bytes_written = 0;
     for (auto& iovec : TRY(copy_typed_array(configuration, iovs, iovs_len))) {
         auto slice = TRY(slice_typed_memory(configuration, iovec.buf, iovec.buf_len));
-        auto result = write(fd_value, slice.data(), slice.size());
-        if (result < 0)
-            return errno_value_from_errno(errno);
-        bytes_written += static_cast<Size>(result);
+        auto result = Core::System::write(fd_value, slice);
+        RETURN_ERRNO_IF_ERROR(result);
+        bytes_written += static_cast<Size>(result.value());
     }
     return bytes_written;
 }
@@ -508,6 +521,8 @@ ErrorOr<Result<void>> Implementation::impl$fd_prestat_dir_name(Configuration& co
 
     return Result<void> {};
 }
+
+#ifndef AK_OS_WINDOWS
 
 ErrorOr<Result<FileStat>> Implementation::impl$path_filestat_get(Configuration& configuration, FD fd, LookupFlags flags, ConstPointer<u8> path, Size path_len)
 {
@@ -751,6 +766,8 @@ ErrorOr<Result<FileStat>> Implementation::impl$fd_filestat_get(Configuration&, F
     });
 }
 
+#endif
+
 ErrorOr<Result<void>> Implementation::impl$random_get(Configuration& configuration, Pointer<u8> buf, Size buf_len)
 {
     auto buffer_slice = TRY(slice_typed_memory(configuration, buf, buf_len));
@@ -769,13 +786,14 @@ ErrorOr<Result<Size>> Implementation::impl$fd_read(Configuration& configuration,
     Size bytes_read = 0;
     for (auto& iovec : TRY(copy_typed_array(configuration, iovs, iovs_len))) {
         auto slice = TRY(slice_typed_memory(configuration, iovec.buf, iovec.buf_len));
-        auto result = read(fd_value, slice.data(), slice.size());
-        if (result < 0)
-            return errno_value_from_errno(errno);
-        bytes_read += static_cast<Size>(result);
+        auto result = Core::System::read(fd_value, slice);
+        RETURN_ERRNO_IF_ERROR(result);
+        bytes_read += static_cast<Size>(result.value());
     }
     return bytes_read;
 }
+
+#ifndef AK_OS_WINDOWS
 
 ErrorOr<Result<FDStat>> Implementation::impl$fd_fdstat_get(Configuration&, FD fd)
 {
@@ -822,8 +840,20 @@ ErrorOr<Result<FileSize>> Implementation::impl$fd_seek(Configuration&, FD fd, Fi
     return FileSize(result);
 }
 
+#endif
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
+
+#ifdef AK_OS_WINDOWS
+ErrorOr<Result<FileStat>> Implementation::impl$path_filestat_get(Configuration& configuration, FD fd, LookupFlags flags, ConstPointer<u8> path, Size path_len) { return Errno::NoSys; }
+ErrorOr<Result<void>> Implementation::impl$path_create_directory(Configuration& configuration, FD fd, Pointer<u8> path, Size path_len) { return Errno::NoSys; }
+ErrorOr<Result<FD>> Implementation::impl$path_open(Configuration& configuration, FD fd, LookupFlags lookup_flags, Pointer<u8> path, Size path_len, OFlags o_flags, Rights, Rights, FDFlags fd_flags) { return Errno::NoSys; }
+ErrorOr<Result<Timestamp>> Implementation::impl$clock_time_get(Configuration&, ClockID id, Timestamp precision) { return Errno::NoSys; }
+ErrorOr<Result<FileStat>> Implementation::impl$fd_filestat_get(Configuration&, FD fd) { return Errno::NoSys; }
+ErrorOr<Result<FDStat>> Implementation::impl$fd_fdstat_get(Configuration&, FD fd) { return Errno::NoSys; }
+ErrorOr<Result<FileSize>> Implementation::impl$fd_seek(Configuration&, FD fd, FileDelta offset, Whence whence) { return Errno::NoSys; }
+#endif
 
 ErrorOr<Result<Timestamp>> Implementation::impl$clock_res_get(Configuration&, ClockID id)
 {
@@ -1182,8 +1212,10 @@ Errno errno_value_from_errno(int value)
         return Errno::SPipe;
     case ESRCH:
         return Errno::SRCH;
+#ifdef ESTALE
     case ESTALE:
         return Errno::Stale;
+#endif
     case ETIMEDOUT:
         return Errno::TimedOut;
     case ETXTBSY:
@@ -1195,6 +1227,7 @@ Errno errno_value_from_errno(int value)
     }
 }
 
+#ifndef AK_OS_WINDOWS
 FileType file_type_of(struct stat const& buf)
 {
     switch (buf.st_mode & S_IFMT) {
@@ -1221,6 +1254,7 @@ FDFlags fd_flags_of(struct stat const&)
     FDFlags::Bits result {};
     return FDFlags { result };
 }
+#endif
 }
 
 namespace AK {
