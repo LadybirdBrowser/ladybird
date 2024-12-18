@@ -1793,20 +1793,19 @@ bool Node::is_equal_node(Node const* other_node) const
     }
 
     // A and B have the same number of children.
-    size_t this_child_count = child_count();
-    size_t other_child_count = other_node->child_count();
-    if (this_child_count != other_child_count)
+    if (child_count() != other_node->child_count())
         return false;
 
     // Each child of A equals the child of B at the identical index.
-    // FIXME: This can be made nicer. child_at_index() is O(n).
-    for (size_t i = 0; i < this_child_count; ++i) {
-        auto* this_child = child_at_index(i);
-        auto* other_child = other_node->child_at_index(i);
-        VERIFY(this_child);
+    auto* this_child = first_child();
+    auto* other_child = other_node->first_child();
+    while (this_child) {
         VERIFY(other_child);
         if (!this_child->is_equal_node(other_child))
             return false;
+
+        this_child = this_child->next_sibling();
+        other_child = other_child->next_sibling();
     }
 
     return true;
