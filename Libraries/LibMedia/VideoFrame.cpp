@@ -10,6 +10,13 @@
 
 #include "VideoFrame.h"
 
+#ifdef AK_OS_WINDOWS
+#    define aligned_alloc(alignment, size) _aligned_malloc(size, alignment)
+#    define aligned_free _aligned_free
+#else
+#    define aligned_free free
+#endif
+
 namespace Media {
 
 ErrorOr<NonnullOwnPtr<SubsampledYUVFrame>> SubsampledYUVFrame::try_create(
@@ -23,10 +30,9 @@ ErrorOr<NonnullOwnPtr<SubsampledYUVFrame>> SubsampledYUVFrame::try_create(
     size_t alignment_size = max(bit_depth > 8 ? sizeof(u16) : sizeof(u8), sizeof(void*));
 
     auto alloc_buffer = [&](size_t size) -> ErrorOr<u8*> {
-        void* buffer = nullptr;
-        auto result = posix_memalign(&buffer, alignment_size, size);
-        if (result != 0)
-            return Error::from_errno(result);
+        void* buffer = aligned_alloc(alignment_size, round_up_to_power_of_two(size, alignment_size));
+        if (!buffer)
+            return Error::from_errno(ENOMEM);
         return reinterpret_cast<u8*>(buffer);
     };
 
@@ -64,9 +70,9 @@ ErrorOr<NonnullOwnPtr<SubsampledYUVFrame>> SubsampledYUVFrame::try_create_from_d
 
 SubsampledYUVFrame::~SubsampledYUVFrame()
 {
-    free(m_y_buffer);
-    free(m_u_buffer);
-    free(m_v_buffer);
+    aligned_free(m_y_buffer);
+    aligned_free(m_u_buffer);
+    aligned_free(m_v_buffer);
 }
 
 template<u32 subsampling_horizontal, typename T>
