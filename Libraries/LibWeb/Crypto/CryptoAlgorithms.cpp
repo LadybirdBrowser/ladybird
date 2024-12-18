@@ -33,6 +33,7 @@
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DataView.h>
 #include <LibJS/Runtime/TypedArray.h>
+#include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Crypto/CryptoAlgorithms.h>
 #include <LibWeb/Crypto/KeyAlgorithms.h>
 #include <LibWeb/Crypto/SubtleCrypto.h>
@@ -42,13 +43,26 @@ namespace Web::Crypto {
 
 static JS::ThrowCompletionOr<HashAlgorithmIdentifier> hash_algorithm_identifier_from_value(JS::VM& vm, JS::Value hash_value)
 {
-    if (hash_value.is_string()) {
-        auto hash_string = TRY(hash_value.to_string(vm));
-        return HashAlgorithmIdentifier { hash_string };
+    auto* realm = vm.current_realm();
+
+    auto maybe_normalized_algorithm = [&]() -> WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> {
+        if (hash_value.is_string()) {
+            auto hash_string = TRY(hash_value.to_string(vm));
+            return normalize_an_algorithm(*realm, hash_string, "digest"_string);
+        } else if (hash_value.is_object()) {
+            auto hash_object = TRY(hash_value.to_object(vm));
+            auto hash_object_root = GC::make_root(hash_object);
+            return normalize_an_algorithm(*realm, hash_object_root, "digest"_string);
+        } else {
+            VERIFY_NOT_REACHED();
+        }
+    }();
+
+    if (maybe_normalized_algorithm.is_error()) {
+        return Bindings::exception_to_throw_completion(vm, maybe_normalized_algorithm.exception());
     }
 
-    auto hash_object = TRY(hash_value.to_object(vm));
-    return HashAlgorithmIdentifier { hash_object };
+    return HashAlgorithmIdentifier { maybe_normalized_algorithm.value().parameter->name };
 }
 
 // https://w3c.github.io/webcrypto/#concept-usage-intersection
