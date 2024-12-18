@@ -106,17 +106,17 @@ GC::Ref<Document> DOMImplementation::create_html_document(Optional<String> const
     doctype->set_name("html"_string);
     MUST(html_document->append_child(*doctype));
 
-    // 4. Append the result of creating an element given doc, html, and the HTML namespace, to doc.
+    // 4. Append the result of creating an element given doc, "html", and the HTML namespace, to doc.
     auto html_element = create_element(html_document, HTML::TagNames::html, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
     MUST(html_document->append_child(html_element));
 
-    // 5. Append the result of creating an element given doc, head, and the HTML namespace, to the html element created earlier.
+    // 5. Append the result of creating an element given doc, "head", and the HTML namespace, to the html element created earlier.
     auto head_element = create_element(html_document, HTML::TagNames::head, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
     MUST(html_element->append_child(head_element));
 
     // 6. If title is given:
     if (title.has_value()) {
-        // 1. Append the result of creating an element given doc, title, and the HTML namespace, to the head element created earlier.
+        // 1. Append the result of creating an element given doc, "title", and the HTML namespace, to the head element created earlier.
         auto title_element = create_element(html_document, HTML::TagNames::title, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
         MUST(head_element->append_child(title_element));
 
@@ -125,7 +125,7 @@ GC::Ref<Document> DOMImplementation::create_html_document(Optional<String> const
         MUST(title_element->append_child(*text_node));
     }
 
-    // 7. Append the result of creating an element given doc, body, and the HTML namespace, to the html element created earlier.
+    // 7. Append the result of creating an element given doc, "body", and the HTML namespace, to the html element created earlier.
     auto body_element = create_element(html_document, HTML::TagNames::body, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
     MUST(html_element->append_child(body_element));
 

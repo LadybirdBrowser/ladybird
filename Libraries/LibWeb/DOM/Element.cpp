@@ -1520,7 +1520,7 @@ WebIDL::ExceptionOr<void> Element::set_outer_html(String const& value)
     if (parent->is_document())
         return WebIDL::NoModificationAllowedError::create(realm(), "Cannot set outer HTML on document"_string);
 
-    // 5. If parent is a DocumentFragment, set parent to the result of creating an element given this's node document, body, and the HTML namespace.
+    // 5. If parent is a DocumentFragment, set parent to the result of creating an element given this's node document, "body", and the HTML namespace.
     if (parent->is_document_fragment())
         parent = TRY(create_element(document(), HTML::TagNames::body, Namespace::HTML));
 
@@ -2084,7 +2084,7 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElement
     set_custom_element_state(CustomElementState::Failed);
 
     // 4. For each attribute in element's attribute list, in order, enqueue a custom element callback reaction with element, callback name "attributeChangedCallback",
-    //    and an argument list containing attribute's local name, null, attribute's value, and attribute's namespace.
+    //    and « attribute's local name, null, attribute's value, attribute's namespace ».
     for (size_t attribute_index = 0; attribute_index < m_attributes->length(); ++attribute_index) {
         auto const* attribute = m_attributes->item(attribute_index);
         VERIFY(attribute);
@@ -2099,7 +2099,7 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElement
         enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::attributeChangedCallback, move(arguments));
     }
 
-    // 5. If element is connected, then enqueue a custom element callback reaction with element, callback name "connectedCallback", and an empty argument list.
+    // 5. If element is connected, then enqueue a custom element callback reaction with element, callback name "connectedCallback", and « ».
     if (is_connected()) {
         GC::MarkedVector<JS::Value> empty_arguments { vm.heap() };
         enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::connectedCallback, move(empty_arguments));

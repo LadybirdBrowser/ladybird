@@ -44,7 +44,7 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> AudioConstructor::construct(FunctionO
     auto& window = verify_cast<HTML::Window>(HTML::current_principal_global_object());
     auto& document = window.associated_document();
 
-    // 2. Let audio be the result of creating an element given document, audio, and the HTML namespace.
+    // 2. Let audio be the result of creating an element given document, "audio", and the HTML namespace.
     auto audio = TRY(Bindings::throw_dom_exception_if_needed(vm, [&]() { return DOM::create_element(document, HTML::TagNames::audio, Namespace::HTML); }));
 
     // 3. Set an attribute value for audio using "preload" and "auto".

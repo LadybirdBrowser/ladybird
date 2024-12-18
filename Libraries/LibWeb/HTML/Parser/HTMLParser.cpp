@@ -735,10 +735,10 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
     // 6. Let definition be the result of looking up a custom element definition given document, given namespace, local name, and is.
     auto definition = document->lookup_custom_element_definition(namespace_, local_name, is_value);
 
-    // 7. If definition is non-null and the parser was not created as part of the HTML fragment parsing algorithm, then let will execute script be true. Otherwise, let it be false.
+    // 7. Let willExecuteScript be true if definition is non-null and the parser was not created as part of the HTML fragment parsing algorithm; otherwise false.
     bool will_execute_script = definition && !m_parsing_fragment;
 
-    // 8. If will execute script is true, then:
+    // 8. If willExecuteScript is true:
     if (will_execute_script) {
         // 1. Increment document's throw-on-dynamic-markup-insertion counter.
         document->increment_throw_on_dynamic_markup_insertion_counter({});
@@ -753,8 +753,7 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
         custom_data.custom_element_reactions_stack.element_queue_stack.append({});
     }
 
-    // 9. Let element be the result of creating an element given document, localName, given namespace, null, and is.
-    //    If will execute script is true, set the synchronous custom elements flag; otherwise, leave it unset.
+    // 9. Let element be the result of creating an element given document, localName, given namespace, null, is, and willExecuteScript.
     auto element = create_element(*document, local_name, namespace_, {}, is_value, will_execute_script).release_value_but_fixme_should_propagate_errors();
 
     // 10. Append each attribute in the given token to element.
@@ -765,7 +764,7 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
         return IterationDecision::Continue;
     });
 
-    // 11. If will execute script is true, then:
+    // 11. If willExecuteScript is true:
     if (will_execute_script) {
         // 1. Let queue be the result of popping from document's relevant agent's custom element reactions stack. (This will be the same element queue as was pushed above.)
         auto& vm = main_thread_event_loop().vm();

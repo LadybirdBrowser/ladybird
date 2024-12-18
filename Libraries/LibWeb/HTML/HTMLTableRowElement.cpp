@@ -142,7 +142,7 @@ WebIDL::ExceptionOr<GC::Ref<HTMLTableCellElement>> HTMLTableRowElement::insert_c
     if (index < -1 || index > cells_collection_size)
         return WebIDL::IndexSizeError::create(realm(), "Index is negative or greater than the number of cells"_string);
 
-    // 2. Let table cell be the result of creating an element given this tr element's node document, td, and the HTML namespace.
+    // 2. Let table cell be the result of creating an element given this tr element's node document, "td", and the HTML namespace.
     auto& table_cell = static_cast<HTMLTableCellElement&>(*TRY(DOM::create_element(document(), HTML::TagNames::td, Namespace::HTML)));
 
     // 3. If index is equal to −1 or equal to the number of items in cells collection, then append table cell to this tr element.
