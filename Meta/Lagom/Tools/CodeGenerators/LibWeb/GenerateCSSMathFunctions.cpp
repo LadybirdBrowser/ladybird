@@ -116,7 +116,7 @@ static Optional<RoundingStrategy> parse_rounding_strategy(Vector<ComponentValue>
     return keyword_to_rounding_strategy(maybe_keyword.value());
 }
 
-OwnPtr<CalculationNode> Parser::parse_math_function(PropertyID property_id, Function const& function)
+OwnPtr<CalculationNode> Parser::parse_math_function(Function const& function)
 {
     TokenStream stream { function.value };
     auto arguments = parse_a_comma_separated_list_of_component_values(stream);
@@ -125,6 +125,8 @@ OwnPtr<CalculationNode> Parser::parse_math_function(PropertyID property_id, Func
     functions_data.for_each_member([&](auto& name, JsonValue const& value) -> void {
         auto& function_data = value.as_object();
         auto& parameters = function_data.get_array("parameters"sv).value();
+        auto parameter_validation_rule = function_data.get_byte_string("parameter-validation"sv);
+        bool requires_same_parameters = parameter_validation_rule.has_value() ? (parameter_validation_rule == "same"sv) : true;
 
         auto function_generator = generator.fork();
         function_generator.set("name:lowercase", name);
@@ -133,7 +135,7 @@ OwnPtr<CalculationNode> Parser::parse_math_function(PropertyID property_id, Func
         if (function_data.get_bool("is-variadic"sv).value_or(false)) {
             // Variadic function
             function_generator.append(R"~~~(
-        CSSNumericType determined_argument_type;
+        Optional<CSSNumericType> determined_argument_type;
         Vector<NonnullOwnPtr<CalculationNode>> parsed_arguments;
         parsed_arguments.ensure_capacity(arguments.size());
 
@@ -144,7 +146,7 @@ OwnPtr<CalculationNode> Parser::parse_math_function(PropertyID property_id, Func
                 return nullptr;
             }
 
-            auto maybe_argument_type = calculation_node->determine_type(m_context.current_property_id());
+            auto maybe_argument_type = calculation_node->numeric_type();
             if (!maybe_argument_type.has_value()) {
                 dbgln_if(CSS_PARSER_DEBUG, "@name:lowercase@() argument #{} couldn't determine its type", parsed_arguments.size());
                 return nullptr;
@@ -163,13 +165,28 @@ OwnPtr<CalculationNode> Parser::parse_math_function(PropertyID property_id, Func
                 return nullptr;
             }
 
-            if (parsed_arguments.is_empty()) {
+            if (!determined_argument_type.has_value()) {
                 determined_argument_type = move(argument_type);
             } else {
+)~~~");
+            if (requires_same_parameters) {
+                function_generator.append(R"~~~(
                 if (determined_argument_type != argument_type) {
-                    dbgln_if(CSS_PARSER_DEBUG, "@name:lowercase@() argument #{} type ({}) doesn't match type of previous arguments ({})", parsed_arguments.size(), argument_type.dump(), determined_argument_type.dump());
+                    dbgln_if(CSS_PARSER_DEBUG, "@name:lowercase@() argument #{} type ({}) doesn't match type of previous arguments ({})", parsed_arguments.size(), argument_type.dump(), determined_argument_type->dump());
                     return nullptr;
                 }
+)~~~");
+            } else {
+                function_generator.append(R"~~~(
+                if (auto consistent_type = determined_argument_type->consistent_type(argument_type); consistent_type.has_value()) {
+                    determined_argument_type = consistent_type.release_value();
+                } else {
+                    dbgln_if(CSS_PARSER_DEBUG, "@name:lowercase@() argument #{} type ({}) is not consistent with type of previous arguments ({})", parsed_arguments.size(), argument_type.dump(), determined_argument_type->dump());
+                    return nullptr;
+                }
+)~~~");
+            }
+            function_generator.append(R"~~~(
             }
 
             parsed_arguments.append(calculation_node.release_nonnull());
@@ -197,11 +214,10 @@ OwnPtr<CalculationNode> Parser::parse_math_function(PropertyID property_id, Func
             return nullptr;
         }
         size_t argument_index = 0;
-        [[maybe_unused]] CSSNumericType previous_argument_type;
+        Optional<CSSNumericType> determined_argument_type;
 )~~~");
 
             size_t parameter_index = 0;
-            StringView previous_parameter_type_string;
             parameters.for_each([&](JsonValue const& parameter_value) {
                 auto& parameter = parameter_value.as_object();
                 auto parameter_type_string = parameter.get_byte_string("type"sv).value();
@@ -279,7 +295,7 @@ OwnPtr<CalculationNode> Parser::parse_math_function(PropertyID property_id, Func
                     auto parameter_type_variable = MUST(String::formatted("argument_type_{}", parameter_index));
                     parameter_generator.set("type_check", generate_calculation_type_check(parameter_type_variable, parameter_type_string));
                     parameter_generator.append(R"~~~(
-        auto maybe_argument_type_@parameter_index@ = parameter_@parameter_index@->determine_type(property_id);
+        auto maybe_argument_type_@parameter_index@ = parameter_@parameter_index@->numeric_type();
         if (!maybe_argument_type_@parameter_index@.has_value()) {
             dbgln_if(CSS_PARSER_DEBUG, "@name:lowercase@() argument '@parameter_name@' couldn't determine its type");
             return nullptr;
@@ -290,25 +306,35 @@ OwnPtr<CalculationNode> Parser::parse_math_function(PropertyID property_id, Func
             dbgln_if(CSS_PARSER_DEBUG, "@name:lowercase@() argument '@parameter_name@' type ({}) is not an accepted type", argument_type_@parameter_index@.dump());
             return nullptr;
         }
+
+        if (!determined_argument_type.has_value()) {
+            determined_argument_type = argument_type_@parameter_index@;
+        } else {
 )~~~");
 
-                    // NOTE: In all current cases, the parameters that take the same types must resolve to the same CSSNumericType.
-                    //       This is a bit of a hack, but serves our needs for now.
-                    if (previous_parameter_type_string == parameter_type_string) {
+                    if (requires_same_parameters) {
                         parameter_generator.append(R"~~~(
-        if (argument_type_@parameter_index@ != previous_argument_type) {
-            dbgln_if(CSS_PARSER_DEBUG, "@name:lowercase@() argument '@parameter_name@' type ({}) doesn't match type of previous arguments ({})", argument_type_@parameter_index@.dump(), previous_argument_type.dump());
-            return nullptr;
-        }
+            if (determined_argument_type != argument_type_@parameter_index@) {
+                dbgln_if(CSS_PARSER_DEBUG, "@name:lowercase@() argument '@parameter_name@' type ({}) doesn't match type of previous arguments ({})", argument_type_@parameter_index@.dump(), determined_argument_type->dump());
+                return nullptr;
+            }
+)~~~");
+                    } else {
+                        parameter_generator.append(R"~~~(
+            if (auto consistent_type = determined_argument_type->consistent_type(argument_type_@parameter_index@); consistent_type.has_value()) {
+                determined_argument_type = consistent_type.release_value();
+            } else {
+                dbgln_if(CSS_PARSER_DEBUG, "@name:lowercase@() argument '@parameter_name@' type ({}) is not consistent with type of previous arguments ({})", argument_type_@parameter_index@.dump(), determined_argument_type->dump());
+                return nullptr;
+            }
 )~~~");
                     }
                     parameter_generator.append(R"~~~(
-        previous_argument_type = argument_type_@parameter_index@;
+        }
 )~~~");
                 }
 
                 parameter_index++;
-                previous_parameter_type_string = parameter_type_string;
             });
 
             // Generate the call to the constructor

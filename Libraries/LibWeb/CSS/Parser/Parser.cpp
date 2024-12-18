@@ -1924,7 +1924,7 @@ RefPtr<CalculatedStyleValue> Parser::parse_calculated_value(ComponentValue const
     if (!function_node)
         return nullptr;
 
-    auto function_type = function_node->determine_type(m_context.current_property_id());
+    auto function_type = function_node->numeric_type();
     if (!function_type.has_value())
         return nullptr;
 
@@ -1936,7 +1936,7 @@ OwnPtr<CalculationNode> Parser::parse_a_calc_function_node(Function const& funct
     if (function.name.equals_ignoring_ascii_case("calc"sv))
         return parse_a_calculation(function.value);
 
-    if (auto maybe_function = parse_math_function(m_context.current_property_id(), function))
+    if (auto maybe_function = parse_math_function(function))
         return maybe_function;
 
     return nullptr;
@@ -9158,15 +9158,18 @@ OwnPtr<CalculationNode> Parser::convert_to_calculation_node(CalcParsing::Node co
         [](Number const& number) -> OwnPtr<CalculationNode> {
             return NumericCalculationNode::create(number);
         },
-        [](Dimension const& dimension) -> OwnPtr<CalculationNode> {
+        [this](Dimension const& dimension) -> OwnPtr<CalculationNode> {
             if (dimension.is_angle())
                 return NumericCalculationNode::create(dimension.angle());
             if (dimension.is_frequency())
                 return NumericCalculationNode::create(dimension.frequency());
             if (dimension.is_length())
                 return NumericCalculationNode::create(dimension.length());
-            if (dimension.is_percentage())
-                return NumericCalculationNode::create(dimension.percentage());
+            if (dimension.is_percentage()) {
+                // FIXME: Figure this out in non-property contexts
+                auto percentage_resolved_type = property_resolves_percentages_relative_to(m_context.current_property_id());
+                return NumericCalculationNode::create(dimension.percentage(), percentage_resolved_type);
+            }
             if (dimension.is_resolution())
                 return NumericCalculationNode::create(dimension.resolution());
             if (dimension.is_time())
