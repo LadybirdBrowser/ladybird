@@ -10,12 +10,17 @@
 
 namespace Web::Editing {
 
+// https://w3c.github.io/editing/docs/execCommand/#properties-of-commands
 struct CommandDefinition {
     FlyString const& command;
     Function<bool(DOM::Document&, String const&)> action {};
     Function<bool(DOM::Document const&)> indeterminate {};
     Function<bool(DOM::Document const&)> state {};
     Function<String(DOM::Document const&)> value {};
+    Optional<CSS::PropertyID> relevant_css_property {};
+
+    // https://w3c.github.io/editing/docs/execCommand/#inline-command-activated-values
+    Vector<String> inline_activated_values {};
 };
 
 Optional<CommandDefinition const&> find_command_definition(FlyString const&);

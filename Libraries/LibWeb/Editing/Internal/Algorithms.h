@@ -15,13 +15,13 @@ namespace Web::Editing {
 // https://w3c.github.io/editing/docs/execCommand/#record-the-values
 struct RecordedNodeValue {
     GC::Ref<DOM::Node> node;
-    FlyString const& command;
+    FlyString command;
     Optional<String> specified_command_value;
 };
 
 // https://w3c.github.io/editing/docs/execCommand/#record-current-states-and-values
 struct RecordedOverride {
-    FlyString const& command;
+    FlyString command;
     Variant<String, bool> value;
 };
 
@@ -44,6 +44,7 @@ void canonicalize_whitespace(GC::Ref<DOM::Node>, u32 offset, bool fix_collapsed_
 void delete_the_selection(Selection&, bool block_merging = true, bool strip_wrappers = true,
     Selection::Direction direction = Selection::Direction::Forwards);
 GC::Ptr<DOM::Node> editing_host_of_node(GC::Ref<DOM::Node>);
+Optional<String> effective_command_value(GC::Ptr<DOM::Node>, FlyString const& command);
 BoundaryPoint first_equivalent_point(BoundaryPoint);
 void fix_disallowed_ancestors_of_node(GC::Ref<DOM::Node>);
 bool follows_a_line_break(GC::Ref<DOM::Node>);
@@ -55,8 +56,10 @@ bool is_block_start_point(GC::Ref<DOM::Node>, u32 offset);
 bool is_collapsed_block_prop(GC::Ref<DOM::Node>);
 bool is_collapsed_line_break(GC::Ref<DOM::Node>);
 bool is_collapsed_whitespace_node(GC::Ref<DOM::Node>);
+bool is_effectively_contained_in_range(GC::Ref<DOM::Node>, GC::Ref<DOM::Range>);
 bool is_element_with_inline_contents(GC::Ref<DOM::Node>);
 bool is_extraneous_line_break(GC::Ref<DOM::Node>);
+bool is_formattable_node(GC::Ref<DOM::Node>);
 bool is_in_same_editing_host(GC::Ref<DOM::Node>, GC::Ref<DOM::Node>);
 bool is_inline_node(GC::Ref<DOM::Node>);
 bool is_invisible_node(GC::Ref<DOM::Node>);
