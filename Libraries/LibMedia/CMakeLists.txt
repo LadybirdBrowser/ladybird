@@ -1,6 +1,6 @@
 include(audio)
 
-if (NOT ANDROID AND NOT WIN32)
+if (NOT ANDROID)
     include(ffmpeg)
 endif()
 
@@ -20,7 +20,7 @@ set(SOURCES
 serenity_lib(LibMedia media)
 target_link_libraries(LibMedia PRIVATE LibCore LibCrypto LibRIFF LibIPC LibGfx LibThreading LibUnicode)
 
-if (NOT ANDROID AND NOT WIN32)
+if (NOT ANDROID)
     target_sources(LibMedia PRIVATE
             Audio/FFmpegLoader.cpp
             FFmpeg/FFmpegVideoDecoder.cpp

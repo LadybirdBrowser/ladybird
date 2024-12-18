@@ -10,6 +10,10 @@
 
 #include "VideoFrame.h"
 
+#ifdef AK_OS_WINDOWS
+#    include <AK/Malloc.h>
+#endif
+
 namespace Media {
 
 ErrorOr<NonnullOwnPtr<SubsampledYUVFrame>> SubsampledYUVFrame::try_create(
