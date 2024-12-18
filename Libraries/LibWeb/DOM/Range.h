@@ -22,7 +22,7 @@ enum class RelativeBoundaryPointPosition {
 };
 
 // https://dom.spec.whatwg.org/#concept-range-bp-position
-RelativeBoundaryPointPosition position_of_boundary_point_relative_to_other_boundary_point(GC::Ref<Node> node_a, u32 offset_a, GC::Ref<Node> node_b, u32 offset_b);
+RelativeBoundaryPointPosition position_of_boundary_point_relative_to_other_boundary_point(BoundaryPoint a, BoundaryPoint b);
 
 class Range final : public AbstractRange {
     WEB_PLATFORM_OBJECT(Range, AbstractRange);

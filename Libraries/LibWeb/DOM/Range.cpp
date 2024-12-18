@@ -117,27 +117,27 @@ GC::Ref<Node> Range::root() const
 }
 
 // https://dom.spec.whatwg.org/#concept-range-bp-position
-RelativeBoundaryPointPosition position_of_boundary_point_relative_to_other_boundary_point(GC::Ref<Node> node_a, u32 offset_a, GC::Ref<Node> node_b, u32 offset_b)
+RelativeBoundaryPointPosition position_of_boundary_point_relative_to_other_boundary_point(BoundaryPoint a, BoundaryPoint b)
 {
     // 1. Assert: nodeA and nodeB have the same root.
     //    NOTE: Nodes may not share the same root if they belong to different shadow trees,
     //          so we assert that they share the same shadow-including root instead.
-    VERIFY(&node_a->shadow_including_root() == &node_b->shadow_including_root());
+    VERIFY(&a.node->shadow_including_root() == &b.node->shadow_including_root());
 
     // 2. If nodeA is nodeB, then return equal if offsetA is offsetB, before if offsetA is less than offsetB, and after if offsetA is greater than offsetB.
-    if (node_a == node_b) {
-        if (offset_a == offset_b)
+    if (a.node == b.node) {
+        if (a.offset == b.offset)
             return RelativeBoundaryPointPosition::Equal;
 
-        if (offset_a < offset_b)
+        if (a.offset < b.offset)
             return RelativeBoundaryPointPosition::Before;
 
         return RelativeBoundaryPointPosition::After;
     }
 
     // 3. If nodeA is following nodeB, then if the position of (nodeB, offsetB) relative to (nodeA, offsetA) is before, return after, and if it is after, return before.
-    if (node_a->is_following(node_b)) {
-        auto relative_position = position_of_boundary_point_relative_to_other_boundary_point(node_b, offset_b, node_a, offset_a);
+    if (a.node->is_following(b.node)) {
+        auto relative_position = position_of_boundary_point_relative_to_other_boundary_point(b, a);
 
         if (relative_position == RelativeBoundaryPointPosition::Before)
             return RelativeBoundaryPointPosition::After;
@@ -147,19 +147,19 @@ RelativeBoundaryPointPosition position_of_boundary_point_relative_to_other_bound
     }
 
     // 4. If nodeA is an ancestor of nodeB:
-    if (node_a->is_ancestor_of(node_b)) {
+    if (a.node->is_ancestor_of(b.node)) {
         // 1. Let child be nodeB.
-        GC::Ref<Node const> child = node_b;
+        GC::Ref<Node const> child = b.node;
 
         // 2. While child is not a child of nodeA, set child to its parent.
-        while (!node_a->is_parent_of(child)) {
+        while (!a.node->is_parent_of(child)) {
             auto* parent = child->parent();
             VERIFY(parent);
             child = *parent;
         }
 
         // 3. If child’s index is less than offsetA, then return after.
-        if (child->index() < offset_a)
+        if (child->index() < a.offset)
             return RelativeBoundaryPointPosition::After;
     }
 
@@ -185,7 +185,7 @@ WebIDL::ExceptionOr<void> Range::set_start_or_end(GC::Ref<Node> node, u32 offset
         // -> If these steps were invoked as "set the start"
 
         // 1. If range’s root is not equal to node’s root, or if bp is after the range’s end, set range’s end to bp.
-        if (root().ptr() != &node->root() || position_of_boundary_point_relative_to_other_boundary_point(node, offset, m_end_container, m_end_offset) == RelativeBoundaryPointPosition::After) {
+        if (root().ptr() != &node->root() || position_of_boundary_point_relative_to_other_boundary_point({ node, offset }, end()) == RelativeBoundaryPointPosition::After) {
             m_end_container = node;
             m_end_offset = offset;
         }
@@ -198,7 +198,7 @@ WebIDL::ExceptionOr<void> Range::set_start_or_end(GC::Ref<Node> node, u32 offset
         VERIFY(start_or_end == StartOrEnd::End);
 
         // 1. If range’s root is not equal to node’s root, or if bp is before the range’s start, set range’s start to bp.
-        if (root().ptr() != &node->root() || position_of_boundary_point_relative_to_other_boundary_point(node, offset, m_start_container, m_start_offset) == RelativeBoundaryPointPosition::Before) {
+        if (root().ptr() != &node->root() || position_of_boundary_point_relative_to_other_boundary_point({ node, offset }, start()) == RelativeBoundaryPointPosition::Before) {
             m_start_container = node;
             m_start_offset = offset;
         }
@@ -349,7 +349,7 @@ WebIDL::ExceptionOr<WebIDL::Short> Range::compare_boundary_points(WebIDL::Unsign
     VERIFY(other_point_node);
 
     // 4. If the position of this point relative to other point is
-    auto relative_position = position_of_boundary_point_relative_to_other_boundary_point(*this_point_node, this_point_offset, *other_point_node, other_point_offset);
+    auto relative_position = position_of_boundary_point_relative_to_other_boundary_point({ *this_point_node, this_point_offset }, { *other_point_node, other_point_offset });
     switch (relative_position) {
     case RelativeBoundaryPointPosition::Before:
         // -> before
@@ -492,11 +492,11 @@ bool Range::intersects_node(GC::Ref<Node> node) const
         return true;
 
     // 4. Let offset be node’s index.
-    auto offset = node->index();
+    WebIDL::UnsignedLong offset = node->index();
 
     // 5. If (parent, offset) is before end and (parent, offset plus 1) is after start, return true
-    auto relative_position_to_end = position_of_boundary_point_relative_to_other_boundary_point(*parent, offset, m_end_container, m_end_offset);
-    auto relative_position_to_start = position_of_boundary_point_relative_to_other_boundary_point(*parent, offset + 1, m_start_container, m_start_offset);
+    auto relative_position_to_end = position_of_boundary_point_relative_to_other_boundary_point({ *parent, offset }, end());
+    auto relative_position_to_start = position_of_boundary_point_relative_to_other_boundary_point({ *parent, offset + 1 }, start());
     if (relative_position_to_end == RelativeBoundaryPointPosition::Before && relative_position_to_start == RelativeBoundaryPointPosition::After)
         return true;
 
@@ -520,8 +520,8 @@ WebIDL::ExceptionOr<bool> Range::is_point_in_range(GC::Ref<Node> node, WebIDL::U
         return WebIDL::IndexSizeError::create(realm(), MUST(String::formatted("Node does not contain a child at offset {}", offset)));
 
     // 4. If (node, offset) is before start or after end, return false.
-    auto relative_position_to_start = position_of_boundary_point_relative_to_other_boundary_point(node, offset, m_start_container, m_start_offset);
-    auto relative_position_to_end = position_of_boundary_point_relative_to_other_boundary_point(node, offset, m_end_container, m_end_offset);
+    auto relative_position_to_start = position_of_boundary_point_relative_to_other_boundary_point({ node, offset }, start());
+    auto relative_position_to_end = position_of_boundary_point_relative_to_other_boundary_point({ node, offset }, end());
     if (relative_position_to_start == RelativeBoundaryPointPosition::Before || relative_position_to_end == RelativeBoundaryPointPosition::After)
         return false;
 
@@ -545,12 +545,12 @@ WebIDL::ExceptionOr<WebIDL::Short> Range::compare_point(GC::Ref<Node> node, WebI
         return WebIDL::IndexSizeError::create(realm(), MUST(String::formatted("Node does not contain a child at offset {}", offset)));
 
     // 4. If (node, offset) is before start, return −1.
-    auto relative_position_to_start = position_of_boundary_point_relative_to_other_boundary_point(node, offset, m_start_container, m_start_offset);
+    auto relative_position_to_start = position_of_boundary_point_relative_to_other_boundary_point({ node, offset }, start());
     if (relative_position_to_start == RelativeBoundaryPointPosition::Before)
         return -1;
 
     // 5. If (node, offset) is after end, return 1.
-    auto relative_position_to_end = position_of_boundary_point_relative_to_other_boundary_point(node, offset, m_end_container, m_end_offset);
+    auto relative_position_to_end = position_of_boundary_point_relative_to_other_boundary_point({ node, offset }, end());
     if (relative_position_to_end == RelativeBoundaryPointPosition::After)
         return 1;
 
@@ -794,11 +794,11 @@ bool Range::contains_node(GC::Ref<Node> node) const
         return false;
 
     // and (node, 0) is after range’s start,
-    if (position_of_boundary_point_relative_to_other_boundary_point(node, 0, m_start_container, m_start_offset) != RelativeBoundaryPointPosition::After)
+    if (position_of_boundary_point_relative_to_other_boundary_point({ node, 0 }, start()) != RelativeBoundaryPointPosition::After)
         return false;
 
     // and (node, node’s length) is before range’s end.
-    if (position_of_boundary_point_relative_to_other_boundary_point(node, node->length(), m_end_container, m_end_offset) != RelativeBoundaryPointPosition::Before)
+    if (position_of_boundary_point_relative_to_other_boundary_point({ node, static_cast<WebIDL::UnsignedLong>(node->length()) }, end()) != RelativeBoundaryPointPosition::Before)
         return false;
 
     return true;

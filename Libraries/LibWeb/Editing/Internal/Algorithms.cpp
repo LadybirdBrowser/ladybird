@@ -14,7 +14,6 @@
 #include <LibWeb/DOM/DocumentType.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ElementFactory.h>
-#include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Editing/CommandNames.h>
 #include <LibWeb/Editing/Commands.h>
@@ -60,7 +59,7 @@ GC::Ref<DOM::Range> block_extend_a_range(DOM::Range& range)
     }
 
     // 3. If (start node, start offset) is not a block start point, repeat the following steps:
-    if (!is_block_start_point(*start_node, start_offset)) {
+    if (!is_block_start_point({ *start_node, start_offset })) {
         do {
             // 1. If start offset is zero, set it to start node's index, then set start node to its parent.
             if (start_offset == 0) {
@@ -74,7 +73,7 @@ GC::Ref<DOM::Range> block_extend_a_range(DOM::Range& range)
             }
 
             // 3. If (start node, start offset) is a block boundary point, break from this loop.
-        } while (!is_block_boundary_point(*start_node, start_offset));
+        } while (!is_block_boundary_point({ *start_node, start_offset }));
     }
 
     // 4. While start offset is zero and start node's parent is not null, set start offset to start node's index, then
@@ -97,7 +96,7 @@ GC::Ref<DOM::Range> block_extend_a_range(DOM::Range& range)
     }
 
     // 6. If (end node, end offset) is not a block end point, repeat the following steps:
-    if (!is_block_end_point(*end_node, end_offset)) {
+    if (!is_block_end_point({ *end_node, end_offset })) {
         do {
             // 1. If end offset is end node's length, set it to one plus end node's index, then set end node to its
             //    parent.
@@ -112,7 +111,7 @@ GC::Ref<DOM::Range> block_extend_a_range(DOM::Range& range)
             }
 
             // 3. If (end node, end offset) is a block boundary point, break from this loop.
-        } while (!is_block_boundary_point(*end_node, end_offset));
+        } while (!is_block_boundary_point({ *end_node, end_offset }));
     }
 
     // 7. While end offset is end node's length and end node's parent is not null, set end offset to one plus end node's
@@ -222,8 +221,11 @@ String canonical_space_sequence(u32 length, bool non_breaking_start, bool non_br
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#canonicalize-whitespace
-void canonicalize_whitespace(GC::Ref<DOM::Node> node, u32 offset, bool fix_collapsed_space)
+void canonicalize_whitespace(DOM::BoundaryPoint boundary, bool fix_collapsed_space)
 {
+    auto node = boundary.node;
+    auto offset = boundary.offset;
+
     // 1. If node is neither editable nor an editing host, abort these steps.
     if (!node->is_editable_or_editing_host())
         return;
@@ -349,7 +351,7 @@ void canonicalize_whitespace(GC::Ref<DOM::Node> node, u32 offset, bool fix_colla
     //    end offset):
     if (fix_collapsed_space) {
         while (true) {
-            auto relative_position = position_of_boundary_point_relative_to_other_boundary_point(*start_node, start_offset, *end_node, end_offset);
+            auto relative_position = DOM::position_of_boundary_point_relative_to_other_boundary_point({ *start_node, start_offset }, { *end_node, end_offset });
             if (relative_position != DOM::RelativeBoundaryPointPosition::Before)
                 break;
 
@@ -408,7 +410,7 @@ void canonicalize_whitespace(GC::Ref<DOM::Node> node, u32 offset, bool fix_colla
 
     // 10. While (start node, start offset) is before (end node, end offset):
     while (true) {
-        auto relative_position = position_of_boundary_point_relative_to_other_boundary_point(start_node, start_offset, end_node, end_offset);
+        auto relative_position = DOM::position_of_boundary_point_relative_to_other_boundary_point({ start_node, start_offset }, { end_node, end_offset });
         if (relative_position != DOM::RelativeBoundaryPointPosition::Before)
             break;
 
@@ -468,19 +470,19 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         return;
 
     // 2. Canonicalize whitespace at the active range's start.
-    canonicalize_whitespace(active_range()->start_container(), active_range()->start_offset());
+    canonicalize_whitespace(active_range()->start());
 
     // 3. Canonicalize whitespace at the active range's end.
-    canonicalize_whitespace(active_range()->end_container(), active_range()->end_offset());
+    canonicalize_whitespace(active_range()->end());
 
     // 4. Let (start node, start offset) be the last equivalent point for the active range's start.
-    auto start = last_equivalent_point({ active_range()->start_container(), active_range()->start_offset() });
+    auto start = last_equivalent_point(active_range()->start());
 
     // 5. Let (end node, end offset) be the first equivalent point for the active range's end.
-    auto end = first_equivalent_point({ active_range()->end_container(), active_range()->end_offset() });
+    auto end = first_equivalent_point(active_range()->end());
 
     // 6. If (end node, end offset) is not after (start node, start offset):
-    auto relative_position = position_of_boundary_point_relative_to_other_boundary_point(end.node, end.offset, start.node, start.offset);
+    auto relative_position = DOM::position_of_boundary_point_relative_to_other_boundary_point({ end.node, end.offset }, { start.node, start.offset });
     if (relative_position != DOM::RelativeBoundaryPointPosition::After) {
         // 1. If direction is "forward", call collapseToStart() on the context object's selection.
         if (direction == Selection::Direction::Forwards) {
@@ -559,7 +561,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         MUST(static_cast<DOM::Text&>(*start.node).delete_data(start.offset, end.offset - start.offset));
 
         // 2. Canonicalize whitespace at (start node, start offset), with fix collapsed space false.
-        canonicalize_whitespace(start.node, start.offset, false);
+        canonicalize_whitespace(start, false);
 
         // 3. If direction is "forward", call collapseToStart() on the context object's selection.
         if (direction == Selection::Direction::Forwards) {
@@ -637,10 +639,10 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         MUST(static_cast<DOM::Text&>(*end.node).delete_data(0, end.offset));
 
     // 27. Canonicalize whitespace at the active range's start, with fix collapsed space false.
-    canonicalize_whitespace(active_range()->start_container(), active_range()->start_offset(), false);
+    canonicalize_whitespace(active_range()->start(), false);
 
     // 28. Canonicalize whitespace at the active range's end, with fix collapsed space false.
-    canonicalize_whitespace(active_range()->end_container(), active_range()->end_offset(), false);
+    canonicalize_whitespace(active_range()->end(), false);
 
     // 30. If block merging is false, or start block or end block is null, or start block is not in the same editing
     //     host as end block, or start block and end block are the same:
@@ -1046,7 +1048,7 @@ Optional<String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString cons
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#first-equivalent-point
-BoundaryPoint first_equivalent_point(BoundaryPoint boundary_point)
+DOM::BoundaryPoint first_equivalent_point(DOM::BoundaryPoint boundary_point)
 {
     // 1. While (node, offset)'s previous equivalent point is not null, set (node, offset) to its previous equivalent
     //    point.
@@ -1146,10 +1148,10 @@ void fix_disallowed_ancestors_of_node(GC::Ref<DOM::Node> node)
 bool follows_a_line_break(GC::Ref<DOM::Node> node)
 {
     // 1. Let offset be zero.
-    auto offset = 0;
+    auto offset = 0u;
 
     // 2. While (node, offset) is not a block boundary point:
-    while (!is_block_boundary_point(node, offset)) {
+    while (!is_block_boundary_point({ node, offset })) {
         // 1. If node has a visible child with index offset minus one, return false.
         auto* offset_minus_one_child = node->child_at_index(offset - 1);
         if (offset_minus_one_child && is_visible_node(*offset_minus_one_child))
@@ -1385,22 +1387,22 @@ bool is_allowed_child_of_node(Variant<GC::Ref<DOM::Node>, FlyString> child, Vari
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#block-boundary-point
-bool is_block_boundary_point(GC::Ref<DOM::Node> node, u32 offset)
+bool is_block_boundary_point(DOM::BoundaryPoint boundary_point)
 {
     // A boundary point is a block boundary point if it is either a block start point or a block end point.
-    return is_block_start_point(node, offset) || is_block_end_point(node, offset);
+    return is_block_start_point(boundary_point) || is_block_end_point(boundary_point);
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#block-end-point
-bool is_block_end_point(GC::Ref<DOM::Node> node, u32 offset)
+bool is_block_end_point(DOM::BoundaryPoint boundary_point)
 {
     // A boundary point (node, offset) is a block end point if either node's parent is null and
     // offset is node's length;
-    if (!node->parent() && offset == node->length())
+    if (!boundary_point.node->parent() && boundary_point.offset == boundary_point.node->length())
         return true;
 
     // or node has a child with index offset, and that child is a visible block node.
-    auto offset_child = node->child_at_index(offset);
+    auto offset_child = boundary_point.node->child_at_index(boundary_point.offset);
     return offset_child && is_visible_node(*offset_child) && is_block_node(*offset_child);
 }
 
@@ -1423,19 +1425,17 @@ bool is_block_node(GC::Ref<DOM::Node> node)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#block-start-point
-bool is_block_start_point(GC::Ref<DOM::Node> node, u32 offset)
+bool is_block_start_point(DOM::BoundaryPoint boundary_point)
 {
     // A boundary point (node, offset) is a block start point if either node's parent is null and
     // offset is zero;
-    if (!node->parent() && offset == 0)
+    if (!boundary_point.node->parent() && boundary_point.offset == 0)
         return true;
 
     // or node has a child with index offset − 1, and that child is either a visible block node or a
     // visible br.
-    auto offset_minus_one_child = node->child_at_index(offset - 1);
-    if (!offset_minus_one_child)
-        return false;
-    return is_visible_node(*offset_minus_one_child)
+    auto offset_minus_one_child = boundary_point.node->child_at_index(boundary_point.offset - 1);
+    return offset_minus_one_child && is_visible_node(*offset_minus_one_child)
         && (is_block_node(*offset_minus_one_child) || is<HTML::HTMLBRElement>(*offset_minus_one_child));
 }
 
@@ -1893,7 +1893,7 @@ bool is_whitespace_node(GC::Ref<DOM::Node> node)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#last-equivalent-point
-BoundaryPoint last_equivalent_point(BoundaryPoint boundary_point)
+DOM::BoundaryPoint last_equivalent_point(DOM::BoundaryPoint boundary_point)
 {
     // 1. While (node, offset)'s next equivalent point is not null, set (node, offset) to its next equivalent point.
     while (true) {
@@ -1941,7 +1941,7 @@ void move_node_preserving_ranges(GC::Ref<DOM::Node> node, GC::Ref<DOM::Node> new
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#next-equivalent-point
-Optional<BoundaryPoint> next_equivalent_point(BoundaryPoint boundary_point)
+Optional<DOM::BoundaryPoint> next_equivalent_point(DOM::BoundaryPoint boundary_point)
 {
     // 1. If node's length is zero, return null.
     auto node = boundary_point.node;
@@ -1952,13 +1952,13 @@ Optional<BoundaryPoint> next_equivalent_point(BoundaryPoint boundary_point)
     // 3. If offset is node's length, and node's parent is not null, and node is an inline node, return (node's parent,
     //    1 + node's index).
     if (boundary_point.offset == node_length && node->parent() && is_inline_node(*node))
-        return BoundaryPoint { *node->parent(), static_cast<WebIDL::UnsignedLong>(node->index() + 1) };
+        return DOM::BoundaryPoint { *node->parent(), static_cast<WebIDL::UnsignedLong>(node->index() + 1) };
 
     // 5. If node has a child with index offset, and that child's length is not zero, and that child is an inline node,
     //    return (that child, 0).
     auto child_at_offset = node->child_at_index(boundary_point.offset);
     if (child_at_offset && child_at_offset->length() != 0 && is_inline_node(*child_at_offset))
-        return BoundaryPoint { *child_at_offset, 0 };
+        return DOM::BoundaryPoint { *child_at_offset, 0 };
 
     // 7. Return null.
     return {};
@@ -2014,10 +2014,10 @@ void normalize_sublists_in_node(GC::Ref<DOM::Element> item)
 bool precedes_a_line_break(GC::Ref<DOM::Node> node)
 {
     // 1. Let offset be node's length.
-    auto offset = node->length();
+    WebIDL::UnsignedLong offset = node->length();
 
     // 2. While (node, offset) is not a block boundary point:
-    while (!is_block_boundary_point(node, offset)) {
+    while (!is_block_boundary_point({ node, offset })) {
         // 1. If node has a visible child with index offset, return false.
         auto* offset_child = node->child_at_index(offset);
         if (offset_child && is_visible_node(*offset_child))
@@ -2042,7 +2042,7 @@ bool precedes_a_line_break(GC::Ref<DOM::Node> node)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#previous-equivalent-point
-Optional<BoundaryPoint> previous_equivalent_point(BoundaryPoint boundary_point)
+Optional<DOM::BoundaryPoint> previous_equivalent_point(DOM::BoundaryPoint boundary_point)
 {
     // 1. If node's length is zero, return null.
     auto node = boundary_point.node;
@@ -2053,13 +2053,13 @@ Optional<BoundaryPoint> previous_equivalent_point(BoundaryPoint boundary_point)
     // 2. If offset is 0, and node's parent is not null, and node is an inline node, return (node's parent, node's
     //    index).
     if (boundary_point.offset == 0 && node->parent() && is_inline_node(*node))
-        return BoundaryPoint { *node->parent(), static_cast<WebIDL::UnsignedLong>(node->index()) };
+        return DOM::BoundaryPoint { *node->parent(), static_cast<WebIDL::UnsignedLong>(node->index()) };
 
     // 3. If node has a child with index offset − 1, and that child's length is not zero, and that child is an inline
     //    node, return (that child, that child's length).
     auto child_at_offset = node->child_at_index(boundary_point.offset - 1);
     if (child_at_offset && child_at_offset->length() != 0 && is_inline_node(*child_at_offset))
-        return BoundaryPoint { *child_at_offset, static_cast<WebIDL::UnsignedLong>(child_at_offset->length()) };
+        return DOM::BoundaryPoint { *child_at_offset, static_cast<WebIDL::UnsignedLong>(child_at_offset->length()) };
 
     // 4. Return null.
     return {};
