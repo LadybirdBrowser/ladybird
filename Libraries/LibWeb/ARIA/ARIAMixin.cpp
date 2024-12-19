@@ -6,6 +6,7 @@
 
 #include <LibWeb/ARIA/ARIAMixin.h>
 #include <LibWeb/ARIA/Roles.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 
 namespace Web::ARIA {
