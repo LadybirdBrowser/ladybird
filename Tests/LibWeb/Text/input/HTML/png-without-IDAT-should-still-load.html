@@ -1,0 +1,16 @@
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const image = document.createElement("img");
+        image.onload = () => {
+            println(`loaded, width=${image.width}, height=${image.height}`);
+            done();
+        };
+        image.onerror = () => {
+            println("error :^(");
+            done();
+        };
+
+        image.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAD4AAABhCAIAAAABe4UxAAAABElEQVQAAAABnSTXkQAAAABJRU5ErkJggg==";
+    });
+</script>

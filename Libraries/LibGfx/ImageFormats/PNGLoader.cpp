@@ -17,6 +17,14 @@
 namespace Gfx {
 
 struct PNGLoadingContext {
+    ~PNGLoadingContext()
+    {
+        png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
+    }
+
+    png_structp png_ptr { nullptr };
+    png_infop info_ptr { nullptr };
+
     ReadonlyBytes data;
     IntSize size;
     u32 frame_count { 0 };
@@ -27,12 +35,40 @@ struct PNGLoadingContext {
 
     ErrorOr<size_t> read_frames(png_structp, png_infop);
     ErrorOr<void> apply_exif_orientation();
+
+    ErrorOr<void> read_all_frames()
+    {
+        // NOTE: We need to setjmp() here because libpng uses longjmp() for error handling.
+        if (auto error_value = setjmp(png_jmpbuf(png_ptr)); error_value) {
+            return Error::from_errno(error_value);
+        }
+
+        png_read_update_info(png_ptr, info_ptr);
+
+        frame_count = TRY(read_frames(png_ptr, info_ptr));
+
+        if (exif_metadata)
+            TRY(apply_exif_orientation());
+        return {};
+    }
 };
 
 ErrorOr<NonnullOwnPtr<ImageDecoderPlugin>> PNGImageDecoderPlugin::create(ReadonlyBytes bytes)
 {
     auto decoder = adopt_own(*new PNGImageDecoderPlugin(bytes));
     TRY(decoder->initialize());
+
+    auto result = decoder->m_context->read_all_frames();
+    if (result.is_error()) {
+        // NOTE: If we didn't fail in initialize(), that means we have size information.
+        //       We can create a single-frame bitmap with that size and return it.
+        //       This is weird, but kinda matches the behavior of other browsers.
+        auto bitmap = TRY(Bitmap::create(BitmapFormat::BGRA8888, AlphaType::Premultiplied, decoder->m_context->size));
+        decoder->m_context->frame_descriptors.append({ move(bitmap), 0 });
+        decoder->m_context->frame_count = 1;
+        return decoder;
+    }
+
     return decoder;
 }
 
@@ -95,22 +131,20 @@ static void log_png_warning(png_structp, char const* warning_message)
 
 ErrorOr<void> PNGImageDecoderPlugin::initialize()
 {
-    png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
-    if (!png_ptr)
+    m_context->png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
+    if (!m_context->png_ptr)
         return Error::from_string_view("Failed to allocate read struct"sv);
 
-    png_infop info_ptr = png_create_info_struct(png_ptr);
-    if (!info_ptr) {
-        png_destroy_read_struct(&png_ptr, nullptr, nullptr);
+    m_context->info_ptr = png_create_info_struct(m_context->png_ptr);
+    if (!m_context->info_ptr) {
         return Error::from_string_view("Failed to allocate info struct"sv);
     }
 
-    if (auto error_value = setjmp(png_jmpbuf(png_ptr)); error_value) {
-        png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
+    if (auto error_value = setjmp(png_jmpbuf(m_context->png_ptr)); error_value) {
         return Error::from_errno(error_value);
     }
 
-    png_set_read_fn(png_ptr, &m_context->data, [](png_structp png_ptr, png_bytep data, png_size_t length) {
+    png_set_read_fn(m_context->png_ptr, &m_context->data, [](png_structp png_ptr, png_bytep data, png_size_t length) {
         auto* read_data = reinterpret_cast<ReadonlyBytes*>(png_get_io_ptr(png_ptr));
         if (read_data->size() < length) {
             png_error(png_ptr, "Read error");
@@ -120,59 +154,52 @@ ErrorOr<void> PNGImageDecoderPlugin::initialize()
         *read_data = read_data->slice(length);
     });
 
-    png_set_error_fn(png_ptr, nullptr, log_png_error, log_png_warning);
+    png_set_error_fn(m_context->png_ptr, nullptr, log_png_error, log_png_warning);
 
-    png_read_info(png_ptr, info_ptr);
+    png_read_info(m_context->png_ptr, m_context->info_ptr);
 
     u32 width = 0;
     u32 height = 0;
     int bit_depth = 0;
     int color_type = 0;
     int interlace_type = 0;
-    png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth, &color_type, &interlace_type, nullptr, nullptr);
+    png_get_IHDR(m_context->png_ptr, m_context->info_ptr, &width, &height, &bit_depth, &color_type, &interlace_type, nullptr, nullptr);
     m_context->size = { static_cast<int>(width), static_cast<int>(height) };
 
     if (color_type == PNG_COLOR_TYPE_PALETTE)
-        png_set_palette_to_rgb(png_ptr);
+        png_set_palette_to_rgb(m_context->png_ptr);
 
     if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8)
-        png_set_expand_gray_1_2_4_to_8(png_ptr);
+        png_set_expand_gray_1_2_4_to_8(m_context->png_ptr);
 
-    if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS))
-        png_set_tRNS_to_alpha(png_ptr);
+    if (png_get_valid(m_context->png_ptr, m_context->info_ptr, PNG_INFO_tRNS))
+        png_set_tRNS_to_alpha(m_context->png_ptr);
 
     if (bit_depth == 16)
-        png_set_strip_16(png_ptr);
+        png_set_strip_16(m_context->png_ptr);
 
     if (color_type == PNG_COLOR_TYPE_GRAY || color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
-        png_set_gray_to_rgb(png_ptr);
+        png_set_gray_to_rgb(m_context->png_ptr);
 
     if (interlace_type != PNG_INTERLACE_NONE)
-        png_set_interlace_handling(png_ptr);
+        png_set_interlace_handling(m_context->png_ptr);
 
-    png_set_filler(png_ptr, 0xFF, PNG_FILLER_AFTER);
-    png_set_bgr(png_ptr);
+    png_set_filler(m_context->png_ptr, 0xFF, PNG_FILLER_AFTER);
+    png_set_bgr(m_context->png_ptr);
 
     char* profile_name = nullptr;
     int compression_type = 0;
     u8* profile_data = nullptr;
     u32 profile_len = 0;
-    if (png_get_iCCP(png_ptr, info_ptr, &profile_name, &compression_type, &profile_data, &profile_len))
+    if (png_get_iCCP(m_context->png_ptr, m_context->info_ptr, &profile_name, &compression_type, &profile_data, &profile_len))
         m_context->icc_profile = TRY(ByteBuffer::copy(profile_data, profile_len));
-
-    png_read_update_info(png_ptr, info_ptr);
-    m_context->frame_count = TRY(m_context->read_frames(png_ptr, info_ptr));
 
     u8* exif_data = nullptr;
     u32 exif_length = 0;
-    int const num_exif_chunks = png_get_eXIf_1(png_ptr, info_ptr, &exif_length, &exif_data);
+    int const num_exif_chunks = png_get_eXIf_1(m_context->png_ptr, m_context->info_ptr, &exif_length, &exif_data);
     if (num_exif_chunks > 0)
         m_context->exif_metadata = TRY(TIFFImageDecoderPlugin::read_exif_metadata({ exif_data, exif_length }));
 
-    if (m_context->exif_metadata)
-        TRY(m_context->apply_exif_orientation());
-
-    png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
     return {};
 }
 

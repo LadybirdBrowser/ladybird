@@ -76,20 +76,24 @@ ErrorOr<void> encode(Encoder& encoder, Gfx::BitmapSequence const& bitmap_sequenc
 
     TRY(encoder.encode(metadata));
 
-    // collate all of the bitmap data into one contiguous buffer
-    auto collated_buffer = TRY(Core::AnonymousBuffer::create_with_size(total_buffer_size));
+    TRY(encoder.encode(total_buffer_size));
 
-    Bytes buffer_bytes = { collated_buffer.data<u8>(), collated_buffer.size() };
-    size_t write_offset = 0;
-    for (auto const& bitmap_option : bitmaps) {
-        if (bitmap_option.has_value()) {
-            auto const& bitmap = bitmap_option.value();
-            buffer_bytes.overwrite(write_offset, bitmap->scanline(0), bitmap->size_in_bytes());
-            write_offset += bitmap->size_in_bytes();
+    if (total_buffer_size > 0) {
+        // collate all of the bitmap data into one contiguous buffer
+        auto collated_buffer = TRY(Core::AnonymousBuffer::create_with_size(total_buffer_size));
+
+        Bytes buffer_bytes = { collated_buffer.data<u8>(), collated_buffer.size() };
+        size_t write_offset = 0;
+        for (auto const& bitmap_option : bitmaps) {
+            if (bitmap_option.has_value()) {
+                auto const& bitmap = bitmap_option.value();
+                buffer_bytes.overwrite(write_offset, bitmap->scanline(0), bitmap->size_in_bytes());
+                write_offset += bitmap->size_in_bytes();
+            }
         }
-    }
 
-    TRY(encoder.encode(collated_buffer));
+        TRY(encoder.encode(collated_buffer));
+    }
 
     return {};
 }
@@ -98,7 +102,12 @@ template<>
 ErrorOr<Gfx::BitmapSequence> decode(Decoder& decoder)
 {
     auto metadata_list = TRY(decoder.decode<Vector<Optional<Gfx::BitmapMetadata>>>());
-    auto collated_buffer = TRY(decoder.decode<Core::AnonymousBuffer>());
+
+    auto total_buffer_size = TRY(decoder.decode<size_t>());
+
+    Core::AnonymousBuffer collated_buffer;
+    if (total_buffer_size > 0)
+        collated_buffer = TRY(decoder.decode<Core::AnonymousBuffer>());
 
     Gfx::BitmapSequence result = {};
     auto& bitmaps = result.bitmaps;
