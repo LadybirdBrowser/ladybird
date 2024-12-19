@@ -69,6 +69,14 @@ ByteString SignedBigInteger::to_base_deprecated(u16 N) const
     return MUST(to_base(N)).to_byte_string();
 }
 
+i32 SignedBigInteger::to_i32() const
+{
+    u64 unsigned_value = m_unsigned_data.to_u32();
+    if (!m_sign)
+        return unsigned_value;
+    return ~(unsigned_value - 1); // equivalent to `-unsigned_value`, but doesn't trigger UBSAN
+}
+
 u64 SignedBigInteger::to_u64() const
 {
     u64 unsigned_value = m_unsigned_data.to_u64();

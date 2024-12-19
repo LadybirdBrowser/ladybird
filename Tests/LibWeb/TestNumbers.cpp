@@ -15,46 +15,46 @@ TEST_CASE(parse_integer)
 
     optional_value = Web::HTML::parse_integer("123"sv);
     EXPECT(optional_value.has_value());
-    EXPECT_EQ(optional_value.value(), 123);
+    EXPECT_EQ(optional_value.value().to_i32(), 123);
 
     optional_value = Web::HTML::parse_integer(" 456"sv);
     EXPECT(optional_value.has_value());
-    EXPECT_EQ(optional_value.value(), 456);
+    EXPECT_EQ(optional_value.value().to_i32(), 456);
 
     optional_value = Web::HTML::parse_integer("789 "sv);
     EXPECT(optional_value.has_value());
-    EXPECT_EQ(optional_value.value(), 789);
+    EXPECT_EQ(optional_value.value().to_i32(), 789);
 
     optional_value = Web::HTML::parse_integer("   22   "sv);
     EXPECT(optional_value.has_value());
-    EXPECT_EQ(optional_value.value(), 22);
+    EXPECT_EQ(optional_value.value().to_i32(), 22);
 
     optional_value = Web::HTML::parse_integer(" \n\t31\t\t\n\n"sv);
     EXPECT(optional_value.has_value());
-    EXPECT_EQ(optional_value.value(), 31);
+    EXPECT_EQ(optional_value.value().to_i32(), 31);
 
     optional_value = Web::HTML::parse_integer("765foo"sv);
     EXPECT(optional_value.has_value());
-    EXPECT_EQ(optional_value.value(), 765);
+    EXPECT_EQ(optional_value.value().to_i32(), 765);
 
     optional_value = Web::HTML::parse_integer("3;"sv);
     EXPECT(optional_value.has_value());
-    EXPECT_EQ(optional_value.value(), 3);
+    EXPECT_EQ(optional_value.value().to_i32(), 3);
 
     optional_value = Web::HTML::parse_integer("foo765"sv);
     EXPECT(!optional_value.has_value());
 
     optional_value = Web::HTML::parse_integer("1"sv);
     EXPECT(optional_value.has_value());
-    EXPECT_EQ(optional_value.value(), 1);
+    EXPECT_EQ(optional_value.value().to_i32(), 1);
 
     optional_value = Web::HTML::parse_integer("+2"sv);
     EXPECT(optional_value.has_value());
-    EXPECT_EQ(optional_value.value(), 2);
+    EXPECT_EQ(optional_value.value().to_i32(), 2);
 
     optional_value = Web::HTML::parse_integer("-3"sv);
     EXPECT(optional_value.has_value());
-    EXPECT_EQ(optional_value.value(), -3);
+    EXPECT_EQ(optional_value.value().to_i32(), -3);
 }
 
 TEST_CASE(parse_non_negative_integer)
@@ -64,42 +64,42 @@ TEST_CASE(parse_non_negative_integer)
 
     optional_value = Web::HTML::parse_non_negative_integer("123"sv);
     EXPECT(optional_value.has_value());
-    EXPECT_EQ(optional_value.value(), 123u);
+    EXPECT_EQ(optional_value.value().to_u32(), 123u);
 
     optional_value = Web::HTML::parse_non_negative_integer(" 456"sv);
     EXPECT(optional_value.has_value());
-    EXPECT_EQ(optional_value.value(), 456u);
+    EXPECT_EQ(optional_value.value().to_u32(), 456u);
 
     optional_value = Web::HTML::parse_non_negative_integer("789 "sv);
     EXPECT(optional_value.has_value());
-    EXPECT_EQ(optional_value.value(), 789u);
+    EXPECT_EQ(optional_value.value().to_u32(), 789u);
 
     optional_value = Web::HTML::parse_non_negative_integer("   22   "sv);
     EXPECT(optional_value.has_value());
-    EXPECT_EQ(optional_value.value(), 22u);
+    EXPECT_EQ(optional_value.value().to_u32(), 22u);
 
     optional_value = Web::HTML::parse_non_negative_integer(" \n\t31\t\t\n\n"sv);
     EXPECT(optional_value.has_value());
-    EXPECT_EQ(optional_value.value(), 31u);
+    EXPECT_EQ(optional_value.value().to_u32(), 31u);
 
     optional_value = Web::HTML::parse_non_negative_integer("765foo"sv);
     EXPECT(optional_value.has_value());
-    EXPECT_EQ(optional_value.value(), 765u);
+    EXPECT_EQ(optional_value.value().to_u32(), 765u);
 
     optional_value = Web::HTML::parse_non_negative_integer("3;"sv);
     EXPECT(optional_value.has_value());
-    EXPECT_EQ(optional_value.value(), 3u);
+    EXPECT_EQ(optional_value.value().to_u32(), 3u);
 
     optional_value = Web::HTML::parse_non_negative_integer("foo765"sv);
     EXPECT(!optional_value.has_value());
 
     optional_value = Web::HTML::parse_non_negative_integer("1"sv);
     EXPECT(optional_value.has_value());
-    EXPECT_EQ(optional_value.value(), 1u);
+    EXPECT_EQ(optional_value.value().to_u32(), 1u);
 
     optional_value = Web::HTML::parse_non_negative_integer("+2"sv);
     EXPECT(optional_value.has_value());
-    EXPECT_EQ(optional_value.value(), 2u);
+    EXPECT_EQ(optional_value.value().to_u32(), 2u);
 
     optional_value = Web::HTML::parse_non_negative_integer("-3"sv);
     EXPECT(!optional_value.has_value());

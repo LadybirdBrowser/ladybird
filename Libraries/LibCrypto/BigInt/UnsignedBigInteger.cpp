@@ -138,6 +138,18 @@ ErrorOr<UnsignedBigInteger> UnsignedBigInteger::from_base(u16 N, StringView str)
     UnsignedBigInteger result;
     UnsignedBigInteger base { N };
 
+    if (str.length() > 1) {
+        auto maybe_sign = str[0];
+        if (maybe_sign == '+')
+            str = str.substring_view(1);
+
+        // NOTE: -0 is a valid unsigned integer
+        if (maybe_sign == '-' && str.length() == 2) {
+            if (str[1] == '0')
+                return UnsignedBigInteger { 0 };
+        }
+    }
+
     for (auto const& c : str) {
         if (c == '_')
             continue;
@@ -176,6 +188,14 @@ ErrorOr<String> UnsignedBigInteger::to_base(u16 N) const
 ByteString UnsignedBigInteger::to_base_deprecated(u16 N) const
 {
     return MUST(to_base(N)).to_byte_string();
+}
+
+u32 UnsignedBigInteger::to_u32() const
+{
+    static_assert(sizeof(Word) == 4);
+    if (!length())
+        return 0;
+    return m_words[0];
 }
 
 u64 UnsignedBigInteger::to_u64() const

@@ -1606,7 +1606,7 @@ void HTMLInputElement::apply_presentational_hints(CSS::StyleProperties& style) c
                 style.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Middle));
         } else if (name == HTML::AttributeNames::border) {
             if (auto parsed_value = parse_non_negative_integer(value); parsed_value.has_value()) {
-                auto width_style_value = CSS::LengthStyleValue::create(CSS::Length::make_px(*parsed_value));
+                auto width_style_value = CSS::LengthStyleValue::create(CSS::Length::make_px(parsed_value->to_u32()));
                 style.set_property(CSS::PropertyID::BorderTopWidth, width_style_value);
                 style.set_property(CSS::PropertyID::BorderRightWidth, width_style_value);
                 style.set_property(CSS::PropertyID::BorderBottomWidth, width_style_value);
@@ -1827,7 +1827,7 @@ WebIDL::Long HTMLInputElement::max_length() const
     // The maxLength IDL attribute must reflect the maxlength content attribute, limited to only non-negative numbers.
     if (auto maxlength_string = get_attribute(HTML::AttributeNames::maxlength); maxlength_string.has_value()) {
         if (auto maxlength = parse_non_negative_integer(*maxlength_string); maxlength.has_value() && *maxlength <= 2147483647)
-            return *maxlength;
+            return maxlength->to_u32();
     }
     return -1;
 }
@@ -1844,7 +1844,7 @@ WebIDL::Long HTMLInputElement::min_length() const
     // The minLength IDL attribute must reflect the minlength content attribute, limited to only non-negative numbers.
     if (auto minlength_string = get_attribute(HTML::AttributeNames::minlength); minlength_string.has_value()) {
         if (auto minlength = parse_non_negative_integer(*minlength_string); minlength.has_value() && *minlength <= 2147483647)
-            return *minlength;
+            return minlength->to_u32();
     }
     return -1;
 }
@@ -1862,7 +1862,7 @@ WebIDL::UnsignedLong HTMLInputElement::size() const
     // The size IDL attribute is limited to only positive numbers and has a default value of 20.
     if (auto size_string = get_attribute(HTML::AttributeNames::size); size_string.has_value()) {
         if (auto size = parse_non_negative_integer(*size_string); size.has_value() && *size != 0 && *size <= 2147483647)
-            return *size;
+            return size->to_u32();
     }
     return 20;
 }
@@ -1892,7 +1892,7 @@ WebIDL::UnsignedLong HTMLInputElement::height() const
     // On setting [the width or height IDL attribute], they must act as if they reflected the respective content attributes of the same name.
     if (auto height_string = get_attribute(HTML::AttributeNames::height); height_string.has_value()) {
         if (auto height = parse_non_negative_integer(*height_string); height.has_value() && *height <= 2147483647)
-            return *height;
+            return height->to_u32();
     }
 
     // ...or else the natural height and height of the image, in CSS pixels, if an image is available but not being rendered
@@ -1927,7 +1927,7 @@ WebIDL::UnsignedLong HTMLInputElement::width() const
     // On setting [the width or height IDL attribute], they must act as if they reflected the respective content attributes of the same name.
     if (auto width_string = get_attribute(HTML::AttributeNames::width); width_string.has_value()) {
         if (auto width = parse_non_negative_integer(*width_string); width.has_value() && *width <= 2147483647)
-            return *width;
+            return width->to_u32();
     }
 
     // ...or else the natural width and height of the image, in CSS pixels, if an image is available but not being rendered

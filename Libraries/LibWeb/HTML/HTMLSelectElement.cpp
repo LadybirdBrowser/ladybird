@@ -84,7 +84,7 @@ u32 HTMLSelectElement::display_size() const
         // The display size of a select element is the result of applying the rules for parsing non-negative integers
         // to the value of element's size attribute, if it has one and parsing it is successful.
         if (auto size = parse_non_negative_integer(*size_string); size.has_value())
-            return *size;
+            return size->to_u32();
     }
 
     // If applying those rules to the attribute's value is not successful or if the size attribute is absent,
@@ -100,7 +100,7 @@ WebIDL::UnsignedLong HTMLSelectElement::size() const
     // The multiple, required, and size IDL attributes must reflect the respective content attributes of the same name. The size IDL attribute has a default value of 0.
     if (auto size_string = get_attribute(HTML::AttributeNames::size); size_string.has_value()) {
         if (auto size = parse_non_negative_integer(*size_string); size.has_value() && *size <= 2147483647)
-            return *size;
+            return size->to_u32();
     }
 
     return 0;

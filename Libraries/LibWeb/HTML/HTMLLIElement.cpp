@@ -34,7 +34,7 @@ WebIDL::Long HTMLLIElement::value()
     //       We don't do that in this case, since this method is used elsewhere.
     auto content_attribute_value = get_attribute(AttributeNames::value).value_or("0"_string);
     if (auto maybe_number = HTML::parse_integer(content_attribute_value); maybe_number.has_value())
-        return *maybe_number;
+        return maybe_number->to_i32();
     return 0;
 }
 

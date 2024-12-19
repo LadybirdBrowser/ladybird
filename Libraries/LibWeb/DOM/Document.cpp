@@ -4275,8 +4275,8 @@ void Document::shared_declarative_refresh_steps(StringView input, GC::Ptr<HTML::
     auto maybe_time = Web::HTML::parse_non_negative_integer(time_string);
 
     // FIXME: Since we only collected ASCII digits, this can only fail because of overflow. What do we do when that happens? For now, default to 0.
-    if (maybe_time.has_value() && maybe_time.value() < NumericLimits<int>::max() && !Checked<int>::multiplication_would_overflow(static_cast<int>(maybe_time.value()), 1000)) {
-        time = maybe_time.value();
+    if (maybe_time.has_value() && maybe_time.value() < NumericLimits<int>::max() && !Checked<int>::multiplication_would_overflow(static_cast<int>(maybe_time->to_u32()), 1000)) {
+        time = maybe_time->to_u32();
     }
 
     // 8. Collect a sequence of code points that are ASCII digits and U+002E FULL STOP characters (.) from input given
