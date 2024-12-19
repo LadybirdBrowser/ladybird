@@ -45,6 +45,7 @@ if (WIN32)
   add_compile_options(-Wno-microsoft-unqualified-friend) # MSVC doesn't support unqualified friends
   add_compile_definitions(_CRT_SECURE_NO_WARNINGS) # _s replacements not desired (or implemented on any other platform other than VxWorks)
   add_compile_definitions(_CRT_NONSTDC_NO_WARNINGS) # POSIX names are just fine, thanks
+  add_compile_definitions(_CRT_BEST_PRACTICES_USAGE) # don't #define _environ (*__p__environ())
   add_compile_definitions(_USE_MATH_DEFINES)
   add_compile_definitions(NOMINMAX)
   add_compile_definitions(WIN32_LEAN_AND_MEAN)
