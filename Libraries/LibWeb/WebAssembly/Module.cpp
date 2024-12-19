@@ -9,6 +9,7 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/ModulePrototype.h>
+#include <LibWeb/WebAssembly/Error.h>
 #include <LibWeb/WebAssembly/Module.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -25,7 +26,7 @@ WebIDL::ExceptionOr<GC::Ref<Module>> Module::construct_impl(JS::Realm& realm, GC
     auto stable_bytes_or_error = WebIDL::get_buffer_source_copy(bytes->raw_object());
     if (stable_bytes_or_error.is_error()) {
         VERIFY(stable_bytes_or_error.error().code() == ENOMEM);
-        return vm.throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory));
+        return vm.throw_completion<CompileError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory));
     }
     auto stable_bytes = stable_bytes_or_error.release_value();
 
