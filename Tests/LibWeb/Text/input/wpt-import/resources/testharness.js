@@ -556,6 +556,13 @@
 
     var test_environment = create_test_environment();
 
+    // Tell the ladybird test runner what our preferred timeout is
+    {
+        let timeout = test_environment.test_timeout();
+        if (timeout)
+            window.internals.setTestTimeout(timeout);
+    }
+
     function is_shared_worker(worker) {
         return 'SharedWorker' in global_scope && worker instanceof SharedWorker;
     }
