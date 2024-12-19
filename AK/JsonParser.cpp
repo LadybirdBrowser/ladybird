@@ -40,7 +40,7 @@ ErrorOr<ByteString> JsonParser::consume_and_unescape_string()
     for (;;) {
         // OPTIMIZATION: We try to append as many literal characters as possible at a time
         //               This also pre-checks some error conditions
-        // Note: All utf8 characters are either plain ascii,  or have their most signifiant bit set,
+        // Note: All utf8 characters are either plain ascii,  or have their most significant bit set,
         //       which puts the, above plain ascii in value, so they will always consist
         //       of a set of "legal" non-special bytes,
         //       hence we don't need to bother with a code-point iterator,

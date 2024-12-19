@@ -150,7 +150,7 @@ ErrorOr<Vector<Hunk>> Parser::parse_hunks()
                 return Error::from_string_literal("Malformed empty content line in patch");
 
             if (line[0] != ' ' && line[0] != '+' && line[0] != '-')
-                return Error::from_string_literal("Invaid operation in patch");
+                return Error::from_string_literal("Invalid operation in patch");
 
             auto const operation = Line::operation_from_symbol(line[0]);
 
