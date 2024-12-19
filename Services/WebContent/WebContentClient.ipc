@@ -95,6 +95,7 @@ endpoint WebContentClient
     did_get_js_console_messages(u64 page_id, i32 start_index, Vector<ByteString> message_types, Vector<ByteString> messages) =|
 
     did_finish_text_test(u64 page_id, String text) =|
+    did_set_test_timeout(u64 page_id, double milliseconds) =|
 
     did_find_in_page(u64 page_id, size_t current_match_index, Optional<size_t> total_match_count) =|
 
