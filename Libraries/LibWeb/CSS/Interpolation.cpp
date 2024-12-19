@@ -120,8 +120,8 @@ RefPtr<CSSStyleValue const> interpolate_transform(DOM::Element& element, CSSStyl
             case CSSStyleValue::Type::Angle:
                 values.append(AngleOrCalculated { value->as_angle().angle() });
                 break;
-            case CSSStyleValue::Type::Math:
-                values.append(LengthPercentage { value->as_math() });
+            case CSSStyleValue::Type::Calculated:
+                values.append(LengthPercentage { value->as_calculated() });
                 break;
             case CSSStyleValue::Type::Length:
                 values.append(LengthPercentage { value->as_length().length() });
@@ -554,7 +554,7 @@ NonnullRefPtr<CSSStyleValue const> interpolate_value(DOM::Element& element, CSSS
             values.unchecked_append(to_calculation_node(interpolated_from));
             values.unchecked_append(to_calculation_node(interpolated_to));
             auto calc_node = SumCalculationNode::create(move(values));
-            return CSSMathValue::create(move(calc_node), CSSNumericType { to_base_type_and_default->base_type, 1 });
+            return CalculatedStyleValue::create(move(calc_node), CSSNumericType { to_base_type_and_default->base_type, 1 });
         }
 
         return delta >= 0.5f ? to : from;

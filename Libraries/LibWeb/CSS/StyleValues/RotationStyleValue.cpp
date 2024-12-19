@@ -5,7 +5,7 @@
  */
 
 #include <AK/String.h>
-#include <LibWeb/CSS/StyleValues/CSSMathValue.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 
 #include "RotationStyleValue.h"
@@ -18,8 +18,8 @@ String RotationStyleValue::to_string(SerializationMode mode) const
     auto resolve_to_number = [](ValueComparingNonnullRefPtr<CSSStyleValue const> const& value) -> Optional<double> {
         if (value->is_number())
             return value->as_number().number();
-        if (value->is_math() && value->as_math().resolves_to_number())
-            return value->as_math().resolve_number();
+        if (value->is_calculated() && value->as_calculated().resolves_to_number())
+            return value->as_calculated().resolve_number();
 
         VERIFY_NOT_REACHED();
     };
