@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Tentative: Grid Role Verification Tests</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../../resources/testdriver.js"></script>
+    <script src="../../resources/testdriver-vendor.js"></script>
+    <script src="../../resources/testdriver-actions.js"></script>
+    <script src="../../wai-aria/scripts/aria-utils.js"></script>
+  </head>
+  <body>
+
+  <!--
+    CORE-AAM requires that, for elements with roles not contained in the
+    required context, user agents must ignore the role token and return the
+    computed role as if the ignored role token had not been included.
+    See https://w3c.github.io/core-aam/#roleMappingComputedRole
+  -->
+  <span role="row" data-testname="orphaned row outside the context of table" class="ex-generic">x</span>
+  <span role="rowgroup" data-testname="orphaned rowgroup outside the context of row" class="ex-generic">x</span>
+  <div role="gridcell" data-testname="orphaned div with gridcell role outside the context of row" class="ex-generic">x</div>
+  <button role="gridcell" data-testname="orphaned button with gridcell role outside the context of row" data-expectedrole="button" class="ex">x</button>
+  <div role="rowheader" data-testname="orphaned rowheader outside the context of row" class="ex-generic">x</div>
+  <div role="columnheader" data-testname="orphaned columnheader outside the context of row" class="ex-generic">x</div>
+
+<script>
+AriaUtils.verifyRolesBySelector(".ex");
+AriaUtils.verifyGenericRolesBySelector(".ex-generic");
+</script>
+
+</body>
+</html>

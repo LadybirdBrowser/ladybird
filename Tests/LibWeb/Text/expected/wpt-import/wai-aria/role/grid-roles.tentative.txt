@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	orphaned button with gridcell role outside the context of row
+Pass	orphaned row outside the context of table
+Pass	orphaned rowgroup outside the context of row
+Pass	orphaned div with gridcell role outside the context of row
+Pass	orphaned rowheader outside the context of row
+Pass	orphaned columnheader outside the context of row
