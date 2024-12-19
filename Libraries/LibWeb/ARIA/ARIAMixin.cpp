@@ -7,6 +7,7 @@
 #include <LibWeb/ARIA/ARIAMixin.h>
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/Node.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 
 namespace Web::ARIA {
@@ -116,6 +117,14 @@ Optional<Role> ARIAMixin::role_from_role_attribute_value() const
             }
             continue;
         }
+        // https://w3c.github.io/aria/#document-handling_author-errors_roles
+        // Certain landmark roles require names from authors. In situations where an author has not specified names for
+        // these landmarks, it is considered an authoring error. The user agent MUST treat such elements as if no role
+        // had been provided. If a valid fallback role had been specified, or if the element had an implicit ARIA role,
+        // then user agents would continue to expose that role, instead.
+        if ((role == ARIA::Role::form || role == ARIA::Role::region)
+            && to_element()->accessible_name(to_element()->document(), DOM::ShouldComputeRole::No).value().is_empty())
+            continue;
         // 4. Use the first such substring in textual order that matches the name of a non-abstract WAI-ARIA role.
         if (!is_abstract_role(*role))
             return *role;
