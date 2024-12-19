@@ -244,10 +244,10 @@ void DisplayListRecorder::draw_text(Gfx::IntRect const& rect, String raw_text, G
     }
     auto metrics = font.pixel_metrics();
     float baseline_y = static_cast<float>(rect.y()) + metrics.ascent + (static_cast<float>(rect.height()) - (metrics.ascent + metrics.descent)) / 2.0f;
-    draw_text_run(Gfx::IntPoint(roundf(baseline_x), roundf(baseline_y)), *glyph_run, color, rect, 1.0, Orientation::Horizontal);
+    draw_text_run({ baseline_x, baseline_y }, *glyph_run, color, rect, 1.0, Orientation::Horizontal);
 }
 
-void DisplayListRecorder::draw_text_run(Gfx::IntPoint baseline_start, Gfx::GlyphRun const& glyph_run, Color color, Gfx::IntRect const& rect, double scale, Orientation orientation)
+void DisplayListRecorder::draw_text_run(Gfx::FloatPoint baseline_start, Gfx::GlyphRun const& glyph_run, Color color, Gfx::IntRect const& rect, double scale, Orientation orientation)
 {
     if (rect.is_empty())
         return;
@@ -255,7 +255,7 @@ void DisplayListRecorder::draw_text_run(Gfx::IntPoint baseline_start, Gfx::Glyph
         .glyph_run = glyph_run,
         .scale = scale,
         .rect = rect,
-        .translation = baseline_start.to_type<float>(),
+        .translation = baseline_start,
         .color = color,
         .orientation = orientation,
     });
@@ -331,7 +331,7 @@ void DisplayListRecorder::paint_inner_box_shadow_params(PaintBoxShadowParams par
     append(PaintInnerBoxShadow { .box_shadow_params = params });
 }
 
-void DisplayListRecorder::paint_text_shadow(int blur_radius, Gfx::IntRect bounding_rect, Gfx::IntRect text_rect, Gfx::GlyphRun const& glyph_run, double glyph_run_scale, Color color, Gfx::IntPoint draw_location)
+void DisplayListRecorder::paint_text_shadow(int blur_radius, Gfx::IntRect bounding_rect, Gfx::IntRect text_rect, Gfx::GlyphRun const& glyph_run, double glyph_run_scale, Color color, Gfx::FloatPoint draw_location)
 {
     append(PaintTextShadow {
         .glyph_run = glyph_run,

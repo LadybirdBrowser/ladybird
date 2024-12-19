@@ -28,7 +28,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
             "bar baz foo bar baz foo bar"
         frag 11 from TextNode start: 57, length: 16, rect: [61,173 141.203125x16] baseline: 12.796875
             "baz foo bar baz "
-        frag 12 from TextNode start: 1, length: 11, rect: [202,173 98x16] baseline: 12.796875
+        frag 12 from TextNode start: 1, length: 11, rect: [202.203125,173 98x16] baseline: 12.796875
             "foo bar baz"
         frag 13 from TextNode start: 13, length: 12, rect: [61,189 106x16] baseline: 12.796875
             "foo bar baz "
