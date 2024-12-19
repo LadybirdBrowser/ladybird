@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/iframe-target-element.html" />
+<iframe id="iframe"></iframe>
+
+<script>
+const IFRAME_DATA_SRC = `data:text/html,
+    <style>:target { color: green; }<\/style>
+    <p id="foo">This should be green.</p>#foo`.replace('\n', '');
+
+const iframe = document.getElementById("iframe");
+iframe.src = IFRAME_DATA_SRC;
+</script>
