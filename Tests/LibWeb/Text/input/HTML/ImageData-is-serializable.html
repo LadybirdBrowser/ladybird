@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const arr = new Uint8ClampedArray(4 * 123 * 321);
+        arr.fill(0x41);
+
+        const imageData = new ImageData(arr, 123, 321);
+
+        println("=== before clone start ===");
+        println(`width: ${imageData.width}`);
+        println(`height: ${imageData.height}`);
+        println(`data byteLength: ${imageData.data.byteLength}`);
+        println(`data filled with 0x41? ${imageData.data.every((val) => val === 0x41)}`);
+        println("=== before clone end ===");
+
+        const clonedImageData = structuredClone(imageData);
+
+        println("=== after clone start ===");
+        println(`width: ${clonedImageData.width}`);
+        println(`height: ${clonedImageData.height}`);
+        println(`data byteLength: ${clonedImageData.data.byteLength}`);
+        println(`data filled with 0x41? ${clonedImageData.data.every((val) => val === 0x41)}`);
+        println(`not the same data array? ${imageData.data !== clonedImageData.data}`);
+        println("=== after clone end ===");
+    });
+</script>
