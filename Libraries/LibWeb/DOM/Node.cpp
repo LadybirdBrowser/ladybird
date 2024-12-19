@@ -2347,7 +2347,7 @@ void Node::build_accessibility_tree(AccessibilityTreeNode& parent)
 }
 
 // https://www.w3.org/TR/accname-1.2/#mapping_additional_nd_te
-ErrorOr<String> Node::name_or_description(NameOrDescription target, Document const& document, HashTable<UniqueNodeID>& visited_nodes, IsDescendant is_descendant) const
+ErrorOr<String> Node::name_or_description(NameOrDescription target, Document const& document, HashTable<UniqueNodeID>& visited_nodes, IsDescendant is_descendant, ShouldComputeRole should_compute_role) const
 {
     // The text alternative for a given element is computed as follows:
     // 1. Set the root node to the given element, the current node to the root node, and the total accumulated text to the
@@ -2359,7 +2359,15 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
 
     if (is_element()) {
         auto const* element = static_cast<DOM::Element const*>(this);
-        auto role = element->role_from_role_attribute_value();
+        Optional<ARIA::Role> role = OptionalNone {};
+        // Per https://w3c.github.io/aria/#document-handling_author-errors_roles, determining whether to ignore certain
+        // specified landmark roles requires first determining, in the ARIAMixin code, whether the element for which the
+        // role is specified has an accessible name — that is, calling into this name_or_description code. But if we
+        // then try to retrieve a role for such elements here, that’d then end up calling right back into this
+        // name_or_description code — which would cause the calls to loop infinitely. So to avoid that, the caller
+        // in the ARIAMixin code can pass the shouldComputeRole parameter to indicate we must skip the role lookup.
+        if (should_compute_role == ShouldComputeRole::Yes)
+            role = element->role_from_role_attribute_value();
         // Per https://w3c.github.io/html-aam/#el-aside and https://w3c.github.io/html-aam/#el-section, computing a
         // default role for an aside element or section element requires first computing its accessible name — that is,
         // calling into this name_or_description code. But if we then try to determine a default role for the aside
@@ -2682,7 +2690,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
                 current_node = child_node;
 
                 // b. Compute the text alternative of the current node beginning with step 2. Set the result to that text alternative.
-                auto result = MUST(current_node->name_or_description(target, document, visited_nodes, IsDescendant::Yes));
+                auto result = MUST(current_node->name_or_description(target, document, visited_nodes, IsDescendant::Yes, should_compute_role));
 
                 // J. Append a space character and the result of each step above to the total accumulated text.
                 // AD-HOC: Doing the space-adding here is in a different order from what the spec states.
@@ -2752,11 +2760,11 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
 }
 
 // https://www.w3.org/TR/accname-1.2/#mapping_additional_nd_name
-ErrorOr<String> Node::accessible_name(Document const& document) const
+ErrorOr<String> Node::accessible_name(Document const& document, ShouldComputeRole should_compute_role) const
 {
     HashTable<UniqueNodeID> visited_nodes;
     // User agents MUST compute an accessible name using the rules outlined below in the section titled Accessible Name and Description Computation.
-    return name_or_description(NameOrDescription::Name, document, visited_nodes);
+    return name_or_description(NameOrDescription::Name, document, visited_nodes, IsDescendant::No, should_compute_role);
 }
 
 // https://www.w3.org/TR/accname-1.2/#mapping_additional_nd_description
