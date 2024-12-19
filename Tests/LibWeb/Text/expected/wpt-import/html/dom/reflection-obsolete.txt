@@ -1,0 +1,2626 @@
+Harness status: OK
+
+Found 2621 tests
+
+2621 Pass
+Pass	marquee.title: typeof IDL attribute
+Pass	marquee.title: IDL get with DOM attribute unset
+Pass	marquee.title: setAttribute() to ""
+Pass	marquee.title: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	marquee.title: setAttribute() to undefined
+Pass	marquee.title: setAttribute() to 7
+Pass	marquee.title: setAttribute() to 1.5
+Pass	marquee.title: setAttribute() to "5%"
+Pass	marquee.title: setAttribute() to "+100"
+Pass	marquee.title: setAttribute() to ".5"
+Pass	marquee.title: setAttribute() to true
+Pass	marquee.title: setAttribute() to false
+Pass	marquee.title: setAttribute() to object "[object Object]"
+Pass	marquee.title: setAttribute() to NaN
+Pass	marquee.title: setAttribute() to Infinity
+Pass	marquee.title: setAttribute() to -Infinity
+Pass	marquee.title: setAttribute() to "\0"
+Pass	marquee.title: setAttribute() to null
+Pass	marquee.title: setAttribute() to object "test-toString"
+Pass	marquee.title: setAttribute() to object "test-valueOf"
+Pass	marquee.title: IDL set to ""
+Pass	marquee.title: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	marquee.title: IDL set to undefined
+Pass	marquee.title: IDL set to 7
+Pass	marquee.title: IDL set to 1.5
+Pass	marquee.title: IDL set to "5%"
+Pass	marquee.title: IDL set to "+100"
+Pass	marquee.title: IDL set to ".5"
+Pass	marquee.title: IDL set to true
+Pass	marquee.title: IDL set to false
+Pass	marquee.title: IDL set to object "[object Object]"
+Pass	marquee.title: IDL set to NaN
+Pass	marquee.title: IDL set to Infinity
+Pass	marquee.title: IDL set to -Infinity
+Pass	marquee.title: IDL set to "\0"
+Pass	marquee.title: IDL set to null
+Pass	marquee.title: IDL set to object "test-toString"
+Pass	marquee.title: IDL set to object "test-valueOf"
+Pass	marquee.lang: typeof IDL attribute
+Pass	marquee.lang: IDL get with DOM attribute unset
+Pass	marquee.lang: setAttribute() to ""
+Pass	marquee.lang: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	marquee.lang: setAttribute() to undefined
+Pass	marquee.lang: setAttribute() to 7
+Pass	marquee.lang: setAttribute() to 1.5
+Pass	marquee.lang: setAttribute() to "5%"
+Pass	marquee.lang: setAttribute() to "+100"
+Pass	marquee.lang: setAttribute() to ".5"
+Pass	marquee.lang: setAttribute() to true
+Pass	marquee.lang: setAttribute() to false
+Pass	marquee.lang: setAttribute() to object "[object Object]"
+Pass	marquee.lang: setAttribute() to NaN
+Pass	marquee.lang: setAttribute() to Infinity
+Pass	marquee.lang: setAttribute() to -Infinity
+Pass	marquee.lang: setAttribute() to "\0"
+Pass	marquee.lang: setAttribute() to null
+Pass	marquee.lang: setAttribute() to object "test-toString"
+Pass	marquee.lang: setAttribute() to object "test-valueOf"
+Pass	marquee.lang: IDL set to ""
+Pass	marquee.lang: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	marquee.lang: IDL set to undefined
+Pass	marquee.lang: IDL set to 7
+Pass	marquee.lang: IDL set to 1.5
+Pass	marquee.lang: IDL set to "5%"
+Pass	marquee.lang: IDL set to "+100"
+Pass	marquee.lang: IDL set to ".5"
+Pass	marquee.lang: IDL set to true
+Pass	marquee.lang: IDL set to false
+Pass	marquee.lang: IDL set to object "[object Object]"
+Pass	marquee.lang: IDL set to NaN
+Pass	marquee.lang: IDL set to Infinity
+Pass	marquee.lang: IDL set to -Infinity
+Pass	marquee.lang: IDL set to "\0"
+Pass	marquee.lang: IDL set to null
+Pass	marquee.lang: IDL set to object "test-toString"
+Pass	marquee.lang: IDL set to object "test-valueOf"
+Pass	marquee.dir: typeof IDL attribute
+Pass	marquee.dir: IDL get with DOM attribute unset
+Pass	marquee.dir: setAttribute() to ""
+Pass	marquee.dir: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	marquee.dir: setAttribute() to undefined
+Pass	marquee.dir: setAttribute() to 7
+Pass	marquee.dir: setAttribute() to 1.5
+Pass	marquee.dir: setAttribute() to "5%"
+Pass	marquee.dir: setAttribute() to "+100"
+Pass	marquee.dir: setAttribute() to ".5"
+Pass	marquee.dir: setAttribute() to true
+Pass	marquee.dir: setAttribute() to false
+Pass	marquee.dir: setAttribute() to object "[object Object]"
+Pass	marquee.dir: setAttribute() to NaN
+Pass	marquee.dir: setAttribute() to Infinity
+Pass	marquee.dir: setAttribute() to -Infinity
+Pass	marquee.dir: setAttribute() to "\0"
+Pass	marquee.dir: setAttribute() to null
+Pass	marquee.dir: setAttribute() to object "test-toString"
+Pass	marquee.dir: setAttribute() to object "test-valueOf"
+Pass	marquee.dir: setAttribute() to "ltr"
+Pass	marquee.dir: setAttribute() to "xltr"
+Pass	marquee.dir: setAttribute() to "ltr\0"
+Pass	marquee.dir: setAttribute() to "tr"
+Pass	marquee.dir: setAttribute() to "LTR"
+Pass	marquee.dir: setAttribute() to "rtl"
+Pass	marquee.dir: setAttribute() to "xrtl"
+Pass	marquee.dir: setAttribute() to "rtl\0"
+Pass	marquee.dir: setAttribute() to "tl"
+Pass	marquee.dir: setAttribute() to "RTL"
+Pass	marquee.dir: setAttribute() to "auto"
+Pass	marquee.dir: setAttribute() to "xauto"
+Pass	marquee.dir: setAttribute() to "auto\0"
+Pass	marquee.dir: setAttribute() to "uto"
+Pass	marquee.dir: setAttribute() to "AUTO"
+Pass	marquee.dir: IDL set to ""
+Pass	marquee.dir: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	marquee.dir: IDL set to undefined
+Pass	marquee.dir: IDL set to 7
+Pass	marquee.dir: IDL set to 1.5
+Pass	marquee.dir: IDL set to "5%"
+Pass	marquee.dir: IDL set to "+100"
+Pass	marquee.dir: IDL set to ".5"
+Pass	marquee.dir: IDL set to true
+Pass	marquee.dir: IDL set to false
+Pass	marquee.dir: IDL set to object "[object Object]"
+Pass	marquee.dir: IDL set to NaN
+Pass	marquee.dir: IDL set to Infinity
+Pass	marquee.dir: IDL set to -Infinity
+Pass	marquee.dir: IDL set to "\0"
+Pass	marquee.dir: IDL set to null
+Pass	marquee.dir: IDL set to object "test-toString"
+Pass	marquee.dir: IDL set to object "test-valueOf"
+Pass	marquee.dir: IDL set to "ltr"
+Pass	marquee.dir: IDL set to "xltr"
+Pass	marquee.dir: IDL set to "ltr\0"
+Pass	marquee.dir: IDL set to "tr"
+Pass	marquee.dir: IDL set to "LTR"
+Pass	marquee.dir: IDL set to "rtl"
+Pass	marquee.dir: IDL set to "xrtl"
+Pass	marquee.dir: IDL set to "rtl\0"
+Pass	marquee.dir: IDL set to "tl"
+Pass	marquee.dir: IDL set to "RTL"
+Pass	marquee.dir: IDL set to "auto"
+Pass	marquee.dir: IDL set to "xauto"
+Pass	marquee.dir: IDL set to "auto\0"
+Pass	marquee.dir: IDL set to "uto"
+Pass	marquee.dir: IDL set to "AUTO"
+Pass	marquee.className (<marquee class>): typeof IDL attribute
+Pass	marquee.className (<marquee class>): IDL get with DOM attribute unset
+Pass	marquee.className (<marquee class>): setAttribute() to ""
+Pass	marquee.className (<marquee class>): setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	marquee.className (<marquee class>): setAttribute() to undefined
+Pass	marquee.className (<marquee class>): setAttribute() to 7
+Pass	marquee.className (<marquee class>): setAttribute() to 1.5
+Pass	marquee.className (<marquee class>): setAttribute() to "5%"
+Pass	marquee.className (<marquee class>): setAttribute() to "+100"
+Pass	marquee.className (<marquee class>): setAttribute() to ".5"
+Pass	marquee.className (<marquee class>): setAttribute() to true
+Pass	marquee.className (<marquee class>): setAttribute() to false
+Pass	marquee.className (<marquee class>): setAttribute() to object "[object Object]"
+Pass	marquee.className (<marquee class>): setAttribute() to NaN
+Pass	marquee.className (<marquee class>): setAttribute() to Infinity
+Pass	marquee.className (<marquee class>): setAttribute() to -Infinity
+Pass	marquee.className (<marquee class>): setAttribute() to "\0"
+Pass	marquee.className (<marquee class>): setAttribute() to null
+Pass	marquee.className (<marquee class>): setAttribute() to object "test-toString"
+Pass	marquee.className (<marquee class>): setAttribute() to object "test-valueOf"
+Pass	marquee.className (<marquee class>): IDL set to ""
+Pass	marquee.className (<marquee class>): IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	marquee.className (<marquee class>): IDL set to undefined
+Pass	marquee.className (<marquee class>): IDL set to 7
+Pass	marquee.className (<marquee class>): IDL set to 1.5
+Pass	marquee.className (<marquee class>): IDL set to "5%"
+Pass	marquee.className (<marquee class>): IDL set to "+100"
+Pass	marquee.className (<marquee class>): IDL set to ".5"
+Pass	marquee.className (<marquee class>): IDL set to true
+Pass	marquee.className (<marquee class>): IDL set to false
+Pass	marquee.className (<marquee class>): IDL set to object "[object Object]"
+Pass	marquee.className (<marquee class>): IDL set to NaN
+Pass	marquee.className (<marquee class>): IDL set to Infinity
+Pass	marquee.className (<marquee class>): IDL set to -Infinity
+Pass	marquee.className (<marquee class>): IDL set to "\0"
+Pass	marquee.className (<marquee class>): IDL set to null
+Pass	marquee.className (<marquee class>): IDL set to object "test-toString"
+Pass	marquee.className (<marquee class>): IDL set to object "test-valueOf"
+Pass	marquee.autofocus: typeof IDL attribute
+Pass	marquee.autofocus: IDL get with DOM attribute unset
+Pass	marquee.autofocus: setAttribute() to ""
+Pass	marquee.autofocus: setAttribute() to " foo "
+Pass	marquee.autofocus: setAttribute() to undefined
+Pass	marquee.autofocus: setAttribute() to null
+Pass	marquee.autofocus: setAttribute() to 7
+Pass	marquee.autofocus: setAttribute() to 1.5
+Pass	marquee.autofocus: setAttribute() to "5%"
+Pass	marquee.autofocus: setAttribute() to "+100"
+Pass	marquee.autofocus: setAttribute() to ".5"
+Pass	marquee.autofocus: setAttribute() to true
+Pass	marquee.autofocus: setAttribute() to false
+Pass	marquee.autofocus: setAttribute() to object "[object Object]"
+Pass	marquee.autofocus: setAttribute() to NaN
+Pass	marquee.autofocus: setAttribute() to Infinity
+Pass	marquee.autofocus: setAttribute() to -Infinity
+Pass	marquee.autofocus: setAttribute() to "\0"
+Pass	marquee.autofocus: setAttribute() to object "test-toString"
+Pass	marquee.autofocus: setAttribute() to object "test-valueOf"
+Pass	marquee.autofocus: setAttribute() to "autofocus"
+Pass	marquee.autofocus: IDL set to ""
+Pass	marquee.autofocus: IDL set to " foo "
+Pass	marquee.autofocus: IDL set to undefined
+Pass	marquee.autofocus: IDL set to null
+Pass	marquee.autofocus: IDL set to 7
+Pass	marquee.autofocus: IDL set to 1.5
+Pass	marquee.autofocus: IDL set to "5%"
+Pass	marquee.autofocus: IDL set to "+100"
+Pass	marquee.autofocus: IDL set to ".5"
+Pass	marquee.autofocus: IDL set to true
+Pass	marquee.autofocus: IDL set to false
+Pass	marquee.autofocus: IDL set to object "[object Object]"
+Pass	marquee.autofocus: IDL set to NaN
+Pass	marquee.autofocus: IDL set to Infinity
+Pass	marquee.autofocus: IDL set to -Infinity
+Pass	marquee.autofocus: IDL set to "\0"
+Pass	marquee.autofocus: IDL set to object "test-toString"
+Pass	marquee.autofocus: IDL set to object "test-valueOf"
+Pass	marquee.hidden: typeof IDL attribute
+Pass	marquee.hidden: IDL get with DOM attribute unset
+Pass	marquee.hidden: setAttribute() to ""
+Pass	marquee.hidden: setAttribute() to " foo "
+Pass	marquee.hidden: setAttribute() to undefined
+Pass	marquee.hidden: setAttribute() to null
+Pass	marquee.hidden: setAttribute() to 7
+Pass	marquee.hidden: setAttribute() to 1.5
+Pass	marquee.hidden: setAttribute() to "5%"
+Pass	marquee.hidden: setAttribute() to "+100"
+Pass	marquee.hidden: setAttribute() to ".5"
+Pass	marquee.hidden: setAttribute() to true
+Pass	marquee.hidden: setAttribute() to false
+Pass	marquee.hidden: setAttribute() to object "[object Object]"
+Pass	marquee.hidden: setAttribute() to NaN
+Pass	marquee.hidden: setAttribute() to Infinity
+Pass	marquee.hidden: setAttribute() to -Infinity
+Pass	marquee.hidden: setAttribute() to "\0"
+Pass	marquee.hidden: setAttribute() to object "test-toString"
+Pass	marquee.hidden: setAttribute() to object "test-valueOf"
+Pass	marquee.hidden: setAttribute() to "hidden"
+Pass	marquee.hidden: IDL set to ""
+Pass	marquee.hidden: IDL set to " foo "
+Pass	marquee.hidden: IDL set to undefined
+Pass	marquee.hidden: IDL set to null
+Pass	marquee.hidden: IDL set to 7
+Pass	marquee.hidden: IDL set to 1.5
+Pass	marquee.hidden: IDL set to "5%"
+Pass	marquee.hidden: IDL set to "+100"
+Pass	marquee.hidden: IDL set to ".5"
+Pass	marquee.hidden: IDL set to true
+Pass	marquee.hidden: IDL set to false
+Pass	marquee.hidden: IDL set to object "[object Object]"
+Pass	marquee.hidden: IDL set to NaN
+Pass	marquee.hidden: IDL set to Infinity
+Pass	marquee.hidden: IDL set to -Infinity
+Pass	marquee.hidden: IDL set to "\0"
+Pass	marquee.hidden: IDL set to object "test-toString"
+Pass	marquee.hidden: IDL set to object "test-valueOf"
+Pass	marquee.accessKey: typeof IDL attribute
+Pass	marquee.accessKey: IDL get with DOM attribute unset
+Pass	marquee.accessKey: setAttribute() to ""
+Pass	marquee.accessKey: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	marquee.accessKey: setAttribute() to undefined
+Pass	marquee.accessKey: setAttribute() to 7
+Pass	marquee.accessKey: setAttribute() to 1.5
+Pass	marquee.accessKey: setAttribute() to "5%"
+Pass	marquee.accessKey: setAttribute() to "+100"
+Pass	marquee.accessKey: setAttribute() to ".5"
+Pass	marquee.accessKey: setAttribute() to true
+Pass	marquee.accessKey: setAttribute() to false
+Pass	marquee.accessKey: setAttribute() to object "[object Object]"
+Pass	marquee.accessKey: setAttribute() to NaN
+Pass	marquee.accessKey: setAttribute() to Infinity
+Pass	marquee.accessKey: setAttribute() to -Infinity
+Pass	marquee.accessKey: setAttribute() to "\0"
+Pass	marquee.accessKey: setAttribute() to null
+Pass	marquee.accessKey: setAttribute() to object "test-toString"
+Pass	marquee.accessKey: setAttribute() to object "test-valueOf"
+Pass	marquee.accessKey: IDL set to ""
+Pass	marquee.accessKey: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	marquee.accessKey: IDL set to undefined
+Pass	marquee.accessKey: IDL set to 7
+Pass	marquee.accessKey: IDL set to 1.5
+Pass	marquee.accessKey: IDL set to "5%"
+Pass	marquee.accessKey: IDL set to "+100"
+Pass	marquee.accessKey: IDL set to ".5"
+Pass	marquee.accessKey: IDL set to true
+Pass	marquee.accessKey: IDL set to false
+Pass	marquee.accessKey: IDL set to object "[object Object]"
+Pass	marquee.accessKey: IDL set to NaN
+Pass	marquee.accessKey: IDL set to Infinity
+Pass	marquee.accessKey: IDL set to -Infinity
+Pass	marquee.accessKey: IDL set to "\0"
+Pass	marquee.accessKey: IDL set to null
+Pass	marquee.accessKey: IDL set to object "test-toString"
+Pass	marquee.accessKey: IDL set to object "test-valueOf"
+Pass	marquee.tabIndex: typeof IDL attribute
+Pass	marquee.tabIndex: setAttribute() to -36
+Pass	marquee.tabIndex: setAttribute() to -1
+Pass	marquee.tabIndex: setAttribute() to 0
+Pass	marquee.tabIndex: setAttribute() to 1
+Pass	marquee.tabIndex: setAttribute() to 2147483647
+Pass	marquee.tabIndex: setAttribute() to -2147483648
+Pass	marquee.tabIndex: setAttribute() to "-1"
+Pass	marquee.tabIndex: setAttribute() to "-0"
+Pass	marquee.tabIndex: setAttribute() to "0"
+Pass	marquee.tabIndex: setAttribute() to "1"
+Pass	marquee.tabIndex: setAttribute() to "\t7"
+Pass	marquee.tabIndex: setAttribute() to "\f7"
+Pass	marquee.tabIndex: setAttribute() to " 7"
+Pass	marquee.tabIndex: setAttribute() to "\n7"
+Pass	marquee.tabIndex: setAttribute() to "\r7"
+Pass	marquee.tabIndex: setAttribute() to "7\v"
+Pass	marquee.tabIndex: setAttribute() to 1.5
+Pass	marquee.tabIndex: setAttribute() to "5%"
+Pass	marquee.tabIndex: setAttribute() to "+100"
+Pass	marquee.tabIndex: setAttribute() to object "2"
+Pass	marquee.tabIndex: setAttribute() to object "3"
+Pass	marquee.tabIndex: IDL set to -36
+Pass	marquee.tabIndex: IDL set to -1
+Pass	marquee.tabIndex: IDL set to 0
+Pass	marquee.tabIndex: IDL set to 1
+Pass	marquee.tabIndex: IDL set to 2147483647
+Pass	marquee.tabIndex: IDL set to -2147483648
+Pass	marquee.bgColor: typeof IDL attribute
+Pass	marquee.bgColor: IDL get with DOM attribute unset
+Pass	marquee.bgColor: setAttribute() to ""
+Pass	marquee.bgColor: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	marquee.bgColor: setAttribute() to undefined
+Pass	marquee.bgColor: setAttribute() to 7
+Pass	marquee.bgColor: setAttribute() to 1.5
+Pass	marquee.bgColor: setAttribute() to "5%"
+Pass	marquee.bgColor: setAttribute() to "+100"
+Pass	marquee.bgColor: setAttribute() to ".5"
+Pass	marquee.bgColor: setAttribute() to true
+Pass	marquee.bgColor: setAttribute() to false
+Pass	marquee.bgColor: setAttribute() to object "[object Object]"
+Pass	marquee.bgColor: setAttribute() to NaN
+Pass	marquee.bgColor: setAttribute() to Infinity
+Pass	marquee.bgColor: setAttribute() to -Infinity
+Pass	marquee.bgColor: setAttribute() to "\0"
+Pass	marquee.bgColor: setAttribute() to null
+Pass	marquee.bgColor: setAttribute() to object "test-toString"
+Pass	marquee.bgColor: setAttribute() to object "test-valueOf"
+Pass	marquee.bgColor: IDL set to ""
+Pass	marquee.bgColor: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	marquee.bgColor: IDL set to undefined
+Pass	marquee.bgColor: IDL set to 7
+Pass	marquee.bgColor: IDL set to 1.5
+Pass	marquee.bgColor: IDL set to "5%"
+Pass	marquee.bgColor: IDL set to "+100"
+Pass	marquee.bgColor: IDL set to ".5"
+Pass	marquee.bgColor: IDL set to true
+Pass	marquee.bgColor: IDL set to false
+Pass	marquee.bgColor: IDL set to object "[object Object]"
+Pass	marquee.bgColor: IDL set to NaN
+Pass	marquee.bgColor: IDL set to Infinity
+Pass	marquee.bgColor: IDL set to -Infinity
+Pass	marquee.bgColor: IDL set to "\0"
+Pass	marquee.bgColor: IDL set to null
+Pass	marquee.bgColor: IDL set to object "test-toString"
+Pass	marquee.bgColor: IDL set to object "test-valueOf"
+Pass	marquee.height: typeof IDL attribute
+Pass	marquee.height: IDL get with DOM attribute unset
+Pass	marquee.height: setAttribute() to ""
+Pass	marquee.height: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	marquee.height: setAttribute() to undefined
+Pass	marquee.height: setAttribute() to 7
+Pass	marquee.height: setAttribute() to 1.5
+Pass	marquee.height: setAttribute() to "5%"
+Pass	marquee.height: setAttribute() to "+100"
+Pass	marquee.height: setAttribute() to ".5"
+Pass	marquee.height: setAttribute() to true
+Pass	marquee.height: setAttribute() to false
+Pass	marquee.height: setAttribute() to object "[object Object]"
+Pass	marquee.height: setAttribute() to NaN
+Pass	marquee.height: setAttribute() to Infinity
+Pass	marquee.height: setAttribute() to -Infinity
+Pass	marquee.height: setAttribute() to "\0"
+Pass	marquee.height: setAttribute() to null
+Pass	marquee.height: setAttribute() to object "test-toString"
+Pass	marquee.height: setAttribute() to object "test-valueOf"
+Pass	marquee.height: IDL set to ""
+Pass	marquee.height: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	marquee.height: IDL set to undefined
+Pass	marquee.height: IDL set to 7
+Pass	marquee.height: IDL set to 1.5
+Pass	marquee.height: IDL set to "5%"
+Pass	marquee.height: IDL set to "+100"
+Pass	marquee.height: IDL set to ".5"
+Pass	marquee.height: IDL set to true
+Pass	marquee.height: IDL set to false
+Pass	marquee.height: IDL set to object "[object Object]"
+Pass	marquee.height: IDL set to NaN
+Pass	marquee.height: IDL set to Infinity
+Pass	marquee.height: IDL set to -Infinity
+Pass	marquee.height: IDL set to "\0"
+Pass	marquee.height: IDL set to null
+Pass	marquee.height: IDL set to object "test-toString"
+Pass	marquee.height: IDL set to object "test-valueOf"
+Pass	marquee.hspace: typeof IDL attribute
+Pass	marquee.hspace: IDL get with DOM attribute unset
+Pass	marquee.hspace: setAttribute() to -2147483649
+Pass	marquee.hspace: setAttribute() to -2147483648
+Pass	marquee.hspace: setAttribute() to -36
+Pass	marquee.hspace: setAttribute() to -1
+Pass	marquee.hspace: setAttribute() to 0
+Pass	marquee.hspace: setAttribute() to 1
+Pass	marquee.hspace: setAttribute() to 257
+Pass	marquee.hspace: setAttribute() to 2147483647
+Pass	marquee.hspace: setAttribute() to 2147483648
+Pass	marquee.hspace: setAttribute() to 4294967295
+Pass	marquee.hspace: setAttribute() to 4294967296
+Pass	marquee.hspace: setAttribute() to ""
+Pass	marquee.hspace: setAttribute() to "-"
+Pass	marquee.hspace: setAttribute() to "+"
+Pass	marquee.hspace: setAttribute() to "-1"
+Pass	marquee.hspace: setAttribute() to "-0"
+Pass	marquee.hspace: setAttribute() to "0"
+Pass	marquee.hspace: setAttribute() to "1"
+Pass	marquee.hspace: setAttribute() to "\t7"
+Pass	marquee.hspace: setAttribute() to "\v7"
+Pass	marquee.hspace: setAttribute() to "\f7"
+Pass	marquee.hspace: setAttribute() to " 7"
+Pass	marquee.hspace: setAttribute() to " 7"
+Pass	marquee.hspace: setAttribute() to "﻿7"
+Pass	marquee.hspace: setAttribute() to "\n7"
+Pass	marquee.hspace: setAttribute() to "\r7"
+Pass	marquee.hspace: setAttribute() to " 7"
+Pass	marquee.hspace: setAttribute() to " 7"
+Pass	marquee.hspace: setAttribute() to " 7"
+Pass	marquee.hspace: setAttribute() to "᠎7"
+Pass	marquee.hspace: setAttribute() to " 7"
+Pass	marquee.hspace: setAttribute() to " 7"
+Pass	marquee.hspace: setAttribute() to " 7"
+Pass	marquee.hspace: setAttribute() to " 7"
+Pass	marquee.hspace: setAttribute() to " 7"
+Pass	marquee.hspace: setAttribute() to " 7"
+Pass	marquee.hspace: setAttribute() to " 7"
+Pass	marquee.hspace: setAttribute() to " 7"
+Pass	marquee.hspace: setAttribute() to " 7"
+Pass	marquee.hspace: setAttribute() to " 7"
+Pass	marquee.hspace: setAttribute() to " 7"
+Pass	marquee.hspace: setAttribute() to " 7"
+Pass	marquee.hspace: setAttribute() to "　7"
+Pass	marquee.hspace: setAttribute() to "\t\v7"
+Pass	marquee.hspace: setAttribute() to "\n\v7"
+Pass	marquee.hspace: setAttribute() to "\f\v7"
+Pass	marquee.hspace: setAttribute() to "\r\v7"
+Pass	marquee.hspace: setAttribute() to " \v7"
+Pass	marquee.hspace: setAttribute() to "7\v"
+Pass	marquee.hspace: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	marquee.hspace: setAttribute() to undefined
+Pass	marquee.hspace: setAttribute() to 1.5
+Pass	marquee.hspace: setAttribute() to "5%"
+Pass	marquee.hspace: setAttribute() to "+100"
+Pass	marquee.hspace: setAttribute() to ".5"
+Pass	marquee.hspace: setAttribute() to true
+Pass	marquee.hspace: setAttribute() to false
+Pass	marquee.hspace: setAttribute() to object "[object Object]"
+Pass	marquee.hspace: setAttribute() to NaN
+Pass	marquee.hspace: setAttribute() to Infinity
+Pass	marquee.hspace: setAttribute() to -Infinity
+Pass	marquee.hspace: setAttribute() to "\0"
+Pass	marquee.hspace: setAttribute() to object "2"
+Pass	marquee.hspace: setAttribute() to object "3"
+Pass	marquee.hspace: IDL set to 0
+Pass	marquee.hspace: IDL set to 1
+Pass	marquee.hspace: IDL set to 257
+Pass	marquee.hspace: IDL set to 2147483647
+Pass	marquee.hspace: IDL set to "-0"
+Pass	marquee.hspace: IDL set to 2147483648
+Pass	marquee.hspace: IDL set to 4294967295
+Pass	marquee.scrollAmount: typeof IDL attribute
+Pass	marquee.scrollAmount: IDL get with DOM attribute unset
+Pass	marquee.scrollAmount: setAttribute() to -2147483649
+Pass	marquee.scrollAmount: setAttribute() to -2147483648
+Pass	marquee.scrollAmount: setAttribute() to -36
+Pass	marquee.scrollAmount: setAttribute() to -1
+Pass	marquee.scrollAmount: setAttribute() to 0
+Pass	marquee.scrollAmount: setAttribute() to 1
+Pass	marquee.scrollAmount: setAttribute() to 257
+Pass	marquee.scrollAmount: setAttribute() to 2147483647
+Pass	marquee.scrollAmount: setAttribute() to 2147483648
+Pass	marquee.scrollAmount: setAttribute() to 4294967295
+Pass	marquee.scrollAmount: setAttribute() to 4294967296
+Pass	marquee.scrollAmount: setAttribute() to ""
+Pass	marquee.scrollAmount: setAttribute() to "-"
+Pass	marquee.scrollAmount: setAttribute() to "+"
+Pass	marquee.scrollAmount: setAttribute() to "-1"
+Pass	marquee.scrollAmount: setAttribute() to "-0"
+Pass	marquee.scrollAmount: setAttribute() to "0"
+Pass	marquee.scrollAmount: setAttribute() to "1"
+Pass	marquee.scrollAmount: setAttribute() to "\t7"
+Pass	marquee.scrollAmount: setAttribute() to "\v7"
+Pass	marquee.scrollAmount: setAttribute() to "\f7"
+Pass	marquee.scrollAmount: setAttribute() to " 7"
+Pass	marquee.scrollAmount: setAttribute() to " 7"
+Pass	marquee.scrollAmount: setAttribute() to "﻿7"
+Pass	marquee.scrollAmount: setAttribute() to "\n7"
+Pass	marquee.scrollAmount: setAttribute() to "\r7"
+Pass	marquee.scrollAmount: setAttribute() to " 7"
+Pass	marquee.scrollAmount: setAttribute() to " 7"
+Pass	marquee.scrollAmount: setAttribute() to " 7"
+Pass	marquee.scrollAmount: setAttribute() to "᠎7"
+Pass	marquee.scrollAmount: setAttribute() to " 7"
+Pass	marquee.scrollAmount: setAttribute() to " 7"
+Pass	marquee.scrollAmount: setAttribute() to " 7"
+Pass	marquee.scrollAmount: setAttribute() to " 7"
+Pass	marquee.scrollAmount: setAttribute() to " 7"
+Pass	marquee.scrollAmount: setAttribute() to " 7"
+Pass	marquee.scrollAmount: setAttribute() to " 7"
+Pass	marquee.scrollAmount: setAttribute() to " 7"
+Pass	marquee.scrollAmount: setAttribute() to " 7"
+Pass	marquee.scrollAmount: setAttribute() to " 7"
+Pass	marquee.scrollAmount: setAttribute() to " 7"
+Pass	marquee.scrollAmount: setAttribute() to " 7"
+Pass	marquee.scrollAmount: setAttribute() to "　7"
+Pass	marquee.scrollAmount: setAttribute() to "\t\v7"
+Pass	marquee.scrollAmount: setAttribute() to "\n\v7"
+Pass	marquee.scrollAmount: setAttribute() to "\f\v7"
+Pass	marquee.scrollAmount: setAttribute() to "\r\v7"
+Pass	marquee.scrollAmount: setAttribute() to " \v7"
+Pass	marquee.scrollAmount: setAttribute() to "7\v"
+Pass	marquee.scrollAmount: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	marquee.scrollAmount: setAttribute() to undefined
+Pass	marquee.scrollAmount: setAttribute() to 1.5
+Pass	marquee.scrollAmount: setAttribute() to "5%"
+Pass	marquee.scrollAmount: setAttribute() to "+100"
+Pass	marquee.scrollAmount: setAttribute() to ".5"
+Pass	marquee.scrollAmount: setAttribute() to true
+Pass	marquee.scrollAmount: setAttribute() to false
+Pass	marquee.scrollAmount: setAttribute() to object "[object Object]"
+Pass	marquee.scrollAmount: setAttribute() to NaN
+Pass	marquee.scrollAmount: setAttribute() to Infinity
+Pass	marquee.scrollAmount: setAttribute() to -Infinity
+Pass	marquee.scrollAmount: setAttribute() to "\0"
+Pass	marquee.scrollAmount: setAttribute() to object "2"
+Pass	marquee.scrollAmount: setAttribute() to object "3"
+Pass	marquee.scrollAmount: IDL set to 0
+Pass	marquee.scrollAmount: IDL set to 1
+Pass	marquee.scrollAmount: IDL set to 257
+Pass	marquee.scrollAmount: IDL set to 2147483647
+Pass	marquee.scrollAmount: IDL set to "-0"
+Pass	marquee.scrollAmount: IDL set to 2147483648
+Pass	marquee.scrollAmount: IDL set to 4294967295
+Pass	marquee.scrollDelay: typeof IDL attribute
+Pass	marquee.scrollDelay: IDL get with DOM attribute unset
+Pass	marquee.scrollDelay: setAttribute() to -2147483649
+Pass	marquee.scrollDelay: setAttribute() to -2147483648
+Pass	marquee.scrollDelay: setAttribute() to -36
+Pass	marquee.scrollDelay: setAttribute() to -1
+Pass	marquee.scrollDelay: setAttribute() to 0
+Pass	marquee.scrollDelay: setAttribute() to 1
+Pass	marquee.scrollDelay: setAttribute() to 257
+Pass	marquee.scrollDelay: setAttribute() to 2147483647
+Pass	marquee.scrollDelay: setAttribute() to 2147483648
+Pass	marquee.scrollDelay: setAttribute() to 4294967295
+Pass	marquee.scrollDelay: setAttribute() to 4294967296
+Pass	marquee.scrollDelay: setAttribute() to ""
+Pass	marquee.scrollDelay: setAttribute() to "-"
+Pass	marquee.scrollDelay: setAttribute() to "+"
+Pass	marquee.scrollDelay: setAttribute() to "-1"
+Pass	marquee.scrollDelay: setAttribute() to "-0"
+Pass	marquee.scrollDelay: setAttribute() to "0"
+Pass	marquee.scrollDelay: setAttribute() to "1"
+Pass	marquee.scrollDelay: setAttribute() to "\t7"
+Pass	marquee.scrollDelay: setAttribute() to "\v7"
+Pass	marquee.scrollDelay: setAttribute() to "\f7"
+Pass	marquee.scrollDelay: setAttribute() to " 7"
+Pass	marquee.scrollDelay: setAttribute() to " 7"
+Pass	marquee.scrollDelay: setAttribute() to "﻿7"
+Pass	marquee.scrollDelay: setAttribute() to "\n7"
+Pass	marquee.scrollDelay: setAttribute() to "\r7"
+Pass	marquee.scrollDelay: setAttribute() to " 7"
+Pass	marquee.scrollDelay: setAttribute() to " 7"
+Pass	marquee.scrollDelay: setAttribute() to " 7"
+Pass	marquee.scrollDelay: setAttribute() to "᠎7"
+Pass	marquee.scrollDelay: setAttribute() to " 7"
+Pass	marquee.scrollDelay: setAttribute() to " 7"
+Pass	marquee.scrollDelay: setAttribute() to " 7"
+Pass	marquee.scrollDelay: setAttribute() to " 7"
+Pass	marquee.scrollDelay: setAttribute() to " 7"
+Pass	marquee.scrollDelay: setAttribute() to " 7"
+Pass	marquee.scrollDelay: setAttribute() to " 7"
+Pass	marquee.scrollDelay: setAttribute() to " 7"
+Pass	marquee.scrollDelay: setAttribute() to " 7"
+Pass	marquee.scrollDelay: setAttribute() to " 7"
+Pass	marquee.scrollDelay: setAttribute() to " 7"
+Pass	marquee.scrollDelay: setAttribute() to " 7"
+Pass	marquee.scrollDelay: setAttribute() to "　7"
+Pass	marquee.scrollDelay: setAttribute() to "\t\v7"
+Pass	marquee.scrollDelay: setAttribute() to "\n\v7"
+Pass	marquee.scrollDelay: setAttribute() to "\f\v7"
+Pass	marquee.scrollDelay: setAttribute() to "\r\v7"
+Pass	marquee.scrollDelay: setAttribute() to " \v7"
+Pass	marquee.scrollDelay: setAttribute() to "7\v"
+Pass	marquee.scrollDelay: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	marquee.scrollDelay: setAttribute() to undefined
+Pass	marquee.scrollDelay: setAttribute() to 1.5
+Pass	marquee.scrollDelay: setAttribute() to "5%"
+Pass	marquee.scrollDelay: setAttribute() to "+100"
+Pass	marquee.scrollDelay: setAttribute() to ".5"
+Pass	marquee.scrollDelay: setAttribute() to true
+Pass	marquee.scrollDelay: setAttribute() to false
+Pass	marquee.scrollDelay: setAttribute() to object "[object Object]"
+Pass	marquee.scrollDelay: setAttribute() to NaN
+Pass	marquee.scrollDelay: setAttribute() to Infinity
+Pass	marquee.scrollDelay: setAttribute() to -Infinity
+Pass	marquee.scrollDelay: setAttribute() to "\0"
+Pass	marquee.scrollDelay: setAttribute() to object "2"
+Pass	marquee.scrollDelay: setAttribute() to object "3"
+Pass	marquee.scrollDelay: IDL set to 0
+Pass	marquee.scrollDelay: IDL set to 1
+Pass	marquee.scrollDelay: IDL set to 257
+Pass	marquee.scrollDelay: IDL set to 2147483647
+Pass	marquee.scrollDelay: IDL set to "-0"
+Pass	marquee.scrollDelay: IDL set to 2147483648
+Pass	marquee.scrollDelay: IDL set to 4294967295
+Pass	marquee.trueSpeed: typeof IDL attribute
+Pass	marquee.trueSpeed: IDL get with DOM attribute unset
+Pass	marquee.trueSpeed: setAttribute() to ""
+Pass	marquee.trueSpeed: setAttribute() to " foo "
+Pass	marquee.trueSpeed: setAttribute() to undefined
+Pass	marquee.trueSpeed: setAttribute() to null
+Pass	marquee.trueSpeed: setAttribute() to 7
+Pass	marquee.trueSpeed: setAttribute() to 1.5
+Pass	marquee.trueSpeed: setAttribute() to "5%"
+Pass	marquee.trueSpeed: setAttribute() to "+100"
+Pass	marquee.trueSpeed: setAttribute() to ".5"
+Pass	marquee.trueSpeed: setAttribute() to true
+Pass	marquee.trueSpeed: setAttribute() to false
+Pass	marquee.trueSpeed: setAttribute() to object "[object Object]"
+Pass	marquee.trueSpeed: setAttribute() to NaN
+Pass	marquee.trueSpeed: setAttribute() to Infinity
+Pass	marquee.trueSpeed: setAttribute() to -Infinity
+Pass	marquee.trueSpeed: setAttribute() to "\0"
+Pass	marquee.trueSpeed: setAttribute() to object "test-toString"
+Pass	marquee.trueSpeed: setAttribute() to object "test-valueOf"
+Pass	marquee.trueSpeed: setAttribute() to "trueSpeed"
+Pass	marquee.trueSpeed: IDL set to ""
+Pass	marquee.trueSpeed: IDL set to " foo "
+Pass	marquee.trueSpeed: IDL set to undefined
+Pass	marquee.trueSpeed: IDL set to null
+Pass	marquee.trueSpeed: IDL set to 7
+Pass	marquee.trueSpeed: IDL set to 1.5
+Pass	marquee.trueSpeed: IDL set to "5%"
+Pass	marquee.trueSpeed: IDL set to "+100"
+Pass	marquee.trueSpeed: IDL set to ".5"
+Pass	marquee.trueSpeed: IDL set to true
+Pass	marquee.trueSpeed: IDL set to false
+Pass	marquee.trueSpeed: IDL set to object "[object Object]"
+Pass	marquee.trueSpeed: IDL set to NaN
+Pass	marquee.trueSpeed: IDL set to Infinity
+Pass	marquee.trueSpeed: IDL set to -Infinity
+Pass	marquee.trueSpeed: IDL set to "\0"
+Pass	marquee.trueSpeed: IDL set to object "test-toString"
+Pass	marquee.trueSpeed: IDL set to object "test-valueOf"
+Pass	marquee.vspace: typeof IDL attribute
+Pass	marquee.vspace: IDL get with DOM attribute unset
+Pass	marquee.vspace: setAttribute() to -2147483649
+Pass	marquee.vspace: setAttribute() to -2147483648
+Pass	marquee.vspace: setAttribute() to -36
+Pass	marquee.vspace: setAttribute() to -1
+Pass	marquee.vspace: setAttribute() to 0
+Pass	marquee.vspace: setAttribute() to 1
+Pass	marquee.vspace: setAttribute() to 257
+Pass	marquee.vspace: setAttribute() to 2147483647
+Pass	marquee.vspace: setAttribute() to 2147483648
+Pass	marquee.vspace: setAttribute() to 4294967295
+Pass	marquee.vspace: setAttribute() to 4294967296
+Pass	marquee.vspace: setAttribute() to ""
+Pass	marquee.vspace: setAttribute() to "-"
+Pass	marquee.vspace: setAttribute() to "+"
+Pass	marquee.vspace: setAttribute() to "-1"
+Pass	marquee.vspace: setAttribute() to "-0"
+Pass	marquee.vspace: setAttribute() to "0"
+Pass	marquee.vspace: setAttribute() to "1"
+Pass	marquee.vspace: setAttribute() to "\t7"
+Pass	marquee.vspace: setAttribute() to "\v7"
+Pass	marquee.vspace: setAttribute() to "\f7"
+Pass	marquee.vspace: setAttribute() to " 7"
+Pass	marquee.vspace: setAttribute() to " 7"
+Pass	marquee.vspace: setAttribute() to "﻿7"
+Pass	marquee.vspace: setAttribute() to "\n7"
+Pass	marquee.vspace: setAttribute() to "\r7"
+Pass	marquee.vspace: setAttribute() to " 7"
+Pass	marquee.vspace: setAttribute() to " 7"
+Pass	marquee.vspace: setAttribute() to " 7"
+Pass	marquee.vspace: setAttribute() to "᠎7"
+Pass	marquee.vspace: setAttribute() to " 7"
+Pass	marquee.vspace: setAttribute() to " 7"
+Pass	marquee.vspace: setAttribute() to " 7"
+Pass	marquee.vspace: setAttribute() to " 7"
+Pass	marquee.vspace: setAttribute() to " 7"
+Pass	marquee.vspace: setAttribute() to " 7"
+Pass	marquee.vspace: setAttribute() to " 7"
+Pass	marquee.vspace: setAttribute() to " 7"
+Pass	marquee.vspace: setAttribute() to " 7"
+Pass	marquee.vspace: setAttribute() to " 7"
+Pass	marquee.vspace: setAttribute() to " 7"
+Pass	marquee.vspace: setAttribute() to " 7"
+Pass	marquee.vspace: setAttribute() to "　7"
+Pass	marquee.vspace: setAttribute() to "\t\v7"
+Pass	marquee.vspace: setAttribute() to "\n\v7"
+Pass	marquee.vspace: setAttribute() to "\f\v7"
+Pass	marquee.vspace: setAttribute() to "\r\v7"
+Pass	marquee.vspace: setAttribute() to " \v7"
+Pass	marquee.vspace: setAttribute() to "7\v"
+Pass	marquee.vspace: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	marquee.vspace: setAttribute() to undefined
+Pass	marquee.vspace: setAttribute() to 1.5
+Pass	marquee.vspace: setAttribute() to "5%"
+Pass	marquee.vspace: setAttribute() to "+100"
+Pass	marquee.vspace: setAttribute() to ".5"
+Pass	marquee.vspace: setAttribute() to true
+Pass	marquee.vspace: setAttribute() to false
+Pass	marquee.vspace: setAttribute() to object "[object Object]"
+Pass	marquee.vspace: setAttribute() to NaN
+Pass	marquee.vspace: setAttribute() to Infinity
+Pass	marquee.vspace: setAttribute() to -Infinity
+Pass	marquee.vspace: setAttribute() to "\0"
+Pass	marquee.vspace: setAttribute() to object "2"
+Pass	marquee.vspace: setAttribute() to object "3"
+Pass	marquee.vspace: IDL set to 0
+Pass	marquee.vspace: IDL set to 1
+Pass	marquee.vspace: IDL set to 257
+Pass	marquee.vspace: IDL set to 2147483647
+Pass	marquee.vspace: IDL set to "-0"
+Pass	marquee.vspace: IDL set to 2147483648
+Pass	marquee.vspace: IDL set to 4294967295
+Pass	marquee.width: typeof IDL attribute
+Pass	marquee.width: IDL get with DOM attribute unset
+Pass	marquee.width: setAttribute() to ""
+Pass	marquee.width: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	marquee.width: setAttribute() to undefined
+Pass	marquee.width: setAttribute() to 7
+Pass	marquee.width: setAttribute() to 1.5
+Pass	marquee.width: setAttribute() to "5%"
+Pass	marquee.width: setAttribute() to "+100"
+Pass	marquee.width: setAttribute() to ".5"
+Pass	marquee.width: setAttribute() to true
+Pass	marquee.width: setAttribute() to false
+Pass	marquee.width: setAttribute() to object "[object Object]"
+Pass	marquee.width: setAttribute() to NaN
+Pass	marquee.width: setAttribute() to Infinity
+Pass	marquee.width: setAttribute() to -Infinity
+Pass	marquee.width: setAttribute() to "\0"
+Pass	marquee.width: setAttribute() to null
+Pass	marquee.width: setAttribute() to object "test-toString"
+Pass	marquee.width: setAttribute() to object "test-valueOf"
+Pass	marquee.width: IDL set to ""
+Pass	marquee.width: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	marquee.width: IDL set to undefined
+Pass	marquee.width: IDL set to 7
+Pass	marquee.width: IDL set to 1.5
+Pass	marquee.width: IDL set to "5%"
+Pass	marquee.width: IDL set to "+100"
+Pass	marquee.width: IDL set to ".5"
+Pass	marquee.width: IDL set to true
+Pass	marquee.width: IDL set to false
+Pass	marquee.width: IDL set to object "[object Object]"
+Pass	marquee.width: IDL set to NaN
+Pass	marquee.width: IDL set to Infinity
+Pass	marquee.width: IDL set to -Infinity
+Pass	marquee.width: IDL set to "\0"
+Pass	marquee.width: IDL set to null
+Pass	marquee.width: IDL set to object "test-toString"
+Pass	marquee.width: IDL set to object "test-valueOf"
+Pass	frameset.title: typeof IDL attribute
+Pass	frameset.title: IDL get with DOM attribute unset
+Pass	frameset.title: setAttribute() to ""
+Pass	frameset.title: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frameset.title: setAttribute() to undefined
+Pass	frameset.title: setAttribute() to 7
+Pass	frameset.title: setAttribute() to 1.5
+Pass	frameset.title: setAttribute() to "5%"
+Pass	frameset.title: setAttribute() to "+100"
+Pass	frameset.title: setAttribute() to ".5"
+Pass	frameset.title: setAttribute() to true
+Pass	frameset.title: setAttribute() to false
+Pass	frameset.title: setAttribute() to object "[object Object]"
+Pass	frameset.title: setAttribute() to NaN
+Pass	frameset.title: setAttribute() to Infinity
+Pass	frameset.title: setAttribute() to -Infinity
+Pass	frameset.title: setAttribute() to "\0"
+Pass	frameset.title: setAttribute() to null
+Pass	frameset.title: setAttribute() to object "test-toString"
+Pass	frameset.title: setAttribute() to object "test-valueOf"
+Pass	frameset.title: IDL set to ""
+Pass	frameset.title: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frameset.title: IDL set to undefined
+Pass	frameset.title: IDL set to 7
+Pass	frameset.title: IDL set to 1.5
+Pass	frameset.title: IDL set to "5%"
+Pass	frameset.title: IDL set to "+100"
+Pass	frameset.title: IDL set to ".5"
+Pass	frameset.title: IDL set to true
+Pass	frameset.title: IDL set to false
+Pass	frameset.title: IDL set to object "[object Object]"
+Pass	frameset.title: IDL set to NaN
+Pass	frameset.title: IDL set to Infinity
+Pass	frameset.title: IDL set to -Infinity
+Pass	frameset.title: IDL set to "\0"
+Pass	frameset.title: IDL set to null
+Pass	frameset.title: IDL set to object "test-toString"
+Pass	frameset.title: IDL set to object "test-valueOf"
+Pass	frameset.lang: typeof IDL attribute
+Pass	frameset.lang: IDL get with DOM attribute unset
+Pass	frameset.lang: setAttribute() to ""
+Pass	frameset.lang: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frameset.lang: setAttribute() to undefined
+Pass	frameset.lang: setAttribute() to 7
+Pass	frameset.lang: setAttribute() to 1.5
+Pass	frameset.lang: setAttribute() to "5%"
+Pass	frameset.lang: setAttribute() to "+100"
+Pass	frameset.lang: setAttribute() to ".5"
+Pass	frameset.lang: setAttribute() to true
+Pass	frameset.lang: setAttribute() to false
+Pass	frameset.lang: setAttribute() to object "[object Object]"
+Pass	frameset.lang: setAttribute() to NaN
+Pass	frameset.lang: setAttribute() to Infinity
+Pass	frameset.lang: setAttribute() to -Infinity
+Pass	frameset.lang: setAttribute() to "\0"
+Pass	frameset.lang: setAttribute() to null
+Pass	frameset.lang: setAttribute() to object "test-toString"
+Pass	frameset.lang: setAttribute() to object "test-valueOf"
+Pass	frameset.lang: IDL set to ""
+Pass	frameset.lang: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frameset.lang: IDL set to undefined
+Pass	frameset.lang: IDL set to 7
+Pass	frameset.lang: IDL set to 1.5
+Pass	frameset.lang: IDL set to "5%"
+Pass	frameset.lang: IDL set to "+100"
+Pass	frameset.lang: IDL set to ".5"
+Pass	frameset.lang: IDL set to true
+Pass	frameset.lang: IDL set to false
+Pass	frameset.lang: IDL set to object "[object Object]"
+Pass	frameset.lang: IDL set to NaN
+Pass	frameset.lang: IDL set to Infinity
+Pass	frameset.lang: IDL set to -Infinity
+Pass	frameset.lang: IDL set to "\0"
+Pass	frameset.lang: IDL set to null
+Pass	frameset.lang: IDL set to object "test-toString"
+Pass	frameset.lang: IDL set to object "test-valueOf"
+Pass	frameset.dir: typeof IDL attribute
+Pass	frameset.dir: IDL get with DOM attribute unset
+Pass	frameset.dir: setAttribute() to ""
+Pass	frameset.dir: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frameset.dir: setAttribute() to undefined
+Pass	frameset.dir: setAttribute() to 7
+Pass	frameset.dir: setAttribute() to 1.5
+Pass	frameset.dir: setAttribute() to "5%"
+Pass	frameset.dir: setAttribute() to "+100"
+Pass	frameset.dir: setAttribute() to ".5"
+Pass	frameset.dir: setAttribute() to true
+Pass	frameset.dir: setAttribute() to false
+Pass	frameset.dir: setAttribute() to object "[object Object]"
+Pass	frameset.dir: setAttribute() to NaN
+Pass	frameset.dir: setAttribute() to Infinity
+Pass	frameset.dir: setAttribute() to -Infinity
+Pass	frameset.dir: setAttribute() to "\0"
+Pass	frameset.dir: setAttribute() to null
+Pass	frameset.dir: setAttribute() to object "test-toString"
+Pass	frameset.dir: setAttribute() to object "test-valueOf"
+Pass	frameset.dir: setAttribute() to "ltr"
+Pass	frameset.dir: setAttribute() to "xltr"
+Pass	frameset.dir: setAttribute() to "ltr\0"
+Pass	frameset.dir: setAttribute() to "tr"
+Pass	frameset.dir: setAttribute() to "LTR"
+Pass	frameset.dir: setAttribute() to "rtl"
+Pass	frameset.dir: setAttribute() to "xrtl"
+Pass	frameset.dir: setAttribute() to "rtl\0"
+Pass	frameset.dir: setAttribute() to "tl"
+Pass	frameset.dir: setAttribute() to "RTL"
+Pass	frameset.dir: setAttribute() to "auto"
+Pass	frameset.dir: setAttribute() to "xauto"
+Pass	frameset.dir: setAttribute() to "auto\0"
+Pass	frameset.dir: setAttribute() to "uto"
+Pass	frameset.dir: setAttribute() to "AUTO"
+Pass	frameset.dir: IDL set to ""
+Pass	frameset.dir: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frameset.dir: IDL set to undefined
+Pass	frameset.dir: IDL set to 7
+Pass	frameset.dir: IDL set to 1.5
+Pass	frameset.dir: IDL set to "5%"
+Pass	frameset.dir: IDL set to "+100"
+Pass	frameset.dir: IDL set to ".5"
+Pass	frameset.dir: IDL set to true
+Pass	frameset.dir: IDL set to false
+Pass	frameset.dir: IDL set to object "[object Object]"
+Pass	frameset.dir: IDL set to NaN
+Pass	frameset.dir: IDL set to Infinity
+Pass	frameset.dir: IDL set to -Infinity
+Pass	frameset.dir: IDL set to "\0"
+Pass	frameset.dir: IDL set to null
+Pass	frameset.dir: IDL set to object "test-toString"
+Pass	frameset.dir: IDL set to object "test-valueOf"
+Pass	frameset.dir: IDL set to "ltr"
+Pass	frameset.dir: IDL set to "xltr"
+Pass	frameset.dir: IDL set to "ltr\0"
+Pass	frameset.dir: IDL set to "tr"
+Pass	frameset.dir: IDL set to "LTR"
+Pass	frameset.dir: IDL set to "rtl"
+Pass	frameset.dir: IDL set to "xrtl"
+Pass	frameset.dir: IDL set to "rtl\0"
+Pass	frameset.dir: IDL set to "tl"
+Pass	frameset.dir: IDL set to "RTL"
+Pass	frameset.dir: IDL set to "auto"
+Pass	frameset.dir: IDL set to "xauto"
+Pass	frameset.dir: IDL set to "auto\0"
+Pass	frameset.dir: IDL set to "uto"
+Pass	frameset.dir: IDL set to "AUTO"
+Pass	frameset.className (<frameset class>): typeof IDL attribute
+Pass	frameset.className (<frameset class>): IDL get with DOM attribute unset
+Pass	frameset.className (<frameset class>): setAttribute() to ""
+Pass	frameset.className (<frameset class>): setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frameset.className (<frameset class>): setAttribute() to undefined
+Pass	frameset.className (<frameset class>): setAttribute() to 7
+Pass	frameset.className (<frameset class>): setAttribute() to 1.5
+Pass	frameset.className (<frameset class>): setAttribute() to "5%"
+Pass	frameset.className (<frameset class>): setAttribute() to "+100"
+Pass	frameset.className (<frameset class>): setAttribute() to ".5"
+Pass	frameset.className (<frameset class>): setAttribute() to true
+Pass	frameset.className (<frameset class>): setAttribute() to false
+Pass	frameset.className (<frameset class>): setAttribute() to object "[object Object]"
+Pass	frameset.className (<frameset class>): setAttribute() to NaN
+Pass	frameset.className (<frameset class>): setAttribute() to Infinity
+Pass	frameset.className (<frameset class>): setAttribute() to -Infinity
+Pass	frameset.className (<frameset class>): setAttribute() to "\0"
+Pass	frameset.className (<frameset class>): setAttribute() to null
+Pass	frameset.className (<frameset class>): setAttribute() to object "test-toString"
+Pass	frameset.className (<frameset class>): setAttribute() to object "test-valueOf"
+Pass	frameset.className (<frameset class>): IDL set to ""
+Pass	frameset.className (<frameset class>): IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frameset.className (<frameset class>): IDL set to undefined
+Pass	frameset.className (<frameset class>): IDL set to 7
+Pass	frameset.className (<frameset class>): IDL set to 1.5
+Pass	frameset.className (<frameset class>): IDL set to "5%"
+Pass	frameset.className (<frameset class>): IDL set to "+100"
+Pass	frameset.className (<frameset class>): IDL set to ".5"
+Pass	frameset.className (<frameset class>): IDL set to true
+Pass	frameset.className (<frameset class>): IDL set to false
+Pass	frameset.className (<frameset class>): IDL set to object "[object Object]"
+Pass	frameset.className (<frameset class>): IDL set to NaN
+Pass	frameset.className (<frameset class>): IDL set to Infinity
+Pass	frameset.className (<frameset class>): IDL set to -Infinity
+Pass	frameset.className (<frameset class>): IDL set to "\0"
+Pass	frameset.className (<frameset class>): IDL set to null
+Pass	frameset.className (<frameset class>): IDL set to object "test-toString"
+Pass	frameset.className (<frameset class>): IDL set to object "test-valueOf"
+Pass	frameset.autofocus: typeof IDL attribute
+Pass	frameset.autofocus: IDL get with DOM attribute unset
+Pass	frameset.autofocus: setAttribute() to ""
+Pass	frameset.autofocus: setAttribute() to " foo "
+Pass	frameset.autofocus: setAttribute() to undefined
+Pass	frameset.autofocus: setAttribute() to null
+Pass	frameset.autofocus: setAttribute() to 7
+Pass	frameset.autofocus: setAttribute() to 1.5
+Pass	frameset.autofocus: setAttribute() to "5%"
+Pass	frameset.autofocus: setAttribute() to "+100"
+Pass	frameset.autofocus: setAttribute() to ".5"
+Pass	frameset.autofocus: setAttribute() to true
+Pass	frameset.autofocus: setAttribute() to false
+Pass	frameset.autofocus: setAttribute() to object "[object Object]"
+Pass	frameset.autofocus: setAttribute() to NaN
+Pass	frameset.autofocus: setAttribute() to Infinity
+Pass	frameset.autofocus: setAttribute() to -Infinity
+Pass	frameset.autofocus: setAttribute() to "\0"
+Pass	frameset.autofocus: setAttribute() to object "test-toString"
+Pass	frameset.autofocus: setAttribute() to object "test-valueOf"
+Pass	frameset.autofocus: setAttribute() to "autofocus"
+Pass	frameset.autofocus: IDL set to ""
+Pass	frameset.autofocus: IDL set to " foo "
+Pass	frameset.autofocus: IDL set to undefined
+Pass	frameset.autofocus: IDL set to null
+Pass	frameset.autofocus: IDL set to 7
+Pass	frameset.autofocus: IDL set to 1.5
+Pass	frameset.autofocus: IDL set to "5%"
+Pass	frameset.autofocus: IDL set to "+100"
+Pass	frameset.autofocus: IDL set to ".5"
+Pass	frameset.autofocus: IDL set to true
+Pass	frameset.autofocus: IDL set to false
+Pass	frameset.autofocus: IDL set to object "[object Object]"
+Pass	frameset.autofocus: IDL set to NaN
+Pass	frameset.autofocus: IDL set to Infinity
+Pass	frameset.autofocus: IDL set to -Infinity
+Pass	frameset.autofocus: IDL set to "\0"
+Pass	frameset.autofocus: IDL set to object "test-toString"
+Pass	frameset.autofocus: IDL set to object "test-valueOf"
+Pass	frameset.hidden: typeof IDL attribute
+Pass	frameset.hidden: IDL get with DOM attribute unset
+Pass	frameset.hidden: setAttribute() to ""
+Pass	frameset.hidden: setAttribute() to " foo "
+Pass	frameset.hidden: setAttribute() to undefined
+Pass	frameset.hidden: setAttribute() to null
+Pass	frameset.hidden: setAttribute() to 7
+Pass	frameset.hidden: setAttribute() to 1.5
+Pass	frameset.hidden: setAttribute() to "5%"
+Pass	frameset.hidden: setAttribute() to "+100"
+Pass	frameset.hidden: setAttribute() to ".5"
+Pass	frameset.hidden: setAttribute() to true
+Pass	frameset.hidden: setAttribute() to false
+Pass	frameset.hidden: setAttribute() to object "[object Object]"
+Pass	frameset.hidden: setAttribute() to NaN
+Pass	frameset.hidden: setAttribute() to Infinity
+Pass	frameset.hidden: setAttribute() to -Infinity
+Pass	frameset.hidden: setAttribute() to "\0"
+Pass	frameset.hidden: setAttribute() to object "test-toString"
+Pass	frameset.hidden: setAttribute() to object "test-valueOf"
+Pass	frameset.hidden: setAttribute() to "hidden"
+Pass	frameset.hidden: IDL set to ""
+Pass	frameset.hidden: IDL set to " foo "
+Pass	frameset.hidden: IDL set to undefined
+Pass	frameset.hidden: IDL set to null
+Pass	frameset.hidden: IDL set to 7
+Pass	frameset.hidden: IDL set to 1.5
+Pass	frameset.hidden: IDL set to "5%"
+Pass	frameset.hidden: IDL set to "+100"
+Pass	frameset.hidden: IDL set to ".5"
+Pass	frameset.hidden: IDL set to true
+Pass	frameset.hidden: IDL set to false
+Pass	frameset.hidden: IDL set to object "[object Object]"
+Pass	frameset.hidden: IDL set to NaN
+Pass	frameset.hidden: IDL set to Infinity
+Pass	frameset.hidden: IDL set to -Infinity
+Pass	frameset.hidden: IDL set to "\0"
+Pass	frameset.hidden: IDL set to object "test-toString"
+Pass	frameset.hidden: IDL set to object "test-valueOf"
+Pass	frameset.accessKey: typeof IDL attribute
+Pass	frameset.accessKey: IDL get with DOM attribute unset
+Pass	frameset.accessKey: setAttribute() to ""
+Pass	frameset.accessKey: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frameset.accessKey: setAttribute() to undefined
+Pass	frameset.accessKey: setAttribute() to 7
+Pass	frameset.accessKey: setAttribute() to 1.5
+Pass	frameset.accessKey: setAttribute() to "5%"
+Pass	frameset.accessKey: setAttribute() to "+100"
+Pass	frameset.accessKey: setAttribute() to ".5"
+Pass	frameset.accessKey: setAttribute() to true
+Pass	frameset.accessKey: setAttribute() to false
+Pass	frameset.accessKey: setAttribute() to object "[object Object]"
+Pass	frameset.accessKey: setAttribute() to NaN
+Pass	frameset.accessKey: setAttribute() to Infinity
+Pass	frameset.accessKey: setAttribute() to -Infinity
+Pass	frameset.accessKey: setAttribute() to "\0"
+Pass	frameset.accessKey: setAttribute() to null
+Pass	frameset.accessKey: setAttribute() to object "test-toString"
+Pass	frameset.accessKey: setAttribute() to object "test-valueOf"
+Pass	frameset.accessKey: IDL set to ""
+Pass	frameset.accessKey: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frameset.accessKey: IDL set to undefined
+Pass	frameset.accessKey: IDL set to 7
+Pass	frameset.accessKey: IDL set to 1.5
+Pass	frameset.accessKey: IDL set to "5%"
+Pass	frameset.accessKey: IDL set to "+100"
+Pass	frameset.accessKey: IDL set to ".5"
+Pass	frameset.accessKey: IDL set to true
+Pass	frameset.accessKey: IDL set to false
+Pass	frameset.accessKey: IDL set to object "[object Object]"
+Pass	frameset.accessKey: IDL set to NaN
+Pass	frameset.accessKey: IDL set to Infinity
+Pass	frameset.accessKey: IDL set to -Infinity
+Pass	frameset.accessKey: IDL set to "\0"
+Pass	frameset.accessKey: IDL set to null
+Pass	frameset.accessKey: IDL set to object "test-toString"
+Pass	frameset.accessKey: IDL set to object "test-valueOf"
+Pass	frameset.tabIndex: typeof IDL attribute
+Pass	frameset.tabIndex: setAttribute() to -36
+Pass	frameset.tabIndex: setAttribute() to -1
+Pass	frameset.tabIndex: setAttribute() to 0
+Pass	frameset.tabIndex: setAttribute() to 1
+Pass	frameset.tabIndex: setAttribute() to 2147483647
+Pass	frameset.tabIndex: setAttribute() to -2147483648
+Pass	frameset.tabIndex: setAttribute() to "-1"
+Pass	frameset.tabIndex: setAttribute() to "-0"
+Pass	frameset.tabIndex: setAttribute() to "0"
+Pass	frameset.tabIndex: setAttribute() to "1"
+Pass	frameset.tabIndex: setAttribute() to "\t7"
+Pass	frameset.tabIndex: setAttribute() to "\f7"
+Pass	frameset.tabIndex: setAttribute() to " 7"
+Pass	frameset.tabIndex: setAttribute() to "\n7"
+Pass	frameset.tabIndex: setAttribute() to "\r7"
+Pass	frameset.tabIndex: setAttribute() to "7\v"
+Pass	frameset.tabIndex: setAttribute() to 1.5
+Pass	frameset.tabIndex: setAttribute() to "5%"
+Pass	frameset.tabIndex: setAttribute() to "+100"
+Pass	frameset.tabIndex: setAttribute() to object "2"
+Pass	frameset.tabIndex: setAttribute() to object "3"
+Pass	frameset.tabIndex: IDL set to -36
+Pass	frameset.tabIndex: IDL set to -1
+Pass	frameset.tabIndex: IDL set to 0
+Pass	frameset.tabIndex: IDL set to 1
+Pass	frameset.tabIndex: IDL set to 2147483647
+Pass	frameset.tabIndex: IDL set to -2147483648
+Pass	frameset.cols: typeof IDL attribute
+Pass	frameset.cols: IDL get with DOM attribute unset
+Pass	frameset.cols: setAttribute() to ""
+Pass	frameset.cols: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frameset.cols: setAttribute() to undefined
+Pass	frameset.cols: setAttribute() to 7
+Pass	frameset.cols: setAttribute() to 1.5
+Pass	frameset.cols: setAttribute() to "5%"
+Pass	frameset.cols: setAttribute() to "+100"
+Pass	frameset.cols: setAttribute() to ".5"
+Pass	frameset.cols: setAttribute() to true
+Pass	frameset.cols: setAttribute() to false
+Pass	frameset.cols: setAttribute() to object "[object Object]"
+Pass	frameset.cols: setAttribute() to NaN
+Pass	frameset.cols: setAttribute() to Infinity
+Pass	frameset.cols: setAttribute() to -Infinity
+Pass	frameset.cols: setAttribute() to "\0"
+Pass	frameset.cols: setAttribute() to null
+Pass	frameset.cols: setAttribute() to object "test-toString"
+Pass	frameset.cols: setAttribute() to object "test-valueOf"
+Pass	frameset.cols: IDL set to ""
+Pass	frameset.cols: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frameset.cols: IDL set to undefined
+Pass	frameset.cols: IDL set to 7
+Pass	frameset.cols: IDL set to 1.5
+Pass	frameset.cols: IDL set to "5%"
+Pass	frameset.cols: IDL set to "+100"
+Pass	frameset.cols: IDL set to ".5"
+Pass	frameset.cols: IDL set to true
+Pass	frameset.cols: IDL set to false
+Pass	frameset.cols: IDL set to object "[object Object]"
+Pass	frameset.cols: IDL set to NaN
+Pass	frameset.cols: IDL set to Infinity
+Pass	frameset.cols: IDL set to -Infinity
+Pass	frameset.cols: IDL set to "\0"
+Pass	frameset.cols: IDL set to null
+Pass	frameset.cols: IDL set to object "test-toString"
+Pass	frameset.cols: IDL set to object "test-valueOf"
+Pass	frameset.rows: typeof IDL attribute
+Pass	frameset.rows: IDL get with DOM attribute unset
+Pass	frameset.rows: setAttribute() to ""
+Pass	frameset.rows: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frameset.rows: setAttribute() to undefined
+Pass	frameset.rows: setAttribute() to 7
+Pass	frameset.rows: setAttribute() to 1.5
+Pass	frameset.rows: setAttribute() to "5%"
+Pass	frameset.rows: setAttribute() to "+100"
+Pass	frameset.rows: setAttribute() to ".5"
+Pass	frameset.rows: setAttribute() to true
+Pass	frameset.rows: setAttribute() to false
+Pass	frameset.rows: setAttribute() to object "[object Object]"
+Pass	frameset.rows: setAttribute() to NaN
+Pass	frameset.rows: setAttribute() to Infinity
+Pass	frameset.rows: setAttribute() to -Infinity
+Pass	frameset.rows: setAttribute() to "\0"
+Pass	frameset.rows: setAttribute() to null
+Pass	frameset.rows: setAttribute() to object "test-toString"
+Pass	frameset.rows: setAttribute() to object "test-valueOf"
+Pass	frameset.rows: IDL set to ""
+Pass	frameset.rows: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frameset.rows: IDL set to undefined
+Pass	frameset.rows: IDL set to 7
+Pass	frameset.rows: IDL set to 1.5
+Pass	frameset.rows: IDL set to "5%"
+Pass	frameset.rows: IDL set to "+100"
+Pass	frameset.rows: IDL set to ".5"
+Pass	frameset.rows: IDL set to true
+Pass	frameset.rows: IDL set to false
+Pass	frameset.rows: IDL set to object "[object Object]"
+Pass	frameset.rows: IDL set to NaN
+Pass	frameset.rows: IDL set to Infinity
+Pass	frameset.rows: IDL set to -Infinity
+Pass	frameset.rows: IDL set to "\0"
+Pass	frameset.rows: IDL set to null
+Pass	frameset.rows: IDL set to object "test-toString"
+Pass	frameset.rows: IDL set to object "test-valueOf"
+Pass	frame.title: typeof IDL attribute
+Pass	frame.title: IDL get with DOM attribute unset
+Pass	frame.title: setAttribute() to ""
+Pass	frame.title: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frame.title: setAttribute() to undefined
+Pass	frame.title: setAttribute() to 7
+Pass	frame.title: setAttribute() to 1.5
+Pass	frame.title: setAttribute() to "5%"
+Pass	frame.title: setAttribute() to "+100"
+Pass	frame.title: setAttribute() to ".5"
+Pass	frame.title: setAttribute() to true
+Pass	frame.title: setAttribute() to false
+Pass	frame.title: setAttribute() to object "[object Object]"
+Pass	frame.title: setAttribute() to NaN
+Pass	frame.title: setAttribute() to Infinity
+Pass	frame.title: setAttribute() to -Infinity
+Pass	frame.title: setAttribute() to "\0"
+Pass	frame.title: setAttribute() to null
+Pass	frame.title: setAttribute() to object "test-toString"
+Pass	frame.title: setAttribute() to object "test-valueOf"
+Pass	frame.title: IDL set to ""
+Pass	frame.title: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frame.title: IDL set to undefined
+Pass	frame.title: IDL set to 7
+Pass	frame.title: IDL set to 1.5
+Pass	frame.title: IDL set to "5%"
+Pass	frame.title: IDL set to "+100"
+Pass	frame.title: IDL set to ".5"
+Pass	frame.title: IDL set to true
+Pass	frame.title: IDL set to false
+Pass	frame.title: IDL set to object "[object Object]"
+Pass	frame.title: IDL set to NaN
+Pass	frame.title: IDL set to Infinity
+Pass	frame.title: IDL set to -Infinity
+Pass	frame.title: IDL set to "\0"
+Pass	frame.title: IDL set to null
+Pass	frame.title: IDL set to object "test-toString"
+Pass	frame.title: IDL set to object "test-valueOf"
+Pass	frame.lang: typeof IDL attribute
+Pass	frame.lang: IDL get with DOM attribute unset
+Pass	frame.lang: setAttribute() to ""
+Pass	frame.lang: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frame.lang: setAttribute() to undefined
+Pass	frame.lang: setAttribute() to 7
+Pass	frame.lang: setAttribute() to 1.5
+Pass	frame.lang: setAttribute() to "5%"
+Pass	frame.lang: setAttribute() to "+100"
+Pass	frame.lang: setAttribute() to ".5"
+Pass	frame.lang: setAttribute() to true
+Pass	frame.lang: setAttribute() to false
+Pass	frame.lang: setAttribute() to object "[object Object]"
+Pass	frame.lang: setAttribute() to NaN
+Pass	frame.lang: setAttribute() to Infinity
+Pass	frame.lang: setAttribute() to -Infinity
+Pass	frame.lang: setAttribute() to "\0"
+Pass	frame.lang: setAttribute() to null
+Pass	frame.lang: setAttribute() to object "test-toString"
+Pass	frame.lang: setAttribute() to object "test-valueOf"
+Pass	frame.lang: IDL set to ""
+Pass	frame.lang: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frame.lang: IDL set to undefined
+Pass	frame.lang: IDL set to 7
+Pass	frame.lang: IDL set to 1.5
+Pass	frame.lang: IDL set to "5%"
+Pass	frame.lang: IDL set to "+100"
+Pass	frame.lang: IDL set to ".5"
+Pass	frame.lang: IDL set to true
+Pass	frame.lang: IDL set to false
+Pass	frame.lang: IDL set to object "[object Object]"
+Pass	frame.lang: IDL set to NaN
+Pass	frame.lang: IDL set to Infinity
+Pass	frame.lang: IDL set to -Infinity
+Pass	frame.lang: IDL set to "\0"
+Pass	frame.lang: IDL set to null
+Pass	frame.lang: IDL set to object "test-toString"
+Pass	frame.lang: IDL set to object "test-valueOf"
+Pass	frame.dir: typeof IDL attribute
+Pass	frame.dir: IDL get with DOM attribute unset
+Pass	frame.dir: setAttribute() to ""
+Pass	frame.dir: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frame.dir: setAttribute() to undefined
+Pass	frame.dir: setAttribute() to 7
+Pass	frame.dir: setAttribute() to 1.5
+Pass	frame.dir: setAttribute() to "5%"
+Pass	frame.dir: setAttribute() to "+100"
+Pass	frame.dir: setAttribute() to ".5"
+Pass	frame.dir: setAttribute() to true
+Pass	frame.dir: setAttribute() to false
+Pass	frame.dir: setAttribute() to object "[object Object]"
+Pass	frame.dir: setAttribute() to NaN
+Pass	frame.dir: setAttribute() to Infinity
+Pass	frame.dir: setAttribute() to -Infinity
+Pass	frame.dir: setAttribute() to "\0"
+Pass	frame.dir: setAttribute() to null
+Pass	frame.dir: setAttribute() to object "test-toString"
+Pass	frame.dir: setAttribute() to object "test-valueOf"
+Pass	frame.dir: setAttribute() to "ltr"
+Pass	frame.dir: setAttribute() to "xltr"
+Pass	frame.dir: setAttribute() to "ltr\0"
+Pass	frame.dir: setAttribute() to "tr"
+Pass	frame.dir: setAttribute() to "LTR"
+Pass	frame.dir: setAttribute() to "rtl"
+Pass	frame.dir: setAttribute() to "xrtl"
+Pass	frame.dir: setAttribute() to "rtl\0"
+Pass	frame.dir: setAttribute() to "tl"
+Pass	frame.dir: setAttribute() to "RTL"
+Pass	frame.dir: setAttribute() to "auto"
+Pass	frame.dir: setAttribute() to "xauto"
+Pass	frame.dir: setAttribute() to "auto\0"
+Pass	frame.dir: setAttribute() to "uto"
+Pass	frame.dir: setAttribute() to "AUTO"
+Pass	frame.dir: IDL set to ""
+Pass	frame.dir: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frame.dir: IDL set to undefined
+Pass	frame.dir: IDL set to 7
+Pass	frame.dir: IDL set to 1.5
+Pass	frame.dir: IDL set to "5%"
+Pass	frame.dir: IDL set to "+100"
+Pass	frame.dir: IDL set to ".5"
+Pass	frame.dir: IDL set to true
+Pass	frame.dir: IDL set to false
+Pass	frame.dir: IDL set to object "[object Object]"
+Pass	frame.dir: IDL set to NaN
+Pass	frame.dir: IDL set to Infinity
+Pass	frame.dir: IDL set to -Infinity
+Pass	frame.dir: IDL set to "\0"
+Pass	frame.dir: IDL set to null
+Pass	frame.dir: IDL set to object "test-toString"
+Pass	frame.dir: IDL set to object "test-valueOf"
+Pass	frame.dir: IDL set to "ltr"
+Pass	frame.dir: IDL set to "xltr"
+Pass	frame.dir: IDL set to "ltr\0"
+Pass	frame.dir: IDL set to "tr"
+Pass	frame.dir: IDL set to "LTR"
+Pass	frame.dir: IDL set to "rtl"
+Pass	frame.dir: IDL set to "xrtl"
+Pass	frame.dir: IDL set to "rtl\0"
+Pass	frame.dir: IDL set to "tl"
+Pass	frame.dir: IDL set to "RTL"
+Pass	frame.dir: IDL set to "auto"
+Pass	frame.dir: IDL set to "xauto"
+Pass	frame.dir: IDL set to "auto\0"
+Pass	frame.dir: IDL set to "uto"
+Pass	frame.dir: IDL set to "AUTO"
+Pass	frame.className (<frame class>): typeof IDL attribute
+Pass	frame.className (<frame class>): IDL get with DOM attribute unset
+Pass	frame.className (<frame class>): setAttribute() to ""
+Pass	frame.className (<frame class>): setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frame.className (<frame class>): setAttribute() to undefined
+Pass	frame.className (<frame class>): setAttribute() to 7
+Pass	frame.className (<frame class>): setAttribute() to 1.5
+Pass	frame.className (<frame class>): setAttribute() to "5%"
+Pass	frame.className (<frame class>): setAttribute() to "+100"
+Pass	frame.className (<frame class>): setAttribute() to ".5"
+Pass	frame.className (<frame class>): setAttribute() to true
+Pass	frame.className (<frame class>): setAttribute() to false
+Pass	frame.className (<frame class>): setAttribute() to object "[object Object]"
+Pass	frame.className (<frame class>): setAttribute() to NaN
+Pass	frame.className (<frame class>): setAttribute() to Infinity
+Pass	frame.className (<frame class>): setAttribute() to -Infinity
+Pass	frame.className (<frame class>): setAttribute() to "\0"
+Pass	frame.className (<frame class>): setAttribute() to null
+Pass	frame.className (<frame class>): setAttribute() to object "test-toString"
+Pass	frame.className (<frame class>): setAttribute() to object "test-valueOf"
+Pass	frame.className (<frame class>): IDL set to ""
+Pass	frame.className (<frame class>): IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frame.className (<frame class>): IDL set to undefined
+Pass	frame.className (<frame class>): IDL set to 7
+Pass	frame.className (<frame class>): IDL set to 1.5
+Pass	frame.className (<frame class>): IDL set to "5%"
+Pass	frame.className (<frame class>): IDL set to "+100"
+Pass	frame.className (<frame class>): IDL set to ".5"
+Pass	frame.className (<frame class>): IDL set to true
+Pass	frame.className (<frame class>): IDL set to false
+Pass	frame.className (<frame class>): IDL set to object "[object Object]"
+Pass	frame.className (<frame class>): IDL set to NaN
+Pass	frame.className (<frame class>): IDL set to Infinity
+Pass	frame.className (<frame class>): IDL set to -Infinity
+Pass	frame.className (<frame class>): IDL set to "\0"
+Pass	frame.className (<frame class>): IDL set to null
+Pass	frame.className (<frame class>): IDL set to object "test-toString"
+Pass	frame.className (<frame class>): IDL set to object "test-valueOf"
+Pass	frame.autofocus: typeof IDL attribute
+Pass	frame.autofocus: IDL get with DOM attribute unset
+Pass	frame.autofocus: setAttribute() to ""
+Pass	frame.autofocus: setAttribute() to " foo "
+Pass	frame.autofocus: setAttribute() to undefined
+Pass	frame.autofocus: setAttribute() to null
+Pass	frame.autofocus: setAttribute() to 7
+Pass	frame.autofocus: setAttribute() to 1.5
+Pass	frame.autofocus: setAttribute() to "5%"
+Pass	frame.autofocus: setAttribute() to "+100"
+Pass	frame.autofocus: setAttribute() to ".5"
+Pass	frame.autofocus: setAttribute() to true
+Pass	frame.autofocus: setAttribute() to false
+Pass	frame.autofocus: setAttribute() to object "[object Object]"
+Pass	frame.autofocus: setAttribute() to NaN
+Pass	frame.autofocus: setAttribute() to Infinity
+Pass	frame.autofocus: setAttribute() to -Infinity
+Pass	frame.autofocus: setAttribute() to "\0"
+Pass	frame.autofocus: setAttribute() to object "test-toString"
+Pass	frame.autofocus: setAttribute() to object "test-valueOf"
+Pass	frame.autofocus: setAttribute() to "autofocus"
+Pass	frame.autofocus: IDL set to ""
+Pass	frame.autofocus: IDL set to " foo "
+Pass	frame.autofocus: IDL set to undefined
+Pass	frame.autofocus: IDL set to null
+Pass	frame.autofocus: IDL set to 7
+Pass	frame.autofocus: IDL set to 1.5
+Pass	frame.autofocus: IDL set to "5%"
+Pass	frame.autofocus: IDL set to "+100"
+Pass	frame.autofocus: IDL set to ".5"
+Pass	frame.autofocus: IDL set to true
+Pass	frame.autofocus: IDL set to false
+Pass	frame.autofocus: IDL set to object "[object Object]"
+Pass	frame.autofocus: IDL set to NaN
+Pass	frame.autofocus: IDL set to Infinity
+Pass	frame.autofocus: IDL set to -Infinity
+Pass	frame.autofocus: IDL set to "\0"
+Pass	frame.autofocus: IDL set to object "test-toString"
+Pass	frame.autofocus: IDL set to object "test-valueOf"
+Pass	frame.hidden: typeof IDL attribute
+Pass	frame.hidden: IDL get with DOM attribute unset
+Pass	frame.hidden: setAttribute() to ""
+Pass	frame.hidden: setAttribute() to " foo "
+Pass	frame.hidden: setAttribute() to undefined
+Pass	frame.hidden: setAttribute() to null
+Pass	frame.hidden: setAttribute() to 7
+Pass	frame.hidden: setAttribute() to 1.5
+Pass	frame.hidden: setAttribute() to "5%"
+Pass	frame.hidden: setAttribute() to "+100"
+Pass	frame.hidden: setAttribute() to ".5"
+Pass	frame.hidden: setAttribute() to true
+Pass	frame.hidden: setAttribute() to false
+Pass	frame.hidden: setAttribute() to object "[object Object]"
+Pass	frame.hidden: setAttribute() to NaN
+Pass	frame.hidden: setAttribute() to Infinity
+Pass	frame.hidden: setAttribute() to -Infinity
+Pass	frame.hidden: setAttribute() to "\0"
+Pass	frame.hidden: setAttribute() to object "test-toString"
+Pass	frame.hidden: setAttribute() to object "test-valueOf"
+Pass	frame.hidden: setAttribute() to "hidden"
+Pass	frame.hidden: IDL set to ""
+Pass	frame.hidden: IDL set to " foo "
+Pass	frame.hidden: IDL set to undefined
+Pass	frame.hidden: IDL set to null
+Pass	frame.hidden: IDL set to 7
+Pass	frame.hidden: IDL set to 1.5
+Pass	frame.hidden: IDL set to "5%"
+Pass	frame.hidden: IDL set to "+100"
+Pass	frame.hidden: IDL set to ".5"
+Pass	frame.hidden: IDL set to true
+Pass	frame.hidden: IDL set to false
+Pass	frame.hidden: IDL set to object "[object Object]"
+Pass	frame.hidden: IDL set to NaN
+Pass	frame.hidden: IDL set to Infinity
+Pass	frame.hidden: IDL set to -Infinity
+Pass	frame.hidden: IDL set to "\0"
+Pass	frame.hidden: IDL set to object "test-toString"
+Pass	frame.hidden: IDL set to object "test-valueOf"
+Pass	frame.accessKey: typeof IDL attribute
+Pass	frame.accessKey: IDL get with DOM attribute unset
+Pass	frame.accessKey: setAttribute() to ""
+Pass	frame.accessKey: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frame.accessKey: setAttribute() to undefined
+Pass	frame.accessKey: setAttribute() to 7
+Pass	frame.accessKey: setAttribute() to 1.5
+Pass	frame.accessKey: setAttribute() to "5%"
+Pass	frame.accessKey: setAttribute() to "+100"
+Pass	frame.accessKey: setAttribute() to ".5"
+Pass	frame.accessKey: setAttribute() to true
+Pass	frame.accessKey: setAttribute() to false
+Pass	frame.accessKey: setAttribute() to object "[object Object]"
+Pass	frame.accessKey: setAttribute() to NaN
+Pass	frame.accessKey: setAttribute() to Infinity
+Pass	frame.accessKey: setAttribute() to -Infinity
+Pass	frame.accessKey: setAttribute() to "\0"
+Pass	frame.accessKey: setAttribute() to null
+Pass	frame.accessKey: setAttribute() to object "test-toString"
+Pass	frame.accessKey: setAttribute() to object "test-valueOf"
+Pass	frame.accessKey: IDL set to ""
+Pass	frame.accessKey: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frame.accessKey: IDL set to undefined
+Pass	frame.accessKey: IDL set to 7
+Pass	frame.accessKey: IDL set to 1.5
+Pass	frame.accessKey: IDL set to "5%"
+Pass	frame.accessKey: IDL set to "+100"
+Pass	frame.accessKey: IDL set to ".5"
+Pass	frame.accessKey: IDL set to true
+Pass	frame.accessKey: IDL set to false
+Pass	frame.accessKey: IDL set to object "[object Object]"
+Pass	frame.accessKey: IDL set to NaN
+Pass	frame.accessKey: IDL set to Infinity
+Pass	frame.accessKey: IDL set to -Infinity
+Pass	frame.accessKey: IDL set to "\0"
+Pass	frame.accessKey: IDL set to null
+Pass	frame.accessKey: IDL set to object "test-toString"
+Pass	frame.accessKey: IDL set to object "test-valueOf"
+Pass	frame.tabIndex: typeof IDL attribute
+Pass	frame.tabIndex: setAttribute() to -36
+Pass	frame.tabIndex: setAttribute() to -1
+Pass	frame.tabIndex: setAttribute() to 0
+Pass	frame.tabIndex: setAttribute() to 1
+Pass	frame.tabIndex: setAttribute() to 2147483647
+Pass	frame.tabIndex: setAttribute() to -2147483648
+Pass	frame.tabIndex: setAttribute() to "-1"
+Pass	frame.tabIndex: setAttribute() to "-0"
+Pass	frame.tabIndex: setAttribute() to "0"
+Pass	frame.tabIndex: setAttribute() to "1"
+Pass	frame.tabIndex: setAttribute() to "\t7"
+Pass	frame.tabIndex: setAttribute() to "\f7"
+Pass	frame.tabIndex: setAttribute() to " 7"
+Pass	frame.tabIndex: setAttribute() to "\n7"
+Pass	frame.tabIndex: setAttribute() to "\r7"
+Pass	frame.tabIndex: setAttribute() to "7\v"
+Pass	frame.tabIndex: setAttribute() to 1.5
+Pass	frame.tabIndex: setAttribute() to "5%"
+Pass	frame.tabIndex: setAttribute() to "+100"
+Pass	frame.tabIndex: setAttribute() to object "2"
+Pass	frame.tabIndex: setAttribute() to object "3"
+Pass	frame.tabIndex: IDL set to -36
+Pass	frame.tabIndex: IDL set to -1
+Pass	frame.tabIndex: IDL set to 0
+Pass	frame.tabIndex: IDL set to 1
+Pass	frame.tabIndex: IDL set to 2147483647
+Pass	frame.tabIndex: IDL set to -2147483648
+Pass	frame.name: typeof IDL attribute
+Pass	frame.name: IDL get with DOM attribute unset
+Pass	frame.name: setAttribute() to ""
+Pass	frame.name: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frame.name: setAttribute() to undefined
+Pass	frame.name: setAttribute() to 7
+Pass	frame.name: setAttribute() to 1.5
+Pass	frame.name: setAttribute() to "5%"
+Pass	frame.name: setAttribute() to "+100"
+Pass	frame.name: setAttribute() to ".5"
+Pass	frame.name: setAttribute() to true
+Pass	frame.name: setAttribute() to false
+Pass	frame.name: setAttribute() to object "[object Object]"
+Pass	frame.name: setAttribute() to NaN
+Pass	frame.name: setAttribute() to Infinity
+Pass	frame.name: setAttribute() to -Infinity
+Pass	frame.name: setAttribute() to "\0"
+Pass	frame.name: setAttribute() to null
+Pass	frame.name: setAttribute() to object "test-toString"
+Pass	frame.name: setAttribute() to object "test-valueOf"
+Pass	frame.name: IDL set to ""
+Pass	frame.name: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frame.name: IDL set to undefined
+Pass	frame.name: IDL set to 7
+Pass	frame.name: IDL set to 1.5
+Pass	frame.name: IDL set to "5%"
+Pass	frame.name: IDL set to "+100"
+Pass	frame.name: IDL set to ".5"
+Pass	frame.name: IDL set to true
+Pass	frame.name: IDL set to false
+Pass	frame.name: IDL set to object "[object Object]"
+Pass	frame.name: IDL set to NaN
+Pass	frame.name: IDL set to Infinity
+Pass	frame.name: IDL set to -Infinity
+Pass	frame.name: IDL set to "\0"
+Pass	frame.name: IDL set to null
+Pass	frame.name: IDL set to object "test-toString"
+Pass	frame.name: IDL set to object "test-valueOf"
+Pass	frame.scrolling: typeof IDL attribute
+Pass	frame.scrolling: IDL get with DOM attribute unset
+Pass	frame.scrolling: setAttribute() to ""
+Pass	frame.scrolling: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frame.scrolling: setAttribute() to undefined
+Pass	frame.scrolling: setAttribute() to 7
+Pass	frame.scrolling: setAttribute() to 1.5
+Pass	frame.scrolling: setAttribute() to "5%"
+Pass	frame.scrolling: setAttribute() to "+100"
+Pass	frame.scrolling: setAttribute() to ".5"
+Pass	frame.scrolling: setAttribute() to true
+Pass	frame.scrolling: setAttribute() to false
+Pass	frame.scrolling: setAttribute() to object "[object Object]"
+Pass	frame.scrolling: setAttribute() to NaN
+Pass	frame.scrolling: setAttribute() to Infinity
+Pass	frame.scrolling: setAttribute() to -Infinity
+Pass	frame.scrolling: setAttribute() to "\0"
+Pass	frame.scrolling: setAttribute() to null
+Pass	frame.scrolling: setAttribute() to object "test-toString"
+Pass	frame.scrolling: setAttribute() to object "test-valueOf"
+Pass	frame.scrolling: IDL set to ""
+Pass	frame.scrolling: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frame.scrolling: IDL set to undefined
+Pass	frame.scrolling: IDL set to 7
+Pass	frame.scrolling: IDL set to 1.5
+Pass	frame.scrolling: IDL set to "5%"
+Pass	frame.scrolling: IDL set to "+100"
+Pass	frame.scrolling: IDL set to ".5"
+Pass	frame.scrolling: IDL set to true
+Pass	frame.scrolling: IDL set to false
+Pass	frame.scrolling: IDL set to object "[object Object]"
+Pass	frame.scrolling: IDL set to NaN
+Pass	frame.scrolling: IDL set to Infinity
+Pass	frame.scrolling: IDL set to -Infinity
+Pass	frame.scrolling: IDL set to "\0"
+Pass	frame.scrolling: IDL set to null
+Pass	frame.scrolling: IDL set to object "test-toString"
+Pass	frame.scrolling: IDL set to object "test-valueOf"
+Pass	frame.src: typeof IDL attribute
+Pass	frame.src: IDL get with DOM attribute unset
+Pass	frame.src: setAttribute() to ""
+Pass	frame.src: setAttribute() to " foo "
+Pass	frame.src: setAttribute() to "http://site.example/"
+Pass	frame.src: setAttribute() to "//site.example/path???@#l"
+Pass	frame.src: setAttribute() to "\0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f "
+Pass	frame.src: setAttribute() to undefined
+Pass	frame.src: setAttribute() to 7
+Pass	frame.src: setAttribute() to 1.5
+Pass	frame.src: setAttribute() to "5%"
+Pass	frame.src: setAttribute() to "+100"
+Pass	frame.src: setAttribute() to ".5"
+Pass	frame.src: setAttribute() to true
+Pass	frame.src: setAttribute() to false
+Pass	frame.src: setAttribute() to object "[object Object]"
+Pass	frame.src: setAttribute() to NaN
+Pass	frame.src: setAttribute() to Infinity
+Pass	frame.src: setAttribute() to -Infinity
+Pass	frame.src: setAttribute() to "\0"
+Pass	frame.src: setAttribute() to null
+Pass	frame.src: setAttribute() to object "test-toString"
+Pass	frame.src: setAttribute() to object "test-valueOf"
+Pass	frame.src: IDL set to ""
+Pass	frame.src: IDL set to " foo "
+Pass	frame.src: IDL set to "http://site.example/"
+Pass	frame.src: IDL set to "//site.example/path???@#l"
+Pass	frame.src: IDL set to "\0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f "
+Pass	frame.src: IDL set to undefined
+Pass	frame.src: IDL set to 7
+Pass	frame.src: IDL set to 1.5
+Pass	frame.src: IDL set to "5%"
+Pass	frame.src: IDL set to "+100"
+Pass	frame.src: IDL set to ".5"
+Pass	frame.src: IDL set to true
+Pass	frame.src: IDL set to false
+Pass	frame.src: IDL set to object "[object Object]"
+Pass	frame.src: IDL set to NaN
+Pass	frame.src: IDL set to Infinity
+Pass	frame.src: IDL set to -Infinity
+Pass	frame.src: IDL set to "\0"
+Pass	frame.src: IDL set to null
+Pass	frame.src: IDL set to object "test-toString"
+Pass	frame.src: IDL set to object "test-valueOf"
+Pass	frame.frameBorder: typeof IDL attribute
+Pass	frame.frameBorder: IDL get with DOM attribute unset
+Pass	frame.frameBorder: setAttribute() to ""
+Pass	frame.frameBorder: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frame.frameBorder: setAttribute() to undefined
+Pass	frame.frameBorder: setAttribute() to 7
+Pass	frame.frameBorder: setAttribute() to 1.5
+Pass	frame.frameBorder: setAttribute() to "5%"
+Pass	frame.frameBorder: setAttribute() to "+100"
+Pass	frame.frameBorder: setAttribute() to ".5"
+Pass	frame.frameBorder: setAttribute() to true
+Pass	frame.frameBorder: setAttribute() to false
+Pass	frame.frameBorder: setAttribute() to object "[object Object]"
+Pass	frame.frameBorder: setAttribute() to NaN
+Pass	frame.frameBorder: setAttribute() to Infinity
+Pass	frame.frameBorder: setAttribute() to -Infinity
+Pass	frame.frameBorder: setAttribute() to "\0"
+Pass	frame.frameBorder: setAttribute() to null
+Pass	frame.frameBorder: setAttribute() to object "test-toString"
+Pass	frame.frameBorder: setAttribute() to object "test-valueOf"
+Pass	frame.frameBorder: IDL set to ""
+Pass	frame.frameBorder: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frame.frameBorder: IDL set to undefined
+Pass	frame.frameBorder: IDL set to 7
+Pass	frame.frameBorder: IDL set to 1.5
+Pass	frame.frameBorder: IDL set to "5%"
+Pass	frame.frameBorder: IDL set to "+100"
+Pass	frame.frameBorder: IDL set to ".5"
+Pass	frame.frameBorder: IDL set to true
+Pass	frame.frameBorder: IDL set to false
+Pass	frame.frameBorder: IDL set to object "[object Object]"
+Pass	frame.frameBorder: IDL set to NaN
+Pass	frame.frameBorder: IDL set to Infinity
+Pass	frame.frameBorder: IDL set to -Infinity
+Pass	frame.frameBorder: IDL set to "\0"
+Pass	frame.frameBorder: IDL set to null
+Pass	frame.frameBorder: IDL set to object "test-toString"
+Pass	frame.frameBorder: IDL set to object "test-valueOf"
+Pass	frame.longDesc: typeof IDL attribute
+Pass	frame.longDesc: IDL get with DOM attribute unset
+Pass	frame.longDesc: setAttribute() to ""
+Pass	frame.longDesc: setAttribute() to " foo "
+Pass	frame.longDesc: setAttribute() to "http://site.example/"
+Pass	frame.longDesc: setAttribute() to "//site.example/path???@#l"
+Pass	frame.longDesc: setAttribute() to "\0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f "
+Pass	frame.longDesc: setAttribute() to undefined
+Pass	frame.longDesc: setAttribute() to 7
+Pass	frame.longDesc: setAttribute() to 1.5
+Pass	frame.longDesc: setAttribute() to "5%"
+Pass	frame.longDesc: setAttribute() to "+100"
+Pass	frame.longDesc: setAttribute() to ".5"
+Pass	frame.longDesc: setAttribute() to true
+Pass	frame.longDesc: setAttribute() to false
+Pass	frame.longDesc: setAttribute() to object "[object Object]"
+Pass	frame.longDesc: setAttribute() to NaN
+Pass	frame.longDesc: setAttribute() to Infinity
+Pass	frame.longDesc: setAttribute() to -Infinity
+Pass	frame.longDesc: setAttribute() to "\0"
+Pass	frame.longDesc: setAttribute() to null
+Pass	frame.longDesc: setAttribute() to object "test-toString"
+Pass	frame.longDesc: setAttribute() to object "test-valueOf"
+Pass	frame.longDesc: IDL set to ""
+Pass	frame.longDesc: IDL set to " foo "
+Pass	frame.longDesc: IDL set to "http://site.example/"
+Pass	frame.longDesc: IDL set to "//site.example/path???@#l"
+Pass	frame.longDesc: IDL set to "\0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f "
+Pass	frame.longDesc: IDL set to undefined
+Pass	frame.longDesc: IDL set to 7
+Pass	frame.longDesc: IDL set to 1.5
+Pass	frame.longDesc: IDL set to "5%"
+Pass	frame.longDesc: IDL set to "+100"
+Pass	frame.longDesc: IDL set to ".5"
+Pass	frame.longDesc: IDL set to true
+Pass	frame.longDesc: IDL set to false
+Pass	frame.longDesc: IDL set to object "[object Object]"
+Pass	frame.longDesc: IDL set to NaN
+Pass	frame.longDesc: IDL set to Infinity
+Pass	frame.longDesc: IDL set to -Infinity
+Pass	frame.longDesc: IDL set to "\0"
+Pass	frame.longDesc: IDL set to null
+Pass	frame.longDesc: IDL set to object "test-toString"
+Pass	frame.longDesc: IDL set to object "test-valueOf"
+Pass	frame.noResize: typeof IDL attribute
+Pass	frame.noResize: IDL get with DOM attribute unset
+Pass	frame.noResize: setAttribute() to ""
+Pass	frame.noResize: setAttribute() to " foo "
+Pass	frame.noResize: setAttribute() to undefined
+Pass	frame.noResize: setAttribute() to null
+Pass	frame.noResize: setAttribute() to 7
+Pass	frame.noResize: setAttribute() to 1.5
+Pass	frame.noResize: setAttribute() to "5%"
+Pass	frame.noResize: setAttribute() to "+100"
+Pass	frame.noResize: setAttribute() to ".5"
+Pass	frame.noResize: setAttribute() to true
+Pass	frame.noResize: setAttribute() to false
+Pass	frame.noResize: setAttribute() to object "[object Object]"
+Pass	frame.noResize: setAttribute() to NaN
+Pass	frame.noResize: setAttribute() to Infinity
+Pass	frame.noResize: setAttribute() to -Infinity
+Pass	frame.noResize: setAttribute() to "\0"
+Pass	frame.noResize: setAttribute() to object "test-toString"
+Pass	frame.noResize: setAttribute() to object "test-valueOf"
+Pass	frame.noResize: setAttribute() to "noResize"
+Pass	frame.noResize: IDL set to ""
+Pass	frame.noResize: IDL set to " foo "
+Pass	frame.noResize: IDL set to undefined
+Pass	frame.noResize: IDL set to null
+Pass	frame.noResize: IDL set to 7
+Pass	frame.noResize: IDL set to 1.5
+Pass	frame.noResize: IDL set to "5%"
+Pass	frame.noResize: IDL set to "+100"
+Pass	frame.noResize: IDL set to ".5"
+Pass	frame.noResize: IDL set to true
+Pass	frame.noResize: IDL set to false
+Pass	frame.noResize: IDL set to object "[object Object]"
+Pass	frame.noResize: IDL set to NaN
+Pass	frame.noResize: IDL set to Infinity
+Pass	frame.noResize: IDL set to -Infinity
+Pass	frame.noResize: IDL set to "\0"
+Pass	frame.noResize: IDL set to object "test-toString"
+Pass	frame.noResize: IDL set to object "test-valueOf"
+Pass	frame.marginHeight: typeof IDL attribute
+Pass	frame.marginHeight: IDL get with DOM attribute unset
+Pass	frame.marginHeight: setAttribute() to ""
+Pass	frame.marginHeight: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frame.marginHeight: setAttribute() to undefined
+Pass	frame.marginHeight: setAttribute() to 7
+Pass	frame.marginHeight: setAttribute() to 1.5
+Pass	frame.marginHeight: setAttribute() to "5%"
+Pass	frame.marginHeight: setAttribute() to "+100"
+Pass	frame.marginHeight: setAttribute() to ".5"
+Pass	frame.marginHeight: setAttribute() to true
+Pass	frame.marginHeight: setAttribute() to false
+Pass	frame.marginHeight: setAttribute() to object "[object Object]"
+Pass	frame.marginHeight: setAttribute() to NaN
+Pass	frame.marginHeight: setAttribute() to Infinity
+Pass	frame.marginHeight: setAttribute() to -Infinity
+Pass	frame.marginHeight: setAttribute() to "\0"
+Pass	frame.marginHeight: setAttribute() to null
+Pass	frame.marginHeight: setAttribute() to object "test-toString"
+Pass	frame.marginHeight: setAttribute() to object "test-valueOf"
+Pass	frame.marginHeight: IDL set to ""
+Pass	frame.marginHeight: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frame.marginHeight: IDL set to undefined
+Pass	frame.marginHeight: IDL set to 7
+Pass	frame.marginHeight: IDL set to 1.5
+Pass	frame.marginHeight: IDL set to "5%"
+Pass	frame.marginHeight: IDL set to "+100"
+Pass	frame.marginHeight: IDL set to ".5"
+Pass	frame.marginHeight: IDL set to true
+Pass	frame.marginHeight: IDL set to false
+Pass	frame.marginHeight: IDL set to object "[object Object]"
+Pass	frame.marginHeight: IDL set to NaN
+Pass	frame.marginHeight: IDL set to Infinity
+Pass	frame.marginHeight: IDL set to -Infinity
+Pass	frame.marginHeight: IDL set to "\0"
+Pass	frame.marginHeight: IDL set to null
+Pass	frame.marginHeight: IDL set to object "test-toString"
+Pass	frame.marginHeight: IDL set to object "test-valueOf"
+Pass	frame.marginWidth: typeof IDL attribute
+Pass	frame.marginWidth: IDL get with DOM attribute unset
+Pass	frame.marginWidth: setAttribute() to ""
+Pass	frame.marginWidth: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frame.marginWidth: setAttribute() to undefined
+Pass	frame.marginWidth: setAttribute() to 7
+Pass	frame.marginWidth: setAttribute() to 1.5
+Pass	frame.marginWidth: setAttribute() to "5%"
+Pass	frame.marginWidth: setAttribute() to "+100"
+Pass	frame.marginWidth: setAttribute() to ".5"
+Pass	frame.marginWidth: setAttribute() to true
+Pass	frame.marginWidth: setAttribute() to false
+Pass	frame.marginWidth: setAttribute() to object "[object Object]"
+Pass	frame.marginWidth: setAttribute() to NaN
+Pass	frame.marginWidth: setAttribute() to Infinity
+Pass	frame.marginWidth: setAttribute() to -Infinity
+Pass	frame.marginWidth: setAttribute() to "\0"
+Pass	frame.marginWidth: setAttribute() to null
+Pass	frame.marginWidth: setAttribute() to object "test-toString"
+Pass	frame.marginWidth: setAttribute() to object "test-valueOf"
+Pass	frame.marginWidth: IDL set to ""
+Pass	frame.marginWidth: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	frame.marginWidth: IDL set to undefined
+Pass	frame.marginWidth: IDL set to 7
+Pass	frame.marginWidth: IDL set to 1.5
+Pass	frame.marginWidth: IDL set to "5%"
+Pass	frame.marginWidth: IDL set to "+100"
+Pass	frame.marginWidth: IDL set to ".5"
+Pass	frame.marginWidth: IDL set to true
+Pass	frame.marginWidth: IDL set to false
+Pass	frame.marginWidth: IDL set to object "[object Object]"
+Pass	frame.marginWidth: IDL set to NaN
+Pass	frame.marginWidth: IDL set to Infinity
+Pass	frame.marginWidth: IDL set to -Infinity
+Pass	frame.marginWidth: IDL set to "\0"
+Pass	frame.marginWidth: IDL set to null
+Pass	frame.marginWidth: IDL set to object "test-toString"
+Pass	frame.marginWidth: IDL set to object "test-valueOf"
+Pass	dir.title: typeof IDL attribute
+Pass	dir.title: IDL get with DOM attribute unset
+Pass	dir.title: setAttribute() to ""
+Pass	dir.title: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	dir.title: setAttribute() to undefined
+Pass	dir.title: setAttribute() to 7
+Pass	dir.title: setAttribute() to 1.5
+Pass	dir.title: setAttribute() to "5%"
+Pass	dir.title: setAttribute() to "+100"
+Pass	dir.title: setAttribute() to ".5"
+Pass	dir.title: setAttribute() to true
+Pass	dir.title: setAttribute() to false
+Pass	dir.title: setAttribute() to object "[object Object]"
+Pass	dir.title: setAttribute() to NaN
+Pass	dir.title: setAttribute() to Infinity
+Pass	dir.title: setAttribute() to -Infinity
+Pass	dir.title: setAttribute() to "\0"
+Pass	dir.title: setAttribute() to null
+Pass	dir.title: setAttribute() to object "test-toString"
+Pass	dir.title: setAttribute() to object "test-valueOf"
+Pass	dir.title: IDL set to ""
+Pass	dir.title: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	dir.title: IDL set to undefined
+Pass	dir.title: IDL set to 7
+Pass	dir.title: IDL set to 1.5
+Pass	dir.title: IDL set to "5%"
+Pass	dir.title: IDL set to "+100"
+Pass	dir.title: IDL set to ".5"
+Pass	dir.title: IDL set to true
+Pass	dir.title: IDL set to false
+Pass	dir.title: IDL set to object "[object Object]"
+Pass	dir.title: IDL set to NaN
+Pass	dir.title: IDL set to Infinity
+Pass	dir.title: IDL set to -Infinity
+Pass	dir.title: IDL set to "\0"
+Pass	dir.title: IDL set to null
+Pass	dir.title: IDL set to object "test-toString"
+Pass	dir.title: IDL set to object "test-valueOf"
+Pass	dir.lang: typeof IDL attribute
+Pass	dir.lang: IDL get with DOM attribute unset
+Pass	dir.lang: setAttribute() to ""
+Pass	dir.lang: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	dir.lang: setAttribute() to undefined
+Pass	dir.lang: setAttribute() to 7
+Pass	dir.lang: setAttribute() to 1.5
+Pass	dir.lang: setAttribute() to "5%"
+Pass	dir.lang: setAttribute() to "+100"
+Pass	dir.lang: setAttribute() to ".5"
+Pass	dir.lang: setAttribute() to true
+Pass	dir.lang: setAttribute() to false
+Pass	dir.lang: setAttribute() to object "[object Object]"
+Pass	dir.lang: setAttribute() to NaN
+Pass	dir.lang: setAttribute() to Infinity
+Pass	dir.lang: setAttribute() to -Infinity
+Pass	dir.lang: setAttribute() to "\0"
+Pass	dir.lang: setAttribute() to null
+Pass	dir.lang: setAttribute() to object "test-toString"
+Pass	dir.lang: setAttribute() to object "test-valueOf"
+Pass	dir.lang: IDL set to ""
+Pass	dir.lang: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	dir.lang: IDL set to undefined
+Pass	dir.lang: IDL set to 7
+Pass	dir.lang: IDL set to 1.5
+Pass	dir.lang: IDL set to "5%"
+Pass	dir.lang: IDL set to "+100"
+Pass	dir.lang: IDL set to ".5"
+Pass	dir.lang: IDL set to true
+Pass	dir.lang: IDL set to false
+Pass	dir.lang: IDL set to object "[object Object]"
+Pass	dir.lang: IDL set to NaN
+Pass	dir.lang: IDL set to Infinity
+Pass	dir.lang: IDL set to -Infinity
+Pass	dir.lang: IDL set to "\0"
+Pass	dir.lang: IDL set to null
+Pass	dir.lang: IDL set to object "test-toString"
+Pass	dir.lang: IDL set to object "test-valueOf"
+Pass	dir.dir: typeof IDL attribute
+Pass	dir.dir: IDL get with DOM attribute unset
+Pass	dir.dir: setAttribute() to ""
+Pass	dir.dir: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	dir.dir: setAttribute() to undefined
+Pass	dir.dir: setAttribute() to 7
+Pass	dir.dir: setAttribute() to 1.5
+Pass	dir.dir: setAttribute() to "5%"
+Pass	dir.dir: setAttribute() to "+100"
+Pass	dir.dir: setAttribute() to ".5"
+Pass	dir.dir: setAttribute() to true
+Pass	dir.dir: setAttribute() to false
+Pass	dir.dir: setAttribute() to object "[object Object]"
+Pass	dir.dir: setAttribute() to NaN
+Pass	dir.dir: setAttribute() to Infinity
+Pass	dir.dir: setAttribute() to -Infinity
+Pass	dir.dir: setAttribute() to "\0"
+Pass	dir.dir: setAttribute() to null
+Pass	dir.dir: setAttribute() to object "test-toString"
+Pass	dir.dir: setAttribute() to object "test-valueOf"
+Pass	dir.dir: setAttribute() to "ltr"
+Pass	dir.dir: setAttribute() to "xltr"
+Pass	dir.dir: setAttribute() to "ltr\0"
+Pass	dir.dir: setAttribute() to "tr"
+Pass	dir.dir: setAttribute() to "LTR"
+Pass	dir.dir: setAttribute() to "rtl"
+Pass	dir.dir: setAttribute() to "xrtl"
+Pass	dir.dir: setAttribute() to "rtl\0"
+Pass	dir.dir: setAttribute() to "tl"
+Pass	dir.dir: setAttribute() to "RTL"
+Pass	dir.dir: setAttribute() to "auto"
+Pass	dir.dir: setAttribute() to "xauto"
+Pass	dir.dir: setAttribute() to "auto\0"
+Pass	dir.dir: setAttribute() to "uto"
+Pass	dir.dir: setAttribute() to "AUTO"
+Pass	dir.dir: IDL set to ""
+Pass	dir.dir: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	dir.dir: IDL set to undefined
+Pass	dir.dir: IDL set to 7
+Pass	dir.dir: IDL set to 1.5
+Pass	dir.dir: IDL set to "5%"
+Pass	dir.dir: IDL set to "+100"
+Pass	dir.dir: IDL set to ".5"
+Pass	dir.dir: IDL set to true
+Pass	dir.dir: IDL set to false
+Pass	dir.dir: IDL set to object "[object Object]"
+Pass	dir.dir: IDL set to NaN
+Pass	dir.dir: IDL set to Infinity
+Pass	dir.dir: IDL set to -Infinity
+Pass	dir.dir: IDL set to "\0"
+Pass	dir.dir: IDL set to null
+Pass	dir.dir: IDL set to object "test-toString"
+Pass	dir.dir: IDL set to object "test-valueOf"
+Pass	dir.dir: IDL set to "ltr"
+Pass	dir.dir: IDL set to "xltr"
+Pass	dir.dir: IDL set to "ltr\0"
+Pass	dir.dir: IDL set to "tr"
+Pass	dir.dir: IDL set to "LTR"
+Pass	dir.dir: IDL set to "rtl"
+Pass	dir.dir: IDL set to "xrtl"
+Pass	dir.dir: IDL set to "rtl\0"
+Pass	dir.dir: IDL set to "tl"
+Pass	dir.dir: IDL set to "RTL"
+Pass	dir.dir: IDL set to "auto"
+Pass	dir.dir: IDL set to "xauto"
+Pass	dir.dir: IDL set to "auto\0"
+Pass	dir.dir: IDL set to "uto"
+Pass	dir.dir: IDL set to "AUTO"
+Pass	dir.className (<dir class>): typeof IDL attribute
+Pass	dir.className (<dir class>): IDL get with DOM attribute unset
+Pass	dir.className (<dir class>): setAttribute() to ""
+Pass	dir.className (<dir class>): setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	dir.className (<dir class>): setAttribute() to undefined
+Pass	dir.className (<dir class>): setAttribute() to 7
+Pass	dir.className (<dir class>): setAttribute() to 1.5
+Pass	dir.className (<dir class>): setAttribute() to "5%"
+Pass	dir.className (<dir class>): setAttribute() to "+100"
+Pass	dir.className (<dir class>): setAttribute() to ".5"
+Pass	dir.className (<dir class>): setAttribute() to true
+Pass	dir.className (<dir class>): setAttribute() to false
+Pass	dir.className (<dir class>): setAttribute() to object "[object Object]"
+Pass	dir.className (<dir class>): setAttribute() to NaN
+Pass	dir.className (<dir class>): setAttribute() to Infinity
+Pass	dir.className (<dir class>): setAttribute() to -Infinity
+Pass	dir.className (<dir class>): setAttribute() to "\0"
+Pass	dir.className (<dir class>): setAttribute() to null
+Pass	dir.className (<dir class>): setAttribute() to object "test-toString"
+Pass	dir.className (<dir class>): setAttribute() to object "test-valueOf"
+Pass	dir.className (<dir class>): IDL set to ""
+Pass	dir.className (<dir class>): IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	dir.className (<dir class>): IDL set to undefined
+Pass	dir.className (<dir class>): IDL set to 7
+Pass	dir.className (<dir class>): IDL set to 1.5
+Pass	dir.className (<dir class>): IDL set to "5%"
+Pass	dir.className (<dir class>): IDL set to "+100"
+Pass	dir.className (<dir class>): IDL set to ".5"
+Pass	dir.className (<dir class>): IDL set to true
+Pass	dir.className (<dir class>): IDL set to false
+Pass	dir.className (<dir class>): IDL set to object "[object Object]"
+Pass	dir.className (<dir class>): IDL set to NaN
+Pass	dir.className (<dir class>): IDL set to Infinity
+Pass	dir.className (<dir class>): IDL set to -Infinity
+Pass	dir.className (<dir class>): IDL set to "\0"
+Pass	dir.className (<dir class>): IDL set to null
+Pass	dir.className (<dir class>): IDL set to object "test-toString"
+Pass	dir.className (<dir class>): IDL set to object "test-valueOf"
+Pass	dir.autofocus: typeof IDL attribute
+Pass	dir.autofocus: IDL get with DOM attribute unset
+Pass	dir.autofocus: setAttribute() to ""
+Pass	dir.autofocus: setAttribute() to " foo "
+Pass	dir.autofocus: setAttribute() to undefined
+Pass	dir.autofocus: setAttribute() to null
+Pass	dir.autofocus: setAttribute() to 7
+Pass	dir.autofocus: setAttribute() to 1.5
+Pass	dir.autofocus: setAttribute() to "5%"
+Pass	dir.autofocus: setAttribute() to "+100"
+Pass	dir.autofocus: setAttribute() to ".5"
+Pass	dir.autofocus: setAttribute() to true
+Pass	dir.autofocus: setAttribute() to false
+Pass	dir.autofocus: setAttribute() to object "[object Object]"
+Pass	dir.autofocus: setAttribute() to NaN
+Pass	dir.autofocus: setAttribute() to Infinity
+Pass	dir.autofocus: setAttribute() to -Infinity
+Pass	dir.autofocus: setAttribute() to "\0"
+Pass	dir.autofocus: setAttribute() to object "test-toString"
+Pass	dir.autofocus: setAttribute() to object "test-valueOf"
+Pass	dir.autofocus: setAttribute() to "autofocus"
+Pass	dir.autofocus: IDL set to ""
+Pass	dir.autofocus: IDL set to " foo "
+Pass	dir.autofocus: IDL set to undefined
+Pass	dir.autofocus: IDL set to null
+Pass	dir.autofocus: IDL set to 7
+Pass	dir.autofocus: IDL set to 1.5
+Pass	dir.autofocus: IDL set to "5%"
+Pass	dir.autofocus: IDL set to "+100"
+Pass	dir.autofocus: IDL set to ".5"
+Pass	dir.autofocus: IDL set to true
+Pass	dir.autofocus: IDL set to false
+Pass	dir.autofocus: IDL set to object "[object Object]"
+Pass	dir.autofocus: IDL set to NaN
+Pass	dir.autofocus: IDL set to Infinity
+Pass	dir.autofocus: IDL set to -Infinity
+Pass	dir.autofocus: IDL set to "\0"
+Pass	dir.autofocus: IDL set to object "test-toString"
+Pass	dir.autofocus: IDL set to object "test-valueOf"
+Pass	dir.hidden: typeof IDL attribute
+Pass	dir.hidden: IDL get with DOM attribute unset
+Pass	dir.hidden: setAttribute() to ""
+Pass	dir.hidden: setAttribute() to " foo "
+Pass	dir.hidden: setAttribute() to undefined
+Pass	dir.hidden: setAttribute() to null
+Pass	dir.hidden: setAttribute() to 7
+Pass	dir.hidden: setAttribute() to 1.5
+Pass	dir.hidden: setAttribute() to "5%"
+Pass	dir.hidden: setAttribute() to "+100"
+Pass	dir.hidden: setAttribute() to ".5"
+Pass	dir.hidden: setAttribute() to true
+Pass	dir.hidden: setAttribute() to false
+Pass	dir.hidden: setAttribute() to object "[object Object]"
+Pass	dir.hidden: setAttribute() to NaN
+Pass	dir.hidden: setAttribute() to Infinity
+Pass	dir.hidden: setAttribute() to -Infinity
+Pass	dir.hidden: setAttribute() to "\0"
+Pass	dir.hidden: setAttribute() to object "test-toString"
+Pass	dir.hidden: setAttribute() to object "test-valueOf"
+Pass	dir.hidden: setAttribute() to "hidden"
+Pass	dir.hidden: IDL set to ""
+Pass	dir.hidden: IDL set to " foo "
+Pass	dir.hidden: IDL set to undefined
+Pass	dir.hidden: IDL set to null
+Pass	dir.hidden: IDL set to 7
+Pass	dir.hidden: IDL set to 1.5
+Pass	dir.hidden: IDL set to "5%"
+Pass	dir.hidden: IDL set to "+100"
+Pass	dir.hidden: IDL set to ".5"
+Pass	dir.hidden: IDL set to true
+Pass	dir.hidden: IDL set to false
+Pass	dir.hidden: IDL set to object "[object Object]"
+Pass	dir.hidden: IDL set to NaN
+Pass	dir.hidden: IDL set to Infinity
+Pass	dir.hidden: IDL set to -Infinity
+Pass	dir.hidden: IDL set to "\0"
+Pass	dir.hidden: IDL set to object "test-toString"
+Pass	dir.hidden: IDL set to object "test-valueOf"
+Pass	dir.accessKey: typeof IDL attribute
+Pass	dir.accessKey: IDL get with DOM attribute unset
+Pass	dir.accessKey: setAttribute() to ""
+Pass	dir.accessKey: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	dir.accessKey: setAttribute() to undefined
+Pass	dir.accessKey: setAttribute() to 7
+Pass	dir.accessKey: setAttribute() to 1.5
+Pass	dir.accessKey: setAttribute() to "5%"
+Pass	dir.accessKey: setAttribute() to "+100"
+Pass	dir.accessKey: setAttribute() to ".5"
+Pass	dir.accessKey: setAttribute() to true
+Pass	dir.accessKey: setAttribute() to false
+Pass	dir.accessKey: setAttribute() to object "[object Object]"
+Pass	dir.accessKey: setAttribute() to NaN
+Pass	dir.accessKey: setAttribute() to Infinity
+Pass	dir.accessKey: setAttribute() to -Infinity
+Pass	dir.accessKey: setAttribute() to "\0"
+Pass	dir.accessKey: setAttribute() to null
+Pass	dir.accessKey: setAttribute() to object "test-toString"
+Pass	dir.accessKey: setAttribute() to object "test-valueOf"
+Pass	dir.accessKey: IDL set to ""
+Pass	dir.accessKey: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	dir.accessKey: IDL set to undefined
+Pass	dir.accessKey: IDL set to 7
+Pass	dir.accessKey: IDL set to 1.5
+Pass	dir.accessKey: IDL set to "5%"
+Pass	dir.accessKey: IDL set to "+100"
+Pass	dir.accessKey: IDL set to ".5"
+Pass	dir.accessKey: IDL set to true
+Pass	dir.accessKey: IDL set to false
+Pass	dir.accessKey: IDL set to object "[object Object]"
+Pass	dir.accessKey: IDL set to NaN
+Pass	dir.accessKey: IDL set to Infinity
+Pass	dir.accessKey: IDL set to -Infinity
+Pass	dir.accessKey: IDL set to "\0"
+Pass	dir.accessKey: IDL set to null
+Pass	dir.accessKey: IDL set to object "test-toString"
+Pass	dir.accessKey: IDL set to object "test-valueOf"
+Pass	dir.tabIndex: typeof IDL attribute
+Pass	dir.tabIndex: setAttribute() to -36
+Pass	dir.tabIndex: setAttribute() to -1
+Pass	dir.tabIndex: setAttribute() to 0
+Pass	dir.tabIndex: setAttribute() to 1
+Pass	dir.tabIndex: setAttribute() to 2147483647
+Pass	dir.tabIndex: setAttribute() to -2147483648
+Pass	dir.tabIndex: setAttribute() to "-1"
+Pass	dir.tabIndex: setAttribute() to "-0"
+Pass	dir.tabIndex: setAttribute() to "0"
+Pass	dir.tabIndex: setAttribute() to "1"
+Pass	dir.tabIndex: setAttribute() to "\t7"
+Pass	dir.tabIndex: setAttribute() to "\f7"
+Pass	dir.tabIndex: setAttribute() to " 7"
+Pass	dir.tabIndex: setAttribute() to "\n7"
+Pass	dir.tabIndex: setAttribute() to "\r7"
+Pass	dir.tabIndex: setAttribute() to "7\v"
+Pass	dir.tabIndex: setAttribute() to 1.5
+Pass	dir.tabIndex: setAttribute() to "5%"
+Pass	dir.tabIndex: setAttribute() to "+100"
+Pass	dir.tabIndex: setAttribute() to object "2"
+Pass	dir.tabIndex: setAttribute() to object "3"
+Pass	dir.tabIndex: IDL set to -36
+Pass	dir.tabIndex: IDL set to -1
+Pass	dir.tabIndex: IDL set to 0
+Pass	dir.tabIndex: IDL set to 1
+Pass	dir.tabIndex: IDL set to 2147483647
+Pass	dir.tabIndex: IDL set to -2147483648
+Pass	dir.compact: typeof IDL attribute
+Pass	dir.compact: IDL get with DOM attribute unset
+Pass	dir.compact: setAttribute() to ""
+Pass	dir.compact: setAttribute() to " foo "
+Pass	dir.compact: setAttribute() to undefined
+Pass	dir.compact: setAttribute() to null
+Pass	dir.compact: setAttribute() to 7
+Pass	dir.compact: setAttribute() to 1.5
+Pass	dir.compact: setAttribute() to "5%"
+Pass	dir.compact: setAttribute() to "+100"
+Pass	dir.compact: setAttribute() to ".5"
+Pass	dir.compact: setAttribute() to true
+Pass	dir.compact: setAttribute() to false
+Pass	dir.compact: setAttribute() to object "[object Object]"
+Pass	dir.compact: setAttribute() to NaN
+Pass	dir.compact: setAttribute() to Infinity
+Pass	dir.compact: setAttribute() to -Infinity
+Pass	dir.compact: setAttribute() to "\0"
+Pass	dir.compact: setAttribute() to object "test-toString"
+Pass	dir.compact: setAttribute() to object "test-valueOf"
+Pass	dir.compact: setAttribute() to "compact"
+Pass	dir.compact: IDL set to ""
+Pass	dir.compact: IDL set to " foo "
+Pass	dir.compact: IDL set to undefined
+Pass	dir.compact: IDL set to null
+Pass	dir.compact: IDL set to 7
+Pass	dir.compact: IDL set to 1.5
+Pass	dir.compact: IDL set to "5%"
+Pass	dir.compact: IDL set to "+100"
+Pass	dir.compact: IDL set to ".5"
+Pass	dir.compact: IDL set to true
+Pass	dir.compact: IDL set to false
+Pass	dir.compact: IDL set to object "[object Object]"
+Pass	dir.compact: IDL set to NaN
+Pass	dir.compact: IDL set to Infinity
+Pass	dir.compact: IDL set to -Infinity
+Pass	dir.compact: IDL set to "\0"
+Pass	dir.compact: IDL set to object "test-toString"
+Pass	dir.compact: IDL set to object "test-valueOf"
+Pass	font.title: typeof IDL attribute
+Pass	font.title: IDL get with DOM attribute unset
+Pass	font.title: setAttribute() to ""
+Pass	font.title: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	font.title: setAttribute() to undefined
+Pass	font.title: setAttribute() to 7
+Pass	font.title: setAttribute() to 1.5
+Pass	font.title: setAttribute() to "5%"
+Pass	font.title: setAttribute() to "+100"
+Pass	font.title: setAttribute() to ".5"
+Pass	font.title: setAttribute() to true
+Pass	font.title: setAttribute() to false
+Pass	font.title: setAttribute() to object "[object Object]"
+Pass	font.title: setAttribute() to NaN
+Pass	font.title: setAttribute() to Infinity
+Pass	font.title: setAttribute() to -Infinity
+Pass	font.title: setAttribute() to "\0"
+Pass	font.title: setAttribute() to null
+Pass	font.title: setAttribute() to object "test-toString"
+Pass	font.title: setAttribute() to object "test-valueOf"
+Pass	font.title: IDL set to ""
+Pass	font.title: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	font.title: IDL set to undefined
+Pass	font.title: IDL set to 7
+Pass	font.title: IDL set to 1.5
+Pass	font.title: IDL set to "5%"
+Pass	font.title: IDL set to "+100"
+Pass	font.title: IDL set to ".5"
+Pass	font.title: IDL set to true
+Pass	font.title: IDL set to false
+Pass	font.title: IDL set to object "[object Object]"
+Pass	font.title: IDL set to NaN
+Pass	font.title: IDL set to Infinity
+Pass	font.title: IDL set to -Infinity
+Pass	font.title: IDL set to "\0"
+Pass	font.title: IDL set to null
+Pass	font.title: IDL set to object "test-toString"
+Pass	font.title: IDL set to object "test-valueOf"
+Pass	font.lang: typeof IDL attribute
+Pass	font.lang: IDL get with DOM attribute unset
+Pass	font.lang: setAttribute() to ""
+Pass	font.lang: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	font.lang: setAttribute() to undefined
+Pass	font.lang: setAttribute() to 7
+Pass	font.lang: setAttribute() to 1.5
+Pass	font.lang: setAttribute() to "5%"
+Pass	font.lang: setAttribute() to "+100"
+Pass	font.lang: setAttribute() to ".5"
+Pass	font.lang: setAttribute() to true
+Pass	font.lang: setAttribute() to false
+Pass	font.lang: setAttribute() to object "[object Object]"
+Pass	font.lang: setAttribute() to NaN
+Pass	font.lang: setAttribute() to Infinity
+Pass	font.lang: setAttribute() to -Infinity
+Pass	font.lang: setAttribute() to "\0"
+Pass	font.lang: setAttribute() to null
+Pass	font.lang: setAttribute() to object "test-toString"
+Pass	font.lang: setAttribute() to object "test-valueOf"
+Pass	font.lang: IDL set to ""
+Pass	font.lang: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	font.lang: IDL set to undefined
+Pass	font.lang: IDL set to 7
+Pass	font.lang: IDL set to 1.5
+Pass	font.lang: IDL set to "5%"
+Pass	font.lang: IDL set to "+100"
+Pass	font.lang: IDL set to ".5"
+Pass	font.lang: IDL set to true
+Pass	font.lang: IDL set to false
+Pass	font.lang: IDL set to object "[object Object]"
+Pass	font.lang: IDL set to NaN
+Pass	font.lang: IDL set to Infinity
+Pass	font.lang: IDL set to -Infinity
+Pass	font.lang: IDL set to "\0"
+Pass	font.lang: IDL set to null
+Pass	font.lang: IDL set to object "test-toString"
+Pass	font.lang: IDL set to object "test-valueOf"
+Pass	font.dir: typeof IDL attribute
+Pass	font.dir: IDL get with DOM attribute unset
+Pass	font.dir: setAttribute() to ""
+Pass	font.dir: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	font.dir: setAttribute() to undefined
+Pass	font.dir: setAttribute() to 7
+Pass	font.dir: setAttribute() to 1.5
+Pass	font.dir: setAttribute() to "5%"
+Pass	font.dir: setAttribute() to "+100"
+Pass	font.dir: setAttribute() to ".5"
+Pass	font.dir: setAttribute() to true
+Pass	font.dir: setAttribute() to false
+Pass	font.dir: setAttribute() to object "[object Object]"
+Pass	font.dir: setAttribute() to NaN
+Pass	font.dir: setAttribute() to Infinity
+Pass	font.dir: setAttribute() to -Infinity
+Pass	font.dir: setAttribute() to "\0"
+Pass	font.dir: setAttribute() to null
+Pass	font.dir: setAttribute() to object "test-toString"
+Pass	font.dir: setAttribute() to object "test-valueOf"
+Pass	font.dir: setAttribute() to "ltr"
+Pass	font.dir: setAttribute() to "xltr"
+Pass	font.dir: setAttribute() to "ltr\0"
+Pass	font.dir: setAttribute() to "tr"
+Pass	font.dir: setAttribute() to "LTR"
+Pass	font.dir: setAttribute() to "rtl"
+Pass	font.dir: setAttribute() to "xrtl"
+Pass	font.dir: setAttribute() to "rtl\0"
+Pass	font.dir: setAttribute() to "tl"
+Pass	font.dir: setAttribute() to "RTL"
+Pass	font.dir: setAttribute() to "auto"
+Pass	font.dir: setAttribute() to "xauto"
+Pass	font.dir: setAttribute() to "auto\0"
+Pass	font.dir: setAttribute() to "uto"
+Pass	font.dir: setAttribute() to "AUTO"
+Pass	font.dir: IDL set to ""
+Pass	font.dir: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	font.dir: IDL set to undefined
+Pass	font.dir: IDL set to 7
+Pass	font.dir: IDL set to 1.5
+Pass	font.dir: IDL set to "5%"
+Pass	font.dir: IDL set to "+100"
+Pass	font.dir: IDL set to ".5"
+Pass	font.dir: IDL set to true
+Pass	font.dir: IDL set to false
+Pass	font.dir: IDL set to object "[object Object]"
+Pass	font.dir: IDL set to NaN
+Pass	font.dir: IDL set to Infinity
+Pass	font.dir: IDL set to -Infinity
+Pass	font.dir: IDL set to "\0"
+Pass	font.dir: IDL set to null
+Pass	font.dir: IDL set to object "test-toString"
+Pass	font.dir: IDL set to object "test-valueOf"
+Pass	font.dir: IDL set to "ltr"
+Pass	font.dir: IDL set to "xltr"
+Pass	font.dir: IDL set to "ltr\0"
+Pass	font.dir: IDL set to "tr"
+Pass	font.dir: IDL set to "LTR"
+Pass	font.dir: IDL set to "rtl"
+Pass	font.dir: IDL set to "xrtl"
+Pass	font.dir: IDL set to "rtl\0"
+Pass	font.dir: IDL set to "tl"
+Pass	font.dir: IDL set to "RTL"
+Pass	font.dir: IDL set to "auto"
+Pass	font.dir: IDL set to "xauto"
+Pass	font.dir: IDL set to "auto\0"
+Pass	font.dir: IDL set to "uto"
+Pass	font.dir: IDL set to "AUTO"
+Pass	font.className (<font class>): typeof IDL attribute
+Pass	font.className (<font class>): IDL get with DOM attribute unset
+Pass	font.className (<font class>): setAttribute() to ""
+Pass	font.className (<font class>): setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	font.className (<font class>): setAttribute() to undefined
+Pass	font.className (<font class>): setAttribute() to 7
+Pass	font.className (<font class>): setAttribute() to 1.5
+Pass	font.className (<font class>): setAttribute() to "5%"
+Pass	font.className (<font class>): setAttribute() to "+100"
+Pass	font.className (<font class>): setAttribute() to ".5"
+Pass	font.className (<font class>): setAttribute() to true
+Pass	font.className (<font class>): setAttribute() to false
+Pass	font.className (<font class>): setAttribute() to object "[object Object]"
+Pass	font.className (<font class>): setAttribute() to NaN
+Pass	font.className (<font class>): setAttribute() to Infinity
+Pass	font.className (<font class>): setAttribute() to -Infinity
+Pass	font.className (<font class>): setAttribute() to "\0"
+Pass	font.className (<font class>): setAttribute() to null
+Pass	font.className (<font class>): setAttribute() to object "test-toString"
+Pass	font.className (<font class>): setAttribute() to object "test-valueOf"
+Pass	font.className (<font class>): IDL set to ""
+Pass	font.className (<font class>): IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	font.className (<font class>): IDL set to undefined
+Pass	font.className (<font class>): IDL set to 7
+Pass	font.className (<font class>): IDL set to 1.5
+Pass	font.className (<font class>): IDL set to "5%"
+Pass	font.className (<font class>): IDL set to "+100"
+Pass	font.className (<font class>): IDL set to ".5"
+Pass	font.className (<font class>): IDL set to true
+Pass	font.className (<font class>): IDL set to false
+Pass	font.className (<font class>): IDL set to object "[object Object]"
+Pass	font.className (<font class>): IDL set to NaN
+Pass	font.className (<font class>): IDL set to Infinity
+Pass	font.className (<font class>): IDL set to -Infinity
+Pass	font.className (<font class>): IDL set to "\0"
+Pass	font.className (<font class>): IDL set to null
+Pass	font.className (<font class>): IDL set to object "test-toString"
+Pass	font.className (<font class>): IDL set to object "test-valueOf"
+Pass	font.autofocus: typeof IDL attribute
+Pass	font.autofocus: IDL get with DOM attribute unset
+Pass	font.autofocus: setAttribute() to ""
+Pass	font.autofocus: setAttribute() to " foo "
+Pass	font.autofocus: setAttribute() to undefined
+Pass	font.autofocus: setAttribute() to null
+Pass	font.autofocus: setAttribute() to 7
+Pass	font.autofocus: setAttribute() to 1.5
+Pass	font.autofocus: setAttribute() to "5%"
+Pass	font.autofocus: setAttribute() to "+100"
+Pass	font.autofocus: setAttribute() to ".5"
+Pass	font.autofocus: setAttribute() to true
+Pass	font.autofocus: setAttribute() to false
+Pass	font.autofocus: setAttribute() to object "[object Object]"
+Pass	font.autofocus: setAttribute() to NaN
+Pass	font.autofocus: setAttribute() to Infinity
+Pass	font.autofocus: setAttribute() to -Infinity
+Pass	font.autofocus: setAttribute() to "\0"
+Pass	font.autofocus: setAttribute() to object "test-toString"
+Pass	font.autofocus: setAttribute() to object "test-valueOf"
+Pass	font.autofocus: setAttribute() to "autofocus"
+Pass	font.autofocus: IDL set to ""
+Pass	font.autofocus: IDL set to " foo "
+Pass	font.autofocus: IDL set to undefined
+Pass	font.autofocus: IDL set to null
+Pass	font.autofocus: IDL set to 7
+Pass	font.autofocus: IDL set to 1.5
+Pass	font.autofocus: IDL set to "5%"
+Pass	font.autofocus: IDL set to "+100"
+Pass	font.autofocus: IDL set to ".5"
+Pass	font.autofocus: IDL set to true
+Pass	font.autofocus: IDL set to false
+Pass	font.autofocus: IDL set to object "[object Object]"
+Pass	font.autofocus: IDL set to NaN
+Pass	font.autofocus: IDL set to Infinity
+Pass	font.autofocus: IDL set to -Infinity
+Pass	font.autofocus: IDL set to "\0"
+Pass	font.autofocus: IDL set to object "test-toString"
+Pass	font.autofocus: IDL set to object "test-valueOf"
+Pass	font.hidden: typeof IDL attribute
+Pass	font.hidden: IDL get with DOM attribute unset
+Pass	font.hidden: setAttribute() to ""
+Pass	font.hidden: setAttribute() to " foo "
+Pass	font.hidden: setAttribute() to undefined
+Pass	font.hidden: setAttribute() to null
+Pass	font.hidden: setAttribute() to 7
+Pass	font.hidden: setAttribute() to 1.5
+Pass	font.hidden: setAttribute() to "5%"
+Pass	font.hidden: setAttribute() to "+100"
+Pass	font.hidden: setAttribute() to ".5"
+Pass	font.hidden: setAttribute() to true
+Pass	font.hidden: setAttribute() to false
+Pass	font.hidden: setAttribute() to object "[object Object]"
+Pass	font.hidden: setAttribute() to NaN
+Pass	font.hidden: setAttribute() to Infinity
+Pass	font.hidden: setAttribute() to -Infinity
+Pass	font.hidden: setAttribute() to "\0"
+Pass	font.hidden: setAttribute() to object "test-toString"
+Pass	font.hidden: setAttribute() to object "test-valueOf"
+Pass	font.hidden: setAttribute() to "hidden"
+Pass	font.hidden: IDL set to ""
+Pass	font.hidden: IDL set to " foo "
+Pass	font.hidden: IDL set to undefined
+Pass	font.hidden: IDL set to null
+Pass	font.hidden: IDL set to 7
+Pass	font.hidden: IDL set to 1.5
+Pass	font.hidden: IDL set to "5%"
+Pass	font.hidden: IDL set to "+100"
+Pass	font.hidden: IDL set to ".5"
+Pass	font.hidden: IDL set to true
+Pass	font.hidden: IDL set to false
+Pass	font.hidden: IDL set to object "[object Object]"
+Pass	font.hidden: IDL set to NaN
+Pass	font.hidden: IDL set to Infinity
+Pass	font.hidden: IDL set to -Infinity
+Pass	font.hidden: IDL set to "\0"
+Pass	font.hidden: IDL set to object "test-toString"
+Pass	font.hidden: IDL set to object "test-valueOf"
+Pass	font.accessKey: typeof IDL attribute
+Pass	font.accessKey: IDL get with DOM attribute unset
+Pass	font.accessKey: setAttribute() to ""
+Pass	font.accessKey: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	font.accessKey: setAttribute() to undefined
+Pass	font.accessKey: setAttribute() to 7
+Pass	font.accessKey: setAttribute() to 1.5
+Pass	font.accessKey: setAttribute() to "5%"
+Pass	font.accessKey: setAttribute() to "+100"
+Pass	font.accessKey: setAttribute() to ".5"
+Pass	font.accessKey: setAttribute() to true
+Pass	font.accessKey: setAttribute() to false
+Pass	font.accessKey: setAttribute() to object "[object Object]"
+Pass	font.accessKey: setAttribute() to NaN
+Pass	font.accessKey: setAttribute() to Infinity
+Pass	font.accessKey: setAttribute() to -Infinity
+Pass	font.accessKey: setAttribute() to "\0"
+Pass	font.accessKey: setAttribute() to null
+Pass	font.accessKey: setAttribute() to object "test-toString"
+Pass	font.accessKey: setAttribute() to object "test-valueOf"
+Pass	font.accessKey: IDL set to ""
+Pass	font.accessKey: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	font.accessKey: IDL set to undefined
+Pass	font.accessKey: IDL set to 7
+Pass	font.accessKey: IDL set to 1.5
+Pass	font.accessKey: IDL set to "5%"
+Pass	font.accessKey: IDL set to "+100"
+Pass	font.accessKey: IDL set to ".5"
+Pass	font.accessKey: IDL set to true
+Pass	font.accessKey: IDL set to false
+Pass	font.accessKey: IDL set to object "[object Object]"
+Pass	font.accessKey: IDL set to NaN
+Pass	font.accessKey: IDL set to Infinity
+Pass	font.accessKey: IDL set to -Infinity
+Pass	font.accessKey: IDL set to "\0"
+Pass	font.accessKey: IDL set to null
+Pass	font.accessKey: IDL set to object "test-toString"
+Pass	font.accessKey: IDL set to object "test-valueOf"
+Pass	font.tabIndex: typeof IDL attribute
+Pass	font.tabIndex: setAttribute() to -36
+Pass	font.tabIndex: setAttribute() to -1
+Pass	font.tabIndex: setAttribute() to 0
+Pass	font.tabIndex: setAttribute() to 1
+Pass	font.tabIndex: setAttribute() to 2147483647
+Pass	font.tabIndex: setAttribute() to -2147483648
+Pass	font.tabIndex: setAttribute() to "-1"
+Pass	font.tabIndex: setAttribute() to "-0"
+Pass	font.tabIndex: setAttribute() to "0"
+Pass	font.tabIndex: setAttribute() to "1"
+Pass	font.tabIndex: setAttribute() to "\t7"
+Pass	font.tabIndex: setAttribute() to "\f7"
+Pass	font.tabIndex: setAttribute() to " 7"
+Pass	font.tabIndex: setAttribute() to "\n7"
+Pass	font.tabIndex: setAttribute() to "\r7"
+Pass	font.tabIndex: setAttribute() to "7\v"
+Pass	font.tabIndex: setAttribute() to 1.5
+Pass	font.tabIndex: setAttribute() to "5%"
+Pass	font.tabIndex: setAttribute() to "+100"
+Pass	font.tabIndex: setAttribute() to object "2"
+Pass	font.tabIndex: setAttribute() to object "3"
+Pass	font.tabIndex: IDL set to -36
+Pass	font.tabIndex: IDL set to -1
+Pass	font.tabIndex: IDL set to 0
+Pass	font.tabIndex: IDL set to 1
+Pass	font.tabIndex: IDL set to 2147483647
+Pass	font.tabIndex: IDL set to -2147483648
+Pass	font.color: typeof IDL attribute
+Pass	font.color: IDL get with DOM attribute unset
+Pass	font.color: setAttribute() to ""
+Pass	font.color: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	font.color: setAttribute() to undefined
+Pass	font.color: setAttribute() to 7
+Pass	font.color: setAttribute() to 1.5
+Pass	font.color: setAttribute() to "5%"
+Pass	font.color: setAttribute() to "+100"
+Pass	font.color: setAttribute() to ".5"
+Pass	font.color: setAttribute() to true
+Pass	font.color: setAttribute() to false
+Pass	font.color: setAttribute() to object "[object Object]"
+Pass	font.color: setAttribute() to NaN
+Pass	font.color: setAttribute() to Infinity
+Pass	font.color: setAttribute() to -Infinity
+Pass	font.color: setAttribute() to "\0"
+Pass	font.color: setAttribute() to null
+Pass	font.color: setAttribute() to object "test-toString"
+Pass	font.color: setAttribute() to object "test-valueOf"
+Pass	font.color: IDL set to ""
+Pass	font.color: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	font.color: IDL set to undefined
+Pass	font.color: IDL set to 7
+Pass	font.color: IDL set to 1.5
+Pass	font.color: IDL set to "5%"
+Pass	font.color: IDL set to "+100"
+Pass	font.color: IDL set to ".5"
+Pass	font.color: IDL set to true
+Pass	font.color: IDL set to false
+Pass	font.color: IDL set to object "[object Object]"
+Pass	font.color: IDL set to NaN
+Pass	font.color: IDL set to Infinity
+Pass	font.color: IDL set to -Infinity
+Pass	font.color: IDL set to "\0"
+Pass	font.color: IDL set to null
+Pass	font.color: IDL set to object "test-toString"
+Pass	font.color: IDL set to object "test-valueOf"
+Pass	font.face: typeof IDL attribute
+Pass	font.face: IDL get with DOM attribute unset
+Pass	font.face: setAttribute() to ""
+Pass	font.face: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	font.face: setAttribute() to undefined
+Pass	font.face: setAttribute() to 7
+Pass	font.face: setAttribute() to 1.5
+Pass	font.face: setAttribute() to "5%"
+Pass	font.face: setAttribute() to "+100"
+Pass	font.face: setAttribute() to ".5"
+Pass	font.face: setAttribute() to true
+Pass	font.face: setAttribute() to false
+Pass	font.face: setAttribute() to object "[object Object]"
+Pass	font.face: setAttribute() to NaN
+Pass	font.face: setAttribute() to Infinity
+Pass	font.face: setAttribute() to -Infinity
+Pass	font.face: setAttribute() to "\0"
+Pass	font.face: setAttribute() to null
+Pass	font.face: setAttribute() to object "test-toString"
+Pass	font.face: setAttribute() to object "test-valueOf"
+Pass	font.face: IDL set to ""
+Pass	font.face: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	font.face: IDL set to undefined
+Pass	font.face: IDL set to 7
+Pass	font.face: IDL set to 1.5
+Pass	font.face: IDL set to "5%"
+Pass	font.face: IDL set to "+100"
+Pass	font.face: IDL set to ".5"
+Pass	font.face: IDL set to true
+Pass	font.face: IDL set to false
+Pass	font.face: IDL set to object "[object Object]"
+Pass	font.face: IDL set to NaN
+Pass	font.face: IDL set to Infinity
+Pass	font.face: IDL set to -Infinity
+Pass	font.face: IDL set to "\0"
+Pass	font.face: IDL set to null
+Pass	font.face: IDL set to object "test-toString"
+Pass	font.face: IDL set to object "test-valueOf"
+Pass	font.size: typeof IDL attribute
+Pass	font.size: IDL get with DOM attribute unset
+Pass	font.size: setAttribute() to ""
+Pass	font.size: setAttribute() to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	font.size: setAttribute() to undefined
+Pass	font.size: setAttribute() to 7
+Pass	font.size: setAttribute() to 1.5
+Pass	font.size: setAttribute() to "5%"
+Pass	font.size: setAttribute() to "+100"
+Pass	font.size: setAttribute() to ".5"
+Pass	font.size: setAttribute() to true
+Pass	font.size: setAttribute() to false
+Pass	font.size: setAttribute() to object "[object Object]"
+Pass	font.size: setAttribute() to NaN
+Pass	font.size: setAttribute() to Infinity
+Pass	font.size: setAttribute() to -Infinity
+Pass	font.size: setAttribute() to "\0"
+Pass	font.size: setAttribute() to null
+Pass	font.size: setAttribute() to object "test-toString"
+Pass	font.size: setAttribute() to object "test-valueOf"
+Pass	font.size: IDL set to ""
+Pass	font.size: IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
+Pass	font.size: IDL set to undefined
+Pass	font.size: IDL set to 7
+Pass	font.size: IDL set to 1.5
+Pass	font.size: IDL set to "5%"
+Pass	font.size: IDL set to "+100"
+Pass	font.size: IDL set to ".5"
+Pass	font.size: IDL set to true
+Pass	font.size: IDL set to false
+Pass	font.size: IDL set to object "[object Object]"
+Pass	font.size: IDL set to NaN
+Pass	font.size: IDL set to Infinity
+Pass	font.size: IDL set to -Infinity
+Pass	font.size: IDL set to "\0"
+Pass	font.size: IDL set to null
+Pass	font.size: IDL set to object "test-toString"
+Pass	font.size: IDL set to object "test-valueOf"
