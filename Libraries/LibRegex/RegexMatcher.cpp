@@ -239,8 +239,6 @@ RegexResult Matcher<Parser>::match(Vector<RegexStringView> const& views, Optiona
             input.column = match_count;
             input.match_index = match_count;
 
-            state.string_position = view_index;
-            state.string_position_in_code_units = view_index;
             state.instruction_position = 0;
             state.repetition_marks.clear();
 
