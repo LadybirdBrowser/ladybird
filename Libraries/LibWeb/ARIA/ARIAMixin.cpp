@@ -6,6 +6,8 @@
 
 #include <LibWeb/ARIA/ARIAMixin.h>
 #include <LibWeb/ARIA/Roles.h>
+#include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/Node.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 
 namespace Web::ARIA {
@@ -24,10 +26,106 @@ Optional<Role> ARIAMixin::role_from_role_attribute_value() const
 
     // 3. Compare the substrings to all the names of the non-abstract WAI-ARIA roles. Case-sensitivity of the comparison inherits from the case-sensitivity of the host language.
     for (auto const& role_name : role_list) {
-        // 4. Use the first such substring in textual order that matches the name of a non-abstract WAI-ARIA role.
         auto role = role_from_string(role_name);
         if (!role.has_value())
             continue;
+        // https://w3c.github.io/core-aam/#roleMappingComputedRole
+        // When an element has a role but is not contained in the required context (for example, an orphaned listitem
+        // without the required accessible parent of role list), User Agents MUST ignore the role token, and return the
+        // computedrole as if the ignored role token had not been included.
+        if (role == ARIA::Role::columnheader) {
+            for (auto const* ancestor = to_element()->parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+                if (ancestor->role_or_default() == ARIA::Role::row)
+                    return ARIA::Role::columnheader;
+            }
+            continue;
+        }
+        if (role == ARIA::Role::gridcell) {
+            for (auto const* ancestor = to_element()->parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+                if (ancestor->role_or_default() == ARIA::Role::row)
+                    return ARIA::Role::gridcell;
+            }
+            continue;
+        }
+        if (role == ARIA::Role::listitem) {
+            for (auto const* ancestor = to_element()->parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+                if (first_is_one_of(ancestor->role_or_default(), ARIA::Role::directory, ARIA::Role::list))
+                    return ARIA::Role::listitem;
+            }
+            continue;
+        }
+        if (role == ARIA::Role::menuitem) {
+            for (auto const* ancestor = to_element()->parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+                if (first_is_one_of(ancestor->role_or_default(), ARIA::Role::menu, ARIA::Role::menubar))
+                    return ARIA::Role::menuitem;
+            }
+            continue;
+        }
+        if (role == ARIA::Role::menuitemcheckbox) {
+            for (auto const* ancestor = to_element()->parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+                if (first_is_one_of(ancestor->role_or_default(), ARIA::Role::menu, ARIA::Role::menubar))
+                    return ARIA::Role::menuitemcheckbox;
+            }
+            continue;
+        }
+        if (role == ARIA::Role::menuitemradio) {
+            for (auto const* ancestor = to_element()->parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+                if (first_is_one_of(ancestor->role_or_default(), ARIA::Role::menu, ARIA::Role::menubar))
+                    return ARIA::Role::menuitemradio;
+            }
+            continue;
+        }
+        if (role == ARIA::Role::option) {
+            for (auto const* ancestor = to_element()->parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+                if (ancestor->role_or_default() == ARIA::Role::listbox)
+                    return ARIA::Role::option;
+            }
+            continue;
+        }
+        if (role == ARIA::Role::row) {
+            for (auto const* ancestor = to_element()->parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+                if (first_is_one_of(ancestor->role_or_default(), ARIA::Role::table, ARIA::Role::grid, ARIA::Role::treegrid))
+                    return ARIA::Role::row;
+            }
+            continue;
+        }
+        if (role == ARIA::Role::rowgroup) {
+            for (auto const* ancestor = to_element()->parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+                if (first_is_one_of(ancestor->role_or_default(), ARIA::Role::table, ARIA::Role::grid, ARIA::Role::treegrid))
+                    return ARIA::Role::rowgroup;
+            }
+            continue;
+        }
+        if (role == ARIA::Role::rowheader) {
+            for (auto const* ancestor = to_element()->parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+                if (ancestor->role_or_default() == ARIA::Role::row)
+                    return ARIA::Role::rowheader;
+            }
+            continue;
+        }
+        if (role == ARIA::Role::tab) {
+            for (auto const* ancestor = to_element()->parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+                if (ancestor->role_or_default() == ARIA::Role::tablist)
+                    return ARIA::Role::tab;
+            }
+            continue;
+        }
+        if (role == ARIA::Role::treeitem) {
+            for (auto const* ancestor = to_element()->parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+                if (ancestor->role_or_default() == ARIA::Role::tree)
+                    return ARIA::Role::treeitem;
+            }
+            continue;
+        }
+        // https://w3c.github.io/aria/#document-handling_author-errors_roles
+        // Certain landmark roles require names from authors. In situations where an author has not specified names for
+        // these landmarks, it is considered an authoring error. The user agent MUST treat such elements as if no role
+        // had been provided. If a valid fallback role had been specified, or if the element had an implicit ARIA role,
+        // then user agents would continue to expose that role, instead.
+        if ((role == ARIA::Role::form || role == ARIA::Role::region)
+            && to_element()->accessible_name(to_element()->document(), DOM::ShouldComputeRole::No).value().is_empty())
+            continue;
+        // 4. Use the first such substring in textual order that matches the name of a non-abstract WAI-ARIA role.
         if (!is_abstract_role(*role))
             return *role;
     }
