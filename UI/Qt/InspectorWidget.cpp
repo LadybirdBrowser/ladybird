@@ -25,6 +25,10 @@ InspectorWidget::InspectorWidget(QWidget* tab, WebContentView& content_view)
     : QWidget(tab, Qt::Window)
 {
     m_inspector_view = new WebContentView(this);
+    m_inspector_view->on_close = [this] {
+        close();
+        emit closed();
+    };
 
     if (is_using_dark_system_theme(*this))
         m_inspector_view->update_palette(WebContentView::PaletteMode::Dark);
