@@ -257,8 +257,6 @@ ssize_t TLSv12::handle_handshake_payload(ReadonlyBytes vbuffer)
     auto original_length = buffer_length;
     while (buffer_length >= 4 && !m_context.critical_error) {
         ssize_t payload_res = 0;
-        if (buffer_length < 1)
-            return (i8)Error::NeedMoreData;
         auto type = static_cast<HandshakeType>(buffer[0]);
         auto write_packets { WritePacketStage::Initial };
         size_t payload_size = buffer[1] * 0x10000 + buffer[2] * 0x100 + buffer[3] + 3;
