@@ -2,7 +2,7 @@
 
 set -eo pipefail
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+DIR="$( CDPATH='' cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 LADYBIRD_SOURCE_DIR="$(realpath "${DIR}"/../..)"
 
