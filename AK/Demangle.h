@@ -8,10 +8,14 @@
 
 #include <AK/ByteString.h>
 #include <AK/StringView.h>
-#include <cxxabi.h>
+
+#ifndef AK_OS_WINDOWS
+#    include <cxxabi.h>
+#endif
 
 namespace AK {
 
+#ifndef AK_OS_WINDOWS
 inline ByteString demangle(StringView name)
 {
     int status = 0;
@@ -21,6 +25,12 @@ inline ByteString demangle(StringView name)
         free(demangled_name);
     return string;
 }
+#else
+inline ByteString demangle(StringView name)
+{
+    return name;
+}
+#endif
 
 }
 
