@@ -2294,12 +2294,12 @@ void restore_the_values_of_nodes(Vector<RecordedNodeValue> const& values)
 
         // 2. If ancestor is not an Element, set it to its parent.
         if (!is<DOM::Element>(*ancestor))
-            ancestor = *ancestor->parent();
+            ancestor = ancestor->parent();
 
         // 3. While ancestor is an Element and its specified command value for command is null, set it to its parent.
         auto const& command = recorded_node_value.command;
-        while (is<DOM::Element>(*ancestor) && !specified_command_value(static_cast<DOM::Element&>(*ancestor), command).has_value())
-            ancestor = *ancestor->parent();
+        while (is<DOM::Element>(ancestor.ptr()) && !specified_command_value(static_cast<DOM::Element&>(*ancestor), command).has_value())
+            ancestor = ancestor->parent();
 
         // FIXME: 4. If value is null and ancestor is an Element, push down values on node for command, with new value null.
 
