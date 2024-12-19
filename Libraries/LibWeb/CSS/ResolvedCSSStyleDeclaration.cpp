@@ -203,7 +203,7 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
     // A limited number of properties have special rules for producing their "resolved value".
     // We also have to manually construct shorthands from their longhands here.
     // Everything else uses the computed value.
-    // https://www.w3.org/TR/cssom-1/#resolved-values
+    // https://drafts.csswg.org/cssom/#resolved-values
 
     // The resolved value for a given longhand property can be determined as follows:
     switch (property_id) {
