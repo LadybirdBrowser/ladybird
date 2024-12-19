@@ -249,7 +249,8 @@ import_wpt()
         set +e
         for path in "${TESTS[@]}"; do
             echo "Importing test from ${path}"
-            if [ ! "$(./Meta/import-wpt-test.py https://wpt.live/"${path}")" ]; then
+
+            if ! ./Meta/import-wpt-test.py https://wpt.live/"${path}"; then
                 continue
             fi
             "${HEADLESS_BROWSER_BINARY}" --run-tests ./Tests/LibWeb --rebaseline -f "$path"
