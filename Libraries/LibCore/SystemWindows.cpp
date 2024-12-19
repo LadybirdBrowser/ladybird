@@ -189,4 +189,10 @@ int getpid()
     return GetCurrentProcessId();
 }
 
+ErrorOr<void> sleep_ms(u32 milliseconds)
+{
+    Sleep(milliseconds);
+    return {};
+}
+
 }
