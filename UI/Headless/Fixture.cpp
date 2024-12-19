@@ -92,13 +92,9 @@ void HttpEchoServerFixture::teardown_impl()
     if (auto kill_or_error = Core::System::kill(m_process->pid(), SIGINT); kill_or_error.is_error()) {
         if (kill_or_error.error().code() != ESRCH) {
             warnln("Failed to kill HTTP echo server, error: {}", kill_or_error.error());
-            m_process = {};
-            return;
+        } else if (auto termination_or_error = m_process->wait_for_termination(); termination_or_error.is_error()) {
+            warnln("Failed to terminate HTTP echo server, error: {}", termination_or_error.error());
         }
-    }
-
-    if (auto termination_or_error = m_process->wait_for_termination(); termination_or_error.is_error()) {
-        warnln("Failed to terminate HTTP echo server, error: {}", termination_or_error.error());
     }
 
     m_process = {};
