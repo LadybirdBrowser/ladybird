@@ -595,7 +595,7 @@ bool is_animatable_property(PropertyID property_id)
 
 bool is_inherited_property(PropertyID property_id)
 {
-    if (property_id >= first_inherited_shorthand_property_id && property_id <= last_inherited_longhand_property_id)
+    if (property_id >= first_inherited_shorthand_property_id && property_id <= last_inherited_shorthand_property_id)
         return true;
     if (property_id >= first_inherited_longhand_property_id && property_id <= last_inherited_longhand_property_id)
         return true;
