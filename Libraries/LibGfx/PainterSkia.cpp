@@ -195,7 +195,8 @@ void PainterSkia::stroke_path(Gfx::Path const& path, Gfx::PaintStyle const& pain
     auto sk_path = to_skia_path(path);
     auto paint = to_skia_paint(paint_style, filters);
     paint.setAntiAlias(true);
-    paint.setAlphaf(global_alpha);
+    float alpha = paint.getAlphaf();
+    paint.setAlphaf(alpha * global_alpha);
     paint.setStyle(SkPaint::Style::kStroke_Style);
     paint.setStrokeWidth(thickness);
     impl().canvas()->drawPath(sk_path, paint);
@@ -228,7 +229,8 @@ void PainterSkia::fill_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_
     sk_path.setFillType(to_skia_path_fill_type(winding_rule));
     auto paint = to_skia_paint(paint_style, filters);
     paint.setAntiAlias(true);
-    paint.setAlphaf(global_alpha);
+    float alpha = paint.getAlphaf();
+    paint.setAlphaf(alpha * global_alpha);
     impl().canvas()->drawPath(sk_path, paint);
 }
 
