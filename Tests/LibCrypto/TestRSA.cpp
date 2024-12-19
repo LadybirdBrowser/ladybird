@@ -25,8 +25,9 @@ TEST_CASE(test_RSA_raw_encrypt)
         "8126832723025844890518845777858816391166654950553329127845898924164623511718747856014227624997335860970996746552094406240834082304784428582653994490504519"_bigint,
         "65537"_bigint,
     });
-    u8 buffer[rsa.output_size()];
-    auto buf = Bytes { buffer, sizeof(buffer) };
+    ByteBuffer buffer = {};
+    buffer.resize(rsa.output_size());
+    auto buf = buffer.bytes();
     rsa.encrypt(data, buf);
     EXPECT(memcmp(result, buf.data(), buf.size()) == 0);
 }
@@ -36,8 +37,9 @@ TEST_CASE(test_RSA_PKCS_1_encrypt)
 {
     ByteBuffer data { "hellohellohellohellohellohellohellohellohello123-"_b };
     Crypto::PK::RSA_PKCS1_EME rsa(Crypto::PK::RSA::generate_key_pair(1024));
-    u8 buffer[rsa.output_size()];
-    auto buf = Bytes { buffer, sizeof(buffer) };
+    ByteBuffer buffer = {};
+    buffer.resize(rsa.output_size());
+    auto buf = buffer.bytes();
     rsa.encrypt(data, buf);
     rsa.decrypt(buf, buf);
 
@@ -134,11 +136,14 @@ c8yGzl89pYST
 
     EXPECT_EQ(keypem, StringView(priv_pem));
 
-    u8 enc_buffer[rsa_from_pair.output_size()];
-    u8 dec_buffer[rsa_from_pair.output_size()];
+    ByteBuffer enc_buffer = {};
+    enc_buffer.resize(rsa_from_pair.output_size());
 
-    auto enc = Bytes { enc_buffer, rsa_from_pair.output_size() };
-    auto dec = Bytes { dec_buffer, rsa_from_pair.output_size() };
+    ByteBuffer dec_buffer = {};
+    dec_buffer.resize(rsa_from_pair.output_size());
+
+    auto enc = enc_buffer.bytes();
+    auto dec = dec_buffer.bytes();
 
     dec.overwrite(0, "WellHelloFriends", 16);
 
@@ -152,11 +157,14 @@ TEST_CASE(test_RSA_encrypt_decrypt)
 {
     Crypto::PK::RSA rsa(Crypto::PK::RSA::generate_key_pair(1024));
 
-    u8 enc_buffer[rsa.output_size()];
-    u8 dec_buffer[rsa.output_size()];
+    ByteBuffer enc_buffer = {};
+    enc_buffer.resize(rsa.output_size());
 
-    auto enc = Bytes { enc_buffer, rsa.output_size() };
-    auto dec = Bytes { dec_buffer, rsa.output_size() };
+    ByteBuffer dec_buffer = {};
+    dec_buffer.resize(rsa.output_size());
+
+    auto enc = enc_buffer.bytes();
+    auto dec = dec_buffer.bytes();
 
     enc.overwrite(0, "WellHelloFriendsWellHelloFriendsWellHelloFriendsWellHelloFriends", 64);
 

@@ -96,12 +96,12 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_SIMULATE_ID  MATCHES
 
     add_cxx_compile_options(-Wno-implicit-const-int-float-conversion)
     add_cxx_compile_options(-Wno-user-defined-literals)
-    add_cxx_compile_options(-Wno-vla-cxx-extension)
     add_cxx_compile_options(-Wno-unqualified-std-cast-call)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # Only ignore expansion-to-defined for g++, clang's implementation doesn't complain about function-like macros
     add_cxx_compile_options(-Wno-expansion-to-defined)
     add_cxx_compile_options(-Wno-literal-suffix)
+    add_cxx_compile_options(-Wvla)
 
     # FIXME: This warning seems useful but has too many false positives with GCC 13.
     add_cxx_compile_options(-Wno-dangling-reference)
