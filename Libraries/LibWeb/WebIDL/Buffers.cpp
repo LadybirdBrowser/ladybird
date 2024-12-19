@@ -29,6 +29,21 @@ u32 BufferableObjectBase::byte_length() const
         [](GC::Ref<JS::ArrayBuffer> array_buffer) { return static_cast<u32>(array_buffer->byte_length()); });
 }
 
+u32 BufferableObjectBase::element_size() const
+{
+    return m_bufferable_object.visit(
+        [](GC::Ref<JS::TypedArrayBase> typed_array) -> u32 {
+            auto typed_array_record = JS::make_typed_array_with_buffer_witness_record(typed_array, JS::ArrayBuffer::Order::SeqCst);
+            return typed_array_record.object->element_size();
+        },
+        [](GC::Ref<JS::DataView>) -> u32 {
+            return 1;
+        },
+        [](GC::Ref<JS::ArrayBuffer>) -> u32 {
+            return 1;
+        });
+}
+
 GC::Ref<JS::Object> BufferableObjectBase::raw_object()
 {
     return m_bufferable_object.visit([](auto const& obj) -> GC::Ref<JS::Object> { return obj; });

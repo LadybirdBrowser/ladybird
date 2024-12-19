@@ -298,7 +298,7 @@ interface mixin WebGL2RenderingContextBase {
     // Framebuffer objects
     undefined blitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter);
     [FIXME] undefined framebufferTextureLayer(GLenum target, GLenum attachment, WebGLTexture? texture, GLint level, GLint layer);
-    [FIXME] undefined invalidateFramebuffer(GLenum target, sequence<GLenum> attachments);
+    undefined invalidateFramebuffer(GLenum target, sequence<GLenum> attachments);
     [FIXME] undefined invalidateSubFramebuffer(GLenum target, sequence<GLenum> attachments, GLint x, GLint y, GLsizei width, GLsizei height);
     undefined readBuffer(GLenum src);
 
@@ -422,9 +422,9 @@ interface mixin WebGL2RenderingContextBase {
     [FIXME] sequence<GLuint>? getUniformIndices(WebGLProgram program, sequence<DOMString> uniformNames);
     [FIXME] any getActiveUniforms(WebGLProgram program, sequence<GLuint> uniformIndices, GLenum pname);
     [FIXME] GLuint getUniformBlockIndex(WebGLProgram program, DOMString uniformBlockName);
-    [FIXME] any getActiveUniformBlockParameter(WebGLProgram program, GLuint uniformBlockIndex, GLenum pname);
-    [FIXME] DOMString? getActiveUniformBlockName(WebGLProgram program, GLuint uniformBlockIndex);
-    [FIXME] undefined uniformBlockBinding(WebGLProgram program, GLuint uniformBlockIndex, GLuint uniformBlockBinding);
+    any getActiveUniformBlockParameter(WebGLProgram program, GLuint uniformBlockIndex, GLenum pname);
+    DOMString? getActiveUniformBlockName(WebGLProgram program, GLuint uniformBlockIndex);
+    undefined uniformBlockBinding(WebGLProgram program, GLuint uniformBlockIndex, GLuint uniformBlockBinding);
 
     // Vertex Array Objects
     WebGLVertexArrayObject createVertexArray();

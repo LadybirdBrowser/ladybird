@@ -30,7 +30,11 @@ static bool is_webgl_object_type(StringView type_name)
 
 static bool gl_function_modifies_framebuffer(StringView function_name)
 {
-    return function_name == "clearColor"sv || function_name == "drawArrays"sv || function_name == "drawElements"sv;
+    return function_name == "clear"sv
+        || function_name == "drawArrays"sv
+        || function_name == "drawElements"sv
+        || function_name == "blitFramebuffer"sv
+        || function_name == "invalidateFramebuffer"sv;
 }
 
 static ByteString to_cpp_type(const IDL::Type& type, const IDL::Interface& interface)
@@ -317,6 +321,40 @@ static void generate_get_internal_format_parameter(SourceGenerator& generator)
 )~~~");
 }
 
+static void generate_get_active_uniform_block_parameter(SourceGenerator& generator)
+{
+    generator.append(R"~~~(
+    GLuint program_handle = program ? program->handle() : 0;
+    switch (pname) {
+    case GL_UNIFORM_BLOCK_BINDING:
+    case GL_UNIFORM_BLOCK_DATA_SIZE:
+    case GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS: {
+        GLint result = 0;
+        glGetActiveUniformBlockiv(program_handle, uniform_block_index, pname, &result);
+        return JS::Value(result);
+    }
+    case GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES: {
+        GLint num_active_uniforms = 0;
+        glGetActiveUniformBlockiv(program_handle, uniform_block_index, GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS, &num_active_uniforms);
+        auto active_uniform_indices_buffer = MUST(ByteBuffer::create_zeroed(num_active_uniforms * sizeof(GLint)));
+        glGetActiveUniformBlockiv(program_handle, uniform_block_index, GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES, reinterpret_cast<GLint*>(active_uniform_indices_buffer.data()));
+        auto array_buffer = JS::ArrayBuffer::create(m_realm, move(active_uniform_indices_buffer));
+        return JS::Uint32Array::create(m_realm, num_active_uniforms, array_buffer);
+    }
+    case GL_UNIFORM_BLOCK_REFERENCED_BY_VERTEX_SHADER:
+    case GL_UNIFORM_BLOCK_REFERENCED_BY_FRAGMENT_SHADER: {
+        GLint result = 0;
+        glGetActiveUniformBlockiv(program_handle, uniform_block_index, pname, &result);
+        return JS::Value(result == GL_TRUE ? true : false);
+    }
+    default:
+        dbgln("Unknown WebGL active unform block parameter name: {:x}", pname);
+        set_error(GL_INVALID_ENUM);
+        return JS::js_null();
+    }
+)~~~");
+}
+
 ErrorOr<int> serenity_main(Main::Arguments arguments)
 {
     StringView generated_header_path;
@@ -546,6 +584,14 @@ public:
             continue;
         }
 
+        if (function.name == "invalidateFramebuffer"sv) {
+            function_impl_generator.append(R"~~~(
+    glInvalidateFramebuffer(target, attachments.size(), attachments.data());
+    needs_to_present();
+)~~~");
+            continue;
+        }
+
         if (function.name == "createVertexArray"sv) {
             function_impl_generator.append(R"~~~(
     GLuint handle = 0;
@@ -762,9 +808,70 @@ public:
             continue;
         }
 
+        if (function.name == "getActiveUniformBlockParameter"sv) {
+            generate_get_active_uniform_block_parameter(function_impl_generator);
+            continue;
+        }
+
         if (function.name == "bufferData"sv && function.overload_index == 0) {
             function_impl_generator.append(R"~~~(
     glBufferData(target, size, 0, usage);
+)~~~");
+            continue;
+        }
+
+        if (webgl_version == 2 && function.name == "bufferData"sv && function.overload_index == 2) {
+            function_impl_generator.append(R"~~~(
+    VERIFY(src_data);
+    auto const& viewed_array_buffer = src_data->viewed_array_buffer();
+    auto const& byte_buffer = viewed_array_buffer->buffer();
+    auto src_data_length = src_data->byte_length();
+    auto src_data_element_size = src_data->element_size();
+    u8 const* buffer_ptr = byte_buffer.data();
+
+    u64 copy_length = length == 0 ? src_data_length - src_offset : length;
+    copy_length *= src_data_element_size;
+
+    if (src_offset > src_data_length) {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+
+    if (src_offset + copy_length > src_data_length) {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+
+    buffer_ptr += src_offset * src_data_element_size;
+    glBufferData(target, copy_length, buffer_ptr, usage);
+)~~~");
+            continue;
+        }
+
+        if (webgl_version == 2 && function.name == "bufferSubData"sv && function.overload_index == 1) {
+            function_impl_generator.append(R"~~~(
+    VERIFY(src_data);
+    auto const& viewed_array_buffer = src_data->viewed_array_buffer();
+    auto const& byte_buffer = viewed_array_buffer->buffer();
+    auto src_data_length = src_data->byte_length();
+    auto src_data_element_size = src_data->element_size();
+    u8 const* buffer_ptr = byte_buffer.data();
+
+    u64 copy_length = length == 0 ? src_data_length - src_offset : length;
+    copy_length *= src_data_element_size;
+
+    if (src_offset > src_data_length) {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+
+    if (src_offset + copy_length > src_data_length) {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+
+    buffer_ptr += src_offset * src_data_element_size;
+    glBufferSubData(target, dst_byte_offset, copy_length, buffer_ptr);
 )~~~");
             continue;
         }
@@ -834,14 +941,16 @@ public:
 
             if (webgl_version == 2) {
                 function_impl_generator.append(R"~~~(
+    if (src_offset + src_length > count) {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+
     raw_data += src_offset;
     if (src_length == 0) {
         count -= src_offset;
-    }
-
-    if (src_offset + src_length <= count) {
-        set_error(GL_INVALID_VALUE);
-        return;
+    } else {
+        count = src_length;
     }
 )~~~");
             }
@@ -886,14 +995,16 @@ public:
 
             if (webgl_version == 2) {
                 function_impl_generator.append(R"~~~(
+    if (src_offset + src_length > count) {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+
     data += src_offset;
     if (src_length == 0) {
         count -= src_offset;
-    }
-
-    if (src_offset + src_length <= count) {
-        set_error(GL_INVALID_VALUE);
-        return;
+    } else {
+        count = src_length;
     }
 )~~~");
             }
@@ -1003,6 +1114,20 @@ public:
             continue;
         }
 
+        if (function.name == "getActiveUniformBlockName"sv) {
+            function_impl_generator.append(R"~~~(
+    GLint uniform_block_name_length = 0;
+    glGetActiveUniformBlockiv(program->handle(), uniform_block_index, GL_UNIFORM_BLOCK_NAME_LENGTH, &uniform_block_name_length);
+    Vector<GLchar> uniform_block_name;
+    uniform_block_name.resize(uniform_block_name_length);
+    if (!uniform_block_name_length)
+        return String {};
+    glGetActiveUniformBlockName(program->handle(), uniform_block_index, uniform_block_name_length, nullptr, uniform_block_name.data());
+    return String::from_utf8_without_validation(ReadonlyBytes { uniform_block_name.data(), static_cast<size_t>(uniform_block_name_length - 1) });
+)~~~");
+            continue;
+        }
+
         if (function.name == "deleteBuffer"sv) {
             function_impl_generator.append(R"~~~(
     auto handle = buffer ? buffer->handle() : 0;
@@ -1015,6 +1140,14 @@ public:
             function_impl_generator.append(R"~~~(
     auto handle = framebuffer ? framebuffer->handle() : 0;
     glDeleteFramebuffers(1, &handle);
+)~~~");
+            continue;
+        }
+
+        if (function.name == "deleteRenderbuffer"sv) {
+            function_impl_generator.append(R"~~~(
+    auto handle = renderbuffer ? renderbuffer->handle() : 0;
+    glDeleteRenderbuffers(1, &handle);
 )~~~");
             continue;
         }

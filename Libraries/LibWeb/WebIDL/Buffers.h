@@ -27,6 +27,7 @@ public:
     virtual ~BufferableObjectBase() override = default;
 
     u32 byte_length() const;
+    u32 element_size() const;
 
     GC::Ref<JS::Object> raw_object();
     GC::Ref<JS::Object const> raw_object() const { return const_cast<BufferableObjectBase&>(*this).raw_object(); }
