@@ -16,7 +16,9 @@ typedef OnBeforeUnloadEventHandlerNonNull? OnBeforeUnloadEventHandler;
 interface mixin GlobalEventHandlers {
     attribute EventHandler onabort;
     attribute EventHandler onauxclick;
+    attribute EventHandler onbeforeinput;
     // TODO: attribute EventHandler onbeforematch;
+    attribute EventHandler onbeforetoggle;
     attribute EventHandler onblur;
     attribute EventHandler oncancel;
     attribute EventHandler oncanplay;
@@ -27,7 +29,9 @@ interface mixin GlobalEventHandlers {
     // TODO: attribute EventHandler oncontextlost;
     attribute EventHandler oncontextmenu;
     // TODO: attribute EventHandler oncontextrestored;
+    attribute EventHandler oncopy;
     attribute EventHandler oncuechange;
+    attribute EventHandler oncut;
     attribute EventHandler ondblclick;
     attribute EventHandler ondrag;
     attribute EventHandler ondragend;
@@ -60,6 +64,7 @@ interface mixin GlobalEventHandlers {
     attribute EventHandler onmouseout;
     attribute EventHandler onmouseover;
     attribute EventHandler onmouseup;
+    attribute EventHandler onpaste;
     attribute EventHandler onpause;
     attribute EventHandler onplay;
     attribute EventHandler onplaying;
@@ -68,6 +73,7 @@ interface mixin GlobalEventHandlers {
     attribute EventHandler onreset;
     attribute EventHandler onresize;
     attribute EventHandler onscroll;
+    attribute EventHandler onscrollend;
     attribute EventHandler onsecuritypolicyviolation;
     attribute EventHandler onseeked;
     attribute EventHandler onseeking;
@@ -113,7 +119,9 @@ interface mixin WindowEventHandlers {
     attribute EventHandler onoffline;
     attribute EventHandler ononline;
     attribute EventHandler onpagehide;
+    attribute EventHandler onpagereveal;
     attribute EventHandler onpageshow;
+    attribute EventHandler onpageswap;
     attribute EventHandler onpopstate;
     attribute EventHandler onrejectionhandled;
     attribute EventHandler onstorage;
