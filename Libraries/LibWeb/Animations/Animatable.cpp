@@ -187,14 +187,21 @@ void Animatable::visit_edges(JS::Cell::Visitor& visitor)
 
 GC::Ptr<CSS::CSSStyleDeclaration const> Animatable::cached_animation_name_source(Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
 {
-    if (pseudo_element.has_value())
+    if (pseudo_element.has_value()) {
+        if (!CSS::Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element.value())) {
+            return {};
+        }
         return m_cached_animation_name_source[to_underlying(pseudo_element.value()) + 1];
+    }
     return m_cached_animation_name_source[0];
 }
 
 void Animatable::set_cached_animation_name_source(GC::Ptr<CSS::CSSStyleDeclaration const> value, Optional<CSS::Selector::PseudoElement::Type> pseudo_element)
 {
     if (pseudo_element.has_value()) {
+        if (!CSS::Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element.value())) {
+            return;
+        }
         m_cached_animation_name_source[to_underlying(pseudo_element.value()) + 1] = value;
     } else {
         m_cached_animation_name_source[0] = value;
@@ -203,18 +210,27 @@ void Animatable::set_cached_animation_name_source(GC::Ptr<CSS::CSSStyleDeclarati
 
 GC::Ptr<Animations::Animation> Animatable::cached_animation_name_animation(Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
 {
-    if (pseudo_element.has_value())
+    if (pseudo_element.has_value()) {
+        if (!CSS::Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element.value())) {
+            return {};
+        }
+
         return m_cached_animation_name_animation[to_underlying(pseudo_element.value()) + 1];
+    }
     return m_cached_animation_name_animation[0];
 }
 
 void Animatable::set_cached_animation_name_animation(GC::Ptr<Animations::Animation> value, Optional<CSS::Selector::PseudoElement::Type> pseudo_element)
 {
+
     if (pseudo_element.has_value()) {
+        if (!CSS::Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element.value())) {
+            return;
+        }
+
         m_cached_animation_name_animation[to_underlying(pseudo_element.value()) + 1] = value;
     } else {
         m_cached_animation_name_animation[0] = value;
     }
 }
-
 }
