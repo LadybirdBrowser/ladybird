@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<title>Static position inside inline-block</title>
+<link rel="author" title="Martin Robinson" href="mrobinson@igalia.com">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visudet.html#abs-non-replaced-width" title="10.3.7 Absolutely positioned, non-replaced elements">
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="display: inline-block; width: 100px; height: 100px;"></div>
+<div style="display: inline-block; width: 100px; height: 100px; background: red;">
+    <div style="width: 100px; height: 100px; background: green;"></div>
+</div>
+<div style="display: inline-block; width: 100px; height: 100px;"></div>
