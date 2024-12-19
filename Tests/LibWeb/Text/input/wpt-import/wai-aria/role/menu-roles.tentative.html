@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+<head>
+    <title>Tentative: Menu-related Role Verification Tests</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../../resources/testdriver.js"></script>
+    <script src="../../resources/testdriver-vendor.js"></script>
+    <script src="../../resources/testdriver-actions.js"></script>
+    <script src="../../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+<!--
+  CORE-AAM requires that, for elements with roles not contained in the
+  required context, user agents must ignore the role token and return the
+  computed role as if the ignored role token had not been included.
+  See https://w3c.github.io/core-aam/#roleMappingComputedRole
+-->
+<nav role="menuitem" data-testname="orphaned menuitem outside the context of menu/menubar" data-expectedrole="navigation"
+     class="ex">x
+</nav>
+<nav role="menuitemradio" data-testname="orphaned menuitemradio outside the context of menu/menubar" data-expectedrole="navigation"
+     class="ex">x
+</nav>
+<nav role="menuitemcheckbox" data-testname="orphaned menuitemcheckbox outside the context of menu/menubar" data-expectedrole="navigation"
+     class="ex">x
+</nav>
+
+<button role="menuitem" data-testname="orphan button with menuitem role" data-expectedrole="button" class="ex">x</button>
+<div role="menuitem" data-testname="orphan div with menuitem role" class="ex-generic">x</div>
+
+<button role="menuitemcheckbox" data-testname="orphan button with menuitemcheckbox role" data-expectedrole="button" class="ex">x</button>
+<div role="menuitemcheckbox" data-testname="orphan div with menuitemcheckbox role" class="ex-generic">x</div>
+
+<button role="menuitemradio" data-testname="orphan button with menuitemradio role" data-expectedrole="button" class="ex">x</button>
+<div role="menuitemradio" data-testname="orphan div with menuitemradio role" class="ex-generic">x</div>
+
+<script>
+    AriaUtils.verifyRolesBySelector(".ex");
+    AriaUtils.verifyGenericRolesBySelector(".ex-generic");
+</script>
+
+</body>
+</html>
