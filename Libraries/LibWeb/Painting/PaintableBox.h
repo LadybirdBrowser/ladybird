@@ -21,6 +21,8 @@
 
 namespace Web::Painting {
 
+extern bool g_paint_viewport_scrollbars;
+
 class PaintableBox : public Paintable
     , public ClippableAndScrollable {
     GC_CELL(PaintableBox, Paintable);
