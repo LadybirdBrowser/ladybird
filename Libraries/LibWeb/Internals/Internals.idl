@@ -6,6 +6,8 @@
 interface Internals {
 
     undefined signalTextTestIsDone(DOMString text);
+    undefined setTestTimeout(double milliseconds);
+
     undefined gc();
     object hitTest(double x, double y);
 
