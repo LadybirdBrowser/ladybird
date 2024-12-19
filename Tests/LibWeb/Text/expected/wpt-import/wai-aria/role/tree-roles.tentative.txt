@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	orphaned treeitem outside the context of tree
+Pass	orphaned button with treeitem role outside tree context
