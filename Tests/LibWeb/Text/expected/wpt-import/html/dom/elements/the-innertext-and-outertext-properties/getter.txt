@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 271 tests
 
-210 Pass
-61 Fail
+217 Pass
+54 Fail
 Pass	Simplest possible test ("<div>abc")
 Fail	Leading whitespace removed ("<div> abc")
 Fail	Trailing whitespace removed ("<div>abc ")
@@ -35,8 +35,8 @@ Pass	\t preserved ("<span style='white-space:pre'>abc\tdef")
 Fail	Leading whitespace removed ("<div style='white-space:pre-line'> abc")
 Fail	Trailing whitespace removed ("<div style='white-space:pre-line'>abc ")
 Pass	Internal whitespace collapsed ("<div style='white-space:pre-line'>abc  def")
-Fail	\n preserved ("<div style='white-space:pre-line'>abc\ndef")
-Fail	\r converted to newline ("<div style='white-space:pre-line'>abc\rdef")
+Pass	\n preserved ("<div style='white-space:pre-line'>abc\ndef")
+Pass	\r converted to newline ("<div style='white-space:pre-line'>abc\rdef")
 Pass	\t converted to space ("<div style='white-space:pre-line'>abc\tdef")
 Fail	Whitespace collapses across element boundaries ("<div><span>abc </span> def")
 Fail	Whitespace collapses across element boundaries ("<div><span>abc </span><span></span> def")
@@ -215,13 +215,13 @@ Fail	 ("<table><tfoot><tr><td>footer</tfoot><thead><tr><td style='visibility:col
 Pass	No tab on table-cell itself ("<table><tr><td id=target>abc</td><td>def</td>")
 Pass	No newline on table-row itself ("<table><tr id=target><td>abc</td><td>def</td></tr><tr id=target><td>ghi</td><td>jkl</td></tr>")
 Pass	Newline between cells and caption ("<div><table><tr><td>abc<caption>def</caption></table>")
-Fail	Tab-separated table cells ("<div><div class='table'><span class='cell'>abc</span>\n<span class='cell'>def</span></div>")
-Fail	Newline-separated table rows ("<div><div class='table'><span class='row'><span class='cell'>abc</span></span>\n<span class='row'><span class='cell'>def</span></span></div>")
+Pass	Tab-separated table cells ("<div><div class='table'><span class='cell'>abc</span>\n<span class='cell'>def</span></div>")
+Pass	Newline-separated table rows ("<div><div class='table'><span class='row'><span class='cell'>abc</span></span>\n<span class='row'><span class='cell'>def</span></span></div>")
 Pass	Newlines around table ("<div>abc<div class='table'><span class='cell'>def</span></div>ghi")
-Fail	Tab-separated table cells ("<div><div class='itable'><span class='cell'>abc</span>\n<span class='cell'>def</span></div>")
-Fail	Newline-separated table rows ("<div><div class='itable'><span class='row'><span class='cell'>abc</span></span>\n<span class='row'><span class='cell'>def</span></span></div>")
+Pass	Tab-separated table cells ("<div><div class='itable'><span class='cell'>abc</span>\n<span class='cell'>def</span></div>")
+Pass	Newline-separated table rows ("<div><div class='itable'><span class='row'><span class='cell'>abc</span></span>\n<span class='row'><span class='cell'>def</span></span></div>")
 Pass	No newlines around inline-table ("<div>abc<div class='itable'><span class='cell'>def</span></div>ghi")
-Fail	Single newline in two-row inline-table ("<div>abc<div class='itable'><span class='row'><span class='cell'>def</span></span>\n<span class='row'><span class='cell'>123</span></span></div>ghi")
+Pass	Single newline in two-row inline-table ("<div>abc<div class='itable'><span class='row'><span class='cell'>def</span></span>\n<span class='row'><span class='cell'>123</span></span></div>ghi")
 Pass	display:table-row on the element itself ("<div style='display:table-row'>")
 Pass	display:table-cell on the element itself ("<div style='display:table-cell'>")
 Pass	display:table-caption on the element itself ("<div style='display:table-caption'>")
