@@ -233,23 +233,27 @@ import_wpt()
         INPUT_PATHS[i]="$item"
     done
 
-    TESTS=()
+    RAW_TESTS=()
     while IFS= read -r test_file; do
-        TESTS+=("$test_file")
+        RAW_TESTS+=("${test_file%%\?*}")
     done < <(
         "${ARG0}" list-tests "${INPUT_PATHS[@]}"
     )
-    if [ "${#TESTS[@]}" -eq 0 ]; then
+    if [ "${#RAW_TESTS[@]}" -eq 0 ]; then
         echo "No tests found for the given paths"
         exit 1
     fi
+
+    TESTS=()
+    while IFS= read -r test_file; do
+        TESTS+=("$test_file")
+    done < <(printf "%s\n" "${RAW_TESTS[@]}" | sort -u)
 
     pushd "${LADYBIRD_SOURCE_DIR}" > /dev/null
         ./Meta/ladybird.sh build headless-browser
         set +e
         for path in "${TESTS[@]}"; do
             echo "Importing test from ${path}"
-
             if ! ./Meta/import-wpt-test.py https://wpt.live/"${path}"; then
                 continue
             fi
