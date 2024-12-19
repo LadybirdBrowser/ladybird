@@ -37,6 +37,9 @@ public:
     void set_onclose(WebIDL::CallbackType*);
     WebIDL::CallbackType* onclose();
 
+    bool get_enabled_state() const { return m_enabled_state; }
+    void set_enabled_state(bool enabled) { m_enabled_state = enabled; }
+
 private:
     CloseWatcher(JS::Realm&);
 
@@ -44,6 +47,7 @@ private:
 
     bool m_is_running_cancel_action { false };
     bool m_is_active { true };
+    bool m_enabled_state { true };
 };
 
 }
