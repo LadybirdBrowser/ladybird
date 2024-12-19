@@ -215,6 +215,7 @@ public:
     Function<void(Web::KeyEvent const&)> on_finish_handling_key_event;
     Function<void(Web::DragEvent const&)> on_finish_handling_drag_event;
     Function<void(String const&)> on_text_test_finish;
+    Function<void(double milliseconds)> on_set_test_timeout;
     Function<void(size_t current_match_index, Optional<size_t> const& total_match_count)> on_find_in_page;
     Function<void(Gfx::Color)> on_theme_color_change;
     Function<void(String const&, String const&, String const&)> on_insert_clipboard_entry;

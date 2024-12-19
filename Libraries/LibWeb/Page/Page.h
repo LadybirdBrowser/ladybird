@@ -382,6 +382,7 @@ public:
     virtual void page_did_request_select_dropdown([[maybe_unused]] Web::CSSPixelPoint content_position, [[maybe_unused]] Web::CSSPixels minimum_width, [[maybe_unused]] Vector<Web::HTML::SelectItem> items) { }
 
     virtual void page_did_finish_text_test([[maybe_unused]] String const& text) { }
+    virtual void page_did_set_test_timeout([[maybe_unused]] double milliseconds) { }
 
     virtual void page_did_change_theme_color(Gfx::Color) { }
 

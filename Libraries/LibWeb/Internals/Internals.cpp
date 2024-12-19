@@ -53,6 +53,11 @@ void Internals::signal_text_test_is_done(String const& text)
     internals_page().client().page_did_finish_text_test(text);
 }
 
+void Internals::set_test_timeout(double milliseconds)
+{
+    internals_page().client().page_did_set_test_timeout(milliseconds);
+}
+
 void Internals::gc()
 {
     vm().heap().collect_garbage();

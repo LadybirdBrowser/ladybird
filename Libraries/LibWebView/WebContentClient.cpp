@@ -93,6 +93,14 @@ void WebContentClient::did_finish_text_test(u64 page_id, String const& text)
     }
 }
 
+void WebContentClient::did_set_test_timeout(u64 page_id, double milliseconds)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_set_test_timeout)
+            view->on_set_test_timeout(milliseconds);
+    }
+}
+
 void WebContentClient::did_find_in_page(u64 page_id, size_t current_match_index, Optional<size_t> const& total_match_count)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
