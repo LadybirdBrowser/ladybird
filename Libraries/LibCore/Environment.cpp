@@ -23,6 +23,8 @@ char** raw_environ()
 {
 #if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
     return *_NSGetEnviron();
+#elif defined AK_OS_WINDOWS
+    return *__p__environ();
 #else
     return environ;
 #endif
@@ -178,7 +180,7 @@ ErrorOr<void> clear()
     }
 #elif defined(AK_OS_WINDOWS)
     // environ = 0 doesn't work on Windows
-    while (auto str = environ[0]) {
+    while (auto str = raw_environ()[0]) {
         auto eq = strchr(str, '=');
         VERIFY(eq);
         size_t name_len = eq - str;
