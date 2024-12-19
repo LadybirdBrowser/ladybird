@@ -104,7 +104,7 @@ A number of tree fix-ups are also performed:
 Layout starts at the ICB (initial containing block), which is the layout node that corresponds to the DOM document node.
 CSS says that the ICB should be the size of the viewport, so the very first thing layout does is assign these dimensions.
 
-Layout works through a mechanism that calls formatting contexts. CSS defines a number of different formatting contexts:
+Layout works through a mechanism called formatting contexts. CSS defines a number of different formatting contexts:
 - Block Formatting Context (BFC)
 - Inline Formatting Context (IFC)
 - Table Formatting Context (TFC)
