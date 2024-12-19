@@ -187,24 +187,21 @@ Bindings::CanPlayTypeResult HTMLMediaElement::can_play_type(StringView type) con
     auto mime_type = MimeSniff::MimeType::parse(type);
 
     if (mime_type.has_value() && mime_type->type() == "video"sv) {
-        if (mime_type->subtype() == "webm"sv)
+        if (supported_video_subtypes.contains_slow(mime_type->subtype()))
             return Bindings::CanPlayTypeResult::Probably;
         return Bindings::CanPlayTypeResult::Maybe;
     }
 
     if (mime_type.has_value() && mime_type->type() == "audio"sv) {
-        if (mime_type->subtype() == "flac"sv)
-            return Bindings::CanPlayTypeResult::Probably;
-        if (mime_type->subtype() == "mp3"sv)
-            return Bindings::CanPlayTypeResult::Probably;
+        auto result = Bindings::CanPlayTypeResult::Maybe;
+        if (supported_audio_subtypes.contains_slow(mime_type->subtype()))
+            result = Bindings::CanPlayTypeResult::Probably;
+
         // "Maybe" because we support mp3, but "mpeg" can also refer to MP1 and MP2.
         if (mime_type->subtype() == "mpeg"sv)
-            return Bindings::CanPlayTypeResult::Maybe;
-        if (mime_type->subtype() == "ogg"sv)
-            return Bindings::CanPlayTypeResult::Probably;
-        if (mime_type->subtype() == "wav"sv)
-            return Bindings::CanPlayTypeResult::Probably;
-        return Bindings::CanPlayTypeResult::Maybe;
+            result = Bindings::CanPlayTypeResult::Maybe;
+
+        return result;
     }
 
     return Bindings::CanPlayTypeResult::Empty;
