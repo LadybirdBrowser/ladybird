@@ -49,10 +49,7 @@ Heap::~Heap()
 
 void Heap::will_allocate(size_t size)
 {
-    if (should_collect_on_every_allocation()) {
-        m_allocated_bytes_since_last_gc = 0;
-        collect_garbage();
-    } else if (m_allocated_bytes_since_last_gc + size > m_gc_bytes_threshold) {
+    if (should_collect_on_every_allocation() || (m_allocated_bytes_since_last_gc + size > m_gc_bytes_threshold)) {
         m_allocated_bytes_since_last_gc = 0;
         collect_garbage();
     }
@@ -62,26 +59,9 @@ void Heap::will_allocate(size_t size)
 
 static void add_possible_value(HashMap<FlatPtr, HeapRoot>& possible_pointers, FlatPtr data, HeapRoot origin, FlatPtr min_block_address, FlatPtr max_block_address)
 {
-    if constexpr (sizeof(FlatPtr*) == sizeof(NanBoxedValue)) {
-        // Because NanBoxedValue stores pointers in non-canonical form we have to check if the top bytes
-        // match any pointer-backed tag, in that case we have to extract the pointer to its
-        // canonical form and add that as a possible pointer.
-        FlatPtr possible_pointer;
-        if ((data & SHIFTED_IS_CELL_PATTERN) == SHIFTED_IS_CELL_PATTERN)
-            possible_pointer = NanBoxedValue::extract_pointer_bits(data);
-        else
-            possible_pointer = data;
-        if (possible_pointer < min_block_address || possible_pointer > max_block_address)
-            return;
-        possible_pointers.set(possible_pointer, move(origin));
-    } else {
-        static_assert((sizeof(NanBoxedValue) % sizeof(FlatPtr*)) == 0);
-        if (data < min_block_address || data > max_block_address)
-            return;
-        // In the 32-bit case we will look at the top and bottom part of NanBoxedValue separately we just
-        // add both the upper and lower bytes as possible pointers.
-        possible_pointers.set(data, move(origin));
-    }
+    if (data < min_block_address || data > max_block_address)
+        return;
+    possible_pointers.set(data, move(origin));
 }
 
 void Heap::find_min_and_max_block_addresses(FlatPtr& min_address, FlatPtr& max_address)
