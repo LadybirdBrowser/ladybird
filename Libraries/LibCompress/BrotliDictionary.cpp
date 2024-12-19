@@ -17,16 +17,22 @@ asm(".const_data\n"
 asm(".section .data, \"\",@\n"
     ".global brotli_dictionary_data\n"
     "brotli_dictionary_data:\n");
-#else
+#elif !defined AK_OS_WINDOWS
 asm(".section .rodata\n"
     ".global brotli_dictionary_data\n"
     "brotli_dictionary_data:\n");
 #endif
-asm(".incbin \"" __FILE__ ".dict.bin\"\n"
-#if (!defined(AK_OS_WINDOWS) && !defined(AK_OS_EMSCRIPTEN))
-    ".previous\n");
+#ifdef AK_OS_WINDOWS
+const
+#    include <LibCompress/BrotliDictionary.dict.h>
+    ; // for clang-format
 #else
+asm(".incbin \"" __FILE__ ".dict.bin\"\n"
+#    if (!defined(AK_OS_WINDOWS) && !defined(AK_OS_EMSCRIPTEN))
+    ".previous\n");
+#    else
 );
+#    endif
 #endif
 
 namespace Compress {
