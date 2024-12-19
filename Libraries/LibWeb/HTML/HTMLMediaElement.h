@@ -58,6 +58,20 @@ public:
 
     [[nodiscard]] GC::Ref<TimeRanges> buffered() const;
 
+    static inline constexpr auto supported_video_subtypes = Array {
+        "webm"sv,
+        "mp4"sv,
+        "mpeg"sv,
+        "ogg"sv,
+    };
+    static inline constexpr auto supported_audio_subtypes = Array {
+        "flac"sv,
+        "mp3"sv,
+        "mpeg"sv,
+        "ogg"sv,
+        "wav"sv,
+        "webm"sv,
+    };
     Bindings::CanPlayTypeResult can_play_type(StringView type) const;
 
     enum class ReadyState : u16 {
