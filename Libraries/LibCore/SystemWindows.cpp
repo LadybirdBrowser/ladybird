@@ -189,4 +189,12 @@ int getpid()
     return GetCurrentProcessId();
 }
 
+unsigned hardware_concurrency()
+{
+    SYSTEM_INFO si = {};
+    GetSystemInfo(&si);
+    // number of logical processors in the current group (max 64)
+    return si.dwNumberOfProcessors;
+}
+
 }
