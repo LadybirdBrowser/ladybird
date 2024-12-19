@@ -466,8 +466,14 @@ Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& e
     }
     if (auto it = rule_cache.rules_by_tag_name.find(element.local_name()); it != rule_cache.rules_by_tag_name.end())
         add_rules_to_run(it->value);
-    if (pseudo_element.has_value())
-        add_rules_to_run(rule_cache.rules_by_pseudo_element[to_underlying(pseudo_element.value())]);
+    if (pseudo_element.has_value()) {
+        if (CSS::Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element.value())) {
+            add_rules_to_run(rule_cache.rules_by_pseudo_element.at(to_underlying(pseudo_element.value())));
+        } else {
+            // NOTE: We don't cache rules for unknown pseudo-elements. They can't match anything anyway.
+        }
+    }
+
     if (element.is_document_element())
         add_rules_to_run(rule_cache.root_rules);
 
@@ -2632,7 +2638,7 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
                 }
                 if (!added_to_bucket) {
                     if (matching_rule.contains_pseudo_element) {
-                        if (to_underlying(pseudo_element.value()) < to_underlying(CSS::Selector::PseudoElement::Type::KnownPseudoElementCount)) {
+                        if (CSS::Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element.value())) {
                             rule_cache->rules_by_pseudo_element[to_underlying(pseudo_element.value())].append(move(matching_rule));
                         } else {
                             // NOTE: We don't cache rules for unknown pseudo-elements. They can't match anything anyway.
