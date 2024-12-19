@@ -698,6 +698,17 @@ TEST_CASE(test_negative_zero_is_not_allowed)
     EXPECT(!zero.is_negative());
 }
 
+TEST_CASE(test_i32_limits)
+{
+    Crypto::SignedBigInteger min { AK::NumericLimits<i32>::min() };
+    EXPECT(min.is_negative());
+    EXPECT(min.unsigned_value().to_u64() == static_cast<u32>(AK::NumericLimits<i32>::max()) + 1);
+
+    Crypto::SignedBigInteger max { AK::NumericLimits<i32>::max() };
+    EXPECT(!max.is_negative());
+    EXPECT(max.unsigned_value().to_u64() == AK::NumericLimits<i32>::max());
+}
+
 TEST_CASE(double_comparisons)
 {
 #define EXPECT_LESS_THAN(bigint, double_value) EXPECT_EQ(bigint.compare_to_double(double_value), Crypto::UnsignedBigInteger::CompareResult::DoubleGreaterThanBigInt)
