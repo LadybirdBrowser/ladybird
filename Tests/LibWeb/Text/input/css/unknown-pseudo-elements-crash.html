@@ -1,0 +1,7 @@
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        getComputedStyle(document.body, "::-webkit-scrollbar").display;
+        println("PASS (didn't crash)");
+    });
+</script>
