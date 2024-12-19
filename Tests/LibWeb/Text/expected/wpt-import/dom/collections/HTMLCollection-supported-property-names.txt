@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Object.getOwnPropertyNames on HTMLCollection
+Pass	Object.getOwnPropertyNames on HTMLCollection with non-HTML namespace
+Pass	Object.getOwnPropertyNames on HTMLCollection with expando object
+Pass	Trying to set an expando that would shadow an already-existing named property
+Pass	Trying to set an expando that shadows a named property that gets added later
+Pass	Trying to set a non-configurable expando that shadows a named property that gets added later
