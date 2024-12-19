@@ -303,8 +303,8 @@ TEST_CASE(roman_numerals)
     auto nine = ByteString::roman_number_from(9);
     EXPECT_EQ(nine, "IX");
 
-    auto fourty_eight = ByteString::roman_number_from(48);
-    EXPECT_EQ(fourty_eight, "XLVIII");
+    auto forty_eight = ByteString::roman_number_from(48);
+    EXPECT_EQ(forty_eight, "XLVIII");
 
     auto one_thousand_nine_hundred_ninety_eight = ByteString::roman_number_from(1998);
     EXPECT_EQ(one_thousand_nine_hundred_ninety_eight, "MCMXCVIII");
