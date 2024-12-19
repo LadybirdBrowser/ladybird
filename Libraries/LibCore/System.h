@@ -32,6 +32,7 @@
 #    include <termios.h>
 #    include <utime.h>
 #else
+#    include "SockAddr-Win.h"
 #    define O_CLOEXEC O_NOINHERIT
 using sighandler_t = void (*)(int);
 using socklen_t = int;
