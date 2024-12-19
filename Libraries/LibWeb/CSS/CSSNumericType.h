@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2023-2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,6 +8,7 @@
 
 #include <AK/Array.h>
 #include <AK/Optional.h>
+#include <AK/String.h>
 #include <LibWeb/CSS/PropertyID.h>
 
 namespace Web::CSS {
@@ -63,6 +64,10 @@ public:
     Optional<CSSNumericType> multiplied_by(CSSNumericType const& other) const;
     CSSNumericType inverted() const;
 
+    bool has_consistent_type_with(CSSNumericType const& other) const;
+    Optional<CSSNumericType> consistent_type(CSSNumericType const& other) const;
+    Optional<CSSNumericType> made_consistent_with(CSSNumericType const& other) const;
+
     bool matches_angle() const { return matches_dimension(BaseType::Angle); }
     bool matches_angle_percentage() const { return matches_dimension_percentage(BaseType::Angle); }
     bool matches_flex() const { return matches_dimension(BaseType::Flex); }
@@ -89,7 +94,7 @@ public:
 
     bool operator==(CSSNumericType const& other) const = default;
 
-    ErrorOr<String> dump() const;
+    String dump() const;
 
 private:
     bool contains_all_the_non_zero_entries_of_other_with_the_same_value(CSSNumericType const& other) const;
@@ -100,6 +105,7 @@ private:
     };
     void copy_all_entries_from(CSSNumericType const& other, SkipIfAlreadyPresent);
 
+    Optional<BaseType> entry_with_value_1_while_all_others_are_0() const;
     bool matches_dimension(BaseType) const;
     bool matches_dimension_percentage(BaseType) const;
 
@@ -108,3 +114,11 @@ private:
 };
 
 }
+
+template<>
+struct AK::Formatter<Web::CSS::CSSNumericType> : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, Web::CSS::CSSNumericType const& value)
+    {
+        return Formatter<StringView>::format(builder, value.dump());
+    }
+};

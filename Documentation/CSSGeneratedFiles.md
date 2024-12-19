@@ -149,7 +149,13 @@ This is a single JSON object, describing each [CSS math function](https://www.w3
 with the keys being the function name and the values being objects describing that function's properties.
 This generates `MathFunctions.h` and `MathFunctions.cpp`.
 
-Each entry currently has a single property, `parameters`, which is an array of parameter definition objects.
+Each entry has two properties:
+
+| Field                  | Description                                                                                                                                                                                                            |
+|------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `parameter-validation` | Optional string. Either "same" or "consistent", depending on whether the spec says the input calculations should be the same type or consistent types. Defaults to "same". Ignore this if there is only one parameter. |
+| `parameters`           | An array of parameter definition objects, see below.                                                                                                                                                                   |
+
 Parameter definitions have the following properties:
 
 | Field      | Description                                                                      |
