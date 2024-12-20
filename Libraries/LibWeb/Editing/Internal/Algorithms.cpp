@@ -2638,23 +2638,23 @@ GC::Ptr<DOM::Node> wrap(
         //    of node list are both inline nodes, and the last child of new parent is not a br, call createElement("br")
         //    on the ownerDocument of new parent and append the result as the last child of new parent.
         if (!is_inline_node(*new_parent)) {
-            auto last_visible_child = [&] -> GC::Ref<DOM::Node> {
+            auto last_visible_child = [&] -> GC::Ptr<DOM::Node> {
                 GC::Ptr<DOM::Node> child = new_parent->last_child();
                 while (child) {
                     if (is_visible_node(*child))
                         return *child;
                     child = child->previous_sibling();
                 }
-                VERIFY_NOT_REACHED();
+                return {};
             }();
-            auto first_visible_member = [&] -> GC::Ref<DOM::Node> {
+            auto first_visible_member = [&] -> GC::Ptr<DOM::Node> {
                 for (auto& member : node_list) {
                     if (is_visible_node(member))
                         return member;
                 }
-                VERIFY_NOT_REACHED();
+                return {};
             }();
-            if (is_inline_node(last_visible_child) && is_inline_node(first_visible_member)
+            if (last_visible_child && is_inline_node(*last_visible_child) && first_visible_member && is_inline_node(*first_visible_member)
                 && !is<HTML::HTMLBRElement>(new_parent->last_child())) {
                 auto br_element = MUST(DOM::create_element(*new_parent->owner_document(), HTML::TagNames::br, Namespace::HTML));
                 MUST(new_parent->append_child(br_element));
