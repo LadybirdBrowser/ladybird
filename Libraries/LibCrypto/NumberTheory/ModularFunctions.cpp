@@ -8,6 +8,7 @@
 #include <AK/Random.h>
 #include <LibCrypto/BigInt/Algorithms/UnsignedBigIntegerAlgorithms.h>
 #include <LibCrypto/NumberTheory/ModularFunctions.h>
+#include <LibCrypto/SecureRandom.h>
 
 namespace Crypto::NumberTheory {
 
@@ -172,7 +173,7 @@ UnsignedBigInteger random_number(UnsignedBigInteger const& min, UnsignedBigInteg
     auto buffer = ByteBuffer::create_uninitialized(size).release_value_but_fixme_should_propagate_errors(); // FIXME: Handle possible OOM situation.
     auto* buf = buffer.data();
 
-    fill_with_random(buffer);
+    fill_with_secure_random(buffer);
     UnsignedBigInteger random { buf, size };
     // At this point, `random` is a large number, in the range [0, 256^size).
     // To get down to the actual range, we could just compute random % range.
