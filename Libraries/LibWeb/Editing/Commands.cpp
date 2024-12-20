@@ -214,7 +214,7 @@ bool command_delete_action(DOM::Document& document, String const&)
         //    start node to its parent.
         if (start_offset == 0) {
             start_offset = start_node->index();
-            start_node = *start_node->parent();
+            start_node = start_node->parent();
             continue;
         }
 
