@@ -39,5 +39,6 @@ shared_library("LibCrypto") {
     "Hash/SHA2.cpp",
     "NumberTheory/ModularFunctions.cpp",
     "PK/RSA.cpp",
+    "SecureRandom.cpp",
   ]
 }

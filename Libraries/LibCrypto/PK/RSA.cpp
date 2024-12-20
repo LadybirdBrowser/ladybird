@@ -12,6 +12,7 @@
 #include <LibCrypto/ASN1/PEM.h>
 #include <LibCrypto/Certificate/Certificate.h>
 #include <LibCrypto/PK/RSA.h>
+#include <LibCrypto/SecureRandom.h>
 
 namespace Crypto::PK {
 
@@ -253,7 +254,7 @@ void RSA_PKCS1_EME::encrypt(ReadonlyBytes in, Bytes& out)
     Vector<u8, 8096> ps;
     ps.resize(ps_length);
 
-    fill_with_random(ps);
+    fill_with_secure_random(ps);
     // since fill_with_random can create zeros (shocking!)
     // we have to go through and un-zero the zeros
     for (size_t i = 0; i < ps_length; ++i) {

@@ -8,6 +8,7 @@
 #include <LibCrypto/Curves/Curve25519.h>
 #include <LibCrypto/Curves/Ed25519.h>
 #include <LibCrypto/Hash/SHA2.h>
+#include <LibCrypto/SecureRandom.h>
 
 namespace Crypto::Curves {
 
@@ -19,7 +20,7 @@ ErrorOr<ByteBuffer> Ed25519::generate_private_key()
     // about randomness.
 
     auto buffer = TRY(ByteBuffer::create_uninitialized(key_size()));
-    fill_with_random(buffer);
+    fill_with_secure_random(buffer);
     return buffer;
 }
 
