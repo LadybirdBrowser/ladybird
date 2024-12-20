@@ -24,11 +24,16 @@ namespace Gfx {
 
 class PaintingSurface : public RefCounted<PaintingSurface> {
 public:
+    enum class Origin {
+        TopLeft,
+        BottomLeft,
+    };
+
     static NonnullRefPtr<PaintingSurface> create_with_size(RefPtr<SkiaBackendContext> context, Gfx::IntSize size, Gfx::BitmapFormat color_type, Gfx::AlphaType alpha_type);
     static NonnullRefPtr<PaintingSurface> wrap_bitmap(Bitmap&);
 
 #ifdef AK_OS_MACOS
-    static NonnullRefPtr<PaintingSurface> wrap_iosurface(Core::IOSurfaceHandle const&, RefPtr<SkiaBackendContext>);
+    static NonnullRefPtr<PaintingSurface> wrap_iosurface(Core::IOSurfaceHandle const&, RefPtr<SkiaBackendContext>, Origin = Origin::TopLeft);
 #endif
 
     void read_into_bitmap(Bitmap&);
@@ -47,9 +52,6 @@ public:
 
     void flush() const;
 
-    bool flip_vertically() const { return m_flip_vertically; }
-    void set_flip_vertically() { m_flip_vertically = true; }
-
     ~PaintingSurface();
 
 private:
@@ -58,7 +60,6 @@ private:
     PaintingSurface(NonnullOwnPtr<Impl>&&);
 
     NonnullOwnPtr<Impl> m_impl;
-    bool m_flip_vertically { false };
 };
 
 }
