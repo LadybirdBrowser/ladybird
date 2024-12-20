@@ -228,7 +228,8 @@ void FontLoader::resource_did_load_or_fail()
 RefPtr<Gfx::Font> FontLoader::font_with_point_size(float point_size)
 {
     if (!m_vector_font) {
-        start_loading_next_url();
+        if (!resource())
+            start_loading_next_url();
         return nullptr;
     }
     return m_vector_font->scaled_font(point_size);
