@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<style>
+    div::before {
+        content: "";
+        display: block;
+        width: 100px;
+        height: 100px;
+        background-color: gray;
+        transform: rotate(45deg);
+    }
+</style>
+<div></div>
+
+<script src="../include.js"></script>
+
+<script>
+    test(() => {
+        internals.click(50, 60);
+        println("PASS (didn't crash)");
+    });
+</script>
