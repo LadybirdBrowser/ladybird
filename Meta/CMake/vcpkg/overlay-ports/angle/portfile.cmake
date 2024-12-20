@@ -30,6 +30,11 @@ else()
   set(ANGLE_BUILDSYSTEM_PORT "Linux")
 endif()
 
+set(USE_METAL OFF)
+if ("metal" IN_LIST FEATURES)
+    set(USE_METAL ON)
+endif()
+
 # chromium/5414
 set(ANGLE_COMMIT aa63ea230e0c507e7b4b164a30e502fb17168c17)
 set(ANGLE_VERSION 5414)
@@ -46,6 +51,7 @@ vcpkg_from_github(
         001-fix-uwp.patch
         002-fix-builder-error.patch
         003-fix-mingw.patch
+        004-fix-metal.patch
 )
 
 # Generate angle_commit.h
@@ -165,6 +171,7 @@ vcpkg_cmake_configure(
         "-DPORT=${ANGLE_BUILDSYSTEM_PORT}"
         "-DANGLE_USE_D3D11_COMPOSITOR_NATIVE_WINDOW=${ANGLE_USE_D3D11_COMPOSITOR_NATIVE_WINDOW}"
         "-DVCPKG_TARGET_IS_WINDOWS=${VCPKG_TARGET_IS_WINDOWS}"
+        "-DUSE_METAL=${USE_METAL}"
 )
 
 vcpkg_cmake_install()

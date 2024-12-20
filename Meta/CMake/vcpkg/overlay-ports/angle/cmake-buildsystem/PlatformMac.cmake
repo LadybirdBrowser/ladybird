@@ -16,6 +16,8 @@ list(APPEND ANGLEGLESv2_LIBRARIES
 
 # Metal backend
 if(USE_METAL)
+    find_package(SPIRV-Headers REQUIRED)
+
     list(APPEND ANGLE_SOURCES
         ${_metal_backend_sources}
 
@@ -30,6 +32,7 @@ if(USE_METAL)
 
     list(APPEND ANGLEGLESv2_LIBRARIES
         "-framework Metal"
+        SPIRV-Headers::SPIRV-Headers
     )
 endif()
 
@@ -44,7 +47,7 @@ if(USE_OPENGL)
     list(APPEND ANGLE_DEFINITIONS ANGLE_ENABLE_GLSL ANGLE_ENABLE_GL_DESKTOP_BACKEND ANGLE_ENABLE_APPLE_WORKAROUNDS)
 endif()
 
-if(USE_ANGLE_EGL OR ENABLE_WEBGL)
+if(USE_OPENGL OR ENABLE_WEBGL)
     list(APPEND ANGLE_SOURCES
         ${_gl_backend_sources}
 
