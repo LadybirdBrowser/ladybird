@@ -48,6 +48,7 @@ public:
     bool is_alternate() const { return m_alternate; }
     void set_alternate(bool alternate) { m_alternate = alternate; }
 
+    bool is_origin_clean() const { return m_origin_clean; }
     void set_origin_clean(bool origin_clean) { m_origin_clean = origin_clean; }
 
     bool disabled() const { return m_disabled; }
