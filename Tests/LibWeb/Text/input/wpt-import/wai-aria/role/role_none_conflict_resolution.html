@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head>
+  <title>Role None Conflict Resolution Verification Tests</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../../resources/testdriver.js"></script>
+    <script src="../../resources/testdriver-vendor.js"></script>
+    <script src="../../resources/testdriver-actions.js"></script>
+    <script src="../../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+<p>Verifies <a href="https://w3c.github.io/aria/#conflict_resolution_presentation_none"></a>conflict resolution</a> requirements for the ARIA <a href="https://w3c.github.io/aria/#none">none</a> and <a href="https://w3c.github.io/aria/#presentation">presentation</a> roles.</p>
+
+<!-- none with label(global) on header -->
+<h1 role="none" data-testname="heading role none with global attr aria-label" data-expectedrole="heading" aria-label="x" class="ex">x</h1>
+
+<!-- none with label(global) on paragraph -->
+<p role="none" data-testname="p role none with global attr aria-label (prohibited role)" data-expectedrole="paragraph" aria-label="x" class="ex">x</p>
+<p role="none" data-testname="p role none without global attr aria-label (prohibited role)" class="ex-generic">x</p>
+
+<!-- none with focusable header -->
+<h1 role="none" data-testname="focusable heading role none with tabindex=0" data-expectedrole="heading" tabindex="0" class="ex">x</h1>
+<h1 role="none" data-testname="focusable heading role none with tabindex=-1" data-expectedrole="heading" tabindex="-1" class="ex">x</h1>
+<h1 role="none" data-testname="non-focusable heading role none" class="ex-generic">x</h1>
+
+<!-- none with non-global-->
+<h1 role="none" data-testname="none with non-global" class="ex-generic" aria-level="2"> Sample Content </h1>
+
+
+<script>
+AriaUtils.verifyRolesBySelector(".ex");
+AriaUtils.verifyGenericRolesBySelector(".ex-generic");
+</script>
+
+</body>
+</html>
