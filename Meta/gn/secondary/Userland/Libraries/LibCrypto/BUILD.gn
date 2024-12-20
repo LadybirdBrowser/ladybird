@@ -4,6 +4,7 @@ shared_library("LibCrypto") {
   cflags_cc = [ "-Wvla" ]
   deps = [
     "//AK",
+    "//Meta/gn/build/libs/openssl",
     "//Userland/Libraries/LibCore",
   ]
   sources = [
