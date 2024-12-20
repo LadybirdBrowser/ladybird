@@ -24,7 +24,7 @@ class FormData : public Bindings::PlatformObject {
 public:
     virtual ~FormData() override;
 
-    static WebIDL::ExceptionOr<GC::Ref<FormData>> construct_impl(JS::Realm&, GC::Ptr<HTML::HTMLFormElement> form = {});
+    static WebIDL::ExceptionOr<GC::Ref<FormData>> construct_impl(JS::Realm&, GC::Ptr<HTML::HTMLFormElement> form = {}, GC::Ptr<HTML::HTMLElement> submitter = nullptr);
     static WebIDL::ExceptionOr<GC::Ref<FormData>> construct_impl(JS::Realm&, Vector<FormDataEntry> entry_list);
 
     static WebIDL::ExceptionOr<GC::Ref<FormData>> create(JS::Realm&, Vector<DOMURL::QueryParam> entry_list);
