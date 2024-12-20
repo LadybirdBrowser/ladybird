@@ -309,6 +309,9 @@ void add_@global_object_snake_name@_exposed_interfaces(JS::Object& global)
         if (interface.is_namespace) {
             add_namespace(gen, interface.name, interface.namespace_class);
         } else if (!interface.extended_attributes.contains("LegacyNamespace"sv)) {
+            if (interface.extended_attributes.contains("LegacyNoInterfaceObject")) {
+                continue;
+            }
             if (class_name == "Window") {
                 add_interface(gen, interface.namespaced_name, interface.prototype_class, lookup_legacy_constructor(interface), interface.extended_attributes.get("LegacyWindowAlias"sv));
             } else {
