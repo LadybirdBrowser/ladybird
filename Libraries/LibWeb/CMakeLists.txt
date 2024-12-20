@@ -804,6 +804,7 @@ set(SOURCES
     WebDriver/Response.cpp
     WebDriver/Screenshot.cpp
     WebDriver/TimeoutsConfiguration.cpp
+    WebGL/ANGLEInstancedArrays.cpp
     WebGL/EventNames.cpp
     WebGL/OpenGLContext.cpp
     WebGL/WebGL2RenderingContext.cpp

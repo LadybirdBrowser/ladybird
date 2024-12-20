@@ -14,6 +14,8 @@ namespace Web::WebGL {
 using GLenum = unsigned int;
 using GLuint = unsigned int;
 using GLint = int;
+using GLsizei = int;
+using GLintptr = int;
 
 // FIXME: This should really be "struct __GLsync*", but the linker doesn't recognise it.
 //        Since this conflicts with the original definition of GLsync, the suffix "Internal" has been added.
