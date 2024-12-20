@@ -29,6 +29,7 @@
 #include <LibCrypto/Hash/SHA2.h>
 #include <LibCrypto/PK/RSA.h>
 #include <LibCrypto/Padding/OAEP.h>
+#include <LibCrypto/SecureRandom.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DataView.h>
@@ -323,8 +324,7 @@ static WebIDL::ExceptionOr<void> validate_jwk_key_ops(JS::Realm& realm, Bindings
 static WebIDL::ExceptionOr<ByteBuffer> generate_random_key(JS::VM& vm, u16 const size_in_bits)
 {
     auto key_buffer = TRY_OR_THROW_OOM(vm, ByteBuffer::create_uninitialized(size_in_bits / 8));
-    // FIXME: Use a cryptographically secure random generator
-    fill_with_random(key_buffer);
+    ::Crypto::fill_with_secure_random(key_buffer);
     return key_buffer;
 }
 
