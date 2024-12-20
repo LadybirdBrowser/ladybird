@@ -320,26 +320,37 @@ bool command_delete_action(DOM::Document& document, String const&)
         }
     }
 
-    // FIXME: 15. If start node's child with index start offset is an li or dt or dd, and that child's
+    // 15. If start node's child with index start offset is an li or dt or dd, and that child's
     //     previousSibling is also an li or dt or dd:
-    if (false) {
-        // FIXME: 1. Call cloneRange() on the active range, and let original range be the result.
+    if (is<DOM::Element>(start_offset_child) && is_li_dt_or_dd(static_cast<DOM::Element&>(*start_offset_child))
+        && is<DOM::Element>(start_offset_child->previous_sibling())
+        && is_li_dt_or_dd(static_cast<DOM::Element&>(*start_offset_child->previous_sibling()))) {
+        // 1. Call cloneRange() on the active range, and let original range be the result.
+        auto original_range = active_range.clone_range();
 
-        // FIXME: 2. Set start node to its child with index start offset − 1.
+        // 2. Set start node to its child with index start offset − 1.
+        start_node = start_node->child_at_index(start_offset - 1);
 
-        // FIXME: 3. Set start offset to start node's length.
+        // 3. Set start offset to start node's length.
+        start_offset = start_node->length();
 
-        // FIXME: 4. Set node to start node's nextSibling.
+        // 4. Set node to start node's nextSibling.
+        node = start_node->next_sibling();
 
-        // FIXME: 5. Call collapse(start node, start offset) on the context object's selection.
+        // 5. Call collapse(start node, start offset) on the context object's selection.
+        MUST(selection.collapse(start_node, start_offset));
 
-        // FIXME: 6. Call extend(node, 0) on the context object's selection.
+        // 6. Call extend(node, 0) on the context object's selection.
+        MUST(selection.extend(*node, 0));
 
-        // FIXME: 7. Delete the selection.
+        // 7. Delete the selection.
+        delete_the_selection(selection);
 
-        // FIXME: 8. Call removeAllRanges() on the context object's selection.
+        // 8. Call removeAllRanges() on the context object's selection.
+        selection.remove_all_ranges();
 
-        // FIXME: 9. Call addRange(original range) on the context object's selection.
+        // 9. Call addRange(original range) on the context object's selection.
+        selection.add_range(original_range);
 
         // 10. Return true.
         return true;
