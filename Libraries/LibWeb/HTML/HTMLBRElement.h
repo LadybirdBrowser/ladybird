@@ -17,8 +17,8 @@ class HTMLBRElement final : public HTMLElement {
 public:
     virtual ~HTMLBRElement() override;
 
-    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
-    virtual void adjust_computed_style(CSS::StyleProperties&) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::ComputedProperties) override;
+    virtual void adjust_computed_style(CSS::ComputedProperties&) override;
 
 private:
     virtual bool is_html_br_element() const override { return true; }

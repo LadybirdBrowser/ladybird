@@ -15,7 +15,7 @@ class ReplacedBox : public Box {
     GC_CELL(ReplacedBox, Box);
 
 public:
-    ReplacedBox(DOM::Document&, DOM::Element&, CSS::StyleProperties);
+    ReplacedBox(DOM::Document&, DOM::Element&, CSS::ComputedProperties);
     virtual ~ReplacedBox() override;
 
     DOM::Element const& dom_node() const { return verify_cast<DOM::Element>(*Node::dom_node()); }

@@ -6,7 +6,7 @@
 
 #include <LibWeb/Bindings/HTMLDivElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/CSS/StyleProperties.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/HTML/HTMLDivElement.h>
 

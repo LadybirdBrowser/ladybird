@@ -83,7 +83,7 @@ Layout::FieldSetBox* HTMLFieldSetElement::layout_node()
     return static_cast<Layout::FieldSetBox*>(Node::layout_node());
 }
 
-GC::Ptr<Layout::Node> HTMLFieldSetElement::create_layout_node(CSS::StyleProperties style)
+GC::Ptr<Layout::Node> HTMLFieldSetElement::create_layout_node(CSS::ComputedProperties style)
 {
     return heap().allocate<Layout::FieldSetBox>(document(), *this, style);
 }

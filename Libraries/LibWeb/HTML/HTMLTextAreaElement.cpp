@@ -10,7 +10,7 @@
 #include <AK/Utf16View.h>
 #include <LibWeb/Bindings/HTMLTextAreaElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/CSS/StyleProperties.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -41,7 +41,7 @@ HTMLTextAreaElement::HTMLTextAreaElement(DOM::Document& document, DOM::Qualified
 
 HTMLTextAreaElement::~HTMLTextAreaElement() = default;
 
-void HTMLTextAreaElement::adjust_computed_style(CSS::StyleProperties& style)
+void HTMLTextAreaElement::adjust_computed_style(CSS::ComputedProperties& style)
 {
     // https://drafts.csswg.org/css-display-3/#unbox
     if (style.display().is_contents())

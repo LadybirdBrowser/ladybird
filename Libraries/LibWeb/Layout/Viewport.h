@@ -16,7 +16,7 @@ class Viewport final : public BlockContainer {
     GC_DECLARE_ALLOCATOR(Viewport);
 
 public:
-    explicit Viewport(DOM::Document&, CSS::StyleProperties);
+    explicit Viewport(DOM::Document&, CSS::ComputedProperties);
     virtual ~Viewport() override;
 
     struct TextPosition {

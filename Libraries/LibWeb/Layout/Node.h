@@ -9,9 +9,9 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Vector.h>
 #include <LibJS/Heap/Cell.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/StyleComputer.h>
-#include <LibWeb/CSS/StyleProperties.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Forward.h>
@@ -222,7 +222,7 @@ public:
     CSS::ImmutableComputedValues const& computed_values() const { return static_cast<CSS::ImmutableComputedValues const&>(*m_computed_values); }
     CSS::MutableComputedValues& mutable_computed_values() { return static_cast<CSS::MutableComputedValues&>(*m_computed_values); }
 
-    void apply_style(const CSS::StyleProperties&);
+    void apply_style(const CSS::ComputedProperties&);
 
     Gfx::Font const& first_available_font() const;
     Vector<CSS::BackgroundLayerData> const& background_layers() const { return computed_values().background_layers(); }
@@ -238,7 +238,7 @@ public:
     virtual void visit_edges(Cell::Visitor& visitor) override;
 
 protected:
-    NodeWithStyle(DOM::Document&, DOM::Node*, CSS::StyleProperties);
+    NodeWithStyle(DOM::Document&, DOM::Node*, CSS::ComputedProperties);
     NodeWithStyle(DOM::Document&, DOM::Node*, NonnullOwnPtr<CSS::ComputedValues>);
 
 private:
@@ -257,7 +257,7 @@ public:
     BoxModelMetrics const& box_model() const { return m_box_model; }
 
 protected:
-    NodeWithStyleAndBoxModelMetrics(DOM::Document& document, DOM::Node* node, CSS::StyleProperties style)
+    NodeWithStyleAndBoxModelMetrics(DOM::Document& document, DOM::Node* node, CSS::ComputedProperties style)
         : NodeWithStyle(document, node, move(style))
     {
     }

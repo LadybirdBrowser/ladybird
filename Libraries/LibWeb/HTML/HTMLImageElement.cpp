@@ -134,12 +134,12 @@ void HTMLImageElement::form_associated_element_attribute_changed(FlyString const
     }
 }
 
-GC::Ptr<Layout::Node> HTMLImageElement::create_layout_node(CSS::StyleProperties style)
+GC::Ptr<Layout::Node> HTMLImageElement::create_layout_node(CSS::ComputedProperties style)
 {
     return heap().allocate<Layout::ImageBox>(document(), *this, move(style), *this);
 }
 
-void HTMLImageElement::adjust_computed_style(CSS::StyleProperties& style)
+void HTMLImageElement::adjust_computed_style(CSS::ComputedProperties& style)
 {
     // https://drafts.csswg.org/css-display-3/#unbox
     if (style.display().is_contents())

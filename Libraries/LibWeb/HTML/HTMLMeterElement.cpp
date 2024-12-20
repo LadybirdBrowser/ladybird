@@ -178,7 +178,7 @@ void HTMLMeterElement::removed_from(DOM::Node*)
     set_shadow_root(nullptr);
 }
 
-void HTMLMeterElement::adjust_computed_style(CSS::StyleProperties& style)
+void HTMLMeterElement::adjust_computed_style(CSS::ComputedProperties& style)
 {
     // https://drafts.csswg.org/css-display-3/#unbox
     if (style.display().is_contents())

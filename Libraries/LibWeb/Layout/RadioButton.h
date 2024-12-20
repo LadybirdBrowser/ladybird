@@ -16,7 +16,7 @@ class RadioButton final : public FormAssociatedLabelableNode {
     GC_DECLARE_ALLOCATOR(RadioButton);
 
 public:
-    RadioButton(DOM::Document&, HTML::HTMLInputElement&, CSS::StyleProperties);
+    RadioButton(DOM::Document&, HTML::HTMLInputElement&, CSS::ComputedProperties);
     virtual ~RadioButton() override;
 
 private:

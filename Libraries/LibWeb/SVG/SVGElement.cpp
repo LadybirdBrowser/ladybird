@@ -8,7 +8,7 @@
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGElementPrototype.h>
-#include <LibWeb/CSS/StyleProperties.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/SVG/SVGElement.h>

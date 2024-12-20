@@ -21,7 +21,7 @@ HTMLFrameSetElement::HTMLFrameSetElement(DOM::Document& document, DOM::Qualified
 
 HTMLFrameSetElement::~HTMLFrameSetElement() = default;
 
-void HTMLFrameSetElement::adjust_computed_style(CSS::StyleProperties& style)
+void HTMLFrameSetElement::adjust_computed_style(CSS::ComputedProperties& style)
 {
     // https://drafts.csswg.org/css-display-3/#unbox
     if (style.display().is_contents())

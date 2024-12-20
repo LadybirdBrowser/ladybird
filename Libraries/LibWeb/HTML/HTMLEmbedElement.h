@@ -23,7 +23,7 @@ private:
     virtual bool is_html_embed_element() const override { return true; }
     virtual void initialize(JS::Realm&) override;
     virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
-    virtual void adjust_computed_style(CSS::StyleProperties&) override;
+    virtual void adjust_computed_style(CSS::ComputedProperties&) override;
 };
 
 }

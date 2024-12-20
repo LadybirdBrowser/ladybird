@@ -60,8 +60,8 @@ private:
     // https://html.spec.whatwg.org/multipage/media.html#the-video-element:dimension-attributes
     virtual bool supports_dimension_attributes() const override { return true; }
 
-    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
-    virtual void adjust_computed_style(CSS::StyleProperties&) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::ComputedProperties) override;
+    virtual void adjust_computed_style(CSS::ComputedProperties&) override;
 
     virtual void on_playing() override;
     virtual void on_paused() override;

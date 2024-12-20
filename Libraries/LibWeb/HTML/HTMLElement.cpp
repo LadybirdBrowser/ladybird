@@ -940,7 +940,7 @@ WebIDL::ExceptionOr<void> HTMLElement::set_popover(Optional<String> value)
     return {};
 }
 
-void HTMLElement::adjust_computed_style(CSS::StyleProperties& style)
+void HTMLElement::adjust_computed_style(CSS::ComputedProperties& style)
 {
     // https://drafts.csswg.org/css-display-3/#unbox
     if (local_name() == HTML::TagNames::wbr) {

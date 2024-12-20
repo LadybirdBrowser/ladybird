@@ -16,7 +16,7 @@ class Label final : public BlockContainer {
     GC_DECLARE_ALLOCATOR(Label);
 
 public:
-    Label(DOM::Document&, HTML::HTMLLabelElement*, CSS::StyleProperties);
+    Label(DOM::Document&, HTML::HTMLLabelElement*, CSS::ComputedProperties);
     virtual ~Label() override;
 
     static bool is_inside_associated_label(LabelableNode const&, CSSPixelPoint);

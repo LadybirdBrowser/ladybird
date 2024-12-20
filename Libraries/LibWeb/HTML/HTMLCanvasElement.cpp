@@ -175,12 +175,12 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::set_height(WebIDL::UnsignedLong val
     return {};
 }
 
-GC::Ptr<Layout::Node> HTMLCanvasElement::create_layout_node(CSS::StyleProperties style)
+GC::Ptr<Layout::Node> HTMLCanvasElement::create_layout_node(CSS::ComputedProperties style)
 {
     return heap().allocate<Layout::CanvasBox>(document(), *this, move(style));
 }
 
-void HTMLCanvasElement::adjust_computed_style(CSS::StyleProperties& style)
+void HTMLCanvasElement::adjust_computed_style(CSS::ComputedProperties& style)
 {
     // https://drafts.csswg.org/css-display-3/#unbox
     if (style.display().is_contents())

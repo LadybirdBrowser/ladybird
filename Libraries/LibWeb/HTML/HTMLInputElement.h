@@ -58,8 +58,8 @@ class HTMLInputElement final
 public:
     virtual ~HTMLInputElement() override;
 
-    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
-    virtual void adjust_computed_style(CSS::StyleProperties&) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::ComputedProperties) override;
+    virtual void adjust_computed_style(CSS::ComputedProperties&) override;
 
     enum class TypeAttributeState {
 #define __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(_, state) state,

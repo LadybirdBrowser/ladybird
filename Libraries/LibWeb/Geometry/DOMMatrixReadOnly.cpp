@@ -8,8 +8,8 @@
 
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/DOMMatrixReadOnlyPrototype.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/StyleProperties.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/Geometry/DOMMatrixReadOnly.h>
@@ -949,7 +949,7 @@ WebIDL::ExceptionOr<ParsedMatrix> parse_dom_matrix_init_string(JS::Realm& realm,
     auto transform_style_value = parse_css_value(CSS::Parser::ParsingContext {}, transform_list, CSS::PropertyID::Transform);
     if (!transform_style_value)
         return WebIDL::SyntaxError::create(realm, "Failed to parse CSS transform string."_string);
-    auto parsed_value = CSS::StyleProperties::transformations_for_style_value(*transform_style_value);
+    auto parsed_value = CSS::ComputedProperties::transformations_for_style_value(*transform_style_value);
 
     // 3. If parsedValue is none, set parsedValue to a <transform-list> containing a single identity matrix.
     // NOTE: parsed_value is empty on none so for loop in 6 won't modify matrix

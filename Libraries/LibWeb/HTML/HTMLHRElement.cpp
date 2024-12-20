@@ -6,7 +6,7 @@
 
 #include <LibWeb/Bindings/HTMLHRElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/CSS/StyleProperties.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/HTML/HTMLHRElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>

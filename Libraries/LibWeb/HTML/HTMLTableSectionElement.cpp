@@ -7,7 +7,7 @@
 
 #include <LibWeb/Bindings/HTMLTableSectionElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/CSS/StyleProperties.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/DOM/Document.h>

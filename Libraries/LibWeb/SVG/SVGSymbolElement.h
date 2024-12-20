@@ -36,7 +36,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::ComputedProperties) override;
 
     bool is_direct_child_of_use_shadow_tree() const;
 

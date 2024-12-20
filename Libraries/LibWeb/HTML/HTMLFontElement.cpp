@@ -7,9 +7,9 @@
 #include <AK/GenericLexer.h>
 #include <LibWeb/Bindings/HTMLFontElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/ParsingContext.h>
-#include <LibWeb/CSS/StyleProperties.h>
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/HTML/HTMLFontElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>

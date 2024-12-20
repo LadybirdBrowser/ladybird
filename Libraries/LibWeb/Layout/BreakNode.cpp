@@ -12,7 +12,7 @@ namespace Web::Layout {
 
 GC_DEFINE_ALLOCATOR(BreakNode);
 
-BreakNode::BreakNode(DOM::Document& document, HTML::HTMLBRElement& element, CSS::StyleProperties style)
+BreakNode::BreakNode(DOM::Document& document, HTML::HTMLBRElement& element, CSS::ComputedProperties style)
     : Layout::NodeWithStyleAndBoxModelMetrics(document, &element, move(style))
 {
 }

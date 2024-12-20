@@ -145,7 +145,7 @@ protected:
 private:
     virtual bool is_html_element() const final { return true; }
 
-    virtual void adjust_computed_style(CSS::StyleProperties&) override;
+    virtual void adjust_computed_style(CSS::ComputedProperties&) override;
 
     // ^HTML::GlobalEventHandlers
     virtual GC::Ptr<DOM::EventTarget> global_event_handlers_to_event_target(FlyString const&) override { return *this; }

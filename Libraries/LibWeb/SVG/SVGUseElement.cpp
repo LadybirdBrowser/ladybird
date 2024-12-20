@@ -235,7 +235,7 @@ GC::Ptr<SVGElement> SVGUseElement::animated_instance_root() const
     return instance_root();
 }
 
-GC::Ptr<Layout::Node> SVGUseElement::create_layout_node(CSS::StyleProperties style)
+GC::Ptr<Layout::Node> SVGUseElement::create_layout_node(CSS::ComputedProperties style)
 {
     return heap().allocate<Layout::SVGGraphicsBox>(document(), *this, move(style));
 }

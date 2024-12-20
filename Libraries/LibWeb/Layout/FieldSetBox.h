@@ -16,7 +16,7 @@ class FieldSetBox final : public BlockContainer {
     GC_DECLARE_ALLOCATOR(FieldSetBox);
 
 public:
-    FieldSetBox(DOM::Document&, DOM::Element&, CSS::StyleProperties);
+    FieldSetBox(DOM::Document&, DOM::Element&, CSS::ComputedProperties);
     virtual ~FieldSetBox() override;
 
     DOM::Element& dom_node() { return static_cast<DOM::Element&>(*BlockContainer::dom_node()); }

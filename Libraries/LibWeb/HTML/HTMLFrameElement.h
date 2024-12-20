@@ -28,7 +28,7 @@ private:
     virtual void removed_from(Node*) override;
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
     virtual i32 default_tab_index_value() const override;
-    virtual void adjust_computed_style(CSS::StyleProperties&) override;
+    virtual void adjust_computed_style(CSS::ComputedProperties&) override;
 
     void process_the_frame_attributes(bool initial_insertion = false);
 };
