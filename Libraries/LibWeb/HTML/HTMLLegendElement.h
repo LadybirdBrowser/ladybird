@@ -20,7 +20,7 @@ public:
 
     HTMLFormElement* form();
 
-    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::ComputedProperties) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(GC::Ref<CSS::ComputedProperties>) override;
     Layout::LegendBox* layout_node();
     Layout::LegendBox const* layout_node() const;
 

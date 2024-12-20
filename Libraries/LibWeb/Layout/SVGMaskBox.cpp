@@ -12,8 +12,8 @@ namespace Web::Layout {
 
 GC_DEFINE_ALLOCATOR(SVGMaskBox);
 
-SVGMaskBox::SVGMaskBox(DOM::Document& document, SVG::SVGMaskElement& element, CSS::ComputedProperties properties)
-    : SVGGraphicsBox(document, element, properties)
+SVGMaskBox::SVGMaskBox(DOM::Document& document, SVG::SVGMaskElement& element, GC::Ref<CSS::ComputedProperties> style)
+    : SVGGraphicsBox(document, element, style)
 {
 }
 

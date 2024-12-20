@@ -48,7 +48,7 @@ protected:
     void fetch_the_document(URL::URL const& url);
 
 private:
-    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::ComputedProperties) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(GC::Ref<CSS::ComputedProperties>) override;
     void animate();
 
     GC::Ptr<SVG::SVGAnimatedLength> m_x;

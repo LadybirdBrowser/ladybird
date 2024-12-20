@@ -16,7 +16,7 @@ class SVGGraphicsBox : public SVGBox {
     GC_CELL(SVGGraphicsBox, SVGBox);
 
 public:
-    SVGGraphicsBox(DOM::Document&, SVG::SVGGraphicsElement&, CSS::ComputedProperties);
+    SVGGraphicsBox(DOM::Document&, SVG::SVGGraphicsElement&, GC::Ref<CSS::ComputedProperties>);
     virtual ~SVGGraphicsBox() override = default;
 
     SVG::SVGGraphicsElement& dom_node() { return verify_cast<SVG::SVGGraphicsElement>(SVGBox::dom_node()); }

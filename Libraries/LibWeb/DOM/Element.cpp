@@ -102,9 +102,11 @@ void Element::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_shadow_root);
     visitor.visit(m_custom_element_definition);
     visitor.visit(m_cascaded_properties);
+    visitor.visit(m_computed_properties);
     if (m_pseudo_element_data) {
         for (auto& pseudo_element : *m_pseudo_element_data) {
             visitor.visit(pseudo_element.cascaded_properties);
+            visitor.visit(pseudo_element.computed_properties);
             visitor.visit(pseudo_element.layout_node);
         }
     }
@@ -388,16 +390,16 @@ Vector<String> Element::get_attribute_names() const
     return names;
 }
 
-GC::Ptr<Layout::Node> Element::create_layout_node(CSS::ComputedProperties style)
+GC::Ptr<Layout::Node> Element::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
 {
     if (local_name() == "noscript" && document().is_scripting_enabled())
         return nullptr;
 
-    auto display = style.display();
-    return create_layout_node_for_display_type(document(), display, move(style), this);
+    auto display = style->display();
+    return create_layout_node_for_display_type(document(), display, style, this);
 }
 
-GC::Ptr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM::Document& document, CSS::Display const& display, CSS::ComputedProperties style, Element* element)
+GC::Ptr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM::Document& document, CSS::Display const& display, GC::Ref<CSS::ComputedProperties> style, Element* element)
 {
     if (display.is_table_inside() || display.is_table_row_group() || display.is_table_header_group() || display.is_table_footer_group() || display.is_table_row())
         return document.heap().allocate<Layout::Box>(document, element, move(style));
@@ -478,40 +480,40 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
     VERIFY(parent());
 
     auto& style_computer = document().style_computer();
-    auto new_computed_css_values = style_computer.compute_style(*this);
+    auto new_computed_properties = style_computer.compute_style(*this);
 
     // Tables must not inherit -libweb-* values for text-align.
     // FIXME: Find the spec for this.
     if (is<HTML::HTMLTableElement>(*this)) {
-        auto text_align = new_computed_css_values.text_align();
+        auto text_align = new_computed_properties->text_align();
         if (text_align.has_value() && (text_align.value() == CSS::TextAlign::LibwebLeft || text_align.value() == CSS::TextAlign::LibwebCenter || text_align.value() == CSS::TextAlign::LibwebRight))
-            new_computed_css_values.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Start));
+            new_computed_properties->set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Start));
     }
 
     CSS::RequiredInvalidationAfterStyleChange invalidation;
-    if (m_computed_css_values.has_value())
-        invalidation = compute_required_invalidation(*m_computed_css_values, new_computed_css_values);
+    if (m_computed_properties)
+        invalidation = compute_required_invalidation(*m_computed_properties, new_computed_properties);
     else
         invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
 
     if (!invalidation.is_none())
-        set_computed_css_values(move(new_computed_css_values));
+        set_computed_properties(move(new_computed_properties));
 
     // Any document change that can cause this element's style to change, could also affect its pseudo-elements.
     auto recompute_pseudo_element_style = [&](CSS::Selector::PseudoElement::Type pseudo_element) {
         style_computer.push_ancestor(*this);
 
-        auto pseudo_element_style = pseudo_element_computed_css_values(pseudo_element);
+        auto pseudo_element_style = pseudo_element_computed_properties(pseudo_element);
         auto new_pseudo_element_style = style_computer.compute_pseudo_element_style_if_needed(*this, pseudo_element);
 
         // TODO: Can we be smarter about invalidation?
-        if (pseudo_element_style.has_value() && new_pseudo_element_style.has_value()) {
+        if (pseudo_element_style && new_pseudo_element_style) {
             invalidation |= compute_required_invalidation(*pseudo_element_style, *new_pseudo_element_style);
-        } else if (pseudo_element_style.has_value() || new_pseudo_element_style.has_value()) {
+        } else if (pseudo_element_style || new_pseudo_element_style) {
             invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
         }
 
-        set_pseudo_element_computed_css_values(pseudo_element, move(new_pseudo_element_style));
+        set_pseudo_element_computed_properties(pseudo_element, move(new_pseudo_element_style));
         style_computer.pop_ancestor(*this);
     };
 
@@ -526,7 +528,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
 
     if (!invalidation.rebuild_layout_tree && layout_node()) {
         // If we're keeping the layout tree, we can just apply the new style to the existing layout tree.
-        layout_node()->apply_style(*m_computed_css_values);
+        layout_node()->apply_style(*m_computed_properties);
         if (invalidation.repaint && paintable())
             paintable()->set_needs_display();
 
@@ -537,8 +539,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
             if (!pseudo_element.has_value() || !pseudo_element->layout_node)
                 continue;
 
-            auto pseudo_element_style = pseudo_element_computed_css_values(pseudo_element_type);
-            if (!pseudo_element_style.has_value())
+            auto pseudo_element_style = pseudo_element_computed_properties(pseudo_element_type);
+            if (!pseudo_element_style)
                 continue;
 
             if (auto* node_with_style = dynamic_cast<Layout::NodeWithStyle*>(pseudo_element->layout_node.ptr())) {
@@ -552,17 +554,17 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
     return invalidation;
 }
 
-CSS::ComputedProperties Element::resolved_css_values(Optional<CSS::Selector::PseudoElement::Type> type)
+GC::Ref<CSS::ComputedProperties> Element::resolved_css_values(Optional<CSS::Selector::PseudoElement::Type> type)
 {
     auto element_computed_style = CSS::ResolvedCSSStyleDeclaration::create(*this, type);
-    CSS::ComputedProperties properties = {};
+    auto properties = heap().allocate<CSS::ComputedProperties>();
 
     for (auto i = to_underlying(CSS::first_property_id); i <= to_underlying(CSS::last_property_id); ++i) {
         auto property_id = (CSS::PropertyID)i;
         auto maybe_value = element_computed_style->property(property_id);
         if (!maybe_value.has_value())
             continue;
-        properties.set_property(property_id, maybe_value.release_value().value);
+        properties->set_property(property_id, maybe_value.release_value().value);
     }
 
     return properties;
@@ -570,9 +572,9 @@ CSS::ComputedProperties Element::resolved_css_values(Optional<CSS::Selector::Pse
 
 void Element::reset_animated_css_properties()
 {
-    if (!m_computed_css_values.has_value())
+    if (!m_computed_properties)
         return;
-    m_computed_css_values->reset_animated_properties();
+    m_computed_properties->reset_animated_properties();
 }
 
 DOMTokenList* Element::class_list()
@@ -2297,29 +2299,29 @@ void Element::set_cascaded_properties(Optional<CSS::Selector::PseudoElement::Typ
     }
 }
 
-void Element::set_computed_css_values(Optional<CSS::ComputedProperties> style)
+void Element::set_computed_properties(GC::Ptr<CSS::ComputedProperties> style)
 {
-    m_computed_css_values = move(style);
-    computed_css_values_changed();
+    m_computed_properties = style;
+    computed_properties_changed();
 }
 
-void Element::set_pseudo_element_computed_css_values(CSS::Selector::PseudoElement::Type pseudo_element, Optional<CSS::ComputedProperties> style)
+void Element::set_pseudo_element_computed_properties(CSS::Selector::PseudoElement::Type pseudo_element, GC::Ptr<CSS::ComputedProperties> style)
 {
-    if (!m_pseudo_element_data && !style.has_value())
+    if (!m_pseudo_element_data && !style)
         return;
 
     if (!CSS::Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element)) {
         return;
     }
 
-    ensure_pseudo_element(pseudo_element).computed_css_values = move(style);
+    ensure_pseudo_element(pseudo_element).computed_properties = style;
 }
 
-Optional<CSS::ComputedProperties&> Element::pseudo_element_computed_css_values(CSS::Selector::PseudoElement::Type type)
+GC::Ptr<CSS::ComputedProperties> Element::pseudo_element_computed_properties(CSS::Selector::PseudoElement::Type type)
 {
     auto pseudo_element = get_pseudo_element(type);
     if (pseudo_element.has_value())
-        return pseudo_element->computed_css_values;
+        return pseudo_element->computed_properties;
     return {};
 }
 
@@ -2491,7 +2493,7 @@ bool Element::check_visibility(Optional<CheckVisibilityOptions> options)
 
     // 2. If an ancestor of this in the flat tree has content-visibility: hidden, return false.
     for (auto* element = parent_element(); element; element = element->parent_element()) {
-        if (element->computed_css_values()->content_visibility() == CSS::ContentVisibility::Hidden)
+        if (element->computed_properties()->content_visibility() == CSS::ContentVisibility::Hidden)
             return false;
     }
 
@@ -2502,14 +2504,14 @@ bool Element::check_visibility(Optional<CheckVisibilityOptions> options)
     // 3. If either the opacityProperty or the checkOpacity dictionary members of options are true, and this, or an ancestor of this in the flat tree, has a computed opacity value of 0, return false.
     if (options->opacity_property || options->check_opacity) {
         for (auto* element = this; element; element = element->parent_element()) {
-            if (element->computed_css_values()->opacity() == 0.0f)
+            if (element->computed_properties()->opacity() == 0.0f)
                 return false;
         }
     }
 
     // 4. If either the visibilityProperty or the checkVisibilityCSS dictionary members of options are true, and this is invisible, return false.
     if (options->visibility_property || options->check_visibility_css) {
-        if (computed_css_values()->visibility() == CSS::Visibility::Hidden)
+        if (computed_properties()->visibility() == CSS::Visibility::Hidden)
             return false;
     }
 
@@ -2518,7 +2520,7 @@ bool Element::check_visibility(Optional<CheckVisibilityOptions> options)
     auto const skipped_contents_due_to_content_visibility_auto = false;
     if (options->content_visibility_auto && skipped_contents_due_to_content_visibility_auto) {
         for (auto* element = this; element; element = element->parent_element()) {
-            if (element->computed_css_values()->content_visibility() == CSS::ContentVisibility::Auto)
+            if (element->computed_properties()->content_visibility() == CSS::ContentVisibility::Auto)
                 return false;
         }
     }

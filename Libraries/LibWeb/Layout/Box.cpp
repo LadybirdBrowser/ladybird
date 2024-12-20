@@ -14,7 +14,7 @@
 
 namespace Web::Layout {
 
-Box::Box(DOM::Document& document, DOM::Node* node, CSS::ComputedProperties style)
+Box::Box(DOM::Document& document, DOM::Node* node, GC::Ref<CSS::ComputedProperties> style)
     : NodeWithStyleAndBoxModelMetrics(document, node, move(style))
 {
 }

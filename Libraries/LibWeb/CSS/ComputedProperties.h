@@ -8,10 +8,12 @@
 
 #include <AK/HashMap.h>
 #include <AK/NonnullRefPtr.h>
+#include <LibGC/CellAllocator.h>
 #include <LibGC/Ptr.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/Forward.h>
+#include <LibJS/Heap/Cell.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/LengthBox.h>
 #include <LibWeb/CSS/PropertyID.h>
@@ -19,41 +21,21 @@
 
 namespace Web::CSS {
 
-class ComputedProperties {
+class ComputedProperties final : public JS::Cell {
+    GC_CELL(ComputedProperties, JS::Cell);
+    GC_DECLARE_ALLOCATOR(ComputedProperties);
+
 public:
     static constexpr size_t number_of_properties = to_underlying(CSS::last_property_id) + 1;
 
-private:
-    struct Data : public RefCounted<Data> {
-        friend class StyleComputer;
-
-        NonnullRefPtr<Data> clone() const;
-
-        // FIXME: These need protection from GC!
-        GC::Ptr<CSS::CSSStyleDeclaration const> m_animation_name_source;
-        GC::Ptr<CSS::CSSStyleDeclaration const> m_transition_property_source;
-
-        Array<RefPtr<CSSStyleValue const>, number_of_properties> m_property_values;
-        Array<u8, ceil_div(number_of_properties, 8uz)> m_property_important {};
-        Array<u8, ceil_div(number_of_properties, 8uz)> m_property_inherited {};
-
-        HashMap<CSS::PropertyID, NonnullRefPtr<CSSStyleValue const>> m_animated_property_values;
-
-        int m_math_depth { InitialValues::math_depth() };
-        mutable RefPtr<Gfx::FontCascadeList> m_font_list;
-
-        Optional<CSSPixels> m_line_height;
-    };
-
-public:
-    ComputedProperties() = default;
+    virtual ~ComputedProperties() override;
 
     template<typename Callback>
     inline void for_each_property(Callback callback) const
     {
-        for (size_t i = 0; i < m_data->m_property_values.size(); ++i) {
-            if (m_data->m_property_values[i])
-                callback((CSS::PropertyID)i, *m_data->m_property_values[i]);
+        for (size_t i = 0; i < m_property_values.size(); ++i) {
+            if (m_property_values[i])
+                callback((CSS::PropertyID)i, *m_property_values[i]);
         }
     }
 
@@ -62,7 +44,7 @@ public:
         Yes
     };
 
-    HashMap<CSS::PropertyID, NonnullRefPtr<CSSStyleValue const>> const& animated_property_values() const { return m_data->m_animated_property_values; }
+    HashMap<CSS::PropertyID, NonnullRefPtr<CSSStyleValue const>> const& animated_property_values() const { return m_animated_property_values; }
     void reset_animated_properties();
 
     bool is_property_important(CSS::PropertyID property_id) const;
@@ -80,11 +62,11 @@ public:
     CSSStyleValue const* maybe_null_property(CSS::PropertyID) const;
     void revert_property(CSS::PropertyID, ComputedProperties const& style_for_revert);
 
-    GC::Ptr<CSS::CSSStyleDeclaration const> animation_name_source() const { return m_data->m_animation_name_source; }
-    void set_animation_name_source(GC::Ptr<CSS::CSSStyleDeclaration const> declaration) { m_data->m_animation_name_source = declaration; }
+    GC::Ptr<CSS::CSSStyleDeclaration const> animation_name_source() const { return m_animation_name_source; }
+    void set_animation_name_source(GC::Ptr<CSS::CSSStyleDeclaration const> declaration) { m_animation_name_source = declaration; }
 
-    GC::Ptr<CSS::CSSStyleDeclaration const> transition_property_source() const { return m_data->m_transition_property_source; }
-    void set_transition_property_source(GC::Ptr<CSS::CSSStyleDeclaration const> declaration) { m_data->m_transition_property_source = declaration; }
+    GC::Ptr<CSS::CSSStyleDeclaration const> transition_property_source() const { return m_transition_property_source; }
+    void set_transition_property_source(GC::Ptr<CSS::CSSStyleDeclaration const> declaration) { m_transition_property_source = declaration; }
 
     CSS::Size size_value(CSS::PropertyID) const;
     [[nodiscard]] Variant<LengthPercentage, NormalGap> gap_value(CSS::PropertyID) const;
@@ -196,23 +178,23 @@ public:
     Optional<CSS::FillRule> fill_rule() const;
     Optional<CSS::ClipRule> clip_rule() const;
 
-    Gfx::Font const& first_available_computed_font() const { return m_data->m_font_list->first(); }
+    Gfx::Font const& first_available_computed_font() const { return m_font_list->first(); }
 
     Gfx::FontCascadeList const& computed_font_list() const
     {
-        VERIFY(m_data->m_font_list);
-        return *m_data->m_font_list;
+        VERIFY(m_font_list);
+        return *m_font_list;
     }
 
     void set_computed_font_list(NonnullRefPtr<Gfx::FontCascadeList> font_list) const
     {
-        m_data->m_font_list = move(font_list);
+        m_font_list = move(font_list);
     }
 
     [[nodiscard]] CSSPixels compute_line_height(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const;
 
-    [[nodiscard]] CSSPixels line_height() const { return *m_data->m_line_height; }
-    void set_line_height(Badge<StyleComputer> const&, CSSPixels line_height) { m_data->m_line_height = line_height; }
+    [[nodiscard]] CSSPixels line_height() const { return *m_line_height; }
+    void set_line_height(Badge<StyleComputer> const&, CSSPixels line_height) { m_line_height = line_height; }
 
     bool operator==(ComputedProperties const&) const;
 
@@ -220,7 +202,7 @@ public:
     Optional<int> z_index() const;
 
     void set_math_depth(int math_depth);
-    int math_depth() const { return m_data->m_math_depth; }
+    int math_depth() const { return m_math_depth; }
 
     QuotesData quotes() const;
     Vector<CounterData> counter_data(PropertyID) const;
@@ -234,10 +216,26 @@ public:
 private:
     friend class StyleComputer;
 
+    ComputedProperties();
+
+    virtual void visit_edges(Visitor&) override;
+
     Optional<CSS::Overflow> overflow(CSS::PropertyID) const;
     Vector<CSS::ShadowData> shadow(CSS::PropertyID, Layout::Node const&) const;
 
-    AK::CopyOnWrite<ComputedProperties::Data> m_data;
+    GC::Ptr<CSS::CSSStyleDeclaration const> m_animation_name_source;
+    GC::Ptr<CSS::CSSStyleDeclaration const> m_transition_property_source;
+
+    Array<RefPtr<CSSStyleValue const>, number_of_properties> m_property_values;
+    Array<u8, ceil_div(number_of_properties, 8uz)> m_property_important {};
+    Array<u8, ceil_div(number_of_properties, 8uz)> m_property_inherited {};
+
+    HashMap<CSS::PropertyID, NonnullRefPtr<CSSStyleValue const>> m_animated_property_values;
+
+    int m_math_depth { InitialValues::math_depth() };
+    mutable RefPtr<Gfx::FontCascadeList> m_font_list;
+
+    Optional<CSSPixels> m_line_height;
 };
 
 }

@@ -185,16 +185,16 @@ public:
     GC::Ptr<Layout::NodeWithStyle> layout_node();
     GC::Ptr<Layout::NodeWithStyle const> layout_node() const;
 
-    Optional<CSS::ComputedProperties>& computed_css_values() { return m_computed_css_values; }
-    Optional<CSS::ComputedProperties> const& computed_css_values() const { return m_computed_css_values; }
-    void set_computed_css_values(Optional<CSS::ComputedProperties>);
-    CSS::ComputedProperties resolved_css_values(Optional<CSS::Selector::PseudoElement::Type> = {});
+    GC::Ptr<CSS::ComputedProperties> computed_properties() { return m_computed_properties; }
+    GC::Ptr<CSS::ComputedProperties const> computed_properties() const { return m_computed_properties; }
+    void set_computed_properties(GC::Ptr<CSS::ComputedProperties>);
+    GC::Ref<CSS::ComputedProperties> resolved_css_values(Optional<CSS::Selector::PseudoElement::Type> = {});
 
     [[nodiscard]] GC::Ptr<CSS::CascadedProperties> cascaded_properties(Optional<CSS::Selector::PseudoElement::Type>) const;
     void set_cascaded_properties(Optional<CSS::Selector::PseudoElement::Type>, GC::Ptr<CSS::CascadedProperties>);
 
-    void set_pseudo_element_computed_css_values(CSS::Selector::PseudoElement::Type, Optional<CSS::ComputedProperties>);
-    Optional<CSS::ComputedProperties&> pseudo_element_computed_css_values(CSS::Selector::PseudoElement::Type);
+    void set_pseudo_element_computed_properties(CSS::Selector::PseudoElement::Type, GC::Ptr<CSS::ComputedProperties>);
+    GC::Ptr<CSS::ComputedProperties> pseudo_element_computed_properties(CSS::Selector::PseudoElement::Type);
 
     void reset_animated_css_properties();
 
@@ -240,13 +240,13 @@ public:
     GC::Ref<Geometry::DOMRect> get_bounding_client_rect() const;
     GC::Ref<Geometry::DOMRectList> get_client_rects() const;
 
-    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::ComputedProperties);
+    virtual GC::Ptr<Layout::Node> create_layout_node(GC::Ref<CSS::ComputedProperties>);
     virtual void adjust_computed_style(CSS::ComputedProperties&) { }
 
     virtual void did_receive_focus() { }
     virtual void did_lose_focus() { }
 
-    static GC::Ptr<Layout::NodeWithStyle> create_layout_node_for_display_type(DOM::Document&, CSS::Display const&, CSS::ComputedProperties, Element*);
+    static GC::Ptr<Layout::NodeWithStyle> create_layout_node_for_display_type(DOM::Document&, CSS::Display const&, GC::Ref<CSS::ComputedProperties>, Element*);
 
     void set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::Selector::PseudoElement::Type, GC::Ptr<Layout::NodeWithStyle>);
     GC::Ptr<Layout::NodeWithStyle> get_pseudo_element_node(CSS::Selector::PseudoElement::Type) const;
@@ -384,7 +384,7 @@ protected:
     // https://dom.spec.whatwg.org/#concept-element-attributes-change-ext
     virtual void attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_);
 
-    virtual void computed_css_values_changed() { }
+    virtual void computed_properties_changed() { }
 
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -415,14 +415,13 @@ private:
     GC::Ptr<ShadowRoot> m_shadow_root;
 
     GC::Ptr<CSS::CascadedProperties> m_cascaded_properties;
-
-    Optional<CSS::ComputedProperties> m_computed_css_values;
+    GC::Ptr<CSS::ComputedProperties> m_computed_properties;
     HashMap<FlyString, CSS::StyleProperty> m_custom_properties;
 
     struct PseudoElement {
         GC::Ptr<Layout::NodeWithStyle> layout_node;
         GC::Ptr<CSS::CascadedProperties> cascaded_properties;
-        Optional<CSS::ComputedProperties> computed_css_values;
+        GC::Ptr<CSS::ComputedProperties> computed_properties;
         HashMap<FlyString, CSS::StyleProperty> custom_properties;
     };
     // TODO: CSS::Selector::PseudoElement::Type includes a lot of pseudo-elements that exist in shadow trees,

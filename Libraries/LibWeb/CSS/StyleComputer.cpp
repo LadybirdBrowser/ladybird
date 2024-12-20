@@ -1215,7 +1215,7 @@ static void compute_transitioned_properties(ComputedProperties const& style, DOM
     auto const source_declaration = style.transition_property_source();
     if (!source_declaration)
         return;
-    if (!element.computed_css_values().has_value())
+    if (!element.computed_properties())
         return;
     if (source_declaration == element.cached_transition_property_source())
         return;
@@ -1590,16 +1590,16 @@ NonnullRefPtr<CSSStyleValue const> StyleComputer::get_inherit_value(CSS::Propert
 {
     auto* parent_element = element_to_inherit_style_from(element, pseudo_element);
 
-    if (!parent_element || !parent_element->computed_css_values().has_value())
+    if (!parent_element || !parent_element->computed_properties())
         return property_initial_value(property_id);
-    return parent_element->computed_css_values()->property(property_id);
+    return parent_element->computed_properties()->property(property_id);
 }
 
 void StyleComputer::compute_defaulted_property_value(ComputedProperties& style, DOM::Element const* element, CSS::PropertyID property_id, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
 {
     // FIXME: If we don't know the correct initial value for a property, we fall back to `initial`.
 
-    auto& value_slot = style.m_data->m_property_values[to_underlying(property_id)];
+    auto& value_slot = style.m_property_values[to_underlying(property_id)];
     if (!value_slot) {
         if (is_inherited_property(property_id)) {
             style.set_property(
@@ -1780,14 +1780,14 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
     CSSPixels font_size_in_px = 16;
 
     Gfx::FontPixelMetrics font_pixel_metrics;
-    if (parent_element && parent_element->computed_css_values().has_value())
-        font_pixel_metrics = parent_element->computed_css_values()->first_available_computed_font().pixel_metrics();
+    if (parent_element && parent_element->computed_properties())
+        font_pixel_metrics = parent_element->computed_properties()->first_available_computed_font().pixel_metrics();
     else
         font_pixel_metrics = Platform::FontPlugin::the().default_font().pixel_metrics();
     auto parent_font_size = [&]() -> CSSPixels {
-        if (!parent_element || !parent_element->computed_css_values().has_value())
+        if (!parent_element || !parent_element->computed_properties())
             return font_size_in_px;
-        auto const& value = parent_element->computed_css_values()->property(CSS::PropertyID::FontSize);
+        auto const& value = parent_element->computed_properties()->property(CSS::PropertyID::FontSize);
         if (value.is_length()) {
             auto length = value.as_length().length();
             if (length.is_absolute() || length.is_relative()) {
@@ -1836,8 +1836,8 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
                 // If the specified value font-size is math then the computed value of font-size is obtained by multiplying
                 // the inherited value of font-size by a nonzero scale factor calculated by the following procedure:
                 // 1. Let A be the inherited math-depth value, B the computed math-depth value, C be 0.71 and S be 1.0
-                int inherited_math_depth = parent_element && parent_element->computed_css_values().has_value()
-                    ? parent_element->computed_css_values()->math_depth()
+                int inherited_math_depth = parent_element && parent_element->computed_properties()
+                    ? parent_element->computed_properties()->math_depth()
                     : InitialValues::math_depth();
                 int computed_math_depth = math_depth;
                 auto size_ratio = 0.71;
@@ -1876,8 +1876,8 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
             //       larger may compute the font size to the next entry in the table,
             //       and smaller may compute the font size to the previous entry in the table.
             if (keyword == Keyword::Smaller || keyword == Keyword::Larger) {
-                if (parent_element && parent_element->computed_css_values().has_value()) {
-                    font_size_in_px = CSSPixels::nearest_value_for(parent_element->computed_css_values()->first_available_computed_font().pixel_metrics().size);
+                if (parent_element && parent_element->computed_properties()) {
+                    font_size_in_px = CSSPixels::nearest_value_for(parent_element->computed_properties()->first_available_computed_font().pixel_metrics().size);
                 }
             }
             font_size_in_px *= get_absolute_size_mapping(keyword);
@@ -2077,7 +2077,7 @@ void StyleComputer::absolutize_values(ComputedProperties& style) const
     //       We have to resolve them right away, so that the *computed* line-height is ready for inheritance.
     //       We can't simply absolutize *all* percentage values against the font size,
     //       because most percentages are relative to containing block metrics.
-    auto& line_height_value_slot = style.m_data->m_property_values[to_underlying(CSS::PropertyID::LineHeight)];
+    auto& line_height_value_slot = style.m_property_values[to_underlying(CSS::PropertyID::LineHeight)];
     if (line_height_value_slot && line_height_value_slot->is_percentage()) {
         line_height_value_slot = LengthStyleValue::create(
             Length::make_px(CSSPixels::nearest_value_for(font_size * static_cast<double>(line_height_value_slot->as_percentage().percentage().as_fraction()))));
@@ -2090,8 +2090,8 @@ void StyleComputer::absolutize_values(ComputedProperties& style) const
     if (line_height_value_slot && line_height_value_slot->is_length())
         line_height_value_slot = LengthStyleValue::create(Length::make_px(line_height));
 
-    for (size_t i = 0; i < style.m_data->m_property_values.size(); ++i) {
-        auto& value_slot = style.m_data->m_property_values[i];
+    for (size_t i = 0; i < style.m_property_values.size(); ++i) {
+        auto& value_slot = style.m_property_values[i];
         if (!value_slot)
             continue;
         value_slot = value_slot->absolutized(viewport_rect(), font_metrics, m_root_element_font_metrics);
@@ -2145,8 +2145,8 @@ static BoxTypeTransformation required_box_type_transformation(ComputedProperties
     auto const* parent = pseudo_element.has_value() ? &element : element.parent_element();
 
     // A parent with a grid or flex display value blockifies the box’s display type. [CSS-GRID-1] [CSS-FLEXBOX-1]
-    if (parent && parent->computed_css_values().has_value()) {
-        auto const& parent_display = parent->computed_css_values()->display();
+    if (parent && parent->computed_properties()) {
+        auto const& parent_display = parent->computed_properties()->display();
         if (parent_display.is_grid_inside() || parent_display.is_flex_inside())
             return BoxTypeTransformation::Blockify;
     }
@@ -2244,30 +2244,30 @@ void StyleComputer::transform_box_type_if_needed(ComputedProperties& style, DOM:
         style.set_property(CSS::PropertyID::Display, DisplayStyleValue::create(new_display));
 }
 
-ComputedProperties StyleComputer::create_document_style() const
+GC::Ref<ComputedProperties> StyleComputer::create_document_style() const
 {
-    ComputedProperties style = {};
+    auto style = document().heap().allocate<CSS::ComputedProperties>();
     compute_math_depth(style, nullptr, {});
     compute_font(style, nullptr, {});
     compute_defaulted_values(style, nullptr, {});
     absolutize_values(style);
-    style.set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().width())));
-    style.set_property(CSS::PropertyID::Height, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().height())));
-    style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::Block)));
+    style->set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().width())));
+    style->set_property(CSS::PropertyID::Height, CSS::LengthStyleValue::create(CSS::Length::make_px(viewport_rect().height())));
+    style->set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::Block)));
     return style;
 }
 
-ComputedProperties StyleComputer::compute_style(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+GC::Ref<ComputedProperties> StyleComputer::compute_style(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
 {
-    return compute_style_impl(element, move(pseudo_element), ComputeStyleMode::Normal).release_value();
+    return *compute_style_impl(element, move(pseudo_element), ComputeStyleMode::Normal);
 }
 
-Optional<ComputedProperties> StyleComputer::compute_pseudo_element_style_if_needed(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+GC::Ptr<ComputedProperties> StyleComputer::compute_pseudo_element_style_if_needed(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
 {
     return compute_style_impl(element, move(pseudo_element), ComputeStyleMode::CreatePseudoElementStyleIfNeeded);
 }
 
-Optional<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, ComputeStyleMode mode) const
+GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, ComputeStyleMode mode) const
 {
     build_rule_cache_if_needed();
 
@@ -2279,7 +2279,7 @@ Optional<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& ele
         // Merge back inline styles
         if (auto inline_style = element.inline_style()) {
             for (auto const& property : inline_style->properties())
-                style.set_property(property.property_id, property.value);
+                style->set_property(property.property_id, property.value);
         }
         return style;
     }
@@ -2324,9 +2324,9 @@ Optional<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& ele
     return compute_properties(element, pseudo_element, cascaded_properties);
 }
 
-ComputedProperties StyleComputer::compute_properties(DOM::Element& element, Optional<Selector::PseudoElement::Type> pseudo_element, CascadedProperties& cascaded_properties) const
+GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& element, Optional<Selector::PseudoElement::Type> pseudo_element, CascadedProperties& cascaded_properties) const
 {
-    ComputedProperties computed_style;
+    auto computed_style = document().heap().allocate<CSS::ComputedProperties>();
 
     for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
         auto property_id = static_cast<CSS::PropertyID>(i);
@@ -2334,7 +2334,7 @@ ComputedProperties StyleComputer::compute_properties(DOM::Element& element, Opti
         if ((!value && is_inherited_property(property_id))
             || (value && value->is_inherit())) {
             if (auto inheritance_parent = element_to_inherit_style_from(&element, pseudo_element)) {
-                value = inheritance_parent->computed_css_values()->property(property_id);
+                value = inheritance_parent->computed_properties()->property(property_id);
             } else {
                 value = property_initial_value(property_id);
             }
@@ -2350,19 +2350,19 @@ ComputedProperties StyleComputer::compute_properties(DOM::Element& element, Opti
                 value = CSSKeywordValue::create(Keyword::Initial);
         }
 
-        computed_style.set_property(property_id, value.release_nonnull());
+        computed_style->set_property(property_id, value.release_nonnull());
 
         if (property_id == PropertyID::AnimationName) {
-            computed_style.set_animation_name_source(cascaded_properties.property_source(property_id));
+            computed_style->set_animation_name_source(cascaded_properties.property_source(property_id));
         }
         if (property_id == PropertyID::TransitionProperty) {
-            computed_style.set_transition_property_source(cascaded_properties.property_source(property_id));
+            computed_style->set_transition_property_source(cascaded_properties.property_source(property_id));
         }
     }
 
     // Animation declarations [css-animations-2]
     auto animation_name = [&]() -> Optional<String> {
-        auto const animation_name = computed_style.maybe_null_property(PropertyID::AnimationName);
+        auto const animation_name = computed_style->maybe_null_property(PropertyID::AnimationName);
         if (!animation_name)
             return OptionalNone {};
         if (animation_name->is_string())
@@ -2371,7 +2371,7 @@ ComputedProperties StyleComputer::compute_properties(DOM::Element& element, Opti
     }();
 
     if (animation_name.has_value()) {
-        if (auto source_declaration = computed_style.animation_name_source()) {
+        if (auto source_declaration = computed_style->animation_name_source()) {
             auto& realm = element.realm();
 
             if (source_declaration != element.cached_animation_name_source(pseudo_element)) {
@@ -2450,7 +2450,7 @@ ComputedProperties StyleComputer::compute_properties(DOM::Element& element, Opti
     // 9. Transition declarations [css-transitions-1]
     // Theoretically this should be part of the cascade, but it works with computed values, which we don't have until now.
     compute_transitioned_properties(computed_style, element, pseudo_element);
-    if (auto previous_style = element.computed_css_values(); previous_style.has_value()) {
+    if (auto previous_style = element.computed_properties(); previous_style) {
         start_needed_transitions(*previous_style, computed_style, element, pseudo_element);
     }
 
@@ -2912,7 +2912,7 @@ void StyleComputer::compute_math_depth(ComputedProperties& style, DOM::Element c
     auto inherited_math_depth = [&]() {
         if (!element || !element->parent_element())
             return InitialValues::math_depth();
-        return element->parent_element()->computed_css_values()->math_depth();
+        return element->parent_element()->computed_properties()->math_depth();
     };
 
     auto const& value = style.property(CSS::PropertyID::MathDepth);

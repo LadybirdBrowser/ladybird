@@ -17,7 +17,7 @@ class SVGGeometryBox final : public SVGGraphicsBox {
     GC_DECLARE_ALLOCATOR(SVGGeometryBox);
 
 public:
-    SVGGeometryBox(DOM::Document&, SVG::SVGGeometryElement&, CSS::ComputedProperties);
+    SVGGeometryBox(DOM::Document&, SVG::SVGGeometryElement&, GC::Ref<CSS::ComputedProperties>);
     virtual ~SVGGeometryBox() override = default;
 
     SVG::SVGGeometryElement& dom_node() { return static_cast<SVG::SVGGeometryElement&>(SVGGraphicsBox::dom_node()); }

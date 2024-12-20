@@ -16,7 +16,7 @@ class CheckBox final : public FormAssociatedLabelableNode {
     GC_DECLARE_ALLOCATOR(CheckBox);
 
 public:
-    CheckBox(DOM::Document&, HTML::HTMLInputElement&, CSS::ComputedProperties);
+    CheckBox(DOM::Document&, HTML::HTMLInputElement&, GC::Ref<CSS::ComputedProperties>);
     virtual ~CheckBox() override;
 
 private:

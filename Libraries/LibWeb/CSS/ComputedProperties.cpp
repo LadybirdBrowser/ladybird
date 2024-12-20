@@ -8,6 +8,7 @@
 #include <AK/NonnullRawPtr.h>
 #include <AK/TypeCasts.h>
 #include <LibCore/DirIterator.h>
+#include <LibGC/CellAllocator.h>
 #include <LibWeb/CSS/Clip.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
@@ -42,91 +43,89 @@
 
 namespace Web::CSS {
 
-NonnullRefPtr<ComputedProperties::Data> ComputedProperties::Data::clone() const
+GC_DEFINE_ALLOCATOR(ComputedProperties);
+
+ComputedProperties::ComputedProperties() = default;
+
+ComputedProperties::~ComputedProperties() = default;
+
+void ComputedProperties::visit_edges(Visitor& visitor)
 {
-    auto clone = adopt_ref(*new ComputedProperties::Data);
-    clone->m_animation_name_source = m_animation_name_source;
-    clone->m_transition_property_source = m_transition_property_source;
-    clone->m_property_values = m_property_values;
-    clone->m_property_important = m_property_important;
-    clone->m_property_inherited = m_property_inherited;
-    clone->m_animated_property_values = m_animated_property_values;
-    clone->m_math_depth = m_math_depth;
-    clone->m_font_list = m_font_list;
-    clone->m_line_height = m_line_height;
-    return clone;
+    Base::visit_edges(visitor);
+    visitor.visit(m_animation_name_source);
+    visitor.visit(m_transition_property_source);
 }
 
 bool ComputedProperties::is_property_important(CSS::PropertyID property_id) const
 {
     size_t n = to_underlying(property_id);
-    return m_data->m_property_important[n / 8] & (1 << (n % 8));
+    return m_property_important[n / 8] & (1 << (n % 8));
 }
 
 void ComputedProperties::set_property_important(CSS::PropertyID property_id, Important important)
 {
     size_t n = to_underlying(property_id);
     if (important == Important::Yes)
-        m_data->m_property_important[n / 8] |= (1 << (n % 8));
+        m_property_important[n / 8] |= (1 << (n % 8));
     else
-        m_data->m_property_important[n / 8] &= ~(1 << (n % 8));
+        m_property_important[n / 8] &= ~(1 << (n % 8));
 }
 
 bool ComputedProperties::is_property_inherited(CSS::PropertyID property_id) const
 {
     size_t n = to_underlying(property_id);
-    return m_data->m_property_inherited[n / 8] & (1 << (n % 8));
+    return m_property_inherited[n / 8] & (1 << (n % 8));
 }
 
 void ComputedProperties::set_property_inherited(CSS::PropertyID property_id, Inherited inherited)
 {
     size_t n = to_underlying(property_id);
     if (inherited == Inherited::Yes)
-        m_data->m_property_inherited[n / 8] |= (1 << (n % 8));
+        m_property_inherited[n / 8] |= (1 << (n % 8));
     else
-        m_data->m_property_inherited[n / 8] &= ~(1 << (n % 8));
+        m_property_inherited[n / 8] &= ~(1 << (n % 8));
 }
 
 void ComputedProperties::set_property(CSS::PropertyID id, NonnullRefPtr<CSSStyleValue const> value, Inherited inherited, Important important)
 {
-    m_data->m_property_values[to_underlying(id)] = move(value);
+    m_property_values[to_underlying(id)] = move(value);
     set_property_important(id, important);
     set_property_inherited(id, inherited);
 }
 
 void ComputedProperties::revert_property(CSS::PropertyID id, ComputedProperties const& style_for_revert)
 {
-    m_data->m_property_values[to_underlying(id)] = style_for_revert.m_data->m_property_values[to_underlying(id)];
+    m_property_values[to_underlying(id)] = style_for_revert.m_property_values[to_underlying(id)];
     set_property_important(id, style_for_revert.is_property_important(id) ? Important::Yes : Important::No);
     set_property_inherited(id, style_for_revert.is_property_inherited(id) ? Inherited::Yes : Inherited::No);
 }
 
 void ComputedProperties::set_animated_property(CSS::PropertyID id, NonnullRefPtr<CSSStyleValue const> value)
 {
-    m_data->m_animated_property_values.set(id, move(value));
+    m_animated_property_values.set(id, move(value));
 }
 
 void ComputedProperties::reset_animated_properties()
 {
-    m_data->m_animated_property_values.clear();
+    m_animated_property_values.clear();
 }
 
 CSSStyleValue const& ComputedProperties::property(CSS::PropertyID property_id, WithAnimationsApplied return_animated_value) const
 {
     if (return_animated_value == WithAnimationsApplied::Yes) {
-        if (auto animated_value = m_data->m_animated_property_values.get(property_id); animated_value.has_value())
+        if (auto animated_value = m_animated_property_values.get(property_id); animated_value.has_value())
             return *animated_value.value();
     }
 
     // By the time we call this method, all properties have values assigned.
-    return *m_data->m_property_values[to_underlying(property_id)];
+    return *m_property_values[to_underlying(property_id)];
 }
 
 CSSStyleValue const* ComputedProperties::maybe_null_property(CSS::PropertyID property_id) const
 {
-    if (auto animated_value = m_data->m_animated_property_values.get(property_id); animated_value.has_value())
+    if (auto animated_value = m_animated_property_values.get(property_id); animated_value.has_value())
         return animated_value.value();
-    return m_data->m_property_values[to_underlying(property_id)];
+    return m_property_values[to_underlying(property_id)];
 }
 
 Variant<LengthPercentage, NormalGap> ComputedProperties::gap_value(CSS::PropertyID id) const
@@ -270,7 +269,7 @@ CSSPixels ComputedProperties::compute_line_height(CSSPixelRect const& viewport_r
             auto resolved = line_height.as_calculated().resolve_number();
             if (!resolved.has_value()) {
                 dbgln("FIXME: Failed to resolve calc() line-height (number): {}", line_height.as_calculated().to_string(CSSStyleValue::SerializationMode::Normal));
-                return CSSPixels::nearest_value_for(m_data->m_font_list->first().pixel_metrics().line_spacing());
+                return CSSPixels::nearest_value_for(m_font_list->first().pixel_metrics().line_spacing());
             }
             return Length(resolved.value(), Length::Type::Em).to_px(viewport_rect, font_metrics, root_font_metrics);
         }
@@ -278,7 +277,7 @@ CSSPixels ComputedProperties::compute_line_height(CSSPixelRect const& viewport_r
         auto resolved = line_height.as_calculated().resolve_length(Length::ResolutionContext { viewport_rect, font_metrics, root_font_metrics });
         if (!resolved.has_value()) {
             dbgln("FIXME: Failed to resolve calc() line-height: {}", line_height.as_calculated().to_string(CSSStyleValue::SerializationMode::Normal));
-            return CSSPixels::nearest_value_for(m_data->m_font_list->first().pixel_metrics().line_spacing());
+            return CSSPixels::nearest_value_for(m_font_list->first().pixel_metrics().line_spacing());
         }
         return resolved->to_px(viewport_rect, font_metrics, root_font_metrics);
     }
@@ -740,12 +739,12 @@ Optional<CSS::Positioning> ComputedProperties::position() const
 
 bool ComputedProperties::operator==(ComputedProperties const& other) const
 {
-    if (m_data->m_property_values.size() != other.m_data->m_property_values.size())
+    if (m_property_values.size() != other.m_property_values.size())
         return false;
 
-    for (size_t i = 0; i < m_data->m_property_values.size(); ++i) {
-        auto const& my_style = m_data->m_property_values[i];
-        auto const& other_style = other.m_data->m_property_values[i];
+    for (size_t i = 0; i < m_property_values.size(); ++i) {
+        auto const& my_style = m_property_values[i];
+        auto const& other_style = other.m_property_values[i];
         if (!my_style) {
             if (other_style)
                 return false;
@@ -1421,7 +1420,7 @@ Color ComputedProperties::stop_color() const
 
 void ComputedProperties::set_math_depth(int math_depth)
 {
-    m_data->m_math_depth = math_depth;
+    m_math_depth = math_depth;
     // Make our children inherit our computed value, not our specified value.
     set_property(PropertyID::MathDepth, MathDepthStyleValue::create_integer(IntegerStyleValue::create(math_depth)));
 }

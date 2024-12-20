@@ -27,7 +27,7 @@ void SVGMaskElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGMaskElement);
 }
 
-GC::Ptr<Layout::Node> SVGMaskElement::create_layout_node(CSS::ComputedProperties)
+GC::Ptr<Layout::Node> SVGMaskElement::create_layout_node(GC::Ref<CSS::ComputedProperties>)
 {
     // Masks are handled as a special case in the TreeBuilder.
     return nullptr;
