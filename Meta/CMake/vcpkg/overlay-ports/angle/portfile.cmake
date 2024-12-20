@@ -30,6 +30,11 @@ else()
   set(ANGLE_BUILDSYSTEM_PORT "Linux")
 endif()
 
+set(USE_METAL OFF)
+if ("metal" IN_LIST FEATURES)
+    set(USE_METAL ON)
+endif()
+
 # chromium/7067
 set(ANGLE_COMMIT 48103cb2f2b292cb50cc5a29546b358b2e47fd29)
 set(ANGLE_VERSION 7085)
@@ -169,6 +174,7 @@ vcpkg_cmake_configure(
         "-DPORT=${ANGLE_BUILDSYSTEM_PORT}"
         "-DANGLE_USE_D3D11_COMPOSITOR_NATIVE_WINDOW=${ANGLE_USE_D3D11_COMPOSITOR_NATIVE_WINDOW}"
         "-DVCPKG_TARGET_IS_WINDOWS=${VCPKG_TARGET_IS_WINDOWS}"
+        "-DUSE_METAL=${USE_METAL}"
 )
 
 vcpkg_cmake_install()
