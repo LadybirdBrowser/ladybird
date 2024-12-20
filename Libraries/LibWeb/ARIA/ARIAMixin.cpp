@@ -28,6 +28,20 @@ Optional<Role> ARIAMixin::role_from_role_attribute_value() const
         auto role = role_from_string(role_name);
         if (!role.has_value())
             continue;
+        // NOTE: Per https://w3c.github.io/aria/#directory, "Authors are advised to treat directory as deprecated and to
+        // use 'list'." Further, the "directory role == computedrole list" and "div w/directory role == computedrole
+        // list" tests in https://wpt.fyi/results/wai-aria/role/synonym-roles.html expect "list", not "directory".
+        if (role == Role::directory)
+            return Role::list;
+        // NOTE: The "image" role value is a synonym for the older "img" role value; however, the "synonym img role ==
+        // computedrole image" test in https://wpt.fyi/results/wai-aria/role/synonym-roles.html expects "image", not "img".
+        if (role == Role::img)
+            return Role::image;
+        // NOTE: Per https://w3c.github.io/aria/#presentation, "the working group introduced none as the preferred
+        // synonym to the presentation role"; further, https://wpt.fyi/results/wai-aria/role/synonym-roles.html has a
+        // "synonym presentation role == computedrole none" test that expects "none", not "presentation".
+        if (role == Role::presentation)
+            return Role::none;
         if (!is_abstract_role(*role))
             return *role;
     }
