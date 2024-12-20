@@ -32,5 +32,14 @@
       "host": true
     },
     "zlib"
-  ]
+  ],
+  "features": {
+    "metal": {
+      "description": "Metal support for angle",
+      "supports": "ios, osx",
+      "dependencies": [
+        "spirv-headers"
+      ]
+    }
+  }
 }
