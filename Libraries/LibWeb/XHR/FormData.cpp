@@ -9,7 +9,10 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/File.h>
+#include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/FormControlInfrastructure.h>
+#include <LibWeb/HTML/HTMLFormElement.h>
+#include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/XHR/FormData.h>
 
@@ -18,17 +21,38 @@ namespace Web::XHR {
 GC_DEFINE_ALLOCATOR(FormData);
 
 // https://xhr.spec.whatwg.org/#dom-formdata
-WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::construct_impl(JS::Realm& realm, GC::Ptr<HTML::HTMLFormElement> form)
+WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::construct_impl(JS::Realm& realm, GC::Ptr<HTML::HTMLFormElement> form, Optional<GC::Ptr<HTML::HTMLElement>> submitter)
 {
     Vector<FormDataEntry> list;
     // 1. If form is given, then:
     if (form) {
-        // 1. Let list be the result of constructing the entry list for form.
+        // 1. If submitter is non-null, then:
+        if (submitter.has_value() && submitter.value()) {
+            auto& submitter_element = submitter.value();
+
+            // 1. If submitter is not a submit button, then throw a TypeError.
+            bool is_image_button = submitter_element->is_html_input_element() && dynamic_cast<HTML::HTMLInputElement*>(submitter_element.ptr())->type_state() == HTML::HTMLInputElement::TypeAttributeState::ImageButton;
+            if (!submitter_element->is_html_button_element() && !is_image_button) {
+                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Submitter is not a valid submit button."sv };
+            }
+            // 2. If submitter’s form owner is not form, then throw a "NotFoundError" DOMException.
+            if (is<HTML::FormAssociatedElement>(*submitter_element)) {
+                auto* form_associated_element = dynamic_cast<HTML::FormAssociatedElement*>(submitter_element.ptr());
+                auto* form_owner = form_associated_element->form();
+                if (form_owner && form_owner->id() != form->id()) {
+                    return WebIDL::NotFoundError::create(realm, "Submitter does not belong to the provided form."_string);
+                }
+            } else {
+                return WebIDL::NotFoundError::create(realm, "Submitter is not associated with a form."_string);
+            }
+        }
+
+        // 2. Let list be the result of constructing the entry list for form.
         auto entry_list = TRY(construct_entry_list(realm, *form));
-        // 2. If list is null, then throw an "InvalidStateError" DOMException.
+        // 3. If list is null, then throw an "InvalidStateError" DOMException.
         if (!entry_list.has_value())
             return WebIDL::InvalidStateError::create(realm, "Form element does not contain any entries."_string);
-        // 3. Set this’s entry list to list.
+        // 4. Set this’s entry list to list.
         list = entry_list.release_value();
     }
 
