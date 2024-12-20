@@ -239,8 +239,8 @@ WebIDL::ExceptionOr<void> Selection::collapse_to_start()
     auto new_range = DOM::Range::create(*m_document);
 
     // 3. Set the start both its start and end to the start of this's range
-    TRY(new_range->set_start(*anchor_node(), m_range->start_offset()));
-    TRY(new_range->set_end(*anchor_node(), m_range->start_offset()));
+    TRY(new_range->set_start(*m_range->start_container(), m_range->start_offset()));
+    TRY(new_range->set_end(*m_range->start_container(), m_range->start_offset()));
 
     // 4. Then set this's range to the newly-created range.
     set_range(new_range);
@@ -259,8 +259,8 @@ WebIDL::ExceptionOr<void> Selection::collapse_to_end()
     auto new_range = DOM::Range::create(*m_document);
 
     // 3. Set the start both its start and end to the start of this's range
-    TRY(new_range->set_start(*anchor_node(), m_range->end_offset()));
-    TRY(new_range->set_end(*anchor_node(), m_range->end_offset()));
+    TRY(new_range->set_start(*m_range->end_container(), m_range->end_offset()));
+    TRY(new_range->set_end(*m_range->end_container(), m_range->end_offset()));
 
     // 4. Then set this's range to the newly-created range.
     set_range(new_range);
