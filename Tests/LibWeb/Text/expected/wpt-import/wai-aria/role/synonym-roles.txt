@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	image role == computedrole image
+Pass	synonym img role == computedrole image
+Pass	list role == computedrole list
+Pass	directory role == computedrole list
+Pass	div w/directory role == computedrole list
+Pass	none role == computedrole none
+Pass	synonym presentation role == computedrole none
