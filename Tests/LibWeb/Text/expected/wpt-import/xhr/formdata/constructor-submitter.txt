@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 9 tests
+
+6 Pass
+3 Fail
+Pass	FormData construction should allow a null submitter
+Pass	FormData construction should allow an undefined form and an undefined submitter
+Pass	FormData construction should allow an undefined form and a null submitter
+Pass	FormData construction should throw a TypeError if a non-null submitter is not a submit button
+Pass	FormData construction should throw a 'NotFoundError' DOMException if a non-null submitter is not owned by the form
+Fail	The constructed FormData object should contain an in-tree-order entry for a named submit button submitter
+Pass	The constructed FormData object should not contain an entry for an unnamed submit button submitter
+Fail	The constructed FormData object should contain in-tree-order entries for an activated Image Button submitter
+Fail	The constructed FormData object should contain in-tree-order entries for an unactivated Image Button submitter
