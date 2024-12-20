@@ -94,9 +94,10 @@ namespace Web::HTML {
         }                                                        \
     } while (0)
 
-#define DONT_CONSUME_NEXT_INPUT_CHARACTER \
-    do {                                  \
-        restore_to(m_prev_utf8_iterator); \
+#define DONT_CONSUME_NEXT_INPUT_CHARACTER        \
+    do {                                         \
+        if (current_input_character.has_value()) \
+            restore_to(m_prev_utf8_iterator);    \
     } while (0)
 
 #define ON(code_point) \
