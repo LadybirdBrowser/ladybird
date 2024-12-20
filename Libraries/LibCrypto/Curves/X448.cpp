@@ -8,6 +8,7 @@
 #include <AK/Endian.h>
 #include <AK/Random.h>
 #include <LibCrypto/Curves/X448.h>
+#include <LibCrypto/SecureRandom.h>
 
 namespace Crypto::Curves {
 
@@ -291,7 +292,7 @@ static void modular_multiply_inverse(u32* state, u32* value)
 ErrorOr<ByteBuffer> X448::generate_private_key()
 {
     auto buffer = TRY(ByteBuffer::create_uninitialized(BYTES));
-    fill_with_random(buffer);
+    fill_with_secure_random(buffer);
     return buffer;
 }
 

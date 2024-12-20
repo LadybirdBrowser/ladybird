@@ -31,6 +31,7 @@ set(SOURCES
     NumberTheory/ModularFunctions.cpp
     PK/RSA.cpp
     PK/EC.cpp
+    SecureRandom.cpp
 )
 
 serenity_lib(LibCrypto crypto)
