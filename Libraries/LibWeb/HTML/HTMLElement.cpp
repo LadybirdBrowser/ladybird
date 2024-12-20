@@ -92,7 +92,7 @@ void HTMLElement::set_dir(String const& dir)
 
 bool HTMLElement::is_focusable() const
 {
-    return is_editing_host();
+    return is_editing_host() || get_attribute(HTML::AttributeNames::tabindex).has_value();
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-iscontenteditable
