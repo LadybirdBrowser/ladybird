@@ -1,22 +1,23 @@
 /*
  * Copyright (c) 2021, the SerenityOS developers.
- * Copyright (c) 2021, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2024, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <AK/Debug.h>
+#include <AK/ScopeGuard.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/CSSImportRulePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSImportRule.h>
+#include <LibWeb/CSS/Fetch.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Window.h>
-#include <LibWeb/Loader/ResourceLoader.h>
 
 namespace Web::CSS {
 
@@ -33,14 +34,6 @@ CSSImportRule::CSSImportRule(URL::URL url, DOM::Document& document)
     , m_url(move(url))
     , m_document(document)
 {
-    dbgln_if(CSS_LOADER_DEBUG, "CSSImportRule: Loading import URL: {}", m_url);
-    auto request = LoadRequest::create_for_url_on_page(m_url, &document.page());
-
-    // NOTE: Mark this rule as delaying the document load event *before* calling set_resource()
-    //       as it may trigger a synchronous resource_did_load() callback.
-    m_document_load_event_delayer.emplace(document);
-
-    set_resource(ResourceLoader::the().load_resource(Resource::Type::Generic, request));
 }
 
 void CSSImportRule::initialize(JS::Realm& realm)
@@ -54,6 +47,15 @@ void CSSImportRule::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_document);
     visitor.visit(m_style_sheet);
+}
+
+void CSSImportRule::set_parent_style_sheet(CSSStyleSheet* parent_style_sheet)
+{
+    Base::set_parent_style_sheet(parent_style_sheet);
+    // Crude detection of whether we're already fetching.
+    if (m_style_sheet || m_document_load_event_delayer.has_value())
+        return;
+    fetch();
 }
 
 // https://www.w3.org/TR/cssom/#serialize-a-css-rule
@@ -76,53 +78,85 @@ String CSSImportRule::serialized() const
     return MUST(builder.to_string());
 }
 
-void CSSImportRule::resource_did_fail()
+// https://drafts.csswg.org/css-cascade-4/#fetch-an-import
+void CSSImportRule::fetch()
 {
-    dbgln_if(CSS_LOADER_DEBUG, "CSSImportRule: Resource did fail. URL: {}", resource()->url());
+    dbgln_if(CSS_LOADER_DEBUG, "CSSImportRule: Loading import URL: {}", m_url);
+    // To fetch an @import, given an @import rule rule:
 
-    m_document_load_event_delayer.clear();
+    // 1. Let parentStylesheet be rule’s parent CSS style sheet. [CSSOM]
+    VERIFY(parent_style_sheet());
+    auto& parent_style_sheet = *this->parent_style_sheet();
+
+    // FIXME: 2. If rule has a <supports-condition>, and that condition is not true, return.
+
+    // 3. Let parsedUrl be the result of the URL parser steps with rule’s URL and parentStylesheet’s location.
+    //    If the algorithm returns an error, return. [CSSOM]
+    // FIXME: Stop producing a URL::URL when parsing the @import
+    auto parsed_url = url().to_string();
+
+    // FIXME: Figure out the "correct" way to delay the load event.
+    m_document_load_event_delayer.emplace(*m_document);
+
+    // 4. Fetch a style resource from parsedUrl, with stylesheet parentStylesheet, destination "style", CORS mode "no-cors", and processResponse being the following steps given response response and byte stream, null or failure byteStream:
+    fetch_a_style_resource(parsed_url, parent_style_sheet, Fetch::Infrastructure::Request::Destination::Style, CorsMode::NoCors,
+        [strong_this = GC::Ref { *this }, parent_style_sheet = GC::Ref { parent_style_sheet }](auto response, auto maybe_byte_stream) {
+            // AD-HOC: Stop delaying the load event.
+            ScopeGuard guard = [strong_this] {
+                strong_this->m_document_load_event_delayer.clear();
+            };
+
+            // 1. If byteStream is not a byte stream, return.
+            auto byte_stream = maybe_byte_stream.template get_pointer<ByteBuffer>();
+            if (!byte_stream)
+                return;
+
+            // FIXME: 2. If parentStylesheet is in quirks mode and response is CORS-same-origin, let content type be "text/css".
+            //           Otherwise, let content type be the Content Type metadata of response.
+            auto content_type = "text/css"sv;
+
+            // 3. If content type is not "text/css", return.
+            if (content_type != "text/css"sv) {
+                dbgln_if(CSS_LOADER_DEBUG, "CSSImportRule: Rejecting loaded style sheet; content type isn't text/css; is: '{}'", content_type);
+                return;
+            }
+
+            // 4. Let importedStylesheet be the result of parsing byteStream given parsedUrl.
+            // FIXME: Tidy up our parsing API. For now, do the decoding here.
+            // FIXME: Get the encoding from the response somehow.
+            auto encoding = "utf-8"sv;
+            auto maybe_decoder = TextCodec::decoder_for(encoding);
+            if (!maybe_decoder.has_value()) {
+                dbgln_if(CSS_LOADER_DEBUG, "CSSImportRule: Failed to decode CSS file: {} Unsupported encoding: {}", strong_this->url(), encoding);
+                return;
+            }
+            auto& decoder = maybe_decoder.release_value();
+
+            auto decoded_or_error = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(decoder, *byte_stream);
+            if (decoded_or_error.is_error()) {
+                dbgln_if(CSS_LOADER_DEBUG, "CSSImportRule: Failed to decode CSS file: {} Encoding was: {}", strong_this->url(), encoding);
+                return;
+            }
+            auto decoded = decoded_or_error.release_value();
+
+            auto* imported_style_sheet = parse_css_stylesheet(Parser::ParsingContext(*strong_this->m_document, strong_this->url()), decoded, strong_this->url());
+
+            // 5. Set importedStylesheet’s origin-clean flag to parentStylesheet’s origin-clean flag.
+            imported_style_sheet->set_origin_clean(parent_style_sheet->is_origin_clean());
+
+            // 6. If response is not CORS-same-origin, unset importedStylesheet’s origin-clean flag.
+            if (!response->is_cors_cross_origin())
+                imported_style_sheet->set_origin_clean(false);
+
+            // 7. Set rule’s styleSheet to importedStylesheet.
+            strong_this->set_style_sheet(*imported_style_sheet);
+        });
 }
 
-void CSSImportRule::resource_did_load()
+void CSSImportRule::set_style_sheet(GC::Ref<CSSStyleSheet> style_sheet)
 {
-    VERIFY(resource());
-
-    if (!m_document)
-        return;
-
-    m_document_load_event_delayer.clear();
-
-    if (!resource()->has_encoded_data()) {
-        dbgln_if(CSS_LOADER_DEBUG, "CSSImportRule: Resource did load, no encoded data. URL: {}", resource()->url());
-    } else {
-        dbgln_if(CSS_LOADER_DEBUG, "CSSImportRule: Resource did load, has encoded data. URL: {}", resource()->url());
-    }
-
-    // FIXME: The fallback here should be the `environment encoding` of the importing style sheet.
-    auto encoding = resource()->encoding().value_or("utf-8");
-    auto maybe_decoder = TextCodec::decoder_for(encoding);
-    if (!maybe_decoder.has_value()) {
-        dbgln("CSSImportRule: Failed to decode CSS file: {} Unsupported encoding: {}", resource()->url(), encoding);
-        return;
-    }
-    auto& decoder = maybe_decoder.release_value();
-
-    auto decoded_or_error = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(decoder, resource()->encoded_data());
-    if (decoded_or_error.is_error()) {
-        dbgln("CSSImportRule: Failed to decode CSS file: {} Encoding was: {}", resource()->url(), encoding);
-        return;
-    }
-    auto decoded = decoded_or_error.release_value();
-
-    auto* sheet = parse_css_stylesheet(CSS::Parser::ParsingContext(*m_document, resource()->url()), decoded, resource()->url());
-    if (!sheet) {
-        dbgln_if(CSS_LOADER_DEBUG, "CSSImportRule: Failed to parse stylesheet: {}", resource()->url());
-        return;
-    }
-
-    m_style_sheet = sheet;
+    m_style_sheet = style_sheet;
     m_style_sheet->set_owner_css_rule(this);
-
     m_document->style_computer().invalidate_rule_cache();
     m_document->style_computer().load_fonts_from_sheet(*m_style_sheet);
     m_document->invalidate_style(DOM::StyleInvalidationReason::CSSImportRule);
