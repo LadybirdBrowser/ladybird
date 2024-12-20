@@ -293,12 +293,12 @@ bool command_delete_action(DOM::Document& document, String const&)
 
     // 14. If the child of start node with index start offset is an li or dt or dd, and that child's
     //     firstChild is an inline node, and start offset is not zero:
+    // NOTE: step 9 above guarantees start_offset cannot be 0 here.
     auto is_li_dt_or_dd = [](DOM::Element const& node) {
         return node.local_name().is_one_of(HTML::TagNames::li, HTML::TagNames::dt, HTML::TagNames::dd);
     };
     auto* start_offset_child = start_node->child_at_index(start_offset);
-    if (start_offset != 0 && is<DOM::Element>(start_offset_child)
-        && is_li_dt_or_dd(static_cast<DOM::Element&>(*start_offset_child))
+    if (is<DOM::Element>(start_offset_child) && is_li_dt_or_dd(static_cast<DOM::Element&>(*start_offset_child))
         && start_offset_child->has_children() && is_inline_node(*start_offset_child->first_child())) {
         // 1. Let previous item be the child of start node with index start offset minus one.
         GC::Ref<DOM::Node> previous_item = *start_node->child_at_index(start_offset - 1);
