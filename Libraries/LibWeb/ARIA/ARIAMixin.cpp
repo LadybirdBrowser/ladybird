@@ -37,11 +37,6 @@ Optional<Role> ARIAMixin::role_from_role_attribute_value() const
         // computedrole image" test in https://wpt.fyi/results/wai-aria/role/synonym-roles.html expects "image", not "img".
         if (role == Role::img)
             return Role::image;
-        // NOTE: Per https://w3c.github.io/aria/#presentation, "the working group introduced none as the preferred
-        // synonym to the presentation role"; further, https://wpt.fyi/results/wai-aria/role/synonym-roles.html has a
-        // "synonym presentation role == computedrole none" test that expects "none", not "presentation".
-        if (role == Role::presentation)
-            return Role::none;
         // https://w3c.github.io/core-aam/#roleMappingComputedRole
         // When an element has a role but is not contained in the required context (for example, an orphaned listitem
         // without the required accessible parent of role list), User Agents MUST ignore the role token, and return the
@@ -138,6 +133,22 @@ Optional<Role> ARIAMixin::role_from_role_attribute_value() const
         if ((role == ARIA::Role::form || role == ARIA::Role::region)
             && to_element()->accessible_name(to_element()->document(), DOM::ShouldComputeRole::No).value().is_empty())
             continue;
+        if (role == ARIA::Role::none || role == ARIA::Role::presentation) {
+            // https://w3c.github.io/aria/#conflict_resolution_presentation_none
+            // If an element is focusable, user agents MUST ignore the none/presentation
+            // role and expose the element with its implicit role.
+            if (to_element()->is_focusable())
+                continue;
+            // If an element has global WAI-ARIA states or properties, user agents MUST
+            // ignore the none/presentation role and instead expose the element's implicit role.
+            if (has_global_aria_attribute())
+                continue;
+            // NOTE: Per https://w3c.github.io/aria/#presentation, "the working group introduced 'none' as the preferred
+            // synonym to the presentation role"; further, https://wpt.fyi/results/wai-aria/role/synonym-roles.html has
+            // a "synonym presentation role == computedrole none" test that expects "none", not "presentation".
+            if (role == Role::presentation)
+                return Role::none;
+        }
         // 4. Use the first such substring in textual order that matches the name of a non-abstract WAI-ARIA role.
         if (!is_abstract_role(*role))
             return *role;
