@@ -7,7 +7,7 @@
 
 #include <LibWeb/Bindings/HTMLMarqueeElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/CSS/StyleProperties.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/HTML/HTMLMarqueeElement.h>
 #include <LibWeb/HTML/Numbers.h>

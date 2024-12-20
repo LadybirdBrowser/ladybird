@@ -16,7 +16,7 @@ class NavigableContainerViewport final : public ReplacedBox {
     GC_DECLARE_ALLOCATOR(NavigableContainerViewport);
 
 public:
-    NavigableContainerViewport(DOM::Document&, HTML::NavigableContainer&, CSS::StyleProperties);
+    NavigableContainerViewport(DOM::Document&, HTML::NavigableContainer&, CSS::ComputedProperties);
     virtual ~NavigableContainerViewport() override;
 
     virtual void prepare_for_replaced_layout() override;

@@ -16,7 +16,7 @@ class BlockContainer : public Box {
     GC_CELL(BlockContainer, Box);
 
 public:
-    BlockContainer(DOM::Document&, DOM::Node*, CSS::StyleProperties);
+    BlockContainer(DOM::Document&, DOM::Node*, CSS::ComputedProperties);
     BlockContainer(DOM::Document&, DOM::Node*, NonnullOwnPtr<CSS::ComputedValues>);
     virtual ~BlockContainer() override;
 

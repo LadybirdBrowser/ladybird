@@ -47,7 +47,7 @@ void SVGForeignObjectElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_height);
 }
 
-GC::Ptr<Layout::Node> SVGForeignObjectElement::create_layout_node(CSS::StyleProperties style)
+GC::Ptr<Layout::Node> SVGForeignObjectElement::create_layout_node(CSS::ComputedProperties style)
 {
     return heap().allocate<Layout::SVGForeignObjectBox>(document(), *this, move(style));
 }

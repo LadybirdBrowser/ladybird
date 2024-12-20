@@ -10,7 +10,7 @@ namespace Web::Layout {
 
 GC_DEFINE_ALLOCATOR(TableWrapper);
 
-TableWrapper::TableWrapper(DOM::Document& document, DOM::Node* node, CSS::StyleProperties style)
+TableWrapper::TableWrapper(DOM::Document& document, DOM::Node* node, CSS::ComputedProperties style)
     : BlockContainer(document, node, move(style))
 {
 }

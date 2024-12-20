@@ -22,7 +22,7 @@ void SVGGeometryElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGGeometryElement);
 }
 
-GC::Ptr<Layout::Node> SVGGeometryElement::create_layout_node(CSS::StyleProperties style)
+GC::Ptr<Layout::Node> SVGGeometryElement::create_layout_node(CSS::ComputedProperties style)
 {
     return heap().allocate<Layout::SVGGeometryBox>(document(), *this, move(style));
 }

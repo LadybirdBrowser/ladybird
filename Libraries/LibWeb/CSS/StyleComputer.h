@@ -17,8 +17,8 @@
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CascadeOrigin.h>
 #include <LibWeb/CSS/CascadedProperties.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Selector.h>
-#include <LibWeb/CSS/StyleProperties.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 
@@ -141,10 +141,10 @@ public:
     void push_ancestor(DOM::Element const&);
     void pop_ancestor(DOM::Element const&);
 
-    StyleProperties create_document_style() const;
+    ComputedProperties create_document_style() const;
 
-    StyleProperties compute_style(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type> = {}) const;
-    Optional<StyleProperties> compute_pseudo_element_style_if_needed(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>) const;
+    ComputedProperties compute_style(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type> = {}) const;
+    Optional<ComputedProperties> compute_pseudo_element_style_if_needed(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>) const;
 
     Vector<MatchingRule> collect_matching_rules(DOM::Element const&, CascadeOrigin, Optional<CSS::Selector::PseudoElement::Type>, FlyString const& qualified_layer_name = {}) const;
 
@@ -167,13 +167,13 @@ public:
         No,
         Yes,
     };
-    void collect_animation_into(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, GC::Ref<Animations::KeyframeEffect> animation, StyleProperties&, AnimationRefresh = AnimationRefresh::No) const;
+    void collect_animation_into(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, GC::Ref<Animations::KeyframeEffect> animation, ComputedProperties&, AnimationRefresh = AnimationRefresh::No) const;
 
     [[nodiscard]] bool has_has_selectors() const { return m_has_has_selectors; }
 
     size_t number_of_css_font_faces_with_loading_in_progress() const;
 
-    [[nodiscard]] StyleProperties compute_properties(DOM::Element&, Optional<Selector::PseudoElement::Type>, CascadedProperties&) const;
+    [[nodiscard]] ComputedProperties compute_properties(DOM::Element&, Optional<Selector::PseudoElement::Type>, CascadedProperties&) const;
 
 private:
     enum class ComputeStyleMode {
@@ -185,20 +185,20 @@ private:
 
     [[nodiscard]] bool should_reject_with_ancestor_filter(Selector const&) const;
 
-    Optional<StyleProperties> compute_style_impl(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, ComputeStyleMode) const;
+    Optional<ComputedProperties> compute_style_impl(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, ComputeStyleMode) const;
     [[nodiscard]] GC::Ref<CascadedProperties> compute_cascaded_values(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, bool& did_match_any_pseudo_element_rules, ComputeStyleMode) const;
     static RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_ascending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, bool inclusive);
     static RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_descending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, bool inclusive);
     RefPtr<Gfx::FontCascadeList const> font_matching_algorithm(FlyString const& family_name, int weight, int slope, float font_size_in_pt) const;
-    void compute_font(StyleProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
-    void compute_math_depth(StyleProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
-    void compute_defaulted_values(StyleProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
-    void start_needed_transitions(StyleProperties const& old_style, StyleProperties& new_style, DOM::Element&, Optional<Selector::PseudoElement::Type>) const;
-    void absolutize_values(StyleProperties&) const;
-    void resolve_effective_overflow_values(StyleProperties&) const;
-    void transform_box_type_if_needed(StyleProperties&, DOM::Element const&, Optional<CSS::Selector::PseudoElement::Type>) const;
+    void compute_font(ComputedProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
+    void compute_math_depth(ComputedProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
+    void compute_defaulted_values(ComputedProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
+    void start_needed_transitions(ComputedProperties const& old_style, ComputedProperties& new_style, DOM::Element&, Optional<Selector::PseudoElement::Type>) const;
+    void absolutize_values(ComputedProperties&) const;
+    void resolve_effective_overflow_values(ComputedProperties&) const;
+    void transform_box_type_if_needed(ComputedProperties&, DOM::Element const&, Optional<CSS::Selector::PseudoElement::Type>) const;
 
-    void compute_defaulted_property_value(StyleProperties&, DOM::Element const*, CSS::PropertyID, Optional<CSS::Selector::PseudoElement::Type>) const;
+    void compute_defaulted_property_value(ComputedProperties&, DOM::Element const*, CSS::PropertyID, Optional<CSS::Selector::PseudoElement::Type>) const;
 
     void set_all_properties(
         CascadedProperties&,
@@ -216,7 +216,7 @@ private:
 
     [[nodiscard]] CSSPixelRect viewport_rect() const { return m_viewport_rect; }
 
-    [[nodiscard]] Length::FontMetrics calculate_root_element_font_metrics(StyleProperties const&) const;
+    [[nodiscard]] Length::FontMetrics calculate_root_element_font_metrics(ComputedProperties const&) const;
 
     Vector<FlyString> m_qualified_layer_names_in_order;
     void build_qualified_layer_names_cache();

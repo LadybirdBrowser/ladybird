@@ -352,7 +352,7 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString const& request,
                 if (element->is_element()) {
                     auto styles = doc->style_computer().compute_style(*static_cast<Web::DOM::Element*>(element));
                     dbgln("+ Element {}", element->debug_description());
-                    for (size_t i = 0; i < Web::CSS::StyleProperties::number_of_properties; ++i) {
+                    for (size_t i = 0; i < Web::CSS::ComputedProperties::number_of_properties; ++i) {
                         auto property = styles.maybe_null_property(static_cast<Web::CSS::PropertyID>(i));
                         dbgln("|  {} = {}", Web::CSS::string_from_property_id(static_cast<Web::CSS::PropertyID>(i)), property ? property->to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal) : ""_string);
                     }
@@ -511,7 +511,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
             return;
         }
 
-        auto serialize_json = [](Web::CSS::StyleProperties const& properties) -> ByteString {
+        auto serialize_json = [](Web::CSS::ComputedProperties const& properties) -> ByteString {
             StringBuilder builder;
 
             auto serializer = MUST(JsonObjectSerializer<>::try_create(builder));
@@ -591,7 +591,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
             return builder.to_byte_string();
         };
 
-        auto serialize_fonts_json = [](Web::CSS::StyleProperties const& properties) -> ByteString {
+        auto serialize_fonts_json = [](Web::CSS::ComputedProperties const& properties) -> ByteString {
             StringBuilder builder;
             auto serializer = MUST(JsonArraySerializer<>::try_create(builder));
 

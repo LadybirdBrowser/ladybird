@@ -276,7 +276,7 @@ bool Node::is_sticky_position() const
     return position == CSS::Positioning::Sticky;
 }
 
-NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, CSS::StyleProperties computed_style)
+NodeWithStyle::NodeWithStyle(DOM::Document& document, DOM::Node* node, CSS::ComputedProperties computed_style)
     : Node(document, node)
     , m_computed_values(make<CSS::ComputedValues>())
 {
@@ -324,7 +324,7 @@ static CSSPixels snap_a_length_as_a_border_width(double device_pixels_per_css_pi
     return length;
 }
 
-void NodeWithStyle::apply_style(const CSS::StyleProperties& computed_style)
+void NodeWithStyle::apply_style(const CSS::ComputedProperties& computed_style)
 {
     auto& computed_values = mutable_computed_values();
 

@@ -105,7 +105,7 @@ public:
 
     virtual bool is_keyframe_effect() const override { return true; }
 
-    virtual void update_style_properties() override;
+    virtual void update_computed_properties() override;
 
     Optional<CSS::AnimationPlayState> last_css_animation_play_state() const { return m_last_css_animation_play_state; }
     void set_last_css_animation_play_state(CSS::AnimationPlayState state) { m_last_css_animation_play_state = state; }

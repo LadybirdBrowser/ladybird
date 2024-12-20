@@ -7,7 +7,7 @@
  */
 
 #include <LibWeb/Bindings/HTMLProgressElementPrototype.h>
-#include <LibWeb/CSS/StyleProperties.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementFactory.h>
@@ -99,7 +99,7 @@ void HTMLProgressElement::removed_from(DOM::Node*)
     set_shadow_root(nullptr);
 }
 
-void HTMLProgressElement::adjust_computed_style(CSS::StyleProperties& style)
+void HTMLProgressElement::adjust_computed_style(CSS::ComputedProperties& style)
 {
     // https://drafts.csswg.org/css-display-3/#unbox
     if (style.display().is_contents())

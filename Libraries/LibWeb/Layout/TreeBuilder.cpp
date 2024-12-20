@@ -346,7 +346,7 @@ void TreeBuilder::create_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
 
     auto& document = dom_node.document();
     auto& style_computer = document.style_computer();
-    Optional<CSS::StyleProperties> style;
+    Optional<CSS::ComputedProperties> style;
     CSS::Display display;
 
     if (is<DOM::Element>(dom_node)) {

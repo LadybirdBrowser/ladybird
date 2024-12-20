@@ -16,7 +16,7 @@ namespace Web::Layout {
 
 GC_DEFINE_ALLOCATOR(Viewport);
 
-Viewport::Viewport(DOM::Document& document, CSS::StyleProperties style)
+Viewport::Viewport(DOM::Document& document, CSS::ComputedProperties style)
     : BlockContainer(document, &document, move(style))
 {
 }

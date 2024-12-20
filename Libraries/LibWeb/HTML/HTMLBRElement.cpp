@@ -27,12 +27,12 @@ void HTMLBRElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLBRElement);
 }
 
-GC::Ptr<Layout::Node> HTMLBRElement::create_layout_node(CSS::StyleProperties style)
+GC::Ptr<Layout::Node> HTMLBRElement::create_layout_node(CSS::ComputedProperties style)
 {
     return heap().allocate<Layout::BreakNode>(document(), *this, move(style));
 }
 
-void HTMLBRElement::adjust_computed_style(CSS::StyleProperties& style)
+void HTMLBRElement::adjust_computed_style(CSS::ComputedProperties& style)
 {
     // https://drafts.csswg.org/css-display-3/#unbox
     if (style.display().is_contents())

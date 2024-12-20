@@ -16,7 +16,7 @@ class ImageBox final : public ReplacedBox {
     GC_DECLARE_ALLOCATOR(ImageBox);
 
 public:
-    ImageBox(DOM::Document&, DOM::Element&, CSS::StyleProperties, ImageProvider const&);
+    ImageBox(DOM::Document&, DOM::Element&, CSS::ComputedProperties, ImageProvider const&);
     virtual ~ImageBox() override;
 
     virtual void prepare_for_replaced_layout() override;

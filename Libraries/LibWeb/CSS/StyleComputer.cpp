@@ -1019,7 +1019,7 @@ static void cascade_custom_properties(DOM::Element& element, Optional<CSS::Selec
     }
 }
 
-void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, GC::Ref<Animations::KeyframeEffect> effect, StyleProperties& style_properties, AnimationRefresh refresh) const
+void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, GC::Ref<Animations::KeyframeEffect> effect, ComputedProperties& computed_properties, AnimationRefresh refresh) const
 {
     auto animation = effect->associated_animation();
     if (!animation)
@@ -1075,11 +1075,11 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
                 [&](Animations::KeyframeEffect::KeyFrameSet::UseInitial) -> RefPtr<CSSStyleValue const> {
                     if (refresh == AnimationRefresh::Yes)
                         return {};
-                    return style_properties.property(it.key);
+                    return computed_properties.property(it.key);
                 },
                 [&](RefPtr<CSSStyleValue const> value) -> RefPtr<CSSStyleValue const> {
                     if (value->is_revert() || value->is_revert_layer())
-                        return style_properties.property(it.key);
+                        return computed_properties.property(it.key);
                     if (value->is_unresolved())
                         return Parser::Parser::resolve_unresolved_style_value(Parser::ParsingContext { element.document() }, element, pseudo_element, it.key, value->as_unresolved());
                     return value;
@@ -1091,7 +1091,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
         auto const& end_property = keyframe_end_values.properties.get(it.key);
         if (!end_property.has_value()) {
             if (resolved_start_property) {
-                style_properties.set_animated_property(it.key, *resolved_start_property);
+                computed_properties.set_animated_property(it.key, *resolved_start_property);
                 dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "No end property for property {}, using {}", string_from_property_id(it.key), resolved_start_property->to_string(CSSStyleValue::SerializationMode::Normal));
             }
             continue;
@@ -1108,17 +1108,17 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
         auto start = resolved_start_property.release_nonnull();
         auto end = resolved_end_property.release_nonnull();
 
-        if (style_properties.is_property_important(it.key)) {
+        if (computed_properties.is_property_important(it.key)) {
             continue;
         }
 
         if (auto next_value = interpolate_property(*effect->target(), it.key, *start, *end, progress_in_keyframe)) {
             dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} = {}", string_from_property_id(it.key), progress_in_keyframe, start->to_string(CSSStyleValue::SerializationMode::Normal), end->to_string(CSSStyleValue::SerializationMode::Normal), next_value->to_string(CSSStyleValue::SerializationMode::Normal));
-            style_properties.set_animated_property(it.key, *next_value);
+            computed_properties.set_animated_property(it.key, *next_value);
         } else {
             // If interpolate_property() fails, the element should not be rendered
             dbgln_if(LIBWEB_CSS_ANIMATION_DEBUG, "Interpolated value for property {} at {}: {} -> {} is invalid", string_from_property_id(it.key), progress_in_keyframe, start->to_string(CSSStyleValue::SerializationMode::Normal), end->to_string(CSSStyleValue::SerializationMode::Normal));
-            style_properties.set_animated_property(PropertyID::Visibility, CSSKeywordValue::create(Keyword::Hidden));
+            computed_properties.set_animated_property(PropertyID::Visibility, CSSKeywordValue::create(Keyword::Hidden));
         }
     }
 }
@@ -1207,7 +1207,7 @@ static void apply_dimension_attribute(CascadedProperties& cascaded_properties, D
     cascaded_properties.set_property_from_presentational_hint(property_id, parsed_value.release_nonnull());
 }
 
-static void compute_transitioned_properties(StyleProperties const& style, DOM::Element& element, Optional<Selector::PseudoElement::Type> pseudo_element)
+static void compute_transitioned_properties(ComputedProperties const& style, DOM::Element& element, Optional<Selector::PseudoElement::Type> pseudo_element)
 {
     // FIXME: Implement transitioning for pseudo-elements
     (void)pseudo_element;
@@ -1291,7 +1291,7 @@ static void compute_transitioned_properties(StyleProperties const& style, DOM::E
 }
 
 // https://drafts.csswg.org/css-transitions/#starting
-void StyleComputer::start_needed_transitions(StyleProperties const& previous_style, StyleProperties& new_style, DOM::Element& element, Optional<Selector::PseudoElement::Type> pseudo_element) const
+void StyleComputer::start_needed_transitions(ComputedProperties const& previous_style, ComputedProperties& new_style, DOM::Element& element, Optional<Selector::PseudoElement::Type> pseudo_element) const
 {
     // FIXME: Implement transitions for pseudo-elements
     if (pseudo_element.has_value())
@@ -1309,8 +1309,8 @@ void StyleComputer::start_needed_transitions(StyleProperties const& previous_sty
     for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
         auto property_id = static_cast<CSS::PropertyID>(i);
         auto matching_transition_properties = element.property_transition_attributes(property_id);
-        auto const& before_change_value = previous_style.property(property_id, StyleProperties::WithAnimationsApplied::No);
-        auto const& after_change_value = new_style.property(property_id, StyleProperties::WithAnimationsApplied::No);
+        auto const& before_change_value = previous_style.property(property_id, ComputedProperties::WithAnimationsApplied::No);
+        auto const& after_change_value = new_style.property(property_id, ComputedProperties::WithAnimationsApplied::No);
 
         auto existing_transition = element.property_transition(property_id);
         bool has_running_transition = existing_transition && !existing_transition->is_finished();
@@ -1595,7 +1595,7 @@ NonnullRefPtr<CSSStyleValue const> StyleComputer::get_inherit_value(CSS::Propert
     return parent_element->computed_css_values()->property(property_id);
 }
 
-void StyleComputer::compute_defaulted_property_value(StyleProperties& style, DOM::Element const* element, CSS::PropertyID property_id, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+void StyleComputer::compute_defaulted_property_value(ComputedProperties& style, DOM::Element const* element, CSS::PropertyID property_id, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
 {
     // FIXME: If we don't know the correct initial value for a property, we fall back to `initial`.
 
@@ -1605,7 +1605,7 @@ void StyleComputer::compute_defaulted_property_value(StyleProperties& style, DOM
             style.set_property(
                 property_id,
                 get_inherit_value(property_id, element, pseudo_element),
-                StyleProperties::Inherited::Yes,
+                ComputedProperties::Inherited::Yes,
                 Important::No);
         } else {
             style.set_property(property_id, property_initial_value(property_id));
@@ -1620,7 +1620,7 @@ void StyleComputer::compute_defaulted_property_value(StyleProperties& style, DOM
 
     if (value_slot->is_inherit()) {
         value_slot = get_inherit_value(property_id, element, pseudo_element);
-        style.set_property_inherited(property_id, StyleProperties::Inherited::Yes);
+        style.set_property_inherited(property_id, ComputedProperties::Inherited::Yes);
         return;
     }
 
@@ -1630,7 +1630,7 @@ void StyleComputer::compute_defaulted_property_value(StyleProperties& style, DOM
         if (is_inherited_property(property_id)) {
             // then if it is an inherited property, this is treated as inherit,
             value_slot = get_inherit_value(property_id, element, pseudo_element);
-            style.set_property_inherited(property_id, StyleProperties::Inherited::Yes);
+            style.set_property_inherited(property_id, ComputedProperties::Inherited::Yes);
         } else {
             // and if it is not, this is treated as initial.
             value_slot = property_initial_value(property_id);
@@ -1639,7 +1639,7 @@ void StyleComputer::compute_defaulted_property_value(StyleProperties& style, DOM
 }
 
 // https://www.w3.org/TR/css-cascade/#defaulting
-void StyleComputer::compute_defaulted_values(StyleProperties& style, DOM::Element const* element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+void StyleComputer::compute_defaulted_values(ComputedProperties& style, DOM::Element const* element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
 {
     // Walk the list of all known CSS properties and:
     // - Add them to `style` if they are missing.
@@ -1658,7 +1658,7 @@ void StyleComputer::compute_defaulted_values(StyleProperties& style, DOM::Elemen
     }
 }
 
-Length::FontMetrics StyleComputer::calculate_root_element_font_metrics(StyleProperties const& style) const
+Length::FontMetrics StyleComputer::calculate_root_element_font_metrics(ComputedProperties const& style) const
 {
     auto const& root_value = style.property(CSS::PropertyID::FontSize);
 
@@ -2010,13 +2010,13 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
         font_list->add(*emoji_font);
     }
 
-    auto found_font = StyleProperties::font_fallback(monospace, bold);
+    auto found_font = ComputedProperties::font_fallback(monospace, bold);
     font_list->set_last_resort_font(found_font->with_size(font_size_in_pt));
 
     return font_list;
 }
 
-void StyleComputer::compute_font(StyleProperties& style, DOM::Element const* element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+void StyleComputer::compute_font(ComputedProperties& style, DOM::Element const* element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
 {
     // To compute the font, first ensure that we've defaulted the relevant CSS font properties.
     // FIXME: This should be more sophisticated.
@@ -2060,10 +2060,10 @@ void StyleComputer::compute_font(StyleProperties& style, DOM::Element const* ele
 Gfx::Font const& StyleComputer::initial_font() const
 {
     // FIXME: This is not correct.
-    return StyleProperties::font_fallback(false, false);
+    return ComputedProperties::font_fallback(false, false);
 }
 
-void StyleComputer::absolutize_values(StyleProperties& style) const
+void StyleComputer::absolutize_values(ComputedProperties& style) const
 {
     Length::FontMetrics font_metrics {
         m_root_element_font_metrics.font_size,
@@ -2100,7 +2100,7 @@ void StyleComputer::absolutize_values(StyleProperties& style) const
     style.set_line_height({}, line_height);
 }
 
-void StyleComputer::resolve_effective_overflow_values(StyleProperties& style) const
+void StyleComputer::resolve_effective_overflow_values(ComputedProperties& style) const
 {
     // https://www.w3.org/TR/css-overflow-3/#overflow-control
     // The visible/clip values of overflow compute to auto/hidden (respectively) if one of overflow-x or
@@ -2127,7 +2127,7 @@ enum class BoxTypeTransformation {
     Inlinify,
 };
 
-static BoxTypeTransformation required_box_type_transformation(StyleProperties const& style, DOM::Element const& element, Optional<CSS::Selector::PseudoElement::Type> const& pseudo_element)
+static BoxTypeTransformation required_box_type_transformation(ComputedProperties const& style, DOM::Element const& element, Optional<CSS::Selector::PseudoElement::Type> const& pseudo_element)
 {
     // NOTE: We never blockify <br> elements. They are always inline.
     //       There is currently no way to express in CSS how a <br> element really behaves.
@@ -2155,7 +2155,7 @@ static BoxTypeTransformation required_box_type_transformation(StyleProperties co
 }
 
 // https://drafts.csswg.org/css-display/#transformations
-void StyleComputer::transform_box_type_if_needed(StyleProperties& style, DOM::Element const& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+void StyleComputer::transform_box_type_if_needed(ComputedProperties& style, DOM::Element const& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
 {
     // 2.7. Automatic Box Type Transformations
 
@@ -2244,9 +2244,9 @@ void StyleComputer::transform_box_type_if_needed(StyleProperties& style, DOM::El
         style.set_property(CSS::PropertyID::Display, DisplayStyleValue::create(new_display));
 }
 
-StyleProperties StyleComputer::create_document_style() const
+ComputedProperties StyleComputer::create_document_style() const
 {
-    StyleProperties style = {};
+    ComputedProperties style = {};
     compute_math_depth(style, nullptr, {});
     compute_font(style, nullptr, {});
     compute_defaulted_values(style, nullptr, {});
@@ -2257,17 +2257,17 @@ StyleProperties StyleComputer::create_document_style() const
     return style;
 }
 
-StyleProperties StyleComputer::compute_style(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+ComputedProperties StyleComputer::compute_style(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
 {
     return compute_style_impl(element, move(pseudo_element), ComputeStyleMode::Normal).release_value();
 }
 
-Optional<StyleProperties> StyleComputer::compute_pseudo_element_style_if_needed(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+Optional<ComputedProperties> StyleComputer::compute_pseudo_element_style_if_needed(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
 {
     return compute_style_impl(element, move(pseudo_element), ComputeStyleMode::CreatePseudoElementStyleIfNeeded);
 }
 
-Optional<StyleProperties> StyleComputer::compute_style_impl(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, ComputeStyleMode mode) const
+Optional<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, ComputeStyleMode mode) const
 {
     build_rule_cache_if_needed();
 
@@ -2324,9 +2324,9 @@ Optional<StyleProperties> StyleComputer::compute_style_impl(DOM::Element& elemen
     return compute_properties(element, pseudo_element, cascaded_properties);
 }
 
-StyleProperties StyleComputer::compute_properties(DOM::Element& element, Optional<Selector::PseudoElement::Type> pseudo_element, CascadedProperties& cascaded_properties) const
+ComputedProperties StyleComputer::compute_properties(DOM::Element& element, Optional<Selector::PseudoElement::Type> pseudo_element, CascadedProperties& cascaded_properties) const
 {
-    StyleProperties computed_style;
+    ComputedProperties computed_style;
 
     for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
         auto property_id = static_cast<CSS::PropertyID>(i);
@@ -2900,7 +2900,7 @@ void StyleComputer::unload_fonts_from_sheet(CSSStyleSheet& sheet)
     }
 }
 
-void StyleComputer::compute_math_depth(StyleProperties& style, DOM::Element const* element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
+void StyleComputer::compute_math_depth(ComputedProperties& style, DOM::Element const* element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element) const
 {
     // https://w3c.github.io/mathml-core/#propdef-math-depth
 

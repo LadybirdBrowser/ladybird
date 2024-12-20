@@ -23,7 +23,7 @@ public:
     virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 
 private:
-    AudioBox(DOM::Document&, DOM::Element&, CSS::StyleProperties);
+    AudioBox(DOM::Document&, DOM::Element&, CSS::ComputedProperties);
 };
 
 }

@@ -19,7 +19,7 @@
 
 namespace Web::CSS {
 
-class StyleProperties {
+class ComputedProperties {
 public:
     static constexpr size_t number_of_properties = to_underlying(CSS::last_property_id) + 1;
 
@@ -46,7 +46,7 @@ private:
     };
 
 public:
-    StyleProperties() = default;
+    ComputedProperties() = default;
 
     template<typename Callback>
     inline void for_each_property(Callback callback) const
@@ -78,7 +78,7 @@ public:
     };
     CSSStyleValue const& property(CSS::PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
     CSSStyleValue const* maybe_null_property(CSS::PropertyID) const;
-    void revert_property(CSS::PropertyID, StyleProperties const& style_for_revert);
+    void revert_property(CSS::PropertyID, ComputedProperties const& style_for_revert);
 
     GC::Ptr<CSS::CSSStyleDeclaration const> animation_name_source() const { return m_data->m_animation_name_source; }
     void set_animation_name_source(GC::Ptr<CSS::CSSStyleDeclaration const> declaration) { m_data->m_animation_name_source = declaration; }
@@ -214,7 +214,7 @@ public:
     [[nodiscard]] CSSPixels line_height() const { return *m_data->m_line_height; }
     void set_line_height(Badge<StyleComputer> const&, CSSPixels line_height) { m_data->m_line_height = line_height; }
 
-    bool operator==(StyleProperties const&) const;
+    bool operator==(ComputedProperties const&) const;
 
     Optional<CSS::Positioning> position() const;
     Optional<int> z_index() const;
@@ -237,7 +237,7 @@ private:
     Optional<CSS::Overflow> overflow(CSS::PropertyID) const;
     Vector<CSS::ShadowData> shadow(CSS::PropertyID, Layout::Node const&) const;
 
-    AK::CopyOnWrite<StyleProperties::Data> m_data;
+    AK::CopyOnWrite<ComputedProperties::Data> m_data;
 };
 
 }

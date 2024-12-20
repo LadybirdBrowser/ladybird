@@ -158,7 +158,7 @@ String HTMLObjectElement::data() const
     return document().encoding_parse_url(*data).to_string();
 }
 
-GC::Ptr<Layout::Node> HTMLObjectElement::create_layout_node(CSS::StyleProperties style)
+GC::Ptr<Layout::Node> HTMLObjectElement::create_layout_node(CSS::ComputedProperties style)
 {
     switch (m_representation) {
     case Representation::Children:
@@ -176,7 +176,7 @@ GC::Ptr<Layout::Node> HTMLObjectElement::create_layout_node(CSS::StyleProperties
     return nullptr;
 }
 
-void HTMLObjectElement::adjust_computed_style(CSS::StyleProperties& style)
+void HTMLObjectElement::adjust_computed_style(CSS::ComputedProperties& style)
 {
     // https://drafts.csswg.org/css-display-3/#unbox
     if (style.display().is_contents())

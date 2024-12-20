@@ -71,6 +71,7 @@ set(SOURCES
     CSS/CSSSupportsRule.cpp
     CSS/CSSTransition.cpp
     CSS/CascadedProperties.cpp
+    CSS/ComputedProperties.cpp
     CSS/Display.cpp
     CSS/EdgeRect.cpp
     CSS/FontFace.cpp
@@ -114,7 +115,6 @@ set(SOURCES
     CSS/Sizing.cpp
     CSS/StyleComputer.cpp
     CSS/StyleInvalidation.cpp
-    CSS/StyleProperties.cpp
     CSS/StyleProperty.cpp
     CSS/StyleSheet.cpp
     CSS/StyleSheetIdentifier.cpp

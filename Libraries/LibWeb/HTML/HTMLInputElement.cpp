@@ -99,7 +99,7 @@ GC::Ref<ValidityState const> HTMLInputElement::validity() const
     return realm.create<ValidityState>(realm);
 }
 
-GC::Ptr<Layout::Node> HTMLInputElement::create_layout_node(CSS::StyleProperties style)
+GC::Ptr<Layout::Node> HTMLInputElement::create_layout_node(CSS::ComputedProperties style)
 {
     if (type_state() == TypeAttributeState::Hidden)
         return nullptr;
@@ -130,7 +130,7 @@ GC::Ptr<Layout::Node> HTMLInputElement::create_layout_node(CSS::StyleProperties 
     return Element::create_layout_node_for_display_type(document(), style.display(), style, this);
 }
 
-void HTMLInputElement::adjust_computed_style(CSS::StyleProperties& style)
+void HTMLInputElement::adjust_computed_style(CSS::ComputedProperties& style)
 {
     if (type_state() == TypeAttributeState::Hidden || type_state() == TypeAttributeState::SubmitButton || type_state() == TypeAttributeState::Button || type_state() == TypeAttributeState::ResetButton || type_state() == TypeAttributeState::ImageButton || type_state() == TypeAttributeState::Checkbox || type_state() == TypeAttributeState::RadioButton)
         return;

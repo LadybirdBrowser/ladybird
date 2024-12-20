@@ -6,7 +6,7 @@
 
 #include <LibWeb/Bindings/HTMLEmbedElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/CSS/StyleProperties.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/HTML/HTMLEmbedElement.h>
@@ -60,7 +60,7 @@ void HTMLEmbedElement::apply_presentational_hints(GC::Ref<CSS::CascadedPropertie
     });
 }
 
-void HTMLEmbedElement::adjust_computed_style(CSS::StyleProperties& style)
+void HTMLEmbedElement::adjust_computed_style(CSS::ComputedProperties& style)
 {
     // https://drafts.csswg.org/css-display-3/#unbox
     if (style.display().is_contents())

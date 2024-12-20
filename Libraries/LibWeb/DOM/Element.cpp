@@ -13,12 +13,12 @@
 #include <LibWeb/Bindings/ElementPrototype.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/ResolvedCSSStyleDeclaration.h>
 #include <LibWeb/CSS/SelectorEngine.h>
 #include <LibWeb/CSS/StyleComputer.h>
-#include <LibWeb/CSS/StyleProperties.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/DOM/Attr.h>
@@ -388,7 +388,7 @@ Vector<String> Element::get_attribute_names() const
     return names;
 }
 
-GC::Ptr<Layout::Node> Element::create_layout_node(CSS::StyleProperties style)
+GC::Ptr<Layout::Node> Element::create_layout_node(CSS::ComputedProperties style)
 {
     if (local_name() == "noscript" && document().is_scripting_enabled())
         return nullptr;
@@ -397,7 +397,7 @@ GC::Ptr<Layout::Node> Element::create_layout_node(CSS::StyleProperties style)
     return create_layout_node_for_display_type(document(), display, move(style), this);
 }
 
-GC::Ptr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM::Document& document, CSS::Display const& display, CSS::StyleProperties style, Element* element)
+GC::Ptr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM::Document& document, CSS::Display const& display, CSS::ComputedProperties style, Element* element)
 {
     if (display.is_table_inside() || display.is_table_row_group() || display.is_table_header_group() || display.is_table_footer_group() || display.is_table_row())
         return document.heap().allocate<Layout::Box>(document, element, move(style));
@@ -454,7 +454,7 @@ void Element::run_attribute_change_steps(FlyString const& local_name, Optional<S
     }
 }
 
-static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(CSS::StyleProperties const& old_style, CSS::StyleProperties const& new_style)
+static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(CSS::ComputedProperties const& old_style, CSS::ComputedProperties const& new_style)
 {
     CSS::RequiredInvalidationAfterStyleChange invalidation;
 
@@ -552,10 +552,10 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
     return invalidation;
 }
 
-CSS::StyleProperties Element::resolved_css_values(Optional<CSS::Selector::PseudoElement::Type> type)
+CSS::ComputedProperties Element::resolved_css_values(Optional<CSS::Selector::PseudoElement::Type> type)
 {
     auto element_computed_style = CSS::ResolvedCSSStyleDeclaration::create(*this, type);
-    CSS::StyleProperties properties = {};
+    CSS::ComputedProperties properties = {};
 
     for (auto i = to_underlying(CSS::first_property_id); i <= to_underlying(CSS::last_property_id); ++i) {
         auto property_id = (CSS::PropertyID)i;
@@ -2297,13 +2297,13 @@ void Element::set_cascaded_properties(Optional<CSS::Selector::PseudoElement::Typ
     }
 }
 
-void Element::set_computed_css_values(Optional<CSS::StyleProperties> style)
+void Element::set_computed_css_values(Optional<CSS::ComputedProperties> style)
 {
     m_computed_css_values = move(style);
     computed_css_values_changed();
 }
 
-void Element::set_pseudo_element_computed_css_values(CSS::Selector::PseudoElement::Type pseudo_element, Optional<CSS::StyleProperties> style)
+void Element::set_pseudo_element_computed_css_values(CSS::Selector::PseudoElement::Type pseudo_element, Optional<CSS::ComputedProperties> style)
 {
     if (!m_pseudo_element_data && !style.has_value())
         return;
@@ -2315,7 +2315,7 @@ void Element::set_pseudo_element_computed_css_values(CSS::Selector::PseudoElemen
     ensure_pseudo_element(pseudo_element).computed_css_values = move(style);
 }
 
-Optional<CSS::StyleProperties&> Element::pseudo_element_computed_css_values(CSS::Selector::PseudoElement::Type type)
+Optional<CSS::ComputedProperties&> Element::pseudo_element_computed_css_values(CSS::Selector::PseudoElement::Type type)
 {
     auto pseudo_element = get_pseudo_element(type);
     if (pseudo_element.has_value())
@@ -2917,7 +2917,7 @@ CSS::CountersSet& Element::ensure_counters_set()
 }
 
 // https://drafts.csswg.org/css-lists-3/#auto-numbering
-void Element::resolve_counters(CSS::StyleProperties& style)
+void Element::resolve_counters(CSS::ComputedProperties& style)
 {
     // Resolving counter values on a given element is a multi-step process:
 

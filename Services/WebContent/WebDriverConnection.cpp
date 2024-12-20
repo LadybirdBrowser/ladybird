@@ -16,8 +16,8 @@
 #include <LibCore/File.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/PropertyID.h>
-#include <LibWeb/CSS/StyleProperties.h>
 #include <LibWeb/Cookie/Cookie.h>
 #include <LibWeb/Cookie/ParsedCookie.h>
 #include <LibWeb/Crypto/Crypto.h>

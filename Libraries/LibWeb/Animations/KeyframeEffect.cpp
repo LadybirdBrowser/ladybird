@@ -915,13 +915,13 @@ static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(H
     return invalidation;
 }
 
-void KeyframeEffect::update_style_properties()
+void KeyframeEffect::update_computed_properties()
 {
     auto target = this->target();
     if (!target)
         return;
 
-    Optional<CSS::StyleProperties&> style = {};
+    Optional<CSS::ComputedProperties&> style = {};
     if (!pseudo_element_type().has_value())
         style = target->computed_css_values();
     else
@@ -944,7 +944,7 @@ void KeyframeEffect::update_style_properties()
         for (auto i = to_underlying(CSS::first_property_id); i <= to_underlying(CSS::last_property_id); ++i) {
             if (element_style->is_property_inherited(static_cast<CSS::PropertyID>(i))) {
                 auto new_value = CSS::StyleComputer::get_inherit_value(static_cast<CSS::PropertyID>(i), &element);
-                element_style->set_property(static_cast<CSS::PropertyID>(i), *new_value, CSS::StyleProperties::Inherited::Yes);
+                element_style->set_property(static_cast<CSS::PropertyID>(i), *new_value, CSS::ComputedProperties::Inherited::Yes);
             }
         }
 
