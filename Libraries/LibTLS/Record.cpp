@@ -10,6 +10,7 @@
 #include <AK/Random.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
+#include <LibCrypto/SecureRandom.h>
 #include <LibTLS/TLSv12.h>
 
 namespace TLS {
@@ -157,7 +158,7 @@ void TLSv12::update_packet(ByteBuffer& packet)
                         u8 iv[12];
                         Bytes iv_bytes { iv, 12 };
                         Bytes { m_context.crypto.local_aead_iv, 4 }.copy_to(iv_bytes);
-                        fill_with_random(iv_bytes.slice(4, 8));
+                        Crypto::fill_with_secure_random(iv_bytes.slice(4, 8));
 
                         // write the random part of the iv out
                         iv_bytes.slice(4, 8).copy_to(ct.bytes().slice(header_size));
@@ -204,7 +205,7 @@ void TLSv12::update_packet(ByteBuffer& packet)
                             VERIFY_NOT_REACHED();
                         }
                         auto iv = iv_buffer_result.release_value();
-                        fill_with_random(iv);
+                        Crypto::fill_with_secure_random(iv);
 
                         // write it into the ciphertext portion of the message
                         ct.overwrite(header_size, iv.data(), iv.size());
