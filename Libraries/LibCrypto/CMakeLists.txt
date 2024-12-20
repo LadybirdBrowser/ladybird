@@ -39,3 +39,6 @@ set(SOURCES
 
 serenity_lib(LibCrypto crypto)
 target_link_libraries(LibCrypto PRIVATE LibCore)
+
+find_package(OpenSSL REQUIRED)
+target_link_libraries(LibCrypto PUBLIC OpenSSL::Crypto)
