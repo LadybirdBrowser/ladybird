@@ -74,6 +74,7 @@ set(SOURCES
     CSS/ComputedProperties.cpp
     CSS/Display.cpp
     CSS/EdgeRect.cpp
+    CSS/Fetch.cpp
     CSS/FontFace.cpp
     CSS/FontFaceSet.cpp
     CSS/Flex.cpp
