@@ -15,8 +15,8 @@
 
 TEST_CASE(test_BLAKE2b_name)
 {
-    Crypto::Hash::BLAKE2b blake2b;
-    EXPECT_EQ(blake2b.class_name(), "BLAKE2b"sv);
+    auto blake2b = Crypto::Hash::BLAKE2b::create();
+    EXPECT_EQ(blake2b->class_name(), "BLAKE2b"sv);
 }
 
 TEST_CASE(test_BLAKE2b_hash_string)
@@ -42,37 +42,37 @@ TEST_CASE(test_BLAKE2b_consecutive_multiple_updates)
     u8 result[] {
         0x9d, 0xaa, 0x2e, 0x57, 0xc4, 0x94, 0xb6, 0xfd, 0x61, 0x6e, 0x39, 0x0b, 0x71, 0xf4, 0x19, 0x03, 0x41, 0x5c, 0x5c, 0x61, 0x7e, 0x30, 0x0a, 0xf0, 0x0b, 0x3e, 0x9c, 0x77, 0x23, 0x1f, 0x11, 0x4d, 0x83, 0x9d, 0xd6, 0xe0, 0x4a, 0x92, 0x19, 0xae, 0xec, 0xc9, 0x13, 0x57, 0xc6, 0xf1, 0x06, 0x92, 0xb9, 0xf9, 0x97, 0x3e, 0xfd, 0xb3, 0x6f, 0xc8, 0xe1, 0x94, 0xad, 0x8e, 0x33, 0xc2, 0x66, 0x3f
     };
-    Crypto::Hash::BLAKE2b blake2b;
+    auto blake2b = Crypto::Hash::BLAKE2b::create();
 
-    blake2b.update("Well"sv);
-    blake2b.update(" hello "sv);
-    blake2b.update("friends"sv);
-    auto digest = blake2b.digest();
+    blake2b->update("Well"sv);
+    blake2b->update(" hello "sv);
+    blake2b->update("friends"sv);
+    auto digest = blake2b->digest();
 
     EXPECT(memcmp(result, digest.data, Crypto::Hash::BLAKE2b::digest_size()) == 0);
 }
 
 TEST_CASE(test_BLAKE2b_consecutive_updates_reuse)
 {
-    Crypto::Hash::BLAKE2b blake2b;
+    auto blake2b = Crypto::Hash::BLAKE2b::create();
 
-    blake2b.update("Well"sv);
-    blake2b.update(" hello "sv);
-    blake2b.update("friends"sv);
-    auto digest0 = blake2b.digest();
+    blake2b->update("Well"sv);
+    blake2b->update(" hello "sv);
+    blake2b->update("friends"sv);
+    auto digest0 = blake2b->digest();
 
-    blake2b.update("Well"sv);
-    blake2b.update(" hello "sv);
-    blake2b.update("friends"sv);
-    auto digest1 = blake2b.digest();
+    blake2b->update("Well"sv);
+    blake2b->update(" hello "sv);
+    blake2b->update("friends"sv);
+    auto digest1 = blake2b->digest();
 
     EXPECT(memcmp(digest0.data, digest1.data, Crypto::Hash::BLAKE2b::digest_size()) == 0);
 }
 
 TEST_CASE(test_MD5_name)
 {
-    Crypto::Hash::MD5 md5;
-    EXPECT(md5.class_name() == "MD5");
+    auto md5 = Crypto::Hash::MD5::create();
+    EXPECT(md5->class_name() == "MD5");
 }
 
 TEST_CASE(test_MD5_hash_string)
@@ -125,37 +125,37 @@ TEST_CASE(test_MD5_consecutive_multiple_updates)
     u8 result[] {
         0xaf, 0x04, 0x3a, 0x08, 0x94, 0x38, 0x6e, 0x7f, 0xbf, 0x73, 0xe4, 0xaa, 0xf0, 0x8e, 0xee, 0x4c
     };
-    Crypto::Hash::MD5 md5;
+    auto md5 = Crypto::Hash::MD5::create();
 
-    md5.update("Well"sv);
-    md5.update(" hello "sv);
-    md5.update("friends"sv);
-    auto digest = md5.digest();
+    md5->update("Well"sv);
+    md5->update(" hello "sv);
+    md5->update("friends"sv);
+    auto digest = md5->digest();
 
     EXPECT(memcmp(result, digest.data, Crypto::Hash::MD5::digest_size()) == 0);
 }
 
 TEST_CASE(test_MD5_consecutive_updates_reuse)
 {
-    Crypto::Hash::MD5 md5;
+    auto md5 = Crypto::Hash::MD5::create();
 
-    md5.update("Well"sv);
-    md5.update(" hello "sv);
-    md5.update("friends"sv);
-    auto digest0 = md5.digest();
+    md5->update("Well"sv);
+    md5->update(" hello "sv);
+    md5->update("friends"sv);
+    auto digest0 = md5->digest();
 
-    md5.update("Well"sv);
-    md5.update(" hello "sv);
-    md5.update("friends"sv);
-    auto digest1 = md5.digest();
+    md5->update("Well"sv);
+    md5->update(" hello "sv);
+    md5->update("friends"sv);
+    auto digest1 = md5->digest();
 
     EXPECT(memcmp(digest0.data, digest1.data, Crypto::Hash::MD5::digest_size()) == 0);
 }
 
 TEST_CASE(test_SHA1_name)
 {
-    Crypto::Hash::SHA1 sha;
-    EXPECT(sha.class_name() == "SHA1"sv);
+    auto sha = Crypto::Hash::SHA1::create();
+    EXPECT(sha->class_name() == "SHA1"sv);
 }
 
 TEST_CASE(test_SHA1_hash_empty_string)
@@ -181,21 +181,21 @@ TEST_CASE(test_SHA1_hash_successive_updates)
     u8 result[] {
         0xd6, 0x6e, 0xce, 0xd1, 0xf4, 0x08, 0xc6, 0xd8, 0x35, 0xab, 0xf0, 0xc9, 0x05, 0x26, 0xa4, 0xb2, 0xb8, 0xa3, 0x7c, 0xd3
     };
-    auto hasher = Crypto::Hash::SHA1 {};
-    hasher.update("aaaaaaaaaaaaaaa"sv);
-    hasher.update("aaaaaaaaaaaaaaa"sv);
-    hasher.update("aaaaaaaaaaaaaaa"sv);
-    hasher.update("aaaaaaaaaaaaaaa"sv);
-    hasher.update("aaaaaaaaaaaaaaa"sv);
-    hasher.update("aaaaaaaaaaaaaaa"sv);
-    hasher.update("aaaaaaaaaaaaaaa"sv);
-    hasher.update("aaaaaaaaaaaaaaa"sv);
-    hasher.update("aaaaaaaaaaaaaaa"sv);
-    hasher.update("aaaaaaaaaaaaaaa"sv);
-    hasher.update("aaaaaaaaaaaaaaa"sv);
-    hasher.update("aaaaaaaaaaaaaaa"sv);
-    hasher.update("aaaaaaaaa"sv);
-    auto digest = hasher.digest();
+    auto hasher = Crypto::Hash::SHA1::create();
+    hasher->update("aaaaaaaaaaaaaaa"sv);
+    hasher->update("aaaaaaaaaaaaaaa"sv);
+    hasher->update("aaaaaaaaaaaaaaa"sv);
+    hasher->update("aaaaaaaaaaaaaaa"sv);
+    hasher->update("aaaaaaaaaaaaaaa"sv);
+    hasher->update("aaaaaaaaaaaaaaa"sv);
+    hasher->update("aaaaaaaaaaaaaaa"sv);
+    hasher->update("aaaaaaaaaaaaaaa"sv);
+    hasher->update("aaaaaaaaaaaaaaa"sv);
+    hasher->update("aaaaaaaaaaaaaaa"sv);
+    hasher->update("aaaaaaaaaaaaaaa"sv);
+    hasher->update("aaaaaaaaaaaaaaa"sv);
+    hasher->update("aaaaaaaaa"sv);
+    auto digest = hasher->digest();
     EXPECT(memcmp(result, digest.data, Crypto::Hash::SHA1::digest_size()) == 0);
 }
 
@@ -210,8 +210,8 @@ TEST_CASE(test_SHA1_hash_split_into_blocks)
 
 TEST_CASE(test_SHA256_name)
 {
-    Crypto::Hash::SHA256 sha;
-    EXPECT_EQ(sha.class_name(), "SHA256"sv);
+    auto sha = Crypto::Hash::SHA256::create();
+    EXPECT_EQ(sha->class_name(), "SHA256"sv);
 }
 
 TEST_CASE(test_SHA256_hash_string)
@@ -243,8 +243,8 @@ TEST_CASE(test_SHA256_hash_split_into_blocks)
 
 TEST_CASE(test_SHA384_name)
 {
-    Crypto::Hash::SHA384 sha;
-    EXPECT_EQ(sha.class_name(), "SHA384"sv);
+    auto sha = Crypto::Hash::SHA384::create();
+    EXPECT_EQ(sha->class_name(), "SHA384"sv);
 }
 
 TEST_CASE(test_SHA384_hash_string)
@@ -268,8 +268,8 @@ TEST_CASE(test_SHA384_hash_bug)
 
 TEST_CASE(test_SHA512_name)
 {
-    Crypto::Hash::SHA512 sha;
-    EXPECT_EQ(sha.class_name(), "SHA512"sv);
+    auto sha = Crypto::Hash::SHA512::create();
+    EXPECT_EQ(sha->class_name(), "SHA512"sv);
 }
 
 TEST_CASE(test_SHA512_hash_string)
