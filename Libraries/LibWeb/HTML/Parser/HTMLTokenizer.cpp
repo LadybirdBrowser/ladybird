@@ -1819,16 +1819,11 @@ _StartOfFunction:
                     m_character_reference_code += current_input_character.value() - 0x30;
                     continue;
                 }
-                ON_ASCII_UPPER_ALPHA
+                ON_ASCII_HEX_DIGIT
                 {
                     m_character_reference_code *= 16;
-                    m_character_reference_code += current_input_character.value() - 0x37;
-                    continue;
-                }
-                ON_ASCII_LOWER_ALPHA
-                {
-                    m_character_reference_code *= 16;
-                    m_character_reference_code += current_input_character.value() - 0x57;
+                    auto hex_digit_min_ascii_value = is_ascii_upper_alpha(current_input_character.value()) ? 0x37 : 0x57;
+                    m_character_reference_code += current_input_character.value() - hex_digit_min_ascii_value;
                     continue;
                 }
                 ON(';')
