@@ -116,6 +116,7 @@ public:
 
     [[nodiscard]] GC::Ref<Response> unsafe_response();
 
+    [[nodiscard]] bool is_cors_same_origin() const;
     [[nodiscard]] bool is_cors_cross_origin() const;
 
     [[nodiscard]] bool is_fresh() const;
