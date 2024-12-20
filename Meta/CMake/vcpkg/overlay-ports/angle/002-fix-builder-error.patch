@@ -1,0 +1,40 @@
+diff --git a/src/gpu_info_util/SystemInfo_win.cpp b/src/gpu_info_util/SystemInfo_win.cpp
+index f4bb137f2..86495013b 100644
+--- a/src/gpu_info_util/SystemInfo_win.cpp
++++ b/src/gpu_info_util/SystemInfo_win.cpp
+@@ -6,11 +6,6 @@
+ 
+ // SystemInfo_win.cpp: implementation of the Windows-specific parts of SystemInfo.h
+ 
+-#include "gpu_info_util/SystemInfo_internal.h"
+-
+-#include "common/debug.h"
+-#include "common/string_utils.h"
+-
+ // Windows.h needs to be included first
+ #include <windows.h>
+ 
+@@ -19,6 +14,11 @@
+ #include <array>
+ #include <sstream>
+ 
++#include "gpu_info_util/SystemInfo_internal.h"
++
++#include "common/debug.h"
++#include "common/string_utils.h"
++
+ namespace angle
+ {
+ 
+diff --git a/include/GLSLANG/ShaderVars.h b/include/GLSLANG/ShaderVars.h
+index 94cb93e..5593f66 100644
+--- a/include/GLSLANG/ShaderVars.h
++++ b/include/GLSLANG/ShaderVars.h
+@@ -14,6 +14,7 @@
+ #include <array>
+ #include <string>
+ #include <vector>
++#include <stdint.h>
+ 
+ namespace sh
+ {
