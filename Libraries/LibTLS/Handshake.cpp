@@ -11,13 +11,14 @@
 
 #include <LibCore/Timer.h>
 #include <LibCrypto/ASN1/DER.h>
+#include <LibCrypto/SecureRandom.h>
 #include <LibTLS/TLSv12.h>
 
 namespace TLS {
 
 ByteBuffer TLSv12::build_hello()
 {
-    fill_with_random(m_context.local_random);
+    ::Crypto::fill_with_secure_random(m_context.local_random);
 
     auto packet_version = (u16)m_context.options.version;
     auto version = (u16)m_context.options.version;
