@@ -19,9 +19,9 @@ public:
     static ErrorOr<ByteBuffer> mgf1(ReadonlyBytes seed, size_t length)
     requires requires { HashFunction::digest_size(); }
     {
-        HashFunction hash;
+        auto hash = HashFunction::create();
 
-        size_t h_len = hash.digest_size();
+        size_t h_len = hash->digest_size();
 
         // 1. If length > 2^32(hLen), output "mask too long" and stop.
         if constexpr (sizeof(size_t) > 32) {
@@ -42,9 +42,9 @@ public:
             ByteReader::store(static_cast<u8*>(c.data()), AK::convert_between_host_and_big_endian(static_cast<u32>(counter)));
 
             // b. Concatenate the hash of the seed Z and C to the octet string T: T = T || Hash (Z || C)
-            hash.update(seed);
-            hash.update(c);
-            auto digest = hash.digest();
+            hash->update(seed);
+            hash->update(c);
+            auto digest = hash->digest();
 
             TRY(t.try_append(digest.bytes()));
         }

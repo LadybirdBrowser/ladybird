@@ -437,15 +437,14 @@ static void hmac_pseudorandom_function(Bytes output, ReadonlyBytes secret, u8 co
     HMACType hmac(secret);
     append_label_seed(hmac);
 
-    constexpr auto digest_size = hmac.digest_size();
-    u8 digest[digest_size];
-    auto digest_0 = Bytes { digest, digest_size };
+    auto digest_size = hmac.digest_size();
+    auto digest_0 = MUST(ByteBuffer::create_uninitialized(digest_size));
 
     digest_0.overwrite(0, hmac.digest().immutable_data(), digest_size);
 
     size_t index = 0;
     while (index < output.size()) {
-        hmac.update(digest_0);
+        hmac.update(digest_0.bytes());
         append_label_seed(hmac);
         auto digest_1 = hmac.digest();
 
@@ -454,7 +453,7 @@ static void hmac_pseudorandom_function(Bytes output, ReadonlyBytes secret, u8 co
         output.overwrite(index, digest_1.immutable_data(), copy_size);
         index += copy_size;
 
-        digest_0.overwrite(0, hmac.process(digest_0).immutable_data(), digest_size);
+        digest_0.overwrite(0, hmac.process(digest_0.bytes()).immutable_data(), digest_size);
     }
 }
 

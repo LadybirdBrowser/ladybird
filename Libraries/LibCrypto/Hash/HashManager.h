@@ -90,6 +90,11 @@ class Manager final : public HashFunction<0, 0, MultiHashDigestVariant> {
 public:
     using HashFunction::update;
 
+    static NonnullOwnPtr<Manager> create(HashKind kind)
+    {
+        return make<Manager>(kind);
+    }
+
     Manager()
     {
         m_pre_init_buffer = ByteBuffer();
@@ -116,14 +121,14 @@ public:
     {
         return m_algorithm.visit(
             [&](Empty const&) -> size_t { return 0; },
-            [&](auto const& hash) { return hash.digest_size(); });
+            [&](auto const& hash) { return hash->digest_size(); });
     }
 
     inline size_t block_size() const
     {
         return m_algorithm.visit(
             [&](Empty const&) -> size_t { return 0; },
-            [&](auto const& hash) { return hash.block_size(); });
+            [&](auto const& hash) { return hash->block_size(); });
     }
 
     inline void initialize(HashKind kind)
@@ -135,22 +140,22 @@ public:
         m_kind = kind;
         switch (kind) {
         case HashKind::BLAKE2b:
-            m_algorithm = BLAKE2b();
+            m_algorithm = BLAKE2b::create();
             break;
         case HashKind::MD5:
-            m_algorithm = MD5();
+            m_algorithm = MD5::create();
             break;
         case HashKind::SHA1:
-            m_algorithm = SHA1();
+            m_algorithm = SHA1::create();
             break;
         case HashKind::SHA256:
-            m_algorithm = SHA256();
+            m_algorithm = SHA256::create();
             break;
         case HashKind::SHA384:
-            m_algorithm = SHA384();
+            m_algorithm = SHA384::create();
             break;
         case HashKind::SHA512:
-            m_algorithm = SHA512();
+            m_algorithm = SHA512::create();
             break;
         default:
         case HashKind::None:
@@ -165,11 +170,11 @@ public:
         if (size) {
             m_algorithm.visit(
                 [&](Empty&) {},
-                [&](auto& hash) { hash.update(m_pre_init_buffer); });
+                [&](auto& hash) { hash->update(m_pre_init_buffer); });
         }
         m_algorithm.visit(
             [&](Empty&) { m_pre_init_buffer.append(data, length); },
-            [&](auto& hash) { hash.update(data, length); });
+            [&](auto& hash) { hash->update(data, length); });
         if (size && m_kind != HashKind::None)
             m_pre_init_buffer.clear();
     }
@@ -178,14 +183,14 @@ public:
     {
         return m_algorithm.visit(
             [&](Empty&) -> DigestType { VERIFY_NOT_REACHED(); },
-            [&](auto& hash) -> DigestType { return hash.peek(); });
+            [&](auto& hash) -> DigestType { return hash->peek(); });
     }
 
     virtual DigestType digest() override
     {
-        auto digest = peek();
-        reset();
-        return digest;
+        return m_algorithm.visit(
+            [&](Empty&) -> DigestType { VERIFY_NOT_REACHED(); },
+            [&](auto& hash) -> DigestType { return hash->digest(); });
     }
 
     virtual void reset() override
@@ -193,14 +198,14 @@ public:
         m_pre_init_buffer.clear();
         m_algorithm.visit(
             [&](Empty&) {},
-            [&](auto& hash) { hash.reset(); });
+            [&](auto& hash) { hash->reset(); });
     }
 
     virtual ByteString class_name() const override
     {
         return m_algorithm.visit(
             [&](Empty const&) -> ByteString { return "UninitializedHashManager"; },
-            [&](auto const& hash) { return hash.class_name(); });
+            [&](auto const& hash) { return hash->class_name(); });
     }
 
     inline HashKind kind() const
@@ -215,15 +220,19 @@ public:
 
     inline Manager copy() const
     {
+        auto algorithm = m_algorithm.visit(
+            [&](Empty const&) -> AlgorithmVariant { VERIFY_NOT_REACHED(); },
+            [&](auto const& hash) -> AlgorithmVariant { return hash->copy(); });
+
         Manager result;
-        result.m_algorithm = m_algorithm;
+        result.m_algorithm = move(algorithm);
         result.m_kind = m_kind;
         result.m_pre_init_buffer = m_pre_init_buffer;
         return result;
     }
 
 private:
-    using AlgorithmVariant = Variant<Empty, BLAKE2b, MD5, SHA1, SHA256, SHA384, SHA512>;
+    using AlgorithmVariant = Variant<Empty, NonnullOwnPtr<BLAKE2b>, NonnullOwnPtr<MD5>, NonnullOwnPtr<SHA1>, NonnullOwnPtr<SHA256>, NonnullOwnPtr<SHA384>, NonnullOwnPtr<SHA512>>;
     AlgorithmVariant m_algorithm {};
     HashKind m_kind { HashKind::None };
     ByteBuffer m_pre_init_buffer;
