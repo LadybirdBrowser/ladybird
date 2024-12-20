@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Grid Role Verification Tests</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../../resources/testdriver.js"></script>
+    <script src="../../resources/testdriver-vendor.js"></script>
+    <script src="../../resources/testdriver-actions.js"></script>
+    <script src="../../wai-aria/scripts/aria-utils.js"></script>
+  </head>
+  <body>
+
+  <p>Tests <a href="https://w3c.github.io/aria/#grid">grid</a> and related roles.</p>
+
+  <!-- ARIA table roles tested in ./table-roles.html -->
+
+  <div role="grid" data-testname="role is grid" data-expectedrole="grid" class="ex">
+    <div role="row" data-testname="role is row (in grid)" data-expectedrole="row" class="ex">
+      <span role="columnheader" data-testname="role is columnheader (in row, in grid)" data-expectedrole="columnheader" class="ex">x</span>
+      <span role="columnheader">x</span>
+    </div>
+    <div role="row">
+      <span role="rowheader" data-testname="role is rowheader (in row, in grid)" data-expectedrole="rowheader" class="ex">x</span>
+      <span role="gridcell" data-testname="role is gridcell (in row, in grid)" data-expectedrole="gridcell" class="ex">x</span>
+    </div>
+  </div>
+
+  <div role="grid">
+    <div role="rowgroup" data-testname="role is rowgroup (in grid)" data-expectedrole="rowgroup" class="ex">
+      <div role="row" data-testname="role is row (in rowgroup, in grid)" data-expectedrole="row" class="ex">
+        <span role="columnheader" data-testname="role is columnheader (in row, in rowgroup, in grid)" data-expectedrole="columnheader" class="ex">x</span>
+        <span role="columnheader">x</span>
+        <span role="columnheader">x</span>
+      </div>
+    </div>
+    <div role="rowgroup">
+      <div role="row">
+        <span role="rowheader" data-testname="role is rowheader (in row, in rowgroup, in grid)" data-expectedrole="rowheader" class="ex">x</span>
+        <span role="gridcell" data-testname="role is gridcell (in row, in rowgroup, in grid)" data-expectedrole="gridcell" class="ex">x</span>
+        <span role="gridcell">x</span>
+      </div>
+    </div>
+  </div>
+
+<script>
+AriaUtils.verifyRolesBySelector(".ex");
+</script>
+
+</body>
+</html>

@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+<head>
+  <title>Generic Role Verification Tests</title>
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../../resources/testdriver.js"></script>
+  <script src="../../resources/testdriver-vendor.js"></script>
+  <script src="../../resources/testdriver-actions.js"></script>
+  <script src="../../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+<p>Tests <a href="https://w3c.github.io/aria/#generic">generic</a>.</p>
+
+<p role="generic" data-testname="generic role on p element is generic" class="ex-generic">x</p>
+
+<script>
+AriaUtils.verifyGenericRolesBySelector(".ex-generic");
+</script>
+
+</body>
+</html>

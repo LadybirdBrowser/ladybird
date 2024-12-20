@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	command role
+Pass	composite role
+Pass	input role
+Pass	landmark role
+Pass	range role
+Pass	roletype role
+Pass	section role
+Pass	sectionhead role
+Pass	select role
+Pass	structure role
+Pass	widget role
+Pass	window role

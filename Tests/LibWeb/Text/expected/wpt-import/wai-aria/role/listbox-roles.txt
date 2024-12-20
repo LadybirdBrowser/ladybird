@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	div role is listbox
+Pass	role is option (in div listbox)
+Pass	role is group (in div listbox)
+Pass	role is option (in group, in div listbox)
+Pass	ul role is listbox
+Pass	li role is option (in ul listbox)
