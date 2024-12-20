@@ -7,7 +7,7 @@ include(WebKitCommon-minimal)
 set(ANGLE_FRAMEWORK_HEADERS_DIR "${CMAKE_BINARY_DIR}/ANGLE/headers")
 
 set(USE_ANGLE_EGL ON)
-if (NOT WINDOWS_STORE)
+if (NOT WINDOWS_STORE AND NOT USE_METAL)
     set(USE_OPENGL ON)
 endif()
 
