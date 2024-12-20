@@ -27,7 +27,7 @@ void HTMLLabelElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLLabelElement);
 }
 
-GC::Ptr<Layout::Node> HTMLLabelElement::create_layout_node(CSS::ComputedProperties style)
+GC::Ptr<Layout::Node> HTMLLabelElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
 {
     return heap().allocate<Layout::Label>(document(), this, move(style));
 }

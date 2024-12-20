@@ -29,7 +29,7 @@ class SVGSVGElement final : public SVGGraphicsElement
     GC_DECLARE_ALLOCATOR(SVGSVGElement);
 
 public:
-    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::ComputedProperties) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(GC::Ref<CSS::ComputedProperties>) override;
 
     virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
 

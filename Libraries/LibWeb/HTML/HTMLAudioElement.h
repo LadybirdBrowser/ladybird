@@ -25,7 +25,7 @@ private:
 
     virtual void initialize(JS::Realm&) override;
 
-    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::ComputedProperties) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(GC::Ref<CSS::ComputedProperties>) override;
     virtual void adjust_computed_style(CSS::ComputedProperties&) override;
 
     virtual void on_playing() override;

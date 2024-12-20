@@ -1298,7 +1298,7 @@ void Document::update_layout()
         if (needs_full_style_update || node.needs_style_update()) {
             invalidation |= static_cast<Element&>(node).recompute_style();
         }
-        is_display_none = static_cast<Element&>(node).computed_css_values()->display().is_none();
+        is_display_none = static_cast<Element&>(node).computed_properties()->display().is_none();
     }
     node.set_needs_style_update(false);
 

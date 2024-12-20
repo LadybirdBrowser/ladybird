@@ -12,7 +12,7 @@ namespace Web::Layout {
 
 GC_DEFINE_ALLOCATOR(ListItemBox);
 
-ListItemBox::ListItemBox(DOM::Document& document, DOM::Element* element, CSS::ComputedProperties style)
+ListItemBox::ListItemBox(DOM::Document& document, DOM::Element* element, GC::Ref<CSS::ComputedProperties> style)
     : Layout::BlockContainer(document, element, move(style))
 {
 }

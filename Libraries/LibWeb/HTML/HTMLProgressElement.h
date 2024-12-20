@@ -44,7 +44,7 @@ private:
 
     // ^DOM::Node
     virtual bool is_html_progress_element() const final { return true; }
-    virtual void computed_css_values_changed() override;
+    virtual void computed_properties_changed() override;
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

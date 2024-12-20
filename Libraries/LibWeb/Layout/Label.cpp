@@ -17,7 +17,7 @@ namespace Web::Layout {
 
 GC_DEFINE_ALLOCATOR(Label);
 
-Label::Label(DOM::Document& document, HTML::HTMLLabelElement* element, CSS::ComputedProperties style)
+Label::Label(DOM::Document& document, HTML::HTMLLabelElement* element, GC::Ref<CSS::ComputedProperties> style)
     : BlockContainer(document, element, move(style))
 {
 }

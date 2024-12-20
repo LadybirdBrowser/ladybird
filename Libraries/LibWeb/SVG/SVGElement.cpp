@@ -130,8 +130,8 @@ GC::Ref<SVGAnimatedLength> SVGElement::svg_animated_length_for_property(CSS::Pro
 {
     // FIXME: Create a proper animated value when animations are supported.
     auto make_length = [&] {
-        if (auto const style = computed_css_values(); style.has_value()) {
-            if (auto length = style->length_percentage(property); length.has_value())
+        if (auto const computed_properties = this->computed_properties()) {
+            if (auto length = computed_properties->length_percentage(property); length.has_value())
                 return SVGLength::from_length_percentage(realm(), *length);
         }
         return SVGLength::create(realm(), 0, 0.0f);

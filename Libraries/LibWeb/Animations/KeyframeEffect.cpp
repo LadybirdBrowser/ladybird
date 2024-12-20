@@ -921,13 +921,13 @@ void KeyframeEffect::update_computed_properties()
     if (!target)
         return;
 
-    Optional<CSS::ComputedProperties&> style = {};
+    GC::Ptr<CSS::ComputedProperties> style = {};
     if (!pseudo_element_type().has_value())
-        style = target->computed_css_values();
+        style = target->computed_properties();
     else
-        style = target->pseudo_element_computed_css_values(pseudo_element_type().value());
+        style = target->pseudo_element_computed_properties(pseudo_element_type().value());
 
-    if (!style.has_value())
+    if (!style)
         return;
 
     auto animated_properties_before_update = style->animated_property_values();
@@ -937,8 +937,8 @@ void KeyframeEffect::update_computed_properties()
 
     // Traversal of the subtree is necessary to update the animated properties inherited from the target element.
     target->for_each_in_subtree_of_type<DOM::Element>([&](auto& element) {
-        auto element_style = element.computed_css_values();
-        if (!element_style.has_value() || !element.layout_node())
+        auto element_style = element.computed_properties();
+        if (!element_style || !element.layout_node())
             return TraversalDecision::Continue;
 
         for (auto i = to_underlying(CSS::first_property_id); i <= to_underlying(CSS::last_property_id); ++i) {

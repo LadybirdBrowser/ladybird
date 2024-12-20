@@ -11,7 +11,7 @@
 
 namespace Web::Layout {
 
-ReplacedBox::ReplacedBox(DOM::Document& document, DOM::Element& element, CSS::ComputedProperties style)
+ReplacedBox::ReplacedBox(DOM::Document& document, DOM::Element& element, GC::Ref<CSS::ComputedProperties> style)
     : Box(document, &element, move(style))
 {
 }

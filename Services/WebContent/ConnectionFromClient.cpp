@@ -353,7 +353,7 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString const& request,
                     auto styles = doc->style_computer().compute_style(*static_cast<Web::DOM::Element*>(element));
                     dbgln("+ Element {}", element->debug_description());
                     for (size_t i = 0; i < Web::CSS::ComputedProperties::number_of_properties; ++i) {
-                        auto property = styles.maybe_null_property(static_cast<Web::CSS::PropertyID>(i));
+                        auto property = styles->maybe_null_property(static_cast<Web::CSS::PropertyID>(i));
                         dbgln("|  {} = {}", Web::CSS::string_from_property_id(static_cast<Web::CSS::PropertyID>(i)), property ? property->to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal) : ""_string);
                     }
                     dbgln("---");
@@ -506,7 +506,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
 
     if (node->is_element()) {
         auto& element = verify_cast<Web::DOM::Element>(*node);
-        if (!element.computed_css_values().has_value()) {
+        if (!element.computed_properties()) {
             async_did_inspect_dom_node(page_id, false, {}, {}, {}, {}, {}, {});
             return;
         }
@@ -615,7 +615,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
                 return;
             }
 
-            auto pseudo_element_style = element.pseudo_element_computed_css_values(pseudo_element.value());
+            auto pseudo_element_style = element.pseudo_element_computed_properties(pseudo_element.value());
             ByteString computed_values = serialize_json(*pseudo_element_style);
             ByteString resolved_values = serialize_json(element.resolved_css_values(pseudo_element.value()));
             ByteString custom_properties_json = serialize_custom_properties_json(element, pseudo_element);
@@ -626,12 +626,12 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
             return;
         }
 
-        ByteString computed_values = serialize_json(*element.computed_css_values());
+        ByteString computed_values = serialize_json(*element.computed_properties());
         ByteString resolved_values = serialize_json(element.resolved_css_values());
         ByteString custom_properties_json = serialize_custom_properties_json(element, {});
         ByteString node_box_sizing_json = serialize_node_box_sizing_json(element.layout_node());
         ByteString aria_properties_state_json = serialize_aria_properties_state_json(element);
-        ByteString fonts_json = serialize_fonts_json(*element.computed_css_values());
+        ByteString fonts_json = serialize_fonts_json(*element.computed_properties());
 
         async_did_inspect_dom_node(page_id, true, move(computed_values), move(resolved_values), move(custom_properties_json), move(node_box_sizing_json), move(aria_properties_state_json), move(fonts_json));
         return;

@@ -26,7 +26,7 @@ void SVGGElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGGElement);
 }
 
-GC::Ptr<Layout::Node> SVGGElement::create_layout_node(CSS::ComputedProperties style)
+GC::Ptr<Layout::Node> SVGGElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
 {
     return heap().allocate<Layout::SVGGraphicsBox>(document(), *this, move(style));
 }

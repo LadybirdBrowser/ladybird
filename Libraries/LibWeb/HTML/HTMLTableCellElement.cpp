@@ -99,7 +99,7 @@ void HTMLTableCellElement::apply_presentational_hints(GC::Ref<CSS::CascadedPrope
     auto apply_border_style = [&](CSS::PropertyID style_property, CSS::PropertyID width_property, CSS::PropertyID color_property) {
         cascaded_properties->set_property_from_presentational_hint(style_property, CSS::CSSKeywordValue::create(CSS::Keyword::Inset));
         cascaded_properties->set_property_from_presentational_hint(width_property, CSS::LengthStyleValue::create(CSS::Length::make_px(1)));
-        cascaded_properties->set_property_from_presentational_hint(color_property, table_element->computed_css_values()->property(color_property));
+        cascaded_properties->set_property_from_presentational_hint(color_property, table_element->computed_properties()->property(color_property));
     };
     apply_border_style(CSS::PropertyID::BorderLeftStyle, CSS::PropertyID::BorderLeftWidth, CSS::PropertyID::BorderLeftColor);
     apply_border_style(CSS::PropertyID::BorderTopStyle, CSS::PropertyID::BorderTopWidth, CSS::PropertyID::BorderTopColor);

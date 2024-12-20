@@ -14,7 +14,7 @@ namespace Web::Layout {
 
 GC_DEFINE_ALLOCATOR(FieldSetBox);
 
-FieldSetBox::FieldSetBox(DOM::Document& document, DOM::Element& element, CSS::ComputedProperties style)
+FieldSetBox::FieldSetBox(DOM::Document& document, DOM::Element& element, GC::Ref<CSS::ComputedProperties> style)
     : BlockContainer(document, &element, move(style))
 {
 }

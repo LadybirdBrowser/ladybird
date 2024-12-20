@@ -141,10 +141,10 @@ public:
     void push_ancestor(DOM::Element const&);
     void pop_ancestor(DOM::Element const&);
 
-    ComputedProperties create_document_style() const;
+    [[nodiscard]] GC::Ref<ComputedProperties> create_document_style() const;
 
-    ComputedProperties compute_style(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type> = {}) const;
-    Optional<ComputedProperties> compute_pseudo_element_style_if_needed(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>) const;
+    [[nodiscard]] GC::Ref<ComputedProperties> compute_style(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type> = {}) const;
+    [[nodiscard]] GC::Ptr<ComputedProperties> compute_pseudo_element_style_if_needed(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>) const;
 
     Vector<MatchingRule> collect_matching_rules(DOM::Element const&, CascadeOrigin, Optional<CSS::Selector::PseudoElement::Type>, FlyString const& qualified_layer_name = {}) const;
 
@@ -173,7 +173,7 @@ public:
 
     size_t number_of_css_font_faces_with_loading_in_progress() const;
 
-    [[nodiscard]] ComputedProperties compute_properties(DOM::Element&, Optional<Selector::PseudoElement::Type>, CascadedProperties&) const;
+    [[nodiscard]] GC::Ref<ComputedProperties> compute_properties(DOM::Element&, Optional<Selector::PseudoElement::Type>, CascadedProperties&) const;
 
 private:
     enum class ComputeStyleMode {
@@ -185,7 +185,7 @@ private:
 
     [[nodiscard]] bool should_reject_with_ancestor_filter(Selector const&) const;
 
-    Optional<ComputedProperties> compute_style_impl(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, ComputeStyleMode) const;
+    [[nodiscard]] GC::Ptr<ComputedProperties> compute_style_impl(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, ComputeStyleMode) const;
     [[nodiscard]] GC::Ref<CascadedProperties> compute_cascaded_values(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, bool& did_match_any_pseudo_element_rules, ComputeStyleMode) const;
     static RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_ascending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, bool inclusive);
     static RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_descending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, bool inclusive);

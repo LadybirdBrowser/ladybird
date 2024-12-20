@@ -175,7 +175,7 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::set_height(WebIDL::UnsignedLong val
     return {};
 }
 
-GC::Ptr<Layout::Node> HTMLCanvasElement::create_layout_node(CSS::ComputedProperties style)
+GC::Ptr<Layout::Node> HTMLCanvasElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
 {
     return heap().allocate<Layout::CanvasBox>(document(), *this, move(style));
 }

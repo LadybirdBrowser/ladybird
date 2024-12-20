@@ -238,7 +238,7 @@ public:
     virtual void visit_edges(Cell::Visitor& visitor) override;
 
 protected:
-    NodeWithStyle(DOM::Document&, DOM::Node*, CSS::ComputedProperties);
+    NodeWithStyle(DOM::Document&, DOM::Node*, GC::Ref<CSS::ComputedProperties>);
     NodeWithStyle(DOM::Document&, DOM::Node*, NonnullOwnPtr<CSS::ComputedValues>);
 
 private:
@@ -257,8 +257,8 @@ public:
     BoxModelMetrics const& box_model() const { return m_box_model; }
 
 protected:
-    NodeWithStyleAndBoxModelMetrics(DOM::Document& document, DOM::Node* node, CSS::ComputedProperties style)
-        : NodeWithStyle(document, node, move(style))
+    NodeWithStyleAndBoxModelMetrics(DOM::Document& document, DOM::Node* node, GC::Ref<CSS::ComputedProperties> style)
+        : NodeWithStyle(document, node, style)
     {
     }
 

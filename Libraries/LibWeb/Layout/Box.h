@@ -55,7 +55,7 @@ public:
     virtual void visit_edges(Cell::Visitor&) override;
 
 protected:
-    Box(DOM::Document&, DOM::Node*, CSS::ComputedProperties);
+    Box(DOM::Document&, DOM::Node*, GC::Ref<CSS::ComputedProperties>);
     Box(DOM::Document&, DOM::Node*, NonnullOwnPtr<CSS::ComputedValues>);
 
 private:

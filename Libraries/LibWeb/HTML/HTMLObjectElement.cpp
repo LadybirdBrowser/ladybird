@@ -158,7 +158,7 @@ String HTMLObjectElement::data() const
     return document().encoding_parse_url(*data).to_string();
 }
 
-GC::Ptr<Layout::Node> HTMLObjectElement::create_layout_node(CSS::ComputedProperties style)
+GC::Ptr<Layout::Node> HTMLObjectElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
 {
     switch (m_representation) {
     case Representation::Children:
