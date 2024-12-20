@@ -1,0 +1,29 @@
+<script src="include.js"></script>
+<div>
+    Well
+    <ul>
+        <li>Hello</li>
+        <li>Friends</li>
+        <li>!</li>
+    </ul>
+</div>
+<script>
+    test(() => {
+        const anchor = document.querySelector('div');
+
+        const range = document.createRange();
+        range.setStart(anchor, 0);
+        range.setEnd(anchor.childNodes[1], 3);
+        getSelection().addRange(range);
+
+        const printRange = () => {
+            let activeRange = getSelection().getRangeAt(0);
+            println(`${activeRange.startContainer} ${activeRange.startOffset} ${activeRange.endContainer} ${activeRange.endOffset}`);
+        };
+        printRange();
+
+        getSelection().collapseToEnd();
+
+        printRange();
+    })
+</script>
