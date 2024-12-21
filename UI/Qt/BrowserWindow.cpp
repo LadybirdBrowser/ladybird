@@ -355,7 +355,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
     auto* inspector_action = new QAction("Open &Inspector", this);
     inspector_action->setIcon(load_icon_from_uri("resource://icons/browser/dom-tree.png"sv));
-    inspector_action->setShortcuts({ QKeySequence("Ctrl+Shift+I"), QKeySequence("F12") });
+    inspector_action->setShortcuts({ QKeySequence("Ctrl+Shift+I"), QKeySequence("Ctrl+Shift+C"), QKeySequence("F12") });
     inspect_menu->addAction(inspector_action);
     QObject::connect(inspector_action, &QAction::triggered, this, [this] {
         if (m_current_tab) {
