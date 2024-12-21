@@ -28,10 +28,6 @@ set(SOURCES
     Curves/Ed25519.cpp
     Curves/X25519.cpp
     Curves/X448.cpp
-    Hash/BLAKE2b.cpp
-    Hash/MD5.cpp
-    Hash/SHA1.cpp
-    Hash/SHA2.cpp
     NumberTheory/ModularFunctions.cpp
     PK/RSA.cpp
     PK/EC.cpp
@@ -39,3 +35,6 @@ set(SOURCES
 
 serenity_lib(LibCrypto crypto)
 target_link_libraries(LibCrypto PRIVATE LibCore)
+
+find_package(OpenSSL REQUIRED)
+target_link_libraries(LibCrypto PUBLIC OpenSSL::Crypto)

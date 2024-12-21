@@ -80,6 +80,7 @@
       "name": "mman",
       "platform": "windows"
     },
+    "openssl",
     {
       "name": "pthread",
       "platform": "windows"

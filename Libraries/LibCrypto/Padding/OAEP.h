@@ -37,9 +37,9 @@ public:
         auto ps = TRY(ByteBuffer::create_zeroed(padding_size));
 
         // 4. Let pHash = Hash(P), an octet string of length hLen.
-        HashFunction hash;
-        hash.update(parameters);
-        auto digest = hash.digest();
+        auto hash = HashFunction::create();
+        hash->update(parameters);
+        auto digest = hash->digest();
         auto p_hash = digest.bytes();
 
         // 5. Concatenate pHash, PS, the message M, and other padding to form a data block DB as: DB = pHash || PS || 01 || M
@@ -92,9 +92,9 @@ public:
             return Error::from_string_view("message too long"sv);
 
         // 3. If the label L is not provided, let L be the empty string. Let lHash = Hash(L), an octet string of length hLen.
-        HashFunction hash;
-        hash.update(label);
-        auto digest = hash.digest();
+        auto hash = HashFunction::create();
+        hash->update(label);
+        auto digest = hash->digest();
         auto l_hash = digest.bytes();
 
         // 4. Generate an octet string PS consisting of k - mLen - 2hLen - 2 zero octets.  The length of PS may be zero.
@@ -207,9 +207,9 @@ public:
 
         // 1. If the label L is not provided, let L be the empty string.
         // Let lHash = Hash(L), an octet string of length hLen (see the note in Section 7.1.1).
-        HashFunction hash;
-        hash.update(label);
-        auto digest = hash.digest();
+        auto hash = HashFunction::create();
+        hash->update(label);
+        auto digest = hash->digest();
         auto l_hash = digest.bytes();
 
         // 2. Separate the encoded message EM into

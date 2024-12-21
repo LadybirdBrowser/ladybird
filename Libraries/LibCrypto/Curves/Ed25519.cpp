@@ -79,15 +79,15 @@ ErrorOr<ByteBuffer> Ed25519::sign(ReadonlyBytes public_key, ReadonlyBytes privat
     memcpy(p, h.data + 32, 32);
 
     // 2. Compute SHA-512(dom2(F, C) || p || PH(M)), where M is the message to be signed.
-    Crypto::Hash::SHA512 hash;
+    auto hash = Hash::SHA512::create();
     // NOTE: dom2(F, C) is a blank octet string when signing or verifying Ed25519
-    hash.update(p, 32);
+    hash->update(p, 32);
     // NOTE: PH(M) = M
-    hash.update(message.data(), message.size());
+    hash->update(message.data(), message.size());
 
     // Interpret the 64-octet digest as a little-endian integer r.
     // For efficiency, do this by first reducing r modulo L, the group order of B.
-    auto digest = hash.digest();
+    auto digest = hash->digest();
     barrett_reduce(r, digest.data);
 
     // 3.  Compute the point [r]B.
@@ -100,13 +100,13 @@ ErrorOr<ByteBuffer> Ed25519::sign(ReadonlyBytes public_key, ReadonlyBytes privat
     // 4. Compute SHA512(dom2(F, C) || R || A || PH(M)),
     // NOTE: We can reuse hash here, since digest() calls reset()
     // NOTE: dom2(F, C) is a blank octet string when signing or verifying Ed25519
-    hash.update(R.data(), R.size());
+    hash->update(R.data(), R.size());
     // NOTE: A == public_key
-    hash.update(public_key.data(), public_key.size());
+    hash->update(public_key.data(), public_key.size());
     // NOTE: PH(M) = M
-    hash.update(message.data(), message.size());
+    hash->update(message.data(), message.size());
 
-    digest = hash.digest();
+    digest = hash->digest();
     // and interpret the 64-octet digest as a little-endian integer k.
     memcpy(k, digest.data, 64);
 
@@ -160,15 +160,15 @@ bool Ed25519::verify(ReadonlyBytes public_key, ReadonlyBytes signature, Readonly
     not_valid |= decode_point(&ka, public_key.data());
 
     // 2. Compute SHA512(dom2(F, C) || R || A || PH(M)), and interpret the 64-octet digest as a little-endian integer k.
-    Crypto::Hash::SHA512 hash;
+    auto hash = Hash::SHA512::create();
     // NOTE: dom2(F, C) is a blank octet string when signing or verifying Ed25519
-    hash.update(r, half_signature_size);
+    hash->update(r, half_signature_size);
     // NOTE: A == public_key
-    hash.update(public_key.data(), key_size());
+    hash->update(public_key.data(), key_size());
     // NOTE: PH(M) = M
-    hash.update(message.data(), message.size());
+    hash->update(message.data(), message.size());
 
-    auto digest = hash.digest();
+    auto digest = hash->digest();
     auto k = digest.data;
 
     // 3.  Check the group equation [8][S]B = [8]R + [8][k]A'.
