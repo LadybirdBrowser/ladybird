@@ -29,11 +29,15 @@ static Wasm::ValueType table_kind_to_value_type(Bindings::TableKind kind)
     VERIFY_NOT_REACHED();
 }
 
+// https://webassembly.github.io/spec/js-api/#tables
 WebIDL::ExceptionOr<GC::Ref<Table>> Table::construct_impl(JS::Realm& realm, TableDescriptor& descriptor, JS::Value value)
 {
     auto& vm = realm.vm();
 
     auto reference_type = table_kind_to_value_type(descriptor.element);
+    // If elementType is not a reftype, throw a TypeError exception.
+    if (!reference_type.is_reference())
+        return vm.throw_completion<JS::TypeError>("elementType is not a reftype"_string);
     auto reference_value = vm.argument_count() == 1
         ? Detail::default_webassembly_value(vm, reference_type)
         : TRY(Detail::to_webassembly_value(vm, value, reference_type));
