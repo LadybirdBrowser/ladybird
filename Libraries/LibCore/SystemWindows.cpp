@@ -189,4 +189,12 @@ int getpid()
     return GetCurrentProcessId();
 }
 
+u64 physical_memory_bytes()
+{
+    MEMORYSTATUSEX ms = {};
+    ms.dwLength = sizeof ms;
+    GlobalMemoryStatusEx(&ms);
+    return ms.ullTotalPhys;
+}
+
 }
