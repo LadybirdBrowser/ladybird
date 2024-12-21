@@ -204,7 +204,7 @@ void NavigateEvent::process_scroll_behavior()
 void NavigateEvent::potentially_process_scroll_behavior()
 {
     // 1. Assert: event's interception state is "committed" or "scrolled".
-    VERIFY(m_interception_state != InterceptionState::Committed && m_interception_state != InterceptionState::Scrolled);
+    VERIFY(m_interception_state == InterceptionState::Committed || m_interception_state == InterceptionState::Scrolled);
 
     // 2. If event's interception state is "scrolled", then return.
     if (m_interception_state == InterceptionState::Scrolled)

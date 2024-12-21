@@ -14,10 +14,8 @@
 
 namespace Web::HTML {
 
-bool SyntaxHighlighter::is_identifier(u64 token) const
+bool SyntaxHighlighter::is_identifier(u64) const
 {
-    if (!token)
-        return false;
     return false;
 }
 

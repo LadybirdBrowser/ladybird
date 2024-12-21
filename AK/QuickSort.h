@@ -113,8 +113,7 @@ void single_pivot_quick_sort(Iterator start, Iterator end, LessThan less_than)
             return;
 
         int pivot_point = size / 2;
-        if (pivot_point)
-            swap(*(start + pivot_point), *start);
+        swap(*(start + pivot_point), *start);
 
         auto&& pivot = *start;
 
