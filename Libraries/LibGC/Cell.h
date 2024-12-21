@@ -149,7 +149,7 @@ public:
             }
         }
 
-        void visit(NanBoxedValue const& value);
+        void visit(NanBoxedCell const& value);
 
         // Allow explicitly ignoring a GC-allocated member in a visit_edges implementation instead
         // of just not using it.
