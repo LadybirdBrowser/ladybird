@@ -11,9 +11,9 @@
 #include <LibGC/Root.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Completion.h>
+#include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::WebAssembly {
@@ -60,6 +60,23 @@ private:
     Vector<NonnullRefPtr<CompiledWebAssemblyModule>> m_compiled_modules;
     HashTable<GC::Ptr<JS::Object>> m_imported_objects;
     Wasm::AbstractMachine m_abstract_machine;
+};
+
+class ExportedWasmFunction final : public JS::NativeFunction {
+    JS_OBJECT(ExportedWasmFunction, JS::NativeFunction);
+    GC_DECLARE_ALLOCATOR(ExportedWasmFunction);
+
+public:
+    static GC::Ref<ExportedWasmFunction> create(JS::Realm&, DeprecatedFlyString const& name, ESCAPING Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>, Wasm::FunctionAddress);
+    virtual ~ExportedWasmFunction() override = default;
+
+    Wasm::FunctionAddress exported_address() const { return m_exported_address; }
+
+protected:
+    ExportedWasmFunction(DeprecatedFlyString name, GC::Ptr<GC::Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>>, Wasm::FunctionAddress, Object& prototype);
+
+private:
+    Wasm::FunctionAddress m_exported_address;
 };
 
 WebAssemblyCache& get_cache(JS::Realm&);
