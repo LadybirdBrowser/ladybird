@@ -160,13 +160,13 @@ void OpenGLContext::allocate_painting_surface_if_needed()
 
     eglMakeCurrent(m_impl->display, m_impl->surface, m_impl->surface, m_impl->context);
 
-    EGLint texture_target_angle = 0;
-    eglGetConfigAttrib(display, config, EGL_BIND_TO_TEXTURE_TARGET_ANGLE, &texture_target_angle);
-    VERIFY(texture_target_angle == EGL_TEXTURE_RECTANGLE_ANGLE);
+    EGLint texture_target_name = 0;
+    eglGetConfigAttrib(display, config, EGL_BIND_TO_TEXTURE_TARGET_ANGLE, &texture_target_name);
+    VERIFY(texture_target_name == EGL_TEXTURE_RECTANGLE_ANGLE || texture_target_name == EGL_TEXTURE_2D);
 
     GLuint texture = 0;
     glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_RECTANGLE_ANGLE, texture);
+    glBindTexture(texture_target_name == EGL_TEXTURE_RECTANGLE_ANGLE ? GL_TEXTURE_RECTANGLE_ANGLE : GL_TEXTURE_2D, texture);
     auto result = eglBindTexImage(display, m_impl->surface, EGL_BACK_BUFFER);
     VERIFY(result == EGL_TRUE);
 
