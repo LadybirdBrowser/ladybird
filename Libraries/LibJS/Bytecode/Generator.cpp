@@ -896,14 +896,14 @@ static Optional<ByteString> expression_identifier(Expression const& expression)
         auto const& member_expression = static_cast<MemberExpression const&>(expression);
         StringBuilder builder;
 
-        if (auto identifer = expression_identifier(member_expression.object()); identifer.has_value())
-            builder.append(*identifer);
+        if (auto identifier = expression_identifier(member_expression.object()); identifier.has_value())
+            builder.append(*identifier);
 
-        if (auto identifer = expression_identifier(member_expression.property()); identifer.has_value()) {
+        if (auto identifier = expression_identifier(member_expression.property()); identifier.has_value()) {
             if (member_expression.is_computed())
-                builder.appendff("[{}]", *identifer);
+                builder.appendff("[{}]", *identifier);
             else
-                builder.appendff(".{}", *identifer);
+                builder.appendff(".{}", *identifier);
         }
 
         return builder.to_byte_string();
@@ -914,8 +914,8 @@ static Optional<ByteString> expression_identifier(Expression const& expression)
 
 Optional<IdentifierTableIndex> Generator::intern_identifier_for_expression(Expression const& expression)
 {
-    if (auto identifer = expression_identifier(expression); identifer.has_value())
-        return intern_identifier(identifer.release_value());
+    if (auto identifier = expression_identifier(expression); identifier.has_value())
+        return intern_identifier(identifier.release_value());
     return {};
 }
 

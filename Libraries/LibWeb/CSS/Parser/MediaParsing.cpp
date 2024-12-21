@@ -137,7 +137,7 @@ NonnullRefPtr<MediaQuery> Parser::parse_media_query(TokenStream<ComponentValue>&
 }
 
 // `<media-condition>`, https://www.w3.org/TR/mediaqueries-4/#typedef-media-condition
-// `<media-condition-widthout-or>`, https://www.w3.org/TR/mediaqueries-4/#typedef-media-condition-without-or
+// `<media-condition-without-or>`, https://www.w3.org/TR/mediaqueries-4/#typedef-media-condition-without-or
 // (We distinguish between these two with the `allow_or` parameter.)
 OwnPtr<MediaCondition> Parser::parse_media_condition(TokenStream<ComponentValue>& tokens, MediaCondition::AllowOr allow_or)
 {

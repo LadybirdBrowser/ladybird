@@ -37,7 +37,7 @@ ALWAYS_INLINE constexpr void sipround(u64& v0, u64& v1, u64& v2, u64& v3)
 }
 
 // Can handle u64 or u128 output as per reference implementation.
-// We currenly only use u64 and further fold it to u32 (unsigned) for use in Traits.
+// We currently only use u64 and further fold it to u32 (unsigned) for use in Traits.
 template<size_t message_block_rounds, size_t finalization_rounds>
 static void do_siphash(ReadonlyBytes input, u128 key, Bytes output)
 {
