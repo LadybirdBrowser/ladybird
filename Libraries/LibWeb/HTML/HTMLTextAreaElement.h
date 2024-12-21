@@ -28,7 +28,7 @@ class HTMLTextAreaElement final
 public:
     virtual ~HTMLTextAreaElement() override;
 
-    virtual void adjust_computed_style(CSS::StyleProperties&) override;
+    virtual void adjust_computed_style(CSS::ComputedProperties&) override;
 
     String const& type() const
     {

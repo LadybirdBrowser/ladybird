@@ -82,7 +82,7 @@ i32 HTMLFrameElement::default_tab_index_value() const
     return 0;
 }
 
-void HTMLFrameElement::adjust_computed_style(CSS::StyleProperties& style)
+void HTMLFrameElement::adjust_computed_style(CSS::ComputedProperties& style)
 {
     // https://drafts.csswg.org/css-display-3/#unbox
     if (style.display().is_contents())

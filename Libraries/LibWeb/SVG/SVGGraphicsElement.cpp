@@ -143,7 +143,7 @@ struct NamedPropertyID {
     StringView name;
 };
 
-void SVGGraphicsElement::apply_presentational_hints(CSS::StyleProperties& style) const
+void SVGGraphicsElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
     static Array const attribute_style_properties {
         // FIXME: The `fill` attribute and CSS `fill` property are not the same! But our support is limited enough that they are equivalent for now.
@@ -175,7 +175,7 @@ void SVGGraphicsElement::apply_presentational_hints(CSS::StyleProperties& style)
             if (!name.equals_ignoring_ascii_case(property.name))
                 continue;
             if (auto style_value = parse_css_value(parsing_context, value, property.id))
-                style.set_property(property.id, style_value.release_nonnull());
+                cascaded_properties->set_property_from_presentational_hint(property.id, style_value.release_nonnull());
             break;
         }
     });

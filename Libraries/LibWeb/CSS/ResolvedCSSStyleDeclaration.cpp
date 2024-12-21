@@ -196,8 +196,8 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
 
     auto get_computed_value = [this](PropertyID property_id) -> auto const& {
         if (m_pseudo_element.has_value())
-            return m_element->pseudo_element_computed_css_values(m_pseudo_element.value())->property(property_id);
-        return m_element->computed_css_values()->property(property_id);
+            return m_element->pseudo_element_computed_properties(m_pseudo_element.value())->property(property_id);
+        return m_element->computed_properties()->property(property_id);
     };
 
     // A limited number of properties have special rules for producing their "resolved value".
@@ -554,7 +554,7 @@ Optional<StyleProperty> ResolvedCSSStyleDeclaration::property(PropertyID propert
         auto style = m_element->document().style_computer().compute_style(const_cast<DOM::Element&>(*m_element), m_pseudo_element);
 
         // FIXME: This is a stopgap until we implement shorthand -> longhand conversion.
-        auto const* value = style.maybe_null_property(property_id);
+        auto const* value = style->maybe_null_property(property_id);
         if (!value) {
             dbgln("FIXME: ResolvedCSSStyleDeclaration::property(property_id={:#x}) No value for property ID in newly computed style case.", to_underlying(property_id));
             return {};

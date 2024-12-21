@@ -19,7 +19,7 @@ class SVGSymbolElement final : public SVGGraphicsElement
 public:
     virtual ~SVGSymbolElement() override = default;
 
-    void apply_presentational_hints(CSS::StyleProperties& style) const override;
+    virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
 
     virtual Optional<ViewBox> view_box() const override { return m_view_box; }
     virtual Optional<PreserveAspectRatio> preserve_aspect_ratio() const override
@@ -36,7 +36,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(GC::Ref<CSS::ComputedProperties>) override;
 
     bool is_direct_child_of_use_shadow_tree() const;
 

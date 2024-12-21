@@ -37,7 +37,7 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-    virtual void apply_presentational_hints(CSS::StyleProperties&) const override;
+    virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
 
     GC::Ptr<DOM::HTMLCollection> mutable m_rows;
 };

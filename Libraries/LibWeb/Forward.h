@@ -216,7 +216,7 @@ class ShorthandStyleValue;
 class Size;
 class StringStyleValue;
 class StyleComputer;
-class StyleProperties;
+class ComputedProperties;
 class StyleSheet;
 class StyleSheetList;
 class StyleValueList;

@@ -99,7 +99,7 @@ GC::Ref<ValidityState const> HTMLInputElement::validity() const
     return realm.create<ValidityState>(realm);
 }
 
-GC::Ptr<Layout::Node> HTMLInputElement::create_layout_node(CSS::StyleProperties style)
+GC::Ptr<Layout::Node> HTMLInputElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
 {
     if (type_state() == TypeAttributeState::Hidden)
         return nullptr;
@@ -114,8 +114,8 @@ GC::Ptr<Layout::Node> HTMLInputElement::create_layout_node(CSS::StyleProperties 
     // This specification introduces the appearance property to provide some control over this behavior.
     // In particular, using appearance: none allows authors to suppress the native appearance of widgets,
     // giving them a primitive appearance where CSS can be used to restyle them.
-    if (style.appearance() == CSS::Appearance::None) {
-        return Element::create_layout_node_for_display_type(document(), style.display(), style, this);
+    if (style->appearance() == CSS::Appearance::None) {
+        return Element::create_layout_node_for_display_type(document(), style->display(), style, this);
     }
 
     if (type_state() == TypeAttributeState::SubmitButton || type_state() == TypeAttributeState::Button || type_state() == TypeAttributeState::ResetButton)
@@ -127,10 +127,10 @@ GC::Ptr<Layout::Node> HTMLInputElement::create_layout_node(CSS::StyleProperties 
     if (type_state() == TypeAttributeState::RadioButton)
         return heap().allocate<Layout::RadioButton>(document(), *this, move(style));
 
-    return Element::create_layout_node_for_display_type(document(), style.display(), style, this);
+    return Element::create_layout_node_for_display_type(document(), style->display(), style, this);
 }
 
-void HTMLInputElement::adjust_computed_style(CSS::StyleProperties& style)
+void HTMLInputElement::adjust_computed_style(CSS::ComputedProperties& style)
 {
     if (type_state() == TypeAttributeState::Hidden || type_state() == TypeAttributeState::SubmitButton || type_state() == TypeAttributeState::Button || type_state() == TypeAttributeState::ResetButton || type_state() == TypeAttributeState::ImageButton || type_state() == TypeAttributeState::Checkbox || type_state() == TypeAttributeState::RadioButton)
         return;
@@ -1123,16 +1123,16 @@ void HTMLInputElement::create_range_input_shadow_tree()
     add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(realm(), mousedown_callback));
 }
 
-void HTMLInputElement::computed_css_values_changed()
+void HTMLInputElement::computed_properties_changed()
 {
-    auto appearance = computed_css_values()->appearance();
+    auto appearance = computed_properties()->appearance();
     if (!appearance.has_value() || *appearance == CSS::Appearance::None)
         return;
 
     auto palette = document().page().palette();
     auto accent_color = palette.color(ColorRole::Accent).to_string();
 
-    auto const& accent_color_property = computed_css_values()->property(CSS::PropertyID::AccentColor);
+    auto const& accent_color_property = computed_properties()->property(CSS::PropertyID::AccentColor);
     if (accent_color_property.has_color())
         accent_color = accent_color_property.to_string(CSS::CSSStyleValue::SerializationMode::Normal);
 
@@ -1593,7 +1593,7 @@ void HTMLInputElement::form_associated_element_was_removed(DOM::Node*)
     set_shadow_root(nullptr);
 }
 
-void HTMLInputElement::apply_presentational_hints(CSS::StyleProperties& style) const
+void HTMLInputElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
     if (type_state() != TypeAttributeState::ImageButton)
         return;
@@ -1601,42 +1601,42 @@ void HTMLInputElement::apply_presentational_hints(CSS::StyleProperties& style) c
     for_each_attribute([&](auto& name, auto& value) {
         if (name == HTML::AttributeNames::align) {
             if (value.equals_ignoring_ascii_case("center"sv))
-                style.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Center));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Center));
             else if (value.equals_ignoring_ascii_case("middle"sv))
-                style.set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Middle));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Middle));
         } else if (name == HTML::AttributeNames::border) {
             if (auto parsed_value = parse_non_negative_integer(value); parsed_value.has_value()) {
                 auto width_style_value = CSS::LengthStyleValue::create(CSS::Length::make_px(*parsed_value));
-                style.set_property(CSS::PropertyID::BorderTopWidth, width_style_value);
-                style.set_property(CSS::PropertyID::BorderRightWidth, width_style_value);
-                style.set_property(CSS::PropertyID::BorderBottomWidth, width_style_value);
-                style.set_property(CSS::PropertyID::BorderLeftWidth, width_style_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderTopWidth, width_style_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderRightWidth, width_style_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderBottomWidth, width_style_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderLeftWidth, width_style_value);
 
                 auto border_style_value = CSS::CSSKeywordValue::create(CSS::Keyword::Solid);
-                style.set_property(CSS::PropertyID::BorderTopStyle, border_style_value);
-                style.set_property(CSS::PropertyID::BorderRightStyle, border_style_value);
-                style.set_property(CSS::PropertyID::BorderBottomStyle, border_style_value);
-                style.set_property(CSS::PropertyID::BorderLeftStyle, border_style_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderTopStyle, border_style_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderRightStyle, border_style_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderBottomStyle, border_style_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderLeftStyle, border_style_value);
             }
         } else if (name == HTML::AttributeNames::height) {
             if (auto parsed_value = parse_dimension_value(value)) {
-                style.set_property(CSS::PropertyID::Height, *parsed_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Height, *parsed_value);
             }
         }
         // https://html.spec.whatwg.org/multipage/rendering.html#attributes-for-embedded-content-and-images:maps-to-the-dimension-property
         else if (name == HTML::AttributeNames::hspace) {
             if (auto parsed_value = parse_dimension_value(value)) {
-                style.set_property(CSS::PropertyID::MarginLeft, *parsed_value);
-                style.set_property(CSS::PropertyID::MarginRight, *parsed_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginLeft, *parsed_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginRight, *parsed_value);
             }
         } else if (name == HTML::AttributeNames::vspace) {
             if (auto parsed_value = parse_dimension_value(value)) {
-                style.set_property(CSS::PropertyID::MarginTop, *parsed_value);
-                style.set_property(CSS::PropertyID::MarginBottom, *parsed_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginTop, *parsed_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginBottom, *parsed_value);
             }
         } else if (name == HTML::AttributeNames::width) {
             if (auto parsed_value = parse_dimension_value(value)) {
-                style.set_property(CSS::PropertyID::Width, *parsed_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Width, *parsed_value);
             }
         }
     });

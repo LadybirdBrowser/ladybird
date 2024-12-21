@@ -58,8 +58,8 @@ class HTMLInputElement final
 public:
     virtual ~HTMLInputElement() override;
 
-    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
-    virtual void adjust_computed_style(CSS::StyleProperties&) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(GC::Ref<CSS::ComputedProperties>) override;
+    virtual void adjust_computed_style(CSS::ComputedProperties&) override;
 
     enum class TypeAttributeState {
 #define __ENUMERATE_HTML_INPUT_TYPE_ATTRIBUTE(_, state) state,
@@ -227,7 +227,7 @@ private:
 
     void type_attribute_changed(TypeAttributeState old_state, TypeAttributeState new_state);
 
-    virtual void apply_presentational_hints(CSS::StyleProperties&) const override;
+    virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
 
     // ^DOM::Node
     virtual bool is_html_input_element() const final { return true; }
@@ -241,7 +241,7 @@ private:
 
     // ^DOM::Element
     virtual i32 default_tab_index_value() const override;
-    virtual void computed_css_values_changed() override;
+    virtual void computed_properties_changed() override;
 
     // https://html.spec.whatwg.org/multipage/input.html#image-button-state-(type=image):dimension-attributes
     virtual bool supports_dimension_attributes() const override { return type_state() == TypeAttributeState::ImageButton; }

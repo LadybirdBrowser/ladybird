@@ -18,7 +18,7 @@ class HTMLTableCaptionElement final : public HTMLElement {
 public:
     virtual ~HTMLTableCaptionElement() override;
 
-    virtual void apply_presentational_hints(CSS::StyleProperties&) const override;
+    virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
 
     // https://www.w3.org/TR/html-aria/#el-caption
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::caption; }

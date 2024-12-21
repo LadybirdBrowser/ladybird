@@ -29,9 +29,9 @@ class SVGSVGElement final : public SVGGraphicsElement
     GC_DECLARE_ALLOCATOR(SVGSVGElement);
 
 public:
-    virtual GC::Ptr<Layout::Node> create_layout_node(CSS::StyleProperties) override;
+    virtual GC::Ptr<Layout::Node> create_layout_node(GC::Ref<CSS::ComputedProperties>) override;
 
-    virtual void apply_presentational_hints(CSS::StyleProperties&) const override;
+    virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
 
     virtual bool requires_svg_container() const override { return false; }
     virtual bool is_svg_container() const override { return true; }

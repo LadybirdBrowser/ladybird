@@ -65,7 +65,7 @@ void HTMLCanvasElement::visit_edges(Cell::Visitor& visitor)
         });
 }
 
-void HTMLCanvasElement::apply_presentational_hints(CSS::StyleProperties& style) const
+void HTMLCanvasElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
     // https://html.spec.whatwg.org/multipage/rendering.html#attributes-for-embedded-content-and-images
     // The width and height attributes map to the aspect-ratio property on canvas elements.
@@ -79,7 +79,7 @@ void HTMLCanvasElement::apply_presentational_hints(CSS::StyleProperties& style) 
 
     if (w.has_value() && h.has_value())
         // then the user agent is expected to use the parsed integers as a presentational hint for the 'aspect-ratio' property of the form auto w / h.
-        style.set_property(CSS::PropertyID::AspectRatio,
+        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::AspectRatio,
             CSS::StyleValueList::create(CSS::StyleValueVector {
                                             CSS::CSSKeywordValue::create(CSS::Keyword::Auto),
                                             CSS::RatioStyleValue::create(CSS::Ratio { static_cast<double>(w.value()), static_cast<double>(h.value()) }) },
@@ -175,12 +175,12 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::set_height(WebIDL::UnsignedLong val
     return {};
 }
 
-GC::Ptr<Layout::Node> HTMLCanvasElement::create_layout_node(CSS::StyleProperties style)
+GC::Ptr<Layout::Node> HTMLCanvasElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
 {
     return heap().allocate<Layout::CanvasBox>(document(), *this, move(style));
 }
 
-void HTMLCanvasElement::adjust_computed_style(CSS::StyleProperties& style)
+void HTMLCanvasElement::adjust_computed_style(CSS::ComputedProperties& style)
 {
     // https://drafts.csswg.org/css-display-3/#unbox
     if (style.display().is_contents())

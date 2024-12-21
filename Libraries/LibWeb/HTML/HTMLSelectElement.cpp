@@ -64,7 +64,7 @@ void HTMLSelectElement::visit_edges(Cell::Visitor& visitor)
     }
 }
 
-void HTMLSelectElement::adjust_computed_style(CSS::StyleProperties& style)
+void HTMLSelectElement::adjust_computed_style(CSS::ComputedProperties& style)
 {
     // https://drafts.csswg.org/css-display-3/#unbox
     if (style.display().is_contents())
@@ -516,11 +516,11 @@ void HTMLSelectElement::form_associated_element_was_removed(DOM::Node*)
     set_shadow_root(nullptr);
 }
 
-void HTMLSelectElement::computed_css_values_changed()
+void HTMLSelectElement::computed_properties_changed()
 {
     // Hide chevron icon when appearance is none
     if (m_chevron_icon_element) {
-        auto appearance = computed_css_values()->appearance();
+        auto appearance = computed_properties()->appearance();
         if (appearance.has_value() && *appearance == CSS::Appearance::None) {
             MUST(m_chevron_icon_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "none"_string));
         } else {

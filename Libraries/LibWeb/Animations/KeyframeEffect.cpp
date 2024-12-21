@@ -915,19 +915,19 @@ static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(H
     return invalidation;
 }
 
-void KeyframeEffect::update_style_properties()
+void KeyframeEffect::update_computed_properties()
 {
     auto target = this->target();
     if (!target)
         return;
 
-    Optional<CSS::StyleProperties&> style = {};
+    GC::Ptr<CSS::ComputedProperties> style = {};
     if (!pseudo_element_type().has_value())
-        style = target->computed_css_values();
+        style = target->computed_properties();
     else
-        style = target->pseudo_element_computed_css_values(pseudo_element_type().value());
+        style = target->pseudo_element_computed_properties(pseudo_element_type().value());
 
-    if (!style.has_value())
+    if (!style)
         return;
 
     auto animated_properties_before_update = style->animated_property_values();
@@ -937,14 +937,14 @@ void KeyframeEffect::update_style_properties()
 
     // Traversal of the subtree is necessary to update the animated properties inherited from the target element.
     target->for_each_in_subtree_of_type<DOM::Element>([&](auto& element) {
-        auto element_style = element.computed_css_values();
-        if (!element_style.has_value() || !element.layout_node())
+        auto element_style = element.computed_properties();
+        if (!element_style || !element.layout_node())
             return TraversalDecision::Continue;
 
         for (auto i = to_underlying(CSS::first_property_id); i <= to_underlying(CSS::last_property_id); ++i) {
             if (element_style->is_property_inherited(static_cast<CSS::PropertyID>(i))) {
                 auto new_value = CSS::StyleComputer::get_inherit_value(static_cast<CSS::PropertyID>(i), &element);
-                element_style->set_property(static_cast<CSS::PropertyID>(i), *new_value, CSS::StyleProperties::Inherited::Yes);
+                element_style->set_property(static_cast<CSS::PropertyID>(i), *new_value, CSS::ComputedProperties::Inherited::Yes);
             }
         }
 
