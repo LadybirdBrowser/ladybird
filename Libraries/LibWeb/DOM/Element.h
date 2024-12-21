@@ -84,6 +84,17 @@ enum class CustomElementState {
     Custom,
 };
 
+// https://drafts.csswg.org/css-contain/#proximity-to-the-viewport
+// An element that has content-visibility: auto is in one of three states when it comes to its proximity to the viewport:
+enum class ProximityToTheViewport {
+    // - The element is close to the viewport:
+    CloseToTheViewport,
+    // - The element is far away from the viewport:
+    FarAwayFromTheViewport,
+    // - The element’s proximity to the viewport is not determined:
+    NotDetermined,
+};
+
 class Element
     : public ParentNode
     , public ChildNode<Element>
@@ -368,6 +379,10 @@ public:
     void resolve_counters(CSS::StyleProperties&);
     void inherit_counters();
 
+    ProximityToTheViewport proximity_to_the_viewport() const { return m_proximity_to_the_viewport; }
+    void determine_proximity_to_the_viewport();
+    bool is_relevant_to_the_user();
+
 protected:
     Element(Document&, DOM::QualifiedName);
     virtual void initialize(JS::Realm&) override;
@@ -456,6 +471,9 @@ private:
     bool m_in_top_layer { false };
 
     OwnPtr<CSS::CountersSet> m_counters_set;
+
+    // https://drafts.csswg.org/css-contain/#proximity-to-the-viewport
+    ProximityToTheViewport m_proximity_to_the_viewport { ProximityToTheViewport::NotDetermined };
 };
 
 template<>
