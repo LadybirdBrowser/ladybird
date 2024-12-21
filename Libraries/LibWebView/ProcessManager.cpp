@@ -49,6 +49,8 @@ StringView process_name_from_type(ProcessType type)
 ProcessManager::ProcessManager()
     : on_process_exited([](Process&&) { })
 {
+    // FIXME: Handle exiting child processes on Windows
+#ifndef AK_OS_WINDOWS
     m_signal_handle = Core::EventLoop::register_signal(SIGCHLD, [this](int) {
         auto result = Core::System::waitpid(-1, WNOHANG);
         while (!result.is_error() && result.value().pid > 0) {
@@ -60,6 +62,7 @@ ProcessManager::ProcessManager()
             result = Core::System::waitpid(-1, WNOHANG);
         }
     });
+#endif
 
     add_process(Process(WebView::ProcessType::Browser, nullptr, Core::Process::current()));
 
@@ -73,7 +76,10 @@ ProcessManager::ProcessManager()
 
 ProcessManager::~ProcessManager()
 {
+    // FIXME: Handle exiting child processes on Windows
+#ifndef AK_OS_WINDOWS
     Core::EventLoop::unregister_signal(m_signal_handle);
+#endif
 }
 
 Optional<Process&> ProcessManager::find_process(pid_t pid)

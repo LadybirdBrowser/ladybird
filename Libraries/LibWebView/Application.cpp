@@ -59,9 +59,11 @@ Application::~Application()
 
 void Application::initialize(Main::Arguments const& arguments, URL::URL new_tab_page_url)
 {
+#ifndef AK_OS_WINDOWS
     // Increase the open file limit, as the default limits on Linux cause us to run out of file descriptors with around 15 tabs open.
     if (auto result = Core::System::set_resource_limits(RLIMIT_NOFILE, 8192); result.is_error())
         warnln("Unable to increase open file limit: {}", result.error());
+#endif
 
     Vector<ByteString> raw_urls;
     Vector<ByteString> certificates;
