@@ -1,0 +1,13 @@
+=== before clone start ===
+width: 123
+height: 321
+data byteLength: 157932
+data filled with 0x41? true
+=== before clone end ===
+=== after clone start ===
+width: 123
+height: 321
+data byteLength: 157932
+data filled with 0x41? true
+not the same data array? true
+=== after clone end ===
