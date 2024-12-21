@@ -52,6 +52,18 @@ using socklen_t = int;
 
 namespace Core::System {
 
+#ifdef AK_OS_WINDOWS
+enum HandleType {
+    FileHandle,
+    DirectoryHandle,
+    SocketHandle,
+    FileMappingHandle
+};
+int handle_to_fd(intptr_t handle, HandleType);
+int handle_to_fd(void* handle, HandleType);
+void* fd_to_handle(int fd);
+#endif
+
 #if !defined(AK_OS_MACOS) && !defined(AK_OS_HAIKU)
 ErrorOr<int> accept4(int sockfd, struct sockaddr*, socklen_t*, int flags);
 #endif
@@ -180,5 +192,6 @@ ErrorOr<void> set_resource_limits(int resource, rlim_t limit);
 #endif
 
 int getpid();
+bool is_socket(int fd);
 
 }
