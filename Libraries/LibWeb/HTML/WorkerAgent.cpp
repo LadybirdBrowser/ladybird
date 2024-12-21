@@ -38,8 +38,8 @@ void WorkerAgent::initialize(JS::Realm& realm)
 
     auto worker_socket = MUST(Core::LocalSocket::adopt_fd(worker_socket_file.take_fd()));
     MUST(worker_socket->set_blocking(true));
-    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Handle other IPC::Transport types here");
 
+    // TODO: Mach IPC
     auto transport = IPC::Transport(move(worker_socket));
 
     m_worker_ipc = make_ref_counted<WebWorkerClient>(move(transport));
