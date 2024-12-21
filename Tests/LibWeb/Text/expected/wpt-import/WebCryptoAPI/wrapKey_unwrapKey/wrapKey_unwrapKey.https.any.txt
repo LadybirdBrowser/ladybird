@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 281 tests
+Found 309 tests
 
-281 Pass
+309 Pass
 Pass	setup
 Pass	Can wrap and unwrap RSA-OAEP public key keys using spki and RSA-OAEP
 Pass	Can wrap and unwrap RSA-OAEP public key keys using jwk and RSA-OAEP
@@ -27,6 +27,13 @@ Pass	Can wrap and unwrap Ed25519 private key keys as non-extractable using pkcs8
 Pass	Can wrap and unwrap Ed25519 private key keys using jwk and RSA-OAEP
 Pass	Can wrap and unwrap Ed25519 private key keys as non-extractable using jwk and RSA-OAEP
 Pass	Can unwrap Ed25519 private key non-extractable keys using jwk and RSA-OAEP
+Pass	Can wrap and unwrap Ed448 public key keys using spki and RSA-OAEP
+Pass	Can wrap and unwrap Ed448 public key keys using jwk and RSA-OAEP
+Pass	Can wrap and unwrap Ed448 private key keys using pkcs8 and RSA-OAEP
+Pass	Can wrap and unwrap Ed448 private key keys as non-extractable using pkcs8 and RSA-OAEP
+Pass	Can wrap and unwrap Ed448 private key keys using jwk and RSA-OAEP
+Pass	Can wrap and unwrap Ed448 private key keys as non-extractable using jwk and RSA-OAEP
+Pass	Can unwrap Ed448 private key non-extractable keys using jwk and RSA-OAEP
 Pass	Can wrap and unwrap X25519 public key keys using spki and RSA-OAEP
 Pass	Can wrap and unwrap X25519 public key keys using jwk and RSA-OAEP
 Pass	Can wrap and unwrap X25519 private key keys using pkcs8 and RSA-OAEP
@@ -94,6 +101,13 @@ Pass	Can wrap and unwrap Ed25519 private key keys as non-extractable using pkcs8
 Pass	Can wrap and unwrap Ed25519 private key keys using jwk and AES-CTR
 Pass	Can wrap and unwrap Ed25519 private key keys as non-extractable using jwk and AES-CTR
 Pass	Can unwrap Ed25519 private key non-extractable keys using jwk and AES-CTR
+Pass	Can wrap and unwrap Ed448 public key keys using spki and AES-CTR
+Pass	Can wrap and unwrap Ed448 public key keys using jwk and AES-CTR
+Pass	Can wrap and unwrap Ed448 private key keys using pkcs8 and AES-CTR
+Pass	Can wrap and unwrap Ed448 private key keys as non-extractable using pkcs8 and AES-CTR
+Pass	Can wrap and unwrap Ed448 private key keys using jwk and AES-CTR
+Pass	Can wrap and unwrap Ed448 private key keys as non-extractable using jwk and AES-CTR
+Pass	Can unwrap Ed448 private key non-extractable keys using jwk and AES-CTR
 Pass	Can wrap and unwrap X25519 public key keys using spki and AES-CTR
 Pass	Can wrap and unwrap X25519 public key keys using jwk and AES-CTR
 Pass	Can wrap and unwrap X25519 private key keys using pkcs8 and AES-CTR
@@ -161,6 +175,13 @@ Pass	Can wrap and unwrap Ed25519 private key keys as non-extractable using pkcs8
 Pass	Can wrap and unwrap Ed25519 private key keys using jwk and AES-CBC
 Pass	Can wrap and unwrap Ed25519 private key keys as non-extractable using jwk and AES-CBC
 Pass	Can unwrap Ed25519 private key non-extractable keys using jwk and AES-CBC
+Pass	Can wrap and unwrap Ed448 public key keys using spki and AES-CBC
+Pass	Can wrap and unwrap Ed448 public key keys using jwk and AES-CBC
+Pass	Can wrap and unwrap Ed448 private key keys using pkcs8 and AES-CBC
+Pass	Can wrap and unwrap Ed448 private key keys as non-extractable using pkcs8 and AES-CBC
+Pass	Can wrap and unwrap Ed448 private key keys using jwk and AES-CBC
+Pass	Can wrap and unwrap Ed448 private key keys as non-extractable using jwk and AES-CBC
+Pass	Can unwrap Ed448 private key non-extractable keys using jwk and AES-CBC
 Pass	Can wrap and unwrap X25519 public key keys using spki and AES-CBC
 Pass	Can wrap and unwrap X25519 public key keys using jwk and AES-CBC
 Pass	Can wrap and unwrap X25519 private key keys using pkcs8 and AES-CBC
@@ -228,6 +249,13 @@ Pass	Can wrap and unwrap Ed25519 private key keys as non-extractable using pkcs8
 Pass	Can wrap and unwrap Ed25519 private key keys using jwk and AES-GCM
 Pass	Can wrap and unwrap Ed25519 private key keys as non-extractable using jwk and AES-GCM
 Pass	Can unwrap Ed25519 private key non-extractable keys using jwk and AES-GCM
+Pass	Can wrap and unwrap Ed448 public key keys using spki and AES-GCM
+Pass	Can wrap and unwrap Ed448 public key keys using jwk and AES-GCM
+Pass	Can wrap and unwrap Ed448 private key keys using pkcs8 and AES-GCM
+Pass	Can wrap and unwrap Ed448 private key keys as non-extractable using pkcs8 and AES-GCM
+Pass	Can wrap and unwrap Ed448 private key keys using jwk and AES-GCM
+Pass	Can wrap and unwrap Ed448 private key keys as non-extractable using jwk and AES-GCM
+Pass	Can unwrap Ed448 private key non-extractable keys using jwk and AES-GCM
 Pass	Can wrap and unwrap X25519 public key keys using spki and AES-GCM
 Pass	Can wrap and unwrap X25519 public key keys using jwk and AES-GCM
 Pass	Can wrap and unwrap X25519 private key keys using pkcs8 and AES-GCM

@@ -1181,11 +1181,11 @@ SupportedAlgorithmsMap const& supported_algorithms()
     define_an_algorithm<ED25519>("exportKey"_string, "Ed25519"_string);
 
     // https://wicg.github.io/webcrypto-secure-curves/#ed448-registration
-    // FIXME: define_an_algorithm<ED448, Ed448Params>("sign"_string, "Ed448"_string);
-    // FIXME: define_an_algorithm<ED448, Ed448Params>("verify"_string, "Ed448"_string);
-    // FIXME: define_an_algorithm<ED448>("generateKey"_string, "Ed448"_string);
-    // FIXME: define_an_algorithm<ED448>("importKey"_string, "Ed448"_string);
-    // FIXME: define_an_algorithm<ED448>("exportKey"_string, "Ed448"_string);
+    define_an_algorithm<ED448, Ed448Params>("sign"_string, "Ed448"_string);
+    define_an_algorithm<ED448, Ed448Params>("verify"_string, "Ed448"_string);
+    define_an_algorithm<ED448>("generateKey"_string, "Ed448"_string);
+    define_an_algorithm<ED448>("importKey"_string, "Ed448"_string);
+    define_an_algorithm<ED448>("exportKey"_string, "Ed448"_string);
 
     return internal_object;
 }
