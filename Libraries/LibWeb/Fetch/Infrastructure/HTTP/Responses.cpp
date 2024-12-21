@@ -201,6 +201,20 @@ GC::Ref<Response> Response::unsafe_response()
     return *this;
 }
 
+// https://html.spec.whatwg.org/multipage/urls-and-fetching.html#cors-same-origin
+bool Response::is_cors_same_origin() const
+{
+    // A response whose type is "basic", "cors", or "default" is CORS-same-origin. [FETCH]
+    switch (type()) {
+    case Type::Basic:
+    case Type::CORS:
+    case Type::Default:
+        return true;
+    default:
+        return false;
+    }
+}
+
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#cors-cross-origin
 bool Response::is_cors_cross_origin() const
 {

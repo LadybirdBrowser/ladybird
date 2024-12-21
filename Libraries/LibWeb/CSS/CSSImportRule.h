@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021, the SerenityOS developers.
- * Copyright (c) 2021-2022, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -12,13 +12,11 @@
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
-#include <LibWeb/Loader/Resource.h>
 
 namespace Web::CSS {
 
 class CSSImportRule final
-    : public CSSRule
-    , public ResourceClient {
+    : public CSSRule {
     WEB_PLATFORM_OBJECT(CSSImportRule, CSSRule);
     GC_DECLARE_ALLOCATOR(CSSImportRule);
 
@@ -34,7 +32,6 @@ public:
     CSSStyleSheet* loaded_style_sheet() { return m_style_sheet; }
     CSSStyleSheet const* loaded_style_sheet() const { return m_style_sheet; }
     CSSStyleSheet* style_sheet_for_bindings() { return m_style_sheet; }
-    void set_style_sheet(CSSStyleSheet* style_sheet) { m_style_sheet = style_sheet; }
 
 private:
     CSSImportRule(URL::URL, DOM::Document&);
@@ -42,11 +39,12 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
+    virtual void set_parent_style_sheet(CSSStyleSheet*) override;
+
     virtual String serialized() const override;
 
-    // ^ResourceClient
-    virtual void resource_did_fail() override;
-    virtual void resource_did_load() override;
+    void fetch();
+    void set_style_sheet(GC::Ref<CSSStyleSheet>);
 
     URL::URL m_url;
     GC::Ptr<DOM::Document> m_document;

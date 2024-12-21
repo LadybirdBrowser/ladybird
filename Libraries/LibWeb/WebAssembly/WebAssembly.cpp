@@ -750,9 +750,7 @@ GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::VM& vm, GC::
         }
 
         // 6. If response is not CORS-same-origin, reject returnValue with a TypeError and abort these substeps.
-        // https://html.spec.whatwg.org/#cors-same-origin
-        auto type = response_object.type();
-        if (type != Bindings::ResponseType::Basic && type != Bindings::ResponseType::Cors && type != Bindings::ResponseType::Default) {
+        if (!response->is_cors_same_origin()) {
             WebIDL::reject_promise(realm, return_value, *vm.throw_completion<JS::TypeError>("Response is not CORS-same-origin"sv).value());
             return JS::js_undefined();
         }
