@@ -40,7 +40,7 @@ ErrorOr<ChromeProcess::ProcessDisposition> ChromeProcess::connect(Vector<ByteStr
 
     m_pid_path = pid_path;
     m_pid_file = TRY(Core::File::open(pid_path, Core::File::OpenMode::Write));
-    TRY(m_pid_file->write_until_depleted(ByteString::number(::getpid())));
+    TRY(m_pid_file->write_until_depleted(ByteString::number(Core::System::getpid())));
 
     return ProcessDisposition::ContinueMainProcess;
 }
@@ -48,7 +48,6 @@ ErrorOr<ChromeProcess::ProcessDisposition> ChromeProcess::connect(Vector<ByteStr
 ErrorOr<void> ChromeProcess::connect_as_client(ByteString const& socket_path, Vector<ByteString> const& raw_urls, NewWindow new_window)
 {
     auto socket = TRY(Core::LocalSocket::connect(socket_path));
-    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
     auto client = UIProcessClient::construct(IPC::Transport(move(socket)));
 
     if (new_window == NewWindow::Yes) {
@@ -64,8 +63,6 @@ ErrorOr<void> ChromeProcess::connect_as_client(ByteString const& socket_path, Ve
 
 ErrorOr<void> ChromeProcess::connect_as_server(ByteString const& socket_path)
 {
-    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
-
     auto socket_fd = TRY(Process::create_ipc_socket(socket_path));
     m_socket_path = socket_path;
     auto local_server = TRY(Core::LocalServer::try_create());
