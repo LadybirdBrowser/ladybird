@@ -54,6 +54,13 @@ if (NOT WIN32)
     endif()
 endif()
 
+if (NOT WIN32 AND NOT APPLE)
+    # NOTE: Assume ELF
+    add_link_options(LINKER:-z,defs)
+    add_link_options(LINKER:--no-undefined)
+    add_link_options(LINKER:--no-allow-shlib-undefined)
+endif()
+
 if (ENABLE_LAGOM_COVERAGE_COLLECTION)
     if (CMAKE_CXX_COMPILER_ID MATCHES "Clang$" AND NOT ENABLE_FUZZERS)
         add_cxx_compile_options(-fprofile-instr-generate -fcoverage-mapping)
