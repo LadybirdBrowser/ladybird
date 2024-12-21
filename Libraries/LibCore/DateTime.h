@@ -39,6 +39,34 @@ public:
         No,
     };
 
+    // %a:      require short day name
+    // %A:      require long day name
+    // %h/b:    require short month name
+    // %B:      require long month name
+    // %C:      require short year number (hundreds) (ex: 19 -> 1900)
+    // %d:      require day number
+    // %D:      require month number/day number/short year number (ex: 12/31/24)
+    // %e:      require day number
+    // %H:      require hour (24h format)
+    // %I:      require hour (12h format)
+    // %j:      require defining date with day number ? (not sure)
+    // %m:      require set to month entred - 1
+    // %M:      require minutes
+    // %n:      require newline
+    // %t:      require tab
+    // %r/p:    require AM | PM
+    // %R:      require hours:minutes (ex: 13:57)
+    // %S:      require seconds
+    // %T:      require hours:minutes:seconds (ex: 13:57:34)
+    // %w:      require week day number
+    // %y:      require 2 digits year (69 < year < 99: in the 1900 else in 2000)
+    // %Y:      require full year
+    // %z:      require timezone hours:minutes or single number to represent hour and minutes
+    // %x:      require single number to represent hour and minutes
+    // %X:      require sub second precision
+    // %Z:      require timezone name
+    // %+:      ignore until next '%'
+    // %%:      require character '%'
     ErrorOr<String> to_string(StringView format = "%Y-%m-%d %H:%M:%S"sv, LocalTime = LocalTime::Yes) const;
     ByteString to_byte_string(StringView format = "%Y-%m-%d %H:%M:%S"sv, LocalTime = LocalTime::Yes) const;
 
