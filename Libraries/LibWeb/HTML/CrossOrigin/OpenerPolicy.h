@@ -16,6 +16,7 @@ enum class OpenerPolicyValue {
     SameOriginAllowPopups,
     SameOrigin,
     SameOriginPlusCOEP,
+    NoopenerAllowPopups,
 };
 
 // https://html.spec.whatwg.org/multipage/origin.html#cross-origin-opener-policy
