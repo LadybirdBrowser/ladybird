@@ -33,6 +33,8 @@
 #    include <utime.h>
 #else
 #    define O_CLOEXEC O_NOINHERIT
+#    define S_ISDIR(mode) (((mode) & S_IFMT) == S_IFDIR)
+#    define S_ISREG(mode) (((mode) & S_IFMT) == S_IFREG)
 using sighandler_t = void (*)(int);
 using socklen_t = int;
 #endif
