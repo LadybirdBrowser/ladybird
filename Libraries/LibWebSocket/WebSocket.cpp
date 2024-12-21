@@ -8,6 +8,7 @@
 #include <AK/Base64.h>
 #include <AK/Random.h>
 #include <LibCrypto/Hash/HashManager.h>
+#include <LibCrypto/SecureRandom.h>
 #include <LibWebSocket/Impl/WebSocketImplSerenity.h>
 #include <LibWebSocket/WebSocket.h>
 
@@ -183,7 +184,7 @@ void WebSocket::send_client_handshake()
 
     // 7. 16-byte nonce encoded as Base64
     u8 nonce_data[16];
-    fill_with_random(nonce_data);
+    Crypto::fill_with_secure_random(nonce_data);
     // FIXME: change to TRY() and make method fallible
     m_websocket_key = MUST(encode_base64({ nonce_data, 16 })).to_byte_string();
     builder.appendff("Sec-WebSocket-Key: {}\r\n", m_websocket_key);
@@ -589,7 +590,7 @@ void WebSocket::send_frame(WebSocket::OpCode op_code, ReadonlyBytes payload, boo
         // > Clients MUST choose a new masking key for each frame, using an algorithm
         // > that cannot be predicted by end applications that provide data
         u8 masking_key[4];
-        fill_with_random(masking_key);
+        Crypto::fill_with_secure_random(masking_key);
         m_impl->send(ReadonlyBytes(masking_key, 4));
         // don't try to send empty payload
         if (payload.size() == 0)

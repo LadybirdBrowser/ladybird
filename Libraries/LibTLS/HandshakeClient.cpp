@@ -11,6 +11,7 @@
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibCrypto/NumberTheory/ModularFunctions.h>
+#include <LibCrypto/SecureRandom.h>
 #include <LibTLS/TLSv12.h>
 
 namespace TLS {
@@ -160,7 +161,7 @@ void TLSv12::build_rsa_pre_master_secret(PacketBuilder& builder)
     u8 random_bytes[48];
     size_t bytes = 48;
 
-    fill_with_random(random_bytes);
+    Crypto::fill_with_secure_random(random_bytes);
 
     // remove zeros from the random bytes
     for (size_t i = 0; i < bytes; ++i) {

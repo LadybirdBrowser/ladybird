@@ -18,6 +18,7 @@
 #include <AK/UFixedBigIntDivision.h>
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/Curves/EllipticCurve.h>
+#include <LibCrypto/SecureRandom.h>
 
 namespace {
 // Used by ASN1 macros
@@ -230,7 +231,7 @@ public:
     ErrorOr<ByteBuffer> generate_private_key() override
     {
         auto buffer = TRY(ByteBuffer::create_uninitialized(KEY_BYTE_SIZE));
-        fill_with_random(buffer);
+        fill_with_secure_random(buffer);
         return buffer;
     }
 
