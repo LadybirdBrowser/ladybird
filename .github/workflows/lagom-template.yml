@@ -123,7 +123,7 @@ jobs:
         run: |
           set -e
 
-          cmake --preset=CI -S Meta/Lagom -B ${{ github.workspace }}/Build/tools-build \
+          cmake --preset=Distribution_CI -S Meta/Lagom -B ${{ github.workspace }}/Build/tools-build \
             -DLAGOM_TOOLS_ONLY=ON \
             -DINSTALL_LAGOM_TOOLS=ON \
             -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/Build/tools-install \
