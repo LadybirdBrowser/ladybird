@@ -1136,7 +1136,7 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, W
         auto& source = verify_cast<WindowProxy>(incumbent_settings.realm().global_environment().global_this_value());
 
         // 4. Let deserializeRecord be StructuredDeserializeWithTransfer(serializeWithTransferResult, targetRealm).
-        auto temporary_execution_context = TemporaryExecutionContext { target_realm };
+        auto temporary_execution_context = TemporaryExecutionContext { target_realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
         auto deserialize_record_or_error = structured_deserialize_with_transfer(vm(), serialize_with_transfer_result);
 
         // If this throws an exception, catch it, fire an event named messageerror at targetWindow, using MessageEvent,
