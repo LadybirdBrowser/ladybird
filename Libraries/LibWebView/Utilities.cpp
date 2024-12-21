@@ -104,7 +104,7 @@ ErrorOr<Vector<ByteString>> get_paths_for_helper_process(StringView process_name
     auto application_path = TRY(application_directory());
     Vector<ByteString> paths;
 
-#if !defined(AK_OS_MACOS)
+#if !defined(AK_OS_MACOS) && !defined(AK_OS_WINDOWS)
     auto prefix = find_prefix(LexicalPath(application_path));
     TRY(paths.try_append(LexicalPath::join(prefix.string(), libexec_path, process_name).string()));
     TRY(paths.try_append(LexicalPath::join(prefix.string(), "bin"sv, process_name).string()));
