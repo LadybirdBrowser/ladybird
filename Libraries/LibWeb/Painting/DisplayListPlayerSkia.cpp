@@ -504,7 +504,7 @@ void DisplayListPlayerSkia::paint_text_shadow(PaintTextShadow const& command)
         .glyph_run = command.glyph_run,
         .scale = command.glyph_run_scale,
         .rect = command.text_rect,
-        .translation = command.draw_location.to_type<float>() + command.text_rect.location().to_type<float>(),
+        .translation = command.draw_location + command.text_rect.location().to_type<float>(),
         .color = command.color,
     });
     canvas.restore();

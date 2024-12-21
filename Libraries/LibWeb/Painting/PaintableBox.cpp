@@ -683,16 +683,19 @@ void paint_text_fragment(PaintContext& context, TextPaintable const& paintable, 
         if (!glyph_run)
             return;
 
-        DevicePixelPoint baseline_start { fragment_absolute_device_rect.x(), fragment_absolute_device_rect.y() + context.rounded_device_pixels(fragment.baseline()) };
         auto scale = context.device_pixels_per_css_pixel();
-        painter.draw_text_run(baseline_start.to_type<int>(), *glyph_run, paintable.computed_values().webkit_text_fill_color(), fragment_absolute_device_rect.to_type<int>(), scale, fragment.orientation());
+        auto baseline_start = Gfx::FloatPoint {
+            fragment_absolute_rect.x().to_float(),
+            fragment_absolute_rect.y().to_float() + fragment.baseline().to_float(),
+        } * scale;
+        painter.draw_text_run(baseline_start, *glyph_run, paintable.computed_values().webkit_text_fill_color(), fragment_absolute_device_rect.to_type<int>(), scale, fragment.orientation());
 
         auto selection_rect = context.enclosing_device_rect(fragment.selection_rect()).to_type<int>();
         if (!selection_rect.is_empty()) {
             painter.fill_rect(selection_rect, CSS::SystemColor::highlight());
             DisplayListRecorderStateSaver saver(painter);
             painter.add_clip_rect(selection_rect);
-            painter.draw_text_run(baseline_start.to_type<int>(), *glyph_run, CSS::SystemColor::highlight_text(), fragment_absolute_device_rect.to_type<int>(), scale, fragment.orientation());
+            painter.draw_text_run(baseline_start, *glyph_run, CSS::SystemColor::highlight_text(), fragment_absolute_device_rect.to_type<int>(), scale, fragment.orientation());
         }
 
         paint_text_decoration(context, paintable, fragment);
@@ -744,9 +747,8 @@ void PaintableWithLines::paint(PaintContext& context, PaintPhase phase) const
     // So, we paint the shadows before painting any text.
     // FIXME: Find a smarter way to do this?
     if (phase == PaintPhase::Foreground) {
-        for (auto& fragment : fragments()) {
+        for (auto& fragment : fragments())
             paint_text_shadow(context, fragment, fragment.shadows());
-        }
     }
 
     for (auto const& fragment : m_fragments) {
