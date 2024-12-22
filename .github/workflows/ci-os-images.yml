@@ -41,7 +41,7 @@ jobs:
     build:
         runs-on: ubuntu-latest
         needs: path-changes
-        if: github.repository == 'LadybirdBrowser/ladybird' && needs.path-changes.outputs.ci_images_sources == 'true'
+        if: needs.path-changes.outputs.ci_images_sources == 'true'
 
         strategy:
             fail-fast: false
