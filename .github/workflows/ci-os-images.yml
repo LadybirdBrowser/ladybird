@@ -12,8 +12,6 @@ permissions:
     packages: write
 
 env:
-    DOCKER_IMAGE_REGISTRY: ghcr.io
-    DOCKER_IMAGE_NAME: ${{ github.repository_owner }}/${{ github.repository }}/ci-os-image
     DOCKER_LAYER_CACHE: /tmp/.buildx-cache
 
 jobs:
@@ -42,14 +40,14 @@ jobs:
             - name: Login to GitHub Container Registry
               uses: docker/login-action@v3
               with:
-                  registry: ${{ env.DOCKER_IMAGE_REGISTRY }}
+                  registry: ghcr.io
                   username: ${{ github.repository_owner }}
                   password: ${{ secrets.GITHUB_TOKEN }}
             - name: Extract metadata (tags, labels) for Docker
               id: meta
               uses: docker/metadata-action@v5
               with:
-                  images: ${{ env.DOCKER_IMAGE_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}/${{ matrix.ostype }}
+                  images: ghcr.io/${{ github.repository }}/ci-images/${{ matrix.ostype }}
                   tags: |
                       type=sha,event=push,enable=true,prefix=${{ matrix.osver }}-git-,format=short
                       type=raw,event=push,enable={{ is_default_branch }},value=latest
