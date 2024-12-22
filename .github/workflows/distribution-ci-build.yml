@@ -26,21 +26,24 @@ env:
     CI_WORKDIR: /build
 
 jobs:
-    set-env:
+    set-image:
         runs-on: "ubuntu-latest"
+        outputs:
+            image-prefix: ${{ steps.lowercase.outputs.images-prefix }}
         steps:
             # github.repository is case-sensitive, but job.container mandates lowercase
             - name: "Ensure lowercase image prefix"
+              id: lowercase
               run: |
                   IMAGE_PREFIX_LOWER=$(echo ghcr.io/$GITHUB_REPOSITORY/ci-images | tr '[:upper:]' '[:lower:]')
-                  echo "CI_IMAGES_PREFIX=$IMAGE_PREFIX_LOWER" | tee -a ${GITHUB_ENV}
+                  echo "::set-output name=images-prefix::$IMAGE_PREFIX_LOWER"
 
     distribution-ci:
         runs-on: "ubuntu-latest"
-        needs: set-env
+        needs: set-image
         permissions:
             packages: read
-        container: ${{ env.CI_IMAGES_PREFIX }}/${{ inputs.distribution_name }}:${{ inputs.distribution_version }}
+        container: ${{ needs.set-image.outputs.image-prefix }}/${{ inputs.distribution_name }}:${{ inputs.distribution_version }}
         steps:
             - uses: actions/checkout@v4
               if: ${{ github.event_name != 'pull_request' }}
