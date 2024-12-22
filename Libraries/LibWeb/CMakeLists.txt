@@ -170,6 +170,7 @@ set(SOURCES
     CSS/SystemColor.cpp
     CSS/Time.cpp
     CSS/Transformation.cpp
+    CSS/TransitionEvent.cpp
     CSS/VisualViewport.cpp
     Cookie/Cookie.cpp
     Cookie/ParsedCookie.cpp

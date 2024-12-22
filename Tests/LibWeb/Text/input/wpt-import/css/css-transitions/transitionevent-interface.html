@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Transitions Test: TransitionEvent interface</title>
+<link rel="help" href="https://drafts.csswg.org/css-transitions-1/#interface-transitionevent">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="transitionevent-interface.js"></script>
+
+<script>
+test(function() {
+  var event = new TransitionEvent("");
+  assert_true(event instanceof window.TransitionEvent);
+}, "the event is an instance of TransitionEvent");
+
+test(function() {
+  var event = new TransitionEvent("");
+  assert_true(event instanceof window.Event);
+}, "the event inherts from Event");
+
+test(function() {
+  assert_throws_js(TypeError, function() {
+    new TransitionEvent();
+  }, 'First argument is required, so was expecting a TypeError.');
+}, 'Missing type argument');
+
+test(function() {
+  var event = new TransitionEvent("test");
+  assert_equals(event.type, "test");
+}, "type argument is string");
+
+test(function() {
+  var event = new TransitionEvent(null);
+  assert_equals(event.type, "null");
+}, "type argument is null");
+
+test(function() {
+  var event = new TransitionEvent(undefined);
+  assert_equals(event.type, "undefined");
+}, "event type set to undefined");
+
+test(function() {
+  var event = new TransitionEvent("test");
+  assert_equals(event.propertyName, "");
+}, "propertyName has default value of empty string");
+
+test(function() {
+  var event = new TransitionEvent("test");
+  assert_equals(event.elapsedTime, 0.0);
+}, "elapsedTime has default value of 0.0");
+
+test(function() {
+  var event = new TransitionEvent("test");
+  assert_readonly(event, "propertyName", "readonly attribute value");
+}, "propertyName is readonly");
+
+test(function() {
+  var event = new TransitionEvent("test");
+  assert_readonly(event, "elapsedTime", "readonly attribute value");
+}, "elapsedTime is readonly");
+
+test(function() {
+  var event = new TransitionEvent("test", null);
+  assert_equals(event.propertyName, "");
+  assert_equals(event.elapsedTime, 0.0);
+}, "animationEventInit argument is null");
+
+test(function() {
+  var event = new TransitionEvent("test", undefined);
+  assert_equals(event.propertyName, "");
+  assert_equals(event.elapsedTime, 0.0);
+}, "animationEventInit argument is undefined");
+
+test(function() {
+  var event = new TransitionEvent("test", {});
+  assert_equals(event.propertyName, "");
+  assert_equals(event.elapsedTime, 0.0);
+}, "animationEventInit argument is empty dictionary");
+
+test(function() {
+  var event = new TransitionEvent("test", {pseudoElement: "::testPseudo"});
+  assert_equals(event.pseudoElement, "::testPseudo");
+}, "TransitionEvent.pseudoElement initialized from the dictionary");
+
+test(function() {
+  var event = new TransitionEvent("test", {propertyName: "sample"});
+  assert_equals(event.propertyName, "sample");
+}, "propertyName set to 'sample'");
+
+test(function() {
+  var event = new TransitionEvent("test", {propertyName: undefined});
+  assert_equals(event.propertyName, "");
+}, "propertyName set to undefined");
+
+test(function() {
+  var event = new TransitionEvent("test", {propertyName: null});
+  assert_equals(event.propertyName, "null");
+}, "propertyName set to null");
+
+test(function() {
+  var event = new TransitionEvent("test", {propertyName: false});
+  assert_equals(event.propertyName, "false");
+}, "propertyName set to false");
+
+test(function() {
+  var event = new TransitionEvent("test", {propertyName: true});
+  assert_equals(event.propertyName, "true");
+}, "propertyName set to true");
+
+test(function() {
+  var event = new TransitionEvent("test", {propertyName: 0.5});
+  assert_equals(event.propertyName, "0.5");
+}, "propertyName set to a number");
+
+test(function() {
+  var event = new TransitionEvent("test", {propertyName: []});
+  assert_equals(event.propertyName, "");
+}, "propertyName set to []");
+
+test(function() {
+  var event = new TransitionEvent("test", {propertyName: [1, 2, 3]});
+  assert_equals(event.propertyName, "1,2,3");
+}, "propertyName set to [1, 2, 3]");
+
+test(function() {
+  var event = new TransitionEvent("test", {propertyName: {sample: 0.5}});
+  assert_equals(event.propertyName, "[object Object]");
+}, "propertyName set to an object");
+
+test(function() {
+  var event = new TransitionEvent("test",
+      {propertyName: {valueOf: function () { return 'sample'; }}});
+  assert_equals(event.propertyName, "[object Object]");
+}, "propertyName set to an object with a valueOf function");
+
+test(function() {
+  var event = new TransitionEvent("test", {elapsedTime: 0.5});
+  assert_equals(event.elapsedTime, 0.5);
+}, "elapsedTime set to 0.5");
+
+test(function() {
+  var event = new TransitionEvent("test", {elapsedTime: -0.5});
+  assert_equals(event.elapsedTime, -0.5);
+}, "elapsedTime set to -0.5");
+
+test(function() {
+  var event = new TransitionEvent("test", {elapsedTime: undefined});
+  assert_equals(event.elapsedTime, 0);
+}, "elapsedTime set to undefined");
+
+test(function() {
+  var event = new TransitionEvent("test", {elapsedTime: null});
+  assert_equals(event.elapsedTime, 0);
+}, "elapsedTime set to null");
+
+test(function() {
+  var event = new TransitionEvent("test", {elapsedTime: false});
+  assert_equals(event.elapsedTime, 0);
+}, "elapsedTime set to false");
+
+test(function() {
+  var event = new TransitionEvent("test", {elapsedTime: true});
+  assert_equals(event.elapsedTime, 1);
+}, "elapsedTime set to true");
+
+test(function() {
+  var event = new TransitionEvent("test", {elapsedTime: ""});
+  assert_equals(event.elapsedTime, 0);
+}, "elapsedTime set to ''");
+
+test(function() {
+  var event = new TransitionEvent("test", {elapsedTime: []});
+  assert_equals(event.elapsedTime, 0);
+}, "elapsedTime set to []");
+
+test(function() {
+  var event = new TransitionEvent("test", {elapsedTime: [0.5]});
+  assert_equals(event.elapsedTime, 0.5);
+}, "elapsedTime set to [0.5]");
+
+test(function() {
+  var event = new TransitionEvent(
+      "test", {elapsedTime: { valueOf: function() { return 0.5; }}});
+  assert_equals(event.elapsedTime, 0.5);
+}, "elapsedTime set to an object with a valueOf function");
+
+test(function() {
+  assert_throws_js(TypeError, function() {
+    new TransitionEvent("test", {elapsedTime: NaN});
+  }, 'elapsedTime cannot be NaN so was expecting a TypeError');
+}, "elapsedTime cannot be set to NaN");
+
+test(function() {
+  assert_throws_js(TypeError, function() {
+    new TransitionEvent("test", {elapsedTime: Infinity});
+  }, 'elapsedTime cannot be Infinity so was expecting a TypeError');
+}, "elapsedTime cannot be set to Infinity");
+
+test(function() {
+  assert_throws_js(TypeError, function() {
+    new TransitionEvent("test", {elapsedTime: -Infinity});
+  }, 'elapsedTime cannot be -Infinity so was expecting a TypeError');
+}, "elapsedTime cannot be set to -Infinity");
+
+test(function() {
+  assert_throws_js(TypeError, function() {
+    new TransitionEvent("test", {elapsedTime: "sample"});
+  }, 'elapsedTime cannot be a string so was expecting a TypeError');
+}, "elapsedTime cannot be set to 'sample'");
+
+test(function() {
+  assert_throws_js(TypeError, function() {
+    new TransitionEvent("test", {elapsedTime: [0.5, 1.0]});
+  }, 'elapsedTime cannot be a multi-element array so was expecting a TypeError');
+}, "elapsedTime cannot be set to [0.5, 1.0]");
+
+test(function() {
+  assert_throws_js(TypeError, function() {
+    new TransitionEvent("test", {elapsedTime: { sample: 0.5}});
+  }, 'elapsedTime cannot be an object so was expecting a TypeError');
+}, "elapsedTime cannot be set to an object");
+
+test(function() {
+  var eventInit = {propertyName: "sample", elapsedTime: 0.5};
+  var event = new TransitionEvent("test", eventInit);
+  assert_equals(event.propertyName, "sample");
+  assert_equals(event.elapsedTime, 0.5);
+}, "TransitionEventInit properties set value");
+</script>
