@@ -27,17 +27,17 @@ jobs:
         name: "Set CI image"
         runs-on: "ubuntu-latest"
         outputs:
-            ci-image-name: ${{ steps.ci-image-name.outputs.ci-image-name }}
+            ci_image_name: ${{ steps.ci_image_name.outputs.ci_image_name }}
         steps:
             # github.repository is case-sensitive, but job.container mandates lowercase
             - name: "Ensure lowercase image prefix"
-              id: ci-image-name
+              id: ci_image_name
               env:
                   IMAGE_NAME: ${{ inputs.distribution_name }}:${{ inputs.distribution_version }}
               run: |
                   IMAGE_PREFIX="ghcr.io/$GITHUB_REPOSITORY/ci-distro-images"
                   IMAGE_FQN_LOWER=$(echo "$IMAGE_PREFIX/$IMAGE_NAME" | tr '[:upper:]' '[:lower:]')
-                  echo "ci-image-name=$IMAGE_FQN_LOWER" | tee -a "$GITHUB_OUTPUT"
+                  echo "ci_image_name=$IMAGE_FQN_LOWER" | tee -a "$GITHUB_OUTPUT"
 
     distribution-ci:
         name: ${{ inputs.distribution_name }}
@@ -46,10 +46,11 @@ jobs:
         permissions:
             packages: read
         container:
-            image: ${{ needs.set-image.outputs.ci-image }}
+            image: ${{ needs.set-image.outputs.ci_image_name }}
         steps:
             - name: Print informations about current distribution
               run: |
+                  echo "Container: ${{ needs.set-image.outputs.ci_image_name }}"
                   cat /etc/os-release
                   echo "CC: $(cc --version | head -n1)"
                   echo "C++: $(c++ --version | head -n1)"
