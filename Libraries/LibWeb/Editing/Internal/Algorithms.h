@@ -86,6 +86,7 @@ GC::Ptr<DOM::Node> wrap(Vector<GC::Ref<DOM::Node>>, Function<bool(GC::Ref<DOM::N
 
 // Utility methods:
 
+void for_each_node_effectively_contained_in_range(GC::Ptr<DOM::Range>, Function<TraversalDecision(GC::Ref<DOM::Node>)>);
 bool has_visible_children(GC::Ref<DOM::Node>);
 bool is_heading(FlyString const&);
 Optional<CSS::Display> resolved_display(GC::Ref<DOM::Node>);

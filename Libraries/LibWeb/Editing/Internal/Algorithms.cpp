@@ -2745,6 +2745,23 @@ GC::Ptr<DOM::Node> wrap(
     return new_parent;
 }
 
+void for_each_node_effectively_contained_in_range(GC::Ptr<DOM::Range> range, Function<TraversalDecision(GC::Ref<DOM::Node>)> callback)
+{
+    if (!range)
+        return;
+
+    // A node can still be "effectively contained" in range even if it's not actually contained within the range; so we
+    // need to do an inclusive subtree traversal since the common ancestor could be matched as well.
+    range->common_ancestor_container()->for_each_in_inclusive_subtree([&](GC::Ref<DOM::Node> descendant) {
+        if (!is_effectively_contained_in_range(descendant, *range)) {
+            // NOTE: We cannot skip children here since if a descendant is not effectively contained within a range, its
+            //       children might still be.
+            return TraversalDecision::Continue;
+        }
+        return callback(descendant);
+    });
+}
+
 bool has_visible_children(GC::Ref<DOM::Node> node)
 {
     bool has_visible_child = false;

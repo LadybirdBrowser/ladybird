@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2024-2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -176,8 +176,65 @@ bool Document::query_command_indeterm(FlyString const& command)
     if (!optional_command.has_value())
         return false;
     auto const& command_definition = optional_command.value();
-    if (!command_definition.indeterminate)
+    if (!command_definition.indeterminate) {
+        // https://w3c.github.io/editing/docs/execCommand/#inline-command-activated-values
+        // If a command is a standard inline value command, it is indeterminate if among formattable nodes that are
+        // effectively contained in the active range, there are two that have distinct effective command values.
+        if (command.is_one_of(Editing::CommandNames::backColor, Editing::CommandNames::fontName,
+                Editing::CommandNames::foreColor, Editing::CommandNames::hiliteColor)) {
+            Optional<String> first_node_value;
+            auto range = Editing::active_range(*this);
+            bool has_distinct_values = false;
+            Editing::for_each_node_effectively_contained_in_range(range, [&](GC::Ref<Node> descendant) {
+                if (!Editing::is_formattable_node(descendant))
+                    return TraversalDecision::Continue;
+
+                auto node_value = Editing::effective_command_value(descendant, command);
+                if (!node_value.has_value())
+                    return TraversalDecision::Continue;
+
+                if (!first_node_value.has_value()) {
+                    first_node_value = node_value.value();
+                } else if (first_node_value.value() != node_value.value()) {
+                    has_distinct_values = true;
+                    return TraversalDecision::Break;
+                }
+
+                return TraversalDecision::Continue;
+            });
+            return has_distinct_values;
+        }
+
+        // If a command has inline command activated values defined but nothing else defines when it is indeterminate,
+        // it is indeterminate if among formattable nodes effectively contained in the active range, there is at least
+        // one whose effective command value is one of the given values and at least one whose effective command value
+        // is not one of the given values.
+        if (!command_definition.inline_activated_values.is_empty()) {
+            auto range = Editing::active_range(*this);
+            bool has_at_least_one_match = false;
+            bool has_at_least_one_mismatch = false;
+            Editing::for_each_node_effectively_contained_in_range(range, [&](GC::Ref<Node> descendant) {
+                if (!Editing::is_formattable_node(descendant))
+                    return TraversalDecision::Continue;
+
+                auto node_value = Editing::effective_command_value(descendant, command);
+                if (!node_value.has_value())
+                    return TraversalDecision::Continue;
+
+                if (command_definition.inline_activated_values.contains_slow(node_value.value()))
+                    has_at_least_one_match = true;
+                else
+                    has_at_least_one_mismatch = true;
+
+                if (has_at_least_one_match && has_at_least_one_mismatch)
+                    return TraversalDecision::Break;
+                return TraversalDecision::Continue;
+            });
+            return has_at_least_one_match && has_at_least_one_mismatch;
+        }
+
         return false;
+    }
 
     // 2. Return true if command is indeterminate, otherwise false.
     return command_definition.indeterminate(*this);
@@ -191,10 +248,35 @@ bool Document::query_command_state(FlyString const& command)
     if (!optional_command.has_value())
         return false;
     auto const& command_definition = optional_command.release_value();
-    if (!command_definition.state)
-        return false;
+    auto state_override = command_state_override(command);
+    if (!command_definition.state && !state_override.has_value()) {
+        // https://w3c.github.io/editing/docs/execCommand/#inline-command-activated-values
+        // If a command has inline command activated values defined, its state is true if either no formattable node is
+        // effectively contained in the active range, and the active range's start node's effective command value is one
+        // of the given values;
+        auto const& inline_values = command_definition.inline_activated_values;
+        if (inline_values.is_empty())
+            return false;
+        auto range = Editing::active_range(*this);
+        Vector<GC::Ref<Node>> formattable_nodes;
+        Editing::for_each_node_effectively_contained_in_range(range, [&](GC::Ref<Node> descendant) {
+            if (Editing::is_formattable_node(descendant))
+                formattable_nodes.append(descendant);
+            return TraversalDecision::Continue;
+        });
+        if (formattable_nodes.is_empty())
+            return inline_values.contains_slow(Editing::effective_command_value(range->start_container(), command).value_or({}));
 
-    // FIXME: 2. If the state override for command is set, return it.
+        // or if there is at least one formattable node effectively contained in the active range, and all of them have
+        // an effective command value equal to one of the given values.
+        return all_of(formattable_nodes, [&](GC::Ref<Node> node) {
+            return inline_values.contains_slow(Editing::effective_command_value(node, command).value_or({}));
+        });
+    }
+
+    // 2. If the state override for command is set, return it.
+    if (state_override.has_value())
+        return state_override.release_value();
 
     // 3. Return true if command's state is true, otherwise false.
     return command_definition.state(*this);
@@ -217,16 +299,45 @@ String Document::query_command_value(FlyString const& command)
     if (!optional_command.has_value())
         return {};
     auto const& command_definition = optional_command.release_value();
-    if (!command_definition.value)
+    auto value_override = command_value_override(command);
+    if (!command_definition.value && !value_override.has_value())
         return {};
 
     // FIXME: 2. If command is "fontSize" and its value override is set, convert the value override to an
     //    integer number of pixels and return the legacy font size for the result.
 
-    // FIXME: 3. If the value override for command is set, return it.
+    // 3. If the value override for command is set, return it.
+    if (value_override.has_value())
+        return value_override.release_value();
 
     // 4. Return command's value.
     return command_definition.value(*this);
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#value-override
+void Document::set_command_value_override(FlyString const& command, String const& value)
+{
+    m_command_value_override.set(command, value);
+
+    // The value override for the backColor command must be the same as the value override for the hiliteColor command,
+    // such that setting one sets the other to the same thing and unsetting one unsets the other.
+    if (command == Editing::CommandNames::backColor)
+        m_command_value_override.set(Editing::CommandNames::hiliteColor, value);
+    else if (command == Editing::CommandNames::hiliteColor)
+        m_command_value_override.set(Editing::CommandNames::backColor, value);
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#value-override
+void Document::clear_command_value_override(FlyString const& command)
+{
+    m_command_value_override.remove(command);
+
+    // The value override for the backColor command must be the same as the value override for the hiliteColor command,
+    // such that setting one sets the other to the same thing and unsetting one unsets the other.
+    if (command == Editing::CommandNames::backColor)
+        m_command_value_override.remove(Editing::CommandNames::hiliteColor);
+    else if (command == Editing::CommandNames::hiliteColor)
+        m_command_value_override.remove(Editing::CommandNames::backColor);
 }
 
 }
