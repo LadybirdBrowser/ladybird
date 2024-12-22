@@ -12,7 +12,9 @@ permissions:
     packages: write
 
 env:
-    DOCKER_LAYER_CACHE: "/tmp/.buildx-cache"
+    DOCKER_IMAGE_REGISTRY: ghcr.io
+    DOCKER_IMAGE_NAME: ${{ github.repository_owner }}/${{ github.repository }}/ci-os-image
+    DOCKER_LAYER_CACHE: /tmp/.buildx-cache
 
 jobs:
     build:
@@ -20,12 +22,12 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                osver: ["fedora-41"]
-
+                include:
+                    - { ostype: fedora, osver: latest }
+                    - { ostype: fedora, osver: rawhide }
         steps:
             - name: Checkout repository
               uses: actions/checkout@v4
-
             - name: Set up QEMU
               uses: docker/setup-qemu-action@v3
             - name: Set up Docker Buildx
@@ -34,30 +36,33 @@ jobs:
               uses: actions/cache@v4
               with:
                     path: ${{ env.DOCKER_LAYER_CACHE }}
-                    key: ${{ runner.os }}-buildx-ci-os-images-${{ matrix.osver }}-${{ github.sha }}
+                    key: ${{ runner.os }}-buildx-ci-os-images-${{ matrix.ostype }}-${{ matrix.osver }}-${{ github.sha }}
                     restore-keys: |
-                        ${{ runner.os }}-buildx-ci-os-images-${{ matrix.osver }}-
+                        ${{ runner.os }}-buildx-ci-os-images-${{ matrix.ostype }}-${{ matrix.osver }}-
             - name: Login to GitHub Container Registry
               uses: docker/login-action@v3
               with:
-                  registry: ghcr.io
+                  registry: ${{ env.DOCKER_IMAGE_REGISTRY }}
                   username: ${{ github.repository_owner }}
                   password: ${{ secrets.GITHUB_TOKEN }}
             - name: Extract metadata (tags, labels) for Docker
               id: meta
               uses: docker/metadata-action@v5
               with:
-                  images: ghcr.io/${{ github.repository_owner }}/${{ github.repository }}/ci-os-image
+                  images: ${{ env.DOCKER_IMAGE_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}
                   tags: |
-                      type=sha,event=push,enable=true,prefix=${{ matrix.osver }}-git-,format=short
-                      type=raw,event=push,enable={{ is_default_branch }},value=${{ matrix.osver }}
+                      type=sha,event=push,enable=true,prefix=${{ matrix.ostype }}-${{ matrix.osver }}-git-,format=short
+                      type=raw,event=push,enable={{ is_default_branch }},value=${{ matrix.ostype }}-${{ matrix.osver }}
             - name: Build and push Docker image
               uses: docker/build-push-action@v5
               with:
                   context: .
-                  file: Meta/CI/${{ matrix.osver }}.dockerfile
-                  push: true
+                  file: Meta/CI/${{ matrix.ostype }}.dockerfile
                   platforms: linux/amd64,linux/arm64/v8
+                  build-args: |
+                      OSTYPE=${{ matrix.ostype }}
+                      OSVER=${{ matrix.osver }}
+                  push: true
                   tags: ${{ steps.meta.outputs.tags }}
                   labels: ${{ steps.meta.outputs.labels }}
                   cache-from: type=local,src=${{ env.DOCKER_LAYER_CACHE }}
