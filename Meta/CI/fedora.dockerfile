@@ -34,12 +34,7 @@ RUN dnf update -y && \
     ldconfig && \
     fc-cache -f
 
-RUN groupadd -r -g 9999 ladybird-ci && \
-    useradd -m -u 9999 -g 9999 ladybird-ci && \
-    mkdir -v -m 1777 /__w && \
-    chown -v ladybird-ci:ladybird-ci /__w
-
+RUN groupadd -r -g 1001 ladybird-ci && \
+    useradd -m -u 1001 -g 1001 ladybird-ci
 USER ladybird-ci
-WORKDIR /__w
-
 RUN cc --version && c++ --version
