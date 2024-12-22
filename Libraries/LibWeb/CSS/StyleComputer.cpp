@@ -1774,6 +1774,41 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::font_matching_algorithm(FlyStr
     return {};
 }
 
+CSSPixels StyleComputer::default_user_font_size()
+{
+    // FIXME: This value should be configurable by the user.
+    return 16;
+}
+
+// https://w3c.github.io/csswg-drafts/css-fonts/#absolute-size-mapping
+CSSPixelFraction StyleComputer::absolute_size_mapping(Keyword keyword)
+{
+    switch (keyword) {
+    case Keyword::XxSmall:
+        return CSSPixels(3) / 5;
+    case Keyword::XSmall:
+        return CSSPixels(3) / 4;
+    case Keyword::Small:
+        return CSSPixels(8) / 9;
+    case Keyword::Medium:
+        return 1;
+    case Keyword::Large:
+        return CSSPixels(6) / 5;
+    case Keyword::XLarge:
+        return CSSPixels(3) / 2;
+    case Keyword::XxLarge:
+        return 2;
+    case Keyword::XxxLarge:
+        return 3;
+    case Keyword::Smaller:
+        return CSSPixels(4) / 5;
+    case Keyword::Larger:
+        return CSSPixels(5) / 4;
+    default:
+        return 1;
+    }
+}
+
 RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(DOM::Element const* element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, CSSStyleValue const& font_family, CSSStyleValue const& font_size, CSSStyleValue const& font_style, CSSStyleValue const& font_weight, CSSStyleValue const& font_stretch, int math_depth) const
 {
     auto* parent_element = element_to_inherit_style_from(element, pseudo_element);
@@ -1781,8 +1816,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
     auto width = font_stretch.to_font_width();
     auto weight = font_weight.to_font_weight();
 
-    // FIXME: Should be based on "user's default font size"
-    CSSPixels font_size_in_px = 16;
+    auto font_size_in_px = default_user_font_size();
 
     Gfx::FontPixelMetrics font_pixel_metrics;
     if (parent_element && parent_element->computed_properties())
@@ -1805,34 +1839,6 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
     Length::FontMetrics font_metrics { parent_font_size(), font_pixel_metrics };
 
     if (font_size.is_keyword()) {
-        // https://w3c.github.io/csswg-drafts/css-fonts/#absolute-size-mapping
-        auto get_absolute_size_mapping = [](Keyword keyword) -> CSSPixelFraction {
-            switch (keyword) {
-            case Keyword::XxSmall:
-                return CSSPixels(3) / 5;
-            case Keyword::XSmall:
-                return CSSPixels(3) / 4;
-            case Keyword::Small:
-                return CSSPixels(8) / 9;
-            case Keyword::Medium:
-                return 1;
-            case Keyword::Large:
-                return CSSPixels(6) / 5;
-            case Keyword::XLarge:
-                return CSSPixels(3) / 2;
-            case Keyword::XxLarge:
-                return 2;
-            case Keyword::XxxLarge:
-                return 3;
-            case Keyword::Smaller:
-                return CSSPixels(4) / 5;
-            case Keyword::Larger:
-                return CSSPixels(5) / 4;
-            default:
-                return 1;
-            }
-        };
-
         auto const keyword = font_size.to_keyword();
 
         if (keyword == Keyword::Math) {
@@ -1885,7 +1891,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
                     font_size_in_px = CSSPixels::nearest_value_for(parent_element->computed_properties()->first_available_computed_font().pixel_metrics().size);
                 }
             }
-            font_size_in_px *= get_absolute_size_mapping(keyword);
+            font_size_in_px *= absolute_size_mapping(keyword);
         }
     } else {
         Length::ResolutionContext const length_resolution_context {

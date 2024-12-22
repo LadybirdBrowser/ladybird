@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/Color.h>
 #include <LibWeb/CSS/ResolvedCSSStyleDeclaration.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
@@ -21,6 +23,7 @@
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/HTML/HTMLFontElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLLIElement.h>
 #include <LibWeb/HTML/HTMLOListElement.h>
@@ -561,7 +564,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         end_block = {};
 
     // 19. Record current states and values, and let overrides be the result.
-    auto overrides = record_current_states_and_values(*active_range(document));
+    auto overrides = record_current_states_and_values(document);
 
     // 21. If start node and end node are the same, and start node is an editable Text node:
     if (start.node == end.node && is<DOM::Text>(*start.node) && start.node->is_editable()) {
@@ -582,7 +585,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         }
 
         // 5. Restore states and values from overrides.
-        restore_states_and_values(*selection.range(), overrides);
+        restore_states_and_values(document, overrides);
 
         // 6. Abort these steps.
         return;
@@ -662,7 +665,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         }
 
         // 3. Restore states and values from overrides.
-        restore_states_and_values(*selection.range(), overrides);
+        restore_states_and_values(document, overrides);
 
         // 4. Abort these steps.
         return;
@@ -712,7 +715,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
                 end_block->remove();
 
             // 4. Restore states and values from overrides.
-            restore_states_and_values(*active_range(document), overrides);
+            restore_states_and_values(document, overrides);
 
             // 5. Abort these steps.
             return;
@@ -721,7 +724,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         // 5. If end block's firstChild is not an inline node, restore states and values from record, then abort these
         //    steps.
         if (!is_inline_node(*end_block->first_child())) {
-            restore_states_and_values(*active_range(document), overrides);
+            restore_states_and_values(document, overrides);
             return;
         }
 
@@ -883,7 +886,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
     remove_extraneous_line_breaks_at_the_end_of_node(*start_block);
 
     // 41. Restore states and values from overrides.
-    restore_states_and_values(*active_range(document), overrides);
+    restore_states_and_values(document, overrides);
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#editing-host-of
@@ -1917,6 +1920,37 @@ DOM::BoundaryPoint last_equivalent_point(DOM::BoundaryPoint boundary_point)
     return boundary_point;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#legacy-font-size-for
+String legacy_font_size(int pixel_size)
+{
+    // 1. Let returned size be 1.
+    auto returned_size = 1;
+
+    // 2. While returned size is less than 7:
+    while (returned_size < 7) {
+        // 1. Let lower bound be the resolved value of "font-size" in pixels of a font element whose size attribute is
+        //    set to returned size.
+        auto lower_bound = font_size_to_pixel_size(MUST(String::formatted("{}", returned_size))).to_float();
+
+        // 2. Let upper bound be the resolved value of "font-size" in pixels of a font element whose size attribute is
+        //    set to one plus returned size.
+        auto upper_bound = font_size_to_pixel_size(MUST(String::formatted("{}", returned_size + 1))).to_float();
+
+        // 3. Let average be the average of upper bound and lower bound.
+        auto average = (lower_bound + upper_bound) / 2;
+
+        // 4. If pixel size is less than average, return the one-code unit string consisting of the digit returned size.
+        if (pixel_size < average)
+            return MUST(String::formatted("{}", returned_size));
+
+        // 5. Add one to returned size.
+        ++returned_size;
+    }
+
+    // 3. Return "7".
+    return "7"_string;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#preserving-ranges
 void move_node_preserving_ranges(GC::Ref<DOM::Node> node, GC::Ref<DOM::Node> new_parent, u32 new_index)
 {
@@ -2075,22 +2109,45 @@ Optional<DOM::BoundaryPoint> previous_equivalent_point(DOM::BoundaryPoint bounda
     return {};
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#record-current-overrides
+Vector<RecordedOverride> record_current_overrides(DOM::Document const& document)
+{
+    // 1. Let overrides be a list of (string, string or boolean) ordered pairs, initially empty.
+    Vector<RecordedOverride> overrides;
+
+    // 2. If there is a value override for "createLink", add ("createLink", value override for "createLink") to
+    //    overrides.
+    if (auto override = document.command_value_override(CommandNames::createLink); override.has_value())
+        overrides.empend(CommandNames::createLink, override.release_value());
+
+    // 3. For each command in the list "bold", "italic", "strikethrough", "subscript", "superscript", "underline", in
+    //    order: if there is a state override for command, add (command, command's state override) to overrides.
+    for (auto const& command : { CommandNames::bold, CommandNames::italic, CommandNames::strikethrough,
+             CommandNames::subscript, CommandNames::superscript, CommandNames::underline }) {
+        if (auto override = document.command_state_override(command); override.has_value())
+            overrides.empend(command, override.release_value());
+    }
+
+    // 4. For each command in the list "fontName", "fontSize", "foreColor", "hiliteColor", in order: if there is a value
+    //    override for command, add (command, command's value override) to overrides.
+    for (auto const& command : { CommandNames::fontName, CommandNames::fontSize, CommandNames::foreColor,
+             CommandNames::hiliteColor }) {
+        if (auto override = document.command_value_override(command); override.has_value())
+            overrides.empend(command, override.release_value());
+    }
+
+    // 5. Return overrides.
+    return overrides;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#record-current-states-and-values
-Vector<RecordedOverride> record_current_states_and_values(GC::Ref<DOM::Range> active_range)
+Vector<RecordedOverride> record_current_states_and_values(DOM::Document const& document)
 {
     // 1. Let overrides be a list of (string, string or boolean) ordered pairs, initially empty.
     Vector<RecordedOverride> overrides;
 
     // 2. Let node be the first formattable node effectively contained in the active range, or null if there is none.
-    GC::Ptr<DOM::Node> node;
-    auto common_ancestor = active_range->common_ancestor_container();
-    common_ancestor->for_each_in_subtree([&](GC::Ref<DOM::Node> descendant) {
-        if (is_formattable_node(descendant) && is_effectively_contained_in_range(descendant, active_range)) {
-            node = descendant;
-            return TraversalDecision::Break;
-        }
-        return TraversalDecision::Continue;
-    });
+    auto node = first_formattable_node_effectively_contained(active_range(document));
 
     // 3. If node is null, return overrides.
     if (!node)
@@ -2253,44 +2310,88 @@ void remove_node_preserving_its_descendants(GC::Ref<DOM::Node> node)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#restore-states-and-values
-void restore_states_and_values(GC::Ref<DOM::Range>, Vector<RecordedOverride> const& overrides)
+void restore_states_and_values(DOM::Document& document, Vector<RecordedOverride> const& overrides)
 {
-    // FIXME: 1. Let node be the first formattable node effectively contained in the active range, or null if there is none.
+    // 1. Let node be the first formattable node effectively contained in the active range, or null if there is none.
+    auto node = first_formattable_node_effectively_contained(active_range(document));
 
-    // FIXME: 2. If node is not null, then for each (command, override) pair in overrides, in order:
-    {
-        // FIXME: 1. If override is a boolean, and queryCommandState(command) returns something different from override, take
-        //    the action for command, with value equal to the empty string.
+    // 2. If node is not null,
+    if (node) {
+        auto take_the_action_for_command = [&document](FlyString const& command, String const& value) {
+            auto const& command_definition = find_command_definition(command);
+            // FIXME: replace with VERIFY(command_definition.has_value()) as soon as all command definitions are in place.
+            if (command_definition.has_value())
+                command_definition->action(document, value);
+        };
 
-        // FIXME: 2. Otherwise, if override is a string, and command is neither "createLink" nor "fontSize", and
-        //    queryCommandValue(command) returns something not equivalent to override, take the action for command, with
-        //    value equal to override.
+        // then for each (command, override) pair in overrides, in order:
+        for (auto override : overrides) {
+            // 1. If override is a boolean, and queryCommandState(command) returns something different from override,
+            //    take the action for command, with value equal to the empty string.
+            if (override.value.has<bool>() && document.query_command_state(override.command) != override.value.get<bool>()) {
+                take_the_action_for_command(override.command, {});
+            }
 
-        // FIXME: 3. Otherwise, if override is a string; and command is "createLink"; and either there is a value override for
-        //    "createLink" that is not equal to override, or there is no value override for "createLink" and node's
-        //    effective command value for "createLink" is not equal to override: take the action for "createLink", with
-        //    value equal to override.
+            // 2. Otherwise, if override is a string, and command is neither "createLink" nor "fontSize", and
+            //    queryCommandValue(command) returns something not equivalent to override, take the action for command,
+            //    with value equal to override.
+            else if (override.value.has<String>() && !override.command.is_one_of(CommandNames::createLink, CommandNames::fontSize)
+                && document.query_command_value(override.command) != override.value.get<String>()) {
+                take_the_action_for_command(override.command, override.value.get<String>());
+            }
 
-        // FIXME: 4. Otherwise, if override is a string; and command is "fontSize"; and either there is a value override for
-        //    "fontSize" that is not equal to override, or there is no value override for "fontSize" and node's
-        //     effective command value for "fontSize" is not loosely equivalent to override:
-        {
-            // FIXME: 1. Convert override to an integer number of pixels, and set override to the legacy font size for the
-            //    result.
+            // 3. Otherwise, if override is a string; and command is "createLink"; and either there is a value override
+            //    for "createLink" that is not equal to override, or there is no value override for "createLink" and
+            //    node's effective command value for "createLink" is not equal to override: take the action for
+            //    "createLink", with value equal to override.
+            else if (auto value_override = document.command_value_override(CommandNames::createLink);
+                override.value.has<String>() && override.command == CommandNames::createLink
+                && ((value_override.has_value() && value_override.value() != override.value.get<String>())
+                    || (!value_override.has_value()
+                        && effective_command_value(node, CommandNames::createLink) != override.value.get<String>()))) {
+                take_the_action_for_command(CommandNames::createLink, override.value.get<String>());
+            }
 
-            // FIXME: 2. Take the action for "fontSize", with value equal to override.
+            // 4. Otherwise, if override is a string; and command is "fontSize"; and either there is a value override
+            //    for "fontSize" that is not equal to override, or there is no value override for "fontSize" and node's
+            //    effective command value for "fontSize" is not loosely equivalent to override:
+            else if (auto value_override = document.command_value_override(CommandNames::fontSize);
+                override.value.has<String>() && override.command == CommandNames::fontSize
+                && ((value_override.has_value() && value_override.value() != override.value.get<String>())
+                    || (!value_override.has_value()
+                        && !values_are_loosely_equivalent(
+                            CommandNames::fontSize,
+                            effective_command_value(node, CommandNames::fontSize),
+                            override.value.get<String>())))) {
+                // 1. Convert override to an integer number of pixels, and set override to the legacy font size for the
+                //    result.
+                auto override_pixel_size = font_size_to_pixel_size(override.value.get<String>());
+                override.value = legacy_font_size(override_pixel_size.to_int());
+
+                // 2. Take the action for "fontSize", with value equal to override.
+                take_the_action_for_command(CommandNames::fontSize, override.value.get<String>());
+            }
+
+            // 5. Otherwise, continue this loop from the beginning.
+            else {
+                continue;
+            }
+
+            // 6. Set node to the first formattable node effectively contained in the active range, if there is one.
+            if (auto new_formattable_node = first_formattable_node_effectively_contained(active_range(document)))
+                node = new_formattable_node;
         }
-
-        // FIXME: 5. Otherwise, continue this loop from the beginning.
-
-        // FIXME: 6. Set node to the first formattable node effectively contained in the active range, if there is one.
     }
 
     // 3. Otherwise, for each (command, override) pair in overrides, in order:
-    for ([[maybe_unused]] auto const& override : overrides) {
-        // FIXME: 1. If override is a boolean, set the state override for command to override.
-
-        // FIXME: 2. If override is a string, set the value override for command to override.
+    else {
+        for (auto const& override : overrides) {
+            // 1. If override is a boolean, set the state override for command to override.
+            // 2. If override is a string, set the value override for command to override.
+            override.value.visit(
+                [&](bool value) { document.set_command_state_override(override.command, value); },
+                [&](String const& value) { document.set_command_value_override(override.command, value); });
+        }
     }
 }
 
@@ -2564,6 +2665,72 @@ void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const& node_list)
         remove_extraneous_line_breaks_at_the_end_of_node(*last_node->parent());
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#equivalent-values
+bool values_are_equivalent(FlyString const& command, Optional<String> a, Optional<String> b)
+{
+    // Two quantities are equivalent values for a command if either both are null,
+    if (!a.has_value() && !b.has_value())
+        return true;
+
+    // NOTE: Both need to be strings for all remaining conditions.
+    if (!a.has_value() || !b.has_value())
+        return false;
+
+    // or both are strings and the command defines equivalent values and they match the definition.
+    if (command.is_one_of(CommandNames::backColor, CommandNames::foreColor, CommandNames::hiliteColor)) {
+        // Either both strings are valid CSS colors and have the same red, green, blue, and alpha components, or neither
+        // string is a valid CSS color.
+        auto a_color = Color::from_string(a.value());
+        auto b_color = Color::from_string(b.value());
+        if (a_color.has_value())
+            return a_color == b_color;
+        return !a_color.has_value() && !b_color.has_value();
+    }
+    if (command == CommandNames::bold) {
+        // Either the two strings are equal, or one is "bold" and the other is "700", or one is "normal" and the other
+        // is "400".
+        if (a.value() == b.value())
+            return true;
+
+        auto either_is_bold = first_is_one_of("bold"sv, a.value(), b.value());
+        auto either_is_700 = first_is_one_of("700"sv, a.value(), b.value());
+        auto either_is_normal = first_is_one_of("normal"sv, a.value(), b.value());
+        auto either_is_400 = first_is_one_of("400"sv, a.value(), b.value());
+
+        return (either_is_bold && either_is_700) || (either_is_normal && either_is_400);
+    }
+
+    // or both are strings and they're equal and the command does not define any equivalent values,
+    return a.value() == b.value();
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#loosely-equivalent-values
+bool values_are_loosely_equivalent(FlyString const& command, Optional<String> a, Optional<String> b)
+{
+    // Two quantities are loosely equivalent values for a command if either they are equivalent values for the command,
+    if (values_are_equivalent(command, a, b))
+        return true;
+
+    // or if the command is the fontSize command; one of the quantities is one of "x-small", "small", "medium", "large",
+    // "x-large", "xx-large", or "xxx-large"; and the other quantity is the resolved value of "font-size" on a font
+    // element whose size attribute has the corresponding value set ("1" through "7" respectively).
+    if (command == CommandNames::fontSize && a.has_value() && b.has_value()) {
+        static constexpr Array named_quantities { "x-small"sv, "small"sv, "medium"sv, "large"sv, "x-large"sv,
+            "xx-large"sv, "xxx-large"sv };
+        static constexpr Array size_quantities { "1"sv, "2"sv, "3"sv, "4"sv, "5"sv, "6"sv, "7"sv };
+        static_assert(named_quantities.size() == size_quantities.size());
+
+        auto a_index = named_quantities.first_index_of(a.value())
+                           .value_or_lazy_evaluated_optional([&] { return size_quantities.first_index_of(a.value()); });
+        auto b_index = named_quantities.first_index_of(b.value())
+                           .value_or_lazy_evaluated_optional([&] { return size_quantities.first_index_of(b.value()); });
+
+        return a_index.has_value() && a_index == b_index;
+    }
+
+    return false;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#wrap
 GC::Ptr<DOM::Node> wrap(
     Vector<GC::Ref<DOM::Node>> node_list,
@@ -2743,6 +2910,38 @@ GC::Ptr<DOM::Node> wrap(
 
     // 17. Return new parent.
     return new_parent;
+}
+
+GC::Ptr<DOM::Node> first_formattable_node_effectively_contained(GC::Ptr<DOM::Range> range)
+{
+    GC::Ptr<DOM::Node> node;
+    for_each_node_effectively_contained_in_range(range, [&](GC::Ref<DOM::Node> descendant) {
+        if (is_formattable_node(descendant)) {
+            node = descendant;
+            return TraversalDecision::Break;
+        }
+        return TraversalDecision::Continue;
+    });
+    return node;
+}
+
+CSSPixels font_size_to_pixel_size(StringView font_size)
+{
+    auto pixel_size = CSS::StyleComputer::default_user_font_size();
+
+    // Try to map the font size directly to a keyword (e.g. medium or x-large)
+    auto keyword = CSS::keyword_from_string(font_size);
+
+    // If that failed, try to interpret it as a legacy font size (e.g. 1 through 7)
+    if (!keyword.has_value())
+        keyword = HTML::HTMLFontElement::parse_legacy_font_size(font_size);
+
+    // If that also failed, give up
+    if (!keyword.has_value())
+        return pixel_size;
+
+    // Return scaled pixel size
+    return pixel_size * CSS::StyleComputer::absolute_size_mapping(keyword.release_value());
 }
 
 void for_each_node_effectively_contained_in_range(GC::Ptr<DOM::Range> range, Function<TraversalDecision(GC::Ref<DOM::Node>)> callback)

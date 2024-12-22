@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2024-2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -18,6 +18,9 @@ struct CommandDefinition {
     Function<bool(DOM::Document const&)> state {};
     Function<String(DOM::Document const&)> value {};
     Optional<CSS::PropertyID> relevant_css_property {};
+
+    // https://w3c.github.io/editing/docs/execCommand/#preserves-overrides
+    bool preserves_overrides { false };
 
     // https://w3c.github.io/editing/docs/execCommand/#inline-command-activated-values
     Vector<String> inline_activated_values {};

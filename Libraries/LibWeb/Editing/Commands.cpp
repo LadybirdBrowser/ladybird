@@ -791,6 +791,7 @@ static Array const commands {
     CommandDefinition {
         .command = CommandNames::delete_,
         .action = command_delete_action,
+        .preserves_overrides = true,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-defaultparagraphseparator-command
     CommandDefinition {
@@ -802,11 +803,13 @@ static Array const commands {
     CommandDefinition {
         .command = CommandNames::insertLineBreak,
         .action = command_insert_linebreak_action,
+        .preserves_overrides = true,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-insertparagraph-command
     CommandDefinition {
         .command = CommandNames::insertParagraph,
         .action = command_insert_paragraph_action,
+        .preserves_overrides = true,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-stylewithcss-command
     CommandDefinition {

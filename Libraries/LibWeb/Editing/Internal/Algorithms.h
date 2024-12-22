@@ -66,26 +66,32 @@ bool is_single_line_container(GC::Ref<DOM::Node>);
 bool is_visible_node(GC::Ref<DOM::Node>);
 bool is_whitespace_node(GC::Ref<DOM::Node>);
 DOM::BoundaryPoint last_equivalent_point(DOM::BoundaryPoint);
+String legacy_font_size(int);
 void move_node_preserving_ranges(GC::Ref<DOM::Node>, GC::Ref<DOM::Node> new_parent, u32 new_index);
 Optional<DOM::BoundaryPoint> next_equivalent_point(DOM::BoundaryPoint);
 void normalize_sublists_in_node(GC::Ref<DOM::Node>);
 bool precedes_a_line_break(GC::Ref<DOM::Node>);
 Optional<DOM::BoundaryPoint> previous_equivalent_point(DOM::BoundaryPoint);
-Vector<RecordedOverride> record_current_states_and_values(GC::Ref<DOM::Range>);
+Vector<RecordedOverride> record_current_overrides(DOM::Document const&);
+Vector<RecordedOverride> record_current_states_and_values(DOM::Document const&);
 Vector<RecordedNodeValue> record_the_values_of_nodes(Vector<GC::Ref<DOM::Node>> const&);
 void remove_extraneous_line_breaks_at_the_end_of_node(GC::Ref<DOM::Node>);
 void remove_extraneous_line_breaks_before_node(GC::Ref<DOM::Node>);
 void remove_extraneous_line_breaks_from_a_node(GC::Ref<DOM::Node>);
 void remove_node_preserving_its_descendants(GC::Ref<DOM::Node>);
-void restore_states_and_values(GC::Ref<DOM::Range>, Vector<RecordedOverride> const&);
+void restore_states_and_values(DOM::Document&, Vector<RecordedOverride> const&);
 void restore_the_values_of_nodes(Vector<RecordedNodeValue> const&);
 GC::Ref<DOM::Element> set_the_tag_name(GC::Ref<DOM::Element>, FlyString const&);
 Optional<String> specified_command_value(GC::Ref<DOM::Element>, FlyString const& command);
 void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const&);
+bool values_are_equivalent(FlyString const&, Optional<String>, Optional<String>);
+bool values_are_loosely_equivalent(FlyString const&, Optional<String>, Optional<String>);
 GC::Ptr<DOM::Node> wrap(Vector<GC::Ref<DOM::Node>>, Function<bool(GC::Ref<DOM::Node>)> sibling_criteria, Function<GC::Ptr<DOM::Node>()> new_parent_instructions);
 
 // Utility methods:
 
+GC::Ptr<DOM::Node> first_formattable_node_effectively_contained(GC::Ptr<DOM::Range>);
+CSSPixels font_size_to_pixel_size(StringView);
 void for_each_node_effectively_contained_in_range(GC::Ptr<DOM::Range>, Function<TraversalDecision(GC::Ref<DOM::Node>)>);
 bool has_visible_children(GC::Ref<DOM::Node>);
 bool is_heading(FlyString const&);
