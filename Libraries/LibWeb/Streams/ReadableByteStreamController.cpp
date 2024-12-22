@@ -172,7 +172,7 @@ void ReadableByteStreamController::pull_steps(GC::Ref<ReadRequest> read_request)
     readable_byte_stream_controller_call_pull_if_needed(*this);
 }
 
-// https://streams.spec.whatwg.org/#rbs-controller-private-pull
+// https://streams.spec.whatwg.org/#abstract-opdef-readablebytestreamcontroller-releasesteps
 void ReadableByteStreamController::release_steps()
 {
     // 1. If this.[[pendingPullIntos]] is not empty,
