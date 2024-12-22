@@ -1,0 +1,51 @@
+name: "Build in Linux Distribution CI image"
+
+on:
+    workflow_call:
+        inputs:
+            distribution_name:
+                required: true
+                type: string
+            distribution_version:
+                required: true
+                type: string
+                default: latest
+    workflow_dispatch:
+        inputs:
+            distribution_name:
+                description: Linux distribution name
+                required: true
+                type: string
+            distribution_version:
+                description: Linux distribution CI image tag (best kept as 'latest' in most cases)
+                required: true
+                type: string
+                default: latest
+
+env:
+    CI_WORKDIR: /build
+
+jobs:
+    distribution-ci:
+        runs-on: "ubuntu-latest"
+        permissions:
+            packages: read
+        container: ghcr.io/${{ github.repository }}/ci-images/${{ inputs.distribution_name }}:${{ inputs.distribution_version }}
+        steps:
+            - uses: actions/checkout@v4
+              if: ${{ github.event_name != 'pull_request' }}
+              with:
+                  path: ${{ env.CI_WORKDIR }}
+            - uses: actions/checkout@v4
+              if: ${{ github.event_name == 'pull_request' }}
+              with:
+                  path: ${{ env.CI_WORKDIR }}
+                  ref: refs/pull/${{ github.event.pull_request.number }}/merge
+            - name: Create Build Environment
+              working-directory: ${{ env.CI_WORKDIR }}
+              run: |
+                  ./Meta/ladybird.sh vcpkg
+            - name: Build Ladybird
+              working-directory: ${{ env.CI_WORKDIR }}
+              run: |
+                  ./Meta/ladybird.sh build

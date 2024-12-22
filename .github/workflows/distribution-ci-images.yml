@@ -1,6 +1,6 @@
 # This workflow builds a docker image with the Dev Container CLI (https://github.com/devcontainers/cli)
 #
-name: 'Build CI OS Images'
+name: 'Linux Distribution CI Images'
 on:
     schedule:
         # daily at 1200 https://crontab.guru/#0_12_*_*_*
