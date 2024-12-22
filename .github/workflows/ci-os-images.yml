@@ -17,7 +17,7 @@ env:
 
 jobs:
     build:
-        if: github.repository == 'LadybirdBrowser/ladybird' || ${{ env.GHCI_BUILD_OS_IMAGES }} == 'true'
+        if: github.repository == 'LadybirdBrowser/ladybird' || ${{ secrets.GHCI_BUILD_OS_IMAGES }} == 'true'
         runs-on: ubuntu-latest
 
         strategy:
