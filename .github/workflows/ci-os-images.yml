@@ -52,6 +52,7 @@ jobs:
                   images: ${{ env.DOCKER_IMAGE_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}
                   tags: |
                       type=sha,event=push,enable=true,prefix=${{ matrix.ostype }}-${{ matrix.osver }}-git-,format=short
+                      type=raw,event=push,enable={{ is_default_branch }},value=${{ matrix.ostype }}-latest
                       type=raw,event=push,enable={{ is_default_branch }},value=${{ matrix.ostype }}
             - name: Build and push Docker image
               uses: docker/build-push-action@v5
