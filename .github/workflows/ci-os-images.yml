@@ -49,11 +49,10 @@ jobs:
               id: meta
               uses: docker/metadata-action@v5
               with:
-                  images: ${{ env.DOCKER_IMAGE_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}
+                  images: ${{ env.DOCKER_IMAGE_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}/${{ matrix.ostype }}
                   tags: |
-                      type=sha,event=push,enable=true,prefix=${{ matrix.ostype }}-${{ matrix.osver }}-git-,format=short
-                      type=raw,event=push,enable={{ is_default_branch }},value=${{ matrix.ostype }}-latest
-                      type=raw,event=push,enable={{ is_default_branch }},value=${{ matrix.ostype }}
+                      type=sha,event=push,enable=true,prefix=${{ matrix.osver }}-git-,format=short
+                      type=raw,event=push,enable={{ is_default_branch }},value=latest
             - name: Build and push Docker image
               uses: docker/build-push-action@v5
               with:
