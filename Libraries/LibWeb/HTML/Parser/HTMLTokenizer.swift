@@ -1779,6 +1779,8 @@ public class HTMLTokenizer {
             }
         // 13.2.5.73 Named character reference state, https://html.spec.whatwg.org/multipage/parsing.html#named-character-reference-state
         case .NamedCharacterReference:
+            // FIXME: This should be updated to match the C++ implementation, this
+            //        won't handle one-character-at-a-time document.write calls properly.
             var subString = self.input[self.previousCursor...]
             let entityMatch = subString.withUTF8 { utf8 in
                 return Web.HTML.match_entity_for_named_character_reference(AK.StringView(utf8.baseAddress!, utf8.count))
