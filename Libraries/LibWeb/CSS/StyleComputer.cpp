@@ -2331,10 +2331,13 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
     for (auto i = to_underlying(first_longhand_property_id); i <= to_underlying(last_longhand_property_id); ++i) {
         auto property_id = static_cast<CSS::PropertyID>(i);
         auto value = cascaded_properties.property(property_id);
+        auto inherited = ComputedProperties::Inherited::No;
+
         if ((!value && is_inherited_property(property_id))
             || (value && value->is_inherit())) {
             if (auto inheritance_parent = element_to_inherit_style_from(&element, pseudo_element)) {
                 value = inheritance_parent->computed_properties()->property(property_id);
+                inherited = ComputedProperties::Inherited::Yes;
             } else {
                 value = property_initial_value(property_id);
             }
@@ -2350,7 +2353,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
                 value = CSSKeywordValue::create(Keyword::Initial);
         }
 
-        computed_style->set_property(property_id, value.release_nonnull());
+        computed_style->set_property(property_id, value.release_nonnull(), inherited);
 
         if (property_id == PropertyID::AnimationName) {
             computed_style->set_animation_name_source(cascaded_properties.property_source(property_id));
