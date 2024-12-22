@@ -45,14 +45,9 @@ jobs:
         needs: set-image
         permissions:
             packages: read
-        container: ${{ needs.set-image.outputs.ci-image }}
+        container:
+            image: ${{ needs.set-image.outputs.ci-image }}
         steps:
-            - uses: actions/checkout@v4
-              if: ${{ github.event_name != 'pull_request' }}
-            - uses: actions/checkout@v4
-              if: ${{ github.event_name == 'pull_request' }}
-              with:
-                  ref: refs/pull/${{ github.event.pull_request.number }}/merge
             - name: Print informations about current distribution
               run: |
                   cat /etc/os-release
@@ -60,6 +55,12 @@ jobs:
                   echo "C++: $(c++ --version | head -n1)"
                   echo "Nasm: $(nasm --version)"
                   echo "Ninja: $(ninja --version)"
+            - uses: actions/checkout@v4
+              if: ${{ github.event_name != 'pull_request' }}
+            - uses: actions/checkout@v4
+              if: ${{ github.event_name == 'pull_request' }}
+              with:
+                  ref: refs/pull/${{ github.event.pull_request.number }}/merge
             - name: Create Build Environment
               run: |
                   ./Meta/ladybird.sh vcpkg
