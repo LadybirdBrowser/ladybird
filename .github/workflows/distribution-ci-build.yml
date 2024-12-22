@@ -40,7 +40,7 @@ jobs:
                   echo "ci-image-name=$IMAGE_FQN_LOWER" | tee -a "$GITHUB_OUTPUT"
 
     distribution-ci:
-        name: ${{ needs.set-image.outputs.ci-image }}
+        name: ${{ inputs.distribution_name }}
         runs-on: "ubuntu-latest"
         needs: set-image
         permissions:
