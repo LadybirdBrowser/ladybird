@@ -53,6 +53,13 @@ jobs:
               if: ${{ github.event_name == 'pull_request' }}
               with:
                   ref: refs/pull/${{ github.event.pull_request.number }}/merge
+            - name: Print informations about current distribution
+              run: |
+                  cat /etc/os-release
+                  echo "CC: $(cc --version | head -n1)"
+                  echo "C++: $(c++ --version | head -n1)"
+                  echo "Nasm: $(nasm --version)"
+                  echo "Ninja: $(ninja --version)"
             - name: Create Build Environment
               run: |
                   ./Meta/ladybird.sh vcpkg
