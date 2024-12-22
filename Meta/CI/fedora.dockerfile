@@ -9,10 +9,12 @@ RUN dnf update -y && \
       ccache \
       cmake \
       curl \
+      git \
       liberation-sans-fonts \
       libglvnd-devel \
       nasm \
       ninja-build \
+      nodejs \
       perl-FindBin \
       perl-IPC-Cmd \
       perl-lib \

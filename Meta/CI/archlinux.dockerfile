@@ -9,9 +9,11 @@ RUN pacman -Syu --noconfirm && \
       ccache \
       cmake \
       curl \
+      git \
       libgl \
       nasm \
       ninja \
+      nodejs \
       qt6-base \
       qt6-multimedia \
       qt6-tools \
