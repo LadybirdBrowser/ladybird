@@ -69,11 +69,21 @@ bool Document::exec_command(FlyString const& command, [[maybe_unused]] bool show
         //    at the editing host that was actually affected.
     }
 
+    // https://w3c.github.io/editing/docs/execCommand/#preserves-overrides
+    // If a command preserves overrides, then before taking its action, the user agent must record current overrides.
+    auto overrides = Editing::record_current_overrides(*this);
+
     // 5. Take the action for command, passing value to the instructions as an argument.
     auto optional_command = Editing::find_command_definition(command);
     VERIFY(optional_command.has_value());
     auto const& command_definition = optional_command.release_value();
     auto command_result = command_definition.action(*this, value);
+
+    // https://w3c.github.io/editing/docs/execCommand/#preserves-overrides
+    // After taking the action, if the active range is collapsed, it must restore states and values from the recorded
+    // list.
+    if (m_selection && m_selection->is_collapsed())
+        Editing::restore_states_and_values(*this, overrides);
 
     // 6. If the previous step returned false, return false.
     if (!command_result)
@@ -303,8 +313,12 @@ String Document::query_command_value(FlyString const& command)
     if (!command_definition.value && !value_override.has_value())
         return {};
 
-    // FIXME: 2. If command is "fontSize" and its value override is set, convert the value override to an
+    // 2. If command is "fontSize" and its value override is set, convert the value override to an
     //    integer number of pixels and return the legacy font size for the result.
+    if (command == Editing::CommandNames::fontSize && value_override.has_value()) {
+        auto pixel_size = Editing::font_size_to_pixel_size(value_override.release_value());
+        return Editing::legacy_font_size(pixel_size.to_int());
+    }
 
     // 3. If the value override for command is set, return it.
     if (value_override.has_value())

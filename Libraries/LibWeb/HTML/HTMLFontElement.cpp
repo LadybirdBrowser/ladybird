@@ -26,7 +26,7 @@ enum class Mode {
 };
 
 // https://html.spec.whatwg.org/multipage/rendering.html#rules-for-parsing-a-legacy-font-size
-static Optional<CSS::Keyword> parse_legacy_font_size(StringView string)
+Optional<CSS::Keyword> HTMLFontElement::parse_legacy_font_size(StringView string)
 {
     // 1. Let input be the attribute's value.
     // 2. Let position be a pointer into input, initially pointing at the start of the string.
