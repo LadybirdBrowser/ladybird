@@ -2,9 +2,12 @@
 #
 name: 'Build CI OS Images'
 on:
-    # allows manual trigger
-    workflow_dispatch: { }
-    on: [push, pull_request]
+    pull_request:
+    push:
+    schedule:
+        # daily at 1200 https://crontab.guru/#0_12_*_*_*
+        - cron: '0 12 * * *'
+    workflow_dispatch:
 
 permissions:
     contents: read
