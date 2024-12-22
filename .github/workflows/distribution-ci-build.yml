@@ -22,9 +22,6 @@ on:
                 type: string
                 default: latest
 
-env:
-    CI_WORKDIR: /build
-
 jobs:
     set-image:
         runs-on: "ubuntu-latest"
@@ -47,18 +44,13 @@ jobs:
         steps:
             - uses: actions/checkout@v4
               if: ${{ github.event_name != 'pull_request' }}
-              with:
-                  path: ${{ env.CI_WORKDIR }}
             - uses: actions/checkout@v4
               if: ${{ github.event_name == 'pull_request' }}
               with:
-                  path: ${{ env.CI_WORKDIR }}
                   ref: refs/pull/${{ github.event.pull_request.number }}/merge
             - name: Create Build Environment
-              working-directory: ${{ env.CI_WORKDIR }}
               run: |
                   ./Meta/ladybird.sh vcpkg
             - name: Build Ladybird
-              working-directory: ${{ env.CI_WORKDIR }}
               run: |
                   ./Meta/ladybird.sh build
