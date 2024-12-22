@@ -1249,6 +1249,22 @@ EventTarget* Node::get_parent(Event const&)
     return parent();
 }
 
+void Node::set_needs_inherited_style_update(bool value)
+{
+    if (m_needs_inherited_style_update == value)
+        return;
+    m_needs_inherited_style_update = value;
+
+    if (m_needs_inherited_style_update) {
+        for (auto* ancestor = parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
+            if (ancestor->m_child_needs_style_update)
+                break;
+            ancestor->m_child_needs_style_update = true;
+        }
+        document().schedule_style_update();
+    }
+}
+
 void Node::set_needs_style_update(bool value)
 {
     if (m_needs_style_update == value)

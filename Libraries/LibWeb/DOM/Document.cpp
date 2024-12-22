@@ -1297,10 +1297,13 @@ void Document::update_layout()
     if (is<Element>(node)) {
         if (needs_full_style_update || node.needs_style_update()) {
             invalidation |= static_cast<Element&>(node).recompute_style();
+        } else if (node.needs_inherited_style_update()) {
+            invalidation |= static_cast<Element&>(node).recompute_inherited_style();
         }
         is_display_none = static_cast<Element&>(node).computed_properties()->display().is_none();
     }
     node.set_needs_style_update(false);
+    node.set_needs_inherited_style_update(false);
 
     if (needs_full_style_update || node.child_needs_style_update()) {
         if (node.is_element()) {
@@ -1314,7 +1317,7 @@ void Document::update_layout()
         }
 
         node.for_each_child([&](auto& child) {
-            if (needs_full_style_update || child.needs_style_update() || child.child_needs_style_update()) {
+            if (needs_full_style_update || child.needs_style_update() || child.needs_inherited_style_update() || child.child_needs_style_update()) {
                 auto subtree_invalidation = update_style_recursively(child, style_computer);
                 if (!is_display_none)
                     invalidation |= subtree_invalidation;
