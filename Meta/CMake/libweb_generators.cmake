@@ -131,6 +131,29 @@ function (generate_css_implementation)
     set(LIBWEB_ALL_GENERATED_IDL ${LIBWEB_ALL_GENERATED_IDL} PARENT_SCOPE)
 endfunction()
 
+function (generate_html_implementation)
+    set(LIBWEB_INPUT_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}")
+
+    invoke_generator(
+        "NamedCharacterReferences.cpp"
+        Lagom::GenerateNamedCharacterReferences
+        "${LIBWEB_INPUT_FOLDER}/HTML/Parser/Entities.json"
+        "HTML/Parser/NamedCharacterReferences.h"
+        "HTML/Parser/NamedCharacterReferences.cpp"
+        arguments -j "${LIBWEB_INPUT_FOLDER}/HTML/Parser/Entities.json"
+    )
+
+    set(HTML_GENERATED_HEADERS
+       "HTML/Parser/NamedCharacterReferences.h"
+    )
+    list(TRANSFORM HTML_GENERATED_HEADERS PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
+    if (ENABLE_INSTALL_HEADERS)
+        install(FILES ${HTML_GENERATED_HEADERS} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibWeb/HTML")
+    endif()
+    list(APPEND LIBWEB_ALL_GENERATED_HEADERS ${HTML_GENERATED_HEADERS})
+    set(LIBWEB_ALL_GENERATED_HEADERS ${LIBWEB_ALL_GENERATED_HEADERS} PARENT_SCOPE)
+endfunction()
+
 function (generate_js_bindings target)
     set(LIBWEB_INPUT_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}")
     set(generated_idl_targets ${LIBWEB_ALL_GENERATED_IDL})

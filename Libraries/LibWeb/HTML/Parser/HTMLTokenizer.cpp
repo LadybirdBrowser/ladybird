@@ -94,10 +94,10 @@ namespace Web::HTML {
         }                                                        \
     } while (0)
 
-#define DONT_CONSUME_NEXT_INPUT_CHARACTER         \
-    do {                                          \
-        if (current_input_character.has_value())  \
-            restore_to(m_prev_utf8_iterator);     \
+#define DONT_CONSUME_NEXT_INPUT_CHARACTER        \
+    do {                                         \
+        if (current_input_character.has_value()) \
+            restore_to(m_prev_utf8_iterator);    \
     } while (0)
 
 #define ON(code_point) \
@@ -1683,6 +1683,7 @@ _StartOfFunction:
 
                 ON_ASCII_ALPHANUMERIC
                 {
+                    m_named_character_reference_matcher = {};
                     RECONSUME_IN(NamedCharacterReference);
                 }
                 ON('#')
@@ -1701,16 +1702,31 @@ _StartOfFunction:
             // 13.2.5.73 Named character reference state, https://html.spec.whatwg.org/multipage/parsing.html#named-character-reference-state
             BEGIN_STATE(NamedCharacterReference)
             {
-                size_t byte_offset = m_utf8_view.byte_offset_of(m_prev_utf8_iterator);
+                if (current_input_character.has_value()) {
+                    if (m_named_character_reference_matcher.update_with_codepoint(current_input_character.value())) {
+                        m_temporary_buffer.append(current_input_character.value());
+                        continue;
+                    } else {
+                        DONT_CONSUME_NEXT_INPUT_CHARACTER;
+                    }
+                }
 
-                auto match = HTML::code_points_from_entity(m_decoded_input.substring_view(byte_offset, m_decoded_input.length() - byte_offset));
+                // Only consume the characters within the longest match. It's possible that we've overconsumed code points,
+                // though, so we want to backtrack to the longest match found. For example, `&notindo` (which could still
+                // have lead to `&notindot;`) would need to backtrack back to `&not`),
+                auto overconsumed_code_points = m_named_character_reference_matcher.overconsumed_code_points();
+                if (overconsumed_code_points > 0) {
+                    auto current_byte_offset = m_utf8_view.byte_offset_of(m_utf8_iterator);
+                    // All consumed code points during character reference matching are guaranteed to be
+                    // within the ASCII range, so they are always 1 byte wide.
+                    restore_to(m_utf8_view.iterator_at_byte_offset_without_validation(current_byte_offset - overconsumed_code_points));
+                    m_temporary_buffer.resize_and_keep_capacity(m_temporary_buffer.size() - overconsumed_code_points);
+                }
 
-                if (match.has_value()) {
-                    skip(match->entity.length() - 1);
-                    for (auto ch : match.value().entity)
-                        m_temporary_buffer.append(ch);
-
-                    if (consumed_as_part_of_an_attribute() && !match.value().entity.ends_with(';')) {
+                auto mapped_codepoints = m_named_character_reference_matcher.code_points();
+                // If there is a match
+                if (mapped_codepoints.has_value()) {
+                    if (consumed_as_part_of_an_attribute() && !m_named_character_reference_matcher.last_match_ends_with_semicolon()) {
                         auto next_code_point = peek_code_point(0, stop_at_insertion_point);
                         if (next_code_point.has_value() && (next_code_point.value() == '=' || is_ascii_alphanumeric(next_code_point.value()))) {
                             FLUSH_CODEPOINTS_CONSUMED_AS_A_CHARACTER_REFERENCE;
@@ -1718,19 +1734,22 @@ _StartOfFunction:
                         }
                     }
 
-                    if (!match.value().entity.ends_with(';')) {
+                    if (!m_named_character_reference_matcher.last_match_ends_with_semicolon()) {
                         log_parse_error();
                     }
 
-                    m_temporary_buffer = match.value().code_points;
+                    m_temporary_buffer.clear_with_capacity();
+                    m_temporary_buffer.append(mapped_codepoints.value().first);
+                    auto second_codepoint = named_character_reference_second_codepoint_value(mapped_codepoints.value().second);
+                    if (second_codepoint.has_value()) {
+                        m_temporary_buffer.append(second_codepoint.value());
+                    }
 
                     FLUSH_CODEPOINTS_CONSUMED_AS_A_CHARACTER_REFERENCE;
                     SWITCH_TO_RETURN_STATE;
                 } else {
                     FLUSH_CODEPOINTS_CONSUMED_AS_A_CHARACTER_REFERENCE;
-                    // FIXME: This should be SWITCH_TO, but we always lose the first character on this path, so just reconsume it.
-                    //        I can't wrap my head around how to do it as the spec says.
-                    RECONSUME_IN(AmbiguousAmpersand);
+                    SWITCH_TO_WITH_UNCLEAN_BUILDER(AmbiguousAmpersand);
                 }
             }
             END_STATE
