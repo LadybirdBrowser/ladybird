@@ -951,7 +951,6 @@ WebIDL::ExceptionOr<ParsedMatrix> parse_dom_matrix_init_string(JS::Realm& realm,
     if (!transform_style_value || (transform_style_value->is_keyword() && transform_style_value->to_keyword() != CSS::Keyword::None))
         return WebIDL::SyntaxError::create(realm, "Failed to parse CSS transform string."_string);
     auto parsed_value = CSS::ComputedProperties::transformations_for_style_value(*transform_style_value);
-
     // 3. If parsedValue is none, set parsedValue to a <transform-list> containing a single identity matrix.
     // NOTE: parsed_value is empty on none so for loop in 6 won't modify matrix
     auto matrix = Gfx::FloatMatrix4x4::identity();
