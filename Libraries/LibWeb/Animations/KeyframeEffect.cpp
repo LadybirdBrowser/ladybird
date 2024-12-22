@@ -935,24 +935,13 @@ void KeyframeEffect::update_computed_properties()
     auto& document = target->document();
     document.style_computer().collect_animation_into(*target, pseudo_element_type(), *this, *style, CSS::StyleComputer::AnimationRefresh::Yes);
 
+    auto invalidation = compute_required_invalidation(animated_properties_before_update, style->animated_property_values());
+
     // Traversal of the subtree is necessary to update the animated properties inherited from the target element.
     target->for_each_in_subtree_of_type<DOM::Element>([&](auto& element) {
-        auto element_style = element.computed_properties();
-        if (!element_style || !element.layout_node())
-            return TraversalDecision::Continue;
-
-        for (auto i = to_underlying(CSS::first_property_id); i <= to_underlying(CSS::last_property_id); ++i) {
-            if (element_style->is_property_inherited(static_cast<CSS::PropertyID>(i))) {
-                auto new_value = CSS::StyleComputer::get_inherit_value(static_cast<CSS::PropertyID>(i), &element);
-                element_style->set_property(static_cast<CSS::PropertyID>(i), *new_value, CSS::ComputedProperties::Inherited::Yes);
-            }
-        }
-
-        element.layout_node()->apply_style(*element_style);
+        invalidation |= element.recompute_inherited_style();
         return TraversalDecision::Continue;
     });
-
-    auto invalidation = compute_required_invalidation(animated_properties_before_update, style->animated_property_values());
 
     if (!pseudo_element_type().has_value()) {
         if (target->layout_node())

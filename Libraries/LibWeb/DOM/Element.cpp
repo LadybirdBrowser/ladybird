@@ -554,6 +554,31 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
     return invalidation;
 }
 
+CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
+{
+    // Traversal of the subtree is necessary to update the animated properties inherited from the target element.
+    auto computed_properties = this->computed_properties();
+    if (!computed_properties || !layout_node())
+        return {};
+
+    CSS::RequiredInvalidationAfterStyleChange invalidation;
+
+    for (auto i = to_underlying(CSS::first_property_id); i <= to_underlying(CSS::last_property_id); ++i) {
+        auto property_id = static_cast<CSS::PropertyID>(i);
+        if (!computed_properties->is_property_inherited(property_id))
+            continue;
+        RefPtr old_value = computed_properties->maybe_null_property(property_id);
+        RefPtr new_value = CSS::StyleComputer::get_inherit_value(property_id, this);
+        computed_properties->set_property(property_id, *new_value, CSS::ComputedProperties::Inherited::Yes);
+        invalidation |= CSS::compute_property_invalidation(property_id, old_value, new_value);
+    }
+
+    document().style_computer().absolutize_values(*computed_properties);
+
+    layout_node()->apply_style(*computed_properties);
+    return invalidation;
+}
+
 GC::Ref<CSS::ComputedProperties> Element::resolved_css_values(Optional<CSS::Selector::PseudoElement::Type> type)
 {
     auto element_computed_style = CSS::ResolvedCSSStyleDeclaration::create(*this, type);

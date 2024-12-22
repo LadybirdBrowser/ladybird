@@ -175,6 +175,8 @@ public:
 
     [[nodiscard]] GC::Ref<ComputedProperties> compute_properties(DOM::Element&, Optional<Selector::PseudoElement::Type>, CascadedProperties&) const;
 
+    void absolutize_values(ComputedProperties&) const;
+
 private:
     enum class ComputeStyleMode {
         Normal,
@@ -194,7 +196,6 @@ private:
     void compute_math_depth(ComputedProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
     void compute_defaulted_values(ComputedProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
     void start_needed_transitions(ComputedProperties const& old_style, ComputedProperties& new_style, DOM::Element&, Optional<Selector::PseudoElement::Type>) const;
-    void absolutize_values(ComputedProperties&) const;
     void resolve_effective_overflow_values(ComputedProperties&) const;
     void transform_box_type_if_needed(ComputedProperties&, DOM::Element const&, Optional<CSS::Selector::PseudoElement::Type>) const;
 
