@@ -24,7 +24,7 @@ jobs:
             matrix:
                 include:
                     - { ostype: fedora, osver: latest }
-                    - { ostype: fedora, osver: rawhide }
+                    - { ostype: archlinux, osver: base-devel }
         steps:
             - name: Checkout repository
               uses: actions/checkout@v4
@@ -52,13 +52,13 @@ jobs:
                   images: ${{ env.DOCKER_IMAGE_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}
                   tags: |
                       type=sha,event=push,enable=true,prefix=${{ matrix.ostype }}-${{ matrix.osver }}-git-,format=short
-                      type=raw,event=push,enable={{ is_default_branch }},value=${{ matrix.ostype }}-${{ matrix.osver }}
+                      type=raw,event=push,enable={{ is_default_branch }},value=${{ matrix.ostype }}
             - name: Build and push Docker image
               uses: docker/build-push-action@v5
               with:
                   context: .
                   file: Meta/CI/${{ matrix.ostype }}.dockerfile
-                  platforms: linux/amd64,linux/arm64/v8
+                  platforms: linux/amd64 # ,linux/arm64/v8 x-platform works but is *extremely* slow
                   build-args: |
                       OSTYPE=${{ matrix.ostype }}
                       OSVER=${{ matrix.osver }}

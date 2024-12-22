@@ -28,7 +28,9 @@ RUN dnf update -y && \
       /tmp/* \
       /var/cache \
       /var/log/* \
-      /var/tmp/*
+      /var/tmp/* && \
+    ldconfig && \
+    fc-cache -f
 
 RUN groupadd -r -g 9999 ladybird-ci && \
     useradd -m -u 9999 -g 9999 ladybird-ci && \
