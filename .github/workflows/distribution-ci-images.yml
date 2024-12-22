@@ -47,7 +47,7 @@ jobs:
               id: meta
               uses: docker/metadata-action@v5
               with:
-                  images: ghcr.io/${{ github.repository }}/ci-images/${{ matrix.ostype }}
+                  images: ghcr.io/${{ github.repository }}/ci-distro-images/${{ matrix.ostype }}
                   tags: |
                       type=sha,event=push,enable=true,prefix=${{ matrix.osver }}-git-,format=short
                       type=raw,event=push,enable={{ is_default_branch }},value=latest

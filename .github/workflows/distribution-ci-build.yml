@@ -35,7 +35,7 @@ jobs:
               env:
                   IMAGE_NAME: ${{ inputs.distribution_name }}:${{ inputs.distribution_version }}
               run: |
-                  IMAGE_PREFIX="ghcr.io/$GITHUB_REPOSITORY/ci-images"
+                  IMAGE_PREFIX="ghcr.io/$GITHUB_REPOSITORY/ci-distro-images"
                   IMAGE_FQN_LOWER=$(echo "$IMAGE_PREFIX/$IMAGE_NAME" | tr '[:upper:]' '[:lower:]')
                   echo "ci-image-name=$IMAGE_FQN_LOWER" | tee -a "$GITHUB_OUTPUT"
 
