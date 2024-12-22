@@ -153,6 +153,36 @@ void Settings::set_enable_autoplay(bool enable)
     emit enable_autoplay_changed(enable);
 }
 
+int Settings::scrolling_speed()
+{
+    return m_qsettings->value("scrolling_speed", (int)100).toInt();
+}
+
+void Settings::set_scrolling_speed(int value)
+{
+    m_qsettings->setValue("scrolling_speed", value);
+}
+
+bool Settings::invert_vertical_scrolling()
+{
+    return m_qsettings->value("invert_vertical_scrolling", false).toBool();
+}
+
+void Settings::set_invert_vertical_scrolling(bool enable)
+{
+    m_qsettings->setValue("invert_vertical_scrolling", enable);
+}
+
+bool Settings::invert_horizontal_scrolling()
+{
+    return m_qsettings->value("invert_horizontal_scrolling", false).toBool();
+}
+
+void Settings::set_invert_horizontal_scrolling(bool enable)
+{
+    m_qsettings->setValue("invert_horizontal_scrolling", enable);
+}
+
 bool Settings::show_menubar()
 {
     return m_qsettings->value("show_menubar", false).toBool();

@@ -86,6 +86,47 @@ SettingsDialog::SettingsDialog(QMainWindow* window)
         Settings::the()->set_enable_autoplay(state == Qt::Checked);
     });
 
+    m_scrolling_speed = new QSlider( Qt::Horizontal, this);
+    m_scrolling_speed->setRange(0, 300);
+    m_scrolling_speed->setValue(Settings::the()->scrolling_speed());
+
+    m_reset_scrolling_speed = new QPushButton("Reset", this);
+    m_reset_scrolling_speed->setEnabled(m_scrolling_speed->value() != 100);
+    QObject::connect(m_reset_scrolling_speed, &QPushButton::pressed, this, [&]() {
+        m_scrolling_speed->setValue(100);
+    });
+
+    QHBoxLayout* scroll_speed_layout = new QHBoxLayout();
+    scroll_speed_layout->addWidget(m_scrolling_speed);
+    scroll_speed_layout->addWidget(m_reset_scrolling_speed);
+
+    m_scrolling_speed_label = new QLabel(QString("Scrolling Speed (%1%)").arg(m_scrolling_speed->value()), this);
+    QObject::connect(m_scrolling_speed, &QSlider::valueChanged, this, [&](int value) {
+        Settings::the()->set_scrolling_speed(value);
+        m_scrolling_speed_label->setText(QString("Scrolling Speed (%1%)").arg(value));
+        m_reset_scrolling_speed->setEnabled(value != 100);
+    });
+
+    m_invert_vertical_scrolling = new QCheckBox(this);
+    m_invert_vertical_scrolling->setChecked(Settings::the()->invert_vertical_scrolling());
+#if (QT_VERSION > QT_VERSION_CHECK(6, 7, 0))
+    QObject::connect(m_invert_vertical_scrolling, &QCheckBox::checkStateChanged, this, [&](int state) {
+#else
+    QObject::connect(m_invert_vertical_scrolling, &QCheckBox::stateChanged, this, [&](int state) {
+#endif
+        Settings::the()->set_invert_vertical_scrolling(state == Qt::Checked);
+    });
+
+    m_invert_horizontal_scrolling = new QCheckBox(this);
+    m_invert_horizontal_scrolling->setChecked(Settings::the()->invert_horizontal_scrolling());
+#if (QT_VERSION > QT_VERSION_CHECK(6, 7, 0))
+    QObject::connect(m_invert_horizontal_scrolling, &QCheckBox::checkStateChanged, this, [&](int state) {
+#else
+    QObject::connect(m_invert_horizontal_scrolling, &QCheckBox::stateChanged, this, [&](int state) {
+#endif
+        Settings::the()->set_invert_horizontal_scrolling(state == Qt::Checked);
+    });
+
     setup_search_engines();
 
     m_layout->addRow(new QLabel("Page on New Tab", this), m_new_tab_page);
@@ -96,6 +137,9 @@ SettingsDialog::SettingsDialog(QMainWindow* window)
     m_layout->addRow(new QLabel("Autocomplete Engine", this), m_autocomplete_engine_dropdown);
     m_layout->addRow(new QLabel("Send web sites a \"Do Not Track\" request", this), m_enable_do_not_track);
     m_layout->addRow(new QLabel("Enable autoplay on all websites", this), m_enable_autoplay);
+    m_layout->addRow(m_scrolling_speed_label, scroll_speed_layout);
+    m_layout->addRow(new QLabel("Invert Vertical Scrolling", this), m_invert_vertical_scrolling);
+    m_layout->addRow(new QLabel("Invert Horizontal Scrolling", this), m_invert_horizontal_scrolling);
 
     setWindowTitle("Settings");
     setLayout(m_layout);

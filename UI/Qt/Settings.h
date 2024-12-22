@@ -71,6 +71,15 @@ public:
     bool enable_autoplay();
     void set_enable_autoplay(bool enable);
 
+    int scrolling_speed();
+    void set_scrolling_speed(int value);
+
+    bool invert_vertical_scrolling();
+    void set_invert_vertical_scrolling(bool enable);
+
+    bool invert_horizontal_scrolling();
+    void set_invert_horizontal_scrolling(bool enable);
+
     bool show_menubar();
     void set_show_menubar(bool show_menubar);
 
