@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-2 Pass
-1 Fail
+3 Pass
 Pass	Check number of divs
 Pass	Check div structure: network
-Fail	Check div structure: document.write
+Pass	Check div structure: document.write
