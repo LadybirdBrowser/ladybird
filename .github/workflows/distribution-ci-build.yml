@@ -1,4 +1,4 @@
-name: "Build in Linux Distribution CI image"
+name: "Build on ${{ inputs.distribution_name }}"
 
 on:
     workflow_call:
@@ -24,23 +24,28 @@ on:
 
 jobs:
     set-image:
+        name: "Set CI image"
         runs-on: "ubuntu-latest"
         outputs:
-            image-prefix: ${{ steps.lowercase.outputs.images-prefix }}
+            ci-image-name: ${{ steps.ci-image-name.outputs.ci-image-name }}
         steps:
             # github.repository is case-sensitive, but job.container mandates lowercase
             - name: "Ensure lowercase image prefix"
-              id: lowercase
+              id: ci-image-name
+              env:
+                  IMAGE_NAME: ${{ inputs.distribution_name }}:${{ inputs.distribution_version }}
               run: |
-                  IMAGE_PREFIX_LOWER=$(echo ghcr.io/$GITHUB_REPOSITORY/ci-images | tr '[:upper:]' '[:lower:]')
-                  echo "images-prefix=$IMAGE_PREFIX_LOWER" | tee -a "$GITHUB_OUTPUT"
+                  IMAGE_PREFIX="ghcr.io/$GITHUB_REPOSITORY/ci-images"
+                  IMAGE_FQN_LOWER=$(echo "$IMAGE_PREFIX/$IMAGE_NAME" | tr '[:upper:]' '[:lower:]')
+                  echo "ci-image-name=$IMAGE_FQN_LOWER" | tee -a "$GITHUB_OUTPUT"
 
     distribution-ci:
+        name: "${{ inputs.distribution_name }}"
         runs-on: "ubuntu-latest"
         needs: set-image
         permissions:
             packages: read
-        container: ${{ needs.set-image.outputs.image-prefix }}/${{ inputs.distribution_name }}:${{ inputs.distribution_version }}
+        container: ${{ needs.set-image.outputs.ci-image }}
         steps:
             - uses: actions/checkout@v4
               if: ${{ github.event_name != 'pull_request' }}
