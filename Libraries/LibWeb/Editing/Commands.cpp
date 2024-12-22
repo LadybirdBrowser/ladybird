@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2024-2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -794,23 +794,28 @@ bool command_style_with_css_state(DOM::Document const& document)
 }
 
 static Array const commands {
+    // https://w3c.github.io/editing/docs/execCommand/#the-delete-command
     CommandDefinition {
         .command = CommandNames::delete_,
         .action = command_delete_action,
     },
+    // https://w3c.github.io/editing/docs/execCommand/#the-defaultparagraphseparator-command
     CommandDefinition {
         .command = CommandNames::defaultParagraphSeparator,
         .action = command_default_paragraph_separator_action,
         .value = command_default_paragraph_separator_value,
     },
+    // https://w3c.github.io/editing/docs/execCommand/#the-insertlinebreak-command
     CommandDefinition {
         .command = CommandNames::insertLineBreak,
         .action = command_insert_linebreak_action,
     },
+    // https://w3c.github.io/editing/docs/execCommand/#the-insertparagraph-command
     CommandDefinition {
         .command = CommandNames::insertParagraph,
         .action = command_insert_paragraph_action,
     },
+    // https://w3c.github.io/editing/docs/execCommand/#the-stylewithcss-command
     CommandDefinition {
         .command = CommandNames::styleWithCSS,
         .action = command_style_with_css_action,
