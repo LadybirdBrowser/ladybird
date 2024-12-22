@@ -2,8 +2,6 @@
 #
 name: 'Build CI OS Images'
 on:
-    pull_request:
-    push:
     schedule:
         # daily at 1200 https://crontab.guru/#0_12_*_*_*
         - cron: '0 12 * * *'
@@ -17,32 +15,8 @@ env:
     DOCKER_LAYER_CACHE: "/tmp/.buildx-cache"
 
 jobs:
-    path-changes:
-        runs-on: ubuntu-24.04
-        permissions:
-            pull-requests: read
-        outputs:
-            ci_images_sources: ${{ steps.filter.outputs.ci_images_sources }}
-        steps:
-            # Only need a checkout if we're not running as part of a PR
-            - uses: actions/checkout@v4
-              if: github.event_name != 'pull_request'
-
-            # FIXME: change into `dorny/paths-filter@v3` when https://github.com/dorny/paths-filter/pull/226 is merged
-            - uses: petermetz/paths-filter@5ee2f5d4cf5d7bdd998a314a42da307e2ae1639d
-              id: filter
-              with:
-                  predicate-quantifier: some  # any glob below matches
-                  filters: |
-                      ci_images_sources:
-                        - 'Meta/CI/*'
-                        - '.github/workflows/ci-os-images.yml'
-
     build:
         runs-on: ubuntu-latest
-        needs: path-changes
-        if: needs.path-changes.outputs.ci_images_sources == 'true'
-
         strategy:
             fail-fast: false
             matrix:
