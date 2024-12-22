@@ -116,6 +116,9 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(suspend)                  \
     __ENUMERATE_HTML_EVENT(timeupdate)               \
     __ENUMERATE_HTML_EVENT(toggle)                   \
+    __ENUMERATE_HTML_EVENT(transitioncancel)         \
+    __ENUMERATE_HTML_EVENT(transitionrun)            \
+    __ENUMERATE_HTML_EVENT(transitionstart)          \
     __ENUMERATE_HTML_EVENT(transitionend)            \
     __ENUMERATE_HTML_EVENT(unhandledrejection)       \
     __ENUMERATE_HTML_EVENT(unload)                   \

@@ -111,6 +111,8 @@ public:
 
     auto release_saved_cancel_time() { return move(m_saved_cancel_time); }
 
+    double associated_effect_end() const;
+
 protected:
     Animation(JS::Realm&);
 
@@ -133,7 +135,6 @@ private:
         No,
     };
 
-    double associated_effect_end() const;
     double effective_playback_rate() const;
 
     void apply_any_pending_playback_rate();

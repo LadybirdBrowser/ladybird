@@ -39,6 +39,17 @@ public:
     double timing_function_output_at_time(double t) const;
     NonnullRefPtr<CSSStyleValue const> value_at_time(double t) const;
 
+    // This is designed to be created from AnimationEffect::Phase.
+    enum class Phase : u8 {
+        Before,
+        Active,
+        After,
+        Idle,
+        Pending,
+    };
+    Phase previous_phase() const { return m_previous_phase; }
+    void set_previous_phase(Phase phase) { m_previous_phase = phase; }
+
 private:
     CSSTransition(JS::Realm&, DOM::Element&, PropertyID, size_t transition_generation,
         double start_time, double end_time, NonnullRefPtr<CSSStyleValue const> start_value, NonnullRefPtr<CSSStyleValue const> end_value,
@@ -75,6 +86,8 @@ private:
     GC::Ref<Animations::KeyframeEffect> m_keyframe_effect;
 
     GC::Ptr<CSS::CSSStyleDeclaration const> m_cached_declaration;
+
+    Phase m_previous_phase { Phase::Idle };
 };
 
 }
