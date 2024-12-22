@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2021-2022, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -470,6 +471,13 @@ void Selection::set_range(GC::Ptr<DOM::Range> range)
 
     if (m_range)
         m_range->set_associated_selection({}, this);
+
+    // https://w3c.github.io/editing/docs/execCommand/#state-override
+    // Whenever the number of ranges in the selection changes to something different, and whenever a boundary point of
+    // the range at a given index in the selection changes to something different, the state override and value override
+    // must be unset for every command.
+    m_document->reset_command_state_overrides();
+    m_document->reset_command_value_overrides();
 }
 
 GC::Ptr<DOM::Position> Selection::cursor_position() const

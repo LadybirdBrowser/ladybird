@@ -4,6 +4,7 @@
  * Copyright (c) 2021-2023, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2024, Matthew Olsson <mattco@serenityos.org>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -661,6 +662,15 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<String> const&, Optional<
 
     // 11. Replace all with null within document, without firing any mutation events.
     replace_all(nullptr);
+
+    // https://w3c.github.io/editing/docs/execCommand/#state-override
+    // When document.open() is called and a document's singleton objects are all replaced by new instances of those
+    // objects, editing state associated with that document (including the CSS styling flag, default single-line
+    // container name, and any state overrides or value overrides) must be reset.
+    set_css_styling_flag(false);
+    set_default_single_line_container_name(HTML::TagNames::div);
+    reset_command_state_overrides();
+    reset_command_value_overrides();
 
     // 12. If document is fully active, then:
     if (is_fully_active()) {
