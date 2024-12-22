@@ -10,6 +10,7 @@
 #include <LibWeb/Bindings/DOMMatrixReadOnlyPrototype.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
 #include <LibWeb/Geometry/DOMMatrix.h>
 #include <LibWeb/Geometry/DOMMatrixReadOnly.h>
@@ -947,7 +948,7 @@ WebIDL::ExceptionOr<ParsedMatrix> parse_dom_matrix_init_string(JS::Realm& realm,
     // The result will be a <transform-list>, the keyword none, or failure.
     // If parsedValue is failure, or any <transform-function> has <length> values without absolute length units, or any keyword other than none is used, then return failure. [CSS3-SYNTAX] [CSS3-TRANSFORMS]
     auto transform_style_value = parse_css_value(CSS::Parser::ParsingContext {}, transform_list, CSS::PropertyID::Transform);
-    if (!transform_style_value)
+    if (!transform_style_value || (transform_style_value->is_keyword() && transform_style_value->to_keyword() != CSS::Keyword::None))
         return WebIDL::SyntaxError::create(realm, "Failed to parse CSS transform string."_string);
     auto parsed_value = CSS::ComputedProperties::transformations_for_style_value(*transform_style_value);
 
