@@ -36,7 +36,7 @@ jobs:
               id: lowercase
               run: |
                   IMAGE_PREFIX_LOWER=$(echo ghcr.io/$GITHUB_REPOSITORY/ci-images | tr '[:upper:]' '[:lower:]')
-                  echo "::set-output name=images-prefix::$IMAGE_PREFIX_LOWER"
+                  echo "images-prefix=$IMAGE_PREFIX_LOWER" | tee -a "$GITHUB_OUTPUT"
 
     distribution-ci:
         runs-on: "ubuntu-latest"
