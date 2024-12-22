@@ -129,11 +129,24 @@ void StackingContext::paint_descendants(PaintContext& context, Paintable const& 
         //       "For each one of these, treat the element as if it created a new stacking context, but any positioned
         //       descendants and descendants which actually create a new stacking context should be considered part of
         //       the parent stacking context, not this new one."
-        auto should_be_treated_as_stacking_context = child.layout_node().is_grid_item() && !z_index.has_value();
-        if (should_be_treated_as_stacking_context) {
+        auto grid_item_should_be_treated_as_stacking_context = child.layout_node().is_grid_item() && !z_index.has_value();
+        if (grid_item_should_be_treated_as_stacking_context) {
             // FIXME: This may not be fully correct with respect to the paint phases.
             if (phase == StackingContextPaintPhase::Foreground)
                 paint_node_as_stacking_context(child, context);
+            return IterationDecision::Continue;
+        }
+
+        // https://drafts.csswg.org/css2/#painting-order
+        // All non-positioned floating descendants, in tree order. For each one of these, treat the
+        // element as if it created a new stacking context, but any positioned descendants and
+        // descendants which actually create a new stacking context should be considered part of the
+        // parent stacking context, not this new one.
+        auto floating_item_should_be_treated_as_stacking_context = child.is_floating() && !child.is_positioned() && !z_index.has_value();
+        if (floating_item_should_be_treated_as_stacking_context) {
+            if (phase == StackingContextPaintPhase::Floats) {
+                paint_node_as_stacking_context(child, context);
+            }
             return IterationDecision::Continue;
         }
 
