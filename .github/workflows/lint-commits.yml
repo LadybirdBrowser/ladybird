@@ -92,3 +92,22 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.LADYBIRD_BOT_TOKEN }}
         with:
           msg: "Hello!\n\nOne or more of the commit messages in this PR do not match the Ladybird [code submission policy](https://github.com/LadybirdBrowser/ladybird/blob/master/CONTRIBUTING.md#code-submission-policy), please check the `lint_commits` CI job for more details on which commits were flagged and why.\nPlease do not close this PR and open another, instead modify your commit message(s) with [git commit --amend](https://docs.github.com/en/pull-requests/committing-changes-to-your-project/creating-and-editing-commits/changing-a-commit-message) and force push those changes to update this PR."
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+      - name: Check for merge commits
+        run: |
+          # Get the list of commits in the PR
+          merge_commits=$(git log --merges --oneline --since "2024-01-01")
+
+          if [[ -n "$merge_commits" ]]; then
+            echo "HAS_MERGE_COMMITS=1" >> $GITHUB_ENV
+            exit 1
+         fi
+      - name: Comment on merge commits
+        if: ${{ failure() && env.HAS_MERGE_COMMITS && !github.event.pull_request.draft }}
+        uses: IdanHo/comment-on-pr@63ea2bf352997c66e524b8b5be7a79163fb3a88a
+        env:
+          GITHUB_TOKEN: ${{ secrets.LADYBIRD_BOT_TOKEN }}
+        with:
+          msg: "Hello!\n\n This PR contains merge commits. Explain Ladybird rebase workflow here.\nPlease do not close this PR and open another, instead modify your existing branch and force push those changes to update this PR."
