@@ -1642,7 +1642,8 @@ bool is_extraneous_line_break(GC::Ref<DOM::Node> node)
 bool is_formattable_node(GC::Ref<DOM::Node> node)
 {
     // A formattable node is an editable visible node that is either a Text node, an img, or a br.
-    return is<DOM::Text>(*node) || is<HTML::HTMLImageElement>(*node) || is<HTML::HTMLBRElement>(*node);
+    return node->is_editable() && is_visible_node(node)
+        && (is<DOM::Text>(*node) || is<HTML::HTMLImageElement>(*node) || is<HTML::HTMLBRElement>(*node));
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#in-the-same-editing-host
