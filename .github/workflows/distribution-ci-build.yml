@@ -7,7 +7,7 @@ on:
                 required: true
                 type: string
             distribution_version:
-                required: true
+                required: false
                 type: string
                 default: latest
     workflow_dispatch:
@@ -18,7 +18,7 @@ on:
                 type: string
             distribution_version:
                 description: Linux distribution CI image tag (best kept as 'latest' in most cases)
-                required: true
+                required: false
                 type: string
                 default: latest
 
