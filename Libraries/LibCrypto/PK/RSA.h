@@ -10,6 +10,7 @@
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibCrypto/NumberTheory/ModularFunctions.h>
+#include <LibCrypto/OpenSSL.h>
 #include <LibCrypto/PK/PK.h>
 
 namespace Crypto::PK {
@@ -219,6 +220,10 @@ public:
 
     void set_public_key(PublicKeyType const& key) { m_public_key = key; }
     void set_private_key(PrivateKeyType const& key) { m_private_key = key; }
+
+protected:
+    static ErrorOr<OpenSSL_PKEY> public_key_to_openssl_pkey(PublicKeyType const& public_key);
+    static ErrorOr<OpenSSL_PKEY> private_key_to_openssl_pkey(PrivateKeyType const& private_key);
 };
 
 class RSA_PKCS1_EME : public RSA {
