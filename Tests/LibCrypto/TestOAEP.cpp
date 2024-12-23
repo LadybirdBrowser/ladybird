@@ -137,7 +137,7 @@ TEST_CASE(test_oaep)
     auto output_buffer = maybe_output_buffer.release_value();
     auto output_span = output_buffer.bytes();
 
-    rsa.encrypt(result, output_span);
+    TRY_OR_FAIL(rsa.encrypt(result, output_span));
 
     EXPECT_EQ(expected_rsa_value, output_span);
 }
