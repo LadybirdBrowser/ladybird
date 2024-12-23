@@ -227,6 +227,7 @@ private:
 
     void type_attribute_changed(TypeAttributeState old_state, TypeAttributeState new_state);
 
+    virtual bool is_presentational_hint(FlyString const&) const override;
     virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
 
     // ^DOM::Node

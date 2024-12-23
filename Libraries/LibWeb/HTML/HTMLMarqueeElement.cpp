@@ -30,6 +30,19 @@ void HTMLMarqueeElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLMarqueeElement);
 }
 
+bool HTMLMarqueeElement::is_presentational_hint(FlyString const& name) const
+{
+    if (Base::is_presentational_hint(name))
+        return true;
+
+    return first_is_one_of(name,
+        HTML::AttributeNames::bgcolor,
+        HTML::AttributeNames::height,
+        HTML::AttributeNames::hspace,
+        HTML::AttributeNames::vspace,
+        HTML::AttributeNames::width);
+}
+
 void HTMLMarqueeElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
     HTMLElement::apply_presentational_hints(cascaded_properties);

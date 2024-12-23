@@ -29,6 +29,17 @@ void SVGCircleElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGCircleElement);
 }
 
+bool SVGCircleElement::is_presentational_hint(FlyString const& name) const
+{
+    if (Base::is_presentational_hint(name))
+        return true;
+
+    return first_is_one_of(name,
+        SVG::AttributeNames::cx,
+        SVG::AttributeNames::cy,
+        SVG::AttributeNames::r);
+}
+
 void SVGCircleElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
     Base::apply_presentational_hints(cascaded_properties);

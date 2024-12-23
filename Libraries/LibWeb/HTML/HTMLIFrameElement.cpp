@@ -60,6 +60,11 @@ void HTMLIFrameElement::attribute_changed(FlyString const& name, Optional<String
         if (name == AttributeNames::srcdoc || (name == AttributeNames::src && !has_attribute(AttributeNames::srcdoc)))
             process_the_iframe_attributes();
     }
+
+    if (name == HTML::AttributeNames::width || name == HTML::AttributeNames::height) {
+        // FIXME: This should only invalidate the layout, not the style.
+        invalidate_style(DOM::StyleInvalidationReason::ElementAttributeChange);
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-iframe-element:html-element-post-connection-steps

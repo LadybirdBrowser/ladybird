@@ -19,6 +19,7 @@ class SVGSymbolElement final : public SVGGraphicsElement
 public:
     virtual ~SVGSymbolElement() override = default;
 
+    virtual bool is_presentational_hint(FlyString const&) const override;
     virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
 
     virtual Optional<ViewBox> view_box() const override { return m_view_box; }

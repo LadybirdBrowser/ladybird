@@ -79,6 +79,20 @@ RefPtr<CSS::CSSStyleValue> SVGSVGElement::height_style_value_from_attribute() co
     return nullptr;
 }
 
+bool SVGSVGElement::is_presentational_hint(FlyString const& name) const
+{
+    if (Base::is_presentational_hint(name))
+        return true;
+
+    return first_is_one_of(name,
+        SVG::AttributeNames::x,
+        SVG::AttributeNames::y,
+        SVG::AttributeNames::width,
+        SVG::AttributeNames::height,
+        SVG::AttributeNames::viewBox,
+        SVG::AttributeNames::preserveAspectRatio);
+}
+
 void SVGSVGElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
     Base::apply_presentational_hints(cascaded_properties);

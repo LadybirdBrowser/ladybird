@@ -100,6 +100,20 @@ void HTMLObjectElement::form_associated_element_was_removed(DOM::Node*)
     destroy_the_child_navigable();
 }
 
+bool HTMLObjectElement::is_presentational_hint(FlyString const& name) const
+{
+    if (Base::is_presentational_hint(name))
+        return true;
+
+    return first_is_one_of(name,
+        HTML::AttributeNames::align,
+        HTML::AttributeNames::border,
+        HTML::AttributeNames::height,
+        HTML::AttributeNames::hspace,
+        HTML::AttributeNames::vspace,
+        HTML::AttributeNames::width);
+}
+
 void HTMLObjectElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
     for_each_attribute([&](auto& name, auto& value) {

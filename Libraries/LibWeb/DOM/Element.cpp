@@ -573,6 +573,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
         invalidation |= CSS::compute_property_invalidation(property_id, old_value, new_value);
     }
 
+    document().style_computer().compute_font(*computed_properties, this, {});
     document().style_computer().absolutize_values(*computed_properties);
 
     layout_node()->apply_style(*computed_properties);
@@ -1899,26 +1900,53 @@ ErrorOr<void> Element::scroll_into_view(Optional<Variant<bool, ScrollIntoViewOpt
     // FIXME: 8. Optionally perform some other action that brings the element to the user’s attention.
 }
 
+static bool attribute_name_may_affect_selectors(Element const& element, FlyString const& attribute_name)
+{
+    // FIXME: We could make these cases more narrow by making the conditions more elaborate.
+    if (attribute_name == HTML::AttributeNames::id
+        || attribute_name == HTML::AttributeNames::class_
+        || attribute_name == HTML::AttributeNames::dir
+        || attribute_name == HTML::AttributeNames::lang
+        || attribute_name == HTML::AttributeNames::checked
+        || attribute_name == HTML::AttributeNames::disabled
+        || attribute_name == HTML::AttributeNames::readonly
+        || attribute_name == HTML::AttributeNames::switch_
+        || attribute_name == HTML::AttributeNames::href
+        || attribute_name == HTML::AttributeNames::open
+        || attribute_name == HTML::AttributeNames::placeholder) {
+        return true;
+    }
+
+    return element.document().style_computer().has_attribute_selector(attribute_name);
+}
+
 void Element::invalidate_style_after_attribute_change(FlyString const& attribute_name)
 {
     // FIXME: Only invalidate if the attribute can actually affect style.
 
     // OPTIMIZATION: For the `style` attribute, unless it's referenced by an attribute selector,
     //               only invalidate the element itself, then let inheritance propagate to descendants.
-    if (attribute_name == HTML::AttributeNames::style
-        && !document().style_computer().has_attribute_selector(HTML::AttributeNames::style)) {
-        set_needs_style_update(true);
-        for_each_shadow_including_descendant([](Node& node) {
-            if (!node.is_element())
+    if (attribute_name == HTML::AttributeNames::style) {
+        if (!document().style_computer().has_attribute_selector(HTML::AttributeNames::style)) {
+            set_needs_style_update(true);
+            for_each_shadow_including_descendant([](Node& node) {
+                if (!node.is_element())
+                    return TraversalDecision::Continue;
+                auto& element = static_cast<Element&>(node);
+                element.set_needs_inherited_style_update(true);
                 return TraversalDecision::Continue;
-            auto& element = static_cast<Element&>(node);
-            element.set_needs_inherited_style_update(true);
-            return TraversalDecision::Continue;
-        });
+            });
+        } else {
+            invalidate_style(StyleInvalidationReason::ElementAttributeChange);
+        }
         return;
     }
 
-    invalidate_style(StyleInvalidationReason::ElementAttributeChange);
+    if (is_presentational_hint(attribute_name)
+        || attribute_name_may_affect_selectors(*this, attribute_name)) {
+        invalidate_style(StyleInvalidationReason::ElementAttributeChange);
+        return;
+    }
 }
 
 bool Element::is_hidden() const
