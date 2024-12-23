@@ -1,0 +1,66 @@
+Harness status: OK
+
+Found 60 tests
+
+59 Pass
+1 Fail
+Fail	name
+Pass	length
+Pass	No arguments
+Pass	Calling
+Pass	Order of evaluation
+Pass	Invalid descriptor argument
+Pass	Invalid type argument
+Pass	Construct v128 global
+Pass	i64 with default
+Pass	Default value for type i32
+Pass	Explicit value undefined for type i32
+Pass	Explicit value null for type i32
+Pass	Explicit value true for type i32
+Pass	Explicit value false for type i32
+Pass	Explicit value 2 for type i32
+Pass	Explicit value "3" for type i32
+Pass	Explicit value object with toString returning string for type i32
+Pass	Explicit value object with valueOf returning string for type i32
+Pass	Explicit value object with toString returning number for type i32
+Pass	Explicit value object with valueOf returning number for type i32
+Pass	BigInt value for type i32
+Pass	Default value for type f32
+Pass	Explicit value undefined for type f32
+Pass	Explicit value null for type f32
+Pass	Explicit value true for type f32
+Pass	Explicit value false for type f32
+Pass	Explicit value 2 for type f32
+Pass	Explicit value "3" for type f32
+Pass	Explicit value object with toString returning string for type f32
+Pass	Explicit value object with valueOf returning string for type f32
+Pass	Explicit value object with toString returning number for type f32
+Pass	Explicit value object with valueOf returning number for type f32
+Pass	BigInt value for type f32
+Pass	Default value for type f64
+Pass	Explicit value undefined for type f64
+Pass	Explicit value null for type f64
+Pass	Explicit value true for type f64
+Pass	Explicit value false for type f64
+Pass	Explicit value 2 for type f64
+Pass	Explicit value "3" for type f64
+Pass	Explicit value object with toString returning string for type f64
+Pass	Explicit value object with valueOf returning string for type f64
+Pass	Explicit value object with toString returning number for type f64
+Pass	Explicit value object with valueOf returning number for type f64
+Pass	BigInt value for type f64
+Pass	Explicit value undefined for type i64
+Pass	Explicit value true for type i64
+Pass	Explicit value false for type i64
+Pass	Explicit value "3" for type i64
+Pass	Explicit value bigint "123" for type i64
+Pass	Explicit value object with toString returning string for type i64
+Pass	Explicit value object with valueOf returning string for type i64
+Pass	Explicit value object with toString returning bigint for type i64
+Pass	Explicit value object with valueOf returning bigint for type i64
+Pass	Pass non-bigint as i64 Global value: null
+Pass	Pass non-bigint as i64 Global value: 666
+Pass	Pass non-bigint as i64 Global value: object "5"
+Pass	Pass non-bigint as i64 Global value: object "[object Object]"
+Pass	Pass non-bigint as i64 Global value: symbol "Symbol()"
+Pass	Stray argument
