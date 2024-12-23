@@ -160,7 +160,7 @@ public:
     using KeyPairType = RSAKeyPair<PublicKeyType, PrivateKeyType>;
 
     static ErrorOr<KeyPairType> parse_rsa_key(ReadonlyBytes der, bool is_private, Vector<StringView> current_scope);
-    static ErrorOr<KeyPairType> generate_key_pair(size_t bits = 256, IntegerType e = 65537);
+    static ErrorOr<KeyPairType> generate_key_pair(size_t bits, IntegerType e = 65537);
 
     RSA(KeyPairType const& pair)
         : PKSystem<RSAPrivateKey<IntegerType>, RSAPublicKey<IntegerType>>(pair.public_key, pair.private_key)
