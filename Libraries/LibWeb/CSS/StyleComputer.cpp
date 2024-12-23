@@ -2503,24 +2503,26 @@ static Optional<SimplifiedSelectorForBucketing> is_roundabout_selector_bucketabl
     return {};
 }
 
-static bool contains_has_pseudo_class(Selector const& selector)
+void StyleComputer::collect_selector_insights(Selector const& selector, SelectorInsights& insights)
 {
     for (auto const& compound_selector : selector.compound_selectors()) {
         for (auto const& simple_selector : compound_selector.simple_selectors) {
-            if (simple_selector.type != CSS::Selector::SimpleSelector::Type::PseudoClass)
-                continue;
-            if (simple_selector.pseudo_class().type == CSS::PseudoClass::Has)
-                return true;
-            for (auto const& argument_selector : simple_selector.pseudo_class().argument_selector_list) {
-                if (contains_has_pseudo_class(argument_selector))
-                    return true;
+            if (simple_selector.type == Selector::SimpleSelector::Type::Attribute) {
+                insights.all_names_used_in_attribute_selectors.set(simple_selector.attribute().qualified_name.name.lowercase_name);
+            }
+            if (simple_selector.type == Selector::SimpleSelector::Type::PseudoClass) {
+                if (simple_selector.pseudo_class().type == PseudoClass::Has) {
+                    insights.has_has_selectors = true;
+                }
+                for (auto const& argument_selector : simple_selector.pseudo_class().argument_selector_list) {
+                    collect_selector_insights(*argument_selector, insights);
+                }
             }
         }
     }
-    return false;
 }
 
-NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin)
+NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin, SelectorInsights& insights)
 {
     auto rule_cache = make<RuleCache>();
 
@@ -2563,8 +2565,7 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
                 bool contains_root_pseudo_class = false;
                 Optional<CSS::Selector::PseudoElement::Type> pseudo_element;
 
-                if (!rule_cache->has_has_selectors)
-                    rule_cache->has_has_selectors = contains_has_pseudo_class(selector);
+                collect_selector_insights(selector, insights);
 
                 for (auto const& simple_selector : selector.compound_selectors().last().simple_selectors) {
                     if (!matching_rule.contains_pseudo_element) {
@@ -2807,17 +2808,17 @@ void StyleComputer::build_qualified_layer_names_cache()
 
 void StyleComputer::build_rule_cache()
 {
+    m_selector_insights = make<SelectorInsights>();
+
     if (auto user_style_source = document().page().user_style(); user_style_source.has_value()) {
         m_user_style_sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingContext(document()), user_style_source.value()));
     }
 
     build_qualified_layer_names_cache();
 
-    m_author_rule_cache = make_rule_cache_for_cascade_origin(CascadeOrigin::Author);
-    m_user_rule_cache = make_rule_cache_for_cascade_origin(CascadeOrigin::User);
-    m_user_agent_rule_cache = make_rule_cache_for_cascade_origin(CascadeOrigin::UserAgent);
-
-    m_has_has_selectors = m_author_rule_cache->has_has_selectors || m_user_rule_cache->has_has_selectors || m_user_agent_rule_cache->has_has_selectors;
+    m_author_rule_cache = make_rule_cache_for_cascade_origin(CascadeOrigin::Author, *m_selector_insights);
+    m_user_rule_cache = make_rule_cache_for_cascade_origin(CascadeOrigin::User, *m_selector_insights);
+    m_user_agent_rule_cache = make_rule_cache_for_cascade_origin(CascadeOrigin::UserAgent, *m_selector_insights);
 }
 
 void StyleComputer::invalidate_rule_cache()
@@ -2997,6 +2998,19 @@ size_t StyleComputer::number_of_css_font_faces_with_loading_in_progress() const
         }
     }
     return count;
+}
+
+bool StyleComputer::has_has_selectors() const
+{
+    build_rule_cache_if_needed();
+    return m_selector_insights->has_has_selectors;
+}
+
+bool StyleComputer::has_attribute_selector(FlyString const& attribute_name) const
+{
+    build_rule_cache_if_needed();
+
+    return m_selector_insights->all_names_used_in_attribute_selectors.contains(attribute_name);
 }
 
 }
