@@ -447,10 +447,13 @@ void Window::fire_a_page_transition_event(FlyString const& event_name, bool pers
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-localstorage
 WebIDL::ExceptionOr<GC::Ref<Storage>> Window::local_storage()
 {
+    // See table in: https://storage.spec.whatwg.org/#registered-storage-endpoints
+    constexpr u64 quota_bytes = 5 * MiB;
+
     // FIXME: Implement according to spec.
     static HashMap<URL::Origin, GC::Root<Storage>> local_storage_per_origin;
     auto storage = local_storage_per_origin.ensure(associated_document().origin(), [this]() -> GC::Root<Storage> {
-        return Storage::create(realm());
+        return Storage::create(realm(), quota_bytes);
     });
     return GC::Ref { *storage };
 }
@@ -458,10 +461,13 @@ WebIDL::ExceptionOr<GC::Ref<Storage>> Window::local_storage()
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-sessionstorage
 WebIDL::ExceptionOr<GC::Ref<Storage>> Window::session_storage()
 {
+    // See table in: https://storage.spec.whatwg.org/#registered-storage-endpoints
+    constexpr u64 quota_bytes = 5 * MiB;
+
     // FIXME: Implement according to spec.
     static HashMap<URL::Origin, GC::Root<Storage>> session_storage_per_origin;
     auto storage = session_storage_per_origin.ensure(associated_document().origin(), [this]() -> GC::Root<Storage> {
-        return Storage::create(realm());
+        return Storage::create(realm(), quota_bytes);
     });
     return GC::Ref { *storage };
 }

@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Luke Wilde <lukew@serenityos.org>
+ * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -14,13 +15,14 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(Storage);
 
-GC::Ref<Storage> Storage::create(JS::Realm& realm)
+GC::Ref<Storage> Storage::create(JS::Realm& realm, u64 quota_bytes)
 {
-    return realm.create<Storage>(realm);
+    return realm.create<Storage>(realm, quota_bytes);
 }
 
-Storage::Storage(JS::Realm& realm)
+Storage::Storage(JS::Realm& realm, u64 quota_bytes)
     : Bindings::PlatformObject(realm)
+    , m_quota_bytes(quota_bytes)
 {
     m_legacy_platform_object_flags = LegacyPlatformObjectFlags {
         .supports_indexed_properties = true,
@@ -78,6 +80,8 @@ Optional<String> Storage::get_item(StringView key) const
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-storage-setitem
 WebIDL::ExceptionOr<void> Storage::set_item(String const& key, String const& value)
 {
+    auto& realm = this->realm();
+
     // 1. Let oldValue be null.
     String old_value;
 
@@ -85,6 +89,7 @@ WebIDL::ExceptionOr<void> Storage::set_item(String const& key, String const& val
     bool reorder = true;
 
     // 3. If this's map[key] exists:
+    auto new_size = m_stored_bytes;
     if (auto it = m_map.find(key); it != m_map.end()) {
         // 1. Set oldValue to this's map[key].
         old_value = it->value;
@@ -95,12 +100,18 @@ WebIDL::ExceptionOr<void> Storage::set_item(String const& key, String const& val
 
         // 3. Set reorder to false.
         reorder = false;
+    } else {
+        new_size += key.bytes().size();
     }
 
-    // FIXME: 4. If value cannot be stored, then throw a "QuotaExceededError" DOMException exception.
+    // 4. If value cannot be stored, then throw a "QuotaExceededError" DOMException exception.
+    new_size += value.bytes().size() - old_value.bytes().size();
+    if (new_size > m_quota_bytes)
+        return WebIDL::QuotaExceededError::create(realm, MUST(String::formatted("Unable to store more than {} bytes in storage"sv, m_quota_bytes)));
 
     // 5. Set this's map[key] to value.
     m_map.set(key, value);
+    m_stored_bytes = new_size;
 
     // 6. If reorder is true, then reorder this.
     if (reorder)
@@ -126,6 +137,7 @@ void Storage::remove_item(StringView key)
 
     // 3. Remove this's map[key].
     m_map.remove(it);
+    m_stored_bytes = m_stored_bytes - key.bytes().size() - old_value.bytes().size();
 
     // 4. Reorder this.
     reorder();
