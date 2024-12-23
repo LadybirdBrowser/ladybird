@@ -195,7 +195,7 @@ void TLSv12::build_rsa_pre_master_secret(PacketBuilder& builder)
     Vector<u8, 32> out;
     out.resize(rsa.output_size());
     auto outbuf = out.span();
-    rsa.encrypt(m_context.premaster_key, outbuf);
+    MUST(rsa.encrypt(m_context.premaster_key, outbuf));
 
     if constexpr (TLS_DEBUG) {
         dbgln("Encrypted: ");

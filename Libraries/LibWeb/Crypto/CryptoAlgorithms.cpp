@@ -691,7 +691,9 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::encrypt(AlgorithmParams c
     auto ciphertext_bytes = ciphertext.bytes();
 
     auto rsa = ::Crypto::PK::RSA { public_key };
-    rsa.encrypt(padding, ciphertext_bytes);
+    auto maybe_encrypt_error = rsa.encrypt(padding, ciphertext_bytes);
+    if (maybe_encrypt_error.is_error())
+        return WebIDL::OperationError::create(realm, "Failed to encrypt"_string);
 
     // 6. Return the result of creating an ArrayBuffer containing ciphertext.
     return JS::ArrayBuffer::create(realm, move(ciphertext));
@@ -723,7 +725,9 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::decrypt(AlgorithmParams c
 
     auto padding = TRY_OR_THROW_OOM(vm, ByteBuffer::create_uninitialized(private_key_length));
     auto padding_bytes = padding.bytes();
-    rsa.decrypt(ciphertext, padding_bytes);
+    auto maybe_encrypt_error = rsa.decrypt(ciphertext, padding_bytes);
+    if (maybe_encrypt_error.is_error())
+        return WebIDL::OperationError::create(realm, "Failed to encrypt"_string);
 
     auto error_message = MUST(String::formatted("Invalid hash function '{}'", hash));
     ErrorOr<ByteBuffer> maybe_plaintext = Error::from_string_view(error_message.bytes_as_string_view());

@@ -388,7 +388,7 @@ ssize_t TLSv12::verify_rsa_server_key_exchange(ReadonlyBytes server_key_info_buf
     }
     auto signature_verify_buffer = signature_verify_buffer_result.release_value();
     auto signature_verify_bytes = signature_verify_buffer.bytes();
-    rsa.verify(signature, signature_verify_bytes);
+    MUST(rsa.verify(signature, signature_verify_bytes));
 
     auto message_result = ByteBuffer::create_uninitialized(64 + server_key_info_buffer.size());
     if (message_result.is_error()) {

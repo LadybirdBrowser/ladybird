@@ -28,7 +28,7 @@ TEST_CASE(test_RSA_raw_encrypt)
     ByteBuffer buffer = {};
     buffer.resize(rsa.output_size());
     auto buf = buffer.bytes();
-    rsa.encrypt(data, buf);
+    TRY_OR_FAIL(rsa.encrypt(data, buf));
     EXPECT(memcmp(result, buf.data(), buf.size()) == 0);
 }
 
@@ -42,8 +42,8 @@ TEST_CASE(test_RSA_PKCS_1_encrypt)
     ByteBuffer buffer = {};
     buffer.resize(rsa.output_size());
     auto buf = buffer.bytes();
-    rsa.encrypt(data, buf);
-    rsa.decrypt(buf, buf);
+    TRY_OR_FAIL(rsa.encrypt(data, buf));
+    TRY_OR_FAIL(rsa.decrypt(buf, buf));
 
     EXPECT(memcmp(buf.data(), "hellohellohellohellohellohellohellohellohello123-", 49) == 0);
 }
@@ -149,8 +149,8 @@ c8yGzl89pYST
 
     dec.overwrite(0, "WellHelloFriends", 16);
 
-    rsa_from_pair.encrypt(dec, enc);
-    rsa_from_pem.decrypt(enc, dec);
+    TRY_OR_FAIL(rsa_from_pair.encrypt(dec, enc));
+    TRY_OR_FAIL(rsa_from_pem.decrypt(enc, dec));
 
     EXPECT_EQ(memcmp(dec.data(), "WellHelloFriends", 16), 0);
 }
@@ -171,8 +171,8 @@ TEST_CASE(test_RSA_encrypt_decrypt)
 
     enc.overwrite(0, "WellHelloFriendsWellHelloFriendsWellHelloFriendsWellHelloFriends", 64);
 
-    rsa.encrypt(enc, dec);
-    rsa.decrypt(dec, enc);
+    TRY_OR_FAIL(rsa.encrypt(enc, dec));
+    TRY_OR_FAIL(rsa.decrypt(dec, enc));
 
     EXPECT(memcmp(enc.data(), "WellHelloFriendsWellHelloFriendsWellHelloFriendsWellHelloFriends", 64) == 0);
 }
