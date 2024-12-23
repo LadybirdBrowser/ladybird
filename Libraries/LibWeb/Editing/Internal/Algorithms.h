@@ -95,8 +95,10 @@ CSSPixels font_size_to_pixel_size(StringView);
 void for_each_node_effectively_contained_in_range(GC::Ptr<DOM::Range>, Function<TraversalDecision(GC::Ref<DOM::Node>)>);
 bool has_visible_children(GC::Ref<DOM::Node>);
 bool is_heading(FlyString const&);
+Optional<NonnullRefPtr<CSS::CSSStyleValue const>> property_in_style_attribute(GC::Ref<DOM::Element>, CSS::PropertyID);
 Optional<CSS::Display> resolved_display(GC::Ref<DOM::Node>);
 Optional<CSS::Keyword> resolved_keyword(GC::Ref<DOM::Node>, CSS::PropertyID);
 Optional<NonnullRefPtr<CSS::CSSStyleValue const>> resolved_value(GC::Ref<DOM::Node>, CSS::PropertyID);
+bool value_list_contains_keyword(CSS::StyleValueList const&, CSS::Keyword);
 
 }

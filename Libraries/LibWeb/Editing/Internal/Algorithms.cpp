@@ -5,6 +5,7 @@
  */
 
 #include <LibGfx/Color.h>
+#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/ResolvedCSSStyleDeclaration.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
@@ -1008,14 +1009,9 @@ Optional<String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString cons
         auto inclusive_ancestor = node;
         do {
             auto text_decoration_line = resolved_value(*node, CSS::PropertyID::TextDecorationLine);
-            if (text_decoration_line.has_value() && text_decoration_line.value()->is_value_list()) {
-                auto const& line_value_list = text_decoration_line.value()->as_value_list();
-                auto has_line_through = line_value_list.values().find_first_index_if([](CSS::CSSStyleValue const& value) {
-                    return value.is_keyword() && value.as_keyword().keyword() == CSS::Keyword::LineThrough;
-                });
-                if (has_line_through.has_value())
-                    return "line-through"_string;
-            }
+            if (text_decoration_line.has_value() && text_decoration_line.value()->is_value_list()
+                && value_list_contains_keyword(text_decoration_line.value()->as_value_list(), CSS::Keyword::LineThrough))
+                return "line-through"_string;
             inclusive_ancestor = inclusive_ancestor->parent();
         } while (inclusive_ancestor);
 
@@ -1028,14 +1024,9 @@ Optional<String> effective_command_value(GC::Ptr<DOM::Node> node, FlyString cons
         auto inclusive_ancestor = node;
         do {
             auto text_decoration_line = resolved_value(*node, CSS::PropertyID::TextDecorationLine);
-            if (text_decoration_line.has_value() && text_decoration_line.value()->is_value_list()) {
-                auto const& line_value_list = text_decoration_line.value()->as_value_list();
-                auto has_line_through = line_value_list.values().find_first_index_if([](CSS::CSSStyleValue const& value) {
-                    return value.is_keyword() && value.as_keyword().keyword() == CSS::Keyword::Underline;
-                });
-                if (has_line_through.has_value())
-                    return "line-through"_string;
-            }
+            if (text_decoration_line.has_value() && text_decoration_line.value()->is_value_list()
+                && value_list_contains_keyword(text_decoration_line.value()->as_value_list(), CSS::Keyword::Underline))
+                return "underline"_string;
             inclusive_ancestor = inclusive_ancestor->parent();
         } while (inclusive_ancestor);
 
@@ -2522,24 +2513,38 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
         return {};
     }
 
-    // FIXME: 4. If command is "strikethrough", and element has a style attribute set, and that attribute sets "text-decoration":
-    if (false) {
-        // FIXME: 1. If element's style attribute sets "text-decoration" to a value containing "line-through", return "line-through".
+    // 4. If command is "strikethrough", and element has a style attribute set, and that attribute sets
+    //    "text-decoration":
+    if (command == CommandNames::strikethrough) {
+        auto text_decoration_style = property_in_style_attribute(element, CSS::PropertyID::TextDecoration);
+        if (text_decoration_style.has_value()) {
+            // 1. If element's style attribute sets "text-decoration" to a value containing "line-through", return
+            //    "line-through".
+            if (text_decoration_style.value()->is_value_list()
+                && value_list_contains_keyword(text_decoration_style.value()->as_value_list(), CSS::Keyword::LineThrough))
+                return "line-through"_string;
 
-        // 2. Return null.
-        return {};
+            // 2. Return null.
+            return {};
+        }
     }
 
     // 5. If command is "strikethrough" and element is an s or strike element, return "line-through".
     if (command == CommandNames::strikethrough && element->local_name().is_one_of(HTML::TagNames::s, HTML::TagNames::strike))
         return "line-through"_string;
 
-    // FIXME: 6. If command is "underline", and element has a style attribute set, and that attribute sets "text-decoration":
-    if (false) {
-        // FIXME: 1. If element's style attribute sets "text-decoration" to a value containing "underline", return "underline".
+    // 6. If command is "underline", and element has a style attribute set, and that attribute sets "text-decoration":
+    if (command == CommandNames::underline) {
+        auto text_decoration_style = property_in_style_attribute(element, CSS::PropertyID::TextDecoration);
+        if (text_decoration_style.has_value()) {
+            // 1. If element's style attribute sets "text-decoration" to a value containing "underline", return "underline".
+            if (text_decoration_style.value()->is_value_list()
+                && value_list_contains_keyword(text_decoration_style.value()->as_value_list(), CSS::Keyword::Underline))
+                return "underline"_string;
 
-        // 2. Return null.
-        return {};
+            // 2. Return null.
+            return {};
+        }
     }
 
     // 7. If command is "underline" and element is a u element, return "underline".
@@ -2557,12 +2562,23 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
     if (!property.has_value())
         return {};
 
-    // FIXME: 10. If element has a style attribute set, and that attribute has the effect of setting property, return the value
+    // 10. If element has a style attribute set, and that attribute has the effect of setting property, return the value
     //     that it sets property to.
+    auto style_value = property_in_style_attribute(element, property.value());
+    if (style_value.has_value())
+        return style_value.value()->to_string(CSS::CSSStyleValue::SerializationMode::Normal);
 
-    // FIXME: 11. If element is a font element that has an attribute whose effect is to create a presentational hint for
+    // 11. If element is a font element that has an attribute whose effect is to create a presentational hint for
     //     property, return the value that the hint sets property to. (For a size of 7, this will be the non-CSS value
     //     "xxx-large".)
+    if (is<HTML::HTMLFontElement>(*element)) {
+        auto const& font_element = static_cast<HTML::HTMLFontElement&>(*element);
+        auto cascaded_properties = font_element.document().heap().allocate<CSS::CascadedProperties>();
+        font_element.apply_presentational_hints(cascaded_properties);
+        auto property_value = cascaded_properties->property(property.value());
+        if (property_value)
+            return property_value->to_string(CSS::CSSStyleValue::SerializationMode::Normal);
+    }
 
     // 12. If element is in the following list, and property is equal to the CSS property name listed for it, return the
     //     string listed for it.
@@ -3018,6 +3034,19 @@ bool is_heading(FlyString const& local_name)
         HTML::TagNames::h6);
 }
 
+Optional<NonnullRefPtr<CSS::CSSStyleValue const>> property_in_style_attribute(GC::Ref<DOM::Element> element, CSS::PropertyID property_id)
+{
+    auto inline_style = element->inline_style();
+    if (!inline_style)
+        return {};
+
+    auto style_property = inline_style->property(property_id);
+    if (!style_property.has_value())
+        return {};
+
+    return style_property.value().value;
+}
+
 Optional<CSS::Display> resolved_display(GC::Ref<DOM::Node> node)
 {
     auto resolved_property = resolved_value(node, CSS::PropertyID::Display);
@@ -3049,6 +3078,15 @@ Optional<NonnullRefPtr<CSS::CSSStyleValue const>> resolved_value(GC::Ref<DOM::No
     if (!optional_style_property.has_value())
         return {};
     return optional_style_property.value().value;
+}
+
+bool value_list_contains_keyword(CSS::StyleValueList const& value_list, CSS::Keyword keyword)
+{
+    for (auto& css_style_value : value_list.values()) {
+        if (css_style_value->is_keyword() && css_style_value->as_keyword().keyword() == keyword)
+            return true;
+    }
+    return false;
 }
 
 }
