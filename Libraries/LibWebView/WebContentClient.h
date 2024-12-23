@@ -109,6 +109,7 @@ private:
     virtual void did_finish_handling_input_event(u64 page_id, Web::EventResult event_result) override;
     virtual void did_finish_text_test(u64 page_id, String const& text) override;
     virtual void did_set_test_timeout(u64 page_id, double milliseconds) override;
+    virtual void did_set_browser_zoom(u64 page_id, double factor) override;
     virtual void did_find_in_page(u64 page_id, size_t current_match_index, Optional<size_t> const& total_match_count) override;
     virtual void did_change_theme_color(u64 page_id, Gfx::Color color) override;
     virtual void did_insert_clipboard_entry(u64 page_id, String const& data, String const& presentation_style, String const& mime_type) override;

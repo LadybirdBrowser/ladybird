@@ -56,6 +56,8 @@ public:
     static u16 get_echo_server_port();
     static void set_echo_server_port(u16 port);
 
+    void set_browser_zoom(double factor);
+
     bool headless();
 
 private:

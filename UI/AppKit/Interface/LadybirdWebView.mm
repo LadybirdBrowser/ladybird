@@ -958,6 +958,11 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         [NSMenu popUpContextMenu:self.select_dropdown withEvent:event forView:self];
     };
 
+    m_web_view_bridge->on_set_browser_zoom = [](double factor) {
+        (void)factor;
+        dbgln("FIXME: A test called `window.internals.setBrowserZoom()` which is not implemented in the AppKit UI");
+    };
+
     m_web_view_bridge->on_restore_window = [weak_self]() {
         LadybirdWebView* self = weak_self;
         if (self == nil) {

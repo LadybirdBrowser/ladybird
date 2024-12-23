@@ -384,6 +384,8 @@ public:
     virtual void page_did_finish_text_test([[maybe_unused]] String const& text) { }
     virtual void page_did_set_test_timeout([[maybe_unused]] double milliseconds) { }
 
+    virtual void page_did_set_browser_zoom([[maybe_unused]] double factor) { }
+
     virtual void page_did_change_theme_color(Gfx::Color) { }
 
     virtual void page_did_insert_clipboard_entry([[maybe_unused]] String data, [[maybe_unused]] String presentation_style, [[maybe_unused]] String mime_type) { }
