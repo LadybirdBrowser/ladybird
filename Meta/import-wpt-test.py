@@ -67,7 +67,7 @@ class LinkedResourceFinder(HTMLParser):
                 self._resources.append(attr_dict["src"])
         if tag == "link":
             attr_dict = dict(attrs)
-            if attr_dict["rel"] == "stylesheet":
+            if "rel" in attr_dict and attr_dict["rel"] == "stylesheet":
                 self._resources.append(attr_dict["href"])
 
     def handle_endtag(self, tag):
@@ -100,7 +100,7 @@ class TestTypeIdentifier(HTMLParser):
     def handle_starttag(self, tag, attrs):
         if tag == "link":
             attr_dict = dict(attrs)
-            if attr_dict["rel"] == "match" or attr_dict["rel"] == "mismatch":
+            if "rel" in attr_dict and (attr_dict["rel"] == "match" or attr_dict["rel"] == "mismatch"):
                 if self.ref_test_link_found:
                     raise RuntimeError("Ref tests with multiple match or mismatch links are not currently supported")
                 self.test_type = TestType.REF
