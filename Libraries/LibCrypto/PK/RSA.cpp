@@ -114,6 +114,28 @@ ErrorOr<RSA::KeyPairType> RSA::parse_rsa_key(ReadonlyBytes der, bool is_private,
     }
 }
 
+ErrorOr<RSA::KeyPairType> RSA::generate_key_pair(size_t bits, IntegerType e)
+{
+    IntegerType p;
+    IntegerType q;
+    IntegerType lambda;
+
+    do {
+        p = NumberTheory::random_big_prime(bits / 2);
+        q = NumberTheory::random_big_prime(bits / 2);
+        lambda = NumberTheory::LCM(p.minus(1), q.minus(1));
+    } while (!(NumberTheory::GCD(e, lambda) == 1));
+
+    auto n = p.multiplied_by(q);
+
+    auto d = NumberTheory::ModularInverse(e, lambda);
+    RSAKeyPair<PublicKeyType, PrivateKeyType> keys {
+        { n, e },
+        { n, d, e, p, q }
+    };
+    return keys;
+}
+
 void RSA::encrypt(ReadonlyBytes in, Bytes& out)
 {
     dbgln_if(CRYPTO_DEBUG, "in size: {}", in.size());

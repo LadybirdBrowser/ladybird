@@ -160,27 +160,7 @@ public:
     using KeyPairType = RSAKeyPair<PublicKeyType, PrivateKeyType>;
 
     static ErrorOr<KeyPairType> parse_rsa_key(ReadonlyBytes der, bool is_private, Vector<StringView> current_scope);
-    static KeyPairType generate_key_pair(size_t bits = 256, IntegerType e = 65537)
-    {
-        IntegerType p;
-        IntegerType q;
-        IntegerType lambda;
-
-        do {
-            p = NumberTheory::random_big_prime(bits / 2);
-            q = NumberTheory::random_big_prime(bits / 2);
-            lambda = NumberTheory::LCM(p.minus(1), q.minus(1));
-        } while (!(NumberTheory::GCD(e, lambda) == 1));
-
-        auto n = p.multiplied_by(q);
-
-        auto d = NumberTheory::ModularInverse(e, lambda);
-        RSAKeyPair<PublicKeyType, PrivateKeyType> keys {
-            { n, e },
-            { n, d, e, p, q }
-        };
-        return keys;
-    }
+    static ErrorOr<KeyPairType> generate_key_pair(size_t bits = 256, IntegerType e = 65537);
 
     RSA(KeyPairType const& pair)
         : PKSystem<RSAPrivateKey<IntegerType>, RSAPublicKey<IntegerType>>(pair.public_key, pair.private_key)

@@ -764,7 +764,11 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> RSAOAEP
     //    and RSA public exponent equal to the publicExponent member of normalizedAlgorithm.
     // 3. If performing the operation results in an error, then throw an OperationError.
     auto const& normalized_algorithm = static_cast<RsaHashedKeyGenParams const&>(params);
-    auto key_pair = ::Crypto::PK::RSA::generate_key_pair(normalized_algorithm.modulus_length, normalized_algorithm.public_exponent);
+    auto maybe_key_pair = ::Crypto::PK::RSA::generate_key_pair(normalized_algorithm.modulus_length, normalized_algorithm.public_exponent);
+    if (maybe_key_pair.is_error())
+        return WebIDL::OperationError::create(m_realm, "Failed generating RSA key pair"_string);
+
+    auto key_pair = maybe_key_pair.release_value();
 
     // 4. Let algorithm be a new RsaHashedKeyAlgorithm object.
     auto algorithm = RsaHashedKeyAlgorithm::create(m_realm);
