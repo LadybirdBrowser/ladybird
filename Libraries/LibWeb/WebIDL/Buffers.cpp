@@ -90,6 +90,26 @@ u32 ArrayBufferView::byte_offset() const
         [](auto& view) -> u32 { return static_cast<u32>(view->byte_offset()); });
 }
 
+// https://webidl.spec.whatwg.org/#arraybufferview-write
+void ArrayBufferView::write(ReadonlyBytes bytes, u32 starting_offset)
+{
+    // 1. Let jsView be the result of converting view to a JavaScript value.
+    // 2. Assert: bytes’s length ≤ jsView.[[ByteLength]] − startingOffset.
+    VERIFY(bytes.size() <= byte_length() - starting_offset);
+
+    // 3. Assert: if view is not a DataView, then bytes’s length modulo the element size of view’s type is 0.
+    if (!m_bufferable_object.has<GC::Ref<JS::DataView>>()) {
+        auto element_size = m_bufferable_object.get<GC::Ref<JS::TypedArrayBase>>()->element_size();
+        VERIFY(bytes.size() % element_size == 0);
+    }
+
+    // 4. Let arrayBuffer be the result of converting jsView.[[ViewedArrayBuffer]] to an IDL value of type ArrayBuffer.
+    auto array_buffer = viewed_array_buffer();
+
+    // 5. Write bytes into arrayBuffer with startingOffset set to jsView.[[ByteOffset]] + startingOffset.
+    array_buffer->buffer().overwrite(byte_offset() + starting_offset, bytes.data(), bytes.size());
+}
+
 BufferSource::~BufferSource() = default;
 
 }
