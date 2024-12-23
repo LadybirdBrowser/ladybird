@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	initStorageEvent with 0 arguments
+Pass	initStorageEvent with 1 argument
+Pass	initStorageEvent with 8 sensible arguments
+Pass	initStorageEvent with 8 null arguments
+Pass	initStorageEvent with 8 undefined arguments

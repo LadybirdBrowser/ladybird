@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	StorageEvent constructor called as normal function
+Pass	constructor with no arguments
+Pass	constructor with just type argument
+Pass	constructor with sensible type argument and members
+Pass	constructor with null type argument and members
+Pass	constructor with undefined type argument and members
