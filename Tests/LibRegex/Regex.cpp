@@ -710,6 +710,11 @@ TEST_CASE(ECMA262_match)
             "?category=54&shippable=1&baby_age=p,0,1,3"sv, false }, // ladybird#968, ?+ should not loop forever.
         { "([^\\s]+):\\s*([^;]+);"sv, "font-family: 'Inter';"sv, true }, // optimizer bug, blindly accepting inverted char classes [^x] as atomic rewrite opportunities.
         { "(a)(?=a*\\1)"sv, "aaaa"sv, true, global_multiline.value() }, // Optimizer bug, ignoring references that weren't bound in the current or past block, ladybird#2281
+        { "[ a](b{2})"sv, "abb"sv, true }, // Optimizer bug, wrong Repeat basic block splits.
+        { "^ {0,3}(([\\`\\~])\\2{2,})\\s*([\\*_]*)\\s*([^\\*_\\s]*).*$"sv, ""sv, false }, // See above.
+        { "^(\\d{4}|[+-]\\d{6})(?:-?(\\d{2})(?:-?(\\d{2}))?)?(?:[ T]?(\\d{2}):?(\\d{2})(?::?(\\d{2})(?:[,.](\\d{1,}))?)?(?:(Z)|([+-])(\\d{2})(?::?(\\d{2}))?)?)?$"sv,
+            ""sv,
+            false, }, // See above, also ladybird#2931.
     };
     // clang-format on
 
