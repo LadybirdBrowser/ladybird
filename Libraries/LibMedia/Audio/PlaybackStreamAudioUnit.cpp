@@ -215,6 +215,11 @@ private:
     Atomic<i64> m_last_sample_time { 0 };
 };
 
+ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStream::create(OutputState initial_output_state, u32 sample_rate, u8 channels, u32 target_latency_ms, AudioDataRequestCallback&& data_request_callback)
+{
+    return PlaybackStreamAudioUnit::create(initial_output_state, sample_rate, channels, target_latency_ms, move(data_request_callback));
+}
+
 ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStreamAudioUnit::create(OutputState initial_output_state, u32 sample_rate, u8 channels, u32, AudioDataRequestCallback&& data_request_callback)
 {
     AudioStreamBasicDescription description {};

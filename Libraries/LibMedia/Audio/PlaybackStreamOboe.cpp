@@ -80,9 +80,9 @@ private:
     std::shared_ptr<OboeCallback> m_oboe_callback;
 };
 
-PlaybackStreamOboe::PlaybackStreamOboe(NonnullRefPtr<Storage> storage)
-    : m_storage(move(storage))
+ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStream::create(OutputState initial_output_state, u32 sample_rate, u8 channels, u32 target_latency_ms, AudioDataRequestCallback&& data_request_callback)
 {
+    return PlaybackStreamOboe::create(initial_output_state, sample_rate, channels, target_latency_ms, move(data_request_callback));
 }
 
 ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStreamOboe::create(OutputState initial_output_state, u32 sample_rate, u8 channels, u32, AudioDataRequestCallback&& data_request_callback)
@@ -106,6 +106,11 @@ ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStreamOboe::create(OutputState in
 
     auto storage = TRY(adopt_nonnull_ref_or_enomem(new PlaybackStreamOboe::Storage(move(stream), move(oboe_callback))));
     return TRY(adopt_nonnull_ref_or_enomem(new (nothrow) PlaybackStreamOboe(move(storage))));
+}
+
+PlaybackStreamOboe::PlaybackStreamOboe(NonnullRefPtr<Storage> storage)
+    : m_storage(move(storage))
+{
 }
 
 PlaybackStreamOboe::~PlaybackStreamOboe() = default;
