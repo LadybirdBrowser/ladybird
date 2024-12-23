@@ -2491,13 +2491,15 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
 
         // E. Host Language Label: Otherwise, if the current node's native markup provides an attribute (e.g. alt) or
         //    element (e.g. HTML label or SVG title) that defines a text alternative, return that alternative in the form
-        //    of a flat string as defined by the host language, unless the element is marked as presentational
-        //    (role="presentation" or role="none").
-        //
+        //    of a flat string as defined by the host language.
         // TODO: Confirm (through existing WPT test cases) whether HTMLLabelElement is already handled (by the code for
         // step C. “Embedded Control” above) in conformance with the spec requirements — and if not, then add handling.
-        if (role != ARIA::Role::presentation && role != ARIA::Role::none && is<HTML::HTMLImageElement>(*element))
-            return element->alternative_text().release_value();
+        //
+        // https://w3c.github.io/html-aam/#img-element-accessible-name-computation
+        // use alt attribute, even if its value is the empty string.
+        // See also https://wpt.fyi/results/accname/name/comp_tooltip.tentative.html.
+        if (is<HTML::HTMLImageElement>(*element) && element->has_attribute(HTML::AttributeNames::alt))
+            return element->get_attribute(HTML::AttributeNames::alt).value();
 
         // https://w3c.github.io/svg-aam/#mapping_additional_nd
         Optional<String> title_element_text;
