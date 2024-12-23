@@ -383,4 +383,20 @@ void ReadableStream::set_up_with_byte_reading_support(GC::Ptr<PullAlgorithm> pul
     MUST(set_up_readable_byte_stream_controller(*this, controller, start_algorithm, pull_algorithm_wrapper, cancel_algorithm_wrapper, high_water_mark, JS::js_undefined()));
 }
 
+// https://streams.spec.whatwg.org/#readablestream-pipe-through
+GC::Ref<WebIDL::Promise> ReadableStream::piped_through(GC::Ref<WritableStream> writable, bool prevent_close, bool prevent_abort, bool prevent_cancel, JS::Value signal)
+{
+    // 1. Assert: ! IsReadableStreamLocked(readable) is false.
+    VERIFY(!is_readable_stream_locked(*this));
+
+    // 2. Assert: ! IsWritableStreamLocked(writable) is false.
+    VERIFY(!is_writable_stream_locked(writable));
+
+    // 3. Let signalArg be signal if signal was given, or undefined otherwise.
+    // NOTE: Done by default arguments.
+
+    // 4. Return ! ReadableStreamPipeTo(readable, writable, preventClose, preventAbort, preventCancel, signalArg).
+    return readable_stream_pipe_to(*this, writable, prevent_close, prevent_abort, prevent_cancel, signal);
+}
+
 }
