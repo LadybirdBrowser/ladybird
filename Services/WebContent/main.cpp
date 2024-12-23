@@ -83,11 +83,8 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     Web::Platform::AudioCodecPlugin::install_creation_hook([](auto loader) {
 #if defined(HAVE_QT_MULTIMEDIA)
         return Ladybird::AudioCodecPluginQt::create(move(loader));
-#elif defined(AK_OS_MACOS) || defined(HAVE_PULSEAUDIO)
-        return Web::Platform::AudioCodecPluginAgnostic::create(move(loader));
 #else
-        (void)loader;
-        return Error::from_string_literal("Don't know how to initialize audio in this configuration!");
+        return Web::Platform::AudioCodecPluginAgnostic::create(move(loader));
 #endif
     });
 
