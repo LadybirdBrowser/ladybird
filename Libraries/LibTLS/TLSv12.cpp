@@ -352,7 +352,7 @@ bool Context::verify_certificate_pair(Certificate const& subject, Certificate co
         }
         auto verification_buffer = verification_buffer_result.release_value();
         auto verification_buffer_bytes = verification_buffer.bytes();
-        rsa.verify(subject.signature_value, verification_buffer_bytes);
+        MUST(rsa.verify(subject.signature_value, verification_buffer_bytes));
 
         ReadonlyBytes message = subject.tbs_asn1.bytes();
         auto pkcs1 = Crypto::PK::EMSA_PKCS1_V1_5<Crypto::Hash::Manager>(kind);
