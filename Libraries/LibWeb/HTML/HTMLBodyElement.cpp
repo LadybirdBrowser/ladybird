@@ -41,6 +41,17 @@ void HTMLBodyElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLBodyElement);
 }
 
+bool HTMLBodyElement::is_presentational_hint(FlyString const& name) const
+{
+    if (Base::is_presentational_hint(name))
+        return true;
+
+    return first_is_one_of(name,
+        HTML::AttributeNames::bgcolor,
+        HTML::AttributeNames::text,
+        HTML::AttributeNames::background);
+}
+
 void HTMLBodyElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
     for_each_attribute([&](auto& name, auto& value) {

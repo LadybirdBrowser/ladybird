@@ -177,6 +177,7 @@ public:
     [[nodiscard]] GC::Ref<ComputedProperties> compute_properties(DOM::Element&, Optional<Selector::PseudoElement::Type>, CascadedProperties&) const;
 
     void absolutize_values(ComputedProperties&) const;
+    void compute_font(ComputedProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
 
 private:
     enum class ComputeStyleMode {
@@ -193,7 +194,6 @@ private:
     static RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_ascending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, bool inclusive);
     static RefPtr<Gfx::FontCascadeList const> find_matching_font_weight_descending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, bool inclusive);
     RefPtr<Gfx::FontCascadeList const> font_matching_algorithm(FlyString const& family_name, int weight, int slope, float font_size_in_pt) const;
-    void compute_font(ComputedProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
     void compute_math_depth(ComputedProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
     void compute_defaulted_values(ComputedProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
     void start_needed_transitions(ComputedProperties const& old_style, ComputedProperties& new_style, DOM::Element&, Optional<Selector::PseudoElement::Type>) const;

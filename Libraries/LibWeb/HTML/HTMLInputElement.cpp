@@ -1593,6 +1593,23 @@ void HTMLInputElement::form_associated_element_was_removed(DOM::Node*)
     set_shadow_root(nullptr);
 }
 
+bool HTMLInputElement::is_presentational_hint(FlyString const& name) const
+{
+    if (Base::is_presentational_hint(name))
+        return true;
+
+    if (type_state() != TypeAttributeState::ImageButton)
+        return false;
+
+    return first_is_one_of(name,
+        HTML::AttributeNames::align,
+        HTML::AttributeNames::border,
+        HTML::AttributeNames::height,
+        HTML::AttributeNames::hspace,
+        HTML::AttributeNames::vspace,
+        HTML::AttributeNames::width);
+}
+
 void HTMLInputElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
     if (type_state() != TypeAttributeState::ImageButton)

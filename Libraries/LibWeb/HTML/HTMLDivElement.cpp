@@ -21,6 +21,14 @@ HTMLDivElement::HTMLDivElement(DOM::Document& document, DOM::QualifiedName quali
 
 HTMLDivElement::~HTMLDivElement() = default;
 
+bool HTMLDivElement::is_presentational_hint(FlyString const& name) const
+{
+    if (Base::is_presentational_hint(name))
+        return true;
+
+    return name == HTML::AttributeNames::align;
+}
+
 // https://html.spec.whatwg.org/multipage/rendering.html#flow-content-3
 void HTMLDivElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {

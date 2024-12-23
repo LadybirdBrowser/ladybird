@@ -65,6 +65,16 @@ void HTMLCanvasElement::visit_edges(Cell::Visitor& visitor)
         });
 }
 
+bool HTMLCanvasElement::is_presentational_hint(FlyString const& name) const
+{
+    if (Base::is_presentational_hint(name))
+        return true;
+
+    return first_is_one_of(name,
+        HTML::AttributeNames::width,
+        HTML::AttributeNames::height);
+}
+
 void HTMLCanvasElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
     // https://html.spec.whatwg.org/multipage/rendering.html#attributes-for-embedded-content-and-images

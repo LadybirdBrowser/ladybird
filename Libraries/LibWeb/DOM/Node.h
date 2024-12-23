@@ -71,6 +71,7 @@ enum class IsDescendant {
     X(ElementSetShadowRoot)                         \
     X(FocusedElementChange)                         \
     X(HTMLHyperlinkElementHrefChange)               \
+    X(HTMLIFrameElementGeometryChange)              \
     X(HTMLInputElementSetChecked)                   \
     X(HTMLObjectElementUpdateLayoutAndChildObjects) \
     X(HTMLSelectElementSetIsOpen)                   \

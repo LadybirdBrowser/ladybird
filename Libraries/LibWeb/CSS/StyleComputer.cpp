@@ -2047,8 +2047,14 @@ void StyleComputer::compute_font(ComputedProperties& style, DOM::Element const* 
 
     RefPtr<Gfx::Font const> const found_font = font_list->first();
 
-    style.set_property(CSS::PropertyID::FontSize, LengthStyleValue::create(CSS::Length::make_px(CSSPixels::nearest_value_for(found_font->pixel_size()))));
-    style.set_property(CSS::PropertyID::FontWeight, NumberStyleValue::create(font_weight.to_font_weight()));
+    style.set_property(
+        CSS::PropertyID::FontSize,
+        LengthStyleValue::create(CSS::Length::make_px(CSSPixels::nearest_value_for(found_font->pixel_size()))),
+        style.is_property_inherited(CSS::PropertyID::FontSize) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No);
+    style.set_property(
+        CSS::PropertyID::FontWeight,
+        NumberStyleValue::create(font_weight.to_font_weight()),
+        style.is_property_inherited(CSS::PropertyID::FontWeight) ? ComputedProperties::Inherited::Yes : ComputedProperties::Inherited::No);
 
     style.set_computed_font_list(*font_list);
 

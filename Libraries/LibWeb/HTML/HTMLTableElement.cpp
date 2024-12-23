@@ -51,6 +51,22 @@ static unsigned parse_border(StringView value)
     return value.to_number<unsigned>().value_or(0);
 }
 
+bool HTMLTableElement::is_presentational_hint(FlyString const& name) const
+{
+    if (Base::is_presentational_hint(name))
+        return true;
+
+    return first_is_one_of(name,
+        HTML::AttributeNames::align,
+        HTML::AttributeNames::background,
+        HTML::AttributeNames::bgcolor,
+        HTML::AttributeNames::border,
+        HTML::AttributeNames::cellpadding,
+        HTML::AttributeNames::cellspacing,
+        HTML::AttributeNames::height,
+        HTML::AttributeNames::width);
+}
+
 void HTMLTableElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
     for_each_attribute([&](auto& name, auto& value) {

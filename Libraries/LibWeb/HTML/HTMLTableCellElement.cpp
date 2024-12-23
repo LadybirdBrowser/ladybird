@@ -37,6 +37,20 @@ void HTMLTableCellElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLTableCellElement);
 }
 
+bool HTMLTableCellElement::is_presentational_hint(FlyString const& name) const
+{
+    if (Base::is_presentational_hint(name))
+        return true;
+
+    return first_is_one_of(name,
+        HTML::AttributeNames::align,
+        HTML::AttributeNames::background,
+        HTML::AttributeNames::bgcolor,
+        HTML::AttributeNames::height,
+        HTML::AttributeNames::valign,
+        HTML::AttributeNames::width);
+}
+
 void HTMLTableCellElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
     for_each_attribute([&](auto& name, auto& value) {

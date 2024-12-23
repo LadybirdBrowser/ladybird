@@ -28,6 +28,14 @@ void HTMLPreElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLPreElement);
 }
 
+bool HTMLPreElement::is_presentational_hint(FlyString const& name) const
+{
+    if (Base::is_presentational_hint(name))
+        return true;
+
+    return name == HTML::AttributeNames::wrap;
+}
+
 void HTMLPreElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
     HTMLElement::apply_presentational_hints(cascaded_properties);

@@ -51,6 +51,14 @@ WebIDL::ExceptionOr<void> HTMLTableColElement::set_span(unsigned int value)
     return set_attribute(HTML::AttributeNames::span, String::number(value));
 }
 
+bool HTMLTableColElement::is_presentational_hint(FlyString const& name) const
+{
+    if (Base::is_presentational_hint(name))
+        return true;
+
+    return name == HTML::AttributeNames::width;
+}
+
 void HTMLTableColElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
     for_each_attribute([&](auto& name, auto& value) {
