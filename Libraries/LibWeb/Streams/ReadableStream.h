@@ -105,6 +105,7 @@ public:
     State state() const { return m_state; }
     void set_state(State value) { m_state = value; }
 
+    WebIDL::ExceptionOr<GC::Ref<ReadableStreamDefaultReader>> get_a_reader();
     WebIDL::ExceptionOr<void> pull_from_bytes(ByteBuffer);
     WebIDL::ExceptionOr<void> enqueue(JS::Value chunk);
     void set_up_with_byte_reading_support(GC::Ptr<PullAlgorithm> = {}, GC::Ptr<CancelAlgorithm> = {}, double high_water_mark = 0);

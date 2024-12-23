@@ -259,6 +259,13 @@ bool ReadableStream::is_disturbed() const
     return m_disturbed;
 }
 
+// https://streams.spec.whatwg.org/#readablestream-get-a-reader
+WebIDL::ExceptionOr<GC::Ref<ReadableStreamDefaultReader>> ReadableStream::get_a_reader()
+{
+    // To get a reader for a ReadableStream stream, return ? AcquireReadableStreamDefaultReader(stream). The result will be a ReadableStreamDefaultReader.
+    return TRY(acquire_readable_stream_default_reader(*this));
+}
+
 // https://streams.spec.whatwg.org/#readablestream-pull-from-bytes
 WebIDL::ExceptionOr<void> ReadableStream::pull_from_bytes(ByteBuffer bytes)
 {
