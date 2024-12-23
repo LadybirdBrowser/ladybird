@@ -164,6 +164,12 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
 
         m_select_dropdown->exec(map_point_to_global_position(content_position));
     };
+
+    on_set_browser_zoom = [this](double factor) {
+        set_zoom(factor);
+        auto* window = static_cast<BrowserWindow*>(this->window());
+        window->update_displayed_zoom_level();
+    };
 }
 
 WebContentView::~WebContentView() = default;

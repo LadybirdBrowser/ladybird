@@ -244,6 +244,11 @@ void Internals::set_echo_server_port(u16 const port)
     s_echo_server_port = port;
 }
 
+void Internals::set_browser_zoom(double factor)
+{
+    internals_page().client().page_did_set_browser_zoom(factor);
+}
+
 bool Internals::headless()
 {
     return internals_page().client().is_headless();
