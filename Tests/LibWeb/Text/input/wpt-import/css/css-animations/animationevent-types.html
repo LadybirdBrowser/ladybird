@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="timeout" content="long">
+<title>CSS Animations Test: AnimationEvnt types - animationstart, animationend,animationiteration</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<link rel="help" href="https://drafts.csswg.org/css-animations-1/#event-animationevent">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  #test {
+    animation-name: sample;
+    animation-duration: 2s;
+    animation-delay: -1s;
+    animation-iteration-count: 2;
+
+    background-color: blue;
+    height: 100px;
+    width: 100px;
+    position: relative;
+  }
+
+  @keyframes sample {
+    from {
+      left: 150px;
+    }
+    to {
+      left: 0px;
+    }
+  }
+</style>
+<div id="test">Filler Text</div>
+<div id="log"></div>
+<script>
+  var testDiv = document.getElementById("test");
+
+  async_test(function(t) {
+    testDiv.addEventListener("animationstart", t.step_func(function(evt) {
+        console.log("animationstart")
+      assert_true(evt instanceof window.AnimationEvent);
+
+      assert_idl_attribute(evt, "animationName", "animationstart has animationName property");
+      assert_idl_attribute(evt, "elapsedTime", "animationstart has elapsedTime property");
+      assert_idl_attribute(evt, "pseudoElement", "animationstart has pseudoElement property");
+
+      assert_equals(evt.animationName, "sample", "animationstart has animationName value");
+      assert_equals(evt.elapsedTime, 1, "animationstart has elapsedTime value");
+      assert_equals(evt.pseudoElement, "", "animaitonstart has correct pseudoElement value");
+
+      t.done();
+    }), true);
+  }, "animationstart event is instanceof AnimationEvent");
+
+  async_test(function(t) {
+    testDiv.addEventListener("animationend", t.step_func(function(evt) {
+        console.log("animationend")
+
+      assert_true(evt instanceof window.AnimationEvent);
+
+      assert_idl_attribute(evt, "animationName", "animationend has animationName property");
+      assert_idl_attribute(evt, "elapsedTime", "animationend has elapsedTime property");
+      assert_idl_attribute(evt, "pseudoElement", "animationstart has pseudoElement property");
+
+      assert_equals(evt.animationName, "sample", "animationend has animationName value");
+      assert_equals(evt.elapsedTime, 4, "animationend has elapsedTime value");
+      assert_equals(evt.pseudoElement, "", "animaitonstart has correct pseudoElement value");
+
+      t.done();
+    }), true);
+  }, "animationend event is instanceof AnimationEvent");
+
+  async_test(function(t) {
+    testDiv.addEventListener("animationiteration", t.step_func(function(evt) {
+        console.log("animationiteration")
+
+      assert_true(evt instanceof window.AnimationEvent);
+
+      assert_idl_attribute(evt, "animationName", "animationiteration has animationName property");
+      assert_idl_attribute(evt, "elapsedTime", "animationiteration has elapsedTime property");
+      assert_idl_attribute(evt, "pseudoElement", "animationstart has pseudoElement property");
+
+      assert_equals(evt.animationName, "sample", "animationiteration has animationName value");
+      assert_equals(evt.elapsedTime, 2, "animationiteration has elapsedTime value");
+      assert_equals(evt.pseudoElement, "", "animaitonstart has correct pseudoElement value");
+
+      t.done();
+    }), true);
+  }, "animationiteration event is instanceof AnimationEvent");
+</script>
+
