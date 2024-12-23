@@ -1125,6 +1125,9 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
 
 static void apply_animation_properties(DOM::Document& document, CascadedProperties& cascaded_properties, Animations::Animation& animation)
 {
+    if (!animation.effect())
+        return;
+
     auto& effect = verify_cast<Animations::KeyframeEffect>(*animation.effect());
 
     Optional<CSS::Time> duration;
@@ -2410,7 +2413,8 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
                 animation->play().release_value_but_fixme_should_propagate_errors();
             } else {
                 // The animation hasn't changed, but some properties of the animation may have
-                apply_animation_properties(m_document, cascaded_properties, *element.cached_animation_name_animation(pseudo_element));
+                if (auto animation = element.cached_animation_name_animation(pseudo_element); animation)
+                    apply_animation_properties(m_document, cascaded_properties, *animation);
             }
         }
     } else {
