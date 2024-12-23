@@ -132,6 +132,10 @@
       "version": "8.10.1#0"
     },
     {
+      "name": "dirent",
+      "version": "1.24#0"
+    },
+    {
       "name": "ffmpeg",
       "version": "6.1.1#11"
     },
@@ -166,6 +170,14 @@
     {
       "name": "libwebp",
       "version": "1.4.0#1"
+    },
+    {
+      "name": "mman",
+      "version": "git-f5ff813#5"
+    },
+    {
+      "name": "openssl",
+      "version": "3.4.0#0"
     },
     {
       "name": "simdutf",
