@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	animationstart event is instanceof AnimationEvent
+Pass	animationend event is instanceof AnimationEvent
+Pass	animationiteration event is instanceof AnimationEvent

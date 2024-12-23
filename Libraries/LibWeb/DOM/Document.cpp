@@ -2362,7 +2362,9 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
 
     auto owning_element = css_animation.owning_element();
 
-    auto dispatch_event = [&](FlyString const& name, double elapsed_time) {
+    auto dispatch_event = [&](FlyString const& name, double elapsed_time_ms) {
+        auto elapsed_time_seconds = elapsed_time_ms / 1000;
+
         append_pending_animation_event({
             .event = CSS::AnimationEvent::create(
                 owning_element->realm(),
@@ -2370,7 +2372,7 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
                 {
                     { .bubbles = true },
                     css_animation.id(),
-                    elapsed_time,
+                    elapsed_time_seconds,
                 }),
             .animation = css_animation,
             .target = *target,
