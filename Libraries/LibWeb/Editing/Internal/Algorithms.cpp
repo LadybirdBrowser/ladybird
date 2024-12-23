@@ -1958,30 +1958,63 @@ void move_node_preserving_ranges(GC::Ref<DOM::Node> node, GC::Ref<DOM::Node> new
     // (if any), then insert it in the new location. In doing so, follow these rules instead of
     // those defined by the insert and remove algorithms:
 
-    // FIXME: Currently this is a simple range-destroying move. Implement "follow these rules" as
-    //        described above.
+    // AD-HOC: We implement this spec by taking note of the current active range (if any), performing the remove and
+    //         insertion of node, and then restoring the range after performing any necessary adjustments.
+    Optional<DOM::BoundaryPoint> start;
+    Optional<DOM::BoundaryPoint> end;
+
+    auto range = active_range(node->document());
+    if (range) {
+        start = range->start();
+        end = range->end();
+    }
 
     // 1. Let node be the moved node, old parent and old index be the old parent (which may be null)
     //    and index, and new parent and new index be the new parent and index.
     auto* old_parent = node->parent();
-    [[maybe_unused]] auto old_index = node->index();
+    auto old_index = node->index();
     if (old_parent)
         node->remove();
 
     auto* new_next_sibling = new_parent->child_at_index(new_index);
     new_parent->insert_before(node, new_next_sibling);
 
-    // FIXME: 2. If a boundary point's node is the same as or a descendant of node, leave it unchanged, so
+    // AD-HOC: Return early if there was no active range
+    if (!range)
+        return;
+
+    // 2. If a boundary point's node is the same as or a descendant of node, leave it unchanged, so
     //    it moves to the new location.
+    // NOTE: This step exists for completeness.
 
-    // FIXME: 3. If a boundary point's node is new parent and its offset is greater than new index, add one
+    // 3. If a boundary point's node is new parent and its offset is greater than new index, add one
     //    to its offset.
+    if (start->node == new_parent && start->offset > new_index)
+        start->offset++;
+    if (end->node == new_parent && end->offset > new_index)
+        end->offset++;
 
-    // FIXME: 4. If a boundary point's node is old parent and its offset is old index or old index + 1, set
+    // 4. If a boundary point's node is old parent and its offset is old index or old index + 1, set
     //    its node to new parent and add new index − old index to its offset.
+    if (start->node == old_parent && (start->offset == old_index || start->offset == old_index + 1)) {
+        start->node = new_parent;
+        start->offset += new_index - old_index;
+    }
+    if (end->node == old_parent && (end->offset == old_index || end->offset == old_index + 1)) {
+        end->node = new_parent;
+        end->offset += new_index - old_index;
+    }
 
-    // FIXME: 5. If a boundary point's node is old parent and its offset is greater than old index + 1,
+    // 5. If a boundary point's node is old parent and its offset is greater than old index + 1,
     //    subtract one from its offset.
+    if (start->node == old_parent && start->offset > old_index + 1)
+        start->offset--;
+    if (end->node == old_parent && end->offset > old_index + 1)
+        end->offset--;
+
+    // AD-HOC: Set the new active range
+    MUST(range->set_start(start->node, start->offset));
+    MUST(range->set_end(end->node, end->offset));
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#next-equivalent-point
