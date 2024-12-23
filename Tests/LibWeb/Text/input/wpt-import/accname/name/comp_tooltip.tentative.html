@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+<head>
+  <title>Name Comp: Tooltip (Tentative)</title>
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+  <script src="../../resources/testdriver.js"></script>
+  <script src="../../resources/testdriver-vendor.js"></script>
+  <script src="../../resources/testdriver-actions.js"></script>
+  <script src="../../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+<p>Tests the tentative <a href="https://w3c.github.io/accname/#comp_tooltip">#comp_tooltip</a> portions of the AccName <em>Name Computation</em> algorithm.</p>
+
+<!-- Explanation in https://github.com/w3c/aria/pull/2378#issuecomment-2493635126 -->
+<img title="title" data-expectedlabel="" alt="" data-testname="img with tooltip label with empty alt" class="ex" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==">
+
+<script>
+AriaUtils.verifyLabelsBySelector(".ex");
+</script>
+</body>
+</html>

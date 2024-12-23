@@ -1,14 +1,13 @@
 Harness status: OK
 
-Found 23 tests
+Found 22 tests
 
-23 Pass
+22 Pass
 Pass	link with img with tooltip label
 Pass	link with text with tooltip label and no contents
 Pass	link with text with tooltip label and contents
 Pass	div with text with tooltip label
 Pass	img with tooltip label without alt
-Pass	img with tooltip label with empty alt
 Pass	img with tooltip label with alt
 Pass	img with tooltip label without title
 Pass	select with tooltip label
