@@ -99,8 +99,6 @@ void Animation::set_effect(GC::Ptr<AnimationEffect> new_effect)
 // https://www.w3.org/TR/web-animations-1/#animation-set-the-timeline-of-an-animation
 void Animation::set_timeline(GC::Ptr<AnimationTimeline> new_timeline)
 {
-    // Setting this attribute updates the object’s timeline using the procedure to set the timeline of an animation.
-
     // 1. Let old timeline be the current timeline of animation, if any.
     auto old_timeline = m_timeline;
 
@@ -112,7 +110,8 @@ void Animation::set_timeline(GC::Ptr<AnimationTimeline> new_timeline)
     if (m_timeline)
         m_timeline->disassociate_with_animation(*this);
     m_timeline = new_timeline;
-    m_timeline->associate_with_animation(*this);
+    if (m_timeline)
+        m_timeline->associate_with_animation(*this);
 
     // 4. If the start time of animation is resolved, make animation’s hold time unresolved.
     if (m_start_time.has_value())
