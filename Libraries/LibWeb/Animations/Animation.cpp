@@ -324,8 +324,7 @@ bool Animation::is_replaceable() const
 
     // - The existence of the animation is not prescribed by markup. That is, it is not a CSS animation with an owning
     //   element, nor a CSS transition with an owning element.
-    // FIXME: Check for transitions
-    if (is_css_animation() && static_cast<CSS::CSSAnimation const*>(this)->owning_element())
+    if ((is_css_animation() || is_css_transition()) && owning_element())
         return false;
 
     // - The animation's play state is finished.
