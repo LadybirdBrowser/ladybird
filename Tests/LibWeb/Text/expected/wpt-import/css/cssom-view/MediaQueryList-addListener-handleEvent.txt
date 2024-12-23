@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 6 tests
 
-3 Pass
-3 Fail
-Fail	calls handleEvent method of event listener
+4 Pass
+2 Fail
+Pass	calls handleEvent method of event listener
 Pass	looks up handleEvent method on every event dispatch
 Pass	doesn't look up handleEvent method on callable event listeners
 Pass	rethrows errors when getting handleEvent
