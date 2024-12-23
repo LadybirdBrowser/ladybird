@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="match" href="../expected/object-fit-with-zoom-ref.html" />
+    <style>
+body { margin: 0; }
+div { clear: both; }
+.scale-down > img { object-fit: scale-down }
+
+img {
+  width: 64px;
+  height: 64px;
+  object-fit: none;
+  image-rendering: crisp-edges;
+  border: 2px solid black;
+  float: left;
+}
+
+.offset {
+  object-position: 8px 8px;
+}
+    </style>
+  </head>
+  <body>
+    <div>
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACAAQMAAAD58POIAAAABlBMVEUAAP8A/wDoRkJMAAAAJklEQVRIx2P4jwYYRgVGBdAEGKBgVGBUYFRgVIBUgdHydFQAhwAABZj6TKPJLmoAAAAASUVORK5CYII=" />
+      <img class="offset" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgAQMAAABJtOi3AAAABlBMVEUAAP8A/wDoRkJMAAAAFUlEQVQI12P4DwQMxBAMDNQliLMXAORTX6F6xmICAAAAAElFTkSuQmCC" />
+    </div>
+    <div class="scale-down">
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACAAQMAAAD58POIAAAABlBMVEUAAP8A/wDoRkJMAAAAJklEQVRIx2P4jwYYRgVGBdAEGKBgVGBUYFRgVIBUgdHydFQAhwAABZj6TKPJLmoAAAAASUVORK5CYII=" />
+      <img class="offset" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgAQMAAABJtOi3AAAABlBMVEUAAP8A/wDoRkJMAAAAFUlEQVQI12P4DwQMxBAMDNQliLMXAORTX6F6xmICAAAAAElFTkSuQmCC" />
+    </div>
+    <script>
+      if (window.internals) {
+        window.internals.setBrowserZoom(2.0);
+      } else {
+        document.body.innerText = "This test requires access to the internals object. When opening it manually, please start Ladybird with the command line argument `--expose-internals-object`";
+      }
+    </script>
+  </body>
+</html>
