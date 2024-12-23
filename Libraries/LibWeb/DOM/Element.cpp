@@ -1902,7 +1902,21 @@ ErrorOr<void> Element::scroll_into_view(Optional<Variant<bool, ScrollIntoViewOpt
 void Element::invalidate_style_after_attribute_change(FlyString const& attribute_name)
 {
     // FIXME: Only invalidate if the attribute can actually affect style.
-    (void)attribute_name;
+
+    // OPTIMIZATION: For the `style` attribute, unless it's referenced by an attribute selector,
+    //               only invalidate the element itself, then let inheritance propagate to descendants.
+    if (attribute_name == HTML::AttributeNames::style
+        && !document().style_computer().has_attribute_selector(HTML::AttributeNames::style)) {
+        set_needs_style_update(true);
+        for_each_shadow_including_descendant([](Node& node) {
+            if (!node.is_element())
+                return TraversalDecision::Continue;
+            auto& element = static_cast<Element&>(node);
+            element.set_needs_inherited_style_update(true);
+            return TraversalDecision::Continue;
+        });
+        return;
+    }
 
     invalidate_style(StyleInvalidationReason::ElementAttributeChange);
 }
