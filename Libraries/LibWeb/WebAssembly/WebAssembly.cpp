@@ -8,6 +8,7 @@
 #include <AK/ByteBuffer.h>
 #include <AK/MemoryStream.h>
 #include <AK/ScopeGuard.h>
+#include <AK/String.h>
 #include <AK/StringBuilder.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
@@ -17,10 +18,12 @@
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWasm/AbstractMachine/Validator.h>
+#include <LibWasm/Types.h>
 #include <LibWeb/Bindings/ResponsePrototype.h>
 #include <LibWeb/Fetch/Response.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWeb/WebAssembly/Error.h>
 #include <LibWeb/WebAssembly/Instance.h>
 #include <LibWeb/WebAssembly/Memory.h>
 #include <LibWeb/WebAssembly/Module.h>
@@ -155,6 +158,11 @@ namespace Detail {
 
 JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS::VM& vm, Wasm::Module const& module, GC::Ptr<JS::Object> import_object)
 {
+    // 1. If module.imports is not empty, and importObject is undefined, throw a TypeError exception.
+    if (!module.import_section().imports().is_empty() && !import_object) {
+        return vm.throw_completion<JS::TypeError>("Import object must be defined when module has imports"sv);
+    }
+
     Wasm::Linker linker { module };
     auto& cache = get_cache(*vm.current_realm());
     // https://webassembly.github.io/spec/js-api/index.html#read-the-imports
@@ -171,27 +179,29 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
             dbgln_if(LIBWEB_WASM_DEBUG, "Trying to resolve {}::{}", import_name.module, import_name.name);
             // 3.1. Let o be ? Get(importObject, moduleName).
             auto value_or_error = import_object->get(import_name.module);
-            if (value_or_error.is_error())
-                break;
+            if (!value_or_error.is_error() && !value_or_error.release_value().is_object()) {
+                return vm.throw_completion<JS::TypeError>("Module name must resolve to an object"sv);
+            }
             auto value = value_or_error.release_value();
             // 3.2. If o is not an Object, throw a TypeError exception.
             auto object_or_error = value.to_object(vm);
             if (object_or_error.is_error())
-                break;
+                return vm.throw_completion<JS::TypeError>("Module name must resolve to an object"sv);
             auto object = object_or_error.release_value();
             // 3.3. Let v be ? Get(o, componentName).
             auto import_or_error = object->get(import_name.name);
             if (import_or_error.is_error())
-                break;
+                return vm.throw_completion<JS::TypeError>("Cannot get component name from module"sv);
             auto import_ = import_or_error.release_value();
             TRY(import_name.type.visit(
                 // 3.4. If externtype is of the form func functype,
                 [&](Wasm::TypeIndex index) -> JS::ThrowCompletionOr<void> {
                     dbgln_if(LIBWEB_WASM_DEBUG, "Trying to resolve a function {}::{}, type index {}", import_name.module, import_name.name, index.value());
                     auto& type = module.type_section().types()[index.value()];
-                    // FIXME: 3.4.1. If IsCallable(v) is false, throw a LinkError exception.
-                    if (!import_.is_function())
-                        return {};
+                    // FIXME: IsCallable()
+                    if (!import_.is_function()) {
+                        return vm.throw_completion<LinkError>("Imported value is not a callable function"sv);
+                    }
                     auto& function = import_.as_function();
                     // 3.4.2. If v has a [[FunctionAddress]] internal slot, and therefore is an Exported Function,
                     Optional<Wasm::FunctionAddress> address;
@@ -261,32 +271,26 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
                     if (import_.is_number() || import_.is_bigint()) {
                         // 3.5.1.1. If valtype is i64 and v is a Number,
                         if (import_.is_number() && type.type().kind() == Wasm::ValueType::I64) {
-                            // FIXME: 3.5.1.1.1. Throw a LinkError exception.
-                            return vm.throw_completion<JS::TypeError>("LinkError: Import resolution attempted to cast a Number to a BigInteger"sv);
+                            return vm.throw_completion<LinkError>("Import resolution attempted to cast a Number to a BigInteger"sv);
                         }
                         // 3.5.1.2. If valtype is not i64 and v is a BigInt,
                         if (import_.is_bigint() && type.type().kind() != Wasm::ValueType::I64) {
-                            // FIXME: 3.5.1.2.1. Throw a LinkError exception.
-                            return vm.throw_completion<JS::TypeError>("LinkError: Import resolution attempted to cast a BigInteger to a Number"sv);
+                            return vm.throw_completion<LinkError>("Import resolution attempted to cast a BigInteger to a Number"sv);
                         }
-                        // 3.5.1.3. If valtype is v128,
                         if (type.type().kind() == Wasm::ValueType::V128) {
-                            // FIXME: 3.5.1.3.1. Throw a LinkError exception.
-                            return vm.throw_completion<JS::TypeError>("LinkError: Import resolution attempted to cast a Number or BigInt to a V128"sv);
+                            return vm.throw_completion<LinkError>("Cannot import v128 type for global"sv);
                         }
-                        // 3.5.1.4. Let value be ToWebAssemblyValue(v, valtype).
                         auto cast_value = TRY(to_webassembly_value(vm, import_, type.type()));
                         // 3.5.1.5. Let store be the surrounding agent's associated store.
                         // 3.5.1.6. Let (store, globaladdr) be global_alloc(store, const valtype, value).
                         // 3.5.1.7. Set the surrounding agent's associated store to store.
                         address = cache.abstract_machine().store().allocate({ type.type(), false }, cast_value);
-                    }
-                    // FIXME: 3.5.2. Otherwise, if v implements Global,
-                    // FIXME: 3.5.2.1. Let globaladdr be v.[[Global]].
-                    // 3.5.3. Otherwise,
-                    else {
-                        // FIXME: 3.5.3.1. Throw a LinkError exception.
-                        return vm.throw_completion<JS::TypeError>("LinkError: Invalid value for global type"sv);
+                    } else {
+                        // FIXME: https://webassembly.github.io/spec/js-api/#read-the-imports step 5.2
+                        //        if v implements Global
+                        //            let globaladdr be v.[[Global]]
+
+                        return vm.throw_completion<LinkError>("Invalid value for global type"sv);
                     }
 
                     // 3.5.4. Let externglobal be global globaladdr.
@@ -298,8 +302,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
                 [&](Wasm::MemoryType const&) -> JS::ThrowCompletionOr<void> {
                     // 3.6.1. If v does not implement Memory, throw a LinkError exception.
                     if (!import_.is_object() || !is<WebAssembly::Memory>(import_.as_object())) {
-                        // FIXME: Throw a LinkError instead
-                        return vm.throw_completion<JS::TypeError>("LinkError: Expected an instance of WebAssembly.Memory for a memory import"sv);
+                        return vm.throw_completion<LinkError>("Expected an instance of WebAssembly.Memory for a memory import"sv);
                     }
                     // 3.6.2. Let externmem be the external value mem v.[[Memory]].
                     auto address = static_cast<WebAssembly::Memory const&>(import_.as_object()).address();
@@ -311,8 +314,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
                 [&](Wasm::TableType const&) -> JS::ThrowCompletionOr<void> {
                     // 3.7.1. If v does not implement Table, throw a LinkError exception.
                     if (!import_.is_object() || !is<WebAssembly::Table>(import_.as_object())) {
-                        // FIXME: Throw a LinkError instead
-                        return vm.throw_completion<JS::TypeError>("LinkError: Expected an instance of WebAssembly.Table for a table import"sv);
+                        return vm.throw_completion<LinkError>("Expected an instance of WebAssembly.Table for a table import"sv);
                     }
                     // 3.7.2. Let tableaddr be v.[[Table]].
                     // 3.7.3. Let externtable be the external value table tableaddr.
@@ -322,8 +324,9 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
                     return {};
                 },
                 [&](auto const&) -> JS::ThrowCompletionOr<void> {
-                    // (noop)
-                    return {};
+                    // FIXME: Implement these.
+                    dbgln("Unimplemented import of non-function attempted");
+                    return vm.throw_completion<JS::TypeError>("Not Implemented"sv);
                 }));
         }
     }
@@ -332,17 +335,15 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
     linker.link(resolved_imports);
     auto link_result = linker.finish();
     if (link_result.is_error()) {
-        // FIXME: Throw a LinkError.
         StringBuilder builder;
-        builder.append("LinkError: Missing "sv);
+        builder.append("Missing "sv);
         builder.join(' ', link_result.error().missing_imports);
-        return vm.throw_completion<JS::TypeError>(MUST(builder.to_string()));
+        return vm.throw_completion<LinkError>(MUST(builder.to_string()));
     }
 
     auto instance_result = cache.abstract_machine().instantiate(module, link_result.release_value());
     if (instance_result.is_error()) {
-        // FIXME: Throw a LinkError instead.
-        return vm.throw_completion<JS::TypeError>(instance_result.error().error);
+        return vm.throw_completion<LinkError>(String::from_byte_string(instance_result.error().error).release_value_but_fixme_should_propagate_errors());
     }
 
     return instance_result.release_value();
@@ -354,14 +355,12 @@ JS::ThrowCompletionOr<NonnullRefPtr<CompiledWebAssemblyModule>> compile_a_webass
     FixedMemoryStream stream { data.bytes() };
     auto module_result = Wasm::Module::parse(stream);
     if (module_result.is_error()) {
-        // FIXME: Throw CompileError instead.
-        return vm.throw_completion<JS::TypeError>(Wasm::parse_error_to_byte_string(module_result.error()));
+        return vm.throw_completion<CompileError>(String::from_byte_string(Wasm::parse_error_to_byte_string(module_result.error())).release_value_but_fixme_should_propagate_errors());
     }
 
     auto& cache = get_cache(*vm.current_realm());
     if (auto validation_result = cache.abstract_machine().validate(module_result.value()); validation_result.is_error()) {
-        // FIXME: Throw CompileError instead.
-        return vm.throw_completion<JS::TypeError>(validation_result.error().error_string);
+        return vm.throw_completion<CompileError>(String::from_byte_string(validation_result.error().error_string).release_value_but_fixme_should_propagate_errors());
     }
     auto compiled_module = make_ref_counted<CompiledWebAssemblyModule>(module_result.release_value());
     cache.add_compiled_module(compiled_module);
