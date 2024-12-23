@@ -40,7 +40,7 @@ size_t readable_stream_get_num_read_requests(ReadableStream const&);
 bool readable_stream_has_byob_reader(ReadableStream const&);
 bool readable_stream_has_default_reader(ReadableStream const&);
 
-GC::Ref<WebIDL::Promise> readable_stream_pipe_to(ReadableStream& source, WritableStream& dest, bool prevent_close, bool prevent_abort, bool prevent_cancel, Optional<JS::Value> signal);
+GC::Ref<WebIDL::Promise> readable_stream_pipe_to(ReadableStream& source, WritableStream& dest, bool prevent_close, bool prevent_abort, bool prevent_cancel, JS::Value signal = JS::js_undefined());
 
 WebIDL::ExceptionOr<ReadableStreamPair> readable_stream_tee(JS::Realm&, ReadableStream&, bool clone_for_branch2);
 WebIDL::ExceptionOr<ReadableStreamPair> readable_stream_default_tee(JS::Realm& realm, ReadableStream& stream, bool clone_for_branch2);

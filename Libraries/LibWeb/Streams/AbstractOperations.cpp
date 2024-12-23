@@ -290,7 +290,7 @@ bool readable_stream_has_default_reader(ReadableStream const& stream)
 }
 
 // https://streams.spec.whatwg.org/#readable-stream-pipe-to
-GC::Ref<WebIDL::Promise> readable_stream_pipe_to(ReadableStream& source, WritableStream& dest, bool, bool, bool, Optional<JS::Value> signal)
+GC::Ref<WebIDL::Promise> readable_stream_pipe_to(ReadableStream& source, WritableStream& dest, bool, bool, bool, JS::Value signal)
 {
     auto& realm = source.realm();
 
@@ -299,11 +299,10 @@ GC::Ref<WebIDL::Promise> readable_stream_pipe_to(ReadableStream& source, Writabl
     // 3. Assert: preventClose, preventAbort, and preventCancel are all booleans.
 
     // 4. If signal was not given, let signal be undefined.
-    if (!signal.has_value())
-        signal = JS::js_undefined();
+    // NOTE: Done by default argument
 
     // 5. Assert: either signal is undefined, or signal implements AbortSignal.
-    VERIFY(signal->is_undefined() || (signal->is_object() && is<DOM::AbortSignal>(signal->as_object())));
+    VERIFY(signal.is_undefined() || (signal.is_object() && is<DOM::AbortSignal>(signal.as_object())));
 
     // 6. Assert: ! IsReadableStreamLocked(source) is false.
     VERIFY(!is_readable_stream_locked(source));

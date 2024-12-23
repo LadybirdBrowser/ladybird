@@ -108,6 +108,7 @@ public:
     WebIDL::ExceptionOr<void> pull_from_bytes(ByteBuffer);
     WebIDL::ExceptionOr<void> enqueue(JS::Value chunk);
     void set_up_with_byte_reading_support(GC::Ptr<PullAlgorithm> = {}, GC::Ptr<CancelAlgorithm> = {}, double high_water_mark = 0);
+    GC::Ref<WebIDL::Promise> piped_through(GC::Ref<WritableStream>, bool prevent_close = false, bool prevent_abort = false, bool prevent_cancel = false, JS::Value signal = JS::js_undefined());
 
 private:
     explicit ReadableStream(JS::Realm&);

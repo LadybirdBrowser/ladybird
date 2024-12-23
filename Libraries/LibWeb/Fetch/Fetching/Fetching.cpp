@@ -744,7 +744,7 @@ void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const
         transform_stream->set_up(identity_transform_algorithm, flush_algorithm);
 
         // 4. Set internalResponse’s body’s stream to the result of internalResponse’s body’s stream piped through transformStream.
-        auto promise = Streams::readable_stream_pipe_to(internal_response->body()->stream(), transform_stream->writable(), false, false, false, {});
+        auto promise = internal_response->body()->stream()->piped_through(transform_stream->writable());
         WebIDL::mark_promise_as_handled(*promise);
         internal_response->body()->set_stream(transform_stream->readable());
     }
