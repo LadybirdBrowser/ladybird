@@ -8,7 +8,7 @@ on: [pull_request_target]
 jobs:
   lint:
     runs-on: ubuntu-24.04
-    if: github.repository == 'LadybirdBrowser/ladybird'
+    #if: github.repository == 'LadybirdBrowser/ladybird'
 
     steps:
       - name: Lint PR commits
@@ -102,8 +102,9 @@ jobs:
 
           if [[ -n "$merge_commits" ]]; then
             echo "HAS_MERGE_COMMITS=1" >> $GITHUB_ENV
+            echo "Merge commits found!"
             exit 1
-         fi
+          fi
       - name: Comment on merge commits
         if: ${{ failure() && env.HAS_MERGE_COMMITS && !github.event.pull_request.draft }}
         uses: IdanHo/comment-on-pr@63ea2bf352997c66e524b8b5be7a79163fb3a88a
