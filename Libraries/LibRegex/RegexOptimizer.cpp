@@ -98,7 +98,7 @@ typename Regex<Parser>::BasicBlockList Regex<Parser>::split_basic_blocks(ByteCod
         case OpCodeId::Repeat: {
             // Repeat produces two blocks, one containing its repeated expr, and one after that.
             auto& repeat = static_cast<OpCode_Repeat const&>(opcode);
-            auto repeat_start = state.instruction_position - repeat.offset() - repeat.size();
+            auto repeat_start = state.instruction_position - repeat.offset();
             if (repeat_start > end_of_last_block)
                 block_boundaries.append({ end_of_last_block, repeat_start, "Repeat"sv });
             block_boundaries.append({ repeat_start, state.instruction_position, "Repeat after"sv });
