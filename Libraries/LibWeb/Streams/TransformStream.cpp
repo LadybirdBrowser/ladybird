@@ -74,6 +74,13 @@ WebIDL::ExceptionOr<GC::Ref<TransformStream>> TransformStream::construct_impl(JS
     return stream;
 }
 
+// https://streams.spec.whatwg.org/#transformstream-enqueue
+void TransformStream::enqueue(JS::Value chunk)
+{
+    // To enqueue the JavaScript value chunk into a TransformStream stream, perform ! TransformStreamDefaultControllerEnqueue(stream.[[controller]], chunk).
+    MUST(Streams::transform_stream_default_controller_enqueue(*controller(), chunk));
+}
+
 // https://streams.spec.whatwg.org/#transformstream-set-up
 void TransformStream::set_up(GC::Ref<TransformAlgorithm> transform_algorithm, GC::Ptr<FlushAlgorithm> flush_algorithm, GC::Ptr<CancelAlgorithm> cancel_algorithm)
 {
