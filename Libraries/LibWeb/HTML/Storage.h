@@ -18,7 +18,7 @@ class Storage : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(Storage);
 
 public:
-    [[nodiscard]] static GC::Ref<Storage> create(JS::Realm&);
+    [[nodiscard]] static GC::Ref<Storage> create(JS::Realm&, u64 quota_bytes);
     ~Storage();
 
     size_t length() const;
@@ -33,7 +33,7 @@ public:
     void dump() const;
 
 private:
-    explicit Storage(JS::Realm&);
+    explicit Storage(JS::Realm&, u64 quota_limit);
 
     virtual void initialize(JS::Realm&) override;
 
@@ -49,6 +49,8 @@ private:
     void broadcast(StringView key, StringView old_value, StringView new_value);
 
     OrderedHashMap<String, String> m_map;
+    u64 m_quota_bytes { 0 };
+    u64 m_stored_bytes { 0 };
 };
 
 }

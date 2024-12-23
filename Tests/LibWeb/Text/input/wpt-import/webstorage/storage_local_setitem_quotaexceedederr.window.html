@@ -1,0 +1,22 @@
+<script src="../../include.js"></script>
+<script>
+    // FIXME: This should be an import of WPT from webstorage/storage_local_setitem_quotaexceedederr.window.html
+    test(() => {
+        localStorage.clear();
+
+        var index = 0;
+        var key = "name";
+        var val = "x".repeat(1024);
+
+        try {
+            while (true) {
+                index++;
+                localStorage.setItem("" + key + index, "" + val + index);
+            }
+        } catch (e) {
+            println(e);
+        }
+
+        localStorage.clear();
+    });
+</script>
