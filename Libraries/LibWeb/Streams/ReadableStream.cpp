@@ -15,9 +15,12 @@
 #include <LibWeb/Streams/ReadableByteStreamController.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamBYOBReader.h>
+#include <LibWeb/Streams/ReadableStreamBYOBRequest.h>
 #include <LibWeb/Streams/ReadableStreamDefaultController.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
 #include <LibWeb/Streams/UnderlyingSource.h>
+#include <LibWeb/Streams/WritableStream.h>
+#include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Streams {
@@ -280,8 +283,10 @@ WebIDL::ExceptionOr<void> ReadableStream::pull_from_bytes(ByteBuffer bytes)
     // 3. Let desiredSize be available.
     auto desired_size = available;
 
-    // FIXME: 4. If stream’s current BYOB request view is non-null, then set desiredSize to stream’s current BYOB request
-    //           view's byte length.
+    // 4. If stream’s current BYOB request view is non-null, then set desiredSize to stream’s current BYOB request
+    //    view's byte length.
+    if (auto byob_view = current_byob_request_view())
+        desired_size = byob_view->byte_length();
 
     // 5. Let pullSize be the smaller value of available and desiredSize.
     auto pull_size = min(available, desired_size);
@@ -293,11 +298,16 @@ WebIDL::ExceptionOr<void> ReadableStream::pull_from_bytes(ByteBuffer bytes)
     if (pull_size != available)
         bytes = MUST(bytes.slice(pull_size, available - pull_size));
 
-    // FIXME: 8. If stream’s current BYOB request view is non-null, then:
-    //           1. Write pulled into stream’s current BYOB request view.
-    //           2. Perform ? ReadableByteStreamControllerRespond(stream.[[controller]], pullSize).
+    // 8. If stream’s current BYOB request view is non-null, then:
+    if (auto byob_view = current_byob_request_view()) {
+        // 1. Write pulled into stream’s current BYOB request view.
+        byob_view->write(pulled);
+
+        // 2. Perform ? ReadableByteStreamControllerRespond(stream.[[controller]], pullSize).
+        TRY(readable_byte_stream_controller_respond(controller, pull_size));
+    }
     // 9. Otherwise,
-    {
+    else {
         // 1. Set view to the result of creating a Uint8Array from pulled in stream’s relevant Realm.
         auto array_buffer = JS::ArrayBuffer::create(realm, move(pulled));
         auto view = JS::Uint8Array::create(realm, array_buffer->byte_length(), *array_buffer);
@@ -309,6 +319,23 @@ WebIDL::ExceptionOr<void> ReadableStream::pull_from_bytes(ByteBuffer bytes)
     return {};
 }
 
+// https://streams.spec.whatwg.org/#readablestream-current-byob-request-view
+GC::Ptr<WebIDL::ArrayBufferView> ReadableStream::current_byob_request_view()
+{
+    // 1. Assert: stream.[[controller]] implements ReadableByteStreamController.
+    VERIFY(m_controller->has<GC::Ref<ReadableByteStreamController>>());
+
+    // 2. Let byobRequest be ! ReadableByteStreamControllerGetBYOBRequest(stream.[[controller]]).
+    auto byob_request = readable_byte_stream_controller_get_byob_request(m_controller->get<GC::Ref<ReadableByteStreamController>>());
+
+    // 3. If byobRequest is null, then return null.
+    if (!byob_request)
+        return {};
+
+    // 4. Return byobRequest.[[view]].
+    return byob_request->view();
+}
+
 // https://streams.spec.whatwg.org/#readablestream-enqueue
 WebIDL::ExceptionOr<void> ReadableStream::enqueue(JS::Value chunk)
 {
@@ -317,7 +344,7 @@ WebIDL::ExceptionOr<void> ReadableStream::enqueue(JS::Value chunk)
     // 1. If stream.[[controller]] implements ReadableStreamDefaultController,
     if (m_controller->has<GC::Ref<ReadableStreamDefaultController>>()) {
         // 1. Perform ! ReadableStreamDefaultControllerEnqueue(stream.[[controller]], chunk).
-        return readable_stream_default_controller_enqueue(m_controller->get<GC::Ref<ReadableStreamDefaultController>>(), chunk);
+        MUST(readable_stream_default_controller_enqueue(m_controller->get<GC::Ref<ReadableStreamDefaultController>>(), chunk));
     }
     // 2. Otherwise,
     else {
@@ -325,23 +352,31 @@ WebIDL::ExceptionOr<void> ReadableStream::enqueue(JS::Value chunk)
         VERIFY(m_controller->has<GC::Ref<ReadableByteStreamController>>());
         auto readable_byte_controller = m_controller->get<GC::Ref<ReadableByteStreamController>>();
 
-        // FIXME: 2. Assert: chunk is an ArrayBufferView.
+        // 2. Assert: chunk is an ArrayBufferView.
+        VERIFY(chunk.is_object());
+        auto chunk_view = heap().allocate<WebIDL::ArrayBufferView>(chunk.as_object());
 
         // 3. Let byobView be the current BYOB request view for stream.
-        // FIXME: This is not what the spec means by 'current BYOB request view'
-        auto byob_view = readable_byte_controller->raw_byob_request();
+        auto byob_view = current_byob_request_view();
 
         // 4. If byobView is non-null, and chunk.[[ViewedArrayBuffer]] is byobView.[[ViewedArrayBuffer]], then:
-        if (byob_view) {
-            // FIXME: 1. Assert: chunk.[[ByteOffset]] is byobView.[[ByteOffset]].
-            // FIXME: 2. Assert: chunk.[[ByteLength]] ≤ byobView.[[ByteLength]].
-            // FIXME: 3. Perform ? ReadableByteStreamControllerRespond(stream.[[controller]], chunk.[[ByteLength]]).
-            TODO();
-        }
+        if (byob_view && chunk_view->viewed_array_buffer() == byob_view->viewed_array_buffer()) {
+            // 1. Assert: chunk.[[ByteOffset]] is byobView.[[ByteOffset]].
+            VERIFY(chunk_view->byte_offset() == byob_view->byte_offset());
 
+            // 2. Assert: chunk.[[ByteLength]] ≤ byobView.[[ByteLength]].
+            VERIFY(chunk_view->byte_length() <= byob_view->byte_length());
+
+            // 3. Perform ? ReadableByteStreamControllerRespond(stream.[[controller]], chunk.[[ByteLength]]).
+            TRY(readable_byte_stream_controller_respond(readable_byte_controller, chunk_view->byte_length()));
+        }
         // 5. Otherwise, perform ? ReadableByteStreamControllerEnqueue(stream.[[controller]], chunk).
-        return readable_byte_stream_controller_enqueue(readable_byte_controller, chunk);
+        else {
+            TRY(readable_byte_stream_controller_enqueue(readable_byte_controller, chunk));
+        }
     }
+
+    return {};
 }
 
 // https://streams.spec.whatwg.org/#readablestream-set-up-with-byte-reading-support
