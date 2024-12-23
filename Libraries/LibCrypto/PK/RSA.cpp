@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2020, Ali Mohammad Pur <mpfard@serenityos.org>
+ * Copyright (c) 2025, Altomani Gianluca <altomanigianluca@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,8 +12,14 @@
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/ASN1/PEM.h>
 #include <LibCrypto/Certificate/Certificate.h>
+#include <LibCrypto/OpenSSL.h>
 #include <LibCrypto/PK/RSA.h>
 #include <LibCrypto/SecureRandom.h>
+
+#include <openssl/core_names.h>
+#include <openssl/evp.h>
+#include <openssl/param_build.h>
+#include <openssl/rsa.h>
 
 namespace Crypto::PK {
 
@@ -116,22 +123,46 @@ ErrorOr<RSA::KeyPairType> RSA::parse_rsa_key(ReadonlyBytes der, bool is_private,
 
 ErrorOr<RSA::KeyPairType> RSA::generate_key_pair(size_t bits, IntegerType e)
 {
-    IntegerType p;
-    IntegerType q;
-    IntegerType lambda;
+    auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_name(nullptr, "RSA", nullptr)));
 
-    do {
-        p = NumberTheory::random_big_prime(bits / 2);
-        q = NumberTheory::random_big_prime(bits / 2);
-        lambda = NumberTheory::LCM(p.minus(1), q.minus(1));
-    } while (!(NumberTheory::GCD(e, lambda) == 1));
+    OPENSSL_TRY(EVP_PKEY_keygen_init(ctx.ptr()));
 
-    auto n = p.multiplied_by(q);
+    auto e_bn = TRY(unsigned_big_integer_to_openssl_bignum(e));
 
-    auto d = NumberTheory::ModularInverse(e, lambda);
+    auto* params_bld = OPENSSL_TRY_PTR(OSSL_PARAM_BLD_new());
+    ScopeGuard const free_params_bld = [&] { OSSL_PARAM_BLD_free(params_bld); };
+
+    OPENSSL_TRY(OSSL_PARAM_BLD_push_size_t(params_bld, OSSL_PKEY_PARAM_RSA_BITS, bits));
+    OPENSSL_TRY(OSSL_PARAM_BLD_push_BN(params_bld, OSSL_PKEY_PARAM_RSA_E, e_bn.ptr()));
+
+    auto* params = OSSL_PARAM_BLD_to_param(params_bld);
+    ScopeGuard const free_params = [&] { OSSL_PARAM_free(params); };
+
+    OPENSSL_TRY(EVP_PKEY_CTX_set_params(ctx.ptr(), params));
+
+    auto key = TRY(OpenSSL_PKEY::create());
+    auto* key_ptr = key.ptr();
+    OPENSSL_TRY(EVP_PKEY_generate(ctx.ptr(), &key_ptr));
+
+#define OPENSSL_GET_KEY_PARAM(param, openssl_name)                                \
+    auto param##_bn = TRY(OpenSSL_BN::create());                                  \
+    auto* param##_bn_ptr = param##_bn.ptr();                                      \
+    OPENSSL_TRY(EVP_PKEY_get_bn_param(key.ptr(), openssl_name, &param##_bn_ptr)); \
+    auto param = TRY(openssl_bignum_to_unsigned_big_integer(param##_bn));
+
+    OPENSSL_GET_KEY_PARAM(n, OSSL_PKEY_PARAM_RSA_N);
+    OPENSSL_GET_KEY_PARAM(d, OSSL_PKEY_PARAM_RSA_D);
+    OPENSSL_GET_KEY_PARAM(p, OSSL_PKEY_PARAM_RSA_FACTOR1);
+    OPENSSL_GET_KEY_PARAM(q, OSSL_PKEY_PARAM_RSA_FACTOR2);
+    OPENSSL_GET_KEY_PARAM(dp, OSSL_PKEY_PARAM_RSA_EXPONENT1);
+    OPENSSL_GET_KEY_PARAM(dq, OSSL_PKEY_PARAM_RSA_EXPONENT2);
+    OPENSSL_GET_KEY_PARAM(qinv, OSSL_PKEY_PARAM_RSA_COEFFICIENT1);
+
+#undef OPENSSL_GET_KEY_PARAM
+
     RSAKeyPair<PublicKeyType, PrivateKeyType> keys {
         { n, e },
-        { n, d, e, p, q }
+        { n, d, e, p, q, dp, dq, qinv }
     };
     return keys;
 }
