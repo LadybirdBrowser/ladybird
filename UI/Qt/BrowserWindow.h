@@ -133,6 +133,7 @@ public slots:
     void zoom_out();
     void reset_zoom();
     void update_zoom_menu();
+    void update_displayed_zoom_level();
     void select_all();
     void show_find_in_page();
     void paste();
@@ -154,7 +155,6 @@ private:
     void debug_request(ByteString const& request, ByteString const& argument = "");
 
     void set_current_tab(Tab* tab);
-    void update_displayed_zoom_level();
 
     template<typename Callback>
     void for_each_tab(Callback&& callback)

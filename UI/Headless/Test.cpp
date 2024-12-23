@@ -308,13 +308,15 @@ static void run_ref_test(HeadlessWebView& view, Test& test, URL::URL const& url,
             } else {
                 test.ref_test_expectation_type = RefTestExpectationType::Match;
             }
-            view.take_screenshot()->when_resolved([&test, on_test_complete = move(on_test_complete)](RefPtr<Gfx::Bitmap> screenshot) {
+            view.take_screenshot()->when_resolved([&view, &test, on_test_complete = move(on_test_complete)](RefPtr<Gfx::Bitmap> screenshot) {
                 test.expectation_screenshot = move(screenshot);
+                view.reset_zoom();
                 on_test_complete();
             });
         } else {
             view.take_screenshot()->when_resolved([&view, &test](RefPtr<Gfx::Bitmap> screenshot) {
                 test.actual_screenshot = move(screenshot);
+                view.reset_zoom();
                 view.debug_request("load-reference-page");
             });
         }
@@ -329,6 +331,10 @@ static void run_ref_test(HeadlessWebView& view, Test& test, URL::URL const& url,
             return;
         timer->stop();
         timer->start(milliseconds);
+    };
+
+    view.on_set_browser_zoom = [&view](double factor) {
+        view.set_zoom(factor);
     };
 
     view.load(url);

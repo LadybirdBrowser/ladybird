@@ -33,7 +33,7 @@ public:
 private:
     HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewport_size);
 
-    void update_zoom() override { }
+    void update_zoom() override;
     void initialize_client(CreateNewClient) override;
 
     virtual Web::DevicePixelSize viewport_size() const override { return m_viewport_size; }
