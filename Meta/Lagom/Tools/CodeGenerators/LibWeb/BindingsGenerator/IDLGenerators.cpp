@@ -97,6 +97,7 @@ static bool is_platform_object(Type const& type)
         "SVGTransform"sv,
         "ShadowRoot"sv,
         "SourceBuffer"sv,
+        "Storage"sv,
         "Table"sv,
         "Text"sv,
         "TextMetrics"sv,
