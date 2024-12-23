@@ -12,6 +12,7 @@
 #include <LibWeb/DOM/ParentNode.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/HTMLAllCollection.h>
+#include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLButtonElement.h>
 #include <LibWeb/HTML/HTMLEmbedElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
@@ -20,7 +21,6 @@
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
-#include <LibWeb/HTML/HTMLLinkElement.h>
 #include <LibWeb/HTML/HTMLMapElement.h>
 #include <LibWeb/HTML/HTMLMetaElement.h>
 #include <LibWeb/HTML/HTMLObjectElement.h>
@@ -68,7 +68,7 @@ void HTMLAllCollection::visit_edges(Cell::Visitor& visitor)
 static bool is_all_named_element(DOM::Element const& element)
 {
     // The following elements are "all"-named elements: a, button, embed, form, frame, frameset, iframe, img, input, map, meta, object, select, and textarea
-    return is<HTML::HTMLLinkElement>(element)
+    return is<HTML::HTMLAnchorElement>(element)
         || is<HTML::HTMLButtonElement>(element)
         || is<HTML::HTMLEmbedElement>(element)
         || is<HTML::HTMLFormElement>(element)
