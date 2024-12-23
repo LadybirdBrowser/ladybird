@@ -229,6 +229,7 @@ void PageClient::set_viewport_size(Web::DevicePixelSize const& size)
 
     m_backing_store_manager.restart_resize_timer();
     m_backing_store_manager.resize_backing_stores_if_needed(BackingStoreManager::WindowResizingInProgress::Yes);
+    m_pending_set_browser_zoom_request = false;
 }
 
 void PageClient::page_did_request_cursor_change(Gfx::StandardCursor cursor)
@@ -369,6 +370,17 @@ void PageClient::page_did_finish_text_test(String const& text)
 void PageClient::page_did_set_test_timeout(double milliseconds)
 {
     client().async_did_set_test_timeout(m_id, milliseconds);
+}
+
+void PageClient::page_did_set_browser_zoom(double factor)
+{
+    m_pending_set_browser_zoom_request = true;
+    client().async_did_set_browser_zoom(m_id, factor);
+
+    auto& event_loop = Web::HTML::main_thread_event_loop();
+    event_loop.spin_until(GC::create_function(event_loop.heap(), [&]() {
+        return !m_pending_set_browser_zoom_request || !is_connection_open();
+    }));
 }
 
 void PageClient::page_did_request_context_menu(Web::CSSPixelPoint content_position)

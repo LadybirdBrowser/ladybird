@@ -143,6 +143,12 @@ void ViewImplementation::zoom_out()
     update_zoom();
 }
 
+void ViewImplementation::set_zoom(double zoom_level)
+{
+    m_zoom_level = max(ZOOM_MIN_LEVEL, min(zoom_level, ZOOM_MAX_LEVEL));
+    update_zoom();
+}
+
 void ViewImplementation::reset_zoom()
 {
     m_zoom_level = 1.0f;

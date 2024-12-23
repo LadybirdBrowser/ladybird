@@ -191,4 +191,10 @@ void HeadlessWebView::on_test_complete(TestCompletion completion)
     m_test_promise->resolve(move(completion));
 }
 
+void HeadlessWebView::update_zoom()
+{
+    client().async_set_device_pixels_per_css_pixel(m_client_state.page_index, m_device_pixel_ratio * m_zoom_level);
+    client().async_set_viewport_size(m_client_state.page_index, m_viewport_size);
+}
+
 }
