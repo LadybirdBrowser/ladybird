@@ -180,7 +180,7 @@ public:
     [[nodiscard]] Optional<size_t> find_last(StringView needle) const { return StringUtils::find_last(*this, needle); }
     Vector<size_t> find_all(StringView needle) const;
     using SearchDirection = StringUtils::SearchDirection;
-    [[nodiscard]] Optional<size_t> find_any_of(StringView needles, SearchDirection direction) const { return StringUtils::find_any_of(*this, needles, direction); }
+    [[nodiscard]] Optional<size_t> find_any_of(StringView needles, SearchDirection direction = SearchDirection::Forward) const { return StringUtils::find_any_of(*this, needles, direction); }
 
     [[nodiscard]] StringView find_last_split_view(char separator) const& { return view().find_last_split_view(separator); }
     [[nodiscard]] StringView find_last_split_view(char separator) const&& = delete;
