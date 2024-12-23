@@ -42,12 +42,11 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
     // file actions are not supported
     VERIFY(options.file_actions.is_empty());
 
-    char const* program_path = 0;
     StringBuilder builder;
-    if (options.search_for_executable_in_path)
-        builder.appendff("\"{}\" ", options.executable);
+    if (!options.search_for_executable_in_path && !options.executable.find_any_of("\\/:"sv).has_value())
+        builder.appendff("\"./{}\" ", options.executable);
     else
-        program_path = options.executable.characters();
+        builder.appendff("\"{}\" ", options.executable);
 
     builder.join(' ', options.arguments);
     builder.append('\0');
@@ -59,7 +58,7 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
     PROCESS_INFORMATION process_info = {};
 
     BOOL result = CreateProcess(
-        program_path,
+        NULL,
         (char*)command_line.data(),
         NULL, // process security attributes
         NULL, // primary thread security attributes
