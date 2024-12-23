@@ -21,6 +21,7 @@
 #include <LibWeb/Fetch/Response.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWeb/WebAssembly/Global.h>
 #include <LibWeb/WebAssembly/Instance.h>
 #include <LibWeb/WebAssembly/Memory.h>
 #include <LibWeb/WebAssembly/Module.h>
@@ -56,6 +57,7 @@ void visit_edges(JS::Object& object, JS::Cell::Visitor& visitor)
         visitor.visit(cache.function_instances());
         visitor.visit(cache.imported_objects());
         visitor.visit(cache.extern_values());
+        visitor.visit(cache.global_instances());
     }
 }
 
