@@ -167,47 +167,94 @@ ErrorOr<RSA::KeyPairType> RSA::generate_key_pair(size_t bits, IntegerType e)
     return keys;
 }
 
-ErrorOr<ByteBuffer> RSA::encrypt(ReadonlyBytes in, Bytes& out)
+#define OPENSSL_SET_KEY_PARAM_NOT_ZERO(param, openssl_name, value)                       \
+    auto param##_bn = TRY(unsigned_big_integer_to_openssl_bignum(value));                \
+    if (!value.is_zero()) {                                                              \
+        OPENSSL_TRY(OSSL_PARAM_BLD_push_BN(params_bld, openssl_name, param##_bn.ptr())); \
+    }
+
+ErrorOr<OpenSSL_PKEY> RSA::public_key_to_openssl_pkey(PublicKeyType const& public_key)
 {
-    dbgln_if(CRYPTO_DEBUG, "in size: {}", in.size());
-    auto in_integer = UnsignedBigInteger::import_data(in.data(), in.size());
-    if (in_integer >= m_public_key.modulus())
-        return Error::from_string_literal("Data too large for key");
+    auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_name(nullptr, "RSA", nullptr)));
 
-    auto exp = NumberTheory::ModularPower(in_integer, m_public_key.public_exponent(), m_public_key.modulus());
+    OPENSSL_TRY(EVP_PKEY_fromdata_init(ctx.ptr()));
 
-    auto out = TRY(ByteBuffer::create_uninitialized(exp.byte_length()));
-    auto size = exp.export_data(out);
-    auto outsize = out.size();
-    VERIFY(size == outsize);
-    return out;
+    auto* params_bld = OPENSSL_TRY_PTR(OSSL_PARAM_BLD_new());
+    ScopeGuard const free_params_bld = [&] { OSSL_PARAM_BLD_free(params_bld); };
+
+    OPENSSL_SET_KEY_PARAM_NOT_ZERO(n, OSSL_PKEY_PARAM_RSA_N, public_key.modulus());
+    OPENSSL_SET_KEY_PARAM_NOT_ZERO(e, OSSL_PKEY_PARAM_RSA_E, public_key.public_exponent());
+
+    auto* params = OSSL_PARAM_BLD_to_param(params_bld);
+    ScopeGuard const free_params = [&] { OSSL_PARAM_free(params); };
+
+    auto key = TRY(OpenSSL_PKEY::create());
+    auto* key_ptr = key.ptr();
+    OPENSSL_TRY(EVP_PKEY_fromdata(ctx.ptr(), &key_ptr, EVP_PKEY_PUBLIC_KEY, params));
+    return key;
+}
+
+ErrorOr<OpenSSL_PKEY> RSA::private_key_to_openssl_pkey(PrivateKeyType const& private_key)
+{
+    auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_name(nullptr, "RSA", nullptr)));
+
+    OPENSSL_TRY(EVP_PKEY_fromdata_init(ctx.ptr()));
+
+    auto* params_bld = OPENSSL_TRY_PTR(OSSL_PARAM_BLD_new());
+    ScopeGuard const free_params_bld = [&] { OSSL_PARAM_BLD_free(params_bld); };
+
+    OPENSSL_SET_KEY_PARAM_NOT_ZERO(n, OSSL_PKEY_PARAM_RSA_N, private_key.modulus());
+    OPENSSL_SET_KEY_PARAM_NOT_ZERO(e, OSSL_PKEY_PARAM_RSA_E, private_key.public_exponent());
+    OPENSSL_SET_KEY_PARAM_NOT_ZERO(d, OSSL_PKEY_PARAM_RSA_D, private_key.private_exponent());
+    OPENSSL_SET_KEY_PARAM_NOT_ZERO(p, OSSL_PKEY_PARAM_RSA_FACTOR1, private_key.prime1());
+    OPENSSL_SET_KEY_PARAM_NOT_ZERO(q, OSSL_PKEY_PARAM_RSA_FACTOR2, private_key.prime2());
+    OPENSSL_SET_KEY_PARAM_NOT_ZERO(dp, OSSL_PKEY_PARAM_RSA_EXPONENT1, private_key.exponent1());
+    OPENSSL_SET_KEY_PARAM_NOT_ZERO(dq, OSSL_PKEY_PARAM_RSA_EXPONENT2, private_key.exponent2());
+    OPENSSL_SET_KEY_PARAM_NOT_ZERO(qinv, OSSL_PKEY_PARAM_RSA_COEFFICIENT1, private_key.coefficient());
+
+    auto* params = OSSL_PARAM_BLD_to_param(params_bld);
+    ScopeGuard const free_params = [&] { OSSL_PARAM_free(params); };
+
+    auto key = TRY(OpenSSL_PKEY::create());
+    auto* key_ptr = key.ptr();
+    OPENSSL_TRY(EVP_PKEY_fromdata(ctx.ptr(), &key_ptr, EVP_PKEY_KEYPAIR, params));
+    return key;
+}
+
+#undef OPENSSL_SET_KEY_PARAM_NOT_ZERO
+
+ErrorOr<ByteBuffer> RSA::encrypt(ReadonlyBytes in)
+{
+    auto key = TRY(public_key_to_openssl_pkey(m_public_key));
+
+    auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_pkey(nullptr, key.ptr(), nullptr)));
+
+    OPENSSL_TRY(EVP_PKEY_encrypt_init(ctx.ptr()));
+    OPENSSL_TRY(EVP_PKEY_CTX_set_rsa_padding(ctx.ptr(), RSA_NO_PADDING));
+
+    size_t out_size = 0;
+    OPENSSL_TRY(EVP_PKEY_encrypt(ctx.ptr(), nullptr, &out_size, in.data(), in.size()));
+
+    auto out = TRY(ByteBuffer::create_uninitialized(out_size));
+    OPENSSL_TRY(EVP_PKEY_encrypt(ctx.ptr(), out.data(), &out_size, in.data(), in.size()));
+    return out.slice(0, out_size);
 }
 
 ErrorOr<ByteBuffer> RSA::decrypt(ReadonlyBytes in)
 {
-    auto in_integer = UnsignedBigInteger::import_data(in.data(), in.size());
+    auto key = TRY(private_key_to_openssl_pkey(m_private_key));
 
-    UnsignedBigInteger m;
-    if (m_private_key.prime1().is_zero() || m_private_key.prime2().is_zero()) {
-        m = NumberTheory::ModularPower(in_integer, m_private_key.private_exponent(), m_private_key.modulus());
-    } else {
-        auto m1 = NumberTheory::ModularPower(in_integer, m_private_key.exponent1(), m_private_key.prime1());
-        auto m2 = NumberTheory::ModularPower(in_integer, m_private_key.exponent2(), m_private_key.prime2());
-        while (m1 < m2)
-            m1 = m1.plus(m_private_key.prime1());
+    auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_pkey(nullptr, key.ptr(), nullptr)));
 
-        auto h = NumberTheory::Mod(m1.minus(m2).multiplied_by(m_private_key.coefficient()), m_private_key.prime1());
-        m = m2.plus(h.multiplied_by(m_private_key.prime2()));
-    }
+    OPENSSL_TRY(EVP_PKEY_decrypt_init(ctx.ptr()));
+    OPENSSL_TRY(EVP_PKEY_CTX_set_rsa_padding(ctx.ptr(), RSA_NO_PADDING));
 
-    auto out = TRY(ByteBuffer::create_uninitialized(m.byte_length()));
-    auto size = m.export_data(out);
-    auto align = m_private_key.length();
-    auto aligned_size = (size + align - 1) / align * align;
+    size_t out_size = 0;
+    OPENSSL_TRY(EVP_PKEY_decrypt(ctx.ptr(), nullptr, &out_size, in.data(), in.size()));
 
-    for (auto i = size; i < aligned_size; ++i)
-        out[out.size() - i - 1] = 0; // zero the non-aligned values
-    return out.slice(out.size() - aligned_size, aligned_size);
+    auto out = TRY(ByteBuffer::create_uninitialized(out_size));
+    OPENSSL_TRY(EVP_PKEY_decrypt(ctx.ptr(), out.data(), &out_size, in.data(), in.size()));
+    return out.slice(0, out_size);
 }
 
 ErrorOr<ByteBuffer> RSA::sign(ReadonlyBytes in)
