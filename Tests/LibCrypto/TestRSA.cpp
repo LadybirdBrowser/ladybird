@@ -36,7 +36,9 @@ TEST_CASE(test_RSA_raw_encrypt)
 TEST_CASE(test_RSA_PKCS_1_encrypt)
 {
     ByteBuffer data { "hellohellohellohellohellohellohellohellohello123-"_b };
-    Crypto::PK::RSA_PKCS1_EME rsa(Crypto::PK::RSA::generate_key_pair(1024));
+
+    auto keypair = TRY_OR_FAIL(Crypto::PK::RSA::generate_key_pair(1024));
+    Crypto::PK::RSA_PKCS1_EME rsa(keypair);
     ByteBuffer buffer = {};
     buffer.resize(rsa.output_size());
     auto buf = buffer.bytes();
@@ -155,7 +157,8 @@ c8yGzl89pYST
 
 TEST_CASE(test_RSA_encrypt_decrypt)
 {
-    Crypto::PK::RSA rsa(Crypto::PK::RSA::generate_key_pair(1024));
+    auto keypair = TRY_OR_FAIL(Crypto::PK::RSA::generate_key_pair(1024));
+    Crypto::PK::RSA rsa(keypair);
 
     ByteBuffer enc_buffer = {};
     enc_buffer.resize(rsa.output_size());
