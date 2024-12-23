@@ -11,6 +11,7 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/InstancePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/WebAssembly/Global.h>
 #include <LibWeb/WebAssembly/Instance.h>
 #include <LibWeb/WebAssembly/Memory.h>
 #include <LibWeb/WebAssembly/Module.h>
@@ -45,6 +46,9 @@ void Instance::initialize(JS::Realm& realm)
     Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE_WITH_CUSTOM_NAME(Instance, WebAssembly.Instance);
 
+    auto& cache = Detail::get_cache(realm);
+
+    // https://webassembly.github.io/spec/js-api/#create-an-exports-object
     for (auto& export_ : m_module_instance->exports()) {
         export_.value().visit(
             [&](Wasm::FunctionAddress const& address) {
@@ -52,6 +56,14 @@ void Instance::initialize(JS::Realm& realm)
                 if (!object.has_value()) {
                     object = Detail::create_native_function(vm, address, export_.name(), this);
                     m_function_instances.set(address, *object);
+                }
+
+                m_exports->define_direct_property(export_.name(), *object, JS::default_attributes);
+            },
+            [&](Wasm::GlobalAddress const& address) {
+                Optional<GC::Ptr<Global>> object = cache.get_global_instance(address);
+                if (!object.has_value()) {
+                    object = realm.create<Global>(realm, address);
                 }
 
                 m_exports->define_direct_property(export_.name(), *object, JS::default_attributes);
@@ -73,9 +85,6 @@ void Instance::initialize(JS::Realm& realm)
                 }
 
                 m_exports->define_direct_property(export_.name(), *object, JS::default_attributes);
-            },
-            [&](auto const&) {
-                // FIXME: Implement other exports!
             });
     }
 

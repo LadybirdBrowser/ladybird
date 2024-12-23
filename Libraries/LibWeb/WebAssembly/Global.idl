@@ -1,0 +1,24 @@
+// https://webassembly.github.io/spec/js-api/#enumdef-valuetype
+enum ValueType {
+    "i32",
+    "i64",
+    "f32",
+    "f64",
+    "v128",
+    "externref",
+    "anyfunc",
+};
+
+// https://webassembly.github.io/spec/js-api/#dictdef-globaldescriptor
+dictionary GlobalDescriptor {
+    required ValueType value;
+    boolean mutable = false;
+};
+
+// https://webassembly.github.io/spec/js-api/#global
+[LegacyNamespace=WebAssembly, Exposed=*]
+interface Global {
+    constructor(GlobalDescriptor descriptor, optional any v);
+    any valueOf();
+    attribute any value;
+};
