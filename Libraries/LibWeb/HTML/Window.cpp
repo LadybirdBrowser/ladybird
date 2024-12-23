@@ -453,7 +453,7 @@ WebIDL::ExceptionOr<GC::Ref<Storage>> Window::local_storage()
     // FIXME: Implement according to spec.
     static HashMap<URL::Origin, GC::Root<Storage>> local_storage_per_origin;
     auto storage = local_storage_per_origin.ensure(associated_document().origin(), [this]() -> GC::Root<Storage> {
-        return Storage::create(realm(), quota_bytes);
+        return Storage::create(realm(), Storage::Type::Local, quota_bytes);
     });
     return GC::Ref { *storage };
 }
@@ -467,7 +467,7 @@ WebIDL::ExceptionOr<GC::Ref<Storage>> Window::session_storage()
     // FIXME: Implement according to spec.
     static HashMap<URL::Origin, GC::Root<Storage>> session_storage_per_origin;
     auto storage = session_storage_per_origin.ensure(associated_document().origin(), [this]() -> GC::Root<Storage> {
-        return Storage::create(realm(), quota_bytes);
+        return Storage::create(realm(), Storage::Type::Session, quota_bytes);
     });
     return GC::Ref { *storage };
 }
