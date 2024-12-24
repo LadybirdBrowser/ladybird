@@ -6,8 +6,8 @@ function usage {
     echo "compilation database according to the selected build type."
 }
 
-script_path=$(cd -P -- "$(dirname -- "$0")" && pwd -P)
-cd "${script_path}/.." || exit 1
+script_path=$(CDPATH='' cd -P -- "$(dirname -- "$0")" && pwd -P)
+CDPATH='' cd "${script_path}/.." || exit 1
 
 # Check if the user has sed.
 
