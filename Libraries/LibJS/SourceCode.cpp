@@ -35,7 +35,7 @@ String const& SourceCode::code() const
 
 void SourceCode::fill_position_cache() const
 {
-    constexpr size_t predicted_mimimum_cached_positions = 8;
+    constexpr size_t predicted_minimum_cached_positions = 8;
     constexpr size_t minimum_distance_between_cached_positions = 32;
     constexpr size_t maximum_distance_between_cached_positions = 8192;
 
@@ -46,7 +46,7 @@ void SourceCode::fill_position_cache() const
     size_t line = 1;
     size_t column = 1;
     size_t offset_of_last_starting_point = 0;
-    m_cached_positions.ensure_capacity(predicted_mimimum_cached_positions + m_code.bytes().size() / maximum_distance_between_cached_positions);
+    m_cached_positions.ensure_capacity(predicted_minimum_cached_positions + m_code.bytes().size() / maximum_distance_between_cached_positions);
     m_cached_positions.append({ .line = 1, .column = 1, .offset = 0 });
 
     Utf8View const view(m_code);

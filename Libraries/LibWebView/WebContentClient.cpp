@@ -307,8 +307,8 @@ void WebContentClient::did_get_hovered_node_id(u64 page_id, Web::UniqueNodeID co
 void WebContentClient::did_finish_editing_dom_node(u64 page_id, Optional<Web::UniqueNodeID> const& node_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_finshed_editing_dom_node)
-            view->on_finshed_editing_dom_node(node_id);
+        if (view->on_finished_editing_dom_node)
+            view->on_finished_editing_dom_node(node_id);
     }
 }
 
