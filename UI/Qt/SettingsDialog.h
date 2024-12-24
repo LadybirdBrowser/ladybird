@@ -8,9 +8,11 @@
 #include <QCheckBox>
 #include <QDialog>
 #include <QFormLayout>
+#include <QLabel>
 #include <QLineEdit>
 #include <QMainWindow>
 #include <QPushButton>
+#include <qslider.h>
 
 #pragma once
 
@@ -35,6 +37,11 @@ private:
     QPushButton* m_autocomplete_engine_dropdown { nullptr };
     QCheckBox* m_enable_do_not_track { nullptr };
     QCheckBox* m_enable_autoplay { nullptr };
+    QPushButton* m_reset_scrolling_speed { nullptr };
+    QLabel* m_scrolling_speed_label { nullptr };
+    QSlider* m_scrolling_speed { nullptr };
+    QCheckBox* m_invert_vertical_scrolling { nullptr };
+    QCheckBox* m_invert_horizontal_scrolling { nullptr };
 };
 
 }
