@@ -32,12 +32,14 @@
 #include <LibWeb/CSS/AnimationEvent.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSImportRule.h>
+#include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/FontFaceSet.h>
 #include <LibWeb/CSS/MediaQueryList.h>
 #include <LibWeb/CSS/MediaQueryListEvent.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/CSS/SystemColor.h>
+#include <LibWeb/CSS/TransitionEvent.h>
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/Cookie/ParsedCookie.h>
 #include <LibWeb/DOM/AdoptedStyleSheets.h>
@@ -2204,9 +2206,139 @@ Element* Document::find_a_potential_indicated_element(FlyString const& fragment)
     return nullptr;
 }
 
+// https://drafts.csswg.org/css-transitions-2/#event-dispatch
+void Document::dispatch_events_for_transition(GC::Ref<CSS::CSSTransition> transition)
+{
+    auto previous_phase = transition->previous_phase();
+
+    using Phase = CSS::CSSTransition::Phase;
+    // The transition phase of a transition is initially ‘idle’ and is updated on each
+    // animation frame according to the first matching condition from below:
+    auto transition_phase = Phase::Idle;
+
+    if (!transition->effect()) {
+        // If the transition has no associated effect,
+        if (!transition->current_time().has_value()) {
+            // If the transition has an unresolved current time,
+            //   The transition phase is ‘idle’.
+        } else if (transition->current_time().value() < 0.0) {
+            // If the transition has a current time < 0,
+            //   The transition phase is ‘before’.
+            transition_phase = Phase::Before;
+        } else {
+            // Otherwise,
+            //   The transition phase is ‘after’.
+            transition_phase = Phase::After;
+        }
+    } else if (transition->pending() && (previous_phase == Phase::Idle || previous_phase == Phase::Pending)) {
+        // If the transition has a pending play task or a pending pause task
+        // and its phase was previously ‘idle’ or ‘pending’,
+        //   The transition phase is ‘pending’.
+        transition_phase = Phase::Pending;
+    } else {
+        // Otherwise,
+        //   The transition phase is the phase of its associated effect.
+        transition_phase = Phase(to_underlying(transition->effect()->phase()));
+    }
+
+    enum class Interval : u8 {
+        Start,
+        End,
+        ActiveTime,
+    };
+
+    auto dispatch_event = [&](FlyString const& type, Interval interval) {
+        // The target for a transition event is the transition’s owning element. If there is no owning element,
+        // no transition events are dispatched.
+        if (!transition->effect() || !transition->owning_element())
+            return;
+
+        auto effect = transition->effect();
+
+        double elapsed_time = [&]() {
+            if (interval == Interval::Start)
+                return max(min(-effect->start_delay(), effect->active_duration()), 0) / 1000;
+            if (interval == Interval::End)
+                return max(min(transition->associated_effect_end() - effect->start_delay(), effect->active_duration()), 0) / 1000;
+            if (interval == Interval::ActiveTime) {
+                // The active time of the animation at the moment it was canceled calculated using a fill mode of both.
+                // FIXME: Compute this properly.
+                return 0.0;
+            }
+            VERIFY_NOT_REACHED();
+        }();
+
+        append_pending_animation_event({
+            .event = CSS::TransitionEvent::create(
+                transition->owning_element()->realm(),
+                type,
+                CSS::TransitionEventInit {
+                    { .bubbles = true },
+                    // FIXME: Correctly set property_name and pseudo_element
+                    String {},
+                    elapsed_time,
+                    String {},
+                }),
+            .animation = transition,
+            .target = *transition->owning_element(),
+            .scheduled_event_time = HighResolutionTime::unsafe_shared_current_time(),
+        });
+    };
+
+    if (previous_phase == Phase::Idle) {
+        if (transition_phase == Phase::Pending || transition_phase == Phase::Before)
+            dispatch_event(HTML::EventNames::transitionrun, Interval::Start);
+
+        if (transition_phase == Phase::Active) {
+            dispatch_event(HTML::EventNames::transitionrun, Interval::Start);
+            dispatch_event(HTML::EventNames::transitionstart, Interval::Start);
+        }
+
+        if (transition_phase == Phase::After) {
+            dispatch_event(HTML::EventNames::transitionrun, Interval::Start);
+            dispatch_event(HTML::EventNames::transitionstart, Interval::Start);
+            dispatch_event(HTML::EventNames::transitionend, Interval::End);
+        }
+    } else if (previous_phase == Phase::Pending || previous_phase == Phase::Before) {
+        if (transition_phase == Phase::Active)
+            dispatch_event(HTML::EventNames::transitionstart, Interval::Start);
+
+        if (transition_phase == Phase::After) {
+            dispatch_event(HTML::EventNames::transitionstart, Interval::Start);
+            dispatch_event(HTML::EventNames::transitionend, Interval::End);
+        }
+    } else if (previous_phase == Phase::Active) {
+        if (transition_phase == Phase::After)
+            dispatch_event(HTML::EventNames::transitionend, Interval::End);
+
+        if (transition_phase == Phase::Before)
+            dispatch_event(HTML::EventNames::transitionend, Interval::Start);
+    } else if (previous_phase == Phase::After) {
+        if (transition_phase == Phase::Active)
+            dispatch_event(HTML::EventNames::transitionstart, Interval::End);
+
+        if (transition_phase == Phase::Before) {
+            dispatch_event(HTML::EventNames::transitionstart, Interval::End);
+            dispatch_event(HTML::EventNames::transitionend, Interval::Start);
+        }
+    }
+
+    if (transition_phase == Phase::Idle) {
+        if (previous_phase != Phase::Idle && previous_phase != Phase::After)
+            dispatch_event(HTML::EventNames::animationstart, Interval::ActiveTime);
+    }
+
+    transition->set_previous_phase(transition_phase);
+}
+
 // https://www.w3.org/TR/css-animations-2/#event-dispatch
 void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::Animation> animation)
 {
+    if (animation->is_css_transition()) {
+        dispatch_events_for_transition(verify_cast<CSS::CSSTransition>(*animation));
+        return;
+    }
+
     // Each time a new animation frame is established and the animation does not have a pending play task or pending
     // pause task, the events to dispatch are determined by comparing the animation’s phase before and after
     // establishing the new animation frame as follows:

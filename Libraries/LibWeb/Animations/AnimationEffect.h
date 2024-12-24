@@ -118,6 +118,7 @@ public:
     bool is_in_the_active_phase() const;
     bool is_in_the_idle_phase() const;
 
+    // Keep this enum up to date with CSSTransition::Phase.
     enum class Phase {
         Before,
         Active,

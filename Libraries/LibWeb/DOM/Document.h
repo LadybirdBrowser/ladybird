@@ -785,6 +785,7 @@ private:
 
     Element* find_a_potential_indicated_element(FlyString const& fragment) const;
 
+    void dispatch_events_for_transition(GC::Ref<CSS::CSSTransition>);
     void dispatch_events_for_animation_if_necessary(GC::Ref<Animations::Animation>);
 
     template<typename GetNotifier, typename... Args>

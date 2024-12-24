@@ -1,0 +1,16 @@
+#import <DOM/Event.idl>
+
+// https://drafts.csswg.org/css-transitions/#transitionevent
+[Exposed=Window]
+interface TransitionEvent : Event {
+    constructor(CSSOMString type, optional TransitionEventInit transitionEventInitDict = {});
+    readonly attribute CSSOMString propertyName;
+    readonly attribute double elapsedTime;
+    readonly attribute CSSOMString pseudoElement;
+};
+
+dictionary TransitionEventInit : EventInit {
+    CSSOMString propertyName = "";
+    double elapsedTime = 0.0;
+    CSSOMString pseudoElement = "";
+};

@@ -1,0 +1,46 @@
+Harness status: OK
+
+Found 41 tests
+
+41 Pass
+Pass	the event is an instance of TransitionEvent
+Pass	the event inherts from Event
+Pass	Missing type argument
+Pass	type argument is string
+Pass	type argument is null
+Pass	event type set to undefined
+Pass	propertyName has default value of empty string
+Pass	elapsedTime has default value of 0.0
+Pass	propertyName is readonly
+Pass	elapsedTime is readonly
+Pass	animationEventInit argument is null
+Pass	animationEventInit argument is undefined
+Pass	animationEventInit argument is empty dictionary
+Pass	TransitionEvent.pseudoElement initialized from the dictionary
+Pass	propertyName set to 'sample'
+Pass	propertyName set to undefined
+Pass	propertyName set to null
+Pass	propertyName set to false
+Pass	propertyName set to true
+Pass	propertyName set to a number
+Pass	propertyName set to []
+Pass	propertyName set to [1, 2, 3]
+Pass	propertyName set to an object
+Pass	propertyName set to an object with a valueOf function
+Pass	elapsedTime set to 0.5
+Pass	elapsedTime set to -0.5
+Pass	elapsedTime set to undefined
+Pass	elapsedTime set to null
+Pass	elapsedTime set to false
+Pass	elapsedTime set to true
+Pass	elapsedTime set to ''
+Pass	elapsedTime set to []
+Pass	elapsedTime set to [0.5]
+Pass	elapsedTime set to an object with a valueOf function
+Pass	elapsedTime cannot be set to NaN
+Pass	elapsedTime cannot be set to Infinity
+Pass	elapsedTime cannot be set to -Infinity
+Pass	elapsedTime cannot be set to 'sample'
+Pass	elapsedTime cannot be set to [0.5, 1.0]
+Pass	elapsedTime cannot be set to an object
+Pass	TransitionEventInit properties set value

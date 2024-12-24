@@ -380,6 +380,7 @@ ToggleEvent
 TrackEvent
 TransformStream
 TransformStreamDefaultController
+TransitionEvent
 TreeWalker
 TypeError
 UIEvent
