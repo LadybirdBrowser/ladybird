@@ -2851,8 +2851,14 @@ GC::Ptr<DOM::Node> wrap(
         auto first_member = node_list.first();
         first_member->parent()->insert_before(*new_parent, first_member);
 
-        // FIXME: 2. If any range has a boundary point with node equal to the parent of new parent and offset equal to the
+        // 2. If any range has a boundary point with node equal to the parent of new parent and offset equal to the
         //    index of new parent, add one to that boundary point's offset.
+        auto new_parent_index = new_parent->index();
+        auto active_range = new_parent->document().get_selection()->range();
+        if (active_range && active_range->start_container() == new_parent && active_range->start_offset() == new_parent_index)
+            MUST(active_range->set_start(active_range->start_container(), new_parent_index + 1));
+        if (active_range && active_range->end_container() == new_parent && active_range->end_offset() == new_parent_index)
+            MUST(active_range->set_end(active_range->end_container(), new_parent_index + 1));
     }
 
     // 11. Let original parent be the parent of the first member of node list.
