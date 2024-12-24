@@ -2238,7 +2238,7 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
                     {
                         { .bubbles = true },
                         css_animation.id(),
-                        elapsed_time,
+                        elapsed_time / 1000, // Convert to seconds.
                     }),
                 .animation = css_animation,
                 .target = *target,
