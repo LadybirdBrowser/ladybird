@@ -45,5 +45,7 @@ interface Internals {
     DOMString getComputedLabel(Element element);
     unsigned short getEchoServerPort();
 
+    undefined setBrowserZoom(double factor);
+
     readonly attribute boolean headless;
 };
