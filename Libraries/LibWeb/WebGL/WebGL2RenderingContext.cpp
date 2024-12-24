@@ -69,6 +69,7 @@ void WebGL2RenderingContext::initialize(JS::Realm& realm)
 void WebGL2RenderingContext::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    WebGL2RenderingContextImpl::visit_edges(visitor);
     visitor.visit(m_canvas_element);
 }
 
