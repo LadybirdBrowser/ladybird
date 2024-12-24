@@ -194,17 +194,32 @@ bool NumericCalculationNode::contains_percentage() const
     return m_value.has<Percentage>();
 }
 
+static Optional<CSSNumericType> numeric_type_from_calculated_style_value(CalculatedStyleValue::CalculationResult::Value const& value)
+{
+    return value.visit(
+        [](Number const&) -> Optional<CSSNumericType> { return {}; },
+        [](Angle const&) -> Optional<CSSNumericType> { return CSSNumericType(CSSNumericType::BaseType::Angle, 1); },
+        [](Flex const&) -> Optional<CSSNumericType> { return CSSNumericType(CSSNumericType::BaseType::Flex, 1); },
+        [](Frequency const&) -> Optional<CSSNumericType> { return CSSNumericType(CSSNumericType::BaseType::Frequency, 1); },
+        [](Length const&) -> Optional<CSSNumericType> { return CSSNumericType(CSSNumericType::BaseType::Length, 1); },
+        [](Resolution const&) -> Optional<CSSNumericType> { return CSSNumericType(CSSNumericType::BaseType::Resolution, 1); },
+        [](Percentage const&) -> Optional<CSSNumericType> { return CSSNumericType(CSSNumericType::BaseType::Percent, 1); },
+        [](Time const&) -> Optional<CSSNumericType> { return CSSNumericType(CSSNumericType::BaseType::Time, 1); }
+    );
+}
+
 CalculatedStyleValue::CalculationResult NumericCalculationNode::resolve(Optional<Length::ResolutionContext const&> resolution_context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
 {
     if (m_value.has<Percentage>()) {
         // NOTE: Depending on whether percentage_basis is set, the caller of resolve() is expecting a raw percentage or
         //       resolved type.
         return percentage_basis.visit(
-            [&](Empty const&) -> CalculatedStyleValue::CalculationResult {
+            [&](Empty const&) {
                 return CalculatedStyleValue::CalculationResult::from_value(m_value, resolution_context, numeric_type());
             },
             [&](auto const& value) {
-                return CalculatedStyleValue::CalculationResult::from_value(value.percentage_of(m_value.get<Percentage>()), resolution_context, numeric_type());
+                const auto calculated_value = value.percentage_of(m_value.get<Percentage>());
+                return CalculatedStyleValue::CalculationResult::from_value(calculated_value, resolution_context, numeric_type_from_calculated_style_value(calculated_value));
             });
     }
 
@@ -1730,6 +1745,15 @@ bool RemCalculationNode::equals(CalculationNode const& other) const
 
 CalculatedStyleValue::CalculationResult CalculatedStyleValue::CalculationResult::from_value(Value const& value, Optional<Length::ResolutionContext const&> context, Optional<CSSNumericType> numeric_type)
 {
+    const auto expected_numeric_type = numeric_type_from_calculated_style_value(value);
+    if (expected_numeric_type.has_value()) {
+        VERIFY(numeric_type.has_value());
+    }
+
+    if (numeric_type.has_value() && expected_numeric_type.has_value()) {
+        VERIFY(numeric_type.value() == expected_numeric_type.value());
+    }
+
     auto number = value.visit(
         [](Number const& number) { return number.value(); },
         [](Angle const& angle) { return angle.to_degrees(); },
