@@ -1,0 +1,132 @@
+Harness status: OK
+
+Found 126 tests
+
+122 Pass
+4 Fail
+Pass	new DOMMatrix()
+Pass	new DOMMatrix(undefined)
+Pass	new DOMMatrix(new DOMMatrix())
+Pass	new DOMMatrix("none")
+Pass	new DOMMatrix(" none")
+Pass	new DOMMatrix("none ")
+Pass	new DOMMatrix("NONE")
+Pass	new DOMMatrix("none/**/")
+Pass	new DOMMatrix("/**/none")
+Pass	new DOMMatrix("")
+Pass	new DOMMatrix(float32Array) 16 elements
+Pass	new DOMMatrix(float32Array) 6 elements
+Pass	new DOMMatrix(float64Array) 16 elements
+Pass	new DOMMatrix((float64Array) 6 elements
+Pass	new DOMMatrix(sequence) 16 elements
+Pass	new DOMMatrix(sequence) 6 elements
+Pass	new DOMMatrix("scale(2) translateX(5px) translateY(5px)")
+Pass	new DOMMatrix("scale(2, 2) translateX(5px) translateY(5px)")
+Pass	new DOMMatrix("scale(2)translateX(5px)translateY(5px)")
+Fail	new DOMMatrix("scale(2) translateX(calc(2 * 2.5px)) translateY(5px)")
+Pass	new DOMMatrix("scale(2) translateX(5px) translateY(5px) rotate(5deg) rotate(-5deg)")
+Pass	new DOMMatrix("translateX    (5px)")
+Pass	new DOMMatrix("scale(2 2) translateX(5) translateY(5)")
+Pass	new DOMMatrix("scale(2, 2), translateX(5)  ,translateY(5)")
+Pass	new DOMMatrix("translateX(5em)")
+Pass	new DOMMatrix("translateX(5ex)")
+Pass	new DOMMatrix("translateX(5ch)")
+Pass	new DOMMatrix("translateX(5rem)")
+Pass	new DOMMatrix("translateX(5cqw)")
+Pass	new DOMMatrix("translateX(5cqh)")
+Pass	new DOMMatrix("translateX(5cqb)")
+Pass	new DOMMatrix("translateX(5cqi)")
+Pass	new DOMMatrix("translateX(5cqmin)")
+Pass	new DOMMatrix("translateX(5cqmax)")
+Pass	new DOMMatrix("translateX(5vw)")
+Pass	new DOMMatrix("translateX(5vh)")
+Pass	new DOMMatrix("translateX(5vb)")
+Pass	new DOMMatrix("translateX(5vi)")
+Pass	new DOMMatrix("translateX(5vmin)")
+Pass	new DOMMatrix("translateX(5vmax)")
+Pass	new DOMMatrix("translateX(5%)")
+Pass	new DOMMatrix("rotate(5)")
+Pass	new DOMMatrix("rotate(5, 5, 5)")
+Pass	new DOMMatrix("rotate(5, 5px, 5px)")
+Pass	new DOMMatrix("rotate(5deg, 5px, 5px)")
+Pass	new DOMMatrix(" ")
+Pass	new DOMMatrix("/**/")
+Pass	new DOMMatrix("\0")
+Pass	new DOMMatrix(";")
+Fail	new DOMMatrix("none;")
+Pass	new DOMMatrix("null")
+Pass	new DOMMatrix(null)
+Pass	new DOMMatrix("undefined")
+Pass	new DOMMatrix("inherit")
+Pass	new DOMMatrix("initial")
+Pass	new DOMMatrix("unset")
+Pass	new DOMMatrix(sequence)
+Pass	new DOMMatrix(matrix)
+Pass	new DOMMatrix("scale(2, 2), translateX(5px) translateY(5px)")
+Pass	new DOMMatrix(sequence) 17 elements
+Pass	new DOMMatrix(sequence) 15 elements
+Pass	new DOMMatrix(sequence) 5 elements
+Pass	new DOMMatrix(sequence) 0 elements
+Pass	new DOMMatrixReadOnly()
+Pass	new DOMMatrixReadOnly(undefined)
+Pass	new DOMMatrixReadOnly(new DOMMatrixReadOnly())
+Pass	new DOMMatrixReadOnly("none")
+Pass	new DOMMatrixReadOnly(" none")
+Pass	new DOMMatrixReadOnly("none ")
+Pass	new DOMMatrixReadOnly("NONE")
+Pass	new DOMMatrixReadOnly("none/**/")
+Pass	new DOMMatrixReadOnly("/**/none")
+Pass	new DOMMatrixReadOnly("")
+Pass	new DOMMatrixReadOnly(float32Array) 16 elements
+Pass	new DOMMatrixReadOnly(float32Array) 6 elements
+Pass	new DOMMatrixReadOnly(float64Array) 16 elements
+Pass	new DOMMatrixReadOnly((float64Array) 6 elements
+Pass	new DOMMatrixReadOnly(sequence) 16 elements
+Pass	new DOMMatrixReadOnly(sequence) 6 elements
+Pass	new DOMMatrixReadOnly("scale(2) translateX(5px) translateY(5px)")
+Pass	new DOMMatrixReadOnly("scale(2, 2) translateX(5px) translateY(5px)")
+Pass	new DOMMatrixReadOnly("scale(2)translateX(5px)translateY(5px)")
+Fail	new DOMMatrixReadOnly("scale(2) translateX(calc(2 * 2.5px)) translateY(5px)")
+Pass	new DOMMatrixReadOnly("scale(2) translateX(5px) translateY(5px) rotate(5deg) rotate(-5deg)")
+Pass	new DOMMatrixReadOnly("translateX    (5px)")
+Pass	new DOMMatrixReadOnly("scale(2 2) translateX(5) translateY(5)")
+Pass	new DOMMatrixReadOnly("scale(2, 2), translateX(5)  ,translateY(5)")
+Pass	new DOMMatrixReadOnly("translateX(5em)")
+Pass	new DOMMatrixReadOnly("translateX(5ex)")
+Pass	new DOMMatrixReadOnly("translateX(5ch)")
+Pass	new DOMMatrixReadOnly("translateX(5rem)")
+Pass	new DOMMatrixReadOnly("translateX(5cqw)")
+Pass	new DOMMatrixReadOnly("translateX(5cqh)")
+Pass	new DOMMatrixReadOnly("translateX(5cqb)")
+Pass	new DOMMatrixReadOnly("translateX(5cqi)")
+Pass	new DOMMatrixReadOnly("translateX(5cqmin)")
+Pass	new DOMMatrixReadOnly("translateX(5cqmax)")
+Pass	new DOMMatrixReadOnly("translateX(5vw)")
+Pass	new DOMMatrixReadOnly("translateX(5vh)")
+Pass	new DOMMatrixReadOnly("translateX(5vb)")
+Pass	new DOMMatrixReadOnly("translateX(5vi)")
+Pass	new DOMMatrixReadOnly("translateX(5vmin)")
+Pass	new DOMMatrixReadOnly("translateX(5vmax)")
+Pass	new DOMMatrixReadOnly("translateX(5%)")
+Pass	new DOMMatrixReadOnly("rotate(5)")
+Pass	new DOMMatrixReadOnly("rotate(5, 5, 5)")
+Pass	new DOMMatrixReadOnly("rotate(5, 5px, 5px)")
+Pass	new DOMMatrixReadOnly("rotate(5deg, 5px, 5px)")
+Pass	new DOMMatrixReadOnly(" ")
+Pass	new DOMMatrixReadOnly("/**/")
+Pass	new DOMMatrixReadOnly("\0")
+Pass	new DOMMatrixReadOnly(";")
+Fail	new DOMMatrixReadOnly("none;")
+Pass	new DOMMatrixReadOnly("null")
+Pass	new DOMMatrixReadOnly(null)
+Pass	new DOMMatrixReadOnly("undefined")
+Pass	new DOMMatrixReadOnly("inherit")
+Pass	new DOMMatrixReadOnly("initial")
+Pass	new DOMMatrixReadOnly("unset")
+Pass	new DOMMatrixReadOnly(sequence)
+Pass	new DOMMatrixReadOnly(matrix)
+Pass	new DOMMatrixReadOnly("scale(2, 2), translateX(5px) translateY(5px)")
+Pass	new DOMMatrixReadOnly(sequence) 17 elements
+Pass	new DOMMatrixReadOnly(sequence) 15 elements
+Pass	new DOMMatrixReadOnly(sequence) 5 elements
+Pass	new DOMMatrixReadOnly(sequence) 0 elements
