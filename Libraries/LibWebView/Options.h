@@ -118,6 +118,11 @@ enum class IsHeadless {
     Yes,
 };
 
+enum class PaintViewportScrollbars {
+    Yes,
+    No,
+};
+
 struct WebContentOptions {
     String command_line;
     String executable_path;
@@ -134,6 +139,7 @@ struct WebContentOptions {
     CollectGarbageOnEveryAllocation collect_garbage_on_every_allocation { CollectGarbageOnEveryAllocation::No };
     Optional<u16> echo_server_port {};
     IsHeadless is_headless { IsHeadless::No };
+    PaintViewportScrollbars paint_viewport_scrollbars { PaintViewportScrollbars::Yes };
 };
 
 }
