@@ -115,18 +115,17 @@ def map_to_path(sources: list[ResourceAndType], is_resource=True, resource_path=
         base_directory = test_type.input_path if source.type == ResourceType.INPUT else test_type.expected_path
 
         if source.resource.startswith('/') or not is_resource:
-            file_path = base_directory + '/' + source.resource
+            file_path = Path(base_directory, source.resource.lstrip('/'))
         else:
             # Add it as a sibling path if it's a relative resource
-            sibling_location = str(Path(resource_path).parent)
-            parent_directory = base_directory + '/' + sibling_location
+            sibling_location = Path(resource_path).parent
+            parent_directory = Path(base_directory, sibling_location)
 
-            file_path = parent_directory + '/' + source.resource
-
+            file_path = Path(parent_directory, source.resource)
         # Map to source and destination
-        output_path = wpt_base_url + file_path.replace(base_directory, '')
+        output_path = wpt_base_url + str(file_path).replace(base_directory, '')
 
-        filepaths.append(PathMapping(output_path, Path(file_path).absolute()))
+        filepaths.append(PathMapping(output_path, file_path.absolute()))
 
     return filepaths
 
