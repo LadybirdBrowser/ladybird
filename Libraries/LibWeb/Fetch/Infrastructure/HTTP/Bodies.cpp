@@ -90,7 +90,7 @@ void Body::fully_read(JS::Realm& realm, Web::Fetch::Infrastructure::Body::Proces
 
     // 4. Let reader be the result of getting a reader for body’s stream. If that threw an exception, then run errorSteps
     //    with that exception and return.
-    auto reader = Streams::acquire_readable_stream_default_reader(m_stream);
+    auto reader = m_stream->get_a_reader();
 
     if (reader.is_exception()) {
         auto throw_completion = Bindings::exception_to_throw_completion(realm.vm(), reader.release_error());
@@ -113,7 +113,7 @@ void Body::incrementally_read(ProcessBodyChunkCallback process_body_chunk, Proce
 
     // 2. Let reader be the result of getting a reader for body’s stream.
     // NOTE: This operation will not throw an exception.
-    auto reader = MUST(Streams::acquire_readable_stream_default_reader(m_stream));
+    auto reader = MUST(m_stream->get_a_reader());
 
     // 3. Perform the incrementally-read loop given reader, taskDestination, processBodyChunk, processEndOfBody, and processBodyError.
     incrementally_read_loop(reader, task_destination.get<GC::Ref<JS::Object>>(), process_body_chunk, process_end_of_body, process_body_error);

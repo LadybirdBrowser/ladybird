@@ -134,7 +134,7 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
     auto stream = blob.get_stream();
 
     // 6. Let reader be the result of getting a reader from stream.
-    auto reader = TRY(acquire_readable_stream_default_reader(*stream));
+    auto reader = TRY(stream->get_a_reader());
 
     // 7. Let bytes be an empty byte sequence.
     ByteBuffer bytes;

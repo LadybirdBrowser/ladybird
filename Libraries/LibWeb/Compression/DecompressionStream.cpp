@@ -133,7 +133,7 @@ WebIDL::ExceptionOr<void> DecompressionStream::decompress_and_enqueue_chunk(JS::
     auto array = JS::Uint8Array::create(realm, array_buffer->byte_length(), *array_buffer);
 
     // 5. For each Uint8Array array, enqueue array in ds's transform.
-    TRY(Streams::transform_stream_default_controller_enqueue(*m_transform->controller(), array));
+    m_transform->enqueue(array);
     return {};
 }
 
@@ -159,7 +159,7 @@ WebIDL::ExceptionOr<void> DecompressionStream::decompress_flush_and_enqueue()
     auto array = JS::Uint8Array::create(realm, array_buffer->byte_length(), *array_buffer);
 
     // 5. For each Uint8Array array, enqueue array in ds's transform.
-    TRY(Streams::transform_stream_default_controller_enqueue(*m_transform->controller(), array));
+    m_transform->enqueue(array);
     return {};
 }
 

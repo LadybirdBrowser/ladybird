@@ -42,6 +42,7 @@ public:
     void set_controller(GC::Ptr<TransformStreamDefaultController> value) { m_controller = value; }
 
     void set_up(GC::Ref<TransformAlgorithm>, GC::Ptr<FlushAlgorithm> = {}, GC::Ptr<CancelAlgorithm> = {});
+    void enqueue(JS::Value chunk);
 
 private:
     explicit TransformStream(JS::Realm& realm);

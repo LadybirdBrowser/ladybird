@@ -376,7 +376,7 @@ GC::Ref<WebIDL::Promise> Blob::text()
     auto stream = get_stream();
 
     // 2. Let reader be the result of getting a reader from stream. If that threw an exception, return a new promise rejected with that exception.
-    auto reader_or_exception = acquire_readable_stream_default_reader(*stream);
+    auto reader_or_exception = stream->get_a_reader();
     if (reader_or_exception.is_exception())
         return WebIDL::create_rejected_promise_from_exception(realm, reader_or_exception.release_error());
     auto reader = reader_or_exception.release_value();
@@ -405,7 +405,7 @@ GC::Ref<WebIDL::Promise> Blob::array_buffer()
     auto stream = get_stream();
 
     // 2. Let reader be the result of getting a reader from stream. If that threw an exception, return a new promise rejected with that exception.
-    auto reader_or_exception = acquire_readable_stream_default_reader(*stream);
+    auto reader_or_exception = stream->get_a_reader();
     if (reader_or_exception.is_exception())
         return WebIDL::create_rejected_promise_from_exception(realm, reader_or_exception.release_error());
     auto reader = reader_or_exception.release_value();
@@ -432,7 +432,7 @@ GC::Ref<WebIDL::Promise> Blob::bytes()
     auto stream = get_stream();
 
     // 2. Let reader be the result of getting a reader from stream. If that threw an exception, return a new promise rejected with that exception.
-    auto reader_or_exception = acquire_readable_stream_default_reader(*stream);
+    auto reader_or_exception = stream->get_a_reader();
     if (reader_or_exception.is_exception())
         return WebIDL::create_rejected_promise_from_exception(realm, reader_or_exception.release_error());
     auto reader = reader_or_exception.release_value();
