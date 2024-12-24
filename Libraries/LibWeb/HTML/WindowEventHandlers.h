@@ -20,7 +20,9 @@
     E(onoffline, HTML::EventNames::offline)                       \
     E(ononline, HTML::EventNames::online)                         \
     E(onpagehide, HTML::EventNames::pagehide)                     \
+    E(onpagereveal, HTML::EventNames::pagereveal)                 \
     E(onpageshow, HTML::EventNames::pageshow)                     \
+    E(onpageswap, HTML::EventNames::pageswap)                     \
     E(onpopstate, HTML::EventNames::popstate)                     \
     E(onrejectionhandled, HTML::EventNames::rejectionhandled)     \
     E(onstorage, HTML::EventNames::storage)                       \
