@@ -11,8 +11,10 @@
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/SVG/SVGDescElement.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
+#include <LibWeb/SVG/SVGTitleElement.h>
 #include <LibWeb/SVG/SVGUseElement.h>
 
 namespace Web::SVG {
@@ -26,6 +28,38 @@ void SVGElement::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(SVGElement);
+}
+
+bool SVGElement::should_include_in_accessibility_tree() const
+{
+    bool has_title_or_desc = false;
+    auto role = role_from_role_attribute_value();
+    for_each_child_of_type<SVGElement>([&has_title_or_desc](auto& child) {
+        if ((is<SVGTitleElement>(child) || is<SVGDescElement>(child)) && !child.text_content()->trim_ascii_whitespace().value().is_empty()) {
+            has_title_or_desc = true;
+            return IterationDecision::Break;
+        }
+        return IterationDecision::Continue;
+    });
+    // https://w3c.github.io/svg-aam/#include_elements
+    // TODO: Add support for the SVG tabindex attribute, and include a check for it here.
+    return has_title_or_desc
+        || (aria_label().has_value() && !aria_label().value().trim_ascii_whitespace().value().is_empty())
+        || (aria_labelled_by().has_value() && !aria_labelled_by().value().trim_ascii_whitespace().value().is_empty())
+        || (aria_described_by().has_value() && !aria_described_by().value().trim_ascii_whitespace().value().is_empty())
+        || (role.has_value() && ARIA::is_abstract_role(role.value()) && role != ARIA::Role::none && role != ARIA::Role::presentation);
+}
+
+Optional<ARIA::Role> SVGElement::default_role() const
+{
+    // https://w3c.github.io/svg-aam/#mapping_role_table
+    if (local_name() == TagNames::a && (has_attribute(SVG::AttributeNames::href) || has_attribute(AttributeNames::xlink_href)))
+        return ARIA::Role::link;
+    if (local_name() == TagNames::g && should_include_in_accessibility_tree())
+        return ARIA::Role::group;
+    if (local_name() == TagNames::image && should_include_in_accessibility_tree())
+        return ARIA::Role::image;
+    return {};
 }
 
 void SVGElement::visit_edges(Cell::Visitor& visitor)
