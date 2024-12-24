@@ -1,4 +1,4 @@
-include(pulseaudio)
+include(audio)
 
 set(SOURCES
     ConnectionFromClient.cpp
@@ -35,7 +35,7 @@ if (ENABLE_QT)
     target_link_libraries(WebContent PRIVATE Qt::Core)
     target_compile_definitions(WebContent PRIVATE HAVE_QT=1)
 
-    if (NOT HAVE_PULSEAUDIO)
+    if (NOT DEFINED LADYBIRD_AUDIO_BACKEND)
         find_package(Qt6 REQUIRED COMPONENTS Multimedia)
 
         target_sources(WebContent PRIVATE

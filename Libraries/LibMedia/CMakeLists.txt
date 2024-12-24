@@ -1,6 +1,7 @@
+include(audio)
+
 if (NOT ANDROID AND NOT WIN32)
     include(ffmpeg)
-    include(pulseaudio)
 endif()
 
 set(SOURCES
@@ -30,23 +31,20 @@ else()
     target_sources(LibMedia PRIVATE FFmpeg/FFmpegVideoDecoderStub.cpp)
 endif()
 
-# Audio backend -- how we output audio to the speakers
-if (HAVE_PULSEAUDIO)
+if (LADYBIRD_AUDIO_BACKEND STREQUAL "PULSE")
     target_sources(LibMedia PRIVATE
         Audio/PlaybackStreamPulseAudio.cpp
         Audio/PulseAudioWrappers.cpp
     )
     target_link_libraries(LibMedia PRIVATE PkgConfig::PULSEAUDIO)
-    target_compile_definitions(LibMedia PUBLIC HAVE_PULSEAUDIO=1)
-elseif (APPLE AND NOT IOS)
+elseif (LADYBIRD_AUDIO_BACKEND STREQUAL "AUDIO_UNIT")
     target_sources(LibMedia PRIVATE Audio/PlaybackStreamAudioUnit.cpp)
-
     find_library(AUDIO_UNIT AudioUnit REQUIRED)
     target_link_libraries(LibMedia PRIVATE ${AUDIO_UNIT})
-elseif (ANDROID)
+elseif (LADYBIRD_AUDIO_BACKEND STREQUAL "OBOE")
     target_sources(LibMedia PRIVATE Audio/PlaybackStreamOboe.cpp)
     find_package(oboe REQUIRED CONFIG)
     target_link_libraries(LibMedia PRIVATE log oboe::oboe)
-else()
-    message(WARNING "No audio backend available")
+elseif (DEFINED LADYBIRD_AUDIO_BACKEND)
+    message(FATAL_ERROR "Please update ${CMAKE_CURRENT_LIST_FILE} for audio backend ${LADYBIRD_AUDIO_BACKEND}")
 endif()

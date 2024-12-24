@@ -16,14 +16,7 @@
 #    include <LibMedia/Audio/PulseAudioWrappers.h>
 #endif
 
-// FIXME: CI doesn't run an AudioServer currently. Creating one in /etc/SystemServer.ini does not
-//        allow this test to pass since CI runs in a Shell that will setsid() if it finds that the
-//        current session ID is 0, and AudioServer's socket address depends on the current sid.
-//        If we can fix that, this test can run on CI.
-//        https://github.com/SerenityOS/serenity/issues/20538
-#define STREAM_TEST TEST_CASE
-
-STREAM_TEST(create_and_destroy_playback_stream)
+TEST_CASE(create_and_destroy_playback_stream)
 {
     Core::EventLoop event_loop;
 
