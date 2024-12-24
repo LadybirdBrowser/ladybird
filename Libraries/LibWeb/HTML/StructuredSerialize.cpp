@@ -46,6 +46,7 @@
 #include <LibWeb/Geometry/DOMQuad.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/Geometry/DOMRectReadOnly.h>
+#include <LibWeb/HTML/ImageData.h>
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -1069,6 +1070,8 @@ private:
             return Crypto::CryptoKey::create(realm);
         if (interface_name == "DOMQuad"sv)
             return Geometry::DOMQuad::create(realm);
+        if (interface_name == "ImageData"sv) // FIXME: Unfortunately we have to create this with a dummy array and bitmap, as they're non-nullable.
+            return MUST(HTML::ImageData::create(realm, 1, 1));
 
         VERIFY_NOT_REACHED();
     }
