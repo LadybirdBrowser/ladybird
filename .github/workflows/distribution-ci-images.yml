@@ -1,0 +1,67 @@
+# This workflow builds a docker image with the Dev Container CLI (https://github.com/devcontainers/cli)
+#
+name: 'Linux Distribution CI Images'
+on:
+    schedule:
+        # daily at 1200 https://crontab.guru/#0_12_*_*_*
+        - cron: '0 12 * * *'
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    packages: write
+
+env:
+    DOCKER_LAYER_CACHE: /tmp/.buildx-cache
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - { ostype: fedora, osver: latest }
+                    - { ostype: archlinux, osver: base-devel }
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+            - name: Set up QEMU
+              uses: docker/setup-qemu-action@v3
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+            - name: Cache Docker layers
+              uses: actions/cache@v4
+              with:
+                    path: ${{ env.DOCKER_LAYER_CACHE }}
+                    key: ${{ runner.os }}-buildx-ci-os-images-${{ matrix.ostype }}-${{ matrix.osver }}-${{ github.sha }}
+                    restore-keys: |
+                        ${{ runner.os }}-buildx-ci-os-images-${{ matrix.ostype }}-${{ matrix.osver }}-
+            - name: Login to GitHub Container Registry
+              uses: docker/login-action@v3
+              with:
+                  registry: ghcr.io
+                  username: ${{ github.repository_owner }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+            - name: Extract metadata (tags, labels) for Docker
+              id: meta
+              uses: docker/metadata-action@v5
+              with:
+                  images: ghcr.io/${{ github.repository }}/ci-distro-images/${{ matrix.ostype }}
+                  tags: |
+                      type=sha,event=push,enable=true,prefix=${{ matrix.osver }}-git-,format=short
+                      type=raw,event=push,enable={{ is_default_branch }},value=latest
+            - name: Build and push Docker image
+              uses: docker/build-push-action@v5
+              with:
+                  context: .
+                  file: Meta/CI/${{ matrix.ostype }}.dockerfile
+                  platforms: linux/amd64 # ,linux/arm64/v8 x-platform works but is *extremely* slow
+                  build-args: |
+                      OSTYPE=${{ matrix.ostype }}
+                      OSVER=${{ matrix.osver }}
+                  push: true
+                  tags: ${{ steps.meta.outputs.tags }}
+                  labels: ${{ steps.meta.outputs.labels }}
+                  cache-from: type=local,src=${{ env.DOCKER_LAYER_CACHE }}
+                  cache-to: type=local,dest=${{ env.DOCKER_LAYER_CACHE }}

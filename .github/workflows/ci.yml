@@ -71,3 +71,15 @@ jobs:
       os: ${{ matrix.os }}
       fuzzer: ${{ matrix.fuzzer }}
       clang_plugins: ${{ matrix.clang_plugins }}
+
+  Distributions:
+    needs: path-changes
+    if: github.repository == 'LadybirdBrowser/ladybird' && needs.path-changes.outputs.source_excluding_docs == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        distribution_name: [archlinux, fedora]
+
+    uses: ./.github/workflows/distribution-ci-build.yml
+    with:
+        distribution_name: ${{ matrix.distribution_name }}

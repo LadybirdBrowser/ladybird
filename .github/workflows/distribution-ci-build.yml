@@ -1,0 +1,70 @@
+name: "Build in Linux Distribution"
+
+on:
+    workflow_call:
+        inputs:
+            distribution_name:
+                required: true
+                type: string
+            distribution_version:
+                required: false
+                type: string
+                default: latest
+    workflow_dispatch:
+        inputs:
+            distribution_name:
+                description: Linux distribution name
+                required: true
+                type: string
+            distribution_version:
+                description: Linux distribution CI image tag (best kept as 'latest' in most cases)
+                required: false
+                type: string
+                default: latest
+
+jobs:
+    set-image:
+        name: "Set CI image"
+        runs-on: "ubuntu-latest"
+        outputs:
+            ci_image_name: ${{ steps.ci_image_name.outputs.ci_image_name }}
+        steps:
+            # github.repository is case-sensitive, but job.container mandates lowercase
+            - name: "Ensure lowercase image prefix"
+              id: ci_image_name
+              env:
+                  IMAGE_NAME: ${{ inputs.distribution_name }}:${{ inputs.distribution_version }}
+              run: |
+                  IMAGE_PREFIX="ghcr.io/$GITHUB_REPOSITORY/ci-distro-images"
+                  IMAGE_FQN_LOWER=$(echo "$IMAGE_PREFIX/$IMAGE_NAME" | tr '[:upper:]' '[:lower:]')
+                  echo "ci_image_name=$IMAGE_FQN_LOWER" | tee -a "$GITHUB_OUTPUT"
+
+    distribution-ci:
+        name: ${{ inputs.distribution_name }}
+        runs-on: "ubuntu-latest"
+        needs: set-image
+        permissions:
+            packages: read
+        container:
+            image: ${{ needs.set-image.outputs.ci_image_name }}
+        steps:
+            - name: Print informations about current distribution
+              run: |
+                  echo "Container: ${{ needs.set-image.outputs.ci_image_name }}"
+                  cat /etc/os-release
+                  echo "CC: $(cc --version | head -n1)"
+                  echo "C++: $(c++ --version | head -n1)"
+                  echo "Nasm: $(nasm --version)"
+                  echo "Ninja: $(ninja --version)"
+            - uses: actions/checkout@v4
+              if: ${{ github.event_name != 'pull_request' }}
+            - uses: actions/checkout@v4
+              if: ${{ github.event_name == 'pull_request' }}
+              with:
+                  ref: refs/pull/${{ github.event.pull_request.number }}/merge
+            - name: Create Build Environment
+              run: |
+                  ./Meta/ladybird.sh vcpkg
+            - name: Build Ladybird
+              run: |
+                  ./Meta/ladybird.sh build
