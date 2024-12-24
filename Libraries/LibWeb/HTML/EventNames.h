@@ -17,11 +17,12 @@ namespace Web::HTML::EventNames {
 #define ENUMERATE_HTML_EVENTS                        \
     __ENUMERATE_HTML_EVENT(abort)                    \
     __ENUMERATE_HTML_EVENT(addtrack)                 \
+    __ENUMERATE_HTML_EVENT(afterprint)               \
     __ENUMERATE_HTML_EVENT(animationcancel)          \
     __ENUMERATE_HTML_EVENT(animationend)             \
     __ENUMERATE_HTML_EVENT(animationiteration)       \
     __ENUMERATE_HTML_EVENT(animationstart)           \
-    __ENUMERATE_HTML_EVENT(afterprint)               \
+    __ENUMERATE_HTML_EVENT(beforeinput)              \
     __ENUMERATE_HTML_EVENT(beforeprint)              \
     __ENUMERATE_HTML_EVENT(beforetoggle)             \
     __ENUMERATE_HTML_EVENT(beforeunload)             \
@@ -35,13 +36,13 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(close)                    \
     __ENUMERATE_HTML_EVENT(complete)                 \
     __ENUMERATE_HTML_EVENT(connect)                  \
-    __ENUMERATE_HTML_EVENT(controllerchange)         \
     __ENUMERATE_HTML_EVENT(contextmenu)              \
+    __ENUMERATE_HTML_EVENT(controllerchange)         \
     __ENUMERATE_HTML_EVENT(copy)                     \
     __ENUMERATE_HTML_EVENT(cuechange)                \
     __ENUMERATE_HTML_EVENT(currententrychange)       \
-    __ENUMERATE_HTML_EVENT(dispose)                  \
     __ENUMERATE_HTML_EVENT(cut)                      \
+    __ENUMERATE_HTML_EVENT(dispose)                  \
     __ENUMERATE_HTML_EVENT(DOMContentLoaded)         \
     __ENUMERATE_HTML_EVENT(drag)                     \
     __ENUMERATE_HTML_EVENT(dragend)                  \
@@ -67,9 +68,9 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(languagechange)           \
     __ENUMERATE_HTML_EVENT(load)                     \
     __ENUMERATE_HTML_EVENT(loaded)                   \
-    __ENUMERATE_HTML_EVENT(loadend)                  \
     __ENUMERATE_HTML_EVENT(loadeddata)               \
     __ENUMERATE_HTML_EVENT(loadedmetadata)           \
+    __ENUMERATE_HTML_EVENT(loadend)                  \
     __ENUMERATE_HTML_EVENT(loading)                  \
     __ENUMERATE_HTML_EVENT(loadingdone)              \
     __ENUMERATE_HTML_EVENT(loadingerror)             \
@@ -77,12 +78,14 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(message)                  \
     __ENUMERATE_HTML_EVENT(messageerror)             \
     __ENUMERATE_HTML_EVENT(navigate)                 \
-    __ENUMERATE_HTML_EVENT(navigatesuccess)          \
     __ENUMERATE_HTML_EVENT(navigateerror)            \
+    __ENUMERATE_HTML_EVENT(navigatesuccess)          \
     __ENUMERATE_HTML_EVENT(offline)                  \
     __ENUMERATE_HTML_EVENT(online)                   \
     __ENUMERATE_HTML_EVENT(open)                     \
     __ENUMERATE_HTML_EVENT(pagehide)                 \
+    __ENUMERATE_HTML_EVENT(pagereveal)               \
+    __ENUMERATE_HTML_EVENT(pageswap)                 \
     __ENUMERATE_HTML_EVENT(pageshow)                 \
     __ENUMERATE_HTML_EVENT(paste)                    \
     __ENUMERATE_HTML_EVENT(pause)                    \
@@ -100,10 +103,10 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(scroll)                   \
     __ENUMERATE_HTML_EVENT(scrollend)                \
     __ENUMERATE_HTML_EVENT(securitypolicyviolation)  \
-    __ENUMERATE_HTML_EVENT(selectionchange)          \
     __ENUMERATE_HTML_EVENT(seeked)                   \
     __ENUMERATE_HTML_EVENT(seeking)                  \
     __ENUMERATE_HTML_EVENT(select)                   \
+    __ENUMERATE_HTML_EVENT(selectionchange)          \
     __ENUMERATE_HTML_EVENT(slotchange)               \
     __ENUMERATE_HTML_EVENT(stalled)                  \
     __ENUMERATE_HTML_EVENT(statechange)              \
