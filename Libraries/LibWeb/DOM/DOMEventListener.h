@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2024, Glenn Skrzypczak <glenn.skrzypczak@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -35,8 +36,8 @@ public:
     // capture (a boolean, initially false)
     bool capture { false };
 
-    // passive (a boolean, initially false)
-    bool passive { false };
+    // passive (null or a boolean, initially null)
+    Optional<bool> passive;
 
     // once (a boolean, initially false)
     bool once { false };
