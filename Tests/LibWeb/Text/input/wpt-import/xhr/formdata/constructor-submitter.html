@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<meta charset='utf-8'>
+<link rel='help' href='https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#constructing-the-form-data-set'>
+<link ref='help' href='https://xhr.spec.whatwg.org/#dom-formdata'>
+<script src='../../resources/testharness.js'></script>
+<script src='../../resources/testharnessreport.js'></script>
+
+<button name=outerNamed value=GO form='myform'></button>
+<form id='myform' onsubmit='return false'>
+  <input name=n1 value=v1>
+  <button name=named value=GO></button>
+  <button id=unnamed value=unnamed></button>
+  <button form="another" name=unassociated value=unassociated></button>
+  <input type=image name=namedImage src='/media/1x1-green.png'></button>
+  <input type=image id=unnamedImage src='/media/1x1-green.png'></button>
+  <input type=image name=unactivatedImage src='/media/1x1-green.png'></button>
+  <input name=n3 value=v3>
+</form>
+
+<form id='another'>
+  <button name=unassociated2 value=unassociated></button>
+</form>
+
+<script>
+function assertFormDataEntries(formData, expectedEntries) {
+  const expectedEntryNames = expectedEntries.map((entry) => entry[0]);
+  const actualEntries = [...formData.entries()];
+  const actualEntryNames = actualEntries.map((entry) => entry[0]);
+  assert_array_equals(actualEntryNames, expectedEntryNames);
+  for (let i = 0; i < actualEntries.length; i++) {
+    assert_array_equals(actualEntries[i], expectedEntries[i]);
+  }
+}
+
+const form = document.querySelector('#myform');
+
+test(() => {
+  assertFormDataEntries(
+    new FormData(form, null),
+    [['n1', 'v1'], ['n3', 'v3']]
+  );
+}, 'FormData construction should allow a null submitter'); // the use case here is so web developers can avoid null checks, e.g. `new FormData(e.target, e.submitter)`
+
+test(() => {
+  assertFormDataEntries(new FormData(undefined, undefined), []);
+}, 'FormData construction should allow an undefined form and an undefined submitter');
+
+test(() => {
+  assertFormDataEntries(new FormData(undefined, null), []);
+}, 'FormData construction should allow an undefined form and a null submitter');
+
+test(() => {
+  assert_throws_js(TypeError, () => new FormData(form, document.querySelector('[name=n1]')));
+}, 'FormData construction should throw a TypeError if a non-null submitter is not a submit button');
+
+test(() => {
+  assert_throws_dom('NotFoundError', () => new FormData(form, document.querySelector('[name=unassociated]')));
+  assert_throws_dom('NotFoundError', () => new FormData(form, document.querySelector('[name=unassociated2]')));
+}, "FormData construction should throw a 'NotFoundError' DOMException if a non-null submitter is not owned by the form");
+
+test(() => {
+  assertFormDataEntries(
+    new FormData(form, document.querySelector('[name=named]')),
+    [['n1', 'v1'], ['named', 'GO'], ['n3', 'v3']]
+  );
+  assertFormDataEntries(
+    new FormData(form, document.querySelector('[name=outerNamed]')),
+    [['outerNamed', 'GO'], ['n1', 'v1'], ['n3', 'v3']]
+  );
+}, 'The constructed FormData object should contain an in-tree-order entry for a named submit button submitter');
+
+test(() => {
+  assertFormDataEntries(
+    new FormData(form, document.querySelector('#unnamed')),
+    [['n1', 'v1'], ['n3', 'v3']]
+  );
+}, 'The constructed FormData object should not contain an entry for an unnamed submit button submitter');
+
+test(() => {
+  const submitter1 = document.querySelector('[name=namedImage]');
+  submitter1.click();
+  const submitter2 = document.querySelector('#unnamedImage');
+  submitter2.click();
+  assertFormDataEntries(
+    new FormData(form, submitter1),
+    [['n1', 'v1'], ['namedImage.x', '0'], ['namedImage.y', '0'], ['n3', 'v3']]
+  );
+  assertFormDataEntries(
+    new FormData(form, submitter2),
+    [['n1', 'v1'], ['x', '0'], ['y', '0'], ['n3', 'v3']]
+  );
+}, 'The constructed FormData object should contain in-tree-order entries for an activated Image Button submitter');
+
+test(() => {
+  assertFormDataEntries(
+    new FormData(form, document.querySelector('[name=unactivatedImage]')),
+    [['n1', 'v1'], ['unactivatedImage.x', '0'], ['unactivatedImage.y', '0'], ['n3', 'v3']]
+  );
+}, 'The constructed FormData object should contain in-tree-order entries for an unactivated Image Button submitter');
+</script>
