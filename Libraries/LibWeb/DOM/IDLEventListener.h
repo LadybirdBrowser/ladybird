@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2020-2022, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2024, Glenn Skrzypczak <glenn.skrzypczak@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -19,7 +20,7 @@ struct EventListenerOptions {
 };
 
 struct AddEventListenerOptions : public EventListenerOptions {
-    bool passive { false };
+    Optional<bool> passive;
     bool once { false };
     GC::Ptr<AbortSignal> signal;
 };

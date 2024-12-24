@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2020-2022, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2024, Glenn Skrzypczak <glenn.skrzypczak@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -81,7 +82,7 @@ bool EventDispatcher::inner_invoke(Event& event, Vector<GC::Root<DOM::DOMEventLi
         }
 
         // 9. If listener’s passive is true, then set event’s in passive listener flag.
-        if (listener->passive)
+        if (listener->passive == true)
             event.set_in_passive_listener(true);
 
         // FIXME: 10. If global is a Window object, then record timing info for event listener given event and listener.

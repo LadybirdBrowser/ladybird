@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2020-2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, Luke Wilde <lukew@serenityos.org>
+ * Copyright (c) 2024, Glenn Skrzypczak <glenn.skrzypczak@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -110,7 +111,7 @@ static bool flatten_event_listener_options(Variant<AddEventListenerOptions, bool
 
 struct FlattenedAddEventListenerOptions {
     bool capture { false };
-    bool passive { false };
+    Optional<bool> passive;
     bool once { false };
     GC::Ptr<AbortSignal> signal;
 };
@@ -121,28 +122,53 @@ static FlattenedAddEventListenerOptions flatten_add_event_listener_options(Varia
     // 1. Let capture be the result of flattening options.
     bool capture = flatten_event_listener_options(options);
 
-    // 2. Let once and passive be false.
+    // 2. Let once be false.
     bool once = false;
-    bool passive = false;
 
-    // 3. Let signal be null.
+    // 3. Let passive and signal be null.
+    Optional<bool> passive;
     GC::Ptr<AbortSignal> signal;
 
     // 4. If options is a dictionary, then:
     if (options.has<AddEventListenerOptions>()) {
-        auto& add_event_listener_options = options.get<AddEventListenerOptions>();
+        auto const& add_event_listener_options = options.get<AddEventListenerOptions>();
 
-        // 1. Set passive to options["passive"] and once to options["once"].
-        passive = add_event_listener_options.passive;
+        // 1. Set once to options["once"].
         once = add_event_listener_options.once;
 
-        // 2. If options["signal"] exists, then set signal to options["signal"].
+        // 2. If options["passive"] exists, then set passive to options["passive"].
+        if (add_event_listener_options.passive.has_value())
+            passive = add_event_listener_options.passive;
+
+        // 3. If options["signal"] exists, then set signal to options["signal"].
         if (add_event_listener_options.signal)
             signal = add_event_listener_options.signal;
     }
 
     // 5. Return capture, passive, once, and signal.
     return FlattenedAddEventListenerOptions { .capture = capture, .passive = passive, .once = once, .signal = signal.ptr() };
+}
+
+// https://dom.spec.whatwg.org/#default-passive-value
+static bool default_passive_value(FlyString const& type, EventTarget* event_target)
+{
+    // 1. Return true if all of the following are true:
+    //    - type is one of "touchstart", "touchmove", "wheel", or "mousewheel".
+    //    - eventTarget is a Window object, or is a node whose node document is eventTarget, or is a node whose node document’s document element is eventTarget,
+    //      or is a node whose node document’s body element is eventTarget.
+    if (AK::first_is_one_of(type, "touchstart"sv, "touchmove"sv, "wheel"sv, "mousewheel"sv)) {
+        if (is<HTML::Window>(event_target))
+            return true;
+
+        if (is<Node>(event_target)) {
+            auto* node = verify_cast<Node>(event_target);
+            if (&node->document() == event_target || node->document().document_element() == event_target || node->document().body() == event_target)
+                return true;
+        }
+    }
+
+    // 2. Return false.
+    return false;
 }
 
 // https://dom.spec.whatwg.org/#dom-eventtarget-addeventlistener
@@ -186,7 +212,12 @@ void EventTarget::add_an_event_listener(DOMEventListener& listener)
     if (!listener.callback)
         return;
 
-    // 4. If eventTarget’s event listener list does not contain an event listener whose type is listener’s type, callback is listener’s callback,
+    // 4. If listener’s passive is null, then set it to the default passive value given listener’s type and eventTarget.
+    if (!listener.passive.has_value()) {
+        listener.passive = default_passive_value(listener.type, this);
+    }
+
+    // 5. If eventTarget’s event listener list does not contain an event listener whose type is listener’s type, callback is listener’s callback,
     //    and capture is listener’s capture, then append listener to eventTarget’s event listener list.
     auto it = event_listener_list.find_if([&](auto& entry) {
         return entry->type == listener.type
@@ -196,7 +227,7 @@ void EventTarget::add_an_event_listener(DOMEventListener& listener)
     if (it == event_listener_list.end())
         event_listener_list.append(listener);
 
-    // 5. If listener’s signal is not null, then add the following abort steps to it:
+    // 6. If listener’s signal is not null, then add the following abort steps to it:
     if (listener.signal) {
         // NOTE: `this` and `listener` are protected by AbortSignal using GC::HeapFunction.
         listener.signal->add_abort_algorithm([this, &listener] {
