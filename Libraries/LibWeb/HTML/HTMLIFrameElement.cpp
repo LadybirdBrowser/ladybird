@@ -63,7 +63,7 @@ void HTMLIFrameElement::attribute_changed(FlyString const& name, Optional<String
 
     if (name == HTML::AttributeNames::width || name == HTML::AttributeNames::height) {
         // FIXME: This should only invalidate the layout, not the style.
-        invalidate_style(DOM::StyleInvalidationReason::ElementAttributeChange);
+        invalidate_style(DOM::StyleInvalidationReason::HTMLIFrameElementGeometryChange);
     }
 }
 
