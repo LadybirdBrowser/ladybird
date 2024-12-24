@@ -1,0 +1,13 @@
+<style>
+html { font-family: lololol; }
+</style>
+<!--
+    This should just show in one full fragment in a TextNode.
+    Before, when the font 'lololol' was not found, the default emoji font was picked for rendering.
+    The text was split into five separate fragments.
+
+    NOTE:
+     - this may fail CI on Apple (the default font metrics may be different).
+     - the layout metrics reported by `headless-browser -R` vs. `headless-browser -d` are different.
+-->
+Well hello friends!
