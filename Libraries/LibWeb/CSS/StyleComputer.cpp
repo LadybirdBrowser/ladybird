@@ -2520,6 +2520,9 @@ void StyleComputer::collect_selector_insights(Selector const& selector, Selector
                 if (simple_selector.pseudo_class().type == PseudoClass::Has) {
                     insights.has_has_selectors = true;
                 }
+                if (simple_selector.pseudo_class().type == PseudoClass::Defined) {
+                    insights.has_defined_selectors = true;
+                }
                 for (auto const& argument_selector : simple_selector.pseudo_class().argument_selector_list) {
                     collect_selector_insights(*argument_selector, insights);
                 }
@@ -3010,6 +3013,12 @@ bool StyleComputer::has_has_selectors() const
 {
     build_rule_cache_if_needed();
     return m_selector_insights->has_has_selectors;
+}
+
+bool StyleComputer::has_defined_selectors() const
+{
+    build_rule_cache_if_needed();
+    return m_selector_insights->has_defined_selectors;
 }
 
 bool StyleComputer::has_attribute_selector(FlyString const& attribute_name) const

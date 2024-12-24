@@ -2266,7 +2266,9 @@ void Element::set_custom_element_state(CustomElementState state)
     if (m_custom_element_state == state)
         return;
     m_custom_element_state = state;
-    invalidate_style(StyleInvalidationReason::CustomElementStateChange);
+
+    if (document().style_computer().has_defined_selectors())
+        invalidate_style(StyleInvalidationReason::CustomElementStateChange);
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#html-element-constructors
