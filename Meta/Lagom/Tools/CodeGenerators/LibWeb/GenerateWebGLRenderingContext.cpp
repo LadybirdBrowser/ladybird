@@ -240,12 +240,11 @@ static void generate_get_parameter(SourceGenerator& generator, int webgl_version
         return JS::@type_name@::create(m_realm, @element_count@, array_buffer);
 )~~~");
         } else if (type_name == "WebGLProgram"sv || type_name == "WebGLBuffer"sv || type_name == "WebGLTexture"sv || type_name == "WebGLFramebuffer"sv || type_name == "WebGLRenderbuffer"sv) {
+            impl_generator.set("stored_name", name_and_type.name.to_lowercase_string());
             impl_generator.append(R"~~~(
-        GLint result;
-        glGetIntegerv(GL_@parameter_name@, &result);
-        if (!result)
+        if (!m_@stored_name@)
             return JS::js_null();
-        return @type_name@::create(m_realm, *this, result);
+        return JS::Value(m_@stored_name@);
 )~~~");
         } else {
             VERIFY_NOT_REACHED();
@@ -1206,6 +1205,122 @@ public:
             continue;
         }
 
+        if (function.name == "bindBuffer"sv) {
+            // FIXME: Implement Buffer Object Binding restrictions.
+            generate_webgl_object_handle_unwrap(function_impl_generator, "buffer"sv, ""sv);
+            function_impl_generator.append(R"~~~(
+    switch (target) {
+    case GL_ELEMENT_ARRAY_BUFFER:
+        m_element_array_buffer_binding = buffer;
+        break;
+    case GL_ARRAY_BUFFER:
+        m_array_buffer_binding = buffer;
+        break;
+)~~~");
+
+            if (webgl_version == 2) {
+                function_impl_generator.append(R"~~~(
+    case GL_UNIFORM_BUFFER:
+        m_uniform_buffer_binding = buffer;
+        break;
+    case GL_COPY_READ_BUFFER:
+        m_copy_read_buffer_binding = buffer;
+        break;
+    case GL_COPY_WRITE_BUFFER:
+        m_copy_write_buffer_binding = buffer;
+        break;
+)~~~");
+            }
+
+            function_impl_generator.append(R"~~~(
+    default:
+        dbgln("Unknown WebGL buffer object binding target for storing current binding: 0x{:04x}", target);
+        set_error(GL_INVALID_ENUM);
+        return;
+    }
+
+    glBindBuffer(target, buffer_handle);
+)~~~");
+            continue;
+        }
+
+        if (function.name == "useProgram"sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "program"sv, ""sv);
+            function_impl_generator.append(R"~~~(
+    glUseProgram(program_handle);
+    m_current_program = program;
+)~~~");
+            continue;
+        }
+
+        if (function.name == "bindFramebuffer"sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "framebuffer"sv, ""sv);
+            function_impl_generator.append(R"~~~(
+    glBindFramebuffer(target, framebuffer_handle);
+    m_framebuffer_binding = framebuffer;
+)~~~");
+            continue;
+        }
+
+        if (function.name == "bindRenderbuffer"sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "renderbuffer"sv, ""sv);
+            function_impl_generator.append(R"~~~(
+    glBindRenderbuffer(target, renderbuffer_handle);
+    m_renderbuffer_binding = renderbuffer;
+)~~~");
+            continue;
+        }
+
+        if (function.name == "bindTexture"sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "texture"sv, ""sv);
+            function_impl_generator.append(R"~~~(
+    switch (target) {
+    case GL_TEXTURE_2D:
+        m_texture_binding_2d = texture;
+        break;
+    case GL_TEXTURE_CUBE_MAP:
+        m_texture_binding_cube_map = texture;
+        break;
+)~~~");
+
+            if (webgl_version == 2) {
+                function_impl_generator.append(R"~~~(
+    case GL_TEXTURE_2D_ARRAY:
+        m_texture_binding_2d_array = texture;
+        break;
+    case GL_TEXTURE_3D:
+        m_texture_binding_3d = texture;
+        break;
+)~~~");
+            }
+
+            function_impl_generator.append(R"~~~(
+    default:
+        dbgln("Unknown WebGL texture target for storing current binding: 0x{:04x}", target);
+        set_error(GL_INVALID_ENUM);
+        return;
+    }
+    glBindTexture(target, texture_handle);
+)~~~");
+            continue;
+        }
+
+        if (function.name == "renderbufferStorage"sv) {
+            // To be backward compatible with WebGL 1, also accepts internal format DEPTH_STENCIL, which should be
+            // mapped to DEPTH24_STENCIL8 by implementations.
+            if (webgl_version == 2) {
+                function_impl_generator.append(R"~~~(
+    if (internalformat == GL_DEPTH_STENCIL)
+        internalformat = GL_DEPTH24_STENCIL8;
+)~~~");
+            }
+
+            function_impl_generator.append(R"~~~(
+    glRenderbufferStorage(target, internalformat, width, height);
+)~~~");
+            continue;
+        }
+
         Vector<ByteString> gl_call_arguments;
         for (size_t i = 0; i < function.parameters.size(); ++i) {
             auto const& parameter = function.parameters[i];
@@ -1309,8 +1424,31 @@ public:
     }
 
     header_file_generator.append(R"~~~(
+protected:
+    virtual void visit_edges(JS::Cell::Visitor&) override;
+
 private:
     GC::Ref<JS::Realm> m_realm;
+    GC::Ptr<WebGLBuffer> m_array_buffer_binding;
+    GC::Ptr<WebGLBuffer> m_element_array_buffer_binding;
+    GC::Ptr<WebGLProgram> m_current_program;
+    GC::Ptr<WebGLFramebuffer> m_framebuffer_binding;
+    GC::Ptr<WebGLRenderbuffer> m_renderbuffer_binding;
+    GC::Ptr<WebGLTexture> m_texture_binding_2d;
+    GC::Ptr<WebGLTexture> m_texture_binding_cube_map;
+)~~~");
+
+    if (webgl_version == 2) {
+        header_file_generator.append(R"~~~(
+    GC::Ptr<WebGLBuffer> m_uniform_buffer_binding;
+    GC::Ptr<WebGLBuffer> m_copy_read_buffer_binding;
+    GC::Ptr<WebGLBuffer> m_copy_write_buffer_binding;
+    GC::Ptr<WebGLTexture> m_texture_binding_2d_array;
+    GC::Ptr<WebGLTexture> m_texture_binding_3d;
+)~~~");
+    }
+
+    header_file_generator.append(R"~~~(
     NonnullOwnPtr<OpenGLContext> m_context;
 };
 
@@ -1318,6 +1456,31 @@ private:
 )~~~");
 
     implementation_file_generator.append(R"~~~(
+void @class_name@::visit_edges(JS::Cell::Visitor& visitor)
+{
+    visitor.visit(m_realm);
+    visitor.visit(m_array_buffer_binding);
+    visitor.visit(m_element_array_buffer_binding);
+    visitor.visit(m_current_program);
+    visitor.visit(m_framebuffer_binding);
+    visitor.visit(m_renderbuffer_binding);
+    visitor.visit(m_texture_binding_2d);
+    visitor.visit(m_texture_binding_cube_map);
+)~~~");
+
+    if (webgl_version == 2) {
+        implementation_file_generator.append(R"~~~(
+    visitor.visit(m_uniform_buffer_binding);
+    visitor.visit(m_copy_read_buffer_binding);
+    visitor.visit(m_copy_write_buffer_binding);
+    visitor.visit(m_texture_binding_2d_array);
+    visitor.visit(m_texture_binding_3d);
+)~~~");
+    }
+
+    implementation_file_generator.append(R"~~~(
+}
+
 }
 )~~~");
 
