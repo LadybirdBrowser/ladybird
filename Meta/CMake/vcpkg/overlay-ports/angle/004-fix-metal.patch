@@ -1,0 +1,100 @@
+diff --git a/src/compiler/translator/tree_ops/apple/UnfoldShortCircuitAST.cpp b/src/compiler/translator/tree_ops/apple/UnfoldShortCircuitAST.cpp
+index 55e2f8b9717ec73d2d52607d400352f5f4c0c191..4237558526274ea3e643d45ccf574b6b10eac785 100644
+--- a/src/compiler/translator/tree_ops/apple/UnfoldShortCircuitAST.cpp
++++ b/src/compiler/translator/tree_ops/apple/UnfoldShortCircuitAST.cpp
+@@ -10,6 +10,7 @@
+ #include "compiler/translator/tree_util/IntermNode_util.h"
+ #include "compiler/translator/tree_util/IntermTraverse.h"
+
++#if defined(ANGLE_ENABLE_GLSL) && defined(ANGLE_ENABLE_APPLE_WORKAROUNDS)
+ namespace sh
+ {
+
+@@ -70,5 +71,5 @@ bool UnfoldShortCircuitAST(TCompiler *compiler, TIntermBlock *root)
+     root->traverse(&traverser);
+     return traverser.updateTree(compiler, root);
+ }
+-
++#endif
+ }  // namespace sh
+diff --git a/src/compiler/translator/tree_ops/apple/UnfoldShortCircuitAST.h b/src/compiler/translator/tree_ops/apple/UnfoldShortCircuitAST.h
+index 648c7190a9382f0ce020839322fae56acfbe40db..9ddc681d320550b171a2916cac8e9a4b1c3b7fab 100644
+--- a/src/compiler/translator/tree_ops/apple/UnfoldShortCircuitAST.h
++++ b/src/compiler/translator/tree_ops/apple/UnfoldShortCircuitAST.h
+@@ -11,7 +11,7 @@
+ #define COMPILER_TRANSLATOR_TREEOPS_APPLE_UNFOLDSHORTCIRCUITAST_H_
+
+ #include "common/angleutils.h"
+-
++#include "common/debug.h"
+ namespace sh
+ {
+
+diff --git a/src/libANGLE/State.cpp b/src/libANGLE/State.cpp
+index a0ef1ab217575f430ef2112d2d973d38cd33d1ff..4828d90e38364a7b3b5acff5067114427715dbd0 100644
+--- a/src/libANGLE/State.cpp
++++ b/src/libANGLE/State.cpp
+@@ -6,6 +6,9 @@
+
+ // State.cpp: Implements the State class, encapsulating raw GL state.
+
++// Older clang versions have a false positive on this warning here.
++#pragma clang diagnostic ignored "-Wglobal-constructors"
++
+ #include "libANGLE/State.h"
+
+ #include <string.h>
+diff --git a/src/libANGLE/renderer/ShaderInterfaceVariableInfoMap.cpp b/src/libANGLE/renderer/ShaderInterfaceVariableInfoMap.cpp
+index ae040dfc19960b7cc686d0c2136454eb246ca80d..9e69e2fa308675249c48aee6b44b09cd4a5d2dfa 100644
+--- a/src/libANGLE/renderer/ShaderInterfaceVariableInfoMap.cpp
++++ b/src/libANGLE/renderer/ShaderInterfaceVariableInfoMap.cpp
+@@ -114,12 +114,14 @@ const ShaderInterfaceVariableInfo &ShaderInterfaceVariableInfoMap::getVariableBy
+     return mData[shaderType][typeAndIndex.variableType][typeAndIndex.index];
+ }
+
++#if ANGLE_ENABLE_METAL_SPIRV
+ bool ShaderInterfaceVariableInfoMap::hasTransformFeedbackInfo(gl::ShaderType shaderType,
+                                                               uint32_t bufferIndex) const
+ {
+     std::string bufferName = rx::GetXfbBufferName(bufferIndex);
+     return hasVariable(shaderType, bufferName);
+ }
++#endif
+
+ void ShaderInterfaceVariableInfoMap::mapIndexedResourceByName(gl::ShaderType shaderType,
+                                                               ShaderVariableType variableType,
+diff --git a/src/libANGLE/renderer/ShaderInterfaceVariableInfoMap.h b/src/libANGLE/renderer/ShaderInterfaceVariableInfoMap.h
+index ce9c26e401ffd4fa59eb8308a5210998970bec8c..dcaa142fc2a5e0d45ddf7e8fcaac14bb7f30ff2d 100644
+--- a/src/libANGLE/renderer/ShaderInterfaceVariableInfoMap.h
++++ b/src/libANGLE/renderer/ShaderInterfaceVariableInfoMap.h
+@@ -89,7 +89,9 @@ class ShaderInterfaceVariableInfoMap final : angle::NonCopyable
+     bool hasAtomicCounterInfo(gl::ShaderType shaderType) const;
+     const ShaderInterfaceVariableInfo &getAtomicCounterInfo(gl::ShaderType shaderType) const;
+     const ShaderInterfaceVariableInfo &getFramebufferFetchInfo(gl::ShaderType shaderType) const;
++#if ANGLE_ENABLE_METAL_SPIRV
+     bool hasTransformFeedbackInfo(gl::ShaderType shaderType, uint32_t bufferIndex) const;
++#endif
+     const ShaderInterfaceVariableInfo &getTransformFeedbackInfo(gl::ShaderType shaderType,
+                                                                 uint32_t bufferIndex) const;
+
+diff --git a/src/libANGLE/renderer/glslang_wrapper_utils.h b/src/libANGLE/renderer/glslang_wrapper_utils.h
+index 2f9390f79909a01e3d2441cb7e25a044a389a401..ca1c5c9ca2239c2902508b524369480b7dd2092e 100644
+--- a/src/libANGLE/renderer/glslang_wrapper_utils.h
++++ b/src/libANGLE/renderer/glslang_wrapper_utils.h
+@@ -151,7 +151,7 @@ void GlslangAssignTransformFeedbackLocations(gl::ShaderType shaderType,
+                                              bool isTransformFeedbackStage,
+                                              GlslangProgramInterfaceInfo *programInterfaceInfo,
+                                              ShaderInterfaceVariableInfoMap *variableInfoMapOut);
+-
++#if ANGLE_ENABLE_METAL_SPIRV
+ // Retrieves the compiled SPIR-V code for each shader stage, and calls |GlslangAssignLocations|.
+ void GlslangGetShaderSpirvCode(const gl::Context *context,
+                                const GlslangSourceOptions &options,
+@@ -165,6 +165,7 @@ angle::Result GlslangTransformSpirvCode(const GlslangSpirvOptions &options,
+                                         const ShaderInterfaceVariableInfoMap &variableInfoMap,
+                                         const angle::spirv::Blob &initialSpirvBlob,
+                                         angle::spirv::Blob *spirvBlobOut);
++#endif
+
+ }  // namespace rx
+
