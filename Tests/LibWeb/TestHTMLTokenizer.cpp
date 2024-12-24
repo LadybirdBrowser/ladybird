@@ -199,6 +199,25 @@ TEST_CASE(character_reference_in_attribute)
     END_ENUMERATION();
 }
 
+TEST_CASE(numeric_character_reference)
+{
+    auto tokens = run_tokenizer("&#1111"sv);
+    BEGIN_ENUMERATION(tokens);
+    EXPECT_CHARACTER_TOKEN(1111);
+    EXPECT_END_OF_FILE_TOKEN();
+    END_ENUMERATION();
+}
+
+TEST_CASE(hex_character_reference)
+{
+    auto tokens = run_tokenizer("&#xA12bZ"sv);
+    BEGIN_ENUMERATION(tokens);
+    EXPECT_CHARACTER_TOKEN(0xA12B);
+    EXPECT_CHARACTER_TOKEN('Z');
+    EXPECT_END_OF_FILE_TOKEN();
+    END_ENUMERATION();
+}
+
 TEST_CASE(comment)
 {
     auto tokens = run_tokenizer("<p><!-- This is a comment --></p>"sv);
