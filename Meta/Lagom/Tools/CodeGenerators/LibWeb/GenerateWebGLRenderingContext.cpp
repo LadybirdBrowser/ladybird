@@ -32,6 +32,7 @@ static bool gl_function_modifies_framebuffer(StringView function_name)
     return function_name == "clear"sv
         || function_name == "drawArrays"sv
         || function_name == "drawElements"sv
+        || function_name == "drawElementsInstanced"sv
         || function_name == "blitFramebuffer"sv
         || function_name == "invalidateFramebuffer"sv;
 }
@@ -998,6 +999,14 @@ public:
             continue;
         }
 
+        if (function.name == "drawElementsInstanced"sv) {
+            function_impl_generator.append(R"~~~(
+    glDrawElementsInstanced(mode, count, type, reinterpret_cast<void*>(offset), instance_count);
+    needs_to_present();
+)~~~");
+            continue;
+        }
+
         if (function.name == "drawBuffers"sv) {
             function_impl_generator.append(R"~~~(
     glDrawBuffers(buffers.size(), buffers.data());
@@ -1121,6 +1130,13 @@ public:
     auto& float32_array = verify_cast<JS::Float32Array>(typed_array_base);
     float const* data = float32_array.data().data();
     glVertexAttrib@number_of_vector_elements@fv(index, data);
+)~~~");
+            continue;
+        }
+
+        if (function.name == "vertexAttribIPointer"sv) {
+            function_impl_generator.append(R"~~~(
+    glVertexAttribIPointer(index, size, type, stride, reinterpret_cast<void*>(offset));
 )~~~");
             continue;
         }

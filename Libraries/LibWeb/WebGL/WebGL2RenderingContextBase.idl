@@ -360,12 +360,12 @@ interface mixin WebGL2RenderingContextBase {
     [FIXME] undefined vertexAttribI4iv(GLuint index, Int32List values);
     [FIXME] undefined vertexAttribI4ui(GLuint index, GLuint x, GLuint y, GLuint z, GLuint w);
     [FIXME] undefined vertexAttribI4uiv(GLuint index, Uint32List values);
-    [FIXME] undefined vertexAttribIPointer(GLuint index, GLint size, GLenum type, GLsizei stride, GLintptr offset);
+    undefined vertexAttribIPointer(GLuint index, GLint size, GLenum type, GLsizei stride, GLintptr offset);
 
     // Writing to the drawing buffer
     undefined vertexAttribDivisor(GLuint index, GLuint divisor);
     [FIXME] undefined drawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsizei instanceCount);
-    [FIXME] undefined drawElementsInstanced(GLenum mode, GLsizei count, GLenum type, GLintptr offset, GLsizei instanceCount);
+    undefined drawElementsInstanced(GLenum mode, GLsizei count, GLenum type, GLintptr offset, GLsizei instanceCount);
     [FIXME] undefined drawRangeElements(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, GLintptr offset);
 
     // Multiple Render Targets
