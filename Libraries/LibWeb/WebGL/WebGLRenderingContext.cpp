@@ -146,7 +146,10 @@ Optional<WebGLContextAttributes> WebGLRenderingContext::get_context_attributes()
 
 void WebGLRenderingContext::set_size(Gfx::IntSize const& size)
 {
-    context().set_size(size);
+    Gfx::IntSize final_size;
+    final_size.set_width(max(size.width(), 1));
+    final_size.set_height(max(size.height(), 1));
+    context().set_size(final_size);
 }
 
 void WebGLRenderingContext::reset_to_default_state()
