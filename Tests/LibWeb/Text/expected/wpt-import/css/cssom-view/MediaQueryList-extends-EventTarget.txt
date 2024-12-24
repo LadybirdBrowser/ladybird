@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 7 tests
 
-6 Pass
-1 Fail
-Fail	onchange adds listener
+7 Pass
+Pass	onchange adds listener
 Pass	onchange removes listener
 Pass	listeners for "change" type are called
 Pass	listeners with different type are not called

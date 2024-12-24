@@ -21,6 +21,7 @@ class MediaQueryListEvent final : public DOM::Event {
     GC_DECLARE_ALLOCATOR(MediaQueryListEvent);
 
 public:
+    [[nodiscard]] static GC::Ref<MediaQueryListEvent> create(JS::Realm&, FlyString const& event_name, MediaQueryListEventInit const& = {});
     [[nodiscard]] static GC::Ref<MediaQueryListEvent> construct_impl(JS::Realm&, FlyString const& event_name, MediaQueryListEventInit const& = {});
 
     virtual ~MediaQueryListEvent() override;

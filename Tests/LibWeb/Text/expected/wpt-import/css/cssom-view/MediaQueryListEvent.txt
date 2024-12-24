@@ -2,11 +2,10 @@ Harness status: OK
 
 Found 6 tests
 
-3 Pass
-3 Fail
+6 Pass
 Pass	type can be different from "change"
 Pass	init dictionary default values
 Pass	init dictionary overrides
-Fail	argument of addListener
-Fail	argument of onchange
-Fail	constructor of "change" event
+Pass	argument of addListener
+Pass	argument of onchange
+Pass	constructor of "change" event

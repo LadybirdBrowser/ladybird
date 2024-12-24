@@ -12,6 +12,13 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(MediaQueryListEvent);
 
+GC::Ref<MediaQueryListEvent> MediaQueryListEvent::create(JS::Realm& realm, FlyString const& event_name, MediaQueryListEventInit const& event_init)
+{
+    auto event = realm.create<MediaQueryListEvent>(realm, event_name, event_init);
+    event->set_is_trusted(true);
+    return event;
+}
+
 GC::Ref<MediaQueryListEvent> MediaQueryListEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, MediaQueryListEventInit const& event_init)
 {
     return realm.create<MediaQueryListEvent>(realm, event_name, event_init);
