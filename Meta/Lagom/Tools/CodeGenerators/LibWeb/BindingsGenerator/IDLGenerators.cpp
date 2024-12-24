@@ -6,6 +6,7 @@
  * Copyright (c) 2023-2024, Kenneth Myhra <kennethmyhra@serenityos.org>
  * Copyright (c) 2023-2024, Shannon Booth <shannon@serenityos.org>
  * Copyright (c) 2023-2024, Matthew Olsson <mattco@serenityos.org>
+ * Copyright (c) 2024, stelar7 <dudedbz@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -2996,18 +2997,27 @@ static void collect_attribute_values_of_an_inheritance_stack(SourceGenerator& fu
                 attribute_generator.set("attribute.cpp_name", attribute.name.to_snakecase());
             }
 
-            if (attribute.extended_attributes.contains("Reflect")) {
-                auto attribute_name = attribute.extended_attributes.get("Reflect").value();
-                if (attribute_name.is_empty())
-                    attribute_name = attribute.name;
-                attribute_name = make_input_acceptable_cpp(attribute_name);
+            auto reflected_attributes = {
+                "Reflect",
+                "ReflectURL",
+                "ReflectPositive",
+                "ReflectNonNegative",
+            };
 
-                attribute_generator.set("attribute.reflect_name", attribute_name);
-            } else {
-                attribute_generator.set("attribute.reflect_name", attribute.name.to_snakecase());
+            for (auto const& reflected_attribute : reflected_attributes) {
+                if (attribute.extended_attributes.contains(reflected_attribute)) {
+                    auto attribute_name = attribute.extended_attributes.get(reflected_attribute).value();
+                    if (attribute_name.is_empty())
+                        attribute_name = attribute.name.to_lowercase();
+                    attribute_name = make_input_acceptable_cpp(attribute_name);
+
+                    attribute_generator.set("attribute.reflect_name", attribute_name);
+                }
             }
 
-            if (attribute.extended_attributes.contains("Reflect")) {
+            auto is_reflected = any_of(reflected_attributes, [&](auto const& reflected_attribute) { return attribute.extended_attributes.contains(reflected_attribute); });
+
+            if (is_reflected) {
                 if (attribute.type->name() != "boolean") {
                     attribute_generator.append(R"~~~(
     auto @attribute.return_value_name@ = impl->get_attribute_value(HTML::AttributeNames::@attribute.reflect_name@);
@@ -3544,15 +3554,28 @@ void @class_name@::initialize(JS::Realm& realm)
             attribute_generator.set("attribute.cpp_name", attribute.name.to_snakecase());
         }
 
-        if (attribute.extended_attributes.contains("Reflect")) {
-            auto attribute_name = attribute.extended_attributes.get("Reflect").value();
-            if (attribute_name.is_empty())
-                attribute_name = attribute.name;
-            attribute_name = make_input_acceptable_cpp(attribute_name);
+        auto reflected_attributes = {
+            "Reflect",
+            "ReflectURL",
+            "ReflectPositive",
+            "ReflectNonNegative",
+        };
 
-            attribute_generator.set("attribute.reflect_name", attribute_name);
-        } else {
-            attribute_generator.set("attribute.reflect_name", attribute.name.to_snakecase());
+        bool found = false;
+        for (auto const& reflected_attribute : reflected_attributes) {
+            if (attribute.extended_attributes.contains(reflected_attribute)) {
+                auto attribute_name = attribute.extended_attributes.get(reflected_attribute).value();
+                if (attribute_name.is_empty())
+                    attribute_name = attribute.name.to_lowercase();
+                attribute_name = make_input_acceptable_cpp(attribute_name);
+
+                attribute_generator.set("attribute.reflect_name", attribute_name);
+                found = true;
+            }
+        }
+
+        if (!found) {
+            attribute_generator.set("attribute.reflect_name", attribute.name.to_lowercase());
         }
 
         // For [CEReactions]: https://html.spec.whatwg.org/multipage/custom-elements.html#cereactions
@@ -3575,7 +3598,9 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
         }
 
         // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#reflecting-content-attributes-in-idl-attributes
-        if (attribute.extended_attributes.contains("Reflect")) {
+        auto is_reflected = any_of(reflected_attributes, [&](auto const& reflected_attribute) { return attribute.extended_attributes.contains(reflected_attribute); });
+
+        if (is_reflected) {
             if (attribute.type->name() == "DOMString") {
                 if (!attribute.type->is_nullable()) {
                     // If a reflected IDL attribute has the type DOMString:
@@ -3727,42 +3752,155 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
                 //    1. Let parsedValue be the result of integer parsing contentAttributeValue if the reflected IDL attribute is not limited to only non-negative numbers;
                 //       otherwise the result of non-negative integer parsing contentAttributeValue.
                 //    2. If parsedValue is not an error and is within the long range, then return parsedValue.
+                auto positive = false;
+
+                if (attribute.extended_attributes.contains("ReflectNonNegative"))
+                    positive = true;
+
+                attribute_generator.set("positive", positive ? "true"sv : "false"sv);
+
+                // 3. If the reflected IDL attribute has a default value, then return defaultValue.
+                if (attribute.extended_attributes.contains("ReflectFallback")) {
+                    auto default_value = attribute.extended_attributes.get("ReflectFallback").value();
+                    attribute_generator.set("has_default_value", "true"sv);
+                    attribute_generator.set("default_value", default_value);
+                } else {
+                    attribute_generator.set("has_default_value", "false"sv);
+                    attribute_generator.set("default_value", "0"sv);
+                }
+
+                // 4. If the reflected IDL attribute is limited to only non-negative numbers, then return −1.
+                // 5. Return 0.
                 attribute_generator.append(R"~~~(
     i32 retval = 0;
+    bool did_set_value = false;
     auto content_attribute_value = impl->get_attribute(HTML::AttributeNames::@attribute.reflect_name@);
     if (content_attribute_value.has_value()) {
-        auto maybe_parsed_value = Web::HTML::parse_integer(*content_attribute_value);
-        if (maybe_parsed_value.has_value())
-            retval = *maybe_parsed_value;
+        if (@positive@) {
+            auto maybe_parsed_value = Web::HTML::parse_non_negative_integer(*content_attribute_value);
+
+            if (maybe_parsed_value.has_value()) {
+                auto parsed_value = maybe_parsed_value.value();
+
+                if (parsed_value <= NumericLimits<WebIDL::Long>::max()) {
+                    retval = parsed_value;
+                    did_set_value = true;
+                }
+            }
+        } else {
+            auto maybe_parsed_value = Web::HTML::parse_integer(*content_attribute_value);
+            
+            if (maybe_parsed_value.has_value()) {
+                auto parsed_value = maybe_parsed_value.value();
+
+                if (parsed_value <= NumericLimits<WebIDL::Long>::max() && parsed_value >= NumericLimits<WebIDL::Long>::min()) {
+                    retval = parsed_value;
+                    did_set_value = true;
+                }
+            }
+        }
+    } 
+    
+    if (@has_default_value@ && !did_set_value) {
+        retval = @default_value@;
+        did_set_value = true;
+    }
+    
+    if (@positive@ && !did_set_value) {
+        retval = -1;
+        did_set_value = true;
+    } 
+    
+    if (!did_set_value) {
+        retval = 0;
     }
 )~~~");
             }
             // If a reflected IDL attribute has the type unsigned long,
-            // FIXME: optionally limited to only positive numbers, limited to only positive numbers with fallback, or clamped to the range [clampedMin, clampedMax], and optionally with a default value defaultValue:
+            // optionally limited to only positive numbers, limited to only positive numbers with fallback, or clamped to the range [clampedMin, clampedMax], and optionally with a default value defaultValue:
             else if (attribute.type->name() == "unsigned long") {
                 // The getter steps are:
                 // 1. Let contentAttributeValue be the result of running this's get the content attribute.
                 // 2. Let minimum be 0.
-                // FIXME: 3. If the reflected IDL attribute is limited to only positive numbers or limited to only positive numbers with fallback, then set minimum to 1.
-                // FIXME: 4. If the reflected IDL attribute is clamped to the range, then set minimum to clampedMin.
+                u32 minimum = 0;
+                u32 maximum = 2147483647;
+                auto clamped = false;
+
+                // 3. If the reflected IDL attribute is limited to only positive numbers or limited to only positive numbers with fallback, then set minimum to 1.
+                if (attribute.extended_attributes.contains("ReflectPositive"))
+                    minimum = 1;
+
+                // 4. If the reflected IDL attribute is clamped to the range, then set minimum to clampedMin.
                 // 5. Let maximum be 2147483647 if the reflected IDL attribute is not clamped to the range; otherwise clampedMax.
+                if (attribute.extended_attributes.contains("ReflectRange")) {
+                    clamped = true;
+                    auto clamp = attribute.extended_attributes.get("ReflectRange").value();
+                    auto value_without_parens = clamp.substring_view(1, clamp.length() - 1);
+                    auto parts = value_without_parens.split_view(',');
+                    minimum = parts[0].to_number<u32>().value();
+                    maximum = parts[1].to_number<u32>().value();
+                }
+
                 // 6. If contentAttributeValue is not null:
                 //    1. Let parsedValue be the result of non-negative integer parsing contentAttributeValue.
                 //       2. If parsedValue is not an error and is in the range minimum to maximum, inclusive, then return parsedValue.
-                //       FIXME: 3. If parsedValue is not an error and the reflected IDL attribute is clamped to the range:
-                //              FIXME: 1. If parsedValue is less than minimum, then return minimum.
-                //              FIXME: 2. Return maximum.
+                //       3. If parsedValue is not an error and the reflected IDL attribute is clamped to the range:
+                //              1. If parsedValue is less than minimum, then return minimum.
+                //              2. Return maximum.
+                attribute_generator.set("minimum", ByteString::number(minimum));
+                attribute_generator.set("maximum", ByteString::number(maximum));
+                attribute_generator.set("clamped", clamped ? "true"sv : "false"sv);
+
+                // 7. If the reflected IDL attribute has a default value, then return defaultValue.
+                if (attribute.extended_attributes.contains("ReflectFallback")) {
+                    auto default_value = attribute.extended_attributes.get("ReflectFallback").value();
+                    attribute_generator.set("has_default_value", "true"sv);
+                    attribute_generator.set("default_value", default_value);
+                } else {
+                    attribute_generator.set("has_default_value", "false"sv);
+                    attribute_generator.set("default_value", "0"sv);
+                }
+
+                // 8. Return minimum.
+
                 attribute_generator.append(R"~~~(
     u32 retval = 0;
+    u32 minimum = @minimum@;
+    u32 maximum = @maximum@;
+    bool did_set_value = false;
     auto content_attribute_value = impl->get_attribute(HTML::AttributeNames::@attribute.reflect_name@);
-    u32 minimum = 0;
-    u32 maximum = 2147483647;
     if (content_attribute_value.has_value()) {
-        auto parsed_value = Web::HTML::parse_non_negative_integer(*content_attribute_value);
-        if (parsed_value.has_value()) {
-            if (*parsed_value >= minimum && *parsed_value <= maximum) {
-                retval = *parsed_value;
+        Optional<u32> maybe_parsed_value = {};
+        if (!@clamped@) {
+            maybe_parsed_value = Web::HTML::parse_non_negative_integer(*content_attribute_value);
+        } else {
+            maybe_parsed_value = Web::HTML::parse_non_negative_integer(*content_attribute_value, minimum, maximum);
+        }
+
+        if (maybe_parsed_value.has_value()) {
+            auto parsed_value = maybe_parsed_value.value();
+            if (parsed_value >= minimum && parsed_value <= maximum) {
+                retval = parsed_value;
+                did_set_value = true;
             }
+
+            if (@clamped@ && !did_set_value) {
+                if (parsed_value < minimum) {
+                    retval = minimum;
+                } else {
+                    retval = maximum;
+                }
+
+                did_set_value = true;
+            }
+        }
+    }
+    
+    if (!did_set_value) {
+        if (@has_default_value@) {
+            retval = @default_value@;
+        } else {
+            retval = minimum;
         }
     }
 )~~~");
@@ -3781,7 +3919,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
                 // NOTE: this is "attribute" above
 
                 // 4. If attributeDefinition indicates it contains a URL:
-                if (attribute.extended_attributes.contains("URL")) {
+                if (attribute.extended_attributes.contains("ReflectURL")) {
                     // 1. If contentAttributeValue is null, then return the empty string.
                     // 2. Let urlString be the result of encoding-parsing-and-serializing a URL given contentAttributeValue, relative to element's node document.
                     // 3. If urlString is not failure, then return urlString.
@@ -3924,7 +4062,8 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
 
             generate_to_cpp(generator, attribute, "value", "", "cpp_value", interface, attribute.extended_attributes.contains("LegacyNullToEmptyString"));
 
-            if (attribute.extended_attributes.contains("Reflect")) {
+            auto is_reflected = any_of(reflected_attributes, [&](auto const& reflected_attribute) { return attribute.extended_attributes.contains(reflected_attribute); });
+            if (is_reflected) {
                 if (attribute.type->name() == "boolean") {
                     attribute_generator.append(R"~~~(
     if (!cpp_value)
@@ -3932,18 +4071,61 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
     else
         MUST(impl->set_attribute(HTML::AttributeNames::@attribute.reflect_name@, String {}));
 )~~~");
+                } else if (attribute.type->name() == "long") {
+                    // The setter steps are:
+                    // 1. If the reflected IDL attribute is limited to only non-negative numbers and the given value is negative, then throw an "IndexSizeError" DOMException.
+                    auto non_negative = false;
+                    if (attribute.extended_attributes.contains("ReflectNonNegative"))
+                        non_negative = true;
+
+                    attribute_generator.set("non_negative", non_negative ? "true"sv : "false"sv);
+
+                    // 2. Run this's set the content attribute with the given value converted to the shortest possible string representing the number as a valid integer.
+                    attribute_generator.append(R"~~~(
+    if (@non_negative@ && cpp_value < 0)
+        return JS::throw_completion(WebIDL::IndexSizeError::create(realm, "Value must be non-negative"_string));
+
+    MUST(impl->set_attribute(HTML::AttributeNames::@attribute.reflect_name@, String::number(cpp_value)));
+)~~~");
                 } else if (attribute.type->name() == "unsigned long") {
                     // The setter steps are:
-                    // FIXME: 1. If the reflected IDL attribute is limited to only positive numbers and the given value is 0, then throw an "IndexSizeError" DOMException.
+
+                    // 1. If the reflected IDL attribute is limited to only positive numbers and the given value is 0, then throw an "IndexSizeError" DOMException.
+                    auto positive = false;
+                    auto hasFallback = false;
+                    if (attribute.extended_attributes.contains("ReflectPositive"))
+                        positive = true;
+
                     // 2. Let minimum be 0.
-                    // FIXME: 3. If the reflected IDL attribute is limited to only positive numbers or limited to only positive numbers with fallback, then set minimum to 1.
+                    u32 minimum = 0;
+
+                    // 3. If the reflected IDL attribute is limited to only positive numbers or limited to only positive numbers with fallback, then set minimum to 1.
+                    if (positive)
+                        minimum = 1;
+
                     // 4. Let newValue be minimum.
-                    // FIXME: 5. If the reflected IDL attribute has a default value, then set newValue to defaultValue.
+                    attribute_generator.set("new_value", ByteString::number(minimum));
+
+                    // 5. If the reflected IDL attribute has a default value, then set newValue to defaultValue.
+                    if (attribute.extended_attributes.contains("ReflectFallback")) {
+                        auto default_value = attribute.extended_attributes.get("ReflectFallback").value();
+                        auto default_number = default_value.to_number<u32>().value();
+                        attribute_generator.set("new_value", ByteString::number(default_number));
+                        hasFallback = true;
+                    }
                     // 6. If the given value is in the range minimum to 2147483647, inclusive, then set newValue to it.
                     // 7. Run this's set the content attribute with newValue converted to the shortest possible string representing the number as a valid non-negative integer.
+
+                    attribute_generator.set("positive", positive ? "true"sv : "false"sv);
+                    attribute_generator.set("minimum", ByteString::number(minimum));
+                    attribute_generator.set("has_fallback", hasFallback ? "true"sv : "false"sv);
                     attribute_generator.append(R"~~~(
-    u32 minimum = 0;
-    u32 new_value = minimum;
+    u32 new_value = @new_value@;
+    u32 minimum = @minimum@;
+
+    if (@positive@ && !@has_fallback@ && cpp_value == 0)
+        return JS::throw_completion(WebIDL::IndexSizeError::create(realm, "Value must be positive"_string));
+
     if (cpp_value >= minimum && cpp_value <= 2147483647)
         new_value = cpp_value;
     MUST(impl->set_attribute(HTML::AttributeNames::@attribute.reflect_name@, String::number(new_value)));
