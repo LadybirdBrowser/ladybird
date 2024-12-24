@@ -10,6 +10,7 @@
 #ifdef AK_OS_WINDOWS
 #    include <AK/ByteString.h>
 #    include <AK/HashMap.h>
+#    include <stdio.h>
 #    include <windows.h>
 #endif
 
@@ -21,31 +22,39 @@ Error Error::from_string_view_or_print_error_and_return_errno(StringView string_
 }
 
 #ifdef AK_OS_WINDOWS
-Error Error::from_windows_error(DWORD code)
+Error Error::from_windows_error(int code)
 {
-    static HashMap<DWORD, ByteString> windows_errors;
+    static HashMap<int, ByteString> windows_errors;
 
     auto string = windows_errors.get(code);
-    if (string.has_value()) {
+    if (string.has_value())
         return Error::from_string_view(string->view());
-    } else {
-        char* message = nullptr;
-        auto size = FormatMessageA(
-            FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-            nullptr,
-            code,
-            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-            (LPSTR)&message,
-            0,
-            nullptr);
 
-        if (size == 0)
-            return Error::from_string_view_or_print_error_and_return_errno("Unknown error"sv, code);
+    char* message = 0;
+    auto size = FormatMessage(
+        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+        NULL,
+        code,
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+        (LPSTR)&message,
+        0,
+        NULL);
 
-        windows_errors.set(code, { message, size });
-        LocalFree(message);
-        return from_windows_error(code);
+    if (size == 0) {
+        static char buffer[128];
+        snprintf(buffer, _countof(buffer), "Error 0x%08lX while getting text of error 0x%08X", GetLastError(), code);
+        return Error::from_string_view({ buffer, _countof(buffer) });
     }
+
+    windows_errors.set(code, { message, size });
+    LocalFree(message);
+    return from_windows_error(code);
+}
+
+// This can be used both for generic Windows errors and for winsock errors because WSAGetLastError is forwarded to GetLastError.
+Error Error::from_windows_error()
+{
+    return from_windows_error(GetLastError());
 }
 #endif
 
