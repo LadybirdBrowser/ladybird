@@ -355,7 +355,9 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
     auto* inspector_action = new QAction("Open &Inspector", this);
     inspector_action->setIcon(load_icon_from_uri("resource://icons/browser/dom-tree.png"sv));
-    inspector_action->setShortcuts({ QKeySequence("Ctrl+Shift+I"), QKeySequence("F12") });
+    inspector_action->setShortcuts({ QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_I),
+        QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_C),
+        QKeySequence(Qt::Key_F12) });
     inspect_menu->addAction(inspector_action);
     QObject::connect(inspector_action, &QAction::triggered, this, [this] {
         if (m_current_tab) {
@@ -472,7 +474,6 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     });
 
     auto* clear_cache_action = new QAction("Clear &Cache", this);
-    clear_cache_action->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_C));
     clear_cache_action->setIcon(load_icon_from_uri("resource://icons/browser/clear-cache.png"sv));
     debug_menu->addAction(clear_cache_action);
     QObject::connect(clear_cache_action, &QAction::triggered, this, [this] {
