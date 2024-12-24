@@ -69,6 +69,7 @@ public:
     using BufferableObjectBase::is_typed_array_base;
 
     u32 byte_offset() const;
+    void write(ReadonlyBytes, u32 starting_offset = 0);
 };
 
 // https://webidl.spec.whatwg.org/#BufferSource

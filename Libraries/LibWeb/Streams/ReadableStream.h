@@ -109,6 +109,8 @@ public:
     WebIDL::ExceptionOr<void> enqueue(JS::Value chunk);
     void set_up_with_byte_reading_support(GC::Ptr<PullAlgorithm> = {}, GC::Ptr<CancelAlgorithm> = {}, double high_water_mark = 0);
 
+    GC::Ptr<WebIDL::ArrayBufferView> current_byob_request_view();
+
 private:
     explicit ReadableStream(JS::Realm&);
 
