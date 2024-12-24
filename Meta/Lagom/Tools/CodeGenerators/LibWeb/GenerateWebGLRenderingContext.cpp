@@ -725,7 +725,7 @@ public:
             continue;
         }
 
-        if (function.name == "texImage2D"sv && function.overload_index == 1) {
+        if (function.name == "texImage2D"sv && (function.overload_index == 1 || (webgl_version == 2 && function.overload_index == 2))) {
             // FIXME: If this function is called with an ImageData whose data attribute has been neutered,
             //        an INVALID_VALUE error is generated.
             // FIXME: If this function is called with an ImageBitmap that has been neutered, an INVALID_VALUE
@@ -761,14 +761,23 @@ public:
         return;
 
     void const* pixels_ptr = bitmap->bitmap()->begin();
+)~~~");
+
+            if (webgl_version == 2 && function.overload_index == 2) {
+                function_impl_generator.append(R"~~~(
+    glTexImage2D(target, level, internalformat, width, height, border, format, type, pixels_ptr);
+)~~~");
+            } else {
+                function_impl_generator.append(R"~~~(
     int width = bitmap->width();
     int height = bitmap->height();
     glTexImage2D(target, level, internalformat, width, height, 0, format, type, pixels_ptr);
 )~~~");
+            }
             continue;
         }
 
-        if (webgl_version == 2 && function.name == "texImage2D"sv && function.overload_index == 2) {
+        if (webgl_version == 2 && function.name == "texImage2D"sv && function.overload_index == 3) {
             function_impl_generator.append(R"~~~(
     void const* pixels_ptr = nullptr;
     if (src_data) {
@@ -794,7 +803,58 @@ public:
             continue;
         }
 
-        if (webgl_version == 2 && function.name == "texSubImage2D"sv && function.overload_index == 1) {
+        if (function.name == "texSubImage2D" && (function.overload_index == 1 || (webgl_version == 2 && function.overload_index == 2))) {
+            // FIXME: If this function is called with an ImageData whose data attribute has been neutered,
+            //        an INVALID_VALUE error is generated.
+            // FIXME: If this function is called with an ImageBitmap that has been neutered, an INVALID_VALUE
+            //        error is generated.
+            // FIXME: If this function is called with an HTMLImageElement or HTMLVideoElement whose origin
+            //        differs from the origin of the containing Document, or with an HTMLCanvasElement,
+            //        ImageBitmap or OffscreenCanvas whose bitmap's origin-clean flag is set to false,
+            //        a SECURITY_ERR exception must be thrown. See Origin Restrictions.
+            // FIXME: If source is null then an INVALID_VALUE error is generated.
+            function_impl_generator.append(R"~~~(
+    auto bitmap = source.visit(
+        [](GC::Root<HTMLImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
+            return source->immutable_bitmap();
+        },
+        [](GC::Root<HTMLCanvasElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
+            auto surface = source->surface();
+            if (!surface)
+                return {};
+            auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Premultiplied, surface->size()));
+            surface->read_into_bitmap(*bitmap);
+            return Gfx::ImmutableBitmap::create(*bitmap);
+        },
+        [](GC::Root<HTMLVideoElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
+            return Gfx::ImmutableBitmap::create(*source->bitmap());
+        },
+        [](GC::Root<ImageBitmap> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
+            return Gfx::ImmutableBitmap::create(*source->bitmap());
+        },
+        [](GC::Root<ImageData> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
+            return Gfx::ImmutableBitmap::create(source->bitmap());
+        });
+    if (!bitmap)
+        return;
+
+    void const* pixels_ptr = bitmap->bitmap()->begin();
+)~~~");
+            if (webgl_version == 2 && function.overload_index == 2) {
+                function_impl_generator.append(R"~~~(
+    glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels_ptr);
+)~~~");
+            } else {
+                function_impl_generator.append(R"~~~(
+    int width = bitmap->width();
+    int height = bitmap->height();
+    glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels_ptr);
+)~~~");
+            }
+            continue;
+        }
+
+        if (webgl_version == 2 && function.name == "texSubImage2D"sv && function.overload_index == 3) {
             function_impl_generator.append(R"~~~(
     void const* pixels_ptr = nullptr;
     if (src_data) {
