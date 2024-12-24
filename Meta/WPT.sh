@@ -142,18 +142,20 @@ else
     WPT_ARGS+=( "--binary=${LADYBIRD_BINARY}" )
 fi
 
-TEST_LIST=( "$@" )
-
-for i in "${!TEST_LIST[@]}"; do
-    item="${TEST_LIST[i]}"
-    item="${item#"$WPT_SOURCE_DIR"/}"
-    item="${item#*Tests/LibWeb/WPT/wpt/}"
-    item="${item#http://wpt.live/}"
-    item="${item#https://wpt.live/}"
-    TEST_LIST[i]="$item"
-done
-
 exit_if_running_as_root "Do not run WPT.sh as root"
+
+construct_test_list() {
+  TEST_LIST=( "$@" )
+
+  for i in "${!TEST_LIST[@]}"; do
+      item="${TEST_LIST[i]}"
+      item="${item#"$WPT_SOURCE_DIR"/}"
+      item="${item#*Tests/LibWeb/WPT/wpt/}"
+      item="${item#http://wpt.live/}"
+      item="${item#https://wpt.live/}"
+      TEST_LIST[i]="$item"
+  done
+}
 
 ensure_wpt_repository() {
     mkdir -p "${WPT_SOURCE_DIR}"
@@ -190,6 +192,7 @@ execute_wpt() {
             fi
             WPT_ARGS+=( "--webdriver-arg=--certificate=${certificate_path}" )
         done
+        construct_test_list "${@}"
         echo LADYBIRD_GIT_VERSION="$(ladybird_git_hash)" ./wpt run "${WPT_ARGS[@]}" ladybird "${TEST_LIST[@]}"
         LADYBIRD_GIT_VERSION="$(ladybird_git_hash)" ./wpt run "${WPT_ARGS[@]}" ladybird "${TEST_LIST[@]}"
     popd > /dev/null
@@ -198,7 +201,7 @@ execute_wpt() {
 run_wpt() {
     ensure_wpt_repository
     build_ladybird_and_webdriver
-    execute_wpt
+    execute_wpt "${@}"
 }
 
 serve_wpt()
@@ -213,6 +216,8 @@ serve_wpt()
 list_tests_wpt()
 {
     ensure_wpt_repository
+
+    construct_test_list "${@}"
 
     pushd "${WPT_SOURCE_DIR}" > /dev/null
         ./wpt run --list-tests ladybird "${TEST_LIST[@]}"
@@ -261,7 +266,7 @@ compare_wpt() {
     popd > /dev/null
     WPT_ARGS+=( "--metadata=${METADATA_DIR}" )
     build_ladybird_and_webdriver
-    execute_wpt
+    execute_wpt "${@}"
     rm -rf "${METADATA_DIR}"
 }
 
@@ -271,7 +276,7 @@ if [[ "$CMD" =~ ^(update|run|serve|compare|import|list-tests)$ ]]; then
             update_wpt
             ;;
         run)
-            run_wpt
+            run_wpt "${@}"
             ;;
         serve)
             serve_wpt
@@ -291,10 +296,10 @@ if [[ "$CMD" =~ ^(update|run|serve|compare|import|list-tests)$ ]]; then
                 usage;
             fi
             shift
-            compare_wpt
+            compare_wpt "${@}"
             ;;
         list-tests)
-            list_tests_wpt
+            list_tests_wpt "${@}"
             ;;
     esac
 else
