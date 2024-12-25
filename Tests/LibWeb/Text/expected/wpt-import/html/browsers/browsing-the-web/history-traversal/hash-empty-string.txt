@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	URL has no hash
+Pass	changing the hash from an empty string to an empty string does not trigger a popstate event
+Pass	changing the hash from an empty string to an empty string does not trigger a hashchange event
