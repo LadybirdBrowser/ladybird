@@ -1374,7 +1374,7 @@ public:
 
         // FIXME: - the stored response does not contain the no-cache directive (Section 5.2.2.4), unless it is successfully validated (Section 4.3), and
 
-        initial_set_of_stored_responses.append(cached_response);
+        initial_set_of_stored_responses.append(*cached_response);
 
         // FIXME: - the stored response is one of the following:
         //          + fresh (see Section 4.2), or
@@ -1383,7 +1383,7 @@ public:
 
         dbgln("\033[32;1mHTTP CACHE HIT!\033[0m {}", url);
 
-        return cached_response;
+        return cached_response.ptr();
     }
 
     void store_response(JS::Realm& realm, Infrastructure::Request const& http_request, Infrastructure::Response const& response)
@@ -1584,7 +1584,7 @@ private:
         return true;
     }
 
-    HashMap<URL::URL, GC::Ptr<Infrastructure::Response>> m_cache;
+    HashMap<URL::URL, GC::Root<Infrastructure::Response>> m_cache;
 };
 
 class HTTPCache {
@@ -1645,7 +1645,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_network_or_cache_fetch(JS::Re
 
     // 5. Let storedResponse be null.
     GC::Ptr<Infrastructure::Response> stored_response;
-    Vector<GC::Ptr<Infrastructure::Response>> initial_set_of_stored_responses;
+    GC::MarkedVector<GC::Ptr<Infrastructure::Response>> initial_set_of_stored_responses(realm.heap());
 
     // 6. Let httpCache be null.
     // (Typeless until we actually implement it, needed for checks below)
