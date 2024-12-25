@@ -799,7 +799,7 @@ static inline bool matches(CSS::Selector::SimpleSelector const& component, Optio
         // Reject if the tag name doesn't match
         if (component.type == CSS::Selector::SimpleSelector::Type::TagName) {
             // See https://html.spec.whatwg.org/multipage/semantics-other.html#case-sensitivity-of-selectors
-            if (element.document().document_type() == DOM::Document::Type::HTML) {
+            if (element.document().document_type() == DOM::Document::Type::HTML && element.namespace_uri() == Namespace::HTML) {
                 if (qualified_name.name.lowercase_name != element.local_name())
                     return false;
             } else if (!Infra::is_ascii_case_insensitive_match(qualified_name.name.name, element.local_name())) {
