@@ -360,79 +360,6 @@ void RSA::import_public_key(ReadonlyBytes bytes, bool pem)
     m_public_key = maybe_key.release_value().public_key;
 }
 
-ErrorOr<ByteBuffer> RSA_PKCS1_EME::encrypt(ReadonlyBytes in)
-{
-    auto mod_len = (m_public_key.modulus().trimmed_length() * sizeof(u32) * 8 + 7) / 8;
-    dbgln_if(CRYPTO_DEBUG, "key size: {}", mod_len);
-    if (in.size() > mod_len - 11)
-        return Error::from_string_literal("Message too long");
-
-    auto out = TRY(ByteBuffer::create_uninitialized(mod_len));
-
-    auto ps_length = mod_len - in.size() - 3;
-    Vector<u8, 8096> ps;
-    ps.resize(ps_length);
-
-    fill_with_secure_random(ps);
-    // since fill_with_random can create zeros (shocking!)
-    // we have to go through and un-zero the zeros
-    for (size_t i = 0; i < ps_length; ++i) {
-        while (!ps[i])
-            ps[i] = get_random<u8>();
-    }
-
-    u8 paddings[] { 0x00, 0x02 };
-
-    out.overwrite(0, paddings, 2);
-    out.overwrite(2, ps.data(), ps_length);
-    out.overwrite(2 + ps_length, paddings, 1);
-    out.overwrite(3 + ps_length, in.data(), in.size());
-    out.trim(3 + ps_length + in.size(), true); // should be a single block
-
-    dbgln_if(CRYPTO_DEBUG, "padded output size: {} buffer size: {}", 3 + ps_length + in.size(), out.size());
-
-    return TRY(RSA::encrypt(out));
-}
-
-ErrorOr<ByteBuffer> RSA_PKCS1_EME::decrypt(ReadonlyBytes in)
-{
-    auto mod_len = (m_public_key.modulus().trimmed_length() * sizeof(u32) * 8 + 7) / 8;
-    if (in.size() != mod_len)
-        return Error::from_string_literal("Invalid input size");
-
-    auto out = TRY(RSA::decrypt(in));
-
-    if (out.size() < RSA::output_size())
-        return Error::from_string_literal("Not enough data after decryption");
-
-    if (out[0] != 0x00 || out[1] != 0x02)
-        return Error::from_string_literal("Invalid padding");
-
-    size_t offset = 2;
-    while (offset < out.size() && out[offset])
-        ++offset;
-
-    if (offset == out.size())
-        return Error::from_string_literal("Garbage data, no zero to split padding");
-
-    ++offset;
-
-    if (offset - 3 < 8)
-        return Error::from_string_literal("PS too small");
-
-    return out.slice(offset, out.size() - offset);
-}
-
-ErrorOr<ByteBuffer> RSA_PKCS1_EME::sign(ReadonlyBytes)
-{
-    return Error::from_string_literal("FIXME: RSA_PKCS_EME::sign");
-}
-
-ErrorOr<bool> RSA_PKCS1_EME::verify(ReadonlyBytes, ReadonlyBytes)
-{
-    return Error::from_string_literal("FIXME: RSA_PKCS_EME::verify");
-}
-
 ErrorOr<EVP_MD const*> hash_kind_to_hash_type(Hash::HashKind hash_kind)
 {
     switch (hash_kind) {
@@ -455,7 +382,7 @@ ErrorOr<EVP_MD const*> hash_kind_to_hash_type(Hash::HashKind hash_kind)
     }
 }
 
-ErrorOr<bool> RSA_PKCS1_EMSA::verify(ReadonlyBytes message, ReadonlyBytes signature)
+ErrorOr<bool> RSA_EMSA::verify(ReadonlyBytes message, ReadonlyBytes signature)
 {
     auto key = TRY(public_key_to_openssl_pkey(m_public_key));
     auto const* hash_type = TRY(hash_kind_to_hash_type(m_hash_kind));
@@ -477,7 +404,7 @@ ErrorOr<bool> RSA_PKCS1_EMSA::verify(ReadonlyBytes message, ReadonlyBytes signat
     VERIFY_NOT_REACHED();
 }
 
-ErrorOr<ByteBuffer> RSA_PKCS1_EMSA::sign(ReadonlyBytes message)
+ErrorOr<ByteBuffer> RSA_EMSA::sign(ReadonlyBytes message)
 {
     auto key = TRY(private_key_to_openssl_pkey(m_private_key));
     auto const* hash_type = TRY(hash_kind_to_hash_type(m_hash_kind));
@@ -507,6 +434,23 @@ ErrorOr<void> RSA_PKCS1_EME::configure(OpenSSL_PKEY_CTX& ctx)
 ErrorOr<void> RSA_PKCS1_EMSA::configure(OpenSSL_PKEY_CTX& ctx)
 {
     OPENSSL_TRY(EVP_PKEY_CTX_set_rsa_padding(ctx.ptr(), RSA_PKCS1_PADDING));
+    return {};
+}
+
+ErrorOr<void> RSA_OAEP_EME::configure(OpenSSL_PKEY_CTX& ctx)
+{
+    OPENSSL_TRY(EVP_PKEY_CTX_set_rsa_padding(ctx.ptr(), RSA_PKCS1_OAEP_PADDING));
+    OPENSSL_TRY(EVP_PKEY_CTX_set_rsa_oaep_md(ctx.ptr(), TRY(hash_kind_to_hash_type(m_hash_kind))));
+    OPENSSL_TRY(EVP_PKEY_CTX_set_rsa_mgf1_md(ctx.ptr(), TRY(hash_kind_to_hash_type(m_hash_kind))));
+
+    if (m_label.has_value() && !m_label->is_empty()) {
+        // https://docs.openssl.org/3.0/man3/EVP_PKEY_CTX_ctrl/#rsa-parameters
+        // The library takes ownership of the label so the caller should not free the original memory pointed to by label.
+        auto* label = OPENSSL_malloc(m_label->size());
+        memcpy(label, m_label->data(), m_label->size());
+        OPENSSL_TRY(EVP_PKEY_CTX_set0_rsa_oaep_label(ctx.ptr(), label, m_label->size()));
+    }
+
     return {};
 }
 
