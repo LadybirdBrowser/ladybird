@@ -22,7 +22,7 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/build-vcpkg-variables.cmake" "${EXTRA_VC
 # Munge the VCPKG_TRIPLET to correspond to the right one for our presets
 # Just make sure not to override if the developer is trying to cross-compile
 # or the developer set it manually, or if this is not the first run of CMake
-if (NOT DEFINED CACHE{VCPKG_TARGET_TRIPLET} AND NOT DEFINED VCPKG_CHAINLOAD_TOOLCHAIN_FILE)
+if (NOT DEFINED CACHE{VCPKG_TARGET_TRIPLET} AND NOT DEFINED CACHE{VCPKG_HOST_TRIPLET} AND NOT DEFINED VCPKG_CHAINLOAD_TOOLCHAIN_FILE)
     # Only tweak settings if there's custom triplets defined
     if (NOT DEFINED CACHE{VCPKG_OVERLAY_TRIPLETS})
         return()
@@ -68,4 +68,5 @@ if (NOT DEFINED CACHE{VCPKG_TARGET_TRIPLET} AND NOT DEFINED VCPKG_CHAINLOAD_TOOL
 
     message(STATUS "Determined host VCPKG_TARGET_TRIPLET: ${full_triplet}")
     set(VCPKG_TARGET_TRIPLET ${full_triplet} CACHE STRING "")
+    set(VCPKG_HOST_TRIPLET ${full_triplet} CACHE STRING "")
 endif()
