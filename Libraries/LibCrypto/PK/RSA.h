@@ -344,4 +344,28 @@ private:
     Optional<ReadonlyBytes> m_label {};
 };
 
+class RSA_PSS_EMSA : public RSA_EMSA {
+public:
+    template<typename... Args>
+    RSA_PSS_EMSA(Hash::HashKind hash_kind, Args... args)
+        : RSA_EMSA(hash_kind, args...)
+    {
+    }
+
+    ~RSA_PSS_EMSA() = default;
+
+    virtual ByteString class_name() const override
+    {
+        return "RSA_PSS-EMSA";
+    }
+
+    void set_salt_length(int value) { m_salt_length = value; }
+
+protected:
+    ErrorOr<void> configure(OpenSSL_PKEY_CTX& ctx) override;
+
+private:
+    Optional<int> m_salt_length;
+};
+
 }
