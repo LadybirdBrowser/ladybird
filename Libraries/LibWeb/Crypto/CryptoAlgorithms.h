@@ -195,6 +195,20 @@ struct RsaOaepParams : public AlgorithmParams {
     static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::VM&, JS::Value);
 };
 
+// https://w3c.github.io/webcrypto/#dfn-RsaPssParams
+struct RsaPssParams : public AlgorithmParams {
+    virtual ~RsaPssParams() override;
+
+    RsaPssParams(WebIDL::UnsignedLong salt_length)
+        : salt_length(salt_length)
+    {
+    }
+
+    WebIDL::UnsignedLong salt_length;
+
+    static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::VM&, JS::Value);
+};
+
 // https://w3c.github.io/webcrypto/#dfn-EcdsaParams
 struct EcdsaParams : public AlgorithmParams {
     virtual ~EcdsaParams() override;
@@ -372,6 +386,25 @@ public:
 
 private:
     explicit RSAOAEP(JS::Realm& realm)
+        : AlgorithmMethods(realm)
+    {
+    }
+};
+
+class RSAPSS : public AlgorithmMethods {
+public:
+    virtual WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> sign(AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&) override;
+    virtual WebIDL::ExceptionOr<JS::Value> verify(AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&, ByteBuffer const&) override;
+
+    virtual WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> generate_key(AlgorithmParams const&, bool, Vector<Bindings::KeyUsage> const&) override;
+
+    virtual WebIDL::ExceptionOr<GC::Ref<CryptoKey>> import_key(AlgorithmParams const&, Bindings::KeyFormat, CryptoKey::InternalKeyData, bool, Vector<Bindings::KeyUsage> const&) override;
+    virtual WebIDL::ExceptionOr<GC::Ref<JS::Object>> export_key(Bindings::KeyFormat, GC::Ref<CryptoKey>) override;
+
+    static NonnullOwnPtr<AlgorithmMethods> create(JS::Realm& realm) { return adopt_own(*new RSAPSS(realm)); }
+
+private:
+    explicit RSAPSS(JS::Realm& realm)
         : AlgorithmMethods(realm)
     {
     }
