@@ -195,11 +195,11 @@ public:
         m_public_key.set(m_private_key.modulus(), m_private_key.public_exponent());
     }
 
-    virtual ErrorOr<void> encrypt(ReadonlyBytes in, Bytes& out) override;
-    virtual ErrorOr<void> decrypt(ReadonlyBytes in, Bytes& out) override;
+    virtual ErrorOr<ByteBuffer> encrypt(ReadonlyBytes in) override;
+    virtual ErrorOr<ByteBuffer> decrypt(ReadonlyBytes in) override;
 
-    virtual ErrorOr<void> verify(ReadonlyBytes in, Bytes& out) override;
-    virtual ErrorOr<void> sign(ReadonlyBytes in, Bytes& out) override;
+    virtual ErrorOr<ByteBuffer> verify(ReadonlyBytes in) override;
+    virtual ErrorOr<ByteBuffer> sign(ReadonlyBytes in) override;
 
     virtual ByteString class_name() const override
     {
@@ -232,11 +232,11 @@ public:
 
     ~RSA_PKCS1_EME() = default;
 
-    virtual ErrorOr<void> encrypt(ReadonlyBytes in, Bytes& out) override;
-    virtual ErrorOr<void> decrypt(ReadonlyBytes in, Bytes& out) override;
+    virtual ErrorOr<ByteBuffer> encrypt(ReadonlyBytes in) override;
+    virtual ErrorOr<ByteBuffer> decrypt(ReadonlyBytes in) override;
 
-    virtual ErrorOr<void> verify(ReadonlyBytes in, Bytes& out) override;
-    virtual ErrorOr<void> sign(ReadonlyBytes in, Bytes& out) override;
+    virtual ErrorOr<ByteBuffer> verify(ReadonlyBytes in) override;
+    virtual ErrorOr<ByteBuffer> sign(ReadonlyBytes in) override;
 
     virtual ByteString class_name() const override
     {

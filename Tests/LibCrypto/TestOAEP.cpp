@@ -133,11 +133,6 @@ TEST_CASE(test_oaep)
     auto public_key = Crypto::PK::RSAPublicKey(n, e);
     auto rsa = Crypto::PK::RSA(public_key, private_key);
 
-    auto maybe_output_buffer = ByteBuffer::create_uninitialized(128);
-    auto output_buffer = maybe_output_buffer.release_value();
-    auto output_span = output_buffer.bytes();
-
-    TRY_OR_FAIL(rsa.encrypt(result, output_span));
-
-    EXPECT_EQ(expected_rsa_value, output_span);
+    auto enc = TRY_OR_FAIL(rsa.encrypt(result));
+    EXPECT_EQ(expected_rsa_value, enc);
 }

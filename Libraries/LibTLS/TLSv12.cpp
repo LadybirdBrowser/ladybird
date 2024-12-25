@@ -345,18 +345,11 @@ bool Context::verify_certificate_pair(Certificate const& subject, Certificate co
         Crypto::PK::RSAPrivateKey dummy_private_key;
         Crypto::PK::RSAPublicKey public_key_copy { issuer.public_key.rsa };
         auto rsa = Crypto::PK::RSA(public_key_copy, dummy_private_key);
-        auto verification_buffer_result = ByteBuffer::create_uninitialized(subject.signature_value.size());
-        if (verification_buffer_result.is_error()) {
-            dbgln("verify_certificate_pair: Unable to allocate buffer for verification");
-            return false;
-        }
-        auto verification_buffer = verification_buffer_result.release_value();
-        auto verification_buffer_bytes = verification_buffer.bytes();
-        MUST(rsa.verify(subject.signature_value, verification_buffer_bytes));
+        auto verification_bytes = MUST(rsa.verify(subject.signature_value));
 
         ReadonlyBytes message = subject.tbs_asn1.bytes();
         auto pkcs1 = Crypto::PK::EMSA_PKCS1_V1_5<Crypto::Hash::Manager>(kind);
-        auto verification = pkcs1.verify(message, verification_buffer_bytes, subject.signature_value.size() * 8);
+        auto verification = pkcs1.verify(message, verification_bytes, subject.signature_value.size() * 8);
         return verification == Crypto::VerificationConsistency::Consistent;
     }
 
