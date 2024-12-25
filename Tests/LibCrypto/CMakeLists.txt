@@ -15,6 +15,7 @@ set(TEST_SOURCES
     TestOAEP.cpp
     TestPBKDF2.cpp
     TestPoly1305.cpp
+    TestPSS.cpp
     TestRSA.cpp
 )
 
