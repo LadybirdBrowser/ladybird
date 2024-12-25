@@ -37,6 +37,11 @@ constexpr bool is_http_tab_or_space(u32 const code_point)
     return code_point == 0x09 || code_point == 0x20;
 }
 
+constexpr bool is_http_newline(u32 const code_point)
+{
+    return code_point == 0x0A || code_point == 0x0D;
+}
+
 enum class HttpQuotedStringExtractValue {
     No,
     Yes,
