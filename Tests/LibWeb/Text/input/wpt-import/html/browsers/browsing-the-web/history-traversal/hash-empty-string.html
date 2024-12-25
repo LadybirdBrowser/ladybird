@@ -1,0 +1,31 @@
+<!doctype html>
+<meta charset="utf8">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<link rel="help"
+      href="https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-location-interface:concept-url-fragment-4">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1544428">
+<link rel="author" title="Zach Hoffman" href="mailto:zach@zrhoffman.net">
+<script>
+let popstateTriggered = false;
+window.addEventListener("popstate", () => popstateTriggered = true);
+
+let hashchangeTriggered = false;
+window.addEventListener("hashchange", () => hashchangeTriggered = true);
+
+test(() => {
+  assert_equals(location.href.indexOf("#"), -1)
+}, "URL has no hash")
+
+location.hash = "";
+
+test(() => {
+  assert_false(popstateTriggered);
+}, "changing the hash from an empty string to an empty string does not trigger a popstate event")
+
+promise_test(async () => {
+  // hashchange is fired async
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  assert_false(hashchangeTriggered);
+}, "changing the hash from an empty string to an empty string does not trigger a hashchange event")
+</script>

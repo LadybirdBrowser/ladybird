@@ -413,7 +413,10 @@ WebIDL::ExceptionOr<void> Location::set_hash(String const& value)
     (void)URL::Parser::basic_parse(input, {}, &copy_url, URL::Parser::State::Fragment);
 
     // 7. If copyURL's fragment is this's url's fragment, then return.
-    if (copy_url.fragment() == this->url().fragment())
+    // NOTE: Ignore null values when comparing fragments. This behavior is not explicitly mentioned in the specs, potential bug?
+    auto copy_url_fragment = copy_url.fragment().has_value() ? copy_url.fragment() : String {};
+    auto this_url_fragment = this->url().fragment().has_value() ? this->url().fragment() : String {};
+    if (copy_url_fragment == this_url_fragment)
         return {};
 
     // 8. Location-object navigate this to copyURL.
