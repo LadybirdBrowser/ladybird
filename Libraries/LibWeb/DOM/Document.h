@@ -760,6 +760,12 @@ public:
 
     GC::Ptr<DOM::Document> container_document() const;
 
+    GC::Ptr<HTML::Storage> session_storage_holder() { return m_session_storage_holder; }
+    void set_session_storage_holder(GC::Ptr<HTML::Storage> storage) { m_session_storage_holder = storage; }
+
+    GC::Ptr<HTML::Storage> local_storage_holder() { return m_local_storage_holder; }
+    void set_local_storage_holder(GC::Ptr<HTML::Storage> storage) { m_local_storage_holder = storage; }
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -1073,6 +1079,14 @@ private:
 
     // https://w3c.github.io/editing/docs/execCommand/#css-styling-flag
     bool m_css_styling_flag { false };
+
+    // https://html.spec.whatwg.org/multipage/webstorage.html#session-storage-holder
+    // A Document object has an associated session storage holder, which is null or a Storage object. It is initially null.
+    GC::Ptr<HTML::Storage> m_session_storage_holder;
+
+    // https://html.spec.whatwg.org/multipage/webstorage.html#local-storage-holder
+    // A Document object has an associated local storage holder, which is null or a Storage object. It is initially null.
+    GC::Ptr<HTML::Storage> m_local_storage_holder;
 };
 
 template<>

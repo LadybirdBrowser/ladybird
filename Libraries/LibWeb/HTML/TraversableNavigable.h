@@ -13,6 +13,7 @@
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
+#include <LibWeb/StorageAPI/StorageShed.h>
 #include <WebContent/BackingStoreManager.h>
 
 #ifdef AK_OS_MACOS
@@ -107,6 +108,9 @@ public:
 
     RefPtr<Gfx::SkiaBackendContext> skia_backend_context() const { return m_skia_backend_context; }
 
+    StorageAPI::StorageShed& storage_shed() { return m_storage_shed; }
+    StorageAPI::StorageShed const& storage_shed() const { return m_storage_shed; }
+
 private:
     TraversableNavigable(GC::Ref<Page>);
 
@@ -141,6 +145,10 @@ private:
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#system-visibility-state
     VisibilityState m_system_visibility_state { VisibilityState::Hidden };
+
+    // https://storage.spec.whatwg.org/#traversable-navigable-storage-shed
+    // A traversable navigable holds a storage shed, which is a storage shed. A traversable navigable’s storage shed holds all session storage data.
+    StorageAPI::StorageShed m_storage_shed;
 
     GC::Ref<SessionHistoryTraversalQueue> m_session_history_traversal_queue;
 

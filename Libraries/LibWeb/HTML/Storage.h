@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Luke Wilde <lukew@serenityos.org>
+ * Copyright (c) 2024-2025, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,6 +10,7 @@
 
 #include <AK/HashMap.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/StorageAPI/StorageBottle.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
@@ -25,7 +27,7 @@ public:
         Session,
     };
 
-    [[nodiscard]] static GC::Ref<Storage> create(JS::Realm&, Type, u64 quota_bytes);
+    [[nodiscard]] static GC::Ref<Storage> create(JS::Realm&, Type, NonnullRefPtr<StorageAPI::StorageBottle>);
 
     ~Storage();
 
@@ -35,14 +37,14 @@ public:
     WebIDL::ExceptionOr<void> set_item(String const& key, String const& value);
     void remove_item(String const& key);
     void clear();
-
-    auto const& map() const { return m_map; }
+    auto const& map() const { return m_storage_bottle->map; }
+    auto& map() { return m_storage_bottle->map; }
     Type type() const { return m_type; }
 
     void dump() const;
 
 private:
-    Storage(JS::Realm&, Type, u64 quota_limit);
+    Storage(JS::Realm&, Type, NonnullRefPtr<StorageAPI::StorageBottle>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void finalize() override;
@@ -58,9 +60,8 @@ private:
     void reorder();
     void broadcast(Optional<String> const& key, Optional<String> const& old_value, Optional<String> const& new_value);
 
-    OrderedHashMap<String, String> m_map;
     Type m_type {};
-    u64 m_quota_bytes { 0 };
+    NonnullRefPtr<StorageAPI::StorageBottle> m_storage_bottle;
     u64 m_stored_bytes { 0 };
 };
 

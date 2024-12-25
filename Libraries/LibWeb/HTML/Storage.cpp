@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Luke Wilde <lukew@serenityos.org>
- * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2024-2025, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -25,15 +25,15 @@ static HashTable<GC::RawRef<Storage>>& all_storages()
     return storages;
 }
 
-GC::Ref<Storage> Storage::create(JS::Realm& realm, Type type, u64 quota_bytes)
+GC::Ref<Storage> Storage::create(JS::Realm& realm, Type type, NonnullRefPtr<StorageAPI::StorageBottle> storage_bottle)
 {
-    return realm.create<Storage>(realm, type, quota_bytes);
+    return realm.create<Storage>(realm, type, move(storage_bottle));
 }
 
-Storage::Storage(JS::Realm& realm, Type type, u64 quota_bytes)
+Storage::Storage(JS::Realm& realm, Type type, NonnullRefPtr<StorageAPI::StorageBottle> storage_bottle)
     : Bindings::PlatformObject(realm)
     , m_type(type)
-    , m_quota_bytes(quota_bytes)
+    , m_storage_bottle(move(storage_bottle))
 {
     m_legacy_platform_object_flags = LegacyPlatformObjectFlags {
         .supports_indexed_properties = true,
@@ -66,18 +66,18 @@ void Storage::finalize()
 size_t Storage::length() const
 {
     // The length getter steps are to return this's map's size.
-    return m_map.size();
+    return map().size();
 }
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-storage-key
 Optional<String> Storage::key(size_t index)
 {
     // 1. If index is greater than or equal to this's map's size, then return null.
-    if (index >= m_map.size())
+    if (index >= map().size())
         return {};
 
     // 2. Let keys be the result of running get the keys on this's map.
-    auto keys = m_map.keys();
+    auto keys = map().keys();
 
     // 3. Return keys[index].
     return keys[index];
@@ -87,8 +87,8 @@ Optional<String> Storage::key(size_t index)
 Optional<String> Storage::get_item(StringView key) const
 {
     // 1. If this's map[key] does not exist, then return null.
-    auto it = m_map.find(key);
-    if (it == m_map.end())
+    auto it = map().find(key);
+    if (it == map().end())
         return {};
 
     // 2. Return this's map[key].
@@ -108,7 +108,7 @@ WebIDL::ExceptionOr<void> Storage::set_item(String const& key, String const& val
 
     // 3. If this's map[key] exists:
     auto new_size = m_stored_bytes;
-    if (auto it = m_map.find(key); it != m_map.end()) {
+    if (auto it = map().find(key); it != map().end()) {
         // 1. Set oldValue to this's map[key].
         old_value = it->value;
 
@@ -124,11 +124,11 @@ WebIDL::ExceptionOr<void> Storage::set_item(String const& key, String const& val
 
     // 4. If value cannot be stored, then throw a "QuotaExceededError" DOMException exception.
     new_size += value.bytes().size() - old_value.value_or(String {}).bytes().size();
-    if (new_size > m_quota_bytes)
-        return WebIDL::QuotaExceededError::create(realm, MUST(String::formatted("Unable to store more than {} bytes in storage"sv, m_quota_bytes)));
+    if (m_storage_bottle->quota.has_value() && new_size > *m_storage_bottle->quota)
+        return WebIDL::QuotaExceededError::create(realm, MUST(String::formatted("Unable to store more than {} bytes in storage"sv, *m_storage_bottle->quota)));
 
     // 5. Set this's map[key] to value.
-    m_map.set(key, value);
+    map().set(key, value);
     m_stored_bytes = new_size;
 
     // 6. If reorder is true, then reorder this.
@@ -146,15 +146,15 @@ void Storage::remove_item(String const& key)
 {
     // 1. If this's map[key] does not exist, then return null.
     // FIXME: Return null?
-    auto it = m_map.find(key);
-    if (it == m_map.end())
+    auto it = map().find(key);
+    if (it == map().end())
         return;
 
     // 2. Set oldValue to this's map[key].
     auto old_value = it->value;
 
     // 3. Remove this's map[key].
-    m_map.remove(it);
+    map().remove(it);
     m_stored_bytes = m_stored_bytes - key.bytes().size() - old_value.bytes().size();
 
     // 4. Reorder this.
@@ -168,7 +168,7 @@ void Storage::remove_item(String const& key)
 void Storage::clear()
 {
     // 1. Clear this's map.
-    m_map.clear();
+    map().clear();
 
     // 2. Broadcast this with null, null, and null.
     broadcast({}, {}, {});
@@ -245,8 +245,8 @@ Vector<FlyString> Storage::supported_property_names() const
 {
     // The supported property names on a Storage object storage are the result of running get the keys on storage's map.
     Vector<FlyString> names;
-    names.ensure_capacity(m_map.size());
-    for (auto const& key : m_map.keys())
+    names.ensure_capacity(map().size());
+    for (auto const& key : map().keys())
         names.unchecked_append(key);
     return names;
 }
@@ -294,9 +294,9 @@ WebIDL::ExceptionOr<void> Storage::set_value_of_named_property(String const& key
 
 void Storage::dump() const
 {
-    dbgln("Storage ({} key(s))", m_map.size());
+    dbgln("Storage ({} key(s))", map().size());
     size_t i = 0;
-    for (auto const& it : m_map) {
+    for (auto const& it : map()) {
         dbgln("[{}] \"{}\": \"{}\"", i, it.key, it.value);
         ++i;
     }

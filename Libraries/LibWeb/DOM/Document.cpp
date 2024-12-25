@@ -116,6 +116,7 @@
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
+#include <LibWeb/HTML/Storage.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
@@ -537,6 +538,8 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_top_layer_pending_removals);
     visitor.visit(m_console_client);
     visitor.visit(m_editing_host_manager);
+    visitor.visit(m_local_storage_holder);
+    visitor.visit(m_session_storage_holder);
 }
 
 // https://w3c.github.io/selection-api/#dom-document-getselection

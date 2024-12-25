@@ -67,6 +67,7 @@
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/RequestIdleCallback/IdleDeadline.h>
 #include <LibWeb/Selection/Selection.h>
+#include <LibWeb/StorageAPI/StorageBottle.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 
 namespace Web::HTML {
@@ -447,29 +448,55 @@ void Window::fire_a_page_transition_event(FlyString const& event_name, bool pers
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-localstorage
 WebIDL::ExceptionOr<GC::Ref<Storage>> Window::local_storage()
 {
-    // See table in: https://storage.spec.whatwg.org/#registered-storage-endpoints
-    constexpr u64 quota_bytes = 5 * MiB;
+    auto& realm = this->realm();
 
-    // FIXME: Implement according to spec.
-    static HashMap<URL::Origin, GC::Root<Storage>> local_storage_per_origin;
-    auto storage = local_storage_per_origin.ensure(associated_document().origin(), [this]() -> GC::Root<Storage> {
-        return Storage::create(realm(), Storage::Type::Local, quota_bytes);
-    });
-    return GC::Ref { *storage };
+    // 1. If this's associated Document's local storage holder is non-null, then return this's associated Document's local storage holder.
+    auto& associated_document = this->associated_document();
+    if (auto storage = associated_document.local_storage_holder())
+        return GC::Ref { *storage };
+
+    // 2. Let map be the result of running obtain a local storage bottle map with this's relevant settings object and "localStorage".
+    auto map = StorageAPI::obtain_a_local_storage_bottle_map(relevant_settings_object(*this), "localStorage"sv);
+
+    // 3. If map is failure, then throw a "SecurityError" DOMException.
+    if (!map)
+        return WebIDL::SecurityError::create(realm, "localStorage is not available"_string);
+
+    // 4. Let storage be a new Storage object whose map is map.
+    auto storage = Storage::create(realm, Storage::Type::Session, map.release_nonnull());
+
+    // 5. Set this's associated Document's local storage holder to storage.
+    associated_document.set_local_storage_holder(storage);
+
+    // 6. Return storage.
+    return storage;
 }
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-sessionstorage
 WebIDL::ExceptionOr<GC::Ref<Storage>> Window::session_storage()
 {
-    // See table in: https://storage.spec.whatwg.org/#registered-storage-endpoints
-    constexpr u64 quota_bytes = 5 * MiB;
+    auto& realm = this->realm();
 
-    // FIXME: Implement according to spec.
-    static HashMap<URL::Origin, GC::Root<Storage>> session_storage_per_origin;
-    auto storage = session_storage_per_origin.ensure(associated_document().origin(), [this]() -> GC::Root<Storage> {
-        return Storage::create(realm(), Storage::Type::Session, quota_bytes);
-    });
-    return GC::Ref { *storage };
+    // 1. If this's associated Document's session storage holder is non-null, then return this's associated Document's session storage holder.
+    auto& associated_document = this->associated_document();
+    if (auto storage = associated_document.session_storage_holder())
+        return GC::Ref { *storage };
+
+    // 2. Let map be the result of running obtain a session storage bottle map with this's relevant settings object and "sessionStorage".
+    auto map = StorageAPI::obtain_a_session_storage_bottle_map(relevant_settings_object(*this), "sessionStorage"sv);
+
+    // 3. If map is failure, then throw a "SecurityError" DOMException.
+    if (!map)
+        return WebIDL::SecurityError::create(realm, "sessionStorage is not available"_string);
+
+    // 4. Let storage be a new Storage object whose map is map.
+    auto storage = Storage::create(realm, Storage::Type::Session, map.release_nonnull());
+
+    // 5. Set this's associated Document's session storage holder to storage.
+    associated_document.set_session_storage_holder(storage);
+
+    // 6. Return storage.
+    return storage;
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#sticky-activation
