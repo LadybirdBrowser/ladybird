@@ -191,11 +191,7 @@ void TLSv12::build_rsa_pre_master_secret(PacketBuilder& builder)
     }
 
     Crypto::PK::RSA_PKCS1_EME rsa(certificate.public_key.rsa);
-
-    Vector<u8, 32> out;
-    out.resize(rsa.output_size());
-    auto outbuf = out.span();
-    MUST(rsa.encrypt(m_context.premaster_key, outbuf));
+    auto outbuf = MUST(rsa.encrypt(m_context.premaster_key));
 
     if constexpr (TLS_DEBUG) {
         dbgln("Encrypted: ");
