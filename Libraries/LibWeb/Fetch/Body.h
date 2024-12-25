@@ -8,6 +8,9 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <AK/HashMap.h>
+#include <AK/Optional.h>
+#include <AK/String.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Forward.h>
@@ -22,6 +25,24 @@ enum class PackageDataType {
     JSON,
     Text,
 };
+
+struct MultiPartFormDataHeader {
+    Optional<String> name;
+    Optional<String> filename;
+    Optional<String> content_type;
+};
+
+struct ContentDispositionHeader {
+    String type;
+    OrderedHashMap<String, String> parameters;
+};
+
+struct MultipartParsingError {
+    String message;
+};
+
+template<typename T>
+using MultipartParsingErrorOr = ErrorOr<T, MultipartParsingError>;
 
 // https://fetch.spec.whatwg.org/#body-mixin
 class BodyMixin {
@@ -49,5 +70,6 @@ public:
 
 [[nodiscard]] WebIDL::ExceptionOr<JS::Value> package_data(JS::Realm&, ByteBuffer, PackageDataType, Optional<MimeSniff::MimeType> const&);
 [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> consume_body(JS::Realm&, BodyMixin const&, PackageDataType);
+[[nodiscard]] MultipartParsingErrorOr<Vector<XHR::FormDataEntry>> parse_multipart_form_data(JS::Realm&, StringView input, MimeSniff::MimeType const& mime_type);
 
 }
