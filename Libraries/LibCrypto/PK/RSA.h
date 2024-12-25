@@ -222,6 +222,8 @@ public:
     void set_private_key(PrivateKeyType const& key) { m_private_key = key; }
 
 protected:
+    virtual ErrorOr<void> configure(OpenSSL_PKEY_CTX& ctx);
+
     static ErrorOr<OpenSSL_PKEY> public_key_to_openssl_pkey(PublicKeyType const& public_key);
     static ErrorOr<OpenSSL_PKEY> private_key_to_openssl_pkey(PrivateKeyType const& private_key);
 };
