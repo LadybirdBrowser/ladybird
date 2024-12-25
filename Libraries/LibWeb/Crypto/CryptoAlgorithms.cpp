@@ -29,7 +29,6 @@
 #include <LibCrypto/Hash/SHA1.h>
 #include <LibCrypto/Hash/SHA2.h>
 #include <LibCrypto/PK/RSA.h>
-#include <LibCrypto/Padding/OAEP.h>
 #include <LibCrypto/SecureRandom.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
@@ -665,30 +664,27 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::encrypt(AlgorithmParams c
     // 3. Perform the encryption operation defined in Section 7.1 of [RFC3447] with the key represented by key as the recipient's RSA public key,
     //    the contents of plaintext as the message to be encrypted, M and label as the label, L, and with the hash function specified by the hash attribute
     //    of the [[algorithm]] internal slot of key as the Hash option and MGF1 (defined in Section B.2.1 of [RFC3447]) as the MGF option.
-
-    auto error_message = MUST(String::formatted("Invalid hash function '{}'", hash));
-    ErrorOr<ByteBuffer> maybe_padding = Error::from_string_view(error_message.bytes_as_string_view());
-    if (hash == "SHA-1") {
-        maybe_padding = ::Crypto::Padding::OAEP::eme_encode<::Crypto::Hash::SHA1, ::Crypto::Hash::MGF>(plaintext, label, public_key.length());
-    } else if (hash == "SHA-256") {
-        maybe_padding = ::Crypto::Padding::OAEP::eme_encode<::Crypto::Hash::SHA256, ::Crypto::Hash::MGF>(plaintext, label, public_key.length());
-    } else if (hash == "SHA-384") {
-        maybe_padding = ::Crypto::Padding::OAEP::eme_encode<::Crypto::Hash::SHA384, ::Crypto::Hash::MGF>(plaintext, label, public_key.length());
-    } else if (hash == "SHA-512") {
-        maybe_padding = ::Crypto::Padding::OAEP::eme_encode<::Crypto::Hash::SHA512, ::Crypto::Hash::MGF>(plaintext, label, public_key.length());
-    }
+    Optional<::Crypto::Hash::HashKind> hash_kind = {};
+    if (hash == "SHA-1")
+        hash_kind = ::Crypto::Hash::HashKind::SHA1;
+    else if (hash == "SHA-256")
+        hash_kind = ::Crypto::Hash::HashKind::SHA256;
+    else if (hash == "SHA-384")
+        hash_kind = ::Crypto::Hash::HashKind::SHA384;
+    else if (hash == "SHA-512")
+        hash_kind = ::Crypto::Hash::HashKind::SHA512;
 
     // 4. If performing the operation results in an error, then throw an OperationError.
-    if (maybe_padding.is_error()) {
-        auto error_message = MUST(String::from_utf8(maybe_padding.error().string_literal()));
+    if (!hash_kind.has_value()) {
+        auto error_message = MUST(String::formatted("Invalid hash function '{}'", hash));
         return WebIDL::OperationError::create(realm, error_message);
     }
 
-    auto padding = maybe_padding.release_value();
-
     // 5. Let ciphertext be the value C that results from performing the operation.
-    auto rsa = ::Crypto::PK::RSA { public_key };
-    auto maybe_ciphertext = rsa.encrypt(padding);
+    auto rsa = ::Crypto::PK::RSA_OAEP_EME { *hash_kind, public_key };
+    rsa.set_label(label);
+
+    auto maybe_ciphertext = rsa.encrypt(plaintext);
     if (maybe_ciphertext.is_error())
         return WebIDL::OperationError::create(realm, "Failed to encrypt"_string);
 
@@ -717,36 +713,32 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::decrypt(AlgorithmParams c
     // 3. Perform the decryption operation defined in Section 7.1 of [RFC3447] with the key represented by key as the recipient's RSA private key,
     //    the contents of ciphertext as the ciphertext to be decrypted, C, and label as the label, L, and with the hash function specified by the hash attribute
     //    of the [[algorithm]] internal slot of key as the Hash option and MGF1 (defined in Section B.2.1 of [RFC3447]) as the MGF option.
-    auto rsa = ::Crypto::PK::RSA { private_key };
-    u32 private_key_length = private_key.length();
-
-    auto maybe_padding = rsa.decrypt(ciphertext);
-    if (maybe_padding.is_error())
-        return WebIDL::OperationError::create(realm, "Failed to encrypt"_string);
-
-    auto error_message = MUST(String::formatted("Invalid hash function '{}'", hash));
-    ErrorOr<ByteBuffer> maybe_plaintext = Error::from_string_view(error_message.bytes_as_string_view());
-    if (hash == "SHA-1") {
-        maybe_plaintext = ::Crypto::Padding::OAEP::eme_decode<::Crypto::Hash::SHA1, ::Crypto::Hash::MGF>(maybe_padding.release_value(), label, private_key_length);
-    } else if (hash == "SHA-256") {
-        maybe_plaintext = ::Crypto::Padding::OAEP::eme_decode<::Crypto::Hash::SHA256, ::Crypto::Hash::MGF>(maybe_padding.release_value(), label, private_key_length);
-    } else if (hash == "SHA-384") {
-        maybe_plaintext = ::Crypto::Padding::OAEP::eme_decode<::Crypto::Hash::SHA384, ::Crypto::Hash::MGF>(maybe_padding.release_value(), label, private_key_length);
-    } else if (hash == "SHA-512") {
-        maybe_plaintext = ::Crypto::Padding::OAEP::eme_decode<::Crypto::Hash::SHA512, ::Crypto::Hash::MGF>(maybe_padding.release_value(), label, private_key_length);
-    }
+    Optional<::Crypto::Hash::HashKind> hash_kind = {};
+    if (hash == "SHA-1")
+        hash_kind = ::Crypto::Hash::HashKind::SHA1;
+    else if (hash == "SHA-256")
+        hash_kind = ::Crypto::Hash::HashKind::SHA256;
+    else if (hash == "SHA-384")
+        hash_kind = ::Crypto::Hash::HashKind::SHA384;
+    else if (hash == "SHA-512")
+        hash_kind = ::Crypto::Hash::HashKind::SHA512;
 
     // 4. If performing the operation results in an error, then throw an OperationError.
-    if (maybe_plaintext.is_error()) {
-        auto error_message = MUST(String::from_utf8(maybe_plaintext.error().string_literal()));
+    if (!hash_kind.has_value()) {
+        auto error_message = MUST(String::formatted("Invalid hash function '{}'", hash));
         return WebIDL::OperationError::create(realm, error_message);
     }
 
     // 5. Let plaintext the value M that results from performing the operation.
-    auto plaintext = maybe_plaintext.release_value();
+    auto rsa = ::Crypto::PK::RSA_OAEP_EME { *hash_kind, private_key };
+    rsa.set_label(label);
+
+    auto maybe_plaintext = rsa.decrypt(ciphertext);
+    if (maybe_plaintext.is_error())
+        return WebIDL::OperationError::create(realm, "Failed to encrypt"_string);
 
     // 6. Return the result of creating an ArrayBuffer containing plaintext.
-    return JS::ArrayBuffer::create(realm, move(plaintext));
+    return JS::ArrayBuffer::create(realm, maybe_plaintext.release_value());
 }
 
 // https://w3c.github.io/webcrypto/#rsa-oaep-operations
