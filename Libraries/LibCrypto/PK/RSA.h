@@ -9,6 +9,7 @@
 
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
+#include <LibCrypto/Hash/HashManager.h>
 #include <LibCrypto/NumberTheory/ModularFunctions.h>
 #include <LibCrypto/OpenSSL.h>
 #include <LibCrypto/PK/PK.h>
@@ -199,8 +200,8 @@ public:
     virtual ErrorOr<ByteBuffer> encrypt(ReadonlyBytes in) override;
     virtual ErrorOr<ByteBuffer> decrypt(ReadonlyBytes in) override;
 
-    virtual ErrorOr<ByteBuffer> verify(ReadonlyBytes in) override;
-    virtual ErrorOr<ByteBuffer> sign(ReadonlyBytes in) override;
+    virtual ErrorOr<ByteBuffer> sign(ReadonlyBytes message) override;
+    virtual ErrorOr<bool> verify(ReadonlyBytes message, ReadonlyBytes signature) override;
 
     virtual ByteString class_name() const override
     {
@@ -228,31 +229,119 @@ protected:
     static ErrorOr<OpenSSL_PKEY> private_key_to_openssl_pkey(PrivateKeyType const& private_key);
 };
 
-class RSA_PKCS1_EME : public RSA {
+ErrorOr<EVP_MD const*> hash_kind_to_hash_type(Hash::HashKind hash_kind);
+
+class RSA_EME : public RSA {
 public:
-    // forward all constructions to RSA
+    template<typename... Args>
+    RSA_EME(Hash::HashKind hash_kind, Args... args)
+        : RSA(args...)
+        , m_hash_kind(hash_kind)
+    {
+    }
+
+    ~RSA_EME() = default;
+
+    virtual ErrorOr<ByteBuffer> sign(ReadonlyBytes) override
+    {
+        return Error::from_string_literal("Signing is not supported");
+    }
+    virtual ErrorOr<bool> verify(ReadonlyBytes, ReadonlyBytes) override
+    {
+        return Error::from_string_literal("Verifying is not supported");
+    }
+
+protected:
+    Hash::HashKind m_hash_kind { Hash::HashKind::Unknown };
+};
+
+class RSA_EMSA : public RSA {
+public:
+    template<typename... Args>
+    RSA_EMSA(Hash::HashKind hash_kind, Args... args)
+        : RSA(args...)
+        , m_hash_kind(hash_kind)
+    {
+    }
+
+    ~RSA_EMSA() = default;
+
+    virtual ErrorOr<ByteBuffer> encrypt(ReadonlyBytes) override
+    {
+        return Error::from_string_literal("Encrypting is not supported");
+    }
+    virtual ErrorOr<ByteBuffer> decrypt(ReadonlyBytes) override
+    {
+        return Error::from_string_literal("Decrypting is not supported");
+    }
+
+    virtual ErrorOr<bool> verify(ReadonlyBytes message, ReadonlyBytes signature) override;
+    virtual ErrorOr<ByteBuffer> sign(ReadonlyBytes message) override;
+
+protected:
+    Hash::HashKind m_hash_kind { Hash::HashKind::Unknown };
+};
+
+class RSA_PKCS1_EME : public RSA_EME {
+public:
     template<typename... Args>
     RSA_PKCS1_EME(Args... args)
-        : RSA(args...)
+        : RSA_EME(Hash::HashKind::None, args...)
     {
     }
 
     ~RSA_PKCS1_EME() = default;
-
-    virtual ErrorOr<ByteBuffer> encrypt(ReadonlyBytes in) override;
-    virtual ErrorOr<ByteBuffer> decrypt(ReadonlyBytes in) override;
-
-    virtual ErrorOr<ByteBuffer> verify(ReadonlyBytes in) override;
-    virtual ErrorOr<ByteBuffer> sign(ReadonlyBytes in) override;
 
     virtual ByteString class_name() const override
     {
         return "RSA_PKCS1-EME";
     }
 
-    virtual size_t output_size() const override
-    {
-        return m_public_key.length();
-    }
+protected:
+    ErrorOr<void> configure(OpenSSL_PKEY_CTX& ctx) override;
 };
+
+class RSA_PKCS1_EMSA : public RSA_EMSA {
+public:
+    template<typename... Args>
+    RSA_PKCS1_EMSA(Hash::HashKind hash_kind, Args... args)
+        : RSA_EMSA(hash_kind, args...)
+    {
+    }
+
+    ~RSA_PKCS1_EMSA() = default;
+
+    virtual ByteString class_name() const override
+    {
+        return "RSA_PKCS1-EMSA";
+    }
+
+protected:
+    ErrorOr<void> configure(OpenSSL_PKEY_CTX& ctx) override;
+};
+
+class RSA_OAEP_EME : public RSA_EME {
+public:
+    template<typename... Args>
+    RSA_OAEP_EME(Hash::HashKind hash_kind, Args... args)
+        : RSA_EME(hash_kind, args...)
+    {
+    }
+
+    ~RSA_OAEP_EME() = default;
+
+    virtual ByteString class_name() const override
+    {
+        return "RSA_OAEP-EME";
+    }
+
+    void set_label(ReadonlyBytes label) { m_label = label; }
+
+protected:
+    ErrorOr<void> configure(OpenSSL_PKEY_CTX& ctx) override;
+
+private:
+    Optional<ReadonlyBytes> m_label {};
+};
+
 }

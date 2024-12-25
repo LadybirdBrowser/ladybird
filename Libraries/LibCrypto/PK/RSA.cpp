@@ -263,24 +263,39 @@ ErrorOr<ByteBuffer> RSA::decrypt(ReadonlyBytes in)
     return out.slice(0, out_size);
 }
 
-ErrorOr<ByteBuffer> RSA::sign(ReadonlyBytes in)
+ErrorOr<ByteBuffer> RSA::sign(ReadonlyBytes message)
 {
-    auto in_integer = UnsignedBigInteger::import_data(in.data(), in.size());
-    auto exp = NumberTheory::ModularPower(in_integer, m_private_key.private_exponent(), m_private_key.modulus());
+    auto key = TRY(private_key_to_openssl_pkey(m_private_key));
 
-    auto out = TRY(ByteBuffer::create_uninitialized(exp.byte_length()));
-    auto size = exp.export_data(out);
-    return out.slice(out.size() - size, size);
+    auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_pkey(nullptr, key.ptr(), nullptr)));
+
+    OPENSSL_TRY(EVP_PKEY_sign_init(ctx.ptr()));
+    TRY(configure(ctx));
+
+    size_t signature_size = 0;
+    OPENSSL_TRY(EVP_PKEY_sign(ctx.ptr(), nullptr, &signature_size, message.data(), message.size()));
+
+    auto signature = TRY(ByteBuffer::create_uninitialized(signature_size));
+    OPENSSL_TRY(EVP_PKEY_sign(ctx.ptr(), signature.data(), &signature_size, message.data(), message.size()));
+    return signature.slice(0, signature_size);
 }
 
-ErrorOr<ByteBuffer> RSA::verify(ReadonlyBytes in)
+ErrorOr<bool> RSA::verify(ReadonlyBytes message, ReadonlyBytes signature)
 {
-    auto in_integer = UnsignedBigInteger::import_data(in.data(), in.size());
-    auto exp = NumberTheory::ModularPower(in_integer, m_public_key.public_exponent(), m_public_key.modulus());
+    auto key = TRY(public_key_to_openssl_pkey(m_public_key));
 
-    auto out = TRY(ByteBuffer::create_uninitialized(exp.byte_length()));
-    auto size = exp.export_data(out);
-    return out.slice(out.size() - size, size);
+    auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_pkey(nullptr, key.ptr(), nullptr)));
+
+    OPENSSL_TRY(EVP_PKEY_verify_init(ctx.ptr()));
+    TRY(configure(ctx));
+
+    auto ret = EVP_PKEY_verify(ctx.ptr(), signature.data(), signature.size(), message.data(), message.size());
+    if (ret == 1)
+        return true;
+    if (ret == 0)
+        return false;
+    OPENSSL_TRY(ret);
+    VERIFY_NOT_REACHED();
 }
 
 void RSA::import_private_key(ReadonlyBytes bytes, bool pem)
@@ -405,7 +420,7 @@ ErrorOr<ByteBuffer> RSA_PKCS1_EME::decrypt(ReadonlyBytes in)
     if (offset - 3 < 8)
         return Error::from_string_literal("PS too small");
 
-    return out.slice(offset, out.size() - offset);;
+    return out.slice(offset, out.size() - offset);
 }
 
 ErrorOr<ByteBuffer> RSA_PKCS1_EME::sign(ReadonlyBytes)
@@ -413,8 +428,86 @@ ErrorOr<ByteBuffer> RSA_PKCS1_EME::sign(ReadonlyBytes)
     return Error::from_string_literal("FIXME: RSA_PKCS_EME::sign");
 }
 
-ErrorOr<ByteBuffer> RSA_PKCS1_EME::verify(ReadonlyBytes)
+ErrorOr<bool> RSA_PKCS1_EME::verify(ReadonlyBytes, ReadonlyBytes)
 {
     return Error::from_string_literal("FIXME: RSA_PKCS_EME::verify");
 }
+
+ErrorOr<EVP_MD const*> hash_kind_to_hash_type(Hash::HashKind hash_kind)
+{
+    switch (hash_kind) {
+    case Hash::HashKind::None:
+        return nullptr;
+    case Hash::HashKind::BLAKE2b:
+        return EVP_blake2b512();
+    case Hash::HashKind::MD5:
+        return EVP_md5();
+    case Hash::HashKind::SHA1:
+        return EVP_sha1();
+    case Hash::HashKind::SHA256:
+        return EVP_sha256();
+    case Hash::HashKind::SHA384:
+        return EVP_sha384();
+    case Hash::HashKind::SHA512:
+        return EVP_sha512();
+    default:
+        return Error::from_string_literal("Unsupported hash kind");
+    }
+}
+
+ErrorOr<bool> RSA_PKCS1_EMSA::verify(ReadonlyBytes message, ReadonlyBytes signature)
+{
+    auto key = TRY(public_key_to_openssl_pkey(m_public_key));
+    auto const* hash_type = TRY(hash_kind_to_hash_type(m_hash_kind));
+
+    auto ctx = TRY(OpenSSL_MD_CTX::create());
+
+    auto key_ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new(key.ptr(), nullptr)));
+    EVP_MD_CTX_set_pkey_ctx(ctx.ptr(), key_ctx.ptr());
+
+    OPENSSL_TRY(EVP_DigestVerifyInit(ctx.ptr(), nullptr, hash_type, nullptr, key.ptr()));
+    TRY(configure(key_ctx));
+
+    auto res = EVP_DigestVerify(ctx.ptr(), signature.data(), signature.size(), message.data(), message.size());
+    if (res == 1)
+        return true;
+    if (res == 0)
+        return false;
+    OPENSSL_TRY(res);
+    VERIFY_NOT_REACHED();
+}
+
+ErrorOr<ByteBuffer> RSA_PKCS1_EMSA::sign(ReadonlyBytes message)
+{
+    auto key = TRY(private_key_to_openssl_pkey(m_private_key));
+    auto const* hash_type = TRY(hash_kind_to_hash_type(m_hash_kind));
+
+    auto ctx = TRY(OpenSSL_MD_CTX::create());
+
+    auto key_ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new(key.ptr(), nullptr)));
+    EVP_MD_CTX_set_pkey_ctx(ctx.ptr(), key_ctx.ptr());
+
+    OPENSSL_TRY(EVP_DigestSignInit(ctx.ptr(), nullptr, hash_type, nullptr, key.ptr()));
+    TRY(configure(key_ctx));
+
+    size_t signature_size = 0;
+    OPENSSL_TRY(EVP_DigestSign(ctx.ptr(), nullptr, &signature_size, message.data(), message.size()));
+
+    auto signature = TRY(ByteBuffer::create_uninitialized(signature_size));
+    OPENSSL_TRY(EVP_DigestSign(ctx.ptr(), signature.data(), &signature_size, message.data(), message.size()));
+    return signature.slice(0, signature_size);
+}
+
+ErrorOr<void> RSA_PKCS1_EME::configure(OpenSSL_PKEY_CTX& ctx)
+{
+    OPENSSL_TRY(EVP_PKEY_CTX_set_rsa_padding(ctx.ptr(), RSA_PKCS1_PADDING));
+    return {};
+}
+
+ErrorOr<void> RSA_PKCS1_EMSA::configure(OpenSSL_PKEY_CTX& ctx)
+{
+    OPENSSL_TRY(EVP_PKEY_CTX_set_rsa_padding(ctx.ptr(), RSA_PKCS1_PADDING));
+    return {};
+}
+
 }
