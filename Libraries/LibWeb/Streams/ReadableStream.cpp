@@ -18,6 +18,7 @@
 #include <LibWeb/Streams/ReadableStreamBYOBRequest.h>
 #include <LibWeb/Streams/ReadableStreamDefaultController.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
+#include <LibWeb/Streams/TransformStream.h>
 #include <LibWeb/Streams/UnderlyingSource.h>
 #include <LibWeb/Streams/WritableStream.h>
 #include <LibWeb/WebIDL/Buffers.h>
@@ -426,19 +427,25 @@ void ReadableStream::set_up_with_byte_reading_support(GC::Ptr<PullAlgorithm> pul
 }
 
 // https://streams.spec.whatwg.org/#readablestream-pipe-through
-GC::Ref<WebIDL::Promise> ReadableStream::piped_through(GC::Ref<WritableStream> writable, bool prevent_close, bool prevent_abort, bool prevent_cancel, JS::Value signal)
+GC::Ref<ReadableStream> ReadableStream::piped_through(GC::Ref<TransformStream> transform, bool prevent_close, bool prevent_abort, bool prevent_cancel, JS::Value signal)
 {
     // 1. Assert: ! IsReadableStreamLocked(readable) is false.
     VERIFY(!is_readable_stream_locked(*this));
 
-    // 2. Assert: ! IsWritableStreamLocked(writable) is false.
-    VERIFY(!is_writable_stream_locked(writable));
+    // 2. Assert: ! IsWritableStreamLocked(transform.[[writable]]) is false.
+    VERIFY(!is_writable_stream_locked(transform->writable()));
 
     // 3. Let signalArg be signal if signal was given, or undefined otherwise.
     // NOTE: Done by default arguments.
 
-    // 4. Return ! ReadableStreamPipeTo(readable, writable, preventClose, preventAbort, preventCancel, signalArg).
-    return readable_stream_pipe_to(*this, writable, prevent_close, prevent_abort, prevent_cancel, signal);
+    // 4. Let promise be ! ReadableStreamPipeTo(readable, transform.[[writable]], preventClose, preventAbort, preventCancel, signalArg).
+    auto promise = readable_stream_pipe_to(*this, transform->writable(), prevent_close, prevent_abort, prevent_cancel, signal);
+
+    // 5. Set promise.[[PromiseIsHandled]] to true.
+    WebIDL::mark_promise_as_handled(*promise);
+
+    // 6. Return transform.[[readable]].
+    return transform->readable();
 }
 
 }
