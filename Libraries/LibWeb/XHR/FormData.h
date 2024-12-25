@@ -28,6 +28,7 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<FormData>> construct_impl(JS::Realm&, Vector<FormDataEntry> entry_list);
 
     static WebIDL::ExceptionOr<GC::Ref<FormData>> create(JS::Realm&, Vector<DOMURL::QueryParam> entry_list);
+    static WebIDL::ExceptionOr<GC::Ref<FormData>> create(JS::Realm&, Vector<FormDataEntry> entry_list);
 
     WebIDL::ExceptionOr<void> append(String const& name, String const& value);
     WebIDL::ExceptionOr<void> append(String const& name, GC::Ref<FileAPI::Blob> const& blob_value, Optional<String> const& filename = {});
