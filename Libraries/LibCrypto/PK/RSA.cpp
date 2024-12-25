@@ -223,6 +223,12 @@ ErrorOr<OpenSSL_PKEY> RSA::private_key_to_openssl_pkey(PrivateKeyType const& pri
 
 #undef OPENSSL_SET_KEY_PARAM_NOT_ZERO
 
+ErrorOr<void> RSA::configure(OpenSSL_PKEY_CTX& ctx)
+{
+    OPENSSL_TRY(EVP_PKEY_CTX_set_rsa_padding(ctx.ptr(), RSA_NO_PADDING));
+    return {};
+}
+
 ErrorOr<ByteBuffer> RSA::encrypt(ReadonlyBytes in)
 {
     auto key = TRY(public_key_to_openssl_pkey(m_public_key));
@@ -230,7 +236,7 @@ ErrorOr<ByteBuffer> RSA::encrypt(ReadonlyBytes in)
     auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_pkey(nullptr, key.ptr(), nullptr)));
 
     OPENSSL_TRY(EVP_PKEY_encrypt_init(ctx.ptr()));
-    OPENSSL_TRY(EVP_PKEY_CTX_set_rsa_padding(ctx.ptr(), RSA_NO_PADDING));
+    TRY(configure(ctx));
 
     size_t out_size = 0;
     OPENSSL_TRY(EVP_PKEY_encrypt(ctx.ptr(), nullptr, &out_size, in.data(), in.size()));
@@ -247,7 +253,7 @@ ErrorOr<ByteBuffer> RSA::decrypt(ReadonlyBytes in)
     auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_pkey(nullptr, key.ptr(), nullptr)));
 
     OPENSSL_TRY(EVP_PKEY_decrypt_init(ctx.ptr()));
-    OPENSSL_TRY(EVP_PKEY_CTX_set_rsa_padding(ctx.ptr(), RSA_NO_PADDING));
+    TRY(configure(ctx));
 
     size_t out_size = 0;
     OPENSSL_TRY(EVP_PKEY_decrypt(ctx.ptr(), nullptr, &out_size, in.data(), in.size()));
