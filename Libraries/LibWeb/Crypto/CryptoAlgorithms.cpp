@@ -687,16 +687,13 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::encrypt(AlgorithmParams c
     auto padding = maybe_padding.release_value();
 
     // 5. Let ciphertext be the value C that results from performing the operation.
-    auto ciphertext = TRY_OR_THROW_OOM(vm, ByteBuffer::create_uninitialized(public_key.length()));
-    auto ciphertext_bytes = ciphertext.bytes();
-
     auto rsa = ::Crypto::PK::RSA { public_key };
-    auto maybe_encrypt_error = rsa.encrypt(padding, ciphertext_bytes);
-    if (maybe_encrypt_error.is_error())
+    auto maybe_ciphertext = rsa.encrypt(padding);
+    if (maybe_ciphertext.is_error())
         return WebIDL::OperationError::create(realm, "Failed to encrypt"_string);
 
     // 6. Return the result of creating an ArrayBuffer containing ciphertext.
-    return JS::ArrayBuffer::create(realm, move(ciphertext));
+    return JS::ArrayBuffer::create(realm, maybe_ciphertext.release_value());
 }
 
 // https://w3c.github.io/webcrypto/#rsa-oaep-operations
@@ -723,22 +720,20 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::decrypt(AlgorithmParams c
     auto rsa = ::Crypto::PK::RSA { private_key };
     u32 private_key_length = private_key.length();
 
-    auto padding = TRY_OR_THROW_OOM(vm, ByteBuffer::create_uninitialized(private_key_length));
-    auto padding_bytes = padding.bytes();
-    auto maybe_encrypt_error = rsa.decrypt(ciphertext, padding_bytes);
-    if (maybe_encrypt_error.is_error())
+    auto maybe_padding = rsa.decrypt(ciphertext);
+    if (maybe_padding.is_error())
         return WebIDL::OperationError::create(realm, "Failed to encrypt"_string);
 
     auto error_message = MUST(String::formatted("Invalid hash function '{}'", hash));
     ErrorOr<ByteBuffer> maybe_plaintext = Error::from_string_view(error_message.bytes_as_string_view());
     if (hash == "SHA-1") {
-        maybe_plaintext = ::Crypto::Padding::OAEP::eme_decode<::Crypto::Hash::SHA1, ::Crypto::Hash::MGF>(padding, label, private_key_length);
+        maybe_plaintext = ::Crypto::Padding::OAEP::eme_decode<::Crypto::Hash::SHA1, ::Crypto::Hash::MGF>(maybe_padding.release_value(), label, private_key_length);
     } else if (hash == "SHA-256") {
-        maybe_plaintext = ::Crypto::Padding::OAEP::eme_decode<::Crypto::Hash::SHA256, ::Crypto::Hash::MGF>(padding, label, private_key_length);
+        maybe_plaintext = ::Crypto::Padding::OAEP::eme_decode<::Crypto::Hash::SHA256, ::Crypto::Hash::MGF>(maybe_padding.release_value(), label, private_key_length);
     } else if (hash == "SHA-384") {
-        maybe_plaintext = ::Crypto::Padding::OAEP::eme_decode<::Crypto::Hash::SHA384, ::Crypto::Hash::MGF>(padding, label, private_key_length);
+        maybe_plaintext = ::Crypto::Padding::OAEP::eme_decode<::Crypto::Hash::SHA384, ::Crypto::Hash::MGF>(maybe_padding.release_value(), label, private_key_length);
     } else if (hash == "SHA-512") {
-        maybe_plaintext = ::Crypto::Padding::OAEP::eme_decode<::Crypto::Hash::SHA512, ::Crypto::Hash::MGF>(padding, label, private_key_length);
+        maybe_plaintext = ::Crypto::Padding::OAEP::eme_decode<::Crypto::Hash::SHA512, ::Crypto::Hash::MGF>(maybe_padding.release_value(), label, private_key_length);
     }
 
     // 4. If performing the operation results in an error, then throw an OperationError.

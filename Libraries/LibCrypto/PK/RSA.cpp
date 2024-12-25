@@ -167,7 +167,7 @@ ErrorOr<RSA::KeyPairType> RSA::generate_key_pair(size_t bits, IntegerType e)
     return keys;
 }
 
-ErrorOr<void> RSA::encrypt(ReadonlyBytes in, Bytes& out)
+ErrorOr<ByteBuffer> RSA::encrypt(ReadonlyBytes in, Bytes& out)
 {
     dbgln_if(CRYPTO_DEBUG, "in size: {}", in.size());
     auto in_integer = UnsignedBigInteger::import_data(in.data(), in.size());
@@ -175,13 +175,15 @@ ErrorOr<void> RSA::encrypt(ReadonlyBytes in, Bytes& out)
         return Error::from_string_literal("Data too large for key");
 
     auto exp = NumberTheory::ModularPower(in_integer, m_public_key.public_exponent(), m_public_key.modulus());
+
+    auto out = TRY(ByteBuffer::create_uninitialized(exp.byte_length()));
     auto size = exp.export_data(out);
     auto outsize = out.size();
     VERIFY(size == outsize);
-    return {};
+    return out;
 }
 
-ErrorOr<void> RSA::decrypt(ReadonlyBytes in, Bytes& out)
+ErrorOr<ByteBuffer> RSA::decrypt(ReadonlyBytes in)
 {
     auto in_integer = UnsignedBigInteger::import_data(in.data(), in.size());
 
@@ -198,32 +200,34 @@ ErrorOr<void> RSA::decrypt(ReadonlyBytes in, Bytes& out)
         m = m2.plus(h.multiplied_by(m_private_key.prime2()));
     }
 
+    auto out = TRY(ByteBuffer::create_uninitialized(m.byte_length()));
     auto size = m.export_data(out);
     auto align = m_private_key.length();
     auto aligned_size = (size + align - 1) / align * align;
 
     for (auto i = size; i < aligned_size; ++i)
         out[out.size() - i - 1] = 0; // zero the non-aligned values
-    out = out.slice(out.size() - aligned_size, aligned_size);
-    return {};
+    return out.slice(out.size() - aligned_size, aligned_size);
 }
 
-ErrorOr<void> RSA::sign(ReadonlyBytes in, Bytes& out)
+ErrorOr<ByteBuffer> RSA::sign(ReadonlyBytes in)
 {
     auto in_integer = UnsignedBigInteger::import_data(in.data(), in.size());
     auto exp = NumberTheory::ModularPower(in_integer, m_private_key.private_exponent(), m_private_key.modulus());
+
+    auto out = TRY(ByteBuffer::create_uninitialized(exp.byte_length()));
     auto size = exp.export_data(out);
-    out = out.slice(out.size() - size, size);
-    return {};
+    return out.slice(out.size() - size, size);
 }
 
-ErrorOr<void> RSA::verify(ReadonlyBytes in, Bytes& out)
+ErrorOr<ByteBuffer> RSA::verify(ReadonlyBytes in)
 {
     auto in_integer = UnsignedBigInteger::import_data(in.data(), in.size());
     auto exp = NumberTheory::ModularPower(in_integer, m_public_key.public_exponent(), m_public_key.modulus());
+
+    auto out = TRY(ByteBuffer::create_uninitialized(exp.byte_length()));
     auto size = exp.export_data(out);
-    out = out.slice(out.size() - size, size);
-    return {};
+    return out.slice(out.size() - size, size);
 }
 
 void RSA::import_private_key(ReadonlyBytes bytes, bool pem)
@@ -288,15 +292,14 @@ void RSA::import_public_key(ReadonlyBytes bytes, bool pem)
     m_public_key = maybe_key.release_value().public_key;
 }
 
-ErrorOr<void> RSA_PKCS1_EME::encrypt(ReadonlyBytes in, Bytes& out)
+ErrorOr<ByteBuffer> RSA_PKCS1_EME::encrypt(ReadonlyBytes in)
 {
     auto mod_len = (m_public_key.modulus().trimmed_length() * sizeof(u32) * 8 + 7) / 8;
     dbgln_if(CRYPTO_DEBUG, "key size: {}", mod_len);
     if (in.size() > mod_len - 11)
         return Error::from_string_literal("Message too long");
 
-    if (out.size() < mod_len)
-        return Error::from_string_literal("Output buffer too small");
+    auto out = TRY(ByteBuffer::create_uninitialized(mod_len));
 
     auto ps_length = mod_len - in.size() - 3;
     Vector<u8, 8096> ps;
@@ -316,21 +319,20 @@ ErrorOr<void> RSA_PKCS1_EME::encrypt(ReadonlyBytes in, Bytes& out)
     out.overwrite(2, ps.data(), ps_length);
     out.overwrite(2 + ps_length, paddings, 1);
     out.overwrite(3 + ps_length, in.data(), in.size());
-    out = out.trim(3 + ps_length + in.size()); // should be a single block
+    out.trim(3 + ps_length + in.size(), true); // should be a single block
 
     dbgln_if(CRYPTO_DEBUG, "padded output size: {} buffer size: {}", 3 + ps_length + in.size(), out.size());
 
-    TRY(RSA::encrypt(out, out));
-    return {};
+    return TRY(RSA::encrypt(out));
 }
 
-ErrorOr<void> RSA_PKCS1_EME::decrypt(ReadonlyBytes in, Bytes& out)
+ErrorOr<ByteBuffer> RSA_PKCS1_EME::decrypt(ReadonlyBytes in)
 {
     auto mod_len = (m_public_key.modulus().trimmed_length() * sizeof(u32) * 8 + 7) / 8;
     if (in.size() != mod_len)
         return Error::from_string_literal("Invalid input size");
 
-    TRY(RSA::decrypt(in, out));
+    auto out = TRY(RSA::decrypt(in));
 
     if (out.size() < RSA::output_size())
         return Error::from_string_literal("Not enough data after decryption");
@@ -350,16 +352,15 @@ ErrorOr<void> RSA_PKCS1_EME::decrypt(ReadonlyBytes in, Bytes& out)
     if (offset - 3 < 8)
         return Error::from_string_literal("PS too small");
 
-    out = out.slice(offset, out.size() - offset);
-    return {};
+    return out.slice(offset, out.size() - offset);;
 }
 
-ErrorOr<void> RSA_PKCS1_EME::sign(ReadonlyBytes, Bytes&)
+ErrorOr<ByteBuffer> RSA_PKCS1_EME::sign(ReadonlyBytes)
 {
     return Error::from_string_literal("FIXME: RSA_PKCS_EME::sign");
 }
 
-ErrorOr<void> RSA_PKCS1_EME::verify(ReadonlyBytes, Bytes&)
+ErrorOr<ByteBuffer> RSA_PKCS1_EME::verify(ReadonlyBytes)
 {
     return Error::from_string_literal("FIXME: RSA_PKCS_EME::verify");
 }

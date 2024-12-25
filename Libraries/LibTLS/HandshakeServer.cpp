@@ -381,14 +381,7 @@ ssize_t TLSv12::verify_rsa_server_key_exchange(ReadonlyBytes server_key_info_buf
     Crypto::PK::RSAPrivateKey dummy_private_key;
     auto rsa = Crypto::PK::RSA(certificate_public_key.rsa, dummy_private_key);
 
-    auto signature_verify_buffer_result = ByteBuffer::create_uninitialized(signature_length);
-    if (signature_verify_buffer_result.is_error()) {
-        dbgln("verify_rsa_server_key_exchange failed: Not enough memory");
-        return (i8)Error::OutOfMemory;
-    }
-    auto signature_verify_buffer = signature_verify_buffer_result.release_value();
-    auto signature_verify_bytes = signature_verify_buffer.bytes();
-    MUST(rsa.verify(signature, signature_verify_bytes));
+    auto signature_verify = MUST(rsa.verify(signature));
 
     auto message_result = ByteBuffer::create_uninitialized(64 + server_key_info_buffer.size());
     if (message_result.is_error()) {
@@ -420,7 +413,7 @@ ssize_t TLSv12::verify_rsa_server_key_exchange(ReadonlyBytes server_key_info_buf
     }
 
     auto pkcs1 = Crypto::PK::EMSA_PKCS1_V1_5<Crypto::Hash::Manager>(hash_kind);
-    auto verification = pkcs1.verify(message, signature_verify_bytes, signature_length * 8);
+    auto verification = pkcs1.verify(message, signature_verify, signature_length * 8);
 
     if (verification == Crypto::VerificationConsistency::Inconsistent) {
         dbgln("verify_rsa_server_key_exchange failed: Verification of signature inconsistent");
