@@ -16,7 +16,6 @@
 #include <LibCrypto/Curves/SECPxxxr1.h>
 #include <LibCrypto/Curves/X25519.h>
 #include <LibCrypto/Curves/X448.h>
-#include <LibCrypto/PK/Code/EMSA_PKCS1_V1_5.h>
 #include <LibTLS/TLSv12.h>
 
 namespace TLS {
@@ -377,11 +376,6 @@ ssize_t TLSv12::verify_rsa_server_key_exchange(ReadonlyBytes server_key_info_buf
         return (i8)Error::NotSafe;
     }
     // RFC5246 section 7.4.2: The sender's certificate MUST come first in the list.
-    auto certificate_public_key = m_context.certificates.first().public_key;
-    Crypto::PK::RSAPrivateKey dummy_private_key;
-    auto rsa = Crypto::PK::RSA(certificate_public_key.rsa, dummy_private_key);
-
-    auto signature_verify = MUST(rsa.verify(signature));
 
     auto message_result = ByteBuffer::create_uninitialized(64 + server_key_info_buffer.size());
     if (message_result.is_error()) {
@@ -412,10 +406,11 @@ ssize_t TLSv12::verify_rsa_server_key_exchange(ReadonlyBytes server_key_info_buf
         return (i8)Error::NotUnderstood;
     }
 
-    auto pkcs1 = Crypto::PK::EMSA_PKCS1_V1_5<Crypto::Hash::Manager>(hash_kind);
-    auto verification = pkcs1.verify(message, signature_verify, signature_length * 8);
+    auto certificate_public_key = m_context.certificates.first().public_key;
+    auto rsa = Crypto::PK::RSA_PKCS1_EMSA(hash_kind, certificate_public_key.rsa);
+    auto verification = MUST(rsa.verify(message, signature));
 
-    if (verification == Crypto::VerificationConsistency::Inconsistent) {
+    if (!verification) {
         dbgln("verify_rsa_server_key_exchange failed: Verification of signature inconsistent");
         return (i8)Error::NotSafe;
     }

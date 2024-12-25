@@ -18,7 +18,6 @@
 #include <LibCrypto/Certificate/Certificate.h>
 #include <LibCrypto/Curves/Ed25519.h>
 #include <LibCrypto/Curves/SECPxxxr1.h>
-#include <LibCrypto/PK/Code/EMSA_PKCS1_V1_5.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibTLS/TLSv12.h>
 #include <errno.h>
@@ -342,15 +341,8 @@ bool Context::verify_certificate_pair(Certificate const& subject, Certificate co
     }
 
     if (is_rsa) {
-        Crypto::PK::RSAPrivateKey dummy_private_key;
-        Crypto::PK::RSAPublicKey public_key_copy { issuer.public_key.rsa };
-        auto rsa = Crypto::PK::RSA(public_key_copy, dummy_private_key);
-        auto verification_bytes = MUST(rsa.verify(subject.signature_value));
-
-        ReadonlyBytes message = subject.tbs_asn1.bytes();
-        auto pkcs1 = Crypto::PK::EMSA_PKCS1_V1_5<Crypto::Hash::Manager>(kind);
-        auto verification = pkcs1.verify(message, verification_bytes, subject.signature_value.size() * 8);
-        return verification == Crypto::VerificationConsistency::Consistent;
+        auto rsa = Crypto::PK::RSA_PKCS1_EMSA(kind, issuer.public_key.rsa);
+        return MUST(rsa.verify(subject.tbs_asn1, subject.signature_value));
     }
 
     // ECDSA hash verification: hash, then check signature against the specific curve

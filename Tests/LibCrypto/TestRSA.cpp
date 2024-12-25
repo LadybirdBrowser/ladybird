@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2021, Peter Bocan  <me@pbocan.net>
+ * Copyright (c) 2025, Altomani Gianluca <altomanigianluca@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -159,4 +160,20 @@ TEST_CASE(test_RSA_encrypt_decrypt)
     auto dec = TRY_OR_FAIL(rsa.decrypt(enc));
 
     EXPECT(memcmp(dec.data(), "WellHelloFriendsWellHelloFriendsWellHelloFriendsWellHelloFriends", 64) == 0);
+}
+
+TEST_CASE(test_RSA_sign_verify)
+{
+    auto keypair = TRY_OR_FAIL(Crypto::PK::RSA::generate_key_pair(1024));
+    Crypto::PK::RSA rsa(keypair);
+
+    ByteBuffer msg_buffer = {};
+    msg_buffer.resize(rsa.output_size());
+
+    auto msg = msg_buffer.bytes();
+    msg.overwrite(0, "WellHelloFriendsWellHelloFriendsWellHelloFriendsWellHelloFriends", 64);
+
+    auto sig = TRY_OR_FAIL(rsa.sign(msg));
+    auto ok = TRY_OR_FAIL(rsa.verify(msg, sig));
+    EXPECT_EQ(ok, true);
 }
