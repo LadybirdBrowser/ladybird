@@ -1,0 +1,28 @@
+<script src="include.js"></script>
+<svg>
+    <textPath></textPath>
+    <clipPath></clipPath>
+    <foreignObject></foreignObject>
+    <linearGradient></linearGradient>
+    <radialGradient></radialGradient>
+</svg>
+<script>
+    test(() => {
+        if (document.querySelector("textPath"))
+            println("✅ Pass: Selector match for SVG element textPath.");
+        else
+            println("❌ Fail: No selector match for SVG element textPath.");
+        if (document.querySelector("clipPath"))
+            println("✅ Pass: Selector match for SVG element clipPath.");
+        else
+            println("❌ Fail: No selector match for SVG element clipPath.");
+        if (document.querySelector("foreignObject"))
+            println("✅ Pass: Selector match for SVG element foreignObject.");
+        else
+            println("❌ Fail: No selector match for SVG element foreignObject.");
+        if (document.querySelector("radialGradient"))
+            println("✅ Pass: Selector match for SVG element radialGradient.");
+        else
+            println("❌ Fail: No selector match for SVG element radialGradient.");
+    });
+</script>
