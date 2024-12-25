@@ -270,6 +270,10 @@ ConnectionFromClient::ConnectionFromClient(IPC::Transport transport)
 
 ConnectionFromClient::~ConnectionFromClient()
 {
+    m_active_requests.clear();
+
+    curl_multi_cleanup(m_curl_multi);
+    m_curl_multi = nullptr;
 }
 
 void ConnectionFromClient::die()
