@@ -179,7 +179,10 @@ JS_DEFINE_NATIVE_FUNCTION(RsaHashedKeyAlgorithm::hash_getter)
     auto hash = TRY(Bindings::throw_dom_exception_if_needed(vm, [&] { return impl->hash(); }));
     return hash.visit(
         [&](String const& hash_string) -> JS::Value {
-            return JS::PrimitiveString::create(vm, hash_string);
+            auto& realm = *vm.current_realm();
+            auto object = KeyAlgorithm::create(realm);
+            object->set_name(hash_string);
+            return object;
         },
         [&](GC::Root<JS::Object> const& hash) -> JS::Value {
             return hash;
