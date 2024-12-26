@@ -6111,13 +6111,13 @@ static WebIDL::ExceptionOr<WebIDL::UnsignedLong> hmac_hash_block_size(JS::Realm&
 {
     auto hash_name = TRY(hash.name(realm.vm()));
     if (hash_name == "SHA-1")
-        return ::Crypto::Hash::SHA1::digest_size();
+        return ::Crypto::Hash::SHA1::block_size();
     if (hash_name == "SHA-256")
-        return ::Crypto::Hash::SHA256::digest_size();
+        return ::Crypto::Hash::SHA256::block_size();
     if (hash_name == "SHA-384")
-        return ::Crypto::Hash::SHA384::digest_size();
+        return ::Crypto::Hash::SHA384::block_size();
     if (hash_name == "SHA-512")
-        return ::Crypto::Hash::SHA512::digest_size();
+        return ::Crypto::Hash::SHA512::block_size();
     return WebIDL::NotSupportedError::create(realm, MUST(String::formatted("Invalid hash function '{}'", hash_name)));
 }
 
@@ -6166,7 +6166,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> HMAC::g
     if (!normalized_algorithm.length.has_value()) {
         // Let length be the block size in bits of the hash function identified by the hash member
         // of normalizedAlgorithm.
-        length = TRY(hmac_hash_block_size(m_realm, normalized_algorithm.hash));
+        length = TRY(hmac_hash_block_size(m_realm, normalized_algorithm.hash)) * 8;
     }
 
     // Otherwise, if the length member of normalizedAlgorithm is non-zero:
@@ -6488,7 +6488,7 @@ WebIDL::ExceptionOr<JS::Value> HMAC::get_key_length(AlgorithmParams const& param
     if (!normalized_derived_key_algorithm.length.has_value()) {
         // Let length be the block size in bits of the hash function identified by the hash member of
         // normalizedDerivedKeyAlgorithm.
-        length = TRY(hmac_hash_block_size(m_realm, normalized_derived_key_algorithm.hash));
+        length = TRY(hmac_hash_block_size(m_realm, normalized_derived_key_algorithm.hash)) * 8;
     }
 
     // Otherwise, if the length member of normalizedDerivedKeyAlgorithm is non-zero:
