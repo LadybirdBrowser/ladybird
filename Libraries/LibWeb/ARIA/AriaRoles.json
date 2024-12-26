@@ -4606,5 +4606,141 @@
     "implicitValueForRole": {
       "aria-orientation": "AriaOrientation::Horizontal"
     }
+  },
+  "GraphicsDocument": {
+    "specLink": "https://w3c.github.io/graphics-aria/#graphics-document",
+    "description": "A type of document in which the visual appearance or layout of content conveys meaning.",
+    "superClassRoles": [
+      "Document"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden",
+      "aria-invalid"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-errormessage",
+      "aria-flowto",
+      "aria-haspopup",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "GraphicsObject": {
+    "specLink": "https://w3c.github.io/graphics-aria/#graphics-object",
+    "description": "A section of a graphics-document that represents a distinct object or sub-component with semantic meaning.",
+    "superClassRoles": [
+      "Group"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden",
+      "aria-invalid"
+    ],
+    "supportedProperties": [
+      "aria-activedescendant",
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-errormessage",
+      "aria-flowto",
+      "aria-haspopup",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": false,
+    "childrenArePresentational": false,
+    "implicitValueForRole": {}
+  },
+  "GraphicsSymbol": {
+    "specLink": "https://w3c.github.io/graphics-aria/#graphics-symbol",
+    "description": "A graphical object used to convey a simple meaning or category, where the meaning is more important than the particular visual appearance.",
+    "superClassRoles": [
+      "Img"
+    ],
+    "supportedStates": [
+      "aria-busy",
+      "aria-current",
+      "aria-disabled",
+      "aria-grabbed",
+      "aria-hidden",
+      "aria-invalid"
+    ],
+    "supportedProperties": [
+      "aria-atomic",
+      "aria-braillelabel",
+      "aria-brailleroledescription",
+      "aria-controls",
+      "aria-describedby",
+      "aria-description",
+      "aria-details",
+      "aria-dropeffect",
+      "aria-errormessage",
+      "aria-flowto",
+      "aria-haspopup",
+      "aria-keyshortcuts",
+      "aria-label",
+      "aria-labelledby",
+      "aria-live",
+      "aria-owns",
+      "aria-relevant",
+      "aria-roledescription"
+    ],
+    "requiredStates": [],
+    "requiredProperties": [],
+    "prohibitedStates": [],
+    "prohibitedProperties": [],
+    "requiredContextRoles": [],
+    "requiredOwnedElements": [],
+    "nameFromSource": "Author",
+    "accessibleNameRequired": true,
+    "childrenArePresentational": true,
+    "implicitValueForRole": {}
   }
 }

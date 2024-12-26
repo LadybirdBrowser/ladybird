@@ -202,6 +202,12 @@ ErrorOr<NonnullOwnPtr<RoleType>> RoleType::build_role_object(Role role, bool foc
         return adopt_nonnull_own_or_enomem(new (nothrow) Form(data));
     case Role::generic:
         return adopt_nonnull_own_or_enomem(new (nothrow) Generic(data));
+    case Role::graphicsdocument:
+        return adopt_nonnull_own_or_enomem(new (nothrow) GraphicsDocument(data));
+    case Role::graphicsobject:
+        return adopt_nonnull_own_or_enomem(new (nothrow) GraphicsObject(data));
+    case Role::graphicssymbol:
+        return adopt_nonnull_own_or_enomem(new (nothrow) GraphicsSymbol(data));
     case Role::grid:
         return adopt_nonnull_own_or_enomem(static_cast<Composite*>(new (nothrow) Grid(data)));
     case Role::gridcell:
