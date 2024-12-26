@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 78 tests
+Found 79 tests
 
-78 Pass
+79 Pass
 Pass	html: input[type=button]
 Pass	html: input[type=image]
 Pass	html: input[type=reset]
@@ -81,3 +81,4 @@ Pass	html: img[alt] (non-empty)
 Pass	html: picture > img[alt] (non-empty)
 Pass	html: fieldset > legend
 Pass	html: table > caption
+Pass	html: multiple label elements[for]

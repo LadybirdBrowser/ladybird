@@ -2425,6 +2425,8 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
         if (labels != nullptr && labels->length() > 0) {
             StringBuilder builder;
             for (u32 i = 0; i < labels->length(); i++) {
+                if (!builder.is_empty())
+                    builder.append(" "sv);
                 auto nodes = labels->item(i)->children_as_vector();
                 for (auto const& node : nodes) {
                     // AD-HOC: https://wpt.fyi/results/accname/name/comp_host_language_label.html has “encapsulation”

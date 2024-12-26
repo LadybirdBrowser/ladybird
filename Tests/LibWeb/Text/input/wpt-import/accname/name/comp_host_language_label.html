@@ -155,6 +155,11 @@
 <tr><th>a</th><th>b</th><th>c</th></tr>
 <tr><th>1</th><td>2</td><td>3</td></tr>
 </table>
+<!-- HTML-AAM: https://www.w3.org/TR/html-aam-1.0/#input-type-text-input-type-password-input-type-number-input-type-search-input-type-tel-input-type-email-input-type-url-and-textarea-element-accessible-name-computation -->
+<h2>HTML input with multiple label/for</h2>
+<label for="multi-label">textfield label 1</label>
+<label for="multi-label">textfield label 2</label>
+<input id="multi-label" type="text" data-expectedlabel="textfield label 1 textfield label 2" data-testname="html: multiple label elements[for]" class="ex">
 <!-- SVG: -> /svg-aam/name/ -->
 <!-- todo: Ruby? -->
 <!-- todo: MathML? -->
