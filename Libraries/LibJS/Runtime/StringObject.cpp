@@ -128,12 +128,12 @@ ThrowCompletionOr<bool> StringObject::internal_define_own_property(PropertyKey c
 }
 
 // 10.4.3.3 [[OwnPropertyKeys]] ( ), https://tc39.es/ecma262/#sec-string-exotic-objects-ownpropertykeys
-ThrowCompletionOr<GC::MarkedVector<Value>> StringObject::internal_own_property_keys() const
+ThrowCompletionOr<GC::RootVector<Value>> StringObject::internal_own_property_keys() const
 {
     auto& vm = this->vm();
 
     // 1. Let keys be a new empty List.
-    auto keys = GC::MarkedVector<Value> { heap() };
+    auto keys = GC::RootVector<Value> { heap() };
 
     // 2. Let str be O.[[StringData]].
     auto str = m_string->utf16_string_view();

@@ -381,18 +381,18 @@ bool is_element_obscured(ReadonlySpan<GC::Ref<Web::DOM::Element>> paint_tree, We
 }
 
 // https://w3c.github.io/webdriver/#dfn-pointer-interactable-paint-tree
-GC::MarkedVector<GC::Ref<Web::DOM::Element>> pointer_interactable_tree(Web::HTML::BrowsingContext& browsing_context, Web::DOM::Element& element)
+GC::RootVector<GC::Ref<Web::DOM::Element>> pointer_interactable_tree(Web::HTML::BrowsingContext& browsing_context, Web::DOM::Element& element)
 {
     // 1. If element is not in the same tree as session's current browsing context's active document, return an empty sequence.
     if (!browsing_context.active_document()->contains(element))
-        return GC::MarkedVector<GC::Ref<Web::DOM::Element>>(browsing_context.heap());
+        return GC::RootVector<GC::Ref<Web::DOM::Element>>(browsing_context.heap());
 
     // 2. Let rectangles be the DOMRect sequence returned by calling getClientRects().
     auto rectangles = element.get_client_rects();
 
     // 3. If rectangles has the length of 0, return an empty sequence.
     if (rectangles->length() == 0)
-        return GC::MarkedVector<GC::Ref<Web::DOM::Element>>(browsing_context.heap());
+        return GC::RootVector<GC::Ref<Web::DOM::Element>>(browsing_context.heap());
 
     // 4. Let center point be the in-view center point of the first indexed element in rectangles.
     auto viewport = browsing_context.page().top_level_traversable()->viewport_rect();

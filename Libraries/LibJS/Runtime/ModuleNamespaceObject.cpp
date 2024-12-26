@@ -210,11 +210,11 @@ ThrowCompletionOr<bool> ModuleNamespaceObject::internal_delete(PropertyKey const
 }
 
 // 10.4.6.11 [[OwnPropertyKeys]] ( ), https://tc39.es/ecma262/#sec-module-namespace-exotic-objects-ownpropertykeys
-ThrowCompletionOr<GC::MarkedVector<Value>> ModuleNamespaceObject::internal_own_property_keys() const
+ThrowCompletionOr<GC::RootVector<Value>> ModuleNamespaceObject::internal_own_property_keys() const
 {
     // 1. Let exports be O.[[Exports]].
     // NOTE: We only add the exports after we know the size of symbolKeys
-    GC::MarkedVector<Value> exports { vm().heap() };
+    GC::RootVector<Value> exports { vm().heap() };
 
     // 2. Let symbolKeys be OrdinaryOwnPropertyKeys(O).
     auto symbol_keys = MUST(Object::internal_own_property_keys());

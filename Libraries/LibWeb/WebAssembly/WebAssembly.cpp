@@ -208,7 +208,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<Wasm::ModuleInstance>> instantiate_module(JS
                         cache.add_imported_object(function);
                         Wasm::HostFunction host_function {
                             [&](auto&, auto& arguments) -> Wasm::Result {
-                                GC::MarkedVector<JS::Value> argument_values { vm.heap() };
+                                GC::RootVector<JS::Value> argument_values { vm.heap() };
                                 size_t index = 0;
                                 for (auto& entry : arguments) {
                                     argument_values.append(to_js_value(vm, entry, type.parameters()[index]));
@@ -425,7 +425,7 @@ JS::NativeFunction* create_native_function(JS::VM& vm, Wasm::FunctionAddress add
                 return to_js_value(vm, result.values().first(), type.results().first());
 
             // Put result values into a JS::Array in reverse order.
-            auto js_result_values = GC::MarkedVector<JS::Value> { realm.heap() };
+            auto js_result_values = GC::RootVector<JS::Value> { realm.heap() };
             js_result_values.ensure_capacity(result.values().size());
 
             for (size_t i = result.values().size(); i > 0; i--) {

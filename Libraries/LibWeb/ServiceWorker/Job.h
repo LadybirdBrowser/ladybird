@@ -15,7 +15,7 @@
 namespace Web::ServiceWorker {
 
 struct Job;
-using JobQueue = GC::MarkedVector<GC::Ref<Job>>;
+using JobQueue = GC::RootVector<GC::Ref<Job>>;
 
 // https://w3c.github.io/ServiceWorker/#dfn-job
 // FIXME: Consider not making this GC allocated, and give a special JobQueue class responsibility for its referenced GC objects

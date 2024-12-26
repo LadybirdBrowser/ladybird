@@ -1645,7 +1645,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_network_or_cache_fetch(JS::Re
 
     // 5. Let storedResponse be null.
     GC::Ptr<Infrastructure::Response> stored_response;
-    GC::MarkedVector<GC::Ptr<Infrastructure::Response>> initial_set_of_stored_responses(realm.heap());
+    GC::RootVector<GC::Ptr<Infrastructure::Response>> initial_set_of_stored_responses(realm.heap());
 
     // 6. Let httpCache be null.
     // (Typeless until we actually implement it, needed for checks below)

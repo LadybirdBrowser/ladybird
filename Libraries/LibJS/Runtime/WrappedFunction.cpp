@@ -99,7 +99,7 @@ ThrowCompletionOr<Value> ordinary_wrapped_function_call(WrappedFunction const& f
     auto* target_realm = TRY(get_function_realm(vm, target));
 
     // 6. Let wrappedArgs be a new empty List.
-    auto wrapped_args = GC::MarkedVector<Value> { vm.heap() };
+    auto wrapped_args = GC::RootVector<Value> { vm.heap() };
     wrapped_args.ensure_capacity(arguments_list.size());
 
     // 7. For each element arg of argumentsList, do

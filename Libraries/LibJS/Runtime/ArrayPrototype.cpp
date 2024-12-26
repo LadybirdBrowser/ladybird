@@ -1339,15 +1339,15 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::some)
     return Value(false);
 }
 
-ThrowCompletionOr<void> array_merge_sort(VM& vm, Function<ThrowCompletionOr<double>(Value, Value)> const& compare_func, GC::MarkedVector<Value>& arr_to_sort)
+ThrowCompletionOr<void> array_merge_sort(VM& vm, Function<ThrowCompletionOr<double>(Value, Value)> const& compare_func, GC::RootVector<Value>& arr_to_sort)
 {
     // FIXME: it would probably be better to switch to insertion sort for small arrays for
     // better performance
     if (arr_to_sort.size() <= 1)
         return {};
 
-    GC::MarkedVector<Value> left(vm.heap());
-    GC::MarkedVector<Value> right(vm.heap());
+    GC::RootVector<Value> left(vm.heap());
+    GC::RootVector<Value> right(vm.heap());
 
     left.ensure_capacity(arr_to_sort.size() / 2);
     right.ensure_capacity(arr_to_sort.size() / 2 + (arr_to_sort.size() & 1));

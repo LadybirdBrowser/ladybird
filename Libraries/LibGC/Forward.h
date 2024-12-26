@@ -30,6 +30,6 @@ template<class T, size_t inline_capacity = 0>
 class ConservativeVector;
 
 template<class T, size_t inline_capacity = 0>
-class MarkedVector;
+class RootVector;
 
 }

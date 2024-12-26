@@ -121,7 +121,7 @@ WebIDL::ExceptionOr<void> BroadcastChannel::post_message(JS::Value message)
     auto source_storage_key = Web::StorageAPI::obtain_a_storage_key_for_non_storage_purposes(relevant_settings_object(*this));
 
     // 6. Let destinations be a list of BroadcastChannel objects that match the following criteria:
-    GC::MarkedVector<GC::Ref<BroadcastChannel>> destinations(vm.heap());
+    GC::RootVector<GC::Ref<BroadcastChannel>> destinations(vm.heap());
 
     // * The result of running obtain a storage key for non-storage purposes with their relevant settings object equals sourceStorageKey.
     auto same_origin_broadcast_channels = s_broadcast_channel_repository.registered_channels_for_key(source_storage_key);

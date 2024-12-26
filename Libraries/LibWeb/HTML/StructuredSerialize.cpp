@@ -1040,7 +1040,7 @@ public:
 private:
     JS::VM& m_vm;
     ReadonlySpan<u32> m_serialized;
-    GC::MarkedVector<JS::Value> m_memory; // Index -> JS value
+    GC::RootVector<JS::Value> m_memory; // Index -> JS value
     size_t m_position { 0 };
 
     static GC::Ref<Bindings::PlatformObject> create_serialized_type(StringView interface_name, JS::Realm& realm)

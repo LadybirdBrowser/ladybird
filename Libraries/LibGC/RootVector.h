@@ -16,52 +16,52 @@
 
 namespace GC {
 
-class MarkedVectorBase {
+class RootVectorBase {
 public:
     virtual void gather_roots(HashMap<Cell*, GC::HeapRoot>&) const = 0;
 
 protected:
-    explicit MarkedVectorBase(Heap&);
-    ~MarkedVectorBase();
+    explicit RootVectorBase(Heap&);
+    ~RootVectorBase();
 
-    MarkedVectorBase& operator=(MarkedVectorBase const&);
+    RootVectorBase& operator=(RootVectorBase const&);
 
     Heap* m_heap { nullptr };
-    IntrusiveListNode<MarkedVectorBase> m_list_node;
+    IntrusiveListNode<RootVectorBase> m_list_node;
 
 public:
-    using List = IntrusiveList<&MarkedVectorBase::m_list_node>;
+    using List = IntrusiveList<&RootVectorBase::m_list_node>;
 };
 
 template<typename T, size_t inline_capacity>
-class MarkedVector final
-    : public MarkedVectorBase
+class RootVector final
+    : public RootVectorBase
     , public Vector<T, inline_capacity> {
 
 public:
-    explicit MarkedVector(Heap& heap)
-        : MarkedVectorBase(heap)
+    explicit RootVector(Heap& heap)
+        : RootVectorBase(heap)
     {
     }
 
-    virtual ~MarkedVector() = default;
+    virtual ~RootVector() = default;
 
-    MarkedVector(MarkedVector const& other)
-        : MarkedVectorBase(*other.m_heap)
+    RootVector(RootVector const& other)
+        : RootVectorBase(*other.m_heap)
         , Vector<T, inline_capacity>(other)
     {
     }
 
-    MarkedVector(MarkedVector&& other)
-        : MarkedVectorBase(*other.m_heap)
+    RootVector(RootVector&& other)
+        : RootVectorBase(*other.m_heap)
         , Vector<T, inline_capacity>(move(static_cast<Vector<T, inline_capacity>&>(other)))
     {
     }
 
-    MarkedVector& operator=(MarkedVector const& other)
+    RootVector& operator=(RootVector const& other)
     {
         Vector<T, inline_capacity>::operator=(other);
-        MarkedVectorBase::operator=(other);
+        RootVectorBase::operator=(other);
         return *this;
     }
 
@@ -70,9 +70,9 @@ public:
         for (auto& value : *this) {
             if constexpr (IsBaseOf<NanBoxedValue, T>) {
                 if (value.is_cell())
-                    roots.set(&const_cast<T&>(value).as_cell(), HeapRoot { .type = HeapRoot::Type::MarkedVector });
+                    roots.set(&const_cast<T&>(value).as_cell(), HeapRoot { .type = HeapRoot::Type::RootVector });
             } else {
-                roots.set(value, HeapRoot { .type = HeapRoot::Type::MarkedVector });
+                roots.set(value, HeapRoot { .type = HeapRoot::Type::RootVector });
             }
         }
     }

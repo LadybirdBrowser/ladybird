@@ -1458,13 +1458,13 @@ inline Value new_regexp(VM& vm, ParsedRegex const& parsed_regex, ByteString cons
 }
 
 // 13.3.8.1 https://tc39.es/ecma262/#sec-runtime-semantics-argumentlistevaluation
-inline GC::MarkedVector<Value> argument_list_evaluation(VM& vm, Value arguments)
+inline GC::RootVector<Value> argument_list_evaluation(VM& vm, Value arguments)
 {
     // Note: Any spreading and actual evaluation is handled in preceding opcodes
     // Note: The spec uses the concept of a list, while we create a temporary array
     //       in the preceding opcodes, so we have to convert in a manner that is not
     //       visible to the user
-    GC::MarkedVector<Value> argument_values { vm.heap() };
+    GC::RootVector<Value> argument_values { vm.heap() };
 
     auto& argument_array = arguments.as_array();
     auto array_length = argument_array.indexed_properties().array_like_size();
@@ -1541,7 +1541,7 @@ inline ThrowCompletionOr<GC::Ref<Object>> super_call_with_argument_array(VM& vm,
     auto* func = get_super_constructor(vm);
 
     // 4. Let argList be ? ArgumentListEvaluation of Arguments.
-    GC::MarkedVector<Value> arg_list { vm.heap() };
+    GC::RootVector<Value> arg_list { vm.heap() };
     if (is_synthetic) {
         VERIFY(argument_array.is_object() && is<Array>(argument_array.as_object()));
         auto const& array_value = static_cast<Array const&>(argument_array.as_object());

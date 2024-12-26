@@ -97,7 +97,7 @@ ThrowCompletionOr<size_t> length_of_array_like(VM& vm, Object const& object)
 }
 
 // 7.3.20 CreateListFromArrayLike ( obj [ , elementTypes ] ), https://tc39.es/ecma262/#sec-createlistfromarraylike
-ThrowCompletionOr<GC::MarkedVector<Value>> create_list_from_array_like(VM& vm, Value value, Function<ThrowCompletionOr<void>(Value)> check_value)
+ThrowCompletionOr<GC::RootVector<Value>> create_list_from_array_like(VM& vm, Value value, Function<ThrowCompletionOr<void>(Value)> check_value)
 {
     // 1. If elementTypes is not present, set elementTypes to « Undefined, Null, Boolean, String, Symbol, Number, BigInt, Object ».
 
@@ -111,7 +111,7 @@ ThrowCompletionOr<GC::MarkedVector<Value>> create_list_from_array_like(VM& vm, V
     auto length = TRY(length_of_array_like(vm, array_like));
 
     // 4. Let list be a new empty List.
-    auto list = GC::MarkedVector<Value> { vm.heap() };
+    auto list = GC::RootVector<Value> { vm.heap() };
     list.ensure_capacity(length);
 
     // 5. Let index be 0.

@@ -63,7 +63,7 @@ public:
 
     Realm& realm() const { return m_realm; }
 
-    GC::MarkedVector<Value> vm_arguments();
+    GC::RootVector<Value> vm_arguments();
 
     HashMap<String, unsigned>& counters() { return m_counters; }
     HashMap<String, unsigned> const& counters() const { return m_counters; }
@@ -95,7 +95,7 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
-    ThrowCompletionOr<String> value_vector_to_string(GC::MarkedVector<Value> const&);
+    ThrowCompletionOr<String> value_vector_to_string(GC::RootVector<Value> const&);
 
     GC::Ref<Realm> m_realm;
     GC::Ptr<ConsoleClient> m_client;
@@ -110,10 +110,10 @@ class ConsoleClient : public Cell {
     GC_DECLARE_ALLOCATOR(ConsoleClient);
 
 public:
-    using PrinterArguments = Variant<Console::Group, Console::Trace, GC::MarkedVector<Value>>;
+    using PrinterArguments = Variant<Console::Group, Console::Trace, GC::RootVector<Value>>;
 
-    ThrowCompletionOr<Value> logger(Console::LogLevel log_level, GC::MarkedVector<Value> const& args);
-    ThrowCompletionOr<GC::MarkedVector<Value>> formatter(GC::MarkedVector<Value> const& args);
+    ThrowCompletionOr<Value> logger(Console::LogLevel log_level, GC::RootVector<Value> const& args);
+    ThrowCompletionOr<GC::RootVector<Value>> formatter(GC::RootVector<Value> const& args);
     virtual ThrowCompletionOr<Value> printer(Console::LogLevel log_level, PrinterArguments) = 0;
 
     virtual void add_css_style_to_current_message(StringView) { }
@@ -122,7 +122,7 @@ public:
     virtual void clear() = 0;
     virtual void end_group() = 0;
 
-    ThrowCompletionOr<String> generically_format_values(GC::MarkedVector<Value> const&);
+    ThrowCompletionOr<String> generically_format_values(GC::RootVector<Value> const&);
 
 protected:
     explicit ConsoleClient(Console&);

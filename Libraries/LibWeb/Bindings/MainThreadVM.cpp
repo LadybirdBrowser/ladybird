@@ -709,7 +709,7 @@ void queue_mutation_observer_microtask(DOM::Document const& document)
         custom_data.mutation_observer_microtask_queued = false;
 
         // 2. Let notifySet be a clone of the surrounding agent’s mutation observers.
-        GC::MarkedVector<DOM::MutationObserver*> notify_set(heap);
+        GC::RootVector<DOM::MutationObserver*> notify_set(heap);
         for (auto& observer : custom_data.mutation_observers)
             notify_set.append(observer);
 

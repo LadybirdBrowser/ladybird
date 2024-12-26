@@ -373,7 +373,7 @@ private:
     NonnullOwnPtr<StringTable> m_string_table;
     NonnullOwnPtr<IdentifierTable> m_identifier_table;
     NonnullOwnPtr<RegexTable> m_regex_table;
-    GC::MarkedVector<Value> m_constants;
+    GC::RootVector<Value> m_constants;
 
     mutable Optional<ScopedOperand> m_true_constant;
     mutable Optional<ScopedOperand> m_false_constant;

@@ -32,7 +32,7 @@ public:
     Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> item(Optional<FlyString> const& name_or_index) const;
     Variant<GC::Ref<DOM::HTMLCollection>, GC::Ref<DOM::Element>, Empty> named_item(FlyString const& name) const;
 
-    GC::MarkedVector<GC::Ref<DOM::Element>> collect_matching_elements() const;
+    GC::RootVector<GC::Ref<DOM::Element>> collect_matching_elements() const;
 
     virtual Optional<JS::Value> item_value(size_t index) const override;
     virtual JS::Value named_item_value(FlyString const& name) const override;

@@ -288,7 +288,7 @@ static ThrowCompletionOr<void> initialize_typed_array_from_array_like(VM& vm, Ty
 
 // 23.2.5.1.4 InitializeTypedArrayFromList, https://tc39.es/ecma262/#sec-initializetypedarrayfromlist
 template<typename T>
-static ThrowCompletionOr<void> initialize_typed_array_from_list(VM& vm, TypedArray<T>& typed_array, GC::MarkedVector<Value> const& list)
+static ThrowCompletionOr<void> initialize_typed_array_from_list(VM& vm, TypedArray<T>& typed_array, GC::RootVector<Value> const& list)
 {
     // 1. Let len be the number of elements in values.
     auto length = list.size();
@@ -315,7 +315,7 @@ static ThrowCompletionOr<void> initialize_typed_array_from_list(VM& vm, TypedArr
 }
 
 // 23.2.4.2 TypedArrayCreate ( constructor, argumentList ), https://tc39.es/ecma262/#typedarray-create
-ThrowCompletionOr<TypedArrayBase*> typed_array_create(VM& vm, FunctionObject& constructor, GC::MarkedVector<Value> arguments)
+ThrowCompletionOr<TypedArrayBase*> typed_array_create(VM& vm, FunctionObject& constructor, GC::RootVector<Value> arguments)
 {
     Optional<double> first_argument;
     if (arguments.size() == 1 && arguments[0].is_number())
@@ -346,7 +346,7 @@ ThrowCompletionOr<TypedArrayBase*> typed_array_create(VM& vm, FunctionObject& co
 }
 
 // 23.2.4.3 TypedArrayCreateSameType ( exemplar, argumentList ), https://tc39.es/ecma262/#sec-typedarray-create-same-type
-ThrowCompletionOr<TypedArrayBase*> typed_array_create_same_type(VM& vm, TypedArrayBase const& exemplar, GC::MarkedVector<Value> arguments)
+ThrowCompletionOr<TypedArrayBase*> typed_array_create_same_type(VM& vm, TypedArrayBase const& exemplar, GC::RootVector<Value> arguments)
 {
     auto& realm = *vm.current_realm();
 

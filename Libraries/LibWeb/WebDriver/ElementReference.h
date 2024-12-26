@@ -44,7 +44,7 @@ bool is_element_non_typeable_form_control(Web::DOM::Element const&);
 
 bool is_element_in_view(ReadonlySpan<GC::Ref<Web::DOM::Element>> paint_tree, Web::DOM::Element&);
 bool is_element_obscured(ReadonlySpan<GC::Ref<Web::DOM::Element>> paint_tree, Web::DOM::Element&);
-GC::MarkedVector<GC::Ref<Web::DOM::Element>> pointer_interactable_tree(Web::HTML::BrowsingContext&, Web::DOM::Element&);
+GC::RootVector<GC::Ref<Web::DOM::Element>> pointer_interactable_tree(Web::HTML::BrowsingContext&, Web::DOM::Element&);
 
 ByteString get_or_create_a_shadow_root_reference(HTML::BrowsingContext const&, Web::DOM::ShadowRoot const&);
 JsonObject shadow_root_reference_object(HTML::BrowsingContext const&, Web::DOM::ShadowRoot const&);

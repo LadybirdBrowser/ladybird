@@ -84,9 +84,9 @@ static bool is_all_named_element(DOM::Element const& element)
         || is<HTML::HTMLTextAreaElement>(element);
 }
 
-GC::MarkedVector<GC::Ref<DOM::Element>> HTMLAllCollection::collect_matching_elements() const
+GC::RootVector<GC::Ref<DOM::Element>> HTMLAllCollection::collect_matching_elements() const
 {
-    GC::MarkedVector<GC::Ref<DOM::Element>> elements(m_root->heap());
+    GC::RootVector<GC::Ref<DOM::Element>> elements(m_root->heap());
     if (m_scope == Scope::Descendants) {
         m_root->for_each_in_subtree_of_type<DOM::Element>([&](auto& element) {
             if (m_filter(element))

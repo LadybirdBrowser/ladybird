@@ -1037,7 +1037,7 @@ static void update_the_source_set(DOM::Element& element)
         TODO();
 
     // 2. Let elements be « el ».
-    GC::MarkedVector<DOM::Element*> elements(element.heap());
+    GC::RootVector<DOM::Element*> elements(element.heap());
     elements.append(&element);
 
     // 3. If el is an img element whose parent node is a picture element,

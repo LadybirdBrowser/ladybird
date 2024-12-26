@@ -218,7 +218,7 @@ GC::Ref<WebIDL::Promise> CSSStyleSheet::replace(String text)
         auto& rules = parsed_stylesheet->rules();
 
         // 2. If rules contains one or more @import rules, remove those rules from rules.
-        GC::MarkedVector<GC::Ref<CSSRule>> rules_without_import(realm.heap());
+        GC::RootVector<GC::Ref<CSSRule>> rules_without_import(realm.heap());
         for (auto rule : rules) {
             if (rule->type() != CSSRule::Type::Import)
                 rules_without_import.append(rule);
@@ -252,7 +252,7 @@ WebIDL::ExceptionOr<void> CSSStyleSheet::replace_sync(StringView text)
     auto& rules = parsed_stylesheet->rules();
 
     // 3. If rules contains one or more @import rules, remove those rules from rules.
-    GC::MarkedVector<GC::Ref<CSSRule>> rules_without_import(realm().heap());
+    GC::RootVector<GC::Ref<CSSRule>> rules_without_import(realm().heap());
     for (auto rule : rules) {
         if (rule->type() != CSSRule::Type::Import)
             rules_without_import.append(rule);

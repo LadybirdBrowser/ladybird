@@ -498,7 +498,7 @@ public:
             return JS::js_undefined();
         }
 
-        auto output = TRY(generically_format_values(arguments.get<GC::MarkedVector<JS::Value>>()));
+        auto output = TRY(generically_format_values(arguments.get<GC::RootVector<JS::Value>>()));
 
         switch (log_level) {
         case JS::Console::LogLevel::Debug:

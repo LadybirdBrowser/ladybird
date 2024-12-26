@@ -1105,7 +1105,7 @@ WebIDL::ExceptionOr<void> Range::delete_contents()
     }
 
     // 4. Let nodes to remove be a list of all the nodes that are contained in this, in tree order, omitting any node whose parent is also contained in this.
-    GC::MarkedVector<Node*> nodes_to_remove(heap());
+    GC::RootVector<Node*> nodes_to_remove(heap());
     for (GC::Ptr<Node> node = start_container(); node != end_container()->next_sibling(); node = node->next_in_pre_order()) {
         if (contains_node(*node) && (!node->parent_node() || !contains_node(*node->parent_node())))
             nodes_to_remove.append(node);

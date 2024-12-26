@@ -526,7 +526,7 @@ void Window::consume_history_action_user_activation()
     auto navigables = top->active_document()->inclusive_descendant_navigables();
 
     // 4. Let windows be the list of Window objects constructed by taking the active window of each item in navigables.
-    GC::MarkedVector<GC::Ptr<Window>> windows(heap());
+    GC::RootVector<GC::Ptr<Window>> windows(heap());
     for (auto& n : navigables)
         windows.append(n->active_window());
 
@@ -551,7 +551,7 @@ void Window::consume_user_activation()
     auto navigables = top->active_document()->inclusive_descendant_navigables();
 
     // 4. Let windows be the list of Window objects constructed by taking the active window of each item in navigables.
-    GC::MarkedVector<GC::Ptr<Window>> windows(heap());
+    GC::RootVector<GC::Ptr<Window>> windows(heap());
     for (auto& n : navigables)
         windows.append(n->active_window());
 

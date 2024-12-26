@@ -8,7 +8,7 @@
 
 #include <AK/Badge.h>
 #include <AK/String.h>
-#include <LibGC/MarkedVector.h>
+#include <LibGC/RootVector.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/AudioTrack.h>
 

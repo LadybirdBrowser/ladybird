@@ -5,7 +5,7 @@
  */
 
 #include <AK/Optional.h>
-#include <LibGC/MarkedVector.h>
+#include <LibGC/RootVector.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/PropertyDescriptor.h>
@@ -228,7 +228,7 @@ JS::ThrowCompletionOr<bool> WindowProxy::internal_delete(JS::PropertyKey const& 
 }
 
 // 7.4.10 [[OwnPropertyKeys]] ( ), https://html.spec.whatwg.org/multipage/window-object.html#windowproxy-ownpropertykeys
-JS::ThrowCompletionOr<GC::MarkedVector<JS::Value>> WindowProxy::internal_own_property_keys() const
+JS::ThrowCompletionOr<GC::RootVector<JS::Value>> WindowProxy::internal_own_property_keys() const
 {
     auto& event_loop = main_thread_event_loop();
     auto& vm = event_loop.vm();
@@ -236,7 +236,7 @@ JS::ThrowCompletionOr<GC::MarkedVector<JS::Value>> WindowProxy::internal_own_pro
     // 1. Let W be the value of the [[Window]] internal slot of this.
 
     // 2. Let keys be a new empty List.
-    auto keys = GC::MarkedVector<JS::Value> { vm.heap() };
+    auto keys = GC::RootVector<JS::Value> { vm.heap() };
 
     // 3. Let maxProperties be W's associated Document's document-tree child navigables's size.
     auto max_properties = m_window->associated_document().document_tree_child_navigables().size();

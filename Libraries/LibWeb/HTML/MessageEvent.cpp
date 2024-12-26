@@ -66,7 +66,7 @@ Variant<GC::Root<WindowProxy>, GC::Root<MessagePort>, Empty> MessageEvent::sourc
 GC::Ref<JS::Object> MessageEvent::ports() const
 {
     if (!m_ports_array) {
-        GC::MarkedVector<JS::Value> port_vector(heap());
+        GC::RootVector<JS::Value> port_vector(heap());
         for (auto const& port : m_ports)
             port_vector.append(port);
 

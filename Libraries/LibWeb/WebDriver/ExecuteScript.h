@@ -23,7 +23,7 @@ struct ExecutionResult {
 
 using OnScriptComplete = GC::Function<void(ExecutionResult)>;
 
-void execute_script(HTML::BrowsingContext const&, ByteString body, GC::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms, GC::Ref<OnScriptComplete> on_complete);
-void execute_async_script(HTML::BrowsingContext const&, ByteString body, GC::MarkedVector<JS::Value> arguments, Optional<u64> const& timeout_ms, GC::Ref<OnScriptComplete> on_complete);
+void execute_script(HTML::BrowsingContext const&, ByteString body, GC::RootVector<JS::Value> arguments, Optional<u64> const& timeout_ms, GC::Ref<OnScriptComplete> on_complete);
+void execute_async_script(HTML::BrowsingContext const&, ByteString body, GC::RootVector<JS::Value> arguments, Optional<u64> const& timeout_ms, GC::Ref<OnScriptComplete> on_complete);
 
 }

@@ -31,7 +31,7 @@ void CloseWatcherManager::add(GC::Ref<CloseWatcher> close_watcher)
     // If manager's groups's size is less than manager's allowed number of groups
     if (m_groups.size() < m_allowed_number_of_groups) {
         // then append « closeWatcher » to manager's groups.
-        GC::MarkedVector<GC::Ref<CloseWatcher>> new_group(realm().heap());
+        GC::RootVector<GC::Ref<CloseWatcher>> new_group(realm().heap());
         new_group.append(close_watcher);
         m_groups.append(move(new_group));
     } else {
@@ -68,7 +68,7 @@ bool CloseWatcherManager::process_close_watchers()
         auto& group = m_groups.last();
         // Ambiguous spec wording. We copy the groups to avoid modifying the original while iterating.
         // See https://github.com/whatwg/html/issues/10240
-        GC::MarkedVector<GC::Ref<CloseWatcher>> group_copy(realm().heap());
+        GC::RootVector<GC::Ref<CloseWatcher>> group_copy(realm().heap());
         group_copy.ensure_capacity(group.size());
         for (auto& close_watcher : group) {
             group_copy.append(close_watcher);

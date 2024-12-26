@@ -449,7 +449,7 @@ private:
         }
     }
 
-    [[nodiscard]] ThrowCompletionOr<Value> invoke_internal(VM&, PropertyKey const&, Optional<GC::MarkedVector<Value>> arguments);
+    [[nodiscard]] ThrowCompletionOr<Value> invoke_internal(VM&, PropertyKey const&, Optional<GC::RootVector<Value>> arguments);
 
     ThrowCompletionOr<i32> to_i32_slow_case(VM&) const;
 

@@ -94,7 +94,7 @@ JS_DEFINE_NATIVE_FUNCTION(MapConstructor::group_by)
     };
 
     // 1. Let groups be ? GroupBy(items, callbackfn, zero).
-    auto groups = TRY((JS::group_by<OrderedHashMap<GC::Root<Value>, GC::MarkedVector<Value>, KeyedGroupTraits>, void>(vm, items, callback_function)));
+    auto groups = TRY((JS::group_by<OrderedHashMap<GC::Root<Value>, GC::RootVector<Value>, KeyedGroupTraits>, void>(vm, items, callback_function)));
 
     // 2. Let map be ! Construct(%Map%).
     auto map = Map::create(realm);

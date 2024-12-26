@@ -83,7 +83,7 @@ ThrowCompletionOr<GC::Ref<Object>> BoundFunction::internal_construct(ReadonlySpa
     auto& bound_args = m_bound_arguments;
 
     // 4. Let args be the list-concatenation of boundArgs and argumentsList.
-    auto args = GC::MarkedVector<Value> { heap() };
+    auto args = GC::RootVector<Value> { heap() };
     args.extend(bound_args);
     args.append(arguments_list.data(), arguments_list.size());
 

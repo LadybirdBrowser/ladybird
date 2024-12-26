@@ -413,7 +413,7 @@ public:
     }
 
     // 10.4.5.8 [[OwnPropertyKeys]] ( ), https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-ownpropertykeys
-    virtual ThrowCompletionOr<GC::MarkedVector<Value>> internal_own_property_keys() const override
+    virtual ThrowCompletionOr<GC::RootVector<Value>> internal_own_property_keys() const override
     {
         auto& vm = this->vm();
 
@@ -421,7 +421,7 @@ public:
         auto typed_array_record = make_typed_array_with_buffer_witness_record(*this, ArrayBuffer::Order::SeqCst);
 
         // 2. Let keys be a new empty List.
-        auto keys = GC::MarkedVector<Value> { heap() };
+        auto keys = GC::RootVector<Value> { heap() };
 
         // 3. If IsTypedArrayOutOfBounds(taRecord) is false, then
         if (!is_typed_array_out_of_bounds(typed_array_record)) {
@@ -511,8 +511,8 @@ protected:
 };
 
 ThrowCompletionOr<TypedArrayBase*> typed_array_from(VM&, Value);
-ThrowCompletionOr<TypedArrayBase*> typed_array_create(VM&, FunctionObject& constructor, GC::MarkedVector<Value> arguments);
-ThrowCompletionOr<TypedArrayBase*> typed_array_create_same_type(VM&, TypedArrayBase const& exemplar, GC::MarkedVector<Value> arguments);
+ThrowCompletionOr<TypedArrayBase*> typed_array_create(VM&, FunctionObject& constructor, GC::RootVector<Value> arguments);
+ThrowCompletionOr<TypedArrayBase*> typed_array_create_same_type(VM&, TypedArrayBase const& exemplar, GC::RootVector<Value> arguments);
 ThrowCompletionOr<TypedArrayWithBufferWitness> validate_typed_array(VM&, Object const&, ArrayBuffer::Order);
 ThrowCompletionOr<double> compare_typed_array_elements(VM&, Value x, Value y, FunctionObject* comparefn);
 

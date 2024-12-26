@@ -23,8 +23,8 @@
 #include <LibGC/Forward.h>
 #include <LibGC/HeapRoot.h>
 #include <LibGC/Internals.h>
-#include <LibGC/MarkedVector.h>
 #include <LibGC/Root.h>
+#include <LibGC/RootVector.h>
 #include <LibGC/WeakContainer.h>
 
 namespace GC {
@@ -61,8 +61,8 @@ public:
     void did_create_root(Badge<RootImpl>, RootImpl&);
     void did_destroy_root(Badge<RootImpl>, RootImpl&);
 
-    void did_create_marked_vector(Badge<MarkedVectorBase>, MarkedVectorBase&);
-    void did_destroy_marked_vector(Badge<MarkedVectorBase>, MarkedVectorBase&);
+    void did_create_marked_vector(Badge<RootVectorBase>, RootVectorBase&);
+    void did_destroy_marked_vector(Badge<RootVectorBase>, RootVectorBase&);
 
     void did_create_conservative_vector(Badge<ConservativeVectorBase>, ConservativeVectorBase&);
     void did_destroy_conservative_vector(Badge<ConservativeVectorBase>, ConservativeVectorBase&);
@@ -139,7 +139,7 @@ private:
     CellAllocator::List m_all_cell_allocators;
 
     RootImpl::List m_roots;
-    MarkedVectorBase::List m_marked_vectors;
+    RootVectorBase::List m_marked_vectors;
     ConservativeVectorBase::List m_conservative_vectors;
     WeakContainer::List m_weak_containers;
 
@@ -165,13 +165,13 @@ inline void Heap::did_destroy_root(Badge<RootImpl>, RootImpl& impl)
     m_roots.remove(impl);
 }
 
-inline void Heap::did_create_marked_vector(Badge<MarkedVectorBase>, MarkedVectorBase& vector)
+inline void Heap::did_create_marked_vector(Badge<RootVectorBase>, RootVectorBase& vector)
 {
     VERIFY(!m_marked_vectors.contains(vector));
     m_marked_vectors.append(vector);
 }
 
-inline void Heap::did_destroy_marked_vector(Badge<MarkedVectorBase>, MarkedVectorBase& vector)
+inline void Heap::did_destroy_marked_vector(Badge<RootVectorBase>, RootVectorBase& vector)
 {
     VERIFY(m_marked_vectors.contains(vector));
     m_marked_vectors.remove(vector);

@@ -9,7 +9,7 @@
 #include <AK/Concepts.h>
 #include <AK/Forward.h>
 #include <LibCrypto/Forward.h>
-#include <LibGC/MarkedVector.h>
+#include <LibGC/RootVector.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/CanonicalIndex.h>
 #include <LibJS/Runtime/FunctionObject.h>
@@ -34,7 +34,7 @@ ThrowCompletionOr<Value> call_impl(VM&, Value function, Value this_value, Readon
 ThrowCompletionOr<Value> call_impl(VM&, FunctionObject& function, Value this_value, ReadonlySpan<Value> arguments = {});
 ThrowCompletionOr<GC::Ref<Object>> construct_impl(VM&, FunctionObject&, ReadonlySpan<Value> arguments = {}, FunctionObject* new_target = nullptr);
 ThrowCompletionOr<size_t> length_of_array_like(VM&, Object const&);
-ThrowCompletionOr<GC::MarkedVector<Value>> create_list_from_array_like(VM&, Value, Function<ThrowCompletionOr<void>(Value)> = {});
+ThrowCompletionOr<GC::RootVector<Value>> create_list_from_array_like(VM&, Value, Function<ThrowCompletionOr<void>(Value)> = {});
 ThrowCompletionOr<FunctionObject*> species_constructor(VM&, Object const&, FunctionObject& default_constructor);
 ThrowCompletionOr<Realm*> get_function_realm(VM&, FunctionObject const&);
 ThrowCompletionOr<void> initialize_bound_name(VM&, DeprecatedFlyString const&, Value, Environment*);
@@ -199,7 +199,7 @@ void add_value_to_keyed_group(VM& vm, GroupsType& groups, KeyType key, Value val
     }
 
     // 2. Let group be the Record { [[Key]]: key, [[Elements]]: « value » }.
-    GC::MarkedVector<Value> new_elements { vm.heap() };
+    GC::RootVector<Value> new_elements { vm.heap() };
     new_elements.append(value);
 
     // 3. Append group as the last element of groups.

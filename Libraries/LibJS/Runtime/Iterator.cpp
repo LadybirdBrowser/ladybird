@@ -345,10 +345,10 @@ GC::Ref<Object> create_iterator_result_object(VM& vm, Value value, bool done)
 }
 
 // 7.4.16 IteratorToList ( iteratorRecord ), https://tc39.es/ecma262/#sec-iteratortolist
-ThrowCompletionOr<GC::MarkedVector<Value>> iterator_to_list(VM& vm, IteratorRecord& iterator_record)
+ThrowCompletionOr<GC::RootVector<Value>> iterator_to_list(VM& vm, IteratorRecord& iterator_record)
 {
     // 1. Let values be a new empty List.
-    GC::MarkedVector<Value> values(vm.heap());
+    GC::RootVector<Value> values(vm.heap());
 
     // 2. Repeat,
     while (true) {
