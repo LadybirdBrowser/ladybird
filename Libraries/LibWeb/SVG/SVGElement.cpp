@@ -55,11 +55,17 @@ Optional<ARIA::Role> SVGElement::default_role() const
     // https://w3c.github.io/svg-aam/#mapping_role_table
     if (local_name() == TagNames::a && (has_attribute(SVG::AttributeNames::href) || has_attribute(AttributeNames::xlink_href)))
         return ARIA::Role::link;
-    if (local_name() == TagNames::g && should_include_in_accessibility_tree())
+    if (local_name().is_one_of(TagNames::foreignObject, TagNames::g)
+        && should_include_in_accessibility_tree())
         return ARIA::Role::group;
     if (local_name() == TagNames::image && should_include_in_accessibility_tree())
         return ARIA::Role::image;
-    return {};
+    if (local_name() == TagNames::circle && should_include_in_accessibility_tree())
+        return ARIA::Role::graphicssymbol;
+    if (local_name().is_one_of(TagNames::ellipse, TagNames::path, TagNames::polygon, TagNames::polyline)
+        && should_include_in_accessibility_tree())
+        return ARIA::Role::graphicssymbol;
+    return ARIA::Role::generic;
 }
 
 void SVGElement::visit_edges(Cell::Visitor& visitor)
