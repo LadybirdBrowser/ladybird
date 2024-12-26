@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2021, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, the SerenityOS developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
 #include <AK/ByteString.h>
 #include <AK/Forward.h>
 #include <AK/Function.h>
@@ -50,7 +51,7 @@ public:                                            \
     }
 
 class EventReceiver
-    : public RefCounted<EventReceiver>
+    : public AtomicRefCounted<EventReceiver>
     , public Weakable<EventReceiver> {
     // NOTE: No C_OBJECT macro for Core::EventReceiver itself.
 
