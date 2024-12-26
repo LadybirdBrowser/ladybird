@@ -1820,6 +1820,577 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAPSS::export_key(Bindings::KeyFormat 
     return GC::Ref { *result };
 }
 
+// https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations
+WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> RSASSAPKCS1::generate_key(AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
+{
+    // 1. If usages contains a value which is not one of "sign" or "verify", then throw a SyntaxError.
+    for (auto const& usage : key_usages) {
+        if (usage != Bindings::KeyUsage::Sign && usage != Bindings::KeyUsage::Verify) {
+            return WebIDL::SyntaxError::create(m_realm, MUST(String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage))));
+        }
+    }
+
+    // 2. Generate an RSA key pair, as defined in [RFC3447], with RSA modulus length equal to the modulusLength member of normalizedAlgorithm
+    //    and RSA public exponent equal to the publicExponent member of normalizedAlgorithm.
+    // 3. If performing the operation results in an error, then throw an OperationError.
+    auto const& normalized_algorithm = static_cast<RsaHashedKeyGenParams const&>(params);
+    auto maybe_key_pair = ::Crypto::PK::RSA::generate_key_pair(normalized_algorithm.modulus_length, normalized_algorithm.public_exponent);
+    if (maybe_key_pair.is_error())
+        return WebIDL::OperationError::create(m_realm, "Failed to generate RSA key pair"_string);
+
+    auto key_pair = maybe_key_pair.release_value();
+
+    // 4. Let algorithm be a new RsaHashedKeyAlgorithm object.
+    auto algorithm = RsaHashedKeyAlgorithm::create(m_realm);
+
+    // 5. Set the name attribute of algorithm to "RSASSA-PKCS1-v1_5".
+    algorithm->set_name("RSASSA-PKCS1-v1_5"_string);
+
+    // 6. Set the modulusLength attribute of algorithm to equal the modulusLength member of normalizedAlgorithm.
+    algorithm->set_modulus_length(normalized_algorithm.modulus_length);
+
+    // 7. Set the publicExponent attribute of algorithm to equal the publicExponent member of normalizedAlgorithm.
+    TRY(algorithm->set_public_exponent(normalized_algorithm.public_exponent));
+
+    // 8. Set the hash attribute of algorithm to equal the hash member of normalizedAlgorithm.
+    algorithm->set_hash(normalized_algorithm.hash);
+
+    // 9. Let publicKey be a new CryptoKey representing the public key of the generated key pair.
+    auto public_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { key_pair.public_key });
+
+    // 10. Set the [[type]] internal slot of publicKey to "public"
+    public_key->set_type(Bindings::KeyType::Public);
+
+    // 11. Set the [[algorithm]] internal slot of publicKey to algorithm.
+    public_key->set_algorithm(algorithm);
+
+    // 12. Set the [[extractable]] internal slot of publicKey to true.
+    public_key->set_extractable(true);
+
+    // 13. Set the [[usages]] internal slot of publicKey to be the usage intersection of usages and [ "verify" ].
+    public_key->set_usages(usage_intersection(key_usages, { { Bindings::KeyUsage::Verify } }));
+
+    // 14. Let privateKey be a new CryptoKey representing the private key of the generated key pair.
+    auto private_key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { key_pair.private_key });
+
+    // 15. Set the [[type]] internal slot of privateKey to "private"
+    private_key->set_type(Bindings::KeyType::Private);
+
+    // 16. Set the [[algorithm]] internal slot of privateKey to algorithm.
+    private_key->set_algorithm(algorithm);
+
+    // 17. Set the [[extractable]] internal slot of privateKey to extractable.
+    private_key->set_extractable(extractable);
+
+    // 18. Set the [[usages]] internal slot of privateKey to be the usage intersection of usages and [ "sign" ].
+    private_key->set_usages(usage_intersection(key_usages, { { Bindings::KeyUsage::Sign } }));
+
+    // 19. Let result be a new CryptoKeyPair dictionary.
+    // 20. Set the publicKey attribute of result to be publicKey.
+    // 21. Set the privateKey attribute of result to be privateKey.
+    // 22. Return result.
+    return Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>> { CryptoKeyPair::create(m_realm, public_key, private_key) };
+}
+
+// https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations
+WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSASSAPKCS1::sign(AlgorithmParams const&, GC::Ref<CryptoKey> key, ByteBuffer const& message)
+{
+    auto& realm = *m_realm;
+    auto& vm = realm.vm();
+
+    // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+    if (key->type() != Bindings::KeyType::Private)
+        return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_string);
+
+    auto const& private_key = key->handle().get<::Crypto::PK::RSAPrivateKey<>>();
+    auto hash = TRY(verify_cast<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
+
+    // 3. Perform the signature generation operation defined in Section 8.2 of [RFC3447] with the key represented by the [[handle]] internal slot
+    //    of key as the signer's private key and the contents of message as M and using the hash function specified in the hash attribute
+    //    of the [[algorithm]] internal slot of key as the Hash option for the EMSA-PKCS1-v1_5 encoding method.
+    Optional<::Crypto::Hash::HashKind> hash_kind = {};
+    if (hash == "SHA-1")
+        hash_kind = ::Crypto::Hash::HashKind::SHA1;
+    else if (hash == "SHA-256")
+        hash_kind = ::Crypto::Hash::HashKind::SHA256;
+    else if (hash == "SHA-384")
+        hash_kind = ::Crypto::Hash::HashKind::SHA384;
+    else if (hash == "SHA-512")
+        hash_kind = ::Crypto::Hash::HashKind::SHA512;
+
+    // 4. If performing the operation results in an error, then throw an OperationError.
+    if (!hash_kind.has_value()) {
+        auto error_message = MUST(String::formatted("Invalid hash function '{}'", hash));
+        return WebIDL::OperationError::create(realm, error_message);
+    }
+
+    // 5. Let signature be the signature, S, that results from performing the operation.
+    auto rsa = ::Crypto::PK::RSA_PKCS1_EMSA { *hash_kind, private_key };
+
+    auto maybe_signature = rsa.sign(message);
+    if (maybe_signature.is_error())
+        return WebIDL::OperationError::create(realm, "Failed to sign message"_string);
+
+    // 6. Return signature.
+    return JS::ArrayBuffer::create(realm, maybe_signature.release_value());
+}
+
+// https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations
+WebIDL::ExceptionOr<JS::Value> RSASSAPKCS1::verify(AlgorithmParams const&, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
+{
+    auto& realm = *m_realm;
+    auto& vm = realm.vm();
+
+    // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+    if (key->type() != Bindings::KeyType::Public)
+        return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_string);
+
+    auto const& public_key = key->handle().get<::Crypto::PK::RSAPublicKey<>>();
+    auto hash = TRY(verify_cast<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
+
+    // 2. Perform the signature verification operation defined in Section 8.2 of [RFC3447] with the key represented by the [[handle]] internal slot
+    //    of key as the signer's RSA public key and the contents of message as M and the contents of signature as S and using the hash function specified
+    //    in the hash attribute of the [[algorithm]] internal slot of key as the Hash option for the EMSA-PKCS1-v1_5 encoding method.
+    Optional<::Crypto::Hash::HashKind> hash_kind = {};
+    if (hash == "SHA-1")
+        hash_kind = ::Crypto::Hash::HashKind::SHA1;
+    else if (hash == "SHA-256")
+        hash_kind = ::Crypto::Hash::HashKind::SHA256;
+    else if (hash == "SHA-384")
+        hash_kind = ::Crypto::Hash::HashKind::SHA384;
+    else if (hash == "SHA-512")
+        hash_kind = ::Crypto::Hash::HashKind::SHA512;
+
+    if (!hash_kind.has_value()) {
+        auto error_message = MUST(String::formatted("Invalid hash function '{}'", hash));
+        return WebIDL::OperationError::create(realm, error_message);
+    }
+
+    // 3. Let result be a boolean with the value true if the result of the operation was "valid signature" and the value false otherwise.
+    auto rsa = ::Crypto::PK::RSA_PKCS1_EMSA { *hash_kind, public_key };
+
+    auto maybe_verification = rsa.verify(message, signature);
+    if (maybe_verification.is_error())
+        return WebIDL::OperationError::create(realm, "Failed to verify message"_string);
+
+    return JS::Value { maybe_verification.release_value() };
+}
+
+// https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(AlgorithmParams const& params, Bindings::KeyFormat key_format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+{
+    auto& realm = *m_realm;
+
+    // 1. Let keyData be the key data to be imported.
+
+    GC::Ptr<CryptoKey> key = nullptr;
+    auto const& normalized_algorithm = static_cast<RsaHashedImportParams const&>(params);
+
+    // 2. -> If format is "spki":
+    if (key_format == Bindings::KeyFormat::Spki) {
+        // 1. If usages contains an entry which is not "verify" then throw a SyntaxError.
+        for (auto const& usage : usages) {
+            if (usage != Bindings::KeyUsage::Verify) {
+                return WebIDL::SyntaxError::create(m_realm, MUST(String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage))));
+            }
+        }
+
+        VERIFY(key_data.has<ByteBuffer>());
+
+        // 2. Let spki be the result of running the parse a subjectPublicKeyInfo algorithm over keyData.
+        // 3. If an error occurred while parsing, then throw a DataError.
+        auto spki = TRY(parse_a_subject_public_key_info(m_realm, key_data.get<ByteBuffer>()));
+
+        // 4. If the algorithm object identifier field of the algorithm AlgorithmIdentifier field of spki
+        //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
+        if (spki.algorithm.identifier != ::Crypto::ASN1::rsa_encryption_oid)
+            return WebIDL::DataError::create(m_realm, "Algorithm object identifier is not the rsaEncryption object identifier"_string);
+
+        // 5. Let publicKey be the result of performing the parse an ASN.1 structure algorithm,
+        //    with data as the subjectPublicKeyInfo field of spki, structure as the RSAPublicKey structure
+        //    specified in Section A.1.1 of [RFC3447], and exactData set to true.
+        // NOTE: We already did this in parse_a_subject_public_key_info
+        auto& public_key = spki.rsa;
+
+        // 6. If an error occurred while parsing, or it can be determined that publicKey is not
+        //    a valid public key according to [RFC3447], then throw a DataError.
+        // FIXME: Validate the public key
+
+        // 7. Let key be a new CryptoKey that represents the RSA public key identified by publicKey.
+        key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key });
+
+        // 8. Set the [[type]] internal slot of key to "public"
+        key->set_type(Bindings::KeyType::Public);
+    }
+
+    // -> If format is "pkcs8":
+    else if (key_format == Bindings::KeyFormat::Pkcs8) {
+        // 1. If usages contains an entry which is not "sign" then throw a SyntaxError.
+        for (auto const& usage : usages) {
+            if (usage != Bindings::KeyUsage::Sign) {
+                return WebIDL::SyntaxError::create(m_realm, MUST(String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage))));
+            }
+        }
+
+        VERIFY(key_data.has<ByteBuffer>());
+
+        // 2. Let privateKeyInfo be the result of running the parse a privateKeyInfo algorithm over keyData.
+        // 3. If an error occurred while parsing, then throw a DataError.
+        auto private_key_info = TRY(parse_a_private_key_info(m_realm, key_data.get<ByteBuffer>()));
+
+        // 4. If the algorithm object identifier field of the privateKeyAlgorithm PrivateKeyAlgorithm field of privateKeyInfo
+        //    is not equal to the rsaEncryption object identifier defined in [RFC3447], then throw a DataError.
+        if (private_key_info.algorithm.identifier != ::Crypto::ASN1::rsa_encryption_oid)
+            return WebIDL::DataError::create(m_realm, "Algorithm object identifier is not the rsaEncryption object identifier"_string);
+
+        // 5. Let rsaPrivateKey be the result of performing the parse an ASN.1 structure algorithm,
+        //    with data as the privateKey field of privateKeyInfo, structure as the RSAPrivateKey structure
+        //    specified in Section A.1.2 of [RFC3447], and exactData set to true.
+        // NOTE: We already did this in parse_a_private_key_info
+        auto& rsa_private_key = private_key_info.rsa;
+
+        // 6. If an error occurred while parsing, or if rsaPrivateKey is not
+        //    a valid RSA private key according to [RFC3447], then throw a DataError.
+        // FIXME: Validate the private key
+
+        // 7. Let key be a new CryptoKey that represents the RSA private key identified by rsaPrivateKey.
+        key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { rsa_private_key });
+
+        // 8. Set the [[type]] internal slot of key to "private"
+        key->set_type(Bindings::KeyType::Private);
+    }
+
+    // -> If format is "jwk":
+    else if (key_format == Bindings::KeyFormat::Jwk) {
+        // 1. -> If keyData is a JsonWebKey dictionary:
+        //         Let jwk equal keyData.
+        //    -> Otherwise:
+        //         Throw a DataError.
+        if (!key_data.has<Bindings::JsonWebKey>())
+            return WebIDL::DataError::create(m_realm, "keyData is not a JsonWebKey dictionary"_string);
+        auto& jwk = key_data.get<Bindings::JsonWebKey>();
+
+        // 2. If the d field of jwk is present and usages contains an entry which is not "sign", or,
+        //    if the d field of jwk is not present and usages contains an entry which is not "verify"
+        //    then throw a SyntaxError.
+        if (jwk.d.has_value()) {
+            for (auto const& usage : usages) {
+                if (usage != Bindings::KeyUsage::Sign) {
+                    return WebIDL::SyntaxError::create(m_realm, MUST(String::formatted("Invalid key usage '{}'", Bindings::idl_enum_to_string(usage))));
+                }
+            }
+        } else {
+            for (auto const& usage : usages) {
+                if (usage != Bindings::KeyUsage::Verify) {
+                    return WebIDL::SyntaxError::create(m_realm, MUST(String::formatted("Invalid key usage '{}'", Bindings::idl_enum_to_string(usage))));
+                }
+            }
+        }
+
+        // 3. If the kty field of jwk is not a case-sensitive string match to "RSA", then throw a DataError.
+        if (jwk.kty != "RSA"_string)
+            return WebIDL::DataError::create(m_realm, "Invalid key type"_string);
+
+        // 4. If usages is non-empty and the use field of jwk is present and is not a case-sensitive string match to "sig", then throw a DataError.
+        if (!usages.is_empty() && jwk.use.has_value() && *jwk.use != "sig"_string)
+            return WebIDL::DataError::create(m_realm, "Invalid use field"_string);
+
+        // 5. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
+        //    or does not contain all of the specified usages values, then throw a DataError.
+        TRY(validate_jwk_key_ops(realm, jwk, usages));
+
+        // 6. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
+        if (jwk.ext.has_value() && !*jwk.ext && extractable)
+            return WebIDL::DataError::create(m_realm, "Invalid ext field"_string);
+
+        Optional<String> hash = {};
+        // 7. -> If the alg field of jwk is not present:
+        if (!jwk.alg.has_value()) {
+            //     Let hash be undefined.
+        }
+        //    ->  If the alg field of jwk is equal to "RS1":
+        else if (jwk.alg == "RS1"sv) {
+            //     Let hash be the string "SHA-1".
+            hash = "SHA-1"_string;
+        }
+        //    -> If the alg field of jwk is equal to "RS256":
+        else if (jwk.alg == "RS256"sv) {
+            //     Let hash be the string "SHA-256".
+            hash = "SHA-256"_string;
+        }
+        //    -> If the alg field of jwk is equal to "RS384":
+        else if (jwk.alg == "RS384"sv) {
+            //     Let hash be the string "SHA-384".
+            hash = "SHA-384"_string;
+        }
+        //    -> If the alg field of jwk is equal to "RS512":
+        else if (jwk.alg == "RS512"sv) {
+            //     Let hash be the string "SHA-512".
+            hash = "SHA-512"_string;
+        }
+        //    -> Otherwise:
+        else {
+            // FIXME: Support 'other applicable specifications'
+            // 1. Perform any key import steps defined by other applicable specifications, passing format, jwk and obtaining hash.
+            // 2. If an error occurred or there are no applicable specifications, throw a DataError.
+            return WebIDL::DataError::create(m_realm, "Invalid alg field"_string);
+        }
+
+        // 8. If hash is not undefined:
+        if (hash.has_value()) {
+            // 1. Let normalizedHash be the result of normalize an algorithm with alg set to hash and op set to digest.
+            auto normalized_hash = TRY(normalize_an_algorithm(m_realm, AlgorithmIdentifier { *hash }, "digest"_string));
+
+            // 2. If normalizedHash is not equal to the hash member of normalizedAlgorithm, throw a DataError.
+            if (normalized_hash.parameter->name != TRY(normalized_algorithm.hash.name(realm.vm())))
+                return WebIDL::DataError::create(m_realm, "Invalid hash"_string);
+        }
+
+        // 9. -> If the d field of jwk is present:
+        if (jwk.d.has_value()) {
+            // 1. If jwk does not meet the requirements of Section 6.3.2 of JSON Web Algorithms [JWA], then throw a DataError.
+            bool meets_requirements = jwk.e.has_value() && jwk.n.has_value() && jwk.d.has_value();
+            if (jwk.p.has_value() || jwk.q.has_value() || jwk.dp.has_value() || jwk.dq.has_value() || jwk.qi.has_value())
+                meets_requirements |= jwk.p.has_value() && jwk.q.has_value() && jwk.dp.has_value() && jwk.dq.has_value() && jwk.qi.has_value();
+
+            if (jwk.oth.has_value()) {
+                // FIXME: We don't support > 2 primes in RSA keys
+                meets_requirements = false;
+            }
+
+            if (!meets_requirements)
+                return WebIDL::DataError::create(m_realm, "Invalid JWK private key"_string);
+
+            // 2. Let privateKey represent the RSA private key identified by interpreting jwk according to Section 6.3.2 of JSON Web Algorithms [JWA].
+            auto private_key = TRY(parse_jwk_rsa_private_key(realm, jwk));
+
+            // 3. If privateKey can be determined to not be a valid RSA private key according to [RFC3447], then throw a DataError.
+            // FIXME: Validate the private key
+
+            // 4. Let key be a new CryptoKey representing privateKey.
+            key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { private_key });
+
+            // 5. Set the [[type]] internal slot of key to "private"
+            key->set_type(Bindings::KeyType::Private);
+        }
+
+        //     -> Otherwise:
+        else {
+            // 1. If jwk does not meet the requirements of Section 6.3.1 of JSON Web Algorithms [JWA], then throw a DataError.
+            if (!jwk.e.has_value() || !jwk.n.has_value())
+                return WebIDL::DataError::create(m_realm, "Invalid JWK public key"_string);
+
+            // 2. Let publicKey represent the RSA public key identified by interpreting jwk according to Section 6.3.1 of JSON Web Algorithms [JWA].
+            auto public_key = TRY(parse_jwk_rsa_public_key(realm, jwk));
+
+            // 3. If publicKey can be determined to not be a valid RSA public key according to [RFC3447], then throw a DataError.
+            // FIXME: Validate the public key
+
+            // 4. Let key be a new CryptoKey representing publicKey.
+            key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { public_key });
+
+            // 5. Set the [[type]] internal slot of key to "public"
+            key->set_type(Bindings::KeyType::Public);
+        }
+    }
+
+    // -> Otherwise: throw a NotSupportedError.
+    else {
+        return WebIDL::NotSupportedError::create(m_realm, "Unsupported key format"_string);
+    }
+
+    // 3. Let algorithm be a new RsaHashedKeyAlgorithm.
+    auto algorithm = RsaHashedKeyAlgorithm::create(m_realm);
+
+    // 4. Set the name attribute of algorithm to "RSASSA-PKCS1-v1_5"
+    algorithm->set_name("RSASSA-PKCS1-v1_5"_string);
+
+    // 5. Set the modulusLength attribute of algorithm to the length, in bits, of the RSA public modulus.
+    // 6. Set the publicExponent attribute of algorithm to the BigInteger representation of the RSA public exponent.
+    TRY(key->handle().visit(
+        [&](::Crypto::PK::RSAPublicKey<> const& public_key) -> WebIDL::ExceptionOr<void> {
+            algorithm->set_modulus_length(public_key.modulus().trimmed_byte_length() * 8);
+            TRY(algorithm->set_public_exponent(public_key.public_exponent()));
+            return {};
+        },
+        [&](::Crypto::PK::RSAPrivateKey<> const& private_key) -> WebIDL::ExceptionOr<void> {
+            algorithm->set_modulus_length(private_key.modulus().trimmed_byte_length() * 8);
+            TRY(algorithm->set_public_exponent(private_key.public_exponent()));
+            return {};
+        },
+        [](auto) -> WebIDL::ExceptionOr<void> { VERIFY_NOT_REACHED(); }));
+
+    // 7. Set the hash attribute of algorithm to the hash member of normalizedAlgorithm.
+    algorithm->set_hash(normalized_algorithm.hash);
+
+    // 8. Set the [[algorithm]] internal slot of key to algorithm
+    key->set_algorithm(algorithm);
+
+    // 9. Return key.
+    return GC::Ref { *key };
+}
+
+// https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations
+WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSASSAPKCS1::export_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
+{
+    auto& realm = *m_realm;
+    auto& vm = realm.vm();
+
+    // 1. Let key be the key to be exported.
+
+    // 2. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
+    // Note: In our impl this is always accessible
+    auto const& handle = key->handle();
+
+    GC::Ptr<JS::Object> result = nullptr;
+
+    // 3. If format is "spki"
+    if (format == Bindings::KeyFormat::Spki) {
+        // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
+        if (key->type() != Bindings::KeyType::Public)
+            return WebIDL::InvalidAccessError::create(realm, "Key is not public"_string);
+
+        // 2. Let data be an instance of the subjectPublicKeyInfo ASN.1 structure defined in [RFC5280] with the following properties:
+        // - Set the algorithm field to an AlgorithmIdentifier ASN.1 type with the following properties:
+        //   - Set the algorithm field to the OID rsaEncryption defined in [RFC3447].
+        //   - Set the params field to the ASN.1 type NULL.
+        // - Set the subjectPublicKey field to the result of DER-encoding an RSAPublicKey ASN.1 type, as defined in [RFC3447], Appendix A.1.1,
+        //   that represents the RSA public key represented by the [[handle]] internal slot of key
+        auto maybe_data = handle.visit(
+            [&](::Crypto::PK::RSAPublicKey<> const& public_key) -> ErrorOr<ByteBuffer> {
+                return TRY(::Crypto::PK::wrap_in_subject_public_key_info(public_key, ::Crypto::ASN1::rsa_encryption_oid, nullptr));
+            },
+            [](auto) -> ErrorOr<ByteBuffer> {
+                VERIFY_NOT_REACHED();
+            });
+        // FIXME: clang-format butchers the visit if we do the TRY inline
+        auto data = TRY_OR_THROW_OOM(vm, maybe_data);
+
+        // 3. Let result be the result of creating an ArrayBuffer containing data.
+        result = JS::ArrayBuffer::create(realm, data);
+    }
+
+    // If format is "pkcs8"
+    else if (format == Bindings::KeyFormat::Pkcs8) {
+        // 1. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+        if (key->type() != Bindings::KeyType::Private)
+            return WebIDL::InvalidAccessError::create(realm, "Key is not private"_string);
+
+        // 2. Let data be the result of encoding a privateKeyInfo structure with the following properties:
+        // - Set the version field to 0.
+        // - Set the privateKeyAlgorithm field to an PrivateKeyAlgorithmIdentifier ASN.1 type with the following properties:
+        // - - Set the algorithm field to the OID rsaEncryption defined in [RFC3447].
+        // - - Set the params field to the ASN.1 type NULL.
+        // - Set the privateKey field to the result of DER-encoding an RSAPrivateKey ASN.1 type, as defined in [RFC3447], Appendix A.1.2,
+        // that represents the RSA private key represented by the [[handle]] internal slot of key
+        auto maybe_data = handle.visit(
+            [&](::Crypto::PK::RSAPrivateKey<> const& private_key) -> ErrorOr<ByteBuffer> {
+                return TRY(::Crypto::PK::wrap_in_private_key_info(private_key, ::Crypto::ASN1::rsa_encryption_oid, nullptr));
+            },
+            [](auto) -> ErrorOr<ByteBuffer> {
+                VERIFY_NOT_REACHED();
+            });
+
+        // FIXME: clang-format butchers the visit if we do the TRY inline
+        auto data = TRY_OR_THROW_OOM(vm, maybe_data);
+
+        // 3. Let result be the result of creating an ArrayBuffer containing data.
+        result = JS::ArrayBuffer::create(realm, data);
+    }
+
+    // If format is "jwk"
+    else if (format == Bindings::KeyFormat::Jwk) {
+        // 1. Let jwk be a new JsonWebKey dictionary.
+        Bindings::JsonWebKey jwk = {};
+
+        // 2. Set the kty attribute of jwk to the string "RSA".
+        jwk.kty = "RSA"_string;
+
+        // 3. Let hash be the name attribute of the hash attribute of the [[algorithm]] internal slot of key.
+        auto hash = TRY(verify_cast<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
+
+        // 4. If hash is "SHA-1":
+        //      - Set the alg attribute of jwk to the string "RS1".
+        if (hash == "SHA-1"sv) {
+            jwk.alg = "RS1"_string;
+        }
+        //    If hash is "SHA-256":
+        //      - Set the alg attribute of jwk to the string "RS256".
+        else if (hash == "SHA-256"sv) {
+            jwk.alg = "RS256"_string;
+        }
+        //    If hash is "SHA-384":
+        //      - Set the alg attribute of jwk to the string "RS384".
+        else if (hash == "SHA-384"sv) {
+            jwk.alg = "RS384"_string;
+        }
+        //    If hash is "SHA-512":
+        //      - Set the alg attribute of jwk to the string "RS512".
+        else if (hash == "SHA-512"sv) {
+            jwk.alg = "RS512"_string;
+        } else {
+            // FIXME: Support 'other applicable specifications'
+            // - Perform any key export steps defined by other applicable specifications,
+            //   passing format and the hash attribute of the [[algorithm]] internal slot of key and obtaining alg.
+            // - Set the alg attribute of jwk to alg.
+            return WebIDL::NotSupportedError::create(realm, TRY_OR_THROW_OOM(vm, String::formatted("Unsupported hash algorithm '{}'", hash)));
+        }
+
+        // 5. Set the attributes n and e of jwk according to the corresponding definitions in JSON Web Algorithms [JWA], Section 6.3.1.
+        auto maybe_error = handle.visit(
+            [&](::Crypto::PK::RSAPublicKey<> const& public_key) -> ErrorOr<void> {
+                jwk.n = TRY(base64_url_uint_encode(public_key.modulus()));
+                jwk.e = TRY(base64_url_uint_encode(public_key.public_exponent()));
+                return {};
+            },
+            // 6. If the [[type]] internal slot of key is "private":
+            [&](::Crypto::PK::RSAPrivateKey<> const& private_key) -> ErrorOr<void> {
+                jwk.n = TRY(base64_url_uint_encode(private_key.modulus()));
+                jwk.e = TRY(base64_url_uint_encode(private_key.public_exponent()));
+
+                // 1. Set the attributes named d, p, q, dp, dq, and qi of jwk according to the corresponding definitions
+                //    in JSON Web Algorithms [JWA], Section 6.3.2.
+                jwk.d = TRY(base64_url_uint_encode(private_key.private_exponent()));
+                jwk.p = TRY(base64_url_uint_encode(private_key.prime1()));
+                jwk.q = TRY(base64_url_uint_encode(private_key.prime2()));
+                jwk.dp = TRY(base64_url_uint_encode(private_key.exponent1()));
+                jwk.dq = TRY(base64_url_uint_encode(private_key.exponent2()));
+                jwk.qi = TRY(base64_url_uint_encode(private_key.coefficient()));
+
+                // 2. If the underlying RSA private key represented by the [[handle]] internal slot of key is represented by more than two primes,
+                //    set the attribute named oth of jwk according to the corresponding definition in JSON Web Algorithms [JWA], Section 6.3.2.7
+                // FIXME: We don't support more than 2 primes on RSA keys
+                return {};
+            },
+            [](auto) -> ErrorOr<void> {
+                VERIFY_NOT_REACHED();
+            });
+        // FIXME: clang-format butchers the visit if we do the TRY inline
+        TRY_OR_THROW_OOM(vm, maybe_error);
+
+        // 7. Set the key_ops attribute of jwk to the usages attribute of key.
+        jwk.key_ops = Vector<String> {};
+        jwk.key_ops->ensure_capacity(key->internal_usages().size());
+        for (auto const& usage : key->internal_usages()) {
+            jwk.key_ops->append(Bindings::idl_enum_to_string(usage));
+        }
+
+        // 8. Set the ext attribute of jwk to the [[extractable]] internal slot of key.
+        jwk.ext = key->extractable();
+
+        // 9. Let result be the result of converting jwk to an ECMAScript Object, as defined by [WebIDL].
+        result = TRY(jwk.to_object(realm));
+    }
+
+    // Otherwise throw a NotSupportedError.
+    else {
+        return WebIDL::NotSupportedError::create(realm, TRY_OR_THROW_OOM(vm, String::formatted("Exporting to format {} is not supported", Bindings::idl_enum_to_string(format))));
+    }
+
+    // 8. Return result
+    return GC::Ref { *result };
+}
+
 // https://w3c.github.io/webcrypto/#aes-cbc-operations
 WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> AesCbc::encrypt(AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
 {
