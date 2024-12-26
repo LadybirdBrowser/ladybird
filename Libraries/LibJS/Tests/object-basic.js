@@ -207,6 +207,15 @@ describe("shorthanded properties with special names", () => {
     });
 
     test("async functions as properties", () => {
+        expect("({ async async() {} });").toEval();
+        expect('"use strict"; ({ async async() {} });').toEval();
+
+        expect("({ async async });").not.toEval();
+        expect("({ async async, });").not.toEval();
+        expect("({ async async() });").not.toEval();
+        expect("({ async async: 0 });").not.toEval();
+        expect("({ async async = 0 });").not.toEval();
+
         expect("({ async foo });").not.toEval();
         expect("({ async foo, });").not.toEval();
         expect("({ async foo() });").not.toEval();
