@@ -20,10 +20,7 @@ class CustomElementDefinition : public JS::Cell {
     GC_CELL(CustomElementDefinition, JS::Cell);
     GC_DECLARE_ALLOCATOR(CustomElementDefinition);
 
-    using LifecycleCallbacksStorage = OrderedHashMap<FlyString, GC::Ptr<WebIDL::CallbackType>>;
-    using ConstructionStackStorage = Vector<Variant<GC::Root<DOM::Element>, AlreadyConstructedCustomElementMarker>>;
-
-    static GC::Ref<CustomElementDefinition> create(JS::Realm& realm, String const& name, String const& local_name, WebIDL::CallbackType& constructor, Vector<String>&& observed_attributes, LifecycleCallbacksStorage&& lifecycle_callbacks, bool form_associated, bool disable_internals, bool disable_shadow)
+    static GC::Ref<CustomElementDefinition> create(JS::Realm& realm, String const& name, String const& local_name, WebIDL::CallbackType& constructor, Vector<String>&& observed_attributes, OrderedHashMap<FlyString, GC::Root<WebIDL::CallbackType>> lifecycle_callbacks, bool form_associated, bool disable_internals, bool disable_shadow)
     {
         return realm.create<CustomElementDefinition>(name, local_name, constructor, move(observed_attributes), move(lifecycle_callbacks), form_associated, disable_internals, disable_shadow);
     }
@@ -38,26 +35,27 @@ class CustomElementDefinition : public JS::Cell {
 
     Vector<String> const& observed_attributes() const { return m_observed_attributes; }
 
-    LifecycleCallbacksStorage const& lifecycle_callbacks() const { return m_lifecycle_callbacks; }
+    auto const& lifecycle_callbacks() const { return m_lifecycle_callbacks; }
 
-    ConstructionStackStorage& construction_stack() { return m_construction_stack; }
-    ConstructionStackStorage const& construction_stack() const { return m_construction_stack; }
+    auto& construction_stack() { return m_construction_stack; }
+    auto const& construction_stack() const { return m_construction_stack; }
 
     bool form_associated() const { return m_form_associated; }
     bool disable_internals() const { return m_disable_internals; }
     bool disable_shadow() const { return m_disable_shadow; }
 
 private:
-    CustomElementDefinition(String const& name, String const& local_name, WebIDL::CallbackType& constructor, Vector<String>&& observed_attributes, LifecycleCallbacksStorage&& lifecycle_callbacks, bool form_associated, bool disable_internals, bool disable_shadow)
+    CustomElementDefinition(String const& name, String const& local_name, WebIDL::CallbackType& constructor, Vector<String>&& observed_attributes, OrderedHashMap<FlyString, GC::Root<WebIDL::CallbackType>>&& lifecycle_callbacks, bool form_associated, bool disable_internals, bool disable_shadow)
         : m_name(name)
         , m_local_name(local_name)
         , m_constructor(constructor)
         , m_observed_attributes(move(observed_attributes))
-        , m_lifecycle_callbacks(move(lifecycle_callbacks))
         , m_form_associated(form_associated)
         , m_disable_internals(disable_internals)
         , m_disable_shadow(disable_shadow)
     {
+        for (auto& [key, value] : lifecycle_callbacks)
+            m_lifecycle_callbacks.set(key, value.cell());
     }
 
     virtual void visit_edges(Visitor& visitor) override;
@@ -87,13 +85,13 @@ private:
     //     "formAssociatedCallback", "formDisabledCallback", "formResetCallback", and "formStateRestoreCallback".
     //     The corresponding values are either a Web IDL Function callback function type value, or null.
     //     By default the value of each entry is null.
-    LifecycleCallbacksStorage m_lifecycle_callbacks;
+    OrderedHashMap<FlyString, GC::Ptr<WebIDL::CallbackType>> m_lifecycle_callbacks;
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#concept-custom-element-definition-construction-stack
     // A construction stack
     //     A list, initially empty, that is manipulated by the upgrade an element algorithm and the HTML element constructors.
     //     Each entry in the list will be either an element or an already constructed marker.
-    ConstructionStackStorage m_construction_stack;
+    Vector<Variant<GC::Ref<DOM::Element>, AlreadyConstructedCustomElementMarker>> m_construction_stack;
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#concept-custom-element-definition-form-associated
     // A form-associated boolean

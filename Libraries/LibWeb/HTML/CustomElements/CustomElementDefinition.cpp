@@ -13,6 +13,11 @@ void CustomElementDefinition::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_constructor);
     visitor.visit(m_lifecycle_callbacks);
+    for (auto& entry : m_construction_stack) {
+        entry.visit(
+            [&](GC::Ref<DOM::Element>& element) { visitor.visit(element); },
+            [&](AlreadyConstructedCustomElementMarker&) {});
+    }
 }
 
 }

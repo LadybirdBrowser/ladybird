@@ -2181,7 +2181,7 @@ JS::ThrowCompletionOr<void> Element::upgrade_element(GC::Ref<HTML::CustomElement
     }
 
     // 6. Add element to the end of definition's construction stack.
-    custom_element_definition->construction_stack().append(GC::make_root(this));
+    custom_element_definition->construction_stack().append(GC::Ref { *this });
 
     // 7. Let C be definition's constructor.
     auto& constructor = custom_element_definition->constructor();

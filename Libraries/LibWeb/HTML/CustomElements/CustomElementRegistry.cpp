@@ -185,7 +185,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
 
     // NOTE: This is not in the spec, but is required because of how we catch the exception by using a lambda, meaning we need to define this
     //       variable outside of it to use it later.
-    CustomElementDefinition::LifecycleCallbacksStorage lifecycle_callbacks;
+    OrderedHashMap<FlyString, GC::Root<WebIDL::CallbackType>> lifecycle_callbacks;
 
     // 14. Run the following steps while catching any exceptions:
     auto get_definition_attributes_from_constructor = [&]() -> JS::ThrowCompletionOr<void> {
