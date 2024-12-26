@@ -2025,6 +2025,7 @@ NonnullRefPtr<ObjectExpression const> Parser::parse_object_expression()
                 function_kind = FunctionKind::Async;
             }
         }
+
         if (match(TokenType::Asterisk)) {
             consume();
             property_type = ObjectProperty::Type::KeyValue;
@@ -2058,6 +2059,7 @@ NonnullRefPtr<ObjectExpression const> Parser::parse_object_expression()
                 continue;
             }
         }
+
         if (match(TokenType::Equals)) {
             // Not a valid object literal, but a valid assignment target
             consume();
@@ -2078,6 +2080,11 @@ NonnullRefPtr<ObjectExpression const> Parser::parse_object_expression()
                 parse_options |= FunctionNodeParseOptions::IsAsyncFunction;
             auto function = parse_function_node<FunctionExpression>(parse_options, function_start);
             properties.append(create_ast_node<ObjectProperty>({ m_source_code, rule_start.position(), position() }, *property_key, function, property_type, true));
+        } else if (function_kind == FunctionKind::Async) {
+            // If we previously parsed an `async` keyword, then a function must follow.
+            syntax_error("Expected function after async keyword");
+            skip_to_next_property();
+            continue;
         } else if (match(TokenType::Colon)) {
             if (!property_key) {
                 expected("a property name");
