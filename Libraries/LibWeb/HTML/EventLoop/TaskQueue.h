@@ -37,7 +37,7 @@ public:
     }
 
     void remove_tasks_matching(Function<bool(HTML::Task const&)>);
-    GC::MarkedVector<GC::Ref<Task>> take_tasks_matching(Function<bool(HTML::Task const&)>);
+    GC::RootVector<GC::Ref<Task>> take_tasks_matching(Function<bool(HTML::Task const&)>);
 
     Task const* last_added_task() const;
 

@@ -6,27 +6,27 @@
  */
 
 #include <LibGC/Heap.h>
-#include <LibGC/MarkedVector.h>
+#include <LibGC/RootVector.h>
 
 namespace GC {
 
-MarkedVectorBase::MarkedVectorBase(Heap& heap)
+RootVectorBase::RootVectorBase(Heap& heap)
     : m_heap(&heap)
 {
     m_heap->did_create_marked_vector({}, *this);
 }
 
-MarkedVectorBase::~MarkedVectorBase()
+RootVectorBase::~RootVectorBase()
 {
     m_heap->did_destroy_marked_vector({}, *this);
 }
 
-MarkedVectorBase& MarkedVectorBase::operator=(MarkedVectorBase const& other)
+RootVectorBase& RootVectorBase::operator=(RootVectorBase const& other)
 {
     if (m_heap != other.m_heap) {
         m_heap = other.m_heap;
 
-        // NOTE: IntrusiveList will remove this MarkedVectorBase from the old heap it was part of.
+        // NOTE: IntrusiveList will remove this RootVectorBase from the old heap it was part of.
         m_heap->did_create_marked_vector({}, *this);
     }
 

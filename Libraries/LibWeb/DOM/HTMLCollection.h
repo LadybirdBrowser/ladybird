@@ -38,7 +38,7 @@ public:
     Element* item(size_t index) const;
     Element* named_item(FlyString const& key) const;
 
-    GC::MarkedVector<GC::Ref<Element>> collect_matching_elements() const;
+    GC::RootVector<GC::Ref<Element>> collect_matching_elements() const;
 
     virtual Optional<JS::Value> item_value(size_t index) const override;
     virtual JS::Value named_item_value(FlyString const& name) const override;

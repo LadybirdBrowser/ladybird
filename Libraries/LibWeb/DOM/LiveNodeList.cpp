@@ -35,9 +35,9 @@ void LiveNodeList::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_root);
 }
 
-GC::MarkedVector<Node*> LiveNodeList::collection() const
+GC::RootVector<Node*> LiveNodeList::collection() const
 {
-    GC::MarkedVector<Node*> nodes(heap());
+    GC::RootVector<Node*> nodes(heap());
     if (m_scope == Scope::Descendants) {
         m_root->for_each_in_subtree([&](auto& node) {
             if (m_filter(node))

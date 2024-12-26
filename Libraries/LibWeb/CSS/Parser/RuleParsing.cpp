@@ -107,7 +107,7 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
         return {};
     }
 
-    GC::MarkedVector<CSSRule*> child_rules { m_context.realm().heap() };
+    GC::RootVector<CSSRule*> child_rules { m_context.realm().heap() };
     for (auto& child : qualified_rule.child_rules) {
         child.visit(
             [&](Rule const& rule) {
@@ -246,7 +246,7 @@ GC::Ptr<CSSRule> Parser::convert_to_layer_rule(AtRule const& rule, Nested nested
         }
 
         // Then the rules
-        GC::MarkedVector<CSSRule*> child_rules { m_context.realm().heap() };
+        GC::RootVector<CSSRule*> child_rules { m_context.realm().heap() };
         for (auto const& child : rule.child_rules_and_lists_of_declarations) {
             child.visit(
                 [&](Rule const& rule) {
@@ -341,7 +341,7 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
 
     auto name = name_token.to_string();
 
-    GC::MarkedVector<CSSRule*> keyframes(m_context.realm().heap());
+    GC::RootVector<CSSRule*> keyframes(m_context.realm().heap());
     rule.for_each_as_qualified_rule_list([&](auto& qualified_rule) {
         if (!qualified_rule.child_rules.is_empty()) {
             dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @keyframes keyframe rule contains at-rules; discarding them.");
@@ -468,7 +468,7 @@ GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule(AtRule const& rule, Ne
         return {};
     }
 
-    GC::MarkedVector<CSSRule*> child_rules { m_context.realm().heap() };
+    GC::RootVector<CSSRule*> child_rules { m_context.realm().heap() };
     for (auto const& child : rule.child_rules_and_lists_of_declarations) {
         child.visit(
             [&](Rule const& rule) {

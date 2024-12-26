@@ -21,7 +21,7 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSRuleList);
 
-GC::Ref<CSSRuleList> CSSRuleList::create(JS::Realm& realm, GC::MarkedVector<CSSRule*> const& rules)
+GC::Ref<CSSRuleList> CSSRuleList::create(JS::Realm& realm, GC::RootVector<CSSRule*> const& rules)
 {
     auto rule_list = realm.create<CSSRuleList>(realm);
     for (auto* rule : rules)

@@ -150,7 +150,7 @@ JS::ThrowCompletionOr<JS::Value> WebContentConsoleClient::printer(JS::Console::L
     if (log_level == JS::Console::LogLevel::Table) {
         auto& vm = m_console->realm().vm();
 
-        auto table_args = arguments.get<GC::MarkedVector<JS::Value>>();
+        auto table_args = arguments.get<GC::RootVector<JS::Value>>();
         auto& table = table_args.at(0).as_object();
         auto& columns = TRY(table.get(vm.names.columns)).as_array().indexed_properties();
         auto& rows = TRY(table.get(vm.names.rows)).as_array().indexed_properties();
@@ -244,7 +244,7 @@ JS::ThrowCompletionOr<JS::Value> WebContentConsoleClient::printer(JS::Console::L
         return JS::js_undefined();
     }
 
-    auto output = TRY(generically_format_values(arguments.get<GC::MarkedVector<JS::Value>>()));
+    auto output = TRY(generically_format_values(arguments.get<GC::RootVector<JS::Value>>()));
     m_console->output_debug_message(log_level, output);
 
     StringBuilder html;

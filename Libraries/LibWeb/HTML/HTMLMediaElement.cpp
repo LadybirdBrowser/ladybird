@@ -1863,12 +1863,12 @@ void HTMLMediaElement::time_marches_on(TimeMarchesOnReason reason)
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#take-pending-play-promises
-GC::MarkedVector<GC::Ref<WebIDL::Promise>> HTMLMediaElement::take_pending_play_promises()
+GC::RootVector<GC::Ref<WebIDL::Promise>> HTMLMediaElement::take_pending_play_promises()
 {
     // 1. Let promises be an empty list of promises.
     // 2. Copy the media element's list of pending play promises to promises.
     // 3. Clear the media element's list of pending play promises.
-    GC::MarkedVector<GC::Ref<WebIDL::Promise>> promises(heap());
+    GC::RootVector<GC::Ref<WebIDL::Promise>> promises(heap());
     promises.extend(move(m_pending_play_promises));
 
     // 4. Return promises.

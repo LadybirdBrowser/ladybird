@@ -82,7 +82,7 @@ ThrowCompletionOr<Optional<Value>> iterator_step_value(VM&, IteratorRecord&);
 Completion iterator_close(VM&, IteratorRecord const&, Completion);
 Completion async_iterator_close(VM&, IteratorRecord const&, Completion);
 GC::Ref<Object> create_iterator_result_object(VM&, Value, bool done);
-ThrowCompletionOr<GC::MarkedVector<Value>> iterator_to_list(VM&, IteratorRecord&);
+ThrowCompletionOr<GC::RootVector<Value>> iterator_to_list(VM&, IteratorRecord&);
 ThrowCompletionOr<void> setter_that_ignores_prototype_properties(VM&, Value this_, Object const& home, PropertyKey const& property, Value value);
 
 using IteratorValueCallback = Function<Optional<Completion>(Value)>;

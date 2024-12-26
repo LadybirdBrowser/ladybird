@@ -64,6 +64,6 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(with);
 };
 
-ThrowCompletionOr<void> array_merge_sort(VM&, Function<ThrowCompletionOr<double>(Value, Value)> const& compare_func, GC::MarkedVector<Value>& arr_to_sort);
+ThrowCompletionOr<void> array_merge_sort(VM&, Function<ThrowCompletionOr<double>(Value, Value)> const& compare_func, GC::RootVector<Value>& arr_to_sort);
 
 }

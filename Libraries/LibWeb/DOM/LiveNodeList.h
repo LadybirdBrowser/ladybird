@@ -38,7 +38,7 @@ protected:
 private:
     virtual void visit_edges(Cell::Visitor&) override;
 
-    GC::MarkedVector<Node*> collection() const;
+    GC::RootVector<Node*> collection() const;
 
     GC::Ref<Node const> m_root;
     Function<bool(Node const&)> m_filter;

@@ -10,7 +10,7 @@
 
 namespace Web::HTML {
 
-using DeserializationMemory = GC::MarkedVector<JS::Value>;
+using DeserializationMemory = GC::RootVector<JS::Value>;
 using SerializationRecord = Vector<u32>;
 using SerializationMemory = HashMap<GC::Root<JS::Value>, u32>;
 

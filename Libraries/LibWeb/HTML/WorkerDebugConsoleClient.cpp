@@ -5,7 +5,7 @@
  */
 
 #include <AK/StringBuilder.h>
-#include <LibGC/MarkedVector.h>
+#include <LibGC/RootVector.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
@@ -60,7 +60,7 @@ JS::ThrowCompletionOr<JS::Value> WorkerDebugConsoleClient::printer(JS::Console::
         return JS::js_undefined();
     }
 
-    auto output = TRY(generically_format_values(arguments.get<GC::MarkedVector<JS::Value>>()));
+    auto output = TRY(generically_format_values(arguments.get<GC::RootVector<JS::Value>>()));
     m_console->output_debug_message(log_level, output);
     return JS::js_undefined();
 }

@@ -371,7 +371,7 @@ ThrowCompletionOr<bool> Object::test_integrity_level(IntegrityLevel level) const
 }
 
 // 7.3.24 EnumerableOwnPropertyNames ( O, kind ), https://tc39.es/ecma262/#sec-enumerableownpropertynames
-ThrowCompletionOr<GC::MarkedVector<Value>> Object::enumerable_own_property_names(PropertyKind kind) const
+ThrowCompletionOr<GC::RootVector<Value>> Object::enumerable_own_property_names(PropertyKind kind) const
 {
     // NOTE: This has been flattened for readability, so some `else` branches in the
     //       spec text have been replaced with `continue`s in the loop below.
@@ -383,7 +383,7 @@ ThrowCompletionOr<GC::MarkedVector<Value>> Object::enumerable_own_property_names
     auto own_keys = TRY(internal_own_property_keys());
 
     // 2. Let properties be a new empty List.
-    auto properties = GC::MarkedVector<Value> { heap() };
+    auto properties = GC::RootVector<Value> { heap() };
 
     // 3. For each element key of ownKeys, do
     for (auto& key : own_keys) {
@@ -1070,12 +1070,12 @@ ThrowCompletionOr<bool> Object::internal_delete(PropertyKey const& property_key)
 }
 
 // 10.1.11 [[OwnPropertyKeys]] ( ), https://tc39.es/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-ownpropertykeys
-ThrowCompletionOr<GC::MarkedVector<Value>> Object::internal_own_property_keys() const
+ThrowCompletionOr<GC::RootVector<Value>> Object::internal_own_property_keys() const
 {
     auto& vm = this->vm();
 
     // 1. Let keys be a new empty List.
-    GC::MarkedVector<Value> keys { heap() };
+    GC::RootVector<Value> keys { heap() };
 
     // 2. For each own property key P of O such that P is an array index, in ascending numeric index order, do
     for (auto& entry : m_indexed_properties) {

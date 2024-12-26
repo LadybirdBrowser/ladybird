@@ -106,7 +106,7 @@ void Attr::handle_attribute_changes(Element& element, Optional<String> const& ol
     if (element.is_custom()) {
         auto& vm = this->vm();
 
-        GC::MarkedVector<JS::Value> arguments { vm.heap() };
+        GC::RootVector<JS::Value> arguments { vm.heap() };
         arguments.append(JS::PrimitiveString::create(vm, local_name()));
         arguments.append(!old_value.has_value() ? JS::js_null() : JS::PrimitiveString::create(vm, old_value.value()));
         arguments.append(!new_value.has_value() ? JS::js_null() : JS::PrimitiveString::create(vm, new_value.value()));

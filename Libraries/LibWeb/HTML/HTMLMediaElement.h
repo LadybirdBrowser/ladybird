@@ -11,7 +11,7 @@
 #include <AK/Optional.h>
 #include <AK/Time.h>
 #include <AK/Variant.h>
-#include <LibGC/MarkedVector.h>
+#include <LibGC/RootVector.h>
 #include <LibGfx/Rect.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
@@ -207,7 +207,7 @@ private:
     };
     void time_marches_on(TimeMarchesOnReason = TimeMarchesOnReason::NormalPlayback);
 
-    GC::MarkedVector<GC::Ref<WebIDL::Promise>> take_pending_play_promises();
+    GC::RootVector<GC::Ref<WebIDL::Promise>> take_pending_play_promises();
     void resolve_pending_play_promises(ReadonlySpan<GC::Ref<WebIDL::Promise>> promises);
     void reject_pending_play_promises(ReadonlySpan<GC::Ref<WebIDL::Promise>> promises, GC::Ref<WebIDL::DOMException> error);
 

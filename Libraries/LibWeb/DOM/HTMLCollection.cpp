@@ -98,10 +98,10 @@ void HTMLCollection::update_cache_if_needed() const
     m_cached_dom_tree_version = root()->document().dom_tree_version();
 }
 
-GC::MarkedVector<GC::Ref<Element>> HTMLCollection::collect_matching_elements() const
+GC::RootVector<GC::Ref<Element>> HTMLCollection::collect_matching_elements() const
 {
     update_cache_if_needed();
-    GC::MarkedVector<GC::Ref<Element>> elements(heap());
+    GC::RootVector<GC::Ref<Element>> elements(heap());
     for (auto& element : m_cached_elements)
         elements.append(element);
     return elements;

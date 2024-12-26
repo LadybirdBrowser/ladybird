@@ -56,13 +56,13 @@ static std::vector<clang::QualType> get_all_qualified_types(clang::QualType cons
 
     if (auto const* template_specialization = type->getAs<clang::TemplateSpecializationType>()) {
         auto specialization_name = template_specialization->getTemplateName().getAsTemplateDecl()->getQualifiedNameAsString();
-        // Do not unwrap GCPtr/NonnullGCPtr/MarkedVector
+        // Do not unwrap GCPtr/NonnullGCPtr/RootVector
         static std::unordered_set<std::string> gc_relevant_type_names {
             "GC::Ptr",
             "GC::Ref",
             "GC::RawPtr",
             "GC::RawRef",
-            "GC::MarkedVector",
+            "GC::RootVector",
             "GC::Root",
         };
 

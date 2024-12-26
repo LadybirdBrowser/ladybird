@@ -681,7 +681,7 @@ ThrowCompletionOr<bool> ProxyObject::internal_delete(PropertyKey const& property
 }
 
 // 10.5.11 [[OwnPropertyKeys]] ( ), https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-ownpropertykeys
-ThrowCompletionOr<GC::MarkedVector<Value>> ProxyObject::internal_own_property_keys() const
+ThrowCompletionOr<GC::RootVector<Value>> ProxyObject::internal_own_property_keys() const
 {
     LIMIT_PROXY_RECURSION_DEPTH();
 
@@ -732,10 +732,10 @@ ThrowCompletionOr<GC::MarkedVector<Value>> ProxyObject::internal_own_property_ke
     // 13. Assert: targetKeys contains no duplicate entries.
 
     // 14. Let targetConfigurableKeys be a new empty List.
-    auto target_configurable_keys = GC::MarkedVector<Value> { heap() };
+    auto target_configurable_keys = GC::RootVector<Value> { heap() };
 
     // 15. Let targetNonconfigurableKeys be a new empty List.
-    auto target_nonconfigurable_keys = GC::MarkedVector<Value> { heap() };
+    auto target_nonconfigurable_keys = GC::RootVector<Value> { heap() };
 
     // 16. For each element key of targetKeys, do
     for (auto& key : target_keys) {
@@ -763,7 +763,7 @@ ThrowCompletionOr<GC::MarkedVector<Value>> ProxyObject::internal_own_property_ke
     }
 
     // 18. Let uncheckedResultKeys be a List whose elements are the elements of trapResult.
-    auto unchecked_result_keys = GC::MarkedVector<Value> { heap() };
+    auto unchecked_result_keys = GC::RootVector<Value> { heap() };
     unchecked_result_keys.extend(trap_result);
 
     // 19. For each element key of targetNonconfigurableKeys, do

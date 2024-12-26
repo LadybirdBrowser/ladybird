@@ -218,13 +218,13 @@ GC::Ref<WebIDL::Promise> WindowOrWorkerGlobalScopeMixin::fetch(Fetch::RequestInf
 }
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-settimeout
-i32 WindowOrWorkerGlobalScopeMixin::set_timeout(TimerHandler handler, i32 timeout, GC::MarkedVector<JS::Value> arguments)
+i32 WindowOrWorkerGlobalScopeMixin::set_timeout(TimerHandler handler, i32 timeout, GC::RootVector<JS::Value> arguments)
 {
     return run_timer_initialization_steps(move(handler), timeout, move(arguments), Repeat::No);
 }
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-setinterval
-i32 WindowOrWorkerGlobalScopeMixin::set_interval(TimerHandler handler, i32 timeout, GC::MarkedVector<JS::Value> arguments)
+i32 WindowOrWorkerGlobalScopeMixin::set_interval(TimerHandler handler, i32 timeout, GC::RootVector<JS::Value> arguments)
 {
     return run_timer_initialization_steps(move(handler), timeout, move(arguments), Repeat::Yes);
 }
@@ -254,7 +254,7 @@ void WindowOrWorkerGlobalScopeMixin::clear_map_of_active_timers()
 
 // https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#timer-initialisation-steps
 // With no active script fix from https://github.com/whatwg/html/pull/9712
-i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler handler, i32 timeout, GC::MarkedVector<JS::Value> arguments, Repeat repeat, Optional<i32> previous_id)
+i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler handler, i32 timeout, GC::RootVector<JS::Value> arguments, Repeat repeat, Optional<i32> previous_id)
 {
     // 1. Let thisArg be global if that is a WorkerGlobalScope object; otherwise let thisArg be the WindowProxy that corresponds to global.
 
@@ -697,7 +697,7 @@ GC::Ref<JS::Object> WindowOrWorkerGlobalScopeMixin::supported_entry_types() cons
     auto& realm = this_impl().realm();
 
     if (!m_supported_entry_types_array) {
-        GC::MarkedVector<JS::Value> supported_entry_types(vm.heap());
+        GC::RootVector<JS::Value> supported_entry_types(vm.heap());
 
 #define __ENUMERATE_SUPPORTED_PERFORMANCE_ENTRY_TYPES(entry_type, cpp_class) \
     supported_entry_types.append(JS::PrimitiveString::create(vm, entry_type));

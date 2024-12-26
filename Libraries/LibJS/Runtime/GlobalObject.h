@@ -52,12 +52,12 @@ template<typename... Args>
 [[nodiscard]] ALWAYS_INLINE ThrowCompletionOr<Value> Value::invoke(VM& vm, PropertyKey const& property_key, Args... args)
 {
     if constexpr (sizeof...(Args) > 0) {
-        GC::MarkedVector<Value> arglist { vm.heap() };
+        GC::RootVector<Value> arglist { vm.heap() };
         (..., arglist.append(move(args)));
         return invoke_internal(vm, property_key, move(arglist));
     }
 
-    return invoke_internal(vm, property_key, Optional<GC::MarkedVector<Value>> {});
+    return invoke_internal(vm, property_key, Optional<GC::RootVector<Value>> {});
 }
 
 }

@@ -10,7 +10,7 @@
 #include <AK/Badge.h>
 #include <AK/StringView.h>
 #include <LibGC/CellAllocator.h>
-#include <LibGC/MarkedVector.h>
+#include <LibGC/RootVector.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibJS/Runtime/Completion.h>
@@ -118,7 +118,7 @@ public:
     ThrowCompletionOr<bool> has_own_property(PropertyKey const&) const;
     ThrowCompletionOr<bool> set_integrity_level(IntegrityLevel);
     ThrowCompletionOr<bool> test_integrity_level(IntegrityLevel) const;
-    ThrowCompletionOr<GC::MarkedVector<Value>> enumerable_own_property_names(PropertyKind kind) const;
+    ThrowCompletionOr<GC::RootVector<Value>> enumerable_own_property_names(PropertyKind kind) const;
     ThrowCompletionOr<void> copy_data_properties(VM&, Value source, HashTable<PropertyKey> const& excluded_keys, HashTable<JS::Value> const& excluded_values = {});
     ThrowCompletionOr<GC::Ref<Object>> snapshot_own_properties(VM&, GC::Ptr<Object> prototype, HashTable<PropertyKey> const& excluded_keys = {}, HashTable<Value> const& excluded_values = {});
 
@@ -146,7 +146,7 @@ public:
     virtual ThrowCompletionOr<Value> internal_get(PropertyKey const&, Value receiver, CacheablePropertyMetadata* = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty) const;
     virtual ThrowCompletionOr<bool> internal_set(PropertyKey const&, Value value, Value receiver, CacheablePropertyMetadata* = nullptr);
     virtual ThrowCompletionOr<bool> internal_delete(PropertyKey const&);
-    virtual ThrowCompletionOr<GC::MarkedVector<Value>> internal_own_property_keys() const;
+    virtual ThrowCompletionOr<GC::RootVector<Value>> internal_own_property_keys() const;
 
     // NOTE: Any subclass of Object that overrides property access slots ([[Get]], [[Set]] etc)
     //       to customize access to indexed properties (properties where the name is a positive integer)

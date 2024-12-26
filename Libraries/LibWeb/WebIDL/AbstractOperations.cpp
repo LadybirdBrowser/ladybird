@@ -153,7 +153,7 @@ inline JS::Completion clean_up_on_return(JS::Realm& stored_realm, JS::Realm& rel
 
 // https://webidl.spec.whatwg.org/#call-a-user-objects-operation
 // https://whatpr.org/webidl/1437.html#call-a-user-objects-operation
-JS::Completion call_user_object_operation(WebIDL::CallbackType& callback, String const& operation_name, Optional<JS::Value> this_argument, GC::MarkedVector<JS::Value> args)
+JS::Completion call_user_object_operation(WebIDL::CallbackType& callback, String const& operation_name, Optional<JS::Value> this_argument, GC::RootVector<JS::Value> args)
 {
     // 1. Let completion be an uninitialized variable.
     JS::Completion completion;
@@ -255,7 +255,7 @@ JS::ThrowCompletionOr<String> to_usv_string(JS::VM& vm, JS::Value value)
 
 // https://webidl.spec.whatwg.org/#invoke-a-callback-function
 // https://whatpr.org/webidl/1437.html#invoke-a-callback-function
-JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Value> this_argument, ExceptionBehavior exception_behavior, GC::MarkedVector<JS::Value> args)
+JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Value> this_argument, ExceptionBehavior exception_behavior, GC::RootVector<JS::Value> args)
 {
     // https://webidl.spec.whatwg.org/#js-invoking-callback-functions
     // The exceptionBehavior argument must be supplied if, and only if, callable’s return type is not a promise type. If callable’s return type is neither undefined nor any, it must be "rethrow".
@@ -359,12 +359,12 @@ JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Valu
     return return_steps(completion);
 }
 
-JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Value> this_argument, GC::MarkedVector<JS::Value> args)
+JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Value> this_argument, GC::RootVector<JS::Value> args)
 {
     return invoke_callback(callback, move(this_argument), ExceptionBehavior::NotSpecified, move(args));
 }
 
-JS::Completion construct(WebIDL::CallbackType& callback, GC::MarkedVector<JS::Value> args)
+JS::Completion construct(WebIDL::CallbackType& callback, GC::RootVector<JS::Value> args)
 {
     // 1. Let completion be an uninitialized variable.
     JS::Completion completion;

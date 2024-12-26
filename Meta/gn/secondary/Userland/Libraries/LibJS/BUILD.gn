@@ -40,7 +40,7 @@ shared_library("LibJS") {
     "Heap/Handle.cpp",
     "Heap/Heap.cpp",
     "Heap/HeapBlock.cpp",
-    "Heap/MarkedVector.cpp",
+    "Heap/RootVector.cpp",
     "Lexer.cpp",
     "MarkupGenerator.cpp",
     "Module.cpp",

@@ -29,7 +29,7 @@ public:
     virtual ThrowCompletionOr<Value> internal_get(PropertyKey const&, Value receiver, CacheablePropertyMetadata* = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty) const override;
     virtual ThrowCompletionOr<bool> internal_set(PropertyKey const&, Value value, Value receiver, CacheablePropertyMetadata*) override;
     virtual ThrowCompletionOr<bool> internal_delete(PropertyKey const&) override;
-    virtual ThrowCompletionOr<GC::MarkedVector<Value>> internal_own_property_keys() const override;
+    virtual ThrowCompletionOr<GC::RootVector<Value>> internal_own_property_keys() const override;
     virtual void initialize(Realm&) override;
 
 private:

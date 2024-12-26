@@ -161,10 +161,10 @@ ThrowCompletionOr<bool> Array::set_length(PropertyDescriptor const& property_des
 }
 
 // 23.1.3.30.1 SortIndexedProperties ( obj, len, SortCompare, holes ), https://tc39.es/ecma262/#sec-sortindexedproperties
-ThrowCompletionOr<GC::MarkedVector<Value>> sort_indexed_properties(VM& vm, Object const& object, size_t length, Function<ThrowCompletionOr<double>(Value, Value)> const& sort_compare, Holes holes)
+ThrowCompletionOr<GC::RootVector<Value>> sort_indexed_properties(VM& vm, Object const& object, size_t length, Function<ThrowCompletionOr<double>(Value, Value)> const& sort_compare, Holes holes)
 {
     // 1. Let items be a new empty List.
-    auto items = GC::MarkedVector<Value> { vm.heap() };
+    auto items = GC::RootVector<Value> { vm.heap() };
 
     // 2. Let k be 0.
     // 3. Repeat, while k < len,
@@ -330,7 +330,7 @@ ThrowCompletionOr<bool> Array::internal_delete(PropertyKey const& property_key)
 }
 
 // NON-STANDARD: Used to inject the ephemeral length property's key
-ThrowCompletionOr<GC::MarkedVector<Value>> Array::internal_own_property_keys() const
+ThrowCompletionOr<GC::RootVector<Value>> Array::internal_own_property_keys() const
 {
     auto& vm = this->vm();
     auto keys = TRY(Object::internal_own_property_keys());

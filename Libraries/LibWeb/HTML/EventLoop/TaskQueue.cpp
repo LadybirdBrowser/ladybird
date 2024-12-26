@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/MarkedVector.h>
+#include <LibGC/RootVector.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventLoop/TaskQueue.h>
 
@@ -63,9 +63,9 @@ void TaskQueue::remove_tasks_matching(Function<bool(HTML::Task const&)> filter)
     });
 }
 
-GC::MarkedVector<GC::Ref<Task>> TaskQueue::take_tasks_matching(Function<bool(HTML::Task const&)> filter)
+GC::RootVector<GC::Ref<Task>> TaskQueue::take_tasks_matching(Function<bool(HTML::Task const&)> filter)
 {
-    GC::MarkedVector<GC::Ref<Task>> matching_tasks(heap());
+    GC::RootVector<GC::Ref<Task>> matching_tasks(heap());
 
     for (size_t i = 0; i < m_tasks.size();) {
         auto& task = m_tasks.at(i);

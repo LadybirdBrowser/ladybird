@@ -97,7 +97,7 @@ public:
     Bindings::CompositeOperation composite() const { return m_composite; }
     void set_composite(Bindings::CompositeOperation value) { m_composite = value; }
 
-    WebIDL::ExceptionOr<GC::MarkedVector<JS::Object*>> get_keyframes();
+    WebIDL::ExceptionOr<GC::RootVector<JS::Object*>> get_keyframes();
     WebIDL::ExceptionOr<void> set_keyframes(Optional<GC::Root<JS::Object>> const&);
 
     KeyFrameSet const* key_frame_set() { return m_key_frame_set; }

@@ -72,7 +72,7 @@ JS_DEFINE_NATIVE_FUNCTION(Intl::get_canonical_locales)
     // 1. Let ll be ? CanonicalizeLocaleList(locales).
     auto locale_list = TRY(canonicalize_locale_list(vm, locales));
 
-    GC::MarkedVector<Value> marked_locale_list { vm.heap() };
+    GC::RootVector<Value> marked_locale_list { vm.heap() };
     marked_locale_list.ensure_capacity(locale_list.size());
 
     for (auto& locale : locale_list)

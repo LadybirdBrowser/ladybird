@@ -14,7 +14,7 @@ struct HeapRoot {
     enum class Type {
         HeapFunctionCapturedPointer,
         Root,
-        MarkedVector,
+        RootVector,
         ConservativeVector,
         RegisterPointer,
         StackPointer,

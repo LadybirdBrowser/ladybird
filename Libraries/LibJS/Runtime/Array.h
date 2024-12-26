@@ -37,7 +37,7 @@ public:
     template<typename T>
     static GC::Ref<Array> create_from(Realm& realm, ReadonlySpan<T> elements, Function<Value(T const&)> map_fn)
     {
-        auto values = GC::MarkedVector<Value> { realm.heap() };
+        auto values = GC::RootVector<Value> { realm.heap() };
         values.ensure_capacity(elements.size());
         for (auto const& element : elements)
             values.append(map_fn(element));
@@ -50,7 +50,7 @@ public:
     virtual ThrowCompletionOr<Optional<PropertyDescriptor>> internal_get_own_property(PropertyKey const&) const override final;
     virtual ThrowCompletionOr<bool> internal_define_own_property(PropertyKey const&, PropertyDescriptor const&, Optional<PropertyDescriptor>* precomputed_get_own_property = nullptr) override final;
     virtual ThrowCompletionOr<bool> internal_delete(PropertyKey const&) override;
-    virtual ThrowCompletionOr<GC::MarkedVector<Value>> internal_own_property_keys() const override final;
+    virtual ThrowCompletionOr<GC::RootVector<Value>> internal_own_property_keys() const override final;
 
     [[nodiscard]] bool length_is_writable() const { return m_length_writable; }
 
@@ -68,7 +68,7 @@ enum class Holes {
     ReadThroughHoles,
 };
 
-ThrowCompletionOr<GC::MarkedVector<Value>> sort_indexed_properties(VM&, Object const&, size_t length, Function<ThrowCompletionOr<double>(Value, Value)> const& sort_compare, Holes holes);
+ThrowCompletionOr<GC::RootVector<Value>> sort_indexed_properties(VM&, Object const&, size_t length, Function<ThrowCompletionOr<double>(Value, Value)> const& sort_compare, Holes holes);
 ThrowCompletionOr<double> compare_array_elements(VM&, Value x, Value y, FunctionObject* comparefn);
 
 }

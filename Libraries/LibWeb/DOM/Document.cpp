@@ -15,7 +15,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/Utf8View.h>
 #include <LibCore/Timer.h>
-#include <LibGC/MarkedVector.h>
+#include <LibGC/RootVector.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/NativeFunction.h>
@@ -1973,7 +1973,7 @@ void Document::adopt_node(Node& node)
             if (element.is_custom()) {
                 auto& vm = this->vm();
 
-                GC::MarkedVector<JS::Value> arguments { vm.heap() };
+                GC::RootVector<JS::Value> arguments { vm.heap() };
                 arguments.append(&old_document);
                 arguments.append(this);
 
@@ -4208,7 +4208,7 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
     // 2. For each observer in observer list:
 
     // NOTE: We make a copy of the intersection observers list to avoid modifying it while iterating.
-    GC::MarkedVector<GC::Ref<IntersectionObserver::IntersectionObserver>> intersection_observers(heap());
+    GC::RootVector<GC::Ref<IntersectionObserver::IntersectionObserver>> intersection_observers(heap());
     intersection_observers.ensure_capacity(m_intersection_observers.size());
     for (auto& observer : m_intersection_observers)
         intersection_observers.append(observer);
@@ -5058,10 +5058,10 @@ Element const* Document::element_from_point(double x, double y)
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-document-elementsfrompoint
-GC::MarkedVector<GC::Ref<Element>> Document::elements_from_point(double x, double y)
+GC::RootVector<GC::Ref<Element>> Document::elements_from_point(double x, double y)
 {
     // 1. Let sequence be a new empty sequence.
-    GC::MarkedVector<GC::Ref<Element>> sequence(heap());
+    GC::RootVector<GC::Ref<Element>> sequence(heap());
 
     // 2. If either argument is negative, x is greater than the viewport width excluding the size of a rendered scroll bar (if any),
     //    or y is greater than the viewport height excluding the size of a rendered scroll bar (if any),
@@ -5288,7 +5288,7 @@ size_t Document::broadcast_active_resize_observations()
     // 2. For each observer in document.[[resizeObservers]] run these steps:
 
     // NOTE: We make a copy of the resize observers list to avoid modifying it while iterating.
-    GC::MarkedVector<GC::Ref<ResizeObserver::ResizeObserver>> resize_observers(heap());
+    GC::RootVector<GC::Ref<ResizeObserver::ResizeObserver>> resize_observers(heap());
     resize_observers.ensure_capacity(m_resize_observers.size());
     for (auto const& observer : m_resize_observers)
         resize_observers.append(observer);
@@ -5300,7 +5300,7 @@ size_t Document::broadcast_active_resize_observations()
         }
 
         // 2. Let entries be an empty list of ResizeObserverEntryies.
-        GC::MarkedVector<GC::Ref<ResizeObserver::ResizeObserverEntry>> entries(heap());
+        GC::RootVector<GC::Ref<ResizeObserver::ResizeObserverEntry>> entries(heap());
 
         // 3. For each observation in [[activeTargets]] perform these steps:
         for (auto const& observation : observer->active_targets()) {

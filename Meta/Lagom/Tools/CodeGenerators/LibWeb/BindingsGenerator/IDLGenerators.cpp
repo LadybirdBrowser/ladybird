@@ -158,8 +158,8 @@ static StringView sequence_storage_type_to_cpp_storage_type_name(SequenceStorage
     switch (sequence_storage_type) {
     case SequenceStorageType::Vector:
         return "Vector"sv;
-    case SequenceStorageType::MarkedVector:
-        return "GC::MarkedVector"sv;
+    case SequenceStorageType::RootVector:
+        return "GC::RootVector"sv;
     default:
         VERIFY_NOT_REACHED();
     }
@@ -193,13 +193,13 @@ static ByteString union_type_to_variant(UnionType const& union_type, Interface c
 CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
 {
     if (is_platform_object(type) || type.name() == "WindowProxy"sv)
-        return { .name = ByteString::formatted("GC::Root<{}>", type.name()), .sequence_storage_type = SequenceStorageType::MarkedVector };
+        return { .name = ByteString::formatted("GC::Root<{}>", type.name()), .sequence_storage_type = SequenceStorageType::RootVector };
 
     if (is_javascript_builtin(type))
-        return { .name = ByteString::formatted("GC::Root<JS::{}>", type.name()), .sequence_storage_type = SequenceStorageType::MarkedVector };
+        return { .name = ByteString::formatted("GC::Root<JS::{}>", type.name()), .sequence_storage_type = SequenceStorageType::RootVector };
 
     if (interface.callback_functions.contains(type.name()))
-        return { .name = "GC::Root<WebIDL::CallbackType>", .sequence_storage_type = SequenceStorageType::MarkedVector };
+        return { .name = "GC::Root<WebIDL::CallbackType>", .sequence_storage_type = SequenceStorageType::RootVector };
 
     if (type.is_string())
         return { .name = "String", .sequence_storage_type = SequenceStorageType::Vector };
@@ -232,25 +232,25 @@ CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
         return { .name = "WebIDL::Long", .sequence_storage_type = SequenceStorageType::Vector };
 
     if (type.name() == "any" || type.name() == "undefined")
-        return { .name = "JS::Value", .sequence_storage_type = SequenceStorageType::MarkedVector };
+        return { .name = "JS::Value", .sequence_storage_type = SequenceStorageType::RootVector };
 
     if (type.name() == "object")
         return { .name = "GC::Root<JS::Object>", .sequence_storage_type = SequenceStorageType::Vector };
 
     if (type.name() == "BufferSource")
-        return { .name = "GC::Root<WebIDL::BufferSource>", .sequence_storage_type = SequenceStorageType::MarkedVector };
+        return { .name = "GC::Root<WebIDL::BufferSource>", .sequence_storage_type = SequenceStorageType::RootVector };
 
     if (type.name() == "ArrayBufferView")
-        return { .name = "GC::Root<WebIDL::ArrayBufferView>", .sequence_storage_type = SequenceStorageType::MarkedVector };
+        return { .name = "GC::Root<WebIDL::ArrayBufferView>", .sequence_storage_type = SequenceStorageType::RootVector };
 
     if (type.name() == "File")
-        return { .name = "GC::Root<FileAPI::File>", .sequence_storage_type = SequenceStorageType::MarkedVector };
+        return { .name = "GC::Root<FileAPI::File>", .sequence_storage_type = SequenceStorageType::RootVector };
 
     if (type.name() == "Function")
-        return { .name = "GC::Ref<WebIDL::CallbackType>", .sequence_storage_type = SequenceStorageType::MarkedVector };
+        return { .name = "GC::Ref<WebIDL::CallbackType>", .sequence_storage_type = SequenceStorageType::RootVector };
 
     if (type.name() == "Promise")
-        return { .name = "GC::Root<WebIDL::Promise>", .sequence_storage_type = SequenceStorageType::MarkedVector };
+        return { .name = "GC::Root<WebIDL::Promise>", .sequence_storage_type = SequenceStorageType::RootVector };
 
     if (type.name() == "sequence") {
         auto& parameterized_type = verify_cast<ParameterizedType>(type);
@@ -258,7 +258,7 @@ CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
         auto sequence_cpp_type = idl_type_name_to_cpp_type(sequence_type, interface);
         auto storage_type_name = sequence_storage_type_to_cpp_storage_type_name(sequence_cpp_type.sequence_storage_type);
 
-        if (sequence_cpp_type.sequence_storage_type == SequenceStorageType::MarkedVector)
+        if (sequence_cpp_type.sequence_storage_type == SequenceStorageType::RootVector)
             return { .name = storage_type_name, .sequence_storage_type = SequenceStorageType::Vector };
 
         return { .name = ByteString::formatted("{}<{}>", storage_type_name, sequence_cpp_type.name), .sequence_storage_type = SequenceStorageType::Vector };
@@ -785,7 +785,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     } else if (parameter.type->name() == "any") {
         if (variadic) {
             scoped_generator.append(R"~~~(
-    GC::MarkedVector<JS::Value> @cpp_name@ { vm.heap() };
+    GC::RootVector<JS::Value> @cpp_name@ { vm.heap() };
 
     if (vm.argument_count() > @js_suffix@) {
         @cpp_name@.ensure_capacity(vm.argument_count() - @js_suffix@);
@@ -1646,7 +1646,7 @@ static void generate_arguments(SourceGenerator& generator, Vector<IDL::Parameter
         auto parameter_name = make_input_acceptable_cpp(parameter.name.to_snakecase());
 
         if (parameter.variadic) {
-            // GC::MarkedVector is non-copyable, and the implementations likely want ownership of the
+            // GC::RootVector is non-copyable, and the implementations likely want ownership of the
             // list, so we move() it into the parameter list.
             parameter_names.append(ByteString::formatted("move({})", parameter_name));
         } else {
@@ -1824,7 +1824,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 
         // If the type is a platform object we currently return a Vector<GC::Root<T>> from the
         // C++ implementation, thus allowing us to unwrap the element (a handle) like below.
-        // This might need to change if we switch to a MarkedVector.
+        // This might need to change if we switch to a RootVector.
         if (is_platform_object(sequence_generic_type.parameters().first())) {
             scoped_generator.append(R"~~~(
             auto* wrapped_element@recursion_depth@ = &(*element@recursion_depth@);

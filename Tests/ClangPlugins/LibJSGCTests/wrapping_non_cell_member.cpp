@@ -6,8 +6,8 @@
 
 // RUN: %clang++ -cc1 -verify %plugin_opts% %s 2>&1
 
-#include <LibGC/MarkedVector.h>
 #include <LibGC/Ptr.h>
+#include <LibGC/RootVector.h>
 
 struct NotACell { };
 

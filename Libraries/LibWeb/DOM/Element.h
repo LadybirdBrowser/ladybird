@@ -72,7 +72,7 @@ struct CustomElementUpgradeReaction {
 // A callback reaction, which will call a lifecycle callback, and contains a callback function as well as a list of arguments.
 struct CustomElementCallbackReaction {
     GC::Root<WebIDL::CallbackType> callback;
-    GC::MarkedVector<JS::Value> arguments;
+    GC::RootVector<JS::Value> arguments;
 };
 
 // https://dom.spec.whatwg.org/#concept-element-custom-element-state
@@ -306,7 +306,7 @@ public:
     bool has_referenced_and_hidden_ancestor() const;
 
     void enqueue_a_custom_element_upgrade_reaction(HTML::CustomElementDefinition& custom_element_definition);
-    void enqueue_a_custom_element_callback_reaction(FlyString const& callback_name, GC::MarkedVector<JS::Value> arguments);
+    void enqueue_a_custom_element_callback_reaction(FlyString const& callback_name, GC::RootVector<JS::Value> arguments);
 
     using CustomElementReactionQueue = Vector<Variant<CustomElementUpgradeReaction, CustomElementCallbackReaction>>;
     CustomElementReactionQueue* custom_element_reaction_queue() { return m_custom_element_reaction_queue; }
