@@ -6205,19 +6205,22 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> HMAC::g
     // 10. Set the hash attribute of algorithm to hash.
     algorithm->set_hash(hash);
 
-    // 11. Set the [[type]] internal slot of key to "secret".
+    // 11. Set the length attribute of algorithm to length.
+    algorithm->set_length(length);
+
+    // 12. Set the [[type]] internal slot of key to "secret".
     key->set_type(Bindings::KeyType::Secret);
 
-    // 12. Set the [[algorithm]] internal slot of key to algorithm.
+    // 13. Set the [[algorithm]] internal slot of key to algorithm.
     key->set_algorithm(algorithm);
 
-    // 13. Set the [[extractable]] internal slot of key to be extractable.
+    // 14. Set the [[extractable]] internal slot of key to be extractable.
     key->set_extractable(extractable);
 
-    // 14. Set the [[usages]] internal slot of key to be usages.
+    // 15. Set the [[usages]] internal slot of key to be usages.
     key->set_usages(usages);
 
-    // 15. Return key.
+    // 16. Return key.
     return Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>> { key };
 }
 
