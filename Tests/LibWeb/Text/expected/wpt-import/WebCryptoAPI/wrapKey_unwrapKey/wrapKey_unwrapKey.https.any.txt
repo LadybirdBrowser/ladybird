@@ -1,10 +1,12 @@
 Harness status: OK
 
-Found 333 tests
+Found 357 tests
 
-312 Pass
-21 Fail
+315 Pass
+42 Fail
 Pass	setup
+Fail	Can wrap and unwrap RSASSA-PKCS1-v1_5 public key keys using spki and RSA-OAEP
+Fail	Can wrap and unwrap RSASSA-PKCS1-v1_5 public key keys using jwk and RSA-OAEP
 Fail	Can wrap and unwrap RSA-PSS public key keys using spki and RSA-OAEP
 Fail	Can wrap and unwrap RSA-PSS public key keys using jwk and RSA-OAEP
 Pass	Can wrap and unwrap RSA-OAEP public key keys using spki and RSA-OAEP
@@ -76,6 +78,13 @@ Pass	Can wrap and unwrap HMAC keys as non-extractable using raw and RSA-OAEP
 Pass	Can wrap and unwrap HMAC keys using jwk and RSA-OAEP
 Pass	Can wrap and unwrap HMAC keys as non-extractable using jwk and RSA-OAEP
 Pass	Can unwrap HMAC non-extractable keys using jwk and RSA-OAEP
+Fail	Can wrap and unwrap RSASSA-PKCS1-v1_5 public key keys using spki and AES-CTR
+Fail	Can wrap and unwrap RSASSA-PKCS1-v1_5 public key keys using jwk and AES-CTR
+Fail	Can wrap and unwrap RSASSA-PKCS1-v1_5 private key keys using pkcs8 and AES-CTR
+Fail	Can wrap and unwrap RSASSA-PKCS1-v1_5 private key keys as non-extractable using pkcs8 and AES-CTR
+Fail	Can wrap and unwrap RSASSA-PKCS1-v1_5 private key keys using jwk and AES-CTR
+Fail	Can wrap and unwrap RSASSA-PKCS1-v1_5 private key keys as non-extractable using jwk and AES-CTR
+Pass	Can unwrap RSASSA-PKCS1-v1_5 private key non-extractable keys using jwk and AES-CTR
 Fail	Can wrap and unwrap RSA-PSS public key keys using spki and AES-CTR
 Fail	Can wrap and unwrap RSA-PSS public key keys using jwk and AES-CTR
 Fail	Can wrap and unwrap RSA-PSS private key keys using pkcs8 and AES-CTR
@@ -157,6 +166,13 @@ Pass	Can wrap and unwrap HMAC keys as non-extractable using raw and AES-CTR
 Pass	Can wrap and unwrap HMAC keys using jwk and AES-CTR
 Pass	Can wrap and unwrap HMAC keys as non-extractable using jwk and AES-CTR
 Pass	Can unwrap HMAC non-extractable keys using jwk and AES-CTR
+Fail	Can wrap and unwrap RSASSA-PKCS1-v1_5 public key keys using spki and AES-CBC
+Fail	Can wrap and unwrap RSASSA-PKCS1-v1_5 public key keys using jwk and AES-CBC
+Fail	Can wrap and unwrap RSASSA-PKCS1-v1_5 private key keys using pkcs8 and AES-CBC
+Fail	Can wrap and unwrap RSASSA-PKCS1-v1_5 private key keys as non-extractable using pkcs8 and AES-CBC
+Fail	Can wrap and unwrap RSASSA-PKCS1-v1_5 private key keys using jwk and AES-CBC
+Fail	Can wrap and unwrap RSASSA-PKCS1-v1_5 private key keys as non-extractable using jwk and AES-CBC
+Pass	Can unwrap RSASSA-PKCS1-v1_5 private key non-extractable keys using jwk and AES-CBC
 Fail	Can wrap and unwrap RSA-PSS public key keys using spki and AES-CBC
 Fail	Can wrap and unwrap RSA-PSS public key keys using jwk and AES-CBC
 Fail	Can wrap and unwrap RSA-PSS private key keys using pkcs8 and AES-CBC
@@ -238,6 +254,13 @@ Pass	Can wrap and unwrap HMAC keys as non-extractable using raw and AES-CBC
 Pass	Can wrap and unwrap HMAC keys using jwk and AES-CBC
 Pass	Can wrap and unwrap HMAC keys as non-extractable using jwk and AES-CBC
 Pass	Can unwrap HMAC non-extractable keys using jwk and AES-CBC
+Fail	Can wrap and unwrap RSASSA-PKCS1-v1_5 public key keys using spki and AES-GCM
+Fail	Can wrap and unwrap RSASSA-PKCS1-v1_5 public key keys using jwk and AES-GCM
+Fail	Can wrap and unwrap RSASSA-PKCS1-v1_5 private key keys using pkcs8 and AES-GCM
+Fail	Can wrap and unwrap RSASSA-PKCS1-v1_5 private key keys as non-extractable using pkcs8 and AES-GCM
+Fail	Can wrap and unwrap RSASSA-PKCS1-v1_5 private key keys using jwk and AES-GCM
+Fail	Can wrap and unwrap RSASSA-PKCS1-v1_5 private key keys as non-extractable using jwk and AES-GCM
+Pass	Can unwrap RSASSA-PKCS1-v1_5 private key non-extractable keys using jwk and AES-GCM
 Fail	Can wrap and unwrap RSA-PSS public key keys using spki and AES-GCM
 Fail	Can wrap and unwrap RSA-PSS public key keys using jwk and AES-GCM
 Fail	Can wrap and unwrap RSA-PSS private key keys using pkcs8 and AES-GCM
@@ -319,6 +342,7 @@ Pass	Can wrap and unwrap HMAC keys as non-extractable using raw and AES-GCM
 Pass	Can wrap and unwrap HMAC keys using jwk and AES-GCM
 Pass	Can wrap and unwrap HMAC keys as non-extractable using jwk and AES-GCM
 Pass	Can unwrap HMAC non-extractable keys using jwk and AES-GCM
+Fail	Can wrap and unwrap RSASSA-PKCS1-v1_5 public key keys using jwk and AES-KW
 Fail	Can wrap and unwrap RSA-PSS public key keys using jwk and AES-KW
 Pass	Can wrap and unwrap RSA-OAEP public key keys using jwk and AES-KW
 Pass	Can wrap and unwrap Ed25519 private key keys using pkcs8 and AES-KW

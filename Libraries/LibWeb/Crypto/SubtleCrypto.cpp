@@ -1072,11 +1072,11 @@ SupportedAlgorithmsMap const& supported_algorithms()
     // https://w3c.github.io/webcrypto/#algorithm-conventions
 
     // https://w3c.github.io/webcrypto/#rsassa-pkcs1-registration
-    // FIXME: define_an_algorithm<RSAESPKCS1>("sign"_string, "RSAES-PKCS1-v1_5"_string);
-    // FIXME: define_an_algorithm<RSAESPKCS1>("verify"_string, "RSAES-PKCS1-v1_5"_string);
-    // FIXME: define_an_algorithm<RSAESPKCS1, RsaHashedKeyGenParams>("generateKey"_string, "RSASSA-PKCS1-v1_5"_string);
-    // FIXME: define_an_algorithm<RSAESPKCS1, RsaHashedImportParams>("importKey"_string, "RSASSA-PKCS1-v1_5"_string);
-    // FIXME: define_an_algorithm<RSAESPKCS1>("exportKey"_string, "RSASSA-PKCS1-v1_5"_string);
+    define_an_algorithm<RSASSAPKCS1>("sign"_string, "RSASSA-PKCS1-v1_5"_string);
+    define_an_algorithm<RSASSAPKCS1>("verify"_string, "RSASSA-PKCS1-v1_5"_string);
+    define_an_algorithm<RSASSAPKCS1, RsaHashedKeyGenParams>("generateKey"_string, "RSASSA-PKCS1-v1_5"_string);
+    define_an_algorithm<RSASSAPKCS1, RsaHashedImportParams>("importKey"_string, "RSASSA-PKCS1-v1_5"_string);
+    define_an_algorithm<RSASSAPKCS1>("exportKey"_string, "RSASSA-PKCS1-v1_5"_string);
 
     // https://w3c.github.io/webcrypto/#rsa-pss-registration
     define_an_algorithm<RSAPSS, RsaPssParams>("sign"_string, "RSA-PSS"_string);
