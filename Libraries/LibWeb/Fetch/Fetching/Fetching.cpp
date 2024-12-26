@@ -1351,7 +1351,7 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> http_redirect_fetch(JS::Realm& rea
 class CachePartition : public RefCounted<CachePartition> {
 public:
     // https://httpwg.org/specs/rfc9111.html#constructing.responses.from.caches
-    GC::Ptr<Infrastructure::Response> select_response(URL::URL const& url, ReadonlyBytes method, Vector<Infrastructure::Header> const& headers, Vector<GC::Ptr<Infrastructure::Response>>& initial_set_of_stored_responses) const
+    GC::Ptr<Infrastructure::Response> select_response(JS::Realm& realm, URL::URL const& url, ReadonlyBytes method, Vector<Infrastructure::Header> const& headers, Vector<GC::Ptr<Infrastructure::Response>>& initial_set_of_stored_responses) const
     {
         // When presented with a request, a cache MUST NOT reuse a stored response unless:
 
@@ -1383,7 +1383,7 @@ public:
 
         dbgln("\033[32;1mHTTP CACHE HIT!\033[0m {}", url);
 
-        return cached_response.ptr();
+        return cached_response->clone(realm);
     }
 
     void store_response(JS::Realm& realm, Infrastructure::Request const& http_request, Infrastructure::Response const& response)
@@ -1939,7 +1939,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_network_or_cache_fetch(JS::Re
             //    validation, as per the "Constructing Responses from Caches" chapter of HTTP Caching [HTTP-CACHING],
             //    if any.
             // NOTE: As mandated by HTTP, this still takes the `Vary` header into account.
-            stored_response = http_cache->select_response(http_request->current_url(), http_request->method(), *http_request->header_list(), initial_set_of_stored_responses);
+            stored_response = http_cache->select_response(realm, http_request->current_url(), http_request->method(), *http_request->header_list(), initial_set_of_stored_responses);
             // 2. If storedResponse is non-null, then:
             if (stored_response) {
                 // 1. If cache mode is "default", storedResponse is a stale-while-revalidate response,
