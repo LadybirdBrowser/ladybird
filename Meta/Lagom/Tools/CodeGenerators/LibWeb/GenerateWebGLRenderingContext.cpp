@@ -1454,8 +1454,8 @@ public:
     size_t byte_size = 0;
     if (@buffer_source_name@->is_typed_array_base()) {
         auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*@buffer_source_name@->raw_object());
-        ptr = typed_array_base.viewed_array_buffer()->buffer().data();
-        byte_size = typed_array_base.viewed_array_buffer()->byte_length();
+        ptr = typed_array_base.viewed_array_buffer()->buffer().data() + typed_array_base.byte_offset();
+        byte_size = @buffer_source_name@->byte_length();
     } else if (@buffer_source_name@->is_data_view()) {
         auto& data_view = static_cast<JS::DataView&>(*@buffer_source_name@->raw_object());
         ptr = data_view.viewed_array_buffer()->buffer().data();
