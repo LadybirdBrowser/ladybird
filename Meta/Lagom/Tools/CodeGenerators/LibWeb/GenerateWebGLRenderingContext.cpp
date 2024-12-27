@@ -191,6 +191,7 @@ static void generate_get_parameter(SourceGenerator& generator, int webgl_version
         { "COPY_WRITE_BUFFER_BINDING"sv, { "WebGLBuffer"sv }, 2 },
         { "MAX_ELEMENT_INDEX"sv, { "GLint64"sv }, 2 },
         { "MAX_FRAGMENT_UNIFORM_BLOCKS"sv, { "GLint"sv }, 2 },
+        { "MAX_VARYING_COMPONENTS"sv, { "GLint"sv }, 2 },
     };
 
     auto is_primitive_type = [](StringView type) {
