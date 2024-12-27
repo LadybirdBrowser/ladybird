@@ -48,7 +48,7 @@ public:
     }
 
 protected:
-    virtual void fill_main_tags() const {};
+    virtual void fill_main_tags() const { }
 
     mutable HashMap<StringView, String> m_main_tags;
 };

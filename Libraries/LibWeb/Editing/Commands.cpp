@@ -600,8 +600,8 @@ bool command_insert_paragraph_action(DOM::Document& document, String const&)
     // 12. If container's local name is "address", "listing", or "pre":
     if (is<DOM::Element>(*container)
         && static_cast<DOM::Element&>(*container)
-               .local_name()
-               .is_one_of(HTML::TagNames::address, HTML::TagNames::listing, HTML::TagNames::pre)) {
+            .local_name()
+            .is_one_of(HTML::TagNames::address, HTML::TagNames::listing, HTML::TagNames::pre)) {
         // 1. Let br be the result of calling createElement("br") on the context object.
         auto br = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
 

@@ -468,10 +468,8 @@ private:
 
     KeyCallbackMachine m_callback_machine;
 
-    struct termios m_termios {
-    };
-    struct termios m_default_termios {
-    };
+    struct termios m_termios {};
+    struct termios m_default_termios {};
     bool m_was_interrupted { false };
     bool m_previous_interrupt_was_handled_as_interrupt { true };
     bool m_was_resized { false };

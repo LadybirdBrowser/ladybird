@@ -111,7 +111,7 @@ public:
     // Set the callback to be called when the promise is rejected. Setting this callback
     // will cause the promise fulfillment to be ready to be handled.
     template<CallableAs<void, ErrorType&&> RejectedHandler>
-    ThreadedPromise& when_rejected(RejectedHandler when_rejected = [](ErrorType&) {})
+    ThreadedPromise& when_rejected(RejectedHandler when_rejected = [](ErrorType&) { })
     {
         Threading::MutexLocker locker { m_mutex };
         VERIFY(!m_rejection_handler);

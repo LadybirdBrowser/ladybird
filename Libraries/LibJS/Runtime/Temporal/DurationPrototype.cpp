@@ -71,7 +71,7 @@ void DurationPrototype::initialize(Realm& realm)
         /* 2. Perform ? RequireInternalSlot(duration, [[InitializedTemporalDuration]]). */ \
         auto duration = TRY(typed_this_object(vm));                                        \
                                                                                            \
-        /* 3. Return 𝔽(duration.[[<unit>]]). */                                         \
+        /* 3. Return 𝔽(duration.[[<unit>]]). */                                            \
         return duration->unit();                                                           \
     }
 JS_ENUMERATE_DURATION_UNITS

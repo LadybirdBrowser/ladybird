@@ -72,7 +72,7 @@ void PlainTimePrototype::initialize(Realm& realm)
         /* 2. Perform ? RequireInternalSlot(temporalTime, [[InitializedTemporalTime]]). */ \
         auto temporal_time = TRY(typed_this_object(vm));                                   \
                                                                                            \
-        /* 3. Return 𝔽(temporalTime.[[Time]].[[<field>]]). */                           \
+        /* 3. Return 𝔽(temporalTime.[[Time]].[[<field>]]). */                              \
         return temporal_time->time().field;                                                \
     }
 JS_ENUMERATE_PLAIN_TIME_FIELDS

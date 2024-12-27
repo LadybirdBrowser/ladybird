@@ -48,8 +48,8 @@ struct MemoryDestinationManager : public jpeg_destination_mgr {
 
 ErrorOr<void> JPEGWriter::encode_impl(Stream& stream, auto const& bitmap, Options const& options, ColorSpace color_space)
 {
-    struct jpeg_compress_struct cinfo { };
-    struct jpeg_error_mgr jerr { };
+    struct jpeg_compress_struct cinfo {};
+    struct jpeg_error_mgr jerr {};
 
     cinfo.err = jpeg_std_error(&jerr);
 

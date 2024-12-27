@@ -25,7 +25,9 @@ struct Key {
 
     Key(unsigned c)
         : modifiers(None)
-        , key(c) {};
+        , key(c)
+    {
+    }
 
     Key(unsigned c, int modifiers)
         : modifiers(modifiers)

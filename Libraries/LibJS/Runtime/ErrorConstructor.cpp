@@ -101,7 +101,7 @@ ThrowCompletionOr<GC::Ref<Object>> ErrorConstructor::construct(FunctionObject& n
         auto message = vm.argument(0);                                                                                      \
         auto options = vm.argument(1);                                                                                      \
                                                                                                                             \
-        /* 2. Let O be ? OrdinaryCreateFromConstructor(newTarget, "%NativeError.prototype%", « [[ErrorData]] »). */       \
+        /* 2. Let O be ? OrdinaryCreateFromConstructor(newTarget, "%NativeError.prototype%", « [[ErrorData]] »). */         \
         auto error = TRY(ordinary_create_from_constructor<ClassName>(vm, new_target, &Intrinsics::snake_name##_prototype)); \
                                                                                                                             \
         /* 3. If message is not undefined, then */                                                                          \

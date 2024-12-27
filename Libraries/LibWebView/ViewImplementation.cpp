@@ -488,8 +488,8 @@ void ViewImplementation::did_allocate_iosurface_backing_stores(i32 front_id, Cor
 
     auto bytes_per_row = front_iosurface.bytes_per_row();
 
-    auto front_bitmap = Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, front_size, bytes_per_row, front_iosurface.data(), [handle = move(front_iosurface)] {});
-    auto back_bitmap = Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, back_size, bytes_per_row, back_iosurface.data(), [handle = move(back_iosurface)] {});
+    auto front_bitmap = Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, front_size, bytes_per_row, front_iosurface.data(), [handle = move(front_iosurface)] { });
+    auto back_bitmap = Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, back_size, bytes_per_row, back_iosurface.data(), [handle = move(back_iosurface)] { });
 
     m_client_state.front_bitmap.bitmap = front_bitmap.release_value_but_fixme_should_propagate_errors();
     m_client_state.front_bitmap.id = front_id;

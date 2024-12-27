@@ -145,15 +145,15 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::era_year_getter)
     __JS_ENUMERATE(months_in_year)                      \
     __JS_ENUMERATE(in_leap_year)
 
-#define __JS_ENUMERATE(field)                                                                                             \
-    JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::field##_getter)                                                     \
-    {                                                                                                                     \
-        /* 1. Let dateTime be the this value. */                                                                          \
-        /* 2. Perform ? RequireInternalSlot(dateTime, [[InitializedTemporalDateTime]]). */                                \
-        auto date_time = TRY(typed_this_object(vm));                                                                      \
-                                                                                                                          \
+#define __JS_ENUMERATE(field)                                                                                          \
+    JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::field##_getter)                                                  \
+    {                                                                                                                  \
+        /* 1. Let dateTime be the this value. */                                                                       \
+        /* 2. Perform ? RequireInternalSlot(dateTime, [[InitializedTemporalDateTime]]). */                             \
+        auto date_time = TRY(typed_this_object(vm));                                                                   \
+                                                                                                                       \
         /* 3. Return 𝔽(CalendarISOToDate(dateTime.[[Calendar]], dateTime.[[ISODateTime]].[[ISODate]]).[[<field>]]). */ \
-        return calendar_iso_to_date(date_time->calendar(), date_time->iso_date_time().iso_date).field;                    \
+        return calendar_iso_to_date(date_time->calendar(), date_time->iso_date_time().iso_date).field;                 \
     }
 JS_ENUMERATE_PLAIN_DATE_TIME_SIMPLE_DATE_FIELDS
 #undef __JS_ENUMERATE
@@ -191,7 +191,7 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::month_code_getter)
         /* 2. Perform ? RequireInternalSlot(dateTime, [[InitializedTemporalDateTime]]). */ \
         auto date_time = TRY(typed_this_object(vm));                                       \
                                                                                            \
-        /* 3. Return 𝔽(dateTime.[[ISODateTime]].[[Time]].[[<field>]]). */               \
+        /* 3. Return 𝔽(dateTime.[[ISODateTime]].[[Time]].[[<field>]]). */                  \
         return date_time->iso_date_time().time.field;                                      \
     }
 JS_ENUMERATE_PLAIN_DATE_TIME_TIME_FIELDS

@@ -48,7 +48,9 @@ public:
 
 protected:
     explicit IndexedPropertyStorage(IsSimpleStorage is_simple_storage)
-        : m_is_simple_storage(is_simple_storage == IsSimpleStorage::Yes) {};
+        : m_is_simple_storage(is_simple_storage == IsSimpleStorage::Yes)
+    {
+    }
 
 private:
     bool m_is_simple_storage { false };
@@ -57,7 +59,9 @@ private:
 class SimpleIndexedPropertyStorage final : public IndexedPropertyStorage {
 public:
     SimpleIndexedPropertyStorage()
-        : IndexedPropertyStorage(IsSimpleStorage::Yes) {};
+        : IndexedPropertyStorage(IsSimpleStorage::Yes)
+    {
+    }
     explicit SimpleIndexedPropertyStorage(Vector<Value>&& initial_values);
 
     virtual bool has_index(u32 index) const override;
@@ -99,7 +103,9 @@ class GenericIndexedPropertyStorage final : public IndexedPropertyStorage {
 public:
     explicit GenericIndexedPropertyStorage(SimpleIndexedPropertyStorage&&);
     explicit GenericIndexedPropertyStorage()
-        : IndexedPropertyStorage(IsSimpleStorage::No) {};
+        : IndexedPropertyStorage(IsSimpleStorage::No)
+    {
+    }
 
     virtual bool has_index(u32 index) const override;
     virtual Optional<ValueAndAttributes> get(u32 index) const override;

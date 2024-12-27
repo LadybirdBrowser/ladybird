@@ -316,7 +316,7 @@ bool can_delete_or_move(StringView path)
     auto stat_or_empty = [](StringView path) {
         auto stat_or_error = Core::System::stat(path);
         if (stat_or_error.is_error()) {
-            struct stat stat { };
+            struct stat stat {};
             return stat;
         }
         return stat_or_error.release_value();

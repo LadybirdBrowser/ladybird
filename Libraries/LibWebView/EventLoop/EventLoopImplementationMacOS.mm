@@ -92,7 +92,7 @@ public:
 
 SignalHandlers::SignalHandlers(int signal_number, CFFileDescriptorCallBack handle_signal)
     : m_signal_number(signal_number)
-    , m_original_handler(signal(signal_number, [](int) {}))
+    , m_original_handler(signal(signal_number, [](int) { }))
 {
     m_kevent_fd = kqueue();
     if (m_kevent_fd < 0) {
@@ -320,7 +320,7 @@ static void handle_signal(CFFileDescriptorRef f, CFOptionFlags callback_types, v
     VERIFY(callback_types & kCFFileDescriptorReadCallBack);
     auto* signal_handlers = static_cast<SignalHandlers*>(info);
 
-    struct kevent event { };
+    struct kevent event {};
 
     // returns number of events that have occurred since last call
     (void)::kevent(CFFileDescriptorGetNativeDescriptor(f), nullptr, 0, &event, 1, nullptr);

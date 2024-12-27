@@ -47,7 +47,7 @@ StringView process_name_from_type(ProcessType type)
 }
 
 ProcessManager::ProcessManager()
-    : on_process_exited([](Process&&) {})
+    : on_process_exited([](Process&&) { })
 {
     m_signal_handle = Core::EventLoop::register_signal(SIGCHLD, [this](int) {
         auto result = Core::System::waitpid(-1, WNOHANG);
