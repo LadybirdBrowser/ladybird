@@ -45,6 +45,7 @@ private:
     Storage(JS::Realm&, Type, u64 quota_limit);
 
     virtual void initialize(JS::Realm&) override;
+    virtual void finalize() override;
 
     // ^PlatformObject
     virtual Optional<JS::Value> item_value(size_t index) const override;
