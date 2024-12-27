@@ -49,10 +49,10 @@ sudo wget -O /usr/share/keyrings/llvm-snapshot.gpg.key https://apt.llvm.org/llvm
 # Optional: Verify the GPG key manually
 
 # Use the key to authorize an entry for apt.llvm.org in apt sources list
-echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] https://apt.llvm.org/$(lsb_release -sc)/ llvm-toolchain-$(lsb_release -sc)-18 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
+echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] https://apt.llvm.org/$(lsb_release -sc)/ llvm-toolchain-$(lsb_release -sc)-19 main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
 
 # Update apt package list and install clang and associated packages
-sudo apt update -y && sudo apt install clang-18 clangd-18 clang-format-18 clang-tidy-18 lld-18 -y
+sudo apt update -y && sudo apt install clang-19 clangd-19 clang-format-19 clang-tidy-19 lld-19 -y
 ```
 
 - Alternative: Install gcc-13 or newer from [Ubuntu Toolchain PPA](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test):
@@ -102,7 +102,7 @@ sudo xbps-install -S git bash gcc python3 curl cmake zip unzip linux-headers mak
 ### NixOS or with Nix:
 
 > [!NOTE]
-> Ladybird's build system uses vcpkg to vendor third-party dependencies, which proves undesirable to use with Nix for [several reasons](https://github.com/LadybirdBrowser/ladybird/issues/371).  
+> Ladybird's build system uses vcpkg to vendor third-party dependencies, which proves undesirable to use with Nix for [several reasons](https://github.com/LadybirdBrowser/ladybird/issues/371).
 > As a result, using `ladybird.sh` to compile and run Ladybird will fail. Therefore, it is necessary to use system packages provided by the dev-shell.
 
 To build the project, first enter the shell:
@@ -145,7 +145,7 @@ brew install autoconf autoconf-archive automake ccache cmake nasm ninja pkg-conf
 
 If you wish to use clang from homebrew instead:
 ```
-brew install llvm@18
+brew install llvm@19
 ```
 
 If you also plan to use the Qt chrome on macOS:

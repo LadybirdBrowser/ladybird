@@ -6,7 +6,7 @@
         "ghcr.io/devcontainers/features/github-cli:1": {},
         "ghcr.io/devcontainers-contrib/features/pre-commit:2": {},
         "./features/ladybird": {
-            "llvm_version": 18
+            "llvm_version": 19
         },
         "./features/vcpkg-cache": {
             "release_triplet": true,
@@ -70,7 +70,7 @@
                 "git.inputValidationSubjectLength": 72,
                 // If clangd was obtained from a package manager, its path can be set here.
                 // Note: This has to be adjusted manually, to the "llvm_version" from above
-                "clangd.path": "clangd-18",
+                "clangd.path": "clangd-19",
                 "clangd.arguments": [
                     "--header-insertion=never" // See https://github.com/clangd/clangd/issues/1247
                 ]
