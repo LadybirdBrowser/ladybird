@@ -24,8 +24,12 @@ void AnimationTimeline::set_current_time(Optional<double> value)
     }
 
     m_current_time = value;
-    for (auto& animation : m_associated_animations)
+    // The loop might modify the content of m_associated_animations, so let's iterate over a copy.
+    auto temporary_copy = GC::RootVector<GC::Ref<Animation>>(vm().heap());
+    temporary_copy.extend(m_associated_animations.values());
+    for (auto& animation : temporary_copy) {
         animation->notify_timeline_time_did_change();
+    }
 }
 
 void AnimationTimeline::set_associated_document(GC::Ptr<DOM::Document> document)
