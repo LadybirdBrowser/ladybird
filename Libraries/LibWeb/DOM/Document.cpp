@@ -525,6 +525,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
 
     for (auto& event : m_pending_animation_event_queue) {
         visitor.visit(event.event);
+        visitor.visit(event.animation);
         visitor.visit(event.target);
     }
 
