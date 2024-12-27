@@ -46,8 +46,6 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
-    GC::Ptr<Element> m_owner;
-
     Optional<size_t> m_max_length {};
     bool m_is_password_input { false };
 };

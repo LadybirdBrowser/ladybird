@@ -37,7 +37,6 @@ void Text::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     SlottableMixin::visit_edges(visitor);
-    visitor.visit(m_owner);
 }
 
 // https://dom.spec.whatwg.org/#dom-text-text
