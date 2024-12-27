@@ -1,6 +1,7 @@
 // https://w3c.github.io/aria/#ARIAMixin
 interface mixin ARIAMixin {
     [CEReactions] attribute DOMString? role;
+    [Reflect=aria-activedescendant, CEReactions] attribute Element? ariaActiveDescendantElement;
     [CEReactions] attribute DOMString? ariaAtomic;
     [CEReactions] attribute DOMString? ariaAutoComplete;
     [CEReactions] attribute DOMString? ariaBrailleLabel;

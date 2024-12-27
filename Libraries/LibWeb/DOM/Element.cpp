@@ -96,6 +96,7 @@ void Element::visit_edges(Cell::Visitor& visitor)
     SlottableMixin::visit_edges(visitor);
     Animatable::visit_edges(visitor);
 
+    visitor.visit(m_aria_active_descendant_element);
     visitor.visit(m_attributes);
     visitor.visit(m_inline_style);
     visitor.visit(m_class_list);
@@ -2926,6 +2927,10 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
             m_dir = Dir::Auto;
         else
             m_dir = {};
+    } else if (local_name == ARIA::AttributeNames::aria_active_descendant) {
+        // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#reflecting-content-attributes-in-idl-attributes:concept-element-attributes-change-ext
+        // Set element's explicitly set attr-element to null.
+        m_aria_active_descendant_element = nullptr;
     }
 }
 
