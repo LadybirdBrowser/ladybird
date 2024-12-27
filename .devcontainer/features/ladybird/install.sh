@@ -3,7 +3,7 @@ set -e
 
 # Feature options
 
-LLVM_VERSION=${LLVM_VERSION:-18}
+LLVM_VERSION=${LLVM_VERSION:-19}
 ### Check distro
 
 if [ ! -f /etc/lsb-release ]; then

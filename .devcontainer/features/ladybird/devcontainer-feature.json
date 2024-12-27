@@ -12,7 +12,7 @@
                 19,
                 "trunk"
             ],
-            "default": 18,
+            "default": 19,
             "description": "Select LLVM compiler version to use"
         }
     }

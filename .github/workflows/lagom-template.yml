@@ -64,8 +64,8 @@ jobs:
         run: |
           if ${{ inputs.os_name == 'Linux' }} ; then
             if ${{ inputs.toolchain == 'Clang' }} ; then
-              echo "host_cc=clang-18" >> "$GITHUB_OUTPUT"
-              echo "host_cxx=clang++-18" >> "$GITHUB_OUTPUT"
+              echo "host_cc=clang-19" >> "$GITHUB_OUTPUT"
+              echo "host_cxx=clang++-19" >> "$GITHUB_OUTPUT"
             elif ${{ inputs.toolchain == 'GNU' }} ; then
               echo "host_cc=gcc-13" >> "$GITHUB_OUTPUT"
               echo "host_cxx=g++-13" >> "$GITHUB_OUTPUT"
