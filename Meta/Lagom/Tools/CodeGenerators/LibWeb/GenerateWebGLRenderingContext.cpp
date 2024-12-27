@@ -1288,6 +1288,14 @@ public:
             continue;
         }
 
+        if (function.name == "deleteSampler"sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "sampler"sv, ""sv);
+            function_impl_generator.append(R"~~~(
+    glDeleteSamplers(1, &sampler_handle);
+)~~~");
+            continue;
+        }
+
         if (function.name == "bindBuffer"sv) {
             // FIXME: Implement Buffer Object Binding restrictions.
             generate_webgl_object_handle_unwrap(function_impl_generator, "buffer"sv, ""sv);
