@@ -371,11 +371,11 @@ interface mixin WebGL2RenderingContextBase {
     // Multiple Render Targets
     undefined drawBuffers(sequence<GLenum> buffers);
 
-    [FIXME] undefined clearBufferfv(GLenum buffer, GLint drawbuffer, Float32List values, optional unsigned long long srcOffset = 0);
-    [FIXME] undefined clearBufferiv(GLenum buffer, GLint drawbuffer, Int32List values,  optional unsigned long long srcOffset = 0);
-    [FIXME] undefined clearBufferuiv(GLenum buffer, GLint drawbuffer, Uint32List values, optional unsigned long long srcOffset = 0);
+    undefined clearBufferfv(GLenum buffer, GLint drawbuffer, Float32List values, optional unsigned long long srcOffset = 0);
+    undefined clearBufferiv(GLenum buffer, GLint drawbuffer, Int32List values, optional unsigned long long srcOffset = 0);
+    undefined clearBufferuiv(GLenum buffer, GLint drawbuffer, Uint32List values, optional unsigned long long srcOffset = 0);
 
-    [FIXME] undefined clearBufferfi(GLenum buffer, GLint drawbuffer, GLfloat depth, GLint stencil);
+    undefined clearBufferfi(GLenum buffer, GLint drawbuffer, GLfloat depth, GLint stencil);
 
     // Query Objects
     [FIXME] WebGLQuery createQuery();
