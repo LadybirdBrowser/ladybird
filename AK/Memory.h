@@ -44,7 +44,7 @@ inline void secure_zero(void* ptr, size_t size)
     // The memory barrier is here to avoid the compiler optimizing
     // away the memset when we rely on it for wiping secrets.
     asm volatile("" ::
-                     : "memory");
+            : "memory");
 }
 
 // Naive implementation of a constant time buffer comparison function.

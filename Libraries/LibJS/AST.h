@@ -719,7 +719,7 @@ public:
     virtual bool has_name() const = 0;
     virtual Value instantiate_ordinary_function_expression(VM&, DeprecatedFlyString given_name) const = 0;
 
-    virtual ~FunctionNode() {};
+    virtual ~FunctionNode() { }
 
 protected:
     FunctionNode(RefPtr<Identifier const> name, ByteString source_text, NonnullRefPtr<Statement const> body, Vector<FunctionParameter> parameters, i32 function_length, FunctionKind kind, bool is_strict_mode, FunctionParsingInsights parsing_insights, bool is_arrow_function, Vector<DeprecatedFlyString> local_variables_names)
@@ -779,7 +779,7 @@ public:
     bool has_name() const override { return true; }
     Value instantiate_ordinary_function_expression(VM&, DeprecatedFlyString) const override { VERIFY_NOT_REACHED(); }
 
-    virtual ~FunctionDeclaration() {};
+    virtual ~FunctionDeclaration() { }
 
 private:
     bool m_is_hoisted { false };
@@ -806,7 +806,7 @@ public:
 
     Value instantiate_ordinary_function_expression(VM&, DeprecatedFlyString given_name) const override;
 
-    virtual ~FunctionExpression() {};
+    virtual ~FunctionExpression() { }
 
 private:
     virtual bool is_function_expression() const override { return true; }

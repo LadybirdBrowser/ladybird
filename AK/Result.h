@@ -94,8 +94,8 @@ public:
     ~Result() = default;
 
     // For compatibility with TRY().
-    void value() {};
-    void release_value() {};
+    void value() { }
+    void release_value() { }
 
     ErrorType& error()
     {

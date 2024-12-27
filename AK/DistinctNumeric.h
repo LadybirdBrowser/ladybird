@@ -46,13 +46,13 @@ namespace AK {
  */
 
 namespace DistinctNumericFeature {
-enum Arithmetic {};
-enum CastToBool {};
-enum CastToUnderlying {};
-enum Comparison {};
-enum Flags {};
-enum Increment {};
-enum Shift {};
+enum Arithmetic { };
+enum CastToBool { };
+enum CastToUnderlying { };
+enum Comparison { };
+enum Flags { };
+enum Increment { };
+enum Shift { };
 };
 
 template<typename T, typename X, typename... Opts>

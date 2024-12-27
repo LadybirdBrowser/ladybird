@@ -24,7 +24,7 @@ class XMLHttpRequestEventTarget : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(XMLHttpRequestEventTarget, DOM::EventTarget);
 
 public:
-    virtual ~XMLHttpRequestEventTarget() override {};
+    virtual ~XMLHttpRequestEventTarget() override { }
 
 #undef __ENUMERATE
 #define __ENUMERATE(attribute_name, event_name)       \

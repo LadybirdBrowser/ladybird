@@ -20,7 +20,9 @@ GC::Ref<SVGAnimatedTransformList> SVGAnimatedTransformList::create(JS::Realm& re
 SVGAnimatedTransformList::SVGAnimatedTransformList(JS::Realm& realm, GC::Ref<SVGTransformList> base_val, GC::Ref<SVGTransformList> anim_val)
     : PlatformObject(realm)
     , m_base_val(base_val)
-    , m_anim_val(anim_val) {};
+    , m_anim_val(anim_val)
+{
+}
 
 SVGAnimatedTransformList::~SVGAnimatedTransformList() = default;
 

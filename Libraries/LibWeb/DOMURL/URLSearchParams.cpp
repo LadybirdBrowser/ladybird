@@ -286,7 +286,7 @@ bool URLSearchParams::has(String const& name, Optional<String> const& value)
         if (!m_list.find_if([&name, &value](auto& entry) {
                        return entry.name == name && entry.value == value.value();
                    })
-                 .is_end()) {
+                .is_end()) {
             return true;
         }
     }
@@ -295,7 +295,7 @@ bool URLSearchParams::has(String const& name, Optional<String> const& value)
         if (!m_list.find_if([&name](auto& entry) {
                        return entry.name == name;
                    })
-                 .is_end()) {
+                .is_end()) {
             return true;
         }
     }

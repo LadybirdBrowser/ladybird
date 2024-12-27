@@ -263,10 +263,10 @@ bool is_unknown_html_element(FlyString const& tag_name)
     if (tag_name.is_one_of(HTML::TagNames::applet, HTML::TagNames::bgsound, HTML::TagNames::blink, HTML::TagNames::isindex, HTML::TagNames::keygen, HTML::TagNames::multicol, HTML::TagNames::nextid, HTML::TagNames::spacer))
         return true;
 
-        // 2. If name is acronym, basefont, big, center, nobr, noembed, noframes, plaintext, rb, rtc, strike, or tt, then return HTMLElement.
-        // 3. If name is listing or xmp, then return HTMLPreElement.
-        // 4. Otherwise, if this specification defines an interface appropriate for the element type corresponding to the local name name, then return that interface.
-        // 5. If other applicable specifications define an appropriate interface for name, then return the interface they define.
+    // 2. If name is acronym, basefont, big, center, nobr, noembed, noframes, plaintext, rb, rtc, strike, or tt, then return HTMLElement.
+    // 3. If name is listing or xmp, then return HTMLPreElement.
+    // 4. Otherwise, if this specification defines an interface appropriate for the element type corresponding to the local name name, then return that interface.
+    // 5. If other applicable specifications define an appropriate interface for name, then return the interface they define.
 #define __ENUMERATE_HTML_TAG(name)        \
     if (tag_name == HTML::TagNames::name) \
         return false;

@@ -226,9 +226,9 @@ void SVGFormattingContext::run(AvailableSpace const& available_space)
 
         CSSPixelPoint offset = viewbox_offset_and_scale.offset;
         m_current_viewbox_transform = Gfx::AffineTransform { m_current_viewbox_transform }.multiply(Gfx::AffineTransform {}
-                                                                                                        .translate(offset.to_type<float>())
-                                                                                                        .scale(viewbox_offset_and_scale.scale_factor_x, viewbox_offset_and_scale.scale_factor_y)
-                                                                                                        .translate({ -viewbox->min_x, -viewbox->min_y }));
+                .translate(offset.to_type<float>())
+                .scale(viewbox_offset_and_scale.scale_factor_x, viewbox_offset_and_scale.scale_factor_y)
+                .translate({ -viewbox->min_x, -viewbox->min_y }));
     }
 
     if (svg_box_state.has_definite_width() && svg_box_state.has_definite_height()) {

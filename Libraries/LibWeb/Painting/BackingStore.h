@@ -23,8 +23,8 @@ public:
     virtual Gfx::IntSize size() const = 0;
     virtual Gfx::Bitmap& bitmap() const = 0;
 
-    BackingStore() {};
-    virtual ~BackingStore() {};
+    BackingStore() { }
+    virtual ~BackingStore() { }
 };
 
 class BitmapBackingStore final : public BackingStore {

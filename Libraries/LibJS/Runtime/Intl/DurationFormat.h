@@ -221,7 +221,7 @@ struct DurationRecord {
 };
 
 struct DurationInstanceComponent {
-    double DurationRecord::*value_slot;
+    double DurationRecord::* value_slot;
     DurationFormat::ValueStyle (DurationFormat::*get_style_slot)() const;
     void (DurationFormat::*set_style_slot)(DurationFormat::ValueStyle);
     DurationFormat::Display (DurationFormat::*get_display_slot)() const;

@@ -20,7 +20,9 @@ public:
     CanonicalCode() = default;
     CanonicalCode(Vector<size_t> codes, Vector<size_t> values)
         : m_symbol_codes(move(codes))
-        , m_symbol_values(move(values)) {};
+        , m_symbol_values(move(values))
+    {
+    }
 
     static ErrorOr<CanonicalCode> read_prefix_code(LittleEndianInputBitStream&, size_t alphabet_size);
     static ErrorOr<CanonicalCode> read_simple_prefix_code(LittleEndianInputBitStream&, size_t alphabet_size);

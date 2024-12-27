@@ -37,10 +37,10 @@ public:
     static RefPtr<Gfx::SkiaBackendContext> create_metal_context(MetalContext&);
 #endif
 
-    SkiaBackendContext() {};
-    virtual ~SkiaBackendContext() {};
+    SkiaBackendContext() { }
+    virtual ~SkiaBackendContext() { }
 
-    virtual void flush_and_submit(SkSurface*) {};
+    virtual void flush_and_submit(SkSurface*) { }
     virtual GrDirectContext* sk_context() const = 0;
 
     virtual MetalContext& metal_context() = 0;

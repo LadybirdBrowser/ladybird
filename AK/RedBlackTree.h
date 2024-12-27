@@ -42,7 +42,7 @@ public:
         Node()
         {
         }
-        virtual ~Node() {};
+        virtual ~Node() { }
     };
 
 protected:

@@ -186,7 +186,7 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::era_year_getter)
         /* Let isoDateTime be GetISODateTimeFor(zonedDateTime.[[TimeZone]], zonedDateTime.[[EpochNanoseconds]]). */                    \
         auto iso_date_time = get_iso_date_time_for(zoned_date_time->time_zone(), zoned_date_time->epoch_nanoseconds()->big_integer()); \
                                                                                                                                        \
-        /* 3. Return 𝔽(CalendarISOToDate(zonedDateTime.[[Calendar]], isoDateTime.[[ISODate]]).[[<field>]]). */                      \
+        /* 3. Return 𝔽(CalendarISOToDate(zonedDateTime.[[Calendar]], isoDateTime.[[ISODate]]).[[<field>]]). */                         \
         return calendar_iso_to_date(zoned_date_time->calendar(), iso_date_time.iso_date).field;                                        \
     }
 JS_ENUMERATE_ZONED_DATE_TIME_SIMPLE_DATE_FIELDS
@@ -231,7 +231,7 @@ JS_DEFINE_NATIVE_FUNCTION(ZonedDateTimePrototype::month_code_getter)
         /* Let isoDateTime be GetISODateTimeFor(zonedDateTime.[[TimeZone]], zonedDateTime.[[EpochNanoseconds]]). */                    \
         auto iso_date_time = get_iso_date_time_for(zoned_date_time->time_zone(), zoned_date_time->epoch_nanoseconds()->big_integer()); \
                                                                                                                                        \
-        /* 3. Return 𝔽(isoDateTime.[[Time]].[[<field>]]). */                                                                        \
+        /* 3. Return 𝔽(isoDateTime.[[Time]].[[<field>]]). */                                                                           \
         return iso_date_time.time.field;                                                                                               \
     }
 JS_ENUMERATE_PLAIN_DATE_TIME_TIME_FIELDS

@@ -11,7 +11,7 @@
 namespace AK {
 namespace Detail {
 
-template<class T, typename Container, IntrusiveListNode<T, Container> T::*member>
+template<class T, typename Container, IntrusiveListNode<T, Container> T::* member>
 class IntrusiveListRelaxedConst : public IntrusiveList<T, Container, member> {
     AK_MAKE_NONCOPYABLE(IntrusiveListRelaxedConst);
     AK_MAKE_NONMOVABLE(IntrusiveListRelaxedConst);

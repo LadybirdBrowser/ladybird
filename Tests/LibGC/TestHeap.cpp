@@ -10,6 +10,6 @@
 GC::Heap& test_gc_heap()
 {
     // FIXME: The GC heap should become thread aware!
-    thread_local GC::Heap heap(nullptr, [](auto&) {});
+    thread_local GC::Heap heap(nullptr, [](auto&) { });
     return heap;
 }

@@ -69,7 +69,7 @@ ErrorOr<void> Command::write_lines(Span<ByteString> lines)
     // It's possible the process dies before we can write everything to the
     // stdin. So make sure that we don't crash but just stop writing.
 
-    struct sigaction action_handler { };
+    struct sigaction action_handler {};
     action_handler.sa_handler = SIG_IGN;
 
     struct sigaction old_action_handler;

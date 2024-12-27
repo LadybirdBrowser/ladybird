@@ -62,7 +62,7 @@ ErrorOr<void> JPEGLoadingContext::decode()
 
     source_manager.next_input_byte = data.data();
     source_manager.bytes_in_buffer = data.size();
-    source_manager.init_source = [](j_decompress_ptr) {};
+    source_manager.init_source = [](j_decompress_ptr) { };
     source_manager.fill_input_buffer = [](j_decompress_ptr) -> boolean { return false; };
     source_manager.skip_input_data = [](j_decompress_ptr context, long num_bytes) {
         if (num_bytes > static_cast<long>(context->src->bytes_in_buffer)) {
@@ -73,7 +73,7 @@ ErrorOr<void> JPEGLoadingContext::decode()
         context->src->bytes_in_buffer -= num_bytes;
     };
     source_manager.resync_to_restart = jpeg_resync_to_restart;
-    source_manager.term_source = [](j_decompress_ptr) {};
+    source_manager.term_source = [](j_decompress_ptr) { };
 
     cinfo.src = &source_manager;
 

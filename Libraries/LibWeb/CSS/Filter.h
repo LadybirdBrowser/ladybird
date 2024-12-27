@@ -16,7 +16,9 @@ class Filter {
 public:
     Filter() = default;
     Filter(FilterValueListStyleValue const& filter_value_list)
-        : m_filter_value_list { filter_value_list } {};
+        : m_filter_value_list { filter_value_list }
+    {
+    }
 
     static Filter make_none()
     {
