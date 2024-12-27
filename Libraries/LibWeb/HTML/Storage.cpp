@@ -7,13 +7,23 @@
  */
 
 #include <AK/String.h>
+#include <LibGC/RootVector.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/StoragePrototype.h>
 #include <LibWeb/HTML/Storage.h>
+#include <LibWeb/HTML/StorageEvent.h>
+#include <LibWeb/HTML/Window.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(Storage);
+
+static HashTable<GC::RawRef<Storage>>& all_storages()
+{
+    // FIXME: This needs to be stored at the user agent level.
+    static HashTable<GC::RawRef<Storage>> storages;
+    return storages;
+}
 
 GC::Ref<Storage> Storage::create(JS::Realm& realm, Type type, u64 quota_bytes)
 {
@@ -35,6 +45,8 @@ Storage::Storage(JS::Realm& realm, Type type, u64 quota_bytes)
         .named_property_setter_has_identifier = true,
         .named_property_deleter_has_identifier = true,
     };
+
+    all_storages().set(*this);
 }
 
 Storage::~Storage() = default;
@@ -43,6 +55,11 @@ void Storage::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Storage);
+}
+
+void Storage::finalize()
+{
+    all_storages().remove(*this);
 }
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-storage-length
@@ -167,10 +184,61 @@ void Storage::reorder()
 // https://html.spec.whatwg.org/multipage/webstorage.html#concept-storage-broadcast
 void Storage::broadcast(Optional<String> const& key, Optional<String> const& old_value, Optional<String> const& new_value)
 {
-    (void)key;
-    (void)old_value;
-    (void)new_value;
-    // FIXME: Implement.
+    auto& realm = this->realm();
+
+    // 1. Let thisDocument be storage's relevant global object's associated Document.
+    auto& relevant_global = relevant_global_object(*this);
+    auto const& this_document = verify_cast<Window>(relevant_global).associated_document();
+
+    // 2. Let url be thisDocument's URL.
+    auto url = this_document.url().to_string();
+
+    // 3. Let remoteStorages be all Storage objects excluding storage whose:
+    GC::RootVector<GC::Ref<Storage>> remote_storages(heap());
+    for (auto storage : all_storages()) {
+        if (storage == this)
+            continue;
+
+        // * type is storage's type
+        if (storage->type() != type())
+            continue;
+
+        // * relevant settings object's origin is same origin with storage's relevant settings object's origin.
+        if (!relevant_settings_object(*this).origin().is_same_origin(relevant_settings_object(storage).origin()))
+            continue;
+
+        // * and, if type is "session", whose relevant settings object's associated Document's node navigable's traversable navigable
+        //   is thisDocument's node navigable's traversable navigable.
+        if (type() == Type::Session) {
+            auto& storage_document = *relevant_settings_object(storage).responsible_document();
+
+            // NOTE: It is possible the remote storage may have not been fully teared down immediately at the point it's document is made inactive.
+            if (!storage_document.navigable())
+                continue;
+            VERIFY(this_document.navigable());
+
+            if (storage_document.navigable()->traversable_navigable() != this_document.navigable()->traversable_navigable())
+                continue;
+        }
+
+        remote_storages.append(storage);
+    }
+
+    // 4. For each remoteStorage of remoteStorages: queue a global task on the DOM manipulation task source given remoteStorage's relevant
+    //    global object to fire an event named storage at remoteStorage's relevant global object, using StorageEvent, with key initialized
+    //    to key, oldValue initialized to oldValue, newValue initialized to newValue, url initialized to url, and storageArea initialized to
+    //    remoteStorage.
+    for (auto remote_storage : remote_storages) {
+        queue_global_task(Task::Source::DOMManipulation, relevant_global, GC::create_function(heap(), [&realm, key, old_value, new_value, url, remote_storage] {
+            StorageEventInit init;
+            init.key = move(key);
+            init.old_value = move(old_value);
+            init.new_value = move(new_value);
+            init.url = move(url);
+            init.storage_area = remote_storage;
+            verify_cast<Window>(relevant_global_object(remote_storage)).dispatch_event(StorageEvent::create(realm, EventNames::storage, init));
+        }));
+    }
 }
 
 Vector<FlyString> Storage::supported_property_names() const
