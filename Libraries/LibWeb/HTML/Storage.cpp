@@ -84,7 +84,7 @@ WebIDL::ExceptionOr<void> Storage::set_item(String const& key, String const& val
     auto& realm = this->realm();
 
     // 1. Let oldValue be null.
-    String old_value;
+    Optional<String> old_value;
 
     // 2. Let reorder be true.
     bool reorder = true;
@@ -106,7 +106,7 @@ WebIDL::ExceptionOr<void> Storage::set_item(String const& key, String const& val
     }
 
     // 4. If value cannot be stored, then throw a "QuotaExceededError" DOMException exception.
-    new_size += value.bytes().size() - old_value.bytes().size();
+    new_size += value.bytes().size() - old_value.value_or(String {}).bytes().size();
     if (new_size > m_quota_bytes)
         return WebIDL::QuotaExceededError::create(realm, MUST(String::formatted("Unable to store more than {} bytes in storage"sv, m_quota_bytes)));
 
@@ -125,7 +125,7 @@ WebIDL::ExceptionOr<void> Storage::set_item(String const& key, String const& val
 }
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-storage-removeitem
-void Storage::remove_item(StringView key)
+void Storage::remove_item(String const& key)
 {
     // 1. If this's map[key] does not exist, then return null.
     // FIXME: Return null?
@@ -165,7 +165,7 @@ void Storage::reorder()
 }
 
 // https://html.spec.whatwg.org/multipage/webstorage.html#concept-storage-broadcast
-void Storage::broadcast(StringView key, StringView old_value, StringView new_value)
+void Storage::broadcast(Optional<String> const& key, Optional<String> const& old_value, Optional<String> const& new_value)
 {
     (void)key;
     (void)old_value;
