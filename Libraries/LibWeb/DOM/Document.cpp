@@ -4736,8 +4736,11 @@ void Document::update_animations_and_send_events(Optional<double> const& timesta
     HTML::perform_a_microtask_checkpoint();
 
     // 4. Let events to dispatch be a copy of doc’s pending animation event queue.
+    auto events_to_dispatch = GC::ConservativeVector<Document::PendingAnimationEvent> { vm().heap() };
+    events_to_dispatch.extend(m_pending_animation_event_queue);
+
     // 5. Clear doc’s pending animation event queue.
-    auto events_to_dispatch = move(m_pending_animation_event_queue);
+    m_pending_animation_event_queue.clear();
 
     // 6. Perform a stable sort of the animation events in events to dispatch as follows:
     auto sort_events_by_composite_order = [](auto const& a, auto const& b) {
