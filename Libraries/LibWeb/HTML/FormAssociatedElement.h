@@ -143,12 +143,14 @@ public:
     WebIDL::ExceptionOr<void> select();
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectionstart
-    Optional<WebIDL::UnsignedLong> selection_start() const;
-    WebIDL::ExceptionOr<void> set_selection_start(Optional<WebIDL::UnsignedLong> const&);
+    Optional<WebIDL::UnsignedLong> selection_start_binding() const;
+    WebIDL::ExceptionOr<void> set_selection_start_binding(Optional<WebIDL::UnsignedLong> const&);
+    WebIDL::UnsignedLong selection_start() const;
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectionend
-    Optional<WebIDL::UnsignedLong> selection_end() const;
-    WebIDL::ExceptionOr<void> set_selection_end(Optional<WebIDL::UnsignedLong> const&);
+    Optional<WebIDL::UnsignedLong> selection_end_binding() const;
+    WebIDL::ExceptionOr<void> set_selection_end_binding(Optional<WebIDL::UnsignedLong> const&);
+    WebIDL::UnsignedLong selection_end() const;
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectiondirection
     Optional<String> selection_direction() const;
@@ -157,7 +159,8 @@ public:
     SelectionDirection selection_direction_state() const { return m_selection_direction; }
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setrangetext
-    WebIDL::ExceptionOr<void> set_range_text(String const& replacement);
+    WebIDL::ExceptionOr<void> set_range_text_binding(String const& replacement);
+    WebIDL::ExceptionOr<void> set_range_text_binding(String const& replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode = Bindings::SelectionMode::Preserve);
     WebIDL::ExceptionOr<void> set_range_text(String const& replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode = Bindings::SelectionMode::Preserve);
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setselectionrange

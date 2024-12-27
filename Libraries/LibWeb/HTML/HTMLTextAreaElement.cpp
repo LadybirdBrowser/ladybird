@@ -328,22 +328,22 @@ WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_rows(WebIDL::UnsignedLong row
 
 WebIDL::UnsignedLong HTMLTextAreaElement::selection_start_binding() const
 {
-    return selection_start().value();
+    return FormAssociatedTextControlElement::selection_start_binding().value();
 }
 
 WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_selection_start_binding(WebIDL::UnsignedLong const& value)
 {
-    return set_selection_start(value);
+    return FormAssociatedTextControlElement::set_selection_start_binding(value);
 }
 
 WebIDL::UnsignedLong HTMLTextAreaElement::selection_end_binding() const
 {
-    return selection_end().value();
+    return FormAssociatedTextControlElement::selection_end_binding().value();
 }
 
 WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_selection_end_binding(WebIDL::UnsignedLong const& value)
 {
-    return set_selection_end(value);
+    return FormAssociatedTextControlElement::set_selection_end_binding(value);
 }
 
 String HTMLTextAreaElement::selection_direction_binding() const

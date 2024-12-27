@@ -200,9 +200,7 @@ CSSPixelRect PaintableFragment::selection_rect() const
         }
         auto selection_start = text_control_element->selection_start();
         auto selection_end = text_control_element->selection_end();
-        if (!selection_start.has_value() || !selection_end.has_value())
-            return {};
-        return range_rect(selection_start.value(), selection_end.value());
+        return range_rect(selection_start, selection_end);
     }
     auto selection = paintable().document().get_selection();
     if (!selection)

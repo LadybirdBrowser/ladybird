@@ -60,11 +60,11 @@ interface HTMLInputElement : HTMLElement {
     readonly attribute NodeList? labels;
 
     undefined select();
-    attribute unsigned long? selectionStart;
-    attribute unsigned long? selectionEnd;
+    [ImplementedAs=selection_start_binding] attribute unsigned long? selectionStart;
+    [ImplementedAs=selection_end_binding] attribute unsigned long? selectionEnd;
     [ImplementedAs=selection_direction_binding] attribute DOMString? selectionDirection;
-    undefined setRangeText(DOMString replacement);
-    undefined setRangeText(DOMString replacement, unsigned long start, unsigned long end, optional SelectionMode selectionMode = "preserve");
+    [ImplementedAs=set_range_text_binding] undefined setRangeText(DOMString replacement);
+    [ImplementedAs=set_range_text_binding] undefined setRangeText(DOMString replacement, unsigned long start, unsigned long end, optional SelectionMode selectionMode = "preserve");
     undefined setSelectionRange(unsigned long start, unsigned long end, optional DOMString direction);
 
     undefined showPicker();
