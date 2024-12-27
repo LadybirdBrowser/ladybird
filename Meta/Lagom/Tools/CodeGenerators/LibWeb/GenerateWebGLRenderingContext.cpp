@@ -30,6 +30,10 @@ static bool is_webgl_object_type(StringView type_name)
 static bool gl_function_modifies_framebuffer(StringView function_name)
 {
     return function_name == "clear"sv
+        || function_name == "clearBufferfv"sv
+        || function_name == "clearBufferiv"sv
+        || function_name == "clearBufferuiv"sv
+        || function_name == "clearBufferfi"sv
         || function_name == "drawArrays"sv
         || function_name == "drawElements"sv
         || function_name == "drawElementsInstanced"sv
@@ -1445,6 +1449,66 @@ public:
         return;
     }
     glSamplerParameter@param_type@(sampler_handle, pname, param);
+)~~~");
+            continue;
+        }
+
+        if (function.name.starts_with("clearBuffer"sv) && function.name.ends_with('v')) {
+            auto element_type = function.name.substring_view(11, 2);
+            if (element_type == "fv"sv) {
+                function_impl_generator.set("cpp_element_type", "float"sv);
+                function_impl_generator.set("typed_array_type", "Float32Array"sv);
+                function_impl_generator.set("gl_postfix", "f"sv);
+            } else if (element_type == "iv"sv) {
+                function_impl_generator.set("cpp_element_type", "int"sv);
+                function_impl_generator.set("typed_array_type", "Int32Array"sv);
+                function_impl_generator.set("gl_postfix", "i"sv);
+            } else if (element_type == "ui"sv) {
+                function_impl_generator.set("cpp_element_type", "u32"sv);
+                function_impl_generator.set("typed_array_type", "Uint32Array"sv);
+                function_impl_generator.set("gl_postfix", "ui"sv);
+            } else {
+                VERIFY_NOT_REACHED();
+            }
+            function_impl_generator.append(R"~~~(
+    @cpp_element_type@ const* data = nullptr;
+    size_t count = 0;
+    if (values.has<Vector<@cpp_element_type@>>()) {
+        auto& vector = values.get<Vector<@cpp_element_type@>>();
+        data = vector.data();
+        count = vector.size();
+    } else if (values.has<GC::Root<WebIDL::BufferSource>>()) {
+        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*values.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
+        auto& typed_array = verify_cast<JS::@typed_array_type@>(typed_array_base);
+        data = typed_array.data().data();
+        count = typed_array.array_length().length();
+    } else {
+        VERIFY_NOT_REACHED();
+    }
+
+    switch (buffer) {
+    case GL_COLOR:
+        if (src_offset + 4 > count) {
+            set_error(GL_INVALID_VALUE);
+            return;
+        }
+        break;
+    case GL_DEPTH:
+    case GL_STENCIL:
+        if (src_offset + 1 > count) {
+            set_error(GL_INVALID_VALUE);
+            return;
+        }
+        break;
+    default:
+        dbgln("Unknown WebGL buffer target for buffer clearing: 0x{:04x}", buffer);
+        set_error(GL_INVALID_ENUM);
+        return;
+    }
+
+    data += src_offset;
+    glClearBuffer@gl_postfix@v(buffer, drawbuffer, data);
+    needs_to_present();
 )~~~");
             continue;
         }
