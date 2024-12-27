@@ -33,7 +33,7 @@ public:
     Optional<String> key(size_t index);
     Optional<String> get_item(StringView key) const;
     WebIDL::ExceptionOr<void> set_item(String const& key, String const& value);
-    void remove_item(StringView key);
+    void remove_item(String const& key);
     void clear();
 
     auto const& map() const { return m_map; }
@@ -55,7 +55,7 @@ private:
     virtual WebIDL::ExceptionOr<void> set_value_of_named_property(String const& key, JS::Value value) override;
 
     void reorder();
-    void broadcast(StringView key, StringView old_value, StringView new_value);
+    void broadcast(Optional<String> const& key, Optional<String> const& old_value, Optional<String> const& new_value);
 
     OrderedHashMap<String, String> m_map;
     Type m_type {};
