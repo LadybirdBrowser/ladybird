@@ -1404,6 +1404,43 @@ public:
             continue;
         }
 
+        if (function.name.starts_with("samplerParameter"sv)) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "sampler"sv, ""sv);
+            function_impl_generator.set("param_type", function.name.substring_view(16, 1));
+            // pname is given in the following table:
+            // - TEXTURE_COMPARE_FUNC
+            // - TEXTURE_COMPARE_MODE
+            // - TEXTURE_MAG_FILTER
+            // - TEXTURE_MAX_LOD
+            // - TEXTURE_MIN_FILTER
+            // - TEXTURE_MIN_LOD
+            // - TEXTURE_WRAP_R
+            // - TEXTURE_WRAP_S
+            // - TEXTURE_WRAP_T
+            // If pname is not in the table above, generates an INVALID_ENUM error.
+            // NOTE: We have to do this ourselves, as OpenGL does not.
+            function_impl_generator.append(R"~~~(
+    switch (pname) {
+    case GL_TEXTURE_COMPARE_FUNC:
+    case GL_TEXTURE_COMPARE_MODE:
+    case GL_TEXTURE_MAG_FILTER:
+    case GL_TEXTURE_MAX_LOD:
+    case GL_TEXTURE_MIN_FILTER:
+    case GL_TEXTURE_MIN_LOD:
+    case GL_TEXTURE_WRAP_R:
+    case GL_TEXTURE_WRAP_S:
+    case GL_TEXTURE_WRAP_T:
+        break;
+    default:
+        dbgln("Unknown WebGL sampler parameter name: 0x{:04x}", pname);
+        set_error(GL_INVALID_ENUM);
+        return;
+    }
+    glSamplerParameter@param_type@(sampler_handle, pname, param);
+)~~~");
+            continue;
+        }
+
         Vector<ByteString> gl_call_arguments;
         for (size_t i = 0; i < function.parameters.size(); ++i) {
             auto const& parameter = function.parameters[i];
