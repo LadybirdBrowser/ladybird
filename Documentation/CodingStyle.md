@@ -2,7 +2,7 @@
 
 For low-level styling (spaces, parentheses, brace placement, etc), all code should follow the format specified in `.clang-format` in the project root.
 
-**Important: Make sure you use `clang-format` version 18!**
+**Important: Make sure you use `clang-format` version 19!**
 
 This document describes the coding style used for C++ code in the Ladybird Browser project. All new code should conform to this style.
 
@@ -505,7 +505,7 @@ wrapping or to insert necessary punctuation such as adding `**` when a number is
 done using elements like `<sup>` which do not appear in the copied text.
 
 Please wrap long comments onto multiple lines so that they are easier to read. Generally, 120 characters is a good width
-to aim for. 
+to aim for.
 
 Use FIXME: (without attribution) to denote items that need to be addressed in the future.
 TODO: (without attribution) is also permitted.
