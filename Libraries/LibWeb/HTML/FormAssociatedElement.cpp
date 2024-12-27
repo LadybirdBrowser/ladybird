@@ -252,7 +252,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::select()
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectionstart
-Optional<WebIDL::UnsignedLong> FormAssociatedTextControlElement::selection_start() const
+Optional<WebIDL::UnsignedLong> FormAssociatedTextControlElement::selection_start_binding() const
 {
     // 1. If this element is an input element, and selectionStart does not apply to this element, return null.
     auto const& html_element = form_associated_element_to_html_element();
@@ -273,8 +273,13 @@ Optional<WebIDL::UnsignedLong> FormAssociatedTextControlElement::selection_start
     return m_selection_start < m_selection_end ? m_selection_start : m_selection_end;
 }
 
+WebIDL::UnsignedLong FormAssociatedTextControlElement::selection_start() const
+{
+    return m_selection_start < m_selection_end ? m_selection_start : m_selection_end;
+}
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#textFieldSelection:dom-textarea/input-selectionstart-2
-WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_start(Optional<WebIDL::UnsignedLong> const& value)
+WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_start_binding(Optional<WebIDL::UnsignedLong> const& value)
 {
     // 1. If this element is an input element, and selectionStart does not apply to this element,
     //    throw an "InvalidStateError" DOMException.
@@ -299,7 +304,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_start(
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-selectionend
-Optional<WebIDL::UnsignedLong> FormAssociatedTextControlElement::selection_end() const
+Optional<WebIDL::UnsignedLong> FormAssociatedTextControlElement::selection_end_binding() const
 {
     // 1. If this element is an input element, and selectionEnd does not apply to this element, return
     //    null.
@@ -321,8 +326,13 @@ Optional<WebIDL::UnsignedLong> FormAssociatedTextControlElement::selection_end()
     return m_selection_start < m_selection_end ? m_selection_end : m_selection_start;
 }
 
+WebIDL::UnsignedLong FormAssociatedTextControlElement::selection_end() const
+{
+    return m_selection_start < m_selection_end ? m_selection_end : m_selection_start;
+}
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#textFieldSelection:dom-textarea/input-selectionend-3
-WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_end(Optional<WebIDL::UnsignedLong> const& value)
+WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_end_binding(Optional<WebIDL::UnsignedLong> const& value)
 {
     // 1. If this element is an input element, and selectionEnd does not apply to this element,
     //    throw an "InvalidStateError" DOMException.
@@ -391,19 +401,28 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_selection_direct
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setrangetext
-WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(String const& replacement)
+WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text_binding(String const& replacement)
 {
-    return set_range_text(replacement, m_selection_start, m_selection_end);
+    return set_range_text_binding(replacement, m_selection_start, m_selection_end);
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setrangetext
+WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text_binding(String const& replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode selection_mode)
+{
+    auto& html_element = form_associated_element_to_html_element();
+
+    // 1. If this element is an input element, and setRangeText() does not apply to this element,
+    //    throw an "InvalidStateError" DOMException.
+    if (is<HTMLInputElement>(html_element) && !static_cast<HTMLInputElement&>(html_element).selection_or_range_applies())
+        return WebIDL::InvalidStateError::create(html_element.realm(), "setRangeText does not apply to this input type"_string);
+
+    return set_range_text(replacement, start, end, selection_mode);
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setrangetext
 WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(String const& replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode selection_mode)
 {
-    // 1. If this element is an input element, and setRangeText() does not apply to this element,
-    //    throw an "InvalidStateError" DOMException.
     auto& html_element = form_associated_element_to_html_element();
-    if (is<HTMLInputElement>(html_element) && !static_cast<HTMLInputElement&>(html_element).selection_or_range_applies())
-        return WebIDL::InvalidStateError::create(html_element.realm(), "setRangeText does not apply to this input type"_string);
 
     // 2. Set this element's dirty value flag to true.
     set_dirty_value_flag(true);
@@ -603,10 +622,7 @@ void FormAssociatedTextControlElement::handle_insert(String const& data)
     }
     auto selection_start = this->selection_start();
     auto selection_end = this->selection_end();
-    if (!selection_start.has_value() || !selection_end.has_value()) {
-        return;
-    }
-    MUST(set_range_text(data_for_insertion, selection_start.value(), selection_end.value(), Bindings::SelectionMode::End));
+    MUST(set_range_text(data_for_insertion, selection_start, selection_end, Bindings::SelectionMode::End));
 
     text_node->invalidate_style(DOM::StyleInvalidationReason::EditingInsertion);
     did_edit_text_node();
@@ -619,22 +635,19 @@ void FormAssociatedTextControlElement::handle_delete(DeleteDirection direction)
         return;
     auto selection_start = this->selection_start();
     auto selection_end = this->selection_end();
-    if (!selection_start.has_value() || !selection_end.has_value()) {
-        return;
-    }
     if (selection_start == selection_end) {
         if (direction == DeleteDirection::Backward) {
-            if (selection_start.value() > 0) {
-                MUST(set_range_text(String {}, selection_start.value() - 1, selection_end.value(), Bindings::SelectionMode::End));
+            if (selection_start > 0) {
+                MUST(set_range_text(String {}, selection_start - 1, selection_end, Bindings::SelectionMode::End));
             }
         } else {
-            if (selection_start.value() < text_node->data().code_points().length()) {
-                MUST(set_range_text(String {}, selection_start.value(), selection_end.value() + 1, Bindings::SelectionMode::End));
+            if (selection_start < text_node->data().code_points().length()) {
+                MUST(set_range_text(String {}, selection_start, selection_end + 1, Bindings::SelectionMode::End));
             }
         }
         return;
     }
-    MUST(set_range_text(String {}, selection_start.value(), selection_end.value(), Bindings::SelectionMode::End));
+    MUST(set_range_text(String {}, selection_start, selection_end, Bindings::SelectionMode::End));
 }
 
 void FormAssociatedTextControlElement::handle_return_key()
