@@ -830,6 +830,7 @@ details[open] > summary:first-of-type {
 marquee {
     display: inline-block;
     text-align: initial;
+    overflow: hidden !important;
 }
 
 /* 15.5.13 The meter element
