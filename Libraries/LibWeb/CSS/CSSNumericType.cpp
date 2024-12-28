@@ -127,15 +127,15 @@ Optional<CSSNumericType> CSSNumericType::added_to(CSSNumericType const& other) c
 
     // 2. If both type1 and type2 have non-null percent hints with different values
     if (type1.percent_hint().has_value() && type2.percent_hint().has_value() && type1.percent_hint() != type2.percent_hint()) {
-        // The types can’t be added. Return failure.
+        // The types can't be added. Return failure.
         return {};
     }
-    //    If type1 has a non-null percent hint hint and type2 doesn’t
+    //    If type1 has a non-null percent hint hint and type2 doesn't
     if (type1.percent_hint().has_value() && !type2.percent_hint().has_value()) {
         // Apply the percent hint hint to type2.
         type2.apply_percent_hint(type1.percent_hint().value());
     }
-    //    Vice versa if type2 has a non-null percent hint and type1 doesn’t.
+    //    Vice versa if type2 has a non-null percent hint and type1 doesn't.
     else if (type2.percent_hint().has_value() && !type1.percent_hint().has_value()) {
         type1.apply_percent_hint(type2.percent_hint().value());
     }
@@ -145,8 +145,8 @@ Optional<CSSNumericType> CSSNumericType::added_to(CSSNumericType const& other) c
     // 3. If all the entries of type1 with non-zero values are contained in type2 with the same value, and vice-versa
     if (type2.contains_all_the_non_zero_entries_of_other_with_the_same_value(type1)
         && type1.contains_all_the_non_zero_entries_of_other_with_the_same_value(type2)) {
-        // Copy all of type1’s entries to finalType, and then copy all of type2’s entries to finalType that
-        // finalType doesn’t already contain. Set finalType’s percent hint to type1’s percent hint. Return finalType.
+        // Copy all of type1's entries to finalType, and then copy all of type2's entries to finalType that
+        // finalType doesn't already contain. Set finalType's percent hint to type1's percent hint. Return finalType.
         final_type.copy_all_entries_from(type1, SkipIfAlreadyPresent::No);
         final_type.copy_all_entries_from(type2, SkipIfAlreadyPresent::Yes);
         final_type.set_percent_hint(type1.percent_hint());
@@ -154,7 +154,7 @@ Optional<CSSNumericType> CSSNumericType::added_to(CSSNumericType const& other) c
     }
     //    If type1 and/or type2 contain "percent" with a non-zero value,
     //    and type1 and/or type2 contain a key other than "percent" with a non-zero value
-    if ((type1.exponent(BaseType::Percent) != 0 || type2.exponent(BaseType::Percent) != 0)
+    if ((type1.exponent(BaseType::Percent).has_value() || type2.exponent(BaseType::Percent).has_value())
         && (type1.contains_a_key_other_than_percent_with_a_non_zero_value() || type2.contains_a_key_other_than_percent_with_a_non_zero_value())) {
         // For each base type other than "percent" hint:
         for (auto hint_int = 0; hint_int < to_underlying(BaseType::__Count); ++hint_int) {
@@ -169,9 +169,9 @@ Optional<CSSNumericType> CSSNumericType::added_to(CSSNumericType const& other) c
             provisional_type2.apply_percent_hint(hint);
 
             // 2. If, afterwards, all the entries of type1 with non-zero values are contained in type2
-            //    with the same value, and vice versa, then copy all of type1’s entries to finalType,
-            //    and then copy all of type2’s entries to finalType that finalType doesn’t already contain.
-            //    Set finalType’s percent hint to hint. Return finalType.
+            //    with the same value, and vice versa, then copy all of type1's entries to finalType,
+            //    and then copy all of type2's entries to finalType that finalType doesn't already contain.
+            //    Set finalType's percent hint to hint. Return finalType.
             if (provisional_type2.contains_all_the_non_zero_entries_of_other_with_the_same_value(provisional_type1)
                 && provisional_type1.contains_all_the_non_zero_entries_of_other_with_the_same_value(provisional_type2)) {
 
@@ -185,11 +185,11 @@ Optional<CSSNumericType> CSSNumericType::added_to(CSSNumericType const& other) c
             // NOTE: We did the modifications to provisional_type1/2 so this is a no-op.
         }
 
-        // If the loop finishes without returning finalType, then the types can’t be added. Return failure.
+        // If the loop finishes without returning finalType, then the types can't be added. Return failure.
         return {};
     }
     // Otherwise
-    //     The types can’t be added. Return failure.
+    //     The types can't be added. Return failure.
     return {};
 }
 
