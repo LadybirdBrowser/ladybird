@@ -54,6 +54,7 @@ public:
     [[nodiscard]] GC::Ref<PluginArray> plugins();
     [[nodiscard]] GC::Ref<Clipboard::Clipboard> clipboard();
     [[nodiscard]] GC::Ref<UserActivation> user_activation();
+    [[nodiscard]] GC::Ref<CredentialManagement::CredentialsContainer> credentials();
 
     Optional<FlyString> do_not_track() const;
 
@@ -90,6 +91,9 @@ private:
 
     // https://w3c.github.io/media-capabilities/#dom-navigator-mediacapabilities
     GC::Ptr<MediaCapabilitiesAPI::MediaCapabilities> m_media_capabilities;
+
+    // https://w3c.github.io/webappsec-credential-management/#framework-credential-management
+    GC::Ptr<CredentialManagement::CredentialsContainer> m_credentials;
 };
 
 }

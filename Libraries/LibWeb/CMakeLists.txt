@@ -36,6 +36,10 @@ set(SOURCES
     Clipboard/ClipboardItem.cpp
     Compression/CompressionStream.cpp
     Compression/DecompressionStream.cpp
+    CredentialManagement/Credential.cpp
+    CredentialManagement/CredentialsContainer.cpp
+    CredentialManagement/FederatedCredential.cpp
+    CredentialManagement/PasswordCredential.cpp
     Crypto/Crypto.cpp
     Crypto/CryptoAlgorithms.cpp
     Crypto/CryptoBindings.cpp

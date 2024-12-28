@@ -67,6 +67,8 @@ Comment
 CompositionEvent
 CompressionStream
 CountQueuingStrategy
+Credential
+CredentialsContainer
 Crypto
 CryptoKey
 CustomElementRegistry
@@ -106,6 +108,7 @@ EvalError
 Event
 EventSource
 EventTarget
+FederatedCredential
 File
 FileList
 FileReader
@@ -263,6 +266,7 @@ Option
 OscillatorNode
 PageTransitionEvent
 PannerNode
+PasswordCredential
 Path2D
 Performance
 PerformanceEntry
