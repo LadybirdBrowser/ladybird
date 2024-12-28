@@ -98,7 +98,7 @@ namespace Web::ARIA {
     __ENUMERATE_ARIA_ROLE(subscript, "subscript")                \
     __ENUMERATE_ARIA_ROLE(suggestion, "suggestion")              \
     __ENUMERATE_ARIA_ROLE(superscript, "superscript")            \
-    __ENUMERATE_ARIA_ROLE(switch_, "switch_")                    \
+    __ENUMERATE_ARIA_ROLE(switch_, "switch")                     \
     __ENUMERATE_ARIA_ROLE(tab, "tab")                            \
     __ENUMERATE_ARIA_ROLE(table, "table")                        \
     __ENUMERATE_ARIA_ROLE(tablist, "tablist")                    \
