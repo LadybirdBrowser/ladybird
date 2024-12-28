@@ -4741,6 +4741,10 @@ void Document::update_animations_and_send_events(Optional<double> const& timesta
 
     // 6. Perform a stable sort of the animation events in events to dispatch as follows:
     auto sort_events_by_composite_order = [](auto const& a, auto const& b) {
+        if (!a.animation->effect())
+            return true;
+        if (!b.animation->effect())
+            return false;
         auto& a_effect = verify_cast<Animations::KeyframeEffect>(*a.animation->effect());
         auto& b_effect = verify_cast<Animations::KeyframeEffect>(*b.animation->effect());
         return Animations::KeyframeEffect::composite_order(a_effect, b_effect) < 0;
