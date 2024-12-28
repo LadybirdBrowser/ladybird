@@ -185,6 +185,16 @@ WebIDL::ExceptionOr<void> HTMLCanvasElement::set_height(WebIDL::UnsignedLong val
     return {};
 }
 
+void HTMLCanvasElement::attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+{
+    Base::attribute_changed(local_name, old_value, value, namespace_);
+
+    if (local_name.equals_ignoring_ascii_case(HTML::AttributeNames::width) || local_name.equals_ignoring_ascii_case(HTML::AttributeNames::height)) {
+        notify_context_about_canvas_size_change();
+        reset_context_to_default_state();
+    }
+}
+
 GC::Ptr<Layout::Node> HTMLCanvasElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
 {
     return heap().allocate<Layout::CanvasBox>(document(), *this, move(style));

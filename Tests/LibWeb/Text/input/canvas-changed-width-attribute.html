@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+
+        canvas.setAttribute("width", "0");
+        canvas.toDataURL();
+
+        println("PASS (didn't crash)");
+    });
+</script>
