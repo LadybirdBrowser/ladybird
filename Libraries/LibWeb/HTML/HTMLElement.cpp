@@ -460,7 +460,7 @@ int HTMLElement::offset_top() const
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
     const_cast<DOM::Document&>(document()).update_layout();
 
-    if (!layout_node())
+    if (!paintable_box())
         return 0;
 
     CSSPixels top_border_edge_of_element = paintable_box()->absolute_border_box_rect().y();
@@ -502,7 +502,7 @@ int HTMLElement::offset_left() const
     // NOTE: Ensure that layout is up-to-date before looking at metrics.
     const_cast<DOM::Document&>(document()).update_layout();
 
-    if (!layout_node())
+    if (!paintable_box())
         return 0;
 
     CSSPixels left_border_edge_of_element = paintable_box()->absolute_border_box_rect().x();
