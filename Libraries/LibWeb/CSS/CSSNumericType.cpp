@@ -164,11 +164,19 @@ Optional<CSSNumericType> CSSNumericType::added_to(CSSNumericType const& other) c
 
             // 1. Provisionally apply the percent hint hint to both type1 and type2.
             auto provisional_type1 = type1;
-            provisional_type1.apply_percent_hint(hint);
             auto provisional_type2 = type2;
-            provisional_type2.apply_percent_hint(hint);
 
-            // 2. If, afterwards, all the entries of type1 with non-zero values are contained in type2
+            // 2. If type1 does not have percent hint hint, apply the percent hint hint to type1.
+            if (!type1.percent_hint().has_value()) {
+                provisional_type1.apply_percent_hint(hint);
+            }
+            
+            //    Vice versa for type2.
+            if (!type2.percent_hint().has_value()) {
+                provisional_type2.apply_percent_hint(hint);
+            }
+
+            // 3. If, afterwards, all the entries of type1 with non-zero values are contained in type2
             //    with the same value, and vice versa, then copy all of type1’s entries to finalType,
             //    and then copy all of type2’s entries to finalType that finalType doesn’t already contain.
             //    Set finalType’s percent hint to hint. Return finalType.
@@ -181,7 +189,7 @@ Optional<CSSNumericType> CSSNumericType::added_to(CSSNumericType const& other) c
                 return final_type;
             }
 
-            // 3. Otherwise, revert type1 and type2 to their state at the start of this loop.
+            // 4. Otherwise, revert type1 and type2 to their state at the start of this loop.
             // NOTE: We did the modifications to provisional_type1/2 so this is a no-op.
         }
 
