@@ -725,7 +725,7 @@ Optional<ARIA::Role> HTMLElement::default_role() const
     if (local_name() == TagNames::aside) {
         // https://w3c.github.io/html-aam/#el-aside
         for (auto const* ancestor = parent_element(); ancestor; ancestor = ancestor->parent_element()) {
-            if (first_is_one_of(ancestor->local_name(), TagNames::article, TagNames::aside, TagNames::nav, TagNames::section)
+            if (ancestor->local_name().is_one_of(TagNames::article, TagNames::aside, TagNames::nav, TagNames::section)
                 && accessible_name(document()).value().is_empty())
                 return ARIA::Role::generic;
         }
@@ -769,7 +769,7 @@ Optional<ARIA::Role> HTMLElement::default_role() const
         // complementary, main, navigation or region then (footer) role=contentinfo (header) role=banner. Otherwise,
         // role=generic.
         for (auto const* ancestor = parent_element(); ancestor; ancestor = ancestor->parent_element()) {
-            if (first_is_one_of(ancestor->local_name(), TagNames::article, TagNames::aside, TagNames::main, TagNames::nav, TagNames::section)) {
+            if (ancestor->local_name().is_one_of(TagNames::article, TagNames::aside, TagNames::main, TagNames::nav, TagNames::section)) {
                 if (local_name() == TagNames::footer)
                     return ARIA::Role::sectionfooter;
                 return ARIA::Role::sectionheader;
