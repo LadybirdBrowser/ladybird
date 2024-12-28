@@ -17,7 +17,7 @@ class PopoverInvokerElement {
 public:
     PopoverInvokerElement() { }
 
-    GC::Ptr<DOM::Element> get_popover_target_element() { return m_popover_target_element; }
+    GC::Ptr<DOM::Element> popover_target_element() { return m_popover_target_element; }
 
     void set_popover_target_element(GC::Ptr<DOM::Element> value) { m_popover_target_element = value; }
 

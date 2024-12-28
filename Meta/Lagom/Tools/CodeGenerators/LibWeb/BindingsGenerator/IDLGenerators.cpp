@@ -3821,7 +3821,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
                 //      1. If reflectedTarget's explicitly set attr-element is a descendant of any of element's shadow-including ancestors, then return reflectedTarget's explicitly set attr-element.
                 //      2. Return null.
                 attribute_generator.append(R"~~~(
-    auto const explicitly_set_attr = TRY(throw_dom_exception_if_needed(vm, [&] { return impl->get_@attribute.cpp_name@(); }));
+    auto const explicitly_set_attr = TRY(throw_dom_exception_if_needed(vm, [&] { return impl->@attribute.cpp_name@(); }));
     if (explicitly_set_attr) {
         if (&impl->shadow_including_root() == &explicitly_set_attr->shadow_including_root()) {
             retval = explicitly_set_attr;
