@@ -1,0 +1,240 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>CSSTransition.effect</title>
+<!-- TODO: Add a more specific link for this once it is specified. -->
+<link rel="help" href="https://drafts.csswg.org/css-transitions-2/#csstransition">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src='support/helper.js'></script>
+<div id="log"></div>
+<script>
+'use strict';
+
+function singleFrame() {
+  return new Promise((resolve, reject) => {
+    requestAnimationFrame(resolve);
+  });
+}
+
+test(t => {
+  const div = addDiv(t);
+  div.style.left = '0px';
+
+  div.style.transition = 'left 100s';
+  getComputedStyle(div).left;
+  div.style.left = '100px';
+
+  const transition = div.getAnimations()[0];
+
+  transition.effect = null;
+
+  assert_equals(transition.transitionProperty, 'left');
+}, 'After setting a transition\'s effect to null, it still reports the'
+   + ' original transition property');
+
+promise_test(async t => {
+  const div = addDiv(t);
+  div.style.left = '0px';
+
+  div.style.transition = 'left 100s';
+  getComputedStyle(div).left;
+  div.style.left = '100px';
+
+  const transition = div.getAnimations()[0];
+  await transition.ready;
+
+  transition.effect = null;
+  assert_equals(transition.playState, 'finished');
+}, 'After setting a transition\'s effect to null, it becomes finished');
+
+promise_test(async t => {
+  const div = addDiv(t);
+  div.style.left = '0px';
+
+  div.style.transition = 'left 100s';
+  getComputedStyle(div).left;
+  div.style.left = '100px';
+
+  const transition = div.getAnimations()[0];
+  await transition.ready;
+
+  transition.effect = null;
+  assert_equals(getComputedStyle(div).left, '100px');
+}, 'After setting a transition\'s effect to null, style is updated');
+
+// This is a regression test for https://crbug.com/964113, where Chromium would
+// crash if the running transition's effect was set to null and a new transition
+// was started before the running one could finish.
+promise_test(async t => {
+  const div = addDiv(t);
+  div.style.left = '0px';
+
+  div.style.transition = 'left 100s';
+  getComputedStyle(div).left;
+  div.style.left = '100px';
+
+  assert_equals(div.getAnimations().length, 1);
+
+  const transition = div.getAnimations()[0];
+  await transition.ready;
+
+  // Without yielding to the rendering loop, set the current transition's
+  // effect to null and start a new transition. This should work correctly.
+  transition.effect = null;
+
+  div.style.left = '150px';
+
+  // This will run style update.
+  const animations = div.getAnimations();
+  assert_equals(animations.length, 1);
+
+  const new_transition = animations[0];
+  await new_transition.ready;
+
+  assert_not_equals(getComputedStyle(div).left, '150px');
+}, 'After setting a transition\'s effect to null, a new transition can be started');
+
+// This is a regression test for https://crbug.com/992668, where Chromium would
+// crash if the running transition's effect was set to null and the transition
+// was interrupted before it could finish due to the null effect.
+promise_test(async t => {
+  const div = addDiv(t);
+  div.style.left = '0px';
+
+  div.style.transition = 'left 100s';
+  getComputedStyle(div).left;
+  div.style.left = '100px';
+
+  assert_equals(div.getAnimations().length, 1);
+
+  const transition = div.getAnimations()[0];
+  await transition.ready;
+
+  // The transition needs to have a non-zero currentTime for the interruption
+  // reversal logic to apply.
+  while (getComputedStyle(div).left == '0px') {
+    await singleFrame();
+  }
+  assert_not_equals(transition.currentTime, 0);
+
+  // Without yielding to the rendering loop, set the current transition's
+  // effect to null and interrupt the transition. This should work correctly.
+  transition.effect = null;
+  div.style.left = '0px';
+
+  // Yield to the rendering loop. This should not crash.
+  await singleFrame();
+}, 'After setting a transition\'s effect to null, it should be possible to '
+    + 'interrupt that transition');
+
+promise_test(async t => {
+  const div = addDiv(t);
+  div.style.left = '0px';
+  div.style.width = '0px';
+
+  div.style.transition = 'left 100s';
+  getComputedStyle(div).left;
+  div.style.left = '100px';
+
+  const transition = div.getAnimations()[0];
+  await transition.ready;
+
+  transition.currentTime = 50 * MS_PER_SEC;
+  transition.effect = new KeyframeEffect(div,
+                                         { left: [ '0px' , '100px'] },
+                                         20 * MS_PER_SEC);
+
+  assert_equals(transition.playState, 'finished');
+}, 'After setting a new keyframe effect with a shorter duration,'
+   + ' the transition becomes finished');
+
+promise_test(async t => {
+  const div = addDiv(t);
+  div.style.left = '0px';
+  div.style.width = '0px';
+
+  div.style.transition = 'left 100s';
+  getComputedStyle(div).left;
+  div.style.left = '100px';
+
+  const transition = div.getAnimations()[0];
+  transition.effect = new KeyframeEffect(div,
+                                         { marginLeft: [ '0px' , '100px'] },
+                                         100 * MS_PER_SEC);
+  assert_equals(transition.transitionProperty, 'left');
+}, 'After setting a new keyframe effect targeting different properties,'
+   + ' the transition continues to report the original transition property');
+
+promise_test(async t => {
+  const div = addDiv(t);
+  div.style.left = '0px';
+  div.style.width = '0px';
+
+  div.style.transition = 'left 100s';
+  getComputedStyle(div).left;
+  div.style.left = '100px';
+
+  const transition = div.getAnimations()[0];
+  assert_true(transition.pending);
+
+  transition.effect = new KeyframeEffect(div,
+                                         { marginLeft: [ '0px' , '100px'] },
+                                         100 * MS_PER_SEC);
+  assert_true(transition.pending);
+
+  // As a sanity check, check that the transition actually exits the
+  // pending state.
+  await transition.ready;
+  assert_false(transition.pending);
+}, 'After setting a new keyframe effect on a play-pending transition,'
+   + ' the transition remains pending');
+
+test(t => {
+  const div = addDiv(t);
+
+  div.style.left = '0px';
+  getComputedStyle(div).transitionProperty;
+  div.style.transition = 'left 100s';
+  div.style.left = '100px';
+
+  const transition = div.getAnimations()[0];
+  transition.effect = null;
+
+  assert_equals(transition.transitionProperty, 'left');
+}, 'A transition with no effect still returns the original transitionProperty');
+
+test(t => {
+  const div = addDiv(t);
+
+  div.style.left = '0px';
+  getComputedStyle(div).transitionProperty;
+  div.style.transition = 'left 100s';
+  div.style.left = '100px';
+
+  const transition = div.getAnimations()[0];
+
+  // Seek to the middle and get the portion.
+  transition.currentTime = 50 * MS_PER_SEC;
+  const portion = transition.effect.getComputedTiming().progress;
+
+  // Replace the effect but keep the original timing
+  transition.effect = new KeyframeEffect(
+    div,
+    { top: ['200px', '300px', '100px'] },
+    transition.effect.getTiming()
+  );
+
+  // Reverse the transition
+  div.style.left = '0px';
+  const reversedTransition = div.getAnimations()[0];
+
+  const expectedDuration = 100 * MS_PER_SEC * portion;
+  assert_approx_equals(
+    reversedTransition.effect.getComputedTiming().activeDuration,
+    expectedDuration,
+    1
+  );
+}, 'A transition with a replaced effect still exhibits the regular transition'
+   + ' reversing behavior');
+
+</script>
