@@ -829,6 +829,13 @@ void Parser::parse_typedef(Interface& interface)
 
 void Parser::parse_dictionary(Interface& interface)
 {
+    bool partial = false;
+    if (lexer.next_is("partial")) {
+        assert_string("partial"sv);
+        consume_whitespace();
+        partial = true;
+    }
+
     assert_string("dictionary"sv);
     consume_whitespace();
 
@@ -896,7 +903,13 @@ void Parser::parse_dictionary(Interface& interface)
         return one.name < two.name;
     });
 
-    interface.dictionaries.set(name, move(dictionary));
+    if (partial) {
+        auto& it = interface.partial_dictionaries.ensure(name);
+        it.append(move(dictionary));
+    } else {
+        interface.dictionaries.set(name, move(dictionary));
+    }
+
     consume_whitespace();
 }
 
@@ -952,7 +965,7 @@ void Parser::parse_non_interface_entities(bool allow_interface, Interface& inter
         HashMap<ByteString, ByteString> extended_attributes;
         if (lexer.consume_specific('['))
             extended_attributes = parse_extended_attributes();
-        if (lexer.next_is("dictionary")) {
+        if (lexer.next_is("dictionary") || lexer.next_is("partial dictionary")) {
             parse_dictionary(interface);
         } else if (lexer.next_is("enum")) {
             parse_enumeration(extended_attributes, interface);
@@ -1093,6 +1106,11 @@ Interface& Parser::parse()
         for (auto& dictionary : import.dictionaries)
             interface.dictionaries.set(dictionary.key, dictionary.value);
 
+        for (auto& partial_dictionary : import.partial_dictionaries) {
+            auto& it = interface.partial_dictionaries.ensure(partial_dictionary.key);
+            it.extend(partial_dictionary.value);
+        }
+
         for (auto& enumeration : import.enumerations) {
             auto enumeration_copy = enumeration.value;
             enumeration_copy.is_original_definition = false;
@@ -1171,6 +1189,11 @@ Interface& Parser::parse()
     for (auto& dictionary : interface.dictionaries) {
         for (auto& dictionary_member : dictionary.value.members)
             resolve_typedef(interface, dictionary_member.type, &dictionary_member.extended_attributes);
+    }
+    for (auto& dictionaries : interface.partial_dictionaries) {
+        for (auto& dictionary : dictionaries.value)
+            for (auto& dictionary_member : dictionary.members)
+                resolve_typedef(interface, dictionary_member.type, &dictionary_member.extended_attributes);
     }
     for (auto& callback_function : interface.callback_functions)
         resolve_function_typedefs(interface, callback_function.value);
