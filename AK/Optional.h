@@ -120,20 +120,6 @@ public:
         return TRY(callback());
     }
 
-    template<typename O>
-    ALWAYS_INLINE bool operator==(Optional<O> const& other) const
-    {
-        return static_cast<Self const&>(*this).has_value() == (other).has_value()
-            && (!static_cast<Self const&>(*this).has_value() || static_cast<Self const&>(*this).value() == (other).value());
-    }
-
-    template<typename O>
-    requires(!Detail::IsBaseOf<OptionalBase<T, Self>, O>)
-    ALWAYS_INLINE bool operator==(O const& other) const
-    {
-        return static_cast<Self const&>(*this).has_value() && static_cast<Self const&>(*this).value() == other;
-    }
-
     [[nodiscard]] ALWAYS_INLINE T const& operator*() const { return static_cast<Self const&>(*this).value(); }
     [[nodiscard]] ALWAYS_INLINE T& operator*() { return static_cast<Self&>(*this).value(); }
 
@@ -260,18 +246,6 @@ public:
             }
         }
         return *this;
-    }
-
-    template<typename O>
-    ALWAYS_INLINE bool operator==(Optional<O> const& other) const
-    {
-        return has_value() == other.has_value() && (!has_value() || value() == other.value());
-    }
-
-    template<typename O>
-    ALWAYS_INLINE bool operator==(O const& other) const
-    {
-        return has_value() && value() == other;
     }
 
     ALWAYS_INLINE ~Optional()
@@ -488,18 +462,6 @@ public:
         return *exchange(m_pointer, nullptr);
     }
 
-    template<typename U>
-    ALWAYS_INLINE bool operator==(Optional<U> const& other) const
-    {
-        return has_value() == other.has_value() && (!has_value() || value() == other.value());
-    }
-
-    template<typename U>
-    ALWAYS_INLINE bool operator==(U const& other) const
-    {
-        return has_value() && value() == other;
-    }
-
     ALWAYS_INLINE AddConstToReferencedType<T> operator*() const { return value(); }
     ALWAYS_INLINE T operator*() { return value(); }
 
@@ -594,6 +556,19 @@ public:
 private:
     RemoveReference<T>* m_pointer { nullptr };
 };
+
+template<typename T1, typename T2>
+ALWAYS_INLINE bool operator==(Optional<T1> const& first, Optional<T2> const& second)
+{
+    return first.has_value() == second.has_value()
+        && (!first.has_value() || first.value() == second.value());
+}
+
+template<typename T1, typename T2>
+ALWAYS_INLINE bool operator==(Optional<T1> const& first, T2 const& second)
+{
+    return first.has_value() && first.value() == second;
+}
 
 }
 
