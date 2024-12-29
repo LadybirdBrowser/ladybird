@@ -155,18 +155,6 @@ public:
         return *this;
     }
 
-    template<typename O>
-    ALWAYS_INLINE bool operator==(Optional<O> const& other) const
-    {
-        return has_value() == other.has_value() && (!has_value() || value() == other.value());
-    }
-
-    template<typename O>
-    ALWAYS_INLINE bool operator==(O const& other) const
-    {
-        return has_value() && value() == other;
-    }
-
     void clear()
     {
         m_value = FlyString(nullptr);
