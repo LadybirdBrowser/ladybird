@@ -29,6 +29,12 @@ void HTMLLabelElement::initialize(JS::Realm& realm)
 
 GC::Ptr<Layout::Node> HTMLLabelElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
 {
+    bool const has_control = (control() != nullptr);
+    bool const is_child_text_empty = this->child_text_content().is_empty();
+
+    if (!has_control && is_child_text_empty) // Skip layout for an empty label that controls nothing.
+        return nullptr;
+
     return heap().allocate<Layout::Label>(document(), this, move(style));
 }
 
