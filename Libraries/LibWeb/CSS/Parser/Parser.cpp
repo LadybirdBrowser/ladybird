@@ -4291,7 +4291,8 @@ RefPtr<CSSStyleValue> Parser::parse_background_value(TokenStream<ComponentValue>
     };
 
     StyleValueVector background_images;
-    StyleValueVector background_positions;
+    StyleValueVector background_position_xs;
+    StyleValueVector background_position_ys;
     StyleValueVector background_sizes;
     StyleValueVector background_repeats;
     StyleValueVector background_attachments;
@@ -4300,7 +4301,8 @@ RefPtr<CSSStyleValue> Parser::parse_background_value(TokenStream<ComponentValue>
     RefPtr<CSSStyleValue> background_color;
 
     auto initial_background_image = property_initial_value(PropertyID::BackgroundImage);
-    auto initial_background_position = property_initial_value(PropertyID::BackgroundPosition);
+    auto initial_background_position_x = property_initial_value(PropertyID::BackgroundPositionX);
+    auto initial_background_position_y = property_initial_value(PropertyID::BackgroundPositionY);
     auto initial_background_size = property_initial_value(PropertyID::BackgroundSize);
     auto initial_background_repeat = property_initial_value(PropertyID::BackgroundRepeat);
     auto initial_background_attachment = property_initial_value(PropertyID::BackgroundAttachment);
@@ -4310,7 +4312,8 @@ RefPtr<CSSStyleValue> Parser::parse_background_value(TokenStream<ComponentValue>
 
     // Per-layer values
     RefPtr<CSSStyleValue> background_image;
-    RefPtr<CSSStyleValue> background_position;
+    RefPtr<CSSStyleValue> background_position_x;
+    RefPtr<CSSStyleValue> background_position_y;
     RefPtr<CSSStyleValue> background_size;
     RefPtr<CSSStyleValue> background_repeat;
     RefPtr<CSSStyleValue> background_attachment;
@@ -4337,12 +4340,13 @@ RefPtr<CSSStyleValue> Parser::parse_background_value(TokenStream<ComponentValue>
             if (background_color)
                 return false;
         }
-        return background_image || background_position || background_size || background_repeat || background_attachment || background_clip || background_origin;
+        return background_image || background_position_x || background_position_y || background_size || background_repeat || background_attachment || background_clip || background_origin;
     };
 
     auto complete_background_layer = [&]() {
         background_images.append(background_image ? background_image.release_nonnull() : initial_background_image);
-        background_positions.append(background_position ? background_position.release_nonnull() : initial_background_position);
+        background_position_xs.append(background_position_x ? background_position_x.release_nonnull() : initial_background_position_x);
+        background_position_ys.append(background_position_y ? background_position_y.release_nonnull() : initial_background_position_y);
         background_sizes.append(background_size ? background_size.release_nonnull() : initial_background_size);
         background_repeats.append(background_repeat ? background_repeat.release_nonnull() : initial_background_repeat);
         background_attachments.append(background_attachment ? background_attachment.release_nonnull() : initial_background_attachment);
@@ -4357,7 +4361,8 @@ RefPtr<CSSStyleValue> Parser::parse_background_value(TokenStream<ComponentValue>
         background_clips.append(background_clip.release_nonnull());
 
         background_image = nullptr;
-        background_position = nullptr;
+        background_position_x = nullptr;
+        background_position_y = nullptr;
         background_size = nullptr;
         background_repeat = nullptr;
         background_attachment = nullptr;
@@ -4421,8 +4426,10 @@ RefPtr<CSSStyleValue> Parser::parse_background_value(TokenStream<ComponentValue>
             continue;
         }
         case PropertyID::BackgroundPosition: {
-            VERIFY(!background_position);
-            background_position = value.release_nonnull();
+            VERIFY(!background_position_x && !background_position_y);
+            auto position = value.release_nonnull();
+            background_position_x = position->as_position().edge_x();
+            background_position_y = position->as_position().edge_y();
 
             // Attempt to parse `/ <background-size>`
             auto background_size_transaction = tokens.begin_transaction();
@@ -4467,7 +4474,10 @@ RefPtr<CSSStyleValue> Parser::parse_background_value(TokenStream<ComponentValue>
         return make_background_shorthand(
             background_color.release_nonnull(),
             StyleValueList::create(move(background_images), StyleValueList::Separator::Comma),
-            StyleValueList::create(move(background_positions), StyleValueList::Separator::Comma),
+            ShorthandStyleValue::create(PropertyID::BackgroundPosition,
+                { PropertyID::BackgroundPositionX, PropertyID::BackgroundPositionY },
+                { StyleValueList::create(move(background_position_xs), StyleValueList::Separator::Comma),
+                    StyleValueList::create(move(background_position_ys), StyleValueList::Separator::Comma) }),
             StyleValueList::create(move(background_sizes), StyleValueList::Separator::Comma),
             StyleValueList::create(move(background_repeats), StyleValueList::Separator::Comma),
             StyleValueList::create(move(background_attachments), StyleValueList::Separator::Comma),
@@ -4479,8 +4489,10 @@ RefPtr<CSSStyleValue> Parser::parse_background_value(TokenStream<ComponentValue>
         background_color = initial_background_color;
     if (!background_image)
         background_image = initial_background_image;
-    if (!background_position)
-        background_position = initial_background_position;
+    if (!background_position_x)
+        background_position_x = initial_background_position_x;
+    if (!background_position_y)
+        background_position_y = initial_background_position_y;
     if (!background_size)
         background_size = initial_background_size;
     if (!background_repeat)
@@ -4499,7 +4511,9 @@ RefPtr<CSSStyleValue> Parser::parse_background_value(TokenStream<ComponentValue>
     return make_background_shorthand(
         background_color.release_nonnull(),
         background_image.release_nonnull(),
-        background_position.release_nonnull(),
+        ShorthandStyleValue::create(PropertyID::BackgroundPosition,
+            { PropertyID::BackgroundPositionX, PropertyID::BackgroundPositionY },
+            { background_position_x.release_nonnull(), background_position_y.release_nonnull() }),
         background_size.release_nonnull(),
         background_repeat.release_nonnull(),
         background_attachment.release_nonnull(),
