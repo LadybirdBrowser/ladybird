@@ -1,0 +1,24 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x24 children: inline
+      frag 0 from Label start: 0, length: 0, rect: [8,29 0x0] baseline: 0
+      frag 1 from TextNode start: 0, length: 1, rect: [8,15 8x17] baseline: 13.296875
+          " "
+      frag 2 from BlockContainer start: 0, length: 0, rect: [17,9 198x19] baseline: 21
+      Label <label> at (8,29) content-size 0x0 inline-block [BFC] children: not-inline
+      TextNode <#text>
+      BlockContainer <input#hello> at (17,9) content-size 198x19 inline-block [BFC] children: not-inline
+        Box <div> at (19,10) content-size 194x17 flex-container(row) [FFC] children: not-inline
+          BlockContainer <div> at (19,10) content-size 194x17 flex-item [BFC] children: inline
+            TextNode <#text>
+      TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x24]
+      PaintableWithLines (Label<LABEL>) [8,29 0x0]
+      TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<INPUT>#hello) [16,8 200x21]
+        PaintableBox (Box<DIV>) [17,9 198x19]
+          PaintableWithLines (BlockContainer<DIV>) [19,10 194x17]
+
