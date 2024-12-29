@@ -428,7 +428,12 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
 #endif
 
     tests.remove_all_matching([&](auto const& test) {
-        bool is_support_file = test.input_path.matches("*/wpt-import/*/support/*"sv);
+        static constexpr Array support_file_patterns {
+            "*/wpt-import/*/support/*"sv,
+            "*/wpt-import/*/resources/*"sv,
+            "*/wpt-import/common/*"sv,
+        };
+        bool is_support_file = any_of(support_file_patterns, [&](auto pattern) { return test.input_path.matches(pattern); });
         bool match_glob = test.input_path.matches(test_glob, CaseSensitivity::CaseSensitive);
         return is_support_file || !match_glob;
     });
