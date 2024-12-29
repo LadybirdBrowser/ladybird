@@ -897,11 +897,23 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 
     @parameter.type.name@ @cpp_name@ {};
 )~~~");
-        auto* current_dictionary = &interface.dictionaries.find(parameter.type->name())->value;
+        auto current_dictionary_name = parameter.type->name();
+        auto* current_dictionary = &interface.dictionaries.find(current_dictionary_name)->value;
         // FIXME: This (i) is a hack to make sure we don't generate duplicate variable names.
         static auto i = 0;
         while (true) {
-            for (auto& member : current_dictionary->members) {
+            Vector<DictionaryMember> members;
+            for (auto& member : current_dictionary->members)
+                members.append(member);
+
+            if (interface.partial_dictionaries.contains(current_dictionary_name)) {
+                auto& partial_dictionaries = interface.partial_dictionaries.find(current_dictionary_name)->value;
+                for (auto& partial_dictionary : partial_dictionaries)
+                    for (auto& member : partial_dictionary.members)
+                        members.append(member);
+            }
+
+            for (auto& member : members) {
                 dictionary_generator.set("member_key", member.name);
                 auto member_js_name = make_input_acceptable_cpp(member.name.to_snakecase());
                 auto member_value_name = ByteString::formatted("{}_value_{}", member_js_name, i);
@@ -953,7 +965,8 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
             if (current_dictionary->parent_name.is_empty())
                 break;
             VERIFY(interface.dictionaries.contains(current_dictionary->parent_name));
-            current_dictionary = &interface.dictionaries.find(current_dictionary->parent_name)->value;
+            current_dictionary_name = current_dictionary->parent_name;
+            current_dictionary = &interface.dictionaries.find(current_dictionary_name)->value;
         }
     } else if (interface.callback_functions.contains(parameter.type->name())) {
         // https://webidl.spec.whatwg.org/#es-callback-function

@@ -297,6 +297,7 @@ public:
     Optional<Function> named_property_deleter;
 
     HashMap<ByteString, Dictionary> dictionaries;
+    HashMap<ByteString, Vector<Dictionary>> partial_dictionaries;
     HashMap<ByteString, Enumeration> enumerations;
     HashMap<ByteString, Typedef> typedefs;
     HashMap<ByteString, Interface*> mixins;
