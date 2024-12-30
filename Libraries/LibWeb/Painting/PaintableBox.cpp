@@ -924,16 +924,12 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
     auto position_adjusted_by_scroll_offset = position;
     position_adjusted_by_scroll_offset.translate_by(-cumulative_offset_of_enclosing_scroll_frame());
 
-    // NOTE: This CSSPixels -> Float -> CSSPixels conversion is because we can't AffineTransform::map() a CSSPixelPoint.
-    Gfx::FloatPoint offset_position {
-        (position_adjusted_by_scroll_offset.x() - transform_origin().x()).to_float(),
-        (position_adjusted_by_scroll_offset.y() - transform_origin().y()).to_float()
-    };
-    auto transformed_position_adjusted_by_scroll_offset = combined_css_transform().inverse().value_or({}).map(offset_position).to_type<CSSPixels>() + transform_origin();
-
     // TextCursor hit testing mode should be able to place cursor in contenteditable elements even if they are empty
-    auto is_editable = layout_node_with_style_and_box_metrics().dom_node() && layout_node_with_style_and_box_metrics().dom_node()->is_editable();
-    if (is_editable && m_fragments.is_empty() && !has_children() && type == HitTestType::TextCursor) {
+    if (m_fragments.is_empty()
+        && !has_children()
+        && type == HitTestType::TextCursor
+        && layout_node_with_style_and_box_metrics().dom_node()
+        && layout_node_with_style_and_box_metrics().dom_node()->is_editable()) {
         HitTestResult const hit_test_result {
             .paintable = const_cast<PaintableWithLines&>(*this),
             .index_in_node = 0,
@@ -947,6 +943,13 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
     if (!layout_node_with_style_and_box_metrics().children_are_inline() || m_fragments.is_empty()) {
         return PaintableBox::hit_test(position, type, callback);
     }
+
+    // NOTE: This CSSPixels -> Float -> CSSPixels conversion is because we can't AffineTransform::map() a CSSPixelPoint.
+    Gfx::FloatPoint offset_position {
+        (position_adjusted_by_scroll_offset.x() - transform_origin().x()).to_float(),
+        (position_adjusted_by_scroll_offset.y() - transform_origin().y()).to_float()
+    };
+    auto transformed_position_adjusted_by_scroll_offset = combined_css_transform().inverse().value_or({}).map(offset_position).to_type<CSSPixels>() + transform_origin();
 
     if (hit_test_scrollbars(transformed_position_adjusted_by_scroll_offset, callback) == TraversalDecision::Break)
         return TraversalDecision::Break;
