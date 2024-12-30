@@ -289,7 +289,7 @@ interface mixin WebGL2RenderingContextBase {
     const GLenum MAX_CLIENT_WAIT_TIMEOUT_WEBGL = 0x9247;
 
     // Buffer objects
-    [FIXME] undefined copyBufferSubData(GLenum readTarget, GLenum writeTarget, GLintptr readOffset, GLintptr writeOffset, GLsizeiptr size);
+    undefined copyBufferSubData(GLenum readTarget, GLenum writeTarget, GLintptr readOffset, GLintptr writeOffset, GLsizeiptr size);
     // MapBufferRange, in particular its read-only and write-only modes,
     // can not be exposed safely to JavaScript. GetBufferSubData
     // replaces it for the purpose of fetching data back from the GPU.
