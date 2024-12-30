@@ -337,10 +337,10 @@ interface mixin WebGL2RenderingContextBase {
     [FIXME] GLint getFragDataLocation(WebGLProgram program, DOMString name); // [WebGLHandlesContextLoss]
 
     // Uniforms
-    [FIXME] undefined uniform1ui(WebGLUniformLocation? location, GLuint v0);
-    [FIXME] undefined uniform2ui(WebGLUniformLocation? location, GLuint v0, GLuint v1);
-    [FIXME] undefined uniform3ui(WebGLUniformLocation? location, GLuint v0, GLuint v1, GLuint v2);
-    [FIXME] undefined uniform4ui(WebGLUniformLocation? location, GLuint v0, GLuint v1, GLuint v2, GLuint v3);
+    undefined uniform1ui(WebGLUniformLocation? location, GLuint v0);
+    undefined uniform2ui(WebGLUniformLocation? location, GLuint v0, GLuint v1);
+    undefined uniform3ui(WebGLUniformLocation? location, GLuint v0, GLuint v1, GLuint v2);
+    undefined uniform4ui(WebGLUniformLocation? location, GLuint v0, GLuint v1, GLuint v2, GLuint v3);
 
     [FIXME] undefined uniform1uiv(WebGLUniformLocation? location, Uint32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
     [FIXME] undefined uniform2uiv(WebGLUniformLocation? location, Uint32List data, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
