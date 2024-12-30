@@ -897,7 +897,17 @@ public:
             function_impl_generator.append(R"~~~(
     GLint result = 0;
     glGetShaderiv(shader_handle, pname, &result);
-    return JS::Value(result);
+    switch (pname) {
+    case GL_SHADER_TYPE:
+        return JS::Value(result);
+    case GL_DELETE_STATUS:
+    case GL_COMPILE_STATUS:
+        return JS::Value(result == GL_TRUE);
+    default:
+        dbgln("Unknown WebGL shader parameter name: 0x{:04x}", pname);
+        set_error(GL_INVALID_ENUM);
+        return JS::js_null();
+    }
 )~~~");
             continue;
         }
@@ -907,7 +917,31 @@ public:
             function_impl_generator.append(R"~~~(
     GLint result = 0;
     glGetProgramiv(program_handle, pname, &result);
-    return JS::Value(result);
+    switch (pname) {
+    case GL_ATTACHED_SHADERS:
+    case GL_ACTIVE_ATTRIBUTES:
+    case GL_ACTIVE_UNIFORMS:
+)~~~");
+
+            if (webgl_version == 2) {
+                function_impl_generator.append(R"~~~(
+    case GL_TRANSFORM_FEEDBACK_BUFFER_MODE:
+    case GL_TRANSFORM_FEEDBACK_VARYINGS:
+    case GL_ACTIVE_UNIFORM_BLOCKS:
+)~~~");
+            }
+
+            function_impl_generator.append(R"~~~(
+        return JS::Value(result);
+    case GL_DELETE_STATUS:
+    case GL_LINK_STATUS:
+    case GL_VALIDATE_STATUS:
+        return JS::Value(result == GL_TRUE);
+    default:
+        dbgln("Unknown WebGL program parameter name: 0x{:04x}", pname);
+        set_error(GL_INVALID_ENUM);
+        return JS::js_null();
+    }
 )~~~");
             continue;
         }
