@@ -6,7 +6,7 @@ interface HTMLSourceElement : HTMLElement {
 
     [HTMLConstructor] constructor();
 
-    [CEReactions, Reflect, URL] attribute USVString src;
+    [CEReactions, ReflectURL] attribute USVString src;
     [CEReactions, Reflect] attribute DOMString type;
     [CEReactions, Reflect] attribute USVString srcset;
     [CEReactions, Reflect] attribute DOMString sizes;

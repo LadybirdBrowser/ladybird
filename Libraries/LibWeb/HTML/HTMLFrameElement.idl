@@ -8,9 +8,9 @@ interface HTMLFrameElement : HTMLElement {
 
     [CEReactions, Reflect] attribute DOMString name;
     [CEReactions, Reflect] attribute DOMString scrolling;
-    [CEReactions, Reflect, URL] attribute USVString src;
+    [CEReactions, ReflectURL] attribute USVString src;
     [CEReactions, Reflect=frameborder] attribute DOMString frameBorder;
-    [CEReactions, Reflect=longdesc, URL] attribute USVString longDesc;
+    [CEReactions, ReflectURL=longdesc] attribute USVString longDesc;
     [CEReactions, Reflect=noresize] attribute boolean noResize;
     readonly attribute Document? contentDocument;
     readonly attribute WindowProxy? contentWindow;
