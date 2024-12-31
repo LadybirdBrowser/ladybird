@@ -692,7 +692,7 @@ public:
     if (pixels) {
         auto const& viewed_array_buffer = pixels->viewed_array_buffer();
         auto const& byte_buffer = viewed_array_buffer->buffer();
-        pixels_ptr = byte_buffer.data();
+        pixels_ptr = byte_buffer.data() + pixels->byte_offset();
     }
     glTexImage2D(target, level, internalformat, width, height, border, format, type, pixels_ptr);
 )~~~");
@@ -711,7 +711,7 @@ public:
     if (src_data) {
         auto const& viewed_array_buffer = src_data->viewed_array_buffer();
         auto const& byte_buffer = viewed_array_buffer->buffer();
-        src_data_ptr = byte_buffer.data();
+        src_data_ptr = byte_buffer.data() + src_data->byte_offset();
     }
     glTexImage3D(target, level, internalformat, width, height, depth, border, format, type, src_data_ptr);
 )~~~");
@@ -808,7 +808,7 @@ public:
     if (pixels) {
         auto const& viewed_array_buffer = pixels->viewed_array_buffer();
         auto const& byte_buffer = viewed_array_buffer->buffer();
-        pixels_ptr = byte_buffer.data();
+        pixels_ptr = byte_buffer.data() + pixels->byte_offset();
     }
     glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels_ptr);
 )~~~");
@@ -872,7 +872,7 @@ public:
     if (src_data) {
         auto const& viewed_array_buffer = src_data->viewed_array_buffer();
         auto const& byte_buffer = viewed_array_buffer->buffer();
-        pixels_ptr = byte_buffer.data() + src_offset;
+        pixels_ptr = byte_buffer.data() + src_data->byte_offset() + src_offset;
     }
     glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels_ptr);
 )~~~");
