@@ -121,7 +121,15 @@ class HTTPTestServer {
     }
 }
 
-const __httpTestServer = new HTTPTestServer(`http://localhost:${internals.getEchoServerPort()}`);
+const __httpTestServer = (function () {
+    if (globalThis.internals && globalThis.internals.getEchoServerPort)
+        return new HTTPTestServer(`http://localhost:${internals.getEchoServerPort()}`);
+
+    return null;
+})();
+
 function httpTestServer() {
+    if (!__httpTestServer)
+        throw new Error("window.internals must be exposed to use HTTPTestServer");
     return __httpTestServer;
 }
