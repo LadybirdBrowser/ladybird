@@ -951,6 +951,22 @@ public:
             continue;
         }
 
+        if (function.name == "getSyncParameter"sv) {
+            // FIXME: In order to ensure consistent behavior across platforms, sync objects may only transition to the
+            //        signaled state when the user agent's event loop is not executing a task. In other words:
+            //          - A sync object must not become signaled until control has returned to the user agent's main
+            //            loop.
+            //          - Repeatedly fetching a sync object's SYNC_STATUS parameter in a loop, without returning
+            //            control to the user agent, must always return the same value.
+            // FIXME: Remove the GLsync cast once sync_handle actually returns the proper GLsync type.
+            function_impl_generator.append(R"~~~(
+    GLint result = 0;
+    glGetSynciv((GLsync)(sync ? sync->sync_handle() : nullptr), pname, 1, nullptr, &result);
+    return JS::Value(result);
+)~~~");
+            continue;
+        }
+
         if (function.name == "bufferData"sv && function.overload_index == 0) {
             function_impl_generator.append(R"~~~(
     glBufferData(target, size, 0, usage);
