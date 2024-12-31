@@ -945,6 +945,9 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 
                 bool may_be_null = !optional_default_value.has_value() || parameter.type->is_nullable() || optional_default_value.value() == "null";
 
+                // Required dictionary members cannot be null.
+                may_be_null &= !member.required;
+
                 if (member.type->is_string() && optional && may_be_null) {
                     dictionary_generator.append(R"~~~(
     if (@member_value_name@.has_value())
