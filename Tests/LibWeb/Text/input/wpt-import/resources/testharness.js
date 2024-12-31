@@ -559,7 +559,7 @@
     // Tell the ladybird test runner what our preferred timeout is
     {
         let timeout = test_environment.test_timeout();
-        if (timeout)
+        if (timeout && window.internals)
             window.internals.setTestTimeout(timeout);
     }
 
