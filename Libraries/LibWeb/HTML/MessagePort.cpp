@@ -47,11 +47,7 @@ MessagePort::MessagePort(JS::Realm& realm)
     all_message_ports().set(this);
 }
 
-MessagePort::~MessagePort()
-{
-    all_message_ports().remove(this);
-    disentangle();
-}
+MessagePort::~MessagePort() = default;
 
 void MessagePort::for_each_message_port(Function<void(MessagePort&)> callback)
 {
@@ -63,6 +59,13 @@ void MessagePort::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(MessagePort);
+}
+
+void MessagePort::finalize()
+{
+    Base::finalize();
+    all_message_ports().remove(this);
+    disentangle();
 }
 
 void MessagePort::visit_edges(Cell::Visitor& visitor)
