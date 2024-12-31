@@ -986,12 +986,10 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(Web::Crypto::Algorit
             if (!meets_requirements)
                 return WebIDL::DataError::create(m_realm, "Invalid JWK private key"_string);
 
-            // FIXME: Spec error, it should say 'the RSA private key identified by interpreting jwk according to section 6.3.2'
-            // 2. Let privateKey represent the RSA public key identified by interpreting jwk according to Section 6.3.1 of JSON Web Algorithms [JWA].
+            // 2. Let privateKey represent the RSA private key identified by interpreting jwk according to Section 6.3.2 of JSON Web Algorithms [JWA].
             auto private_key = TRY(parse_jwk_rsa_private_key(realm, jwk));
 
-            // FIXME: Spec error, it should say 'not to be a valid RSA private key'
-            // 3. If privateKey can be determined to not be a valid RSA public key according to [RFC3447], then throw a DataError.
+            // 3. If privateKey can be determined to not be a valid RSA private key according to [RFC3447], then throw a DataError.
             // FIXME: Validate the private key
 
             // 4. Let key be a new CryptoKey representing privateKey.
