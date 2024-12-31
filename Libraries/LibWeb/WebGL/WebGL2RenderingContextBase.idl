@@ -401,7 +401,7 @@ interface mixin WebGL2RenderingContextBase {
     undefined deleteSync(WebGLSync? sync);
     GLenum clientWaitSync(WebGLSync sync, GLbitfield flags, GLuint64 timeout);
     [FIXME] undefined waitSync(WebGLSync sync, GLbitfield flags, GLint64 timeout);
-    [FIXME] any getSyncParameter(WebGLSync sync, GLenum pname);
+    any getSyncParameter(WebGLSync sync, GLenum pname);
 
     // Transform Feedback
     [FIXME] WebGLTransformFeedback createTransformFeedback();
