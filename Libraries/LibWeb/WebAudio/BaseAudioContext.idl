@@ -35,7 +35,7 @@ interface BaseAudioContext : EventTarget {
     AudioBuffer createBuffer(unsigned long numberOfChannels, unsigned long length, float sampleRate);
     AudioBufferSourceNode createBufferSource ();
     ChannelMergerNode createChannelMerger (optional unsigned long numberOfInputs = 6);
-    [FIXME] ChannelSplitterNode createChannelSplitter (optional unsigned long numberOfOutputs = 6);
+    ChannelSplitterNode createChannelSplitter (optional unsigned long numberOfOutputs = 6);
     [FIXME] ConstantSourceNode createConstantSource ();
     [FIXME] ConvolverNode createConvolver ();
     [FIXME] DelayNode createDelay (optional double maxDelayTime = 1.0);
