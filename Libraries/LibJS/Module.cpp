@@ -123,7 +123,7 @@ void finish_loading_imported_module(ImportedModuleReferrer referrer, ModuleReque
 ThrowCompletionOr<Object*> Module::get_module_namespace(VM& vm)
 {
     // 1. Assert: If module is a Cyclic Module Record, then module.[[Status]] is not unlinked.
-    // FIXME: How do we check this without breaking encapsulation?
+    // FIXME: Spec bug: https://github.com/tc39/ecma262/issues/3114
 
     // 2. Let namespace be module.[[Namespace]].
     auto* namespace_ = m_namespace.ptr();
