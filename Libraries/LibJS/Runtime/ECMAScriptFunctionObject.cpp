@@ -427,14 +427,11 @@ ThrowCompletionOr<Value> ECMAScriptFunctionObject::internal_call(Value this_argu
     if (result.type() == Completion::Type::Return)
         return *result.value();
 
-    // 9. ReturnIfAbrupt(result).
-    if (result.is_abrupt()) {
-        VERIFY(result.is_error());
-        return result;
-    }
+    // 9. Assert: result is a throw completion.
+    VERIFY(result.type() == Completion::Type::Throw);
 
-    // 10. Return undefined.
-    return js_undefined();
+    // 10. Return ? result.
+    return result.release_error();
 }
 
 // 10.2.2 [[Construct]] ( argumentsList, newTarget ), https://tc39.es/ecma262/#sec-ecmascript-function-objects-construct-argumentslist-newtarget
@@ -502,33 +499,34 @@ ThrowCompletionOr<GC::Ref<Object>> ECMAScriptFunctionObject::internal_construct(
     // 9. Remove calleeContext from the execution context stack and restore callerContext as the running execution context.
     vm.pop_execution_context();
 
-    // 10. If result.[[Type]] is return, then
-    if (result.type() == Completion::Type::Return) {
-        // a. If Type(result.[[Value]]) is Object, return result.[[Value]].
-        if (result.value()->is_object())
-            return result.value()->as_object();
-
-        // b. If kind is base, return thisArgument.
-        if (kind == ConstructorKind::Base)
-            return *this_argument;
-
-        // c. If result.[[Value]] is not undefined, throw a TypeError exception.
-        if (!result.value()->is_undefined())
-            return vm.throw_completion<TypeError>(ErrorType::DerivedConstructorReturningInvalidValue);
-    }
-    // 11. Else, ReturnIfAbrupt(result).
-    else if (result.is_abrupt()) {
-        VERIFY(result.is_error());
-        return result;
+    // 10. If result is a throw completion, then
+    if (result.type() == Completion::Type::Throw) {
+        // a. Return ? result.
+        return result.release_error();
     }
 
-    // 12. Let thisBinding be ? constructorEnv.GetThisBinding().
+    // 11. Assert: result is a return completion.
+    VERIFY(result.type() == Completion::Type::Return);
+
+    // 12. If Type(result.[[Value]]) is Object, return result.[[Value]].
+    if (result.value()->is_object())
+        return result.value()->as_object();
+
+    // 13. If kind is base, return thisArgument.
+    if (kind == ConstructorKind::Base)
+        return *this_argument;
+
+    // 14. If result.[[Value]] is not undefined, throw a TypeError exception.
+    if (!result.value()->is_undefined())
+        return vm.throw_completion<TypeError>(ErrorType::DerivedConstructorReturningInvalidValue);
+
+    // 15. Let thisBinding be ? constructorEnv.GetThisBinding().
     auto this_binding = TRY(constructor_env->get_this_binding(vm));
 
-    // 13. Assert: Type(thisBinding) is Object.
+    // 16. Assert: Type(thisBinding) is Object.
     VERIFY(this_binding.is_object());
 
-    // 14. Return thisBinding.
+    // 17. Return thisBinding.
     return this_binding.as_object();
 }
 
