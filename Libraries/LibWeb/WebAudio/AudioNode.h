@@ -65,7 +65,7 @@ public:
 
     virtual WebIDL::ExceptionOr<void> set_channel_count_mode(Bindings::ChannelCountMode);
     Bindings::ChannelCountMode channel_count_mode();
-    WebIDL::ExceptionOr<void> set_channel_interpretation(Bindings::ChannelInterpretation);
+    virtual WebIDL::ExceptionOr<void> set_channel_interpretation(Bindings::ChannelInterpretation);
     Bindings::ChannelInterpretation channel_interpretation();
 
     WebIDL::ExceptionOr<void> initialize_audio_node_options(AudioNodeOptions const& given_options, AudioNodeDefaultOptions const& default_options);
