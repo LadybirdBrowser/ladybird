@@ -623,8 +623,6 @@ ThrowCompletionOr<void> ECMAScriptFunctionObject::prepare_for_ordinary_call(Exec
     callee_context.private_environment = m_private_environment;
 
     // 11. If callerContext is not already suspended, suspend callerContext.
-    // FIXME: We don't have this concept yet.
-
     // 12. Push calleeContext onto the execution context stack; calleeContext is now the running execution context.
     TRY(vm.push_execution_context(callee_context, {}));
 

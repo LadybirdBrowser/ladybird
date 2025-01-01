@@ -146,8 +146,7 @@ ThrowCompletionOr<Value> GeneratorObject::resume(VM& vm, Value value, Optional<S
     // 5. Let methodContext be the running execution context.
     auto const& method_context = vm.running_execution_context();
 
-    // FIXME: 6. Suspend methodContext.
-
+    // 6. Suspend methodContext.
     // 8. Push genContext onto the execution context stack; genContext is now the running execution context.
     // NOTE: This is done out of order as to not permanently disable the generator if push_execution_context throws,
     //       as `resume` will immediately throw when [[GeneratorState]] is "executing", never allowing the state to change.
@@ -208,8 +207,7 @@ ThrowCompletionOr<Value> GeneratorObject::resume_abrupt(JS::VM& vm, JS::Completi
     // 6. Let methodContext be the running execution context.
     auto const& method_context = vm.running_execution_context();
 
-    // FIXME: 7. Suspend methodContext.
-
+    // 7. Suspend methodContext.
     // 9. Push genContext onto the execution context stack; genContext is now the running execution context.
     // NOTE: This is done out of order as to not permanently disable the generator if push_execution_context throws,
     //       as `resume_abrupt` will immediately throw when [[GeneratorState]] is "executing", never allowing the state to change.

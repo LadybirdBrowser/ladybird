@@ -639,7 +639,7 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
     }
 
     // 19. If runningContext is not already suspended, suspend runningContext.
-    // FIXME: We don't have this concept yet.
+    // NOTE: Done by the push on step 27.
 
     // 20. Let evalContext be a new ECMAScript code execution context.
     auto eval_context = ExecutionContext::create();
@@ -670,8 +670,7 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
 
     // NOTE: We use a ScopeGuard to automatically pop the execution context when any of the `TRY`s below return a throw completion.
     ScopeGuard pop_guard = [&] {
-        // FIXME: 31. Suspend evalContext and remove it from the execution context stack.
-
+        // 31. Suspend evalContext and remove it from the execution context stack.
         // 32. Resume the context that is now on the top of the execution context stack as the running execution context.
         vm.pop_execution_context();
     };

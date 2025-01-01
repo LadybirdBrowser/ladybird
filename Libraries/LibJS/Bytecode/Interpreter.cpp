@@ -216,8 +216,7 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
     // NOTE: This isn't in the spec, but we require it.
     script_context->is_strict_mode = script_record.parse_node().is_strict_mode();
 
-    // FIXME: 9. Suspend the currently running execution context.
-
+    // 9. Suspend the currently running execution context.
     // 10. Push scriptContext onto the execution context stack; scriptContext is now the running execution context.
     TRY(vm.push_execution_context(*script_context, {}));
 
@@ -260,7 +259,7 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
         result = normal_completion(js_undefined());
     }
 
-    // FIXME: 15. Suspend scriptContext and remove it from the execution context stack.
+    // 15. Suspend scriptContext and remove it from the execution context stack.
     vm.pop_execution_context();
 
     // 16. Assert: The execution context stack is not empty.

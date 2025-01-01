@@ -57,8 +57,7 @@ ThrowCompletionOr<void> AsyncFunctionDriverWrapper::await(JS::Value value)
         // a. Let prevContext be the running execution context.
         auto& prev_context = vm.running_execution_context();
 
-        // FIXME: b. Suspend prevContext.
-
+        // b. Suspend prevContext.
         // c. Push asyncContext onto the execution context stack; asyncContext is now the running execution context.
         TRY(vm.push_execution_context(*m_suspended_execution_context, {}));
 
@@ -85,8 +84,7 @@ ThrowCompletionOr<void> AsyncFunctionDriverWrapper::await(JS::Value value)
         // a. Let prevContext be the running execution context.
         auto& prev_context = vm.running_execution_context();
 
-        // FIXME: b. Suspend prevContext.
-
+        // b. Suspend prevContext.
         // c. Push asyncContext onto the execution context stack; asyncContext is now the running execution context.
         TRY(vm.push_execution_context(*m_suspended_execution_context, {}));
 

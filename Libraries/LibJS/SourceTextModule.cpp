@@ -702,7 +702,7 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
     module_context->lexical_environment = environment();
 
     // 8. Suspend the currently running execution context.
-    // FIXME: We don't have suspend yet
+    // NOTE: Done by the push of execution context in steps below.
 
     // 9. If module.[[HasTLA]] is false, then
     if (!m_has_top_level_await) {
@@ -760,8 +760,8 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
         //         the top-level module code.
         // FIXME: Improve this situation, so we can match the spec better.
 
-        // AD-HOC: We push/pop the moduleContext around the function construction to ensure that the async execution context
-        //         captures the module execution context.
+        // NOTE: Like AsyncBlockStart, we need to push/pop the moduleContext around the function construction to ensure that
+        //       the async execution context captures the module execution context.
         vm.push_execution_context(*module_context);
 
         FunctionParsingInsights parsing_insights;
