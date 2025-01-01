@@ -182,9 +182,6 @@ ErrorOr<void, ParseError> Parser::parse_with_listener(Listener& listener)
     if (result.is_error())
         m_listener->error(result.error());
     m_listener->document_end();
-    if (m_doctype.has_value()) {
-        m_listener->set_doctype(m_doctype.release_value());
-    }
     m_root_node.clear();
     return result;
 }
@@ -622,6 +619,10 @@ ErrorOr<void, ParseError> Parser::parse_doctype_decl()
 
     rollback.disarm();
     m_doctype = move(doctype);
+    if (m_doctype.has_value() && m_listener) {
+        m_listener->set_doctype(m_doctype.value());
+    }
+
     return {};
 }
 
