@@ -118,8 +118,6 @@ ThrowCompletionOr<Value> NativeFunction::internal_call(Value this_argument, Read
     auto& caller_context = vm.running_execution_context();
 
     // 2. If callerContext is not already suspended, suspend callerContext.
-    // NOTE: We don't support this concept yet.
-
     // 3. Let calleeContext be a new execution context.
     auto callee_context = ExecutionContext::create();
 
@@ -181,8 +179,6 @@ ThrowCompletionOr<GC::Ref<Object>> NativeFunction::internal_construct(ReadonlySp
     auto& caller_context = vm.running_execution_context();
 
     // 2. If callerContext is not already suspended, suspend callerContext.
-    // NOTE: We don't support this concept yet.
-
     // 3. Let calleeContext be a new execution context.
     auto callee_context = ExecutionContext::create();
 

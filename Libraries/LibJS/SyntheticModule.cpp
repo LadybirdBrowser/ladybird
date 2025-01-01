@@ -78,7 +78,7 @@ ThrowCompletionOr<Promise*> SyntheticModule::evaluate(VM& vm)
 {
     // Note: Has some changes from PR: https://github.com/tc39/proposal-json-modules/pull/13.
     // 1. Suspend the currently running execution context.
-    // FIXME: We don't have suspend yet.
+    // NOTE: Done by the push on step 8.
 
     // 2. Let moduleContext be a new ECMAScript code execution context.
     auto module_context = ExecutionContext::create();

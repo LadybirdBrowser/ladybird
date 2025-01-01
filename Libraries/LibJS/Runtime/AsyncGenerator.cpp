@@ -87,8 +87,7 @@ ThrowCompletionOr<void> AsyncGenerator::await(Value value)
         // a. Let prevContext be the running execution context.
         auto& prev_context = vm.running_execution_context();
 
-        // FIXME: b. Suspend prevContext.
-
+        // b. Suspend prevContext.
         // c. Push asyncContext onto the execution context stack; asyncContext is now the running execution context.
         TRY(vm.push_execution_context(async_context, {}));
 
@@ -115,8 +114,7 @@ ThrowCompletionOr<void> AsyncGenerator::await(Value value)
         // a. Let prevContext be the running execution context.
         auto& prev_context = vm.running_execution_context();
 
-        // FIXME: b. Suspend prevContext.
-
+        // b. Suspend prevContext.
         // c. Push asyncContext onto the execution context stack; asyncContext is now the running execution context.
         TRY(vm.push_execution_context(async_context, {}));
 
@@ -309,8 +307,7 @@ ThrowCompletionOr<void> AsyncGenerator::resume(VM& vm, Completion completion)
     // 3. Let callerContext be the running execution context.
     auto const& caller_context = vm.running_execution_context();
 
-    // FIXME: 4. Suspend callerContext.
-
+    // 4. Suspend callerContext.
     // 5. Set generator.[[AsyncGeneratorState]] to executing.
     m_async_generator_state = State::Executing;
 
