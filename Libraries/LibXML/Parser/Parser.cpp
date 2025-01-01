@@ -622,6 +622,10 @@ ErrorOr<void, ParseError> Parser::parse_doctype_decl()
 
     rollback.disarm();
     m_doctype = move(doctype);
+    if (m_doctype.has_value()) {
+        m_listener->set_doctype(m_doctype.release_value());
+    }
+
     return {};
 }
 
