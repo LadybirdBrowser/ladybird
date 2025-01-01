@@ -57,6 +57,7 @@ CanvasGradient
 CanvasPattern
 CanvasRenderingContext2D
 ChannelMergerNode
+ChannelSplitterNode
 CharacterData
 Clipboard
 ClipboardEvent

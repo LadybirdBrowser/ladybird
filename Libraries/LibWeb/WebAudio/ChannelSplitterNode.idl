@@ -1,0 +1,13 @@
+#import <WebAudio/AudioNode.idl>
+#import <WebAudio/BaseAudioContext.idl>
+
+// https://webaudio.github.io/web-audio-api/#ChannelSplitterNode
+[Exposed=Window]
+interface ChannelSplitterNode : AudioNode {
+    constructor (BaseAudioContext context, optional ChannelSplitterOptions options = {});
+};
+
+// https://webaudio.github.io/web-audio-api/#ChannelSplitterOptions
+dictionary ChannelSplitterOptions : AudioNodeOptions {
+    unsigned long numberOfOutputs = 6;
+};
