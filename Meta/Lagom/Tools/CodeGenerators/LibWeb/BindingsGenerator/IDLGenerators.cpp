@@ -3821,7 +3821,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
                 attribute_generator.append(R"~~~(
     auto const explicitly_set_attr = TRY(throw_dom_exception_if_needed(vm, [&] { return impl->@attribute.cpp_name@(); }));
     if (explicitly_set_attr) {
-        if (&impl->shadow_including_root() == &explicitly_set_attr->shadow_including_root()) {
+        if (&impl->shadow_including_root() == &explicitly_set_attr->root()) {
             retval = explicitly_set_attr;
         } else {
             retval = GC::Ptr<Element> {};
