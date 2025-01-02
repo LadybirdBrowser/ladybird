@@ -31,11 +31,17 @@ class PeriodicWave : public Bindings::PlatformObject {
 public:
     static WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> construct_impl(JS::Realm&, GC::Ref<BaseAudioContext>, PeriodicWaveOptions const&);
 
+    explicit PeriodicWave(JS::Realm&);
     virtual ~PeriodicWave() override;
 
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+
+private:
+    GC::Ptr<JS::Float32Array> m_real;
+    GC::Ptr<JS::Float32Array> m_imag;
+    bool m_normalize { true };
 };
 
 }
