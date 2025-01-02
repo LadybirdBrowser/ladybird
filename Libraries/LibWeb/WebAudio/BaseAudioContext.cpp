@@ -134,6 +134,17 @@ WebIDL::ExceptionOr<GC::Ref<PannerNode>> BaseAudioContext::create_panner()
     return PannerNode::create(realm(), *this);
 }
 
+WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> BaseAudioContext::create_periodic_wave(Vector<float> const& real, Vector<float> const& imag, Optional<PeriodicWaveConstraints> const& constraints)
+{
+    PeriodicWaveOptions options;
+    options.real = real;
+    options.imag = imag;
+    if (constraints.has_value())
+        options.disable_normalization = constraints->disable_normalization;
+
+    return PeriodicWave::construct_impl(realm(), *this, options);
+}
+
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createbuffer
 WebIDL::ExceptionOr<void> BaseAudioContext::verify_audio_options_inside_nominal_range(JS::Realm& realm, WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate)
 {

@@ -15,6 +15,7 @@
 #include <LibWeb/WebAudio/ChannelMergerNode.h>
 #include <LibWeb/WebAudio/ChannelSplitterNode.h>
 #include <LibWeb/WebAudio/ConstantSourceNode.h>
+#include <LibWeb/WebAudio/PeriodicWave.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::WebAudio {
@@ -67,6 +68,7 @@ public:
     WebIDL::ExceptionOr<GC::Ref<DynamicsCompressorNode>> create_dynamics_compressor();
     WebIDL::ExceptionOr<GC::Ref<GainNode>> create_gain();
     WebIDL::ExceptionOr<GC::Ref<PannerNode>> create_panner();
+    WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> create_periodic_wave(Vector<float> const& real, Vector<float> const& imag, Optional<PeriodicWaveConstraints> const& constraints = {});
 
     GC::Ref<WebIDL::Promise> decode_audio_data(GC::Root<WebIDL::BufferSource>, GC::Ptr<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>);
 
