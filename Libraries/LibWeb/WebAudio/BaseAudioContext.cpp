@@ -91,6 +91,12 @@ WebIDL::ExceptionOr<GC::Ref<ChannelMergerNode>> BaseAudioContext::create_channel
     return ChannelMergerNode::create(realm(), *this, options);
 }
 
+// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createconstantsource
+WebIDL::ExceptionOr<GC::Ref<ConstantSourceNode>> BaseAudioContext::create_constant_source()
+{
+    return ConstantSourceNode::create(realm(), *this);
+}
+
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createchannelsplitter
 WebIDL::ExceptionOr<GC::Ref<ChannelSplitterNode>> BaseAudioContext::create_channel_splitter(WebIDL::UnsignedLong number_of_outputs)
 {
