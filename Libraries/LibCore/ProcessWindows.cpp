@@ -48,7 +48,9 @@ ErrorOr<Process> Process::spawn(ProcessSpawnOptions const& options)
     else
         builder.appendff("\"{}\" ", options.executable);
 
-    builder.join(' ', options.arguments);
+    for (auto arg : options.arguments)
+        builder.appendff("\"{}\" ", arg);
+
     builder.append('\0');
     ByteBuffer command_line = TRY(builder.to_byte_buffer());
 
