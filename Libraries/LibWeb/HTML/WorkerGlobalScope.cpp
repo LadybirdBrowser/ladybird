@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2022, Andrew Kaster <akaster@serenityos.org>
+ * Copyright (c) 2024, Luke Wilde <luke@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,6 +9,10 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WorkerGlobalScopePrototype.h>
 #include <LibWeb/CSS/FontFaceSet.h>
+#include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
+#include <LibWeb/ContentSecurityPolicy/Policy.h>
+#include <LibWeb/ContentSecurityPolicy/PolicyList.h>
+#include <LibWeb/Fetch/Infrastructure/URL.h>
 #include <LibWeb/HTML/EventHandler.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/MessageEvent.h>
@@ -52,6 +57,7 @@ void WorkerGlobalScope::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_internal_port);
     visitor.visit(m_page);
     visitor.visit(m_fonts);
+    visitor.visit(m_policy_container);
 }
 
 void WorkerGlobalScope::finalize()
@@ -163,6 +169,56 @@ GC::Ref<CSS::FontFaceSet> WorkerGlobalScope::fonts()
     if (!m_fonts)
         m_fonts = CSS::FontFaceSet::create(realm());
     return *m_fonts;
+}
+
+GC::Ref<PolicyContainer> WorkerGlobalScope::policy_container() const
+{
+    auto& realm = this->realm();
+    if (!m_policy_container) {
+        m_policy_container = realm.create<PolicyContainer>(realm);
+    }
+    return *m_policy_container;
+}
+
+// https://html.spec.whatwg.org/multipage/browsers.html#initialize-worker-policy-container
+void WorkerGlobalScope::initialize_policy_container(GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ref<EnvironmentSettingsObject> environment)
+{
+    auto& realm = this->realm();
+
+    // 1. If workerGlobalScope's url is local but its scheme is not "blob":
+    if (m_url.has_value() && Fetch::Infrastructure::is_local_url(m_url.value()) && m_url->scheme() != "blob"sv) {
+        // FIXME: 1. Assert: workerGlobalScope's owner set's size is 1.
+        // FIXME: 2. Set workerGlobalScope's policy container to a clone of workerGlobalScope's owner set[0]'s relevant settings object's policy container.
+        dbgln("FIXME: WorkerGlobalScope::initialize_policy_container: Clone owner's policy container for local, non-blob URL.");
+        return;
+    }
+
+    // 2. Otherwise, set workerGlobalScope's policy container to the result of creating a policy container from a fetch
+    //    response given response and environment.
+    m_policy_container = create_a_policy_container_from_a_fetch_response(realm, response, environment);
+}
+
+// https://w3c.github.io/webappsec-csp/#run-global-object-csp-initialization
+ContentSecurityPolicy::Directives::Directive::Result WorkerGlobalScope::run_csp_initialization() const
+{
+    // 1. Let result be "Allowed".
+    auto result = ContentSecurityPolicy::Directives::Directive::Result::Allowed;
+
+    // 2. For each policy of global’s CSP list:
+    for (auto policy : policy_container()->csp_list->policies()) {
+        // 1. For each directive of policy:
+        for (auto directive : policy->directives()) {
+            // 1. Execute directive’s initialization algorithm on global. If its returned value is "Blocked", then set
+            //    result to "Blocked".
+            auto directive_result = directive->initialization(GC::Ref { *this }, policy);
+            if (directive_result == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
+                result = ContentSecurityPolicy::Directives::Directive::Result::Blocked;
+            }
+        }
+    }
+
+    // 3. Return result.
+    return result;
 }
 
 }

@@ -199,6 +199,16 @@ public:
         return m_input.substring_view(start, length);
     }
 
+    template<typename TPredicate>
+    constexpr bool consume_specific_with_predicate(TPredicate pred)
+    {
+        if (is_eof() || !pred(peek()))
+            return false;
+
+        ignore();
+        return true;
+    }
+
     // Ignore characters while `pred` returns true
     template<typename TPredicate>
     constexpr void ignore_while(TPredicate pred)

@@ -92,7 +92,7 @@ private:
         GC::Ptr<HTML::EnvironmentSettingsObject> environment;
         // policy container
         //      A policy container
-        HTML::PolicyContainer policy_container;
+        GC::Ptr<HTML::PolicyContainer> policy_container;
         // document (default null)
         //      Null or a Document
         GC::Ptr<Web::DOM::Document> document;

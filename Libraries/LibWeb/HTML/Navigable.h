@@ -29,11 +29,6 @@
 
 namespace Web::HTML {
 
-enum class CSPNavigationType {
-    Other,
-    FormSubmission,
-};
-
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#user-navigation-involvement
 enum class UserNavigationInvolvement {
     BrowserUI,
@@ -135,7 +130,7 @@ public:
         TargetSnapshotParams const& target_snapshot_params,
         Optional<String> navigation_id = {},
         NavigationParamsVariant navigation_params = Navigable::NullOrError {},
-        CSPNavigationType csp_navigation_type = CSPNavigationType::Other,
+        ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type = ContentSecurityPolicy::Directives::Directive::NavigationType::Other,
         bool allow_POST = false,
         GC::Ptr<GC::Function<void()>> completion_steps = {});
 
@@ -147,7 +142,7 @@ public:
         bool exceptions_enabled = false;
         Bindings::NavigationHistoryBehavior history_handling = Bindings::NavigationHistoryBehavior::Auto;
         Optional<SerializationRecord> navigation_api_state = {};
-        Optional<Vector<XHR::FormDataEntry>&> form_data_entry_list = {};
+        Optional<Vector<XHR::FormDataEntry>> form_data_entry_list = {};
         ReferrerPolicy::ReferrerPolicy referrer_policy = ReferrerPolicy::ReferrerPolicy::EmptyString;
         UserNavigationInvolvement user_involvement = UserNavigationInvolvement::None;
     };
@@ -157,7 +152,7 @@ public:
     WebIDL::ExceptionOr<void> navigate_to_a_fragment(URL::URL const&, HistoryHandlingBehavior, UserNavigationInvolvement, Optional<SerializationRecord> navigation_api_state, String navigation_id);
 
     GC::Ptr<DOM::Document> evaluate_javascript_url(URL::URL const&, URL::Origin const& new_document_origin, String navigation_id);
-    void navigate_to_a_javascript_url(URL::URL const&, HistoryHandlingBehavior, URL::Origin const& initiator_origin, CSPNavigationType csp_navigation_type, String navigation_id);
+    void navigate_to_a_javascript_url(URL::URL const&, HistoryHandlingBehavior, URL::Origin const& initiator_origin, ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type, String navigation_id);
 
     bool allowed_by_sandboxing_to_navigate(Navigable const& target, SourceSnapshotParams const&);
 

@@ -273,7 +273,7 @@ GC::Ptr<Fetch::Infrastructure::Request> HTMLLinkElement::create_link_request(HTM
     auto request = create_potential_CORS_request(vm(), url, options.destination, options.crossorigin);
 
     // 6. Set request's policy container to options's policy container.
-    request->set_policy_container(options.policy_container);
+    request->set_policy_container(GC::Ref { *options.policy_container });
 
     // 7. Set request's integrity metadata to options's integrity.
     request->set_integrity_metadata(options.integrity);
@@ -501,6 +501,10 @@ bool HTMLLinkElement::stylesheet_linked_resource_fetch_setup_steps(Fetch::Infras
     // 4. If el is currently render-blocking, then set request's render-blocking to true.
     // FIXME: Check if el is currently render-blocking.
     request.set_render_blocking(true);
+
+    // FIXME: We currently don't set the destination for stylesheets, so we do it here.
+    //        File a spec issue that the destination for stylesheets is not actually set if the `as` attribute is missing.
+    request.set_destination(Fetch::Infrastructure::Request::Destination::Style);
 
     // 5. Return true.
     return true;

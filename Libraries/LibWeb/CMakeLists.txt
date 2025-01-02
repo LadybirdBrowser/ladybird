@@ -36,6 +36,42 @@ set(SOURCES
     Clipboard/ClipboardItem.cpp
     Compression/CompressionStream.cpp
     Compression/DecompressionStream.cpp
+    ContentSecurityPolicy/Directives/BaseUriDirective.cpp
+    ContentSecurityPolicy/Directives/ChildSourceDirective.cpp
+    ContentSecurityPolicy/Directives/ConnectSourceDirective.cpp
+    ContentSecurityPolicy/Directives/DefaultSourceDirective.cpp
+    ContentSecurityPolicy/Directives/Directive.cpp
+    ContentSecurityPolicy/Directives/DirectiveFactory.cpp
+    ContentSecurityPolicy/Directives/DirectiveOperations.cpp
+    ContentSecurityPolicy/Directives/FontSourceDirective.cpp
+    ContentSecurityPolicy/Directives/FormActionDirective.cpp
+    ContentSecurityPolicy/Directives/FrameAncestorsDirective.cpp
+    ContentSecurityPolicy/Directives/FrameSourceDirective.cpp
+    ContentSecurityPolicy/Directives/ImageSourceDirective.cpp
+    ContentSecurityPolicy/Directives/KeywordSources.cpp
+    ContentSecurityPolicy/Directives/ManifestSourceDirective.cpp
+    ContentSecurityPolicy/Directives/MediaSourceDirective.cpp
+    ContentSecurityPolicy/Directives/Names.cpp
+    ContentSecurityPolicy/Directives/ObjectSourceDirective.cpp
+    ContentSecurityPolicy/Directives/ReportToDirective.cpp
+    ContentSecurityPolicy/Directives/ReportUriDirective.cpp
+    ContentSecurityPolicy/Directives/SandboxDirective.cpp
+    ContentSecurityPolicy/Directives/ScriptSourceAttributeDirective.cpp
+    ContentSecurityPolicy/Directives/ScriptSourceDirective.cpp
+    ContentSecurityPolicy/Directives/ScriptSourceElementDirective.cpp
+    ContentSecurityPolicy/Directives/SerializedDirective.cpp
+    ContentSecurityPolicy/Directives/SourceExpression.cpp
+    ContentSecurityPolicy/Directives/StyleSourceAttributeDirective.cpp
+    ContentSecurityPolicy/Directives/StyleSourceDirective.cpp
+    ContentSecurityPolicy/Directives/StyleSourceElementDirective.cpp
+    ContentSecurityPolicy/Directives/WebRTCDirective.cpp
+    ContentSecurityPolicy/Directives/WorkerSourceDirective.cpp
+    ContentSecurityPolicy/BlockingAlgorithms.cpp
+    ContentSecurityPolicy/Policy.cpp
+    ContentSecurityPolicy/PolicyList.cpp
+    ContentSecurityPolicy/SecurityPolicyViolationEvent.cpp
+    ContentSecurityPolicy/SerializedPolicy.cpp
+    ContentSecurityPolicy/Violation.cpp
     Crypto/Crypto.cpp
     Crypto/CryptoAlgorithms.cpp
     Crypto/CryptoBindings.cpp
@@ -460,6 +496,7 @@ set(SOURCES
     HTML/PotentialCORSRequest.cpp
     HTML/PromiseRejectionEvent.cpp
     HTML/RadioNodeList.cpp
+    HTML/SandboxingFlagSet.cpp
     HTML/Scripting/ClassicScript.cpp
     HTML/Scripting/Environments.cpp
     HTML/Scripting/EnvironmentSettingsSnapshot.cpp
@@ -477,11 +514,13 @@ set(SOURCES
     HTML/Scripting/SerializedEnvironmentSettingsObject.cpp
     HTML/SelectedFile.cpp
     HTML/SelectItem.cpp
+    HTML/SerializedPolicyContainer.cpp
     HTML/SessionHistoryEntry.cpp
     HTML/SessionHistoryTraversalQueue.cpp
     HTML/ShadowRealmGlobalScope.cpp
     HTML/SharedResourceRequest.cpp
     HTML/SourceSet.cpp
+    HTML/SourceSnapshotParams.cpp
     HTML/Storage.cpp
     HTML/StorageEvent.cpp
     HTML/StructuredSerialize.cpp

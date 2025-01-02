@@ -171,7 +171,7 @@ public:
 
     using BodyType = Variant<Empty, ByteBuffer, GC::Ref<Body>>;
     using OriginType = Variant<Origin, URL::Origin>;
-    using PolicyContainerType = Variant<PolicyContainer, HTML::PolicyContainer>;
+    using PolicyContainerType = Variant<PolicyContainer, GC::Ref<HTML::PolicyContainer>>;
     using ReferrerType = Variant<Referrer, URL::URL>;
     using ReservedClientType = GC::Ptr<HTML::Environment>;
     using WindowType = Variant<Window, GC::Ptr<HTML::EnvironmentSettingsObject>>;
