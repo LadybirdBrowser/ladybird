@@ -228,7 +228,7 @@ Color ComputedProperties::color_or_fallback(CSS::PropertyID id, Layout::NodeWith
     return value.to_color(node);
 }
 
-NonnullRefPtr<Gfx::Font const> ComputedProperties::font_fallback(bool monospace, bool bold)
+NonnullRefPtr<Gfx::Font const> ComputedProperties::font_fallback(bool monospace, bool bold, float point_size)
 {
     if (monospace && bold)
         return Platform::FontPlugin::the().default_fixed_width_font().bold_variant();
@@ -237,9 +237,9 @@ NonnullRefPtr<Gfx::Font const> ComputedProperties::font_fallback(bool monospace,
         return Platform::FontPlugin::the().default_fixed_width_font();
 
     if (bold)
-        return Platform::FontPlugin::the().default_font().bold_variant();
+        return Platform::FontPlugin::the().default_font(point_size)->bold_variant();
 
-    return Platform::FontPlugin::the().default_font();
+    return *Platform::FontPlugin::the().default_font(point_size);
 }
 
 CSSPixels ComputedProperties::compute_line_height(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
