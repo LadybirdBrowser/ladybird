@@ -84,7 +84,7 @@ EOF
 fi
 
 create_build_dir() {
-    check_program_version_at_least CMake cmake 3.25 || exit 1
+    check_program_version_is_compatible CMake cmake 3.25 || exit 1
     cmake --preset "$BUILD_PRESET" "${CMAKE_ARGS[@]}" -S "$LADYBIRD_SOURCE_DIR" -B "$BUILD_DIR"
 }
 

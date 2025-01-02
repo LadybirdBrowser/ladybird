@@ -98,6 +98,11 @@ if [ "$CMD" = "--help" ] || [ "$CMD" = "help" ]; then
     exit 0
 fi
 
+# As of 2025-01-02 the WPT repository is not compatible with Python 3.13,
+# and it looks like this is going to stay that way for a while.
+# https://github.com/web-platform-tests/wpt/issues/48585
+check_program_version_is_compatible Python python 3.8 3.13 || exit 1
+
 set_logging_flags()
 {
     [ -n "${1}" ] || usage;

@@ -17,21 +17,24 @@ exit_if_running_as_root() {
     fi
 }
 
-# Usage: check_program_version_at_least <Display Name> <Program Name> <Version String>
-check_program_version_at_least()
+# Usage: check_program_version_is_compatible <display name> <program name> <minimum version> <optional: first version that is too high>
+check_program_version_is_compatible()
 {
-    echo -n "Checking for $1 version at least $3... "
+    echo -n "Checking for compatible $1 version... "
     if ! command -v "$2" > /dev/null 2>&1; then
         echo "ERROR: Cannot find $2 ($1)"
         return 1
     fi
     v=$("$2" --version 2>&1 | grep -E -o '[0-9]+\.[0-9\.]+[a-z]*' | head -n1)
-    if printf '%s\n' "$3" "$v" | sort --version-sort --check &>/dev/null; then
+    if ! printf '%s\n' "$3" "$v" | sort --version-sort --check &>/dev/null; then
+        echo "ERROR: found version $v, which is too old! At least $3 is required."
+        return 1;
+    elif [ -n "$4" ] && printf '%s\n' "$4" "$v" | sort --version-sort --check &>/dev/null; then
+        echo "ERROR: found version $v, which is too new! A version below $4 is required."
+        return 1;
+    else
         echo "ok, found $v"
         return 0;
-    else
-        echo "ERROR: found version $v, too old!"
-        return 1;
     fi
 }
 
