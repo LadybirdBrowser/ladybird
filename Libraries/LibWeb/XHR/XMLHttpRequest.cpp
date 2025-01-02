@@ -942,7 +942,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
         }
 
         // FIXME: This is not exactly correct, as it allows the HTML event loop to continue executing tasks.
-        Platform::EventLoopPlugin::the().spin_until(GC::create_function(heap(), [&]() {
+        HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&]() {
             return processed_response || did_time_out;
         }));
 
