@@ -3017,20 +3017,28 @@ size_t StyleComputer::number_of_css_font_faces_with_loading_in_progress() const
 
 bool StyleComputer::has_has_selectors() const
 {
+    if (!document().is_active())
+        return false;
+
     build_rule_cache_if_needed();
     return m_selector_insights->has_has_selectors;
 }
 
 bool StyleComputer::has_defined_selectors() const
 {
+    if (!document().is_active())
+        return false;
+
     build_rule_cache_if_needed();
     return m_selector_insights->has_defined_selectors;
 }
 
 bool StyleComputer::has_attribute_selector(FlyString const& attribute_name) const
 {
-    build_rule_cache_if_needed();
+    if (!document().is_active())
+        return false;
 
+    build_rule_cache_if_needed();
     return m_selector_insights->all_names_used_in_attribute_selectors.contains(attribute_name);
 }
 
