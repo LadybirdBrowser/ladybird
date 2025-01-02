@@ -22,6 +22,7 @@
 #include <LibWeb/CSS/GridTrackSize.h>
 #include <LibWeb/CSS/LengthBox.h>
 #include <LibWeb/CSS/PercentageOr.h>
+#include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/Ratio.h>
 #include <LibWeb/CSS/Size.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
@@ -76,6 +77,7 @@ public:
     static CSS::CaptionSide caption_side() { return CSS::CaptionSide::Top; }
     static CSS::Clear clear() { return CSS::Clear::None; }
     static CSS::Clip clip() { return CSS::Clip::make_auto(); }
+    static CSS::PreferredColorScheme color_scheme() { return CSS::PreferredColorScheme::Auto; }
     static CSS::ContentVisibility content_visibility() { return CSS::ContentVisibility::Visible; }
     static CSS::Cursor cursor() { return CSS::Cursor::Auto; }
     static CSS::WhiteSpace white_space() { return CSS::WhiteSpace::Normal; }
@@ -351,6 +353,7 @@ public:
     CSS::CaptionSide caption_side() const { return m_inherited.caption_side; }
     CSS::Clear clear() const { return m_noninherited.clear; }
     CSS::Clip clip() const { return m_noninherited.clip; }
+    CSS::PreferredColorScheme color_scheme() const { return m_inherited.color_scheme; }
     CSS::ContentVisibility content_visibility() const { return m_inherited.content_visibility; }
     CSS::Cursor cursor() const { return m_inherited.cursor; }
     CSS::ContentData content() const { return m_noninherited.content; }
@@ -543,6 +546,7 @@ protected:
         CSS::Length border_spacing_vertical { InitialValues::border_spacing() };
         CSS::CaptionSide caption_side { InitialValues::caption_side() };
         Color color { InitialValues::color() };
+        CSS::PreferredColorScheme color_scheme { InitialValues::color_scheme() };
         Optional<Color> accent_color {};
         Color webkit_text_fill_color { InitialValues::color() };
         CSS::ContentVisibility content_visibility { InitialValues::content_visibility() };
@@ -724,6 +728,7 @@ public:
     void set_border_spacing_vertical(CSS::Length border_spacing_vertical) { m_inherited.border_spacing_vertical = border_spacing_vertical; }
     void set_caption_side(CSS::CaptionSide caption_side) { m_inherited.caption_side = caption_side; }
     void set_color(Color color) { m_inherited.color = color; }
+    void set_color_scheme(CSS::PreferredColorScheme color_scheme) { m_inherited.color_scheme = color_scheme; }
     void set_clip(CSS::Clip const& clip) { m_noninherited.clip = clip; }
     void set_content(ContentData const& content) { m_noninherited.content = content; }
     void set_content_visibility(CSS::ContentVisibility content_visibility) { m_inherited.content_visibility = content_visibility; }

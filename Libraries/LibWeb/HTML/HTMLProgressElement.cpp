@@ -8,6 +8,7 @@
 
 #include <LibWeb/Bindings/HTMLProgressElementPrototype.h>
 #include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementFactory.h>
@@ -132,8 +133,7 @@ void HTMLProgressElement::update_progress_value_element()
 
 void HTMLProgressElement::computed_properties_changed()
 {
-    auto palette = document().page().palette();
-    auto accent_color = palette.color(ColorRole::Accent).to_string();
+    auto accent_color = MUST(String::from_utf8(CSS::string_from_keyword(CSS::Keyword::Accentcolor)));
 
     auto const& accent_color_property = computed_properties()->property(CSS::PropertyID::AccentColor);
     if (accent_color_property.has_color())

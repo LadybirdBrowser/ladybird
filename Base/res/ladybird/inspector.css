@@ -4,7 +4,6 @@
 
 @media (prefers-color-scheme: dark) {
     :root {
-        --background: rgb(23, 23, 23);
         --separator: dimgray;
         --separator-accent: rgb(57, 57, 57);
         --tab-controls: rgb(57, 57, 57);
@@ -30,7 +29,6 @@
 
 @media (prefers-color-scheme: light) {
     :root {
-        --background: white;
         --separator: lightgray;
         --separator-accent: white;
         --tab-controls: rgb(229, 229, 229);
@@ -54,7 +52,7 @@
 }
 
 html {
-    background-color: var(--background);
+    color-scheme: light dark;
 }
 
 body {
@@ -186,7 +184,7 @@ body {
     left: 0;
     right: 0;
     background-color: var(--tab-controls);
-    border-top: 2px solid var(--background);
+    border-top: 2px solid Canvas;
     display: flex;
     padding: 0.5em;
 }

@@ -292,6 +292,7 @@ private:
     RefPtr<CSSStyleValue> parse_oklch_color_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_color_function(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_color_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_color_scheme_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_counter_value(TokenStream<ComponentValue>&);
     enum class AllowReversed {
         No,

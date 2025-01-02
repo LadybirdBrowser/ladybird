@@ -130,12 +130,6 @@ String ProcessManager::generate_html()
         <title>Task Manager</title>
         <style>
                 @media (prefers-color-scheme: dark) {
-                    /* FIXME: We should be able to remove the HTML style when "color-scheme" is supported */
-                    html {
-                        background-color: rgb(30, 30, 30);
-                        color: white;
-                    }
-
                     tr:nth-child(even) {
                         background: rgb(57, 57, 57);
                     }
@@ -145,6 +139,10 @@ String ProcessManager::generate_html()
                     tr:nth-child(even) {
                         background: #f7f7f7;
                     }
+                }
+
+                html {
+                    color-scheme: light dark;
                 }
 
                 table {

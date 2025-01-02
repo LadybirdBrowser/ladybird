@@ -19,6 +19,7 @@
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ConicGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
@@ -114,6 +115,12 @@ CSSColorValue const& CSSStyleValue::as_color() const
 {
     VERIFY(is_color());
     return static_cast<CSSColorValue const&>(*this);
+}
+
+ColorSchemeStyleValue const& CSSStyleValue::as_color_scheme() const
+{
+    VERIFY(is_color_scheme());
+    return static_cast<ColorSchemeStyleValue const&>(*this);
 }
 
 ConicGradientStyleValue const& CSSStyleValue::as_conic_gradient() const

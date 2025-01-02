@@ -79,13 +79,6 @@ String highlight_source(URL::URL const& url, URL::URL const& base_url, StringVie
 
 constexpr inline StringView HTML_HIGHLIGHTER_STYLE = R"~~~(
     @media (prefers-color-scheme: dark) {
-        /* FIXME: We should be able to remove the HTML style when "color-scheme" is supported */
-        html {
-            background-color: rgb(30, 30, 30);
-            color: white;
-            counter-reset: line;
-        }
-
         :root {
             --comment-color: lightgreen;
             --keyword-color: orangered;
@@ -109,6 +102,10 @@ constexpr inline StringView HTML_HIGHLIGHTER_STYLE = R"~~~(
             --error-color: darkred;
             --line-number-color: dimgrey;
         }
+    }
+
+    html {
+        color-scheme: light dark;
     }
 
     .html {
