@@ -67,6 +67,7 @@ CloseWatcher
 Comment
 CompositionEvent
 CompressionStream
+ConstantSourceNode
 CountQueuingStrategy
 Crypto
 CryptoKey
