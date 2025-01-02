@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 22 tests
+
+22 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "validate .buffer"
+Pass	Audit report
+Pass	> [validate .buffer] Validatation of AudioBuffer in .buffer attribute setter
+Pass	  source.buffer = 57 threw TypeError: "Not an object of type AudioBuffer".
+Pass	  source.buffer = null did not throw an exception.
+Pass	  source.buffer = buffer did not throw an exception.
+Pass	  source.buffer = new buffer threw InvalidStateError: "Buffer has already been set".
+Pass	  source.buffer = null again did not throw an exception.
+Pass	  source.buffer = buffer again threw InvalidStateError: "Buffer has already been set".
+Pass	  source.buffer = null after setting to null did not throw an exception.
+Pass	  Setting source with mono buffer did not throw an exception.
+Pass	  Setting source with stereo buffer did not throw an exception.
+Pass	  Setting source with 3 channels buffer did not throw an exception.
+Pass	  Setting source with 4 channels buffer did not throw an exception.
+Pass	  Setting source with 5 channels buffer did not throw an exception.
+Pass	  Setting source with 6 channels buffer did not throw an exception.
+Pass	  Setting source with 7 channels buffer did not throw an exception.
+Pass	  Setting source with 8 channels buffer did not throw an exception.
+Pass	  Setting source with 9 channels buffer did not throw an exception.
+Pass	< [validate .buffer] All assertions passed. (total 16 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 1 tasks ran successfully.

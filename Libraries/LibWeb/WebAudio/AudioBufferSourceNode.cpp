@@ -31,7 +31,22 @@ AudioBufferSourceNode::~AudioBufferSourceNode() = default;
 // https://webaudio.github.io/web-audio-api/#dom-audiobuffersourcenode-buffer
 WebIDL::ExceptionOr<void> AudioBufferSourceNode::set_buffer(GC::Ptr<AudioBuffer> buffer)
 {
-    m_buffer = buffer;
+    // 1. Let new buffer be the AudioBuffer or null value to be assigned to buffer.
+    auto new_buffer = buffer;
+
+    // 2. If new buffer is not null and [[buffer set]] is true, throw an InvalidStateError and abort these steps.
+    if (new_buffer && m_buffer_set)
+        return WebIDL::InvalidStateError::create(realm(), "Buffer has already been set"_string);
+
+    // 3. If new buffer is not null, set [[buffer set]] to true.
+    if (new_buffer)
+        m_buffer_set = true;
+
+    // 4. Assign new buffer to the buffer attribute.
+    m_buffer = new_buffer;
+
+    // FIXME: 5. If start() has previously been called on this node, perform the operation acquire the content on buffer.
+
     return {};
 }
 
