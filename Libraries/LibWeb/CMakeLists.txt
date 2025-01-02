@@ -794,6 +794,7 @@ set(SOURCES
     WebAudio/BiquadFilterNode.cpp
     WebAudio/ChannelMergerNode.cpp
     WebAudio/ChannelSplitterNode.cpp
+    WebAudio/ConstantSourceNode.cpp
     WebAudio/DynamicsCompressorNode.cpp
     WebAudio/GainNode.cpp
     WebAudio/OfflineAudioContext.cpp
