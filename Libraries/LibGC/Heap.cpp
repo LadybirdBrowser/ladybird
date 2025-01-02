@@ -267,7 +267,7 @@ void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots)
     for (auto& root : m_roots)
         roots.set(root.cell(), HeapRoot { .type = HeapRoot::Type::Root, .location = &root.source_location() });
 
-    for (auto& vector : m_marked_vectors)
+    for (auto& vector : m_root_vectors)
         vector.gather_roots(roots);
 
     if constexpr (HEAP_DEBUG) {

@@ -13,12 +13,12 @@ namespace GC {
 RootVectorBase::RootVectorBase(Heap& heap)
     : m_heap(&heap)
 {
-    m_heap->did_create_marked_vector({}, *this);
+    m_heap->did_create_root_vector({}, *this);
 }
 
 RootVectorBase::~RootVectorBase()
 {
-    m_heap->did_destroy_marked_vector({}, *this);
+    m_heap->did_destroy_root_vector({}, *this);
 }
 
 RootVectorBase& RootVectorBase::operator=(RootVectorBase const& other)
@@ -27,7 +27,7 @@ RootVectorBase& RootVectorBase::operator=(RootVectorBase const& other)
         m_heap = other.m_heap;
 
         // NOTE: IntrusiveList will remove this RootVectorBase from the old heap it was part of.
-        m_heap->did_create_marked_vector({}, *this);
+        m_heap->did_create_root_vector({}, *this);
     }
 
     return *this;
