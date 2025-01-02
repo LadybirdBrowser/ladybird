@@ -173,7 +173,7 @@ static DOM::Element const* element_to_inherit_style_from(DOM::Element const*, Op
 
 StyleComputer::StyleComputer(DOM::Document& document)
     : m_document(document)
-    , m_default_font_metrics(16, Platform::FontPlugin::the().default_font().pixel_metrics())
+    , m_default_font_metrics(16, Platform::FontPlugin::the().default_font(16)->pixel_metrics())
     , m_root_element_font_metrics(m_default_font_metrics)
 {
     m_qualified_layer_names_in_order.append({});
@@ -1786,7 +1786,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
     if (parent_element && parent_element->computed_properties())
         font_pixel_metrics = parent_element->computed_properties()->first_available_computed_font().pixel_metrics();
     else
-        font_pixel_metrics = Platform::FontPlugin::the().default_font().pixel_metrics();
+        font_pixel_metrics = Platform::FontPlugin::the().default_font(font_size_in_px.to_float())->pixel_metrics();
     auto parent_font_size = [&]() -> CSSPixels {
         if (!parent_element || !parent_element->computed_properties())
             return font_size_in_px;
@@ -2013,7 +2013,7 @@ RefPtr<Gfx::FontCascadeList const> StyleComputer::compute_font_for_style_values(
         font_list->add(*emoji_font);
     }
 
-    auto found_font = ComputedProperties::font_fallback(monospace, bold);
+    auto found_font = ComputedProperties::font_fallback(monospace, bold, 12);
     font_list->set_last_resort_font(found_font->with_size(font_size_in_pt));
 
     return font_list;
@@ -2069,7 +2069,7 @@ void StyleComputer::compute_font(ComputedProperties& style, DOM::Element const* 
 Gfx::Font const& StyleComputer::initial_font() const
 {
     // FIXME: This is not correct.
-    return ComputedProperties::font_fallback(false, false);
+    return ComputedProperties::font_fallback(false, false, 12);
 }
 
 void StyleComputer::absolutize_values(ComputedProperties& style) const

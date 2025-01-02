@@ -42,9 +42,7 @@ FontPlugin::FontPlugin(bool is_layout_test_mode, Gfx::SystemFontProvider* font_p
 
     update_generic_fonts();
 
-    auto default_font_name = generic_font_name(Web::Platform::GenericFont::UiSansSerif);
-    m_default_font = Gfx::FontDatabase::the().get(default_font_name, 12.0, 400, Gfx::FontWidth::Normal, 0);
-    VERIFY(m_default_font);
+    m_default_font_name = generic_font_name(Web::Platform::GenericFont::UiSansSerif);
 
     auto default_fixed_width_font_name = generic_font_name(Web::Platform::GenericFont::UiMonospace);
     m_default_fixed_width_font = Gfx::FontDatabase::the().get(default_fixed_width_font_name, 12.0, 400, Gfx::FontWidth::Normal, 0);
@@ -53,9 +51,9 @@ FontPlugin::FontPlugin(bool is_layout_test_mode, Gfx::SystemFontProvider* font_p
 
 FontPlugin::~FontPlugin() = default;
 
-Gfx::Font& FontPlugin::default_font()
+RefPtr<Gfx::Font> FontPlugin::default_font(float point_size)
 {
-    return *m_default_font;
+    return Gfx::FontDatabase::the().get(m_default_font_name, point_size, 400, Gfx::FontWidth::Normal, 0);
 }
 
 Gfx::Font& FontPlugin::default_fixed_width_font()
