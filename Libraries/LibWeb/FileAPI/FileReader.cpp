@@ -157,7 +157,7 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
 
             // 1. Wait for chunkPromise to be fulfilled or rejected.
             // FIXME: Create spec issue to use WebIDL react to promise steps here instead of this custom logic
-            Platform::EventLoopPlugin::the().spin_until(GC::create_function(heap(), [promise]() {
+            HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [promise]() {
                 return promise->state() == JS::Promise::State::Fulfilled || promise->state() == JS::Promise::State::Rejected;
             }));
 
