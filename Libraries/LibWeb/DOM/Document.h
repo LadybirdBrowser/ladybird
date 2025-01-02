@@ -233,13 +233,13 @@ public:
     Color background_color() const;
     Vector<CSS::BackgroundLayerData> const* background_layers() const;
 
-    Color normal_link_color() const;
+    Optional<Color> normal_link_color() const;
     void set_normal_link_color(Color);
 
-    Color active_link_color() const;
+    Optional<Color> active_link_color() const;
     void set_active_link_color(Color);
 
-    Color visited_link_color() const;
+    Optional<Color> visited_link_color() const;
     void set_visited_link_color(Color);
 
     void update_style();

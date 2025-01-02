@@ -141,16 +141,19 @@ Color CSSKeywordValue::to_color(Optional<Layout::NodeWithStyle const&> node) con
         return node->computed_values().color();
     }
 
-    // First, handle <system-color>s, since they don't require a node.
+    PreferredColorScheme scheme = PreferredColorScheme::Light;
+    if (node.has_value()) {
+        scheme = node->computed_values().color_scheme();
+    }
+
+    // First, handle <system-color>s, since they don't strictly require a node.
     // https://www.w3.org/TR/css-color-4/#css-system-colors
     // https://www.w3.org/TR/css-color-4/#deprecated-system-colors
     switch (keyword()) {
     case Keyword::Accentcolor:
-        return SystemColor::accent_color();
+        return SystemColor::accent_color(scheme);
     case Keyword::Accentcolortext:
-        return SystemColor::accent_color_text();
-    case Keyword::Activetext:
-        return SystemColor::active_text();
+        return SystemColor::accent_color_text(scheme);
     case Keyword::Buttonborder:
     case Keyword::Activeborder:
     case Keyword::Inactiveborder:
@@ -159,14 +162,14 @@ Color CSSKeywordValue::to_color(Optional<Layout::NodeWithStyle const&> node) con
     case Keyword::Threedlightshadow:
     case Keyword::Threedshadow:
     case Keyword::Windowframe:
-        return SystemColor::button_border();
+        return SystemColor::button_border(scheme);
     case Keyword::Buttonface:
     case Keyword::Buttonhighlight:
     case Keyword::Buttonshadow:
     case Keyword::Threedface:
-        return SystemColor::button_face();
+        return SystemColor::button_face(scheme);
     case Keyword::Buttontext:
-        return SystemColor::button_text();
+        return SystemColor::button_text(scheme);
     case Keyword::Canvas:
     case Keyword::Appworkspace:
     case Keyword::Background:
@@ -175,35 +178,33 @@ Color CSSKeywordValue::to_color(Optional<Layout::NodeWithStyle const&> node) con
     case Keyword::Menu:
     case Keyword::Scrollbar:
     case Keyword::Window:
-        return SystemColor::canvas();
+        return SystemColor::canvas(scheme);
     case Keyword::Canvastext:
     case Keyword::Activecaption:
     case Keyword::Captiontext:
     case Keyword::Infotext:
     case Keyword::Menutext:
     case Keyword::Windowtext:
-        return SystemColor::canvas_text();
+        return SystemColor::canvas_text(scheme);
     case Keyword::Field:
-        return SystemColor::field();
+        return SystemColor::field(scheme);
     case Keyword::Fieldtext:
-        return SystemColor::field_text();
+        return SystemColor::field_text(scheme);
     case Keyword::Graytext:
     case Keyword::Inactivecaptiontext:
-        return SystemColor::gray_text();
+        return SystemColor::gray_text(scheme);
     case Keyword::Highlight:
-        return SystemColor::highlight();
+        return SystemColor::highlight(scheme);
     case Keyword::Highlighttext:
-        return SystemColor::highlight_text();
+        return SystemColor::highlight_text(scheme);
     case Keyword::Mark:
-        return SystemColor::mark();
+        return SystemColor::mark(scheme);
     case Keyword::Marktext:
-        return SystemColor::mark_text();
+        return SystemColor::mark_text(scheme);
     case Keyword::Selecteditem:
-        return SystemColor::selected_item();
+        return SystemColor::selected_item(scheme);
     case Keyword::Selecteditemtext:
-        return SystemColor::selected_item_text();
-    case Keyword::Visitedtext:
-        return SystemColor::visited_text();
+        return SystemColor::selected_item_text(scheme);
     default:
         break;
     }
@@ -213,9 +214,19 @@ Color CSSKeywordValue::to_color(Optional<Layout::NodeWithStyle const&> node) con
         return Color::Black;
     }
 
-    auto& document = node->document();
-    if (keyword() == Keyword::LibwebLink || keyword() == Keyword::Linktext)
-        return document.normal_link_color();
+    auto const& document = node->document();
+
+    switch (keyword()) {
+    case Keyword::LibwebLink:
+    case Keyword::Linktext:
+        return document.normal_link_color().value_or(SystemColor::link_text(scheme));
+    case Keyword::Visitedtext:
+        return document.visited_link_color().value_or(SystemColor::visited_text(scheme));
+    case Keyword::Activetext:
+        return document.active_link_color().value_or(SystemColor::active_text(scheme));
+    default:
+        break;
+    }
 
     auto palette = document.page().palette();
     switch (keyword()) {

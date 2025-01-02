@@ -9,6 +9,7 @@
 #include <AK/Optional.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Palette.h>
+#include <LibWeb/CSS/SystemColor.h>
 
 namespace Web::Painting {
 
@@ -25,24 +26,24 @@ struct InputColors {
     Color background_color(bool enabled) { return enabled ? base : light_gray; }
     Color border_color(bool enabled) { return enabled ? gray : mid_gray; }
 
-    static Color get_shade(Color color, float amount, bool is_dark_theme)
+    static Color get_shade(Color color, float amount, CSS::PreferredColorScheme color_scheme)
     {
-        return color.mixed_with(is_dark_theme ? Color::Black : Color::White, amount);
+        auto base_color = CSS::SystemColor::canvas(color_scheme);
+        return color.mixed_with(base_color, amount);
     }
 };
 
-static InputColors compute_input_colors(Palette const& palette, Optional<Color> accent_color)
+static InputColors compute_input_colors(CSS::PreferredColorScheme color_scheme, Optional<Color> accent_color)
 {
     // These shades have been picked to work well for all themes and have enough variation to paint
     // all input states (disabled, enabled, checked, etc).
-    bool dark_theme = palette.is_dark();
-    auto base_text_color = palette.color(ColorRole::BaseText);
-    auto accent = accent_color.value_or(palette.color(ColorRole::Accent));
-    auto base = InputColors::get_shade(base_text_color.inverted(), 0.8f, dark_theme);
-    auto dark_gray = InputColors::get_shade(base_text_color, 0.3f, dark_theme);
-    auto gray = InputColors::get_shade(dark_gray, 0.4f, dark_theme);
-    auto mid_gray = InputColors::get_shade(gray, 0.3f, dark_theme);
-    auto light_gray = InputColors::get_shade(mid_gray, 0.3f, dark_theme);
+    auto base_text_color = CSS::SystemColor::canvas_text(color_scheme);
+    auto accent = accent_color.value_or(CSS::SystemColor::accent_color(color_scheme));
+    auto base = InputColors::get_shade(base_text_color.inverted(), 0.8f, color_scheme);
+    auto dark_gray = InputColors::get_shade(base_text_color, 0.3f, color_scheme);
+    auto gray = InputColors::get_shade(dark_gray, 0.4f, color_scheme);
+    auto mid_gray = InputColors::get_shade(gray, 0.3f, color_scheme);
+    auto light_gray = InputColors::get_shade(mid_gray, 0.3f, color_scheme);
     return InputColors {
         .accent = accent,
         .base = base,

@@ -96,6 +96,7 @@ public:
         BorderRadius,
         Calculated,
         Color,
+        ColorScheme,
         ConicGradient,
         Content,
         Counter,
@@ -177,6 +178,10 @@ public:
     bool is_color() const { return type() == Type::Color; }
     CSSColorValue const& as_color() const;
     CSSColorValue& as_color() { return const_cast<CSSColorValue&>(const_cast<CSSStyleValue const&>(*this).as_color()); }
+
+    bool is_color_scheme() const { return type() == Type::ColorScheme; }
+    ColorSchemeStyleValue const& as_color_scheme() const;
+    ColorSchemeStyleValue& as_color_scheme() { return const_cast<ColorSchemeStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_color_scheme()); }
 
     bool is_conic_gradient() const { return type() == Type::ConicGradient; }
     ConicGradientStyleValue const& as_conic_gradient() const;

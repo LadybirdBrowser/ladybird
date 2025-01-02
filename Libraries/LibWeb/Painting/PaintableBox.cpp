@@ -692,10 +692,10 @@ void paint_text_fragment(PaintContext& context, TextPaintable const& paintable, 
 
         auto selection_rect = context.enclosing_device_rect(fragment.selection_rect()).to_type<int>();
         if (!selection_rect.is_empty()) {
-            painter.fill_rect(selection_rect, CSS::SystemColor::highlight());
+            painter.fill_rect(selection_rect, CSS::SystemColor::highlight(paintable.computed_values().color_scheme()));
             DisplayListRecorderStateSaver saver(painter);
             painter.add_clip_rect(selection_rect);
-            painter.draw_text_run(baseline_start, *glyph_run, CSS::SystemColor::highlight_text(), fragment_absolute_device_rect.to_type<int>(), scale, fragment.orientation());
+            painter.draw_text_run(baseline_start, *glyph_run, CSS::SystemColor::highlight_text(paintable.computed_values().color_scheme()), fragment_absolute_device_rect.to_type<int>(), scale, fragment.orientation());
         }
 
         paint_text_decoration(context, paintable, fragment);

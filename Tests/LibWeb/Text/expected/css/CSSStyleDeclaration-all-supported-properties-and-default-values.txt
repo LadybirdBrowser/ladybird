@@ -1,6 +1,6 @@
 All supported properties and their default values exposed from CSSStyleDeclaration from getComputedStyle:
 'cssText': ''
-'length': '212'
+'length': '213'
 'parentRule': 'null'
 'cssFloat': 'none'
 'WebkitAlignContent': 'normal'
@@ -250,6 +250,8 @@ All supported properties and their default values exposed from CSSStyleDeclarati
 'clipRule': 'nonzero'
 'clip-rule': 'nonzero'
 'color': 'rgb(0, 0, 0)'
+'colorScheme': 'normal'
+'color-scheme': 'normal'
 'columnCount': 'auto'
 'column-count': 'auto'
 'columnGap': 'normal'

@@ -5,6 +5,7 @@ border-spacing: 0px
 caption-side: top
 clip-rule: nonzero
 color: rgb(0, 0, 0)
+color-scheme: normal
 cursor: auto
 direction: ltr
 fill: rgb(0, 0, 0)
@@ -132,7 +133,7 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: auto
 grid-template-rows: auto
-height: 2278px
+height: 2295px
 inline-size: auto
 inset-block-end: auto
 inset-block-start: auto

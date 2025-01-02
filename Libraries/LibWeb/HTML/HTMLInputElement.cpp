@@ -1181,8 +1181,7 @@ void HTMLInputElement::computed_properties_changed()
     if (!appearance.has_value() || *appearance == CSS::Appearance::None)
         return;
 
-    auto palette = document().page().palette();
-    auto accent_color = palette.color(ColorRole::Accent).to_string();
+    auto accent_color = MUST(String::from_utf8(CSS::string_from_keyword(CSS::Keyword::Accentcolor)));
 
     auto const& accent_color_property = computed_properties()->property(CSS::PropertyID::AccentColor);
     if (accent_color_property.has_color())

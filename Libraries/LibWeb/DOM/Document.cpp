@@ -1769,25 +1769,19 @@ void Document::release_events()
     // Do nothing
 }
 
-Color Document::normal_link_color() const
+Optional<Color> Document::normal_link_color() const
 {
-    if (m_normal_link_color.has_value())
-        return m_normal_link_color.value();
-    return CSS::SystemColor::link_text();
+    return m_normal_link_color;
 }
 
-Color Document::active_link_color() const
+Optional<Color> Document::active_link_color() const
 {
-    if (m_active_link_color.has_value())
-        return m_active_link_color.value();
-    return CSS::SystemColor::active_text();
+    return m_active_link_color;
 }
 
-Color Document::visited_link_color() const
+Optional<Color> Document::visited_link_color() const
 {
-    if (m_visited_link_color.has_value())
-        return m_visited_link_color.value();
-    return CSS::SystemColor::visited_text();
+    return m_visited_link_color;
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#relevant-settings-object
@@ -5912,12 +5906,37 @@ RefPtr<Painting::DisplayList> Document::record_display_list(PaintConfig config)
     auto display_list = Painting::DisplayList::create();
     Painting::DisplayListRecorder display_list_recorder(display_list);
 
+    // https://drafts.csswg.org/css-color-adjust-1/#color-scheme-effect
+    // On the root element, the used color scheme additionally must affect the surface color of the canvas, and the viewport’s scrollbars.
+    auto color_scheme = CSS::PreferredColorScheme::Light;
+    if (auto* html_element = this->html_element(); html_element && html_element->layout_node()) {
+        if (html_element->layout_node()->computed_values().color_scheme() == CSS::PreferredColorScheme::Dark)
+            color_scheme = CSS::PreferredColorScheme::Dark;
+    }
+
+    // .. in the case of embedded documents typically rendered over a transparent canvas
+    // (such as provided via an HTML iframe element), if the used color scheme of the element
+    // and the used color scheme of the embedded document’s root element do not match,
+    // then the UA must use an opaque canvas of the Canvas color appropriate to the
+    // embedded document’s used color scheme instead of a transparent canvas.
+    bool opaque_canvas = false;
+    if (auto container_element = navigable()->container(); container_element && container_element->layout_node()) {
+        auto container_scheme = container_element->layout_node()->computed_values().color_scheme();
+        if (container_scheme == CSS::PreferredColorScheme::Auto)
+            container_scheme = CSS::PreferredColorScheme::Light;
+
+        opaque_canvas = container_scheme != color_scheme;
+    }
+
     if (config.canvas_fill_rect.has_value()) {
-        display_list_recorder.fill_rect(config.canvas_fill_rect.value(), CSS::SystemColor::canvas());
+        display_list_recorder.fill_rect(config.canvas_fill_rect.value(), CSS::SystemColor::canvas(color_scheme));
     }
 
     auto viewport_rect = page().css_to_device_rect(this->viewport_rect());
     Gfx::IntRect bitmap_rect { {}, viewport_rect.size().to_type<int>() };
+
+    if (opaque_canvas)
+        display_list_recorder.fill_rect(bitmap_rect, CSS::SystemColor::canvas(color_scheme));
 
     display_list_recorder.fill_rect(bitmap_rect, background_color());
     if (!paintable()) {

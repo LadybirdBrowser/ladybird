@@ -42,6 +42,7 @@
 #include <LibWeb/CSS/StyleValues/CSSLCHLike.h>
 #include <LibWeb/CSS/StyleValues/CSSLabLike.h>
 #include <LibWeb/CSS/StyleValues/CSSRGB.h>
+#include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
@@ -3610,6 +3611,71 @@ RefPtr<CSSStyleValue> Parser::parse_color_value(TokenStream<ComponentValue>& tok
     }
 
     return {};
+}
+
+RefPtr<CSSStyleValue> Parser::parse_color_scheme_value(TokenStream<ComponentValue>& tokens)
+{
+    // normal | [ light | dark | <custom-ident> ]+ && only?
+
+    // normal
+    {
+        auto transaction = tokens.begin_transaction();
+        tokens.discard_whitespace();
+        if (tokens.consume_a_token().is_ident("normal"sv)) {
+            if (tokens.has_next_token())
+                return {};
+            transaction.commit();
+            return ColorSchemeStyleValue::normal();
+        }
+    }
+
+    bool only = false;
+    Vector<String> schemes;
+
+    // only? && (..)
+    {
+        auto transaction = tokens.begin_transaction();
+        tokens.discard_whitespace();
+        if (tokens.consume_a_token().is_ident("only"sv)) {
+            only = true;
+            transaction.commit();
+        }
+    }
+
+    // [ light | dark | <custom-ident> ]+
+    tokens.discard_whitespace();
+    while (tokens.has_next_token()) {
+        auto transaction = tokens.begin_transaction();
+
+        // The 'normal', 'light', 'dark', and 'only' keywords are not valid <custom-ident>s in this property.
+        // Note: only 'normal' is blacklisted here because 'light' and 'dark' aren't parsed differently and 'only' is checked for afterwards
+        auto ident = parse_custom_ident_value(tokens, { "normal"sv });
+        if (!ident)
+            return {};
+
+        if (ident->custom_ident() == "only"_fly_string)
+            break;
+
+        schemes.append(ident->custom_ident().to_string());
+        tokens.discard_whitespace();
+        transaction.commit();
+    }
+
+    // (..) && only?
+    if (!only) {
+        auto transaction = tokens.begin_transaction();
+        tokens.discard_whitespace();
+        if (tokens.consume_a_token().is_ident("only"sv)) {
+            only = true;
+            transaction.commit();
+        }
+    }
+
+    tokens.discard_whitespace();
+    if (tokens.has_next_token() || schemes.is_empty())
+        return {};
+
+    return ColorSchemeStyleValue::create(schemes, only);
 }
 
 // https://drafts.csswg.org/css-lists-3/#counter-functions
@@ -8458,6 +8524,10 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_css_value(Prope
         return ParseError::SyntaxError;
     case PropertyID::BoxShadow:
         if (auto parsed_value = parse_shadow_value(tokens, AllowInsetKeyword::Yes); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
+    case PropertyID::ColorScheme:
+        if (auto parsed_value = parse_color_scheme_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
     case PropertyID::Columns:

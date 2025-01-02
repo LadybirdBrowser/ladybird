@@ -49,9 +49,8 @@ void RadioButtonPaintable::paint(PaintContext& context, PaintPhase phase) const
 
     auto const& radio_button = static_cast<HTML::HTMLInputElement const&>(layout_box().dom_node());
 
-    auto& palette = context.palette();
     bool enabled = layout_box().dom_node().enabled();
-    auto input_colors = compute_input_colors(palette, computed_values().accent_color());
+    auto input_colors = compute_input_colors(computed_values().color_scheme(), computed_values().accent_color());
 
     auto background_color = input_colors.background_color(enabled);
     auto accent = input_colors.accent;
@@ -71,7 +70,7 @@ void RadioButtonPaintable::paint(PaintContext& context, PaintPhase phase) const
             return input_colors.mid_gray;
         auto color = radio_color();
         if (being_pressed())
-            color = InputColors::get_shade(color, 0.3f, palette.is_dark());
+            color = InputColors::get_shade(color, 0.3f, computed_values().color_scheme());
         return color;
     }();
 

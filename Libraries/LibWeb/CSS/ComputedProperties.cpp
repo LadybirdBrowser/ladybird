@@ -13,6 +13,7 @@
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
+#include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
@@ -226,6 +227,34 @@ Color ComputedProperties::color_or_fallback(CSS::PropertyID id, Layout::NodeWith
     if (!value.has_color())
         return fallback;
     return value.to_color(node);
+}
+
+// https://drafts.csswg.org/css-color-adjust-1/#determine-the-used-color-scheme
+CSS::PreferredColorScheme ComputedProperties::color_scheme(CSS::PreferredColorScheme preferred_scheme) const
+{
+    // To determine the used color scheme of an element:
+    auto const& scheme_value = property(CSS::PropertyID::ColorScheme).as_color_scheme();
+
+    // 1. If the user’s preferred color scheme, as indicated by the prefers-color-scheme media feature,
+    //    is present among the listed color schemes, and is supported by the user agent,
+    //    that’s the element’s used color scheme.
+    if (preferred_scheme != CSS::PreferredColorScheme::Auto && scheme_value.schemes().contains_slow(preferred_color_scheme_to_string(preferred_scheme)))
+        return preferred_scheme;
+
+    // 2. Otherwise, if the user has indicated an overriding preference for their chosen color scheme,
+    //    and the only keyword is not present in color-scheme for the element,
+    //    the user agent must override the color scheme with the user’s preferred color scheme.
+    //    See § 2.3 Overriding the Color Scheme.
+    // FIXME: We don't currently support setting an "overriding preference" for color schemes.
+
+    // 3. Otherwise, if the user agent supports at least one of the listed color schemes,
+    //    the used color scheme is the first supported color scheme in the list.
+    auto first_supported = scheme_value.schemes().first_matching([](auto scheme) { return preferred_color_scheme_from_string(scheme) != CSS::PreferredColorScheme::Auto; });
+    if (first_supported.has_value())
+        return preferred_color_scheme_from_string(first_supported.value());
+
+    // 4. Otherwise, the used color scheme is the browser default. (Same as normal.)
+    return CSS::PreferredColorScheme::Light;
 }
 
 NonnullRefPtr<Gfx::Font const> ComputedProperties::font_fallback(bool monospace, bool bold, float point_size)

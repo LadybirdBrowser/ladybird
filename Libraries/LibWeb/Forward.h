@@ -116,6 +116,7 @@ class BasicShapeStyleValue;
 class BorderRadiusStyleValue;
 class CalculatedStyleValue;
 class Clip;
+class ColorSchemeStyleValue;
 class ConicGradientStyleValue;
 class ContentStyleValue;
 class CounterDefinitionsStyleValue;

@@ -72,10 +72,8 @@ void CheckBoxPaintable::paint(PaintContext& context, PaintPhase phase) const
     auto checkbox_rect = context.enclosing_device_rect(absolute_rect()).to_type<int>();
     auto checkbox_radius = checkbox_rect.width() / 5;
 
-    auto& palette = context.palette();
-
     auto shade = [&](Color color, float amount) {
-        return InputColors::get_shade(color, amount, palette.is_dark());
+        return InputColors::get_shade(color, amount, computed_values().color_scheme());
     };
 
     auto modify_color = [&](Color color) {
@@ -84,7 +82,7 @@ void CheckBoxPaintable::paint(PaintContext& context, PaintPhase phase) const
         return color;
     };
 
-    auto input_colors = compute_input_colors(palette, computed_values().accent_color());
+    auto input_colors = compute_input_colors(computed_values().color_scheme(), computed_values().accent_color());
 
     auto increase_contrast = [&](Color color, Color background) {
         auto constexpr min_contrast = 2;

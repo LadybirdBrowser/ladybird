@@ -328,7 +328,15 @@ void NodeWithStyle::apply_style(const CSS::ComputedProperties& computed_style)
 {
     auto& computed_values = mutable_computed_values();
 
-    // NOTE: color must be set first to ensure currentColor can be resolved in other properties (e.g. background-color).
+    // NOTE: color-scheme must be set first to ensure system colors can be resolved correctly.
+    auto preferred_color_scheme = document().page().preferred_color_scheme();
+    // FIXME: We can't just check for Auto because page().preferred_color_scheme() returns garbage data after startup.
+    if (preferred_color_scheme != CSS::PreferredColorScheme::Dark && preferred_color_scheme != CSS::PreferredColorScheme::Light) {
+        preferred_color_scheme = document().page().palette().is_dark() ? CSS::PreferredColorScheme::Dark : CSS::PreferredColorScheme::Light;
+    }
+    computed_values.set_color_scheme(computed_style.color_scheme(preferred_color_scheme));
+
+    // NOTE: color must be set second to ensure currentColor can be resolved in other properties (e.g. background-color).
     computed_values.set_color(computed_style.color_or_fallback(CSS::PropertyID::Color, *this, CSS::InitialValues::color()));
 
     // NOTE: We have to be careful that font-related properties get set in the right order.

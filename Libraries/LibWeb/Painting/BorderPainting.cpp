@@ -7,6 +7,7 @@
  */
 
 #include <AK/CircularQueue.h>
+#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/Node.h>
 
@@ -579,7 +580,7 @@ Optional<BordersData> borders_data_for_outline(Layout::Node const& layout_node, 
     if (outline_style == CSS::OutlineStyle::Auto) {
         // `auto` lets us do whatever we want for the outline. 2px of the link colour seems reasonable.
         line_style = CSS::LineStyle::Dotted;
-        outline_color = layout_node.document().normal_link_color();
+        outline_color = CSS::CSSKeywordValue::create(CSS::Keyword::Linktext)->to_color(*static_cast<Layout::NodeWithStyle const*>(&layout_node));
         outline_width = 2;
     } else {
         line_style = CSS::keyword_to_line_style(CSS::to_keyword(outline_style)).value_or(CSS::LineStyle::None);
