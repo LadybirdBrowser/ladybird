@@ -152,7 +152,9 @@ ByteBuffer isomorphic_encode(StringView input)
     // NOTE: This is essentially spec-speak for "Encode as ISO-8859-1 / Latin-1".
     ByteBuffer buf = {};
     for (auto code_point : Utf8View { input }) {
-        VERIFY(code_point <= 0xFF);
+        // VERIFY(code_point <= 0xFF);
+        if (code_point > 0xFF)
+            dbgln("FIXME: Trying to isomorphic encode a string with code points > U+00FF.");
         buf.append((u8)code_point);
     }
     return buf;
