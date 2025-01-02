@@ -268,8 +268,6 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
 
     // FIXME: 16. Resume the context that is now on the top of the execution context stack as the running execution context.
 
-    // At this point we may have already run any queued promise jobs via on_call_stack_emptied,
-    // in which case this is a no-op.
     // FIXME: These three should be moved out of Interpreter::run and give the host an option to run these, as it's up to the host when these get run.
     //        https://tc39.es/ecma262/#sec-jobs for jobs and https://tc39.es/ecma262/#_ref_3508 for ClearKeptObjects
     //        finish_execution_generation is particularly an issue for LibWeb, as the HTML spec wants to run it specifically after performing a microtask checkpoint.
@@ -759,10 +757,7 @@ Interpreter::ResultAndReturnRegister Interpreter::run_executable(Executable& exe
         return_value = reg(Register::saved_return_value());
     auto exception = reg(Register::exception());
 
-    // At this point we may have already run any queued promise jobs via on_call_stack_emptied,
-    // in which case this is a no-op.
     vm().run_queued_promise_jobs();
-
     vm().finish_execution_generation();
 
     if (!exception.is_empty())
