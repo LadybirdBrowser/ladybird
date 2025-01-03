@@ -30,7 +30,7 @@ public:
     static ErrorOr<NonnullRefPtr<Client>> try_create(NonnullOwnPtr<Core::BufferedTCPSocket>, LaunchBrowserCallbacks, Core::EventReceiver* parent);
     virtual ~Client() override;
 
-    void close_session(unsigned session_id);
+    void close_session(String const& session_id);
 
 private:
     Client(NonnullOwnPtr<Core::BufferedTCPSocket>, LaunchBrowserCallbacks, Core::EventReceiver* parent);
@@ -104,8 +104,7 @@ private:
     virtual Web::WebDriver::Response take_element_screenshot(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response print_page(Web::WebDriver::Parameters parameters, JsonValue payload) override;
 
-    static HashMap<unsigned, NonnullRefPtr<Session>> s_sessions;
-    static Atomic<unsigned> s_next_session_id;
+    static HashMap<String, NonnullRefPtr<Session>> s_sessions;
 
     LaunchBrowserCallbacks m_callbacks;
 };

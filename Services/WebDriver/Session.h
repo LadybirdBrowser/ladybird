@@ -29,12 +29,12 @@ struct LaunchBrowserCallbacks;
 
 class Session : public RefCounted<Session> {
 public:
-    Session(unsigned session_id, NonnullRefPtr<Client> client, Web::WebDriver::LadybirdOptions options);
+    Session(String session_id, NonnullRefPtr<Client> client, Web::WebDriver::LadybirdOptions options);
     ~Session();
 
     void initialize_from_capabilities(JsonObject&);
 
-    unsigned session_id() const { return m_id; }
+    String session_id() const { return m_id; }
 
     struct Window {
         String handle;
@@ -90,7 +90,7 @@ private:
     Web::WebDriver::LadybirdOptions m_options;
 
     bool m_started { false };
-    unsigned m_id { 0 };
+    String m_id;
 
     HashMap<String, Window> m_windows;
     String m_current_window_handle;
