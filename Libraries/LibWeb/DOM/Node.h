@@ -192,8 +192,9 @@ public:
 
     WebIDL::ExceptionOr<GC::Ref<Node>> replace_child(GC::Ref<Node> node, GC::Ref<Node> child);
 
-    WebIDL::ExceptionOr<GC::Ref<Node>> clone_node(Document* document = nullptr, bool clone_children = false);
-    WebIDL::ExceptionOr<GC::Ref<Node>> clone_node_binding(bool deep);
+    WebIDL::ExceptionOr<GC::Ref<Node>> clone_node(Document* document = nullptr, bool subtree = false, Node* parent = nullptr);
+    WebIDL::ExceptionOr<GC::Ref<Node>> clone_single_node(Document&);
+    WebIDL::ExceptionOr<GC::Ref<Node>> clone_node_binding(bool subtree);
 
     // NOTE: This is intended for the JS bindings.
     bool has_child_nodes() const { return has_children(); }
@@ -741,6 +742,8 @@ public:
 protected:
     Node(JS::Realm&, Document&, NodeType);
     Node(Document&, NodeType);
+
+    void set_document(Document&);
 
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;
