@@ -67,6 +67,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
+#include <LibWeb/Selection/Selection.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -2597,6 +2598,73 @@ bool Element::check_visibility(Optional<CheckVisibilityOptions> options)
 
     // 6. Return true.
     return true;
+}
+
+// https://drafts.csswg.org/css-contain/#proximity-to-the-viewport
+void Element::determine_proximity_to_the_viewport()
+{
+    // An element that has content-visibility: auto is in one of three states when it comes to its proximity to the viewport:
+
+    // - The element is close to the viewport: In this state, the element is considered "on-screen": its paint
+    //   containment box's overflow clip edge intersects with the viewport, or a user-agent defined margin around the
+    //   viewport.
+    auto viewport_rect = document().viewport_rect();
+    // NOTE: This margin is meant to allow the user agent to begin preparing for an element to be in the
+    // viewport soon. A margin of 50% is suggested as a reasonable default.
+    viewport_rect.inflate(viewport_rect.width(), viewport_rect.height());
+    // FIXME: We don't have paint containment or the overflow clip edge yet, so this is just using the absolute rect for now.
+    if (paintable_box()->absolute_rect().intersects(viewport_rect))
+        m_proximity_to_the_viewport = ProximityToTheViewport::CloseToTheViewport;
+
+    // FIXME: If a filter (see [FILTER-EFFECTS-1]) with non local effects includes the element as part of its input, the user
+    //        agent should also treat the element as relevant to the user when the filter’s output can affect the rendering
+    //        within the viewport (or within the user-agent defined margin around the viewport), even if the element itself is
+    //        still off-screen.
+
+    // - The element is far away from the viewport: In this state, the element’s proximity to the viewport has been
+    //   computed and is not close to the viewport.
+    m_proximity_to_the_viewport = ProximityToTheViewport::FarAwayFromTheViewport;
+
+    // - The element’s proximity to the viewport is not determined: In this state, the computation to determine the
+    //   element’s proximity to the viewport has not been done since the last time the element was connected.
+    // NOTE: This function is what does the computation to determine the element’s proximity to the viewport, so this is not the case.
+}
+
+// https://drafts.csswg.org/css-contain/#relevant-to-the-user
+bool Element::is_relevant_to_the_user()
+{
+    // An element is relevant to the user if any of the following conditions are true:
+
+    // The element is close to the viewport.
+    if (m_proximity_to_the_viewport == ProximityToTheViewport::CloseToTheViewport)
+        return true;
+
+    // Either the element or its contents are focused, as described in the focus section of the HTML spec.
+    auto* focused_element = document().focused_element();
+    if (focused_element && is_inclusive_ancestor_of(*focused_element))
+        return true;
+
+    // Either the element or its contents are selected, where selection is described in the selection API.
+    if (document().get_selection()->contains_node(*this, true))
+        return true;
+
+    // Either the element or its contents are placed in the top layer.
+    bool is_in_top_layer = false;
+    for_each_in_inclusive_subtree_of_type<Element>([&](auto& element) {
+        if (element.in_top_layer()) {
+            is_in_top_layer = true;
+            return TraversalDecision::Break;
+        }
+
+        return TraversalDecision::Continue;
+    });
+    if (is_in_top_layer)
+        return true;
+
+    // FIXME: The element has a flat tree descendant that is captured in a view transition.
+
+    // NOTE: none of the above conditions are true, so the element is not relevant to the user.
+    return false;
 }
 
 bool Element::id_reference_exists(String const& id_reference) const
