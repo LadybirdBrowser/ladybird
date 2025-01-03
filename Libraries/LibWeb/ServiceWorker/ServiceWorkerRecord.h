@@ -25,3 +25,18 @@ struct ServiceWorkerRecord {
 };
 
 }
+
+namespace AK {
+template<>
+struct Traits<Web::ServiceWorker::ServiceWorkerRecord*> : public DefaultTraits<Web::ServiceWorker::ServiceWorkerRecord*> {
+    static unsigned hash(Web::ServiceWorker::ServiceWorkerRecord* const& key)
+    {
+        return ptr_hash(key);
+    }
+
+    static bool equals(Web::ServiceWorker::ServiceWorkerRecord* const& a, Web::ServiceWorker::ServiceWorkerRecord* const& b)
+    {
+        return a == b;
+    }
+};
+}

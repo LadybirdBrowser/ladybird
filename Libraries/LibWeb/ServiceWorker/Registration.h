@@ -16,6 +16,13 @@
 
 namespace Web::ServiceWorker {
 
+struct RegistrationKey {
+    StorageAPI::StorageKey key;
+    ByteString serialized_scope_url;
+
+    bool operator==(RegistrationKey const&) const = default;
+};
+
 // https://w3c.github.io/ServiceWorker/#dfn-service-worker-registration
 // This class corresponds to "service worker registration", not "ServiceWorkerRegistration"
 // FIXME: This object needs to live at the user-agent level, in LibWebView, not in LibWeb
@@ -31,10 +38,14 @@ public:
     // https://w3c.github.io/ServiceWorker/#set-registration-algorithm
     static Registration& set(StorageAPI::StorageKey const&, URL::URL const&, Bindings::ServiceWorkerUpdateViaCache);
 
+    // https://w3c.github.io/ServiceWorker/#scope-match-algorithm
+    static Optional<Registration&> match(StorageAPI::StorageKey const&, URL::URL const&);
+
     static void remove(StorageAPI::StorageKey const&, URL::URL const&);
 
     bool is_unregistered();
 
+    RegistrationKey const& key() const { return m_key; }
     StorageAPI::StorageKey const& storage_key() const { return m_storage_key; }
     URL::URL const& scope_url() const { return m_scope_url; }
     Bindings::ServiceWorkerUpdateViaCache update_via_cache() const { return m_update_via_cache_mode; }
@@ -42,11 +53,16 @@ public:
     void set_last_update_check_time(MonotonicTime time) { m_last_update_check_time = time; }
 
     ServiceWorkerRecord* newest_worker() const;
+    ServiceWorkerRecord* installing_worker() const { return m_installing_worker; }
+    ServiceWorkerRecord* waiting_worker() const { return m_waiting_worker; }
+    ServiceWorkerRecord* active_worker() const { return m_active_worker; }
+
     bool is_stale() const;
 
 private:
-    Registration(StorageAPI::StorageKey, URL::URL, Bindings::ServiceWorkerUpdateViaCache);
+    Registration(RegistrationKey, StorageAPI::StorageKey, URL::URL, Bindings::ServiceWorkerUpdateViaCache);
 
+    RegistrationKey m_key;
     StorageAPI::StorageKey m_storage_key; // https://w3c.github.io/ServiceWorker/#service-worker-registration-storage-key
     URL::URL m_scope_url;                 // https://w3c.github.io/ServiceWorker/#dfn-scope-url
 
@@ -65,4 +81,14 @@ private:
     ByteString m_navigation_preload_header_value;  // https://w3c.github.io/ServiceWorker/#service-worker-registration-navigation-preload-header-value
 };
 
+}
+
+namespace AK {
+template<>
+struct Traits<Web::ServiceWorker::RegistrationKey> : public DefaultTraits<Web::ServiceWorker::RegistrationKey> {
+    static unsigned hash(Web::ServiceWorker::RegistrationKey const& key)
+    {
+        return pair_int_hash(Traits<Web::StorageAPI::StorageKey>::hash(key.key), Traits<ByteString>::hash(key.serialized_scope_url));
+    }
+};
 }
