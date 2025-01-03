@@ -34,6 +34,8 @@ public:
     WebIDL::ExceptionOr<void> set_type(Bindings::OscillatorType);
 
     GC::Ref<AudioParam const> frequency() const { return m_frequency; }
+    GC::Ref<AudioParam const> detune() const { return m_detune; }
+
     WebIDL::UnsignedLong number_of_inputs() override { return 0; }
     WebIDL::UnsignedLong number_of_outputs() override { return 1; }
 
@@ -51,6 +53,9 @@ private:
 
     // https://webaudio.github.io/web-audio-api/#dom-oscillatornode-frequency
     GC::Ref<AudioParam> m_frequency;
+
+    // https://webaudio.github.io/web-audio-api/#dom-oscillatornode-detune
+    GC::Ref<AudioParam> m_detune;
 };
 
 }
