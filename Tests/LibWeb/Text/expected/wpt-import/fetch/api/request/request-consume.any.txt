@@ -1,0 +1,50 @@
+Harness status: OK
+
+Found 45 tests
+
+45 Pass
+Pass	Consume String request's body as text
+Pass	Consume String request's body as blob
+Pass	Consume String request's body as arrayBuffer
+Pass	Consume String request's body as bytes
+Pass	Consume String request's body as JSON
+Pass	Consume ArrayBuffer request's body as text
+Pass	Consume ArrayBuffer request's body as blob
+Pass	Consume ArrayBuffer request's body as arrayBuffer
+Pass	Consume ArrayBuffer request's body as bytes
+Pass	Consume ArrayBuffer request's body as JSON
+Pass	Consume Uint8Array request's body as text
+Pass	Consume Uint8Array request's body as blob
+Pass	Consume Uint8Array request's body as arrayBuffer
+Pass	Consume Uint8Array request's body as bytes
+Pass	Consume Uint8Array request's body as JSON
+Pass	Consume Int8Array request's body as text
+Pass	Consume Int8Array request's body as blob
+Pass	Consume Int8Array request's body as arrayBuffer
+Pass	Consume Int8Array request's body as bytes
+Pass	Consume Int8Array request's body as JSON
+Pass	Consume Float32Array request's body as text
+Pass	Consume Float32Array request's body as blob
+Pass	Consume Float32Array request's body as arrayBuffer
+Pass	Consume Float32Array request's body as bytes
+Pass	Consume Float32Array request's body as JSON
+Pass	Consume DataView request's body as text
+Pass	Consume DataView request's body as blob
+Pass	Consume DataView request's body as arrayBuffer
+Pass	Consume DataView request's body as bytes
+Pass	Consume DataView request's body as JSON
+Pass	Consume FormData request's body as FormData
+Pass	Consume blob response's body as blob
+Pass	Consume blob response's body as text
+Pass	Consume blob response's body as json
+Pass	Consume blob response's body as arrayBuffer
+Pass	Consume blob response's body as bytes
+Pass	Consume blob response's body as blob (empty blob as input)
+Pass	Consume JSON from text: '"null"'
+Pass	Consume JSON from text: '"1"'
+Pass	Consume JSON from text: '"true"'
+Pass	Consume JSON from text: '"\"string\""'
+Pass	Trying to consume bad JSON text as JSON: 'undefined'
+Pass	Trying to consume bad JSON text as JSON: '{'
+Pass	Trying to consume bad JSON text as JSON: 'a'
+Pass	Trying to consume bad JSON text as JSON: '['

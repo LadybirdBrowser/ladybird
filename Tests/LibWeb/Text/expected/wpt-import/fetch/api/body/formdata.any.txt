@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Consume empty response.formData() as FormData
+Pass	Consume empty request.formData() as FormData
+Pass	Consume multipart/form-data headers case-insensitively

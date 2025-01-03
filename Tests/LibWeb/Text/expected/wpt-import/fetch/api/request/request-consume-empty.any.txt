@@ -1,0 +1,20 @@
+Harness status: OK
+
+Found 14 tests
+
+13 Pass
+1 Fail
+Pass	Consume request's body as text
+Pass	Consume request's body as blob
+Pass	Consume request's body as arrayBuffer
+Pass	Consume request's body as json (error case)
+Pass	Consume request's body as formData with correct multipart type (error case)
+Pass	Consume request's body as formData with correct urlencoded type
+Pass	Consume request's body as formData without correct type (error case)
+Pass	Consume empty blob request body as arrayBuffer
+Pass	Consume empty text request body as arrayBuffer
+Pass	Consume empty blob request body as text
+Pass	Consume empty text request body as text
+Pass	Consume empty URLSearchParams request body as text
+Fail	Consume empty FormData request body as text
+Pass	Consume empty ArrayBuffer request body as text

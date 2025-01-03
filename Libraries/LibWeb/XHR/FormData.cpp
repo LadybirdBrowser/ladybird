@@ -70,6 +70,11 @@ WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::create(JS::Realm& realm, Vector
     return construct_impl(realm, move(list));
 }
 
+WebIDL::ExceptionOr<GC::Ref<FormData>> FormData::create(JS::Realm& realm, Vector<FormDataEntry> entry_list)
+{
+    return construct_impl(realm, move(entry_list));
+}
+
 FormData::FormData(JS::Realm& realm, Vector<FormDataEntry> entry_list)
     : PlatformObject(realm)
     , m_entry_list(move(entry_list))
