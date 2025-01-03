@@ -1,0 +1,30 @@
+diff --git a/src/libANGLE/renderer/d3d/d3d11/winrt/CoreWindowNativeWindow.cpp b/src/libANGLE/renderer/d3d/d3d11/winrt/CoreWindowNativeWindow.cpp
+index 7d3f078d6..fac057dd6 100644
+--- a/src/libANGLE/renderer/d3d/d3d11/winrt/CoreWindowNativeWindow.cpp
++++ b/src/libANGLE/renderer/d3d/d3d11/winrt/CoreWindowNativeWindow.cpp
+@@ -213,16 +213,20 @@ HRESULT GetCoreWindowSizeInPixels(const ComPtr<ABI::Windows::UI::Core::ICoreWind
+ 
+ static float GetLogicalDpi()
+ {
+-    ComPtr<ABI::Windows::Graphics::Display::IDisplayPropertiesStatics> displayProperties;
++    ComPtr<ABI::Windows::Graphics::Display::IDisplayInformationStatics> displayInformationStatics;
++    ComPtr<ABI::Windows::Graphics::Display::IDisplayInformation> displayInformation;
+ 
+     if (SUCCEEDED(GetActivationFactory(
+-            HStringReference(RuntimeClass_Windows_Graphics_Display_DisplayProperties).Get(),
+-            displayProperties.GetAddressOf())))
++            HStringReference(RuntimeClass_Windows_Graphics_Display_DisplayInformation).Get(),
++            displayInformationStatics.GetAddressOf())))
+     {
+         float dpi = 96.0f;
+-        if (SUCCEEDED(displayProperties->get_LogicalDpi(&dpi)))
++        if (SUCCEEDED(displayInformationStatics->GetForCurrentView(&displayInformation)))
+         {
+-            return dpi;
++            if (SUCCEEDED(displayInformation->get_LogicalDpi(&dpi)))
++            {
++                return dpi;
++            }
+         }
+     }
+ 

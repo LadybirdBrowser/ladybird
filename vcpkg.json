@@ -3,7 +3,10 @@
   "dependencies": [
     {
       "name": "angle",
-      "platform": "osx"
+      "platform": "osx",
+      "features": [
+          "metal"
+      ]
     },
     {
       "name": "curl",
