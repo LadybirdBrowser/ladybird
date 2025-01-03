@@ -2467,14 +2467,19 @@ bool HTMLInputElement::has_activation_behavior() const
     return true;
 }
 
+// https://html.spec.whatwg.org/multipage/input.html#the-input-element:activation-behaviour
 void HTMLInputElement::activation_behavior(DOM::Event const& event)
 {
     // The activation behavior for input elements are these steps:
 
-    // FIXME: 1. If this element is not mutable and is not in the Checkbox state and is not in the Radio state, then return.
+    // 1. If this element is not mutable and is not in the Checkbox state and is not in the Radio state, then return.
+    if (!is_mutable() && type_state() != TypeAttributeState::Checkbox && type_state() != TypeAttributeState::RadioButton)
+        return;
 
     // 2. Run this element's input activation behavior, if any, and do nothing otherwise.
     run_input_activation_behavior(event).release_value_but_fixme_should_propagate_errors();
+
+    // FIXME: 3. Run the popover target attribute activation behavior given element and event's target.
 }
 
 bool HTMLInputElement::has_input_activation_behavior() const
