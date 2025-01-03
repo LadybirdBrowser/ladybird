@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<head>
+    <title>Tentative: Tab-related Role Verification Tests</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+    <script src="../../resources/testdriver.js"></script>
+    <script src="../../resources/testdriver-vendor.js"></script>
+    <script src="../../resources/testdriver-actions.js"></script>
+    <script src="../../wai-aria/scripts/aria-utils.js"></script>
+</head>
+<body>
+
+<!--
+  CORE-AAM requires that, for elements with roles not contained in the
+  required context, user agents must ignore the role token and return the
+  computed role as if the ignored role token had not been included.
+  See https://w3c.github.io/core-aam/#roleMappingComputedRole
+-->
+<button role="tab" data-testname="orphan button with tab role" data-expectedrole="button" class="ex">x</button>
+<span role="tab" data-testname="orphan span with tab role" class="ex-generic">x</span>
+
+<script>
+    AriaUtils.verifyRolesBySelector(".ex");
+    AriaUtils.verifyGenericRolesBySelector(".ex-generic");
+</script>
+
+</body>
+</html>

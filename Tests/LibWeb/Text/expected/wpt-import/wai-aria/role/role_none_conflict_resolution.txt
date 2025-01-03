@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	heading role none with global attr aria-label
+Pass	p role none with global attr aria-label (prohibited role)
+Pass	focusable heading role none with tabindex=0
+Pass	focusable heading role none with tabindex=-1
+Pass	p role none without global attr aria-label (prohibited role)
+Pass	non-focusable heading role none
+Pass	none with non-global
