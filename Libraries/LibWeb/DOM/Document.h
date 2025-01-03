@@ -245,6 +245,8 @@ public:
     Optional<Vector<String> const&> supported_color_schemes() const;
     void obtain_supported_color_schemes();
 
+    void obtain_theme_color();
+
     void update_style();
     void update_layout();
     void update_paint_and_hit_testing_properties_if_needed();
