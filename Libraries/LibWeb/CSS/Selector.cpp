@@ -57,10 +57,15 @@ Selector::Selector(Vector<CompoundSelector>&& compound_selectors)
                 break;
             }
             if (simple_selector.type == SimpleSelector::Type::PseudoClass) {
+                if (simple_selector.pseudo_class().type == PseudoClass::Hover) {
+                    m_contains_hover_pseudo_class = true;
+                }
                 for (auto const& child_selector : simple_selector.pseudo_class().argument_selector_list) {
                     if (child_selector->contains_the_nesting_selector()) {
                         m_contains_the_nesting_selector = true;
-                        break;
+                    }
+                    if (child_selector->contains_hover_pseudo_class()) {
+                        m_contains_hover_pseudo_class = true;
                     }
                 }
                 if (m_contains_the_nesting_selector)
