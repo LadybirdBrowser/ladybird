@@ -74,7 +74,7 @@ public:
     Optional<LengthPercentage> length_percentage(CSS::PropertyID) const;
     LengthBox length_box(CSS::PropertyID left_id, CSS::PropertyID top_id, CSS::PropertyID right_id, CSS::PropertyID bottom_id, const CSS::Length& default_value) const;
     Color color_or_fallback(CSS::PropertyID, Layout::NodeWithStyle const&, Color fallback) const;
-    CSS::PreferredColorScheme color_scheme(CSS::PreferredColorScheme) const;
+    CSS::PreferredColorScheme color_scheme(CSS::PreferredColorScheme, Optional<Vector<String> const&> document_supported_schemes) const;
     Optional<CSS::TextAnchor> text_anchor() const;
     Optional<CSS::TextAlign> text_align() const;
     Optional<CSS::TextJustify> text_justify() const;

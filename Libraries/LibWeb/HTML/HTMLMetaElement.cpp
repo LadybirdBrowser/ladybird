@@ -12,6 +12,7 @@
 #include <LibWeb/CSS/Parser/ParsingContext.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
+#include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLMetaElement.h>
 #include <LibWeb/Infra/CharacterTypes.h>
@@ -45,6 +46,23 @@ Optional<HTMLMetaElement::HttpEquivAttributeState> HTMLMetaElement::http_equiv_s
 #undef __ENUMERATE_HTML_META_HTTP_EQUIV_ATTRIBUTE
 
     return OptionalNone {};
+}
+
+void HTMLMetaElement::update_metadata(Optional<String> const& old_name)
+{
+    if (name().has_value()) {
+        if (name()->equals_ignoring_ascii_case("color-scheme"sv)) {
+            document().obtain_supported_color_schemes();
+            return;
+        }
+    }
+
+    if (old_name.has_value()) {
+        if (old_name->equals_ignoring_ascii_case("color-scheme"sv)) {
+            document().obtain_supported_color_schemes();
+            return;
+        }
+    }
 }
 
 void HTMLMetaElement::inserted()
@@ -83,6 +101,8 @@ void HTMLMetaElement::inserted()
         document().page().client().page_did_change_theme_color(color);
         return;
     }
+
+    update_metadata();
 
     // https://html.spec.whatwg.org/multipage/semantics.html#pragma-directives
     // When a meta element is inserted into the document, if its http-equiv attribute is present and represents one of
@@ -157,6 +177,22 @@ void HTMLMetaElement::inserted()
             dbgln("FIXME: Implement '{}' http-equiv state", get_attribute_value(AttributeNames::http_equiv));
             break;
         }
+    }
+}
+
+void HTMLMetaElement::removed_from(Node* parent)
+{
+    Base::removed_from(parent);
+    update_metadata();
+}
+
+void HTMLMetaElement::attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+{
+    Base::attribute_changed(local_name, old_value, value, namespace_);
+    if (local_name == HTML::AttributeNames::name) {
+        update_metadata(old_value);
+    } else {
+        update_metadata();
     }
 }
 
