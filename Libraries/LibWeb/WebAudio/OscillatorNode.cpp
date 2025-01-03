@@ -24,9 +24,19 @@ WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> OscillatorNode::create(JS::Realm& r
 // https://webaudio.github.io/web-audio-api/#dom-oscillatornode-oscillatornode
 WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> OscillatorNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, OscillatorOptions const& options)
 {
-    // FIXME: Invoke "Initialize the AudioNode" steps.
     TRY(verify_valid_type(realm, options.type));
     auto node = realm.create<OscillatorNode>(realm, context, options);
+
+    // Default options for channel count and interpretation
+    // https://webaudio.github.io/web-audio-api/#OscillatorNode
+    AudioNodeDefaultOptions default_options;
+    default_options.channel_count = 2;
+    default_options.channel_count_mode = Bindings::ChannelCountMode::Max;
+    default_options.channel_interpretation = Bindings::ChannelInterpretation::Speakers;
+    // FIXME: Set tail-time to no
+
+    TRY(node->initialize_audio_node_options(options, default_options));
+
     return node;
 }
 
