@@ -128,6 +128,7 @@ using OnActionsComplete = GC::Ref<GC::Function<void(Web::WebDriver::Response)>>;
 
 ErrorOr<Vector<Vector<ActionObject>>, WebDriver::Error> extract_an_action_sequence(InputState&, JsonValue const&, ActionsOptions const&);
 
+void wait_for_an_action_queue_token(InputState&);
 GC::Ref<JS::Cell> dispatch_actions(InputState&, Vector<Vector<ActionObject>>, HTML::BrowsingContext&, ActionsOptions, OnActionsComplete);
 ErrorOr<void, WebDriver::Error> dispatch_tick_actions(InputState&, ReadonlySpan<ActionObject>, AK::Duration, HTML::BrowsingContext&, ActionsOptions const&);
 GC::Ref<JS::Cell> dispatch_list_of_actions(InputState&, Vector<ActionObject>, HTML::BrowsingContext&, ActionsOptions, OnActionsComplete);

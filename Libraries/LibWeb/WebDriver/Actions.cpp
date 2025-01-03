@@ -1346,8 +1346,8 @@ private:
 
 GC_DEFINE_ALLOCATOR(ActionExecutor);
 
-// https://w3c.github.io/webdriver/#dfn-dispatch-actions
-GC::Ref<JS::Cell> dispatch_actions(InputState& input_state, Vector<Vector<ActionObject>> actions_by_tick, HTML::BrowsingContext& browsing_context, ActionsOptions actions_options, OnActionsComplete on_complete)
+// https://w3c.github.io/webdriver/#dfn-wait-for-an-action-queue-token
+void wait_for_an_action_queue_token(InputState& input_state)
 {
     // 1. Let token be a new unique identifier.
     auto token = MUST(Crypto::generate_random_uuid());
@@ -1359,19 +1359,25 @@ GC::Ref<JS::Cell> dispatch_actions(InputState& input_state, Vector<Vector<Action
     // FIXME: We should probably do this, but our WebDriver currently blocks until a given action is complete anyways,
     //        so we should never arrive here with an ongoing action (which we verify for now).
     VERIFY(input_state.actions_queue.size() == 1);
+}
 
-    // 4. Let actions result be the result of dispatch actions inner with input state, actions by tick, browsing
+// https://w3c.github.io/webdriver/#dfn-dispatch-actions
+GC::Ref<JS::Cell> dispatch_actions(InputState& input_state, Vector<Vector<ActionObject>> actions_by_tick, HTML::BrowsingContext& browsing_context, ActionsOptions actions_options, OnActionsComplete on_complete)
+{
+    // 1. Wait for an action queue token with input state.
+    wait_for_an_action_queue_token(input_state);
+
+    // 2. Let actions result be the result of dispatch actions inner with input state, actions by tick, browsing
     //    context, and actions options.
     auto action_executor = browsing_context.heap().allocate<ActionExecutor>(input_state, move(actions_by_tick), browsing_context, move(actions_options), on_complete);
     action_executor->process_next_tick();
 
-    // 5. Dequeue input state's actions queue.
+    // 3. Dequeue input state's actions queue.
+    //    Assert: this returns token
+    // NOTE: We can't assert because `token` isn't defined here, it exists in `wait_for_an_action_queue_token()` instead.
     auto executed_token = input_state.actions_queue.take_first();
 
-    // 6. Assert: this returns token
-    VERIFY(executed_token == token);
-
-    // 7. Return actions result.
+    // 4. Return actions result.
     return action_executor;
 }
 
