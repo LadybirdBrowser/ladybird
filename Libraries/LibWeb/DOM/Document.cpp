@@ -1494,10 +1494,22 @@ void Document::set_hovered_node(Node* node)
     m_hovered_node = node;
 
     auto* common_ancestor = find_common_ancestor(old_hovered_node, m_hovered_node);
-    if (common_ancestor)
-        common_ancestor->invalidate_style(StyleInvalidationReason::Hover);
-    else
+    if (!style_computer().has_has_selectors()) {
+        Node& invalidation_root = common_ancestor ? *common_ancestor : document();
+        invalidation_root.for_each_in_inclusive_subtree([&](Node& node) {
+            if (!node.is_element())
+                return TraversalDecision::Continue;
+            auto& element = static_cast<Element&>(node);
+            if (element.affected_by_hover()) {
+                element.set_needs_style_update(true);
+            } else {
+                element.set_needs_inherited_style_update(true);
+            }
+            return TraversalDecision::Continue;
+        });
+    } else {
         invalidate_style(StyleInvalidationReason::Hover);
+    }
 
     // https://w3c.github.io/uievents/#mouseout
     if (old_hovered_node && old_hovered_node != m_hovered_node) {

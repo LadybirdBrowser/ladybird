@@ -70,7 +70,8 @@ static WebIDL::ExceptionOr<Variant<GC::Ptr<Element>, GC::Ref<NodeList>>> scope_m
     // FIXME: This should be shadow-including. https://drafts.csswg.org/selectors-4/#match-a-selector-against-a-tree
     node.for_each_in_subtree_of_type<Element>([&](auto& element) {
         for (auto& selector : selectors) {
-            if (SelectorEngine::matches(selector, {}, element, nullptr, {}, node)) {
+            SelectorEngine::MatchContext context;
+            if (SelectorEngine::matches(selector, element, nullptr, context, {}, node)) {
                 if (return_matches == ReturnMatches::First) {
                     single_result = &element;
                     return TraversalDecision::Break;
