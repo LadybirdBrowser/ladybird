@@ -10,9 +10,13 @@
 #include <LibWeb/Bindings/ServiceWorkerContainerPrototype.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/ServiceWorker/Job.h>
+#include <LibWeb/ServiceWorker/Registration.h>
 #include <LibWeb/ServiceWorker/ServiceWorker.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerContainer.h>
+#include <LibWeb/ServiceWorker/ServiceWorkerRegistration.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 
 namespace Web::ServiceWorker {
@@ -78,6 +82,61 @@ GC::Ref<WebIDL::Promise> ServiceWorkerContainer::register_(String script_url, Re
 
     // 8. Return p.
     return p;
+}
+
+// https://w3c.github.io/ServiceWorker/#navigator-service-worker-getRegistration
+GC::Ref<WebIDL::Promise> ServiceWorkerContainer::get_registration(String const& client_url)
+{
+    auto& realm = this->realm();
+
+    // 1. Let client be this's service worker client.
+    auto client = m_service_worker_client;
+
+    // 2. Let storage key be the result of running obtain a storage key given client.
+    auto storage_key = StorageAPI::obtain_a_storage_key(client);
+
+    // FIXME: Ad-Hoc. Spec should handle this failure.
+    if (!storage_key.has_value())
+        return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "Failed to obtain a storage key"sv));
+
+    // 3. Let clientURL be the result of parsing clientURL with this's relevant settings object’s API base URL.
+    auto base_url = HTML::relevant_settings_object(*this).api_base_url();
+    auto parsed_client_url = DOMURL::parse(client_url, base_url);
+
+    // 4. If clientURL is failure, return a promise rejected with a TypeError.
+    if (!parsed_client_url.has_value())
+        return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "clientURL is not a valid URL"sv));
+
+    // 5. Set clientURL’s fragment to null.
+    parsed_client_url->set_fragment({});
+
+    // 6. If the origin of clientURL is not client’s origin, return a promise rejected with a "SecurityError" DOMException.
+    if (!parsed_client_url->origin().is_same_origin(client->origin()))
+        return WebIDL::create_rejected_promise(realm, WebIDL::SecurityError::create(realm, "clientURL is not the same origin as the client's origin"_string));
+
+    // 7. Let promise be a new promise.
+    auto promise = WebIDL::create_promise(realm);
+
+    // 8. Run the following substeps in parallel:
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [promise, storage_key, parsed_client_url = *parsed_client_url]() {
+        auto& realm = HTML::relevant_realm(promise->promise());
+        HTML::TemporaryExecutionContext const execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+        // 1. Let registration be the result of running Match Service Worker Registration given storage key and clientURL.
+        auto maybe_registration = Registration::match(storage_key.value(), parsed_client_url);
+
+        // 2. If registration is null, resolve promise with undefined and abort these steps.
+        if (!maybe_registration.has_value()) {
+            WebIDL::resolve_promise(realm, promise, JS::js_undefined());
+            return;
+        }
+
+        // 3. Resolve promise with the result of getting the service worker registration object that represents registration in promise’s relevant settings object.
+        auto registration_object = HTML::relevant_settings_object(promise->promise()).get_service_worker_registration_object(maybe_registration.value());
+        WebIDL::resolve_promise(realm, promise, registration_object);
+    }));
+
+    return promise;
 }
 
 // https://w3c.github.io/ServiceWorker/#start-register-algorithm

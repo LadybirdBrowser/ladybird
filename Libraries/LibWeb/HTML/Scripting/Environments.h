@@ -15,6 +15,7 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/ModuleMap.h>
 #include <LibWeb/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
+#include <LibWeb/ServiceWorker/Registration.h>
 
 namespace Web::HTML {
 
@@ -105,6 +106,12 @@ public:
 
     GC::Ref<StorageAPI::StorageManager> storage_manager();
 
+    // https://w3c.github.io/ServiceWorker/#get-the-service-worker-registration-object
+    GC::Ref<ServiceWorker::ServiceWorkerRegistration> get_service_worker_registration_object(ServiceWorker::Registration const&);
+
+    // https://w3c.github.io/ServiceWorker/#get-the-service-worker-object
+    GC::Ref<ServiceWorker::ServiceWorker> get_service_worker_object(ServiceWorker::ServiceWorkerRecord*);
+
     [[nodiscard]] bool discarded() const { return m_discarded; }
     void set_discarded(bool b) { m_discarded = b; }
 
@@ -126,6 +133,16 @@ private:
     // https://storage.spec.whatwg.org/#api
     // Each environment settings object has an associated StorageManager object.
     GC::Ptr<StorageAPI::StorageManager> m_storage_manager;
+
+    // https://w3c.github.io/ServiceWorker/#environment-settings-object-service-worker-registration-object-map
+    // An environment settings object has a service worker registration object map,
+    // a map where the keys are service worker registrations and the values are ServiceWorkerRegistration objects.
+    HashMap<ServiceWorker::RegistrationKey, GC::Ref<ServiceWorker::ServiceWorkerRegistration>> m_service_worker_registration_object_map;
+
+    // https://w3c.github.io/ServiceWorker/#environment-settings-object-service-worker-object-map
+    // An environment settings object has a service worker object map,
+    // a map where the keys are service workers and the values are ServiceWorker objects.
+    HashMap<ServiceWorker::ServiceWorkerRecord*, GC::Ref<ServiceWorker::ServiceWorker>> m_service_worker_object_map;
 
     // https://w3c.github.io/ServiceWorker/#service-worker-client-discarded-flag
     // A service worker client has an associated discarded flag. It is initially unset.

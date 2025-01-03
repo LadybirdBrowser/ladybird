@@ -5,16 +5,11 @@
  */
 
 #include <AK/HashMap.h>
+#include <LibWeb/Crypto/Crypto.h>
+#include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/ServiceWorker/Registration.h>
 
 namespace Web::ServiceWorker {
-
-struct RegistrationKey {
-    StorageAPI::StorageKey key;
-    ByteString serialized_scope_url;
-
-    bool operator==(RegistrationKey const&) const = default;
-};
 
 // FIXME: Surely this needs hooks to be cleared and manipulated at the UA level
 //        Does this need to be serialized to disk as well?
@@ -84,6 +79,53 @@ Registration& Registration::set(StorageAPI::StorageKey const& storage_key, URL::
     return s_registrations.get(key).value();
 }
 
+// https://w3c.github.io/ServiceWorker/#scope-match-algorithm
+Optional<Registration&> Registration::match(StorageAPI::StorageKey const& storage_key, URL::URL const& client_url)
+{
+    // FIXME: 1. Run the following steps atomically.
+
+    // 2. Let clientURLString be serialized clientURL.
+    auto client_url_string = client_url.serialize();
+
+    // 3. Let matchingScopeString be the empty string.
+    ByteString matching_scope_string;
+
+    // 4. Let scopeStringSet be an empty list.
+    Vector<ByteString> scope_string_set;
+
+    // 5. For each (entry storage key, entry scope) of registration map's keys:
+    for (auto& [entry_storage_key, entry_scope] : s_registrations.keys()) {
+        // 1. If storage key equals entry storage key, then append entry scope to the end of scopeStringSet.
+        if (entry_storage_key == storage_key)
+            scope_string_set.append(entry_scope);
+    }
+
+    // 6. Set matchingScopeString to the longest value in scopeStringSet which the value of clientURLString starts with, if it exists.
+    // NOTE: The URL string matching in this step is prefix-based rather than path-structural. E.g. a client
+    //       URL string with "https://example.com/prefix-of/resource.html" will match a registration for a
+    //       scope with "https://example.com/prefix". The URL string comparison is safe for the same-origin
+    //       security as HTTP(S) URLs are always serialized with a trailing slash at the end of the origin
+    //       part of the URLs.
+    for (auto& scope_string : scope_string_set) {
+        if (client_url_string.starts_with_bytes(scope_string) && scope_string.length() > matching_scope_string.length())
+            matching_scope_string = scope_string;
+    }
+
+    // 7. Let matchingScope be null.
+    Optional<URL::URL> matching_scope;
+
+    // 8. If matchingScopeString is not the empty string, then:
+    if (!matching_scope_string.is_empty()) {
+        // 1. Let matchingScope be the result of parsing matchingScopeString.
+        matching_scope = DOMURL::parse(matching_scope_string);
+        // 2. Assert: matchingScope’s origin and clientURL’s origin are same origin.
+        VERIFY(matching_scope.value().origin().is_same_origin(client_url.origin()));
+    }
+
+    // 9. Return the result of running Get Registration given storage key and matchingScope.
+    return get(storage_key, matching_scope);
+}
+
 void Registration::remove(StorageAPI::StorageKey const& key, URL::URL const& scope)
 {
     (void)s_registrations.remove({ key, scope.serialize(URL::ExcludeFragment::Yes).to_byte_string() });
@@ -103,14 +145,4 @@ ServiceWorkerRecord* Registration::newest_worker() const
                                                                         : m_active_worker;
 }
 
-}
-
-namespace AK {
-template<>
-struct Traits<Web::ServiceWorker::RegistrationKey> : public DefaultTraits<Web::ServiceWorker::RegistrationKey> {
-    static unsigned hash(Web::ServiceWorker::RegistrationKey const& key)
-    {
-        return pair_int_hash(Traits<Web::StorageAPI::StorageKey>::hash(key.key), Traits<ByteString>::hash(key.serialized_scope_url));
-    }
-};
 }

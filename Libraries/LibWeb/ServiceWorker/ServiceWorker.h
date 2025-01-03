@@ -15,16 +15,18 @@
 
 namespace Web::ServiceWorker {
 
+// https://w3c.github.io/ServiceWorker/#serviceworker-interface
 class ServiceWorker : public DOM::EventTarget {
     WEB_PLATFORM_OBJECT(ServiceWorker, DOM::EventTarget);
 
 public:
-    [[nodiscard]] static GC::Ref<ServiceWorker> create(JS::Realm& realm);
+    [[nodiscard]] static GC::Ref<ServiceWorker> create(JS::Realm& realm, ServiceWorkerRecord*);
 
     virtual ~ServiceWorker() override;
 
-    String script_url() const { return m_script_url; }
+    String script_url() const;
     Bindings::ServiceWorkerState service_worker_state() const { return m_state; }
+    void set_service_worker_state(Bindings::ServiceWorkerState state) { m_state = state; }
 
 #undef __ENUMERATE
 #define __ENUMERATE(attribute_name, event_name)       \
@@ -34,12 +36,12 @@ public:
 #undef __ENUMERATE
 
 private:
-    ServiceWorker(JS::Realm&, String script_url);
+    ServiceWorker(JS::Realm&, ServiceWorkerRecord*);
 
     virtual void initialize(JS::Realm&) override;
 
-    String m_script_url;
     Bindings::ServiceWorkerState m_state { Bindings::ServiceWorkerState::Parsed };
+    ServiceWorkerRecord* m_service_worker_record;
 };
 
 }
