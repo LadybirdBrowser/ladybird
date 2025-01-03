@@ -109,12 +109,12 @@ CalculationNode::CalculationNode(Type type, Optional<CSSNumericType> numeric_typ
 
 CalculationNode::~CalculationNode() = default;
 
-NonnullOwnPtr<NumericCalculationNode> NumericCalculationNode::create(NumericValue value, Optional<ValueType> percentage_resolved_type)
+static CSSNumericType numeric_type_from_calculated_style_value(CalculatedStyleValue::CalculationResult::Value const& value, Optional<ValueType> percentage_resolved_type)
 {
     // https://drafts.csswg.org/css-values-4/#determine-the-type-of-a-calculation
     // Anything else is a terminal value, whose type is determined based on its CSS type.
     // (Unless otherwise specified, the type’s associated percent hint is null.)
-    auto numeric_type = value.visit(
+    return value.visit(
         [](Number const&) {
             // -> <number>
             // -> <integer>
@@ -172,7 +172,11 @@ NonnullOwnPtr<NumericCalculationNode> NumericCalculationNode::create(NumericValu
             // result.set_percent_hint(CSSNumericType::BaseType::Percent);
             return result;
         });
+}
 
+NonnullOwnPtr<NumericCalculationNode> NumericCalculationNode::create(NumericValue value, Optional<ValueType> percentage_resolved_type)
+{
+    auto numeric_type = numeric_type_from_calculated_style_value(value, percentage_resolved_type);
     return adopt_own(*new (nothrow) NumericCalculationNode(move(value), numeric_type));
 }
 
@@ -200,11 +204,13 @@ CalculatedStyleValue::CalculationResult NumericCalculationNode::resolve(Optional
         // NOTE: Depending on whether percentage_basis is set, the caller of resolve() is expecting a raw percentage or
         //       resolved type.
         return percentage_basis.visit(
-            [&](Empty const&) -> CalculatedStyleValue::CalculationResult {
+            [&](Empty const&) {
+                VERIFY(numeric_type_from_calculated_style_value(m_value, {}) == numeric_type());
                 return CalculatedStyleValue::CalculationResult::from_value(m_value, resolution_context, numeric_type());
             },
             [&](auto const& value) {
-                return CalculatedStyleValue::CalculationResult::from_value(value.percentage_of(m_value.get<Percentage>()), resolution_context, numeric_type());
+                auto const calculated_value = value.percentage_of(m_value.get<Percentage>());
+                return CalculatedStyleValue::CalculationResult::from_value(calculated_value, resolution_context, numeric_type_from_calculated_style_value(calculated_value, {}));
             });
     }
 
@@ -1730,6 +1736,11 @@ bool RemCalculationNode::equals(CalculationNode const& other) const
 
 CalculatedStyleValue::CalculationResult CalculatedStyleValue::CalculationResult::from_value(Value const& value, Optional<Length::ResolutionContext const&> context, Optional<CSSNumericType> numeric_type)
 {
+    auto const expected_numeric_type = numeric_type_from_calculated_style_value(value, {});
+    if (numeric_type.has_value()) {
+        VERIFY(numeric_type.value() == expected_numeric_type);
+    }
+
     auto number = value.visit(
         [](Number const& number) { return number.value(); },
         [](Angle const& angle) { return angle.to_degrees(); },
