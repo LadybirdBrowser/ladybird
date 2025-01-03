@@ -33,6 +33,8 @@ public:
     Bindings::OscillatorType type() const;
     WebIDL::ExceptionOr<void> set_type(Bindings::OscillatorType);
 
+    void set_periodic_wave(GC::Ptr<PeriodicWave>);
+
     GC::Ref<AudioParam const> frequency() const { return m_frequency; }
     GC::Ref<AudioParam const> detune() const { return m_detune; }
 
@@ -46,8 +48,6 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
-    static WebIDL::ExceptionOr<void> verify_valid_type(JS::Realm&, Bindings::OscillatorType);
-
     // https://webaudio.github.io/web-audio-api/#dom-oscillatornode-type
     Bindings::OscillatorType m_type { Bindings::OscillatorType::Sine };
 
@@ -56,6 +56,8 @@ private:
 
     // https://webaudio.github.io/web-audio-api/#dom-oscillatornode-detune
     GC::Ref<AudioParam> m_detune;
+
+    GC::Ptr<PeriodicWave> m_periodic_wave;
 };
 
 }

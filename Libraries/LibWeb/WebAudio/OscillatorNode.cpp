@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2025, Tim Ledbetter <tim.ledbetter@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -25,8 +26,13 @@ WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> OscillatorNode::create(JS::Realm& r
 // https://webaudio.github.io/web-audio-api/#dom-oscillatornode-oscillatornode
 WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> OscillatorNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, OscillatorOptions const& options)
 {
-    TRY(verify_valid_type(realm, options.type));
+    if (options.type == Bindings::OscillatorType::Custom && !options.periodic_wave)
+        return WebIDL::InvalidStateError::create(realm, "Oscillator node type 'custom' requires PeriodicWave to be provided"_string);
+
     auto node = realm.create<OscillatorNode>(realm, context, options);
+
+    if (options.type == Bindings::OscillatorType::Custom)
+        node->set_periodic_wave(options.periodic_wave);
 
     // Default options for channel count and interpretation
     // https://webaudio.github.io/web-audio-api/#OscillatorNode
@@ -56,24 +62,23 @@ Bindings::OscillatorType OscillatorNode::type() const
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-oscillatornode-type
-WebIDL::ExceptionOr<void> OscillatorNode::verify_valid_type(JS::Realm& realm, Bindings::OscillatorType type)
+WebIDL::ExceptionOr<void> OscillatorNode::set_type(Bindings::OscillatorType type)
 {
-    // The shape of the periodic waveform. It may directly be set to any of the type constant values except
-    // for "custom". ⌛ Doing so MUST throw an InvalidStateError exception. The setPeriodicWave() method can
-    // be used to set a custom waveform, which results in this attribute being set to "custom". The default
-    // value is "sine". When this attribute is set, the phase of the oscillator MUST be conserved.
-    if (type == Bindings::OscillatorType::Custom)
-        return WebIDL::InvalidStateError::create(realm, "Oscillator node type cannot be set to 'custom'"_string);
+    if (type == Bindings::OscillatorType::Custom && m_type != Bindings::OscillatorType::Custom)
+        return WebIDL::InvalidStateError::create(realm(), "Oscillator node type cannot be changed to 'custom'"_string);
 
+    // FIXME: An appropriate PeriodicWave should be set here based on the given type.
+    set_periodic_wave(nullptr);
+
+    m_type = type;
     return {};
 }
 
-// https://webaudio.github.io/web-audio-api/#dom-oscillatornode-type
-WebIDL::ExceptionOr<void> OscillatorNode::set_type(Bindings::OscillatorType type)
+// https://webaudio.github.io/web-audio-api/#dom-oscillatornode-setperiodicwave
+void OscillatorNode::set_periodic_wave(GC::Ptr<PeriodicWave> periodic_wave)
 {
-    TRY(verify_valid_type(realm(), type));
-    m_type = type;
-    return {};
+    m_periodic_wave = periodic_wave;
+    m_type = Bindings::OscillatorType::Custom;
 }
 
 void OscillatorNode::initialize(JS::Realm& realm)
@@ -87,6 +92,7 @@ void OscillatorNode::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_frequency);
     visitor.visit(m_detune);
+    visitor.visit(m_periodic_wave);
 }
 
 }
