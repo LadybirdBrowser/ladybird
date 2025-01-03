@@ -334,7 +334,7 @@ void NodeWithStyle::apply_style(const CSS::ComputedProperties& computed_style)
     if (preferred_color_scheme != CSS::PreferredColorScheme::Dark && preferred_color_scheme != CSS::PreferredColorScheme::Light) {
         preferred_color_scheme = document().page().palette().is_dark() ? CSS::PreferredColorScheme::Dark : CSS::PreferredColorScheme::Light;
     }
-    computed_values.set_color_scheme(computed_style.color_scheme(preferred_color_scheme));
+    computed_values.set_color_scheme(computed_style.color_scheme(preferred_color_scheme, document().supported_color_schemes()));
 
     // NOTE: color must be set second to ensure currentColor can be resolved in other properties (e.g. background-color).
     computed_values.set_color(computed_style.color_or_fallback(CSS::PropertyID::Color, *this, CSS::InitialValues::color()));

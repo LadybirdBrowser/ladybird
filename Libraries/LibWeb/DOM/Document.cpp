@@ -37,9 +37,11 @@
 #include <LibWeb/CSS/FontFaceSet.h>
 #include <LibWeb/CSS/MediaQueryList.h>
 #include <LibWeb/CSS/MediaQueryListEvent.h>
+#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/SelectorEngine.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
+#include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/CSS/TransitionEvent.h>
 #include <LibWeb/CSS/VisualViewport.h>
@@ -98,6 +100,7 @@
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLLinkElement.h>
+#include <LibWeb/HTML/HTMLMetaElement.h>
 #include <LibWeb/HTML/HTMLObjectElement.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/HTMLStyleElement.h>
@@ -1430,6 +1433,42 @@ void Document::set_active_link_color(Color color)
 void Document::set_visited_link_color(Color color)
 {
     m_visited_link_color = color;
+}
+
+Optional<Vector<String> const&> Document::supported_color_schemes() const
+{
+    return m_supported_color_schemes;
+}
+
+// https://html.spec.whatwg.org/multipage/semantics.html#meta-color-scheme
+void Document::obtain_supported_color_schemes()
+{
+    m_supported_color_schemes = {};
+
+    // 1. Let candidate elements be the list of all meta elements that meet the following criteria, in tree order:
+    for_each_in_subtree_of_type<HTML::HTMLMetaElement>([&](HTML::HTMLMetaElement& element) {
+        //     * the element is in a document tree;
+        //     * the element has a name attribute, whose value is an ASCII case-insensitive match for color-scheme; and
+        //     * the element has a content attribute.
+
+        // 2. For each element in candidate elements:
+        auto content = element.attribute(HTML::AttributeNames::content);
+        if (element.name().has_value() && element.name()->equals_ignoring_ascii_case("color-scheme"sv) && content.has_value()) {
+            // 1. Let parsed be the result of parsing a list of component values given the value of element's content attribute.
+            auto context = CSS::Parser::ParsingContext { document() };
+            auto parsed = parse_css_value(context, content.value(), CSS::PropertyID::ColorScheme);
+
+            // 2. If parsed is a valid CSS 'color-scheme' property value, then return parsed.
+            if (!parsed.is_null() && parsed->is_color_scheme()) {
+                m_supported_color_schemes = parsed->as_color_scheme().schemes();
+                return TraversalDecision::Break;
+            }
+        }
+
+        return TraversalDecision::Continue;
+    });
+
+    // 3. Return null.
 }
 
 Layout::Viewport const* Document::layout_node() const

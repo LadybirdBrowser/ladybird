@@ -230,7 +230,7 @@ Color ComputedProperties::color_or_fallback(CSS::PropertyID id, Layout::NodeWith
 }
 
 // https://drafts.csswg.org/css-color-adjust-1/#determine-the-used-color-scheme
-CSS::PreferredColorScheme ComputedProperties::color_scheme(CSS::PreferredColorScheme preferred_scheme) const
+CSS::PreferredColorScheme ComputedProperties::color_scheme(CSS::PreferredColorScheme preferred_scheme, Optional<Vector<String> const&> document_supported_schemes) const
 {
     // To determine the used color scheme of an element:
     auto const& scheme_value = property(CSS::PropertyID::ColorScheme).as_color_scheme();
@@ -254,6 +254,16 @@ CSS::PreferredColorScheme ComputedProperties::color_scheme(CSS::PreferredColorSc
         return preferred_color_scheme_from_string(first_supported.value());
 
     // 4. Otherwise, the used color scheme is the browser default. (Same as normal.)
+    // `normal` indicates that the element supports the page’s supported color schemes, if they are set
+    if (document_supported_schemes.has_value()) {
+        if (preferred_scheme != CSS::PreferredColorScheme::Auto && document_supported_schemes->contains_slow(preferred_color_scheme_to_string(preferred_scheme)))
+            return preferred_scheme;
+
+        auto document_first_supported = document_supported_schemes->first_matching([](auto scheme) { return preferred_color_scheme_from_string(scheme) != CSS::PreferredColorScheme::Auto; });
+        if (document_first_supported.has_value())
+            return preferred_color_scheme_from_string(document_first_supported.value());
+    }
+
     return CSS::PreferredColorScheme::Light;
 }
 
