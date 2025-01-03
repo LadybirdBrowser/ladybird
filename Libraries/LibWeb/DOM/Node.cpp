@@ -202,6 +202,10 @@ void Node::set_text_content(Optional<String> const& maybe_content)
 
     // If DocumentFragment or Element, string replace all with the given value within this.
     if (is<DocumentFragment>(this) || is<Element>(this)) {
+        // OPTIMIZATION: Replacing nothing with nothing is a no-op. Avoid all invalidation in this case.
+        if (!first_child() && content.is_empty()) {
+            return;
+        }
         string_replace_all(content);
     }
 

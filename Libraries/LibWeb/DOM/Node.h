@@ -74,6 +74,7 @@ enum class IsDescendant {
     X(HTMLIFrameElementGeometryChange)              \
     X(HTMLInputElementSetChecked)                   \
     X(HTMLObjectElementUpdateLayoutAndChildObjects) \
+    X(HTMLOptionElementSelectedChange)              \
     X(HTMLSelectElementSetIsOpen)                   \
     X(Hover)                                        \
     X(MediaQueryChangedMatchState)                  \
