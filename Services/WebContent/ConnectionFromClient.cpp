@@ -70,6 +70,15 @@ void ConnectionFromClient::die()
     Web::Platform::EventLoopPlugin::the().quit();
 }
 
+Messages::WebContentServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
+{
+#ifdef AK_OS_WINDOWS
+    m_transport.set_peer_pid(peer_pid);
+    return Core::System::getpid();
+#endif
+    VERIFY_NOT_REACHED();
+}
+
 Optional<PageClient&> ConnectionFromClient::page(u64 index, SourceLocation location)
 {
     if (auto page = m_page_host->page(index); page.has_value())

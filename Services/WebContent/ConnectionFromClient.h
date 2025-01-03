@@ -53,6 +53,7 @@ private:
     Optional<PageClient&> page(u64 index, SourceLocation = SourceLocation::current());
     Optional<PageClient const&> page(u64 index, SourceLocation = SourceLocation::current()) const;
 
+    virtual Messages::WebContentServer::InitTransportResponse init_transport(int peer_pid) override;
     virtual void close_server() override;
     virtual Messages::WebContentServer::GetWindowHandleResponse get_window_handle(u64 page_id) override;
     virtual void set_window_handle(u64 page_id, String const& handle) override;

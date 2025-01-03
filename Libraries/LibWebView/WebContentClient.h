@@ -29,6 +29,8 @@ class WebContentClient final
     C_OBJECT_ABSTRACT(WebContentClient);
 
 public:
+    using InitTransport = Messages::WebContentServer::InitTransport;
+
     static Optional<ViewImplementation&> view_for_pid_and_page_id(pid_t pid, u64 page_id);
 
     template<CallableAs<IterationDecision, WebContentClient&> Callback>

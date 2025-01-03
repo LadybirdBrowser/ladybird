@@ -40,6 +40,15 @@ void ConnectionFromClient::die()
     }
 }
 
+Messages::ImageDecoderServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
+{
+#ifdef AK_OS_WINDOWS
+    m_transport.set_peer_pid(peer_pid);
+    return Core::System::getpid();
+#endif
+    VERIFY_NOT_REACHED();
+}
+
 ErrorOr<IPC::File> ConnectionFromClient::connect_new_client()
 {
     int socket_fds[2] {};

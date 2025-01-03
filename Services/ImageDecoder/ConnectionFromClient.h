@@ -43,6 +43,7 @@ private:
     virtual Messages::ImageDecoderServer::DecodeImageResponse decode_image(Core::AnonymousBuffer const&, Optional<Gfx::IntSize> const& ideal_size, Optional<ByteString> const& mime_type) override;
     virtual void cancel_decoding(i64 image_id) override;
     virtual Messages::ImageDecoderServer::ConnectNewClientsResponse connect_new_clients(size_t count) override;
+    virtual Messages::ImageDecoderServer::InitTransportResponse init_transport(int peer_pid) override;
 
     ErrorOr<IPC::File> connect_new_client();
 
