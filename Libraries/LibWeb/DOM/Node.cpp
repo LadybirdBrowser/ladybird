@@ -1026,150 +1026,194 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::replace_child(GC::Ref<Node> node, GC::R
 }
 
 // https://dom.spec.whatwg.org/#concept-node-clone
-WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(Document* document, bool clone_children)
+WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(Document* document, bool subtree, Node* parent)
 {
-    // 1. If document is not given, let document be node’s node document.
+    // To clone a node given a node node and an optional document document (default node’s node document),
+    // boolean subtree (default false), and node-or-null parent (default null):
     if (!document)
-        document = m_document.ptr();
-    GC::Ptr<Node> copy;
+        document = m_document;
 
-    // 2. If node is an element, then:
-    if (is<Element>(this)) {
-        // 1. Let copy be the result of creating an element, given document, node’s local name, node’s namespace, node’s namespace prefix, and node’s is value, with the synchronous custom elements flag unset.
-        auto& element = *verify_cast<Element>(this);
-        auto element_copy = DOM::create_element(*document, element.local_name(), element.namespace_uri(), element.prefix(), element.is_value(), false).release_value_but_fixme_should_propagate_errors();
+    // 1. Assert: node is not a document or node is document.
+    VERIFY(!is_document() || this == document);
 
-        // 2. For each attribute in node’s attribute list:
-        element.for_each_attribute([&](auto& name, auto& value) {
-            // 1. Let copyAttribute be a clone of attribute.
-            // 2. Append copyAttribute to copy.
-            element_copy->append_attribute(name, value);
-        });
-        copy = move(element_copy);
+    // 2. Let copy be the result of cloning a single node given node and document.
+    auto copy = TRY(clone_single_node(*document));
 
-    }
-    // 3. Otherwise, let copy be a node that implements the same interfaces as node, and fulfills these additional requirements, switching on the interface node implements:
-    else if (is<Document>(this)) {
-        // Document
-        auto document_ = verify_cast<Document>(this);
-        auto document_copy = [&] -> GC::Ref<Document> {
-            switch (document_->document_type()) {
-            case Document::Type::XML:
-                return XMLDocument::create(realm(), document_->url());
-            case Document::Type::HTML:
-                return HTML::HTMLDocument::create(realm(), document_->url());
-            default:
-                return Document::create(realm(), document_->url());
-            }
-        }();
+    // 3. Run any cloning steps defined for node in other applicable specifications and pass node, copy, and subtree as parameters.
+    TRY(cloned(*copy, subtree));
 
-        // Set copy’s encoding, content type, URL, origin, type, and mode to those of node.
-        document_copy->set_encoding(document_->encoding());
-        document_copy->set_content_type(document_->content_type());
-        document_copy->set_url(document_->url());
-        document_copy->set_origin(document_->origin());
-        document_copy->set_document_type(document_->document_type());
-        document_copy->set_quirks_mode(document_->mode());
-        copy = move(document_copy);
-    } else if (is<DocumentType>(this)) {
-        // DocumentType
-        auto document_type = verify_cast<DocumentType>(this);
-        auto document_type_copy = realm().create<DocumentType>(*document);
+    // 4. If parent is non-null, then append copy to parent.
+    if (parent)
+        TRY(parent->append_child(copy));
 
-        // Set copy’s name, public ID, and system ID to those of node.
-        document_type_copy->set_name(document_type->name());
-        document_type_copy->set_public_id(document_type->public_id());
-        document_type_copy->set_system_id(document_type->system_id());
-        copy = move(document_type_copy);
-    } else if (is<Attr>(this)) {
-        // Attr
-        // Set copy’s namespace, namespace prefix, local name, and value to those of node.
-        auto& attr = static_cast<Attr&>(*this);
-        copy = attr.clone(*document);
-    } else if (is<Text>(this)) {
-        // Text
-        auto& text = static_cast<Text&>(*this);
-
-        // Set copy’s data to that of node.
-        copy = [&]() -> GC::Ref<Text> {
-            switch (type()) {
-            case NodeType::TEXT_NODE:
-                return realm().create<Text>(*document, text.data());
-            case NodeType::CDATA_SECTION_NODE:
-                return realm().create<CDATASection>(*document, text.data());
-            default:
-                VERIFY_NOT_REACHED();
-            }
-        }();
-    } else if (is<Comment>(this)) {
-        // Comment
-        auto comment = verify_cast<Comment>(this);
-
-        // Set copy’s data to that of node.
-        auto comment_copy = realm().create<Comment>(*document, comment->data());
-        copy = move(comment_copy);
-    } else if (is<ProcessingInstruction>(this)) {
-        // ProcessingInstruction
-        auto processing_instruction = verify_cast<ProcessingInstruction>(this);
-
-        // Set copy’s target and data to those of node.
-        auto processing_instruction_copy = realm().create<ProcessingInstruction>(*document, processing_instruction->data(), processing_instruction->target());
-        copy = processing_instruction_copy;
-    }
-    // Otherwise, Do nothing.
-    else if (is<DocumentFragment>(this)) {
-        copy = realm().create<DocumentFragment>(*document);
-    }
-
-    // FIXME: 4. Set copy’s node document and document to copy, if copy is a document, and set copy’s node document to document otherwise.
-
-    // 5. Run any cloning steps defined for node in other applicable specifications and pass copy, node, document and the clone children flag if set, as parameters.
-    TRY(cloned(*copy, clone_children));
-
-    // 6. If the clone children flag is set, clone all the children of node and append them to copy, with document as specified and the clone children flag being set.
-    if (clone_children) {
+    // 5. If subtree is true, then for each child of node’s children, in tree order:
+    //    clone a node given child with document set to document, subtree set to subtree, and parent set to copy.
+    if (subtree) {
         for (auto child = first_child(); child; child = child->next_sibling()) {
-            TRY(copy->append_child(TRY(child->clone_node(document, true))));
+            TRY(child->clone_node(document, subtree, copy));
         }
     }
 
-    // 7. If node is a shadow host whose shadow root’s clonable is true:
-    if (is_element() && static_cast<Element const&>(*this).is_shadow_host() && static_cast<Element const&>(*this).shadow_root()->clonable()) {
-        // 1. Assert: copy is not a shadow host.
-        VERIFY(!copy->is_element() || !static_cast<Element const&>(*copy).is_shadow_host());
+    // 6. If node is an element, node is a shadow host, and node’s shadow root’s clonable is true:
+    if (is_element()) {
+        auto& node_element = verify_cast<Element>(*this);
+        if (node_element.is_shadow_host() && node_element.shadow_root()->clonable()) {
+            // 1. Assert: copy is not a shadow host.
+            auto& copy_element = verify_cast<Element>(*copy);
+            VERIFY(!copy_element.is_shadow_host());
 
-        // 2. Run attach a shadow root with copy, node’s shadow root’s mode, true, node’s shadow root’s serializable,
-        //    node’s shadow root’s delegates focus, and node’s shadow root’s slot assignment.
-        auto& node_shadow_root = *static_cast<Element&>(*this).shadow_root();
-        TRY(static_cast<Element&>(*copy).attach_a_shadow_root(node_shadow_root.mode(), true, node_shadow_root.serializable(), node_shadow_root.delegates_focus(), node_shadow_root.slot_assignment()));
+            // 2. Attach a shadow root with copy, node’s shadow root’s mode, true, node’s shadow root’s serializable, node’s shadow root’s delegates focus, and node’s shadow root’s slot assignment.
+            TRY(copy_element.attach_a_shadow_root(node_element.shadow_root()->mode(), true, node_element.shadow_root()->serializable(), node_element.shadow_root()->delegates_focus(), node_element.shadow_root()->slot_assignment()));
 
-        // 3. Set copy’s shadow root’s declarative to node’s shadow root’s declarative.
-        static_cast<Element&>(*copy).shadow_root()->set_declarative(node_shadow_root.declarative());
+            // 3. Set copy’s shadow root’s declarative to node’s shadow root’s declarative.
+            copy_element.shadow_root()->set_declarative(node_element.shadow_root()->declarative());
 
-        // 4. For each child child of node’s shadow root, in tree order:
-        //    append the result of cloning child with document and the clone children flag set, to copy’s shadow root.
-        for (auto child = node_shadow_root.first_child(); child; child = child->next_sibling()) {
-            TRY(static_cast<Element&>(*copy).shadow_root()->append_child(TRY(child->clone_node(document, true))));
+            // 4. For each child of node’s shadow root’s children, in tree order:
+            //    clone a node given child with document set to document, subtree set to subtree, and parent set to copy’s shadow root.
+            for (auto child = node_element.shadow_root()->first_child(); child; child = child->next_sibling()) {
+                TRY(child->clone_node(document, subtree, copy_element.shadow_root()));
+            }
         }
     }
 
     // 7. Return copy.
+    return GC::Ref { *copy };
+}
+
+// https://dom.spec.whatwg.org/#clone-a-single-node
+WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document)
+{
+    // To clone a single node given a node node and document document:
+
+    // 1. Let copy be null.
+    GC::Ptr<Node> copy = nullptr;
+
+    // 2. If node is an element:
+    if (is_element()) {
+        // 1. Set copy to the result of creating an element, given document, node’s local name, node’s namespace, node’s namespace prefix, and node’s is value.
+        auto& element = *verify_cast<Element>(this);
+        auto element_copy = TRY(DOM::create_element(document, element.local_name(), element.namespace_uri(), element.prefix(), element.is_value()));
+
+        // 2. For each attribute of node’s attribute list:
+        element.for_each_attribute([&](auto& name, auto& value) {
+            // FIXME: 1. Let copyAttribute be the result of cloning a single node given attribute and document.
+            // 2. Append copyAttribute to copy.
+            element_copy->append_attribute(name, value);
+        });
+        copy = move(element_copy);
+    }
+
+    // 3. Otherwise, set copy to a node that implements the same interfaces as node, and fulfills these additional requirements, switching on the interface node implements:
+    else {
+        if (is_document()) {
+            // -> Document
+            auto& document_ = verify_cast<Document>(*this);
+            auto document_copy = [&] -> GC::Ref<Document> {
+                switch (document_.document_type()) {
+                case Document::Type::XML:
+                    return XMLDocument::create(realm(), document_.url());
+                case Document::Type::HTML:
+                    return HTML::HTMLDocument::create(realm(), document_.url());
+                default:
+                    return Document::create(realm(), document_.url());
+                }
+            }();
+
+            // Set copy’s encoding, content type, URL, origin, type, and mode to those of node.
+            document_copy->set_encoding(document_.encoding());
+            document_copy->set_content_type(document_.content_type());
+            document_copy->set_url(document_.url());
+            document_copy->set_origin(document_.origin());
+            document_copy->set_document_type(document_.document_type());
+            document_copy->set_quirks_mode(document_.mode());
+            copy = move(document_copy);
+        } else if (is_document_type()) {
+            // -> DocumentType
+            auto& document_type = verify_cast<DocumentType>(*this);
+            auto document_type_copy = realm().create<DocumentType>(document);
+
+            // Set copy’s name, public ID, and system ID to those of node.
+            document_type_copy->set_name(document_type.name());
+            document_type_copy->set_public_id(document_type.public_id());
+            document_type_copy->set_system_id(document_type.system_id());
+            copy = move(document_type_copy);
+        } else if (is_attribute()) {
+            // -> Attr
+            // Set copy’s namespace, namespace prefix, local name, and value to those of node.
+            auto& attr = verify_cast<Attr>(*this);
+            copy = attr.clone(document);
+        } else if (is_text()) {
+            // -> Text
+            auto& text = verify_cast<Text>(*this);
+
+            // Set copy’s data to that of node.
+            copy = [&]() -> GC::Ref<Text> {
+                switch (type()) {
+                case NodeType::TEXT_NODE:
+                    return realm().create<Text>(document, text.data());
+                case NodeType::CDATA_SECTION_NODE:
+                    return realm().create<CDATASection>(document, text.data());
+                default:
+                    VERIFY_NOT_REACHED();
+                }
+            }();
+        } else if (is_comment()) {
+            // -> Comment
+            auto& comment = verify_cast<Comment>(*this);
+
+            // Set copy’s data to that of node.
+            auto comment_copy = realm().create<Comment>(document, comment.data());
+            copy = move(comment_copy);
+        } else if (is<ProcessingInstruction>(this)) {
+            // -> ProcessingInstruction
+            auto& processing_instruction = verify_cast<ProcessingInstruction>(*this);
+
+            // Set copy’s target and data to those of node.
+            auto processing_instruction_copy = realm().create<ProcessingInstruction>(document, processing_instruction.data(), processing_instruction.target());
+            copy = move(processing_instruction_copy);
+        }
+        // -> Otherwise
+        //    Do nothing.
+        else if (is<DocumentFragment>(this)) {
+            copy = realm().create<DocumentFragment>(document);
+        } else {
+            dbgln("Missing code for cloning a '{}' node. Please add it to Node::clone_single_node()", class_name());
+            VERIFY_NOT_REACHED();
+        }
+    }
+
+    // 4. Assert: copy is a node.
     VERIFY(copy);
+
+    // 5. If node is a document, then set document to copy.
+    Document& document_to_use = is_document()
+        ? static_cast<Document&>(*copy)
+        : document;
+
+    // 6. Set copy’s node document to document.
+    copy->set_document(document_to_use);
+
+    // 7. Return copy.
     return GC::Ref { *copy };
 }
 
 // https://dom.spec.whatwg.org/#dom-node-clonenode
-WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node_binding(bool deep)
+WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node_binding(bool subtree)
 {
     // 1. If this is a shadow root, then throw a "NotSupportedError" DOMException.
     if (is<ShadowRoot>(*this))
         return WebIDL::NotSupportedError::create(realm(), "Cannot clone shadow root"_string);
 
-    // 2. Return a clone of this, with the clone children flag set if deep is true.
-    return clone_node(nullptr, deep);
+    // 2. Return the result of cloning a node given this with subtree set to subtree.
+    return clone_node(nullptr, subtree);
 }
 
 void Node::set_document(Badge<Document>, Document& document)
+{
+    set_document(document);
+}
+
+void Node::set_document(Document& document)
 {
     if (m_document.ptr() == &document)
         return;
