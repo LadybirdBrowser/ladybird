@@ -31,6 +31,9 @@ public:
     // https://w3c.github.io/ServiceWorker/#set-registration-algorithm
     static Registration& set(StorageAPI::StorageKey const&, URL::URL const&, Bindings::ServiceWorkerUpdateViaCache);
 
+    // https://w3c.github.io/ServiceWorker/#scope-match-algorithm
+    static Optional<Registration&> match(StorageAPI::StorageKey const&, URL::URL const&);
+
     static void remove(StorageAPI::StorageKey const&, URL::URL const&);
 
     bool is_unregistered();
@@ -42,6 +45,10 @@ public:
     void set_last_update_check_time(MonotonicTime time) { m_last_update_check_time = time; }
 
     ServiceWorkerRecord* newest_worker() const;
+    ServiceWorkerRecord* installing_worker() const { return m_installing_worker; }
+    ServiceWorkerRecord* waiting_worker() const { return m_waiting_worker; }
+    ServiceWorkerRecord* active_worker() const { return m_active_worker; }
+
     bool is_stale() const;
 
 private:
@@ -63,6 +70,24 @@ private:
 
     bool m_navigation_preload_enabled = { false }; // https://w3c.github.io/ServiceWorker/#service-worker-registration-navigation-preload-enabled-flag
     ByteString m_navigation_preload_header_value;  // https://w3c.github.io/ServiceWorker/#service-worker-registration-navigation-preload-header-value
+};
+
+struct RegistrationKey {
+    StorageAPI::StorageKey key;
+    ByteString serialized_scope_url;
+
+    bool operator==(RegistrationKey const&) const = default;
+};
+
+}
+
+namespace AK {
+template<>
+struct Traits<Web::ServiceWorker::RegistrationKey> : public DefaultTraits<Web::ServiceWorker::RegistrationKey> {
+    static unsigned hash(Web::ServiceWorker::RegistrationKey const& key)
+    {
+        return pair_int_hash(Traits<Web::StorageAPI::StorageKey>::hash(key.key), Traits<ByteString>::hash(key.serialized_scope_url));
+    }
 };
 
 }
