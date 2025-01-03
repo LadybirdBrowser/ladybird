@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 33 tests
 
-30 Pass
-3 Fail
+33 Pass
 Pass	basic with click()
 Pass	basic with dispatchEvent()
 Pass	basic with wrong event class
@@ -34,6 +33,6 @@ Pass	disabling checkbox in onclick listener shouldn't suppress onchange
 Pass	disabling radio in onclick listener shouldn't suppress oninput
 Pass	disabling radio in onclick listener shouldn't suppress onchange
 Pass	disconnected form should not submit
-Fail	disabled submit button should not activate
-Fail	submit button should not activate if the event listener disables it
-Fail	submit button that morphed from checkbox should not activate
+Pass	disabled submit button should not activate
+Pass	submit button should not activate if the event listener disables it
+Pass	submit button that morphed from checkbox should not activate
