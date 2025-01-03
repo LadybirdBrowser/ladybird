@@ -205,6 +205,8 @@ WebIDL::ExceptionOr<void> Element::set_attribute(FlyString const& name, String c
 // https://dom.spec.whatwg.org/#validate-and-extract
 WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm& realm, Optional<FlyString> namespace_, FlyString const& qualified_name)
 {
+    // To validate and extract a namespace and qualifiedName, run these steps:
+
     // 1. If namespace is the empty string, then set it to null.
     if (namespace_.has_value() && namespace_.value().is_empty())
         namespace_ = {};
@@ -218,11 +220,17 @@ WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm& realm, Option
     // 4. Let localName be qualifiedName.
     auto local_name = qualified_name;
 
-    // 5. If qualifiedName contains a U+003A (:), then strictly split the string on it and set prefix to the part before and localName to the part after.
+    // 5. If qualifiedName contains a U+003A (:):
     if (qualified_name.bytes_as_string_view().contains(':')) {
-        auto parts = qualified_name.bytes_as_string_view().split_view(':');
-        prefix = MUST(FlyString::from_utf8(parts[0]));
-        local_name = MUST(FlyString::from_utf8(parts[1]));
+        // 1. Let splitResult be the result of running strictly split given qualifiedName and U+003A (:).
+        // FIXME: Use the "strictly split" algorithm
+        auto split_result = qualified_name.bytes_as_string_view().split_view(':');
+
+        // 2. Set prefix to splitResult[0].
+        prefix = MUST(FlyString::from_utf8(split_result[0]));
+
+        // 3. Set localName to splitResult[1].
+        local_name = MUST(FlyString::from_utf8(split_result[1]));
     }
 
     // 6. If prefix is non-null and namespace is null, then throw a "NamespaceError" DOMException.
