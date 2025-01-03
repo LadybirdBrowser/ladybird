@@ -2,8 +2,8 @@
 
 set -eo pipefail
 
-script_path=$(cd -P -- "$(dirname -- "$0")" && pwd -P)
-cd "$script_path/.."
+script_path=$(CDPATH='' cd -P -- "$(dirname -- "$0")" && pwd -P)
+CDPATH='' cd "$script_path/.."
 
 if [ "$#" -eq "0" ]; then
     files=()
