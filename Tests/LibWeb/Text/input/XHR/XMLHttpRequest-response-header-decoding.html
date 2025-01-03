@@ -1,0 +1,29 @@
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        try {
+            const httpServer = httpTestServer();
+            const url = await httpServer.createEcho("GET", "/xml-http-request-response-header-decoding", {
+                status: 200,
+                headers: {
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Expose-Headers": "Refresh",
+                    "Refresh": "0;./refreshed.txt?\u0080\u00FF",
+                },
+                body: "",
+            });
+
+            const xhr = new XMLHttpRequest();
+            xhr.open("GET", url);
+
+            xhr.addEventListener("load", () => {
+                println(`getAllResponseHeaders()\n${xhr.getAllResponseHeaders().replace('\r','')}`);
+                println(`getResponseHeader("Refresh") => '${xhr.getResponseHeader("Refresh")}'`);
+                done();
+            });
+            xhr.send();
+        } catch (err) {
+            console.log("FAIL - " + err);
+        }
+    });
+</script>
