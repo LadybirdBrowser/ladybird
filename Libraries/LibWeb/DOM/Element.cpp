@@ -742,7 +742,8 @@ WebIDL::ExceptionOr<bool> Element::matches(StringView selectors) const
     // 3. If the result of match a selector against an element, using s, this, and scoping root this, returns success, then return true; otherwise, return false.
     auto sel = maybe_selectors.value();
     for (auto& s : sel) {
-        if (SelectorEngine::matches(s, {}, *this, nullptr, {}, static_cast<ParentNode const*>(this)))
+        SelectorEngine::MatchContext context;
+        if (SelectorEngine::matches(s, *this, nullptr, context, {}, static_cast<ParentNode const*>(this)))
             return true;
     }
     return false;
@@ -761,7 +762,8 @@ WebIDL::ExceptionOr<DOM::Element const*> Element::closest(StringView selectors) 
     auto matches_selectors = [this](CSS::SelectorList const& selector_list, Element const* element) {
         // 4. For each element in elements, if match a selector against an element, using s, element, and scoping root this, returns success, return element.
         for (auto const& selector : selector_list) {
-            if (SelectorEngine::matches(selector, {}, *element, nullptr, {}, this))
+            SelectorEngine::MatchContext context;
+            if (SelectorEngine::matches(selector, *element, nullptr, context, {}, this))
                 return true;
         }
         return false;
@@ -1121,6 +1123,22 @@ GC::Ptr<Layout::NodeWithStyle> Element::get_pseudo_element_node(CSS::Selector::P
     if (auto element_data = get_pseudo_element(pseudo_element); element_data.has_value())
         return element_data->layout_node;
     return nullptr;
+}
+
+bool Element::affected_by_hover() const
+{
+    if (m_computed_properties && m_computed_properties->did_match_any_hover_rules()) {
+        return true;
+    }
+    if (m_pseudo_element_data) {
+        for (auto& pseudo_element : *m_pseudo_element_data) {
+            if (!pseudo_element.computed_properties)
+                continue;
+            if (pseudo_element.computed_properties->did_match_any_hover_rules())
+                return true;
+        }
+    }
+    return false;
 }
 
 bool Element::has_pseudo_elements() const
