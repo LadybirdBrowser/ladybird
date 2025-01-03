@@ -972,13 +972,15 @@ void XMLHttpRequest::set_onreadystatechange(WebIDL::CallbackType* value)
 }
 
 // https://xhr.spec.whatwg.org/#dom-xmlhttprequest-getresponseheader
-WebIDL::ExceptionOr<Optional<String>> XMLHttpRequest::get_response_header(String const& name) const
+Optional<String> XMLHttpRequest::get_response_header(String const& name) const
 {
-    auto& vm = this->vm();
-
     // The getResponseHeader(name) method steps are to return the result of getting name from this’s response’s header list.
     auto header_bytes = m_response->header_list()->get(name.bytes());
-    return header_bytes.has_value() ? TRY_OR_THROW_OOM(vm, String::from_utf8(*header_bytes)) : Optional<String> {};
+    if (!header_bytes.has_value())
+        return {};
+
+    // FIXME: The spec doesn't mention isomorphic decode. Spec bug?
+    return Infra::isomorphic_decode(header_bytes->bytes());
 }
 
 // https://xhr.spec.whatwg.org/#legacy-uppercased-byte-less-than
@@ -997,12 +999,10 @@ static ErrorOr<bool> is_legacy_uppercased_byte_less_than(ReadonlyBytes a, Readon
 }
 
 // https://xhr.spec.whatwg.org/#dom-xmlhttprequest-getallresponseheaders
-WebIDL::ExceptionOr<String> XMLHttpRequest::get_all_response_headers() const
+String XMLHttpRequest::get_all_response_headers() const
 {
-    auto& vm = this->vm();
-
     // 1. Let output be an empty byte sequence.
-    ByteBuffer output;
+    StringBuilder output;
 
     // 2. Let initialHeaders be the result of running sort and combine with this’s response’s header list.
     auto initial_headers = m_response->header_list()->sort_and_combine();
@@ -1011,8 +1011,7 @@ WebIDL::ExceptionOr<String> XMLHttpRequest::get_all_response_headers() const
     // Spec Note: Unfortunately, this is needed for compatibility with deployed content.
     // NOTE: quick_sort mutates the collection instead of returning a sorted copy.
     quick_sort(initial_headers, [](Fetch::Infrastructure::Header const& a, Fetch::Infrastructure::Header const& b) {
-        // FIXME: We are not in a context where we can throw from OOM.
-        return is_legacy_uppercased_byte_less_than(a.name, b.name).release_value_but_fixme_should_propagate_errors();
+        return MUST(is_legacy_uppercased_byte_less_than(a.name, b.name));
     });
 
     // 4. For each header in headers, append header’s name, followed by a 0x3A 0x20 byte pair, followed by header’s value, followed by a 0x0D 0x0A byte pair, to output.
@@ -1020,13 +1019,14 @@ WebIDL::ExceptionOr<String> XMLHttpRequest::get_all_response_headers() const
         output.append(header.name);
         output.append(0x3A); // ':'
         output.append(0x20); // ' '
-        output.append(header.value);
+        // FIXME: The spec does not mention isomorphic decode. Spec bug?
+        output.append(Infra::isomorphic_decode(header.value).bytes());
         output.append(0x0D); // '\r'
         output.append(0x0A); // '\n'
     }
 
     // 5. Return output.
-    return TRY_OR_THROW_OOM(vm, String::from_utf8(output));
+    return MUST(output.to_string());
 }
 
 // https://xhr.spec.whatwg.org/#dom-xmlhttprequest-overridemimetype
