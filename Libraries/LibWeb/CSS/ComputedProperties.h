@@ -213,6 +213,9 @@ public:
 
     static float resolve_opacity_value(CSSStyleValue const& value);
 
+    bool did_match_any_hover_rules() const { return m_did_match_any_hover_rules; }
+    void set_did_match_any_hover_rules() { m_did_match_any_hover_rules = true; }
+
 private:
     friend class StyleComputer;
 
@@ -236,6 +239,8 @@ private:
     mutable RefPtr<Gfx::FontCascadeList> m_font_list;
 
     Optional<CSSPixels> m_line_height;
+
+    bool m_did_match_any_hover_rules { false };
 };
 
 }

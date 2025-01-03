@@ -16,9 +16,14 @@ enum class SelectorKind {
     Relative,
 };
 
-bool matches(CSS::Selector const&, Optional<CSS::CSSStyleSheet const&> style_sheet_for_rule, DOM::Element const&, GC::Ptr<DOM::Element const> shadow_host, Optional<CSS::Selector::PseudoElement::Type> = {}, GC::Ptr<DOM::ParentNode const> scope = {}, SelectorKind selector_kind = SelectorKind::Normal, GC::Ptr<DOM::Element const> anchor = nullptr);
+struct MatchContext {
+    GC::Ptr<CSS::CSSStyleSheet const> style_sheet_for_rule {};
+    bool did_match_any_hover_rules { false };
+};
 
-[[nodiscard]] bool fast_matches(CSS::Selector const&, Optional<CSS::CSSStyleSheet const&> style_sheet_for_rule, DOM::Element const&, GC::Ptr<DOM::Element const> shadow_host);
+bool matches(CSS::Selector const&, DOM::Element const&, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, Optional<CSS::Selector::PseudoElement::Type> = {}, GC::Ptr<DOM::ParentNode const> scope = {}, SelectorKind selector_kind = SelectorKind::Normal, GC::Ptr<DOM::Element const> anchor = nullptr);
+
+[[nodiscard]] bool fast_matches(CSS::Selector const&, DOM::Element const&, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context);
 [[nodiscard]] bool can_use_fast_matches(CSS::Selector const&);
 
 [[nodiscard]] bool matches_hover_pseudo_class(DOM::Element const&);
