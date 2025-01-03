@@ -1004,4 +1004,11 @@ int getpid()
     return ::getpid();
 }
 
+ErrorOr<void> sleep_ms(u32 milliseconds)
+{
+    if (usleep(1000 * milliseconds) != 0)
+        return Error::from_syscall("usleep"sv, -errno);
+    return {};
+}
+
 }

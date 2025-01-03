@@ -180,5 +180,6 @@ ErrorOr<void> set_resource_limits(int resource, rlim_t limit);
 #endif
 
 int getpid();
+ErrorOr<void> sleep_ms(u32 milliseconds);
 
 }
