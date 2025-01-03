@@ -12,15 +12,25 @@
 #include <AK/Checked.h>
 #include <AK/Platform.h>
 #include <AK/Types.h>
-#ifdef AK_OS_WINDOWS
+#include <time.h>
+#ifndef AK_OS_WINDOWS
+#    include <sys/time.h>
+#else
 struct timeval {
     long tv_sec;
     long tv_usec;
 };
-#else
-#    include <sys/time.h>
+inline int gettimeofday(struct timeval* tv, struct timezone*)
+{
+    timespec ts = {};
+    if (timespec_get(&ts, TIME_UTC) != TIME_UTC)
+        return -1;
+
+    tv->tv_sec = (long)ts.tv_sec;
+    tv->tv_usec = ts.tv_nsec / 1000;
+    return 0;
+}
 #endif
-#include <time.h>
 
 namespace AK {
 

@@ -100,14 +100,11 @@ WebIDL::ExceptionOr<void> MessagePort::transfer_steps(HTML::TransferDataHolder& 
         m_remote_port->m_has_been_shipped = true;
 
         // 2. Set dataHolder.[[RemotePort]] to remotePort.
-        if constexpr (IsSame<IPC::Transport, IPC::TransportSocket>) {
-            auto fd = MUST(m_transport->release_underlying_transport_for_transfer());
-            m_transport = {};
-            data_holder.fds.append(IPC::File::adopt_fd(fd));
-            data_holder.data.append(IPC_FILE_TAG);
-        } else {
-            VERIFY(false && "Don't know how to transfer IPC::Transport type");
-        }
+        // TODO: Mach IPC
+        auto fd = MUST(m_transport->release_underlying_transport_for_transfer());
+        m_transport = {};
+        data_holder.fds.append(IPC::File::adopt_fd(fd));
+        data_holder.data.append(IPC_FILE_TAG);
     }
 
     // 4. Otherwise, set dataHolder.[[RemotePort]] to null.
@@ -131,16 +128,13 @@ WebIDL::ExceptionOr<void> MessagePort::transfer_receiving_steps(HTML::TransferDa
     //     (This will disentangle dataHolder.[[RemotePort]] from the original port that was transferred.)
     auto fd_tag = data_holder.data.take_first();
     if (fd_tag == IPC_FILE_TAG) {
-        if constexpr (IsSame<IPC::Transport, IPC::TransportSocket>) {
-            auto fd = data_holder.fds.take_first();
-            m_transport = IPC::Transport(MUST(Core::LocalSocket::adopt_fd(fd.take_fd())));
+        // TODO: Mach IPC
+        auto fd = data_holder.fds.take_first();
+        m_transport = IPC::Transport(MUST(Core::LocalSocket::adopt_fd(fd.take_fd())));
 
-            m_transport->set_up_read_hook([strong_this = GC::make_root(this)]() {
-                strong_this->read_from_transport();
-            });
-        } else {
-            VERIFY(false && "Don't know how to receive IPC::Transport type");
-        }
+        m_transport->set_up_read_hook([strong_this = GC::make_root(this)]() {
+            strong_this->read_from_transport();
+        });
     } else if (fd_tag != 0) {
         dbgln("Unexpected byte {:x} in MessagePort transfer data", fd_tag);
         VERIFY_NOT_REACHED();
