@@ -61,8 +61,8 @@ public:
     WebIDL::ExceptionOr<void> set_request_header(String const& header, String const& value);
     WebIDL::ExceptionOr<void> set_response_type(Bindings::XMLHttpRequestResponseType);
 
-    WebIDL::ExceptionOr<Optional<String>> get_response_header(String const& name) const;
-    WebIDL::ExceptionOr<String> get_all_response_headers() const;
+    Optional<String> get_response_header(String const& name) const;
+    String get_all_response_headers() const;
 
     WebIDL::CallbackType* onreadystatechange();
     void set_onreadystatechange(WebIDL::CallbackType*);
