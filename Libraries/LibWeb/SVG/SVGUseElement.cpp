@@ -82,14 +82,14 @@ void SVGUseElement::process_the_url(Optional<String> const& href)
     if (!m_href.is_valid())
         return;
 
-    if (is_referrenced_element_same_document()) {
+    if (is_referenced_element_same_document()) {
         clone_element_tree_as_our_shadow_tree(referenced_element());
     } else {
         fetch_the_document(m_href);
     }
 }
 
-bool SVGUseElement::is_referrenced_element_same_document() const
+bool SVGUseElement::is_referenced_element_same_document() const
 {
     return m_href.equals(document().url(), URL::ExcludeFragment::Yes);
 }
@@ -121,7 +121,7 @@ void SVGUseElement::svg_element_changed(SVGElement& svg_element)
 
 void SVGUseElement::svg_element_removed(SVGElement& svg_element)
 {
-    if (!m_href.fragment().has_value() || !is_referrenced_element_same_document()) {
+    if (!m_href.fragment().has_value() || !is_referenced_element_same_document()) {
         return;
     }
 
@@ -139,7 +139,7 @@ GC::Ptr<DOM::Element> SVGUseElement::referenced_element()
     if (!m_href.fragment().has_value())
         return nullptr;
 
-    if (is_referrenced_element_same_document())
+    if (is_referenced_element_same_document())
         return document().get_element_by_id(*m_href.fragment());
 
     if (!m_resource_request)

@@ -24,7 +24,7 @@ Optional<int> CSSAnimation::class_specific_composite_order(GC::Ref<Animations::A
 {
     auto other = GC::Ref { verify_cast<CSSAnimation>(*other_animation) };
 
-    // The existance of an owning element determines the animation class, so both animations should have their owning
+    // The existence of an owning element determines the animation class, so both animations should have their owning
     // element in the same state
     VERIFY(!owning_element() == !other->owning_element());
 

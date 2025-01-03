@@ -602,7 +602,7 @@ NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_screenshot(Sc
     auto promise = Core::Promise<LexicalPath>::construct();
 
     if (m_pending_screenshot) {
-        // For simplicitly, only allow taking one screenshot at a time for now. Revisit if we need
+        // For simplicity, only allow taking one screenshot at a time for now. Revisit if we need
         // to allow spamming screenshot requests for some reason.
         promise->reject(Error::from_string_literal("A screenshot request is already in progress"));
         return promise;
@@ -634,7 +634,7 @@ NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_dom_node_scre
     auto promise = Core::Promise<LexicalPath>::construct();
 
     if (m_pending_screenshot) {
-        // For simplicitly, only allow taking one screenshot at a time for now. Revisit if we need
+        // For simplicity, only allow taking one screenshot at a time for now. Revisit if we need
         // to allow spamming screenshot requests for some reason.
         promise->reject(Error::from_string_literal("A screenshot request is already in progress"));
         return promise;
@@ -663,7 +663,7 @@ NonnullRefPtr<Core::Promise<String>> ViewImplementation::request_internal_page_i
     auto promise = Core::Promise<String>::construct();
 
     if (m_pending_info_request) {
-        // For simplicitly, only allow one info request at a time for now.
+        // For simplicity, only allow one info request at a time for now.
         promise->reject(Error::from_string_literal("A page info request is already in progress"));
         return promise;
     }
