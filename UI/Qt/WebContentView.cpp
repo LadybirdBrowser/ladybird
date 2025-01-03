@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "Settings.h"
 #include <AK/Assertions.h>
 #include <AK/ByteBuffer.h>
 #include <AK/Format.h>
@@ -769,6 +770,17 @@ void WebContentView::enqueue_native_event(Web::MouseEvent::Type type, QSinglePoi
 
             wheel_delta_x = static_cast<int>(step_x * scroll_step_size);
             wheel_delta_y = static_cast<int>(step_y * scroll_step_size);
+        }
+
+        wheel_delta_x = static_cast<int>(static_cast<double>(wheel_delta_x) * Settings::the()->scrolling_speed() / 100.0);
+        wheel_delta_y = static_cast<int>(static_cast<double>(wheel_delta_y) * Settings::the()->scrolling_speed() / 100.0);
+
+        if (Settings::the()->invert_vertical_scrolling()) {
+            wheel_delta_y = -wheel_delta_y;
+        }
+
+        if (Settings::the()->invert_horizontal_scrolling()) {
+            wheel_delta_x = -wheel_delta_x;
         }
     }
 
