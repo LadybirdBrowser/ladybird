@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Credentials/NavigatorCredentialsContainer.h>
 #include <LibWeb/HTML/MimeTypeArray.h>
 #include <LibWeb/HTML/NavigatorBeacon.h>
 #include <LibWeb/HTML/NavigatorConcurrentHardware.h>
@@ -28,7 +29,8 @@ class Navigator : public Bindings::PlatformObject
     , public NavigatorIDMixin
     , public NavigatorLanguageMixin
     , public NavigatorOnLineMixin
-    , public StorageAPI::NavigatorStorage {
+    , public virtual StorageAPI::NavigatorStorage
+    , public virtual Credentials::NavigatorCredentialsContainerMixin {
     WEB_PLATFORM_OBJECT(Navigator, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(Navigator);
 

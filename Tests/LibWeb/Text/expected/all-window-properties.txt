@@ -69,6 +69,8 @@ CompositionEvent
 CompressionStream
 ConstantSourceNode
 CountQueuingStrategy
+Credential
+CredentialsContainer
 Crypto
 CryptoKey
 CustomElementRegistry
