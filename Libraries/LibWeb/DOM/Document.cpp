@@ -1471,6 +1471,53 @@ void Document::obtain_supported_color_schemes()
     // 3. Return null.
 }
 
+// https://html.spec.whatwg.org/multipage/semantics.html#meta-theme-color
+void Document::obtain_theme_color()
+{
+    Color theme_color = Color::Transparent;
+
+    // 1. Let candidate elements be the list of all meta elements that meet the following criteria, in tree order:
+    for_each_in_subtree_of_type<HTML::HTMLMetaElement>([&](HTML::HTMLMetaElement& element) {
+        //     * the element is in a document tree;
+        //     * the element has a name attribute, whose value is an ASCII case-insensitive match for theme-color; and
+        //     * the element has a content attribute.
+
+        // 2. For each element in candidate elements:
+        auto content = element.attribute(HTML::AttributeNames::content);
+        if (element.name().has_value() && element.name()->equals_ignoring_ascii_case("theme-color"sv) && content.has_value()) {
+            // 1. If element has a media attribute and the value of element's media attribute does not match the environment, then continue.
+            auto context = CSS::Parser::ParsingContext { document() };
+            auto media = element.attribute(HTML::AttributeNames::media);
+            if (media.has_value()) {
+                auto query = parse_media_query(context, media.value());
+                if (window() && !query->evaluate(*window()))
+                    return TraversalDecision::Continue;
+            }
+
+            // 2. Let value be the result of stripping leading and trailing ASCII whitespace from the value of element's content attribute.
+            auto value = content->bytes_as_string_view().trim(Infra::ASCII_WHITESPACE);
+
+            // 3. Let color be the result of parsing value.
+            auto css_value = parse_css_value(context, value, CSS::PropertyID::Color);
+
+            // 4. If color is not failure, then return color.
+            if (!css_value.is_null() && css_value->is_color()) {
+                Optional<Layout::NodeWithStyle const&> root_node;
+                if (html_element())
+                    root_node = *html_element()->layout_node();
+
+                theme_color = css_value->to_color(root_node);
+                return TraversalDecision::Break;
+            }
+        }
+
+        return TraversalDecision::Continue;
+    });
+
+    // 3. Return nothing(the page has no theme color).
+    document().page().client().page_did_change_theme_color(theme_color);
+}
+
 Layout::Viewport const* Document::layout_node() const
 {
     return static_cast<Layout::Viewport const*>(Node::layout_node());
