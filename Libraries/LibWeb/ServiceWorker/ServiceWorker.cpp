@@ -12,23 +12,32 @@
 
 namespace Web::ServiceWorker {
 
-ServiceWorker::ServiceWorker(JS::Realm& realm, String script_url)
+ServiceWorker::ServiceWorker(JS::Realm& realm, ServiceWorkerRecord* service_worker_record)
     : DOM::EventTarget(realm)
-    , m_script_url(move(script_url))
+    , m_service_worker_record(service_worker_record)
 {
 }
 
 ServiceWorker::~ServiceWorker() = default;
 
-GC::Ref<ServiceWorker> ServiceWorker::create(JS::Realm& realm)
+GC::Ref<ServiceWorker> ServiceWorker::create(JS::Realm& realm, ServiceWorkerRecord* service_worker_record)
 {
-    return realm.create<ServiceWorker>(realm, ""_string);
+    return realm.create<ServiceWorker>(realm, service_worker_record);
 }
 
 void ServiceWorker::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ServiceWorker);
+}
+
+// https://w3c.github.io/ServiceWorker/#dom-serviceworker-scripturl
+String ServiceWorker::script_url() const
+{
+    if (!m_service_worker_record)
+        return {};
+
+    return m_service_worker_record->script_url.serialize();
 }
 
 #undef __ENUMERATE

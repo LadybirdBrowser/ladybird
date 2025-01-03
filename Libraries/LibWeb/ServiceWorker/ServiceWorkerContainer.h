@@ -36,6 +36,8 @@ public:
 
     GC::Ref<WebIDL::Promise> register_(String script_url, RegistrationOptions const& options);
 
+    GC::Ref<WebIDL::Promise> get_registration(String const& client_url);
+
 #undef __ENUMERATE
 #define __ENUMERATE(attribute_name, event_name)       \
     void set_##attribute_name(WebIDL::CallbackType*); \
