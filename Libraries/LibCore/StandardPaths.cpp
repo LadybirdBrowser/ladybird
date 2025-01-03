@@ -272,7 +272,7 @@ ErrorOr<Vector<String>> StandardPaths::font_directories()
         TRY(String::formatted("{}/X11/fonts"sv, user_data_directory())),
 #    endif
     } };
-#    if !(defined(AK_OS_SERENITY) || defined(AK_OS_MACOS))
+#    if !(defined(AK_OS_SERENITY) || defined(AK_OS_MACOS) || defined(AK_OS_WINDOWS))
     auto data_directories = system_data_directories();
     for (auto& data_directory : data_directories) {
         paths.append(TRY(String::formatted("{}/fonts"sv, data_directory)));
