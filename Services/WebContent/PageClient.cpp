@@ -496,7 +496,7 @@ Optional<Web::Cookie::Cookie> PageClient::page_did_request_named_cookie(URL::URL
     return client().did_request_named_cookie(url, name);
 }
 
-String PageClient::page_did_request_cookie(URL::URL const& url, Web::Cookie::Source source)
+ByteBuffer PageClient::page_did_request_cookie(URL::URL const& url, Web::Cookie::Source source)
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestCookie>(url, source);
     if (!response) {

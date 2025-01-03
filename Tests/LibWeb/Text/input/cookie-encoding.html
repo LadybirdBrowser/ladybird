@@ -1,0 +1,24 @@
+<script src="./include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const httpServer = httpTestServer();
+        const url = await httpServer.createEcho("GET", "/cookie-encoding", {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Set-Cookie": "ÿ=ÿ",
+            },
+            body: `<!doctype html><script>parent.postMessage(document.cookie, "*")<\/script>`,
+        });
+
+        const frame = document.createElement('iframe');
+        frame.src = url;
+
+        addEventListener("message", (event) => {
+            println("PASS: " + event.data);
+            done();
+        }, false);
+
+        document.body.appendChild(frame);
+    });
+</script>

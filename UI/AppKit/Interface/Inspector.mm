@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Cookie/Cookie.h>
+#include <LibWeb/Infra/Strings.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/InspectorClient.h>
 #include <LibWebView/ViewImplementation.h>
@@ -120,7 +121,7 @@ static constexpr NSInteger CONTEXT_MENU_DELETE_COOKIE_TAG = 4;
                 return;
             }
 
-            auto delete_cookie_text = MUST(String::formatted("Delete \"{}\"", cookie.name));
+            auto delete_cookie_text = MUST(String::formatted("Delete \"{}\"", Web::Infra::isomorphic_decode(cookie.name)));
 
             auto* delete_cookie_item = [strong_self.cookie_context_menu itemWithTag:CONTEXT_MENU_DELETE_COOKIE_TAG];
             [delete_cookie_item setTitle:Ladybird::string_to_ns_string(delete_cookie_text)];

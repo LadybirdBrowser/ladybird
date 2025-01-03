@@ -9,7 +9,6 @@
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/Optional.h>
-#include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Traits.h>
 #include <LibCore/DateTime.h>
@@ -25,9 +24,9 @@ namespace WebView {
 struct CookieStorageKey {
     bool operator==(CookieStorageKey const&) const = default;
 
-    String name;
-    String domain;
-    String path;
+    ByteBuffer name;
+    ByteBuffer domain;
+    ByteBuffer path;
 };
 
 class CookieJar {
@@ -87,7 +86,7 @@ public:
 
     ~CookieJar();
 
-    String get_cookie(const URL::URL& url, Web::Cookie::Source source);
+    ByteBuffer get_cookie(const URL::URL& url, Web::Cookie::Source source);
     void set_cookie(const URL::URL& url, Web::Cookie::ParsedCookie const& parsed_cookie, Web::Cookie::Source source);
     void update_cookie(Web::Cookie::Cookie);
     void dump_cookies();
@@ -102,7 +101,7 @@ private:
     AK_MAKE_NONCOPYABLE(CookieJar);
     AK_MAKE_NONMOVABLE(CookieJar);
 
-    static Optional<String> canonicalize_domain(const URL::URL& url);
+    static Optional<ByteBuffer> canonicalize_domain(const URL::URL& url);
     static bool path_matches(StringView request_path, StringView cookie_path);
 
     enum class MatchingCookiesSpecMode {
@@ -110,7 +109,7 @@ private:
         WebDriver,
     };
 
-    void store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, const URL::URL& url, String canonicalized_domain, Web::Cookie::Source source);
+    void store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, const URL::URL& url, ByteBuffer canonicalized_domain, Web::Cookie::Source source);
     Vector<Web::Cookie::Cookie> get_matching_cookies(const URL::URL& url, StringView canonicalized_domain, Web::Cookie::Source source, MatchingCookiesSpecMode mode = MatchingCookiesSpecMode::RFC6265);
 
     Optional<PersistedStorage> m_persisted_storage;
@@ -124,9 +123,9 @@ struct AK::Traits<WebView::CookieStorageKey> : public AK::DefaultTraits<WebView:
     static unsigned hash(WebView::CookieStorageKey const& key)
     {
         unsigned hash = 0;
-        hash = pair_int_hash(hash, key.name.hash());
-        hash = pair_int_hash(hash, key.domain.hash());
-        hash = pair_int_hash(hash, key.path.hash());
+        hash = pair_int_hash(hash, StringView { key.name }.hash());
+        hash = pair_int_hash(hash, StringView { key.domain }.hash());
+        hash = pair_int_hash(hash, StringView { key.path }.hash());
         return hash;
     }
 };

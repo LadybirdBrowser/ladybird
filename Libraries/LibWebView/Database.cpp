@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/ByteString.h>
-#include <AK/String.h>
 #include <AK/Time.h>
 #include <LibCore/Directory.h>
 #include <LibCore/StandardPaths.h>
@@ -107,7 +105,7 @@ void Database::apply_placeholder(StatementID statement_id, int index, ValueType 
 {
     auto* statement = prepared_statement(statement_id);
 
-    if constexpr (IsSame<ValueType, String>) {
+    if constexpr (IsSame<ValueType, ByteBuffer>) {
         StringView string { value };
         SQL_MUST(sqlite3_bind_text(statement, index, string.characters_without_null_termination(), static_cast<int>(string.length()), SQLITE_TRANSIENT));
     } else if constexpr (IsSame<ValueType, UnixDateTime>) {
@@ -119,7 +117,7 @@ void Database::apply_placeholder(StatementID statement_id, int index, ValueType 
     }
 }
 
-template void Database::apply_placeholder(StatementID, int, String const&);
+template void Database::apply_placeholder(StatementID, int, ByteBuffer const&);
 template void Database::apply_placeholder(StatementID, int, UnixDateTime const&);
 template void Database::apply_placeholder(StatementID, int, int const&);
 template void Database::apply_placeholder(StatementID, int, bool const&);
@@ -129,9 +127,9 @@ ValueType Database::result_column(StatementID statement_id, int column)
 {
     auto* statement = prepared_statement(statement_id);
 
-    if constexpr (IsSame<ValueType, String>) {
+    if constexpr (IsSame<ValueType, ByteBuffer>) {
         auto const* text = reinterpret_cast<char const*>(sqlite3_column_text(statement, column));
-        return MUST(String::from_utf8(StringView { text, strlen(text) }));
+        return MUST(ByteBuffer::copy(ReadonlyBytes { text, strlen(text) }));
     } else if constexpr (IsSame<ValueType, UnixDateTime>) {
         auto milliseconds = sqlite3_column_int64(statement, column);
         return UnixDateTime::from_milliseconds_since_epoch(milliseconds);
@@ -144,7 +142,7 @@ ValueType Database::result_column(StatementID statement_id, int column)
     VERIFY_NOT_REACHED();
 }
 
-template String Database::result_column(StatementID, int);
+template ByteBuffer Database::result_column(StatementID, int);
 template UnixDateTime Database::result_column(StatementID, int);
 template int Database::result_column(StatementID, int);
 template bool Database::result_column(StatementID, int);

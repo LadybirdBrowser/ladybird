@@ -80,10 +80,10 @@ namespace WebContent {
 static JsonValue serialize_cookie(Web::Cookie::Cookie const& cookie)
 {
     JsonObject serialized_cookie;
-    serialized_cookie.set("name"sv, cookie.name.to_byte_string());
-    serialized_cookie.set("value"sv, cookie.value.to_byte_string());
-    serialized_cookie.set("path"sv, cookie.path.to_byte_string());
-    serialized_cookie.set("domain"sv, cookie.domain.to_byte_string());
+    serialized_cookie.set("name"sv, ByteString::copy(cookie.name));
+    serialized_cookie.set("value"sv, ByteString::copy(cookie.value));
+    serialized_cookie.set("path"sv, ByteString::copy(cookie.path));
+    serialized_cookie.set("domain"sv, ByteString::copy(cookie.domain));
     serialized_cookie.set("secure"sv, cookie.secure);
     serialized_cookie.set("httpOnly"sv, cookie.http_only);
     serialized_cookie.set("expiry"sv, cookie.expiry_time.seconds_since_epoch());
@@ -2238,21 +2238,21 @@ Web::WebDriver::Response WebDriverConnection::add_cookie_impl(JsonObject const& 
 
     // 7. Create a cookie in the cookie store associated with the active document’s address using cookie name name, cookie value value, and an attribute-value list of the following cookie concepts listed in the table for cookie conversion from data:
     Web::Cookie::ParsedCookie cookie {};
-    cookie.name = MUST(String::from_byte_string(TRY(Web::WebDriver::get_property(data, "name"sv))));
-    cookie.value = MUST(String::from_byte_string(TRY(Web::WebDriver::get_property(data, "value"sv))));
+    cookie.name = TRY(Web::WebDriver::get_property(data, "name"sv)).to_byte_buffer();
+    cookie.value = TRY(Web::WebDriver::get_property(data, "value"sv)).to_byte_buffer();
 
     // Cookie path
     //     The value if the entry exists, otherwise "/".
     if (data.has("path"sv))
-        cookie.path = MUST(String::from_byte_string(TRY(Web::WebDriver::get_property(data, "path"sv))));
+        cookie.path = TRY(Web::WebDriver::get_property(data, "path"sv)).to_byte_buffer();
     else
-        cookie.path = "/"_string;
+        cookie.path = MUST(ByteBuffer::copy("/"sv.bytes()));
 
     // Cookie domain
     //     The value if the entry exists, otherwise the current browsing context’s active document’s URL domain.
     // NOTE: The otherwise case is handled by the CookieJar
     if (data.has("domain"sv)) {
-        cookie.domain = MUST(String::from_byte_string(TRY(Web::WebDriver::get_property(data, "domain"sv))));
+        cookie.domain = TRY(Web::WebDriver::get_property(data, "domain"sv)).to_byte_buffer();
 
         // FIXME: Spec issue: We must return InvalidCookieDomain for invalid domains, rather than InvalidArgument.
         // https://github.com/w3c/webdriver/issues/1570

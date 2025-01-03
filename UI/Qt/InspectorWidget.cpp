@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Cookie/Cookie.h>
+#include <LibWeb/Infra/Strings.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/InspectorClient.h>
 #include <UI/Qt/InspectorWidget.h>
@@ -141,7 +142,7 @@ InspectorWidget::InspectorWidget(QWidget* tab, WebContentView& content_view)
     };
 
     m_inspector_client->on_requested_cookie_context_menu = [this](auto position, auto const& cookie) {
-        m_delete_cookie_action->setText(qstring_from_ak_string(MUST(String::formatted("&Delete \"{}\"", cookie.name))));
+        m_delete_cookie_action->setText(qstring_from_ak_string(MUST(String::formatted("&Delete \"{}\"", Web::Infra::isomorphic_decode(cookie.name)))));
         m_cookie_context_menu->exec(m_inspector_view->map_point_to_global_position(position));
     };
 

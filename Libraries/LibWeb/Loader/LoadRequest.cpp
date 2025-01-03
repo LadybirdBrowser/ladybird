@@ -25,7 +25,7 @@ LoadRequest LoadRequest::create_for_url_on_page(const URL::URL& url, Page* page)
     if (page) {
         auto cookie = page->client().page_did_request_cookie(url, Cookie::Source::Http);
         if (!cookie.is_empty())
-            request.set_header("Cookie", cookie.to_byte_string());
+            request.set_header("Cookie", ByteString::copy(cookie));
         request.set_page(*page);
     }
 

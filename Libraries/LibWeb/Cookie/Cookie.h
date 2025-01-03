@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/String.h>
+#include <AK/ByteBuffer.h>
 #include <AK/Time.h>
 #include <LibIPC/Forward.h>
 
@@ -29,14 +29,14 @@ struct Cookie {
     String last_access_time_to_string() const;
     String expiry_time_to_string() const;
 
-    String name;
-    String value;
+    ByteBuffer name;
+    ByteBuffer value;
     SameSite same_site { SameSite::Default };
     UnixDateTime creation_time {};
     UnixDateTime last_access_time {};
     UnixDateTime expiry_time {};
-    String domain {};
-    String path {};
+    ByteBuffer domain {};
+    ByteBuffer path {};
     bool secure { false };
     bool http_only { false };
     bool host_only { false };
