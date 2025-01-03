@@ -54,6 +54,19 @@ if (NOT WIN32)
     endif()
 endif()
 
+if (NOT WIN32 AND NOT APPLE AND NOT ENABLE_FUZZERS)
+    # NOTE: Assume ELF
+    # NOTE: --no-undefined is not compatible with clang sanitizer runtimes
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang$" AND (ENABLE_ADDRESS_SANITIZER OR ENABLE_MEMORY_SANITIZER OR ENABLE_UNDEFINED_SANITIZER OR ENABLE_LAGOM_COVERAGE_COLLECTION))
+        add_link_options(LINKER:--allow-shlib-undefined)
+        add_link_options(LINKER:-z,undefs)
+    else()
+        add_link_options(LINKER:-z,defs)
+        add_link_options(LINKER:--no-undefined)
+        add_link_options(LINKER:--no-allow-shlib-undefined)
+    endif()
+endif()
+
 if (ENABLE_LAGOM_COVERAGE_COLLECTION)
     if (CMAKE_CXX_COMPILER_ID MATCHES "Clang$" AND NOT ENABLE_FUZZERS)
         add_cxx_compile_options(-fprofile-instr-generate -fcoverage-mapping)
