@@ -24,6 +24,8 @@ class RequestClient final
     C_OBJECT_ABSTRACT(RequestClient)
 
 public:
+    using InitTransport = Messages::RequestServer::InitTransport;
+
     explicit RequestClient(IPC::Transport);
     virtual ~RequestClient() override;
 

@@ -5,6 +5,7 @@
 
 endpoint RequestServer
 {
+    init_transport(int peer_pid) => (int peer_pid)
     connect_new_client() => (IPC::File client_socket)
 
     // use_tls: enable DNS over TLS

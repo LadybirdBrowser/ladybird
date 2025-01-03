@@ -279,6 +279,15 @@ void ConnectionFromClient::die()
         Core::EventLoop::current().quit(0);
 }
 
+Messages::RequestServer::InitTransportResponse ConnectionFromClient::init_transport([[maybe_unused]] int peer_pid)
+{
+#ifdef AK_OS_WINDOWS
+    m_transport.set_peer_pid(peer_pid);
+    return Core::System::getpid();
+#endif
+    VERIFY_NOT_REACHED();
+}
+
 Messages::RequestServer::ConnectNewClientResponse ConnectionFromClient::connect_new_client()
 {
     static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");

@@ -280,6 +280,10 @@ ErrorOr<void> initialize_resource_loader(GC::Heap& heap, int request_server_sock
     TRY(socket->set_blocking(true));
 
     auto request_client = TRY(try_make_ref_counted<Requests::RequestClient>(IPC::Transport(move(socket))));
+#ifdef AK_OS_WINDOWS
+    auto response = request_client->send_sync<Messages::RequestServer::InitTransport>(Core::System::getpid());
+    request_client->transport().set_peer_pid(response->peer_pid());
+#endif
     Web::ResourceLoader::initialize(heap, move(request_client));
 
     return {};
@@ -292,6 +296,10 @@ ErrorOr<void> initialize_image_decoder(int image_decoder_socket)
     TRY(socket->set_blocking(true));
 
     auto new_client = TRY(try_make_ref_counted<ImageDecoderClient::Client>(IPC::Transport(move(socket))));
+#ifdef AK_OS_WINDOWS
+    auto response = new_client->send_sync<Messages::ImageDecoderServer::InitTransport>(Core::System::getpid());
+    new_client->transport().set_peer_pid(response->peer_pid());
+#endif
 
     Web::Platform::ImageCodecPlugin::install(*new WebView::ImageCodecPlugin(move(new_client)));
 
