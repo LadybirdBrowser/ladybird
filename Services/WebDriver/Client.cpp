@@ -13,13 +13,13 @@
 #include <AK/JsonValue.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
+#include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/WebDriver/Capabilities.h>
 #include <WebDriver/Client.h>
 
 namespace WebDriver {
 
-Atomic<unsigned> Client::s_next_session_id;
-HashMap<unsigned, NonnullRefPtr<Session>> Client::s_sessions;
+HashMap<String, NonnullRefPtr<Session>> Client::s_sessions;
 
 ErrorOr<NonnullRefPtr<Client>> Client::try_create(NonnullOwnPtr<Core::BufferedTCPSocket> socket, LaunchBrowserCallbacks callbacks, Core::EventReceiver* parent)
 {
@@ -40,11 +40,7 @@ Client::~Client() = default;
 
 ErrorOr<NonnullRefPtr<Session>, Web::WebDriver::Error> Client::find_session_with_id(StringView session_id, AllowInvalidWindowHandle allow_invalid_window_handle)
 {
-    auto session_id_or_error = session_id.to_number<unsigned>();
-    if (!session_id_or_error.has_value())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidSessionId, "Invalid session id");
-
-    if (auto session = s_sessions.get(*session_id_or_error); session.has_value()) {
+    if (auto session = s_sessions.get(session_id); session.has_value()) {
         if (allow_invalid_window_handle == AllowInvalidWindowHandle::No)
             TRY(session.value()->ensure_current_window_handle_is_valid());
 
@@ -54,7 +50,7 @@ ErrorOr<NonnullRefPtr<Session>, Web::WebDriver::Error> Client::find_session_with
     return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidSessionId, "Invalid session id");
 }
 
-void Client::close_session(unsigned session_id)
+void Client::close_session(String const& session_id)
 {
     if (s_sessions.remove(session_id))
         dbgln_if(WEBDRIVER_DEBUG, "Shut down session {}", session_id);
@@ -89,8 +85,7 @@ Web::WebDriver::Response Client::new_session(Web::WebDriver::Parameters, JsonVal
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::SessionNotCreated, "Could not match capabilities"sv);
 
     // 6. Let session id be the result of generating a UUID.
-    // FIXME: Actually create a UUID.
-    auto session_id = Client::s_next_session_id++;
+    auto session_id = MUST(Web::Crypto::generate_random_uuid());
 
     // 7. Let session be a new session with the session ID of session id.
     Web::WebDriver::LadybirdOptions options { capabilities.as_object() };
@@ -118,7 +113,7 @@ Web::WebDriver::Response Client::new_session(Web::WebDriver::Parameters, JsonVal
     JsonObject body;
     // "sessionId"
     //     session id
-    body.set("sessionId", ByteString::number(session_id));
+    body.set("sessionId", JsonValue { session_id });
     // "capabilities"
     //     capabilities
     body.set("capabilities", move(capabilities));

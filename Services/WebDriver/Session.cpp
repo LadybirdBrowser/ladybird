@@ -19,10 +19,10 @@
 
 namespace WebDriver {
 
-Session::Session(unsigned session_id, NonnullRefPtr<Client> client, Web::WebDriver::LadybirdOptions options)
+Session::Session(String session_id, NonnullRefPtr<Client> client, Web::WebDriver::LadybirdOptions options)
     : m_client(move(client))
     , m_options(move(options))
-    , m_id(session_id)
+    , m_id(move(session_id))
 {
 }
 
