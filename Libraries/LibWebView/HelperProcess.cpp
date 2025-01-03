@@ -110,6 +110,8 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
         arguments.append("--collect-garbage-on-every-allocation"sv);
     if (web_content_options.is_headless == WebView::IsHeadless::Yes)
         arguments.append("--headless"sv);
+    if (web_content_options.paint_viewport_scrollbars == PaintViewportScrollbars::No)
+        arguments.append("--disable-scrollbar-painting"sv);
 
     if (auto const maybe_echo_server_port = web_content_options.echo_server_port; maybe_echo_server_port.has_value()) {
         arguments.append("--echo-server-port"sv);
