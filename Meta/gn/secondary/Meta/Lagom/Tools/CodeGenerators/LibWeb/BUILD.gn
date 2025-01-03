@@ -76,3 +76,11 @@ lagom_tool("GenerateWindowOrWorkerInterfaces") {
     "//Userland/Libraries/LibMain",
   ]
 }
+
+lagom_tool("GenerateNamedCharacterReferences") {
+  sources = [ "GenerateNamedCharacterReferences.cpp" ]
+  deps = [
+    ":headers",
+    "//Userland/Libraries/LibMain",
+  ]
+}
