@@ -1,0 +1,103 @@
+name: 'Nightly CI in containers'
+on:
+  push:
+    paths:
+      - '.devcontainer/**'
+      - 'vcpkg.json'
+
+  # Run daily at 02:30.
+  schedule:
+    - cron: '30 2 * * *'
+
+  # Allows you to run this workflow manually from the Actions tab on GitHub.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: 'Nightly CI Containers'
+  cancel-in-progress: false
+
+env:
+  FEDORA_VERSION: "41"
+
+jobs:
+  build-container:
+    if: github.repository == 'LadybirdBrowser/ladybird'
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Fedora CI Dev Container Image
+        uses: devcontainers/ci@v0.3
+        env:
+          VERSION: ${{ env.FEDORA_VERSION }}
+        with:
+          imageName: ghcr.io/ladybirdbrowser/ladybird-ci-fedora
+          imageTag: ${{ env.FEDORA_VERSION }},latest
+          cacheFrom: ghcr.io/ladybirdbrowser/ladybird-ci-fedora:${{ env.FEDORA_VERSION }}
+          push: always
+          configFile: .devcontainer/fedora-ci/devcontainer.json
+
+  test-container:
+    if: github.repository == 'LadybirdBrowser/ladybird'
+    runs-on: ubuntu-latest
+    container: ghcr.io/ladybirdbrowser/ladybird-ci-fedora:latest
+    needs: build-container
+    env:
+      VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set container-specific env variables
+        # See https://github.com/actions/runner/issues/2058
+        # We cannot use github.workspace inside a container
+        run: |
+          echo "CCACHE_DIR=$GITHUB_WORKSPACE/.ccache" >> $GITHUB_ENV
+          echo "DOWNLOAD_CACHE_PATH=$GITHUB_WORKSPACE/Build/caches" >> $GITHUB_ENV
+
+      # TODO: Update cache key when doing a matrix build for different distros.
+      - name: Restore Caches
+        uses: ./.github/actions/cache-restore
+        id: 'cache-restore'
+        with:
+          os: 'LinuxContainer'
+          arch: 'x86_64'
+          cache_key_extra: 'Fedora Nightly'
+          ccache_path: ${{ env.CCACHE_DIR }}
+          download_cache_path: ${{ env.DOWNLOAD_CACHE_PATH }}
+
+      - name: Install vcpkg dependencies
+        shell: bash
+        run: ./Toolchain/BuildVcpkg.sh
+
+      - name: Configure build directory
+        shell: bash
+        run: cmake --preset default
+
+      - name: Build project
+        shell: bash
+        run: cmake --build --preset default
+
+      - name: Run tests
+        shell: bash
+        run: ctest --preset default
+
+      - name: Save Caches
+        uses: ./.github/actions/cache-save
+        with:
+          arch: 'x86_64'
+          ccache_path: ${{ env.CCACHE_DIR }}
+          ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}
