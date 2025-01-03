@@ -68,6 +68,9 @@ void HTMLOptionElement::set_selected(bool selected)
 
 void HTMLOptionElement::set_selected_internal(bool selected)
 {
+    if (m_selected != selected)
+        invalidate_style(DOM::StyleInvalidationReason::HTMLOptionElementSelectedChange);
+
     m_selected = selected;
     if (selected)
         m_selectedness_update_index = m_next_selectedness_update_index++;
