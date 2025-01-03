@@ -26,7 +26,7 @@
 #endif
 
 #if defined(AK_OS_WINDOWS)
-#    include <io.h>
+#    include <AK/Windows.h>
 #endif
 
 namespace AK {
@@ -1141,6 +1141,10 @@ void vout(LogLevel log_level, StringView fmtstr, TypeErasedFormatParams& params,
 #elif defined(AK_OS_BSD_GENERIC) || defined(AK_OS_HAIKU)
     auto const* progname = getprogname();
     return StringView { progname, strlen(progname) };
+#elif defined AK_OS_WINDOWS
+    char path[MAX_PATH] = {};
+    auto length = GetModuleFileName(NULL, path, MAX_PATH);
+    return { path, length };
 #else
     // FIXME: Implement process_name_helper() for other platforms.
     return StringView {};
@@ -1157,7 +1161,7 @@ static StringView process_name_for_logging()
     if (!process_name_retrieved) {
         auto path = LexicalPath(process_name_helper());
         process_name_retrieved = true;
-        (void)path.basename().copy_characters_to_buffer(process_name_buf, sizeof(process_name_buf));
+        (void)path.title().copy_characters_to_buffer(process_name_buf, sizeof(process_name_buf));
         process_name = { process_name_buf, strlen(process_name_buf) };
     }
     return process_name;
@@ -1182,6 +1186,41 @@ void set_rich_debug_enabled(bool value)
 {
     is_rich_debug_enabled = value;
 }
+
+#ifdef AK_OS_WINDOWS
+
+#    define YELLOW(str) "\33[93m" str "\33[0m"
+
+static int main_thread_id = GetCurrentThreadId();
+
+static int enable_escape_sequences()
+{
+    HANDLE console_handle = CreateFile("CONOUT$", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
+    if (console_handle == INVALID_HANDLE_VALUE) {
+        dbgln("Unable to get console handle");
+        return 0;
+    }
+
+    ScopeGuard guard = [&] { CloseHandle(console_handle); };
+
+    DWORD mode = 0;
+    if (!GetConsoleMode(console_handle, &mode)) {
+        dbgln("Unable to get console mode");
+        return 0;
+    }
+
+    mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    if (!SetConsoleMode(console_handle, mode)) {
+        dbgln("Unable to set console mode");
+        return 0;
+    }
+
+    return 0;
+}
+
+static int dummy = enable_escape_sequences();
+
+#endif
 
 void vdbg(StringView fmtstr, TypeErasedFormatParams& params, bool newline)
 {
@@ -1214,7 +1253,11 @@ void vdbg(StringView fmtstr, TypeErasedFormatParams& params, bool newline)
 #else
         auto process_name = process_name_for_logging();
         if (!process_name.is_empty()) {
-            builder.appendff("{}: ", process_name);
+            int tid = GetCurrentThreadId();
+            if (tid == main_thread_id)
+                builder.appendff(YELLOW("{}: "), process_name);
+            else
+                builder.appendff(YELLOW("{}:{}: "), process_name, tid);
         }
 #endif
     }
