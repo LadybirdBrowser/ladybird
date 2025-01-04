@@ -362,6 +362,17 @@ public:
 
     static constexpr size_t max_size = 0xffffffff;
 
+    [[nodiscard]] bool operator==(BitmapView const& other) const
+    {
+        if (size() != other.size())
+            return false;
+        for (size_t i = 0; i < size_in_bytes(); ++i) {
+            if (m_data[i] != other.m_data[i])
+                return false;
+        }
+        return true;
+    }
+
 protected:
     u8* m_data { nullptr };
     size_t m_size { 0 };
