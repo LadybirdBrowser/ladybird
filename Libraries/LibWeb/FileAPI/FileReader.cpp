@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2023-2025, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -235,7 +235,7 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
                     if (m_state != State::Loading)
                         dispatch_event(DOM::Event::create(realm, HTML::EventNames::loadend));
 
-                    // NOTE: Event handler for the load or error events could have started another load, if that happens the loadend event for this load is not fired.
+                    // Spec-Note: Event handler for the load or error events could have started another load, if that happens the loadend event for this load is not fired.
                 }));
 
                 return;
@@ -248,14 +248,14 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
 
                     // FIXME: 2. Set fr’s error to error.
 
-                    // 5. Fire a progress event called error at fr.
-                    dispatch_event(DOM::Event::create(realm, HTML::EventNames::loadend));
+                    // 3. Fire a progress event called error at fr.
+                    dispatch_event(DOM::Event::create(realm, HTML::EventNames::error));
 
                     // 4. If fr’s state is not "loading", fire a progress event called loadend at fr.
                     if (m_state != State::Loading)
                         dispatch_event(DOM::Event::create(realm, HTML::EventNames::loadend));
 
-                    // 5. Note: Event handler for the error event could have started another load, if that happens the loadend event for this load is not fired.
+                    // Spec-Note: Event handler for the error event could have started another load, if that happens the loadend event for this load is not fired.
                 }));
 
                 return;
