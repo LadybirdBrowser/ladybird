@@ -21,6 +21,7 @@
 #include <LibWeb/FileAPI/FileReader.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -115,6 +116,26 @@ WebIDL::ExceptionOr<FileReader::Result> FileReader::blob_package_data(JS::Realm&
     VERIFY_NOT_REACHED();
 }
 
+void FileReader::queue_a_task(GC::Ref<GC::Function<void()>> task)
+{
+    // To implement the requirement of removing queued tasks on an abort we keep track of a list of
+    // task IDs which are pending evaluation. This allows an abort to go through the task queue to
+    // remove those pending tasks.
+
+    auto wrapper_task = GC::create_function(heap(), [this, task] {
+        auto& event_loop = *HTML::relevant_agent(*this).event_loop;
+        VERIFY(event_loop.currently_running_task());
+        auto& current_task = *event_loop.currently_running_task();
+
+        task->function()();
+
+        m_pending_tasks.remove(current_task.id());
+    });
+
+    auto id = HTML::queue_global_task(HTML::Task::Source::FileReading, realm().global_object(), wrapper_task);
+    m_pending_tasks.set(id);
+}
+
 // https://w3c.github.io/FileAPI/#readOperation
 WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Optional<String> const& encoding_name)
 {
@@ -127,6 +148,7 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
 
     // 2. Set fr’s state to "loading".
     m_state = State::Loading;
+    m_is_aborted = false;
 
     // 3. Set fr’s result to null.
     m_result = {};
@@ -154,7 +176,7 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
         Optional<MonotonicTime> progress_timer;
 
-        while (true) {
+        while (!m_is_aborted) {
             auto& vm = realm.vm();
             // FIXME: Try harder to not reach into the [[Promise]] slot of chunkPromise
             auto promise = GC::Ref { as<JS::Promise>(*chunk_promise->promise()) };
@@ -165,10 +187,13 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
                 return promise->state() == JS::Promise::State::Fulfilled || promise->state() == JS::Promise::State::Rejected;
             }));
 
+            if (m_is_aborted)
+                return;
+
             // 2. If chunkPromise is fulfilled, and isFirstChunk is true, queue a task to fire a progress event called loadstart at fr.
             // NOTE: ISSUE 2 We might change loadstart to be dispatched synchronously, to align with XMLHttpRequest behavior. [Issue #119]
             if (promise->state() == JS::Promise::State::Fulfilled && is_first_chunk) {
-                HTML::queue_global_task(HTML::Task::Source::FileReading, realm.global_object(), GC::create_function(heap(), [this, &realm]() {
+                queue_a_task(GC::create_function(heap(), [this, &realm]() {
                     dispatch_event(DOM::Event::create(realm, HTML::EventNames::loadstart));
                 }));
             }
@@ -197,7 +222,7 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
                 // See http://wpt.live/FileAPI/reading-data-section/filereader_events.any.html
                 bool contained_data = byte_sequence.array_length().length() > 0;
                 if (enough_time_passed && contained_data) {
-                    HTML::queue_global_task(HTML::Task::Source::FileReading, realm.global_object(), GC::create_function(heap(), [this, &realm]() {
+                    queue_a_task(GC::create_function(heap(), [this, &realm]() {
                         dispatch_event(DOM::Event::create(realm, HTML::EventNames::progress));
                     }));
                     progress_timer = now;
@@ -208,7 +233,7 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
             }
             // 5. Otherwise, if chunkPromise is fulfilled with an object whose done property is true, queue a task to run the following steps and abort this algorithm:
             else if (promise->state() == JS::Promise::State::Fulfilled && done.as_bool()) {
-                HTML::queue_global_task(HTML::Task::Source::FileReading, realm.global_object(), GC::create_function(heap(), [this, bytes, type, &realm, encoding_name, blobs_type]() {
+                queue_a_task(GC::create_function(heap(), [this, bytes, type, &realm, encoding_name, blobs_type]() {
                     // 1. Set fr’s state to "done".
                     m_state = State::Done;
 
@@ -242,7 +267,7 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
             }
             // 6. Otherwise, if chunkPromise is rejected with an error error, queue a task to run the following steps and abort this algorithm:
             else if (promise->state() == JS::Promise::State::Rejected) {
-                HTML::queue_global_task(HTML::Task::Source::FileReading, realm.global_object(), GC::create_function(heap(), [this, &realm]() {
+                queue_a_task(GC::create_function(heap(), [this, &realm]() {
                     // 1. Set fr’s state to "done".
                     m_state = State::Done;
 
@@ -312,9 +337,15 @@ void FileReader::abort()
         m_result = {};
     }
 
-    // FIXME: 3. If there are any tasks from this on the file reading task source in an affiliated task queue, then remove those tasks from that task queue.
+    // 3. If there are any tasks from this on the file reading task source in an affiliated task queue, then remove those tasks from that task queue.
+    auto& event_loop = *HTML::relevant_agent(*this).event_loop;
+    event_loop.task_queue().remove_tasks_matching([&](auto const& task) {
+        return m_pending_tasks.contains(task.id());
+    });
+    m_pending_tasks.clear();
 
-    // FIXME: 4. Terminate the algorithm for the read method being processed.
+    // 4. Terminate the algorithm for the read method being processed.
+    m_is_aborted = true;
 
     // 5. Fire a progress event called abort at this.
     dispatch_event(DOM::Event::create(realm, HTML::EventNames::abort));
