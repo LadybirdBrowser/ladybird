@@ -48,6 +48,7 @@ class CookieJar {
         size_t size() const { return m_cookies.size(); }
 
         UnixDateTime purge_expired_cookies(Optional<AK::Duration> offset = {});
+        void expire_and_purge_all_cookies();
 
         auto take_dirty_cookies() { return move(m_dirty_cookies); }
 
@@ -91,6 +92,7 @@ public:
     void set_cookie(const URL::URL& url, Web::Cookie::ParsedCookie const& parsed_cookie, Web::Cookie::Source source);
     void update_cookie(Web::Cookie::Cookie);
     void dump_cookies();
+    void clear_all_cookies();
     Vector<Web::Cookie::Cookie> get_all_cookies();
     Vector<Web::Cookie::Cookie> get_all_cookies(URL::URL const& url);
     Optional<Web::Cookie::Cookie> get_named_cookie(URL::URL const& url, StringView name);

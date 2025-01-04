@@ -174,6 +174,11 @@ void CookieJar::dump_cookies()
     dbgln("{} cookies stored\n{}", m_transient_storage.size(), builder.string_view());
 }
 
+void CookieJar::clear_all_cookies()
+{
+    m_transient_storage.expire_and_purge_all_cookies();
+}
+
 Vector<Web::Cookie::Cookie> CookieJar::get_all_cookies()
 {
     Vector<Web::Cookie::Cookie> cookies;
@@ -637,6 +642,16 @@ UnixDateTime CookieJar::TransientStorage::purge_expired_cookies(Optional<AK::Dur
     m_cookies.remove_all_matching(is_expired);
 
     return now;
+}
+
+void CookieJar::TransientStorage::expire_and_purge_all_cookies()
+{
+    for (auto& [key, value] : m_cookies) {
+        value.expiry_time = UnixDateTime::earliest();
+        set_cookie(key, value);
+    }
+
+    purge_expired_cookies();
 }
 
 void CookieJar::PersistedStorage::insert_cookie(Web::Cookie::Cookie const& cookie)
