@@ -2696,7 +2696,7 @@ WebIDL::ExceptionOr<String> Document::cookie(Cookie::Source source)
 
     // Otherwise, the user agent must return the cookie-string for the document's URL for a "non-HTTP" API, decoded using
     // UTF-8 decode without BOM.
-    return page().client().page_did_request_cookie(m_url, source);
+    return Infra::isomorphic_decode(page().client().page_did_request_cookie(m_url, source));
 }
 
 // https://html.spec.whatwg.org/#dom-document-cookie

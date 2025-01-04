@@ -84,10 +84,10 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::Cookie::Cookie const& cookie)
 template<>
 ErrorOr<Web::Cookie::Cookie> IPC::decode(Decoder& decoder)
 {
-    auto name = TRY(decoder.decode<String>());
-    auto value = TRY(decoder.decode<String>());
-    auto domain = TRY(decoder.decode<String>());
-    auto path = TRY(decoder.decode<String>());
+    auto name = TRY(decoder.decode<ByteBuffer>());
+    auto value = TRY(decoder.decode<ByteBuffer>());
+    auto domain = TRY(decoder.decode<ByteBuffer>());
+    auto path = TRY(decoder.decode<ByteBuffer>());
     auto creation_time = TRY(decoder.decode<UnixDateTime>());
     auto expiry_time = TRY(decoder.decode<UnixDateTime>());
     auto host_only = TRY(decoder.decode<bool>());

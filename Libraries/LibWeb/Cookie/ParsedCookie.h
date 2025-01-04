@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Optional.h>
-#include <AK/String.h>
 #include <AK/Time.h>
 #include <LibIPC/Forward.h>
 #include <LibURL/Forward.h>
@@ -16,13 +15,13 @@
 namespace Web::Cookie {
 
 struct ParsedCookie {
-    String name;
-    String value;
+    ByteBuffer name;
+    ByteBuffer value;
     SameSite same_site_attribute { SameSite::Default };
     Optional<UnixDateTime> expiry_time_from_expires_attribute {};
     Optional<UnixDateTime> expiry_time_from_max_age_attribute {};
-    Optional<String> domain {};
-    Optional<String> path {};
+    Optional<ByteBuffer> domain {};
+    Optional<ByteBuffer> path {};
     bool secure_attribute_present { false };
     bool http_only_attribute_present { false };
 };
@@ -30,7 +29,7 @@ struct ParsedCookie {
 Optional<ParsedCookie> parse_cookie(URL::URL const&, StringView cookie_string);
 bool cookie_contains_invalid_control_character(StringView);
 bool domain_matches(StringView string, StringView domain_string);
-String default_path(URL::URL const&);
+ByteBuffer default_path(URL::URL const&);
 
 }
 

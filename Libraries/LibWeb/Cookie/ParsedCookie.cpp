@@ -95,7 +95,7 @@ Optional<ParsedCookie> parse_cookie(URL::URL const& url, StringView cookie_strin
         return {};
 
     // 6. The cookie-name is the name string, and the cookie-value is the value string.
-    ParsedCookie parsed_cookie { MUST(String::from_utf8(name)), MUST(String::from_utf8(value)) };
+    ParsedCookie parsed_cookie { MUST(ByteBuffer::copy(name.bytes())), MUST(ByteBuffer::copy(value.bytes())) };
 
     parse_attributes(url, parsed_cookie, unparsed_attributes);
     return parsed_cookie;
@@ -271,17 +271,17 @@ void on_domain_attribute(ParsedCookie& parsed_cookie, StringView attribute_value
         cookie_domain = cookie_domain.substring_view(1);
 
     // 3. Convert the cookie-domain to lower case.
-    auto lowercase_cookie_domain = MUST(Infra::to_ascii_lowercase(cookie_domain));
+    auto lowercase_cookie_domain = cookie_domain.to_lowercase_string();
 
     // 4. Append an attribute to the cookie-attribute-list with an attribute-name of Domain and an attribute-value of
     //    cookie-domain.
-    parsed_cookie.domain = move(lowercase_cookie_domain);
+    parsed_cookie.domain = MUST(ByteBuffer::copy(lowercase_cookie_domain.bytes()));
 }
 
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.6.4
 void on_path_attribute(URL::URL const& url, ParsedCookie& parsed_cookie, StringView attribute_value)
 {
-    String cookie_path;
+    ByteBuffer cookie_path;
 
     // 1. If the attribute-value is empty or if the first character of the attribute-value is not %x2F ("/"):
     if (attribute_value.is_empty() || attribute_value[0] != '/') {
@@ -291,7 +291,7 @@ void on_path_attribute(URL::URL const& url, ParsedCookie& parsed_cookie, StringV
     // Otherwise:
     else {
         // 1. Let cookie-path be the attribute-value.
-        cookie_path = MUST(String::from_utf8(attribute_value));
+        cookie_path = MUST(ByteBuffer::copy(attribute_value.bytes()));
     }
 
     // 2. Append an attribute to the cookie-attribute-list with an attribute-name of Path and an attribute-value of
@@ -493,7 +493,7 @@ bool domain_matches(StringView string, StringView domain_string)
 }
 
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.1.4
-String default_path(URL::URL const& url)
+ByteBuffer default_path(URL::URL const& url)
 {
     // 1. Let uri-path be the path portion of the request-uri if such a portion exists (and empty otherwise).
     auto uri_path = URL::percent_decode(url.serialize_path());
@@ -501,19 +501,19 @@ String default_path(URL::URL const& url)
     // 2. If the uri-path is empty or if the first character of the uri-path is not a %x2F ("/") character, output
     //    %x2F ("/") and skip the remaining steps.
     if (uri_path.is_empty() || (uri_path[0] != '/'))
-        return "/"_string;
+        return MUST(ByteBuffer::copy("/"sv.bytes()));
 
     StringView uri_path_view = uri_path;
     size_t last_separator = uri_path_view.find_last('/').value();
 
     // 3. If the uri-path contains no more than one %x2F ("/") character, output %x2F ("/") and skip the remaining step.
     if (last_separator == 0)
-        return "/"_string;
+        return MUST(ByteBuffer::copy("/"sv.bytes()));
 
     // 4. Output the characters of the uri-path from the first character up to, but not including, the right-most
     //    %x2F ("/").
     // FIXME: The path might not be valid UTF-8.
-    return MUST(String::from_utf8(uri_path.substring_view(0, last_separator)));
+    return MUST(ByteBuffer::copy(uri_path.substring_view(0, last_separator).bytes()));
 }
 
 }
@@ -537,12 +537,12 @@ ErrorOr<void> IPC::encode(Encoder& encoder, Web::Cookie::ParsedCookie const& coo
 template<>
 ErrorOr<Web::Cookie::ParsedCookie> IPC::decode(Decoder& decoder)
 {
-    auto name = TRY(decoder.decode<String>());
-    auto value = TRY(decoder.decode<String>());
+    auto name = TRY(decoder.decode<ByteBuffer>());
+    auto value = TRY(decoder.decode<ByteBuffer>());
     auto expiry_time_from_expires_attribute = TRY(decoder.decode<Optional<UnixDateTime>>());
     auto expiry_time_from_max_age_attribute = TRY(decoder.decode<Optional<UnixDateTime>>());
-    auto domain = TRY(decoder.decode<Optional<String>>());
-    auto path = TRY(decoder.decode<Optional<String>>());
+    auto domain = TRY(decoder.decode<Optional<ByteBuffer>>());
+    auto path = TRY(decoder.decode<Optional<ByteBuffer>>());
     auto secure_attribute_present = TRY(decoder.decode<bool>());
     auto http_only_attribute_present = TRY(decoder.decode<bool>());
     auto same_site_attribute = TRY(decoder.decode<Web::Cookie::SameSite>());

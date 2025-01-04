@@ -13,6 +13,7 @@
 #include <AK/Vector.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Cookie/ParsedCookie.h>
+#include <LibWeb/Infra/Strings.h>
 #include <LibWebView/CookieJar.h>
 
 namespace WebView {
@@ -86,7 +87,7 @@ CookieJar::~CookieJar()
 }
 
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.8.3
-String CookieJar::get_cookie(const URL::URL& url, Web::Cookie::Source source)
+ByteBuffer CookieJar::get_cookie(const URL::URL& url, Web::Cookie::Source source)
 {
     m_transient_storage.purge_expired_cookies();
 
@@ -97,24 +98,26 @@ String CookieJar::get_cookie(const URL::URL& url, Web::Cookie::Source source)
     auto cookie_list = get_matching_cookies(url, domain.value(), source);
 
     // 4. Serialize the cookie-list into a cookie-string by processing each cookie in the cookie-list in order:
-    StringBuilder builder;
+    ByteBuffer buffer;
 
     for (auto const& cookie : cookie_list) {
-        if (!builder.is_empty())
-            builder.append("; "sv);
+        if (!buffer.is_empty())
+            buffer.append("; "sv.bytes());
 
         // 1. If the cookies' name is not empty, output the cookie's name followed by the %x3D ("=") character.
-        if (!cookie.name.is_empty())
-            builder.appendff("{}=", cookie.name);
+        if (!cookie.name.is_empty()) {
+            buffer.append(cookie.name);
+            buffer.append('=');
+        }
 
         // 2. If the cookies' value is not empty, output the cookie's value.
         if (!cookie.value.is_empty())
-            builder.append(cookie.value);
+            buffer.append(cookie.value);
 
         // 3. If there is an unprocessed cookie in the cookie-list, output the characters %x3B and %x20 ("; ").
     }
 
-    return MUST(builder.to_string());
+    return buffer;
 }
 
 void CookieJar::set_cookie(const URL::URL& url, Web::Cookie::ParsedCookie const& parsed_cookie, Web::Cookie::Source source)
@@ -156,11 +159,11 @@ void CookieJar::dump_cookies()
         static constexpr auto attribute_color = "\033[33m"sv;
         static constexpr auto no_color = "\033[0m"sv;
 
-        builder.appendff("{}{}{} - ", key_color, cookie.name, no_color);
-        builder.appendff("{}{}{} - ", key_color, cookie.domain, no_color);
-        builder.appendff("{}{}{}\n", key_color, cookie.path, no_color);
+        builder.appendff("{}{}{} - ", key_color, Web::Infra::isomorphic_decode(cookie.name), no_color);
+        builder.appendff("{}{}{} - ", key_color, Web::Infra::isomorphic_decode(cookie.domain), no_color);
+        builder.appendff("{}{}{}\n", key_color, Web::Infra::isomorphic_decode(cookie.path), no_color);
 
-        builder.appendff("\t{}Value{} = {}\n", attribute_color, no_color, cookie.value);
+        builder.appendff("\t{}Value{} = {}\n", attribute_color, no_color, Web::Infra::isomorphic_decode(cookie.value));
         builder.appendff("\t{}CreationTime{} = {}\n", attribute_color, no_color, cookie.creation_time_to_string());
         builder.appendff("\t{}LastAccessTime{} = {}\n", attribute_color, no_color, cookie.last_access_time_to_string());
         builder.appendff("\t{}ExpiryTime{} = {}\n", attribute_color, no_color, cookie.expiry_time_to_string());
@@ -205,7 +208,7 @@ Optional<Web::Cookie::Cookie> CookieJar::get_named_cookie(URL::URL const& url, S
     auto cookie_list = get_matching_cookies(url, domain.value(), Web::Cookie::Source::Http, MatchingCookiesSpecMode::WebDriver);
 
     for (auto const& cookie : cookie_list) {
-        if (cookie.name == name)
+        if (cookie.name == name.bytes())
             return cookie;
     }
 
@@ -218,7 +221,7 @@ void CookieJar::expire_cookies_with_time_offset(AK::Duration offset)
 }
 
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.1.2
-Optional<String> CookieJar::canonicalize_domain(const URL::URL& url)
+Optional<ByteBuffer> CookieJar::canonicalize_domain(const URL::URL& url)
 {
     if (!url.is_valid() || !url.host().has_value())
         return {};
@@ -230,7 +233,14 @@ Optional<String> CookieJar::canonicalize_domain(const URL::URL& url)
     // 3. Concatenate the resulting labels, separated by a %x2E (".") character.
     // FIXME: Implement the above conversions.
 
-    return MUST(url.serialized_host().to_lowercase());
+    auto host = url.serialized_host().to_ascii_lowercase();
+    for (auto code_point : Utf8View { host }) {
+        // FIXME: Convert non-ASCII hosts instead of giving up
+        if (!is_ascii(code_point))
+            return {};
+    }
+
+    return Web::Infra::isomorphic_encode(host);
 }
 
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#section-5.1.4
@@ -257,7 +267,7 @@ bool CookieJar::path_matches(StringView request_path, StringView cookie_path)
 }
 
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-15.html#name-storage-model
-void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, const URL::URL& url, String canonicalized_domain, Web::Cookie::Source source)
+void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, const URL::URL& url, ByteBuffer canonicalized_domain, Web::Cookie::Source source)
 {
     // 1. A user agent MAY ignore a received cookie in its entirety. See Section 5.3.
 
@@ -274,7 +284,7 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, con
 
     // 4. If the sum of the lengths of cookie-name and cookie-value is more than 4096 octets, abort these steps and
     //    ignore the cookie entirely.
-    if (parsed_cookie.name.byte_count() + parsed_cookie.value.byte_count() > 4096)
+    if (parsed_cookie.name.size() + parsed_cookie.value.size() > 4096)
         return;
 
     // 5. Create a new cookie with name cookie-name, value cookie-value. Set the creation-time and the last-access-time
@@ -311,14 +321,14 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, con
         cookie.expiry_time = UnixDateTime::from_unix_time_parts(3000, 1, 1, 0, 0, 0, 0);
     }
 
-    String domain_attribute;
+    ByteBuffer domain_attribute;
 
     // 7. If the cookie-attribute-list contains an attribute with an attribute-name of "Domain":
     if (parsed_cookie.domain.has_value()) {
         // 1. Let the domain-attribute be the attribute-value of the last attribute in the cookie-attribute-list with
         //    both an attribute-name of "Domain" and an attribute-value whose length is no more than 1024 octets. (Note
         //    that a leading %x2E ("."), if present, is ignored even though that character is not permitted.)
-        if (parsed_cookie.domain->byte_count() <= 1024)
+        if (parsed_cookie.domain->size() <= 1024)
             domain_attribute = parsed_cookie.domain.value();
     }
     // Otherwise:
@@ -328,8 +338,8 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, con
 
     // 8. If the domain-attribute contains a character that is not in the range of [USASCII] characters, abort these
     //    steps and ignore the cookie entirely.
-    for (auto code_point : domain_attribute.code_points()) {
-        if (!is_ascii(code_point))
+    for (auto character : domain_attribute.bytes()) {
+        if (!is_ascii(character))
             return;
     }
 
@@ -338,7 +348,7 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, con
         // 1. If the domain-attribute is identical to the canonicalized request-host:
         if (domain_attribute == canonicalized_domain) {
             // 1. Let the domain-attribute be the empty string.
-            domain_attribute = String {};
+            domain_attribute = ByteBuffer {};
         }
         // Otherwise:
         else {
@@ -377,7 +387,7 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, con
     //     an attribute-value whose length is no more than 1024 octets. Otherwise, set the cookie's path to the
     //     default-path of the request-uri.
     if (parsed_cookie.path.has_value()) {
-        if (parsed_cookie.path->byte_count() <= 1024)
+        if (parsed_cookie.path->size() <= 1024)
             cookie.path = parsed_cookie.path.value();
     } else {
         cookie.path = Web::Cookie::default_path(url);
@@ -484,7 +494,7 @@ void CookieJar::store_cookie(Web::Cookie::ParsedCookie const& parsed_cookie, con
             return;
 
         // 3. The cookie-attribute-list contains an attribute with an attribute-name of "Path", and the cookie's path is /.
-        if (parsed_cookie.path.has_value() && parsed_cookie.path != "/"sv)
+        if (parsed_cookie.path.has_value() && parsed_cookie.path != "/"sv.bytes())
             return;
     }
 
@@ -661,7 +671,7 @@ void CookieJar::PersistedStorage::insert_cookie(Web::Cookie::Cookie const& cooki
 static Web::Cookie::Cookie parse_cookie(Database& database, Database::StatementID statement_id)
 {
     int column = 0;
-    auto convert_text = [&](auto& field) { field = database.result_column<String>(statement_id, column++); };
+    auto convert_text = [&](auto& field) { field = database.result_column<ByteBuffer>(statement_id, column++); };
     auto convert_bool = [&](auto& field) { field = database.result_column<bool>(statement_id, column++); };
     auto convert_time = [&](auto& field) { field = database.result_column<UnixDateTime>(statement_id, column++); };
 

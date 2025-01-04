@@ -1880,13 +1880,13 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_network_or_cache_fetch(JS::Re
                     // FIXME: Getting to the page client reliably is way too complicated, and going via the document won't work in workers.
                     auto document = Bindings::principal_host_defined_environment_settings_object(HTML::principal_realm(realm)).responsible_document();
                     if (!document)
-                        return String {};
+                        return ByteBuffer {};
                     return document->page().client().page_did_request_cookie(http_request->current_url(), Cookie::Source::Http);
                 })();
 
                 // 2. If cookies is not the empty string, then append (`Cookie`, cookies) to httpRequest’s header list.
                 if (!cookies.is_empty()) {
-                    auto header = Infrastructure::Header::from_string_pair("Cookie"sv, cookies);
+                    auto header = Infrastructure::Header::from_latin1_pair("Cookie"sv, cookies);
                     http_request->header_list()->append(move(header));
                 }
             }
