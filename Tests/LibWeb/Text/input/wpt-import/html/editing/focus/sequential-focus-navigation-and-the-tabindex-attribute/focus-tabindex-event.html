@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>HTML Test: tabindex - focus, click</title>
+<link rel="author" title="Intel" href="www.intel.com/">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/interaction.html#the-tabindex-attribute">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../resources/testdriver.js"></script>
+<script src="../../../../resources/testdriver-actions.js"></script>
+<script src="../../../../resources/testdriver-vendor.js"></script>
+
+<h2>Test steps</h2>
+<p>Focus on the button below by "Tab" key, then press "Enter" key</p>
+
+<p><button type="button">Test tabIndex</button></p>
+
+<script>
+
+setup({explicit_done: true});
+setup({explicit_timeout: true});
+
+promise_test(async t => {
+  const button = document.querySelector("button");
+  on_event(button, "click", () => {
+    test(() => {
+      assert_true(document.activeElement == button, "Focus on the button by Tab key");
+    }, "Check if click event will be fired when press the 'enter' key while the element is focused");
+    done();
+  });
+
+  window.focus();
+  document.activeElement?.blur();
+  getSelection().collapse(document.querySelector("p"), 0);
+  const enterKey = '\uE007';
+  await test_driver.send_keys(button, enterKey);
+});
+
+</script>
