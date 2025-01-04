@@ -43,6 +43,9 @@ void AudioPaintable::paint(PaintContext& context, PaintPhase phase) const
     if (!is_visible())
         return;
 
+    if (!layout_box().should_paint())
+        return;
+
     Base::paint(context, phase);
 
     if (phase != PaintPhase::Foreground)
@@ -57,11 +60,7 @@ void AudioPaintable::paint(PaintContext& context, PaintPhase phase) const
 
     auto const& audio_element = layout_box().dom_node();
     auto mouse_position = MediaPaintable::mouse_position(context, audio_element);
-
-    auto paint_user_agent_controls = audio_element.has_attribute(HTML::AttributeNames::controls) || audio_element.is_scripting_disabled();
-
-    if (paint_user_agent_controls)
-        paint_media_controls(context, audio_element, audio_rect, mouse_position);
+    paint_media_controls(context, audio_element, audio_rect, mouse_position);
 }
 
 }
