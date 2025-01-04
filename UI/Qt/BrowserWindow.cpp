@@ -480,6 +480,12 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         debug_request("clear-cache");
     });
 
+    auto* clear_all_cookies_action = new QAction("Clear all Cookies", this);
+    debug_menu->addAction(clear_all_cookies_action);
+    QObject::connect(clear_all_cookies_action, &QAction::triggered, this, [] {
+        WebView::Application::cookie_jar().clear_all_cookies();
+    });
+
     auto* spoof_user_agent_menu = debug_menu->addMenu("Spoof &User Agent");
     spoof_user_agent_menu->setIcon(load_icon_from_uri("resource://icons/16x16/spoof.png"sv));
 
