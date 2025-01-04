@@ -77,8 +77,6 @@ public:
     GC::Ref<WebIDL::Promise> load();
     GC::Ref<WebIDL::Promise> loaded() const;
 
-    void load_font_source();
-
     GC::Ref<WebIDL::Promise> font_status_promise() { return m_font_status_promise; }
 
 private:
