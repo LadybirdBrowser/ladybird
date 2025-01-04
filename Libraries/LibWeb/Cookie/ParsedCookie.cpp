@@ -95,7 +95,7 @@ Optional<ParsedCookie> parse_cookie(URL::URL const& url, StringView cookie_strin
         return {};
 
     // 6. The cookie-name is the name string, and the cookie-value is the value string.
-    ParsedCookie parsed_cookie { MUST(String::from_utf8(name)), MUST(String::from_utf8(value)) };
+    ParsedCookie parsed_cookie { String::from_utf8_with_replacement_character(name), String::from_utf8_with_replacement_character(value) };
 
     parse_attributes(url, parsed_cookie, unparsed_attributes);
     return parsed_cookie;

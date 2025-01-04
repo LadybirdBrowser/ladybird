@@ -1886,7 +1886,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> http_network_or_cache_fetch(JS::Re
 
                 // 2. If cookies is not the empty string, then append (`Cookie`, cookies) to httpRequest’s header list.
                 if (!cookies.is_empty()) {
-                    auto header = Infrastructure::Header::from_string_pair("Cookie"sv, cookies);
+                    auto header = Infrastructure::Header::from_latin1_pair("Cookie"sv, cookies);
                     http_request->header_list()->append(move(header));
                 }
             }

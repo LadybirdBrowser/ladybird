@@ -1,0 +1,37 @@
+<script src="./include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const httpServer = httpTestServer();
+        const latin1_url = await httpServer.createEcho("GET", "/cookie-encoding-latin1", {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Set-Cookie": "latin1=\xFF",
+            },
+        });
+        await fetch(latin1_url);
+        // Workaround for setting multiple cookies in a test
+        const utf8_url = await httpServer.createEcho("GET", "/cookie-encoding-utf8", {
+            status: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Set-Cookie": "utf8=\xc3\xbf",
+            },
+            body: `<!doctype html><script>parent.postMessage(document.cookie, "*")<\/script>`,
+        });
+
+        const frame = document.createElement('iframe');
+        frame.src = utf8_url;
+
+        addEventListener("message", (event) => {
+            if (event.data == "utf8=ÿ; latin1=�" || event.data == "latin1=�; utf8=ÿ") {
+                println("PASS");
+            } else {
+                println("FAIL: " + event.data);
+            }
+            done();
+        }, false);
+
+        document.body.appendChild(frame);
+    });
+</script>
