@@ -142,12 +142,13 @@ void XMLDocumentBuilder::element_start(const XML::Name& name, HashMap<XML::Name,
             } else {
                 m_has_error = true;
             }
-        } else if (attribute.key.contains(":"sv)) {
-            if (!attribute.key.starts_with("xml:"sv)) {
+        } else if (attribute.key.contains(':')) {
+            auto result = node->set_attribute_ns(m_namespace, MUST(FlyString::from_deprecated_fly_string(attribute.key)), MUST(String::from_byte_string(attribute.value)));
+            if (result.is_error())
                 m_has_error = true;
-            }
+        } else {
+            MUST(node->set_attribute(MUST(FlyString::from_deprecated_fly_string(attribute.key)), MUST(String::from_byte_string(attribute.value))));
         }
-        MUST(node->set_attribute(MUST(FlyString::from_deprecated_fly_string(attribute.key)), MUST(String::from_byte_string(attribute.value))));
     }
 
     m_current_node = node.ptr();
