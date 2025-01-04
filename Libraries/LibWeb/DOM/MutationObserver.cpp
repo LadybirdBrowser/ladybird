@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/MutationObserverPrototype.h>
 #include <LibWeb/DOM/MutationObserver.h>
 #include <LibWeb/DOM/Node.h>
+#include <LibWeb/HTML/Scripting/Agent.h>
 
 namespace Web::DOM {
 
@@ -29,14 +30,12 @@ MutationObserver::MutationObserver(JS::Realm& realm, GC::Ptr<WebIDL::CallbackTyp
     // 1. Set this’s callback to callback.
 
     // 2. Append this to this’s relevant agent’s mutation observers.
-    auto* agent_custom_data = verify_cast<Bindings::WebEngineCustomData>(realm.vm().custom_data());
-    agent_custom_data->mutation_observers.append(*this);
+    HTML::relevant_agent(*this).mutation_observers.append(*this);
 }
 
 MutationObserver::~MutationObserver()
 {
-    auto* agent_custom_data = verify_cast<Bindings::WebEngineCustomData>(vm().custom_data());
-    agent_custom_data->mutation_observers.remove_all_matching([this](auto& observer) {
+    HTML::relevant_agent(*this).mutation_observers.remove_all_matching([this](auto& observer) {
         return observer.ptr() == this;
     });
 }

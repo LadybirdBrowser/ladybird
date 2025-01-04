@@ -168,7 +168,6 @@ JS::Object& relevant_principal_global_object(JS::Object const&);
 JS::Realm& entry_realm();
 EnvironmentSettingsObject& entry_settings_object();
 JS::Object& entry_global_object();
-JS::VM& relevant_agent(JS::Object const&);
 [[nodiscard]] bool is_secure_context(Environment const&);
 [[nodiscard]] bool is_non_secure_context(Environment const&);
 

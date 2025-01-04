@@ -551,6 +551,7 @@ enum class AllowMultipleFiles;
 enum class MediaSeekMode;
 enum class SandboxingFlagSet;
 
+struct Agent;
 struct EmbedderPolicy;
 struct Environment;
 struct EnvironmentSettingsObject;
