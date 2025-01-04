@@ -893,3 +893,8 @@ input[type=checkbox][switch]:checked::before {
 input[type=checkbox][switch]:checked {
 	background-color: AccentColor;
 }
+
+/* https://drafts.csswg.org/css-ui/#propdef-user-select */
+button, meter, progress, select {
+    user-select: none;
+}
