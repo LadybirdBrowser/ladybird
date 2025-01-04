@@ -261,6 +261,7 @@ public:
     Optional<PseudoElement> const& pseudo_element() const { return m_pseudo_element; }
     NonnullRefPtr<Selector> relative_to(SimpleSelector const&) const;
     bool contains_the_nesting_selector() const { return m_contains_the_nesting_selector; }
+    bool contains_hover_pseudo_class() const { return m_contains_hover_pseudo_class; }
     RefPtr<Selector> absolutized(SimpleSelector const& selector_for_nesting) const;
     u32 specificity() const;
     String serialize() const;
@@ -274,6 +275,7 @@ private:
     mutable Optional<u32> m_specificity;
     Optional<Selector::PseudoElement> m_pseudo_element;
     bool m_contains_the_nesting_selector { false };
+    bool m_contains_hover_pseudo_class { false };
 
     void collect_ancestor_hashes();
 

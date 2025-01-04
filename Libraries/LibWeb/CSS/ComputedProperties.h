@@ -213,6 +213,9 @@ public:
 
     static float resolve_opacity_value(CSSStyleValue const& value);
 
+    bool affected_by_hover() const { return m_affected_by_hover; }
+    void set_affected_by_hover() { m_affected_by_hover = true; }
+
 private:
     friend class StyleComputer;
 
@@ -236,6 +239,8 @@ private:
     mutable RefPtr<Gfx::FontCascadeList> m_font_list;
 
     Optional<CSSPixels> m_line_height;
+
+    bool m_affected_by_hover { false };
 };
 
 }

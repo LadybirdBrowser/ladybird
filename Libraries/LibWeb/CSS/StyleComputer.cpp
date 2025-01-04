@@ -421,8 +421,13 @@ bool StyleComputer::should_reject_with_ancestor_filter(Selector const& selector)
     }
     return false;
 }
+Vector<MatchingRule> const& StyleComputer::get_hover_rules() const
+{
+    build_rule_cache_if_needed();
+    return m_hover_rules;
+}
 
-Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& element, CascadeOrigin cascade_origin, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, FlyString const& qualified_layer_name) const
+Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& element, CascadeOrigin cascade_origin, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, bool& did_match_any_hover_rules, FlyString const& qualified_layer_name) const
 {
     auto const& root_node = element.root();
     auto shadow_root = is<DOM::ShadowRoot>(root_node) ? static_cast<DOM::ShadowRoot const*>(&root_node) : nullptr;
@@ -435,22 +440,16 @@ Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& e
 
     auto const& rule_cache = rule_cache_for_cascade_origin(cascade_origin);
 
-    bool is_hovered = SelectorEngine::matches_hover_pseudo_class(element);
-
     Vector<MatchingRule, 512> rules_to_run;
     auto add_rules_to_run = [&](Vector<MatchingRule> const& rules) {
         rules_to_run.grow_capacity(rules_to_run.size() + rules.size());
         if (pseudo_element.has_value()) {
             for (auto const& rule : rules) {
-                if (rule.must_be_hovered && !is_hovered)
-                    continue;
                 if (rule.contains_pseudo_element && filter_namespace_rule(element, rule) && filter_layer(qualified_layer_name, rule))
                     rules_to_run.unchecked_append(rule);
             }
         } else {
             for (auto const& rule : rules) {
-                if (rule.must_be_hovered && !is_hovered)
-                    continue;
                 if (!rule.contains_pseudo_element && filter_namespace_rule(element, rule) && filter_layer(qualified_layer_name, rule))
                     rules_to_run.unchecked_append(rule);
             }
@@ -537,13 +536,19 @@ Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& e
 
         auto const& selector = rule_to_run.absolutized_selectors()[rule_to_run.selector_index];
 
+        SelectorEngine::MatchContext context { .style_sheet_for_rule = *rule_to_run.sheet };
+        ScopeGuard guard = [&] {
+            if (context.affected_by_hover)
+                did_match_any_hover_rules = true;
+        };
         if (rule_to_run.can_use_fast_matches) {
-            if (!SelectorEngine::fast_matches(selector, *rule_to_run.sheet, element, shadow_host_to_use))
+            if (!SelectorEngine::fast_matches(selector, element, shadow_host_to_use, context))
                 continue;
         } else {
-            if (!SelectorEngine::matches(selector, *rule_to_run.sheet, element, shadow_host_to_use, pseudo_element))
+            if (!SelectorEngine::matches(selector, element, shadow_host_to_use, context, pseudo_element))
                 continue;
         }
+
         matching_rules.append(rule_to_run);
     }
     return matching_rules;
@@ -1488,24 +1493,24 @@ void StyleComputer::start_needed_transitions(ComputedProperties const& previous_
 
 // https://www.w3.org/TR/css-cascade/#cascading
 // https://drafts.csswg.org/css-cascade-5/#layering
-GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, bool& did_match_any_pseudo_element_rules, ComputeStyleMode mode) const
+GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, bool& did_match_any_pseudo_element_rules, bool& did_match_any_hover_rules, ComputeStyleMode mode) const
 {
     auto cascaded_properties = m_document->heap().allocate<CascadedProperties>();
 
     // First, we collect all the CSS rules whose selectors match `element`:
     MatchingRuleSet matching_rule_set;
-    matching_rule_set.user_agent_rules = collect_matching_rules(element, CascadeOrigin::UserAgent, pseudo_element);
+    matching_rule_set.user_agent_rules = collect_matching_rules(element, CascadeOrigin::UserAgent, pseudo_element, did_match_any_hover_rules);
     sort_matching_rules(matching_rule_set.user_agent_rules);
-    matching_rule_set.user_rules = collect_matching_rules(element, CascadeOrigin::User, pseudo_element);
+    matching_rule_set.user_rules = collect_matching_rules(element, CascadeOrigin::User, pseudo_element, did_match_any_hover_rules);
     sort_matching_rules(matching_rule_set.user_rules);
     // @layer-ed author rules
     for (auto const& layer_name : m_qualified_layer_names_in_order) {
-        auto layer_rules = collect_matching_rules(element, CascadeOrigin::Author, pseudo_element, layer_name);
+        auto layer_rules = collect_matching_rules(element, CascadeOrigin::Author, pseudo_element, did_match_any_hover_rules, layer_name);
         sort_matching_rules(layer_rules);
         matching_rule_set.author_rules.append({ layer_name, layer_rules });
     }
     // Un-@layer-ed author rules
-    auto unlayered_author_rules = collect_matching_rules(element, CascadeOrigin::Author, pseudo_element);
+    auto unlayered_author_rules = collect_matching_rules(element, CascadeOrigin::Author, pseudo_element, did_match_any_hover_rules);
     sort_matching_rules(unlayered_author_rules);
     matching_rule_set.author_rules.append({ {}, unlayered_author_rules });
 
@@ -2299,7 +2304,8 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& elem
 
     // 1. Perform the cascade. This produces the "specified style"
     bool did_match_any_pseudo_element_rules = false;
-    auto cascaded_properties = compute_cascaded_values(element, pseudo_element, did_match_any_pseudo_element_rules, mode);
+    bool affected_by_hover = false;
+    auto cascaded_properties = compute_cascaded_values(element, pseudo_element, did_match_any_pseudo_element_rules, affected_by_hover, mode);
 
     element.set_cascaded_properties(pseudo_element, cascaded_properties);
 
@@ -2332,7 +2338,10 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& elem
         }
     }
 
-    return compute_properties(element, pseudo_element, cascaded_properties);
+    auto computed_properties = compute_properties(element, pseudo_element, cascaded_properties);
+    if (affected_by_hover)
+        computed_properties->set_affected_by_hover();
+    return computed_properties;
 }
 
 GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& element, Optional<Selector::PseudoElement::Type> pseudo_element, CascadedProperties& cascaded_properties) const
@@ -2537,7 +2546,7 @@ void StyleComputer::collect_selector_insights(Selector const& selector, Selector
     }
 }
 
-NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin, SelectorInsights& insights)
+NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin, SelectorInsights& insights, Vector<MatchingRule>& hover_rules)
 {
     auto rule_cache = make<RuleCache>();
 
@@ -2618,6 +2627,10 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
                             }
                         }
                     }
+                }
+
+                if (selector.contains_hover_pseudo_class()) {
+                    hover_rules.append(matching_rule);
                 }
 
                 // NOTE: We traverse the simple selectors in reverse order to make sure that class/ID buckets are preferred over tag buckets
@@ -2823,6 +2836,8 @@ void StyleComputer::build_qualified_layer_names_cache()
 
 void StyleComputer::build_rule_cache()
 {
+    VERIFY(!document().is_temporary_document_for_fragment_parsing());
+
     m_selector_insights = make<SelectorInsights>();
 
     if (auto user_style_source = document().page().user_style(); user_style_source.has_value()) {
@@ -2831,9 +2846,9 @@ void StyleComputer::build_rule_cache()
 
     build_qualified_layer_names_cache();
 
-    m_author_rule_cache = make_rule_cache_for_cascade_origin(CascadeOrigin::Author, *m_selector_insights);
-    m_user_rule_cache = make_rule_cache_for_cascade_origin(CascadeOrigin::User, *m_selector_insights);
-    m_user_agent_rule_cache = make_rule_cache_for_cascade_origin(CascadeOrigin::UserAgent, *m_selector_insights);
+    m_author_rule_cache = make_rule_cache_for_cascade_origin(CascadeOrigin::Author, *m_selector_insights, m_hover_rules);
+    m_user_rule_cache = make_rule_cache_for_cascade_origin(CascadeOrigin::User, *m_selector_insights, m_hover_rules);
+    m_user_agent_rule_cache = make_rule_cache_for_cascade_origin(CascadeOrigin::UserAgent, *m_selector_insights, m_hover_rules);
 }
 
 void StyleComputer::invalidate_rule_cache()
@@ -2849,6 +2864,8 @@ void StyleComputer::invalidate_rule_cache()
     // NOTE: It might not be necessary to throw away the UA rule cache.
     //       If we are sure that it's safe, we could keep it as an optimization.
     m_user_agent_rule_cache = nullptr;
+
+    m_hover_rules.clear_with_capacity();
 }
 
 void StyleComputer::did_load_font(FlyString const&)
