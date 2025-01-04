@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2023-2025, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -10,6 +10,7 @@
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::FileAPI {
@@ -100,6 +101,12 @@ private:
     WebIDL::ExceptionOr<void> read_operation(Blob&, Type, Optional<String> const& encoding_name = {});
 
     static WebIDL::ExceptionOr<Result> blob_package_data(JS::Realm& realm, ByteBuffer, FileReader::Type type, Optional<String> const&, Optional<String> const& encoding_name);
+
+    void queue_a_task(GC::Ref<GC::Function<void()>>);
+
+    // Internal state to handle aborting the FileReader.
+    HashTable<HTML::TaskID> m_pending_tasks;
+    bool m_is_aborted { false };
 
     // A FileReader has an associated state, that is "empty", "loading", or "done". It is initially "empty".
     // https://w3c.github.io/FileAPI/#filereader-state
