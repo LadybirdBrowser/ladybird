@@ -96,6 +96,15 @@ WebIDL::ExceptionOr<GC::Ref<ConstantSourceNode>> BaseAudioContext::create_consta
     return ConstantSourceNode::create(realm(), *this);
 }
 
+// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createdelay
+WebIDL::ExceptionOr<GC::Ref<DelayNode>> BaseAudioContext::create_delay(double max_delay_time)
+{
+    DelayOptions options;
+    options.max_delay_time = max_delay_time;
+
+    return DelayNode::create(realm(), *this, options);
+}
+
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createchannelsplitter
 WebIDL::ExceptionOr<GC::Ref<ChannelSplitterNode>> BaseAudioContext::create_channel_splitter(WebIDL::UnsignedLong number_of_outputs)
 {
