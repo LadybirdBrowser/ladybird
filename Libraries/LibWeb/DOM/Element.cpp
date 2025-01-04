@@ -54,6 +54,7 @@
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/CharacterTypes.h>
@@ -2088,8 +2089,7 @@ void Element::enqueue_an_element_on_the_appropriate_element_queue()
 {
     // 1. Let reactionsStack be element's relevant agent's custom element reactions stack.
     auto& relevant_agent = HTML::relevant_agent(*this);
-    auto* custom_data = verify_cast<Bindings::WebEngineCustomData>(relevant_agent.custom_data());
-    auto& reactions_stack = custom_data->custom_element_reactions_stack;
+    auto& reactions_stack = relevant_agent.custom_element_reactions_stack;
 
     // 2. If reactionsStack is empty, then:
     if (reactions_stack.element_queue_stack.is_empty()) {
@@ -2105,10 +2105,8 @@ void Element::enqueue_an_element_on_the_appropriate_element_queue()
 
         // 4. Queue a microtask to perform the following steps:
         // NOTE: `this` is protected by GC::Function
-        HTML::queue_a_microtask(&document(), GC::create_function(relevant_agent.heap(), [this]() {
-            auto& relevant_agent = HTML::relevant_agent(*this);
-            auto* custom_data = verify_cast<Bindings::WebEngineCustomData>(relevant_agent.custom_data());
-            auto& reactions_stack = custom_data->custom_element_reactions_stack;
+        HTML::queue_a_microtask(&document(), GC::create_function(heap(), [this]() {
+            auto& reactions_stack = HTML::relevant_agent(*this).custom_element_reactions_stack;
 
             // 1. Invoke custom element reactions in reactionsStack's backup element queue.
             Bindings::invoke_custom_element_reactions(reactions_stack.backup_element_queue);
@@ -2121,7 +2119,7 @@ void Element::enqueue_an_element_on_the_appropriate_element_queue()
     }
 
     // 3. Otherwise, add element to element's relevant agent's current element queue.
-    custom_data->current_element_queue().append(*this);
+    relevant_agent.current_element_queue().append(*this);
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#enqueue-a-custom-element-upgrade-reaction

@@ -13,6 +13,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Infrastructure/FetchRecord.h>
+#include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
@@ -102,10 +103,8 @@ EventLoop& EnvironmentSettingsObject::responsible_event_loop()
     if (m_responsible_event_loop)
         return *m_responsible_event_loop;
 
-    auto& vm = global_object().vm();
-    auto& event_loop = verify_cast<Bindings::WebEngineCustomData>(vm.custom_data())->event_loop;
-    m_responsible_event_loop = event_loop;
-    return *event_loop;
+    m_responsible_event_loop = relevant_agent(global_object()).event_loop;
+    return *m_responsible_event_loop;
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#check-if-we-can-run-script
@@ -511,13 +510,6 @@ JS::Object& entry_global_object()
 {
     // Similarly, the entry global object is the global object of the entry realm.
     return entry_realm().global_object();
-}
-
-JS::VM& relevant_agent(JS::Object const& object)
-{
-    // The relevant agent for a platform object platformObject is platformObject's relevant Realm's agent.
-    // Spec Note: This pointer is not yet defined in the JavaScript specification; see tc39/ecma262#1357.
-    return relevant_realm(object).vm();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#secure-context
