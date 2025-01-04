@@ -37,7 +37,7 @@ public:
     virtual ~AudioNode() override;
 
     WebIDL::ExceptionOr<GC::Ref<AudioNode>> connect(GC::Ref<AudioNode> destination_node, WebIDL::UnsignedLong output = 0, WebIDL::UnsignedLong input = 0);
-    void connect(GC::Ref<AudioParam> destination_param, WebIDL::UnsignedLong output = 0);
+    WebIDL::ExceptionOr<void> connect(GC::Ref<AudioParam> destination_param, WebIDL::UnsignedLong output = 0);
 
     void disconnect();
     void disconnect(WebIDL::UnsignedLong output);
