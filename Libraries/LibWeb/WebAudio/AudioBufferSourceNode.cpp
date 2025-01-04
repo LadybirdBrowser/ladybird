@@ -129,6 +129,17 @@ WebIDL::ExceptionOr<GC::Ref<AudioBufferSourceNode>> AudioBufferSourceNode::const
     // MUST initialize the AudioNode this, with context and options as arguments.
 
     auto node = realm.create<AudioBufferSourceNode>(realm, context, options);
+
+    // Default options for channel count and interpretation
+    // https://webaudio.github.io/web-audio-api/#AudioBufferSourceNode
+    AudioNodeDefaultOptions default_options;
+    default_options.channel_count = 2;
+    default_options.channel_count_mode = Bindings::ChannelCountMode::Max;
+    default_options.channel_interpretation = Bindings::ChannelInterpretation::Speakers;
+    // FIXME: Set tail-time to no
+
+    TRY(node->initialize_audio_node_options(options, default_options));
+
     return node;
 }
 
