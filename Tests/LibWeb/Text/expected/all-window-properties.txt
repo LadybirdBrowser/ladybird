@@ -93,6 +93,7 @@ DataTransferItemList
 DataView
 Date
 DecompressionStream
+DelayNode
 DisposableStack
 Document
 DocumentFragment

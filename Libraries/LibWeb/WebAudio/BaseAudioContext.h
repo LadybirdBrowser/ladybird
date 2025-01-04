@@ -15,6 +15,7 @@
 #include <LibWeb/WebAudio/ChannelMergerNode.h>
 #include <LibWeb/WebAudio/ChannelSplitterNode.h>
 #include <LibWeb/WebAudio/ConstantSourceNode.h>
+#include <LibWeb/WebAudio/DelayNode.h>
 #include <LibWeb/WebAudio/PeriodicWave.h>
 #include <LibWeb/WebIDL/Types.h>
 
@@ -64,6 +65,7 @@ public:
     WebIDL::ExceptionOr<GC::Ref<ChannelMergerNode>> create_channel_merger(WebIDL::UnsignedLong number_of_inputs);
     WebIDL::ExceptionOr<GC::Ref<ConstantSourceNode>> create_constant_source();
     WebIDL::ExceptionOr<GC::Ref<ChannelSplitterNode>> create_channel_splitter(WebIDL::UnsignedLong number_of_outputs);
+    WebIDL::ExceptionOr<GC::Ref<DelayNode>> create_delay(double max_delay_time = 1);
     WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> create_oscillator();
     WebIDL::ExceptionOr<GC::Ref<DynamicsCompressorNode>> create_dynamics_compressor();
     WebIDL::ExceptionOr<GC::Ref<GainNode>> create_gain();

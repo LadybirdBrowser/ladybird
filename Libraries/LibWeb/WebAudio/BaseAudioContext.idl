@@ -38,7 +38,7 @@ interface BaseAudioContext : EventTarget {
     ChannelSplitterNode createChannelSplitter (optional unsigned long numberOfOutputs = 6);
     ConstantSourceNode createConstantSource ();
     [FIXME] ConvolverNode createConvolver ();
-    [FIXME] DelayNode createDelay (optional double maxDelayTime = 1.0);
+    DelayNode createDelay (optional double maxDelayTime = 1.0);
     DynamicsCompressorNode createDynamicsCompressor();
     GainNode createGain();
     [FIXME] IIRFilterNode createIIRFilter (sequence<double> feedforward, sequence<double> feedback);
