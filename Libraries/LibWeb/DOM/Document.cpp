@@ -8,6 +8,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Bitmap.h>
 #include <AK/CharacterTypes.h>
 #include <AK/Debug.h>
 #include <AK/GenericLexer.h>
@@ -36,6 +37,7 @@
 #include <LibWeb/CSS/FontFaceSet.h>
 #include <LibWeb/CSS/MediaQueryList.h>
 #include <LibWeb/CSS/MediaQueryListEvent.h>
+#include <LibWeb/CSS/SelectorEngine.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/CSS/SystemColor.h>
@@ -1485,31 +1487,84 @@ static Node* find_common_ancestor(Node* a, Node* b)
     return nullptr;
 }
 
+void Document::invalidate_style_for_elements_affected_by_hover_change(GC::Ptr<Node> old_new_hovered_common_ancestor, GC::Ptr<Node> hovered_node)
+{
+    auto const& hover_rules = style_computer().get_hover_rules();
+    if (hover_rules.is_empty())
+        return;
+
+    auto& invalidation_root = [&] -> Node& {
+        if (style_computer().has_has_selectors())
+            return *this;
+        return old_new_hovered_common_ancestor ? *old_new_hovered_common_ancestor : *this;
+    }();
+
+    Vector<Element&> elements;
+    invalidation_root.for_each_shadow_including_inclusive_descendant([&](Node& node) {
+        if (!node.is_element())
+            return TraversalDecision::Continue;
+        auto& element = static_cast<Element&>(node);
+        if (element.affected_by_hover())
+            elements.append(element);
+        return TraversalDecision::Continue;
+    });
+
+    auto compute_hover_selectors_match_state = [&] {
+        Vector<AK::Bitmap> state;
+        state.resize(elements.size());
+        for (size_t element_index = 0; element_index < elements.size(); ++element_index) {
+            auto const& element = elements[element_index];
+            state[element_index] = MUST(AK::Bitmap::create(hover_rules.size(), 0));
+            for (size_t rule_index = 0; rule_index < hover_rules.size(); ++rule_index) {
+                auto const& rule = hover_rules[rule_index];
+                auto const& selector = rule.absolutized_selectors()[rule.selector_index];
+
+                SelectorEngine::MatchContext context;
+                bool selector_matched = false;
+                if (rule.can_use_fast_matches) {
+                    if (SelectorEngine::fast_matches(selector, element, {}, context))
+                        selector_matched = true;
+                } else {
+                    if (SelectorEngine::matches(selector, element, {}, context, {}))
+                        selector_matched = true;
+                }
+                if (element.has_pseudo_elements()) {
+                    if (SelectorEngine::matches(selector, element, {}, context, CSS::Selector::PseudoElement::Type::Before))
+                        selector_matched = true;
+                    if (SelectorEngine::matches(selector, element, {}, context, CSS::Selector::PseudoElement::Type::After))
+                        selector_matched = true;
+                }
+                if (selector_matched)
+                    state[element_index].set(rule_index, true);
+            }
+        }
+        return state;
+    };
+
+    auto previous_hover_selectors_match_state = compute_hover_selectors_match_state();
+    m_hovered_node = hovered_node;
+    auto new_hover_selectors_match_state = compute_hover_selectors_match_state();
+
+    for (size_t element_index = 0; element_index < elements.size(); ++element_index) {
+        if (previous_hover_selectors_match_state[element_index].view() == new_hover_selectors_match_state[element_index].view())
+            continue;
+
+        elements[element_index].set_needs_style_update(true);
+        elements[element_index].for_each_in_subtree_of_type<Element>([](auto& element) {
+            element.set_needs_inherited_style_update(true);
+            return TraversalDecision::Continue;
+        });
+    }
+}
+
 void Document::set_hovered_node(Node* node)
 {
     if (m_hovered_node.ptr() == node)
         return;
 
     GC::Ptr<Node> old_hovered_node = move(m_hovered_node);
-    m_hovered_node = node;
-
-    auto* common_ancestor = find_common_ancestor(old_hovered_node, m_hovered_node);
-    if (!style_computer().has_has_selectors()) {
-        Node& invalidation_root = common_ancestor ? *common_ancestor : document();
-        invalidation_root.for_each_in_inclusive_subtree([&](Node& node) {
-            if (!node.is_element())
-                return TraversalDecision::Continue;
-            auto& element = static_cast<Element&>(node);
-            if (element.affected_by_hover()) {
-                element.set_needs_style_update(true);
-            } else {
-                element.set_needs_inherited_style_update(true);
-            }
-            return TraversalDecision::Continue;
-        });
-    } else {
-        invalidate_style(StyleInvalidationReason::Hover);
-    }
+    auto* common_ancestor = find_common_ancestor(old_hovered_node, node);
+    invalidate_style_for_elements_affected_by_hover_change(common_ancestor, node);
 
     // https://w3c.github.io/uievents/#mouseout
     if (old_hovered_node && old_hovered_node != m_hovered_node) {

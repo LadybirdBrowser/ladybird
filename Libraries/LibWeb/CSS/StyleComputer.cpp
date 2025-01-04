@@ -421,6 +421,11 @@ bool StyleComputer::should_reject_with_ancestor_filter(Selector const& selector)
     }
     return false;
 }
+Vector<MatchingRule> const& StyleComputer::get_hover_rules() const
+{
+    build_rule_cache_if_needed();
+    return m_hover_rules;
+}
 
 Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& element, CascadeOrigin cascade_origin, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, bool& did_match_any_hover_rules, FlyString const& qualified_layer_name) const
 {
@@ -2540,7 +2545,7 @@ void StyleComputer::collect_selector_insights(Selector const& selector, Selector
     }
 }
 
-NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin, SelectorInsights& insights)
+NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin, SelectorInsights& insights, Vector<MatchingRule>& hover_rules)
 {
     auto rule_cache = make<RuleCache>();
 
@@ -2621,6 +2626,10 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
                             }
                         }
                     }
+                }
+
+                if (selector.contains_hover_pseudo_class()) {
+                    hover_rules.append(matching_rule);
                 }
 
                 // NOTE: We traverse the simple selectors in reverse order to make sure that class/ID buckets are preferred over tag buckets
@@ -2834,9 +2843,9 @@ void StyleComputer::build_rule_cache()
 
     build_qualified_layer_names_cache();
 
-    m_author_rule_cache = make_rule_cache_for_cascade_origin(CascadeOrigin::Author, *m_selector_insights);
-    m_user_rule_cache = make_rule_cache_for_cascade_origin(CascadeOrigin::User, *m_selector_insights);
-    m_user_agent_rule_cache = make_rule_cache_for_cascade_origin(CascadeOrigin::UserAgent, *m_selector_insights);
+    m_author_rule_cache = make_rule_cache_for_cascade_origin(CascadeOrigin::Author, *m_selector_insights, m_hover_rules);
+    m_user_rule_cache = make_rule_cache_for_cascade_origin(CascadeOrigin::User, *m_selector_insights, m_hover_rules);
+    m_user_agent_rule_cache = make_rule_cache_for_cascade_origin(CascadeOrigin::UserAgent, *m_selector_insights, m_hover_rules);
 }
 
 void StyleComputer::invalidate_rule_cache()
@@ -2852,6 +2861,8 @@ void StyleComputer::invalidate_rule_cache()
     // NOTE: It might not be necessary to throw away the UA rule cache.
     //       If we are sure that it's safe, we could keep it as an optimization.
     m_user_agent_rule_cache = nullptr;
+
+    m_hover_rules.clear_with_capacity();
 }
 
 void StyleComputer::did_load_font(FlyString const&)
