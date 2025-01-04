@@ -18,10 +18,6 @@
 
 namespace Web::HTML {
 
-#define ENUMERATE_MESSAGE_PORT_EVENT_HANDLERS(E) \
-    E(onmessage, HTML::EventNames::message)      \
-    E(onmessageerror, HTML::EventNames::messageerror)
-
 // https://html.spec.whatwg.org/multipage/web-messaging.html#message-ports
 class MessagePort final : public DOM::EventTarget
     , public Bindings::Transferable {
@@ -40,6 +36,9 @@ public:
 
     void disentangle();
 
+    GC::Ptr<MessagePort> entangled_port() { return m_remote_port; }
+    GC::Ptr<MessagePort const> entangled_port() const { return m_remote_port; }
+
     // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-postmessage
     WebIDL::ExceptionOr<void> post_message(JS::Value message, Vector<GC::Root<JS::Object>> const& transfer);
 
@@ -50,12 +49,11 @@ public:
 
     void close();
 
-#undef __ENUMERATE
-#define __ENUMERATE(attribute_name, event_name)       \
-    void set_##attribute_name(WebIDL::CallbackType*); \
-    WebIDL::CallbackType* attribute_name();
-    ENUMERATE_MESSAGE_PORT_EVENT_HANDLERS(__ENUMERATE)
-#undef __ENUMERATE
+    void set_onmessageerror(GC::Ptr<WebIDL::CallbackType>);
+    GC::Ptr<WebIDL::CallbackType> onmessageerror();
+
+    void set_onmessage(GC::Ptr<WebIDL::CallbackType>);
+    GC::Ptr<WebIDL::CallbackType> onmessage();
 
     // ^Transferable
     virtual WebIDL::ExceptionOr<void> transfer_steps(HTML::TransferDataHolder&) override;
@@ -63,6 +61,8 @@ public:
     virtual HTML::TransferType primary_interface() const override { return HTML::TransferType::MessagePort; }
 
     void set_worker_event_target(GC::Ref<DOM::EventTarget>);
+
+    WebIDL::ExceptionOr<void> message_port_post_message_steps(GC::Ptr<MessagePort> target_port, JS::Value message, StructuredSerializeOptions const& options);
 
 private:
     explicit MessagePort(JS::Realm&);
@@ -73,7 +73,6 @@ private:
 
     bool is_entangled() const;
 
-    WebIDL::ExceptionOr<void> message_port_post_message_steps(GC::Ptr<MessagePort> target_port, JS::Value message, StructuredSerializeOptions const& options);
     void post_message_task_steps(SerializedTransferRecord&);
     void post_port_message(SerializedTransferRecord);
     ErrorOr<void> send_message_on_transport(SerializedTransferRecord const&);
