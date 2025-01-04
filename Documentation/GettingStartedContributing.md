@@ -30,6 +30,7 @@ Here are some of the ways you can find an issue in Ladybird:
 * By finding failing WPT tests on [WPT.fyi](https://wpt.fyi/results/?label=master&product=ladybird). Note that while fixes are welcome, you don't need to submit issue reports for individual tests.
 * By finding WPT tests on [WPT.fyi](https://wpt.fyi/results/?label=master&product=ladybird) that are [timing out in Ladybird](https://wpt.fyi/results/?product=ladybird&q=status%3Atimeout). For a real-world walk-through of doing that from start to finish with an actual timing-out-in-Ladybird test case, see the [“Fixing a WPT timeout in Window.postMessage()”](https://www.youtube.com/watch?v=X4S9afzRTXs) “browser hacking” video.
 * By using a profiling tool such as [Callgrind](https://valgrind.org/docs/manual/cl-manual.html) to find code that can be improved.
+* By looking for [`TODO`](https://github.com/search?q=repo%3ALadybirdBrowser%2Fladybird%20%22%2F%2F%20TODO%22&type=code) and [`FIXME`](https://github.com/search?q=repo%3ALadybirdBrowser%2Fladybird+%22%2F%2F+FIXME%22&type=code) comments in the codebase.
 
 If you’re not necessarily already a proficient C++ programmer, beginning by troubleshooting WPT tests may be the very best way to get started contributing to the project — especially if you _do_ already have some proficiency with frontend JavaScript code.
 
