@@ -39,6 +39,7 @@ public:
         Rec2020,
         XYZD50,
         XYZD65,
+        LightDark, // This is used by CSSLightDark for light-dark(..., ...).
     };
     ColorType color_type() const { return m_color_type; }
 

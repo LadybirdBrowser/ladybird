@@ -41,6 +41,7 @@
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/CSSLCHLike.h>
 #include <LibWeb/CSS/StyleValues/CSSLabLike.h>
+#include <LibWeb/CSS/StyleValues/CSSLightDark.h>
 #include <LibWeb/CSS/StyleValues/CSSRGB.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
@@ -3491,6 +3492,40 @@ RefPtr<CSSStyleValue> Parser::parse_color_function(TokenStream<ComponentValue>& 
         alpha.release_nonnull());
 }
 
+// https://drafts.csswg.org/css-color-5/#funcdef-light-dark
+RefPtr<CSSStyleValue> Parser::parse_light_dark_color_value(TokenStream<ComponentValue>& outer_tokens)
+{
+    auto transaction = outer_tokens.begin_transaction();
+
+    outer_tokens.discard_whitespace();
+    auto const& function_token = outer_tokens.consume_a_token();
+    if (!function_token.is_function("light-dark"sv))
+        return {};
+
+    auto inner_tokens = TokenStream { function_token.function().value };
+
+    inner_tokens.discard_whitespace();
+    auto light = parse_color_value(inner_tokens);
+    if (!light)
+        return {};
+
+    inner_tokens.discard_whitespace();
+    if (!inner_tokens.consume_a_token().is(Token::Type::Comma))
+        return {};
+
+    inner_tokens.discard_whitespace();
+    auto dark = parse_color_value(inner_tokens);
+    if (!dark)
+        return {};
+
+    inner_tokens.discard_whitespace();
+    if (inner_tokens.has_next_token())
+        return {};
+
+    transaction.commit();
+    return CSSLightDark::create(light.release_nonnull(), dark.release_nonnull());
+}
+
 // https://www.w3.org/TR/css-color-4/#color-syntax
 RefPtr<CSSStyleValue> Parser::parse_color_value(TokenStream<ComponentValue>& tokens)
 {
@@ -3522,6 +3557,8 @@ RefPtr<CSSStyleValue> Parser::parse_color_value(TokenStream<ComponentValue>& tok
         return oklab;
     if (auto oklch = parse_oklch_color_value(tokens))
         return oklch;
+    if (auto light_dark = parse_light_dark_color_value(tokens))
+        return light_dark;
 
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
