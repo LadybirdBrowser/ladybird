@@ -1090,6 +1090,14 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             }
         }
     }
+    
+    if (key == UIEvents::KeyCode::Key_Return) {
+        if (auto* element = m_navigable->active_document()->focused_element(); is<HTML::HTMLElement>(element)) {
+            auto& html_element = static_cast<HTML::HTMLElement&>(*element);
+            html_element.click();
+            return EventResult::Handled;
+        }
+    }
 
     // FIXME: Implement scroll by line and by page instead of approximating the behavior of other browsers.
     auto arrow_key_scroll_distance = 100;
