@@ -13,56 +13,16 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/MutationObserver.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/Scripting/Agent.h>
 
 namespace Web::Bindings {
-
-// https://html.spec.whatwg.org/multipage/custom-elements.html#custom-element-reactions-stack
-struct CustomElementReactionsStack {
-    CustomElementReactionsStack() = default;
-    ~CustomElementReactionsStack() = default;
-
-    // https://html.spec.whatwg.org/multipage/custom-elements.html#element-queue
-    // Each item in the stack is an element queue, which is initially empty as well. Each item in an element queue is an element.
-    // (The elements are not necessarily custom yet, since this queue is used for upgrades as well.)
-    Vector<Vector<GC::Root<DOM::Element>>> element_queue_stack;
-
-    // https://html.spec.whatwg.org/multipage/custom-elements.html#backup-element-queue
-    // Each custom element reactions stack has an associated backup element queue, which an initially-empty element queue.
-    Vector<GC::Root<DOM::Element>> backup_element_queue;
-
-    // https://html.spec.whatwg.org/multipage/custom-elements.html#processing-the-backup-element-queue
-    // To prevent reentrancy when processing the backup element queue, each custom element reactions stack also has a processing the backup element queue flag, initially unset.
-    bool processing_the_backup_element_queue { false };
-};
 
 struct WebEngineCustomData final : public JS::VM::CustomData {
     virtual ~WebEngineCustomData() override = default;
 
     virtual void spin_event_loop_until(GC::Root<GC::Function<bool()>> goal_condition) override;
 
-    GC::Root<HTML::EventLoop> event_loop;
-
-    // FIXME: These should only be on similar-origin window agents, but we don't currently differentiate agent types.
-
-    // https://dom.spec.whatwg.org/#mutation-observer-compound-microtask-queued-flag
-    bool mutation_observer_microtask_queued { false };
-
-    // https://dom.spec.whatwg.org/#mutation-observer-list
-    // FIXME: This should be a set.
-    Vector<GC::Ref<DOM::MutationObserver>> mutation_observers;
-
-    GC::Root<JS::Realm> internal_realm;
-
-    OwnPtr<JS::ExecutionContext> root_execution_context;
-
-    // https://html.spec.whatwg.org/multipage/custom-elements.html#custom-element-reactions-stack
-    // Each similar-origin window agent has a custom element reactions stack, which is initially empty.
-    CustomElementReactionsStack custom_element_reactions_stack {};
-
-    // https://html.spec.whatwg.org/multipage/custom-elements.html#current-element-queue
-    // A similar-origin window agent's current element queue is the element queue at the top of its custom element reactions stack.
-    Vector<GC::Root<DOM::Element>>& current_element_queue() { return custom_element_reactions_stack.element_queue_stack.last(); }
-    Vector<GC::Root<DOM::Element>> const& current_element_queue() const { return custom_element_reactions_stack.element_queue_stack.last(); }
+    HTML::Agent agent;
 };
 
 struct WebEngineCustomJobCallbackData final : public JS::JobCallback::CustomData {

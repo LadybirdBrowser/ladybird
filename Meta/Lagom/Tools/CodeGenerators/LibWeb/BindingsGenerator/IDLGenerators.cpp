@@ -2077,9 +2077,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@function.name:snakecase@@overload_suffi
         if (function.extended_attributes.contains("CEReactions")) {
             // 1. Push a new element queue onto this object's relevant agent's custom element reactions stack.
             function_generator.append(R"~~~(
-    auto& relevant_agent = HTML::relevant_agent(*impl);
-    auto* custom_data = verify_cast<Bindings::WebEngineCustomData>(relevant_agent.custom_data());
-    auto& reactions_stack = custom_data->custom_element_reactions_stack;
+    auto& reactions_stack = HTML::relevant_agent(*impl).custom_element_reactions_stack;
     reactions_stack.element_queue_stack.append({});
 )~~~");
         }
@@ -3566,9 +3564,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
         if (attribute.extended_attributes.contains("CEReactions")) {
             // 1. Push a new element queue onto this object's relevant agent's custom element reactions stack.
             attribute_generator.append(R"~~~(
-    auto& relevant_agent = HTML::relevant_agent(*impl);
-    auto* custom_data = verify_cast<Bindings::WebEngineCustomData>(relevant_agent.custom_data());
-    auto& reactions_stack = custom_data->custom_element_reactions_stack;
+    auto& reactions_stack = HTML::relevant_agent(*impl).custom_element_reactions_stack;
     reactions_stack.element_queue_stack.append({});
 )~~~");
         }
@@ -3914,9 +3910,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
             if (attribute.extended_attributes.contains("CEReactions")) {
                 // 1. Push a new element queue onto this object's relevant agent's custom element reactions stack.
                 attribute_generator.append(R"~~~(
-    auto& relevant_agent = HTML::relevant_agent(*impl);
-    auto* custom_data = verify_cast<Bindings::WebEngineCustomData>(relevant_agent.custom_data());
-    auto& reactions_stack = custom_data->custom_element_reactions_stack;
+    auto& reactions_stack = HTML::relevant_agent(*impl).custom_element_reactions_stack;
     reactions_stack.element_queue_stack.append({});
 )~~~");
             }
@@ -4912,6 +4906,7 @@ void generate_prototype_implementation(IDL::Interface const& interface, StringBu
 #include <LibWeb/DOM/NodeFilter.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/HTML/Numbers.h>
+#include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>

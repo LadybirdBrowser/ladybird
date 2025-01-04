@@ -34,6 +34,7 @@
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Location.h>
 #include <LibWeb/HTML/PromiseRejectionEvent.h>
+#include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
@@ -92,6 +93,10 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
     VERIFY(!s_main_thread_vm);
 
     s_main_thread_vm = TRY(JS::VM::create(make<WebEngineCustomData>()));
+
+    auto& custom_data = verify_cast<WebEngineCustomData>(*s_main_thread_vm->custom_data());
+    custom_data.agent.event_loop = s_main_thread_vm->heap().allocate<HTML::EventLoop>(type);
+
     s_main_thread_vm->on_unimplemented_property_access = [](auto const& object, auto const& property_key) {
         dbgln("FIXME: Unimplemented IDL interface: '{}.{}'", object.class_name(), property_key.to_string());
     };
@@ -99,9 +104,6 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
     // NOTE: We intentionally leak the main thread JavaScript VM.
     //       This avoids doing an exhaustive garbage collection on process exit.
     s_main_thread_vm->ref();
-
-    auto& custom_data = verify_cast<WebEngineCustomData>(*s_main_thread_vm->custom_data());
-    custom_data.event_loop = s_main_thread_vm->heap().allocate<HTML::EventLoop>(type);
 
     // These strings could potentially live on the VM similar to CommonPropertyNames.
     DOM::MutationType::initialize_strings();
@@ -692,25 +694,24 @@ JS::VM& main_thread_vm()
 void queue_mutation_observer_microtask(DOM::Document const& document)
 {
     auto& vm = main_thread_vm();
-    auto& custom_data = verify_cast<WebEngineCustomData>(*vm.custom_data());
+    auto& surrounding_agent = verify_cast<WebEngineCustomData>(*vm.custom_data()).agent;
 
     // 1. If the surrounding agent’s mutation observer microtask queued is true, then return.
-    if (custom_data.mutation_observer_microtask_queued)
+    if (surrounding_agent.mutation_observer_microtask_queued)
         return;
 
     // 2. Set the surrounding agent’s mutation observer microtask queued to true.
-    custom_data.mutation_observer_microtask_queued = true;
+    surrounding_agent.mutation_observer_microtask_queued = true;
 
     // 3. Queue a microtask to notify mutation observers.
     // NOTE: This uses the implied document concept. In the case of mutation observers, it is always done in a node context, so document should be that node's document.
-    // FIXME: Is it safe to pass custom_data through?
-    HTML::queue_a_microtask(&document, GC::create_function(vm.heap(), [&custom_data, &heap = document.heap()]() {
+    HTML::queue_a_microtask(&document, GC::create_function(vm.heap(), [&surrounding_agent, &heap = document.heap()]() {
         // 1. Set the surrounding agent’s mutation observer microtask queued to false.
-        custom_data.mutation_observer_microtask_queued = false;
+        surrounding_agent.mutation_observer_microtask_queued = false;
 
         // 2. Let notifySet be a clone of the surrounding agent’s mutation observers.
         GC::RootVector<DOM::MutationObserver*> notify_set(heap);
-        for (auto& observer : custom_data.mutation_observers)
+        for (auto& observer : surrounding_agent.mutation_observers)
             notify_set.append(observer);
 
         // FIXME: 3. Let signalSet be a clone of the surrounding agent’s signal slots.
