@@ -174,6 +174,7 @@ public:
 
     virtual FlyString node_name() const override { return "#document"_fly_string; }
 
+    void invalidate_style_for_elements_affected_by_hover_change(GC::Ptr<Node> old_new_hovered_common_ancestor, GC::Ptr<Node> hovered_node);
     void set_hovered_node(Node*);
     Node* hovered_node() { return m_hovered_node.ptr(); }
     Node const* hovered_node() const { return m_hovered_node.ptr(); }

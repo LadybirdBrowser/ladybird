@@ -146,6 +146,7 @@ public:
     [[nodiscard]] GC::Ref<ComputedProperties> compute_style(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type> = {}) const;
     [[nodiscard]] GC::Ptr<ComputedProperties> compute_pseudo_element_style_if_needed(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>) const;
 
+    Vector<MatchingRule> const& get_hover_rules() const;
     Vector<MatchingRule> collect_matching_rules(DOM::Element const&, CascadeOrigin, Optional<CSS::Selector::PseudoElement::Type>, bool& did_match_any_hover_rules, FlyString const& qualified_layer_name = {}) const;
 
     void invalidate_rule_cache();
@@ -267,13 +268,14 @@ private:
         HashMap<FlyString, NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet>> rules_by_animation_keyframes;
     };
 
-    NonnullOwnPtr<RuleCache> make_rule_cache_for_cascade_origin(CascadeOrigin, SelectorInsights&);
+    NonnullOwnPtr<RuleCache> make_rule_cache_for_cascade_origin(CascadeOrigin, SelectorInsights&, Vector<MatchingRule>& hover_rules);
 
     RuleCache const& rule_cache_for_cascade_origin(CascadeOrigin) const;
 
     static void collect_selector_insights(Selector const&, SelectorInsights&);
 
     OwnPtr<SelectorInsights> m_selector_insights;
+    Vector<MatchingRule> m_hover_rules;
     OwnPtr<RuleCache> m_author_rule_cache;
     OwnPtr<RuleCache> m_user_rule_cache;
     OwnPtr<RuleCache> m_user_agent_rule_cache;
