@@ -134,17 +134,6 @@ void EventLoopImplementationWindows::quit(int code)
     m_exit_code = code;
 }
 
-void EventLoopImplementationWindows::unquit()
-{
-    m_exit_requested = false;
-    m_exit_code = 0;
-}
-
-bool EventLoopImplementationWindows::was_exit_requested() const
-{
-    return m_exit_requested;
-}
-
 void EventLoopImplementationWindows::post_event(EventReceiver& receiver, NonnullOwnPtr<Event>&& event)
 {
     m_thread_event_queue.post_event(receiver, move(event));
@@ -155,12 +144,6 @@ void EventLoopImplementationWindows::post_event(EventReceiver& receiver, Nonnull
 void EventLoopImplementationWindows::wake()
 {
     SetEvent(m_wake_event);
-}
-
-void EventLoopImplementationWindows::notify_forked_and_in_child()
-{
-    dbgln("Core::EventLoopManagerWindows::notify_forked_and_in_child() is not implemented");
-    VERIFY_NOT_REACHED();
 }
 
 static int notifier_type_to_network_event(NotificationType type)

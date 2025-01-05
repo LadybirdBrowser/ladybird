@@ -55,11 +55,6 @@ public:
 
     virtual void post_event(EventReceiver& receiver, NonnullOwnPtr<Event>&&) = 0;
 
-    // FIXME: These APIs only exist for obscure use-cases inside SerenityOS. Try to get rid of them.
-    virtual void unquit() = 0;
-    virtual bool was_exit_requested() const = 0;
-    virtual void notify_forked_and_in_child() = 0;
-
 protected:
     EventLoopImplementation();
     ThreadEventQueue& m_thread_event_queue;
