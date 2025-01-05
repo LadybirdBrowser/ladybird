@@ -158,15 +158,13 @@ void HTMLInputElement::adjust_computed_style(CSS::ComputedProperties& style)
         style.set_property(CSS::PropertyID::LineHeight, CSS::CSSKeywordValue::create(CSS::Keyword::Normal));
 }
 
-void HTMLInputElement::set_checked(bool checked, ChangeSource change_source)
+void HTMLInputElement::set_checked(bool checked)
 {
-    if (m_checked == checked)
-        return;
-
     // The dirty checkedness flag must be initially set to false when the element is created,
     // and must be set to true whenever the user interacts with the control in a way that changes the checkedness.
-    if (change_source == ChangeSource::User)
-        m_dirty_checkedness = true;
+    m_dirty_checkedness = true;
+    if (m_checked == checked)
+        return;
 
     m_checked = checked;
 
@@ -181,9 +179,9 @@ void HTMLInputElement::set_checked_binding(bool checked)
         if (checked)
             set_checked_within_group();
         else
-            set_checked(false, ChangeSource::Programmatic);
+            set_checked(false);
     } else {
-        set_checked(checked, ChangeSource::Programmatic);
+        set_checked(checked);
     }
 }
 
@@ -1249,16 +1247,13 @@ void HTMLInputElement::did_lose_focus()
 void HTMLInputElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& value, Optional<FlyString> const&)
 {
     if (name == HTML::AttributeNames::checked) {
-        if (!value.has_value()) {
-            // When the checked content attribute is removed, if the control does not have dirty checkedness,
-            // the user agent must set the checkedness of the element to false.
-            if (!m_dirty_checkedness)
-                set_checked(false, ChangeSource::Programmatic);
-        } else {
-            // When the checked content attribute is added, if the control does not have dirty checkedness,
-            // the user agent must set the checkedness of the element to true
-            if (!m_dirty_checkedness)
-                set_checked(true, ChangeSource::Programmatic);
+        // https://html.spec.whatwg.org/multipage/input.html#the-input-element:concept-input-checked-dirty-2
+        // When the checked content attribute is added, if the control does not have dirty checkedness, the user agent must set the checkedness of the element to true;
+        // when the checked content attribute is removed, if the control does not have dirty checkedness, the user agent must set the checkedness of the element to false.
+        if (!m_dirty_checkedness) {
+            set_checked(value.has_value());
+            // set_checked() sets the dirty checkedness flag. We reset it here sinceit shouldn't be set when updating the attribute value
+            m_dirty_checkedness = false;
         }
     } else if (name == HTML::AttributeNames::type) {
         auto new_type_attribute_state = parse_type_attribute(value.value_or(String {}));
@@ -1757,7 +1752,7 @@ void HTMLInputElement::set_checked_within_group()
     if (checked())
         return;
 
-    set_checked(true, ChangeSource::User);
+    set_checked(true);
 
     // No point iterating the tree if we have an empty name.
     if (!name().has_value() || name()->is_empty())
@@ -1765,7 +1760,7 @@ void HTMLInputElement::set_checked_within_group()
 
     root().for_each_in_inclusive_subtree_of_type<HTML::HTMLInputElement>([&](auto& element) {
         if (element.checked() && &element != this && is_in_same_radio_button_group(*this, element))
-            element.set_checked(false, ChangeSource::User);
+            element.set_checked(false);
         return TraversalDecision::Continue;
     });
 }
@@ -1781,7 +1776,7 @@ void HTMLInputElement::legacy_pre_activation_behavior()
     // false, false if it is true) and set this element's indeterminate IDL
     // attribute to false.
     if (type_state() == TypeAttributeState::Checkbox) {
-        set_checked(!checked(), ChangeSource::User);
+        set_checked(!checked());
         set_indeterminate(false);
     }
 
@@ -1809,7 +1804,7 @@ void HTMLInputElement::legacy_cancelled_activation_behavior()
     // element's checkedness and the element's indeterminate IDL attribute back
     // to the values they had before the legacy-pre-activation behavior was run.
     if (type_state() == TypeAttributeState::Checkbox) {
-        set_checked(m_before_legacy_pre_activation_behavior_checked, ChangeSource::Programmatic);
+        set_checked(m_before_legacy_pre_activation_behavior_checked);
         set_indeterminate(m_before_legacy_pre_activation_behavior_indeterminate);
     }
 
@@ -1834,7 +1829,7 @@ void HTMLInputElement::legacy_cancelled_activation_behavior()
         }
 
         if (!did_reselect_previous_element)
-            set_checked(false, ChangeSource::User);
+            set_checked(false);
     }
 }
 
