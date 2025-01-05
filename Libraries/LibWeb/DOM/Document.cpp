@@ -1487,7 +1487,7 @@ static Node* find_common_ancestor(Node* a, Node* b)
     return nullptr;
 }
 
-void Document::invalidate_style_for_elements_affected_by_hover_change(GC::Ptr<Node> old_new_hovered_common_ancestor, GC::Ptr<Node> hovered_node)
+void Document::invalidate_style_for_elements_affected_by_hover_change(Node& old_new_hovered_common_ancestor, GC::Ptr<Node> hovered_node)
 {
     auto const& hover_rules = style_computer().get_hover_rules();
     if (hover_rules.is_empty())
@@ -1495,12 +1495,12 @@ void Document::invalidate_style_for_elements_affected_by_hover_change(GC::Ptr<No
 
     auto& invalidation_root = [&] -> Node& {
         if (style_computer().has_has_selectors())
-            return *this;
-        return old_new_hovered_common_ancestor ? *old_new_hovered_common_ancestor : *this;
+            return old_new_hovered_common_ancestor;
+        return old_new_hovered_common_ancestor;
     }();
 
     Vector<Element&> elements;
-    invalidation_root.for_each_shadow_including_inclusive_descendant([&](Node& node) {
+    invalidation_root.for_each_in_inclusive_subtree([&](Node& node) {
         if (!node.is_element())
             return TraversalDecision::Continue;
         auto& element = static_cast<Element&>(node);
@@ -1508,6 +1508,9 @@ void Document::invalidate_style_for_elements_affected_by_hover_change(GC::Ptr<No
             elements.append(element);
         return TraversalDecision::Continue;
     });
+
+    auto& root = old_new_hovered_common_ancestor.root();
+    auto shadow_root = is<ShadowRoot>(root) ? static_cast<ShadowRoot const*>(&root) : nullptr;
 
     auto compute_hover_selectors_match_state = [&] {
         Vector<AK::Bitmap> state;
@@ -1517,6 +1520,15 @@ void Document::invalidate_style_for_elements_affected_by_hover_change(GC::Ptr<No
             state[element_index] = MUST(AK::Bitmap::create(hover_rules.size(), 0));
             for (size_t rule_index = 0; rule_index < hover_rules.size(); ++rule_index) {
                 auto const& rule = hover_rules[rule_index];
+
+                auto rule_root = rule.shadow_root;
+                auto from_user_agent_or_user_stylesheet = rule.cascade_origin == CSS::CascadeOrigin::UserAgent || rule.cascade_origin == CSS::CascadeOrigin::User;
+                bool rule_is_relevant_for_current_scope = rule_root == shadow_root
+                    || (element.is_shadow_host() && rule_root == element.shadow_root())
+                    || from_user_agent_or_user_stylesheet;
+                if (!rule_is_relevant_for_current_scope)
+                    continue;
+
                 auto const& selector = rule.absolutized_selectors()[rule.selector_index];
 
                 SelectorEngine::MatchContext context;
@@ -1564,7 +1576,25 @@ void Document::set_hovered_node(Node* node)
 
     GC::Ptr<Node> old_hovered_node = move(m_hovered_node);
     auto* common_ancestor = find_common_ancestor(old_hovered_node, node);
-    invalidate_style_for_elements_affected_by_hover_change(common_ancestor, node);
+
+    GC::Ptr<Node> old_hovered_node_root = nullptr;
+    GC::Ptr<Node> new_hovered_node_root = nullptr;
+    if (old_hovered_node)
+        old_hovered_node_root = old_hovered_node->root();
+    if (node)
+        new_hovered_node_root = node->root();
+    if (old_hovered_node_root != new_hovered_node_root) {
+        if (old_hovered_node_root)
+            invalidate_style_for_elements_affected_by_hover_change(*old_hovered_node_root, node);
+        if (new_hovered_node_root) {
+            // invalidate_style_for_elements_affected_by_hover_change changes m_hovered_node, so it has to be
+            // reset back to old node before we do another invalidation pass for different root.
+            m_hovered_node = old_hovered_node;
+            invalidate_style_for_elements_affected_by_hover_change(*new_hovered_node_root, node);
+        }
+    } else {
+        invalidate_style_for_elements_affected_by_hover_change(*common_ancestor, node);
+    }
 
     // https://w3c.github.io/uievents/#mouseout
     if (old_hovered_node && old_hovered_node != m_hovered_node) {
