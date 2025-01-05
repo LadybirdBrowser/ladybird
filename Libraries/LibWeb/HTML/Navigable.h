@@ -113,6 +113,8 @@ public:
 
     ChosenNavigable choose_a_navigable(StringView name, TokenizedFeature::NoOpener no_opener, ActivateTab = ActivateTab::Yes, Optional<TokenizedFeature::Map const&> window_features = {});
 
+    GC::Ptr<Navigable> find_a_navigable_by_target_name(StringView name);
+
     static GC::Ptr<Navigable> navigable_with_active_document(GC::Ref<DOM::Document>);
 
     enum class Traversal {
