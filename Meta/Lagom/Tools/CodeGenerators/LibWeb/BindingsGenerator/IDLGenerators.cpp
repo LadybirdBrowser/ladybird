@@ -234,6 +234,9 @@ CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
     if (type.name() == "octet" && !type.is_nullable())
         return { .name = "WebIDL::Octet", .sequence_storage_type = SequenceStorageType::Vector };
 
+    if (type.name() == "octet" && !type.is_nullable())
+        return { .name = "WebIDL::Octet", .sequence_storage_type = SequenceStorageType::Vector };
+
     if (type.name() == "any" || type.name() == "undefined")
         return { .name = "JS::Value", .sequence_storage_type = SequenceStorageType::RootVector };
 
@@ -3810,7 +3813,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
             else if (attribute.type->is_nullable() && attribute.type->name() == "Element") {
                 // The getter steps are to return the result of running this's get the attr-associated element.
                 attribute_generator.append(R"~~~(
-    auto retval = GC::Ptr<Element> {};                
+    auto retval = GC::Ptr<Element> {};
 )~~~");
 
                 // 1. Let element be the result of running reflectedTarget's get the element.
