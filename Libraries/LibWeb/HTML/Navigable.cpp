@@ -18,6 +18,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
 #include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/BrowsingContextGroup.h>
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
@@ -352,14 +353,15 @@ void Navigable::set_ongoing_navigation(Variant<Empty, Traversal, String> ongoing
 Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, TokenizedFeature::NoOpener no_opener, ActivateTab activate_tab, Optional<TokenizedFeature::Map const&> window_features)
 {
     // NOTE: Implementation for step 7 here.
-    GC::Ptr<Navigable> same_name_navigable = nullptr;
-    if (!Infra::is_ascii_case_insensitive_match(name, "_blank"sv)) {
-        for (auto& n : all_navigables()) {
-            if (n->target_name() == name && !n->has_been_destroyed()) {
-                same_name_navigable = n;
-            }
+    GC::Ptr<Navigable> navigable_by_target_name = nullptr;
+    auto find_and_assign_navigable_by_target_name = [&](StringView name) {
+        auto maybe_navigable = find_a_navigable_by_target_name(name);
+        if (maybe_navigable) {
+            navigable_by_target_name = maybe_navigable;
+            return true;
         }
-    }
+        return false;
+    };
 
     // 1. Let chosen be null.
     GC::Ptr<Navigable> chosen = nullptr;
@@ -390,25 +392,17 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
         chosen = traversable_navigable();
     }
 
-    //  7. Otherwise, if name is not an ASCII case-insensitive match for "_blank",
-    //     there exists a navigable whose target name is the same as name, currentNavigable's
-    //     active browsing context is familiar with that navigable's active browsing context,
-    //     and the user agent determines that the two browsing contexts are related enough that
-    //     it is ok if they reach each other, set chosen to that navigable. If there are multiple
-    //     matching navigables, the user agent should pick one in some arbitrary consistent manner,
-    //     such as the most recently opened, most recently focused, or more closely related, and set
-    //     chosen to it.
-    else if (same_name_navigable != nullptr && (active_browsing_context()->is_familiar_with(*same_name_navigable->active_browsing_context()))) {
-        // FIXME: Handle multiple name-match case
-        // FIXME: When are these contexts 'not related enough' ?
-        chosen = same_name_navigable;
+    // 7. Otherwise, if name is not an ASCII case-insensitive match for "_blank", and there exists a navigable that is
+    //    the result of finding a navigable by target name given name and currentNavigable, set chosen to that navigable.
+    else if (!Infra::is_ascii_case_insensitive_match(name, "_blank"sv) && find_and_assign_navigable_by_target_name(name)) {
+        chosen = navigable_by_target_name;
     }
 
     // 8. Otherwise, a new top-level traversable is being requested, and what happens depends on the
     // user agent's configuration and abilities — it is determined by the rules given for the first
     // applicable option from the following list:
     else {
-        // --> If current's active window does not have transient activation and the user agent has been configured to
+        // --> If currentNavigable's active window does not have transient activation and the user agent has been configured to
         //     not show popups (i.e., the user agent has a "popup blocker" enabled)
         if (active_window() && !active_window()->has_transient_activation() && traversable_navigable()->page().should_block_pop_ups()) {
             // FIXME: The user agent may inform the user that a popup has been blocked.
@@ -476,7 +470,8 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
 
             // 9. Otherwise:
             else {
-                // 1. Set chosen to the result of creating a new top-level traversable given currentNavigable's active browsing context and targetName.
+                // 1. Set chosen to the result of creating a new top-level traversable given currentNavigable's active browsing context, targetName, and currentNavigable.
+                // FIXME: "and currentNavigable", which is the openerNavigableForWebDriver parameter.
                 chosen = create_new_traversable->function()(active_browsing_context());
 
                 // 2. If sandboxingFlagSet's sandboxed navigation browsing context flag is set,
@@ -491,19 +486,87 @@ Navigable::ChosenNavigable Navigable::choose_a_navigable(StringView name, Tokeni
                 chosen->active_browsing_context()->set_popup_sandboxing_flag_set(chosen->active_browsing_context()->popup_sandboxing_flag_set() | sandboxing_flag_set);
         }
 
-        // --> If the user agent has been configured such that in this instance t will reuse current
+        // --> If the user agent has been configured such that in this instance it will choose currentNavigable
         else if (false) { // FIXME: When is this the case?
             // Set chosen to current.
             chosen = *this;
         }
 
-        // --> If the user agent has been configured such that in this instance it will not find a browsing context
+        // --> If the user agent has been configured such that in this instance it will not find a navigable
         else if (false) { // FIXME: When is this the case?
             // Do nothing.
         }
     }
 
+    // 9. Return chosen and windowType
     return { chosen.ptr(), window_type };
+}
+
+// https://html.spec.whatwg.org/multipage/document-sequences.html#find-a-navigable-by-target-name
+GC::Ptr<Navigable> Navigable::find_a_navigable_by_target_name(StringView name)
+{
+    // 1. Let currentDocument be currentNavigable's active document.
+    auto& current_document = *active_document();
+
+    // 2. Let sourceSnapshotParams be the result of snapshotting source snapshot params given currentDocument.
+    auto source_snapshot_params = current_document.snapshot_source_snapshot_params();
+
+    // 3. Let subtreesToSearch be an implementation-defined choice of one of the following:
+    //    - « currentNavigable's traversable navigable, currentNavigable »
+    //    - the inclusive ancestor navigables of currentDocument
+    // FIXME: Decide which to use, or wait until the spec picks one.
+    auto subtrees_to_search = current_document.inclusive_ancestor_navigables();
+
+    // 4. For each subtreeToSearch of subtreesToSearch, in reverse order:
+    for (auto const& subtree_to_search : subtrees_to_search) {
+        // 1. Let documentToSearch be subtreeToSearch's active document.
+        auto& document_to_search = *subtree_to_search->active_document();
+
+        // 2. For each navigable of the inclusive descendant navigables of documentToSearch:
+        for (auto const& navigable : document_to_search.inclusive_descendant_navigables()) {
+            // 1. If currentNavigable is not allowed by sandboxing to navigate navigable given sourceSnapshotParams, then optionally continue.
+            if (!allowed_by_sandboxing_to_navigate(*navigable, source_snapshot_params))
+                continue;
+
+            // 2. If navigable's target name is name, then return navigable.
+            if (navigable->target_name() == name)
+                return *navigable;
+        }
+    }
+
+    // 5. Let currentTopLevelBrowsingContext be currentNavigable's active browsing context's top-level browsing context.
+    auto& current_top_level_browsing_context = *active_browsing_context()->top_level_browsing_context();
+
+    // 6. Let group be currentTopLevelBrowsingContext's group.
+    auto* group = current_top_level_browsing_context.group();
+
+    // 7. For each topLevelBrowsingContext of group's browsing context set, in an implementation-defined order (the user agent should pick a consistent ordering, such as the most recently opened, most recently focused, or more closely related):
+    for (auto const& top_level_browsing_context : group->browsing_context_set()) {
+        // 1. If currentTopLevelBrowsingContext is topLevelBrowsingContext, then continue.
+        if (&current_top_level_browsing_context == top_level_browsing_context)
+            continue;
+
+        // 2. Let documentToSearch be topLevelBrowsingContext's active document.
+        auto* document_to_search = top_level_browsing_context->active_document();
+
+        // 3. For each navigable of the inclusive descendant navigables of documentToSearch:
+        for (auto const& navigable : document_to_search->inclusive_descendant_navigables()) {
+            // 1. If currentNavigable's active browsing context is not familiar with navigable's active browsing context, then continue.
+            if (!active_browsing_context()->is_familiar_with(*navigable->active_browsing_context()))
+                continue;
+
+            // 2. If currentNavigable is not allowed by sandboxing to navigate navigable given sourceSnapshotParams, then optionally continue.
+            if (!allowed_by_sandboxing_to_navigate(*navigable, source_snapshot_params))
+                continue;
+
+            // 3. If navigable's target name is name, then return navigable.
+            if (navigable->target_name() == name)
+                return *navigable;
+        }
+    }
+
+    // 8. Return null.
+    return nullptr;
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-session-history-entries
