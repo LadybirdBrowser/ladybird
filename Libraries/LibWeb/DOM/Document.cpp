@@ -79,6 +79,7 @@
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/BeforeUnloadEvent.h>
 #include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/BrowsingContextGroup.h>
 #include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
 #include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
@@ -161,77 +162,99 @@ namespace Web::DOM {
 GC_DEFINE_ALLOCATOR(Document);
 
 // https://html.spec.whatwg.org/multipage/origin.html#obtain-browsing-context-navigation
-static GC::Ref<HTML::BrowsingContext> obtain_a_browsing_context_to_use_for_a_navigation_response(
-    HTML::BrowsingContext& browsing_context,
-    HTML::SandboxingFlagSet sandbox_flags,
-    HTML::OpenerPolicy navigation_coop,
-    HTML::OpenerPolicyEnforcementResult coop_enforcement_result)
+static GC::Ref<HTML::BrowsingContext> obtain_a_browsing_context_to_use_for_a_navigation_response(HTML::NavigationParams const& navigation_params)
 {
-    // 1. If browsingContext is not a top-level browsing context, return browsingContext.
+    // 1. Let browsingContext be navigationParams's navigable's active browsing context.
+    auto& browsing_context = *navigation_params.navigable->active_browsing_context();
+
+    // 2. If browsingContext is not a top-level browsing context, return browsingContext.
     if (!browsing_context.is_top_level())
         return browsing_context;
 
-    // 2. If coopEnforcementResult's needs a browsing context group switch is false, then:
-    if (!coop_enforcement_result.needs_a_browsing_context_group_switch) {
+    // 3. Let coopEnforcementResult be navigationParams's COOP enforcement result.
+    auto& coop_enforcement_result = navigation_params.coop_enforcement_result;
+
+    // 4. Let swapGroup be coopEnforcementResult's needs a browsing context group switch.
+    auto swap_group = coop_enforcement_result.needs_a_browsing_context_group_switch;
+
+    // 5. Let sourceOrigin be browsingContext's active document's origin.
+    auto& source_origin = browsing_context.active_document()->origin();
+
+    // 6. Let destinationOrigin be navigationParams's origin.
+    auto& destination_origin = navigation_params.origin;
+
+    // 7. If sourceOrigin is not same site with destinationOrigin:
+    if (!source_origin.is_same_site(destination_origin)) {
+        // FIXME: 1. If either of sourceOrigin or destinationOrigin have a scheme that is not an HTTP(S) scheme
+        //    and the user agent considers it necessary for sourceOrigin and destinationOrigin to be
+        //    isolated from each other (for implementation-defined reasons), optionally set swapGroup to true.
+
+        // FIXME: 2. If navigationParams's user involvement is "browser UI", optionally set swapGroup to true.
+    }
+
+    // FIXME: 8. If browsingContext's group's browsing context set's size is 1, optionally set swapGroup to true.
+
+    // 9. If swapGroup is false, then:
+    if (!swap_group) {
         // 1. If coopEnforcementResult's would need a browsing context group switch due to report-only is true,
+        //    set browsing context's virtual browsing context group ID to a new unique identifier.
         if (coop_enforcement_result.would_need_a_browsing_context_group_switch_due_to_report_only) {
             // FIXME: set browsing context's virtual browsing context group ID to a new unique identifier.
         }
+
         // 2. Return browsingContext.
         return browsing_context;
     }
 
-    // 3. Let newBrowsingContext be the first return value of creating a new top-level browsing context and document
-    auto new_browsing_context = HTML::create_a_new_top_level_browsing_context_and_document(browsing_context.page()).release_value_but_fixme_should_propagate_errors().browsing_context;
+    // 10. Let newBrowsingContext be the first return value of creating a new top-level browsing context and document.
+    auto browsing_context_and_document = MUST(HTML::create_a_new_top_level_browsing_context_and_document(browsing_context.page()));
+    auto new_browsing_context = browsing_context_and_document.browsing_context;
 
-    // FIXME: 4. If navigationCOOP's value is "same-origin-plurs-COEP", then set newBrowsingContext's group's
-    //           cross-origin isolation mode to either "logical" or "concrete". The choice of which is implementation-defined.
+    // 11. Let navigationCOOP be navigationParams's cross-origin opener policy.
+    auto navigation_coop = navigation_params.opener_policy;
 
-    // 5. If sandboxFlags is not empty, then:
+    // FIXME: 12. If navigationCOOP's value is "same-origin-plus-COEP", then set newBrowsingContext's group's cross-origin
+    //     isolation mode to either "logical" or "concrete". The choice of which is implementation-defined.
+
+    // 13. Let sandboxFlags be a clone of navigationParams's final sandboxing flag set.
+    auto sandbox_flags = navigation_params.final_sandboxing_flag_set;
+
+    // 14. If sandboxFlags is not empty, then:
     if (!is_empty(sandbox_flags)) {
-        // 1. Assert navigationCOOP's value is "unsafe-none".
+        // 1. Assert: navigationCOOP's value is "unsafe-none".
         VERIFY(navigation_coop.value == HTML::OpenerPolicyValue::UnsafeNone);
 
         // 2. Assert: newBrowsingContext's popup sandboxing flag set is empty.
         VERIFY(is_empty(new_browsing_context->popup_sandboxing_flag_set()));
 
-        // 3. Set newBrowsingContext's popup sandboxing flag set to a clone of sandboxFlags.
+        // 3. Set newBrowsingContext's popup sandboxing flag set to sandboxFlags.
         new_browsing_context->set_popup_sandboxing_flag_set(sandbox_flags);
     }
 
-    // 6. Return newBrowsingContext.
+    // 15. Return newBrowsingContext.
     return new_browsing_context;
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#initialise-the-document-object
 WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type, String content_type, HTML::NavigationParams const& navigation_params)
 {
-    // 1. Let browsingContext be navigationParams's navigable's active browsing context.
-    auto browsing_context = navigation_params.navigable->active_browsing_context();
+    // 1. Let browsingContext be the result of obtaining a browsing context to use for a navigation response given navigationParams.
+    auto browsing_context = obtain_a_browsing_context_to_use_for_a_navigation_response(navigation_params);
 
-    // 2. Set browsingContext to the result of the obtaining a browsing context to use for a navigation response given browsingContext, navigationParams's final sandboxing flag set,
-    //    navigationParams's opener policy, and navigationParams's COOP enforcement result.
-    browsing_context = obtain_a_browsing_context_to_use_for_a_navigation_response(
-        *browsing_context,
-        navigation_params.final_sandboxing_flag_set,
-        navigation_params.opener_policy,
-        navigation_params.coop_enforcement_result);
+    // FIXME: 2. Let permissionsPolicy be the result of creating a permissions policy from a response given navigationParams's navigable's container, navigationParams's origin, and navigationParams's response.
 
-    // FIXME: 3. Let permissionsPolicy be the result of creating a permissions policy from a response
-    //           given browsingContext, navigationParams's origin, and navigationParams's response.
-
-    // 4. Let creationURL be navigationParams's response's URL.
+    // 3. Let creationURL be navigationParams's response's URL.
     auto creation_url = navigation_params.response->url();
 
-    // 5. If navigationParams's request is non-null, then set creationURL to navigationParams's request's current URL.
+    // 4. If navigationParams's request is non-null, then set creationURL to navigationParams's request's current URL.
     if (navigation_params.request) {
         creation_url = navigation_params.request->current_url();
     }
 
-    // 6. Let window be null.
+    // 5. Let window be null.
     GC::Ptr<HTML::Window> window;
 
-    // 7. If browsingContext's active document's is initial about:blank is true,
+    // 6. If browsingContext's active document's is initial about:blank is true,
     //    and browsingContext's active document's origin is same origin-domain with navigationParams's origin,
     //    then set window to browsingContext's active window.
     // FIXME: still_on_its_initial_about_blank_document() is not in the spec anymore.
@@ -243,7 +266,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
         window = browsing_context->active_window();
     }
 
-    // 8. Otherwise:
+    // 7. Otherwise:
     else {
         // FIXME: 1. Let oacHeader be the result of getting a structured field value given `Origin-Agent-Cluster` and "item" from response's header list.
 
@@ -288,7 +311,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
             top_level_origin = parent_environment.top_level_origin;
         }
 
-        // 9. Set up a window environment settings object with creationURL, realm execution context,
+        // 10. Set up a window environment settings object with creationURL, realm execution context,
         //    navigationParams's reserved environment, topLevelCreationURL, and topLevelOrigin.
 
         // FIXME: Why do we assume `creation_url` is non-empty here? Is this a spec bug?
@@ -302,24 +325,24 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
             top_level_origin);
     }
 
-    // FIXME: 9. Let loadTimingInfo be a new document load timing info with its navigation start time set to navigationParams's response's timing info's start time.
+    // FIXME: 8. Let loadTimingInfo be a new document load timing info with its navigation start time set to navigationParams's response's timing info's start time.
 
-    // 10. Let document be a new Document, with
-    //     type: type
-    //     content type: contentType
-    //     origin: navigationParams's origin
-    //     browsing context: browsingContext
-    //     policy container: navigationParams's policy container
-    //     FIXME: permissions policy: permissionsPolicy
-    //     active sandboxing flag set: navigationParams's final sandboxing flag set
-    //     FIXME: opener policy: navigationParams's opener policy
-    //     FIXME: load timing info: loadTimingInfo
-    //     FIXME: was created via cross-origin redirects: navigationParams's response's has cross-origin redirects
-    //     during-loading navigation ID for WebDriver BiDi: navigationParams's id
-    //     URL: creationURL
-    //     current document readiness: "loading"
-    //     about base URL: navigationParams's about base URL
-    //     allow declarative shadow roots: true
+    // 9. Let document be a new Document, with
+    //    type: type
+    //    content type: contentType
+    //    origin: navigationParams's origin
+    //    browsing context: browsingContext
+    //    policy container: navigationParams's policy container
+    //    FIXME: permissions policy: permissionsPolicy
+    //    active sandboxing flag set: navigationParams's final sandboxing flag set
+    //    FIXME: opener policy: navigationParams's opener policy
+    //    FIXME: load timing info: loadTimingInfo
+    //    FIXME: was created via cross-origin redirects: navigationParams's response's has cross-origin redirects
+    //    during-loading navigation ID for WebDriver BiDi: navigationParams's id
+    //    URL: creationURL
+    //    current document readiness: "loading"
+    //    about base URL: navigationParams's about base URL
+    //    allow declarative shadow roots: true
     auto document = HTML::HTMLDocument::create(window->realm());
     document->m_type = type;
     document->m_content_type = move(content_type);
@@ -339,12 +362,12 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     if (auto maybe_last_modified = navigation_params.response->header_list()->get("Last-Modified"sv.bytes()); maybe_last_modified.has_value())
         document->m_last_modified = Core::DateTime::parse("%a, %d %b %Y %H:%M:%S %Z"sv, maybe_last_modified.value());
 
-    // 11. Set window's associated Document to document.
+    // 10. Set window's associated Document to document.
     window->set_associated_document(*document);
 
-    // FIXME: 12. Run CSP initialization for a Document given document.
+    // FIXME: 11. Run CSP initialization for a Document given document.
 
-    // 13. If navigationParams's request is non-null, then:
+    // 12. If navigationParams's request is non-null, then:
     if (navigation_params.request) {
         // 1. Set document's referrer to the empty string.
         document->m_referrer = String {};
@@ -358,12 +381,12 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
         }
     }
 
-    // FIXME: 14: If navigationParams's fetch controller is not null, then:
+    // FIXME: 13: If navigationParams's fetch controller is not null, then:
 
-    // FIXME: 15. Create the navigation timing entry for document, with navigationParams's response's timing info, redirectCount, navigationParams's navigation timing type, and
+    // FIXME: 14. Create the navigation timing entry for document, with navigationParams's response's timing info, redirectCount, navigationParams's navigation timing type, and
     //            navigationParams's response's service worker timing info.
 
-    // 16. If navigationParams's response has a `Refresh` header, then:
+    // 15. If navigationParams's response has a `Refresh` header, then:
     if (auto maybe_refresh = navigation_params.response->header_list()->get("Refresh"sv.bytes()); maybe_refresh.has_value()) {
         // 1. Let value be the isomorphic decoding of the value of the header.
         auto value = Infra::isomorphic_decode(maybe_refresh.value());
@@ -372,11 +395,11 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
         document->shared_declarative_refresh_steps(value, nullptr);
     }
 
-    // FIXME: 17. If navigationParams's commit early hints is not null, then call navigationParams's commit early hints with document.
+    // FIXME: 16. If navigationParams's commit early hints is not null, then call navigationParams's commit early hints with document.
 
-    // FIXME: 18. Process link headers given document, navigationParams's response, and "pre-media".
+    // FIXME: 17. Process link headers given document, navigationParams's response, and "pre-media".
 
-    // 19. Return document.
+    // 18. Return document.
     return document;
 }
 
