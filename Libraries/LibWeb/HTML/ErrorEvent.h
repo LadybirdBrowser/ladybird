@@ -17,7 +17,7 @@ struct ErrorEventInit : public DOM::EventInit {
     String filename;
     u32 lineno { 0 };
     u32 colno { 0 };
-    JS::Value error { JS::js_null() };
+    JS::Value error { JS::js_undefined() };
 };
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#errorevent
