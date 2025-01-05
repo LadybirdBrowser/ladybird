@@ -46,20 +46,24 @@ void HTMLTemplateElement::adopted_from(DOM::Document&)
 }
 
 // https://html.spec.whatwg.org/multipage/scripting.html#the-template-element:concept-node-clone-ext
-WebIDL::ExceptionOr<void> HTMLTemplateElement::cloned(Node& copy, bool clone_children)
+WebIDL::ExceptionOr<void> HTMLTemplateElement::cloned(Node& copy, bool subtree)
 {
-    // 1. If the clone children flag is not set in the calling clone algorithm, return.
-    if (!clone_children)
+    TRY(Base::cloned(copy, subtree));
+
+    // The cloning steps for template elements given node, copy, and subtree are:
+
+    // 1. If subtree is false, then return.
+    if (!subtree)
         return {};
 
-    // 2. Let copied contents be the result of cloning all the children of node's template contents,
-    //    with document set to copy's template contents's node document, and with the clone children flag set.
-    // 3. Append copied contents to copy's template contents.
-    auto& template_clone = verify_cast<HTMLTemplateElement>(copy);
+    // 2. For each child of node's template contents's children, in tree order:
+    //    clone a node given child with document set to copy's template contents's node document,
+    //    subtree set to true, and parent set to copy's template contents.
+    auto& template_copy = verify_cast<HTMLTemplateElement>(copy);
     for (auto child = content()->first_child(); child; child = child->next_sibling()) {
-        auto cloned_child = TRY(child->clone_node(&template_clone.content()->document(), true));
-        TRY(template_clone.content()->append_child(cloned_child));
+        TRY(child->clone_node(&template_copy.content()->document(), true, template_copy.content()));
     }
+
     return {};
 }
 

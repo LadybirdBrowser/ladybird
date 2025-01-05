@@ -136,9 +136,11 @@ void HTMLTextAreaElement::clear_algorithm()
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#the-textarea-element:concept-node-clone-ext
-WebIDL::ExceptionOr<void> HTMLTextAreaElement::cloned(DOM::Node& copy, bool)
+WebIDL::ExceptionOr<void> HTMLTextAreaElement::cloned(DOM::Node& copy, bool subtree)
 {
-    // The cloning steps for textarea elements must propagate the raw value and dirty value flag from the node being cloned to the copy.
+    TRY(Base::cloned(copy, subtree));
+
+    // The cloning steps for textarea elements given node, copy, and subtree are to propagate the raw value and dirty value flag from node to copy.
     auto& textarea_copy = verify_cast<HTMLTextAreaElement>(copy);
     textarea_copy.m_raw_value = m_raw_value;
     textarea_copy.m_dirty_value = m_dirty_value;

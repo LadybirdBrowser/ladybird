@@ -56,7 +56,7 @@ void HTMLOrSVGElement<ElementBase>::blur()
     // User agents may selectively or uniformly ignore calls to this method for usability reasons.
 }
 
-// https://html.spec.whatwg.org/#dom-noncedelement-nonce
+// https://html.spec.whatwg.org/multipage/urls-and-fetching.html#dom-noncedelement-nonce
 template<typename ElementBase>
 void HTMLOrSVGElement<ElementBase>::attribute_changed(FlyString const& local_name, Optional<String> const&, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
@@ -76,17 +76,17 @@ void HTMLOrSVGElement<ElementBase>::attribute_changed(FlyString const& local_nam
     }
 }
 
-// https://html.spec.whatwg.org/#dom-noncedelement-nonce
+// https://html.spec.whatwg.org/multipage/urls-and-fetching.html#dom-noncedelement-nonce
 template<typename ElementBase>
 WebIDL::ExceptionOr<void> HTMLOrSVGElement<ElementBase>::cloned(DOM::Node& copy, bool)
 {
-    // The cloning steps for elements that include HTMLOrSVGElement must set the
-    // [[CryptographicNonce]] slot on the copy to the value of the slot on the element being cloned.
+    // The cloning steps for elements that include HTMLOrSVGElement given node, copy, and subtree
+    // are to set copy's [[CryptographicNonce]] to node's [[CryptographicNonce]].
     static_cast<ElementBase&>(copy).m_cryptographic_nonce = m_cryptographic_nonce;
     return {};
 }
 
-// https://html.spec.whatwg.org/#dom-noncedelement-nonce
+// https://html.spec.whatwg.org/multipage/urls-and-fetching.html#dom-noncedelement-nonce
 template<typename ElementBase>
 void HTMLOrSVGElement<ElementBase>::inserted()
 {
