@@ -230,6 +230,9 @@ CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
 
     if (type.name() == "long" && !type.is_nullable())
         return { .name = "WebIDL::Long", .sequence_storage_type = SequenceStorageType::Vector };
+    
+    if (type.name() == "octet" && !type.is_nullable())
+        return { .name = "WebIDL::Octet", .sequence_storage_type = SequenceStorageType::Vector };
 
     if (type.name() == "any" || type.name() == "undefined")
         return { .name = "JS::Value", .sequence_storage_type = SequenceStorageType::RootVector };
