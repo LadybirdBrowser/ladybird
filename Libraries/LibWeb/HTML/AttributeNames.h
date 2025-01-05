@@ -138,6 +138,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(onafterprint)               \
     __ENUMERATE_HTML_ATTRIBUTE(onauxclick)                 \
     __ENUMERATE_HTML_ATTRIBUTE(onbeforeinput)              \
+    __ENUMERATE_HTML_ATTRIBUTE(onbeforematch)              \
     __ENUMERATE_HTML_ATTRIBUTE(onbeforeprint)              \
     __ENUMERATE_HTML_ATTRIBUTE(onbeforetoggle)             \
     __ENUMERATE_HTML_ATTRIBUTE(onbeforeunload)             \
@@ -148,7 +149,9 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(onchange)                   \
     __ENUMERATE_HTML_ATTRIBUTE(onclick)                    \
     __ENUMERATE_HTML_ATTRIBUTE(onclose)                    \
+    __ENUMERATE_HTML_ATTRIBUTE(oncontextlost)              \
     __ENUMERATE_HTML_ATTRIBUTE(oncontextmenu)              \
+    __ENUMERATE_HTML_ATTRIBUTE(oncontextrestored)          \
     __ENUMERATE_HTML_ATTRIBUTE(oncopy)                     \
     __ENUMERATE_HTML_ATTRIBUTE(oncuechange)                \
     __ENUMERATE_HTML_ATTRIBUTE(oncut)                      \

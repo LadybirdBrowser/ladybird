@@ -13,6 +13,7 @@
     E(onabort, HTML::EventNames::abort)                                       \
     E(onauxclick, UIEvents::EventNames::auxclick)                             \
     E(onbeforeinput, HTML::EventNames::beforeinput)                           \
+    E(onbeforematch, HTML::EventNames::beforematch)                           \
     E(onbeforetoggle, HTML::EventNames::beforetoggle)                         \
     E(onblur, HTML::EventNames::blur)                                         \
     E(oncancel, HTML::EventNames::cancel)                                     \
@@ -21,7 +22,9 @@
     E(onchange, HTML::EventNames::change)                                     \
     E(onclick, UIEvents::EventNames::click)                                   \
     E(onclose, HTML::EventNames::close)                                       \
+    E(oncontextlost, HTML::EventNames::contextlost)                           \
     E(oncontextmenu, HTML::EventNames::contextmenu)                           \
+    E(oncontextrestored, HTML::EventNames::contextrestored)                   \
     E(oncopy, HTML::EventNames::copy)                                         \
     E(oncuechange, HTML::EventNames::cuechange)                               \
     E(oncut, HTML::EventNames::cut)                                           \
