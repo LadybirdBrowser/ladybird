@@ -17,7 +17,7 @@ interface mixin GlobalEventHandlers {
     attribute EventHandler onabort;
     attribute EventHandler onauxclick;
     attribute EventHandler onbeforeinput;
-    // TODO: attribute EventHandler onbeforematch;
+    attribute EventHandler onbeforematch;
     attribute EventHandler onbeforetoggle;
     attribute EventHandler onblur;
     attribute EventHandler oncancel;
@@ -26,9 +26,9 @@ interface mixin GlobalEventHandlers {
     attribute EventHandler onchange;
     attribute EventHandler onclick;
     attribute EventHandler onclose;
-    // TODO: attribute EventHandler oncontextlost;
+    attribute EventHandler oncontextlost;
     attribute EventHandler oncontextmenu;
-    // TODO: attribute EventHandler oncontextrestored;
+    attribute EventHandler oncontextrestored;
     attribute EventHandler oncopy;
     attribute EventHandler oncuechange;
     attribute EventHandler oncut;
