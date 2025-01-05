@@ -21,23 +21,10 @@ namespace Core::System {
 
 ErrorOr<int> open(StringView path, int options, mode_t mode)
 {
-    ByteString string_path = path;
-    auto sz_path = string_path.characters();
-    int rc = _open(sz_path, options | O_BINARY, mode);
-    if (rc < 0) {
-        int error = errno;
-        struct stat st = {};
-        if (::stat(sz_path, &st) == 0 && (st.st_mode & S_IFDIR)) {
-            HANDLE dir_handle = CreateFile(sz_path, GENERIC_ALL, 0, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
-            if (dir_handle == INVALID_HANDLE_VALUE)
-                return Error::from_windows_error();
-            int dir_fd = _open_osfhandle((intptr_t)dir_handle, 0);
-            if (dir_fd != -1)
-                return dir_fd;
-        }
-        return Error::from_syscall("open"sv, -error);
-    }
-    return rc;
+    int fd = _open(ByteString(path).characters(), options | O_BINARY | _O_OBTAIN_DIR, mode);
+    if (fd < 0)
+        return Error::from_syscall("open"sv, -errno);
+    return fd;
 }
 
 ErrorOr<void> close(int fd)
