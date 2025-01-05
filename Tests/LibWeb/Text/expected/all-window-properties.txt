@@ -394,6 +394,7 @@ TypeError
 UIEvent
 URIError
 URL
+URLPattern
 URLSearchParams
 Uint16Array
 Uint32Array

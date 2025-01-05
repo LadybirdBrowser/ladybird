@@ -776,6 +776,7 @@ set(SOURCES
     UIEvents/TextEvent.cpp
     UIEvents/UIEvent.cpp
     UIEvents/WheelEvent.cpp
+    URLPattern/URLPattern.cpp
     UserTiming/PerformanceMark.cpp
     UserTiming/PerformanceMeasure.cpp
     WebAssembly/Global.cpp

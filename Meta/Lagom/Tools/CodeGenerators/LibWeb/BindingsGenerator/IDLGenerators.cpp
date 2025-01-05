@@ -4436,6 +4436,7 @@ using namespace Web::StorageAPI;
 using namespace Web::Streams;
 using namespace Web::SVG;
 using namespace Web::UIEvents;
+using namespace Web::URLPattern;
 using namespace Web::UserTiming;
 using namespace Web::WebAssembly;
 using namespace Web::WebAudio;
