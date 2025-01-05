@@ -763,7 +763,7 @@ GC::Ptr<HTML::WindowProxy const> Document::default_view() const
     return const_cast<Document*>(this)->default_view();
 }
 
-URL::Origin Document::origin() const
+URL::Origin const& Document::origin() const
 {
     return m_origin;
 }

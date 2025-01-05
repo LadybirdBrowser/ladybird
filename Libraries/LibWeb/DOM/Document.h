@@ -151,7 +151,7 @@ public:
     String url_string() const { return m_url.to_string(); }
     String document_uri() const { return url_string(); }
 
-    URL::Origin origin() const;
+    URL::Origin const& origin() const;
     void set_origin(URL::Origin const& origin);
 
     HTML::OpenerPolicy const& opener_policy() const { return m_opener_policy; }
