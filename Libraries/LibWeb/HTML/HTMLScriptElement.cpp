@@ -650,4 +650,16 @@ void HTMLScriptElement::set_async(bool async)
     }
 }
 
+// https://html.spec.whatwg.org/multipage/scripting.html#script-processing-model:concept-node-clone-ext
+WebIDL::ExceptionOr<void> HTMLScriptElement::cloned(Node& copy, bool subtree)
+{
+    TRY(Base::cloned(copy, subtree));
+
+    // The cloning steps for script elements given node, copy, and subtree are to set copy's already started to node's already started.
+    auto& script_copy = verify_cast<HTMLScriptElement>(copy);
+    script_copy.m_already_started = m_already_started;
+
+    return {};
+}
+
 }

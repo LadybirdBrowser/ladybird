@@ -63,6 +63,8 @@ public:
     [[nodiscard]] bool async() const;
     void set_async(bool);
 
+    virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) override;
+
 private:
     HTMLScriptElement(DOM::Document&, DOM::QualifiedName);
 
