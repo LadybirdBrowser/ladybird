@@ -72,8 +72,6 @@ public:
     void wake();
 
     void quit(int);
-    void unquit();
-    bool was_exit_requested() const;
 
     // The registration functions act upon the current loop of the current thread.
     static intptr_t register_timer(EventReceiver&, int milliseconds, bool should_reload, TimerShouldFireWhenNotVisible);
@@ -84,13 +82,6 @@ public:
 
     static int register_signal(int signo, ESCAPING Function<void(int)> handler);
     static void unregister_signal(int handler_id);
-
-    // Note: Boost uses Parent/Child/Prepare, but we don't really have anything
-    //       interesting to do in the parent or before forking.
-    enum class ForkEvent {
-        Child,
-    };
-    static void notify_forked(ForkEvent);
 
     static bool is_running();
     static EventLoop& current();

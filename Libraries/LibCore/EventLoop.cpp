@@ -65,11 +65,6 @@ void EventLoop::quit(int code)
     m_impl->quit(code);
 }
 
-void EventLoop::unquit()
-{
-    m_impl->unquit();
-}
-
 struct EventLoopPusher {
 public:
     EventLoopPusher(EventLoop& event_loop)
@@ -91,7 +86,7 @@ int EventLoop::exec()
 void EventLoop::spin_until(Function<bool()> goal_condition)
 {
     EventLoopPusher pusher(*this);
-    while (!m_impl->was_exit_requested() && !goal_condition())
+    while (!goal_condition())
         pump();
 }
 
@@ -118,11 +113,6 @@ int EventLoop::register_signal(int signal_number, Function<void(int)> handler)
 void EventLoop::unregister_signal(int handler_id)
 {
     EventLoopManager::the().unregister_signal(handler_id);
-}
-
-void EventLoop::notify_forked(ForkEvent)
-{
-    current().m_impl->notify_forked_and_in_child();
 }
 
 intptr_t EventLoop::register_timer(EventReceiver& object, int milliseconds, bool should_reload, TimerShouldFireWhenNotVisible fire_when_not_visible)
@@ -159,11 +149,6 @@ void EventLoop::deferred_invoke(Function<void()> invokee)
 void deferred_invoke(Function<void()> invokee)
 {
     EventLoop::current().deferred_invoke(move(invokee));
-}
-
-bool EventLoop::was_exit_requested() const
-{
-    return m_impl->was_exit_requested();
 }
 
 }

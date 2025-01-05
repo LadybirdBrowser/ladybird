@@ -59,11 +59,6 @@ public:
     virtual void wake() override;
     virtual void post_event(Core::EventReceiver& receiver, NonnullOwnPtr<Core::Event>&&) override;
 
-    // FIXME: These APIs only exist for obscure use-cases inside SerenityOS. Try to get rid of them.
-    virtual void unquit() override { }
-    virtual bool was_exit_requested() const override { return false; }
-    virtual void notify_forked_and_in_child() override { }
-
     void set_main_loop();
 
 private:

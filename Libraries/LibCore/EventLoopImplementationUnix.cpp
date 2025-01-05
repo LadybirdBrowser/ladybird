@@ -330,17 +330,6 @@ void EventLoopImplementationUnix::quit(int code)
     m_exit_code = code;
 }
 
-void EventLoopImplementationUnix::unquit()
-{
-    m_exit_requested = false;
-    m_exit_code = 0;
-}
-
-bool EventLoopImplementationUnix::was_exit_requested() const
-{
-    return m_exit_requested;
-}
-
 void EventLoopImplementationUnix::post_event(EventReceiver& receiver, NonnullOwnPtr<Event>&& event)
 {
     m_thread_event_queue.post_event(receiver, move(event));
@@ -520,21 +509,6 @@ void EventLoopManagerUnix::dispatch_signal(int signal_number)
         auto handler = handlers->value;
         handler->dispatch();
     }
-}
-
-void EventLoopImplementationUnix::notify_forked_and_in_child()
-{
-    auto& thread_data = ThreadData::the();
-    thread_data.timeouts.clear();
-    thread_data.poll_fds.clear();
-    thread_data.notifier_by_ptr.clear();
-    thread_data.notifier_by_index.clear();
-    thread_data.initialize_wake_pipe();
-    if (auto* info = signals_info<false>()) {
-        info->signal_handlers.clear();
-        info->next_signal_id = 0;
-    }
-    thread_data.pid = getpid();
 }
 
 SignalHandlers::SignalHandlers(int signal_number, void (*handle_signal)(int))
