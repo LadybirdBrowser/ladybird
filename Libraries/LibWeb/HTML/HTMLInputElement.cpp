@@ -1721,6 +1721,10 @@ WebIDL::ExceptionOr<void> HTMLInputElement::cloned(DOM::Node& copy, bool subtree
     input_clone.m_dirty_value = m_dirty_value;
     input_clone.m_checked = m_checked;
     input_clone.m_dirty_checkedness = m_dirty_checkedness;
+
+    // AD-HOC: The spec doesn't mention propagating this state, but there is a WPT test that expects cloned nodes to preserve it.
+    input_clone.m_indeterminate = m_indeterminate;
+
     return {};
 }
 
