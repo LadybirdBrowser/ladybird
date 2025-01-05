@@ -1660,9 +1660,11 @@ void HTMLInputElement::apply_presentational_hints(GC::Ref<CSS::CascadedPropertie
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#the-input-element%3Aconcept-node-clone-ext
-WebIDL::ExceptionOr<void> HTMLInputElement::cloned(DOM::Node& copy, bool)
+WebIDL::ExceptionOr<void> HTMLInputElement::cloned(DOM::Node& copy, bool subtree)
 {
-    // The cloning steps for input elements must propagate the value, dirty value flag, checkedness, and dirty checkedness flag from the node being cloned to the copy.
+    TRY(Base::cloned(copy, subtree));
+
+    // The cloning steps for input elements given node, copy, and subtree are to propagate the value, dirty value flag, checkedness, and dirty checkedness flag from node to copy.
     auto& input_clone = verify_cast<HTMLInputElement>(copy);
     input_clone.m_value = m_value;
     input_clone.m_dirty_value = m_dirty_value;
