@@ -24,11 +24,6 @@
 #include <LibWebView/Utilities.h>
 #include <WebWorker/ConnectionFromClient.h>
 
-#if defined(HAVE_QT)
-#    include <LibWebView/EventLoop/EventLoopImplementationQt.h>
-#    include <QCoreApplication>
-#endif
-
 static ErrorOr<void> initialize_resource_loader(GC::Heap&, int request_server_socket);
 
 ErrorOr<int> serenity_main(Main::Arguments arguments)
@@ -50,10 +45,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     if (wait_for_debugger)
         Core::Process::wait_for_debugger_and_break();
 
-#if defined(HAVE_QT)
-    QCoreApplication app(arguments.argc, arguments.argv);
-    Core::EventLoopManager::install(*new WebView::EventLoopManagerQt);
-#endif
     Core::EventLoop event_loop;
 
     WebView::platform_init();
