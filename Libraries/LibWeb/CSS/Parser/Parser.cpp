@@ -3982,29 +3982,16 @@ RefPtr<CSSStyleValue> Parser::parse_paint_value(TokenStream<ComponentValue>& tok
 // https://www.w3.org/TR/css-values-4/#position
 RefPtr<PositionStyleValue> Parser::parse_position_value(TokenStream<ComponentValue>& tokens, PositionParsingMode position_parsing_mode)
 {
-    auto parse_position_edge = [](ComponentValue const& token) -> Optional<PositionEdge> {
+    auto parse_position_edge = [](TokenStream<ComponentValue>& tokens) -> Optional<PositionEdge> {
+        auto transaction = tokens.begin_transaction();
+        auto& token = tokens.consume_a_token();
         if (!token.is(Token::Type::Ident))
             return {};
         auto keyword = keyword_from_string(token.token().ident());
         if (!keyword.has_value())
             return {};
+        transaction.commit();
         return keyword_to_position_edge(*keyword);
-    };
-
-    auto parse_length_percentage = [&](ComponentValue const& token) -> Optional<LengthPercentage> {
-        if (token.is(Token::Type::EndOfFile))
-            return {};
-
-        if (auto dimension = parse_dimension(token); dimension.has_value()) {
-            if (dimension->is_length_percentage())
-                return dimension->length_percentage();
-            return {};
-        }
-
-        if (auto calc = parse_calculated_value(token); calc && calc->resolves_to_length_percentage())
-            return LengthPercentage { calc.release_nonnull() };
-
-        return {};
     };
 
     auto is_horizontal = [](PositionEdge edge, bool accept_center) -> bool {
@@ -4048,10 +4035,9 @@ RefPtr<PositionStyleValue> Parser::parse_position_value(TokenStream<ComponentVal
         auto transaction = tokens.begin_transaction();
 
         tokens.discard_whitespace();
-        auto const& token = tokens.consume_a_token();
 
         // [ left | center | right | top | bottom ]
-        if (auto maybe_edge = parse_position_edge(token); maybe_edge.has_value()) {
+        if (auto maybe_edge = parse_position_edge(tokens); maybe_edge.has_value()) {
             auto edge = maybe_edge.release_value();
             transaction.commit();
 
@@ -4069,7 +4055,7 @@ RefPtr<PositionStyleValue> Parser::parse_position_value(TokenStream<ComponentVal
         }
 
         // [ <length-percentage> ]
-        if (auto maybe_percentage = parse_length_percentage(token); maybe_percentage.has_value()) {
+        if (auto maybe_percentage = parse_length_percentage(tokens); maybe_percentage.has_value()) {
             transaction.commit();
             return PositionStyleValue::create(EdgeStyleValue::create({}, *maybe_percentage), EdgeStyleValue::create(PositionEdge::Center, {}));
         }
@@ -4084,14 +4070,14 @@ RefPtr<PositionStyleValue> Parser::parse_position_value(TokenStream<ComponentVal
         tokens.discard_whitespace();
 
         // Parse out two position edges
-        auto maybe_first_edge = parse_position_edge(tokens.consume_a_token());
+        auto maybe_first_edge = parse_position_edge(tokens);
         if (!maybe_first_edge.has_value())
             return nullptr;
 
         auto first_edge = maybe_first_edge.release_value();
         tokens.discard_whitespace();
 
-        auto maybe_second_edge = parse_position_edge(tokens.consume_a_token());
+        auto maybe_second_edge = parse_position_edge(tokens);
         if (!maybe_second_edge.has_value())
             return nullptr;
 
@@ -4119,9 +4105,8 @@ RefPtr<PositionStyleValue> Parser::parse_position_value(TokenStream<ComponentVal
 
         auto parse_position_or_length = [&](bool as_horizontal) -> RefPtr<EdgeStyleValue> {
             tokens.discard_whitespace();
-            auto const& token = tokens.consume_a_token();
 
-            if (auto maybe_position = parse_position_edge(token); maybe_position.has_value()) {
+            if (auto maybe_position = parse_position_edge(tokens); maybe_position.has_value()) {
                 auto position = maybe_position.release_value();
                 bool valid = as_horizontal ? is_horizontal(position, true) : is_vertical(position, true);
                 if (!valid)
@@ -4129,7 +4114,7 @@ RefPtr<PositionStyleValue> Parser::parse_position_value(TokenStream<ComponentVal
                 return EdgeStyleValue::create(position, {});
             }
 
-            auto maybe_length = parse_length_percentage(token);
+            auto maybe_length = parse_length_percentage(tokens);
             if (!maybe_length.has_value())
                 return nullptr;
 
@@ -4161,13 +4146,13 @@ RefPtr<PositionStyleValue> Parser::parse_position_value(TokenStream<ComponentVal
         auto parse_position_and_length = [&]() -> Optional<PositionAndLength> {
             tokens.discard_whitespace();
 
-            auto maybe_position = parse_position_edge(tokens.consume_a_token());
+            auto maybe_position = parse_position_edge(tokens);
             if (!maybe_position.has_value())
                 return {};
 
             tokens.discard_whitespace();
 
-            auto maybe_length = parse_length_percentage(tokens.consume_a_token());
+            auto maybe_length = parse_length_percentage(tokens);
             if (!maybe_length.has_value())
                 return {};
 
@@ -4218,22 +4203,23 @@ RefPtr<PositionStyleValue> Parser::parse_position_value(TokenStream<ComponentVal
 
         // [ <position> <length-percentage>? ]
         auto parse_position_and_maybe_length = [&]() -> Optional<PositionAndMaybeLength> {
+            auto inner_transaction = tokens.begin_transaction();
             tokens.discard_whitespace();
 
-            auto maybe_position = parse_position_edge(tokens.consume_a_token());
+            auto maybe_position = parse_position_edge(tokens);
             if (!maybe_position.has_value())
                 return {};
 
             tokens.discard_whitespace();
 
-            auto maybe_length = parse_length_percentage(tokens.next_token());
+            auto maybe_length = parse_length_percentage(tokens);
             if (maybe_length.has_value()) {
                 // 'center' cannot be followed by a <length-percentage>
                 if (maybe_position.value() == PositionEdge::Center && maybe_length.has_value())
                     return {};
-                tokens.discard_a_token();
             }
 
+            inner_transaction.commit();
             return PositionAndMaybeLength {
                 .position = maybe_position.release_value(),
                 .length = move(maybe_length),
