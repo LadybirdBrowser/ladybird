@@ -19,7 +19,7 @@ concept SelectionChangeTarget = DerivedFrom<T, EventTarget> && requires(T t) {
     { t.set_scheduled_selectionchange_event(bool()) } -> SameAs<void>;
 };
 
-// https://w3c.github.io/selection-api/#scheduling-selectionhange-event
+// https://w3c.github.io/selection-api/#scheduling-selectionchange-event
 template<SelectionChangeTarget T>
 void schedule_a_selectionchange_event(T& target, Document& document)
 {
@@ -38,7 +38,7 @@ void schedule_a_selectionchange_event(T& target, Document& document)
     }));
 }
 
-// https://w3c.github.io/selection-api/#firing-selectionhange-event
+// https://w3c.github.io/selection-api/#firing-selectionchange-event
 template<SelectionChangeTarget T>
 void fire_a_selectionchange_event(T& target, Document& document)
 {
