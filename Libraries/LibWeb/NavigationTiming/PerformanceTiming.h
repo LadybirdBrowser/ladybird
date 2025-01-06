@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2021, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Tim Ledbetter <tim.ledbetter@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -19,7 +20,7 @@ public:
 
     ~PerformanceTiming();
 
-    u64 navigation_start() { return 0; }
+    u64 navigation_start() { return document_load_timing_info().navigation_start_time; }
     u64 unload_event_start() { return 0; }
     u64 unload_event_end() { return 0; }
     u64 redirect_start() { return 0; }
@@ -34,15 +35,17 @@ public:
     u64 response_start() { return 0; }
     u64 response_end() { return 0; }
     u64 dom_loading() { return 0; }
-    u64 dom_interactive() { return 0; }
-    u64 dom_content_loaded_event_start() { return 0; }
-    u64 dom_content_loaded_event_end() { return 0; }
-    u64 dom_complete() { return 0; }
-    u64 load_event_start() { return 0; }
-    u64 load_event_end() { return 0; }
+    u64 dom_interactive() { return document_load_timing_info().dom_interactive_time; }
+    u64 dom_content_loaded_event_start() { return document_load_timing_info().dom_content_loaded_event_start_time; }
+    u64 dom_content_loaded_event_end() { return document_load_timing_info().dom_content_loaded_event_end_time; }
+    u64 dom_complete() { return document_load_timing_info().dom_complete_time; }
+    u64 load_event_start() { return document_load_timing_info().load_event_start_time; }
+    u64 load_event_end() { return document_load_timing_info().load_event_end_time; }
 
 private:
     explicit PerformanceTiming(JS::Realm&);
+
+    DOM::DocumentLoadTimingInfo const& document_load_timing_info() const;
 
     virtual void initialize(JS::Realm&) override;
 };
