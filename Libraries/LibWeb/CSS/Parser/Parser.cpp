@@ -3069,25 +3069,13 @@ RefPtr<CSSStyleValue> Parser::parse_hue_none_value(TokenStream<ComponentValue>& 
     // Parses [<hue> | none]
     //   <hue> = <number> | <angle>
 
-    auto peek_token = tokens.next_token();
-    if (peek_token.is(Token::Type::Number)) {
-        tokens.discard_a_token(); // number
-        return NumberStyleValue::create(peek_token.token().number().value());
-    }
-    if (auto calc = parse_calculated_value(peek_token); calc && (calc->resolves_to_number() || calc->resolves_to_angle())) {
-        tokens.discard_a_token(); // calc number/angle
-        return calc;
-    }
-    if (auto dimension = parse_dimension(peek_token); dimension.has_value() && dimension->is_angle()) {
-        tokens.discard_a_token(); // angle
-        return AngleStyleValue::create(dimension->angle());
-    }
-    if (peek_token.is(Token::Type::Ident)) {
-        auto keyword = keyword_from_string(peek_token.token().ident());
-        if (keyword.has_value() && keyword.value() == Keyword::None) {
-            tokens.discard_a_token(); // keyword none
-            return CSSKeywordValue::create(keyword.value());
-        }
+    if (auto angle = parse_angle_value(tokens))
+        return angle;
+    if (auto number = parse_number_value(tokens))
+        return number;
+    if (tokens.next_token().is_ident("none"sv)) {
+        tokens.discard_a_token(); // keyword none
+        return CSSKeywordValue::create(Keyword::None);
     }
 
     return nullptr;
