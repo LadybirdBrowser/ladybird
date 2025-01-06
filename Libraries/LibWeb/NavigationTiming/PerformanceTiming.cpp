@@ -24,4 +24,13 @@ void PerformanceTiming::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(PerformanceTiming);
 }
 
+DOM::DocumentLoadTimingInfo const& PerformanceTiming::document_load_timing_info() const
+{
+    auto& global_object = HTML::relevant_global_object(*this);
+    VERIFY(is<HTML::Window>(global_object));
+    auto& window = static_cast<HTML::Window&>(global_object);
+    auto document = window.document();
+    return document->load_timing_info();
+}
+
 }
