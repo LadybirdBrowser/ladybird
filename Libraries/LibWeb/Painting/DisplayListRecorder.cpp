@@ -49,11 +49,12 @@ void DisplayListRecorder::fill_rect(Gfx::IntRect const& rect, Color color)
 void DisplayListRecorder::fill_path(FillPathUsingColorParams params)
 {
     auto aa_translation = params.translation.value_or(Gfx::FloatPoint {});
-    auto path_bounding_rect = params.path.bounding_box().translated(aa_translation).to_type<int>();
-    if (path_bounding_rect.is_empty())
+    auto path_bounding_rect = params.path.bounding_box().translated(aa_translation);
+    auto path_bounding_int_rect = enclosing_int_rect(path_bounding_rect);
+    if (path_bounding_int_rect.is_empty())
         return;
     append(FillPathUsingColor {
-        .path_bounding_rect = path_bounding_rect,
+        .path_bounding_rect = path_bounding_int_rect,
         .path = move(params.path),
         .color = params.color,
         .winding_rule = params.winding_rule,
@@ -64,11 +65,12 @@ void DisplayListRecorder::fill_path(FillPathUsingColorParams params)
 void DisplayListRecorder::fill_path(FillPathUsingPaintStyleParams params)
 {
     auto aa_translation = params.translation.value_or(Gfx::FloatPoint {});
-    auto path_bounding_rect = params.path.bounding_box().translated(aa_translation).to_type<int>();
-    if (path_bounding_rect.is_empty())
+    auto path_bounding_rect = params.path.bounding_box().translated(aa_translation);
+    auto path_bounding_int_rect = enclosing_int_rect(path_bounding_rect);
+    if (path_bounding_int_rect.is_empty())
         return;
     append(FillPathUsingPaintStyle {
-        .path_bounding_rect = path_bounding_rect,
+        .path_bounding_rect = path_bounding_int_rect,
         .path = move(params.path),
         .paint_style = params.paint_style,
         .winding_rule = params.winding_rule,
@@ -80,10 +82,11 @@ void DisplayListRecorder::fill_path(FillPathUsingPaintStyleParams params)
 void DisplayListRecorder::stroke_path(StrokePathUsingColorParams params)
 {
     auto aa_translation = params.translation.value_or(Gfx::FloatPoint {});
-    auto path_bounding_rect = params.path.bounding_box().translated(aa_translation).to_type<int>();
+    auto path_bounding_rect = params.path.bounding_box().translated(aa_translation);
     // Increase path bounding box by `thickness` to account for stroke.
     path_bounding_rect.inflate(params.thickness, params.thickness);
-    if (path_bounding_rect.is_empty())
+    auto path_bounding_int_rect = enclosing_int_rect(path_bounding_rect);
+    if (path_bounding_int_rect.is_empty())
         return;
     append(StrokePathUsingColor {
         .cap_style = params.cap_style,
@@ -91,7 +94,7 @@ void DisplayListRecorder::stroke_path(StrokePathUsingColorParams params)
         .miter_limit = params.miter_limit,
         .dash_array = move(params.dash_array),
         .dash_offset = params.dash_offset,
-        .path_bounding_rect = path_bounding_rect,
+        .path_bounding_rect = path_bounding_int_rect,
         .path = move(params.path),
         .color = params.color,
         .thickness = params.thickness,
@@ -102,10 +105,11 @@ void DisplayListRecorder::stroke_path(StrokePathUsingColorParams params)
 void DisplayListRecorder::stroke_path(StrokePathUsingPaintStyleParams params)
 {
     auto aa_translation = params.translation.value_or(Gfx::FloatPoint {});
-    auto path_bounding_rect = params.path.bounding_box().translated(aa_translation).to_type<int>();
+    auto path_bounding_rect = params.path.bounding_box().translated(aa_translation);
     // Increase path bounding box by `thickness` to account for stroke.
     path_bounding_rect.inflate(params.thickness, params.thickness);
-    if (path_bounding_rect.is_empty())
+    auto path_bounding_int_rect = enclosing_int_rect(path_bounding_rect);
+    if (path_bounding_int_rect.is_empty())
         return;
     append(StrokePathUsingPaintStyle {
         .cap_style = params.cap_style,
@@ -113,7 +117,7 @@ void DisplayListRecorder::stroke_path(StrokePathUsingPaintStyleParams params)
         .miter_limit = params.miter_limit,
         .dash_array = move(params.dash_array),
         .dash_offset = params.dash_offset,
-        .path_bounding_rect = path_bounding_rect,
+        .path_bounding_rect = path_bounding_int_rect,
         .path = move(params.path),
         .paint_style = params.paint_style,
         .thickness = params.thickness,
