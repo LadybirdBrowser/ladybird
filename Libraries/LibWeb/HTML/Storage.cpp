@@ -144,8 +144,7 @@ WebIDL::ExceptionOr<void> Storage::set_item(String const& key, String const& val
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-storage-removeitem
 void Storage::remove_item(String const& key)
 {
-    // 1. If this's map[key] does not exist, then return null.
-    // FIXME: Return null?
+    // 1. If this's map[key] does not exist, then return.
     auto it = map().find(key);
     if (it == map().end())
         return;
@@ -190,8 +189,8 @@ void Storage::broadcast(Optional<String> const& key, Optional<String> const& old
     auto& relevant_global = relevant_global_object(*this);
     auto const& this_document = verify_cast<Window>(relevant_global).associated_document();
 
-    // 2. Let url be thisDocument's URL.
-    auto url = this_document.url().to_string();
+    // 2. Let url be the serialization of thisDocument's URL.
+    auto url = this_document.url().serialize();
 
     // 3. Let remoteStorages be all Storage objects excluding storage whose:
     GC::RootVector<GC::Ref<Storage>> remote_storages(heap());
