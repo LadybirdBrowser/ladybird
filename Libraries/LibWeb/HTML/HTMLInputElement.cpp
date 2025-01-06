@@ -665,6 +665,34 @@ void HTMLInputElement::update_placeholder_visibility()
     }
 }
 
+void HTMLInputElement::update_button_input_shadow_tree()
+{
+    if (m_text_node) {
+        Optional<String> label = get_attribute(HTML::AttributeNames::value);
+        if (!label.has_value()) {
+            if (type_state() == TypeAttributeState::ResetButton) {
+                // https://html.spec.whatwg.org/multipage/input.html#reset-button-state-(type=reset)
+                // If the element has a value attribute, the button's label must be the value of that attribute;
+                // otherwise, it must be an implementation-defined string that means "Reset" or some such.
+                label = "Reset"_string;
+            } else if (type_state() == TypeAttributeState::SubmitButton) {
+                // https://html.spec.whatwg.org/multipage/input.html#submit-button-state-(type=submit)
+                // If the element has a value attribute, the button's label must be the value of that attribute;
+                // otherwise, it must be an implementation-defined string that means "Submit" or some such.
+                label = "Submit"_string;
+            } else {
+                // https://html.spec.whatwg.org/multipage/input.html#button-state-(type=button)
+                // If the element has a value attribute, the button's label must be the value of that attribute;
+                // otherwise, it must be the empty string.
+                label = value();
+            }
+        }
+
+        m_text_node->set_data(label.value());
+        update_placeholder_visibility();
+    }
+}
+
 void HTMLInputElement::update_text_input_shadow_tree()
 {
     if (m_text_node) {
@@ -806,6 +834,11 @@ void HTMLInputElement::update_shadow_tree()
     case TypeAttributeState::Range:
         update_slider_shadow_tree_elements();
         break;
+    case TypeAttributeState::Button:
+    case TypeAttributeState::ResetButton:
+    case TypeAttributeState::SubmitButton:
+        update_button_input_shadow_tree();
+        break;
     default:
         update_text_input_shadow_tree();
         break;
@@ -818,7 +851,26 @@ void HTMLInputElement::create_button_input_shadow_tree()
     set_shadow_root(shadow_root);
     auto text_container = MUST(DOM::create_element(document(), HTML::TagNames::span, Namespace::HTML));
     MUST(text_container->set_attribute(HTML::AttributeNames::style, "display: inline-block; pointer-events: none;"_string));
-    m_text_node = realm().create<DOM::Text>(document(), value());
+    Optional<String> label = get_attribute(HTML::AttributeNames::value);
+    if (!label.has_value()) {
+        if (type_state() == TypeAttributeState::ResetButton) {
+            // https://html.spec.whatwg.org/multipage/input.html#reset-button-state-(type=reset)
+            // If the element has a value attribute, the button's label must be the value of that attribute;
+            // otherwise, it must be an implementation-defined string that means "Reset" or some such.
+            label = "Reset"_string;
+        } else if (type_state() == TypeAttributeState::SubmitButton) {
+            // https://html.spec.whatwg.org/multipage/input.html#submit-button-state-(type=submit)
+            // If the element has a value attribute, the button's label must be the value of that attribute;
+            // otherwise, it must be an implementation-defined string that means "Submit" or some such.
+            label = "Submit"_string;
+        } else {
+            // https://html.spec.whatwg.org/multipage/input.html#button-state-(type=button)
+            // If the element has a value attribute, the button's label must be the value of that attribute;
+            // otherwise, it must be the empty string.
+            label = value();
+        }
+    }
+    m_text_node = realm().create<DOM::Text>(document(), label.value());
     MUST(text_container->append_child(*m_text_node));
     MUST(shadow_root->append_child(*text_container));
 }
