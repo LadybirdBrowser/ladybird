@@ -150,6 +150,8 @@ RefPtr<CSSStyleValue> Parser::parse_linear_gradient_function(TokenStream<Compone
         gradient_type = GradientType::WebKit;
     });
 
+    auto context_guard = push_temporary_value_parsing_context(FunctionContext { function_name });
+
     function_name = consume_if_starts_with(function_name, "repeating-"sv, [&] {
         repeating_gradient = GradientRepeating::Yes;
     });
@@ -274,6 +276,7 @@ RefPtr<CSSStyleValue> Parser::parse_conic_gradient_function(TokenStream<Componen
     GradientRepeating repeating_gradient = GradientRepeating::No;
 
     auto function_name = component_value.function().name.bytes_as_string_view();
+    auto context_guard = push_temporary_value_parsing_context(FunctionContext { function_name });
 
     function_name = consume_if_starts_with(function_name, "repeating-"sv, [&] {
         repeating_gradient = GradientRepeating::Yes;
@@ -384,6 +387,7 @@ RefPtr<CSSStyleValue> Parser::parse_radial_gradient_function(TokenStream<Compone
     auto repeating_gradient = GradientRepeating::No;
 
     auto function_name = component_value.function().name.bytes_as_string_view();
+    auto context_guard = push_temporary_value_parsing_context(FunctionContext { function_name });
 
     function_name = consume_if_starts_with(function_name, "repeating-"sv, [&] {
         repeating_gradient = GradientRepeating::Yes;

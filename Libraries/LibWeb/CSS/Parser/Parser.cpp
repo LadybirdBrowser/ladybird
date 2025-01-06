@@ -1935,6 +1935,8 @@ RefPtr<CalculatedStyleValue> Parser::parse_calculated_value(ComponentValue const
 
 OwnPtr<CalculationNode> Parser::parse_a_calc_function_node(Function const& function)
 {
+    auto context_guard = push_temporary_value_parsing_context(FunctionContext { function.name });
+
     if (function.name.equals_ignoring_ascii_case("calc"sv))
         return parse_a_calculation(function.value);
 
@@ -1976,13 +1978,9 @@ Optional<Dimension> Parser::parse_dimension(ComponentValue const& component_valu
         auto numeric_value = component_value.token().number_value();
         if (numeric_value == 0)
             return Length::make_px(0);
-        if (m_context.in_quirks_mode() && property_has_quirk(m_context.current_property_id(), Quirk::UnitlessLength)) {
-            // https://quirks.spec.whatwg.org/#quirky-length-value
-            // FIXME: Disallow quirk when inside a CSS sub-expression (like `calc()`)
-            // "The <quirky-length> value must not be supported in arguments to CSS expressions other than the rect()
-            // expression, and must not be supported in the supports() static method of the CSS interface."
+
+        if (context_allows_quirky_length())
             return Length::make_px(CSSPixels::nearest_value_for(numeric_value));
-        }
     }
 
     return {};
@@ -2663,6 +2661,38 @@ RefPtr<CSSStyleValue> Parser::parse_frequency_percentage_value(TokenStream<Compo
     return nullptr;
 }
 
+bool Parser::context_allows_quirky_length() const
+{
+    if (!m_context.in_quirks_mode())
+        return false;
+
+    // https://drafts.csswg.org/css-values-4/#deprecated-quirky-length
+    // "When CSS is being parsed in quirks mode, <quirky-length> is a type of <length> that is only valid in certain properties:"
+    // (NOTE: List skipped for brevity; quirks data is assigned in Properties.json)
+    // "It is not valid in properties that include or reference these properties, such as the background shorthand,
+    // or inside functional notations such as calc(), except that they must be allowed in rect() in the clip property."
+
+    // So, it must be allowed in the top-level ValueParsingContext, and then not disallowed by any child contexts.
+
+    Optional<PropertyID> top_level_property;
+    if (!m_value_context.is_empty()) {
+        top_level_property = m_value_context.first().visit(
+            [](PropertyID const& property_id) -> Optional<PropertyID> { return property_id; },
+            [](auto const&) -> Optional<PropertyID> { return OptionalNone {}; });
+    }
+
+    bool unitless_length_allowed = top_level_property.has_value() && property_has_quirk(top_level_property.value(), Quirk::UnitlessLength);
+    for (auto i = 1u; i < m_value_context.size() && unitless_length_allowed; i++) {
+        unitless_length_allowed = m_value_context[i].visit(
+            [](PropertyID const& property_id) { return property_has_quirk(property_id, Quirk::UnitlessLength); },
+            [top_level_property](Parser::FunctionContext const& function_context) {
+                return function_context.name == "rect"sv && top_level_property == PropertyID::Clip;
+            });
+    }
+
+    return unitless_length_allowed;
+}
+
 RefPtr<CSSStyleValue> Parser::parse_length_value(TokenStream<ComponentValue>& tokens)
 {
     if (tokens.next_token().is(Token::Type::Dimension)) {
@@ -2682,11 +2712,7 @@ RefPtr<CSSStyleValue> Parser::parse_length_value(TokenStream<ComponentValue>& to
             transaction.commit();
             return LengthStyleValue::create(Length::make_px(0));
         }
-        if (m_context.in_quirks_mode() && property_has_quirk(m_context.current_property_id(), Quirk::UnitlessLength)) {
-            // https://quirks.spec.whatwg.org/#quirky-length-value
-            // FIXME: Disallow quirk when inside a CSS sub-expression (like `calc()`)
-            // "The <quirky-length> value must not be supported in arguments to CSS expressions other than the rect()
-            // expression, and must not be supported in the supports() static method of the CSS interface."
+        if (context_allows_quirky_length()) {
             transaction.commit();
             return LengthStyleValue::create(Length::make_px(CSSPixels::nearest_value_for(numeric_value)));
         }
@@ -2733,11 +2759,7 @@ RefPtr<CSSStyleValue> Parser::parse_length_percentage_value(TokenStream<Componen
             transaction.commit();
             return LengthStyleValue::create(Length::make_px(0));
         }
-        if (m_context.in_quirks_mode() && property_has_quirk(m_context.current_property_id(), Quirk::UnitlessLength)) {
-            // https://quirks.spec.whatwg.org/#quirky-length-value
-            // FIXME: Disallow quirk when inside a CSS sub-expression (like `calc()`)
-            // "The <quirky-length> value must not be supported in arguments to CSS expressions other than the rect()
-            // expression, and must not be supported in the supports() static method of the CSS interface."
+        if (context_allows_quirky_length()) {
             transaction.commit();
             return LengthStyleValue::create(Length::make_px(CSSPixels::nearest_value_for(numeric_value)));
         }
@@ -2852,6 +2874,8 @@ RefPtr<CSSStyleValue> Parser::parse_rect_value(TokenStream<ComponentValue>& toke
     auto const& function_token = tokens.consume_a_token();
     if (!function_token.is_function("rect"sv))
         return nullptr;
+
+    auto context_guard = push_temporary_value_parsing_context(FunctionContext { "rect"sv });
 
     Vector<Length, 4> params;
     auto argument_tokens = TokenStream { function_token.function().value };
@@ -2988,6 +3012,8 @@ RefPtr<CSSStyleValue> Parser::parse_rgb_color_value(TokenStream<ComponentValue>&
     if (!function_token.is_function("rgb"sv) && !function_token.is_function("rgba"sv))
         return {};
 
+    auto context_guard = push_temporary_value_parsing_context(FunctionContext { function_token.function().name });
+
     RefPtr<CSSStyleValue> red;
     RefPtr<CSSStyleValue> green;
     RefPtr<CSSStyleValue> blue;
@@ -3110,6 +3136,8 @@ RefPtr<CSSStyleValue> Parser::parse_hsl_color_value(TokenStream<ComponentValue>&
     if (!function_token.is_function("hsl"sv) && !function_token.is_function("hsla"sv))
         return {};
 
+    auto context_guard = push_temporary_value_parsing_context(FunctionContext { function_token.function().name });
+
     RefPtr<CSSStyleValue> h;
     RefPtr<CSSStyleValue> s;
     RefPtr<CSSStyleValue> l;
@@ -3210,6 +3238,8 @@ RefPtr<CSSStyleValue> Parser::parse_hwb_color_value(TokenStream<ComponentValue>&
     auto& function_token = outer_tokens.consume_a_token();
     if (!function_token.is_function("hwb"sv))
         return {};
+
+    auto context_guard = push_temporary_value_parsing_context(FunctionContext { function_token.function().name });
 
     RefPtr<CSSStyleValue> h;
     RefPtr<CSSStyleValue> w;
@@ -3444,6 +3474,8 @@ RefPtr<CSSStyleValue> Parser::parse_color_function(TokenStream<ComponentValue>& 
     if (!function_token.is_function("color"sv))
         return {};
 
+    auto context_guard = push_temporary_value_parsing_context(FunctionContext { function_token.function().name });
+
     auto inner_tokens = TokenStream { function_token.function().value };
     inner_tokens.discard_whitespace();
 
@@ -3579,66 +3611,89 @@ RefPtr<CSSStyleValue> Parser::parse_color_value(TokenStream<ComponentValue>& tok
         return {};
     }
 
-    // https://quirks.spec.whatwg.org/#the-hashless-hex-color-quirk
-    if (m_context.in_quirks_mode() && property_has_quirk(m_context.current_property_id(), Quirk::HashlessHexColor)) {
-        // The value of a quirky color is obtained from the possible component values using the following algorithm,
-        // aborting on the first step that returns a value:
+    // https://drafts.csswg.org/css-color-4/#quirky-color
+    if (m_context.in_quirks_mode()) {
+        // "When CSS is being parsed in quirks mode, <quirky-color> is a type of <color> that is only valid in certain properties:"
+        // (NOTE: List skipped for brevity; quirks data is assigned in Properties.json)
+        // "It is not valid in properties that include or reference these properties, such as the background shorthand,
+        // or inside functional notations such as color-mix()"
 
-        // 1. Let cv be the component value.
-        auto const& cv = component_value;
-        String serialization;
-        // 2. If cv is a <number-token> or a <dimension-token>, follow these substeps:
-        if (cv.is(Token::Type::Number) || cv.is(Token::Type::Dimension)) {
-            // 1. If cv’s type flag is not "integer", return an error.
-            //    This means that values that happen to use scientific notation, e.g., 5e5e5e, will fail to parse.
-            if (!cv.token().number().is_integer())
-                return {};
+        bool quirky_color_allowed = false;
+        if (!m_value_context.is_empty()) {
+            quirky_color_allowed = m_value_context.first().visit(
+                [](PropertyID const& property_id) { return property_has_quirk(property_id, Quirk::HashlessHexColor); },
+                [](FunctionContext const&) { return false; });
+        }
+        for (auto i = 1u; i < m_value_context.size() && quirky_color_allowed; i++) {
+            quirky_color_allowed = m_value_context[i].visit(
+                [](PropertyID const& property_id) { return property_has_quirk(property_id, Quirk::UnitlessLength); },
+                [](FunctionContext const&) {
+                    return false;
+                });
+        }
+        if (quirky_color_allowed) {
+            // NOTE: This algorithm is no longer in the spec, since the concept got moved and renamed. However, it works,
+            //       and so we might as well keep using it.
 
-            // 2. If cv’s value is less than zero, return an error.
-            auto value = cv.is(Token::Type::Number) ? cv.token().to_integer() : cv.token().dimension_value_int();
-            if (value < 0)
-                return {};
+            // The value of a quirky color is obtained from the possible component values using the following algorithm,
+            // aborting on the first step that returns a value:
 
-            // 3. Let serialization be the serialization of cv’s value, as a base-ten integer using digits 0-9 (U+0030 to U+0039) in the shortest form possible.
-            StringBuilder serialization_builder;
-            serialization_builder.appendff("{}", value);
+            // 1. Let cv be the component value.
+            auto const& cv = component_value;
+            String serialization;
+            // 2. If cv is a <number-token> or a <dimension-token>, follow these substeps:
+            if (cv.is(Token::Type::Number) || cv.is(Token::Type::Dimension)) {
+                // 1. If cv’s type flag is not "integer", return an error.
+                //    This means that values that happen to use scientific notation, e.g., 5e5e5e, will fail to parse.
+                if (!cv.token().number().is_integer())
+                    return {};
 
-            // 4. If cv is a <dimension-token>, append the unit to serialization.
-            if (cv.is(Token::Type::Dimension))
-                serialization_builder.append(cv.token().dimension_unit());
+                // 2. If cv’s value is less than zero, return an error.
+                auto value = cv.is(Token::Type::Number) ? cv.token().to_integer() : cv.token().dimension_value_int();
+                if (value < 0)
+                    return {};
 
-            // 5. If serialization consists of fewer than six characters, prepend zeros (U+0030) so that it becomes six characters.
-            serialization = MUST(serialization_builder.to_string());
-            if (serialization_builder.length() < 6) {
-                StringBuilder builder;
-                for (size_t i = 0; i < (6 - serialization_builder.length()); i++)
-                    builder.append('0');
-                builder.append(serialization_builder.string_view());
-                serialization = MUST(builder.to_string());
+                // 3. Let serialization be the serialization of cv’s value, as a base-ten integer using digits 0-9 (U+0030 to U+0039) in the shortest form possible.
+                StringBuilder serialization_builder;
+                serialization_builder.appendff("{}", value);
+
+                // 4. If cv is a <dimension-token>, append the unit to serialization.
+                if (cv.is(Token::Type::Dimension))
+                    serialization_builder.append(cv.token().dimension_unit());
+
+                // 5. If serialization consists of fewer than six characters, prepend zeros (U+0030) so that it becomes six characters.
+                serialization = MUST(serialization_builder.to_string());
+                if (serialization_builder.length() < 6) {
+                    StringBuilder builder;
+                    for (size_t i = 0; i < (6 - serialization_builder.length()); i++)
+                        builder.append('0');
+                    builder.append(serialization_builder.string_view());
+                    serialization = MUST(builder.to_string());
+                }
             }
-        }
-        // 3. Otherwise, cv is an <ident-token>; let serialization be cv’s value.
-        else {
-            if (!cv.is(Token::Type::Ident))
+            // 3. Otherwise, cv is an <ident-token>; let serialization be cv’s value.
+            else {
+                if (!cv.is(Token::Type::Ident))
+                    return {};
+                serialization = cv.token().ident().to_string();
+            }
+
+            // 4. If serialization does not consist of three or six characters, return an error.
+            if (serialization.bytes().size() != 3 && serialization.bytes().size() != 6)
                 return {};
-            serialization = cv.token().ident().to_string();
-        }
 
-        // 4. If serialization does not consist of three or six characters, return an error.
-        if (serialization.bytes().size() != 3 && serialization.bytes().size() != 6)
-            return {};
+            // 5. If serialization contains any characters not in the range [0-9A-Fa-f] (U+0030 to U+0039, U+0041 to U+0046, U+0061 to U+0066), return an error.
+            for (auto c : serialization.bytes_as_string_view()) {
+                if (!((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')))
+                    return {};
+            }
 
-        // 5. If serialization contains any characters not in the range [0-9A-Fa-f] (U+0030 to U+0039, U+0041 to U+0046, U+0061 to U+0066), return an error.
-        for (auto c : serialization.bytes_as_string_view()) {
-            if (!((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')))
-                return {};
-        }
-
-        // 6. Return the concatenation of "#" (U+0023) and serialization.
-        auto color = Color::from_string(MUST(String::formatted("#{}", serialization)));
-        if (color.has_value()) {
-            transaction.commit();
-            return CSSColorValue::create_from_color(color.release_value());
+            // 6. Return the concatenation of "#" (U+0023) and serialization.
+            auto color = Color::from_string(MUST(String::formatted("#{}", serialization)));
+            if (color.has_value()) {
+                transaction.commit();
+                return CSSColorValue::create_from_color(color.release_value());
+            }
         }
     }
 
@@ -3759,6 +3814,8 @@ RefPtr<CSSStyleValue> Parser::parse_counter_value(TokenStream<ComponentValue>& t
     if (token.is_function("counter"sv)) {
         // counter() = counter( <counter-name>, <counter-style>? )
         auto& function = token.function();
+        auto context_guard = push_temporary_value_parsing_context(FunctionContext { function.name });
+
         TokenStream function_tokens { function.value };
         auto function_values = parse_a_comma_separated_list_of_component_values(function_tokens);
         if (function_values.is_empty() || function_values.size() > 2)
@@ -3787,6 +3844,8 @@ RefPtr<CSSStyleValue> Parser::parse_counter_value(TokenStream<ComponentValue>& t
     if (token.is_function("counters"sv)) {
         // counters() = counters( <counter-name>, <string>, <counter-style>? )
         auto& function = token.function();
+        auto context_guard = push_temporary_value_parsing_context(FunctionContext { function.name });
+
         TokenStream function_tokens { function.value };
         auto function_values = parse_a_comma_separated_list_of_component_values(function_tokens);
         if (function_values.size() < 2 || function_values.size() > 3)
@@ -5649,6 +5708,8 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
         auto filter_token = parse_filter_function_name(token.function().name);
         if (!filter_token.has_value())
             return nullptr;
+
+        auto context_guard = push_temporary_value_parsing_context(FunctionContext { token.function().name });
         auto filter_function = parse_filter_function(*filter_token, token.function().value);
         if (!filter_function.has_value())
             return nullptr;
@@ -6654,6 +6715,8 @@ Vector<ParsedFontFace::Source> Parser::parse_font_face_src(TokenStream<T>& compo
 
             auto const& function = maybe_function.function();
             if (function.name.equals_ignoring_ascii_case("format"sv)) {
+                auto context_guard = push_temporary_value_parsing_context(FunctionContext { function.name });
+
                 TokenStream format_tokens { function.value };
                 format_tokens.discard_whitespace();
                 auto const& format_name_token = format_tokens.consume_a_token();
@@ -6815,6 +6878,8 @@ RefPtr<CSSStyleValue> Parser::parse_math_depth_value(TokenStream<ComponentValue>
 
     // add(<integer>)
     if (token.is_function("add"sv)) {
+        auto context_guard = push_temporary_value_parsing_context(FunctionContext { token.function().name });
+
         auto add_tokens = TokenStream { token.function().value };
         add_tokens.discard_whitespace();
         auto const& integer_token = add_tokens.consume_a_token();
@@ -7105,6 +7170,8 @@ RefPtr<CSSStyleValue> Parser::parse_easing_value(TokenStream<ComponentValue>& to
         argument.remove_all_matching([](auto& value) { return value.is(Token::Type::Whitespace); });
 
     auto name = part.function().name;
+    auto context_guard = push_temporary_value_parsing_context(FunctionContext { name });
+
     if (name.equals_ignoring_ascii_case("linear"sv)) {
         // linear() = linear( [ <number> && <percentage>{0,2} ]# )
         Vector<EasingStyleValue::Linear::Stop> stops;
@@ -7255,6 +7322,9 @@ RefPtr<CSSStyleValue> Parser::parse_transform_value(TokenStream<ComponentValue>&
         auto maybe_function = transform_function_from_string(part.function().name);
         if (!maybe_function.has_value())
             return nullptr;
+
+        auto context_guard = push_temporary_value_parsing_context(FunctionContext { part.function().name });
+
         auto function = maybe_function.release_value();
         auto function_metadata = transform_function_metadata(function);
 
@@ -7783,6 +7853,8 @@ Optional<CSS::ExplicitGridTrack> Parser::parse_track_sizing_function(ComponentVa
 {
     if (token.is_function()) {
         auto const& function_token = token.function();
+        auto context_guard = push_temporary_value_parsing_context(FunctionContext { function_token.name });
+
         if (function_token.name.equals_ignoring_ascii_case("repeat"sv)) {
             auto maybe_repeat = parse_repeat(function_token.value);
             if (maybe_repeat.has_value())
@@ -8398,7 +8470,8 @@ bool block_contains_var_or_attr(SimpleBlock const& block)
 
 Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_css_value(PropertyID property_id, TokenStream<ComponentValue>& unprocessed_tokens, Optional<String> original_source_text)
 {
-    m_context.set_current_property_id(property_id);
+    auto context_guard = push_temporary_value_parsing_context(property_id);
+
     Vector<ComponentValue> component_values;
     bool contains_var_or_attr = false;
     bool const property_accepts_custom_ident = property_accepts_type(property_id, ValueType::CustomIdent);
@@ -8824,6 +8897,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     auto& peek_token = tokens.next_token();
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::EasingFunction); property.has_value()) {
+        auto context_guard = push_temporary_value_parsing_context(*property);
         if (auto maybe_easing_function = parse_easing_value(tokens))
             return PropertyAndValue { *property, maybe_easing_function };
     }
@@ -8841,68 +8915,82 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
 
         // Custom idents
         if (auto property = any_property_accepts_type(property_ids, ValueType::CustomIdent); property.has_value()) {
+            auto context_guard = push_temporary_value_parsing_context(*property);
             if (auto custom_ident = parse_custom_ident_value(tokens, {}))
                 return PropertyAndValue { *property, custom_ident };
         }
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Color); property.has_value()) {
+        auto context_guard = push_temporary_value_parsing_context(*property);
         if (auto maybe_color = parse_color_value(tokens))
             return PropertyAndValue { *property, maybe_color };
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Counter); property.has_value()) {
+        auto context_guard = push_temporary_value_parsing_context(*property);
         if (auto maybe_counter = parse_counter_value(tokens))
             return PropertyAndValue { *property, maybe_counter };
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Image); property.has_value()) {
+        auto context_guard = push_temporary_value_parsing_context(*property);
         if (auto maybe_image = parse_image_value(tokens))
             return PropertyAndValue { *property, maybe_image };
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Position); property.has_value()) {
+        auto context_guard = push_temporary_value_parsing_context(*property);
         if (auto maybe_position = parse_position_value(tokens))
             return PropertyAndValue { *property, maybe_position };
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::BackgroundPosition); property.has_value()) {
+        auto context_guard = push_temporary_value_parsing_context(*property);
         if (auto maybe_position = parse_position_value(tokens, PositionParsingMode::BackgroundPosition))
             return PropertyAndValue { *property, maybe_position };
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::BasicShape); property.has_value()) {
+        auto context_guard = push_temporary_value_parsing_context(*property);
         if (auto maybe_basic_shape = parse_basic_shape_value(tokens))
             return PropertyAndValue { *property, maybe_basic_shape };
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Ratio); property.has_value()) {
+        auto context_guard = push_temporary_value_parsing_context(*property);
         if (auto maybe_ratio = parse_ratio_value(tokens))
             return PropertyAndValue { *property, maybe_ratio };
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::OpenTypeTag); property.has_value()) {
+        auto context_guard = push_temporary_value_parsing_context(*property);
         if (auto maybe_rect = parse_opentype_tag_value(tokens))
             return PropertyAndValue { *property, maybe_rect };
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Rect); property.has_value()) {
+        auto context_guard = push_temporary_value_parsing_context(*property);
         if (auto maybe_rect = parse_rect_value(tokens))
             return PropertyAndValue { *property, maybe_rect };
     }
 
     if (peek_token.is(Token::Type::String)) {
-        if (auto property = any_property_accepts_type(property_ids, ValueType::String); property.has_value())
+        if (auto property = any_property_accepts_type(property_ids, ValueType::String); property.has_value()) {
+            auto context_guard = push_temporary_value_parsing_context(*property);
             return PropertyAndValue { *property, StringStyleValue::create(tokens.consume_a_token().token().string()) };
+        }
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Url); property.has_value()) {
+        auto context_guard = push_temporary_value_parsing_context(*property);
         if (auto url = parse_url_value(tokens))
             return PropertyAndValue { *property, url };
     }
 
     // <integer>/<number> come before <length>, so that 0 is not interpreted as a <length> in case both are allowed.
     if (auto property = any_property_accepts_type(property_ids, ValueType::Integer); property.has_value()) {
+        auto context_guard = push_temporary_value_parsing_context(*property);
         if (auto value = parse_integer_value(tokens)) {
             if (value->is_calculated())
                 return PropertyAndValue { *property, value };
@@ -8912,6 +9000,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Number); property.has_value()) {
+        auto context_guard = push_temporary_value_parsing_context(*property);
         if (auto value = parse_number_value(tokens)) {
             if (value->is_calculated())
                 return PropertyAndValue { *property, value };
@@ -8921,6 +9010,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Angle); property.has_value()) {
+        auto context_guard = push_temporary_value_parsing_context(*property);
         if (property_accepts_type(*property, ValueType::Percentage)) {
             if (auto value = parse_angle_percentage_value(tokens)) {
                 if (value->is_calculated())
@@ -8940,6 +9030,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Flex); property.has_value()) {
+        auto context_guard = push_temporary_value_parsing_context(*property);
         if (auto value = parse_flex_value(tokens)) {
             if (value->is_calculated())
                 return PropertyAndValue { *property, value };
@@ -8949,6 +9040,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Frequency); property.has_value()) {
+        auto context_guard = push_temporary_value_parsing_context(*property);
         if (property_accepts_type(*property, ValueType::Percentage)) {
             if (auto value = parse_frequency_percentage_value(tokens)) {
                 if (value->is_calculated())
@@ -8968,6 +9060,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Length); property.has_value()) {
+        auto context_guard = push_temporary_value_parsing_context(*property);
         if (property_accepts_type(*property, ValueType::Percentage)) {
             if (auto value = parse_length_percentage_value(tokens)) {
                 if (value->is_calculated())
@@ -8987,6 +9080,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Resolution); property.has_value()) {
+        auto context_guard = push_temporary_value_parsing_context(*property);
         if (auto value = parse_resolution_value(tokens)) {
             if (value->is_calculated())
                 return PropertyAndValue { *property, value };
@@ -8996,6 +9090,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Time); property.has_value()) {
+        auto context_guard = push_temporary_value_parsing_context(*property);
         if (property_accepts_type(*property, ValueType::Percentage)) {
             if (auto value = parse_time_percentage_value(tokens)) {
                 if (value->is_calculated())
@@ -9016,6 +9111,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
 
     // <percentage> is checked after the <foo-percentage> types.
     if (auto property = any_property_accepts_type(property_ids, ValueType::Percentage); property.has_value()) {
+        auto context_guard = push_temporary_value_parsing_context(*property);
         if (auto value = parse_percentage_value(tokens)) {
             if (value->is_calculated())
                 return PropertyAndValue { *property, value };
@@ -9025,6 +9121,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Paint); property.has_value()) {
+        auto context_guard = push_temporary_value_parsing_context(*property);
         if (auto value = parse_paint_value(tokens))
             return PropertyAndValue { *property, value.release_nonnull() };
     }
@@ -9245,8 +9342,19 @@ OwnPtr<CalculationNode> Parser::convert_to_calculation_node(CalcParsing::Node co
             }
 
             if (component_value->is(Token::Type::Percentage)) {
-                // FIXME: Figure this out in non-property contexts
-                auto percentage_resolved_type = property_resolves_percentages_relative_to(m_context.current_property_id());
+                Optional<ValueType> percentage_resolved_type;
+                for (auto const& value_context : m_value_context.in_reverse()) {
+                    percentage_resolved_type = value_context.visit(
+                        [](PropertyID property_id) -> Optional<ValueType> {
+                            return property_resolves_percentages_relative_to(property_id);
+                        },
+                        [](FunctionContext const&) -> Optional<ValueType> {
+                            // FIXME: Some functions provide this. The spec mentions `media-progress()` as an example.
+                            return {};
+                        });
+                    if (percentage_resolved_type.has_value())
+                        break;
+                }
                 return NumericCalculationNode::create(Percentage { component_value->token().percentage() }, percentage_resolved_type);
             }
 
