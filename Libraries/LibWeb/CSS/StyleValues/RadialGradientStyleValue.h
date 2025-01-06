@@ -51,7 +51,7 @@ public:
 
     virtual String to_string(SerializationMode) const override;
 
-    void paint(PaintContext&, DevicePixelRect const& dest_rect, CSS::ImageRendering) const override;
+    void paint(PaintContext&, DevicePixelRect const& dest_rect, CSS::ImageRendering, CSS::BlendMode blend_mode = CSS::BlendMode::Normal) const override;
 
     virtual bool equals(CSSStyleValue const& other) const override;
 

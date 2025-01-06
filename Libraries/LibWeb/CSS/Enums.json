@@ -79,6 +79,24 @@
     "local",
     "scroll"
   ],
+  "blend-mode": [
+    "normal",
+    "darken",
+    "multiply",
+    "color-burn",
+    "lighten",
+    "screen",
+    "color-dodge",
+    "overlay",
+    "soft-light",
+    "hard-light",
+    "difference",
+    "exclusion",
+    "hue",
+    "saturation",
+    "color",
+    "luminosity"
+  ],
   "background-box": [
     "border-box",
     "content-box",

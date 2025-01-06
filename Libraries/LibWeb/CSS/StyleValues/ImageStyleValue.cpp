@@ -145,11 +145,11 @@ Optional<CSSPixelFraction> ImageStyleValue::natural_aspect_ratio() const
     return {};
 }
 
-void ImageStyleValue::paint(PaintContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering) const
+void ImageStyleValue::paint(PaintContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering, CSS::BlendMode blend_mode) const
 {
     if (auto const* b = bitmap(m_current_frame_index, dest_rect.size().to_type<int>()); b != nullptr) {
         auto scaling_mode = to_gfx_scaling_mode(image_rendering, b->rect(), dest_rect.to_type<int>());
-        context.display_list_recorder().draw_scaled_immutable_bitmap(dest_rect.to_type<int>(), *b, b->rect(), scaling_mode);
+        context.display_list_recorder().draw_scaled_immutable_bitmap(dest_rect.to_type<int>(), *b, b->rect(), scaling_mode, to_gfx_blend_mode(blend_mode));
     }
 }
 

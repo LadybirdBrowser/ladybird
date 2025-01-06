@@ -9,6 +9,7 @@
 #include <AK/FlyString.h>
 #include <AK/HashMap.h>
 #include <AK/Optional.h>
+#include <LibGfx/BlendMode.h>
 #include <LibGfx/Filter.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/ScalingMode.h>
@@ -270,6 +271,7 @@ struct BackgroundLayerData {
     CSS::LengthPercentage size_y { CSS::Length::make_auto() };
     CSS::Repeat repeat_x { CSS::Repeat::Repeat };
     CSS::Repeat repeat_y { CSS::Repeat::Repeat };
+    CSS::BlendMode blend_mode { CSS::BlendMode::Normal };
 };
 
 struct BorderData {
@@ -332,6 +334,46 @@ inline Gfx::ScalingMode to_gfx_scaling_mode(CSS::ImageRendering css_value, Gfx::
         return Gfx::ScalingMode::NearestNeighbor;
     case CSS::ImageRendering::Pixelated:
         return Gfx::ScalingMode::SmoothPixels;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+// FIXME: Find a better place for this helper.
+constexpr Gfx::BlendMode to_gfx_blend_mode(CSS::BlendMode blend_mode)
+{
+    switch (blend_mode) {
+    case BlendMode::Normal:
+        return Gfx::BlendMode::Normal;
+    case BlendMode::Darken:
+        return Gfx::BlendMode::Darken;
+    case BlendMode::Multiply:
+        return Gfx::BlendMode::Multiply;
+    case BlendMode::ColorBurn:
+        return Gfx::BlendMode::ColorBurn;
+    case BlendMode::Lighten:
+        return Gfx::BlendMode::Lighten;
+    case BlendMode::Screen:
+        return Gfx::BlendMode::Screen;
+    case BlendMode::ColorDodge:
+        return Gfx::BlendMode::ColorDodge;
+    case BlendMode::Overlay:
+        return Gfx::BlendMode::Overlay;
+    case BlendMode::SoftLight:
+        return Gfx::BlendMode::SoftLight;
+    case BlendMode::HardLight:
+        return Gfx::BlendMode::HardLight;
+    case BlendMode::Difference:
+        return Gfx::BlendMode::Difference;
+    case BlendMode::Exclusion:
+        return Gfx::BlendMode::Exclusion;
+    case BlendMode::Hue:
+        return Gfx::BlendMode::Hue;
+    case BlendMode::Saturation:
+        return Gfx::BlendMode::Saturation;
+    case BlendMode::Color:
+        return Gfx::BlendMode::Color;
+    case BlendMode::Luminosity:
+        return Gfx::BlendMode::Luminosity;
     }
     VERIFY_NOT_REACHED();
 }

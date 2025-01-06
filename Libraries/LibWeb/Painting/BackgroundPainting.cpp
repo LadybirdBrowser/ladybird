@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/TextNode.h>
@@ -286,10 +287,10 @@ void paint_background(PaintContext& context, PaintableBox const& paintable_box, 
             auto dest_rect = context.rounded_device_rect(image_rect);
             auto const* bitmap = static_cast<CSS::ImageStyleValue const&>(image).current_frame_bitmap(dest_rect);
             auto scaling_mode = to_gfx_scaling_mode(image_rendering, bitmap->rect(), dest_rect.to_type<int>());
-            context.display_list_recorder().draw_repeated_immutable_bitmap(dest_rect.to_type<int>(), clip_rect.to_type<int>(), *bitmap, scaling_mode, { .x = repeat_x, .y = repeat_y });
+            context.display_list_recorder().draw_repeated_immutable_bitmap(dest_rect.to_type<int>(), clip_rect.to_type<int>(), *bitmap, scaling_mode, { .x = repeat_x, .y = repeat_y }, CSS::to_gfx_blend_mode(layer.blend_mode));
         } else {
             for_each_image_device_rect([&](auto const& image_device_rect) {
-                image.paint(context, image_device_rect, image_rendering);
+                image.paint(context, image_device_rect, image_rendering, layer.blend_mode);
             });
         }
     }
@@ -407,7 +408,8 @@ ResolvedBackground resolve_background_layers(Vector<CSS::BackgroundLayerData> co
             .background_positioning_area = background_positioning_area,
             .image_rect = image_rect,
             .repeat_x = layer.repeat_x,
-            .repeat_y = layer.repeat_y });
+            .repeat_y = layer.repeat_y,
+            .blend_mode = layer.blend_mode });
     }
 
     return ResolvedBackground {

@@ -140,24 +140,25 @@ void DisplayListRecorder::fill_ellipse(Gfx::IntRect const& a_rect, Color color)
     append(FillEllipse { a_rect, color });
 }
 
-void DisplayListRecorder::fill_rect_with_linear_gradient(Gfx::IntRect const& gradient_rect, LinearGradientData const& data)
+void DisplayListRecorder::fill_rect_with_linear_gradient(Gfx::IntRect const& gradient_rect, LinearGradientData const& data, Gfx::BlendMode blend_mode)
 {
     if (gradient_rect.is_empty())
         return;
-    append(PaintLinearGradient { gradient_rect, data });
+    append(PaintLinearGradient { gradient_rect, data, blend_mode });
 }
 
-void DisplayListRecorder::fill_rect_with_conic_gradient(Gfx::IntRect const& rect, ConicGradientData const& data, Gfx::IntPoint const& position)
+void DisplayListRecorder::fill_rect_with_conic_gradient(Gfx::IntRect const& rect, ConicGradientData const& data, Gfx::IntPoint const& position, Gfx::BlendMode blend_mode)
 {
     if (rect.is_empty())
         return;
     append(PaintConicGradient {
         .rect = rect,
         .conic_gradient_data = data,
-        .position = position });
+        .position = position,
+        .blend_mode = blend_mode });
 }
 
-void DisplayListRecorder::fill_rect_with_radial_gradient(Gfx::IntRect const& rect, RadialGradientData const& data, Gfx::IntPoint center, Gfx::IntSize size)
+void DisplayListRecorder::fill_rect_with_radial_gradient(Gfx::IntRect const& rect, RadialGradientData const& data, Gfx::IntPoint center, Gfx::IntSize size, Gfx::BlendMode blend_mode)
 {
     if (rect.is_empty())
         return;
@@ -165,7 +166,8 @@ void DisplayListRecorder::fill_rect_with_radial_gradient(Gfx::IntRect const& rec
         .rect = rect,
         .radial_gradient_data = data,
         .center = center,
-        .size = size });
+        .size = size,
+        .blend_mode = blend_mode });
 }
 
 void DisplayListRecorder::draw_rect(Gfx::IntRect const& rect, Color color, bool rough)
@@ -190,7 +192,7 @@ void DisplayListRecorder::draw_painting_surface(Gfx::IntRect const& dst_rect, No
     });
 }
 
-void DisplayListRecorder::draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_rect, Gfx::ImmutableBitmap const& bitmap, Gfx::IntRect const& src_rect, Gfx::ScalingMode scaling_mode)
+void DisplayListRecorder::draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_rect, Gfx::ImmutableBitmap const& bitmap, Gfx::IntRect const& src_rect, Gfx::ScalingMode scaling_mode, Gfx::BlendMode blend_mode)
 {
     if (dst_rect.is_empty())
         return;
@@ -199,16 +201,18 @@ void DisplayListRecorder::draw_scaled_immutable_bitmap(Gfx::IntRect const& dst_r
         .bitmap = bitmap,
         .src_rect = src_rect,
         .scaling_mode = scaling_mode,
+        .blend_mode = blend_mode,
     });
 }
 
-void DisplayListRecorder::draw_repeated_immutable_bitmap(Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, NonnullRefPtr<Gfx::ImmutableBitmap> bitmap, Gfx::ScalingMode scaling_mode, DrawRepeatedImmutableBitmap::Repeat repeat)
+void DisplayListRecorder::draw_repeated_immutable_bitmap(Gfx::IntRect dst_rect, Gfx::IntRect clip_rect, NonnullRefPtr<Gfx::ImmutableBitmap> bitmap, Gfx::ScalingMode scaling_mode, DrawRepeatedImmutableBitmap::Repeat repeat, Gfx::BlendMode blend_mode)
 {
     append(DrawRepeatedImmutableBitmap {
         .dst_rect = dst_rect,
         .clip_rect = clip_rect,
         .bitmap = move(bitmap),
         .scaling_mode = scaling_mode,
+        .blend_mode = blend_mode,
         .repeat = repeat,
     });
 }

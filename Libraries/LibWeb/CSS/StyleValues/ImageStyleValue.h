@@ -10,6 +10,7 @@
 #pragma once
 
 #include <LibGC/Root.h>
+#include <LibGfx/BlendMode.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/URL.h>
 #include <LibWeb/CSS/Enums.h>
@@ -40,7 +41,7 @@ public:
     Optional<CSSPixelFraction> natural_aspect_ratio() const override;
 
     virtual bool is_paintable() const override;
-    void paint(PaintContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering) const override;
+    void paint(PaintContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering, CSS::BlendMode blend_mode = CSS::BlendMode::Normal) const override;
 
     virtual Optional<Gfx::Color> color_if_single_pixel_bitmap() const override;
     Gfx::ImmutableBitmap const* current_frame_bitmap(DevicePixelRect const& dest_rect) const;

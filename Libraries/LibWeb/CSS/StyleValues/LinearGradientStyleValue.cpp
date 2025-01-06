@@ -109,10 +109,10 @@ void LinearGradientStyleValue::resolve_for_size(Layout::NodeWithStyleAndBoxModel
     m_resolved = ResolvedData { Painting::resolve_linear_gradient_data(node, size, *this), size };
 }
 
-void LinearGradientStyleValue::paint(PaintContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering) const
+void LinearGradientStyleValue::paint(PaintContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering, CSS::BlendMode blend_mode) const
 {
     VERIFY(m_resolved.has_value());
-    context.display_list_recorder().fill_rect_with_linear_gradient(dest_rect.to_type<int>(), m_resolved->data);
+    context.display_list_recorder().fill_rect_with_linear_gradient(dest_rect.to_type<int>(), m_resolved->data, to_gfx_blend_mode(blend_mode));
 }
 
 }

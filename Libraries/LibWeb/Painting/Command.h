@@ -11,6 +11,7 @@
 #include <AK/SegmentedVector.h>
 #include <AK/Utf8View.h>
 #include <AK/Vector.h>
+#include <LibGfx/BlendMode.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Gradients.h>
@@ -74,6 +75,7 @@ struct DrawScaledImmutableBitmap {
     NonnullRefPtr<Gfx::ImmutableBitmap> bitmap;
     Gfx::IntRect src_rect;
     Gfx::ScalingMode scaling_mode;
+    Gfx::BlendMode blend_mode;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }
     void translate_by(Gfx::IntPoint const& offset) { dst_rect.translate_by(offset); }
@@ -89,6 +91,7 @@ struct DrawRepeatedImmutableBitmap {
     Gfx::IntRect clip_rect;
     NonnullRefPtr<Gfx::ImmutableBitmap> bitmap;
     Gfx::ScalingMode scaling_mode;
+    Gfx::BlendMode blend_mode;
     Repeat repeat;
 
     void translate_by(Gfx::IntPoint const& offset) { dst_rect.translate_by(offset); }
@@ -136,6 +139,7 @@ struct PopStackingContext { };
 struct PaintLinearGradient {
     Gfx::IntRect gradient_rect;
     LinearGradientData linear_gradient_data;
+    Gfx::BlendMode blend_mode;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return gradient_rect; }
 
@@ -325,6 +329,7 @@ struct PaintRadialGradient {
     RadialGradientData radial_gradient_data;
     Gfx::IntPoint center;
     Gfx::IntSize size;
+    Gfx::BlendMode blend_mode;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
 
@@ -335,6 +340,7 @@ struct PaintConicGradient {
     Gfx::IntRect rect;
     ConicGradientData conic_gradient_data;
     Gfx::IntPoint position;
+    Gfx::BlendMode blend_mode;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const { return rect; }
 

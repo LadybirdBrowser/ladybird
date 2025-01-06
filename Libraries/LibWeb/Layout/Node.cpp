@@ -350,6 +350,7 @@ void NodeWithStyle::apply_style(const CSS::ComputedProperties& computed_style)
         auto const& y_positions = computed_style.property(CSS::PropertyID::BackgroundPositionY);
         auto const& repeats = computed_style.property(CSS::PropertyID::BackgroundRepeat);
         auto const& sizes = computed_style.property(CSS::PropertyID::BackgroundSize);
+        auto const& blend_modes = computed_style.property(CSS::PropertyID::BackgroundBlendMode);
 
         auto count_layers = [](auto const& maybe_style_value) -> size_t {
             if (maybe_style_value.is_value_list())
@@ -373,6 +374,7 @@ void NodeWithStyle::apply_style(const CSS::ComputedProperties& computed_style)
         layer_count = max(layer_count, count_layers(y_positions));
         layer_count = max(layer_count, count_layers(repeats));
         layer_count = max(layer_count, count_layers(sizes));
+        layer_count = max(layer_count, count_layers(blend_modes));
 
         Vector<CSS::BackgroundLayerData> layers;
         layers.ensure_capacity(layer_count);
@@ -461,6 +463,67 @@ void NodeWithStyle::apply_style(const CSS::ComputedProperties& computed_style)
             if (auto repeat_value = value_for_layer(repeats, layer_index); repeat_value && repeat_value->is_background_repeat()) {
                 layer.repeat_x = repeat_value->as_background_repeat().repeat_x();
                 layer.repeat_y = repeat_value->as_background_repeat().repeat_y();
+            }
+
+            if (auto blend_mode_value = value_for_layer(blend_modes, layer_index); blend_mode_value && blend_mode_value->is_keyword()) {
+                auto const num_blend_modes = blend_modes.is_value_list() ? blend_modes.as_value_list().size() : 1;
+
+                if (layer_index >= num_blend_modes) {
+                    layer.blend_mode = CSS::BlendMode::Normal;
+                } else {
+                    switch (blend_mode_value->to_keyword()) {
+                    case CSS::Keyword::Normal:
+                        layer.blend_mode = CSS::BlendMode::Normal;
+                        break;
+                    case CSS::Keyword::Darken:
+                        layer.blend_mode = CSS::BlendMode::Darken;
+                        break;
+                    case CSS::Keyword::Multiply:
+                        layer.blend_mode = CSS::BlendMode::Multiply;
+                        break;
+                    case CSS::Keyword::ColorBurn:
+                        layer.blend_mode = CSS::BlendMode::ColorBurn;
+                        break;
+                    case CSS::Keyword::Lighten:
+                        layer.blend_mode = CSS::BlendMode::Lighten;
+                        break;
+                    case CSS::Keyword::Screen:
+                        layer.blend_mode = CSS::BlendMode::Screen;
+                        break;
+                    case CSS::Keyword::ColorDodge:
+                        layer.blend_mode = CSS::BlendMode::ColorDodge;
+                        break;
+                    case CSS::Keyword::Overlay:
+                        layer.blend_mode = CSS::BlendMode::Overlay;
+                        break;
+                    case CSS::Keyword::SoftLight:
+                        layer.blend_mode = CSS::BlendMode::SoftLight;
+                        break;
+                    case CSS::Keyword::HardLight:
+                        layer.blend_mode = CSS::BlendMode::HardLight;
+                        break;
+                    case CSS::Keyword::Difference:
+                        layer.blend_mode = CSS::BlendMode::Difference;
+                        break;
+                    case CSS::Keyword::Exclusion:
+                        layer.blend_mode = CSS::BlendMode::Exclusion;
+                        break;
+                    case CSS::Keyword::Hue:
+                        layer.blend_mode = CSS::BlendMode::Hue;
+                        break;
+                    case CSS::Keyword::Saturation:
+                        layer.blend_mode = CSS::BlendMode::Saturation;
+                        break;
+                    case CSS::Keyword::Color:
+                        layer.blend_mode = CSS::BlendMode::Color;
+                        break;
+                    case CSS::Keyword::Luminosity:
+                        layer.blend_mode = CSS::BlendMode::Luminosity;
+                        break;
+                    default:
+                        layer.blend_mode = CSS::BlendMode::Normal;
+                    }
+                }
             }
 
             layers.append(move(layer));

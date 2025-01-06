@@ -222,12 +222,12 @@ bool RadialGradientStyleValue::equals(CSSStyleValue const& other) const
     return m_properties == other_gradient.m_properties;
 }
 
-void RadialGradientStyleValue::paint(PaintContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering) const
+void RadialGradientStyleValue::paint(PaintContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering, CSS::BlendMode blend_mode) const
 {
     VERIFY(m_resolved.has_value());
     auto center = context.rounded_device_point(m_resolved->center).to_type<int>();
     auto size = context.rounded_device_size(m_resolved->gradient_size).to_type<int>();
-    context.display_list_recorder().fill_rect_with_radial_gradient(dest_rect.to_type<int>(), m_resolved->data, center, size);
+    context.display_list_recorder().fill_rect_with_radial_gradient(dest_rect.to_type<int>(), m_resolved->data, center, size, to_gfx_blend_mode(blend_mode));
 }
 
 }

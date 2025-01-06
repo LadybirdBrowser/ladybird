@@ -161,6 +161,7 @@ void DisplayListPlayerSkia::draw_scaled_immutable_bitmap(DrawScaledImmutableBitm
     auto dst_rect = to_skia_rect(command.dst_rect);
     auto& canvas = surface().canvas();
     SkPaint paint;
+    paint.setBlendMode(to_skia_blend_mode(command.blend_mode));
     canvas.drawImageRect(command.bitmap->sk_image(), src_rect, dst_rect, to_skia_sampling_options(command.scaling_mode), &paint, SkCanvas::kStrict_SrcRectConstraint);
 }
 
@@ -178,6 +179,7 @@ void DisplayListPlayerSkia::draw_repeated_immutable_bitmap(DrawRepeatedImmutable
     auto shader = command.bitmap->sk_image()->makeShader(tile_mode_x, tile_mode_y, sampling_options, matrix);
 
     SkPaint paint;
+    paint.setBlendMode(to_skia_blend_mode(command.blend_mode));
     paint.setShader(shader);
     auto& canvas = surface().canvas();
     canvas.drawPaint(paint);
@@ -376,6 +378,7 @@ void DisplayListPlayerSkia::paint_linear_gradient(PaintLinearGradient const& com
 
     SkPaint paint;
     paint.setShader(shader);
+    paint.setBlendMode(to_skia_blend_mode(command.blend_mode));
     surface().canvas().drawRect(to_skia_rect(rect), paint);
 }
 
@@ -792,6 +795,7 @@ void DisplayListPlayerSkia::paint_radial_gradient(PaintRadialGradient const& com
     SkPaint paint;
     paint.setAntiAlias(true);
     paint.setShader(shader);
+    paint.setBlendMode(to_skia_blend_mode(command.blend_mode));
     surface().canvas().drawRect(to_skia_rect(rect), paint);
 }
 
@@ -831,6 +835,7 @@ void DisplayListPlayerSkia::paint_conic_gradient(PaintConicGradient const& comma
     SkPaint paint;
     paint.setAntiAlias(true);
     paint.setShader(shader);
+    paint.setBlendMode(to_skia_blend_mode(command.blend_mode));
     surface().canvas().drawRect(to_skia_rect(rect), paint);
 }
 

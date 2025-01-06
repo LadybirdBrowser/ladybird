@@ -324,6 +324,15 @@
       "background-attachment"
     ]
   },
+  "background-blend-mode": {
+    "affects-layout": false,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "normal",
+    "valid-types": [
+      "blend-mode"
+    ]
+  },
   "background-clip": {
     "affects-layout": false,
     "animation-type": "repeatable-list",

@@ -9,10 +9,12 @@
 
 #include <AK/Assertions.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/BlendMode.h>
 #include <LibGfx/Filter.h>
 #include <LibGfx/PathSkia.h>
 #include <LibGfx/ScalingMode.h>
 #include <LibGfx/WindingRule.h>
+#include <core/SkBlendMode.h>
 #include <core/SkColor.h>
 #include <core/SkColorType.h>
 #include <core/SkImageFilter.h>
@@ -91,4 +93,43 @@ constexpr SkSamplingOptions to_skia_sampling_options(Gfx::ScalingMode scaling_mo
 SkPath to_skia_path(Path const& path);
 sk_sp<SkImageFilter> to_skia_image_filter(Gfx::Filter const& filter);
 
+}
+
+constexpr SkBlendMode to_skia_blend_mode(Gfx::BlendMode blend_mode)
+{
+    switch (blend_mode) {
+    case Gfx::BlendMode::Normal:
+        return SkBlendMode::kSrc;
+    case Gfx::BlendMode::Darken:
+        return SkBlendMode::kDarken;
+    case Gfx::BlendMode::Multiply:
+        return SkBlendMode::kMultiply;
+    case Gfx::BlendMode::ColorBurn:
+        return SkBlendMode::kColorBurn;
+    case Gfx::BlendMode::Lighten:
+        return SkBlendMode::kLighten;
+    case Gfx::BlendMode::Screen:
+        return SkBlendMode::kScreen;
+    case Gfx::BlendMode::ColorDodge:
+        return SkBlendMode::kColorDodge;
+    case Gfx::BlendMode::Overlay:
+        return SkBlendMode::kOverlay;
+    case Gfx::BlendMode::SoftLight:
+        return SkBlendMode::kSoftLight;
+    case Gfx::BlendMode::HardLight:
+        return SkBlendMode::kHardLight;
+    case Gfx::BlendMode::Difference:
+        return SkBlendMode::kDifference;
+    case Gfx::BlendMode::Exclusion:
+        return SkBlendMode::kExclusion;
+    case Gfx::BlendMode::Hue:
+        return SkBlendMode::kHue;
+    case Gfx::BlendMode::Saturation:
+        return SkBlendMode::kSaturation;
+    case Gfx::BlendMode::Color:
+        return SkBlendMode::kColor;
+    case Gfx::BlendMode::Luminosity:
+        return SkBlendMode::kLuminosity;
+    }
+    VERIFY_NOT_REACHED();
 }
