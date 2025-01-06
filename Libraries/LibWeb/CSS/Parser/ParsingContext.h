@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020-2021, the SerenityOS developers.
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -34,9 +34,6 @@ public:
     HTML::Window const* window() const;
     URL::URL complete_url(StringView) const;
 
-    PropertyID current_property_id() const { return m_current_property_id; }
-    void set_current_property_id(PropertyID property_id) { m_current_property_id = property_id; }
-
     JS::Realm& realm() const
     {
         VERIFY(m_realm);
@@ -46,7 +43,6 @@ public:
 private:
     GC::Ptr<JS::Realm> m_realm;
     GC::Ptr<DOM::Document const> m_document;
-    PropertyID m_current_property_id { PropertyID::Invalid };
     URL::URL m_url;
     Mode m_mode { Mode::Normal };
 };
