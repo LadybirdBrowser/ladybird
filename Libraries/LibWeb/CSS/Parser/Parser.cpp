@@ -1990,270 +1990,154 @@ Optional<Dimension> Parser::parse_dimension(ComponentValue const& component_valu
 
 Optional<AngleOrCalculated> Parser::parse_angle(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-    auto& token = tokens.consume_a_token();
-
-    if (auto dimension = parse_dimension(token); dimension.has_value()) {
-        if (dimension->is_angle()) {
-            transaction.commit();
-            return dimension->angle();
-        }
-        return {};
+    if (auto value = parse_angle_value(tokens)) {
+        if (value->is_angle())
+            return value->as_angle().angle();
+        if (value->is_calculated())
+            return AngleOrCalculated { value->as_calculated() };
     }
-
-    if (auto calc = parse_calculated_value(token); calc && calc->resolves_to_angle()) {
-        transaction.commit();
-        return calc.release_nonnull();
-    }
-
     return {};
 }
 
 Optional<AnglePercentage> Parser::parse_angle_percentage(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-    auto& token = tokens.consume_a_token();
-
-    if (auto dimension = parse_dimension(token); dimension.has_value()) {
-        if (dimension->is_angle_percentage()) {
-            transaction.commit();
-            return dimension->angle_percentage();
-        }
-        return {};
+    if (auto value = parse_angle_percentage_value(tokens)) {
+        if (value->is_angle())
+            return value->as_angle().angle();
+        if (value->is_percentage())
+            return value->as_percentage().percentage();
+        if (value->is_calculated())
+            return AnglePercentage { value->as_calculated() };
     }
-
-    if (auto calc = parse_calculated_value(token); calc && calc->resolves_to_angle_percentage()) {
-        transaction.commit();
-        return calc.release_nonnull();
-    }
-
     return {};
 }
 
 Optional<FlexOrCalculated> Parser::parse_flex(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-    auto& token = tokens.consume_a_token();
-
-    if (auto dimension = parse_dimension(token); dimension.has_value()) {
-        if (dimension->is_flex()) {
-            transaction.commit();
-            return dimension->flex();
-        }
-        return {};
+    if (auto value = parse_flex_value(tokens)) {
+        if (value->is_flex())
+            return value->as_flex().flex();
+        if (value->is_calculated())
+            return FlexOrCalculated { value->as_calculated() };
     }
-
-    if (auto calc = parse_calculated_value(token); calc && calc->resolves_to_flex()) {
-        transaction.commit();
-        return calc.release_nonnull();
-    }
-
     return {};
 }
 
 Optional<FrequencyOrCalculated> Parser::parse_frequency(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-    auto& token = tokens.consume_a_token();
-
-    if (auto dimension = parse_dimension(token); dimension.has_value()) {
-        if (dimension->is_frequency()) {
-            transaction.commit();
-            return dimension->frequency();
-        }
-        return {};
+    if (auto value = parse_frequency_value(tokens)) {
+        if (value->is_frequency())
+            return value->as_frequency().frequency();
+        if (value->is_calculated())
+            return FrequencyOrCalculated { value->as_calculated() };
     }
-
-    if (auto calc = parse_calculated_value(token); calc && calc->resolves_to_frequency()) {
-        transaction.commit();
-        return calc.release_nonnull();
-    }
-
     return {};
 }
 
 Optional<FrequencyPercentage> Parser::parse_frequency_percentage(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-    auto& token = tokens.consume_a_token();
-
-    if (auto dimension = parse_dimension(token); dimension.has_value()) {
-        if (dimension->is_frequency_percentage()) {
-            transaction.commit();
-            return dimension->frequency_percentage();
-        }
-        return {};
+    if (auto value = parse_frequency_percentage_value(tokens)) {
+        if (value->is_frequency())
+            return value->as_frequency().frequency();
+        if (value->is_percentage())
+            return value->as_percentage().percentage();
+        if (value->is_calculated())
+            return FrequencyPercentage { value->as_calculated() };
     }
-
-    if (auto calc = parse_calculated_value(token); calc && calc->resolves_to_frequency_percentage()) {
-        transaction.commit();
-        return calc.release_nonnull();
-    }
-
     return {};
 }
 
 Optional<IntegerOrCalculated> Parser::parse_integer(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-    auto& token = tokens.consume_a_token();
-
-    if (token.is(Token::Type::Number) && token.token().number().is_integer()) {
-        transaction.commit();
-        return token.token().to_integer();
+    if (auto value = parse_integer_value(tokens)) {
+        if (value->is_integer())
+            return value->as_integer().integer();
+        if (value->is_calculated())
+            return IntegerOrCalculated { value->as_calculated() };
     }
-
-    if (auto calc = parse_calculated_value(token); calc && calc->resolves_to_number()) {
-        transaction.commit();
-        return calc.release_nonnull();
-    }
-
     return {};
 }
 
 Optional<LengthOrCalculated> Parser::parse_length(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-    auto& token = tokens.consume_a_token();
-
-    if (auto dimension = parse_dimension(token); dimension.has_value()) {
-        if (dimension->is_length()) {
-            transaction.commit();
-            return dimension->length();
-        }
-        return {};
+    if (auto value = parse_length_value(tokens)) {
+        if (value->is_length())
+            return value->as_length().length();
+        if (value->is_calculated())
+            return LengthOrCalculated { value->as_calculated() };
     }
-
-    if (auto calc = parse_calculated_value(token); calc && calc->resolves_to_length()) {
-        transaction.commit();
-        return calc.release_nonnull();
-    }
-
     return {};
 }
 
 Optional<LengthPercentage> Parser::parse_length_percentage(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-    auto& token = tokens.consume_a_token();
-
-    if (auto dimension = parse_dimension(token); dimension.has_value()) {
-        if (dimension->is_length_percentage()) {
-            transaction.commit();
-            return dimension->length_percentage();
-        }
-        return {};
+    if (auto value = parse_length_percentage_value(tokens)) {
+        if (value->is_length())
+            return value->as_length().length();
+        if (value->is_percentage())
+            return value->as_percentage().percentage();
+        if (value->is_calculated())
+            return LengthPercentage { value->as_calculated() };
     }
-
-    if (auto calc = parse_calculated_value(token); calc && calc->resolves_to_length_percentage()) {
-        transaction.commit();
-        return calc.release_nonnull();
-    }
-
     return {};
 }
 
 Optional<NumberOrCalculated> Parser::parse_number(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-    auto& token = tokens.consume_a_token();
-
-    if (token.is(Token::Type::Number)) {
-        transaction.commit();
-        return token.token().number_value();
+    if (auto value = parse_number_value(tokens)) {
+        if (value->is_number())
+            return value->as_number().number();
+        if (value->is_calculated())
+            return NumberOrCalculated { value->as_calculated() };
     }
-
-    if (auto calc = parse_calculated_value(token); calc && calc->resolves_to_number()) {
-        transaction.commit();
-        return calc.release_nonnull();
-    }
-
     return {};
 }
 
 Optional<NumberPercentage> Parser::parse_number_percentage(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-    auto& token = tokens.consume_a_token();
-
-    if (token.is(Token::Type::Number)) {
-        transaction.commit();
-        return token.token().number();
+    if (auto value = parse_number_percentage_value(tokens)) {
+        if (value->is_number())
+            return Number { Number::Type::Number, value->as_number().number() };
+        if (value->is_percentage())
+            return value->as_percentage().percentage();
+        if (value->is_calculated())
+            return NumberPercentage { value->as_calculated() };
     }
-
-    if (token.is(Token::Type::Percentage)) {
-        transaction.commit();
-        return Percentage(token.token().percentage());
-    }
-
-    if (auto calc = parse_calculated_value(token); calc && calc->resolves_to_number_percentage()) {
-        transaction.commit();
-        return calc.release_nonnull();
-    }
-
     return {};
 }
 
 Optional<ResolutionOrCalculated> Parser::parse_resolution(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-    auto& token = tokens.consume_a_token();
-
-    if (auto dimension = parse_dimension(token); dimension.has_value()) {
-        if (dimension->is_resolution()) {
-            transaction.commit();
-            return dimension->resolution();
-        }
-        return {};
+    if (auto value = parse_resolution_value(tokens)) {
+        if (value->is_resolution())
+            return value->as_resolution().resolution();
+        if (value->is_calculated())
+            return ResolutionOrCalculated { value->as_calculated() };
     }
-
-    if (auto calc = parse_calculated_value(token); calc && calc->resolves_to_resolution()) {
-        transaction.commit();
-        return calc.release_nonnull();
-    }
-
     return {};
 }
 
 Optional<TimeOrCalculated> Parser::parse_time(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-    auto& token = tokens.consume_a_token();
-
-    if (auto dimension = parse_dimension(token); dimension.has_value()) {
-        if (dimension->is_time()) {
-            transaction.commit();
-            return dimension->time();
-        }
-        return {};
+    if (auto value = parse_time_value(tokens)) {
+        if (value->is_time())
+            return value->as_time().time();
+        if (value->is_calculated())
+            return TimeOrCalculated { value->as_calculated() };
     }
-
-    if (auto calc = parse_calculated_value(token); calc && calc->resolves_to_time()) {
-        transaction.commit();
-        return calc.release_nonnull();
-    }
-
     return {};
 }
 
 Optional<TimePercentage> Parser::parse_time_percentage(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-    auto& token = tokens.consume_a_token();
-
-    if (auto dimension = parse_dimension(token); dimension.has_value()) {
-        if (dimension->is_time_percentage()) {
-            transaction.commit();
-            return dimension->time_percentage();
-        }
-        return {};
+    if (auto value = parse_time_percentage_value(tokens)) {
+        if (value->is_time())
+            return value->as_time().time();
+        if (value->is_percentage())
+            return value->as_percentage().percentage();
+        if (value->is_calculated())
+            return TimePercentage { value->as_calculated() };
     }
-
-    if (auto calc = parse_calculated_value(token); calc && calc->resolves_to_time_percentage()) {
-        transaction.commit();
-        return calc.release_nonnull();
-    }
-
     return {};
 }
 
