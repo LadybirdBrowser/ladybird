@@ -19,7 +19,7 @@
 namespace Web::CSS::Parser {
 
 template<typename TElement>
-Optional<Vector<TElement>> Parser::parse_color_stop_list(TokenStream<ComponentValue>& tokens, auto is_position, auto get_position)
+Optional<Vector<TElement>> Parser::parse_color_stop_list(TokenStream<ComponentValue>& tokens, auto parse_position)
 {
     enum class ElementType {
         Garbage,
@@ -35,10 +35,8 @@ Optional<Vector<TElement>> Parser::parse_color_stop_list(TokenStream<ComponentVa
         RefPtr<CSSStyleValue> color;
         Optional<typename TElement::PositionType> position;
         Optional<typename TElement::PositionType> second_position;
-        if (auto dimension = parse_dimension(tokens.next_token()); dimension.has_value() && is_position(*dimension)) {
+        if (position = parse_position(tokens); position.has_value()) {
             // [<T-percentage> <color>] or [<T-percentage>]
-            position = get_position(*dimension);
-            tokens.discard_a_token(); // dimension
             tokens.discard_whitespace();
             // <T-percentage>
             if (!tokens.has_next_token() || tokens.next_token().is(Token::Type::Comma)) {
@@ -61,10 +59,9 @@ Optional<Vector<TElement>> Parser::parse_color_stop_list(TokenStream<ComponentVa
             // Note: Double-position color stops only appear to be valid in this order.
             for (auto stop_position : Array { &position, &second_position }) {
                 if (tokens.has_next_token() && !tokens.next_token().is(Token::Type::Comma)) {
-                    auto dimension = parse_dimension(tokens.consume_a_token());
-                    if (!dimension.has_value() || !is_position(*dimension))
+                    *stop_position = parse_position(tokens);
+                    if (!stop_position->has_value())
                         return ElementType::Garbage;
-                    *stop_position = get_position(*dimension);
                     tokens.discard_whitespace();
                 }
             }
@@ -122,8 +119,7 @@ Optional<Vector<LinearColorStopListElement>> Parser::parse_linear_color_stop_lis
     //   <linear-color-stop> , [ <linear-color-hint>? , <linear-color-stop> ]#
     return parse_color_stop_list<LinearColorStopListElement>(
         tokens,
-        [](Dimension& dimension) { return dimension.is_length_percentage(); },
-        [](Dimension& dimension) { return dimension.length_percentage(); });
+        [&](auto& it) { return parse_length_percentage(it); });
 }
 
 Optional<Vector<AngularColorStopListElement>> Parser::parse_angular_color_stop_list(TokenStream<ComponentValue>& tokens)
@@ -132,8 +128,7 @@ Optional<Vector<AngularColorStopListElement>> Parser::parse_angular_color_stop_l
     //   <angular-color-stop> , [ <angular-color-hint>? , <angular-color-stop> ]#
     return parse_color_stop_list<AngularColorStopListElement>(
         tokens,
-        [](Dimension& dimension) { return dimension.is_angle_percentage(); },
-        [](Dimension& dimension) { return dimension.angle_percentage(); });
+        [&](auto& it) { return parse_angle_percentage(it); });
 }
 
 RefPtr<CSSStyleValue> Parser::parse_linear_gradient_function(TokenStream<ComponentValue>& outer_tokens)
