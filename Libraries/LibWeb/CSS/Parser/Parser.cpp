@@ -2574,34 +2574,6 @@ Vector<Gfx::UnicodeRange> Parser::parse_unicode_ranges(TokenStream<ComponentValu
     return unicode_ranges;
 }
 
-RefPtr<CSSStyleValue> Parser::parse_dimension_value(TokenStream<ComponentValue>& tokens)
-{
-    if (auto dimension = parse_dimension(tokens.next_token()); dimension.has_value()) {
-        tokens.discard_a_token(); // dimension
-
-        if (dimension->is_angle())
-            return AngleStyleValue::create(dimension->angle());
-        if (dimension->is_frequency())
-            return FrequencyStyleValue::create(dimension->frequency());
-        if (dimension->is_length())
-            return LengthStyleValue::create(dimension->length());
-        if (dimension->is_percentage())
-            return PercentageStyleValue::create(dimension->percentage());
-        if (dimension->is_resolution())
-            return ResolutionStyleValue::create(dimension->resolution());
-        if (dimension->is_time())
-            return TimeStyleValue::create(dimension->time());
-        VERIFY_NOT_REACHED();
-    }
-
-    if (auto calc = parse_calculated_value(tokens.next_token()); calc && calc->resolves_to_dimension()) {
-        tokens.discard_a_token(); // calc
-        return calc;
-    }
-
-    return nullptr;
-}
-
 RefPtr<CSSStyleValue> Parser::parse_integer_value(TokenStream<ComponentValue>& tokens)
 {
     auto const& peek_token = tokens.next_token();
@@ -2696,130 +2668,302 @@ RefPtr<CSSStyleValue> Parser::parse_percentage_value(TokenStream<ComponentValue>
 
 RefPtr<CSSStyleValue> Parser::parse_angle_value(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-    if (auto dimension_value = parse_dimension_value(tokens)) {
-        if (dimension_value->is_angle()
-            || (dimension_value->is_calculated() && dimension_value->as_calculated().resolves_to_angle())) {
+    if (tokens.next_token().is(Token::Type::Dimension)) {
+        auto transaction = tokens.begin_transaction();
+        auto& dimension_token = tokens.consume_a_token().token();
+        if (auto angle_type = Angle::unit_from_name(dimension_token.dimension_unit()); angle_type.has_value()) {
             transaction.commit();
-            return dimension_value;
+            return AngleStyleValue::create(Angle { (dimension_token.dimension_value()), angle_type.release_value() });
         }
+        return nullptr;
+    }
+
+    // https://svgwg.org/svg2-draft/types.html#presentation-attribute-css-value
+    // When parsing an SVG attribute, an angle is allowed without a unit.
+    // FIXME: How should these numbers be interpreted? https://github.com/w3c/svgwg/issues/792
+    //        For now: Convert to an angle in degrees.
+    if (tokens.next_token().is(Token::Type::Number) && m_context.is_parsing_svg_presentation_attribute()) {
+        auto numeric_value = tokens.consume_a_token().token().number_value();
+        return AngleStyleValue::create(Angle::make_degrees(numeric_value));
+    }
+
+    auto transaction = tokens.begin_transaction();
+    if (auto calculated_value = parse_calculated_value(tokens.consume_a_token());
+        calculated_value && calculated_value->resolves_to_angle()) {
+
+        transaction.commit();
+        return calculated_value;
     }
     return nullptr;
 }
 
 RefPtr<CSSStyleValue> Parser::parse_angle_percentage_value(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-    if (auto dimension_value = parse_dimension_value(tokens)) {
-        if (dimension_value->is_angle() || dimension_value->is_percentage()
-            || (dimension_value->is_calculated() && dimension_value->as_calculated().resolves_to_angle_percentage())) {
+    if (tokens.next_token().is(Token::Type::Dimension)) {
+        auto transaction = tokens.begin_transaction();
+        auto& dimension_token = tokens.consume_a_token().token();
+        if (auto angle_type = Angle::unit_from_name(dimension_token.dimension_unit()); angle_type.has_value()) {
             transaction.commit();
-            return dimension_value;
+            return AngleStyleValue::create(Angle { (dimension_token.dimension_value()), angle_type.release_value() });
         }
+        return nullptr;
+    }
+
+    if (tokens.next_token().is(Token::Type::Percentage))
+        return PercentageStyleValue::create(Percentage { tokens.consume_a_token().token().percentage() });
+
+    // https://svgwg.org/svg2-draft/types.html#presentation-attribute-css-value
+    // When parsing an SVG attribute, an angle is allowed without a unit.
+    // FIXME: How should these numbers be interpreted? https://github.com/w3c/svgwg/issues/792
+    //        For now: Convert to an angle in degrees.
+    if (tokens.next_token().is(Token::Type::Number) && m_context.is_parsing_svg_presentation_attribute()) {
+        auto numeric_value = tokens.consume_a_token().token().number_value();
+        return AngleStyleValue::create(Angle::make_degrees(numeric_value));
+    }
+
+    auto transaction = tokens.begin_transaction();
+    if (auto calculated_value = parse_calculated_value(tokens.consume_a_token());
+        calculated_value && calculated_value->resolves_to_angle_percentage()) {
+
+        transaction.commit();
+        return calculated_value;
     }
     return nullptr;
 }
 
 RefPtr<CSSStyleValue> Parser::parse_flex_value(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-    if (auto dimension_value = parse_dimension_value(tokens)) {
-        if (dimension_value->is_flex()
-            || (dimension_value->is_calculated() && dimension_value->as_calculated().resolves_to_flex())) {
+    if (tokens.next_token().is(Token::Type::Dimension)) {
+        auto transaction = tokens.begin_transaction();
+        auto& dimension_token = tokens.consume_a_token().token();
+        if (auto flex_type = Flex::unit_from_name(dimension_token.dimension_unit()); flex_type.has_value()) {
             transaction.commit();
-            return dimension_value;
+            return FlexStyleValue::create(Flex { (dimension_token.dimension_value()), flex_type.release_value() });
         }
+        return nullptr;
+    }
+
+    auto transaction = tokens.begin_transaction();
+    if (auto calculated_value = parse_calculated_value(tokens.consume_a_token());
+        calculated_value && calculated_value->resolves_to_flex()) {
+
+        transaction.commit();
+        return calculated_value;
     }
     return nullptr;
 }
 
 RefPtr<CSSStyleValue> Parser::parse_frequency_value(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-    if (auto dimension_value = parse_dimension_value(tokens)) {
-        if (dimension_value->is_frequency()
-            || (dimension_value->is_calculated() && dimension_value->as_calculated().resolves_to_frequency())) {
+    if (tokens.next_token().is(Token::Type::Dimension)) {
+        auto transaction = tokens.begin_transaction();
+        auto& dimension_token = tokens.consume_a_token().token();
+        if (auto frequency_type = Frequency::unit_from_name(dimension_token.dimension_unit()); frequency_type.has_value()) {
             transaction.commit();
-            return dimension_value;
+            return FrequencyStyleValue::create(Frequency { (dimension_token.dimension_value()), frequency_type.release_value() });
         }
+        return nullptr;
+    }
+
+    auto transaction = tokens.begin_transaction();
+    if (auto calculated_value = parse_calculated_value(tokens.consume_a_token());
+        calculated_value && calculated_value->resolves_to_frequency()) {
+
+        transaction.commit();
+        return calculated_value;
     }
     return nullptr;
 }
 
 RefPtr<CSSStyleValue> Parser::parse_frequency_percentage_value(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-    if (auto dimension_value = parse_dimension_value(tokens)) {
-        if (dimension_value->is_frequency() || dimension_value->is_percentage()
-            || (dimension_value->is_calculated() && dimension_value->as_calculated().resolves_to_frequency_percentage())) {
+    if (tokens.next_token().is(Token::Type::Dimension)) {
+        auto transaction = tokens.begin_transaction();
+        auto& dimension_token = tokens.consume_a_token().token();
+        if (auto frequency_type = Frequency::unit_from_name(dimension_token.dimension_unit()); frequency_type.has_value()) {
             transaction.commit();
-            return dimension_value;
+            return FrequencyStyleValue::create(Frequency { (dimension_token.dimension_value()), frequency_type.release_value() });
         }
+        return nullptr;
+    }
+
+    if (tokens.next_token().is(Token::Type::Percentage))
+        return PercentageStyleValue::create(Percentage { tokens.consume_a_token().token().percentage() });
+
+    auto transaction = tokens.begin_transaction();
+    if (auto calculated_value = parse_calculated_value(tokens.consume_a_token());
+        calculated_value && calculated_value->resolves_to_frequency_percentage()) {
+
+        transaction.commit();
+        return calculated_value;
     }
     return nullptr;
 }
 
 RefPtr<CSSStyleValue> Parser::parse_length_value(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-    if (auto dimension_value = parse_dimension_value(tokens)) {
-        if (dimension_value->is_length()
-            || (dimension_value->is_calculated() && dimension_value->as_calculated().resolves_to_length())) {
+    if (tokens.next_token().is(Token::Type::Dimension)) {
+        auto transaction = tokens.begin_transaction();
+        auto& dimension_token = tokens.consume_a_token().token();
+        if (auto length_type = Length::unit_from_name(dimension_token.dimension_unit()); length_type.has_value()) {
             transaction.commit();
-            return dimension_value;
+            return LengthStyleValue::create(Length { (dimension_token.dimension_value()), length_type.release_value() });
         }
+        return nullptr;
+    }
+
+    if (tokens.next_token().is(Token::Type::Number)) {
+        auto transaction = tokens.begin_transaction();
+        auto numeric_value = tokens.consume_a_token().token().number_value();
+        if (numeric_value == 0) {
+            transaction.commit();
+            return LengthStyleValue::create(Length::make_px(0));
+        }
+        if (m_context.in_quirks_mode() && property_has_quirk(m_context.current_property_id(), Quirk::UnitlessLength)) {
+            // https://quirks.spec.whatwg.org/#quirky-length-value
+            // FIXME: Disallow quirk when inside a CSS sub-expression (like `calc()`)
+            // "The <quirky-length> value must not be supported in arguments to CSS expressions other than the rect()
+            // expression, and must not be supported in the supports() static method of the CSS interface."
+            transaction.commit();
+            return LengthStyleValue::create(Length::make_px(CSSPixels::nearest_value_for(numeric_value)));
+        }
+
+        // https://svgwg.org/svg2-draft/types.html#presentation-attribute-css-value
+        // When parsing an SVG attribute, a length is allowed without a unit.
+        // FIXME: How should these numbers be interpreted? https://github.com/w3c/svgwg/issues/792
+        //        For now: Convert to a length in pixels.
+        if (m_context.is_parsing_svg_presentation_attribute()) {
+            transaction.commit();
+            return LengthStyleValue::create(Length::make_px(CSSPixels::nearest_value_for(numeric_value)));
+        }
+    }
+
+    auto transaction = tokens.begin_transaction();
+    if (auto calculated_value = parse_calculated_value(tokens.consume_a_token());
+        calculated_value && calculated_value->resolves_to_length()) {
+
+        transaction.commit();
+        return calculated_value;
     }
     return nullptr;
 }
 
 RefPtr<CSSStyleValue> Parser::parse_length_percentage_value(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-    if (auto dimension_value = parse_dimension_value(tokens)) {
-        if (dimension_value->is_length() || dimension_value->is_percentage()
-            || (dimension_value->is_calculated() && dimension_value->as_calculated().resolves_to_length_percentage())) {
+    if (tokens.next_token().is(Token::Type::Dimension)) {
+        auto transaction = tokens.begin_transaction();
+        auto& dimension_token = tokens.consume_a_token().token();
+        if (auto length_type = Length::unit_from_name(dimension_token.dimension_unit()); length_type.has_value()) {
             transaction.commit();
-            return dimension_value;
+            return LengthStyleValue::create(Length { (dimension_token.dimension_value()), length_type.release_value() });
         }
+        return nullptr;
+    }
+
+    if (tokens.next_token().is(Token::Type::Percentage))
+        return PercentageStyleValue::create(Percentage { tokens.consume_a_token().token().percentage() });
+
+    if (tokens.next_token().is(Token::Type::Number)) {
+        auto transaction = tokens.begin_transaction();
+        auto numeric_value = tokens.consume_a_token().token().number_value();
+        if (numeric_value == 0) {
+            transaction.commit();
+            return LengthStyleValue::create(Length::make_px(0));
+        }
+        if (m_context.in_quirks_mode() && property_has_quirk(m_context.current_property_id(), Quirk::UnitlessLength)) {
+            // https://quirks.spec.whatwg.org/#quirky-length-value
+            // FIXME: Disallow quirk when inside a CSS sub-expression (like `calc()`)
+            // "The <quirky-length> value must not be supported in arguments to CSS expressions other than the rect()
+            // expression, and must not be supported in the supports() static method of the CSS interface."
+            transaction.commit();
+            return LengthStyleValue::create(Length::make_px(CSSPixels::nearest_value_for(numeric_value)));
+        }
+
+        // https://svgwg.org/svg2-draft/types.html#presentation-attribute-css-value
+        // When parsing an SVG attribute, a length is allowed without a unit.
+        // FIXME: How should these numbers be interpreted? https://github.com/w3c/svgwg/issues/792
+        //        For now: Convert to a length in pixels.
+        if (m_context.is_parsing_svg_presentation_attribute()) {
+            transaction.commit();
+            return LengthStyleValue::create(Length::make_px(CSSPixels::nearest_value_for(numeric_value)));
+        }
+    }
+
+    auto transaction = tokens.begin_transaction();
+    if (auto calculated_value = parse_calculated_value(tokens.consume_a_token());
+        calculated_value && calculated_value->resolves_to_length_percentage()) {
+
+        transaction.commit();
+        return calculated_value;
     }
     return nullptr;
 }
 
 RefPtr<CSSStyleValue> Parser::parse_resolution_value(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-    if (auto dimension_value = parse_dimension_value(tokens)) {
-        if (dimension_value->is_resolution()
-            || (dimension_value->is_calculated() && dimension_value->as_calculated().resolves_to_resolution())) {
+    if (tokens.next_token().is(Token::Type::Dimension)) {
+        auto transaction = tokens.begin_transaction();
+        auto& dimension_token = tokens.consume_a_token().token();
+        if (auto resolution_type = Resolution::unit_from_name(dimension_token.dimension_unit()); resolution_type.has_value()) {
             transaction.commit();
-            return dimension_value;
+            return ResolutionStyleValue::create(Resolution { (dimension_token.dimension_value()), resolution_type.release_value() });
         }
+        return nullptr;
+    }
+
+    auto transaction = tokens.begin_transaction();
+    if (auto calculated_value = parse_calculated_value(tokens.consume_a_token());
+        calculated_value && calculated_value->resolves_to_resolution()) {
+
+        transaction.commit();
+        return calculated_value;
     }
     return nullptr;
 }
 
 RefPtr<CSSStyleValue> Parser::parse_time_value(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-    if (auto dimension_value = parse_dimension_value(tokens)) {
-        if (dimension_value->is_time()
-            || (dimension_value->is_calculated() && dimension_value->as_calculated().resolves_to_time())) {
+    if (tokens.next_token().is(Token::Type::Dimension)) {
+        auto transaction = tokens.begin_transaction();
+        auto& dimension_token = tokens.consume_a_token().token();
+        if (auto time_type = Time::unit_from_name(dimension_token.dimension_unit()); time_type.has_value()) {
             transaction.commit();
-            return dimension_value;
+            return TimeStyleValue::create(Time { (dimension_token.dimension_value()), time_type.release_value() });
         }
+        return nullptr;
+    }
+
+    auto transaction = tokens.begin_transaction();
+    if (auto calculated_value = parse_calculated_value(tokens.consume_a_token());
+        calculated_value && calculated_value->resolves_to_time()) {
+
+        transaction.commit();
+        return calculated_value;
     }
     return nullptr;
 }
 
 RefPtr<CSSStyleValue> Parser::parse_time_percentage_value(TokenStream<ComponentValue>& tokens)
 {
-    auto transaction = tokens.begin_transaction();
-    if (auto dimension_value = parse_dimension_value(tokens)) {
-        if (dimension_value->is_time() || dimension_value->is_percentage()
-            || (dimension_value->is_calculated() && dimension_value->as_calculated().resolves_to_time_percentage())) {
+    if (tokens.next_token().is(Token::Type::Dimension)) {
+        auto transaction = tokens.begin_transaction();
+        auto& dimension_token = tokens.consume_a_token().token();
+        if (auto time_type = Time::unit_from_name(dimension_token.dimension_unit()); time_type.has_value()) {
             transaction.commit();
-            return dimension_value;
+            return TimeStyleValue::create(Time { (dimension_token.dimension_value()), time_type.release_value() });
         }
+        return nullptr;
+    }
+
+    if (tokens.next_token().is(Token::Type::Percentage))
+        return PercentageStyleValue::create(Percentage { tokens.consume_a_token().token().percentage() });
+
+    auto transaction = tokens.begin_transaction();
+    if (auto calculated_value = parse_calculated_value(tokens.consume_a_token());
+        calculated_value && calculated_value->resolves_to_time_percentage()) {
+
+        transaction.commit();
+        return calculated_value;
     }
     return nullptr;
 }

@@ -313,7 +313,6 @@ private:
     RefPtr<CSSStyleValue> parse_filter_value_list_value(TokenStream<ComponentValue>&);
     RefPtr<StringStyleValue> parse_opentype_tag_value(TokenStream<ComponentValue>&);
 
-    RefPtr<CSSStyleValue> parse_dimension_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_angle_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_angle_percentage_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_flex_value(TokenStream<ComponentValue>&);
