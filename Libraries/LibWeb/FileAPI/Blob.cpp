@@ -354,9 +354,9 @@ GC::Ref<Streams::ReadableStream> Blob::get_stream()
                     return;
                 }
 
-                // FIXME: Close the stream now that we have finished enqueuing all chunks to the stream. Without this, ReadableStream.read will never resolve the second time around with 'done' set.
-                //        Nowhere in the spec seems to mention this - but testing against other implementations the stream does appear to be closed after reading all data (closed callback is fired).
-                //        Probably there is a better way of doing this.
+                // FIXME: Spec bug: https://github.com/w3c/FileAPI/issues/206
+                //
+                // We need to close the stream so that the stream will finish reading.
                 readable_stream_close(*stream);
             }));
         }
