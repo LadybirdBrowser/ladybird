@@ -7295,95 +7295,55 @@ RefPtr<CSSStyleValue> Parser::parse_transform_value(TokenStream<ComponentValue>&
             TokenStream argument_tokens { arguments[argument_index] };
             argument_tokens.discard_whitespace();
 
-            auto const& value = argument_tokens.consume_a_token();
-            RefPtr<CalculatedStyleValue> maybe_calc_value = parse_calculated_value(value);
-
             switch (function_metadata.parameters[argument_index].type) {
             case TransformFunctionParameterType::Angle: {
                 // These are `<angle> | <zero>` in the spec, so we have to check for both kinds.
-                if (maybe_calc_value && maybe_calc_value->resolves_to_angle()) {
-                    values.append(maybe_calc_value.release_nonnull());
-                } else if (value.is(Token::Type::Number) && value.token().number_value() == 0) {
-                    values.append(AngleStyleValue::create(Angle::make_degrees(0)));
-                } else {
-                    // FIXME: Remove this reconsume once all parsing functions are TokenStream-based.
-                    argument_tokens.reconsume_current_input_token();
-                    auto dimension_value = parse_dimension_value(argument_tokens);
-                    if (!dimension_value || !dimension_value->is_angle())
-                        return nullptr;
-                    values.append(dimension_value.release_nonnull());
+                if (auto angle_value = parse_angle_value(argument_tokens)) {
+                    values.append(angle_value.release_nonnull());
+                    break;
                 }
-                break;
+                if (argument_tokens.next_token().is(Token::Type::Number) && argument_tokens.next_token().token().number_value() == 0) {
+                    argument_tokens.discard_a_token(); // 0
+                    values.append(AngleStyleValue::create(Angle::make_degrees(0)));
+                    break;
+                }
+                return nullptr;
             }
             case TransformFunctionParameterType::Length:
             case TransformFunctionParameterType::LengthNone: {
-                if (maybe_calc_value && maybe_calc_value->resolves_to_length()) {
-                    argument_tokens.discard_a_token(); // calc()
-                    values.append(maybe_calc_value.release_nonnull());
-                } else {
-                    // FIXME: Remove this reconsume once all parsing functions are TokenStream-based.
-                    argument_tokens.reconsume_current_input_token();
-
-                    if (function_metadata.parameters[argument_index].type == TransformFunctionParameterType::LengthNone) {
-                        auto keyword_transaction = argument_tokens.begin_transaction();
-                        auto keyword_value = parse_keyword_value(argument_tokens);
-                        if (keyword_value && keyword_value->to_keyword() == Keyword::None) {
-                            values.append(keyword_value.release_nonnull());
-                            keyword_transaction.commit();
-                            break;
-                        }
-                    }
-
-                    auto dimension_value = parse_dimension_value(argument_tokens);
-                    if (!dimension_value || !dimension_value->is_length())
-                        return nullptr;
-
-                    values.append(dimension_value.release_nonnull());
+                if (auto length_value = parse_length_value(argument_tokens)) {
+                    values.append(length_value.release_nonnull());
+                    break;
                 }
-                break;
+                if (function_metadata.parameters[argument_index].type == TransformFunctionParameterType::LengthNone
+                    && argument_tokens.next_token().is_ident("none"sv)) {
+
+                    argument_tokens.discard_a_token(); // none
+                    values.append(CSSKeywordValue::create(Keyword::None));
+                    break;
+                }
+                return nullptr;
             }
             case TransformFunctionParameterType::LengthPercentage: {
-                if (maybe_calc_value && maybe_calc_value->resolves_to_length_percentage()) {
-                    values.append(maybe_calc_value.release_nonnull());
-                } else {
-                    // FIXME: Remove this reconsume once all parsing functions are TokenStream-based.
-                    argument_tokens.reconsume_current_input_token();
-                    auto dimension_value = parse_dimension_value(argument_tokens);
-                    if (!dimension_value)
-                        return nullptr;
-
-                    if (dimension_value->is_percentage() || dimension_value->is_length())
-                        values.append(dimension_value.release_nonnull());
-                    else
-                        return nullptr;
+                if (auto length_percentage_value = parse_length_percentage_value(argument_tokens)) {
+                    values.append(length_percentage_value.release_nonnull());
+                    break;
                 }
-                break;
+                return nullptr;
             }
             case TransformFunctionParameterType::Number: {
-                if (maybe_calc_value && maybe_calc_value->resolves_to_number()) {
-                    values.append(maybe_calc_value.release_nonnull());
-                } else {
-                    // FIXME: Remove this reconsume once all parsing functions are TokenStream-based.
-                    argument_tokens.reconsume_current_input_token();
-                    auto number = parse_number_value(argument_tokens);
-                    if (!number)
-                        return nullptr;
-                    values.append(number.release_nonnull());
+                if (auto number_value = parse_number_value(argument_tokens)) {
+                    values.append(number_value.release_nonnull());
+                    break;
                 }
-                break;
+                return nullptr;
             }
             case TransformFunctionParameterType::NumberPercentage: {
-                if (maybe_calc_value && maybe_calc_value->resolves_to_number()) {
-                    values.append(maybe_calc_value.release_nonnull());
-                } else {
-                    // FIXME: Remove this reconsume once all parsing functions are TokenStream-based.
-                    argument_tokens.reconsume_current_input_token();
-                    auto number_or_percentage = parse_number_percentage_value(argument_tokens);
-                    if (!number_or_percentage)
-                        return nullptr;
-                    values.append(number_or_percentage.release_nonnull());
+                if (auto number_percentage_value = parse_number_percentage_value(argument_tokens)) {
+                    values.append(number_percentage_value.release_nonnull());
+                    break;
                 }
-                break;
+                return nullptr;
             }
             }
 
