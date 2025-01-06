@@ -181,6 +181,10 @@ void ViewportPaintable::refresh_scroll_state()
 
     m_scroll_state.for_each_sticky_frame([&](auto& scroll_frame) {
         auto const& sticky_box = scroll_frame->paintable_box();
+
+        if (!sticky_box.sticky_insets_ptr())
+            return;
+
         auto const& sticky_insets = sticky_box.sticky_insets();
 
         auto const* nearest_scrollable_ancestor = sticky_box.nearest_scrollable_ancestor();

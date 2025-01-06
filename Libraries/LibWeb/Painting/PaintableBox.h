@@ -249,6 +249,7 @@ public:
         Optional<CSSPixels> left;
     };
     StickyInsets const& sticky_insets() const { return *m_sticky_insets; }
+    StickyInsets const* sticky_insets_ptr() const { return m_sticky_insets.ptr(); }
     void set_sticky_insets(OwnPtr<StickyInsets> sticky_insets) { m_sticky_insets = move(sticky_insets); }
 
     [[nodiscard]] bool is_scrollable() const;
