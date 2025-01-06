@@ -488,8 +488,8 @@ _StartOfFunction:
                 }
                 ON_EOF
                 {
-                    m_queued_tokens.enqueue(move(m_current_token));
-                    EMIT_EOF;
+                    m_current_token.set_comment(consume_current_builder());
+                    EMIT_CURRENT_TOKEN_FOLLOWED_BY_EOF;
                 }
                 ON(0)
                 {
