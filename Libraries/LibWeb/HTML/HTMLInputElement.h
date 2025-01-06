@@ -306,6 +306,8 @@ private:
     GC::Ptr<DOM::Element> m_placeholder_element;
     GC::Ptr<DOM::Text> m_placeholder_text_node;
 
+    void update_button_input_shadow_tree();
+
     void update_text_input_shadow_tree();
     GC::Ptr<DOM::Element> m_inner_text_element;
     GC::Ptr<DOM::Text> m_text_node;
