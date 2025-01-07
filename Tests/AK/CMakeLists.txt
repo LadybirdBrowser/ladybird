@@ -30,6 +30,7 @@ set(AK_TEST_SOURCES
     TestFlyString.cpp
     TestFormat.cpp
     TestGenericLexer.cpp
+    TestGenericShorthands.cpp
     TestHashFunctions.cpp
     TestHashMap.cpp
     TestHashTable.cpp
