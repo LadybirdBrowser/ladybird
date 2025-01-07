@@ -437,6 +437,197 @@ bool command_delete_action(DOM::Document& document, String const&)
     return true;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-forwarddelete-command
+bool command_forward_delete_action(DOM::Document& document, String const&)
+{
+    // 1. If the active range is not collapsed, delete the selection and return true.
+    auto& selection = *document.get_selection();
+    auto& active_range = *selection.range();
+    if (!active_range.collapsed()) {
+        delete_the_selection(selection);
+        return true;
+    }
+
+    // 2. Canonicalize whitespace at the active range's start.
+    canonicalize_whitespace(active_range.start());
+
+    // 3. Let node and offset be the active range's start node and offset.
+    auto node = active_range.start().node;
+    auto offset = active_range.start().offset;
+
+    // 4. Repeat the following steps:
+    while (true) {
+        // 1. If offset is the length of node and node's nextSibling is an editable invisible node, remove node's
+        //    nextSibling from its parent.
+        if (offset == node->length() && node->next_sibling() && node->next_sibling()->is_editable()
+            && is_invisible_node(*node->next_sibling())) {
+            node->next_sibling()->remove();
+            continue;
+        }
+
+        // 2. Otherwise, if node has a child with index offset and that child is an editable invisible node, remove that
+        //    child from node.
+        auto* child_at_offset = node->child_at_index(offset);
+        if (child_at_offset && child_at_offset->is_editable() && is_invisible_node(*child_at_offset)) {
+            child_at_offset->remove();
+            continue;
+        }
+
+        // 3. Otherwise, if offset is the length of node and node is an inline node, or if node is invisible, set offset
+        //    to one plus the index of node, then set node to its parent.
+        if (node->parent() && ((offset == node->length() && is_inline_node(node)) || is_invisible_node(node))) {
+            offset = node->index() + 1;
+            node = *node->parent();
+            continue;
+        }
+
+        // 4. Otherwise, if node has a child with index offset and that child is neither a block node nor a br nor an
+        //    img nor a collapsed block prop, set node to that child, then set offset to zero.
+        if (child_at_offset && !is_block_node(*child_at_offset) && !is<HTML::HTMLBRElement>(*child_at_offset)
+            && !is<HTML::HTMLImageElement>(*child_at_offset) && !is_collapsed_block_prop(*child_at_offset)) {
+            node = *child_at_offset;
+            offset = 0;
+            continue;
+        }
+
+        // 5. Otherwise, break from this loop.
+        break;
+    }
+
+    // 5. If node is a Text node and offset is not node's length:
+    if (is<DOM::Text>(*node) && offset != node->length()) {
+        // 1. Let end offset be offset plus one.
+        auto end_offset = offset + 1;
+
+        // FIXME: 2. While end offset is not node's length and the end offsetth code unit of node's data has general category M
+        //    when interpreted as a Unicode code point, add one to end offset.
+
+        // 3. Call collapse(node, offset) on the context object's selection.
+        MUST(selection.collapse(node, offset));
+
+        // 4. Call extend(node, end offset) on the context object's selection.
+        MUST(selection.extend(node, end_offset));
+
+        // 5. Delete the selection.
+        delete_the_selection(selection);
+
+        // 6. Return true.
+        return true;
+    }
+
+    // 6. If node is an inline node, return true.
+    if (is_inline_node(node))
+        return true;
+
+    // 7. If node has a child with index offset and that child is a br or hr or img, but is not a collapsed block prop:
+    if (auto child_at_offset = node->child_at_index(offset);
+        (is<HTML::HTMLBRElement>(child_at_offset) || is<HTML::HTMLHRElement>(child_at_offset) || is<HTML::HTMLImageElement>(child_at_offset))
+        && !is_collapsed_block_prop(*child_at_offset)) {
+        // 1. Call collapse(node, offset) on the context object's selection.
+        MUST(selection.collapse(node, offset));
+
+        // 2. Call extend(node, offset + 1) on the context object's selection.
+        MUST(selection.extend(node, offset + 1));
+
+        // 3. Delete the selection.
+        delete_the_selection(selection);
+
+        // 4. Return true.
+        return true;
+    }
+
+    // 8. Let end node equal node and let end offset equal offset.
+    auto end_node = node;
+    auto end_offset = offset;
+
+    // 9. If end node has a child with index end offset, and that child is a collapsed block prop, add one to end
+    //    offset.
+    if (auto child_at_offset = end_node->child_at_index(end_offset); child_at_offset && is_collapsed_block_prop(*child_at_offset))
+        ++end_offset;
+
+    // 10. Repeat the following steps:
+    while (true) {
+        // 1. If end offset is the length of end node, set end offset to one plus the index of end node and then set end
+        //    node to its parent.
+        if (end_node->parent() && end_offset == end_node->length()) {
+            end_offset = end_node->index() + 1;
+            end_node = *end_node->parent();
+            continue;
+        }
+
+        // 2. Otherwise, if end node has an editable invisible child with index end offset, remove it from end node.
+        if (auto child_at_offset = end_node->child_at_index(end_offset); child_at_offset && child_at_offset->is_editable()
+            && is_invisible_node(*child_at_offset)) {
+            child_at_offset->remove();
+            continue;
+        }
+
+        // 3. Otherwise, break from this loop.
+        break;
+    }
+
+    // 11. If the child of end node with index end offset minus one is a table, return true.
+    if (is<HTML::HTMLTableElement>(end_node->child_at_index(end_offset - 1)))
+        return true;
+
+    // 12. If the child of end node with index end offset is a table:
+    if (is<HTML::HTMLTableElement>(end_node->child_at_index(end_offset))) {
+        // 1. Call collapse(end node, end offset) on the context object's selection.
+        MUST(selection.collapse(end_node, end_offset));
+
+        // 2. Call extend(end node, end offset + 1) on the context object's selection.
+        MUST(selection.extend(end_node, end_offset + 1));
+
+        // 3. Return true.
+        return true;
+    }
+
+    // 13. If offset is the length of node, and the child of end node with index end offset is an hr or br:
+    if (auto child_at_offset = end_node->child_at_index(end_offset); offset == node->length()
+        && (is<HTML::HTMLHRElement>(child_at_offset) || is<HTML::HTMLBRElement>(child_at_offset))) {
+        // 1. Call collapse(end node, end offset) on the context object's selection.
+        MUST(selection.collapse(end_node, end_offset));
+
+        // 2. Call extend(end node, end offset + 1) on the context object's selection.
+        MUST(selection.extend(end_node, end_offset + 1));
+
+        // 3. Delete the selection.
+        delete_the_selection(selection);
+
+        // 4. Call collapse(node, offset) on the selection.
+        MUST(selection.collapse(node, offset));
+
+        // 5. Return true.
+        return true;
+    }
+
+    // 14. While end node has a child with index end offset:
+    while (auto child_at_offset = end_node->child_at_index(end_offset)) {
+        // 1. If end node's child with index end offset is editable and invisible, remove it from end node.
+        if (child_at_offset->is_editable() && is_invisible_node(*child_at_offset)) {
+            child_at_offset->remove();
+        }
+
+        // 2. Otherwise, set end node to its child with index end offset and set end offset to zero.
+        else {
+            end_node = *child_at_offset;
+            end_offset = 0;
+        }
+    }
+
+    // 15. Call collapse(node, offset) on the context object's selection.
+    MUST(selection.collapse(node, offset));
+
+    // 16. Call extend(end node, end offset) on the context object's selection.
+    MUST(selection.extend(end_node, end_offset));
+
+    // 17. Delete the selection.
+    delete_the_selection(selection);
+
+    // AD-HOC: Return true.
+    return true;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-insertlinebreak-command
 bool command_insert_linebreak_action(DOM::Document& document, String const&)
 {
@@ -857,6 +1048,12 @@ static Array const commands {
         .command = CommandNames::defaultParagraphSeparator,
         .action = command_default_paragraph_separator_action,
         .value = command_default_paragraph_separator_value,
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-forwarddelete-command
+    CommandDefinition {
+        .command = CommandNames::forwardDelete,
+        .action = command_forward_delete_action,
+        .preserves_overrides = true,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-insertlinebreak-command
     CommandDefinition {
