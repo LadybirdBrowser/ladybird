@@ -91,6 +91,7 @@ void remove_node_preserving_its_descendants(GC::Ref<DOM::Node>);
 void reorder_modifiable_descendants(GC::Ref<DOM::Node>, FlyString const&, Optional<String>);
 void restore_states_and_values(DOM::Document&, Vector<RecordedOverride> const&);
 void restore_the_values_of_nodes(Vector<RecordedNodeValue> const&);
+void set_the_selections_value(DOM::Document&, FlyString const&, Optional<String>);
 GC::Ref<DOM::Element> set_the_tag_name(GC::Ref<DOM::Element>, FlyString const&);
 Optional<String> specified_command_value(GC::Ref<DOM::Element>, FlyString const& command);
 void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const&);

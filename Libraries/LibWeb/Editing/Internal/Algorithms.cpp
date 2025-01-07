@@ -3330,6 +3330,99 @@ void restore_the_values_of_nodes(Vector<RecordedNodeValue> const& values)
     }
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#set-the-selection's-value
+void set_the_selections_value(DOM::Document& document, FlyString const& command, Optional<String> new_value)
+{
+    // 1. Let command be the current command.
+
+    // 2. If there is no formattable node effectively contained in the active range:
+    auto has_matching_node = false;
+    for_each_node_effectively_contained_in_range(active_range(document), [&](GC::Ref<DOM::Node> descendant) {
+        if (is_formattable_node(descendant)) {
+            has_matching_node = true;
+            return TraversalDecision::Break;
+        }
+        return TraversalDecision::Continue;
+    });
+    if (!has_matching_node) {
+        // 1. If command has inline command activated values, set the state override to true if new value is among them
+        //    and false if it's not.
+        auto command_definition = find_command_definition(command);
+        // FIXME: remove .has_value() once all commands are implemented.
+        if (command_definition.has_value() && !command_definition.value().inline_activated_values.is_empty()) {
+            auto new_override = new_value.has_value() && command_definition.value().inline_activated_values.contains_slow(*new_value);
+            document.set_command_state_override(command, new_override);
+        }
+
+        // 2. If command is "subscript", unset the state override for "superscript".
+        if (command == CommandNames::subscript)
+            document.clear_command_state_override(CommandNames::superscript);
+
+        // 3. If command is "superscript", unset the state override for "subscript".
+        if (command == CommandNames::superscript)
+            document.clear_command_state_override(CommandNames::subscript);
+
+        // 4. If new value is null, unset the value override (if any).
+        if (!new_value.has_value()) {
+            document.clear_command_value_override(command);
+        }
+
+        // 5. Otherwise, if command is "createLink" or it has a value specified, set the value override to new value.
+        else if (command == CommandNames::createLink || !document.query_command_value(CommandNames::createLink).is_empty()) {
+            document.set_command_value_override(command, new_value.value());
+        }
+
+        // 6. Abort these steps.
+        return;
+    }
+
+    // 3. If the active range's start node is an editable Text node, and its start offset is neither zero nor its start
+    //    node's length, call splitText() on the active range's start node, with argument equal to the active range's
+    //    start offset. Then set the active range's start node to the result, and its start offset to zero.
+    auto range = active_range(document);
+    auto start = range->start();
+    if (start.node->is_editable() && is<DOM::Text>(*start.node) && start.offset != 0 && start.offset != start.node->length()) {
+        auto new_node = MUST(static_cast<DOM::Text&>(*start.node).split_text(start.offset));
+        MUST(range->set_start(new_node, 0));
+    }
+
+    // 4. If the active range's end node is an editable Text node, and its end offset is neither zero nor its end node's
+    //    length, call splitText() on the active range's end node, with argument equal to the active range's end offset.
+    auto end = range->end();
+    if (end.node->is_editable() && is<DOM::Text>(*end.node) && end.offset != 0 && end.offset != end.node->length())
+        MUST(static_cast<DOM::Text&>(*end.node).split_text(end.offset));
+
+    // 5. Let element list be all editable Elements effectively contained in the active range.
+    Vector<GC::Ref<DOM::Element>> element_list;
+    for_each_node_effectively_contained_in_range(active_range(document), [&](GC::Ref<DOM::Node> descendant) {
+        if (descendant->is_editable() && is<DOM::Element>(*descendant))
+            element_list.append(static_cast<DOM::Element&>(*descendant));
+        return TraversalDecision::Continue;
+    });
+
+    // 6. For each element in element list, clear the value of element.
+    for (auto element : element_list)
+        clear_the_value(command, element);
+
+    // 7. Let node list be all editable nodes effectively contained in the active range.
+    Vector<GC::Ref<DOM::Node>> node_list;
+    for_each_node_effectively_contained_in_range(active_range(document), [&](GC::Ref<DOM::Node> descendant) {
+        if (descendant->is_editable())
+            node_list.append(descendant);
+        return TraversalDecision::Continue;
+    });
+
+    // 8. For each node in node list:
+    for (auto node : node_list) {
+        // 1. Push down values on node.
+        push_down_values(command, node, new_value);
+
+        // 2. If node is an allowed child of "span", force the value of node.
+        if (is_allowed_child_of_node(node, HTML::TagNames::span))
+            force_the_value(node, command, new_value);
+    }
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#set-the-tag-name
 GC::Ref<DOM::Element> set_the_tag_name(GC::Ref<DOM::Element> element, FlyString const& new_name)
 {
