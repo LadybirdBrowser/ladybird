@@ -7,61 +7,62 @@
 #pragma once
 
 #include <AK/Platform.h>
+#include <AK/StdLibExtras.h>
 
 namespace AK {
 
 template<typename T, typename... Ts>
-[[nodiscard]] constexpr bool first_is_one_of(T const to_compare, Ts const... valid_values)
+[[nodiscard]] constexpr bool first_is_one_of(T&& to_compare, Ts&&... valid_values)
 {
-    return (... || (to_compare == valid_values));
+    return (... || (forward<T>(to_compare) == forward<Ts>(valid_values)));
 }
 
 template<typename T, typename... Ts>
-[[nodiscard]] constexpr bool first_is_smaller_than_one_of(T const to_compare, Ts const... valid_values)
+[[nodiscard]] constexpr bool first_is_smaller_than_one_of(T&& to_compare, Ts&&... valid_values)
 {
-    return (... || (to_compare < valid_values));
+    return (... || (forward<T>(to_compare) < forward<Ts>(valid_values)));
 }
 
 template<typename T, typename... Ts>
-[[nodiscard]] constexpr bool first_is_smaller_or_equal_than_one_of(T const to_compare, Ts const... valid_values)
+[[nodiscard]] constexpr bool first_is_smaller_or_equal_than_one_of(T&& to_compare, Ts&&... valid_values)
 {
-    return (... || (to_compare <= valid_values));
+    return (... || (forward<T>(to_compare) <= forward<Ts>(valid_values)));
 }
 
 template<typename T, typename... Ts>
-[[nodiscard]] constexpr bool first_is_larger_than_one_of(T const to_compare, Ts const... valid_values)
+[[nodiscard]] constexpr bool first_is_larger_than_one_of(T&& to_compare, Ts&&... valid_values)
 {
-    return (... || (to_compare > valid_values));
+    return (... || (forward<T>(to_compare) > forward<Ts>(valid_values)));
 }
 
 template<typename T, typename... Ts>
-[[nodiscard]] constexpr bool first_is_larger_or_equal_than_one_of(T const to_compare, Ts const... valid_values)
+[[nodiscard]] constexpr bool first_is_larger_or_equal_than_one_of(T&& to_compare, Ts&&... valid_values)
 {
-    return (... || (to_compare >= valid_values));
+    return (... || (forward<T>(to_compare) >= forward<Ts>(valid_values)));
 }
 
 template<typename T, typename... Ts>
-[[nodiscard]] constexpr bool first_is_smaller_than_all_of(T const to_compare, Ts const... valid_values)
+[[nodiscard]] constexpr bool first_is_smaller_than_all_of(T&& to_compare, Ts&&... valid_values)
 {
-    return (... && (to_compare < valid_values));
+    return (... && (forward<T>(to_compare) < forward<Ts>(valid_values)));
 }
 
 template<typename T, typename... Ts>
-[[nodiscard]] constexpr bool first_is_smaller_or_equal_than_all_of(T const to_compare, Ts const... valid_values)
+[[nodiscard]] constexpr bool first_is_smaller_or_equal_than_all_of(T&& to_compare, Ts&&... valid_values)
 {
-    return (... && (to_compare <= valid_values));
+    return (... && (forward<T>(to_compare) <= forward<Ts>(valid_values)));
 }
 
 template<typename T, typename... Ts>
-[[nodiscard]] constexpr bool first_is_larger_than_all_of(T const to_compare, Ts const... valid_values)
+[[nodiscard]] constexpr bool first_is_larger_than_all_of(T&& to_compare, Ts&&... valid_values)
 {
-    return (... && (to_compare > valid_values));
+    return (... && (forward<T>(to_compare) > forward<Ts>(valid_values)));
 }
 
 template<typename T, typename... Ts>
-[[nodiscard]] constexpr bool first_is_larger_or_equal_than_all_of(T const to_compare, Ts const... valid_values)
+[[nodiscard]] constexpr bool first_is_larger_or_equal_than_all_of(T&& to_compare, Ts&&... valid_values)
 {
-    return (... && (to_compare >= valid_values));
+    return (... && (forward<T>(to_compare) >= forward<Ts>(valid_values)));
 }
 }
 
