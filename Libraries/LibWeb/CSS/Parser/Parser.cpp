@@ -9175,39 +9175,6 @@ OwnPtr<CalculationNode> Parser::convert_to_calculation_node(CalcParsing::Node co
                 return NegateCalculationNode::create(child_as_node.release_nonnull());
             return nullptr;
         },
-        [](Number const& number) -> OwnPtr<CalculationNode> {
-            return NumericCalculationNode::create(number);
-        },
-        [this](Dimension const& dimension) -> OwnPtr<CalculationNode> {
-            if (dimension.is_angle())
-                return NumericCalculationNode::create(dimension.angle());
-            if (dimension.is_frequency())
-                return NumericCalculationNode::create(dimension.frequency());
-            if (dimension.is_length())
-                return NumericCalculationNode::create(dimension.length());
-            if (dimension.is_percentage()) {
-                // FIXME: Figure this out in non-property contexts
-                auto percentage_resolved_type = property_resolves_percentages_relative_to(m_context.current_property_id());
-                return NumericCalculationNode::create(dimension.percentage(), percentage_resolved_type);
-            }
-            if (dimension.is_resolution())
-                return NumericCalculationNode::create(dimension.resolution());
-            if (dimension.is_time())
-                return NumericCalculationNode::create(dimension.time());
-            if (dimension.is_flex()) {
-                // https://www.w3.org/TR/css3-grid-layout/#fr-unit
-                // NOTE: <flex> values are not <length>s (nor are they compatible with <length>s, like some <percentage> values),
-                //       so they cannot be represented in or combined with other unit types in calc() expressions.
-                // FIXME: Flex is allowed in calc(), so figure out what this spec text means and how to implement it.
-                dbgln_if(CSS_PARSER_DEBUG, "Rejecting <flex> in calc()");
-                return nullptr;
-            }
-            dbgln_if(CSS_PARSER_DEBUG, "Unrecognized dimension type in calc() expression: {}", dimension.to_string());
-            return nullptr;
-        },
-        [](CalculationNode::ConstantType const& constant_type) -> OwnPtr<CalculationNode> {
-            return ConstantCalculationNode::create(constant_type);
-        },
         [this](NonnullRawPtr<ComponentValue const> const& component_value) -> OwnPtr<CalculationNode> {
             // NOTE: This is the "process the leaf nodes" part of step 5 of https://drafts.csswg.org/css-values-4/#parse-a-calculation
             //       We divert a little from the spec: Rather than modify an existing tree of values, we construct a new one from that source tree.
@@ -9231,6 +9198,56 @@ OwnPtr<CalculationNode> Parser::convert_to_calculation_node(CalcParsing::Node co
                     return nullptr;
 
                 return leaf_calculation.release_nonnull();
+            }
+
+            // AD-HOC: We also need to convert tokens into their numeric types.
+
+            if (component_value->is(Token::Type::Ident)) {
+                auto maybe_constant = CalculationNode::constant_type_from_string(component_value->token().ident());
+                if (!maybe_constant.has_value())
+                    return nullptr;
+                return ConstantCalculationNode::create(*maybe_constant);
+            }
+
+            if (component_value->is(Token::Type::Number))
+                return NumericCalculationNode::create(component_value->token().number());
+
+            if (component_value->is(Token::Type::Dimension)) {
+                auto numeric_value = component_value->token().dimension_value();
+                auto unit_string = component_value->token().dimension_unit();
+
+                if (auto length_type = Length::unit_from_name(unit_string); length_type.has_value())
+                    return NumericCalculationNode::create(Length { numeric_value, length_type.release_value() });
+
+                if (auto angle_type = Angle::unit_from_name(unit_string); angle_type.has_value())
+                    return NumericCalculationNode::create(Angle { numeric_value, angle_type.release_value() });
+
+                if (auto flex_type = Flex::unit_from_name(unit_string); flex_type.has_value()) {
+                    // https://www.w3.org/TR/css3-grid-layout/#fr-unit
+                    // NOTE: <flex> values are not <length>s (nor are they compatible with <length>s, like some <percentage> values),
+                    //       so they cannot be represented in or combined with other unit types in calc() expressions.
+                    // FIXME: Flex is allowed in calc(), so figure out what this spec text means and how to implement it.
+                    dbgln_if(CSS_PARSER_DEBUG, "Rejecting <flex> in calc()");
+                    return nullptr;
+                }
+
+                if (auto frequency_type = Frequency::unit_from_name(unit_string); frequency_type.has_value())
+                    return NumericCalculationNode::create(Frequency { numeric_value, frequency_type.release_value() });
+
+                if (auto resolution_type = Resolution::unit_from_name(unit_string); resolution_type.has_value())
+                    return NumericCalculationNode::create(Resolution { numeric_value, resolution_type.release_value() });
+
+                if (auto time_type = Time::unit_from_name(unit_string); time_type.has_value())
+                    return NumericCalculationNode::create(Time { numeric_value, time_type.release_value() });
+
+                dbgln_if(CSS_PARSER_DEBUG, "Unrecognized dimension type in calc() expression: {}", component_value->to_string());
+                return nullptr;
+            }
+
+            if (component_value->is(Token::Type::Percentage)) {
+                // FIXME: Figure this out in non-property contexts
+                auto percentage_resolved_type = property_resolves_percentages_relative_to(m_context.current_property_id());
+                return NumericCalculationNode::create(Percentage { component_value->token().percentage() }, percentage_resolved_type);
             }
 
             // NOTE: If we get here, then we have a ComponentValue that didn't get replaced with something else,
@@ -9263,24 +9280,6 @@ OwnPtr<CalculationNode> Parser::parse_a_calculation(Vector<ComponentValue> const
                 values.append(CalcParsing::Operator { static_cast<char>(value.token().delim()) });
                 continue;
             }
-        }
-
-        if (value.is(Token::Type::Ident)) {
-            auto maybe_constant = CalculationNode::constant_type_from_string(value.token().ident());
-            if (maybe_constant.has_value()) {
-                values.append(maybe_constant.value());
-                continue;
-            }
-        }
-
-        if (value.is(Token::Type::Number)) {
-            values.append(value.token().number());
-            continue;
-        }
-
-        if (auto dimension = parse_dimension(value); dimension.has_value()) {
-            values.append(dimension.release_value());
-            continue;
         }
 
         values.append(NonnullRawPtr { value });

@@ -43,7 +43,7 @@ struct ProductNode;
 struct SumNode;
 struct InvertNode;
 struct NegateNode;
-using Node = Variant<Operator, Number, Dimension, CalculationNode::ConstantType, NonnullOwnPtr<ProductNode>, NonnullOwnPtr<SumNode>, NonnullOwnPtr<InvertNode>, NonnullOwnPtr<NegateNode>, NonnullRawPtr<ComponentValue const>>;
+using Node = Variant<Operator, NonnullOwnPtr<ProductNode>, NonnullOwnPtr<SumNode>, NonnullOwnPtr<InvertNode>, NonnullOwnPtr<NegateNode>, NonnullRawPtr<ComponentValue const>>;
 struct ProductNode {
     Vector<Node> children;
 };
