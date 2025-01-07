@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Tuple.h>
 #include <LibCrypto/BigInt/Algorithms/UnsignedBigIntegerAlgorithms.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
@@ -568,6 +569,40 @@ TEST_CASE(test_signed_bigint_bitwise_xor)
     EXPECT_EQ(num1.bitwise_xor(num2), "-4"_sbigint);
     EXPECT_EQ(num2.bitwise_xor(num1), "-4"_sbigint);
     EXPECT_EQ(num2.bitwise_xor(num2), "0"_sbigint);
+}
+
+TEST_CASE(test_bigint_shift_right)
+{
+    Crypto::UnsignedBigInteger const num1(Vector<u32> { 0x100, 0x20, 0x4, 0x2, 0x1 });
+
+    size_t const tests1 = 11;
+    AK::Tuple<size_t, Vector<u32>> results1[] = {
+        { 8, { 0x20000001, 0x04000000, 0x02000000, 0x01000000 } },
+        { 16, { 0x00200000, 0x00040000, 0x00020000, 0x00010000 } }, // shift by exact number of words
+        { 32, { 0x00000020, 0x00000004, 0x00000002, 0x00000001 } }, // shift by exact number of words
+        { 36, { 0x40000002, 0x20000000, 0x10000000 } },
+        { 64, { 0x00000004, 0x00000002, 0x00000001 } }, // shift by exact number of words
+        { 72, { 0x02000000, 0x01000000 } },
+        { 80, { 0x00020000, 0x00010000 } },
+        { 88, { 0x00000200, 0x00000100 } },
+        { 128, { 0x00000001 } }, // shifted to most significant digit
+        { 129, {} },             // all digits have been shifted right
+        { 160, {} },
+    };
+
+    size_t const tests2 = 2;
+    Crypto::UnsignedBigInteger const num2(Vector<u32> { 0x44444444, 0xffffffff });
+
+    AK::Tuple<size_t, Vector<u32>> results2[] = {
+        { 1, { 0xa2222222, 0x7fffffff } },
+        { 2, { 0xd1111111, 0x3fffffff } },
+    };
+
+    for (size_t i = 0; i < tests1; ++i)
+        EXPECT_EQ(num1.shift_right(results1[i].get<0>()).words(), results1[i].get<1>());
+
+    for (size_t i = 0; i < tests2; ++i)
+        EXPECT_EQ(num2.shift_right(results2[i].get<0>()).words(), results2[i].get<1>());
 }
 
 TEST_CASE(test_signed_bigint_fibo500)
