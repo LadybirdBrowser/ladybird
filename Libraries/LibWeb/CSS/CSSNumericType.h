@@ -76,7 +76,6 @@ public:
     bool matches_length() const { return matches_dimension(BaseType::Length); }
     bool matches_length_percentage() const { return matches_dimension_percentage(BaseType::Length); }
     bool matches_number() const;
-    bool matches_number_percentage() const;
     bool matches_percentage() const;
     bool matches_resolution() const { return matches_dimension(BaseType::Resolution); }
     bool matches_resolution_percentage() const { return matches_dimension_percentage(BaseType::Resolution); }

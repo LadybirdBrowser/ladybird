@@ -446,14 +446,6 @@ bool CSSNumericType::matches_number() const
     return true;
 }
 
-// https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-match
-bool CSSNumericType::matches_number_percentage() const
-{
-    // FIXME: This is incorrect. <number-percentage> is not a legal type. Instead we should check separately if this
-    //        matches a number, or if it matches a percentage.
-    return matches_number() || matches_percentage();
-}
-
 bool CSSNumericType::matches_dimension() const
 {
     // This isn't a spec algorithm.

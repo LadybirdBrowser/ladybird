@@ -2491,45 +2491,24 @@ RefPtr<CSSStyleValue> Parser::parse_number_value(TokenStream<ComponentValue>& to
 RefPtr<CSSStyleValue> Parser::parse_number_percentage_value(TokenStream<ComponentValue>& tokens)
 {
     // Parses [<percentage> | <number>] (which is equivalent to [<alpha-value>])
-    auto const& peek_token = tokens.next_token();
-    if (peek_token.is(Token::Type::Number)) {
-        tokens.discard_a_token(); // number
-        return NumberStyleValue::create(peek_token.token().number().value());
-    }
-    if (peek_token.is(Token::Type::Percentage)) {
-        tokens.discard_a_token(); // percentage
-        return PercentageStyleValue::create(Percentage(peek_token.token().percentage()));
-    }
-    if (auto calc = parse_calculated_value(peek_token); calc && calc->resolves_to_number_percentage()) {
-        tokens.discard_a_token(); // calc
-        return calc;
-    }
-
+    if (auto value = parse_number_value(tokens))
+        return value;
+    if (auto value = parse_percentage_value(tokens))
+        return value;
     return nullptr;
 }
 
 RefPtr<CSSStyleValue> Parser::parse_number_percentage_none_value(TokenStream<ComponentValue>& tokens)
 {
     // Parses [<percentage> | <number> | none] (which is equivalent to [<alpha-value> | none])
-    auto peek_token = tokens.next_token();
-    if (peek_token.is(Token::Type::Number)) {
-        tokens.discard_a_token(); // number
-        return NumberStyleValue::create(peek_token.token().number().value());
-    }
-    if (peek_token.is(Token::Type::Percentage)) {
-        tokens.discard_a_token(); // percentage
-        return PercentageStyleValue::create(Percentage(peek_token.token().percentage()));
-    }
-    if (auto calc = parse_calculated_value(peek_token); calc && calc->resolves_to_number_percentage()) {
-        tokens.discard_a_token(); // calc
-        return calc;
-    }
-    if (peek_token.is(Token::Type::Ident)) {
-        auto keyword = keyword_from_string(peek_token.token().ident());
-        if (keyword.has_value() && keyword.value() == Keyword::None) {
-            tokens.discard_a_token(); // keyword none
-            return CSSKeywordValue::create(keyword.value());
-        }
+    if (auto value = parse_number_value(tokens))
+        return value;
+    if (auto value = parse_percentage_value(tokens))
+        return value;
+
+    if (tokens.next_token().is_ident("none"sv)) {
+        tokens.discard_a_token(); // keyword none
+        return CSSKeywordValue::create(Keyword::None);
     }
 
     return nullptr;
