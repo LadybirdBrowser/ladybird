@@ -30,6 +30,7 @@ struct SerializedEnvironmentSettingsObject {
     URL::Origin origin;
     PolicyContainer policy_container;
     CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability;
+    double time_origin;
 };
 
 }

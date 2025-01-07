@@ -16,11 +16,11 @@ EnvironmentSettingsSnapshot::EnvironmentSettingsSnapshot(NonnullOwnPtr<JS::Execu
     , m_url(serialized_settings.api_base_url)
     , m_origin(serialized_settings.origin)
     , m_policy_container(serialized_settings.policy_container)
+    , m_time_origin(serialized_settings.time_origin)
 {
     // Why can't we put these in the init list? grandparent class members are strange it seems
     this->id = serialized_settings.id;
     this->creation_url = serialized_settings.creation_url;
-    this->top_level_creation_url = serialized_settings.top_level_creation_url;
     this->top_level_creation_url = serialized_settings.top_level_creation_url;
 }
 

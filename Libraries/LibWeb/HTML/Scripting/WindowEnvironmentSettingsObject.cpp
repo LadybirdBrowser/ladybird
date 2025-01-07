@@ -117,6 +117,13 @@ PolicyContainer WindowEnvironmentSettingsObject::policy_container() const
     return m_window->associated_document().policy_container();
 }
 
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#script-settings-for-window-objects:concept-settings-object-time-origin
+double WindowEnvironmentSettingsObject::time_origin() const
+{
+    // Return window's associated Document's load timing info's navigation start time.
+    return m_window->associated_document().load_timing_info().navigation_start_time;
+}
+
 // https://html.spec.whatwg.org/multipage/window-object.html#script-settings-for-window-objects:concept-settings-object-cross-origin-isolated-capability
 CanUseCrossOriginIsolatedAPIs WindowEnvironmentSettingsObject::cross_origin_isolated_capability() const
 {

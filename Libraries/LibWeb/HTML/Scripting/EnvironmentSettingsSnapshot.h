@@ -28,12 +28,14 @@ public:
     URL::Origin origin() const override { return m_origin; }
     PolicyContainer policy_container() const override { return m_policy_container; }
     CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() const override { return CanUseCrossOriginIsolatedAPIs::No; }
+    double time_origin() const override { return m_time_origin; }
 
 private:
     String m_api_url_character_encoding;
     URL::URL m_url;
     URL::Origin m_origin;
     HTML::PolicyContainer m_policy_container;
+    double m_time_origin { 0 };
 };
 
 }

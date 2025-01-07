@@ -18,9 +18,10 @@ class WorkerEnvironmentSettingsObject final
     GC_DECLARE_ALLOCATOR(WorkerEnvironmentSettingsObject);
 
 public:
-    WorkerEnvironmentSettingsObject(NonnullOwnPtr<JS::ExecutionContext> execution_context, GC::Ref<WorkerGlobalScope> global_scope)
+    WorkerEnvironmentSettingsObject(NonnullOwnPtr<JS::ExecutionContext> execution_context, GC::Ref<WorkerGlobalScope> global_scope, HighResolutionTime::DOMHighResTimeStamp unsafe_worker_creation_time)
         : EnvironmentSettingsObject(move(execution_context))
         , m_global_scope(global_scope)
+        , m_unsafe_worker_creation_time(unsafe_worker_creation_time)
     {
     }
 
@@ -34,6 +35,7 @@ public:
     URL::Origin origin() const override;
     PolicyContainer policy_container() const override;
     CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() const override;
+    double time_origin() const override;
 
 private:
     virtual void visit_edges(JS::Cell::Visitor&) override;
@@ -42,6 +44,8 @@ private:
     URL::Origin m_origin;
 
     GC::Ref<WorkerGlobalScope> m_global_scope;
+
+    HighResolutionTime::DOMHighResTimeStamp m_unsafe_worker_creation_time { 0 };
 };
 
 }
