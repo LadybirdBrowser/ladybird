@@ -26,6 +26,7 @@ public:
     virtual URL::Origin origin() const override;
     virtual PolicyContainer policy_container() const override;
     virtual CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() const override;
+    virtual double time_origin() const override;
 
 private:
     WindowEnvironmentSettingsObject(Window&, NonnullOwnPtr<JS::ExecutionContext>);

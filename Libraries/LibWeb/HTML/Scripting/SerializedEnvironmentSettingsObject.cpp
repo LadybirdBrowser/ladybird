@@ -22,6 +22,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::SerializedEnvironmentSettingsO
     TRY(encoder.encode(object.origin));
     TRY(encoder.encode(object.policy_container));
     TRY(encoder.encode(object.cross_origin_isolated_capability));
+    TRY(encoder.encode(object.time_origin));
 
     return {};
 }
@@ -40,6 +41,7 @@ ErrorOr<Web::HTML::SerializedEnvironmentSettingsObject> decode(Decoder& decoder)
     object.origin = TRY(decoder.decode<URL::Origin>());
     object.policy_container = TRY(decoder.decode<Web::HTML::PolicyContainer>());
     object.cross_origin_isolated_capability = TRY(decoder.decode<Web::HTML::CanUseCrossOriginIsolatedAPIs>());
+    object.time_origin = TRY(decoder.decode<double>());
 
     return object;
 }

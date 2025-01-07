@@ -18,8 +18,6 @@ GC_DEFINE_ALLOCATOR(WorkerEnvironmentSettingsObject);
 // https://html.spec.whatwg.org/multipage/workers.html#set-up-a-worker-environment-settings-object
 GC::Ref<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(GC::Ref<Page> page, NonnullOwnPtr<JS::ExecutionContext> execution_context, SerializedEnvironmentSettingsObject const& outside_settings, HighResolutionTime::DOMHighResTimeStamp unsafe_worker_creation_time)
 {
-    (void)unsafe_worker_creation_time;
-
     // 1. Let inherited origin be outside settings's origin.
     auto inherited_origin = outside_settings.origin;
 
@@ -32,7 +30,7 @@ GC::Ref<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(
 
     // 4. Let settings object be a new environment settings object whose algorithms are defined as follows:
     // NOTE: See the functions defined for this class.
-    auto settings_object = realm->create<WorkerEnvironmentSettingsObject>(move(execution_context), worker);
+    auto settings_object = realm->create<WorkerEnvironmentSettingsObject>(move(execution_context), worker, unsafe_worker_creation_time);
     settings_object->target_browsing_context = nullptr;
     settings_object->m_origin = move(inherited_origin);
 
@@ -78,6 +76,12 @@ CanUseCrossOriginIsolatedAPIs WorkerEnvironmentSettingsObject::cross_origin_isol
 {
     // FIXME: Return worker global scope's cross-origin isolated capability.
     return CanUseCrossOriginIsolatedAPIs::No;
+}
+
+double WorkerEnvironmentSettingsObject::time_origin() const
+{
+    // Return the result of coarsening unsafeWorkerCreationTime with worker global scope's cross-origin isolated capability.
+    return HighResolutionTime::coarsen_time(m_unsafe_worker_creation_time, cross_origin_isolated_capability() == CanUseCrossOriginIsolatedAPIs::Yes);
 }
 
 void WorkerEnvironmentSettingsObject::visit_edges(JS::Cell::Visitor& visitor)
