@@ -229,22 +229,57 @@ bool command_delete_action(DOM::Document& document, String const&)
         break;
     }
 
-    // FIXME: 10. If offset is zero, and node has an editable inclusive ancestor in the same editing host
+    // 10. If offset is zero, and node has an editable inclusive ancestor in the same editing host
     //     that's an indentation element:
-    if (false) {
-        // FIXME: 1. Block-extend the range whose start and end are both (node, 0), and let new range be
-        //    the result.
+    if (offset == 0) {
+        bool has_matching_inclusive_ancestor = false;
+        node->for_each_inclusive_ancestor([&](GC::Ref<DOM::Node> ancestor) {
+            if (ancestor->is_editable() && is_in_same_editing_host(ancestor, *node)
+                && is_indentation_element(ancestor)) {
+                has_matching_inclusive_ancestor = true;
+                return IterationDecision::Break;
+            }
+            return IterationDecision::Continue;
+        });
+        if (has_matching_inclusive_ancestor) {
+            // 1. Block-extend the range whose start and end are both (node, 0), and let new range be
+            //    the result.
+            auto new_range = block_extend_a_range(DOM::Range::create(*node, 0, *node, 0));
 
-        // FIXME: 2. Let node list be a list of nodes, initially empty.
+            // 2. Let node list be a list of nodes, initially empty.
+            Vector<GC::Ref<DOM::Node>> node_list;
 
-        // FIXME: 3. For each node current node contained in new range, append current node to node list if
-        //    the last member of node list (if any) is not an ancestor of current node, and current
-        //    node is editable but has no editable descendants.
+            // 3. For each node current node contained in new range, append current node to node list if
+            //    the last member of node list (if any) is not an ancestor of current node, and current
+            //    node is editable but has no editable descendants.
+            new_range->for_each_contained([&node_list](GC::Ref<DOM::Node> current_node) {
+                if (!node_list.is_empty() && node_list.last()->is_ancestor_of(current_node))
+                    return IterationDecision::Continue;
 
-        // FIXME: 4. Outdent each node in node list.
+                if (!current_node->is_editable())
+                    return IterationDecision::Continue;
 
-        // 5. Return true.
-        return true;
+                bool has_editable_descendant = false;
+                current_node->for_each_in_subtree([&](DOM::Node const& descendant) {
+                    if (descendant.is_editable()) {
+                        has_editable_descendant = true;
+                        return TraversalDecision::Break;
+                    }
+                    return TraversalDecision::Continue;
+                });
+                if (!has_editable_descendant)
+                    node_list.append(current_node);
+
+                return IterationDecision::Continue;
+            });
+
+            // 4. Outdent each node in node list.
+            for (auto current_node : node_list)
+                outdent(current_node);
+
+            // 5. Return true.
+            return true;
+        }
     }
 
     // 11. If the child of start node with index start offset is a table, return true.
