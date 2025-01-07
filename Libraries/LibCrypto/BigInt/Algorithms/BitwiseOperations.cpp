@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2020, Itamar S. <itamar8910@gmail.com>
  * Copyright (c) 2020-2021, Dex♪ <dexes.ttp@gmail.com>
+ * Copyright (c) 2025, Manuel Zahariev <manuel@duck.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -221,13 +222,49 @@ FLATTEN ErrorOr<void> UnsignedBigIntegerAlgorithms::try_shift_left_without_alloc
     return {};
 }
 
+/**
+ * Complexity : O(N) where N is the number of words in the number
+ */
 FLATTEN void UnsignedBigIntegerAlgorithms::shift_right_without_allocation(
     UnsignedBigInteger const& number,
     size_t num_bits,
     UnsignedBigInteger& output)
 {
-    output.m_words.resize_and_keep_capacity(number.length() - (num_bits / UnsignedBigInteger::BITS_IN_WORD));
-    Ops::shift_right(number.words_span(), num_bits, output.words_span());
+    size_t const bit_shift = num_bits % UnsignedBigInteger::BITS_IN_WORD;
+    size_t const bit_shift_complement = UnsignedBigInteger::BITS_IN_WORD - bit_shift;
+    size_t const zero_based_index_of_highest_set_bit_in_hiword = (number.one_based_index_of_highest_set_bit() - 1) % UnsignedBigInteger::BITS_IN_WORD;
+
+    // true if the high word will be zeroed as a result of the shift
+    bool const hiword_zero = (bit_shift > zero_based_index_of_highest_set_bit_in_hiword);
+    size_t const word_shift = num_bits / UnsignedBigInteger::BITS_IN_WORD + (hiword_zero ? 1 : 0);
+
+    if (word_shift >= number.length()) { // all non-zero digits have been shifted right; result is zero
+        output.set_to_0();
+        return;
+    }
+
+    shift_right_by_n_words(number, word_shift, output);
+
+    if (bit_shift == 0) // shifting right by an exact number of words)
+        return;
+
+    size_t const output_length = output.length();
+    size_t number_index = number.length() - 1;
+
+    UnsignedBigInteger::Word carry = 0;
+
+    if (hiword_zero) {
+        carry = number.words().at(number_index) << bit_shift_complement;
+        --number_index;
+    }
+
+    for (size_t i = 0; i < output_length; ++i) {
+        size_t const output_index = output_length - i - 1; // downto index 0
+
+        output.m_words[output_index] = ((number.m_words.at(number_index) >> bit_shift)) | carry;
+        carry = (number.m_words.at(number_index) << bit_shift_complement);
+        --number_index;
+    }
 }
 
 void UnsignedBigIntegerAlgorithms::shift_left_by_n_words(
