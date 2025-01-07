@@ -37,6 +37,17 @@
 
 namespace Web::Editing {
 
+// https://w3c.github.io/editing/docs/execCommand/#active-range
+GC::Ptr<DOM::Range> active_range(DOM::Document const& document)
+{
+    // The active range is the range of the selection given by calling getSelection() on the context object. (Thus the
+    // active range may be null.)
+    auto selection = document.get_selection();
+    if (!selection)
+        return {};
+    return selection->range();
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#block-extend
 GC::Ref<DOM::Range> block_extend_a_range(GC::Ref<DOM::Range> range)
 {
@@ -463,21 +474,20 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
 
     // 1. If the active range is null, abort these steps and do nothing.
     // NOTE: The selection is collapsed often in this algorithm, so we shouldn't store the active range in a variable.
-    auto active_range = [&selection] { return selection.range(); };
-    if (!active_range())
+    if (!active_range(document))
         return;
 
     // 2. Canonicalize whitespace at the active range's start.
-    canonicalize_whitespace(active_range()->start());
+    canonicalize_whitespace(active_range(document)->start());
 
     // 3. Canonicalize whitespace at the active range's end.
-    canonicalize_whitespace(active_range()->end());
+    canonicalize_whitespace(active_range(document)->end());
 
     // 4. Let (start node, start offset) be the last equivalent point for the active range's start.
-    auto start = last_equivalent_point(active_range()->start());
+    auto start = last_equivalent_point(active_range(document)->start());
 
     // 5. Let (end node, end offset) be the first equivalent point for the active range's end.
-    auto end = first_equivalent_point(active_range()->end());
+    auto end = first_equivalent_point(active_range(document)->end());
 
     // 6. If (end node, end offset) is not after (start node, start offset):
     auto relative_position = DOM::position_of_boundary_point_relative_to_other_boundary_point({ end.node, end.offset }, { start.node, start.offset });
@@ -521,7 +531,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
     MUST(selection.extend(end.node, end.offset));
 
     // 12. Let start block be the active range's start node.
-    GC::Ptr<DOM::Node> start_block = active_range()->start_container();
+    GC::Ptr<DOM::Node> start_block = active_range(document)->start_container();
 
     // 13. While start block's parent is in the same editing host and start block is an inline node, set start block to
     //     its parent.
@@ -536,7 +546,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         start_block = {};
 
     // 15. Let end block be the active range's end node.
-    GC::Ptr<DOM::Node> end_block = active_range()->end_container();
+    GC::Ptr<DOM::Node> end_block = active_range(document)->end_container();
 
     // 16. While end block's parent is in the same editing host and end block is an inline node, set end block to its
     //     parent.
@@ -551,7 +561,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         end_block = {};
 
     // 19. Record current states and values, and let overrides be the result.
-    auto overrides = record_current_states_and_values(*active_range());
+    auto overrides = record_current_states_and_values(*active_range(document));
 
     // 21. If start node and end node are the same, and start node is an editable Text node:
     if (start.node == end.node && is<DOM::Text>(*start.node) && start.node->is_editable()) {
@@ -588,7 +598,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
 
     // 24. For each node contained in the active range, append node to node list if the last member of node list (if
     //     any) is not an ancestor of node; node is editable; and node is not a thead, tbody, tfoot, tr, th, or td.
-    active_range()->for_each_contained([&node_list](GC::Ref<DOM::Node> node) {
+    active_range(document)->for_each_contained([&node_list](GC::Ref<DOM::Node> node) {
         if (!node_list.is_empty() && node_list.last()->is_ancestor_of(node))
             return IterationDecision::Continue;
 
@@ -633,10 +643,10 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         MUST(static_cast<DOM::Text&>(*end.node).delete_data(0, end.offset));
 
     // 27. Canonicalize whitespace at the active range's start, with fix collapsed space false.
-    canonicalize_whitespace(active_range()->start(), false);
+    canonicalize_whitespace(active_range(document)->start(), false);
 
     // 28. Canonicalize whitespace at the active range's end, with fix collapsed space false.
-    canonicalize_whitespace(active_range()->end(), false);
+    canonicalize_whitespace(active_range(document)->end(), false);
 
     // 30. If block merging is false, or start block or end block is null, or start block is not in the same editing
     //     host as end block, or start block and end block are the same:
@@ -702,7 +712,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
                 end_block->remove();
 
             // 4. Restore states and values from overrides.
-            restore_states_and_values(*active_range(), overrides);
+            restore_states_and_values(*active_range(document), overrides);
 
             // 5. Abort these steps.
             return;
@@ -711,7 +721,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
         // 5. If end block's firstChild is not an inline node, restore states and values from record, then abort these
         //    steps.
         if (!is_inline_node(*end_block->first_child())) {
-            restore_states_and_values(*active_range(), overrides);
+            restore_states_and_values(*active_range(document), overrides);
             return;
         }
 
@@ -873,7 +883,7 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
     remove_extraneous_line_breaks_at_the_end_of_node(*start_block);
 
     // 41. Restore states and values from overrides.
-    restore_states_and_values(*active_range(), overrides);
+    restore_states_and_values(*active_range(document), overrides);
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#editing-host-of
