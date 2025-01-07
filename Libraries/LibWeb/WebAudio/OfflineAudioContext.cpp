@@ -7,6 +7,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/WebAudio/AudioDestinationNode.h>
 #include <LibWeb/WebAudio/OfflineAudioContext.h>
 
 namespace Web::WebAudio {
@@ -26,7 +27,9 @@ WebIDL::ExceptionOr<GC::Ref<OfflineAudioContext>> OfflineAudioContext::construct
     // A NotSupportedError exception MUST be thrown if any of the arguments is negative, zero, or outside its nominal range.
     TRY(verify_audio_options_inside_nominal_range(realm, number_of_channels, length, sample_rate));
 
-    return realm.create<OfflineAudioContext>(realm, number_of_channels, length, sample_rate);
+    auto context = realm.create<OfflineAudioContext>(realm, length, sample_rate);
+    context->m_destination = TRY(AudioDestinationNode::construct_impl(realm, context, number_of_channels));
+    return context;
 }
 
 OfflineAudioContext::~OfflineAudioContext() = default;
@@ -67,16 +70,10 @@ void OfflineAudioContext::set_oncomplete(GC::Ptr<WebIDL::CallbackType> value)
     set_event_handler_attribute(HTML::EventNames::complete, value);
 }
 
-OfflineAudioContext::OfflineAudioContext(JS::Realm& realm, OfflineAudioContextOptions const&)
-    : BaseAudioContext(realm)
-{
-}
-
-OfflineAudioContext::OfflineAudioContext(JS::Realm& realm, WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate)
+OfflineAudioContext::OfflineAudioContext(JS::Realm& realm, WebIDL::UnsignedLong length, float sample_rate)
     : BaseAudioContext(realm, sample_rate)
     , m_length(length)
 {
-    (void)number_of_channels;
 }
 
 void OfflineAudioContext::initialize(JS::Realm& realm)
