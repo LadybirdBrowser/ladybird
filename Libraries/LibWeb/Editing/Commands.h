@@ -23,12 +23,13 @@ struct CommandDefinition {
     bool preserves_overrides { false };
 
     // https://w3c.github.io/editing/docs/execCommand/#inline-command-activated-values
-    Vector<String> inline_activated_values {};
+    Vector<StringView> inline_activated_values {};
 };
 
 Optional<CommandDefinition const&> find_command_definition(FlyString const&);
 
 // Command implementations
+bool command_bold_action(DOM::Document&, String const&);
 bool command_default_paragraph_separator_action(DOM::Document&, String const&);
 String command_default_paragraph_separator_value(DOM::Document const&);
 bool command_delete_action(DOM::Document&, String const&);

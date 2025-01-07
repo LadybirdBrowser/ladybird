@@ -25,6 +25,23 @@
 
 namespace Web::Editing {
 
+// https://w3c.github.io/editing/docs/execCommand/#the-bold-command
+bool command_bold_action(DOM::Document& document, String const&)
+{
+    // If queryCommandState("bold") returns true, set the selection's value to "normal".
+    if (document.query_command_state(CommandNames::bold)) {
+        set_the_selections_value(document, CommandNames::bold, "normal"_string);
+    }
+
+    // Otherwise set the selection's value to "bold".
+    else {
+        set_the_selections_value(document, CommandNames::bold, "bold"_string);
+    }
+
+    // Either way, return true.
+    return true;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-defaultparagraphseparator-command
 bool command_default_paragraph_separator_action(DOM::Document& document, String const& input_value)
 {
@@ -822,6 +839,13 @@ bool command_style_with_css_state(DOM::Document const& document)
 }
 
 static Array const commands {
+    // https://w3c.github.io/editing/docs/execCommand/#the-bold-command
+    CommandDefinition {
+        .command = CommandNames::bold,
+        .action = command_bold_action,
+        .relevant_css_property = CSS::PropertyID::FontWeight,
+        .inline_activated_values = { "bold"sv, "600"sv, "700"sv, "800"sv, "900"sv },
+    },
     // https://w3c.github.io/editing/docs/execCommand/#the-delete-command
     CommandDefinition {
         .command = CommandNames::delete_,
