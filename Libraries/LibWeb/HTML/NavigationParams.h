@@ -20,6 +20,13 @@
 
 namespace Web::HTML {
 
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#user-navigation-involvement
+enum class UserNavigationInvolvement {
+    BrowserUI,
+    Activation,
+    None,
+};
+
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigation-params
 struct NavigationParams : JS::Cell {
     GC_CELL(NavigationParams, JS::Cell);
@@ -66,6 +73,9 @@ struct NavigationParams : JS::Cell {
     // a URL or null used to populate the new Document's about base URL
     Optional<URL::URL> about_base_url;
 
+    // a user navigation involvement used when obtaining a browsing context for the new Document
+    UserNavigationInvolvement user_involvement;
+
     void visit_edges(Visitor& visitor) override;
 };
 
@@ -93,6 +103,9 @@ struct NonFetchSchemeNavigationParams : JS::Cell {
     URL::Origin initiator_origin;
 
     // FIXME: a NavigationTimingType used for creating the navigation timing entry for the new Document
+
+    // a user navigation involvement used when obtaining a browsing context for the new Document (if one is created)
+    UserNavigationInvolvement user_involvement;
 
     void visit_edges(Visitor& visitor) override;
 };
