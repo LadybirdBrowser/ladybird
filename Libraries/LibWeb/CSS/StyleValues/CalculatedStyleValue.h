@@ -99,7 +99,6 @@ public:
     Optional<Time> resolve_time_percentage(Time const& percentage_basis) const;
 
     bool resolves_to_number() const { return m_resolved_type.matches_number(); }
-    bool resolves_to_number_percentage() const { return m_resolved_type.matches_number_percentage(); }
     Optional<double> resolve_number() const;
     Optional<double> resolve_number(Length::ResolutionContext const&) const;
     Optional<double> resolve_number(Layout::Node const& layout_node) const;
