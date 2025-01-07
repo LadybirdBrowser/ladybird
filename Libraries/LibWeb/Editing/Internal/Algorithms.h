@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2024-2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -31,7 +31,7 @@ using Selection::Selection;
 // Below algorithms are specified here:
 // https://w3c.github.io/editing/docs/execCommand/#assorted-common-algorithms
 
-GC::Ref<DOM::Range> block_extend_a_range(DOM::Range&);
+GC::Ref<DOM::Range> block_extend_a_range(GC::Ref<DOM::Range>);
 GC::Ptr<DOM::Node> block_node_of_node(GC::Ref<DOM::Node>);
 String canonical_space_sequence(u32 length, bool non_breaking_start, bool non_breaking_end);
 void canonicalize_whitespace(DOM::BoundaryPoint, bool fix_collapsed_space = true);
