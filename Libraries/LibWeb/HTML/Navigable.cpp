@@ -1430,14 +1430,25 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         //    otherwise, StructuredSerializeForStorage(undefined).
         auto navigation_api_state_for_firing = navigation_api_state.value_or(MUST(structured_serialize_for_storage(vm, JS::js_undefined())));
 
-        // FIXME: 4. Let continue be the result of firing a push/replace/reload navigate event at navigation
-        //           with navigationType set to historyHandling, isSameDocument set to false, userInvolvement set to userInvolvement,
-        //           formDataEntryList set to entryListForFiring, destinationURL set to url, and navigationAPIState set to navigationAPIStateForFiring.
-        (void)navigation;
-        (void)entry_list_for_firing;
-        (void)navigation_api_state_for_firing;
+        // 4. Let continue be the result of firing a push/replace/reload navigate event at navigation
+        //    with navigationType set to historyHandling, isSameDocument set to false, userInvolvement set to userInvolvement,
+        //    formDataEntryList set to entryListForFiring, destinationURL set to url, and navigationAPIState set to navigationAPIStateForFiring.
+        auto navigation_type = [](Bindings::NavigationHistoryBehavior history_handling) {
+            switch (history_handling) {
+            case Bindings::NavigationHistoryBehavior::Push:
+                return Bindings::NavigationType::Push;
+            case Bindings::NavigationHistoryBehavior::Replace:
+                return Bindings::NavigationType::Replace;
+            case Bindings::NavigationHistoryBehavior::Auto:
+            default:
+                VERIFY_NOT_REACHED();
+            }
+        }(history_handling);
+        auto continue_ = navigation->fire_a_push_replace_reload_navigate_event(navigation_type, url, false, user_involvement, entry_list_for_firing, navigation_api_state_for_firing);
 
-        // FIXME: 5. If continue is false, then return.
+        // 5. If continue is false, then return.
+        if (!continue_)
+            return {};
     }
 
     // AD-HOC: Tell the UI that we started loading.
