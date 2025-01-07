@@ -24,6 +24,7 @@
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
+#include <LibWeb/HTML/HTMLDivElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLFontElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
@@ -1530,6 +1531,48 @@ void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional
     }
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#indent
+void indent(Vector<GC::Ref<DOM::Node>> node_list)
+{
+    // 1. If node list is empty, do nothing and abort these steps.
+    if (node_list.is_empty())
+        return;
+
+    // 2. Let first node be the first member of node list.
+    auto first_node = node_list.first();
+
+    // 3. If first node's parent is an ol or ul:
+    if (is<HTML::HTMLOListElement>(first_node->parent()) || is<HTML::HTMLUListElement>(first_node->parent())) {
+        // 1. Let tag be the local name of the parent of first node.
+        auto tag = static_cast<DOM::Element*>(first_node->parent())->local_name();
+
+        // 2. Wrap node list, with sibling criteria returning true for an HTML element with local name tag and false
+        //    otherwise, and new parent instructions returning the result of calling createElement(tag) on the
+        //    ownerDocument of first node.
+        wrap(
+            node_list,
+            [&](GC::Ref<DOM::Node> sibling) {
+                return is<DOM::Element>(*sibling) && static_cast<DOM::Element&>(*sibling).local_name() == tag;
+            },
+            [&] { return MUST(DOM::create_element(*first_node->owner_document(), tag, Namespace::HTML)); });
+
+        // 3. Abort these steps.
+        return;
+    }
+
+    // 4. Wrap node list, with sibling criteria returning true for a simple indentation element and false otherwise, and
+    //    new parent instructions returning the result of calling createElement("blockquote") on the ownerDocument of
+    //    first node. Let new parent be the result.
+    auto new_parent = wrap(
+        node_list,
+        [&](GC::Ref<DOM::Node> sibling) { return is_simple_indentation_element(sibling); },
+        [&] { return MUST(DOM::create_element(*first_node->owner_document(), HTML::TagNames::blockquote, Namespace::HTML)); });
+
+    // 5. Fix disallowed ancestors of new parent.
+    if (new_parent)
+        fix_disallowed_ancestors_of_node(*new_parent);
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#allowed-child
 bool is_allowed_child_of_node(Variant<GC::Ref<DOM::Node>, FlyString> child, Variant<GC::Ref<DOM::Node>, FlyString> parent)
 {
@@ -2005,6 +2048,26 @@ bool is_in_same_editing_host(GC::Ref<DOM::Node> node_a, GC::Ref<DOM::Node> node_
     return editing_host_a && editing_host_a == editing_host_b;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#indentation-element
+bool is_indentation_element(GC::Ref<DOM::Node> node)
+{
+    // An indentation element is either a blockquote,
+    if (!is<DOM::Element>(*node))
+        return false;
+    auto& element = static_cast<DOM::Element&>(*node);
+    if (element.local_name() == HTML::TagNames::blockquote)
+        return true;
+
+    // or a div that has a style attribute that sets "margin" or some subproperty of it.
+    auto inline_style = element.inline_style();
+    return is<HTML::HTMLDivElement>(element)
+        && element.has_attribute(HTML::AttributeNames::style)
+        && inline_style
+        && (!inline_style->margin().is_empty() || !inline_style->margin_top().is_empty()
+            || !inline_style->margin_right().is_empty() || !inline_style->margin_bottom().is_empty()
+            || !inline_style->margin_left().is_empty());
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#inline-node
 bool is_inline_node(GC::Ref<DOM::Node> node)
 {
@@ -2181,6 +2244,57 @@ bool is_prohibited_paragraph_child_name(FlyString const& local_name)
         HTML::TagNames::tr,
         HTML::TagNames::ul,
         HTML::TagNames::xmp);
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#simple-indentation-element
+bool is_simple_indentation_element(GC::Ref<DOM::Node> node)
+{
+    // A simple indentation element is an indentation element
+    if (!is_indentation_element(node))
+        return false;
+    auto const& element = static_cast<DOM::Element&>(*node);
+    auto inline_style = element.inline_style();
+
+    // that has no attributes except possibly
+    bool has_only_valid_attributes = true;
+    element.for_each_attribute([&](DOM::Attr const& attribute) {
+        // * a style attribute that sets no properties other than "margin", "border", "padding", or subproperties of
+        //   those;
+        if (attribute.local_name() == HTML::AttributeNames::style) {
+            if (!inline_style)
+                return;
+            for (auto& style_property : inline_style->properties()) {
+                switch (style_property.property_id) {
+                case CSS::PropertyID::Border:
+                case CSS::PropertyID::BorderBottom:
+                case CSS::PropertyID::BorderLeft:
+                case CSS::PropertyID::BorderRight:
+                case CSS::PropertyID::BorderTop:
+                case CSS::PropertyID::Margin:
+                case CSS::PropertyID::MarginBottom:
+                case CSS::PropertyID::MarginLeft:
+                case CSS::PropertyID::MarginRight:
+                case CSS::PropertyID::MarginTop:
+                case CSS::PropertyID::Padding:
+                case CSS::PropertyID::PaddingBottom:
+                case CSS::PropertyID::PaddingLeft:
+                case CSS::PropertyID::PaddingRight:
+                case CSS::PropertyID::PaddingTop:
+                    // Allowed
+                    break;
+                default:
+                    has_only_valid_attributes = false;
+                    return;
+                }
+            }
+        }
+
+        // * and/or a dir attribute.
+        else if (attribute.local_name() != HTML::AttributeNames::dir) {
+            has_only_valid_attributes = false;
+        }
+    });
+    return has_only_valid_attributes;
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#simple-modifiable-element
@@ -2547,6 +2661,168 @@ void normalize_sublists_in_node(GC::Ref<DOM::Node> item)
             move_node_preserving_ranges(child, *new_item, 0);
         }
     }
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#outdent
+void outdent(GC::Ref<DOM::Node> node)
+{
+    // 1. If node is not editable, abort these steps.
+    if (!node->is_editable())
+        return;
+
+    // 2. If node is a simple indentation element, remove node, preserving its descendants. Then abort these steps.
+    if (is_simple_indentation_element(node)) {
+        remove_node_preserving_its_descendants(node);
+        return;
+    }
+
+    // 3. If node is an indentation element:
+    if (is_indentation_element(node)) {
+        // 1. Unset the dir attribute of node, if any.
+        auto& element = static_cast<DOM::Element&>(*node);
+        element.remove_attribute(HTML::AttributeNames::dir);
+
+        // 2. Unset the margin, padding, and border CSS properties of node.
+        if (auto inline_style = element.inline_style()) {
+            MUST(inline_style->remove_property(CSS::string_from_property_id(CSS::PropertyID::Border)));
+            MUST(inline_style->remove_property(CSS::string_from_property_id(CSS::PropertyID::Margin)));
+            MUST(inline_style->remove_property(CSS::string_from_property_id(CSS::PropertyID::Padding)));
+        }
+
+        // 3. Set the tag name of node to "div".
+        set_the_tag_name(element, HTML::TagNames::div);
+
+        // 4. Abort these steps.
+        return;
+    }
+
+    // 4. Let current ancestor be node's parent.
+    GC::Ptr<DOM::Node> current_ancestor = node->parent();
+
+    // 5. Let ancestor list be a list of nodes, initially empty.
+    Vector<GC::Ref<DOM::Node>> ancestor_list;
+
+    // 6. While current ancestor is an editable Element that is neither a simple indentation element nor an ol nor a ul,
+    //    append current ancestor to ancestor list and then set current ancestor to its parent.
+    while (is<DOM::Element>(current_ancestor.ptr())
+        && current_ancestor->is_editable()
+        && !is_simple_indentation_element(*current_ancestor)
+        && !is<HTML::HTMLOListElement>(*current_ancestor)
+        && !is<HTML::HTMLUListElement>(*current_ancestor)) {
+        ancestor_list.append(*current_ancestor);
+        current_ancestor = current_ancestor->parent();
+    }
+
+    // 7. If current ancestor is not an editable simple indentation element:
+    if (!current_ancestor || !current_ancestor->is_editable() || !is_simple_indentation_element(*current_ancestor)) {
+        // 1. Let current ancestor be node's parent.
+        current_ancestor = node->parent();
+
+        // 2. Let ancestor list be the empty list.
+        ancestor_list.clear_with_capacity();
+
+        // 3. While current ancestor is an editable Element that is neither an indentation element nor an ol nor a ul,
+        //    append current ancestor to ancestor list and then set current ancestor to its parent.
+        while (is<DOM::Element>(current_ancestor.ptr())
+            && current_ancestor->is_editable()
+            && !is_indentation_element(*current_ancestor)
+            && !is<HTML::HTMLOListElement>(*current_ancestor)
+            && !is<HTML::HTMLUListElement>(*current_ancestor)) {
+            ancestor_list.append(*current_ancestor);
+            current_ancestor = current_ancestor->parent();
+        }
+    }
+
+    // 8. If node is an ol or ul and current ancestor is not an editable indentation element:
+    if ((is<HTML::HTMLOListElement>(*node) || is<HTML::HTMLUListElement>(*node))
+        && !(current_ancestor->is_editable() && is_indentation_element(*current_ancestor))) {
+        // 1. Unset the reversed, start, and type attributes of node, if any are set.
+        auto& node_element = static_cast<DOM::Element&>(*node);
+        node_element.remove_attribute(HTML::AttributeNames::reversed);
+        node_element.remove_attribute(HTML::AttributeNames::start);
+        node_element.remove_attribute(HTML::AttributeNames::type);
+
+        // 2. Let children be the children of node.
+        Vector<GC::Ref<DOM::Node>> children;
+        for (auto* child = node->first_child(); child; child = child->next_sibling())
+            children.append(*child);
+
+        // 3. If node has attributes, and its parent is not an ol or ul, set the tag name of node to "div".
+        if (node_element.has_attributes() && !is<HTML::HTMLOListElement>(node->parent())
+            && !is<HTML::HTMLUListElement>(node->parent())) {
+            set_the_tag_name(node_element, HTML::TagNames::div);
+        }
+
+        // 4. Otherwise:
+        else {
+            // 1. Record the values of node's children, and let values be the result.
+            auto values = record_the_values_of_nodes(children);
+
+            // 2. Remove node, preserving its descendants.
+            remove_node_preserving_its_descendants(node);
+
+            // 3. Restore the values from values.
+            restore_the_values_of_nodes(values);
+        }
+
+        // 5. Fix disallowed ancestors of each member of children.
+        for (auto child : children)
+            fix_disallowed_ancestors_of_node(*child);
+
+        // 6. Abort these steps.
+        return;
+    }
+
+    // 9. If current ancestor is not an editable indentation element, abort these steps.
+    if (!current_ancestor || !current_ancestor->is_editable() || !is_indentation_element(*current_ancestor))
+        return;
+
+    // 10. Append current ancestor to ancestor list.
+    ancestor_list.append(*current_ancestor);
+
+    // 11. Let original ancestor be current ancestor.
+    auto original_ancestor = current_ancestor;
+
+    // 12. While ancestor list is not empty:
+    while (!ancestor_list.is_empty()) {
+        // 1. Let current ancestor be the last member of ancestor list.
+        // 2. Remove the last member from ancestor list.
+        current_ancestor = ancestor_list.take_last();
+
+        // 3. Let target be the child of current ancestor that is equal to either node or the last member of ancestor
+        //    list.
+        GC::Ptr<DOM::Node> target;
+        for (auto* child = current_ancestor->first_child(); child; child = child->next_sibling()) {
+            if (child == node.ptr() || (!ancestor_list.is_empty() && child == ancestor_list.last().ptr())) {
+                target = child;
+                break;
+            }
+        }
+        VERIFY(target);
+
+        // 4. If target is an inline node that is not a br, and its nextSibling is a br, remove target's nextSibling
+        //    from its parent.
+        if (is_inline_node(*target) && !is<HTML::HTMLBRElement>(*target) && is<HTML::HTMLBRElement>(target->next_sibling()))
+            target->next_sibling()->remove();
+
+        // 5. Let preceding siblings be the precedings siblings of target, and let following siblings be the followings
+        //    siblings of target.
+        Vector<GC::Ref<DOM::Node>> preceding_siblings;
+        for (auto* sibling = target->previous_sibling(); sibling; sibling = sibling->previous_sibling())
+            preceding_siblings.append(*sibling);
+        Vector<GC::Ref<DOM::Node>> following_siblings;
+        for (auto* sibling = target->next_sibling(); sibling; sibling = sibling->next_sibling())
+            following_siblings.append(*sibling);
+
+        // 6. Indent preceding siblings.
+        indent(preceding_siblings);
+
+        // 7. Indent following siblings.
+        indent(following_siblings);
+    }
+
+    // 13. Outdent original ancestor.
+    outdent(*original_ancestor);
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#precedes-a-line-break
