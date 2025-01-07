@@ -1325,11 +1325,18 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         return {};
     }
 
-    // FIXME: 9. Let container be navigable's container.
-    // 10. If container is an iframe element and will lazy load element steps given container returns true,
+    // 9. Let container be navigable's container.
+    auto& container = m_container;
 
-    // FIXME: 10. If container is an iframe element and will lazy load element steps given container returns true,
+    // 10. If container is an iframe element and will lazy load element steps given container returns true,
     //     then stop intersection-observing a lazy loading element container and set container's lazy load resumption steps to null.
+    if (container && container->is_html_iframe_element()) {
+        auto& iframe_element = static_cast<HTMLIFrameElement&>(*container);
+        if (iframe_element.will_lazy_load_element()) {
+            iframe_element.document().stop_intersection_observing_a_lazy_loading_element(iframe_element);
+            iframe_element.set_lazy_load_resumption_steps(nullptr);
+        }
+    }
 
     // 11. If historyHandling is "auto", then:
     if (history_handling == Bindings::NavigationHistoryBehavior::Auto) {
