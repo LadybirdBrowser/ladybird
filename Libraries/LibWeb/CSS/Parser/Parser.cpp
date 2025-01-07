@@ -8834,13 +8834,6 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
         }
         return {};
     };
-    auto any_property_accepts_type_percentage = [](ReadonlySpan<PropertyID> property_ids, ValueType value_type) -> Optional<PropertyID> {
-        for (auto const& property : property_ids) {
-            if (property_accepts_type(property, value_type) && property_accepts_type(property, ValueType::Percentage))
-                return property;
-        }
-        return {};
-    };
     auto any_property_accepts_keyword = [](ReadonlySpan<PropertyID> property_ids, Keyword keyword) -> Optional<PropertyID> {
         for (auto const& property : property_ids) {
             if (property_accepts_keyword(property, keyword))
@@ -8909,38 +8902,9 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
             return PropertyAndValue { *property, maybe_ratio };
     }
 
-    auto property_accepting_integer = any_property_accepts_type(property_ids, ValueType::Integer);
-    auto property_accepting_number = any_property_accepts_type(property_ids, ValueType::Number);
-    bool property_accepts_numeric = property_accepting_integer.has_value() || property_accepting_number.has_value();
-
-    if (peek_token.is(Token::Type::Number) && property_accepts_numeric) {
-        if (peek_token.token().number().is_integer() && property_accepting_integer.has_value()) {
-            auto integer = IntegerStyleValue::create(peek_token.token().number().integer_value());
-            if (property_accepts_integer(*property_accepting_integer, integer->as_integer().integer())) {
-                tokens.discard_a_token(); // integer
-                return PropertyAndValue { *property_accepting_integer, integer };
-            }
-        }
-        if (property_accepting_number.has_value()) {
-            auto number = NumberStyleValue::create(peek_token.token().number().value());
-            if (property_accepts_number(*property_accepting_number, number->as_number().number())) {
-                tokens.discard_a_token(); // number
-                return PropertyAndValue { *property_accepting_number, number };
-            }
-        }
-    }
-
     if (auto property = any_property_accepts_type(property_ids, ValueType::OpenTypeTag); property.has_value()) {
         if (auto maybe_rect = parse_opentype_tag_value(tokens))
             return PropertyAndValue { *property, maybe_rect };
-    }
-
-    if (peek_token.is(Token::Type::Percentage)) {
-        auto percentage = Percentage(peek_token.token().percentage());
-        if (auto property = any_property_accepts_type(property_ids, ValueType::Percentage); property.has_value() && property_accepts_percentage(*property, percentage)) {
-            tokens.discard_a_token();
-            return PropertyAndValue { *property, PercentageStyleValue::create(percentage) };
-        }
     }
 
     if (auto property = any_property_accepts_type(property_ids, ValueType::Rect); property.has_value()) {
@@ -8958,132 +8922,126 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
             return PropertyAndValue { *property, url };
     }
 
-    bool property_accepts_dimension = any_property_accepts_type(property_ids, ValueType::Angle).has_value()
-        || any_property_accepts_type(property_ids, ValueType::Flex).has_value()
-        || any_property_accepts_type(property_ids, ValueType::Frequency).has_value()
-        || any_property_accepts_type(property_ids, ValueType::Length).has_value()
-        || any_property_accepts_type(property_ids, ValueType::Percentage).has_value()
-        || any_property_accepts_type(property_ids, ValueType::Resolution).has_value()
-        || any_property_accepts_type(property_ids, ValueType::Time).has_value();
-
-    if (property_accepts_dimension) {
-        if (peek_token.is(Token::Type::Number) && m_context.is_parsing_svg_presentation_attribute()) {
-            auto transaction = tokens.begin_transaction();
-            auto const& token = tokens.consume_a_token();
-            // https://svgwg.org/svg2-draft/types.html#presentation-attribute-css-value
-            // We need to allow <number> in any place that expects a <length> or <angle>.
-            // FIXME: How should these numbers be interpreted? https://github.com/w3c/svgwg/issues/792
-            //        For now: Convert them to px lengths, or deg angles.
-            auto angle = Angle::make_degrees(token.token().number_value());
-            if (auto property = any_property_accepts_type(property_ids, ValueType::Angle); property.has_value() && property_accepts_angle(*property, angle)) {
-                transaction.commit();
-                return PropertyAndValue { *property, AngleStyleValue::create(angle) };
-            }
-            auto length = Length::make_px(CSSPixels::nearest_value_for(token.token().number_value()));
-            if (auto property = any_property_accepts_type(property_ids, ValueType::Length); property.has_value() && property_accepts_length(*property, length)) {
-                transaction.commit();
-                return PropertyAndValue { *property, LengthStyleValue::create(length) };
-            }
-        }
-
-        auto transaction = tokens.begin_transaction();
-        if (auto maybe_dimension = parse_dimension(peek_token); maybe_dimension.has_value()) {
-            tokens.discard_a_token();
-            auto dimension = maybe_dimension.release_value();
-            if (dimension.is_angle()) {
-                auto angle = dimension.angle();
-                if (auto property = any_property_accepts_type(property_ids, ValueType::Angle); property.has_value() && property_accepts_angle(*property, angle)) {
-                    transaction.commit();
-                    return PropertyAndValue { *property, AngleStyleValue::create(angle) };
-                }
-            }
-            if (dimension.is_flex()) {
-                auto flex = dimension.flex();
-                if (auto property = any_property_accepts_type(property_ids, ValueType::Flex); property.has_value() && property_accepts_flex(*property, flex)) {
-                    transaction.commit();
-                    return PropertyAndValue { *property, FlexStyleValue::create(flex) };
-                }
-            }
-            if (dimension.is_frequency()) {
-                auto frequency = dimension.frequency();
-                if (auto property = any_property_accepts_type(property_ids, ValueType::Frequency); property.has_value() && property_accepts_frequency(*property, frequency)) {
-                    transaction.commit();
-                    return PropertyAndValue { *property, FrequencyStyleValue::create(frequency) };
-                }
-            }
-            if (dimension.is_length()) {
-                auto length = dimension.length();
-                if (auto property = any_property_accepts_type(property_ids, ValueType::Length); property.has_value() && property_accepts_length(*property, length)) {
-                    transaction.commit();
-                    return PropertyAndValue { *property, LengthStyleValue::create(length) };
-                }
-            }
-            if (dimension.is_resolution()) {
-                auto resolution = dimension.resolution();
-                if (auto property = any_property_accepts_type(property_ids, ValueType::Resolution); property.has_value() && property_accepts_resolution(*property, resolution)) {
-                    transaction.commit();
-                    return PropertyAndValue { *property, ResolutionStyleValue::create(resolution) };
-                }
-            }
-            if (dimension.is_time()) {
-                auto time = dimension.time();
-                if (auto property = any_property_accepts_type(property_ids, ValueType::Time); property.has_value() && property_accepts_time(*property, time)) {
-                    transaction.commit();
-                    return PropertyAndValue { *property, TimeStyleValue::create(time) };
-                }
-            }
+    // <integer>/<number> come before <length>, so that 0 is not interpreted as a <length> in case both are allowed.
+    if (auto property = any_property_accepts_type(property_ids, ValueType::Integer); property.has_value()) {
+        if (auto value = parse_integer_value(tokens)) {
+            if (value->is_calculated())
+                return PropertyAndValue { *property, value };
+            if (value->is_integer() && property_accepts_integer(*property, value->as_integer().integer()))
+                return PropertyAndValue { *property, value };
         }
     }
 
-    // In order to not end up parsing `calc()` and other math expressions multiple times,
-    // we parse it once, and then see if its resolved type matches what the property accepts.
-    if (peek_token.is_function() && (property_accepts_dimension || property_accepts_numeric)) {
-        if (auto maybe_calculated = parse_calculated_value(peek_token); maybe_calculated) {
-            tokens.discard_a_token();
-            auto& calculated = *maybe_calculated;
-            // This is a bit sensitive to ordering: `<foo>` and `<percentage>` have to be checked before `<foo-percentage>`.
-            // FIXME: When parsing SVG presentation attributes, <number> is permitted wherever <length>, <length-percentage>, or <angle> are.
-            //        The specifics are unclear, so I'm ignoring this for calculated values for now.
-            //        See https://github.com/w3c/svgwg/issues/792
-            if (calculated.resolves_to_percentage()) {
-                if (auto property = any_property_accepts_type(property_ids, ValueType::Percentage); property.has_value())
-                    return PropertyAndValue { *property, calculated };
-            } else if (calculated.resolves_to_angle()) {
-                if (auto property = any_property_accepts_type(property_ids, ValueType::Angle); property.has_value())
-                    return PropertyAndValue { *property, calculated };
-            } else if (calculated.resolves_to_angle_percentage()) {
-                if (auto property = any_property_accepts_type_percentage(property_ids, ValueType::Angle); property.has_value())
-                    return PropertyAndValue { *property, calculated };
-            } else if (calculated.resolves_to_flex()) {
-                if (auto property = any_property_accepts_type(property_ids, ValueType::Flex); property.has_value())
-                    return PropertyAndValue { *property, calculated };
-            } else if (calculated.resolves_to_frequency()) {
-                if (auto property = any_property_accepts_type(property_ids, ValueType::Frequency); property.has_value())
-                    return PropertyAndValue { *property, calculated };
-            } else if (calculated.resolves_to_frequency_percentage()) {
-                if (auto property = any_property_accepts_type_percentage(property_ids, ValueType::Frequency); property.has_value())
-                    return PropertyAndValue { *property, calculated };
-            } else if (calculated.resolves_to_number()) {
-                if (property_accepts_numeric) {
-                    auto property_or_resolved = property_accepting_integer.value_or_lazy_evaluated([property_accepting_number]() { return property_accepting_number.value(); });
-                    return PropertyAndValue { property_or_resolved, calculated };
-                }
-            } else if (calculated.resolves_to_number_percentage()) {
-                if (auto property = any_property_accepts_type_percentage(property_ids, ValueType::Number); property.has_value())
-                    return PropertyAndValue { *property, calculated };
-            } else if (calculated.resolves_to_length()) {
-                if (auto property = any_property_accepts_type(property_ids, ValueType::Length); property.has_value())
-                    return PropertyAndValue { *property, calculated };
-            } else if (calculated.resolves_to_length_percentage()) {
-                if (auto property = any_property_accepts_type_percentage(property_ids, ValueType::Length); property.has_value())
-                    return PropertyAndValue { *property, calculated };
-            } else if (calculated.resolves_to_time()) {
-                if (auto property = any_property_accepts_type(property_ids, ValueType::Time); property.has_value())
-                    return PropertyAndValue { *property, calculated };
-            } else if (calculated.resolves_to_time_percentage()) {
-                if (auto property = any_property_accepts_type_percentage(property_ids, ValueType::Time); property.has_value())
-                    return PropertyAndValue { *property, calculated };
+    if (auto property = any_property_accepts_type(property_ids, ValueType::Number); property.has_value()) {
+        if (auto value = parse_number_value(tokens)) {
+            if (value->is_calculated())
+                return PropertyAndValue { *property, value };
+            if (value->is_number() && property_accepts_number(*property, value->as_number().number()))
+                return PropertyAndValue { *property, value };
+        }
+    }
+
+    if (auto property = any_property_accepts_type(property_ids, ValueType::Angle); property.has_value()) {
+        if (property_accepts_type(*property, ValueType::Percentage)) {
+            if (auto value = parse_angle_percentage_value(tokens)) {
+                if (value->is_calculated())
+                    return PropertyAndValue { *property, value };
+                if (value->is_angle() && property_accepts_angle(*property, value->as_angle().angle()))
+                    return PropertyAndValue { *property, value };
+                if (value->is_percentage() && property_accepts_percentage(*property, value->as_percentage().percentage()))
+                    return PropertyAndValue { *property, value };
             }
+        }
+        if (auto value = parse_angle_value(tokens)) {
+            if (value->is_calculated())
+                return PropertyAndValue { *property, value };
+            if (value->is_angle() && property_accepts_angle(*property, value->as_angle().angle()))
+                return PropertyAndValue { *property, value };
+        }
+    }
+
+    if (auto property = any_property_accepts_type(property_ids, ValueType::Flex); property.has_value()) {
+        if (auto value = parse_flex_value(tokens)) {
+            if (value->is_calculated())
+                return PropertyAndValue { *property, value };
+            if (value->is_flex() && property_accepts_flex(*property, value->as_flex().flex()))
+                return PropertyAndValue { *property, value };
+        }
+    }
+
+    if (auto property = any_property_accepts_type(property_ids, ValueType::Frequency); property.has_value()) {
+        if (property_accepts_type(*property, ValueType::Percentage)) {
+            if (auto value = parse_frequency_percentage_value(tokens)) {
+                if (value->is_calculated())
+                    return PropertyAndValue { *property, value };
+                if (value->is_frequency() && property_accepts_frequency(*property, value->as_frequency().frequency()))
+                    return PropertyAndValue { *property, value };
+                if (value->is_percentage() && property_accepts_percentage(*property, value->as_percentage().percentage()))
+                    return PropertyAndValue { *property, value };
+            }
+        }
+        if (auto value = parse_frequency_value(tokens)) {
+            if (value->is_calculated())
+                return PropertyAndValue { *property, value };
+            if (value->is_frequency() && property_accepts_frequency(*property, value->as_frequency().frequency()))
+                return PropertyAndValue { *property, value };
+        }
+    }
+
+    if (auto property = any_property_accepts_type(property_ids, ValueType::Length); property.has_value()) {
+        if (property_accepts_type(*property, ValueType::Percentage)) {
+            if (auto value = parse_length_percentage_value(tokens)) {
+                if (value->is_calculated())
+                    return PropertyAndValue { *property, value };
+                if (value->is_length() && property_accepts_length(*property, value->as_length().length()))
+                    return PropertyAndValue { *property, value };
+                if (value->is_percentage() && property_accepts_percentage(*property, value->as_percentage().percentage()))
+                    return PropertyAndValue { *property, value };
+            }
+        }
+        if (auto value = parse_length_value(tokens)) {
+            if (value->is_calculated())
+                return PropertyAndValue { *property, value };
+            if (value->is_length() && property_accepts_length(*property, value->as_length().length()))
+                return PropertyAndValue { *property, value };
+        }
+    }
+
+    if (auto property = any_property_accepts_type(property_ids, ValueType::Resolution); property.has_value()) {
+        if (auto value = parse_resolution_value(tokens)) {
+            if (value->is_calculated())
+                return PropertyAndValue { *property, value };
+            if (value->is_resolution() && property_accepts_resolution(*property, value->as_resolution().resolution()))
+                return PropertyAndValue { *property, value };
+        }
+    }
+
+    if (auto property = any_property_accepts_type(property_ids, ValueType::Time); property.has_value()) {
+        if (property_accepts_type(*property, ValueType::Percentage)) {
+            if (auto value = parse_time_percentage_value(tokens)) {
+                if (value->is_calculated())
+                    return PropertyAndValue { *property, value };
+                if (value->is_time() && property_accepts_time(*property, value->as_time().time()))
+                    return PropertyAndValue { *property, value };
+                if (value->is_percentage() && property_accepts_percentage(*property, value->as_percentage().percentage()))
+                    return PropertyAndValue { *property, value };
+            }
+        }
+        if (auto value = parse_time_value(tokens)) {
+            if (value->is_calculated())
+                return PropertyAndValue { *property, value };
+            if (value->is_time() && property_accepts_time(*property, value->as_time().time()))
+                return PropertyAndValue { *property, value };
+        }
+    }
+
+    // <percentage> is checked after the <foo-percentage> types.
+    if (auto property = any_property_accepts_type(property_ids, ValueType::Percentage); property.has_value()) {
+        if (auto value = parse_percentage_value(tokens)) {
+            if (value->is_calculated())
+                return PropertyAndValue { *property, value };
+            if (value->is_percentage() && property_accepts_percentage(*property, value->as_percentage().percentage()))
+                return PropertyAndValue { *property, value };
         }
     }
 
