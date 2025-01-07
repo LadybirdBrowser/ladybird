@@ -2,13 +2,13 @@ Harness status: OK
 
 Found 8 tests
 
-7 Pass
-1 Fail
+6 Pass
+2 Fail
 Pass	Measure of navigationStart to now should be positive value.
 Pass	Measure of navigationStart to loadEventEnd should be positive value.
 Pass	Measure of current mark to navigationStart should be negative value.
 Fail	loadTime plus loadEventEnd to a mark "a" should equal to navigationStart to "a".
 Pass	Second measure of current mark to navigationStart should be negative value.
 Pass	Measures of loadTime should have same duration.
-Pass	Measure from domComplete event to most recent mark "a" should have longer duration.
+Fail	Measure from domComplete event to most recent mark "a" should have longer duration.
 Pass	Measure from most recent mark to navigationStart should have longer duration.

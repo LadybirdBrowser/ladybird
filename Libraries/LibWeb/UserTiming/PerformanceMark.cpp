@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/PerformanceMarkPrototype.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HighResolutionTime/Performance.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/NavigationTiming/EntryNames.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>
@@ -68,8 +69,7 @@ WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> PerformanceMark::construct_impl(JS
     }
     // 2. Otherwise, set it to the value that would be returned by the Performance object's now() method.
     else {
-        // FIXME: Performance#now doesn't currently use TimeOrigin's functions, update this and Performance#now to match Performance#now's specification.
-        start_time = HighResolutionTime::unsafe_shared_current_time();
+        start_time = HighResolutionTime::current_high_resolution_time(current_principal_global_object);
     }
 
     // 6. Set entry's duration attribute to 0.

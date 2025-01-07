@@ -51,8 +51,6 @@ private:
 
     GC::Ptr<NavigationTiming::PerformanceNavigation> m_navigation;
     GC::Ptr<NavigationTiming::PerformanceTiming> m_timing;
-
-    Core::ElapsedTimer m_timer;
 };
 
 }

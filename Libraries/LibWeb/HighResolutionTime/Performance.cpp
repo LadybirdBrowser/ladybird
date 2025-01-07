@@ -24,9 +24,7 @@ GC_DEFINE_ALLOCATOR(Performance);
 
 Performance::Performance(JS::Realm& realm)
     : DOM::EventTarget(realm)
-    , m_timer(Core::TimerType::Precise)
 {
-    m_timer.start();
 }
 
 Performance::~Performance() = default;
@@ -68,8 +66,8 @@ GC::Ptr<NavigationTiming::PerformanceNavigation> Performance::navigation()
 // https://w3c.github.io/hr-time/#timeorigin-attribute
 double Performance::time_origin() const
 {
-    // FIXME: The timeOrigin attribute MUST return the number of milliseconds in the duration returned by get time origin timestamp for the relevant global object of this.
-    return static_cast<double>(m_timer.origin_time().nanoseconds()) / 1e6;
+    // The timeOrigin attribute MUST return the number of milliseconds in the duration returned by get time origin timestamp for the relevant global object of this.
+    return get_time_origin_timestamp(HTML::relevant_principal_global_object(*this));
 }
 
 // https://w3c.github.io/hr-time/#now-method
