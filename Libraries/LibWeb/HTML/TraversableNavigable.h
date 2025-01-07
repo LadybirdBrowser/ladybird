@@ -61,12 +61,12 @@ public:
     };
 
     HistoryStepResult apply_the_traverse_history_step(int, Optional<SourceSnapshotParams>, GC::Ptr<Navigable>, UserNavigationInvolvement);
-    HistoryStepResult apply_the_reload_history_step();
+    HistoryStepResult apply_the_reload_history_step(UserNavigationInvolvement);
     enum class SynchronousNavigation : bool {
         Yes,
         No,
     };
-    HistoryStepResult apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, SynchronousNavigation);
+    HistoryStepResult apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement, SynchronousNavigation);
     HistoryStepResult update_for_navigable_creation_or_destruction();
 
     int get_the_used_step(int step) const;
@@ -122,7 +122,7 @@ private:
         bool check_for_cancelation,
         Optional<SourceSnapshotParams>,
         GC::Ptr<Navigable> initiator_to_check,
-        Optional<UserNavigationInvolvement> user_involvement_for_navigate_events,
+        UserNavigationInvolvement user_involvement,
         Optional<Bindings::NavigationType> navigation_type,
         SynchronousNavigation);
 
@@ -167,6 +167,6 @@ struct BrowsingContextAndDocument {
 };
 
 WebIDL::ExceptionOr<BrowsingContextAndDocument> create_a_new_top_level_browsing_context_and_document(GC::Ref<Page> page);
-void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversable, GC::Ref<Navigable> target_navigable, GC::Ref<SessionHistoryEntry> target_entry, GC::Ptr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior);
+void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversable, GC::Ref<Navigable> target_navigable, GC::Ref<SessionHistoryEntry> target_entry, GC::Ptr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement);
 
 }

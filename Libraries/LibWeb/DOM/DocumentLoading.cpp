@@ -460,15 +460,16 @@ GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_pa
     if (type.essence() == "application/pdf"_string
         || type.essence() == "text/pdf"_string) {
         // FIXME: If the user agent's PDF viewer supported is true, return the result of creating a document for inline
-        //        content that doesn't have a DOM given navigationParams's navigable.
+        //        content that doesn't have a DOM given navigationParams's navigable, navigationParams's id,
+        //        navigationParams's navigation timing type, and navigationParams's user involvement.
     }
 
     // Otherwise, proceed onward.
 
-    // 3. If, given type, the new resource is to be handled by displaying some sort of inline content, e.g., a
+    // FIXME: 3. If, given type, the new resource is to be handled by displaying some sort of inline content, e.g., a
     //    native rendering of the content or an error message because the specified type is not supported, then
     //    return the result of creating a document for inline content that doesn't have a DOM given navigationParams's
-    //    navigable, navigationParams's id, and navigationParams's navigation timing type.
+    //    navigable, navigationParams's id, navigationParams's navigation timing type, and navigationParams's user involvement.
 
     // FIXME: 4. Otherwise, the document's type is such that the resource will not affect navigationParams's navigable,
     //        e.g., because the resource is to be handed to an external application or because it is an unknown type

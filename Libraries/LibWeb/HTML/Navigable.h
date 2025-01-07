@@ -34,13 +34,6 @@ enum class CSPNavigationType {
     FormSubmission,
 };
 
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#user-navigation-involvement
-enum class UserNavigationInvolvement {
-    BrowserUI,
-    Activation,
-    None,
-};
-
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#target-snapshot-params
 struct TargetSnapshotParams {
     SandboxingFlagSet sandboxing_flags {};
@@ -133,6 +126,7 @@ public:
         GC::Ptr<SessionHistoryEntry> entry,
         SourceSnapshotParams const& source_snapshot_params,
         TargetSnapshotParams const& target_snapshot_params,
+        UserNavigationInvolvement user_involvement,
         Optional<String> navigation_id = {},
         NavigationParamsVariant navigation_params = Navigable::NullOrError {},
         CSPNavigationType csp_navigation_type = CSPNavigationType::Other,
@@ -156,12 +150,12 @@ public:
 
     WebIDL::ExceptionOr<void> navigate_to_a_fragment(URL::URL const&, HistoryHandlingBehavior, UserNavigationInvolvement, Optional<SerializationRecord> navigation_api_state, String navigation_id);
 
-    GC::Ptr<DOM::Document> evaluate_javascript_url(URL::URL const&, URL::Origin const& new_document_origin, String navigation_id);
-    void navigate_to_a_javascript_url(URL::URL const&, HistoryHandlingBehavior, URL::Origin const& initiator_origin, CSPNavigationType csp_navigation_type, String navigation_id);
+    GC::Ptr<DOM::Document> evaluate_javascript_url(URL::URL const&, URL::Origin const& new_document_origin, UserNavigationInvolvement, String navigation_id);
+    void navigate_to_a_javascript_url(URL::URL const&, HistoryHandlingBehavior, URL::Origin const& initiator_origin, UserNavigationInvolvement, CSPNavigationType csp_navigation_type, String navigation_id);
 
     bool allowed_by_sandboxing_to_navigate(Navigable const& target, SourceSnapshotParams const&);
 
-    void reload();
+    void reload(UserNavigationInvolvement = UserNavigationInvolvement::None);
 
     // https://github.com/whatwg/html/issues/9690
     [[nodiscard]] bool has_been_destroyed() const { return m_has_been_destroyed; }
@@ -245,7 +239,7 @@ private:
 HashTable<Navigable*>& all_navigables();
 
 bool navigation_must_be_a_replace(URL::URL const& url, DOM::Document const& document);
-void finalize_a_cross_document_navigation(GC::Ref<Navigable>, HistoryHandlingBehavior, GC::Ref<SessionHistoryEntry>);
+void finalize_a_cross_document_navigation(GC::Ref<Navigable>, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ref<SessionHistoryEntry>);
 void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_url, Optional<SerializationRecord> = {}, HistoryHandlingBehavior history_handling = HistoryHandlingBehavior::Replace);
 UserNavigationInvolvement user_navigation_involvement(DOM::Event const&);
 
