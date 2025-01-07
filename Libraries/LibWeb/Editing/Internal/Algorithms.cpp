@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2024-2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -2234,7 +2234,7 @@ void remove_node_preserving_its_descendants(GC::Ref<DOM::Node> node)
         children.ensure_capacity(node->child_count());
         for (auto* child = node->first_child(); child; child = child->next_sibling())
             children.append(*child);
-        split_the_parent_of_nodes(move(children));
+        split_the_parent_of_nodes(children);
         return;
     }
 
