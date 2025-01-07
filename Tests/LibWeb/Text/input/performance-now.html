@@ -11,11 +11,12 @@
             return;
         }
 
-        let timestamp = performance.now();
+        let monotonicTime = performance.now();
         let date = Date.now();
+        let relativeDate = date - performance.timeOrigin;
         let allowedDifference = 300;
 
-        if (timestamp <= date - allowedDifference || timestamp >= date + allowedDifference) {
+        if (Math.abs(monotonicTime - relativeDate) >= allowedDifference) {
             println('performance.now() should be close to Date.now(), but was ' + (timestamp - date));
             return;
         }
