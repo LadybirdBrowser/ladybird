@@ -12,72 +12,95 @@
 #include <AK/ByteString.h>
 #include <AK/ScopeGuard.h>
 #include <LibCore/System.h>
-#include <Windows.h>
 #include <direct.h>
-#include <io.h>
 #include <sys/mman.h>
+
+#include <AK/Windows.h>
 
 namespace Core::System {
 
-ErrorOr<int> open(StringView path, int options, mode_t mode)
+static void invalid_parameter_handler(wchar_t const*, wchar_t const*, wchar_t const*, unsigned int, uintptr_t)
 {
-    int fd = _open(ByteString(path).characters(), options | O_BINARY | _O_OBTAIN_DIR, mode);
-    if (fd < 0)
-        return Error::from_syscall("open"sv, -errno);
-    return fd;
 }
 
-ErrorOr<void> close(int fd)
+static int init_crt_and_wsa()
 {
-    if (_close(fd) < 0)
-        return Error::from_syscall("close"sv, -errno);
+    WSADATA wsa;
+    WORD version = MAKEWORD(2, 2);
+    int rc = WSAStartup(version, &wsa);
+    VERIFY(!rc && wsa.wVersion == version);
+
+    // Make _get_osfhandle return -1 instead of crashing on invalid fd in release (debug still __debugbreak's)
+    _set_invalid_parameter_handler(invalid_parameter_handler);
+    return 0;
+}
+
+static auto dummy = init_crt_and_wsa();
+
+ErrorOr<int> open(StringView path, int options, mode_t mode)
+{
+    ByteString str = path;
+    int fd = _open(str.characters(), options | O_BINARY | _O_OBTAIN_DIR, mode);
+    if (fd < 0)
+        return Error::from_syscall("open"sv, -errno);
+    ScopeGuard guard = [&] { _close(fd); };
+    return dup(_get_osfhandle(fd));
+}
+
+ErrorOr<void> close(int handle)
+{
+    if (is_socket(handle)) {
+        if (closesocket(handle))
+            return Error::from_windows_error();
+    } else {
+        if (!CloseHandle(to_handle(handle)))
+            return Error::from_windows_error();
+    }
     return {};
 }
 
-ErrorOr<ssize_t> read(int fd, Bytes buffer)
+ErrorOr<ssize_t> read(int handle, Bytes buffer)
 {
-    int rc = _read(fd, buffer.data(), buffer.size());
-    if (rc < 0)
-        return Error::from_syscall("read"sv, -errno);
-    return rc;
+    DWORD n_read = 0;
+    if (!ReadFile(to_handle(handle), buffer.data(), buffer.size(), &n_read, NULL))
+        return Error::from_windows_error();
+    return n_read;
 }
 
-ErrorOr<ssize_t> write(int fd, ReadonlyBytes buffer)
+ErrorOr<ssize_t> write(int handle, ReadonlyBytes buffer)
 {
-    int rc = _write(fd, buffer.data(), buffer.size());
-    if (rc < 0)
-        return Error::from_syscall("write"sv, -errno);
-    return rc;
+    DWORD n_written = 0;
+    if (!WriteFile(to_handle(handle), buffer.data(), buffer.size(), &n_written, NULL))
+        return Error::from_windows_error();
+    return n_written;
 }
 
-ErrorOr<off_t> lseek(int fd, off_t offset, int whence)
+ErrorOr<off_t> lseek(int handle, off_t offset, int origin)
 {
-    long rc = _lseek(fd, offset, whence);
-    if (rc < 0)
-        return Error::from_syscall("lseek"sv, -errno);
-    return rc;
+    static_assert(FILE_BEGIN == SEEK_SET && FILE_CURRENT == SEEK_CUR && FILE_END == SEEK_END, "SetFilePointerEx origin values are incompatible with lseek");
+    LARGE_INTEGER new_pointer = {};
+    if (!SetFilePointerEx(to_handle(handle), { .QuadPart = offset }, &new_pointer, origin))
+        return Error::from_windows_error();
+    return new_pointer.QuadPart;
 }
 
-ErrorOr<void> ftruncate(int fd, off_t length)
+ErrorOr<void> ftruncate(int handle, off_t length)
 {
-    long position = _tell(fd);
-    if (position == -1)
-        return Error::from_errno(errno);
+    auto position = TRY(lseek(handle, 0, SEEK_CUR));
+    ScopeGuard restore_position = [&] { MUST(lseek(handle, position, SEEK_SET)); };
 
-    ScopeGuard restore_position { [&] { _lseek(fd, position, SEEK_SET); } };
+    TRY(lseek(handle, length, SEEK_SET));
 
-    auto result = lseek(fd, length, SEEK_SET);
-    if (result.is_error())
-        return result.release_error();
-
-    if (SetEndOfFile((HANDLE)_get_osfhandle(fd)) == 0)
+    if (!SetEndOfFile(to_handle(handle)))
         return Error::from_windows_error();
     return {};
 }
 
-ErrorOr<struct stat> fstat(int fd)
+ErrorOr<struct stat> fstat(int handle)
 {
     struct stat st = {};
+    int fd = _open_osfhandle(TRY(dup(handle)), 0);
+    ScopeGuard guard = [&] { _close(fd); };
     if (::fstat(fd, &st) < 0)
         return Error::from_syscall("fstat"sv, -errno);
     return st;
@@ -154,10 +177,12 @@ ErrorOr<struct stat> fstatat(int, StringView, int)
     VERIFY_NOT_REACHED();
 }
 
-ErrorOr<void*> mmap(void* address, size_t size, int protection, int flags, int fd, off_t offset, size_t alignment, StringView)
+ErrorOr<void*> mmap(void* address, size_t size, int protection, int flags, int file_handle, off_t offset, size_t alignment, StringView)
 {
     // custom alignment is not supported
     VERIFY(!alignment);
+    int fd = _open_osfhandle(TRY(dup(file_handle)), 0);
+    ScopeGuard guard = [&] { _close(fd); };
     void* ptr = ::mmap(address, size, protection, flags, fd, offset);
     if (ptr == MAP_FAILED)
         return Error::from_syscall("mmap"sv, -errno);
@@ -174,6 +199,30 @@ ErrorOr<void> munmap(void* address, size_t size)
 int getpid()
 {
     return GetCurrentProcessId();
+}
+
+ErrorOr<int> dup(int handle)
+{
+    if (is_socket(handle)) {
+        WSAPROTOCOL_INFO pi = {};
+        if (WSADuplicateSocket(handle, GetCurrentProcessId(), &pi))
+            return Error::from_windows_error();
+        SOCKET socket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, &pi, 0, WSA_FLAG_OVERLAPPED | WSA_FLAG_NO_HANDLE_INHERIT);
+        if (socket == INVALID_SOCKET)
+            return Error::from_windows_error();
+        return socket;
+    } else {
+        HANDLE new_handle = 0;
+        if (!DuplicateHandle(GetCurrentProcess(), to_handle(handle), GetCurrentProcess(), &new_handle, 0, FALSE, DUPLICATE_SAME_ACCESS))
+            return Error::from_windows_error();
+        return to_fd(new_handle);
+    }
+}
+
+bool is_socket(int handle)
+{
+    // FILE_TYPE_PIPE is returned for sockets and pipes. We don't use Windows pipes.
+    return GetFileType(to_handle(handle)) == FILE_TYPE_PIPE;
 }
 
 }
