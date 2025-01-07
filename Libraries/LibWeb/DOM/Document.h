@@ -613,6 +613,7 @@ public:
     void run_the_update_intersection_observations_steps(HighResolutionTime::DOMHighResTimeStamp time);
 
     void start_intersection_observing_a_lazy_loading_element(Element&);
+    void stop_intersection_observing_a_lazy_loading_element(Element&);
 
     void shared_declarative_refresh_steps(StringView input, GC::Ptr<HTML::HTMLMetaElement const> meta_element = nullptr);
 

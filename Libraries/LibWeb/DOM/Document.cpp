@@ -4542,15 +4542,10 @@ void Document::start_intersection_observing_a_lazy_loading_element(Element& elem
                 }
 
                 // 4. Stop intersection-observing a lazy loading element for entry.target.
-                // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#stop-intersection-observing-a-lazy-loading-element
-                // 1. Let doc be element's node document.
-                // NOTE: It's `this`.
+                stop_intersection_observing_a_lazy_loading_element(entry.target());
 
-                // 2. Assert: doc's lazy load intersection observer is not null.
-                VERIFY(m_lazy_load_intersection_observer);
-
-                // 3. Call doc's lazy load intersection observer unobserve method with element as the argument.
-                m_lazy_load_intersection_observer->unobserve(entry.target());
+                // 5. Set entry.target's lazy load resumption steps to null.
+                entry.target()->take_lazy_load_resumption_steps({});
 
                 // 6. Invoke resumptionSteps.
                 resumption_steps->function()();
@@ -4570,6 +4565,19 @@ void Document::start_intersection_observing_a_lazy_loading_element(Element& elem
     // 3. Call doc's lazy load intersection observer's observe method with element as the argument.
     VERIFY(m_lazy_load_intersection_observer);
     m_lazy_load_intersection_observer->observe(element);
+}
+
+// https://html.spec.whatwg.org/multipage/urls-and-fetching.html#stop-intersection-observing-a-lazy-loading-element
+void Document::stop_intersection_observing_a_lazy_loading_element(Element& element)
+{
+    // 1. Let doc be element's node document.
+    // NOTE: It's `this`.
+
+    // 2. Assert: doc's lazy load intersection observer is not null.
+    VERIFY(m_lazy_load_intersection_observer);
+
+    // 3. Call doc's lazy load intersection observer unobserve method with element as the argument.
+    m_lazy_load_intersection_observer->unobserve(element);
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#shared-declarative-refresh-steps
