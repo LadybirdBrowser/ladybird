@@ -211,6 +211,7 @@ public:
 
     void reset_animated_css_properties();
 
+    GC::Ptr<CSS::ElementInlineCSSStyleDeclaration> inline_style() { return m_inline_style; }
     GC::Ptr<CSS::ElementInlineCSSStyleDeclaration const> inline_style() const { return m_inline_style; }
 
     CSS::CSSStyleDeclaration* style_for_bindings();
