@@ -40,6 +40,9 @@ private:
 
     virtual void initialize(JS::Realm&) override;
 
+    // ^DOM::Node
+    virtual bool is_html_iframe_element() const override { return true; }
+
     // ^DOM::Element
     virtual void post_connection() override;
     virtual void removed_from(Node*) override;
