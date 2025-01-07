@@ -191,14 +191,13 @@ Optional<String> Host::public_suffix() const
     auto trailing_dot = host_string.ends_with('.') ? "."sv : ""sv;
 
     // 3. Let publicSuffix be the public suffix determined by running the Public Suffix List algorithm with host as domain. [PSL]
-    auto public_suffix = get_public_suffix(host_string.bytes_as_string_view());
-
-    // NOTE: get_public_suffix() returns Optional, but this algorithm assumes a value. Is that OK?
-    VERIFY(public_suffix.has_value());
+    // NOTE: The spec algorithm for the public suffix returns "*" by default, but get_public_suffix() returns an empty Optional.
+    //       Remove the `value_or()` if and when we update it.
+    auto public_suffix = get_public_suffix(host_string.bytes_as_string_view()).value_or("*"_string);
 
     // 4. Assert: publicSuffix is an ASCII string that does not end with ".".
-    VERIFY(all_of(public_suffix->code_points(), is_ascii));
-    VERIFY(!public_suffix->ends_with('.'));
+    VERIFY(all_of(public_suffix.code_points(), is_ascii));
+    VERIFY(!public_suffix.ends_with('.'));
 
     // 5. Return publicSuffix and trailingDot concatenated.
     return MUST(String::formatted("{}{}", public_suffix, trailing_dot));
@@ -219,14 +218,13 @@ Optional<String> Host::registrable_domain() const
     auto trailing_dot = host_string.ends_with('.') ? "."sv : ""sv;
 
     // 3. Let registrableDomain be the registrable domain determined by running the Public Suffix List algorithm with host as domain. [PSL]
-    auto registrable_domain = get_public_suffix(host_string);
-
-    // NOTE: get_public_suffix() returns Optional, but this algorithm assumes a value. Is that OK?
-    VERIFY(registrable_domain.has_value());
+    // NOTE: The spec algorithm for the public suffix returns "*" by default, but get_public_suffix() returns an empty Optional.
+    //       Remove the `value_or()` if and when we update it.
+    auto registrable_domain = get_public_suffix(host_string).value_or("*"_string);
 
     // 4. Assert: registrableDomain is an ASCII string that does not end with ".".
-    VERIFY(all_of(registrable_domain->code_points(), is_ascii));
-    VERIFY(!registrable_domain->ends_with('.'));
+    VERIFY(all_of(registrable_domain.code_points(), is_ascii));
+    VERIFY(!registrable_domain.ends_with('.'));
 
     // 5. Return registrableDomain and trailingDot concatenated.
     return MUST(String::formatted("{}{}", registrable_domain, trailing_dot));
