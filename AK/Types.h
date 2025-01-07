@@ -207,6 +207,17 @@ enum MemoryOrder {
     memory_order_seq_cst = __ATOMIC_SEQ_CST
 };
 
+#ifdef AK_OS_WINDOWS
+inline void* to_handle(int fd)
+{
+    return reinterpret_cast<void*>(static_cast<intptr_t>(fd));
+}
+inline int to_fd(void* handle)
+{
+    return reinterpret_cast<intptr_t>(handle);
+}
+#endif
+
 }
 
 #if USING_AK_GLOBALLY
@@ -216,4 +227,8 @@ using AK::explode_byte;
 using AK::MemoryOrder;
 using AK::nullptr_t;
 using AK::TriState;
+#    ifdef AK_OS_WINDOWS
+using AK::to_fd;
+using AK::to_handle;
+#    endif
 #endif

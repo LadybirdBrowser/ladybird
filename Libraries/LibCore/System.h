@@ -180,5 +180,6 @@ ErrorOr<void> set_resource_limits(int resource, rlim_t limit);
 #endif
 
 int getpid();
+bool is_socket(int fd);
 
 }

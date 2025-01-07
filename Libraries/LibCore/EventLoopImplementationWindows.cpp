@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2023, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2024, stasoid <stasoid@yahoo.com>
+ * Copyright (c) 2024-2025, stasoid <stasoid@yahoo.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -163,10 +163,8 @@ void EventLoopManagerWindows::register_notifier(Notifier& notifier)
 {
     HANDLE event = CreateEvent(NULL, FALSE, FALSE, NULL);
     VERIFY(event);
-    SOCKET socket = _get_osfhandle(notifier.fd());
-    VERIFY(socket != INVALID_SOCKET);
-    int rc = WSAEventSelect(socket, event, notifier_type_to_network_event(notifier.type()));
-    VERIFY(rc == 0);
+    int rc = WSAEventSelect(notifier.fd(), event, notifier_type_to_network_event(notifier.type()));
+    VERIFY(!rc);
 
     auto& notifiers = ThreadData::the().notifiers;
     VERIFY(!notifiers.get(event).has_value());
