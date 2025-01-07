@@ -31,6 +31,7 @@ using Selection::Selection;
 // Below algorithms are specified here:
 // https://w3c.github.io/editing/docs/execCommand/#assorted-common-algorithms
 
+GC::Ptr<DOM::Range> active_range(DOM::Document const&);
 GC::Ref<DOM::Range> block_extend_a_range(GC::Ref<DOM::Range>);
 GC::Ptr<DOM::Node> block_node_of_node(GC::Ref<DOM::Node>);
 String canonical_space_sequence(u32 length, bool non_breaking_start, bool non_breaking_end);
