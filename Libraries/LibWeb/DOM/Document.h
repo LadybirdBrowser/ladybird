@@ -319,6 +319,7 @@ public:
 
     QuirksMode mode() const { return m_quirks_mode; }
     bool in_quirks_mode() const { return m_quirks_mode == QuirksMode::Yes; }
+    bool in_limited_quirks_mode() const { return m_quirks_mode == QuirksMode::Limited; }
     void set_quirks_mode(QuirksMode mode) { m_quirks_mode = mode; }
 
     Type document_type() const { return m_type; }
