@@ -38,13 +38,13 @@
 namespace Web::Editing {
 
 // https://w3c.github.io/editing/docs/execCommand/#block-extend
-GC::Ref<DOM::Range> block_extend_a_range(DOM::Range& range)
+GC::Ref<DOM::Range> block_extend_a_range(GC::Ref<DOM::Range> range)
 {
     // 1. Let start node, start offset, end node, and end offset be the start and end nodes and offsets of range.
-    GC::Ptr<DOM::Node> start_node = range.start_container();
-    auto start_offset = range.start_offset();
-    GC::Ptr<DOM::Node> end_node = range.end_container();
-    auto end_offset = range.end_offset();
+    GC::Ptr<DOM::Node> start_node = range->start_container();
+    auto start_offset = range->start_offset();
+    GC::Ptr<DOM::Node> end_node = range->end_container();
+    auto end_offset = range->end_offset();
 
     // 2. If some inclusive ancestor of start node is an li, set start offset to the index of the last such li in tree
     //    order, and set start node to that li's parent.
