@@ -42,8 +42,7 @@ public:
     void set_oncomplete(GC::Ptr<WebIDL::CallbackType>);
 
 private:
-    OfflineAudioContext(JS::Realm&, OfflineAudioContextOptions const&);
-    OfflineAudioContext(JS::Realm&, WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
+    OfflineAudioContext(JS::Realm&, WebIDL::UnsignedLong length, float sample_rate);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

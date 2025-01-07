@@ -11,6 +11,7 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/WebAudio/AudioContext.h>
+#include <LibWeb/WebAudio/AudioDestinationNode.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::WebAudio {
@@ -20,7 +21,9 @@ GC_DEFINE_ALLOCATOR(AudioContext);
 // https://webaudio.github.io/web-audio-api/#dom-audiocontext-audiocontext
 WebIDL::ExceptionOr<GC::Ref<AudioContext>> AudioContext::construct_impl(JS::Realm& realm, AudioContextOptions const& context_options)
 {
-    return realm.create<AudioContext>(realm, context_options);
+    auto context = realm.create<AudioContext>(realm, context_options);
+    context->m_destination = TRY(AudioDestinationNode::construct_impl(realm, context));
+    return context;
 }
 
 AudioContext::AudioContext(JS::Realm& realm, AudioContextOptions const& context_options)

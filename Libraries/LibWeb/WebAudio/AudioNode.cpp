@@ -12,9 +12,10 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(AudioNode);
 
-AudioNode::AudioNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context)
+AudioNode::AudioNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, WebIDL::UnsignedLong channel_count)
     : DOM::EventTarget(realm)
     , m_context(context)
+    , m_channel_count(channel_count)
 
 {
 }

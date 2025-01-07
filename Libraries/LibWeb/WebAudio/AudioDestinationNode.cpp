@@ -17,8 +17,8 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(AudioDestinationNode);
 
-AudioDestinationNode::AudioDestinationNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context)
-    : AudioNode(realm, context)
+AudioDestinationNode::AudioDestinationNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, WebIDL::UnsignedLong channel_count)
+    : AudioNode(realm, context, channel_count)
 {
 }
 
@@ -31,9 +31,21 @@ WebIDL::UnsignedLong AudioDestinationNode::max_channel_count()
     return 2;
 }
 
-GC::Ref<AudioDestinationNode> AudioDestinationNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context)
+WebIDL::ExceptionOr<GC::Ref<AudioDestinationNode>> AudioDestinationNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, WebIDL::UnsignedLong channel_count)
 {
-    return realm.create<AudioDestinationNode>(realm, context);
+    auto node = realm.create<AudioDestinationNode>(realm, context, channel_count);
+
+    // Default options for channel count and interpretation
+    // https://webaudio.github.io/web-audio-api/#AudioDestinationNode
+    AudioNodeDefaultOptions default_options;
+    default_options.channel_count_mode = Bindings::ChannelCountMode::Explicit;
+    default_options.channel_interpretation = Bindings::ChannelInterpretation::Speakers;
+    default_options.channel_count = channel_count;
+    // FIXME: Set tail-time to no
+
+    TRY(node->initialize_audio_node_options({}, default_options));
+
+    return node;
 }
 
 void AudioDestinationNode::initialize(JS::Realm& realm)
@@ -50,6 +62,9 @@ void AudioDestinationNode::visit_edges(Cell::Visitor& visitor)
 // https://webaudio.github.io/web-audio-api/#dom-audionode-channelcount
 WebIDL::ExceptionOr<void> AudioDestinationNode::set_channel_count(WebIDL::UnsignedLong channel_count)
 {
+    if (channel_count == this->channel_count())
+        return {};
+
     // The behavior depends on whether the destination node is the destination of an AudioContext
     // or OfflineAudioContext:
 
