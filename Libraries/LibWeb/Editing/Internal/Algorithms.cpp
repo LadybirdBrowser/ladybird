@@ -12,6 +12,7 @@
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/DocumentFragment.h>
 #include <LibWeb/DOM/DocumentType.h>
@@ -469,6 +470,118 @@ void canonicalize_whitespace(DOM::BoundaryPoint boundary, bool fix_collapsed_spa
             ++start_offset;
         }
     }
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#clear-the-value
+Vector<GC::Ref<DOM::Node>> clear_the_value(FlyString const& command, GC::Ref<DOM::Element> element)
+{
+    // 1. Let command be the current command.
+
+    // 2. If element is not editable, return the empty list.
+    if (!element->is_editable())
+        return {};
+
+    // 3. If element's specified command value for command is null, return the empty list.
+    if (!specified_command_value(element, command).has_value())
+        return {};
+
+    // 4. If element is a simple modifiable element:
+    if (is_simple_modifiable_element(element)) {
+        // 1. Let children be the children of element.
+        Vector<GC::Ref<DOM::Node>> children;
+        element->for_each_child([&children](DOM::Node& child) {
+            children.append(child);
+            return IterationDecision::Continue;
+        });
+
+        // 2. For each child in children, insert child into element's parent immediately before element, preserving
+        //    ranges.
+        auto element_index = element->index();
+        for (auto child : children)
+            move_node_preserving_ranges(child, *element->parent(), element_index++);
+
+        // 3. Remove element from its parent.
+        element->remove();
+
+        // 4. Return children.
+        return children;
+    }
+
+    // 5. If command is "strikethrough", and element has a style attribute that sets "text-decoration" to some value
+    //    containing "line-through", delete "line-through" from the value.
+    auto remove_text_decoration_value = [&element](CSS::Keyword keyword_to_delete) {
+        auto inline_style = element->inline_style();
+        if (!inline_style)
+            return;
+
+        auto style_property = inline_style->property(CSS::PropertyID::TextDecoration);
+        if (!style_property.has_value())
+            return;
+
+        auto style_value = style_property.value().value;
+        VERIFY(style_value->is_value_list());
+        auto const& value_list = style_value->as_value_list();
+        auto& old_values = value_list.values();
+
+        auto new_values = old_values;
+        auto was_removed = new_values.remove_all_matching([&](CSS::ValueComparingNonnullRefPtr<CSS::CSSStyleValue const> const& value) {
+            return value->is_keyword() && value->as_keyword().keyword() == keyword_to_delete;
+        });
+        if (!was_removed)
+            return;
+        if (new_values.is_empty()) {
+            MUST(inline_style->remove_property(string_from_property_id(CSS::PropertyID::TextDecoration)));
+            return;
+        }
+
+        auto new_style_value = CSS::StyleValueList::create(move(new_values), value_list.separator());
+        MUST(inline_style->set_property(
+            string_from_property_id(CSS::PropertyID::TextDecoration),
+            new_style_value->to_string(CSS::CSSStyleValue::SerializationMode::Normal),
+            {}));
+    };
+    if (command == CommandNames::strikethrough)
+        remove_text_decoration_value(CSS::Keyword::LineThrough);
+
+    // 6. If command is "underline", and element has a style attribute that sets "text-decoration" to some value
+    //    containing "underline", delete "underline" from the value.
+    if (command == CommandNames::underline)
+        remove_text_decoration_value(CSS::Keyword::Underline);
+
+    // 7. If the relevant CSS property for command is not null, unset that property of element.
+    auto command_definition = find_command_definition(command);
+    // FIXME: remove command_definition.has_value() as soon as all commands are implemented.
+    if (command_definition.has_value() && command_definition.value().relevant_css_property.has_value()) {
+        auto property_to_remove = command_definition.value().relevant_css_property.value();
+        if (auto inline_style = element->inline_style())
+            MUST(inline_style->remove_property(string_from_property_id(property_to_remove)));
+    }
+
+    // 8. If element is a font element:
+    if (is<HTML::HTMLFontElement>(*element)) {
+        // 1. If command is "foreColor", unset element's color attribute, if set.
+        if (command == CommandNames::foreColor)
+            element->remove_attribute(HTML::AttributeNames::color);
+
+        // 2. If command is "fontName", unset element's face attribute, if set.
+        if (command == CommandNames::fontName)
+            element->remove_attribute(HTML::AttributeNames::face);
+
+        // 3. If command is "fontSize", unset element's size attribute, if set.
+        if (command == CommandNames::fontSize)
+            element->remove_attribute(HTML::AttributeNames::size);
+    }
+
+    // 9. If element is an a element and command is "createLink" or "unlink", unset the href property of element.
+    if (is<HTML::HTMLAnchorElement>(*element) && command.is_one_of(CommandNames::createLink, CommandNames::unlink))
+        element->remove_attribute(HTML::AttributeNames::href);
+
+    // 10. If element's specified command value for command is null, return the empty list.
+    if (!specified_command_value(element, command).has_value())
+        return {};
+
+    // 11. Set the tag name of element to "span", and return the one-node list consisting of the result.
+    return { set_the_tag_name(element, HTML::TagNames::span) };
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#delete-the-selection
@@ -1175,6 +1288,248 @@ bool follows_a_line_break(GC::Ref<DOM::Node> node)
     return true;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#force-the-value
+void force_the_value(GC::Ref<DOM::Node> node, FlyString const& command, Optional<String> new_value)
+{
+    // 1. Let command be the current command.
+
+    // 2. If node's parent is null, abort this algorithm.
+    if (!node->parent())
+        return;
+
+    // 3. If new value is null, abort this algorithm.
+    if (!new_value.has_value())
+        return;
+
+    // 4. If node is an allowed child of "span":
+    if (is_allowed_child_of_node(node, HTML::TagNames::span)) {
+        // 1. Reorder modifiable descendants of node's previousSibling.
+        if (node->previous_sibling())
+            reorder_modifiable_descendants(*node->previous_sibling(), command, new_value);
+
+        // 2. Reorder modifiable descendants of node's nextSibling.
+        if (node->next_sibling())
+            reorder_modifiable_descendants(*node->next_sibling(), command, new_value);
+
+        // 3. Wrap the one-node list consisting of node, with sibling criteria returning true for a simple modifiable
+        //    element whose specified command value is equivalent to new value and whose effective command value is
+        //    loosely equivalent to new value and false otherwise, and with new parent instructions returning null.
+        wrap(
+            { node },
+            [&](GC::Ref<DOM::Node> sibling) {
+                return is_simple_modifiable_element(sibling)
+                    && specified_command_value(static_cast<DOM::Element&>(*sibling), command) == new_value
+                    && values_are_loosely_equivalent(command, effective_command_value(sibling, command), new_value);
+            },
+            [] -> GC::Ptr<DOM::Node> { return {}; });
+    }
+
+    // 5. If node is invisible, abort this algorithm.
+    if (is_invisible_node(node))
+        return;
+
+    // 6. If the effective command value of command is loosely equivalent to new value on node, abort this algorithm.
+    if (values_are_loosely_equivalent(command, effective_command_value(node, command), new_value))
+        return;
+
+    // 7. If node is not an allowed child of "span":
+    if (!is_allowed_child_of_node(node, HTML::TagNames::span)) {
+        // 1. Let children be all children of node, omitting any that are Elements whose specified command value for
+        //    command is neither null nor equivalent to new value.
+        Vector<GC::Ref<DOM::Node>> children;
+        node->for_each_child([&](GC::Ref<DOM::Node> child) {
+            if (is<DOM::Element>(*child)) {
+                auto const& child_specified_value = specified_command_value(static_cast<DOM::Element&>(*child), command);
+                if (child_specified_value.has_value() && !values_are_equivalent(command, child_specified_value.value(), new_value))
+                    return IterationDecision::Continue;
+            }
+
+            children.append(child);
+            return IterationDecision::Continue;
+        });
+
+        // 2. Force the value of each node in children, with command and new value as in this invocation of the
+        //    algorithm.
+        for (auto child : children)
+            force_the_value(child, command, new_value);
+
+        // 3. Abort this algorithm.
+        return;
+    }
+
+    // 8. If the effective command value of command is loosely equivalent to new value on node, abort this algorithm.
+    if (values_are_loosely_equivalent(command, effective_command_value(node, command), new_value))
+        return;
+
+    // 9. Let new parent be null.
+    GC::Ptr<DOM::Element> new_parent;
+
+    // 10. If the CSS styling flag is false:
+    auto& document = node->document();
+    if (!document.css_styling_flag()) {
+        // 1. If command is "bold" and new value is "bold", let new parent be the result of calling createElement("b")
+        //    on the ownerDocument of node.
+        if (command == CommandNames::bold && new_value == "bold"sv)
+            new_parent = MUST(DOM::create_element(document, HTML::TagNames::b, Namespace::HTML));
+
+        // 2. If command is "italic" and new value is "italic", let new parent be the result of calling
+        //    createElement("i") on the ownerDocument of node.
+        if (command == CommandNames::italic && new_value == "italic"sv)
+            new_parent = MUST(DOM::create_element(document, HTML::TagNames::i, Namespace::HTML));
+
+        // 3. If command is "strikethrough" and new value is "line-through", let new parent be the result of calling
+        //    createElement("s") on the ownerDocument of node.
+        if (command == CommandNames::strikethrough && new_value == "line-through"sv)
+            new_parent = MUST(DOM::create_element(document, HTML::TagNames::s, Namespace::HTML));
+
+        // 4. If command is "underline" and new value is "underline", let new parent be the result of calling
+        //    createElement("u") on the ownerDocument of node.
+        if (command == CommandNames::underline && new_value == "underline"sv)
+            new_parent = MUST(DOM::create_element(document, HTML::TagNames::u, Namespace::HTML));
+
+        // 5.  If command is "foreColor", and new value is fully opaque with red, green, and blue components in the
+        //     range 0 to 255:
+        if (command == CommandNames::foreColor) {
+            auto new_value_color = Color::from_string(new_value.value());
+            if (new_value_color->alpha() == NumericLimits<u8>::max()) {
+                // 1. Let new parent be the result of calling createElement("font") on the ownerDocument of node.
+                new_parent = MUST(DOM::create_element(document, HTML::TagNames::font, Namespace::HTML));
+
+                // 2. Set the color attribute of new parent to the result of applying the rules for serializing simple color
+                //    values to new value (interpreted as a simple color).
+                MUST(new_parent->set_attribute(HTML::AttributeNames::color, new_value_color->to_string_without_alpha()));
+            }
+        }
+
+        // 6. If command is "fontName", let new parent be the result of calling createElement("font") on the
+        //    ownerDocument of node, then set the face attribute of new parent to new value.
+        if (command == CommandNames::fontName) {
+            new_parent = MUST(DOM::create_element(document, HTML::TagNames::font, Namespace::HTML));
+            MUST(new_parent->set_attribute(HTML::AttributeNames::face, new_value.value()));
+        }
+    }
+
+    // 11. If command is "createLink" or "unlink":
+    if (command.is_one_of(CommandNames::createLink, CommandNames::unlink)) {
+        // 1. Let new parent be the result of calling createElement("a") on the ownerDocument of node.
+        new_parent = MUST(DOM::create_element(document, HTML::TagNames::a, Namespace::HTML));
+
+        // 2. Set the href attribute of new parent to new value.
+        MUST(new_parent->set_attribute(HTML::AttributeNames::href, new_value.value()));
+
+        // 3. Let ancestor be node's parent.
+        GC::Ptr<DOM::Node> ancestor = node->parent();
+
+        // 4. While ancestor is not null:
+        while (ancestor) {
+            // 1. If ancestor is an a, set the tag name of ancestor to "span", and let ancestor be the result.
+            if (is<HTML::HTMLAnchorElement>(*ancestor))
+                ancestor = set_the_tag_name(static_cast<DOM::Element&>(*ancestor), HTML::TagNames::span);
+
+            // 2. Set ancestor to its parent.
+            ancestor = ancestor->parent();
+        }
+    }
+
+    // 12. If command is "fontSize"; and new value is one of "x-small", "small", "medium", "large", "x-large",
+    //     "xx-large", or "xxx-large"; and either the CSS styling flag is false, or new value is "xxx-large":
+    auto const& font_sizes = named_font_sizes();
+    if (command == CommandNames::fontSize && font_sizes.contains_slow(new_value.value())
+        && (!document.css_styling_flag() || new_value == "xxx-large"sv)) {
+        // let new parent be the result of calling createElement("font") on the ownerDocument of node,
+        new_parent = MUST(DOM::create_element(document, HTML::TagNames::font, Namespace::HTML));
+
+        // then set the size attribute of new parent to the number from the following table based on new value:
+        // * x-small: 1
+        // * small: 2
+        // * normal: 3
+        // * large: 4
+        // * x-large: 5
+        // * xx-large: 6
+        // * xxx-large: 7
+        auto size = font_sizes.first_index_of(new_value.value()).value() + 1;
+        MUST(new_parent->set_attribute(HTML::AttributeNames::size, String::number(size)));
+    }
+
+    // 13. If command is "subscript" or "superscript" and new value is "subscript", let new parent be the result of
+    //     calling createElement("sub") on the ownerDocument of node.
+    if (command.is_one_of(CommandNames::subscript, CommandNames::superscript) && new_value == "subscript"sv)
+        new_parent = MUST(DOM::create_element(document, HTML::TagNames::sub, Namespace::HTML));
+
+    // 14. If command is "subscript" or "superscript" and new value is "superscript", let new parent be the result of
+    //     calling createElement("sup") on the ownerDocument of node.
+    if (command.is_one_of(CommandNames::subscript, CommandNames::superscript) && new_value == "superscript"sv)
+        new_parent = MUST(DOM::create_element(document, HTML::TagNames::sup, Namespace::HTML));
+
+    // 15. If new parent is null, let new parent be the result of calling createElement("span") on the ownerDocument of
+    //     node.
+    if (!new_parent)
+        new_parent = MUST(DOM::create_element(document, HTML::TagNames::span, Namespace::HTML));
+
+    // 16. Insert new parent in node's parent before node.
+    node->parent()->insert_before(*new_parent, node);
+
+    // 17. If the effective command value of command for new parent is not loosely equivalent to new value, and the
+    //     relevant CSS property for command is not null, set that CSS property of new parent to new value (if the new
+    //     value would be valid).
+    if (!values_are_loosely_equivalent(command, effective_command_value(new_parent, command), new_value)) {
+        auto const& command_definition = find_command_definition(command);
+        if (command_definition.has_value() && command_definition.value().relevant_css_property.has_value()) {
+            auto inline_style = new_parent->style_for_bindings();
+            MUST(inline_style->set_property(command_definition.value().relevant_css_property.value(), new_value.value()));
+        }
+    }
+
+    // 18. If command is "strikethrough", and new value is "line-through", and the effective command value of
+    //     "strikethrough" for new parent is not "line-through", set the "text-decoration" property of new parent to
+    //     "line-through".
+    if (command == CommandNames::strikethrough && new_value == "line-through"sv
+        && effective_command_value(new_parent, command) != "line-through"sv) {
+        auto inline_style = new_parent->style_for_bindings();
+        MUST(inline_style->set_property(CSS::PropertyID::TextDecoration, "line-through"sv));
+    }
+
+    // 19. If command is "underline", and new value is "underline", and the effective command value of "underline" for
+    //     new parent is not "underline", set the "text-decoration" property of new parent to "underline".
+    if (command == CommandNames::underline && new_value == "underline"sv
+        && effective_command_value(new_parent, command) != "underline"sv) {
+        auto inline_style = new_parent->style_for_bindings();
+        MUST(inline_style->set_property(CSS::PropertyID::TextDecoration, "underline"sv));
+    }
+
+    // 20. Append node to new parent as its last child, preserving ranges.
+    move_node_preserving_ranges(node, *new_parent, new_parent->child_count());
+
+    // 21. If node is an Element and the effective command value of command for node is not loosely equivalent to new
+    //     value:
+    if (is<DOM::Element>(*node) && !values_are_loosely_equivalent(command, effective_command_value(node, command), new_value)) {
+        // 1. Insert node into the parent of new parent before new parent, preserving ranges.
+        move_node_preserving_ranges(node, *new_parent->parent(), new_parent->index());
+
+        // 2. Remove new parent from its parent.
+        new_parent->remove();
+
+        // 3. Let children be all children of node, omitting any that are Elements whose specified command value for
+        //    command is neither null nor equivalent to new value.
+        Vector<GC::Ref<DOM::Node>> children;
+        node->for_each_child([&](GC::Ref<DOM::Node> child) {
+            if (is<DOM::Element>(*child)) {
+                auto child_value = specified_command_value(static_cast<DOM::Element&>(*child), command);
+                if (child_value.has_value() && !values_are_equivalent(command, child_value.value(), new_value))
+                    return IterationDecision::Continue;
+            }
+
+            children.append(child);
+            return IterationDecision::Continue;
+        });
+
+        // 4. Force the value of each node in children, with command and new value as in this invocation of the
+        //    algorithm.
+        for (auto child : children)
+            force_the_value(child, command, new_value);
+    }
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#allowed-child
 bool is_allowed_child_of_node(Variant<GC::Ref<DOM::Node>, FlyString> child, Variant<GC::Ref<DOM::Node>, FlyString> parent)
 {
@@ -1664,6 +2019,40 @@ bool is_invisible_node(GC::Ref<DOM::Node> node)
     return !is_visible_node(node);
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#modifiable-element
+bool is_modifiable_element(GC::Ref<DOM::Node> node)
+{
+    // NOTE: All conditions below expect an HTML element.
+    if (!is<HTML::HTMLElement>(*node))
+        return false;
+    auto const& html_element = static_cast<HTML::HTMLElement const&>(*node);
+
+    // A modifiable element is a b, em, i, s, span, strike, strong, sub, sup, or u element with no attributes except
+    // possibly style;
+    auto has_no_attributes_except = [&](auto exclusions) {
+        auto attribute_count = 0;
+        html_element.for_each_attribute([&](DOM::Attr const& attribute) {
+            if (!exclusions.contains_slow(attribute.local_name()))
+                ++attribute_count;
+        });
+        return attribute_count == 0;
+    };
+    if (html_element.local_name().is_one_of(HTML::TagNames::b, HTML::TagNames::em, HTML::TagNames::i,
+            HTML::TagNames::s, HTML::TagNames::span, HTML::TagNames::strike, HTML::TagNames::strong,
+            HTML::TagNames::sub, HTML::TagNames::sup, HTML::TagNames::u))
+        return has_no_attributes_except(Array { HTML::AttributeNames::style });
+
+    // or a font element with no attributes except possibly style, color, face, and/or size;
+    if (is<HTML::HTMLFontElement>(html_element)) {
+        return has_no_attributes_except(Array { HTML::AttributeNames::style, HTML::AttributeNames::color,
+            HTML::AttributeNames::face, HTML::AttributeNames::size });
+    }
+
+    // or an a element with no attributes except possibly style and/or href.
+    return is<HTML::HTMLAnchorElement>(html_element)
+        && has_no_attributes_except(Array { HTML::AttributeNames::style, HTML::AttributeNames::href });
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#name-of-an-element-with-inline-contents
 bool is_name_of_an_element_with_inline_contents(FlyString const& local_name)
 {
@@ -1792,6 +2181,88 @@ bool is_prohibited_paragraph_child_name(FlyString const& local_name)
         HTML::TagNames::tr,
         HTML::TagNames::ul,
         HTML::TagNames::xmp);
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#simple-modifiable-element
+bool is_simple_modifiable_element(GC::Ref<DOM::Node> node)
+{
+    // A simple modifiable element is an HTML element for which at least one of the following holds:
+    if (!is<HTML::HTMLElement>(*node))
+        return false;
+    auto const& html_element = static_cast<HTML::HTMLElement&>(*node);
+    auto const inline_style = html_element.inline_style();
+
+    // * It is an a, b, em, font, i, s, span, strike, strong, sub, sup, or u element with no attributes.
+    // * It is an a, b, em, font, i, s, span, strike, strong, sub, sup, or u element with exactly one attribute, which
+    //   is style, which sets no CSS properties (including invalid or unrecognized properties).
+    auto attribute_count = html_element.attribute_list_size();
+    if (html_element.local_name().is_one_of(HTML::TagNames::a, HTML::TagNames::b, HTML::TagNames::em,
+            HTML::TagNames::font, HTML::TagNames::i, HTML::TagNames::s, HTML::TagNames::span, HTML::TagNames::strike,
+            HTML::TagNames::strong, HTML::TagNames::sub, HTML::TagNames::sup, HTML::TagNames::u)) {
+        if (attribute_count == 0)
+            return true;
+
+        if (attribute_count == 1 && html_element.has_attribute(HTML::AttributeNames::style)
+            && (!inline_style || inline_style->length() == 0))
+            return true;
+    }
+
+    // NOTE: All conditions below require exactly one attribute on the element
+    if (attribute_count != 1)
+        return false;
+
+    // * It is an a element with exactly one attribute, which is href.
+    if (is<HTML::HTMLAnchorElement>(html_element)
+        && html_element.get_attribute(HTML::AttributeNames::href).has_value())
+        return true;
+
+    // * It is a font element with exactly one attribute, which is either color, face, or size.
+    if (is<HTML::HTMLFontElement>(html_element)) {
+        if (html_element.has_attribute(HTML::AttributeNames::color)
+            || html_element.has_attribute(HTML::AttributeNames::face)
+            || html_element.has_attribute(HTML::AttributeNames::size))
+            return true;
+    }
+
+    // NOTE: All conditions below require exactly one attribute which is style, that sets one CSS property.
+    if (!html_element.has_attribute(HTML::AttributeNames::style) || !inline_style || (inline_style->length() != 1))
+        return false;
+
+    // * It is a b or strong element with exactly one attribute, which is style, and the style attribute sets exactly
+    //   one CSS property (including invalid or unrecognized properties), which is "font-weight".
+    if (html_element.local_name().is_one_of(HTML::TagNames::b, HTML::TagNames::strong)
+        && inline_style->property(CSS::PropertyID::FontWeight).has_value())
+        return true;
+
+    // * It is an i or em element with exactly one attribute, which is style, and the style attribute sets exactly one
+    //   CSS property (including invalid or unrecognized properties), which is "font-style".
+    if (html_element.local_name().is_one_of(HTML::TagNames::i, HTML::TagNames::em)
+        && inline_style->property(CSS::PropertyID::FontStyle).has_value())
+        return true;
+
+    // * It is an a, font, or span element with exactly one attribute, which is style, and the style attribute sets
+    //   exactly one CSS property (including invalid or unrecognized properties), and that property is not
+    //   "text-decoration".
+    if (html_element.local_name().is_one_of(HTML::TagNames::a, HTML::TagNames::font, HTML::TagNames::span)
+        && !inline_style->property(CSS::PropertyID::TextDecoration).has_value())
+        return true;
+
+    // * It is an a, font, s, span, strike, or u element with exactly one attribute, which is style, and the style
+    //   attribute sets exactly one CSS property (including invalid or unrecognized properties), which is
+    //   "text-decoration", which is set to "line-through" or "underline" or "overline" or "none".
+    if (html_element.local_name().is_one_of(HTML::TagNames::a, HTML::TagNames::font, HTML::TagNames::s,
+            HTML::TagNames::span, HTML::TagNames::strike, HTML::TagNames::u)
+        && inline_style->property(CSS::PropertyID::TextDecoration).has_value()) {
+        auto text_decoration = inline_style->text_decoration();
+        if (first_is_one_of(text_decoration,
+                string_from_keyword(CSS::Keyword::LineThrough),
+                string_from_keyword(CSS::Keyword::Underline),
+                string_from_keyword(CSS::Keyword::Overline),
+                string_from_keyword(CSS::Keyword::None)))
+            return true;
+    }
+
+    return false;
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#single-line-container
@@ -2133,6 +2604,96 @@ Optional<DOM::BoundaryPoint> previous_equivalent_point(DOM::BoundaryPoint bounda
     return {};
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#push-down-values
+void push_down_values(FlyString const& command, GC::Ref<DOM::Node> node, Optional<String> new_value)
+{
+    // 1. Let command be the current command.
+
+    // 2. If node's parent is not an Element, abort this algorithm.
+    if (!is<DOM::Element>(node->parent()))
+        return;
+
+    // 3. If the effective command value of command is loosely equivalent to new value on node, abort this algorithm.
+    if (values_are_loosely_equivalent(command, effective_command_value(node, command), new_value))
+        return;
+
+    // 4. Let current ancestor be node's parent.
+    auto current_ancestor = GC::Ptr { node->parent() };
+
+    // 5. Let ancestor list be a list of nodes, initially empty.
+    Vector<GC::Ref<DOM::Node>> ancestor_list;
+
+    // 6. While current ancestor is an editable Element and the effective command value of command is not loosely
+    //    equivalent to new value on it, append current ancestor to ancestor list, then set current ancestor to its
+    //    parent.
+    while (is<DOM::Element>(current_ancestor.ptr()) && current_ancestor->is_editable()
+        && !values_are_loosely_equivalent(command, effective_command_value(current_ancestor, command), new_value)) {
+        ancestor_list.append(*current_ancestor);
+        current_ancestor = current_ancestor->parent();
+    }
+
+    // 7. If ancestor list is empty, abort this algorithm.
+    if (ancestor_list.is_empty())
+        return;
+
+    // 8. Let propagated value be the specified command value of command on the last member of ancestor list.
+    auto propagated_value = specified_command_value(static_cast<DOM::Element&>(*ancestor_list.last()), command);
+
+    // 9. If propagated value is null and is not equal to new value, abort this algorithm.
+    if (!propagated_value.has_value() && new_value.has_value())
+        return;
+
+    // 10. If the effective command value of command is not loosely equivalent to new value on the parent of the last
+    //     member of ancestor list, and new value is not null, abort this algorithm.
+    if (new_value.has_value() && ancestor_list.last()->parent()
+        && !values_are_loosely_equivalent(command, effective_command_value(ancestor_list.last()->parent(), command), new_value))
+        return;
+
+    // 11. While ancestor list is not empty:
+    while (!ancestor_list.is_empty()) {
+        // 1. Let current ancestor be the last member of ancestor list.
+        // 2. Remove the last member from ancestor list.
+        current_ancestor = ancestor_list.take_last();
+
+        // 3. If the specified command value of current ancestor for command is not null, set propagated value to that
+        //    value.
+        // NOTE: Step 6 above guarantees that current_ancestor is an Element.
+        auto command_value = specified_command_value(static_cast<DOM::Element&>(*current_ancestor), command);
+        if (command_value.has_value())
+            propagated_value = command_value.value();
+
+        // 4. Let children be the children of current ancestor.
+        auto children = current_ancestor->children_as_vector();
+
+        // 5. If the specified command value of current ancestor for command is not null, clear the value of current
+        //    ancestor.
+        if (command_value.has_value())
+            clear_the_value(command, static_cast<DOM::Element&>(*current_ancestor));
+
+        // 6. For every child in children:
+        for (auto const& child : children) {
+            // 1. If child is node, continue with the next child.
+            if (child.ptr() == node.ptr())
+                continue;
+
+            // 2. If child is an Element whose specified command value for command is neither null nor equivalent to
+            //    propagated value, continue with the next child.
+            if (is<DOM::Element>(*child)) {
+                auto child_command_value = specified_command_value(static_cast<DOM::Element&>(*child), command);
+                if (child_command_value.has_value() && child_command_value != propagated_value)
+                    continue;
+            }
+
+            // 3. If child is the last member of ancestor list, continue with the next child.
+            if (!ancestor_list.is_empty() && child.ptr() == ancestor_list.last().ptr())
+                continue;
+
+            // 4. Force the value of child, with command as in this algorithm and new value equal to propagated value.
+            force_the_value(*child, command, propagated_value);
+        }
+    }
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#record-current-overrides
 Vector<RecordedOverride> record_current_overrides(DOM::Document const& document)
 {
@@ -2333,6 +2894,45 @@ void remove_node_preserving_its_descendants(GC::Ref<DOM::Node> node)
     node->remove();
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#reorder-modifiable-descendants
+void reorder_modifiable_descendants(GC::Ref<DOM::Node> node, FlyString const& command, Optional<String> new_value)
+{
+    // 1. Let candidate equal node.
+    GC::Ptr<DOM::Node> candidate = node;
+
+    // 2. While candidate is a modifiable element, and candidate has exactly one child, and that child is also a
+    //    modifiable element, and candidate is not a simple modifiable element or candidate's specified command value
+    //    for command is not equivalent to new value, set candidate to its child.
+    while (is_modifiable_element(*candidate) && candidate->child_count() == 1
+        && is_modifiable_element(*candidate->first_child())
+        && (!is_simple_modifiable_element(*candidate)
+            || specified_command_value(static_cast<DOM::Element&>(*candidate), command) != new_value)) {
+        candidate = candidate->first_child();
+    }
+
+    // 3. If candidate is node, or is not a simple modifiable element, or its specified command value is not equivalent
+    //    to new value, or its effective command value is not loosely equivalent to new value, abort these steps.
+    if (candidate == node
+        || !is_simple_modifiable_element(*candidate)
+        || specified_command_value(static_cast<DOM::Element&>(*candidate), command) != new_value
+        || !values_are_loosely_equivalent(CommandNames::createLink, effective_command_value(candidate, command), new_value))
+        return;
+
+    // 4. While candidate has children, insert the first child of candidate into candidate's parent immediately before
+    //    candidate, preserving ranges.
+    while (candidate->has_children())
+        move_node_preserving_ranges(*candidate->first_child(), *candidate->parent(), candidate->index());
+
+    // 5. Insert candidate into node's parent immediately after node.
+    if (node->next_sibling())
+        node->parent()->insert_before(*candidate, node->next_sibling());
+    else
+        MUST(node->parent()->append_child(*candidate));
+
+    // 6. Append the node as the last child of candidate, preserving ranges.
+    move_node_preserving_ranges(node, *candidate, candidate->child_count());
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#restore-states-and-values
 void restore_states_and_values(DOM::Document& document, Vector<RecordedOverride> const& overrides)
 {
@@ -2424,23 +3024,33 @@ void restore_the_values_of_nodes(Vector<RecordedNodeValue> const& values)
 {
     // 1. For each (node, command, value) triple in values:
     for (auto& recorded_node_value : values) {
+        auto node = recorded_node_value.node;
+        auto const& command = recorded_node_value.command;
+        auto value = recorded_node_value.specified_command_value;
+
         // 1. Let ancestor equal node.
-        GC::Ptr<DOM::Node> ancestor = recorded_node_value.node;
+        GC::Ptr<DOM::Node> ancestor = node;
 
         // 2. If ancestor is not an Element, set it to its parent.
         if (!is<DOM::Element>(*ancestor))
             ancestor = ancestor->parent();
 
         // 3. While ancestor is an Element and its specified command value for command is null, set it to its parent.
-        auto const& command = recorded_node_value.command;
         while (is<DOM::Element>(ancestor.ptr()) && !specified_command_value(static_cast<DOM::Element&>(*ancestor), command).has_value())
             ancestor = ancestor->parent();
 
-        // FIXME: 4. If value is null and ancestor is an Element, push down values on node for command, with new value null.
+        // 4. If value is null and ancestor is an Element, push down values on node for command, with new value null.
+        if (!value.has_value() && is<DOM::Element>(ancestor.ptr())) {
+            push_down_values(command, node, {});
+        }
 
-        // FIXME: 5. Otherwise, if ancestor is an Element and its specified command value for command is not equivalent to
+        // 5. Otherwise, if ancestor is an Element and its specified command value for command is not equivalent to
         //    value, or if ancestor is not an Element and value is not null, force the value of command to value on
         //    node.
+        else if ((is<DOM::Element>(ancestor.ptr()) && specified_command_value(static_cast<DOM::Element&>(*ancestor), command) != value)
+            || (!is<DOM::Element>(ancestor.ptr()) && value.has_value())) {
+            force_the_value(node, command, value);
+        }
     }
 }
 
@@ -3038,6 +3648,11 @@ bool is_heading(FlyString const& local_name)
         HTML::TagNames::h4,
         HTML::TagNames::h5,
         HTML::TagNames::h6);
+}
+
+Array<StringView, 7> named_font_sizes()
+{
+    return { "x-small"sv, "small"sv, "medium"sv, "large"sv, "x-large"sv, "xx-large"sv, "xxx-large"sv };
 }
 
 Optional<NonnullRefPtr<CSS::CSSStyleValue const>> property_in_style_attribute(GC::Ref<DOM::Element> element, CSS::PropertyID property_id)
