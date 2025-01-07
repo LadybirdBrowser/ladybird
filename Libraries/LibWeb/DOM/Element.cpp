@@ -1545,18 +1545,17 @@ WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> Element::parse_fragment(Stri
         dbgln("FIXME: Handle fragment parsing of XML documents");
     }
 
-    // 3. Let new children be the result of invoking algorithm given markup, with context set to context.
+    // 3. Let newChildren be the result of invoking algorithm given context and markup.
     auto new_children = algorithm(*this, markup, HTML::HTMLParser::AllowDeclarativeShadowRoots::No);
 
     // 4. Let fragment be a new DocumentFragment whose node document is context's node document.
     auto fragment = realm().create<DOM::DocumentFragment>(document());
 
-    // 5. Append each Node in new children to fragment (in tree order).
-    for (auto& child : new_children) {
-        // I don't know if this can throw here, but let's be safe.
-        (void)TRY(fragment->append_child(*child));
-    }
+    // 5. For each node of newChildren, in tree order: append node to fragment.
+    for (auto& child : new_children)
+        TRY(fragment->append_child(*child));
 
+    // 6. Return fragment.
     return fragment;
 }
 
