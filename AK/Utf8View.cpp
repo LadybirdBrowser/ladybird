@@ -120,6 +120,18 @@ bool Utf8View::contains(u32 needle) const
     return false;
 }
 
+bool Utf8View::contains_any_of(ReadonlySpan<u32> needles) const
+{
+    for (u32 const code_point : *this) {
+        for (auto needle : needles) {
+            if (code_point == needle)
+                return true;
+        }
+    }
+
+    return false;
+}
+
 Utf8View Utf8View::trim(Utf8View const& characters, TrimMode mode) const
 {
     size_t substring_start = 0;
