@@ -20,5 +20,6 @@ void close_a_database_connection(IDBDatabase&, bool forced = false);
 void upgrade_a_database(JS::Realm&, GC::Ref<IDBDatabase>, u64, GC::Ref<IDBRequest>);
 WebIDL::ExceptionOr<u64> delete_a_database(JS::Realm&, StorageAPI::StorageKey, String, GC::Ref<IDBRequest>);
 void abort_a_transaction(IDBTransaction&, GC::Ptr<WebIDL::DOMException>);
+JS::Value convert_a_key_to_a_value(JS::Realm&, GC::Ref<Key>);
 
 }
