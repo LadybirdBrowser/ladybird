@@ -38,6 +38,7 @@ bool command_delete_action(DOM::Document&, String const&);
 bool command_font_name_action(DOM::Document&, String const&);
 bool command_font_size_action(DOM::Document&, String const&);
 String command_font_size_value(DOM::Document const&);
+bool command_fore_color_action(DOM::Document&, String const&);
 bool command_forward_delete_action(DOM::Document&, String const&);
 bool command_insert_linebreak_action(DOM::Document&, String const&);
 bool command_insert_paragraph_action(DOM::Document&, String const&);

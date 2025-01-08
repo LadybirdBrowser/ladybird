@@ -1,0 +1,22 @@
+<script src="../include.js"></script>
+<div contenteditable="true">foobar</div>
+<script>
+    test(() => {
+        const range = document.createRange();
+        getSelection().addRange(range);
+
+        const divElm = document.querySelector('div');
+
+        // Make 'foo' blue
+        range.setStart(divElm.childNodes[0], 0);
+        range.setEnd(divElm.childNodes[0], 3);
+        document.execCommand('foreColor', false, '#0000ff');
+        println(`Div contents: "${divElm.innerHTML}"`);
+
+        // Make 'bar' red
+        range.setStart(divElm.childNodes[1], 0);
+        range.setEnd(divElm.childNodes[1], 3);
+        document.execCommand('foreColor', false, 'red');
+        println(`Div contents: "${divElm.innerHTML}"`);
+    });
+</script>
