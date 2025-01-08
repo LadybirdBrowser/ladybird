@@ -1,0 +1,34 @@
+<script src="../include.js"></script>
+<div contenteditable="true">foobar</div>
+<script>
+    test(() => {
+        const range = document.createRange();
+        getSelection().addRange(range);
+
+        const divElm = document.querySelector('div');
+        const printableSelection = () => {
+            let activeRange = getSelection().getRangeAt(0);
+            return `${activeRange.startContainer.nodeName} ${activeRange.startOffset} ${activeRange.endContainer.nodeName} ${activeRange.endOffset}`;
+        };
+        const report = () => println(`Div contents: "${divElm.innerHTML}" state: ${document.queryCommandState('superscript')} selection: ${printableSelection()}`);
+        report();
+
+        // Add superscript to 'bar'
+        range.setStart(divElm.childNodes[0], 3);
+        range.setEnd(divElm.childNodes[0], 6);
+        document.execCommand('superscript');
+        report();
+
+        // Add superscript to 'foo'
+        range.setStart(divElm.childNodes[0], 0);
+        range.setEnd(divElm.childNodes[0], 3);
+        document.execCommand('superscript');
+        report();
+
+        // Desuperscriptify 'bar'
+        range.setStart(divElm.childNodes[0].childNodes[1], 0);
+        range.setEnd(divElm.childNodes[0].childNodes[1], 3);
+        document.execCommand('superscript');
+        report();
+    });
+</script>
