@@ -1281,6 +1281,23 @@ bool command_remove_format_action(DOM::Document& document, String const&)
     return true;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-strikethrough-command
+bool command_strikethrough_action(DOM::Document& document, String const&)
+{
+    // If queryCommandState("strikethrough") returns true, set the selection's value to null.
+    if (document.query_command_state(CommandNames::strikethrough)) {
+        set_the_selections_value(document, CommandNames::strikethrough, {});
+    }
+
+    // Otherwise set the selection's value to "line-through".
+    else {
+        set_the_selections_value(document, CommandNames::strikethrough, "line-through"_string);
+    }
+
+    // Either way, return true.
+    return true;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-stylewithcss-command
 bool command_style_with_css_action(DOM::Document& document, String const& value)
 {
@@ -1384,6 +1401,12 @@ static Array const commands {
     CommandDefinition {
         .command = CommandNames::removeFormat,
         .action = command_remove_format_action,
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-strikethrough-command
+    CommandDefinition {
+        .command = CommandNames::strikethrough,
+        .action = command_strikethrough_action,
+        .inline_activated_values = { "line-through"sv },
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-stylewithcss-command
     CommandDefinition {
