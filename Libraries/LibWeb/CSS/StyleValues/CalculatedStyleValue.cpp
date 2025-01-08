@@ -109,7 +109,7 @@ CalculationNode::CalculationNode(Type type, Optional<CSSNumericType> numeric_typ
 
 CalculationNode::~CalculationNode() = default;
 
-static CSSNumericType numeric_type_from_calculated_style_value(CalculatedStyleValue::CalculationResult::Value const& value, Optional<ValueType> percentage_resolved_type)
+static CSSNumericType numeric_type_from_calculated_style_value(CalculatedStyleValue::CalculationResult::Value const& value, CalculationContext const& context)
 {
     // https://drafts.csswg.org/css-values-4/#determine-the-type-of-a-calculation
     // Anything else is a terminal value, whose type is determined based on its CSS type.
@@ -152,14 +152,14 @@ static CSSNumericType numeric_type_from_calculated_style_value(CalculatedStyleVa
             return CSSNumericType { CSSNumericType::BaseType::Flex, 1 };
         },
         // NOTE: <calc-constant> is a separate node type. (FIXME: Should it be?)
-        [&percentage_resolved_type](Percentage const&) {
+        [&context](Percentage const&) {
             // -> <percentage>
             //    If, in the context in which the math function containing this calculation is placed,
             //    <percentage>s are resolved relative to another type of value (such as in width,
             //    where <percentage> is resolved against a <length>), and that other type is not <number>,
             //    the type is determined as the other type, but with a percent hint set to that other type.
-            if (percentage_resolved_type.has_value() && percentage_resolved_type != ValueType::Number && percentage_resolved_type != ValueType::Percentage) {
-                auto base_type = CSSNumericType::base_type_from_value_type(*percentage_resolved_type);
+            if (context.percentages_resolve_as.has_value() && context.percentages_resolve_as != ValueType::Number && context.percentages_resolve_as != ValueType::Percentage) {
+                auto base_type = CSSNumericType::base_type_from_value_type(*context.percentages_resolve_as);
                 VERIFY(base_type.has_value());
                 auto result = CSSNumericType { base_type.value(), 1 };
                 result.set_percent_hint(base_type);
@@ -174,9 +174,9 @@ static CSSNumericType numeric_type_from_calculated_style_value(CalculatedStyleVa
         });
 }
 
-NonnullOwnPtr<NumericCalculationNode> NumericCalculationNode::create(NumericValue value, Optional<ValueType> percentage_resolved_type)
+NonnullOwnPtr<NumericCalculationNode> NumericCalculationNode::create(NumericValue value, CalculationContext const& context)
 {
-    auto numeric_type = numeric_type_from_calculated_style_value(value, percentage_resolved_type);
+    auto numeric_type = numeric_type_from_calculated_style_value(value, context);
     return adopt_own(*new (nothrow) NumericCalculationNode(move(value), numeric_type));
 }
 

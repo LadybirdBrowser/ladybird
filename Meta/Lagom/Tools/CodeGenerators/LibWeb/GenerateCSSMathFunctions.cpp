@@ -116,7 +116,7 @@ static Optional<RoundingStrategy> parse_rounding_strategy(Vector<ComponentValue>
     return keyword_to_rounding_strategy(maybe_keyword.value());
 }
 
-OwnPtr<CalculationNode> Parser::parse_math_function(Function const& function)
+OwnPtr<CalculationNode> Parser::parse_math_function(Function const& function, CalculationContext const& context)
 {
     TokenStream stream { function.value };
     auto arguments = parse_a_comma_separated_list_of_component_values(stream);
@@ -140,7 +140,7 @@ OwnPtr<CalculationNode> Parser::parse_math_function(Function const& function)
         parsed_arguments.ensure_capacity(arguments.size());
 
         for (auto& argument : arguments) {
-            auto calculation_node = parse_a_calculation(argument);
+            auto calculation_node = parse_a_calculation(argument, context);
             if (!calculation_node) {
                 dbgln_if(CSS_PARSER_DEBUG, "@name:lowercase@() argument #{} is not a valid calculation", parsed_arguments.size());
                 return nullptr;
@@ -243,7 +243,7 @@ OwnPtr<CalculationNode> Parser::parse_math_function(Function const& function)
                     // NOTE: This assumes everything not handled above is a calculation node of some kind.
                     parameter_is_calculation = true;
                     parameter_generator.set("parameter_type", "OwnPtr<CalculationNode>"_string);
-                    parameter_generator.set("parse_function", "parse_a_calculation(arguments[argument_index])"_string);
+                    parameter_generator.set("parse_function", "parse_a_calculation(arguments[argument_index], context)"_string);
                     parameter_generator.set("check_function", " != nullptr"_string);
                     parameter_generator.set("release_function", ".release_nonnull()"_string);
 

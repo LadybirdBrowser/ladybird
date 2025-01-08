@@ -16,15 +16,19 @@ String EdgeStyleValue::to_string(SerializationMode mode) const
                 auto flipped_percentage = 100 - offset().percentage().value();
                 return Percentage(flipped_percentage).to_string();
             }
+
+            // FIXME: Figure out how to get the proper calculation context here
+            CalculationContext context = {};
+
             Vector<NonnullOwnPtr<CalculationNode>> sum_parts;
-            sum_parts.append(NumericCalculationNode::create(Percentage(100)));
+            sum_parts.append(NumericCalculationNode::create(Percentage(100), context));
             if (offset().is_length()) {
-                sum_parts.append(NegateCalculationNode::create(NumericCalculationNode::create(offset().length())));
+                sum_parts.append(NegateCalculationNode::create(NumericCalculationNode::create(offset().length(), context)));
             } else {
                 // FIXME: Flip calculated offsets (convert CalculatedStyleValue to CalculationNode, then negate and append)
                 return to_string(CSSStyleValue::SerializationMode::Normal);
             }
-            auto flipped_absolute = CalculatedStyleValue::create(SumCalculationNode::create(move(sum_parts)), CSSNumericType(CSSNumericType::BaseType::Length, 1));
+            auto flipped_absolute = CalculatedStyleValue::create(SumCalculationNode::create(move(sum_parts)), CSSNumericType(CSSNumericType::BaseType::Length, 1), context);
             return flipped_absolute->to_string(mode);
         }
         return offset().to_string();
