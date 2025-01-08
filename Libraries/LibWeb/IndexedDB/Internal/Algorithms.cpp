@@ -166,7 +166,7 @@ bool fire_a_version_change_event(JS::Realm& realm, FlyString const& event_name, 
 }
 
 // https://w3c.github.io/IndexedDB/#convert-value-to-key
-ErrorOr<Key> convert_a_value_to_a_key(JS::Realm& realm, JS::Value input, Vector<JS::Value> seen)
+ErrorOr<GC::Ref<Key>> convert_a_value_to_a_key(JS::Realm& realm, JS::Value input, Vector<JS::Value> seen)
 {
     // 1. If seen was not given, then let seen be a new empty set.
     // NOTE: This is handled by the caller.
@@ -185,7 +185,7 @@ ErrorOr<Key> convert_a_value_to_a_key(JS::Realm& realm, JS::Value input, Vector<
             return Error::from_string_literal("NaN key");
 
         // 2. Otherwise, return a new key with type number and value input.
-        return Key::create_number(input.as_double());
+        return Key::create_number(realm, input.as_double());
     }
 
     // - If input is a Date (has a [[DateValue]] internal slot)
@@ -200,14 +200,14 @@ ErrorOr<Key> convert_a_value_to_a_key(JS::Realm& realm, JS::Value input, Vector<
             return Error::from_string_literal("NaN key");
 
         // 3. Otherwise, return a new key with type date and value ms.
-        return Key::create_date(ms);
+        return Key::create_date(realm, ms);
     }
 
     // - If Type(input) is String
     if (input.is_string()) {
 
         // 1. Return a new key with type string and value input.
-        return Key::create_string(input.as_string().utf8_string());
+        return Key::create_string(realm, input.as_string().utf8_string());
     }
 
     // - If input is a buffer source type
@@ -217,7 +217,7 @@ ErrorOr<Key> convert_a_value_to_a_key(JS::Realm& realm, JS::Value input, Vector<
         auto data_buffer = TRY(WebIDL::get_buffer_source_copy(input.as_object()));
 
         // 2. Return a new key with type binary and value bytes.
-        return Key::create_binary(data_buffer);
+        return Key::create_binary(realm, data_buffer);
     }
 
     // - If input is an Array exotic object
@@ -234,7 +234,7 @@ ErrorOr<Key> convert_a_value_to_a_key(JS::Realm& realm, JS::Value input, Vector<
         seen.append(input);
 
         // 3. Let keys be a new empty list.
-        Vector<Key> keys;
+        Vector<GC::Root<Key>> keys;
 
         // 4. Let index be 0.
         u64 index = 0;
@@ -275,7 +275,7 @@ ErrorOr<Key> convert_a_value_to_a_key(JS::Realm& realm, JS::Value input, Vector<
         }
 
         // 6. Return a new array key with value keys.
-        return Key::create_array(keys);
+        return Key::create_array(realm, keys);
     }
 
     // - Otherwise
