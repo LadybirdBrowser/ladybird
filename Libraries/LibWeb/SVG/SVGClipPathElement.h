@@ -8,13 +8,14 @@
 
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGElement.h>
+#include <LibWeb/SVG/SVGGraphicsElement.h>
 #include <LibWeb/SVG/SVGViewport.h>
 
 namespace Web::SVG {
 
-class SVGClipPathElement final : public SVGElement
+class SVGClipPathElement final : public SVGGraphicsElement
     , public SVGViewport {
-    WEB_PLATFORM_OBJECT(SVGClipPathElement, SVGElement);
+    WEB_PLATFORM_OBJECT(SVGClipPathElement, SVGGraphicsElement);
     GC_DECLARE_ALLOCATOR(SVGClipPathElement);
 
 public:
@@ -48,5 +49,4 @@ private:
 
     Optional<ClipPathUnits> m_clip_path_units = {};
 };
-
 }
