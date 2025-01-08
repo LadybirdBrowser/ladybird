@@ -571,6 +571,26 @@ TEST_CASE(test_signed_bigint_bitwise_xor)
     EXPECT_EQ(num2.bitwise_xor(num2), "0"_sbigint);
 }
 
+TEST_CASE(test_bigint_shift_left)
+{
+    Crypto::UnsignedBigInteger const num(Vector<u32> { 0x22222222, 0xffffffff });
+
+    size_t const tests = 8;
+    AK::Tuple<size_t, Vector<u32>> results[] = {
+        { 0, { 0x22222222, 0xffffffff } },
+        { 8, { 0x22222200, 0xffffff22, 0x000000ff } },
+        { 16, { 0x22220000, 0xffff2222, 0x0000ffff } },
+        { 32, { 0x00000000, 0x22222222, 0xffffffff } },
+        { 36, { 0x00000000, 0x22222220, 0xfffffff2, 0x0000000f } },
+        { 40, { 0x00000000, 0x22222200, 0xffffff22, 0x000000ff } },
+        { 64, { 0x00000000, 0x00000000, 0x22222222, 0xffffffff } },
+        { 68, { 0x00000000, 0x00000000, 0x22222220, 0xfffffff2, 0x0000000f } },
+    };
+
+    for (size_t i = 0; i < tests; ++i)
+        EXPECT_EQ(num.shift_left(results[i].get<0>()).words(), results[i].get<1>());
+}
+
 TEST_CASE(test_bigint_shift_right)
 {
     Crypto::UnsignedBigInteger const num1(Vector<u32> { 0x100, 0x20, 0x4, 0x2, 0x1 });
