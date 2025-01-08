@@ -112,7 +112,9 @@ size_t EventLoopImplementationWindows::pump(PumpMode)
     for (auto& entry : timers)
         event_handles.append(entry.key.handle);
 
-    DWORD result = WaitForMultipleObjects(event_count, event_handles.data(), FALSE, INFINITE);
+    bool has_pending_events = ThreadEventQueue::current().has_pending_events();
+    int timeout = has_pending_events ? 0 : INFINITE;
+    DWORD result = WaitForMultipleObjects(event_count, event_handles.data(), FALSE, timeout);
     size_t index = result - WAIT_OBJECT_0;
     VERIFY(index < event_count);
 
