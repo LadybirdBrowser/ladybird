@@ -45,6 +45,16 @@ public:
     [[nodiscard]] KeyType type() { return m_type; }
     [[nodiscard]] KeyValue value() { return m_value; }
 
+    [[nodiscard]] double value_as_double() { return m_value.get<double>(); }
+    [[nodiscard]] AK::String value_as_string() { return m_value.get<AK::String>(); }
+    [[nodiscard]] ByteBuffer value_as_byte_buffer() { return m_value.get<ByteBuffer>(); }
+    [[nodiscard]] Vector<GC::Root<Key>> value_as_vector() { return m_value.get<Vector<GC::Root<Key>>>(); }
+    [[nodiscard]] Vector<GC::Root<Key>> subkeys()
+    {
+        VERIFY(m_type == Array);
+        return value_as_vector();
+    }
+
     [[nodiscard]] static GC::Ref<Key> create_number(JS::Realm& realm, double value) { return create(realm, Number, value); }
     [[nodiscard]] static GC::Ref<Key> create_date(JS::Realm& realm, double value) { return create(realm, Date, value); }
     [[nodiscard]] static GC::Ref<Key> create_string(JS::Realm& realm, AK::String const& value) { return create(realm, String, value); }

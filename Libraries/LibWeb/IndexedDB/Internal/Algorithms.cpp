@@ -495,4 +495,89 @@ void abort_a_transaction(IDBTransaction& transaction, GC::Ptr<WebIDL::DOMExcepti
     }));
 }
 
+// https://w3c.github.io/IndexedDB/#convert-a-key-to-a-value
+JS::Value convert_a_key_to_a_value(JS::Realm& realm, GC::Ref<Key> key)
+{
+    // 1. Let type be key’s type.
+    auto type = key->type();
+
+    // 2. Let value be key’s value.
+    auto value = key->value();
+
+    // 3. Switch on type:
+    switch (type) {
+    case Key::KeyType::Number: {
+        // Return an ECMAScript Number value equal to value
+        return JS::Value(key->value_as_double());
+    }
+
+    case Key::KeyType::String: {
+        // Return an ECMAScript String value equal to value
+        return JS::PrimitiveString::create(realm.vm(), key->value_as_string());
+    }
+
+    case Key::KeyType::Date: {
+        // 1. Let date be the result of executing the ECMAScript Date constructor with the single argument value.
+        auto date = JS::Date::create(realm, key->value_as_double());
+
+        // 2. Assert: date is not an abrupt completion.
+        // NOTE: This is not possible in our implementation.
+
+        // 3. Return date.
+        return date;
+    }
+
+    case Key::KeyType::Binary: {
+        auto buffer = key->value_as_byte_buffer();
+
+        // 1. Let len be value’s length.
+        auto len = buffer.size();
+
+        // 2. Let buffer be the result of executing the ECMAScript ArrayBuffer constructor with len.
+        // 3. Assert: buffer is not an abrupt completion.
+        auto array_buffer = MUST(JS::ArrayBuffer::create(realm, len));
+
+        // 4. Set the entries in buffer’s [[ArrayBufferData]] internal slot to the entries in value.
+        buffer.span().copy_to(array_buffer->buffer());
+
+        // 5. Return buffer.
+        return array_buffer;
+    }
+
+    case Key::KeyType::Array: {
+        auto data = key->value_as_vector();
+
+        // 1. Let array be the result of executing the ECMAScript Array constructor with no arguments.
+        // 2. Assert: array is not an abrupt completion.
+        auto array = MUST(JS::Array::create(realm, 0));
+
+        // 3. Let len be value’s size.
+        auto len = data.size();
+
+        // 4. Let index be 0.
+        u64 index = 0;
+
+        // 5. While index is less than len:
+        while (index < len) {
+            // 1. Let entry be the result of converting a key to a value with value[index].
+            auto entry = convert_a_key_to_a_value(realm, *data[index]);
+
+            // 2. Let status be CreateDataProperty(array, index, entry).
+            auto status = MUST(array->create_data_property(index, entry));
+
+            // 3. Assert: status is true.
+            VERIFY(status);
+
+            // 4. Increase index by 1.
+            index++;
+        }
+
+        // 6. Return array.
+        return array;
+    }
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
 }
