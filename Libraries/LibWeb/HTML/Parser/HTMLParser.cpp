@@ -833,6 +833,7 @@ GC::Ref<DOM::Element> HTMLParser::insert_html_element(HTMLToken const& token)
     return insert_foreign_element(token, Namespace::HTML, OnlyAddToElementStack::No);
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#the-before-head-insertion-mode
 void HTMLParser::handle_before_head(HTMLToken& token)
 {
     if (token.is_character() && token.is_parser_whitespace()) {
@@ -883,6 +884,7 @@ void HTMLParser::insert_comment(HTMLToken& token)
     adjusted_insertion_location.parent->insert_before(realm().create<DOM::Comment>(document(), token.comment()), adjusted_insertion_location.insert_before_sibling);
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inhead
 void HTMLParser::handle_in_head(HTMLToken& token)
 {
     if (token.is_parser_whitespace()) {
@@ -1244,6 +1246,7 @@ void HTMLParser::insert_character(u32 data)
     m_character_insertion_builder.append_code_point(data);
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#the-after-head-insertion-mode
 void HTMLParser::handle_after_head(HTMLToken& token)
 {
     if (token.is_character() && token.is_parser_whitespace()) {
@@ -1330,6 +1333,7 @@ void HTMLParser::close_a_p_element()
     m_stack_of_open_elements.pop_until_an_element_with_tag_name_has_been_popped(HTML::TagNames::p);
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-afterbody
 void HTMLParser::handle_after_body(HTMLToken& token)
 {
     if (token.is_character() && token.is_parser_whitespace()) {
@@ -1372,6 +1376,7 @@ void HTMLParser::handle_after_body(HTMLToken& token)
     process_using_the_rules_for(InsertionMode::InBody, token);
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#the-after-after-body-insertion-mode
 void HTMLParser::handle_after_after_body(HTMLToken& token)
 {
     if (token.is_comment()) {
@@ -3224,6 +3229,7 @@ void HTMLParser::close_the_cell()
     m_insertion_mode = InsertionMode::InRow;
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-intd
 void HTMLParser::handle_in_cell(HTMLToken& token)
 {
     if (token.is_end_tag() && token.tag_name().is_one_of(HTML::TagNames::td, HTML::TagNames::th)) {
@@ -3315,6 +3321,7 @@ void HTMLParser::handle_in_table_text(HTMLToken& token)
     process_using_the_rules_for(m_insertion_mode, token);
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-intbody
 void HTMLParser::handle_in_table_body(HTMLToken& token)
 {
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::tr) {
@@ -3581,6 +3588,7 @@ AnythingElse:
     m_foster_parenting = false;
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inselectintable
 void HTMLParser::handle_in_select_in_table(HTMLToken& token)
 {
     if (token.is_start_tag() && token.tag_name().is_one_of(HTML::TagNames::caption, HTML::TagNames::table, HTML::TagNames::tbody, HTML::TagNames::tfoot, HTML::TagNames::thead, HTML::TagNames::tr, HTML::TagNames::td, HTML::TagNames::th)) {
@@ -3606,6 +3614,7 @@ void HTMLParser::handle_in_select_in_table(HTMLToken& token)
     process_using_the_rules_for(InsertionMode::InSelect, token);
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-inselect
 void HTMLParser::handle_in_select(HTMLToken& token)
 {
     if (token.is_character()) {
@@ -3748,6 +3757,7 @@ void HTMLParser::handle_in_select(HTMLToken& token)
     log_parse_error();
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-incaption
 void HTMLParser::handle_in_caption(HTMLToken& token)
 {
     if (token.is_end_tag() && token.tag_name() == HTML::TagNames::caption) {
@@ -3798,6 +3808,7 @@ void HTMLParser::handle_in_caption(HTMLToken& token)
     process_using_the_rules_for(InsertionMode::InBody, token);
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-incolgroup
 void HTMLParser::handle_in_column_group(HTMLToken& token)
 {
     if (token.is_character() && token.is_parser_whitespace()) {
@@ -4089,6 +4100,7 @@ void HTMLParser::handle_in_frameset(HTMLToken& token)
     log_parse_error();
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#parsing-main-afterframeset
 void HTMLParser::handle_after_frameset(HTMLToken& token)
 {
     if (token.is_character() && token.is_parser_whitespace()) {
@@ -4129,6 +4141,7 @@ void HTMLParser::handle_after_frameset(HTMLToken& token)
     log_parse_error();
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#the-after-after-frameset-insertion-mode
 void HTMLParser::handle_after_after_frameset(HTMLToken& token)
 {
     if (token.is_comment()) {
