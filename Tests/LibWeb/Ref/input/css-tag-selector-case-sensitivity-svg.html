@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/css-tag-selector-case-sensitivity-svg.html" />
+<style>
+    foreignObject * {
+        color: green;
+    }
+    foreignobject * {
+        color: red;
+    }
+</style>
+
+<svg viewBox="0 0 200 200">
+    <foreignObject width="200" height="200">
+        <span>This should be green.</span>
+    </foreignObject>
+</svg>
