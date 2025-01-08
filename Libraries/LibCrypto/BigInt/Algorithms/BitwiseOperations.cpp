@@ -166,58 +166,43 @@ FLATTEN ErrorOr<void> UnsignedBigIntegerAlgorithms::bitwise_not_fill_to_one_base
 FLATTEN void UnsignedBigIntegerAlgorithms::shift_left_without_allocation(
     UnsignedBigInteger const& number,
     size_t num_bits,
-    UnsignedBigInteger& temp_result,
-    UnsignedBigInteger& temp_plus,
     UnsignedBigInteger& output)
 {
-    MUST(try_shift_left_without_allocation(number, num_bits, temp_result, temp_plus, output));
+    MUST(try_shift_left_without_allocation(number, num_bits, output));
 }
 
 /**
- * Complexity : O(N + num_bits % 8) where N is the number of words in the number
- * Shift method :
- * Start by shifting by whole words in num_bits (by putting missing words at the start),
- * then shift the number's words two by two by the remaining amount of bits.
+ * Complexity : O(N) where N is the number of words in the number
  */
 FLATTEN ErrorOr<void> UnsignedBigIntegerAlgorithms::try_shift_left_without_allocation(
     UnsignedBigInteger const& number,
     size_t num_bits,
-    UnsignedBigInteger& temp_result,
-    UnsignedBigInteger& temp_plus,
     UnsignedBigInteger& output)
 {
-    // We can only do shift operations on individual words
-    // where the shift amount is <= size of word (32).
-    // But we do know how to shift by a multiple of word size (e.g 64=32*2)
-    // So we first shift the result by how many whole words fit in 'num_bits'
-    TRY(try_shift_left_by_n_words(number, num_bits / UnsignedBigInteger::BITS_IN_WORD, temp_result));
+    size_t const bit_shift = num_bits % UnsignedBigInteger::BITS_IN_WORD;
+    size_t const bit_shift_complement = UnsignedBigInteger::BITS_IN_WORD - bit_shift;
 
-    output.set_to(temp_result);
+    size_t const zero_based_index_of_highest_set_bit_in_hiword = (number.one_based_index_of_highest_set_bit() - 1) % UnsignedBigInteger::BITS_IN_WORD;
 
-    // And now we shift by the leftover amount of bits
-    num_bits %= UnsignedBigInteger::BITS_IN_WORD;
+    // true if the high word is a result of the bit_shift
+    bool const hiword_shift = (bit_shift + zero_based_index_of_highest_set_bit_in_hiword) >= UnsignedBigInteger::BITS_IN_WORD;
+    size_t const word_shift = num_bits / UnsignedBigInteger::BITS_IN_WORD;
 
-    if (num_bits == 0) {
+    TRY(try_shift_left_by_n_words(number, word_shift + (hiword_shift ? 1 : 0), output));
+
+    if (bit_shift == 0) // shifting left by an exact number of words)
         return {};
+
+    UnsignedBigInteger::Word carry = 0;
+    for (size_t i = 0; i < number.length(); ++i) {
+        size_t const output_index = i + word_shift;
+
+        output.m_words[output_index] = (number.m_words.at(i) << bit_shift) | carry;
+        carry = (number.m_words.at(i) >> bit_shift_complement);
     }
 
-    for (size_t i = 0; i < temp_result.length(); ++i) {
-        u32 current_word_of_temp_result = shift_left_get_one_word(temp_result, num_bits, i);
-        output.m_words[i] = current_word_of_temp_result;
-    }
-
-    // Shifting the last word can produce a carry
-    u32 carry_word = shift_left_get_one_word(temp_result, num_bits, temp_result.length());
-    if (carry_word != 0) {
-
-        // output += (carry_word << temp_result.length())
-        // FIXME : Using temp_plus this way to transform carry_word into a bigint is not
-        //         efficient nor pretty. Maybe we should have an "add_with_shift" method ?
-        temp_plus.set_to_0();
-        temp_plus.m_words.append(carry_word);
-        TRY(try_shift_left_by_n_words(temp_plus, temp_result.length(), temp_result));
-        add_into_accumulator_without_allocation(output, temp_result);
-    }
+    if (hiword_shift)
+        output.m_words[output.length() - 1] = carry;
 
     return {};
 }

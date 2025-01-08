@@ -20,19 +20,20 @@ public:
     static void bitwise_or_without_allocation(UnsignedBigInteger const& left, UnsignedBigInteger const& right, UnsignedBigInteger& output);
     static void bitwise_and_without_allocation(UnsignedBigInteger const& left, UnsignedBigInteger const& right, UnsignedBigInteger& output);
     static void bitwise_xor_without_allocation(UnsignedBigInteger const& left, UnsignedBigInteger const& right, UnsignedBigInteger& output);
-    static void shift_left_without_allocation(UnsignedBigInteger const& number, size_t bits_to_shift_by, UnsignedBigInteger& temp_result, UnsignedBigInteger& temp_plus, UnsignedBigInteger& output);
+    static void shift_left_without_allocation(UnsignedBigInteger const& number, size_t bits_to_shift_by, UnsignedBigInteger& output);
     static void shift_right_without_allocation(UnsignedBigInteger const& number, size_t num_bits, UnsignedBigInteger& output);
-    static void multiply_without_allocation(UnsignedBigInteger const& left, UnsignedBigInteger const& right, UnsignedBigInteger& temp_shift_result, UnsignedBigInteger& temp_shift_plus, UnsignedBigInteger& temp_shift, UnsignedBigInteger& output);
+    static void multiply_without_allocation(UnsignedBigInteger const& left, UnsignedBigInteger const& right, UnsignedBigInteger& temp_shift, UnsignedBigInteger& output);
     static void divide_without_allocation(UnsignedBigInteger const& numerator, UnsignedBigInteger const& denominator, UnsignedBigInteger& quotient, UnsignedBigInteger& remainder);
     static void divide_u16_without_allocation(UnsignedBigInteger const& numerator, UnsignedBigInteger::Word denominator, UnsignedBigInteger& quotient, UnsignedBigInteger& remainder);
 
     static ErrorOr<void> bitwise_not_fill_to_one_based_index_without_allocation(UnsignedBigInteger const& left, size_t, UnsignedBigInteger& output);
-    static ErrorOr<void> try_shift_left_without_allocation(UnsignedBigInteger const& number, size_t bits_to_shift_by, UnsignedBigInteger& temp_result, UnsignedBigInteger& temp_plus, UnsignedBigInteger& output);
+    static ErrorOr<void> try_shift_left_without_allocation(UnsignedBigInteger const& number, size_t bits_to_shift_by, UnsignedBigInteger& output);
 
-    static void extended_GCD_without_allocation(UnsignedBigInteger const& a, UnsignedBigInteger const& b, UnsignedBigInteger& x, UnsignedBigInteger& y, UnsignedBigInteger& gcd, UnsignedBigInteger& temp_quotient, UnsignedBigInteger& temp_1, UnsignedBigInteger& temp_2, UnsignedBigInteger& temp_shift_result, UnsignedBigInteger& temp_shift_plus, UnsignedBigInteger& temp_shift, UnsignedBigInteger& temp_r, UnsignedBigInteger& temp_s, UnsignedBigInteger& temp_t);
+    static void extended_GCD_without_allocation(UnsignedBigInteger const& a, UnsignedBigInteger const& b, UnsignedBigInteger& x, UnsignedBigInteger& y, UnsignedBigInteger& gcd, UnsignedBigInteger& temp_quotient, UnsignedBigInteger& temp_1, UnsignedBigInteger& temp_2, UnsignedBigInteger& temp_shift, UnsignedBigInteger& temp_r, UnsignedBigInteger& temp_s, UnsignedBigInteger& temp_t);
+
     static void destructive_GCD_without_allocation(UnsignedBigInteger& temp_a, UnsignedBigInteger& temp_b, UnsignedBigInteger& temp_quotient, UnsignedBigInteger& temp_remainder, UnsignedBigInteger& output);
-    static void modular_inverse_without_allocation(UnsignedBigInteger const& a, UnsignedBigInteger const& b, UnsignedBigInteger& result, UnsignedBigInteger& temp_y, UnsignedBigInteger& temp_gcd, UnsignedBigInteger& temp_quotient, UnsignedBigInteger& temp_1, UnsignedBigInteger& temp_2, UnsignedBigInteger& temp_shift_result, UnsignedBigInteger& temp_shift_plus, UnsignedBigInteger& temp_shift, UnsignedBigInteger& temp_r, UnsignedBigInteger& temp_s, UnsignedBigInteger& temp_t);
-    static void destructive_modular_power_without_allocation(UnsignedBigInteger& ep, UnsignedBigInteger& base, UnsignedBigInteger const& m, UnsignedBigInteger& temp_1, UnsignedBigInteger& temp_2, UnsignedBigInteger& temp_3, UnsignedBigInteger& temp_multiply, UnsignedBigInteger& temp_quotient, UnsignedBigInteger& temp_remainder, UnsignedBigInteger& result);
+    static void modular_inverse_without_allocation(UnsignedBigInteger const& a, UnsignedBigInteger const& b, UnsignedBigInteger& result, UnsignedBigInteger& temp_y, UnsignedBigInteger& temp_gcd, UnsignedBigInteger& temp_quotient, UnsignedBigInteger& temp_1, UnsignedBigInteger& temp_2, UnsignedBigInteger& temp_shift, UnsignedBigInteger& temp_r, UnsignedBigInteger& temp_s, UnsignedBigInteger& temp_t);
+    static void destructive_modular_power_without_allocation(UnsignedBigInteger& ep, UnsignedBigInteger& base, UnsignedBigInteger const& m, UnsignedBigInteger& temp_1, UnsignedBigInteger& temp_multiply, UnsignedBigInteger& temp_quotient, UnsignedBigInteger& temp_remainder, UnsignedBigInteger& result);
     static void montgomery_modular_power_with_minimal_allocations(UnsignedBigInteger const& base, UnsignedBigInteger const& exponent, UnsignedBigInteger const& modulo, UnsignedBigInteger& temp_z0, UnsignedBigInteger& temp_rr, UnsignedBigInteger& temp_one, UnsignedBigInteger& temp_z, UnsignedBigInteger& temp_zz, UnsignedBigInteger& temp_x, UnsignedBigInteger& temp_extra, UnsignedBigInteger& result);
 
 private:

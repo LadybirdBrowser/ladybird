@@ -20,8 +20,6 @@ namespace Crypto {
 FLATTEN void UnsignedBigIntegerAlgorithms::multiply_without_allocation(
     UnsignedBigInteger const& left,
     UnsignedBigInteger const& right,
-    UnsignedBigInteger& temp_shift_result,
-    UnsignedBigInteger& temp_shift_plus,
     UnsignedBigInteger& temp_shift,
     UnsignedBigInteger& output)
 {
@@ -37,7 +35,7 @@ FLATTEN void UnsignedBigIntegerAlgorithms::multiply_without_allocation(
             size_t shift_amount = word_index * UnsignedBigInteger::BITS_IN_WORD + bit_index;
 
             // output += (right << shift_amount);
-            shift_left_without_allocation(right, shift_amount, temp_shift_result, temp_shift_plus, temp_shift);
+            shift_left_without_allocation(right, shift_amount, temp_shift);
             add_into_accumulator_without_allocation(output, temp_shift);
         }
     }
