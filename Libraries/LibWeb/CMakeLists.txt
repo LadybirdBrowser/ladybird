@@ -524,19 +524,20 @@ set(SOURCES
     Infra/ByteSequences.cpp
     Infra/JSON.cpp
     Infra/Strings.cpp
-    IndexedDB/Internal/Algorithms.cpp
-    IndexedDB/Internal/Database.cpp
-    IndexedDB/Internal/Key.cpp
-    IndexedDB/IDBDatabase.cpp
     IndexedDB/IDBCursor.cpp
+    IndexedDB/IDBDatabase.cpp
     IndexedDB/IDBFactory.cpp
-    IndexedDB/IDBOpenDBRequest.cpp
     IndexedDB/IDBIndex.cpp
     IndexedDB/IDBKeyRange.cpp
     IndexedDB/IDBObjectStore.cpp
+    IndexedDB/IDBOpenDBRequest.cpp
     IndexedDB/IDBRequest.cpp
     IndexedDB/IDBTransaction.cpp
     IndexedDB/IDBVersionChangeEvent.cpp
+    IndexedDB/Internal/Algorithms.cpp
+    IndexedDB/Internal/Database.cpp
+    IndexedDB/Internal/Key.cpp
+    IndexedDB/Internal/RequestList.cpp
     Internals/Inspector.cpp
     Internals/InternalAnimationTimeline.cpp
     Internals/Internals.cpp
