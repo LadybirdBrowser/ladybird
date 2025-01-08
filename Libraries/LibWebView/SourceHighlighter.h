@@ -24,7 +24,7 @@ enum class HighlightOutputMode {
 
 class SourceDocument final : public Syntax::Document {
 public:
-    static NonnullRefPtr<SourceDocument> create(StringView source)
+    static NonnullRefPtr<SourceDocument> create(String const& source)
     {
         return adopt_ref(*new (nothrow) SourceDocument(source));
     }
@@ -38,18 +38,18 @@ public:
     virtual Syntax::TextDocumentLine& line(size_t line_index) override;
 
 private:
-    SourceDocument(StringView source);
+    SourceDocument(String const& source);
 
     // ^ Syntax::Document
     virtual void update_views(Badge<Syntax::TextDocumentLine>) override { }
 
-    StringView m_source;
+    String m_source;
     Vector<Syntax::TextDocumentLine> m_lines;
 };
 
 class SourceHighlighterClient final : public Syntax::HighlighterClient {
 public:
-    SourceHighlighterClient(StringView source, Syntax::Language);
+    SourceHighlighterClient(String const& source, Syntax::Language);
     virtual ~SourceHighlighterClient() = default;
 
     String to_html_string(URL::URL const& url, URL::URL const& base_url, HighlightOutputMode) const;
@@ -75,7 +75,7 @@ private:
     OwnPtr<Syntax::Highlighter> m_highlighter;
 };
 
-String highlight_source(URL::URL const& url, URL::URL const& base_url, StringView, Syntax::Language, HighlightOutputMode);
+String highlight_source(URL::URL const& url, URL::URL const& base_url, String const& source, Syntax::Language, HighlightOutputMode);
 
 constexpr inline StringView HTML_HIGHLIGHTER_STYLE = R"~~~(
     @media (prefers-color-scheme: dark) {

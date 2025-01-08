@@ -17,12 +17,45 @@
 
 namespace WebView {
 
-SourceDocument::SourceDocument(StringView source)
-    : m_source(source)
+SourceDocument::SourceDocument(String const& source)
 {
-    m_source.for_each_split_view('\n', AK::SplitBehavior::KeepEmpty, [&](auto line) {
-        m_lines.append(Syntax::TextDocumentLine { *this, line });
-    });
+    // HTML, CSS and JS differ slightly on what they consider a newline to be.
+    // In order to make them get along in documents that include a mix of the three, process the source to make the
+    // newlines consistent before doing any highlighting.
+
+    // Optimization: If all the newlines are \n, just use the input string.
+    if (!source.code_points().contains_any_of(Array<u32, 3> { '\r', 0x2028, 0x2029 })) {
+        m_source = source;
+    } else {
+        StringBuilder builder { source.byte_count() };
+        // Convert any '\r\n', \r, <LS> or <PS> to \n
+        bool previous_was_cr = false;
+        for (u32 code_point : source.code_points()) {
+            if (previous_was_cr && code_point != '\n')
+                builder.append('\n');
+            previous_was_cr = false;
+
+            switch (code_point) {
+            case '\r':
+                previous_was_cr = true;
+                break;
+            case JS::LINE_SEPARATOR:
+            case JS::PARAGRAPH_SEPARATOR:
+                builder.append('\n');
+                break;
+            default:
+                builder.append_code_point(code_point);
+            }
+        }
+        m_source = builder.to_string_without_validation();
+    }
+
+    m_source.code_points().for_each_split_view(
+        [](u32 it) { return it == '\n'; },
+        SplitBehavior::KeepEmpty,
+        [&](auto line) {
+            m_lines.append(Syntax::TextDocumentLine { *this, line.as_string() });
+        });
 }
 
 Syntax::TextDocumentLine& SourceDocument::line(size_t line_index)
@@ -35,7 +68,7 @@ Syntax::TextDocumentLine const& SourceDocument::line(size_t line_index) const
     return m_lines[line_index];
 }
 
-SourceHighlighterClient::SourceHighlighterClient(StringView source, Syntax::Language language)
+SourceHighlighterClient::SourceHighlighterClient(String const& source, Syntax::Language language)
     : m_document(SourceDocument::create(source))
 {
     // HACK: Syntax highlighters require a palette, but we don't actually care about the output styling, only the type of token for each span.
@@ -114,7 +147,7 @@ void SourceHighlighterClient::highlighter_did_set_folding_regions(Vector<Syntax:
     document().set_folding_regions(move(folding_regions));
 }
 
-String highlight_source(URL::URL const& url, URL::URL const& base_url, StringView source, Syntax::Language language, HighlightOutputMode mode)
+String highlight_source(URL::URL const& url, URL::URL const& base_url, String const& source, Syntax::Language language, HighlightOutputMode mode)
 {
     SourceHighlighterClient highlighter_client { source, language };
     return highlighter_client.to_html_string(url, base_url, mode);
