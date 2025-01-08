@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/IndexedDB/IDBDatabase.h>
+#include <LibWeb/IndexedDB/Internal/Algorithms.h>
 
 namespace Web::IndexedDB {
 
@@ -80,6 +81,13 @@ void IDBDatabase::set_onversionchange(WebIDL::CallbackType* event_handler)
 WebIDL::CallbackType* IDBDatabase::onversionchange()
 {
     return event_handler_attribute(HTML::EventNames::versionchange);
+}
+
+// https://w3c.github.io/IndexedDB/#dom-idbdatabase-close
+void IDBDatabase::close()
+{
+    // 1. Run close a database connection with this connection.
+    close_a_database_connection(*this);
 }
 
 }
