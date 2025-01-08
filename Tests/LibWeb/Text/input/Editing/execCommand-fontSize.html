@@ -1,0 +1,26 @@
+<script src="../include.js"></script>
+<div contenteditable="true">foobar</div>
+<script>
+    test(() => {
+        const range = document.createRange();
+        getSelection().addRange(range);
+
+        const divElm = document.querySelector('div');
+        println(`div: "${divElm.innerHTML}"`);
+        println(`fontSize value: ${document.queryCommandValue('fontSize')}`);
+
+        // Set fontSize for 'bar'
+        range.setStart(divElm.childNodes[0], 3);
+        range.setEnd(divElm.childNodes[0], 6);
+        document.execCommand('fontSize', false, '5');
+        println(`div: "${divElm.innerHTML}"`);
+        println(`fontSize value: ${document.queryCommandValue('fontSize')}`);
+
+        // Set fontSize for 'foobar'
+        range.setStart(divElm.childNodes[0], 0);
+        range.setEnd(divElm.childNodes[1].childNodes[0], 3);
+        document.execCommand('fontSize', false, '4');
+        println(`div: "${divElm.innerHTML}"`);
+        println(`fontSize value: ${document.queryCommandValue('fontSize')}`);
+    });
+</script>
