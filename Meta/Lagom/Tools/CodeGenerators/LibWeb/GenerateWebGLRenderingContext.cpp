@@ -1401,7 +1401,7 @@ public:
         if (function.name == "bindFramebuffer"sv) {
             generate_webgl_object_handle_unwrap(function_impl_generator, "framebuffer"sv, ""sv);
             function_impl_generator.append(R"~~~(
-    glBindFramebuffer(target, framebuffer_handle);
+    glBindFramebuffer(target, framebuffer ? framebuffer_handle : m_context->default_framebuffer());
     m_framebuffer_binding = framebuffer;
 )~~~");
             continue;
@@ -1410,7 +1410,7 @@ public:
         if (function.name == "bindRenderbuffer"sv) {
             generate_webgl_object_handle_unwrap(function_impl_generator, "renderbuffer"sv, ""sv);
             function_impl_generator.append(R"~~~(
-    glBindRenderbuffer(target, renderbuffer_handle);
+    glBindRenderbuffer(target, renderbuffer ? renderbuffer_handle : m_context->default_renderbuffer());
     m_renderbuffer_binding = renderbuffer;
 )~~~");
             continue;
