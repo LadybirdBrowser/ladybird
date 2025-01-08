@@ -16,7 +16,7 @@ GC_DEFINE_ALLOCATOR(ConstantSourceNode);
 
 ConstantSourceNode::ConstantSourceNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, ConstantSourceOptions const& options)
     : AudioScheduledSourceNode(realm, context)
-    , m_offset(AudioParam::create(realm, options.offset, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
+    , m_offset(AudioParam::create(realm, context, options.offset, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
 {
 }
 

@@ -7,14 +7,16 @@
 #include <LibWeb/Bindings/AudioParamPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebAudio/AudioParam.h>
+#include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(AudioParam);
 
-AudioParam::AudioParam(JS::Realm& realm, float default_value, float min_value, float max_value, Bindings::AutomationRate automation_rate)
+AudioParam::AudioParam(JS::Realm& realm, GC::Ref<BaseAudioContext> context, float default_value, float min_value, float max_value, Bindings::AutomationRate automation_rate)
     : Bindings::PlatformObject(realm)
+    , m_context(context)
     , m_current_value(default_value)
     , m_default_value(default_value)
     , m_min_value(min_value)
@@ -23,9 +25,9 @@ AudioParam::AudioParam(JS::Realm& realm, float default_value, float min_value, f
 {
 }
 
-GC::Ref<AudioParam> AudioParam::create(JS::Realm& realm, float default_value, float min_value, float max_value, Bindings::AutomationRate automation_rate)
+GC::Ref<AudioParam> AudioParam::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, float default_value, float min_value, float max_value, Bindings::AutomationRate automation_rate)
 {
-    return realm.create<AudioParam>(realm, default_value, min_value, max_value, automation_rate);
+    return realm.create<AudioParam>(realm, context, default_value, min_value, max_value, automation_rate);
 }
 
 AudioParam::~AudioParam() = default;
@@ -143,6 +145,7 @@ void AudioParam::initialize(JS::Realm& realm)
 void AudioParam::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_context);
 }
 
 }
