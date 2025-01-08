@@ -31,14 +31,12 @@ UnsignedBigInteger ModularInverse(UnsignedBigInteger const& a, UnsignedBigIntege
     UnsignedBigInteger temp_quotient;
     UnsignedBigInteger temp_1;
     UnsignedBigInteger temp_2;
-    UnsignedBigInteger temp_shift_result;
-    UnsignedBigInteger temp_shift_plus;
     UnsignedBigInteger temp_shift;
     UnsignedBigInteger temp_r;
     UnsignedBigInteger temp_s;
     UnsignedBigInteger temp_t;
 
-    UnsignedBigIntegerAlgorithms::modular_inverse_without_allocation(a, b, result, temp_y, temp_gcd, temp_quotient, temp_1, temp_2, temp_shift_result, temp_shift_plus, temp_shift, temp_r, temp_s, temp_t);
+    UnsignedBigIntegerAlgorithms::modular_inverse_without_allocation(a, b, result, temp_y, temp_gcd, temp_quotient, temp_1, temp_2, temp_shift, temp_r, temp_s, temp_t);
 
     return result;
 }
@@ -67,13 +65,11 @@ UnsignedBigInteger ModularPower(UnsignedBigInteger const& b, UnsignedBigInteger 
 
     UnsignedBigInteger result;
     UnsignedBigInteger temp_1;
-    UnsignedBigInteger temp_2;
-    UnsignedBigInteger temp_3;
     UnsignedBigInteger temp_multiply;
     UnsignedBigInteger temp_quotient;
     UnsignedBigInteger temp_remainder;
 
-    UnsignedBigIntegerAlgorithms::destructive_modular_power_without_allocation(ep, base, m, temp_1, temp_2, temp_3, temp_multiply, temp_quotient, temp_remainder, result);
+    UnsignedBigIntegerAlgorithms::destructive_modular_power_without_allocation(ep, base, m, temp_1, temp_multiply, temp_quotient, temp_remainder, result);
 
     return result;
 }
@@ -111,7 +107,7 @@ UnsignedBigInteger LCM(UnsignedBigInteger const& a, UnsignedBigInteger const& b)
 
     // output = (a / gcd_output) * b
     UnsignedBigIntegerAlgorithms::divide_without_allocation(a, gcd_output, temp_quotient, temp_remainder);
-    UnsignedBigIntegerAlgorithms::multiply_without_allocation(temp_quotient, b, temp_1, temp_2, temp_3, output);
+    UnsignedBigIntegerAlgorithms::multiply_without_allocation(temp_quotient, b, temp_1, output);
 
     dbgln_if(NT_DEBUG, "quot: {} rem: {} out: {}", temp_quotient, temp_remainder, output);
 

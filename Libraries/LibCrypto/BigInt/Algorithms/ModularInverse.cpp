@@ -19,14 +19,12 @@ void UnsignedBigIntegerAlgorithms::modular_inverse_without_allocation(
     UnsignedBigInteger& temp_quotient,
     UnsignedBigInteger& temp_1,
     UnsignedBigInteger& temp_2,
-    UnsignedBigInteger& temp_shift_result,
-    UnsignedBigInteger& temp_shift_plus,
     UnsignedBigInteger& temp_shift,
     UnsignedBigInteger& temp_r,
     UnsignedBigInteger& temp_s,
     UnsignedBigInteger& temp_t)
 {
-    extended_GCD_without_allocation(a, b, result, temp_y, temp_gcd, temp_quotient, temp_1, temp_2, temp_shift_result, temp_shift_plus, temp_shift, temp_r, temp_s, temp_t);
+    extended_GCD_without_allocation(a, b, result, temp_y, temp_gcd, temp_quotient, temp_1, temp_2, temp_shift, temp_r, temp_s, temp_t);
 
     divide_without_allocation(result, b, temp_quotient, temp_1);
     add_into_accumulator_without_allocation(temp_1, b);

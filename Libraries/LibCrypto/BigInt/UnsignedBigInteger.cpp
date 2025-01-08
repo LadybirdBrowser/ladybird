@@ -484,10 +484,8 @@ FLATTEN UnsignedBigInteger UnsignedBigInteger::bitwise_not_fill_to_one_based_ind
 FLATTEN UnsignedBigInteger UnsignedBigInteger::shift_left(size_t num_bits) const
 {
     UnsignedBigInteger output;
-    UnsignedBigInteger temp_result;
-    UnsignedBigInteger temp_plus;
 
-    UnsignedBigIntegerAlgorithms::shift_left_without_allocation(*this, num_bits, temp_result, temp_plus, output);
+    UnsignedBigIntegerAlgorithms::shift_left_without_allocation(*this, num_bits, output);
 
     return output;
 }
@@ -504,11 +502,9 @@ FLATTEN UnsignedBigInteger UnsignedBigInteger::shift_right(size_t num_bits) cons
 FLATTEN UnsignedBigInteger UnsignedBigInteger::multiplied_by(UnsignedBigInteger const& other) const
 {
     UnsignedBigInteger result;
-    UnsignedBigInteger temp_shift_result;
-    UnsignedBigInteger temp_shift_plus;
     UnsignedBigInteger temp_shift;
 
-    UnsignedBigIntegerAlgorithms::multiply_without_allocation(*this, other, temp_shift_result, temp_shift_plus, temp_shift, result);
+    UnsignedBigIntegerAlgorithms::multiply_without_allocation(*this, other, temp_shift, result);
 
     return result;
 }
