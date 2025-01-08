@@ -29,6 +29,7 @@ struct CommandDefinition {
 Optional<CommandDefinition const&> find_command_definition(FlyString const&);
 
 // Command implementations
+bool command_back_color_action(DOM::Document&, String const&);
 bool command_bold_action(DOM::Document&, String const&);
 bool command_default_paragraph_separator_action(DOM::Document&, String const&);
 String command_default_paragraph_separator_value(DOM::Document const&);

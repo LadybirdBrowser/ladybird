@@ -1,0 +1,2 @@
+Div contents: "<span style="background-color: rgb(0, 0, 255);">foo</span>bar"
+Div contents: "<span style="background-color: rgb(0, 0, 255);">foo</span><span style="background-color: red;">bar</span>"

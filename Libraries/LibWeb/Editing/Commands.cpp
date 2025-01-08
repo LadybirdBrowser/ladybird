@@ -25,6 +25,28 @@
 
 namespace Web::Editing {
 
+// https://w3c.github.io/editing/docs/execCommand/#the-backcolor-command
+bool command_back_color_action(DOM::Document& document, String const& value)
+{
+    // 1. If value is not a valid CSS color, prepend "#" to it.
+    auto resulting_value = value;
+    if (!Color::from_string(resulting_value).has_value()) {
+        resulting_value = MUST(String::formatted("#{}", resulting_value));
+
+        // 2. If value is still not a valid CSS color, or if it is currentColor, return false.
+        if (!Color::from_string(resulting_value).has_value()) {
+            // FIXME: Also return false in case of currentColor.
+            return false;
+        }
+    }
+
+    // 3. Set the selection's value to value.
+    set_the_selections_value(document, CommandNames::backColor, resulting_value);
+
+    // 4. Return true.
+    return true;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-bold-command
 bool command_bold_action(DOM::Document& document, String const&)
 {
@@ -1030,6 +1052,12 @@ bool command_style_with_css_state(DOM::Document const& document)
 }
 
 static Array const commands {
+    // https://w3c.github.io/editing/docs/execCommand/#the-backcolor-command
+    CommandDefinition {
+        .command = CommandNames::backColor,
+        .action = command_back_color_action,
+        .relevant_css_property = CSS::PropertyID::BackgroundColor,
+    },
     // https://w3c.github.io/editing/docs/execCommand/#the-bold-command
     CommandDefinition {
         .command = CommandNames::bold,
@@ -1054,6 +1082,12 @@ static Array const commands {
         .command = CommandNames::forwardDelete,
         .action = command_forward_delete_action,
         .preserves_overrides = true,
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-hilitecolor-command
+    CommandDefinition {
+        .command = CommandNames::hiliteColor,
+        .action = command_back_color_action, // For historical reasons, backColor and hiliteColor behave identically.
+        .relevant_css_property = CSS::PropertyID::BackgroundColor,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-insertlinebreak-command
     CommandDefinition {
