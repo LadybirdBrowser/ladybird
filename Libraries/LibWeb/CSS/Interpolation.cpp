@@ -12,6 +12,7 @@
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -60,10 +61,14 @@ ValueComparingRefPtr<CSSStyleValue const> interpolate_property(DOM::Element& ele
     auto from = with_keyword_values_resolved(element, property_id, a_from);
     auto to = with_keyword_values_resolved(element, property_id, a_to);
 
+    CalculationContext calculation_context {
+        .percentages_resolve_as = property_resolves_percentages_relative_to(property_id),
+    };
+
     auto animation_type = animation_type_from_longhand_property(property_id);
     switch (animation_type) {
     case AnimationType::ByComputedValue:
-        return interpolate_value(element, from, to, delta);
+        return interpolate_value(element, calculation_context, from, to, delta);
     case AnimationType::None:
         return to;
     case AnimationType::Custom: {
@@ -78,7 +83,7 @@ ValueComparingRefPtr<CSSStyleValue const> interpolate_property(DOM::Element& ele
             return {};
         }
         if (property_id == PropertyID::BoxShadow)
-            return interpolate_box_shadow(element, from, to, delta);
+            return interpolate_box_shadow(element, calculation_context, from, to, delta);
 
         // FIXME: Handle all custom animatable properties
         [[fallthrough]];
@@ -422,7 +427,7 @@ Color interpolate_color(Color from, Color to, float delta)
     return color;
 }
 
-NonnullRefPtr<CSSStyleValue const> interpolate_box_shadow(DOM::Element& element, CSSStyleValue const& from, CSSStyleValue const& to, float delta)
+NonnullRefPtr<CSSStyleValue const> interpolate_box_shadow(DOM::Element& element, CalculationContext const& calculation_context, CSSStyleValue const& from, CSSStyleValue const& to, float delta)
 {
     // https://drafts.csswg.org/css-backgrounds/#box-shadow
     // Animation type: by computed value, treating none as a zero-item list and appending blank shadows
@@ -472,10 +477,10 @@ NonnullRefPtr<CSSStyleValue const> interpolate_box_shadow(DOM::Element& element,
         auto const& to_shadow = to_shadows[i]->as_shadow();
         auto result_shadow = ShadowStyleValue::create(
             CSSColorValue::create_from_color(interpolate_color(from_shadow.color()->to_color({}), to_shadow.color()->to_color({}), delta)),
-            interpolate_value(element, from_shadow.offset_x(), to_shadow.offset_x(), delta),
-            interpolate_value(element, from_shadow.offset_y(), to_shadow.offset_y(), delta),
-            interpolate_value(element, from_shadow.blur_radius(), to_shadow.blur_radius(), delta),
-            interpolate_value(element, from_shadow.spread_distance(), to_shadow.spread_distance(), delta),
+            interpolate_value(element, calculation_context, from_shadow.offset_x(), to_shadow.offset_x(), delta),
+            interpolate_value(element, calculation_context, from_shadow.offset_y(), to_shadow.offset_y(), delta),
+            interpolate_value(element, calculation_context, from_shadow.blur_radius(), to_shadow.blur_radius(), delta),
+            interpolate_value(element, calculation_context, from_shadow.spread_distance(), to_shadow.spread_distance(), delta),
             delta >= 0.5f ? to_shadow.placement() : from_shadow.placement());
         result_shadows.unchecked_append(result_shadow);
     }
@@ -483,7 +488,7 @@ NonnullRefPtr<CSSStyleValue const> interpolate_box_shadow(DOM::Element& element,
     return StyleValueList::create(move(result_shadows), StyleValueList::Separator::Comma);
 }
 
-NonnullRefPtr<CSSStyleValue const> interpolate_value(DOM::Element& element, CSSStyleValue const& from, CSSStyleValue const& to, float delta)
+NonnullRefPtr<CSSStyleValue const> interpolate_value(DOM::Element& element, CalculationContext const& calculation_context, CSSStyleValue const& from, CSSStyleValue const& to, float delta)
 {
     if (from.type() != to.type()) {
         // Handle mixed percentage and dimension types
@@ -520,18 +525,18 @@ NonnullRefPtr<CSSStyleValue const> interpolate_value(DOM::Element& element, CSSS
             }
         };
 
-        static constexpr auto to_calculation_node = [](CSSStyleValue const& value) -> NonnullOwnPtr<CalculationNode> {
+        static auto to_calculation_node = [calculation_context](CSSStyleValue const& value) -> NonnullOwnPtr<CalculationNode> {
             switch (value.type()) {
             case CSSStyleValue::Type::Angle:
-                return NumericCalculationNode::create(value.as_angle().angle());
+                return NumericCalculationNode::create(value.as_angle().angle(), calculation_context);
             case CSSStyleValue::Type::Frequency:
-                return NumericCalculationNode::create(value.as_frequency().frequency());
+                return NumericCalculationNode::create(value.as_frequency().frequency(), calculation_context);
             case CSSStyleValue::Type::Length:
-                return NumericCalculationNode::create(value.as_length().length());
+                return NumericCalculationNode::create(value.as_length().length(), calculation_context);
             case CSSStyleValue::Type::Percentage:
-                return NumericCalculationNode::create(value.as_percentage().percentage());
+                return NumericCalculationNode::create(value.as_percentage().percentage(), calculation_context);
             case CSSStyleValue::Type::Time:
-                return NumericCalculationNode::create(value.as_time().time());
+                return NumericCalculationNode::create(value.as_time().time(), calculation_context);
             default:
                 VERIFY_NOT_REACHED();
             }
@@ -546,15 +551,15 @@ NonnullRefPtr<CSSStyleValue const> interpolate_value(DOM::Element& element, CSSS
             // hard to understand how this interpolation works, but if instead we rewrite the values as "30px + 0%" and
             // "0px + 80%", then it is very simple to understand; we just interpolate each component separately.
 
-            auto interpolated_from = interpolate_value(element, from, from_base_type_and_default->default_value, delta);
-            auto interpolated_to = interpolate_value(element, to_base_type_and_default->default_value, to, delta);
+            auto interpolated_from = interpolate_value(element, calculation_context, from, from_base_type_and_default->default_value, delta);
+            auto interpolated_to = interpolate_value(element, calculation_context, to_base_type_and_default->default_value, to, delta);
 
             Vector<NonnullOwnPtr<CalculationNode>> values;
             values.ensure_capacity(2);
             values.unchecked_append(to_calculation_node(interpolated_from));
             values.unchecked_append(to_calculation_node(interpolated_to));
             auto calc_node = SumCalculationNode::create(move(values));
-            return CalculatedStyleValue::create(move(calc_node), CSSNumericType { to_base_type_and_default->base_type, 1 });
+            return CalculatedStyleValue::create(move(calc_node), CSSNumericType { to_base_type_and_default->base_type, 1 }, calculation_context);
         }
 
         return delta >= 0.5f ? to : from;
@@ -587,8 +592,8 @@ NonnullRefPtr<CSSStyleValue const> interpolate_value(DOM::Element& element, CSSS
         auto const& from_position = from.as_position();
         auto const& to_position = to.as_position();
         return PositionStyleValue::create(
-            interpolate_value(element, from_position.edge_x(), to_position.edge_x(), delta)->as_edge(),
-            interpolate_value(element, from_position.edge_y(), to_position.edge_y(), delta)->as_edge());
+            interpolate_value(element, calculation_context, from_position.edge_x(), to_position.edge_x(), delta)->as_edge(),
+            interpolate_value(element, calculation_context, from_position.edge_y(), to_position.edge_y(), delta)->as_edge());
     }
     case CSSStyleValue::Type::Ratio: {
         auto from_ratio = from.as_ratio().ratio();
@@ -634,7 +639,7 @@ NonnullRefPtr<CSSStyleValue const> interpolate_value(DOM::Element& element, CSSS
         StyleValueVector interpolated_values;
         interpolated_values.ensure_capacity(from_list.size());
         for (size_t i = 0; i < from_list.size(); ++i)
-            interpolated_values.append(interpolate_value(element, from_list.values()[i], to_list.values()[i], delta));
+            interpolated_values.append(interpolate_value(element, calculation_context, from_list.values()[i], to_list.values()[i], delta));
 
         return StyleValueList::create(move(interpolated_values), from_list.separator());
     }

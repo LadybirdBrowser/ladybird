@@ -24,6 +24,11 @@ namespace Web::CSS {
 
 class CalculationNode;
 
+// https://drafts.csswg.org/css-values-4/#ref-for-calc-calculation%E2%91%A2%E2%91%A7
+struct CalculationContext {
+    Optional<ValueType> percentages_resolve_as {};
+};
+
 class CalculatedStyleValue : public CSSStyleValue {
 public:
     using PercentageBasis = Variant<Empty, Angle, Flex, Frequency, Length, Time>;
@@ -56,9 +61,9 @@ public:
         Optional<CSSNumericType> m_type;
     };
 
-    static ValueComparingNonnullRefPtr<CalculatedStyleValue> create(NonnullOwnPtr<CalculationNode> calculation, CSSNumericType resolved_type)
+    static ValueComparingNonnullRefPtr<CalculatedStyleValue> create(NonnullOwnPtr<CalculationNode> calculation, CSSNumericType resolved_type, CalculationContext context)
     {
-        return adopt_ref(*new (nothrow) CalculatedStyleValue(move(calculation), resolved_type));
+        return adopt_ref(*new (nothrow) CalculatedStyleValue(move(calculation), move(resolved_type), move(context)));
     }
 
     virtual String to_string(SerializationMode) const override;
@@ -113,15 +118,17 @@ public:
     String dump() const;
 
 private:
-    explicit CalculatedStyleValue(NonnullOwnPtr<CalculationNode> calculation, CSSNumericType resolved_type)
+    explicit CalculatedStyleValue(NonnullOwnPtr<CalculationNode> calculation, CSSNumericType resolved_type, CalculationContext context)
         : CSSStyleValue(Type::Calculated)
-        , m_resolved_type(resolved_type)
+        , m_resolved_type(move(resolved_type))
         , m_calculation(move(calculation))
+        , m_context(move(context))
     {
     }
 
     CSSNumericType m_resolved_type;
     NonnullOwnPtr<CalculationNode> m_calculation;
+    CalculationContext m_context;
 };
 
 // https://www.w3.org/TR/css-values-4/#calculation-tree
@@ -258,7 +265,7 @@ private:
 
 class NumericCalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<NumericCalculationNode> create(NumericValue, Optional<ValueType> percentage_resolved_type = {});
+    static NonnullOwnPtr<NumericCalculationNode> create(NumericValue, CalculationContext const&);
     ~NumericCalculationNode();
 
     virtual String to_string() const override;
