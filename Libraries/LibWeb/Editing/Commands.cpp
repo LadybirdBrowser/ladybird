@@ -492,6 +492,14 @@ bool command_delete_action(DOM::Document& document, String const&)
     return true;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-fontname-command
+bool command_font_name_action(DOM::Document& document, String const& value)
+{
+    // Set the selection's value to value, then return true.
+    set_the_selections_value(document, CommandNames::fontName, value);
+    return true;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-forwarddelete-command
 bool command_forward_delete_action(DOM::Document& document, String const&)
 {
@@ -1114,6 +1122,12 @@ static Array const commands {
         .command = CommandNames::defaultParagraphSeparator,
         .action = command_default_paragraph_separator_action,
         .value = command_default_paragraph_separator_value,
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-fontname-command
+    CommandDefinition {
+        .command = CommandNames::fontName,
+        .action = command_font_name_action,
+        .relevant_css_property = CSS::PropertyID::FontFamily,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-forwarddelete-command
     CommandDefinition {
