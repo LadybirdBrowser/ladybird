@@ -24,6 +24,7 @@ test("basic functionality", () => {
     expect(Date.parse("2021-07-01 03:00Z")).toBe(1625108400000);
     expect(Date.parse("2024-01-08 9:00Z")).toBe(1704704400000);
     expect(Date.parse("Wed, 17 Jan 2024 11:36:34 +0000")).toBe(1705491394000);
+    expect(Date.parse("Thu, 09 Jan 2025 23:00:00")).toBe(1736485200000);
     expect(Date.parse("Sun Jan 21 2024 21:11:31 GMT 0100 (Central European Standard Time)")).toBe(
         1705867891000
     );
