@@ -1369,6 +1369,59 @@ bool command_subscript_indeterminate(DOM::Document const& document)
     return has_mixed_value;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-superscript-command
+bool command_superscript_action(DOM::Document& document, String const&)
+{
+    // 1. Call queryCommandState("superscript"), and let state be the result.
+    auto state = document.query_command_state(CommandNames::superscript);
+
+    // 2. Set the selection's value to null.
+    set_the_selections_value(document, CommandNames::superscript, {});
+
+    // 3. If state is false, set the selection's value to "superscript".
+    if (!state)
+        set_the_selections_value(document, CommandNames::superscript, "superscript"_string);
+
+    // 4. Return true.
+    return true;
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-superscript-command
+bool command_superscript_indeterminate(DOM::Document const& document)
+{
+    // True if either among formattable nodes that are effectively contained in the active range, there is at least one
+    // with effective command value "superscript" and at least one with some other effective command value;
+    bool has_superscript_value = false;
+    bool has_other_value = false;
+    bool has_mixed_value = false;
+    for_each_node_effectively_contained_in_range(active_range(document), [&](GC::Ref<DOM::Node> descendant) {
+        if (!is_formattable_node(descendant))
+            return TraversalDecision::Continue;
+
+        auto node_value = effective_command_value(descendant, CommandNames::superscript);
+        if (!node_value.has_value())
+            return TraversalDecision::Continue;
+
+        if (node_value.value() == "superscript"sv) {
+            has_superscript_value = true;
+        } else {
+            has_other_value = true;
+            if (!has_mixed_value && node_value.value() == "mixed"sv)
+                has_mixed_value = true;
+        }
+        if (has_superscript_value && has_other_value)
+            return TraversalDecision::Break;
+
+        return TraversalDecision::Continue;
+    });
+    if (has_superscript_value && has_other_value)
+        return true;
+
+    // or if there is some formattable node effectively contained in the active range with effective command value
+    // "mixed". Otherwise false.
+    return has_mixed_value;
+}
+
 static Array const commands {
     // https://w3c.github.io/editing/docs/execCommand/#the-backcolor-command
     CommandDefinition {
@@ -1473,6 +1526,13 @@ static Array const commands {
         .action = command_subscript_action,
         .indeterminate = command_subscript_indeterminate,
         .inline_activated_values = { "subscript"sv },
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-superscript-command
+    CommandDefinition {
+        .command = CommandNames::superscript,
+        .action = command_superscript_action,
+        .indeterminate = command_superscript_indeterminate,
+        .inline_activated_values = { "superscript"sv },
     },
 };
 
