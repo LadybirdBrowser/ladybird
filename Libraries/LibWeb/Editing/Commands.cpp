@@ -1439,6 +1439,41 @@ bool command_underline_action(DOM::Document& document, String const&)
     return true;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-unlink-command
+bool command_unlink_action(DOM::Document& document, String const&)
+{
+    // 1. Let hyperlinks be a list of every a element that has an href attribute and is contained in the active range or
+    //    is an ancestor of one of its boundary points.
+    Vector<GC::Ref<DOM::Element>> hyperlinks;
+    if (auto range = active_range(document)) {
+        auto node_matches = [](GC::Ref<DOM::Node> node) {
+            return is<HTML::HTMLAnchorElement>(*node)
+                && static_cast<HTML::HTMLAnchorElement&>(*node).has_attribute(HTML::AttributeNames::href);
+        };
+        range->for_each_contained([&](GC::Ref<DOM::Node> node) {
+            if (node_matches(node))
+                hyperlinks.append(static_cast<DOM::Element&>(*node));
+            return IterationDecision::Continue;
+        });
+        auto add_matching_ancestors = [&](GC::Ref<DOM::Node> node) {
+            node->for_each_ancestor([&](GC::Ref<DOM::Node> ancestor) {
+                if (node_matches(ancestor))
+                    hyperlinks.append(static_cast<DOM::Element&>(*ancestor));
+                return IterationDecision::Continue;
+            });
+        };
+        add_matching_ancestors(range->start_container());
+        add_matching_ancestors(range->end_container());
+    }
+
+    // 2. Clear the value of each member of hyperlinks.
+    for (auto member : hyperlinks)
+        clear_the_value(CommandNames::unlink, member);
+
+    // 3. Return true.
+    return true;
+}
+
 static Array const commands {
     // https://w3c.github.io/editing/docs/execCommand/#the-backcolor-command
     CommandDefinition {
@@ -1556,6 +1591,11 @@ static Array const commands {
         .command = CommandNames::underline,
         .action = command_underline_action,
         .inline_activated_values = { "underline"sv },
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-unlink-command
+    CommandDefinition {
+        .command = CommandNames::unlink,
+        .action = command_unlink_action,
     },
 };
 
