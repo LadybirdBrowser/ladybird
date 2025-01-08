@@ -115,6 +115,7 @@ public:
     bool is_null() const { return m_string.is_null(); }
     bool starts_with(Utf8View const&) const;
     bool contains(u32) const;
+    bool contains_any_of(ReadonlySpan<u32>) const;
 
     Utf8View trim(Utf8View const& characters, TrimMode mode = TrimMode::Both) const;
 
