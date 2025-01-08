@@ -67,15 +67,15 @@ public:
 
     GC::Ptr<Geometry::DOMMatrix> get_screen_ctm();
 
-protected:
-    SVGGraphicsElement(DOM::Document&, DOM::QualifiedName);
-
-    virtual void initialize(JS::Realm&) override;
-
     virtual Gfx::AffineTransform element_transform() const
     {
         return m_transform;
     }
+
+protected:
+    SVGGraphicsElement(DOM::Document&, DOM::QualifiedName);
+
+    virtual void initialize(JS::Realm&) override;
 
     Optional<Painting::PaintStyle> svg_paint_computed_value_to_gfx_paint_style(SVGPaintContext const& paint_context, Optional<CSS::SVGPaint> const& paint_value) const;
 

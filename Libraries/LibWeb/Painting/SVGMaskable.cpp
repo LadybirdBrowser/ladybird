@@ -87,7 +87,15 @@ RefPtr<Gfx::ImmutableBitmap> SVGMaskable::calculate_mask_of_svg(PaintContext& co
         DisplayListRecorder display_list_recorder(*display_list);
         display_list_recorder.translate(-mask_rect.location().to_type<int>());
         auto paint_context = context.clone(display_list_recorder);
-        paint_context.set_svg_transform(graphics_element.get_transform());
+        auto const& mask_element = as<SVG::SVGGraphicsElement const>(*paintable.dom_node());
+        // FIXME: Nested transformations are incorrect when clipPathUnits="objectBoundingBox".
+        paint_context.set_svg_transform(
+            // Transform the mask's content into the target's space.
+            graphics_element.get_transform()
+                // Undo any transformations already applied to the mask's parents.
+                .multiply(mask_element.get_transform().inverse().value())
+                // Re-apply the mask's own transformation since that is still needed.
+                .multiply(mask_element.element_transform()));
         paint_context.set_draw_svg_geometry_for_clip_path(is<SVGClipPaintable>(paintable));
         StackingContext::paint_svg(paint_context, paintable, PaintPhase::Foreground);
         auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*mask_bitmap);
