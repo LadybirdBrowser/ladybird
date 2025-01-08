@@ -159,6 +159,7 @@ public:
     Optional<CSS::Direction> direction() const;
     Optional<CSS::UnicodeBidi> unicode_bidi() const;
     Optional<CSS::WritingMode> writing_mode() const;
+    Optional<CSS::UserSelect> user_select() const;
 
     static Vector<CSS::Transformation> transformations_for_style_value(CSSStyleValue const& value);
     Vector<CSS::Transformation> transformations() const;

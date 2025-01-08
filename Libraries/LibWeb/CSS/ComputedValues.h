@@ -170,6 +170,7 @@ public:
     static CSS::Direction direction() { return CSS::Direction::Ltr; }
     static CSS::UnicodeBidi unicode_bidi() { return CSS::UnicodeBidi::Normal; }
     static CSS::WritingMode writing_mode() { return CSS::WritingMode::HorizontalTb; }
+    static CSS::UserSelect user_select() { return CSS::UserSelect::Auto; }
 
     // https://www.w3.org/TR/SVG/geometry.html
     static LengthPercentage cx() { return CSS::Length::make_px(0); }
@@ -424,6 +425,7 @@ public:
     CSS::Direction direction() const { return m_inherited.direction; }
     CSS::UnicodeBidi unicode_bidi() const { return m_noninherited.unicode_bidi; }
     CSS::WritingMode writing_mode() const { return m_inherited.writing_mode; }
+    CSS::UserSelect user_select() const { return m_noninherited.user_select; }
 
     CSS::LengthBox const& inset() const { return m_noninherited.inset; }
     const CSS::LengthBox& margin() const { return m_noninherited.margin; }
@@ -675,6 +677,8 @@ protected:
         CSS::ObjectFit object_fit { InitialValues::object_fit() };
         CSS::ObjectPosition object_position { InitialValues::object_position() };
         CSS::UnicodeBidi unicode_bidi { InitialValues::unicode_bidi() };
+        CSS::UserSelect user_select { InitialValues::user_select() };
+
         Optional<CSS::Transformation> rotate;
         Optional<CSS::Transformation> translate;
         Optional<CSS::Transformation> scale;
@@ -846,6 +850,7 @@ public:
     void set_direction(CSS::Direction value) { m_inherited.direction = value; }
     void set_unicode_bidi(CSS::UnicodeBidi value) { m_noninherited.unicode_bidi = value; }
     void set_writing_mode(CSS::WritingMode value) { m_inherited.writing_mode = value; }
+    void set_user_select(CSS::UserSelect value) { m_noninherited.user_select = value; }
 
     void set_fill(SVGPaint value) { m_inherited.fill = move(value); }
     void set_stroke(SVGPaint value) { m_inherited.stroke = move(value); }

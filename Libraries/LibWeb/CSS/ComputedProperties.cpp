@@ -1434,6 +1434,12 @@ Optional<CSS::WritingMode> ComputedProperties::writing_mode() const
     return keyword_to_writing_mode(value.to_keyword());
 }
 
+Optional<CSS::UserSelect> ComputedProperties::user_select() const
+{
+    auto const& value = property(CSS::PropertyID::UserSelect);
+    return keyword_to_user_select(value.to_keyword());
+}
+
 Optional<CSS::MaskType> ComputedProperties::mask_type() const
 {
     auto const& value = property(CSS::PropertyID::MaskType);

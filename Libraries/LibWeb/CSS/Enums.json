@@ -538,6 +538,13 @@
     "normal",
     "plaintext"
   ],
+  "user-select": [
+    "all",
+    "auto",
+    "contain",
+    "none",
+    "text"
+  ],
   "vertical-align": [
     "baseline",
     "bottom",
