@@ -28,13 +28,13 @@ void Database::visit_edges(Visitor& visitor)
     visitor.visit(m_upgrade_transaction);
 }
 
-ConnectionQueue& ConnectionQueueHandler::for_key_and_name(StorageAPI::StorageKey& key, String& name)
+RequestList& ConnectionQueueHandler::for_key_and_name(StorageAPI::StorageKey& key, String& name)
 {
     return ConnectionQueueHandler::the().m_open_requests.ensure(key, [] {
-                                                            return HashMap<String, ConnectionQueue>();
+                                                            return HashMap<String, RequestList>();
                                                         })
         .ensure(name, [] {
-            return ConnectionQueue();
+            return RequestList();
         });
 }
 
