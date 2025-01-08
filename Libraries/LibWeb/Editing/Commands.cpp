@@ -593,6 +593,28 @@ String command_font_size_value(DOM::Document const& document)
     return legacy_font_size(pixel_size.to_int());
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-forecolor-command
+bool command_fore_color_action(DOM::Document& document, String const& value)
+{
+    // 1. If value is not a valid CSS color, prepend "#" to it.
+    auto resulting_value = value;
+    if (!Color::from_string(resulting_value).has_value()) {
+        resulting_value = MUST(String::formatted("#{}", resulting_value));
+
+        // 2. If value is still not a valid CSS color, or if it is currentColor, return false.
+        if (!Color::from_string(resulting_value).has_value()) {
+            // FIXME: Also return false in case of currentColor.
+            return false;
+        }
+    }
+
+    // 3. Set the selection's value to value.
+    set_the_selections_value(document, CommandNames::foreColor, resulting_value);
+
+    // 4. Return true.
+    return true;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-forwarddelete-command
 bool command_forward_delete_action(DOM::Document& document, String const&)
 {
@@ -1228,6 +1250,12 @@ static Array const commands {
         .action = command_font_size_action,
         .value = command_font_size_value,
         .relevant_css_property = CSS::PropertyID::FontSize,
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-forecolor-command
+    CommandDefinition {
+        .command = CommandNames::foreColor,
+        .action = command_fore_color_action,
+        .relevant_css_property = CSS::PropertyID::Color,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-forwarddelete-command
     CommandDefinition {
