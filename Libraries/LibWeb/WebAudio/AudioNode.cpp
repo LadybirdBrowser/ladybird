@@ -78,7 +78,11 @@ WebIDL::ExceptionOr<GC::Ref<AudioNode>> AudioNode::connect(GC::Ref<AudioNode> de
 // https://webaudio.github.io/web-audio-api/#dom-audionode-connect-destinationparam-output
 WebIDL::ExceptionOr<void> AudioNode::connect(GC::Ref<AudioParam> destination_param, WebIDL::UnsignedLong output)
 {
-    (void)destination_param;
+    // If destinationParam belongs to an AudioNode that belongs to a BaseAudioContext that is different from the BaseAudioContext
+    // that has created the AudioNode on which this method was called, an InvalidAccessError MUST be thrown.
+    if (m_context != destination_param->context()) {
+        return WebIDL::InvalidAccessError::create(realm(), "Cannot connect to an AudioParam in a different AudioContext"_string);
+    }
 
     // The output parameter is an index describing which output of the AudioNode from which to connect.
     // If the parameter is out-of-bounds, an IndexSizeError exception MUST be thrown.

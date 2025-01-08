@@ -20,7 +20,7 @@ class AudioListener final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(AudioListener);
 
 public:
-    static GC::Ref<AudioListener> create(JS::Realm&);
+    static GC::Ref<AudioListener> create(JS::Realm&, GC::Ref<BaseAudioContext>);
     virtual ~AudioListener() override;
 
     GC::Ref<AudioParam> forward_x() const { return m_forward_x; }
@@ -37,7 +37,7 @@ public:
     WebIDL::ExceptionOr<void> set_orientation(float x, float y, float z, float x_up, float y_up, float z_up);
 
 private:
-    explicit AudioListener(JS::Realm&);
+    explicit AudioListener(JS::Realm&, GC::Ref<BaseAudioContext>);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

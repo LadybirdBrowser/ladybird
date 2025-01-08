@@ -50,8 +50,8 @@ WebIDL::ExceptionOr<GC::Ref<OscillatorNode>> OscillatorNode::construct_impl(JS::
 OscillatorNode::OscillatorNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, OscillatorOptions const& options)
     : AudioScheduledSourceNode(realm, context)
     , m_type(options.type)
-    , m_frequency(AudioParam::create(realm, options.frequency, -context->nyquist_frequency(), context->nyquist_frequency(), Bindings::AutomationRate::ARate))
-    , m_detune(AudioParam::create(realm, options.detune, -1200 * AK::log2(NumericLimits<float>::max()), 1200 * AK::log2(NumericLimits<float>::max()), Bindings::AutomationRate::ARate))
+    , m_frequency(AudioParam::create(realm, context, options.frequency, -context->nyquist_frequency(), context->nyquist_frequency(), Bindings::AutomationRate::ARate))
+    , m_detune(AudioParam::create(realm, context, options.detune, -1200 * AK::log2(NumericLimits<float>::max()), 1200 * AK::log2(NumericLimits<float>::max()), Bindings::AutomationRate::ARate))
 {
 }
 

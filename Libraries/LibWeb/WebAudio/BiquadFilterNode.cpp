@@ -20,10 +20,10 @@ GC_DEFINE_ALLOCATOR(BiquadFilterNode);
 BiquadFilterNode::BiquadFilterNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, BiquadFilterOptions const& options)
     : AudioNode(realm, context)
     , m_type(options.type)
-    , m_frequency(AudioParam::create(realm, options.frequency, 0, context->nyquist_frequency(), Bindings::AutomationRate::ARate))
-    , m_detune(AudioParam::create(realm, options.detune, -1200 * AK::log2(NumericLimits<float>::max()), 1200 * AK::log2(NumericLimits<float>::max()), Bindings::AutomationRate::ARate))
-    , m_q(AudioParam::create(realm, options.q, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
-    , m_gain(AudioParam::create(realm, options.gain, NumericLimits<float>::lowest(), 40 * AK::log10(NumericLimits<float>::max()), Bindings::AutomationRate::ARate))
+    , m_frequency(AudioParam::create(realm, context, options.frequency, 0, context->nyquist_frequency(), Bindings::AutomationRate::ARate))
+    , m_detune(AudioParam::create(realm, context, options.detune, -1200 * AK::log2(NumericLimits<float>::max()), 1200 * AK::log2(NumericLimits<float>::max()), Bindings::AutomationRate::ARate))
+    , m_q(AudioParam::create(realm, context, options.q, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
+    , m_gain(AudioParam::create(realm, context, options.gain, NumericLimits<float>::lowest(), 40 * AK::log10(NumericLimits<float>::max()), Bindings::AutomationRate::ARate))
 {
 }
 

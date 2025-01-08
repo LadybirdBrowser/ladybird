@@ -41,7 +41,7 @@ WebIDL::ExceptionOr<GC::Ref<GainNode>> GainNode::construct_impl(JS::Realm& realm
 
 GainNode::GainNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, GainOptions const& options)
     : AudioNode(realm, context)
-    , m_gain(AudioParam::create(realm, options.gain, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
+    , m_gain(AudioParam::create(realm, context, options.gain, NumericLimits<float>::lowest(), NumericLimits<float>::max(), Bindings::AutomationRate::ARate))
 {
 }
 
