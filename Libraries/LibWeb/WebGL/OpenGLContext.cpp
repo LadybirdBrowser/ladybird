@@ -203,6 +203,24 @@ RefPtr<Gfx::PaintingSurface> OpenGLContext::surface()
     return m_painting_surface;
 }
 
+u32 OpenGLContext::default_renderbuffer() const
+{
+#ifdef AK_OS_MACOS
+    return m_impl->depth_buffer;
+#else
+    return 0;
+#endif
+}
+
+u32 OpenGLContext::default_framebuffer() const
+{
+#ifdef AK_OS_MACOS
+    return m_impl->framebuffer;
+#else
+    return 0;
+#endif
+}
+
 Vector<StringView> s_available_webgl_extensions {
     // Khronos ratified WebGL Extensions
     "ANGLE_instanced_arrays"sv,
