@@ -1036,17 +1036,7 @@ public:
         return;
     }
 
-    void *ptr = nullptr;
-    if (pixels->is_data_view()) {
-        auto& data_view = static_cast<JS::DataView&>(*pixels->raw_object());
-        ptr = data_view.viewed_array_buffer()->buffer().data();
-    } else if (pixels->is_typed_array_base()) {
-        auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*pixels->raw_object());
-        ptr = typed_array_base.viewed_array_buffer()->buffer().data();
-    } else {
-        VERIFY_NOT_REACHED();
-    }
-
+    void *ptr = pixels->viewed_array_buffer()->buffer().data() + pixels->byte_offset();
     glReadPixels(x, y, width, height, format, type, ptr);
 )~~~");
             continue;
