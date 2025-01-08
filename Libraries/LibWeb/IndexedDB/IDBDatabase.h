@@ -10,7 +10,6 @@
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/DOMStringList.h>
 #include <LibWeb/IndexedDB/IDBRequest.h>
-#include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/IndexedDB/Internal/Database.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 
@@ -45,12 +44,7 @@ public:
     [[nodiscard]] ConnectionState state() const { return m_state; }
     [[nodiscard]] GC::Ref<Database> associated_database() { return m_associated_database; }
 
-    // https://w3c.github.io/IndexedDB/#dom-idbdatabase-close
-    void close()
-    {
-        // 1. Run close a database connection with this connection.
-        close_a_database_connection(*this);
-    }
+    void close();
 
     void set_onabort(WebIDL::CallbackType*);
     WebIDL::CallbackType* onabort();
