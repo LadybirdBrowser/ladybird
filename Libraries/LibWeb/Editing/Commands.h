@@ -47,5 +47,7 @@ bool command_remove_format_action(DOM::Document&, String const&);
 bool command_strikethrough_action(DOM::Document&, String const&);
 bool command_style_with_css_action(DOM::Document&, String const&);
 bool command_style_with_css_state(DOM::Document const&);
+bool command_subscript_action(DOM::Document&, String const&);
+bool command_subscript_indeterminate(DOM::Document const&);
 
 }
