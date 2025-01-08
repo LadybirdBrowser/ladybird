@@ -174,6 +174,7 @@ static double parse_date_string(VM& vm, StringView date_string)
         "%a%t%b%t%e%t%T%t%Y%t%z"sv,            // "Wed Apr 17 23:08:53 2019 +0000"
         "%Y-%m-%e%t%R%z"sv,                    // "2021-07-01 03:00Z"
         "%a,%t%e%t%b%t%Y%t%T%t%z"sv,           // "Wed, 17 Jan 2024 11:36:34 +0000"
+        "%a,%t%d%t%b%t%Y%t%T"sv,               // "Thu, 09 Jan 2025 23:00:00"
         "%a%t%b%t%e%t%Y%t%T%tGMT%t%x%t(%+)"sv, // "Sun Jan 21 2024 21:11:31 GMT 0100 (Central European Standard Time)"
         "%Y-%m-%e%t%T"sv,                      // "2024-01-15 00:00:01"
         "%a%t%b%t%e%t%Y%t%T%t%Z"sv,            // "Tue Nov 07 2023 10:05:55  UTC"
