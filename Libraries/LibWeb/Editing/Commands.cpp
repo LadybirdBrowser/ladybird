@@ -1189,6 +1189,23 @@ bool command_insert_paragraph_action(DOM::Document& document, String const&)
     return true;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-italic-command
+bool command_italic_action(DOM::Document& document, String const&)
+{
+    // If queryCommandState("italic") returns true, set the selection's value to "normal".
+    if (document.query_command_state(CommandNames::italic)) {
+        set_the_selections_value(document, CommandNames::italic, "normal"_string);
+    }
+
+    // Otherwise set the selection's value to "italic".
+    else {
+        set_the_selections_value(document, CommandNames::italic, "italic"_string);
+    }
+
+    // Either way, return true.
+    return true;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-stylewithcss-command
 bool command_style_with_css_action(DOM::Document& document, String const& value)
 {
@@ -1280,6 +1297,13 @@ static Array const commands {
         .command = CommandNames::insertParagraph,
         .action = command_insert_paragraph_action,
         .preserves_overrides = true,
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-italic-command
+    CommandDefinition {
+        .command = CommandNames::italic,
+        .action = command_italic_action,
+        .relevant_css_property = CSS::PropertyID::FontStyle,
+        .inline_activated_values = { "italic"sv, "oblique"sv },
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-stylewithcss-command
     CommandDefinition {
