@@ -187,6 +187,139 @@ static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Painting
     return offset;
 }
 
+// https://drafts.csswg.org/css-ui/#propdef-user-select
+static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, unsigned anchor_offset, GC::Ptr<DOM::Node> focus_node, unsigned focus_offset, Selection::Selection* selection, CSS::UserSelect user_select)
+{
+    // https://drafts.csswg.org/css-ui/#valdef-user-select-contain
+    // NOTE: This is clamping the focus node to any node with user-select: contain that stands between it and the anchor node.
+    if (focus_node != anchor_node) {
+        // UAs must not allow a selection which is started in this element to be extended outside of this element.
+        auto potential_contain_node = anchor_node;
+
+        // NOTE: The way we do this is searching up the tree from the anchor, to find 'this element', i.e. its nearest contain ancestor.
+        //       We stop the search early when we reach an element that contains both the anchor and the focus node, as this means they
+        //       are inside the same contain element, or not in a contain element at all.
+        //       This takes care of the "selection trying to escape from a contain" case.
+        while (
+            (!potential_contain_node->is_element() || potential_contain_node->layout_node()->user_select_used_value() != CSS::UserSelect::Contain) && potential_contain_node->parent() && !potential_contain_node->is_inclusive_ancestor_of(*focus_node)) {
+            potential_contain_node = potential_contain_node->parent();
+        }
+
+        if (
+            potential_contain_node->layout_node()->user_select_used_value() == CSS::UserSelect::Contain && !potential_contain_node->is_inclusive_ancestor_of(*focus_node)) {
+            if (focus_node->is_before(*potential_contain_node)) {
+                focus_offset = 0;
+            } else {
+                focus_offset = potential_contain_node->length();
+            }
+            focus_node = potential_contain_node;
+            // NOTE: Prevents this from being handled again further down
+            user_select = CSS::UserSelect::Contain;
+        } else {
+            // A selection started outside of this element must not end in this element. If the user attempts to create such a
+            // selection, the UA must instead end the selection range at the element boundary.
+
+            // NOTE: This branch takes care of the "selection trying to intrude into a contain" case.
+            //       This is done by searching up the tree from the focus node, to see if there is a
+            //       contain element between it and the common ancestor that also includes the anchor.
+            //       We stop once reaching target_node, which is the common ancestor identified in step 1.
+            //       If target_node wasn't a common ancestor, we would not be here.
+            auto target_node = potential_contain_node;
+            potential_contain_node = focus_node;
+            while (
+                (!potential_contain_node->is_element() || potential_contain_node->layout_node()->user_select_used_value() != CSS::UserSelect::Contain) && potential_contain_node->parent() && potential_contain_node != target_node) {
+                potential_contain_node = potential_contain_node->parent();
+            }
+            if (
+                potential_contain_node->layout_node()->user_select_used_value() == CSS::UserSelect::Contain && !potential_contain_node->is_inclusive_ancestor_of(*anchor_node)) {
+                if (potential_contain_node->is_before(*anchor_node)) {
+                    focus_node = potential_contain_node->next_in_pre_order();
+                    while (potential_contain_node->is_inclusive_ancestor_of(*focus_node)) {
+                        focus_node = focus_node->next_in_pre_order();
+                    }
+                    focus_offset = 0;
+                } else {
+                    focus_node = potential_contain_node->previous_in_pre_order();
+                    while (potential_contain_node->is_inclusive_ancestor_of(*focus_node)) {
+                        focus_node = focus_node->previous_in_pre_order();
+                    }
+                    focus_offset = focus_node->length();
+                }
+                // NOTE: Prevents this from being handled again further down
+                user_select = CSS::UserSelect::Contain;
+            }
+        }
+    }
+
+    switch (user_select) {
+    case CSS::UserSelect::None:
+        // https://drafts.csswg.org/css-ui/#valdef-user-select-none
+
+        // The UA must not allow selections to be started in this element.
+        if (anchor_node == focus_node) {
+            return;
+        }
+
+        // A selection started outside of this element must not end in this element. If the user attempts to create such a
+        // selection, the UA must instead end the selection range at the element boundary.
+        while (focus_node->parent() && focus_node->parent()->layout_node()->user_select_used_value() == CSS::UserSelect::None) {
+            focus_node = focus_node->parent();
+        }
+        if (focus_node->is_before(*anchor_node)) {
+            auto none_element = focus_node;
+            do {
+                focus_node = focus_node->next_in_pre_order();
+            } while (none_element->is_inclusive_ancestor_of(*focus_node));
+            focus_offset = 0;
+        } else {
+            focus_node = focus_node->previous_in_pre_order();
+            focus_offset = focus_node->length();
+        }
+        break;
+    case CSS::UserSelect::All:
+        // https://drafts.csswg.org/css-ui/#valdef-user-select-all
+
+        // The content of the element must be selected atomically: If a selection would contain part of the element,
+        // then the selection must contain the entire element including all its descendants. If the element is selected
+        // and the used value of 'user-select' on its parent is 'all', then the parent must be included in the selection,
+        // recursively.
+        while (focus_node->parent() && focus_node->parent()->layout_node()->user_select_used_value() == CSS::UserSelect::All) {
+            if (anchor_node == focus_node) {
+                anchor_node = focus_node->parent();
+            }
+            focus_node = focus_node->parent();
+        }
+
+        if (focus_node == anchor_node) {
+            if (anchor_offset > focus_offset) {
+                anchor_offset = focus_node->length();
+                focus_offset = 0;
+            } else {
+                anchor_offset = 0;
+                focus_offset = focus_node->length();
+            }
+        } else if (focus_node->is_before(*anchor_node)) {
+            focus_offset = 0;
+        } else {
+            focus_offset = focus_node->length();
+        }
+        break;
+    case CSS::UserSelect::Contain:
+        // NOTE: This is handled at the start of this function
+        break;
+    case CSS::UserSelect::Text:
+        // https://drafts.csswg.org/css-ui/#valdef-user-select-text
+
+        // The element imposes no constraint on the selection.
+        break;
+    case CSS::UserSelect::Auto:
+        VERIFY_NOT_REACHED();
+        break;
+    }
+
+    (void)selection->set_base_and_extent(*anchor_node, anchor_offset, *focus_node, focus_offset);
+}
+
 EventHandler::EventHandler(Badge<HTML::Navigable>, HTML::Navigable& navigable)
     : m_navigable(navigable)
     , m_drag_and_drop_event_handler(make<DragAndDropEventHandler>())
@@ -502,23 +635,29 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint viewport_position, CSSP
                 else if (auto* focused_element = document->focused_element())
                     HTML::run_unfocusing_steps(focused_element);
 
-                auto target = document->active_input_events_target();
-                if (target) {
-                    m_in_mouse_selection = true;
-                    m_mouse_selection_target = target;
-                    if (modifiers & UIEvents::KeyModifier::Mod_Shift) {
-                        target->set_selection_focus(*dom_node, result->index_in_node);
-                    } else {
-                        target->set_selection_anchor(*dom_node, result->index_in_node);
-                    }
-                } else if (!focus_candidate) {
-                    m_in_mouse_selection = true;
-                    if (auto selection = document->get_selection()) {
-                        auto anchor_node = selection->anchor_node();
-                        if (anchor_node && modifiers & UIEvents::KeyModifier::Mod_Shift) {
-                            (void)selection->set_base_and_extent(*anchor_node, selection->anchor_offset(), *dom_node, result->index_in_node);
+                // https://drafts.csswg.org/css-ui/#valdef-user-select-none
+                // Attempting to start a selection in an element where user-select is none, such as by clicking in it or starting
+                // a drag in it, must not cause a pre-existing selection to become unselected or to be affected in any way.
+                auto user_select = paintable->layout_node().user_select_used_value();
+                if (user_select != CSS::UserSelect::None) {
+                    auto target = document->active_input_events_target();
+                    if (target) {
+                        m_in_mouse_selection = true;
+                        m_mouse_selection_target = target;
+                        if (modifiers & UIEvents::KeyModifier::Mod_Shift) {
+                            target->set_selection_focus(*dom_node, result->index_in_node);
                         } else {
-                            (void)selection->set_base_and_extent(*dom_node, result->index_in_node, *dom_node, result->index_in_node);
+                            target->set_selection_anchor(*dom_node, result->index_in_node);
+                        }
+                    } else if (!focus_candidate) {
+                        m_in_mouse_selection = true;
+                        if (auto selection = document->get_selection()) {
+                            auto anchor_node = selection->anchor_node();
+                            if (anchor_node && modifiers & UIEvents::KeyModifier::Mod_Shift) {
+                                set_user_selection(*anchor_node, selection->anchor_offset(), *dom_node, result->index_in_node, selection, user_select);
+                            } else {
+                                set_user_selection(*dom_node, result->index_in_node, *dom_node, result->index_in_node, selection, user_select);
+                            }
                         }
                     }
                 }
@@ -635,9 +774,9 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSP
                         auto anchor_node = selection->anchor_node();
                         if (anchor_node) {
                             if (&anchor_node->root() == &hit->dom_node()->root())
-                                (void)selection->set_base_and_extent(*anchor_node, selection->anchor_offset(), *hit->paintable->dom_node(), hit->index_in_node);
+                                set_user_selection(*anchor_node, selection->anchor_offset(), *hit->paintable->dom_node(), hit->index_in_node, selection, hit->paintable->layout_node().user_select_used_value());
                         } else {
-                            (void)selection->set_base_and_extent(*hit->paintable->dom_node(), hit->index_in_node, *hit->paintable->dom_node(), hit->index_in_node);
+                            set_user_selection(*hit->paintable->dom_node(), hit->index_in_node, *hit->paintable->dom_node(), hit->index_in_node, selection, hit->paintable->layout_node().user_select_used_value());
                         }
                     }
 
@@ -751,7 +890,7 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint viewport_position, CS
                 target->set_selection_anchor(hit_dom_node, previous_boundary);
                 target->set_selection_focus(hit_dom_node, next_boundary);
             } else if (auto selection = node->document().get_selection()) {
-                (void)selection->set_base_and_extent(hit_dom_node, previous_boundary, hit_dom_node, next_boundary);
+                set_user_selection(hit_dom_node, previous_boundary, hit_dom_node, next_boundary, selection, hit_paintable.layout_node().user_select_used_value());
             }
         }
     }

@@ -188,6 +188,9 @@ public:
         return false;
     }
 
+    // https://drafts.csswg.org/css-ui/#propdef-user-select
+    CSS::UserSelect user_select_used_value() const;
+
 protected:
     Node(DOM::Document&, DOM::Node*);
 

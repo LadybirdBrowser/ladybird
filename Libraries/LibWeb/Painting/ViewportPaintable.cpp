@@ -315,14 +315,18 @@ void ViewportPaintable::recompute_selection_states(DOM::Range& range)
 
     // 4. Mark the selection end node as End (if text) or Full (if anything else).
     if (auto* paintable = end_container->paintable()) {
-        if (is<DOM::Text>(*end_container))
+        if (is<DOM::Text>(*end_container) || end_container->is_ancestor_of(start_container)) {
             paintable->set_selection_state(SelectionState::End);
-        else
-            paintable->set_selection_state(SelectionState::Full);
+        } else {
+            paintable->for_each_in_inclusive_subtree([&](auto& layout_node) {
+                layout_node.set_selection_state(SelectionState::Full);
+                return TraversalDecision::Continue;
+            });
+        }
     }
 
     // 5. Mark the nodes between start node and end node (in tree order) as Full.
-    for (auto* node = start_container->next_in_pre_order(); node && node != end_container; node = node->next_in_pre_order()) {
+    for (auto* node = start_container->next_in_pre_order(); node && (node->is_before(end_container) || node->is_descendant_of(end_container)); node = node->next_in_pre_order()) {
         if (auto* paintable = node->paintable())
             paintable->set_selection_state(SelectionState::Full);
     }

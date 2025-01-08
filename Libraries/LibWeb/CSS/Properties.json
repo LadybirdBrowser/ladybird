@@ -2819,12 +2819,8 @@
     "animation-type": "discrete",
     "inherited": false,
     "initial": "auto",
-    "valid-identifiers": [
-      "all",
-      "auto",
-      "contain",
-      "none",
-      "text"
+    "valid-types": [
+      "user-select"
     ]
   },
   "vertical-align": {
