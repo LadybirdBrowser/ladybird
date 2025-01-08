@@ -64,6 +64,39 @@ bool command_bold_action(DOM::Document& document, String const&)
     return true;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-createlink-command
+bool command_create_link_action(DOM::Document& document, String const& value)
+{
+    // 1. If value is the empty string, return false.
+    if (value.is_empty())
+        return false;
+
+    // 2. For each editable a element that has an href attribute and is an ancestor of some node effectively contained
+    //    in the active range, set that a element's href attribute to value.
+    HashTable<DOM::Node*> visited_ancestors;
+    auto set_value_for_ancestor_anchors = [&](GC::Ref<DOM::Node> node) {
+        node->for_each_ancestor([&](GC::Ref<DOM::Node> ancestor) {
+            if (visited_ancestors.contains(ancestor.ptr()))
+                return IterationDecision::Break;
+            if (is<HTML::HTMLAnchorElement>(*ancestor) && ancestor->is_editable()
+                && static_cast<DOM::Element&>(*ancestor).has_attribute(HTML::AttributeNames::href))
+                MUST(static_cast<HTML::HTMLAnchorElement&>(*ancestor).set_href(value));
+            visited_ancestors.set(ancestor.ptr());
+            return IterationDecision::Continue;
+        });
+    };
+    for_each_node_effectively_contained_in_range(active_range(document), [&](GC::Ref<DOM::Node> descendant) {
+        set_value_for_ancestor_anchors(descendant);
+        return TraversalDecision::Continue;
+    });
+
+    // 3. Set the selection's value to value.
+    set_the_selections_value(document, CommandNames::createLink, value);
+
+    // 4. Return true.
+    return true;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-defaultparagraphseparator-command
 bool command_default_paragraph_separator_action(DOM::Document& document, String const& input_value)
 {
@@ -1064,6 +1097,11 @@ static Array const commands {
         .action = command_bold_action,
         .relevant_css_property = CSS::PropertyID::FontWeight,
         .inline_activated_values = { "bold"sv, "600"sv, "700"sv, "800"sv, "900"sv },
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-createlink-command
+    CommandDefinition {
+        .command = CommandNames::createLink,
+        .action = command_create_link_action,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-delete-command
     CommandDefinition {
