@@ -67,6 +67,7 @@ bool is_name_of_an_element_with_inline_contents(FlyString const&);
 bool is_non_list_single_line_container(GC::Ref<DOM::Node>);
 bool is_prohibited_paragraph_child(GC::Ref<DOM::Node>);
 bool is_prohibited_paragraph_child_name(FlyString const&);
+bool is_remove_format_candidate(GC::Ref<DOM::Node>);
 bool is_simple_indentation_element(GC::Ref<DOM::Node>);
 bool is_simple_modifiable_element(GC::Ref<DOM::Node>);
 bool is_single_line_container(GC::Ref<DOM::Node>);

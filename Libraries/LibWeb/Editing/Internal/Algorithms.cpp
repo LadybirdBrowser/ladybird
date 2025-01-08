@@ -2246,6 +2246,48 @@ bool is_prohibited_paragraph_child_name(FlyString const& local_name)
         HTML::TagNames::xmp);
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#removeformat-candidate
+bool is_remove_format_candidate(GC::Ref<DOM::Node> node)
+{
+    // A removeFormat candidate is an editable HTML element with local name "abbr", "acronym", "b", "bdi", "bdo", "big",
+    // "blink", "cite", "code", "dfn", "em", "font", "i", "ins", "kbd", "mark", "nobr", "q", "s", "samp", "small",
+    // "span", "strike", "strong", "sub", "sup", "tt", "u", or "var".
+    if (!node->is_editable())
+        return false;
+    if (!is<HTML::HTMLElement>(*node))
+        return false;
+    return static_cast<HTML::HTMLElement&>(*node).local_name().is_one_of(
+        HTML::TagNames::abbr,
+        HTML::TagNames::acronym,
+        HTML::TagNames::b,
+        HTML::TagNames::bdi,
+        HTML::TagNames::bdo,
+        HTML::TagNames::big,
+        HTML::TagNames::blink,
+        HTML::TagNames::cite,
+        HTML::TagNames::code,
+        HTML::TagNames::dfn,
+        HTML::TagNames::em,
+        HTML::TagNames::font,
+        HTML::TagNames::i,
+        HTML::TagNames::ins,
+        HTML::TagNames::kbd,
+        HTML::TagNames::mark,
+        HTML::TagNames::nobr,
+        HTML::TagNames::q,
+        HTML::TagNames::s,
+        HTML::TagNames::samp,
+        HTML::TagNames::small,
+        HTML::TagNames::span,
+        HTML::TagNames::strike,
+        HTML::TagNames::strong,
+        HTML::TagNames::sub,
+        HTML::TagNames::sup,
+        HTML::TagNames::tt,
+        HTML::TagNames::u,
+        HTML::TagNames::var);
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#simple-indentation-element
 bool is_simple_indentation_element(GC::Ref<DOM::Node> node)
 {
