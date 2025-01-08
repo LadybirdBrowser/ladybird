@@ -10,14 +10,23 @@
 
 namespace Web::IndexedDB {
 
+GC_DEFINE_ALLOCATOR(Key);
+
+Key::~Key() = default;
+
+GC::Ref<Key> Key::create(JS::Realm& realm, KeyType key, KeyValue value)
+{
+    return realm.create<Key>(key, value);
+}
+
 // https://w3c.github.io/IndexedDB/#compare-two-keys
-i8 Key::compare_two_keys(Key a, Key b)
+i8 Key::compare_two_keys(GC::Ref<Key> a, GC::Ref<Key> b)
 {
     // 1. Let ta be the type of a.
-    auto ta = a.type();
+    auto ta = a->type();
 
     // 2. Let tb be the type of b.
-    auto tb = b.type();
+    auto tb = b->type();
 
     // 3. If ta does not equal tb, then run these steps:
     if (ta != tb) {
@@ -57,10 +66,10 @@ i8 Key::compare_two_keys(Key a, Key b)
     }
 
     // 4. Let va be the value of a.
-    auto va = a.value();
+    auto va = a->value();
 
     // 5. Let vb be the value of b.
-    auto vb = b.value();
+    auto vb = b->value();
 
     // 6. Switch on ta:
     switch (ta) {
@@ -116,8 +125,8 @@ i8 Key::compare_two_keys(Key a, Key b)
     }
     // array
     case KeyType::Array: {
-        auto a_value = va.get<Vector<Key>>();
-        auto b_value = vb.get<Vector<Key>>();
+        auto a_value = va.get<Vector<GC::Root<Key>>>();
+        auto b_value = vb.get<Vector<GC::Root<Key>>>();
 
         // 1. Let length be the lesser of va’s size and vb’s size.
         auto length = min(a_value.size(), b_value.size());
@@ -128,7 +137,7 @@ i8 Key::compare_two_keys(Key a, Key b)
         // 3. While i is less than length, then:
         while (i < length) {
             // 1. Let c be the result of recursively comparing two keys with va[i] and vb[i].
-            auto c = compare_two_keys(a_value[i], b_value[i]);
+            auto c = compare_two_keys(*a_value[i], *b_value[i]);
 
             // 2. If c is not 0, return c.
             if (c != 0)
