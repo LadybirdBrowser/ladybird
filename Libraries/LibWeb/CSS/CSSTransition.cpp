@@ -140,6 +140,11 @@ void CSSTransition::visit_edges(Cell::Visitor& visitor)
 double CSSTransition::timing_function_output_at_time(double t) const
 {
     auto progress = (t - transition_start_time()) / (transition_end_time() - transition_start_time());
+    // AD-HOC: If the transition has an empty duration then we get NaN here,
+    // setting progress to 1 because an instant transition may be considered "finished".
+    if (transition_start_time() < transition_end_time())
+        progress = 1;
+
     // FIXME: Is this before_flag value correct?
     bool before_flag = t < transition_start_time();
     return m_keyframe_effect->timing_function().evaluate_at(progress, before_flag);
