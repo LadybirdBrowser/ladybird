@@ -1316,6 +1316,59 @@ bool command_style_with_css_state(DOM::Document const& document)
     return document.css_styling_flag();
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-subscript-command
+bool command_subscript_action(DOM::Document& document, String const&)
+{
+    // 1. Call queryCommandState("subscript"), and let state be the result.
+    auto state = document.query_command_state(CommandNames::subscript);
+
+    // 2. Set the selection's value to null.
+    set_the_selections_value(document, CommandNames::subscript, {});
+
+    // 3. If state is false, set the selection's value to "subscript".
+    if (!state)
+        set_the_selections_value(document, CommandNames::subscript, "subscript"_string);
+
+    // 4. Return true.
+    return true;
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-subscript-command
+bool command_subscript_indeterminate(DOM::Document const& document)
+{
+    // True if either among formattable nodes that are effectively contained in the active range, there is at least one
+    // with effective command value "subscript" and at least one with some other effective command value;
+    bool has_subscript_value = false;
+    bool has_other_value = false;
+    bool has_mixed_value = false;
+    for_each_node_effectively_contained_in_range(active_range(document), [&](GC::Ref<DOM::Node> descendant) {
+        if (!is_formattable_node(descendant))
+            return TraversalDecision::Continue;
+
+        auto node_value = effective_command_value(descendant, CommandNames::subscript);
+        if (!node_value.has_value())
+            return TraversalDecision::Continue;
+
+        if (node_value.value() == "subscript"sv) {
+            has_subscript_value = true;
+        } else {
+            has_other_value = true;
+            if (!has_mixed_value && node_value.value() == "mixed"sv)
+                has_mixed_value = true;
+        }
+        if (has_subscript_value && has_other_value)
+            return TraversalDecision::Break;
+
+        return TraversalDecision::Continue;
+    });
+    if (has_subscript_value && has_other_value)
+        return true;
+
+    // or if there is some formattable node effectively contained in the active range with effective command value
+    // "mixed". Otherwise false.
+    return has_mixed_value;
+}
+
 static Array const commands {
     // https://w3c.github.io/editing/docs/execCommand/#the-backcolor-command
     CommandDefinition {
@@ -1413,6 +1466,13 @@ static Array const commands {
         .command = CommandNames::styleWithCSS,
         .action = command_style_with_css_action,
         .state = command_style_with_css_state,
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-subscript-command
+    CommandDefinition {
+        .command = CommandNames::subscript,
+        .action = command_subscript_action,
+        .indeterminate = command_subscript_indeterminate,
+        .inline_activated_values = { "subscript"sv },
     },
 };
 
