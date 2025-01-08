@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 10 tests
 
-5 Pass
-5 Fail
+6 Pass
+4 Fail
 Pass	After setting a transition's effect to null, it still reports the original transition property
 Pass	After setting a transition's effect to null, it becomes finished
-Fail	After setting a transition's effect to null, style is updated
+Pass	After setting a transition's effect to null, style is updated
 Fail	After setting a transition's effect to null, a new transition can be started
 Fail	After setting a transition's effect to null, it should be possible to interrupt that transition
 Pass	After setting a new keyframe effect with a shorter duration, the transition becomes finished
