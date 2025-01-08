@@ -1206,6 +1206,81 @@ bool command_italic_action(DOM::Document& document, String const&)
     return true;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-removeformat-command
+bool command_remove_format_action(DOM::Document& document, String const&)
+{
+    // 1. Let elements to remove be a list of every removeFormat candidate effectively contained in the active range.
+    Vector<GC::Ref<DOM::Element>> elements_to_remove;
+    for_each_node_effectively_contained_in_range(active_range(document), [&](GC::Ref<DOM::Node> descendant) {
+        if (is_remove_format_candidate(descendant))
+            elements_to_remove.append(static_cast<DOM::Element&>(*descendant));
+        return TraversalDecision::Continue;
+    });
+
+    // 2. For each element in elements to remove:
+    for (auto element : elements_to_remove) {
+        // 1. While element has children, insert the first child of element into the parent of element immediately
+        //    before element, preserving ranges.
+        auto element_index = element->index();
+        while (element->has_children())
+            move_node_preserving_ranges(*element->first_child(), *element->parent(), element_index++);
+
+        // 2. Remove element from its parent.
+        element->remove();
+    }
+
+    // 3. If the active range's start node is an editable Text node, and its start offset is neither zero nor its start
+    //    node's length, call splitText() on the active range's start node, with argument equal to the active range's
+    //    start offset. Then set the active range's start node to the result, and its start offset to zero.
+    auto range = active_range(document);
+    auto start = range->start();
+    if (start.node->is_editable() && is<DOM::Text>(*start.node) && start.offset != 0 && start.offset != start.node->length()) {
+        auto new_node = MUST(static_cast<DOM::Text&>(*start.node).split_text(start.offset));
+        MUST(range->set_start(new_node, 0));
+    }
+
+    // 4. If the active range's end node is an editable Text node, and its end offset is neither zero nor its end node's
+    //    length, call splitText() on the active range's end node, with argument equal to the active range's end offset.
+    auto end = range->end();
+    if (end.node->is_editable() && is<DOM::Text>(*end.node) && end.offset != 0 && end.offset != end.node->length())
+        MUST(static_cast<DOM::Text&>(*end.node).split_text(end.offset));
+
+    // 5. Let node list consist of all editable nodes effectively contained in the active range.
+    Vector<GC::Ref<DOM::Node>> node_list;
+    for_each_node_effectively_contained_in_range(active_range(document), [&](GC::Ref<DOM::Node> descendant) {
+        if (descendant->is_editable())
+            node_list.append(descendant);
+        return TraversalDecision::Continue;
+    });
+
+    // 6. For each node in node list, while node's parent is a removeFormat candidate in the same editing host as node,
+    //    split the parent of the one-node list consisting of node.
+    for (auto node : node_list) {
+        while (node->parent() && is_remove_format_candidate(*node->parent()) && is_in_same_editing_host(*node->parent(), node))
+            split_the_parent_of_nodes({ node });
+    }
+
+    // 7. For each of the entries in the following list, in the given order, set the selection's value to null, with
+    //    command as given.
+    //    1. subscript
+    //    2. bold
+    //    3. fontName
+    //    4. fontSize
+    //    5. foreColor
+    //    6. hiliteColor
+    //    7. italic
+    //    8. strikethrough
+    //    9. underline
+    for (auto command_name : { CommandNames::subscript, CommandNames::bold, CommandNames::fontName,
+             CommandNames::fontSize, CommandNames::foreColor, CommandNames::hiliteColor, CommandNames::italic,
+             CommandNames::strikethrough, CommandNames::underline }) {
+        set_the_selections_value(document, command_name, {});
+    }
+
+    // 8. Return true.
+    return true;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-stylewithcss-command
 bool command_style_with_css_action(DOM::Document& document, String const& value)
 {
@@ -1304,6 +1379,11 @@ static Array const commands {
         .action = command_italic_action,
         .relevant_css_property = CSS::PropertyID::FontStyle,
         .inline_activated_values = { "italic"sv, "oblique"sv },
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-removeformat-command
+    CommandDefinition {
+        .command = CommandNames::removeFormat,
+        .action = command_remove_format_action,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-stylewithcss-command
     CommandDefinition {

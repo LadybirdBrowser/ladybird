@@ -1,0 +1,2 @@
+Div contents: "f<b>o</b>ob<i>a</i>r"
+Div contents: "foobar"
