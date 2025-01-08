@@ -101,10 +101,17 @@ void AudioNode::disconnect()
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-disconnect-output
-void AudioNode::disconnect(WebIDL::UnsignedLong output)
+WebIDL::ExceptionOr<void> AudioNode::disconnect(WebIDL::UnsignedLong output)
 {
-    (void)output;
+    // The output parameter is an index describing which output of the AudioNode to disconnect.
+    // It disconnects all outgoing connections from the given output.
+    // If this parameter is out-of-bounds, an IndexSizeError exception MUST be thrown.
+    if (output >= number_of_outputs()) {
+        return WebIDL::IndexSizeError::create(realm(), MUST(String::formatted("Output index {} exceeds number of outputs", output)));
+    }
+
     dbgln("FIXME: Implement AudioNode::disconnect(output)");
+    return {};
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-disconnect-destinationnode
@@ -115,20 +122,37 @@ void AudioNode::disconnect(GC::Ref<AudioNode> destination_node)
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-disconnect-destinationnode-output
-void AudioNode::disconnect(GC::Ref<AudioNode> destination_node, WebIDL::UnsignedLong output)
+WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioNode> destination_node, WebIDL::UnsignedLong output)
 {
     (void)destination_node;
-    (void)output;
+    // The output parameter is an index describing which output of the AudioNode from which to disconnect.
+    // If this parameter is out-of-bounds, an IndexSizeError exception MUST be thrown.
+    if (output >= number_of_outputs()) {
+        return WebIDL::IndexSizeError::create(realm(), MUST(String::formatted("Output index {} exceeds number of outputs", output)));
+    }
+
     dbgln("FIXME: Implement AudioNode::disconnect(destination_node, output)");
+    return {};
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-disconnect-destinationnode-output-input
-void AudioNode::disconnect(GC::Ref<AudioNode> destination_node, WebIDL::UnsignedLong output, WebIDL::UnsignedLong input)
+WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioNode> destination_node, WebIDL::UnsignedLong output, WebIDL::UnsignedLong input)
 {
     (void)destination_node;
-    (void)output;
-    (void)input;
+    // The output parameter is an index describing which output of the AudioNode from which to disconnect.
+    // If this parameter is out-of-bounds, an IndexSizeError exception MUST be thrown.
+    if (output >= number_of_outputs()) {
+        return WebIDL::IndexSizeError::create(realm(), MUST(String::formatted("Output index {} exceeds number of outputs", output)));
+    }
+
+    // The input parameter is an index describing which input of the destination AudioNode to disconnect.
+    // If this parameter is out-of-bounds, an IndexSizeError exception MUST be thrown.
+    if (input >= destination_node->number_of_inputs()) {
+        return WebIDL::IndexSizeError::create(realm(), MUST(String::formatted("Input index '{}' exceeds number of inputs", input)));
+    }
+
     dbgln("FIXME: Implement AudioNode::disconnect(destination_node, output, input)");
+    return {};
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-disconnect-destinationparam
@@ -139,11 +163,17 @@ void AudioNode::disconnect(GC::Ref<AudioParam> destination_param)
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-disconnect-destinationparam-output
-void AudioNode::disconnect(GC::Ref<AudioParam> destination_param, WebIDL::UnsignedLong output)
+WebIDL::ExceptionOr<void> AudioNode::disconnect(GC::Ref<AudioParam> destination_param, WebIDL::UnsignedLong output)
 {
     (void)destination_param;
-    (void)output;
+    // The output parameter is an index describing which output of the AudioNode from which to disconnect.
+    // If this parameter is out-of-bounds, an IndexSizeError exception MUST be thrown.
+    if (output >= number_of_outputs()) {
+        return WebIDL::IndexSizeError::create(realm(), MUST(String::formatted("Output index {} exceeds number of outputs", output)));
+    }
+
     dbgln("FIXME: Implement AudioNode::disconnect(destination_param, output)");
+    return {};
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-audionode-channelcount
