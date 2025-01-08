@@ -94,7 +94,8 @@ int EventLoopImplementationWindows::exec()
 
 size_t EventLoopImplementationWindows::pump(PumpMode)
 {
-    auto thread_data = ThreadData::the();
+    auto& event_queue = ThreadEventQueue::current();
+    auto* thread_data = ThreadData::the();
     auto& notifiers = thread_data->notifiers;
     auto& timers = thread_data->timers;
 
@@ -112,25 +113,34 @@ size_t EventLoopImplementationWindows::pump(PumpMode)
     for (auto& entry : timers)
         event_handles.append(entry.key.handle);
 
-    bool has_pending_events = ThreadEventQueue::current().has_pending_events();
+    bool has_pending_events = event_queue.has_pending_events();
     int timeout = has_pending_events ? 0 : INFINITE;
     DWORD result = WaitForMultipleObjects(event_count, event_handles.data(), FALSE, timeout);
-    size_t index = result - WAIT_OBJECT_0;
-    VERIFY(index < event_count);
-
-    if (index != 0) {
-        if (index <= notifiers.size()) {
-            Notifier* notifier = *notifiers.get(event_handles[index]);
-            ThreadEventQueue::current().post_event(*notifier, make<NotifierActivationEvent>(notifier->fd(), notifier->type()));
-        } else {
-            auto& timer = *timers.get(event_handles[index]);
-            if (auto strong_owner = timer.owner.strong_ref())
-                if (timer.fire_when_not_visible == TimerShouldFireWhenNotVisible::Yes || strong_owner->is_visible_for_timer_purposes())
-                    ThreadEventQueue::current().post_event(*strong_owner, make<TimerEvent>());
+    if (result == WAIT_TIMEOUT) {
+        // FIXME: This verification sometimes fails with ERROR_INVALID_HANDLE, but when I check
+        //        the handles they all seem to be valid.
+        // VERIFY(GetLastError() == ERROR_SUCCESS || GetLastError() == ERROR_IO_PENDING);
+    } else {
+        size_t const index = result - WAIT_OBJECT_0;
+        VERIFY(index < event_count);
+        // : 1 - skip wake event
+        for (size_t i = index ? index : 1; i < event_count; i++) {
+            // i == index already checked by WaitForMultipleObjects
+            if (i == index || WaitForSingleObject(event_handles[i], 0) == WAIT_OBJECT_0) {
+                if (i <= notifiers.size()) {
+                    Notifier* notifier = *notifiers.get(event_handles[i]);
+                    event_queue.post_event(*notifier, make<NotifierActivationEvent>(notifier->fd(), notifier->type()));
+                } else {
+                    auto& timer = *timers.get(event_handles[i]);
+                    if (auto strong_owner = timer.owner.strong_ref())
+                        if (timer.fire_when_not_visible == TimerShouldFireWhenNotVisible::Yes || strong_owner->is_visible_for_timer_purposes())
+                            event_queue.post_event(*strong_owner, make<TimerEvent>());
+                }
+            }
         }
     }
 
-    return ThreadEventQueue::current().process();
+    return event_queue.process();
 }
 
 void EventLoopImplementationWindows::quit(int code)
