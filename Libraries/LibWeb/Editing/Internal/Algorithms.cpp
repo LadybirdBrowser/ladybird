@@ -3961,7 +3961,12 @@ GC::Ptr<DOM::Node> first_formattable_node_effectively_contained(GC::Ptr<DOM::Ran
 
 CSSPixels font_size_to_pixel_size(StringView font_size)
 {
-    auto pixel_size = CSS::StyleComputer::default_user_font_size();
+    // If the font size ends in 'px', interpret the preceding as a number and return it.
+    if (font_size.length() >= 2 && font_size.substring_view(font_size.length() - 2).equals_ignoring_ascii_case("px"sv)) {
+        auto optional_number = font_size.substring_view(0, font_size.length() - 2).to_number<float>();
+        if (optional_number.has_value())
+            return CSSPixels::nearest_value_for(optional_number.value());
+    }
 
     // Try to map the font size directly to a keyword (e.g. medium or x-large)
     auto keyword = CSS::keyword_from_string(font_size);
@@ -3971,6 +3976,7 @@ CSSPixels font_size_to_pixel_size(StringView font_size)
         keyword = HTML::HTMLFontElement::parse_legacy_font_size(font_size);
 
     // If that also failed, give up
+    auto pixel_size = CSS::StyleComputer::default_user_font_size();
     if (!keyword.has_value())
         return pixel_size;
 

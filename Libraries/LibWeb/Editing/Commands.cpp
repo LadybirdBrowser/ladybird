@@ -20,6 +20,7 @@
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLLIElement.h>
 #include <LibWeb/HTML/HTMLTableElement.h>
+#include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Namespace.h>
 
@@ -498,6 +499,98 @@ bool command_font_name_action(DOM::Document& document, String const& value)
     // Set the selection's value to value, then return true.
     set_the_selections_value(document, CommandNames::fontName, value);
     return true;
+}
+
+enum class FontSizeMode : u8 {
+    Absolute,
+    RelativePlus,
+    RelativeMinus,
+};
+
+// https://w3c.github.io/editing/docs/execCommand/#the-fontsize-command
+bool command_font_size_action(DOM::Document& document, String const& value)
+{
+    // 1. Strip leading and trailing whitespace from value.
+    auto resulting_value = MUST(value.trim_ascii_whitespace());
+
+    // 2. If value is not a valid floating point number, and would not be a valid floating point number if a single
+    //    leading "+" character were stripped, return false.
+    if (!HTML::is_valid_floating_point_number(resulting_value)) {
+        if (!resulting_value.starts_with_bytes("+"sv)
+            || !HTML::is_valid_floating_point_number(MUST(resulting_value.substring_from_byte_offset(1))))
+            return false;
+    }
+
+    // 3. If the first character of value is "+", delete the character and let mode be "relative-plus".
+    auto mode = FontSizeMode::Absolute;
+    if (resulting_value.starts_with_bytes("+"sv)) {
+        resulting_value = MUST(resulting_value.substring_from_byte_offset(1));
+        mode = FontSizeMode::RelativePlus;
+    }
+
+    // 4. Otherwise, if the first character of value is "-", delete the character and let mode be "relative-minus".
+    else if (resulting_value.starts_with_bytes("-"sv)) {
+        resulting_value = MUST(resulting_value.substring_from_byte_offset(1));
+        mode = FontSizeMode::RelativeMinus;
+    }
+
+    // 5. Otherwise, let mode be "absolute".
+    // NOTE: This is the default set in step 3.
+
+    // 6. Apply the rules for parsing non-negative integers to value, and let number be the result.
+    i64 number = HTML::parse_non_negative_integer(resulting_value).release_value();
+
+    // 7. If mode is "relative-plus", add three to number.
+    if (mode == FontSizeMode::RelativePlus)
+        number += 3;
+
+    // 8. If mode is "relative-minus", negate number, then add three to it.
+    if (mode == FontSizeMode::RelativeMinus)
+        number = -number + 3;
+
+    // 9. If number is less than one, let number equal 1.
+    number = AK::max(number, 1);
+
+    // 10. If number is greater than seven, let number equal 7.
+    number = AK::min(number, 7);
+
+    // 11. Set value to the string here corresponding to number:
+    // 1: x-small
+    // 2: small
+    // 3: medium
+    // 4: large
+    // 5: x-large
+    // 6: xx-large
+    // 7: xxx-large
+    auto const& font_sizes = named_font_sizes();
+    resulting_value = MUST(String::from_utf8(font_sizes[number - 1]));
+
+    // 12. Set the selection's value to value.
+    set_the_selections_value(document, CommandNames::fontSize, resulting_value);
+
+    // 13. Return true.
+    return true;
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-fontsize-command
+String command_font_size_value(DOM::Document const& document)
+{
+    // 1. If the active range is null, return the empty string.
+    auto range = active_range(document);
+    if (!range)
+        return {};
+
+    // 2. Let pixel size be the effective command value of the first formattable node that is effectively contained in
+    //    the active range, or if there is no such node, the effective command value of the active range's start node,
+    //    in either case interpreted as a number of pixels.
+    auto first_formattable_node = first_formattable_node_effectively_contained(range);
+    auto value = effective_command_value(
+        first_formattable_node ? first_formattable_node : *range->start_container(),
+        CommandNames::fontSize);
+    auto pixel_size = font_size_to_pixel_size(value.value_or({}));
+
+    // 3. Return the legacy font size for pixel size.
+    return legacy_font_size(pixel_size.to_int());
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#the-forwarddelete-command
@@ -1128,6 +1221,13 @@ static Array const commands {
         .command = CommandNames::fontName,
         .action = command_font_name_action,
         .relevant_css_property = CSS::PropertyID::FontFamily,
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-fontsize-command
+    CommandDefinition {
+        .command = CommandNames::fontSize,
+        .action = command_font_size_action,
+        .value = command_font_size_value,
+        .relevant_css_property = CSS::PropertyID::FontSize,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-forwarddelete-command
     CommandDefinition {
