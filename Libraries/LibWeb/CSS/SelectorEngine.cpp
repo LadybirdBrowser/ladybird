@@ -910,10 +910,15 @@ static bool fast_matches_simple_selector(CSS::Selector::SimpleSelector const& si
     case CSS::Selector::SimpleSelector::Type::Universal:
         return matches_namespace(simple_selector.qualified_name(), element, context.style_sheet_for_rule);
     case CSS::Selector::SimpleSelector::Type::TagName:
-        if (element.document().document_type() == DOM::Document::Type::HTML) {
+        // https://html.spec.whatwg.org/#case-sensitivity-of-selectors
+        // When comparing a CSS element type selector to the names of HTML elements in HTML documents, the CSS element type selector must first be converted to ASCII lowercase. The
+        // same selector when compared to other elements must be compared according to its original case. In both cases, to match the values must be identical to each other (and therefore
+        // the comparison is case sensitive).
+        if (element.namespace_uri() == Namespace::HTML && element.document().document_type() == DOM::Document::Type::HTML) {
             if (simple_selector.qualified_name().name.lowercase_name != element.local_name())
                 return false;
-        } else if (!Infra::is_ascii_case_insensitive_match(simple_selector.qualified_name().name.name, element.local_name())) {
+        } else if (simple_selector.qualified_name().name.name != element.local_name()) {
+            // NOTE: Any other elements are either SVG, XHTML or MathML, all of which are case-sensitive.
             return false;
         }
         return matches_namespace(simple_selector.qualified_name(), element, context.style_sheet_for_rule);
