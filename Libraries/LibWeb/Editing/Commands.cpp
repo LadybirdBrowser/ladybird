@@ -1422,6 +1422,23 @@ bool command_superscript_indeterminate(DOM::Document const& document)
     return has_mixed_value;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-underline-command
+bool command_underline_action(DOM::Document& document, String const&)
+{
+    // If queryCommandState("underline") returns true, set the selection's value to null.
+    if (document.query_command_state(CommandNames::underline)) {
+        set_the_selections_value(document, CommandNames::underline, {});
+    }
+
+    // Otherwise set the selection's value to "underline".
+    else {
+        set_the_selections_value(document, CommandNames::underline, "underline"_string);
+    }
+
+    // Either way, return true.
+    return true;
+}
+
 static Array const commands {
     // https://w3c.github.io/editing/docs/execCommand/#the-backcolor-command
     CommandDefinition {
@@ -1533,6 +1550,12 @@ static Array const commands {
         .action = command_superscript_action,
         .indeterminate = command_superscript_indeterminate,
         .inline_activated_values = { "superscript"sv },
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-underline-command
+    CommandDefinition {
+        .command = CommandNames::underline,
+        .action = command_underline_action,
+        .inline_activated_values = { "underline"sv },
     },
 };
 
