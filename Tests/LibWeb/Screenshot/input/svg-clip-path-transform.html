@@ -1,0 +1,20 @@
+<link rel="match" href="../expected/svg-clip-path-transform-ref.html" />
+<svg>
+    <g id="root" transform="scale(.5 .5)">
+        <g id="maskContainer" transform="scale(.5 2)">
+            <clipPath id="maskGroup" transform="translate(0,20)">
+                <path id="maskPath" d="M0 0h100v100H0z" />
+            </clipPath>
+        </g>
+        <g id="targetContainer" transform="rotate(5)">
+            <g transform="translate(20,0)">
+                <path d="M0 0h100v100H0z" style="fill:red" />
+                <path d="M0 100h100v100H0z" style="fill:red" />
+            </g>
+            <g id="targetGroup" clip-path="url(#maskGroup)" transform="translate(20,0)">
+                <path id="targetPath1" d="M0 0h100v100H0z" style="fill:green" />
+                <path id="targetPath2" d="M0 100h100v100H0z" style="fill:blue" />
+            </g>
+        </g>
+    </g>
+</svg>
