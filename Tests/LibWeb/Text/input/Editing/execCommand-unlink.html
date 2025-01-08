@@ -1,0 +1,23 @@
+<script src="../include.js"></script>
+<div contenteditable="true" id="d1"><a href="https://ladybird.dev">ladybird</a></div>
+<div contenteditable="true" id="d2">lady<a href="https://ladybird.dev">bird</a></div>
+<script>
+    test(() => {
+        const range = document.createRange();
+        getSelection().addRange(range);
+
+        // Unlink d1's ladybird
+        const div1 = document.querySelector('#d1');
+        range.setStart(div1.childNodes[0].childNodes[0], 0);
+        range.setEnd(div1.childNodes[0].childNodes[0], 8);
+        document.execCommand('unlink');
+        println(`d1 contents: "${div1.innerHTML}"`);
+
+        // Unlink d2's 'bird'
+        const div2 = document.querySelector('#d2');
+        range.setStart(div2.childNodes[1].childNodes[0], 2);
+        range.setEnd(div2.childNodes[1].childNodes[0], 3);
+        document.execCommand('unlink');
+        println(`d2 contents: "${div2.innerHTML}"`);
+    });
+</script>

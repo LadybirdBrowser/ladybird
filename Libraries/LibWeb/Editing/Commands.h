@@ -52,5 +52,6 @@ bool command_subscript_indeterminate(DOM::Document const&);
 bool command_superscript_action(DOM::Document&, String const&);
 bool command_superscript_indeterminate(DOM::Document const&);
 bool command_underline_action(DOM::Document&, String const&);
+bool command_unlink_action(DOM::Document&, String const&);
 
 }
