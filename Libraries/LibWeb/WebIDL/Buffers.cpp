@@ -29,6 +29,13 @@ u32 BufferableObjectBase::byte_length() const
         [](GC::Ref<JS::ArrayBuffer> array_buffer) { return static_cast<u32>(array_buffer->byte_length()); });
 }
 
+u32 BufferableObjectBase::byte_offset() const
+{
+    return m_bufferable_object.visit(
+        [](GC::Ref<JS::ArrayBuffer>) -> u32 { return 0; },
+        [](auto& view) -> u32 { return static_cast<u32>(view->byte_offset()); });
+}
+
 u32 BufferableObjectBase::element_size() const
 {
     return m_bufferable_object.visit(
@@ -97,13 +104,6 @@ void BufferableObjectBase::visit_edges(Visitor& visitor)
 }
 
 ArrayBufferView::~ArrayBufferView() = default;
-
-u32 ArrayBufferView::byte_offset() const
-{
-    return m_bufferable_object.visit(
-        [](GC::Ref<JS::ArrayBuffer>) -> u32 { VERIFY_NOT_REACHED(); },
-        [](auto& view) -> u32 { return static_cast<u32>(view->byte_offset()); });
-}
 
 // https://webidl.spec.whatwg.org/#arraybufferview-write
 void ArrayBufferView::write(ReadonlyBytes bytes, u32 starting_offset)
