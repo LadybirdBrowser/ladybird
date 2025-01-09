@@ -14,6 +14,7 @@
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/WebGL/ANGLEInstancedArrays.h>
 #include <LibWeb/WebGL/EventNames.h>
+#include <LibWeb/WebGL/OESVertexArrayObject.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLContextEvent.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
@@ -175,6 +176,9 @@ JS::Object* WebGLRenderingContext::get_extension(String const& name)
 {
     if (name == "ANGLE_instanced_arrays"sv) {
         return MUST(ANGLEInstancedArrays::create(realm()));
+    }
+    if (name == "OES_vertex_array_object"sv) {
+        return MUST(OESVertexArrayObject::create(realm(), *this));
     }
     return nullptr;
 }

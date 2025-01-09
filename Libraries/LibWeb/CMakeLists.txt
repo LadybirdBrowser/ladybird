@@ -825,6 +825,7 @@ set(SOURCES
     WebDriver/TimeoutsConfiguration.cpp
     WebGL/ANGLEInstancedArrays.cpp
     WebGL/EventNames.cpp
+    WebGL/OESVertexArrayObject.cpp
     WebGL/OpenGLContext.cpp
     WebGL/WebGL2RenderingContext.cpp
     WebGL/WebGLActiveInfo.cpp
@@ -845,6 +846,7 @@ set(SOURCES
     WebGL/WebGLTransformFeedback.cpp
     WebGL/WebGLUniformLocation.cpp
     WebGL/WebGLVertexArrayObject.cpp
+    WebGL/WebGLVertexArrayObjectOES.cpp
     WebIDL/AbstractOperations.cpp
     WebIDL/Buffers.cpp
     WebIDL/CallbackType.cpp
