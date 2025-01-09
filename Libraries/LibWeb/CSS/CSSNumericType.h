@@ -78,7 +78,6 @@ public:
     bool matches_number() const;
     bool matches_percentage() const;
     bool matches_resolution() const { return matches_dimension(BaseType::Resolution); }
-    bool matches_resolution_percentage() const { return matches_dimension_percentage(BaseType::Resolution); }
     bool matches_time() const { return matches_dimension(BaseType::Time); }
     bool matches_time_percentage() const { return matches_dimension_percentage(BaseType::Time); }
 
