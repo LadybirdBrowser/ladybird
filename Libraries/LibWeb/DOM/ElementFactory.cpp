@@ -576,15 +576,17 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
                 // 2. Set result to the result of constructing C, with no arguments.
                 auto result = TRY(WebIDL::construct(constructor));
 
-                // FIXME: 3. Assert: result’s custom element state and custom element definition are initialized.
-                // FIXME: 4. Assert: result’s namespace is the HTML namespace.
-                //        Spec Note: IDL enforces that result is an HTMLElement object, which all use the HTML namespace.
-                // IDL does not currently convert the object for us, so we will have to do it here.
-
+                // NOTE: IDL does not currently convert the object for us, so we will have to do it here.
                 if (!result.has_value() || !result->is_object() || !is<HTML::HTMLElement>(result->as_object()))
                     return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "HTMLElement"sv);
 
                 GC::Ref<HTML::HTMLElement> element = verify_cast<HTML::HTMLElement>(result->as_object());
+
+                // FIXME: 3. Assert: result’s custom element state and custom element definition are initialized.
+
+                // 4. Assert: result’s namespace is the HTML namespace.
+                // Spec Note: IDL enforces that result is an HTMLElement object, which all use the HTML namespace.
+                VERIFY(element->namespace_uri() == Namespace::HTML);
 
                 // 5. If result’s attribute list is not empty, then throw a "NotSupportedError" DOMException.
                 if (element->has_attributes())
