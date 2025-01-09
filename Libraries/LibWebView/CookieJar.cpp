@@ -559,7 +559,7 @@ Vector<Web::Cookie::Cookie> CookieJar::get_matching_cookies(const URL::URL& url,
 
         // * If the cookie's secure-only-flag is true, then the retrieval's URI must denote a "secure" connection (as
         //   defined by the user agent).
-        if (cookie.secure && url.scheme() != "https"sv)
+        if (cookie.secure && url.scheme() != "https"sv && url.scheme() != "wss"sv)
             return;
 
         // * If the cookie's http-only-flag is true, then exclude the cookie if the retrieval's type is "non-HTTP".
