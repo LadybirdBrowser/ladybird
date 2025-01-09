@@ -11,7 +11,7 @@
 namespace AK {
 
 template<typename Callback>
-class ScopeGuard {
+class [[nodiscard]] ScopeGuard {
 public:
     ScopeGuard(Callback callback)
         : m_callback(move(callback))
@@ -28,7 +28,7 @@ private:
 };
 
 template<typename Callback>
-class ArmedScopeGuard {
+class [[nodiscard]] ArmedScopeGuard {
 public:
     ArmedScopeGuard(Callback callback)
         : m_callback(move(callback))
