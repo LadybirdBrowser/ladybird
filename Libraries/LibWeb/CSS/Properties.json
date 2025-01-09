@@ -2731,7 +2731,8 @@
     "inherited": false,
     "initial": "none",
     "affects-layout": false,
-    "affects-stacking-context": true
+    "affects-stacking-context": true,
+    "percentages-resolve-to": "length"
   },
   "transform-box": {
     "animation-type": "discrete",
