@@ -3190,7 +3190,7 @@ Optional<String> Element::lang() const
 
         // 2. If the node is an HTML element or an element in the SVG namespace, and it has a lang in no namespace attribute set
         //      Use the value of that attribute.
-        if (is_html_element() || namespace_uri() == Namespace::SVG) {
+        if (namespace_uri() == Namespace::HTML || namespace_uri() == Namespace::SVG) {
             auto maybe_lang = get_attribute(HTML::AttributeNames::lang);
             if (maybe_lang.has_value())
                 return maybe_lang.release_value();
