@@ -53,7 +53,7 @@ GC::Ref<JS::Uint8Array> TextEncoder::encode(String const& input) const
 // https://encoding.spec.whatwg.org/#dom-textencoder-encodeinto
 TextEncoderEncodeIntoResult TextEncoder::encode_into(String const& source, GC::Root<WebIDL::BufferSource> const& destination) const
 {
-    auto& data = destination->viewed_array_buffer()->buffer();
+    auto data = destination->viewed_array_buffer()->buffer().bytes().slice(destination->byte_offset(), destination->byte_length());
 
     // 1. Let read be 0.
     WebIDL::UnsignedLongLong read = 0;
@@ -79,7 +79,7 @@ TextEncoderEncodeIntoResult TextEncoder::encode_into(String const& source, GC::R
 
         // 6.4. Otherwise:
         // 6.4.1. If destination’s byte length − written is greater than or equal to the number of bytes in result, then:
-        if (data.size() - written >= result.size()) {
+        if (destination->byte_length() - written >= result.size()) {
             // 6.4.1.1. If item is greater than U+FFFF, then increment read by 2.
             if (item > 0xffff) {
                 read += 2;
