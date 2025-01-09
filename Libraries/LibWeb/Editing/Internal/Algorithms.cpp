@@ -1098,11 +1098,11 @@ void fix_disallowed_ancestors_of_node(GC::Ref<DOM::Node> node)
         }
 
         // 2. If "p" is not an allowed child of the editing host of node, abort these steps.
-        if (!is_allowed_child_of_node(HTML::TagNames::p, GC::Ref { *editing_host_of_node(*node) }))
+        if (!is_allowed_child_of_node(HTML::TagNames::p, GC::Ref { *editing_host_of_node(node) }))
             return;
 
         // 3. If node is not a prohibited paragraph child, abort these steps.
-        if (!is_prohibited_paragraph_child(*node))
+        if (!is_prohibited_paragraph_child(node))
             return;
 
         // 4. Set the tag name of node to the default single-line container name, and let node be the result.
@@ -1134,11 +1134,11 @@ void fix_disallowed_ancestors_of_node(GC::Ref<DOM::Node> node)
     }
 
     // 3. Record the values of the one-node list consisting of node, and let values be the result.
-    auto values = record_the_values_of_nodes({ *node });
+    auto values = record_the_values_of_nodes({ node });
 
     // 4. While node is not an allowed child of its parent, split the parent of the one-node list consisting of node.
-    while (!is_allowed_child_of_node(GC::Ref { *node }, GC::Ref { *node->parent() }))
-        split_the_parent_of_nodes({ *node });
+    while (!is_allowed_child_of_node(node, GC::Ref { *node->parent() }))
+        split_the_parent_of_nodes({ node });
 
     // 5. Restore the values from values.
     restore_the_values_of_nodes(values);
