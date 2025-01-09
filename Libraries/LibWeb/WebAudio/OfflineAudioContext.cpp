@@ -14,22 +14,43 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(OfflineAudioContext);
 
+// https://webaudio.github.io/web-audio-api/#dom-offlineaudiocontext-offlineaudiocontext
 WebIDL::ExceptionOr<GC::Ref<OfflineAudioContext>> OfflineAudioContext::construct_impl(JS::Realm& realm, OfflineAudioContextOptions const& context_options)
 {
-    return construct_impl(realm, context_options.number_of_channels, context_options.length, context_options.sample_rate);
+    // AD-HOC: This spec text is currently only mentioned in the constructor overload that takes separate arguments,
+    //         but these parameters should be validated for both constructors.
+    // A NotSupportedError exception MUST be thrown if any of the arguments is negative, zero, or outside its nominal range.
+    TRY(verify_audio_options_inside_nominal_range(realm, context_options.number_of_channels, context_options.length, context_options.sample_rate));
+
+    // Let c be a new OfflineAudioContext object. Initialize c as follows:
+    auto c = realm.create<OfflineAudioContext>(realm, context_options.length, context_options.sample_rate);
+
+    // 1. Set the [[control thread state]] for c to "suspended".
+    c->set_control_state(Bindings::AudioContextState::Suspended);
+
+    // 2. Set the [[rendering thread state]] for c to "suspended".
+    c->set_rendering_state(Bindings::AudioContextState::Suspended);
+
+    // FIXME: 3. Determine the [[render quantum size]] for this OfflineAudioContext, based on the value of the renderSizeHint:
+
+    // 4. Construct an AudioDestinationNode with its channelCount set to contextOptions.numberOfChannels.
+    c->m_destination = TRY(AudioDestinationNode::construct_impl(realm, c, context_options.number_of_channels));
+
+    // FIXME: 5. Let messageChannel be a new MessageChannel.
+    // FIXME: 6. Let controlSidePort be the value of messageChannel’s port1 attribute.
+    // FIXME: 7. Let renderingSidePort be the value of messageChannel’s port2 attribute.
+    // FIXME: 8. Let serializedRenderingSidePort be the result of StructuredSerializeWithTransfer(renderingSidePort, « renderingSidePort »).
+    // FIXME: 9. Set this audioWorklet's port to controlSidePort.
+    // FIXME: 10. Queue a control message to set the MessagePort on the AudioContextGlobalScope, with serializedRenderingSidePort.
+
+    return c;
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-offlineaudiocontext-offlineaudiocontext-numberofchannels-length-samplerate
 WebIDL::ExceptionOr<GC::Ref<OfflineAudioContext>> OfflineAudioContext::construct_impl(JS::Realm& realm,
     WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate)
 {
-    // The OfflineAudioContext can be constructed with the same arguments as AudioContext.createBuffer.
-    // A NotSupportedError exception MUST be thrown if any of the arguments is negative, zero, or outside its nominal range.
-    TRY(verify_audio_options_inside_nominal_range(realm, number_of_channels, length, sample_rate));
-
-    auto context = realm.create<OfflineAudioContext>(realm, length, sample_rate);
-    context->m_destination = TRY(AudioDestinationNode::construct_impl(realm, context, number_of_channels));
-    return context;
+    return construct_impl(realm, { number_of_channels, length, sample_rate });
 }
 
 OfflineAudioContext::~OfflineAudioContext() = default;
