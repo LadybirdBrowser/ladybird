@@ -2434,13 +2434,13 @@ Optional<String> specified_command_value(GC::Ref<DOM::Element> element, FlyStrin
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#split-the-parent
-void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const& nodes)
+void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const& node_list)
 {
-    VERIFY(nodes.size() > 0);
+    VERIFY(!node_list.is_empty());
 
     // 1. Let original parent be the parent of the first member of node list.
-    GC::Ref<DOM::Node> first_node = *nodes.first();
-    GC::Ref<DOM::Node> last_node = *nodes.last();
+    GC::Ref<DOM::Node> first_node = *node_list.first();
+    GC::Ref<DOM::Node> last_node = *node_list.last();
     GC::Ref<DOM::Node> original_parent = *first_node->parent();
 
     // 2. If original parent is not editable or its parent is null, do nothing and abort these
@@ -2451,7 +2451,7 @@ void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const& nodes)
     // 3. If the first child of original parent is in node list, remove extraneous line breaks
     //    before original parent.
     GC::Ref<DOM::Node> first_child = *original_parent->first_child();
-    auto first_child_in_nodes_list = nodes.contains_slow(first_child);
+    auto first_child_in_nodes_list = node_list.contains_slow(first_child);
     if (first_child_in_nodes_list)
         remove_extraneous_line_breaks_before_node(original_parent);
 
@@ -2462,7 +2462,7 @@ void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const& nodes)
     // 5. If the last child of original parent is in node list, and original parent precedes a line
     //    break, set precedes line break to true. Otherwise, set precedes line break to false.
     GC::Ref<DOM::Node> last_child = *original_parent->last_child();
-    bool last_child_in_nodes_list = nodes.contains_slow(last_child);
+    bool last_child_in_nodes_list = node_list.contains_slow(last_child);
     auto precedes_line_break = last_child_in_nodes_list && precedes_a_line_break(original_parent);
 
     // 6. If the first child of original parent is not in node list, but its last child is:
@@ -2472,7 +2472,7 @@ void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const& nodes)
     if (!first_child_in_nodes_list && last_child_in_nodes_list) {
         // 1. For each node in node list, in reverse order, insert node into the parent of original
         //    parent immediately after original parent, preserving ranges.
-        for (auto node : nodes.in_reverse())
+        for (auto node : node_list.in_reverse())
             move_node_preserving_ranges(node, parent_of_original_parent, original_parent_index + 1);
 
         // 2. If precedes line break is true, and the last member of node list does not precede a
@@ -2512,7 +2512,7 @@ void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const& nodes)
 
     // 8. For each node in node list, insert node into the parent of original parent immediately
     //    before original parent, preserving ranges.
-    for (auto node : nodes)
+    for (auto node : node_list)
         move_node_preserving_ranges(node, parent_of_original_parent, original_parent_index - 1);
 
     // 9. If follows line break is true, and the first member of node list does not follow a line
