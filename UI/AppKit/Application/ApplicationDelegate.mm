@@ -367,6 +367,11 @@
     WebView::Application::cookie_jar().dump_cookies();
 }
 
+- (void)clearAllCookies:(id)sender
+{
+    WebView::Application::cookie_jar().clear_all_cookies();
+}
+
 - (NSMenuItem*)createApplicationMenu
 {
     auto* menu = [[NSMenuItem alloc] init];
@@ -662,6 +667,10 @@
     [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Clear Cache"
                                                 action:@selector(clearCache:)
                                          keyEquivalent:@""]];
+    [submenu addItem:[[NSMenuItem alloc] initWithTitle:@"Clear All Cookies"
+                                                action:@selector(clearAllCookies:)
+                                         keyEquivalent:@""]];
+
     [submenu addItem:[NSMenuItem separatorItem]];
 
     auto* spoof_user_agent_menu = [[NSMenu alloc] init];
