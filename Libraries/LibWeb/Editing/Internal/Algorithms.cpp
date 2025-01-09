@@ -590,21 +590,17 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
 
     // 24. For each node contained in the active range, append node to node list if the last member of node list (if
     //     any) is not an ancestor of node; node is editable; and node is not a thead, tbody, tfoot, tr, th, or td.
-    auto common_ancestor = active_range()->common_ancestor_container();
-    common_ancestor->for_each_in_subtree([&](GC::Ref<DOM::Node> node) {
-        if (!active_range()->contains_node(node))
-            return TraversalDecision::SkipChildrenAndContinue;
-
+    active_range()->for_each_contained([&node_list](GC::Ref<DOM::Node> node) {
         if (!node_list.is_empty() && node_list.last()->is_ancestor_of(node))
-            return TraversalDecision::SkipChildrenAndContinue;
+            return IterationDecision::Continue;
 
         if (!node->is_editable())
-            return TraversalDecision::Continue;
+            return IterationDecision::Continue;
 
         if (!is<HTML::HTMLTableSectionElement>(*node) && !is<HTML::HTMLTableRowElement>(*node) && !is<HTML::HTMLTableCellElement>(*node))
             node_list.append(node);
 
-        return TraversalDecision::Continue;
+        return IterationDecision::Continue;
     });
 
     // 25. For each node in node list:

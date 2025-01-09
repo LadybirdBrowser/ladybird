@@ -2186,10 +2186,11 @@ static String visible_text_in_range(DOM::Range const& range)
     if (is<DOM::Text>(*range.start_container()) && range.start_container()->layout_node())
         builder.append(static_cast<DOM::Text const&>(*range.start_container()).data().bytes_as_string_view().substring_view(range.start_offset()));
 
-    for (GC::Ptr<DOM::Node> node = range.start_container(); node != range.end_container()->next_sibling(); node = node->next_in_pre_order()) {
-        if (is<DOM::Text>(*node) && range.contains_node(*node) && node->layout_node())
+    range.for_each_contained([&](GC::Ref<DOM::Node> node) {
+        if (is<DOM::Text>(*node) && node->layout_node())
             builder.append(static_cast<DOM::Text const&>(*node).data());
-    }
+        return IterationDecision::Continue;
+    });
 
     if (is<DOM::Text>(*range.end_container()) && range.end_container()->layout_node())
         builder.append(static_cast<DOM::Text const&>(*range.end_container()).data().bytes_as_string_view().substring_view(0, range.end_offset()));
