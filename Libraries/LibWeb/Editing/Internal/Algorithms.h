@@ -67,7 +67,7 @@ bool is_whitespace_node(GC::Ref<DOM::Node>);
 DOM::BoundaryPoint last_equivalent_point(DOM::BoundaryPoint);
 void move_node_preserving_ranges(GC::Ref<DOM::Node>, GC::Ref<DOM::Node> new_parent, u32 new_index);
 Optional<DOM::BoundaryPoint> next_equivalent_point(DOM::BoundaryPoint);
-void normalize_sublists_in_node(GC::Ref<DOM::Element>);
+void normalize_sublists_in_node(GC::Ref<DOM::Node>);
 bool precedes_a_line_break(GC::Ref<DOM::Node>);
 Optional<DOM::BoundaryPoint> previous_equivalent_point(DOM::BoundaryPoint);
 Vector<RecordedOverride> record_current_states_and_values(GC::Ref<DOM::Range>);

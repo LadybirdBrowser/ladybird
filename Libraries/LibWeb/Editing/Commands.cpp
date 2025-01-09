@@ -153,16 +153,16 @@ bool command_delete_action(DOM::Document& document, String const&)
     if (offset == 0 && node->index() == 0
         && node_element.local_name().is_one_of(HTML::TagNames::li, HTML::TagNames::dt, HTML::TagNames::dd)) {
         // 1. Let items be a list of all lis that are ancestors of node.
-        Vector<GC::Ref<DOM::Element>> items;
+        Vector<GC::Ref<DOM::Node>> items;
         node->for_each_ancestor([&items](GC::Ref<DOM::Node> ancestor) {
             if (is<HTML::HTMLLIElement>(*ancestor))
-                items.append(static_cast<DOM::Element&>(*ancestor));
+                items.append(ancestor);
             return IterationDecision::Continue;
         });
 
         // 2. Normalize sublists of each item in items.
         for (auto item : items)
-            normalize_sublists_in_node(*item);
+            normalize_sublists_in_node(item);
 
         // 3. Record the values of the one-node list consisting of node, and let values be the
         //    result.

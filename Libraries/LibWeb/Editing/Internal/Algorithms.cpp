@@ -1964,15 +1964,15 @@ Optional<DOM::BoundaryPoint> next_equivalent_point(DOM::BoundaryPoint boundary_p
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#normalize-sublists
-void normalize_sublists_in_node(GC::Ref<DOM::Element> item)
+void normalize_sublists_in_node(GC::Ref<DOM::Node> item)
 {
     // 1. If item is not an li or it is not editable or its parent is not editable, abort these
     //    steps.
-    if (item->local_name() != HTML::TagNames::li || !item->is_editable() || !item->parent()->is_editable())
+    if (!is<HTML::HTMLLIElement>(*item) || !item->is_editable() || !item->parent()->is_editable())
         return;
 
     // 2. Let new item be null.
-    GC::Ptr<DOM::Element> new_item;
+    GC::Ptr<DOM::Node> new_item;
 
     // 3. While item has an ol or ul child:
     while (item->has_child_of_type<HTML::HTMLOListElement>() || item->has_child_of_type<HTML::HTMLUListElement>()) {
