@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
- * Copyright (c) 2024, Luke Wilde <luke@ladybird.org>
+ * Copyright (c) 2024-2025, Luke Wilde <luke@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -15,13 +15,14 @@ namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLShader);
 
-GC::Ref<WebGLShader> WebGLShader::create(JS::Realm& realm, WebGLRenderingContextBase& context, GLuint handle)
+GC::Ref<WebGLShader> WebGLShader::create(JS::Realm& realm, WebGLRenderingContextBase& context, GLuint handle, GLenum type)
 {
-    return realm.create<WebGLShader>(realm, context, handle);
+    return realm.create<WebGLShader>(realm, context, handle, type);
 }
 
-WebGLShader::WebGLShader(JS::Realm& realm, WebGLRenderingContextBase& context, GLuint handle)
+WebGLShader::WebGLShader(JS::Realm& realm, WebGLRenderingContextBase& context, GLuint handle, GLenum type)
     : WebGLObject(realm, context, handle)
+    , m_type(type)
 {
 }
 
