@@ -1,0 +1,21 @@
+#import <WebGL/Types.idl>
+#import <WebGL/WebGLVertexArrayObjectOES.idl>
+
+// https://registry.khronos.org/webgl/extensions/OES_vertex_array_object/
+// NOTE: Original OES_vertex_array_object name is changed to title case,
+//       so it matches corresponding C++ class name, and does not require
+//       IDL generator to handle snake_case to TitleCase conversion.
+//       Having a different name is totally fine, because LegacyNoInterfaceObject
+//       prevents the name from being exposed to JavaScript.
+[Exposed=(Window,Worker), LegacyNoInterfaceObject]
+interface OESVertexArrayObject {
+    // Same note as WebGLRenderingContextBase:
+    // Functions that have the [WebGLHandlesContextLoss] extended attribute in the spec do not have them here.
+
+    const GLenum VERTEX_ARRAY_BINDING_OES = 0x85B5;
+
+    WebGLVertexArrayObjectOES createVertexArrayOES();
+    undefined deleteVertexArrayOES(WebGLVertexArrayObjectOES? arrayObject);
+    GLboolean isVertexArrayOES(WebGLVertexArrayObjectOES? arrayObject);
+    undefined bindVertexArrayOES(WebGLVertexArrayObjectOES? arrayObject);
+};
