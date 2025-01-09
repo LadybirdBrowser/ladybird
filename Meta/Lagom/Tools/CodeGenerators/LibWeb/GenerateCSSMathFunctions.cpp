@@ -53,23 +53,23 @@ String generate_calculation_type_check(StringView calculation_variable_name, Str
         first_type_check = false;
 
         if (allowed_type_name == "<angle>"sv) {
-            builder.appendff("{}.{}", calculation_variable_name, "matches_angle()"sv);
+            builder.appendff("{}.{}", calculation_variable_name, "matches_angle(percentages_resolve_as)"sv);
         } else if (allowed_type_name == "<dimension>"sv) {
             builder.appendff("{}.{}", calculation_variable_name, "matches_dimension()"sv);
         } else if (allowed_type_name == "<flex>"sv) {
-            builder.appendff("{}.{}", calculation_variable_name, "matches_flex()"sv);
+            builder.appendff("{}.{}", calculation_variable_name, "matches_flex(percentages_resolve_as)"sv);
         } else if (allowed_type_name == "<frequency>"sv) {
-            builder.appendff("{}.{}", calculation_variable_name, "matches_frequency()"sv);
+            builder.appendff("{}.{}", calculation_variable_name, "matches_frequency(percentages_resolve_as)"sv);
         } else if (allowed_type_name == "<length>"sv) {
-            builder.appendff("{}.{}", calculation_variable_name, "matches_length()"sv);
+            builder.appendff("{}.{}", calculation_variable_name, "matches_length(percentages_resolve_as)"sv);
         } else if (allowed_type_name == "<number>"sv) {
-            builder.appendff("{}.{}", calculation_variable_name, "matches_number()"sv);
+            builder.appendff("{}.{}", calculation_variable_name, "matches_number(percentages_resolve_as)"sv);
         } else if (allowed_type_name == "<percentage>"sv) {
             builder.appendff("{}.{}", calculation_variable_name, "matches_percentage()"sv);
         } else if (allowed_type_name == "<resolution>"sv) {
-            builder.appendff("{}.{}", calculation_variable_name, "matches_resolution()"sv);
+            builder.appendff("{}.{}", calculation_variable_name, "matches_resolution(percentages_resolve_as)"sv);
         } else if (allowed_type_name == "<time>"sv) {
-            builder.appendff("{}.{}", calculation_variable_name, "matches_time()"sv);
+            builder.appendff("{}.{}", calculation_variable_name, "matches_time(percentages_resolve_as)"sv);
         } else {
             dbgln("I don't know what '{}' is!", allowed_type_name);
             VERIFY_NOT_REACHED();
@@ -120,6 +120,7 @@ OwnPtr<CalculationNode> Parser::parse_math_function(Function const& function, Ca
 {
     TokenStream stream { function.value };
     auto arguments = parse_a_comma_separated_list_of_component_values(stream);
+    auto const& percentages_resolve_as = context.percentages_resolve_as;
 )~~~");
 
     functions_data.for_each_member([&](auto& name, JsonValue const& value) -> void {

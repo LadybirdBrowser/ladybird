@@ -68,18 +68,18 @@ public:
     Optional<CSSNumericType> consistent_type(CSSNumericType const& other) const;
     Optional<CSSNumericType> made_consistent_with(CSSNumericType const& other) const;
 
-    bool matches_angle() const { return matches_dimension(BaseType::Angle); }
-    bool matches_angle_percentage() const { return matches_dimension_percentage(BaseType::Angle); }
-    bool matches_flex() const { return matches_dimension(BaseType::Flex); }
-    bool matches_frequency() const { return matches_dimension(BaseType::Frequency); }
-    bool matches_frequency_percentage() const { return matches_dimension_percentage(BaseType::Frequency); }
-    bool matches_length() const { return matches_dimension(BaseType::Length); }
-    bool matches_length_percentage() const { return matches_dimension_percentage(BaseType::Length); }
-    bool matches_number() const;
+    bool matches_angle(Optional<ValueType> percentages_resolve_as) const { return matches_dimension(BaseType::Angle, percentages_resolve_as); }
+    bool matches_angle_percentage(Optional<ValueType> percentages_resolve_as) const { return matches_dimension_percentage(BaseType::Angle, percentages_resolve_as); }
+    bool matches_flex(Optional<ValueType> percentages_resolve_as) const { return matches_dimension(BaseType::Flex, percentages_resolve_as); }
+    bool matches_frequency(Optional<ValueType> percentages_resolve_as) const { return matches_dimension(BaseType::Frequency, percentages_resolve_as); }
+    bool matches_frequency_percentage(Optional<ValueType> percentages_resolve_as) const { return matches_dimension_percentage(BaseType::Frequency, percentages_resolve_as); }
+    bool matches_length(Optional<ValueType> percentages_resolve_as) const { return matches_dimension(BaseType::Length, percentages_resolve_as); }
+    bool matches_length_percentage(Optional<ValueType> percentages_resolve_as) const { return matches_dimension_percentage(BaseType::Length, percentages_resolve_as); }
+    bool matches_number(Optional<ValueType> percentages_resolve_as) const;
     bool matches_percentage() const;
-    bool matches_resolution() const { return matches_dimension(BaseType::Resolution); }
-    bool matches_time() const { return matches_dimension(BaseType::Time); }
-    bool matches_time_percentage() const { return matches_dimension_percentage(BaseType::Time); }
+    bool matches_resolution(Optional<ValueType> percentages_resolve_as) const { return matches_dimension(BaseType::Resolution, percentages_resolve_as); }
+    bool matches_time(Optional<ValueType> percentages_resolve_as) const { return matches_dimension(BaseType::Time, percentages_resolve_as); }
+    bool matches_time_percentage(Optional<ValueType> percentages_resolve_as) const { return matches_dimension_percentage(BaseType::Time, percentages_resolve_as); }
 
     bool matches_dimension() const;
 
@@ -104,8 +104,8 @@ private:
     void copy_all_entries_from(CSSNumericType const& other, SkipIfAlreadyPresent);
 
     Optional<BaseType> entry_with_value_1_while_all_others_are_0() const;
-    bool matches_dimension(BaseType) const;
-    bool matches_dimension_percentage(BaseType) const;
+    bool matches_dimension(BaseType, Optional<ValueType> percentages_resolve_as) const;
+    bool matches_dimension_percentage(BaseType, Optional<ValueType> percentages_resolve_as) const;
 
     Array<Optional<i32>, to_underlying(BaseType::__Count)> m_type_exponents;
     Optional<BaseType> m_percent_hint;
