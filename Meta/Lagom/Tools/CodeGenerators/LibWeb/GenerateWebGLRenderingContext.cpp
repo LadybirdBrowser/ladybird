@@ -55,6 +55,16 @@ static ByteString to_cpp_type(const IDL::Type& type, const IDL::Interface& inter
             return "Optional<String>"sv;
         return "String"sv;
     }
+    if (type.name() == "sequence") {
+        auto& parameterized_type = as<IDL::ParameterizedType>(type);
+        auto sequence_cpp_type = idl_type_name_to_cpp_type(parameterized_type.parameters().first(), interface);
+
+        if (type.is_nullable()) {
+            return ByteString::formatted("Optional<Vector<{}>>", sequence_cpp_type.name);
+        }
+
+        return ByteString::formatted("Vector<{}>", sequence_cpp_type.name);
+    }
     auto cpp_type = idl_type_name_to_cpp_type(type, interface);
     return cpp_type.name;
 }
@@ -1040,6 +1050,24 @@ public:
     GLint result = 0;
     glGetSynciv((GLsync)(sync ? sync->sync_handle() : nullptr), pname, 1, nullptr, &result);
     return JS::Value(result);
+)~~~");
+            continue;
+        }
+
+        if (function.name == "getAttachedShaders"sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "program"sv, "OptionalNone {}"sv);
+            function_impl_generator.append(R"~~~(
+    (void)program_handle;
+
+    Vector<GC::Root<WebGLShader>> result;
+
+    if (program->attached_vertex_shader())
+        result.append(GC::make_root(*program->attached_vertex_shader()));
+
+    if (program->attached_fragment_shader())
+        result.append(GC::make_root(*program->attached_fragment_shader()));
+
+    return result;
 )~~~");
             continue;
         }
