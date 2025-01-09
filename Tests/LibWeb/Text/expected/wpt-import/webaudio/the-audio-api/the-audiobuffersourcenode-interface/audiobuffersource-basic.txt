@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 18 tests
+
+18 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "start/stop exceptions"
+Pass	Audit report
+Pass	> [start/stop exceptions] 
+Pass	  start(NaN) threw TypeError: "Expected when to be a finite floating-point number".
+Pass	  start(Infinity) threw TypeError: "Expected when to be a finite floating-point number".
+Pass	  start(-Infinity) threw TypeError: "Expected when to be a finite floating-point number".
+Pass	  Calling stop() before start() threw InvalidStateError: "AudioScheduledSourceNode source has not been started".
+Pass	  start(-1) threw RangeError: "when must not be negative".
+Pass	  start(0,-1) threw RangeError: "offset must not be negative".
+Pass	  start(0,0,-1) threw RangeError: "duration must not be negative".
+Pass	  Calling start() twice threw InvalidStateError: "AudioBufferSourceNode has already been started".
+Pass	  stop(-1) threw RangeError: "when must not be negative".
+Pass	  stop(NaN) threw TypeError: "Expected when to be a finite floating-point number".
+Pass	  stop(Infinity) threw TypeError: "Expected when to be a finite floating-point number".
+Pass	  stop(-Infinity) threw TypeError: "Expected when to be a finite floating-point number".
+Pass	< [start/stop exceptions] All assertions passed. (total 12 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 1 tasks ran successfully.
