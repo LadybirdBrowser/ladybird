@@ -1720,7 +1720,7 @@ bool is_name_of_an_element_with_inline_contents(FlyString const& local_name)
 // https://w3c.github.io/editing/docs/execCommand/#non-list-single-line-container
 bool is_non_list_single_line_container(GC::Ref<DOM::Node> node)
 {
-    // A non-list single-line container is an HTML element with local name "address", "divis_", "h1", "h2", "h3", "h4",
+    // A non-list single-line container is an HTML element with local name "address", "div", "h1", "h2", "h3", "h4",
     // "h5", "h6", "listing", "p", "pre", or "xmp".
     if (!is<HTML::HTMLElement>(*node))
         return false;
