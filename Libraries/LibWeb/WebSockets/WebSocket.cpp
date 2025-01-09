@@ -10,6 +10,7 @@
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibRequests/RequestClient.h>
 #include <LibURL/Origin.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/WebSocketPrototype.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -130,7 +131,23 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL& url_record, V
     for (auto const& protocol : protocols)
         TRY(protcol_byte_strings.try_append(protocol.to_byte_string()));
 
-    m_websocket = ResourceLoader::the().request_client().websocket_connect(url_record, origin_string, protcol_byte_strings);
+    HTTP::HeaderMap additional_headers;
+
+    auto cookies = ([&] {
+        // FIXME: Getting to the page client reliably is way too complicated, and going via the document won't work in workers.
+        auto document = client.responsible_document();
+        if (!document)
+            return String {};
+
+        // NOTE: The WebSocket handshake is sent as an HTTP request, so the source should be Http.
+        return document->page().client().page_did_request_cookie(url_record, Cookie::Source::Http);
+    })();
+
+    if (!cookies.is_empty()) {
+        additional_headers.set("Cookie", cookies.to_byte_string());
+    }
+
+    m_websocket = ResourceLoader::the().request_client().websocket_connect(url_record, origin_string, protcol_byte_strings, {}, additional_headers);
 
     m_websocket->on_open = [weak_this = make_weak_ptr<WebSocket>()] {
         if (!weak_this)
