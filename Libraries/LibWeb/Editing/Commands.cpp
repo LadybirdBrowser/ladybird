@@ -1135,6 +1135,75 @@ bool command_indent_action(DOM::Document& document, String const&)
     return true;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-inserthorizontalrule-command
+bool command_insert_horizontal_rule_action(DOM::Document& document, String const&)
+{
+    // 1. Let start node, start offset, end node, and end offset be the active range's start and end nodes and offsets.
+    auto range = active_range(document);
+    auto start = range->start();
+    auto end = range->end();
+
+    // 2. While start offset is 0 and start node's parent is not null, set start offset to start node's index, then set
+    //    start node to its parent.
+    while (start.offset == 0 && start.node->parent()) {
+        start.offset = start.node->index();
+        start.node = *start.node->parent();
+    }
+
+    // 3. While end offset is end node's length, and end node's parent is not null, set end offset to one plus end
+    //    node's index, then set end node to its parent.
+    while (end.offset == end.node->length() && end.node->parent()) {
+        end.offset = end.node->index() + 1;
+        end.node = *end.node->parent();
+    }
+
+    // 4. Call collapse(start node, start offset) on the context object's selection.
+    auto& selection = *document.get_selection();
+    MUST(selection.collapse(start.node, start.offset));
+
+    // 5. Call extend(end node, end offset) on the context object's selection.
+    MUST(selection.extend(end.node, end.offset));
+
+    // 6. Delete the selection, with block merging false.
+    delete_the_selection(selection, false);
+
+    // 7. If the active range's start node is neither editable nor an editing host, return true.
+    range = active_range(document);
+    start = range->start();
+    if (!start.node->is_editable_or_editing_host())
+        return true;
+
+    // 8. If the active range's start node is a Text node and its start offset is zero, call collapse() on the context
+    //    object's selection, with first argument the active range's start node's parent and second argument the active
+    //    range's start node's index.
+    if (is<DOM::Text>(*start.node) && start.offset == 0)
+        MUST(selection.collapse(start.node->parent(), start.node->index()));
+
+    // 9. If the active range's start node is a Text node and its start offset is the length of its start node, call
+    //    collapse() on the context object's selection, with first argument the active range's start node's parent, and
+    //    the second argument one plus the active range's start node's index.
+    range = active_range(document);
+    start = range->start();
+    if (is<DOM::Text>(*start.node) && start.offset == start.node->length())
+        MUST(selection.collapse(start.node->parent(), start.node->index() + 1));
+
+    // 10. Let hr be the result of calling createElement("hr") on the context object.
+    auto hr = MUST(DOM::create_element(document, HTML::TagNames::hr, Namespace::HTML));
+
+    // 11. Run insertNode(hr) on the active range.
+    MUST(active_range(document)->insert_node(hr));
+
+    // 12. Fix disallowed ancestors of hr.
+    fix_disallowed_ancestors_of_node(hr);
+
+    // 13. Run collapse() on the context object's selection, with first argument hr's parent and the second argument
+    //     equal to one plus hr's index.
+    MUST(selection.collapse(hr->parent(), hr->index() + 1));
+
+    // 14. Return true.
+    return true;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-insertlinebreak-command
 bool command_insert_linebreak_action(DOM::Document& document, String const&)
 {
@@ -1877,6 +1946,12 @@ static Array const commands {
     CommandDefinition {
         .command = CommandNames::indent,
         .action = command_indent_action,
+        .preserves_overrides = true,
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-inserthorizontalrule-command
+    CommandDefinition {
+        .command = CommandNames::insertHorizontalRule,
+        .action = command_insert_horizontal_rule_action,
         .preserves_overrides = true,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-insertlinebreak-command
