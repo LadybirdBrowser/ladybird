@@ -48,15 +48,14 @@ GC::Ref<DOM::Range> block_extend_a_range(GC::Ref<DOM::Range> range)
 
     // 2. If some inclusive ancestor of start node is an li, set start offset to the index of the last such li in tree
     //    order, and set start node to that li's parent.
-    auto ancestor = start_node;
-    while (ancestor) {
+    start_node->for_each_inclusive_ancestor([&](GC::Ref<DOM::Node> ancestor) {
         if (is<HTML::HTMLLIElement>(*ancestor)) {
             start_offset = ancestor->index();
             start_node = ancestor->parent();
-            break;
+            return IterationDecision::Break;
         }
-        ancestor = ancestor->parent();
-    }
+        return IterationDecision::Continue;
+    });
 
     // 3. If (start node, start offset) is not a block start point, repeat the following steps:
     if (!is_block_start_point({ *start_node, start_offset })) {
@@ -85,15 +84,14 @@ GC::Ref<DOM::Range> block_extend_a_range(GC::Ref<DOM::Range> range)
 
     // 5. If some inclusive ancestor of end node is an li, set end offset to one plus the index of the last such li in
     //    tree order, and set end node to that li's parent.
-    ancestor = end_node;
-    while (ancestor) {
+    end_node->for_each_inclusive_ancestor([&](GC::Ref<DOM::Node> ancestor) {
         if (is<HTML::HTMLLIElement>(*ancestor)) {
             end_offset = ancestor->index() + 1;
             end_node = ancestor->parent();
-            break;
+            return IterationDecision::Break;
         }
-        ancestor = ancestor->parent();
-    }
+        return IterationDecision::Continue;
+    });
 
     // 6. If (end node, end offset) is not a block end point, repeat the following steps:
     if (!is_block_end_point({ *end_node, end_offset })) {
@@ -827,18 +825,17 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
     //     same editing host, or an inclusive ancestor ul in the same editing host whose nextSibling is also a ul in the
     //     same editing host:
     while (true) {
-        auto inclusive_ancestor = ancestor;
         bool has_valid_ol_or_ul_ancestor = false;
-        while (inclusive_ancestor) {
+        ancestor->for_each_inclusive_ancestor([&](GC::Ref<DOM::Node> inclusive_ancestor) {
             if (inclusive_ancestor->next_sibling() && is_in_same_editing_host(*ancestor, *inclusive_ancestor)
                 && is_in_same_editing_host(*inclusive_ancestor, *inclusive_ancestor->next_sibling())
                 && ((is<HTML::HTMLOListElement>(*inclusive_ancestor) && is<HTML::HTMLOListElement>(*inclusive_ancestor->next_sibling()))
                     || (is<HTML::HTMLUListElement>(*inclusive_ancestor) && is<HTML::HTMLUListElement>(*inclusive_ancestor->next_sibling())))) {
                 has_valid_ol_or_ul_ancestor = true;
-                break;
+                return IterationDecision::Break;
             }
-            inclusive_ancestor = inclusive_ancestor->parent();
-        }
+            return IterationDecision::Continue;
+        });
         if (!has_valid_ol_or_ul_ancestor)
             break;
 
@@ -888,13 +885,16 @@ GC::Ptr<DOM::Node> editing_host_of_node(GC::Ref<DOM::Node> node)
 
     // or the nearest ancestor of node that is an editing host, if node is editable.
     if (node->is_editable()) {
-        auto* ancestor = node->parent();
-        while (ancestor) {
-            if (ancestor->is_editing_host())
-                return ancestor;
-            ancestor = ancestor->parent();
-        }
-        VERIFY_NOT_REACHED();
+        GC::Ptr<DOM::Node> result;
+        node->for_each_ancestor([&result](GC::Ref<DOM::Node> ancestor) {
+            if (ancestor->is_editing_host()) {
+                result = ancestor;
+                return IterationDecision::Break;
+            }
+            return IterationDecision::Continue;
+        });
+        VERIFY(result);
+        return result;
     }
 
     // The editing host of node is null if node is neither editable nor an editing host;
@@ -1068,14 +1068,13 @@ void fix_disallowed_ancestors_of_node(GC::Ref<DOM::Node> node)
 
     // 2. If node is not an allowed child of any of its ancestors in the same editing host:
     bool allowed_child_of_any_ancestor = false;
-    GC::Ptr<DOM::Node> ancestor = node->parent();
-    while (ancestor) {
-        if (is_in_same_editing_host(*ancestor, *node) && is_allowed_child_of_node(GC::Ref { *node }, GC::Ref { *ancestor })) {
+    node->for_each_ancestor([&](GC::Ref<DOM::Node> ancestor) {
+        if (is_in_same_editing_host(ancestor, node) && is_allowed_child_of_node(node, ancestor)) {
             allowed_child_of_any_ancestor = true;
-            break;
+            return IterationDecision::Break;
         }
-        ancestor = ancestor->parent();
-    }
+        return IterationDecision::Continue;
+    });
     if (!allowed_child_of_any_ancestor) {
         // 1. If node is a dd or dt, wrap the one-node list consisting of node, with sibling criteria returning true for
         //    any dl with no attributes and false otherwise, and new parent instructions returning the result of calling
@@ -1808,13 +1807,17 @@ bool is_visible_node(GC::Ref<DOM::Node> node)
 {
     // excluding any node with an inclusive ancestor Element whose "display" property has resolved
     // value "none".
-    GC::Ptr<DOM::Node> inclusive_ancestor = node;
-    while (inclusive_ancestor) {
-        auto display = resolved_display(*inclusive_ancestor);
-        if (display.has_value() && display->is_none())
-            return false;
-        inclusive_ancestor = inclusive_ancestor->parent();
-    }
+    bool has_display_none = false;
+    node->for_each_inclusive_ancestor([&has_display_none](GC::Ref<DOM::Node> ancestor) {
+        auto display = resolved_display(ancestor);
+        if (display.has_value() && display->is_none()) {
+            has_display_none = true;
+            return IterationDecision::Break;
+        }
+        return IterationDecision::Continue;
+    });
+    if (has_display_none)
+        return false;
 
     // Something is visible if it is a node that either is a block node,
     if (is_block_node(node))

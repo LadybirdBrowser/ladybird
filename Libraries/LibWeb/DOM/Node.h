@@ -590,6 +590,36 @@ public:
     }
 
     template<typename Callback>
+    void for_each_ancestor(Callback callback) const
+    {
+        return const_cast<Node*>(this)->for_each_ancestor(move(callback));
+    }
+
+    template<typename Callback>
+    void for_each_ancestor(Callback callback)
+    {
+        for (auto* ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
+            if (callback(*ancestor) == IterationDecision::Break)
+                break;
+        }
+    }
+
+    template<typename Callback>
+    void for_each_inclusive_ancestor(Callback callback) const
+    {
+        return const_cast<Node*>(this)->for_each_inclusive_ancestor(move(callback));
+    }
+
+    template<typename Callback>
+    void for_each_inclusive_ancestor(Callback callback)
+    {
+        for (auto* ancestor = this; ancestor; ancestor = ancestor->parent()) {
+            if (callback(*ancestor) == IterationDecision::Break)
+                break;
+        }
+    }
+
+    template<typename Callback>
     void for_each_child(Callback callback) const
     {
         return const_cast<Node*>(this)->for_each_child(move(callback));

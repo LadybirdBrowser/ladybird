@@ -153,13 +153,12 @@ bool command_delete_action(DOM::Document& document, String const&)
     if (offset == 0 && node->index() == 0
         && node_element.local_name().is_one_of(HTML::TagNames::li, HTML::TagNames::dt, HTML::TagNames::dd)) {
         // 1. Let items be a list of all lis that are ancestors of node.
-        auto items = Vector<GC::Ref<DOM::Element>>();
-        GC::Ptr<DOM::Node> ancestor = node->parent();
-        while (ancestor) {
+        Vector<GC::Ref<DOM::Element>> items;
+        node->for_each_ancestor([&items](GC::Ref<DOM::Node> ancestor) {
             if (is<HTML::HTMLLIElement>(*ancestor))
                 items.append(static_cast<DOM::Element&>(*ancestor));
-            ancestor = ancestor->parent();
-        }
+            return IterationDecision::Continue;
+        });
 
         // 2. Normalize sublists of each item in items.
         for (auto item : items)
@@ -179,15 +178,14 @@ bool command_delete_action(DOM::Document& document, String const&)
         //    same editing host, set the tag name of node to the default single-line container name
         //    and let node be the result.
         if (node_element.local_name().is_one_of(HTML::TagNames::dd, HTML::TagNames::dt)) {
-            ancestor = node->parent();
             bool allowed_child_of_any_ancestor = false;
-            while (ancestor) {
-                if (is_in_same_editing_host(*node, *ancestor) && is_allowed_child_of_node(GC::Ref { *node }, GC::Ref { *ancestor })) {
+            node->for_each_ancestor([&](GC::Ref<DOM::Node> ancestor) {
+                if (is_in_same_editing_host(*node, ancestor) && is_allowed_child_of_node(GC::Ref { *node }, ancestor)) {
                     allowed_child_of_any_ancestor = true;
-                    break;
+                    return IterationDecision::Break;
                 }
-                ancestor = ancestor->parent();
-            }
+                return IterationDecision::Continue;
+            });
             if (!allowed_child_of_any_ancestor)
                 node = set_the_tag_name(node_element, document.default_single_line_container_name());
         }
@@ -644,15 +642,14 @@ bool command_insert_paragraph_action(DOM::Document& document, String const&)
         //    result.
         if (static_cast<DOM::Element&>(*container).local_name().is_one_of(HTML::TagNames::dd, HTML::TagNames::dt)) {
             bool allowed_child_of_any_ancestor = false;
-            GC::Ptr<DOM::Node> ancestor = container->parent();
-            while (ancestor) {
-                if (is_allowed_child_of_node(GC::Ref { *container }, GC::Ref { *ancestor })
-                    && is_in_same_editing_host(*container, *ancestor)) {
+            container->for_each_ancestor([&](GC::Ref<DOM::Node> ancestor) {
+                if (is_allowed_child_of_node(GC::Ref { *container }, ancestor)
+                    && is_in_same_editing_host(*container, ancestor)) {
                     allowed_child_of_any_ancestor = true;
-                    break;
+                    return IterationDecision::Break;
                 }
-                ancestor = ancestor->parent();
-            }
+                return IterationDecision::Continue;
+            });
             if (!allowed_child_of_any_ancestor)
                 container = set_the_tag_name(static_cast<DOM::Element&>(*container), document.default_single_line_container_name());
         }
