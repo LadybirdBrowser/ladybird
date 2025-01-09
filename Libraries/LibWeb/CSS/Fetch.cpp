@@ -24,14 +24,14 @@ void fetch_a_style_resource(String const& url_value, CSSStyleSheet const& sheet,
 
     // 3. Let parsedUrl be the result of the URL parser steps with urlValue’s url and base. If the algorithm returns an error, return.
     auto parsed_url = URL::Parser::basic_parse(url_value, base);
-    if (!parsed_url.is_valid())
+    if (!parsed_url.has_value())
         return;
 
     // 4. Let req be a new request whose url is parsedUrl, whose destination is destination, mode is corsMode,
     //    origin is environmentSettings’s origin, credentials mode is "same-origin", use-url-credentials flag is set,
     //    client is environmentSettings, and whose referrer is environmentSettings’s API base URL.
     auto request = Fetch::Infrastructure::Request::create(vm);
-    request->set_url(parsed_url);
+    request->set_url(parsed_url.release_value());
     request->set_destination(destination);
     request->set_mode(cors_mode == CorsMode::Cors ? Fetch::Infrastructure::Request::Mode::CORS : Fetch::Infrastructure::Request::Mode::NoCORS);
     request->set_origin(environment_settings.origin());

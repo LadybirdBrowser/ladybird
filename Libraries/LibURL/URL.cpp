@@ -23,7 +23,7 @@ namespace URL {
 
 // FIXME: It could make sense to force users of URL to use URL::Parser::basic_parse() explicitly instead of using a constructor.
 URL::URL(StringView string)
-    : URL(Parser::basic_parse(string))
+    : URL(Parser::basic_parse(string).value_or(URL {}))
 {
     if constexpr (URL_PARSER_DEBUG) {
         if (m_data->valid)
@@ -38,7 +38,11 @@ URL URL::complete_url(StringView relative_url) const
     if (!is_valid())
         return {};
 
-    return Parser::basic_parse(relative_url, *this);
+    auto result = Parser::basic_parse(relative_url, *this);
+    if (!result.has_value())
+        return {};
+
+    return result.release_value();
 }
 
 ByteString URL::path_segment_at_index(size_t index) const
@@ -367,12 +371,12 @@ Origin URL::origin() const
         auto path_url = Parser::basic_parse(serialize_path());
 
         // 3. If pathURL is failure, then return a new opaque origin.
-        if (!path_url.is_valid())
+        if (!path_url.has_value())
             return Origin {};
 
         // 4. If pathURL’s scheme is "http", "https", or "file", then return pathURL’s origin.
-        if (path_url.scheme().is_one_of("http"sv, "https"sv, "file"sv))
-            return path_url.origin();
+        if (path_url->scheme().is_one_of("http"sv, "https"sv, "file"sv))
+            return path_url->origin();
 
         // 5. Return a new opaque origin.
         return Origin {};

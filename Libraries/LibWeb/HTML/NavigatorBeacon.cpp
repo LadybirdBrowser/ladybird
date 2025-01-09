@@ -32,9 +32,9 @@ WebIDL::ExceptionOr<bool> NavigatorBeaconMixin::send_beacon(String const& url, O
 
     // 3. Set parsedUrl to the result of the URL parser steps with url and base. If the algorithm returns an error, or if parsedUrl's scheme is not "http" or "https", throw a "TypeError" exception and terminate these steps.
     auto parsed_url = URL::Parser::basic_parse(url, base_url);
-    if (!parsed_url.is_valid())
+    if (!parsed_url.has_value())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Beacon URL {} is invalid.", url)) };
-    if (parsed_url.scheme() != "http" && parsed_url.scheme() != "https")
+    if (parsed_url->scheme() != "http" && parsed_url->scheme() != "https")
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Beacon URL {} must be either http:// or https://.", url)) };
 
     // 4. Let headerList be an empty list.
@@ -76,7 +76,7 @@ WebIDL::ExceptionOr<bool> NavigatorBeaconMixin::send_beacon(String const& url, O
     auto req = Fetch::Infrastructure::Request::create(vm);
     req->set_method(MUST(ByteBuffer::copy("POST"sv.bytes()))); // method: POST
     req->set_client(&relevant_settings_object);                // client: this's relevant settings object
-    req->set_url_list({ parsed_url });                         // url: parsedUrl
+    req->set_url_list({ parsed_url.release_value() });         // url: parsedUrl
     req->set_header_list(header_list);                         // header list: headerList
     req->set_origin(origin);                                   // origin: origin
     req->set_keepalive(true);                                  // keepalive: true
