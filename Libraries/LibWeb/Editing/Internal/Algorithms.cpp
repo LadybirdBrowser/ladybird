@@ -2030,6 +2030,15 @@ bool is_extraneous_line_break(GC::Ref<DOM::Node> node)
     return false;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#formattable-block-name
+bool is_formattable_block_name(FlyString const& local_name)
+{
+    // A formattable block name is "address", "dd", "div", "dt", "h1", "h2", "h3", "h4", "h5", "h6", "p", or "pre".
+    return local_name.is_one_of(HTML::TagNames::address, HTML::TagNames::dd, HTML::TagNames::div, HTML::TagNames::dt,
+        HTML::TagNames::h1, HTML::TagNames::h2, HTML::TagNames::h3, HTML::TagNames::h4, HTML::TagNames::h5,
+        HTML::TagNames::h6, HTML::TagNames::p, HTML::TagNames::pre);
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#formattable-node
 bool is_formattable_node(GC::Ref<DOM::Node> node)
 {
@@ -3197,9 +3206,8 @@ void remove_extraneous_line_breaks_from_a_node(GC::Ref<DOM::Node> node)
 // https://w3c.github.io/editing/docs/execCommand/#preserving-its-descendants
 void remove_node_preserving_its_descendants(GC::Ref<DOM::Node> node)
 {
-    // To remove a node node while preserving its descendants, split the parent of node's children
-    // if it has any.
-    if (node->child_count() > 0) {
+    // To remove a node node while preserving its descendants, split the parent of node's children if it has any.
+    if (node->has_children()) {
         Vector<GC::Ref<DOM::Node>> children;
         children.ensure_capacity(node->child_count());
         for (auto* child = node->first_child(); child; child = child->next_sibling())

@@ -1,0 +1,23 @@
+<script src="../include.js"></script>
+<div contenteditable="true">
+    <div id="d1">foo<br>bar</div>
+    <div id="d2">foo<br>bar</div>
+</div>
+<script>
+    test(() => {
+        const range = document.createRange();
+        getSelection().addRange(range);
+
+        const div1 = document.querySelector('#d1');
+        range.setStart(div1.childNodes[0], 0);
+        range.setEnd(div1, 3);
+        document.execCommand('formatBlock', false, 'p');
+
+        const div2 = document.querySelector('#d2');
+        range.setStart(div2.childNodes[0], 0);
+        range.setEnd(div2, 3);
+        document.execCommand('formatBlock', false, 'h1');
+
+        println(document.querySelector('div[contenteditable]').innerHTML);
+    });
+</script>
