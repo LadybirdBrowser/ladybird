@@ -1,0 +1,31 @@
+<script src="../include.js"></script>
+<div contenteditable="true">
+    <span>foobar</span>
+    <ul>
+        <li>foo</li>
+        <li>bar</li>
+        <li>baz</li>
+    </ul>
+</div>
+<script>
+    test(() => {
+        const range = document.createRange();
+        getSelection().addRange(range);
+
+        const divElm = document.querySelector('div');
+
+        // Indent 'foobar'
+        const spanElm = document.querySelector('span');
+        range.setStart(spanElm.childNodes[0], 0);
+        range.setEnd(spanElm.childNodes[0], 6);
+        document.execCommand('indent');
+
+        // Indent the middle <li>
+        const liElm = document.querySelector('li:nth-child(2)');
+        range.setStart(liElm.childNodes[0], 0);
+        range.setEnd(liElm.childNodes[0], 3);
+        document.execCommand('indent');
+
+        println(divElm.innerHTML);
+    });
+</script>
