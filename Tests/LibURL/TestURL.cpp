@@ -342,36 +342,36 @@ TEST_CASE(unicode)
 TEST_CASE(query_with_non_ascii)
 {
     {
-        URL::URL url = URL::Parser::basic_parse("http://example.com/?utf8=✓"sv);
-        EXPECT(url.is_valid());
-        EXPECT_EQ(url.serialize_path(), "/"sv);
-        EXPECT_EQ(url.query(), "utf8=%E2%9C%93");
-        EXPECT(!url.fragment().has_value());
+        Optional<URL::URL> url = URL::Parser::basic_parse("http://example.com/?utf8=✓"sv);
+        EXPECT(url.has_value());
+        EXPECT_EQ(url->serialize_path(), "/"sv);
+        EXPECT_EQ(url->query(), "utf8=%E2%9C%93");
+        EXPECT(!url->fragment().has_value());
     }
     {
-        URL::URL url = URL::Parser::basic_parse("http://example.com/?shift_jis=✓"sv, {}, nullptr, {}, "shift_jis"sv);
-        EXPECT(url.is_valid());
-        EXPECT_EQ(url.serialize_path(), "/"sv);
-        EXPECT_EQ(url.query(), "shift_jis=%26%2310003%3B");
-        EXPECT(!url.fragment().has_value());
+        Optional<URL::URL> url = URL::Parser::basic_parse("http://example.com/?shift_jis=✓"sv, {}, nullptr, {}, "shift_jis"sv);
+        EXPECT(url.has_value());
+        EXPECT_EQ(url->serialize_path(), "/"sv);
+        EXPECT_EQ(url->query(), "shift_jis=%26%2310003%3B");
+        EXPECT(!url->fragment().has_value());
     }
 }
 
 TEST_CASE(fragment_with_non_ascii)
 {
     {
-        URL::URL url = URL::Parser::basic_parse("http://example.com/#✓"sv);
-        EXPECT(url.is_valid());
-        EXPECT_EQ(url.serialize_path(), "/"sv);
-        EXPECT(!url.query().has_value());
-        EXPECT_EQ(url.fragment(), "%E2%9C%93");
+        Optional<URL::URL> url = URL::Parser::basic_parse("http://example.com/#✓"sv);
+        EXPECT(url.has_value());
+        EXPECT_EQ(url->serialize_path(), "/"sv);
+        EXPECT(!url->query().has_value());
+        EXPECT_EQ(url->fragment(), "%E2%9C%93");
     }
     {
-        URL::URL url = URL::Parser::basic_parse("http://example.com/#✓"sv, {}, nullptr, {}, "shift_jis"sv);
-        EXPECT(url.is_valid());
-        EXPECT_EQ(url.serialize_path(), "/"sv);
-        EXPECT(!url.query().has_value());
-        EXPECT_EQ(url.fragment(), "%E2%9C%93");
+        Optional<URL::URL> url = URL::Parser::basic_parse("http://example.com/#✓"sv, {}, nullptr, {}, "shift_jis"sv);
+        EXPECT(url.has_value());
+        EXPECT_EQ(url->serialize_path(), "/"sv);
+        EXPECT(!url->query().has_value());
+        EXPECT_EQ(url->fragment(), "%E2%9C%93");
     }
 }
 
@@ -392,9 +392,9 @@ TEST_CASE(complete_file_url_with_base)
 TEST_CASE(empty_url_with_base_url)
 {
     URL::URL base_url { "https://foo.com/"sv };
-    URL::URL parsed_url = URL::Parser::basic_parse(""sv, base_url);
-    EXPECT_EQ(parsed_url.is_valid(), true);
-    EXPECT(base_url.equals(parsed_url));
+    Optional<URL::URL> parsed_url = URL::Parser::basic_parse(""sv, base_url);
+    EXPECT_EQ(parsed_url.has_value(), true);
+    EXPECT(base_url.equals(*parsed_url));
 }
 
 TEST_CASE(google_street_view)

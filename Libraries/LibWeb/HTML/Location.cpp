@@ -196,7 +196,7 @@ WebIDL::ExceptionOr<void> Location::set_protocol(String const& value)
     auto possible_failure = URL::Parser::basic_parse(value, {}, &copy_url, URL::Parser::State::SchemeStart);
 
     // 5. If possibleFailure is failure, then throw a "SyntaxError" DOMException.
-    if (!possible_failure.is_valid())
+    if (!possible_failure.has_value())
         return WebIDL::SyntaxError::create(realm(), MUST(String::formatted("Failed to set protocol. '{}' is an invalid protocol", value)));
 
     // 6. if copyURL's scheme is not an HTTP(S) scheme, then terminate these steps.
