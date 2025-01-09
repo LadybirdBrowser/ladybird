@@ -1060,6 +1060,81 @@ bool command_forward_delete_action(DOM::Document& document, String const&)
     return true;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-indent-command
+bool command_indent_action(DOM::Document& document, String const&)
+{
+    // 1. Let items be a list of all lis that are inclusive ancestors of the active range's start and/or end node.
+    Vector<GC::Ref<DOM::Node>> items;
+    auto add_all_lis = [&items](GC::Ref<DOM::Node> node) {
+        node->for_each_inclusive_ancestor([&items](GC::Ref<DOM::Node> ancestor) {
+            if (is<HTML::HTMLLIElement>(*ancestor) && !items.contains_slow(ancestor))
+                items.append(ancestor);
+            return IterationDecision::Continue;
+        });
+    };
+    auto range = active_range(document);
+    add_all_lis(range->start_container());
+    add_all_lis(range->end_container());
+
+    // 2. For each item in items, normalize sublists of item.
+    for (auto item : items)
+        normalize_sublists_in_node(item);
+
+    // 3. Block-extend the active range, and let new range be the result.
+    auto new_range = block_extend_a_range(*active_range(document));
+
+    // 4. Let node list be a list of nodes, initially empty.
+    Vector<GC::Ref<DOM::Node>> node_list;
+
+    // 5. For each node node contained in new range, if node is editable and is an allowed child of "div" or "ol" and if
+    //    the last member of node list (if any) is not an ancestor of node, append node to node list.
+    new_range->for_each_contained([&](GC::Ref<DOM::Node> node) {
+        if (node->is_editable()
+            && (is_allowed_child_of_node(node, HTML::TagNames::div) || is_allowed_child_of_node(node, HTML::TagNames::ol))
+            && (node_list.is_empty() || !node_list.last()->is_ancestor_of(node)))
+            node_list.append(node);
+        return IterationDecision::Continue;
+    });
+
+    // 6. If the first visible member of node list is an li whose parent is an ol or ul:
+    auto first_visible = node_list.first_matching([](GC::Ref<DOM::Node> node) { return is_visible_node(node); });
+    if (first_visible.has_value() && is<HTML::HTMLLIElement>(*first_visible.value()) && first_visible.value()->parent()) {
+        GC::Ref<DOM::Node> parent = *first_visible.value()->parent();
+        if (is<HTML::HTMLOListElement>(*parent) || is<HTML::HTMLUListElement>(*parent)) {
+            // 1. Let sibling be node list's first visible member's previousSibling.
+            GC::Ptr<DOM::Node> sibling = first_visible.value()->previous_sibling();
+
+            // 2. While sibling is invisible, set sibling to its previousSibling.
+            while (sibling && is_invisible_node(*sibling))
+                sibling = sibling->previous_sibling();
+
+            // 3. If sibling is an li, normalize sublists of sibling.
+            if (sibling && is<HTML::HTMLLIElement>(*sibling))
+                normalize_sublists_in_node(*sibling);
+        }
+    }
+
+    // 7. While node list is not empty:
+    while (!node_list.is_empty()) {
+        // 1. Let sublist be a list of nodes, initially empty.
+        Vector<GC::Ref<DOM::Node>> sublist;
+
+        // 2. Remove the first member of node list and append it to sublist.
+        sublist.append(node_list.take_first());
+
+        // 3. While the first member of node list is the nextSibling of the last member of sublist, remove the first
+        //    member of node list and append it to sublist.
+        while (!node_list.is_empty() && node_list.first().ptr() == sublist.last()->next_sibling())
+            sublist.append(node_list.take_first());
+
+        // 4. Indent sublist.
+        indent(sublist);
+    }
+
+    // AD-HOC: Return true.
+    return true;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-insertlinebreak-command
 bool command_insert_linebreak_action(DOM::Document& document, String const&)
 {
@@ -1797,6 +1872,12 @@ static Array const commands {
         .command = CommandNames::hiliteColor,
         .action = command_back_color_action, // For historical reasons, backColor and hiliteColor behave identically.
         .relevant_css_property = CSS::PropertyID::BackgroundColor,
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-indent-command
+    CommandDefinition {
+        .command = CommandNames::indent,
+        .action = command_indent_action,
+        .preserves_overrides = true,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-insertlinebreak-command
     CommandDefinition {
