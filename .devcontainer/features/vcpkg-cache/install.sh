@@ -5,6 +5,14 @@ set -e
 # FIXME: Add some options to make this more flexible and usable by other projects
 # FIXME: Find a way to do this without cloning ladybird
 
+case "$(uname -m)" in
+    x86_64|x64)
+      ;;
+    *)
+      export VCPKG_FORCE_SYSTEM_BINARIES=1
+      ;;
+esac
+
 cd /tmp
 
 CACHE_DIR=/usr/local/share/vcpkg-binary-cache
