@@ -153,6 +153,14 @@ WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> BaseAudioContext::create_periodic_wav
     return PeriodicWave::construct_impl(realm(), *this, options);
 }
 
+WebIDL::ExceptionOr<void> BaseAudioContext::verify_audio_options_inside_nominal_range(JS::Realm& realm, float sample_rate)
+{
+    if (sample_rate < MIN_SAMPLE_RATE || sample_rate > MAX_SAMPLE_RATE)
+        return WebIDL::NotSupportedError::create(realm, "Sample rate is outside of allowed range"_string);
+
+    return {};
+}
+
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createbuffer
 WebIDL::ExceptionOr<void> BaseAudioContext::verify_audio_options_inside_nominal_range(JS::Realm& realm, WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate)
 {
@@ -167,8 +175,7 @@ WebIDL::ExceptionOr<void> BaseAudioContext::verify_audio_options_inside_nominal_
     if (length == 0)
         return WebIDL::NotSupportedError::create(realm, "Length of buffer must be at least 1"_string);
 
-    if (sample_rate < MIN_SAMPLE_RATE || sample_rate > MAX_SAMPLE_RATE)
-        return WebIDL::NotSupportedError::create(realm, "Sample rate is outside of allowed range"_string);
+    TRY(verify_audio_options_inside_nominal_range(realm, sample_rate));
 
     return {};
 }

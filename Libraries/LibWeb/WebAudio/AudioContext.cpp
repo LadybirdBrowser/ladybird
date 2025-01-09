@@ -8,6 +8,8 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
+#include <LibWeb/HTML/MessageChannel.h>
+#include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/WebAudio/AudioContext.h>
@@ -19,70 +21,92 @@ namespace Web::WebAudio {
 GC_DEFINE_ALLOCATOR(AudioContext);
 
 // https://webaudio.github.io/web-audio-api/#dom-audiocontext-audiocontext
-WebIDL::ExceptionOr<GC::Ref<AudioContext>> AudioContext::construct_impl(JS::Realm& realm, AudioContextOptions const& context_options)
+WebIDL::ExceptionOr<GC::Ref<AudioContext>> AudioContext::construct_impl(JS::Realm& realm, Optional<AudioContextOptions> const& context_options)
 {
-    auto context = realm.create<AudioContext>(realm, context_options);
+    // If the current settings object’s responsible document is NOT fully active, throw an InvalidStateError and abort these steps.
+    auto& settings = HTML::current_principal_settings_object();
+
+    // FIXME: Not all settings objects currently return a responsible document.
+    //        Therefore we only fail this check if responsible document is not null.
+    if (!settings.responsible_document() || !settings.responsible_document()->is_fully_active()) {
+        return WebIDL::InvalidStateError::create(realm, "Document is not fully active"_string);
+    }
+
+    // AD-HOC: The spec doesn't currently require the sample rate to be validated here,
+    //         but other browsers do perform a check and there is a WPT test that expects this.
+    if (context_options.has_value() && context_options->sample_rate.has_value())
+        TRY(verify_audio_options_inside_nominal_range(realm, *context_options->sample_rate));
+
+    // 1. Let context be a new AudioContext object.
+    auto context = realm.create<AudioContext>(realm);
     context->m_destination = TRY(AudioDestinationNode::construct_impl(realm, context));
-    return context;
-}
 
-AudioContext::AudioContext(JS::Realm& realm, AudioContextOptions const& context_options)
-    : BaseAudioContext(realm)
-{
-    // FIXME: If the current settings object’s responsible document is NOT fully active, throw an InvalidStateError and abort these steps.
+    // 2. Set a [[control thread state]] to suspended on context.
+    context->set_control_state(Bindings::AudioContextState::Suspended);
 
-    // 1: Set a [[control thread state]] to suspended on the AudioContext.
-    BaseAudioContext::set_control_state(Bindings::AudioContextState::Suspended);
+    // 3. Set a [[rendering thread state]] to suspended on context.
+    context->set_rendering_state(Bindings::AudioContextState::Suspended);
 
-    // 2: Set a [[rendering thread state]] to suspended on the AudioContext.
-    BaseAudioContext::set_rendering_state(Bindings::AudioContextState::Suspended);
+    // FIXME: 4. Let messageChannel be a new MessageChannel.
+    // FIXME: 5. Let controlSidePort be the value of messageChannel’s port1 attribute.
+    // FIXME: 6. Let renderingSidePort be the value of messageChannel’s port2 attribute.
+    // FIXME: 7. Let serializedRenderingSidePort be the result of StructuredSerializeWithTransfer(renderingSidePort, « renderingSidePort »).
+    // FIXME: 8. Set this audioWorklet's port to controlSidePort.
+    // FIXME: 9. Queue a control message to set the MessagePort on the AudioContextGlobalScope, with serializedRenderingSidePort.
 
-    // 3: Let [[pending resume promises]] be a slot on this AudioContext, that is an initially empty ordered list of promises.
+    // 10. If contextOptions is given, apply the options:
+    if (context_options.has_value()) {
+        // 1. If sinkId is specified, let sinkId be the value of contextOptions.sinkId and run the following substeps:
 
-    // 4: If contextOptions is given, apply the options:
-    // 4.1: Set the internal latency of this AudioContext according to contextOptions.latencyHint, as described in latencyHint.
-    switch (context_options.latency_hint) {
-    case Bindings::AudioContextLatencyCategory::Balanced:
-        // FIXME: Determine optimal settings for balanced.
-        break;
-    case Bindings::AudioContextLatencyCategory::Interactive:
-        // FIXME: Determine optimal settings for interactive.
-        break;
-    case Bindings::AudioContextLatencyCategory::Playback:
-        // FIXME: Determine optimal settings for playback.
-        break;
-    default:
-        VERIFY_NOT_REACHED();
+        // 2. Set the internal latency of context according to contextOptions.latencyHint, as described in latencyHint.
+        switch (context_options->latency_hint) {
+        case Bindings::AudioContextLatencyCategory::Balanced:
+            // FIXME: Determine optimal settings for balanced.
+            break;
+        case Bindings::AudioContextLatencyCategory::Interactive:
+            // FIXME: Determine optimal settings for interactive.
+            break;
+        case Bindings::AudioContextLatencyCategory::Playback:
+            // FIXME: Determine optimal settings for playback.
+            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+
+        // 3: If contextOptions.sampleRate is specified, set the sampleRate of context to this value.
+        if (context_options->sample_rate.has_value()) {
+            context->set_sample_rate(context_options->sample_rate.value());
+        }
+        // Otherwise, follow these substeps:
+        else {
+            // FIXME: 1. If sinkId is the empty string or a type of AudioSinkOptions, use the sample rate of the default output device. Abort these substeps.
+            // FIXME: 2. If sinkId is a DOMString, use the sample rate of the output device identified by sinkId. Abort these substeps.
+            // If contextOptions.sampleRate differs from the sample rate of the output device, the user agent MUST resample the audio output to match the sample rate of the output device.
+            context->set_sample_rate(44100);
+        }
     }
 
-    // 4.2: If contextOptions.sampleRate is specified, set the sampleRate of this AudioContext to this value. Otherwise,
-    //      use the sample rate of the default output device. If the selected sample rate differs from the sample rate of the output device,
-    //      this AudioContext MUST resample the audio output to match the sample rate of the output device.
-    if (context_options.sample_rate.has_value()) {
-        BaseAudioContext::set_sample_rate(context_options.sample_rate.value());
-    } else {
-        // FIXME: This would ideally be coming from the default output device, but we can only get this on Serenity
-        // For now we'll just have to resample
-        BaseAudioContext::set_sample_rate(44100);
-    }
-
-    // FIXME: 5: If the context is allowed to start, send a control message to start processing.
+    // FIXME: 11. If context is allowed to start, send a control message to start processing.
     // FIXME: Implement control message queue to run following steps on the rendering thread
-    if (m_allowed_to_start) {
-        // FIXME: 5.1: Attempt to acquire system resources. In case of failure, abort the following steps.
+    if (context->m_allowed_to_start) {
+        // FIXME: 1. Let document be the current settings object's relevant global object's associated Document.
+        // FIXME: 2. Attempt to acquire system resources to use a following audio output device based on [[sink ID]] for rendering
 
-        // 5.2: Set the [[rendering thread state]] to "running" on the AudioContext.
-        BaseAudioContext::set_rendering_state(Bindings::AudioContextState::Running);
+        // 2. Set this [[rendering thread state]] to running on the AudioContext.
+        context->set_rendering_state(Bindings::AudioContextState::Running);
 
-        // 5.3: queue a media element task to execute the following steps:
-        queue_a_media_element_task(GC::create_function(heap(), [&realm, this]() {
-            // 5.3.1: Set the state attribute of the AudioContext to "running".
-            BaseAudioContext::set_control_state(Bindings::AudioContextState::Running);
+        // 3. Queue a media element task to execute the following steps:
+        context->queue_a_media_element_task(GC::create_function(context->heap(), [&realm, context]() {
+            // 1. Set the state attribute of the AudioContext to "running".
+            context->set_control_state(Bindings::AudioContextState::Running);
 
-            // 5.3.2: queue a media element task to fire an event named statechange at the AudioContext.
-            this->dispatch_event(DOM::Event::create(realm, HTML::EventNames::statechange));
+            // 2. Fire an event named statechange at the AudioContext.
+            context->dispatch_event(DOM::Event::create(realm, HTML::EventNames::statechange));
         }));
     }
+
+    // 12. Return context.
+    return context;
 }
 
 AudioContext::~AudioContext() = default;

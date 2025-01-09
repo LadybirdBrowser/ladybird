@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test AudioContextOptions
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let context;
+      let defaultLatency;
+      let interactiveLatency;
+      let balancedLatency;
+      let playbackLatency;
+
+      let audit = Audit.createTaskRunner();
+
+      audit.define(
+          {
+            label: 'test-audiocontextoptions-latencyHint-basic',
+            description: 'Test creating contexts with basic latencyHint types.'
+          },
+          function(task, should) {
+            let closingPromises = [];
+
+            // Verify that an AudioContext can be created with default options.
+            should(function() {
+              context = new AudioContext()
+            }, 'context = new AudioContext()').notThrow();
+
+            should(context.sampleRate,
+              `context.sampleRate (${context.sampleRate} Hz)`).beGreaterThan(0);
+
+            defaultLatency = context.baseLatency;
+            should(defaultLatency, 'default baseLatency').beGreaterThanOrEqualTo(0);
+
+            // Verify that an AudioContext can be created with the expected
+            // latency types.
+            should(
+                function() {
+                  context = new AudioContext({'latencyHint': 'interactive'})
+                },
+                'context = new AudioContext({\'latencyHint\': \'interactive\'})')
+                .notThrow();
+
+            interactiveLatency = context.baseLatency;
+            should(interactiveLatency, 'interactive baseLatency')
+                .beEqualTo(defaultLatency);
+            closingPromises.push(context.close());
+
+            should(
+                function() {
+                  context = new AudioContext({'latencyHint': 'balanced'})
+                },
+                'context = new AudioContext({\'latencyHint\': \'balanced\'})')
+                .notThrow();
+
+            balancedLatency = context.baseLatency;
+            should(balancedLatency, 'balanced baseLatency')
+                .beGreaterThanOrEqualTo(interactiveLatency);
+            closingPromises.push(context.close());
+
+            should(
+                function() {
+                  context = new AudioContext({'latencyHint': 'playback'})
+                },
+                'context = new AudioContext({\'latencyHint\': \'playback\'})')
+                .notThrow();
+
+            playbackLatency = context.baseLatency;
+            should(playbackLatency, 'playback baseLatency')
+                .beGreaterThanOrEqualTo(balancedLatency);
+            closingPromises.push(context.close());
+
+            Promise.all(closingPromises).then(function() {
+              task.done();
+            });
+          });
+
+      audit.define(
+          {
+            label: 'test-audiocontextoptions-latencyHint-double',
+            description:
+                'Test creating contexts with explicit latencyHint values.'
+          },
+          function(task, should) {
+            let closingPromises = [];
+
+            // Verify too small exact latency clamped to 'interactive'
+            should(
+                function() {
+                  context =
+                      new AudioContext({'latencyHint': interactiveLatency / 2})
+                },
+                'context = new AudioContext({\'latencyHint\': ' +
+                    'interactiveLatency/2})')
+                .notThrow();
+            should(context.baseLatency, 'double-constructor baseLatency small')
+                .beLessThanOrEqualTo(interactiveLatency);
+            closingPromises.push(context.close());
+
+            // Verify that exact latency in range works as expected
+            let validLatency = (interactiveLatency + playbackLatency) / 2;
+            should(
+                function() {
+                  context = new AudioContext({'latencyHint': validLatency})
+                },
+                'context = new AudioContext({\'latencyHint\': validLatency})')
+                .notThrow();
+            should(
+                context.baseLatency, 'double-constructor baseLatency inrange 1')
+                .beGreaterThanOrEqualTo(interactiveLatency);
+            should(
+                context.baseLatency, 'double-constructor baseLatency inrange 2')
+                .beLessThanOrEqualTo(playbackLatency);
+            closingPromises.push(context.close());
+
+            // Verify too big exact latency clamped to some value
+            let context1;
+            let context2;
+            should(function() {
+              context1 =
+                  new AudioContext({'latencyHint': playbackLatency * 10});
+              context2 =
+                  new AudioContext({'latencyHint': playbackLatency * 20});
+            }, 'creating two high latency contexts').notThrow();
+            should(context1.baseLatency, 'high latency context baseLatency')
+                .beEqualTo(context2.baseLatency);
+            should(context1.baseLatency, 'high latency context baseLatency')
+                .beGreaterThanOrEqualTo(interactiveLatency);
+            closingPromises.push(context1.close());
+            closingPromises.push(context2.close());
+
+            // Verify that invalid latencyHint values are rejected.
+            should(
+                function() {
+                  context = new AudioContext({'latencyHint': 'foo'})
+                },
+                'context = new AudioContext({\'latencyHint\': \'foo\'})')
+                .throw(TypeError);
+
+            // Verify that no extra options can be passed into the
+            // AudioContextOptions.
+            should(
+                function() {
+                  context = new AudioContext('latencyHint')
+                },
+                'context = new AudioContext(\'latencyHint\')')
+                .throw(TypeError);
+
+            Promise.all(closingPromises).then(function() {
+              task.done();
+            });
+          });
+
+      audit.define(
+          {
+            label: 'test-audiocontextoptions-sampleRate',
+            description:
+                'Test creating contexts with non-default sampleRate values.'
+          },
+          function(task, should) {
+            // A sampleRate of 1 is unlikely to be supported on any browser,
+            // test that this rate is rejected.
+            should(
+                () => {
+                  context = new AudioContext({sampleRate: 1})
+                },
+                'context = new AudioContext({sampleRate: 1})')
+                .throw(DOMException, 'NotSupportedError');
+
+            // A sampleRate of 1,000,000 is unlikely to be supported on any
+            // browser, test that this rate is also rejected.
+            should(
+                () => {
+                  context = new AudioContext({sampleRate: 1000000})
+                },
+                'context = new AudioContext({sampleRate: 1000000})')
+                .throw(DOMException, 'NotSupportedError');
+            // A negative sample rate should not be accepted
+            should(
+                () => {
+                  context = new AudioContext({sampleRate: -1})
+                },
+                'context = new AudioContext({sampleRate: -1})')
+                .throw(DOMException, 'NotSupportedError');
+            // A null sample rate should not be accepted
+            should(
+                () => {
+                  context = new AudioContext({sampleRate: 0})
+                },
+                'context = new AudioContext({sampleRate: 0})')
+                .throw(DOMException, 'NotSupportedError');
+
+            should(
+                () => {
+                  context = new AudioContext({sampleRate: 24000})
+                },
+                'context = new AudioContext({sampleRate: 24000})')
+                .notThrow();
+            should(
+                context.sampleRate, 'sampleRate inrange')
+                .beEqualTo(24000);
+
+            context.close();
+            task.done();
+          });
+
+      audit.run();
+    </script>
+  </body>
+</html>
