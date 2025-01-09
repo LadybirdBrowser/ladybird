@@ -110,9 +110,30 @@ double AudioBufferSourceNode::loop_end() const
 // https://webaudio.github.io/web-audio-api/#dom-audiobuffersourcenode-start`
 WebIDL::ExceptionOr<void> AudioBufferSourceNode::start(Optional<double> when, Optional<double> offset, Optional<double> duration)
 {
-    (void)when;
-    (void)offset;
-    (void)duration;
+    // 1. If this AudioBufferSourceNode internal slot [[source started]] is true, an InvalidStateError exception MUST be thrown.
+    if (source_started())
+        return WebIDL::InvalidStateError::create(realm(), "AudioBufferSourceNode has already been started"_string);
+
+    // 2. Check for any errors that must be thrown due to parameter constraints described below. If any exception is thrown during this step, abort those steps.
+    // A RangeError exception MUST be thrown if when is negative.
+    if (when.has_value() && when.value() < 0)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "when must not be negative"sv };
+
+    // A RangeError exception MUST be thrown if offset is negative
+    if (offset.has_value() && offset.value() < 0)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "offset must not be negative"sv };
+
+    // A RangeError exception MUST be thrown if duration is negative.
+    if (duration.has_value() && duration.value() < 0)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "duration must not be negative"sv };
+
+    // 3. Set the internal slot [[source started]] on this AudioBufferSourceNode to true.
+    set_source_started(true);
+
+    // FIXME: 4. Queue a control message to start the AudioBufferSourceNode, including the parameter values in the message.
+    // FIXME: 5. Acquire the contents of the buffer if the buffer has been set.
+    // FIXME: 6. Send a control message to the associated AudioContext to start running its rendering thread only when all the following conditions are met:
+
     dbgln("FIXME: Implement AudioBufferSourceNode::start(when, offset, duration)");
     return {};
 }
