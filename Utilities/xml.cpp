@@ -365,13 +365,13 @@ static auto parse(StringView contents)
             .resolve_external_resource = [&](XML::SystemID const& system_id, Optional<XML::PublicID> const&) -> ErrorOr<Variant<ByteString, Vector<XML::MarkupDeclaration>>> {
                 auto base = URL::create_with_file_scheme(s_path);
                 auto url = URL::Parser::basic_parse(system_id.system_literal, base);
-                if (!url.is_valid())
+                if (!url.has_value())
                     return Error::from_string_literal("Invalid URL");
 
-                if (url.scheme() != "file")
+                if (url->scheme() != "file")
                     return Error::from_string_literal("NYI: Nonlocal entity");
 
-                auto file = TRY(Core::File::open(URL::percent_decode(url.serialize_path()), Core::File::OpenMode::Read));
+                auto file = TRY(Core::File::open(URL::percent_decode(url->serialize_path()), Core::File::OpenMode::Read));
                 return ByteString::copy(TRY(file->read_until_eof()));
             },
         },

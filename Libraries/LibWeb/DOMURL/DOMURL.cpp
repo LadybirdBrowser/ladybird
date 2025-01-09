@@ -28,9 +28,6 @@ GC::Ref<DOMURL> DOMURL::create(JS::Realm& realm, URL::URL url, GC::Ref<URLSearch
 // https://url.spec.whatwg.org/#api-url-parser
 static Optional<URL::URL> parse_api_url(String const& url, Optional<String> const& base)
 {
-    // FIXME: We somewhat awkwardly have two failure states encapsulated in the return type (and convert between them in the steps),
-    //        ideally we'd get rid of URL's valid flag
-
     // 1. Let parsedBase be null.
     Optional<URL::URL> parsed_base;
 
@@ -40,15 +37,14 @@ static Optional<URL::URL> parse_api_url(String const& url, Optional<String> cons
         auto parsed_base_url = URL::Parser::basic_parse(*base);
 
         // 2. If parsedBase is failure, then return failure.
-        if (!parsed_base_url.is_valid())
+        if (!parsed_base_url.has_value())
             return {};
 
         parsed_base = parsed_base_url;
     }
 
     // 3. Return the result of running the basic URL parser on url with parsedBase.
-    auto parsed = URL::Parser::basic_parse(url, parsed_base);
-    return parsed.is_valid() ? parsed : Optional<URL::URL> {};
+    return URL::Parser::basic_parse(url, parsed_base);
 }
 
 // https://url.spec.whatwg.org/#url-initialize
@@ -183,17 +179,17 @@ String DOMURL::to_json() const
 }
 
 // https://url.spec.whatwg.org/#ref-for-dom-url-href②
-WebIDL::ExceptionOr<void> DOMURL::set_href(String const& href)
+WebIDL::ExceptionOr<void> DOMURL::set_href(String const& value)
 {
     // 1. Let parsedURL be the result of running the basic URL parser on the given value.
-    URL::URL parsed_url = href;
+    auto parsed_url = URL::Parser::basic_parse(value);
 
     // 2. If parsedURL is failure, then throw a TypeError.
-    if (!parsed_url.is_valid())
+    if (!parsed_url.has_value())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid URL"sv };
 
     // 3. Set this’s URL to parsedURL.
-    m_url = move(parsed_url);
+    m_url = parsed_url.release_value();
 
     // 4. Empty this’s query object’s list.
     m_query->m_list.clear();
@@ -509,17 +505,17 @@ URL::URL parse(StringView input, Optional<URL::URL const&> base_url, Optional<St
     auto url = URL::Parser::basic_parse(input, base_url, {}, {}, encoding);
 
     // 2. If url is failure, return failure.
-    if (!url.is_valid())
-        return {};
+    if (!url.has_value())
+        return {}; // FIXME: Migrate this API to return an OptionalNone on failure.
 
     // 3. If url’s scheme is not "blob", return url.
-    if (url.scheme() != "blob")
-        return url;
+    if (url->scheme() != "blob")
+        return url.release_value();
 
     // 4. Set url’s blob URL entry to the result of resolving the blob URL url, if that did not return failure, and null otherwise.
-    auto blob_url_entry = FileAPI::resolve_a_blob_url(url);
+    auto blob_url_entry = FileAPI::resolve_a_blob_url(*url);
     if (blob_url_entry.has_value()) {
-        url.set_blob_url_entry(URL::BlobURLEntry {
+        url->set_blob_url_entry(URL::BlobURLEntry {
             .type = blob_url_entry->object->type(),
             .byte_buffer = MUST(ByteBuffer::copy(blob_url_entry->object->raw_bytes())),
             .environment_origin = blob_url_entry->environment->origin(),
@@ -527,7 +523,7 @@ URL::URL parse(StringView input, Optional<URL::URL const&> base_url, Optional<St
     }
 
     // 5. Return url
-    return url;
+    return url.release_value();
 }
 
 }
