@@ -131,7 +131,6 @@ public:
         appendln(StringView { pattern, N - 1 });
     }
 
-    // FIXME: These are deprecated.
     void set(StringView key, ByteString value)
     {
         set(key, MUST(String::from_byte_string(value)));
