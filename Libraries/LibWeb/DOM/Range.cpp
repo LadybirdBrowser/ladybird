@@ -2,7 +2,7 @@
  * Copyright (c) 2020, the SerenityOS developers.
  * Copyright (c) 2022, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2022-2023, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2024-2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -807,12 +807,9 @@ bool Range::contains_node(GC::Ref<Node> node) const
 // https://dom.spec.whatwg.org/#partially-contained
 bool Range::partially_contains_node(GC::Ref<Node> node) const
 {
-    // A node is partially contained in a live range if it’s an inclusive ancestor of the live range’s start node but not its end node, or vice versa.
-    if (node->is_inclusive_ancestor_of(m_start_container) && node != m_end_container)
-        return true;
-    if (node->is_inclusive_ancestor_of(m_end_container) && node != m_start_container)
-        return true;
-    return false;
+    // A node is partially contained in a live range if it’s an inclusive ancestor of the live range’s start node but
+    // not its end node, or vice versa.
+    return node->is_inclusive_ancestor_of(m_start_container) != node->is_inclusive_ancestor_of(m_end_container);
 }
 
 // https://dom.spec.whatwg.org/#dom-range-insertnode
