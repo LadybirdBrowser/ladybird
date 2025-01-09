@@ -5,11 +5,9 @@
  */
 
 #include "CSSNumericType.h"
-#include <AK/HashMap.h>
 #include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/Frequency.h>
 #include <LibWeb/CSS/Length.h>
-#include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/Resolution.h>
 #include <LibWeb/CSS/Time.h>
 
@@ -374,26 +372,47 @@ Optional<CSSNumericType::BaseType> CSSNumericType::entry_with_value_1_while_all_
     return result;
 }
 
+static bool matches(CSSNumericType::BaseType base_type, ValueType value_type)
+{
+    switch (base_type) {
+    case CSSNumericType::BaseType::Length:
+        return value_type == ValueType::Length;
+    case CSSNumericType::BaseType::Angle:
+        return value_type == ValueType::Angle;
+    case CSSNumericType::BaseType::Time:
+        return value_type == ValueType::Time;
+    case CSSNumericType::BaseType::Frequency:
+        return value_type == ValueType::Frequency;
+    case CSSNumericType::BaseType::Resolution:
+        return value_type == ValueType::Resolution;
+    case CSSNumericType::BaseType::Flex:
+        return value_type == ValueType::Flex;
+    case CSSNumericType::BaseType::Percent:
+        return value_type == ValueType::Percentage;
+    case CSSNumericType::BaseType::__Count:
+    default:
+        return false;
+    }
+}
+
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-match
-bool CSSNumericType::matches_dimension(BaseType type) const
+bool CSSNumericType::matches_dimension(BaseType type, Optional<ValueType> percentages_resolve_as) const
 {
     // A type matches <length> if its only non-zero entry is «[ "length" → 1 ]».
     // Similarly for <angle>, <time>, <frequency>, <resolution>, and <flex>.
-    //
+    if (entry_with_value_1_while_all_others_are_0() != type)
+        return false;
+
     // If the context in which the value is used allows <percentage> values, and those percentages are resolved
     // against another type, then for the type to be considered matching it must either have a null percent hint,
     // or the percent hint must match the other type.
-    //
+    if (percentages_resolve_as.has_value())
+        return !percent_hint().has_value() || matches(*percent_hint(), *percentages_resolve_as);
+
     // If the context does not allow <percentage> values to be mixed with <length>/etc values (or doesn’t allow
     // <percentage> values at all, such as border-width), then for the type to be considered matching the percent
     // hint must be null.
-
-    // FIXME: Somehow we need to know what type percentages would be resolved against.
-    //        I'm not at all sure if this check is correct.
-    if (percent_hint().has_value() && percent_hint() != type)
-        return false;
-
-    return entry_with_value_1_while_all_others_are_0() == type;
+    return !percent_hint().has_value();
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-match
@@ -408,34 +427,17 @@ bool CSSNumericType::matches_percentage() const
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-match
-bool CSSNumericType::matches_dimension_percentage(BaseType type) const
+bool CSSNumericType::matches_dimension_percentage(BaseType type, Optional<ValueType> percentages_resolve_as) const
 {
     // A type matches <length-percentage> if it matches <length> or matches <percentage>.
     // Same for <angle-percentage>, <time-percentage>, etc.
-    return matches_percentage() || matches_dimension(type);
+    return matches_percentage() || matches_dimension(type, percentages_resolve_as);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#cssnumericvalue-match
-bool CSSNumericType::matches_number() const
+bool CSSNumericType::matches_number(Optional<ValueType> percentages_resolve_as) const
 {
     // A type matches <number> if it has no non-zero entries.
-    //
-    // If the context in which the value is used allows <percentage> values, and those percentages are resolved
-    // against a type other than <number>, then for the type to be considered matching the percent hint must
-    // either be null or match the other type.
-    //
-    // If the context allows <percentage> values, but either doesn’t resolve them against another type or resolves
-    // them against a <number>, then for the type to be considered matching the percent hint must either be null
-    // or "percent".
-    //
-    // If the context does not allow <percentage> values, then for the type to be considered matching the percent
-    // hint must be null.
-
-    // FIXME: Somehow we need to know what type percentages would be resolved against.
-    //        For now, just require no percent hint.
-    if (percent_hint().has_value())
-        return false;
-
     for (auto i = 0; i < to_underlying(BaseType::__Count); ++i) {
         auto base_type = static_cast<BaseType>(i);
         auto type_exponent = exponent(base_type);
@@ -443,7 +445,21 @@ bool CSSNumericType::matches_number() const
             return false;
     }
 
-    return true;
+    // If the context in which the value is used allows <percentage> values, and those percentages are resolved
+    // against a type other than <number>, then for the type to be considered matching the percent hint must
+    // either be null or match the other type.
+    if (percentages_resolve_as.has_value() && percentages_resolve_as != ValueType::Number)
+        return !percent_hint().has_value() || matches(*percent_hint(), *percentages_resolve_as);
+
+    // If the context allows <percentage> values, but either doesn’t resolve them against another type or resolves
+    // them against a <number>, then for the type to be considered matching the percent hint must either be null
+    // or "percent".
+    if (percentages_resolve_as == ValueType::Number)
+        return !percent_hint().has_value() || percent_hint() == BaseType::Percent;
+
+    // If the context does not allow <percentage> values, then for the type to be considered matching the percent
+    // hint must be null.
+    return !percent_hint().has_value();
 }
 
 bool CSSNumericType::matches_dimension() const

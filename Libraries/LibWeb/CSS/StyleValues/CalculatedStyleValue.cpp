@@ -1825,7 +1825,7 @@ bool CalculatedStyleValue::equals(CSSStyleValue const& other) const
 Optional<Angle> CalculatedStyleValue::resolve_angle() const
 {
     auto result = m_calculation->resolve({}, {});
-    if (result.type().has_value() && result.type()->matches_angle())
+    if (result.type().has_value() && result.type()->matches_angle(m_context.percentages_resolve_as))
         return Angle::make_degrees(result.value());
     return {};
 }
@@ -1838,7 +1838,7 @@ Optional<Angle> CalculatedStyleValue::resolve_angle(Layout::Node const& layout_n
 Optional<Angle> CalculatedStyleValue::resolve_angle(Length::ResolutionContext const& context) const
 {
     auto result = m_calculation->resolve(context, {});
-    if (result.type().has_value() && result.type()->matches_angle())
+    if (result.type().has_value() && result.type()->matches_angle(m_context.percentages_resolve_as))
         return Angle::make_degrees(result.value());
     return {};
 }
@@ -1846,7 +1846,7 @@ Optional<Angle> CalculatedStyleValue::resolve_angle(Length::ResolutionContext co
 Optional<Angle> CalculatedStyleValue::resolve_angle_percentage(Angle const& percentage_basis) const
 {
     auto result = m_calculation->resolve({}, percentage_basis);
-    if (result.type().has_value() && result.type()->matches_angle())
+    if (result.type().has_value() && result.type()->matches_angle(m_context.percentages_resolve_as))
         return Angle::make_degrees(result.value());
     return {};
 }
@@ -1854,7 +1854,7 @@ Optional<Angle> CalculatedStyleValue::resolve_angle_percentage(Angle const& perc
 Optional<Flex> CalculatedStyleValue::resolve_flex() const
 {
     auto result = m_calculation->resolve({}, {});
-    if (result.type().has_value() && result.type()->matches_flex())
+    if (result.type().has_value() && result.type()->matches_flex(m_context.percentages_resolve_as))
         return Flex::make_fr(result.value());
     return {};
 }
@@ -1862,7 +1862,7 @@ Optional<Flex> CalculatedStyleValue::resolve_flex() const
 Optional<Frequency> CalculatedStyleValue::resolve_frequency() const
 {
     auto result = m_calculation->resolve({}, {});
-    if (result.type().has_value() && result.type()->matches_frequency())
+    if (result.type().has_value() && result.type()->matches_frequency(m_context.percentages_resolve_as))
         return Frequency::make_hertz(result.value());
     return {};
 }
@@ -1870,7 +1870,7 @@ Optional<Frequency> CalculatedStyleValue::resolve_frequency() const
 Optional<Frequency> CalculatedStyleValue::resolve_frequency_percentage(Frequency const& percentage_basis) const
 {
     auto result = m_calculation->resolve({}, percentage_basis);
-    if (result.type().has_value() && result.type()->matches_frequency())
+    if (result.type().has_value() && result.type()->matches_frequency(m_context.percentages_resolve_as))
         return Frequency::make_hertz(result.value());
     return {};
 }
@@ -1878,7 +1878,7 @@ Optional<Frequency> CalculatedStyleValue::resolve_frequency_percentage(Frequency
 Optional<Length> CalculatedStyleValue::resolve_length(Length::ResolutionContext const& context) const
 {
     auto result = m_calculation->resolve(context, {});
-    if (result.type().has_value() && result.type()->matches_length())
+    if (result.type().has_value() && result.type()->matches_length(m_context.percentages_resolve_as))
         return Length::make_px(CSSPixels { result.value() });
     return {};
 }
@@ -1901,7 +1901,7 @@ Optional<Length> CalculatedStyleValue::resolve_length_percentage(Layout::Node co
 Optional<Length> CalculatedStyleValue::resolve_length_percentage(Length::ResolutionContext const& resolution_context, Length const& percentage_basis) const
 {
     auto result = m_calculation->resolve(resolution_context, percentage_basis);
-    if (result.type().has_value() && result.type()->matches_length())
+    if (result.type().has_value() && result.type()->matches_length(m_context.percentages_resolve_as))
         return Length::make_px(CSSPixels { result.value() });
     return {};
 }
@@ -1917,7 +1917,7 @@ Optional<Percentage> CalculatedStyleValue::resolve_percentage() const
 Optional<Resolution> CalculatedStyleValue::resolve_resolution() const
 {
     auto result = m_calculation->resolve({}, {});
-    if (result.type().has_value() && result.type()->matches_resolution())
+    if (result.type().has_value() && result.type()->matches_resolution(m_context.percentages_resolve_as))
         return Resolution::make_dots_per_pixel(result.value());
     return {};
 }
@@ -1925,7 +1925,7 @@ Optional<Resolution> CalculatedStyleValue::resolve_resolution() const
 Optional<Time> CalculatedStyleValue::resolve_time() const
 {
     auto result = m_calculation->resolve({}, {});
-    if (result.type().has_value() && result.type()->matches_time())
+    if (result.type().has_value() && result.type()->matches_time(m_context.percentages_resolve_as))
         return Time::make_seconds(result.value());
     return {};
 }
@@ -1933,7 +1933,7 @@ Optional<Time> CalculatedStyleValue::resolve_time() const
 Optional<Time> CalculatedStyleValue::resolve_time_percentage(Time const& percentage_basis) const
 {
     auto result = m_calculation->resolve({}, percentage_basis);
-    if (result.type().has_value() && result.type()->matches_time())
+    if (result.type().has_value() && result.type()->matches_time(m_context.percentages_resolve_as))
         return Time::make_seconds(result.value());
     return {};
 }
@@ -1941,7 +1941,7 @@ Optional<Time> CalculatedStyleValue::resolve_time_percentage(Time const& percent
 Optional<double> CalculatedStyleValue::resolve_number() const
 {
     auto result = m_calculation->resolve({}, {});
-    if (result.type().has_value() && result.type()->matches_number())
+    if (result.type().has_value() && result.type()->matches_number(m_context.percentages_resolve_as))
         return result.value();
     return {};
 }
@@ -1949,7 +1949,7 @@ Optional<double> CalculatedStyleValue::resolve_number() const
 Optional<double> CalculatedStyleValue::resolve_number(Length::ResolutionContext const& context) const
 {
     auto result = m_calculation->resolve(context, {});
-    if (result.type().has_value() && result.type()->matches_number())
+    if (result.type().has_value() && result.type()->matches_number(m_context.percentages_resolve_as))
         return result.value();
     return {};
 }
@@ -1962,7 +1962,7 @@ Optional<double> CalculatedStyleValue::resolve_number(Layout::Node const& layout
 Optional<i64> CalculatedStyleValue::resolve_integer() const
 {
     auto result = m_calculation->resolve({}, {});
-    if (result.type().has_value() && result.type()->matches_number())
+    if (result.type().has_value() && result.type()->matches_number(m_context.percentages_resolve_as))
         return llround(result.value());
     return {};
 }
@@ -1970,7 +1970,7 @@ Optional<i64> CalculatedStyleValue::resolve_integer() const
 Optional<i64> CalculatedStyleValue::resolve_integer(Length::ResolutionContext const& context) const
 {
     auto result = m_calculation->resolve(context, {});
-    if (result.type().has_value() && result.type()->matches_number())
+    if (result.type().has_value() && result.type()->matches_number(m_context.percentages_resolve_as))
         return llround(result.value());
     return {};
 }
