@@ -28,7 +28,7 @@ class AudioContext final : public BaseAudioContext {
     GC_DECLARE_ALLOCATOR(AudioContext);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<AudioContext>> construct_impl(JS::Realm&, AudioContextOptions const& context_options = {});
+    static WebIDL::ExceptionOr<GC::Ref<AudioContext>> construct_impl(JS::Realm&, Optional<AudioContextOptions> const& context_options = {});
 
     virtual ~AudioContext() override;
 
@@ -40,7 +40,10 @@ public:
     WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> close();
 
 private:
-    explicit AudioContext(JS::Realm&, AudioContextOptions const& context_options);
+    explicit AudioContext(JS::Realm& realm)
+        : BaseAudioContext(realm)
+    {
+    }
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

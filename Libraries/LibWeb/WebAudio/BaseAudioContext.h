@@ -57,6 +57,7 @@ public:
     void set_control_state(Bindings::AudioContextState state) { m_control_thread_state = state; }
     void set_rendering_state(Bindings::AudioContextState state) { m_rendering_thread_state = state; }
 
+    static WebIDL::ExceptionOr<void> verify_audio_options_inside_nominal_range(JS::Realm&, float sample_rate);
     static WebIDL::ExceptionOr<void> verify_audio_options_inside_nominal_range(JS::Realm&, WebIDL::UnsignedLong number_of_channels, WebIDL::UnsignedLong length, float sample_rate);
 
     WebIDL::ExceptionOr<GC::Ref<BiquadFilterNode>> create_biquad_filter();
