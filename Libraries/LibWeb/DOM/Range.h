@@ -2,7 +2,7 @@
  * Copyright (c) 2020, the SerenityOS developers.
  * Copyright (c) 2022, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2022-2023, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2024-2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -10,6 +10,7 @@
 #pragma once
 
 #include <LibWeb/DOM/AbstractRange.h>
+#include <LibWeb/DOM/Node.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/WebIDL/Types.h>
 
@@ -97,6 +98,29 @@ public:
     void set_associated_selection(Badge<Selection::Selection>, GC::Ptr<Selection::Selection>);
 
     WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> create_contextual_fragment(String const& fragment);
+
+    template<typename Callback>
+    void for_each_contained(Callback callback) const
+    {
+        return const_cast<Range*>(this)->for_each_contained(move(callback));
+    }
+
+    template<typename Callback>
+    void for_each_contained(Callback callback)
+    {
+        GC::Ptr<Node> end = m_end_container;
+        while (end && !end->next_sibling())
+            end = end->parent();
+        if (end)
+            end = end->next_sibling();
+
+        for (GC::Ptr<Node> node = m_start_container; node && node != end; node = node->next_in_pre_order()) {
+            if (contains_node(*node)) {
+                if (callback(*node) == IterationDecision::Break)
+                    return;
+            }
+        }
+    }
 
 private:
     explicit Range(Document&);

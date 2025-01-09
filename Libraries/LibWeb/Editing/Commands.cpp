@@ -551,12 +551,12 @@ bool command_insert_paragraph_action(DOM::Document& document, String const&)
 
         // 4. Append to node list the first node in tree order that is contained in new range and is an allowed child of
         //    "p", if any.
-        new_range->start_container()->for_each_in_inclusive_subtree([&](DOM::Node& node) {
-            if (is_allowed_child_of_node(GC::Ref { node }, HTML::TagNames::p) && new_range->contains_node(node)) {
+        new_range->for_each_contained([&node_list](GC::Ref<DOM::Node> node) {
+            if (is_allowed_child_of_node(node, HTML::TagNames::p)) {
                 node_list.append(node);
-                return TraversalDecision::Break;
+                return IterationDecision::Break;
             }
-            return TraversalDecision::Continue;
+            return IterationDecision::Continue;
         });
 
         // 5. If node list is empty:
@@ -725,14 +725,10 @@ bool command_insert_paragraph_action(DOM::Document& document, String const&)
     container->parent()->insert_before(*new_container, container->next_sibling());
 
     // 26. Let contained nodes be all nodes contained in new line range.
-    // FIXME: this is probably wildly inefficient
     Vector<GC::Ref<DOM::Node>> contained_nodes;
-    auto common_ancestor = new_line_range->common_ancestor_container();
-    common_ancestor->for_each_in_subtree([&](GC::Ref<DOM::Node> child_node) {
-        if (!new_line_range->contains_node(child_node))
-            return TraversalDecision::SkipChildrenAndContinue;
-        contained_nodes.append(child_node);
-        return TraversalDecision::Continue;
+    new_line_range->for_each_contained([&contained_nodes](GC::Ref<DOM::Node> node) {
+        contained_nodes.append(node);
+        return IterationDecision::Continue;
     });
 
     // 27. Let frag be the result of calling extractContents() on new line range.

@@ -578,10 +578,11 @@ String Range::to_string() const
     }
 
     // 4. Append the concatenation of the data of all Text nodes that are contained in this, in tree order, to s.
-    for (GC::Ptr<Node> node = start_container(); node != end_container()->next_sibling(); node = node->next_in_pre_order()) {
-        if (is<Text>(*node) && contains_node(*node))
+    for_each_contained([&](GC::Ref<DOM::Node> node) {
+        if (is<Text>(*node))
             builder.append(static_cast<Text const&>(*node).data());
-    }
+        return IterationDecision::Continue;
+    });
 
     // 5. If this’s end node is a Text node, then append the substring of that node’s data from its start until this’s end offset to s.
     if (is<Text>(*end_container())) {
