@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
- * Copyright (c) 2024, Luke Wilde <luke@ladybird.org>
+ * Copyright (c) 2024-2025, Luke Wilde <luke@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -605,6 +605,44 @@ public:
             function_impl_generator.append("    m_context->notify_content_will_change();\n"sv);
         }
 
+        if (function.name == "attachShader"sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "program"sv, ""sv);
+            generate_webgl_object_handle_unwrap(function_impl_generator, "shader"sv, ""sv);
+            function_impl_generator.append(R"~~~(
+    if (program->attached_vertex_shader() == shader || program->attached_fragment_shader() == shader) {
+        dbgln("WebGL: Shader is already attached to program");
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+
+    if (shader->type() == GL_VERTEX_SHADER && program->attached_vertex_shader()) {
+        dbgln("WebGL: Not attaching vertex shader to program as it already has a vertex shader attached");
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+
+    if (shader->type() == GL_FRAGMENT_SHADER && program->attached_fragment_shader()) {
+        dbgln("WebGL: Not attaching fragment shader to program as it already has a fragment shader attached");
+        set_error(GL_INVALID_OPERATION);
+        return;
+    }
+
+    glAttachShader(program_handle, shader_handle);
+
+    switch (shader->type()) {
+    case GL_VERTEX_SHADER:
+        program->set_attached_vertex_shader(shader.ptr());
+        break;
+    case GL_FRAGMENT_SHADER:
+        program->set_attached_fragment_shader(shader.ptr());
+        break;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+)~~~");
+            continue;
+        }
+
         if (function.name == "getUniformLocation"sv) {
             generate_webgl_object_handle_unwrap(function_impl_generator, "program"sv, "{}"sv);
             function_impl_generator.append(R"~~~(
@@ -619,6 +657,20 @@ public:
     GLuint handle = 0;
     glGenBuffers(1, &handle);
     return WebGLBuffer::create(m_realm, *this, handle);
+)~~~");
+            continue;
+        }
+
+        if (function.name == "createShader"sv) {
+            function_impl_generator.append(R"~~~(
+    if (type != GL_VERTEX_SHADER && type != GL_FRAGMENT_SHADER) {
+        dbgln("Unknown WebGL shader type: 0x{:04x}", type);
+        set_error(GL_INVALID_ENUM);
+        return nullptr;
+    }
+
+    GLuint handle = glCreateShader(type);
+    return WebGLShader::create(m_realm, *this, handle, type);
 )~~~");
             continue;
         }
