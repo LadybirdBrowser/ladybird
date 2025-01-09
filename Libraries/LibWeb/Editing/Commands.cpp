@@ -615,6 +615,260 @@ bool command_fore_color_action(DOM::Document& document, String const& value)
     return true;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-formatblock-command
+bool command_format_block_action(DOM::Document& document, String const& value)
+{
+    // 1. If value begins with a "<" character and ends with a ">" character, remove the first and last characters from
+    //    it.
+    auto resulting_value = value;
+    if (resulting_value.starts_with_bytes("<"sv) && resulting_value.ends_with_bytes(">"sv))
+        resulting_value = MUST(resulting_value.substring_from_byte_offset(1, resulting_value.bytes_as_string_view().length() - 2));
+
+    // 2. Let value be converted to ASCII lowercase.
+    resulting_value = resulting_value.to_ascii_lowercase();
+
+    // 3. If value is not a formattable block name, return false.
+    if (!is_formattable_block_name(resulting_value))
+        return false;
+
+    // 4. Block-extend the active range, and let new range be the result.
+    auto new_range = block_extend_a_range(*active_range(document));
+
+    // 5. Let node list be an empty list of nodes.
+    Vector<GC::Ref<DOM::Node>> node_list;
+
+    // 6. For each node node contained in new range, append node to node list if it is editable, the last member of
+    //    original node list (if any) is not an ancestor of node, node is either a non-list single-line container or an
+    //    allowed child of "p" or a dd or dt, and node is not the ancestor of a prohibited paragraph child.
+    auto is_ancestor_of_prohibited_paragraph_child = [](GC::Ref<DOM::Node> node) {
+        bool result = false;
+        node->for_each_in_subtree([&result](GC::Ref<DOM::Node> descendant) {
+            if (is_prohibited_paragraph_child(descendant)) {
+                result = true;
+                return TraversalDecision::Break;
+            }
+            return TraversalDecision::Continue;
+        });
+        return result;
+    };
+    new_range->for_each_contained([&](GC::Ref<DOM::Node> node) {
+        if (node->is_editable()
+            && (node_list.is_empty() || !node_list.last()->is_ancestor_of(node))
+            && (is_non_list_single_line_container(node) || is_allowed_child_of_node(node, HTML::TagNames::p)
+                || (is<DOM::Element>(*node)
+                    && static_cast<DOM::Element&>(*node).local_name().is_one_of(HTML::TagNames::dd, HTML::TagNames::dt)))
+            && !is_ancestor_of_prohibited_paragraph_child(node)) {
+            node_list.append(node);
+        }
+        return IterationDecision::Continue;
+    });
+
+    // 7. Record the values of node list, and let values be the result.
+    auto values = record_the_values_of_nodes(node_list);
+
+    // 8. For each node in node list, while node is the descendant of an editable HTML element in the same editing host,
+    //    whose local name is a formattable block name, and which is not the ancestor of a prohibited paragraph child,
+    //    split the parent of the one-node list consisting of node.
+    for (auto node : node_list) {
+        while (true) {
+            bool is_matching_descendant = false;
+            node->for_each_ancestor([&](GC::Ref<DOM::Node> ancestor) {
+                if (ancestor->is_editable() && is<HTML::HTMLElement>(*ancestor) && is_in_same_editing_host(node, ancestor)
+                    && is_formattable_block_name(static_cast<DOM::Element&>(*ancestor).local_name())
+                    && !is_ancestor_of_prohibited_paragraph_child(ancestor)) {
+                    is_matching_descendant = true;
+                    return IterationDecision::Break;
+                }
+                return IterationDecision::Continue;
+            });
+            if (!is_matching_descendant)
+                break;
+
+            split_the_parent_of_nodes({ node });
+        }
+    }
+
+    // 9. Restore the values from values.
+    restore_the_values_of_nodes(values);
+
+    // 10. While node list is not empty:
+    while (!node_list.is_empty()) {
+        Vector<GC::Ref<DOM::Node>> sublist;
+
+        // 1. If the first member of node list is a single-line container:
+        if (is_single_line_container(node_list.first())) {
+            // AD-HOC: The spec makes note of single-line containers without children, and how they should probably
+            //         disappear given that Firefox and Opera did this at the time. We're going to follow their lead and
+            //         remove the node if it has no children.
+            if (!node_list.first()->has_children()) {
+                node_list.take_first()->remove();
+                continue;
+            }
+
+            // 1. Let sublist be the children of the first member of node list.
+            node_list.first()->for_each_child([&sublist](GC::Ref<DOM::Node> child) {
+                sublist.append(child);
+                return IterationDecision::Continue;
+            });
+
+            // 2. Record the values of sublist, and let values be the result.
+            auto values = record_the_values_of_nodes(sublist);
+
+            // 3. Remove the first member of node list from its parent, preserving its descendants.
+            remove_node_preserving_its_descendants(node_list.first());
+
+            // 4. Restore the values from values.
+            restore_the_values_of_nodes(values);
+
+            // 5. Remove the first member from node list.
+            node_list.take_first();
+        }
+
+        // 2. Otherwise:
+        else {
+            // 1. Let sublist be an empty list of nodes.
+            // 2. Remove the first member of node list and append it to sublist.
+            sublist.append(node_list.take_first());
+
+            // 3. While node list is not empty, and the first member of node list is the nextSibling of the last member
+            //    of sublist, and the first member of node list is not a single-line container, and the last member of
+            //    sublist is not a br, remove the first member of node list and append it to sublist.
+            while (!node_list.is_empty() && node_list.first().ptr() == sublist.last()->next_sibling()
+                && !is_single_line_container(node_list.first()) && !is<HTML::HTMLBRElement>(*sublist.last()))
+                sublist.append(node_list.take_first());
+        }
+
+        // 3. Wrap sublist. If value is "div" or "p", sibling criteria returns false; otherwise it returns true for an
+        //    HTML element with local name value and no attributes, and false otherwise. New parent instructions return
+        //    the result of running createElement(value) on the context object. Then fix disallowed ancestors of the
+        //    result.
+        auto result = wrap(
+            sublist,
+            [&](GC::Ref<DOM::Node> sibling) {
+                if (resulting_value.is_one_of("div"sv, "p"sv))
+                    return false;
+                return is<HTML::HTMLElement>(*sibling)
+                    && static_cast<DOM::Element&>(*sibling).local_name() == resulting_value
+                    && !static_cast<DOM::Element&>(*sibling).has_attributes();
+            },
+            [&] { return MUST(DOM::create_element(document, resulting_value, Namespace::HTML)); });
+        if (result)
+            fix_disallowed_ancestors_of_node(*result);
+    }
+
+    // 11. Return true.
+    return true;
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-formatblock-command
+bool command_format_block_indeterminate(DOM::Document const& document)
+{
+    // 1. If the active range is null, return the empty string.
+    // AD-HOC: We're returning false instead. See https://github.com/w3c/editing/issues/474
+    auto range = active_range(document);
+    if (!range)
+        return false;
+
+    // 2. Block-extend the active range, and let new range be the result.
+    auto new_range = block_extend_a_range(*range);
+
+    // 3. Let node list be all visible editable nodes that are contained in new range and have no children.
+    Vector<GC::Ref<DOM::Node>> node_list;
+    new_range->for_each_contained([&](GC::Ref<DOM::Node> node) {
+        if (is_visible_node(node) && node->is_editable() && !node->has_children())
+            node_list.append(node);
+        return IterationDecision::Continue;
+    });
+
+    // 4. If node list is empty, return false.
+    if (node_list.is_empty())
+        return false;
+
+    // 5. Let type be null.
+    Optional<FlyString const&> type;
+
+    // 6. For each node in node list:
+    for (auto node : node_list) {
+        // 1. While node's parent is editable and in the same editing host as node, and node is not an HTML element
+        //    whose local name is a formattable block name, set node to its parent.
+        while (node->parent() && node->parent()->is_editable() && is_in_same_editing_host(node, *node->parent())
+            && !(is<HTML::HTMLElement>(*node) && is_formattable_block_name(static_cast<DOM::Element&>(*node).local_name())))
+            node = *node->parent();
+
+        // 2. Let current type be the empty string.
+        FlyString current_type;
+
+        // 3. If node is an editable HTML element whose local name is a formattable block name, and node is not the
+        //    ancestor of a prohibited paragraph child, set current type to node's local name.
+        if (node->is_editable() && is<HTML::HTMLElement>(*node)
+            && is_formattable_block_name(static_cast<DOM::Element&>(*node).local_name()))
+            current_type = static_cast<DOM::Element&>(*node).local_name();
+
+        // 4. If type is null, set type to current type.
+        if (!type.has_value()) {
+            type = current_type;
+        }
+
+        // 5. Otherwise, if type does not equal current type, return true.
+        else if (type.value() != current_type) {
+            return true;
+        }
+    }
+
+    // 7. Return false.
+    return false;
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-formatblock-command
+String command_format_block_value(DOM::Document const& document)
+{
+    // 1. If the active range is null, return the empty string.
+    auto range = active_range(document);
+    if (!range)
+        return {};
+
+    // 2. Block-extend the active range, and let new range be the result.
+    auto new_range = block_extend_a_range(*range);
+
+    // 3. Let node be the first visible editable node that is contained in new range and has no children. If there is no
+    //    such node, return the empty string.
+    GC::Ptr<DOM::Node> node;
+    new_range->for_each_contained([&](GC::Ref<DOM::Node> contained_node) {
+        if (is_visible_node(contained_node) && contained_node->is_editable() && !contained_node->has_children()) {
+            node = contained_node;
+            return IterationDecision::Break;
+        }
+        return IterationDecision::Continue;
+    });
+    if (!node)
+        return {};
+
+    // 4. While node's parent is editable and in the same editing host as node, and node is not an HTML element whose
+    //    local name is a formattable block name, set node to its parent.
+    while (node->parent() && node->parent()->is_editable() && is_in_same_editing_host(*node, *node->parent())
+        && !(is<HTML::HTMLElement>(*node) && is_formattable_block_name(static_cast<DOM::Element&>(*node).local_name())))
+        node = node->parent();
+
+    // 5. If node is an editable HTML element whose local name is a formattable block name, and node is not the ancestor
+    //    of a prohibited paragraph child, return node's local name, converted to ASCII lowercase.
+    if (node->is_editable() && is<HTML::HTMLElement>(*node)
+        && is_formattable_block_name(static_cast<DOM::Element&>(*node).local_name())) {
+        bool is_ancestor_of_prohibited_paragraph_child = false;
+        node->for_each_in_subtree([&is_ancestor_of_prohibited_paragraph_child](GC::Ref<DOM::Node> descendant) {
+            if (is_prohibited_paragraph_child(descendant)) {
+                is_ancestor_of_prohibited_paragraph_child = true;
+                return TraversalDecision::Break;
+            }
+            return TraversalDecision::Continue;
+        });
+        if (!is_ancestor_of_prohibited_paragraph_child)
+            return static_cast<DOM::Element&>(*node).local_name().to_string().to_ascii_lowercase();
+    }
+
+    // 6. Return the empty string.
+    return {};
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-forwarddelete-command
 bool command_forward_delete_action(DOM::Document& document, String const&)
 {
@@ -1523,6 +1777,14 @@ static Array const commands {
         .command = CommandNames::foreColor,
         .action = command_fore_color_action,
         .relevant_css_property = CSS::PropertyID::Color,
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-formatblock-command
+    CommandDefinition {
+        .command = CommandNames::formatBlock,
+        .action = command_format_block_action,
+        .indeterminate = command_format_block_indeterminate,
+        .value = command_format_block_value,
+        .preserves_overrides = true,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-forwarddelete-command
     CommandDefinition {

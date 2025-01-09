@@ -57,6 +57,7 @@ bool is_collapsed_whitespace_node(GC::Ref<DOM::Node>);
 bool is_effectively_contained_in_range(GC::Ref<DOM::Node>, GC::Ref<DOM::Range>);
 bool is_element_with_inline_contents(GC::Ref<DOM::Node>);
 bool is_extraneous_line_break(GC::Ref<DOM::Node>);
+bool is_formattable_block_name(FlyString const&);
 bool is_formattable_node(GC::Ref<DOM::Node>);
 bool is_in_same_editing_host(GC::Ref<DOM::Node>, GC::Ref<DOM::Node>);
 bool is_indentation_element(GC::Ref<DOM::Node>);
