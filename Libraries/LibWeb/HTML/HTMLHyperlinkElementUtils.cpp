@@ -28,13 +28,18 @@ void HTMLHyperlinkElementUtils::reinitialize_url() const
 // https://html.spec.whatwg.org/multipage/links.html#concept-hyperlink-url-set
 void HTMLHyperlinkElementUtils::set_the_url()
 {
+    ScopeGuard invalidate_style_if_needed = [old_url = m_url, this] {
+        if (m_url != old_url) {
+            hyperlink_element_utils_element().invalidate_style(DOM::StyleInvalidationReason::HTMLHyperlinkElementHrefChange);
+        }
+    };
+
     // 1. Set this element's url to null.
     m_url = {};
 
     // 2. If this element's href content attribute is absent, then return.
     auto href_content_attribute = hyperlink_element_utils_href();
     if (!href_content_attribute.has_value()) {
-        hyperlink_element_utils_element().invalidate_style(DOM::StyleInvalidationReason::HTMLHyperlinkElementHrefChange);
         return;
     }
 
@@ -44,8 +49,6 @@ void HTMLHyperlinkElementUtils::set_the_url()
     // 4. If url is not failure, then set this element's url to url.
     if (url.is_valid())
         m_url = move(url);
-
-    hyperlink_element_utils_element().invalidate_style(DOM::StyleInvalidationReason::HTMLHyperlinkElementHrefChange);
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-origin
