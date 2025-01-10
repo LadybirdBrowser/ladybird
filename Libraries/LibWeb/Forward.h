@@ -841,6 +841,8 @@ struct OscillatorOptions;
 }
 
 namespace Web::WebGL {
+class ANGLEInstancedArrays;
+class OESVertexArrayObject;
 class OpenGLContext;
 class WebGL2RenderingContext;
 class WebGLActiveInfo;
@@ -858,6 +860,7 @@ class WebGLSync;
 class WebGLTexture;
 class WebGLUniformLocation;
 class WebGLVertexArrayObject;
+class WebGLVertexArrayObjectOES;
 }
 
 namespace Web::WebIDL {
