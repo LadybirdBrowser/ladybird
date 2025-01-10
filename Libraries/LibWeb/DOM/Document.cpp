@@ -1501,7 +1501,7 @@ void Document::obtain_theme_color()
             auto media = element.attribute(HTML::AttributeNames::media);
             if (media.has_value()) {
                 auto query = parse_media_query(context, media.value());
-                if (window() && !query->evaluate(*window()))
+                if (query.is_null() || !window() || !query->evaluate(*window()))
                     return TraversalDecision::Continue;
             }
 
@@ -1514,7 +1514,7 @@ void Document::obtain_theme_color()
             // 4. If color is not failure, then return color.
             if (!css_value.is_null() && css_value->is_color()) {
                 Optional<Layout::NodeWithStyle const&> root_node;
-                if (html_element())
+                if (html_element() && html_element()->layout_node())
                     root_node = *html_element()->layout_node();
 
                 theme_color = css_value->to_color(root_node);
