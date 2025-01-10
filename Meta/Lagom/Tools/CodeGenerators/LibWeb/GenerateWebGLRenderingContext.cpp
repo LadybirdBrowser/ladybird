@@ -1548,10 +1548,22 @@ public:
         if (function.name == "renderbufferStorage"sv) {
             // To be backward compatible with WebGL 1, also accepts internal format DEPTH_STENCIL, which should be
             // mapped to DEPTH24_STENCIL8 by implementations.
-            if (webgl_version == 2) {
+            if (webgl_version == 1) {
                 function_impl_generator.append(R"~~~(
+#define GL_DEPTH_STENCIL 0x84F9
+#define GL_DEPTH24_STENCIL8 0x88F0
+)~~~");
+            }
+
+            function_impl_generator.append(R"~~~(
     if (internalformat == GL_DEPTH_STENCIL)
         internalformat = GL_DEPTH24_STENCIL8;
+)~~~");
+
+            if (webgl_version == 1) {
+                function_impl_generator.append(R"~~~(
+#undef GL_DEPTH_STENCIL
+#undef GL_DEPTH24_STENCIL8
 )~~~");
             }
 
