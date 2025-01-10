@@ -279,7 +279,7 @@ set(SKIA_CXX_FLAGS_REL "${VCPKG_COMBINED_CXX_FLAGS_RELEASE}")
 
 if(VCPKG_LIBRARY_LINKAGE STREQUAL "dynamic")
     foreach (str IN ITEMS SKIA_CXX_FLAGS_DBG SKIA_CXX_FLAGS_REL)
-        string(APPEND ${str} " -DSKCMS_API=__attribute__((visibility(\\\\\\\"default\\\\\\\")))")
+        string(APPEND ${str} " -DSKCMS_API=[[gnu::visibility(\\\\\\\"default\\\\\\\")]]")
     endforeach()
 endif()
 
