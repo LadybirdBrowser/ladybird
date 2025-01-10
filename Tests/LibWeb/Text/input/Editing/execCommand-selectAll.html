@@ -1,0 +1,37 @@
+<script src="../include.js"></script>
+<div contenteditable="true">
+    <span>foobar</span>
+    <ul>
+        <li>foo</li>
+        <li>bar</li>
+        <li>baz</li>
+    </ul>
+</div>
+<script>
+    test(() => {
+        const selection = getSelection();
+
+        const reportSelection = () => {
+            if (selection.rangeCount === 0) {
+                println('No range.');
+                return;
+            }
+            const range = selection.getRangeAt(0);
+            println(`${range.startContainer.nodeName} ${range.startOffset} - ${range.endContainer.nodeName} ${range.endOffset}`);
+        };
+
+        reportSelection();
+
+        let divElm = document.querySelector('div');
+        let range = document.createRange();
+        range.setStart(divElm, 0);
+        range.setEnd(divElm, 0);
+        selection.addRange(range);
+
+        reportSelection();
+
+        // Perform selectAll
+        document.execCommand('selectAll');
+        reportSelection();
+    });
+</script>

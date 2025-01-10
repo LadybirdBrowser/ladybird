@@ -2228,6 +2228,33 @@ bool command_remove_format_action(DOM::Document& document, String const&)
     return true;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-selectall-command
+bool command_select_all_action(DOM::Document& document, String const&)
+{
+    // NOTE: The spec mentions "This is totally broken". So fair warning :^)
+
+    // 1. Let target be the body element of the context object.
+    GC::Ptr<DOM::Node> target = document.body();
+
+    // 2. If target is null, let target be the context object's documentElement.
+    if (!target)
+        target = document.document_element();
+
+    // 3. If target is null, call getSelection() on the context object, and call removeAllRanges() on the result.
+    auto& selection = *document.get_selection();
+    if (!target) {
+        selection.remove_all_ranges();
+    }
+
+    // 4. Otherwise, call getSelection() on the context object, and call selectAllChildren(target) on the result.
+    else {
+        MUST(selection.select_all_children(*target));
+    }
+
+    // 5. Return true.
+    return true;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-strikethrough-command
 bool command_strikethrough_action(DOM::Document& document, String const&)
 {
@@ -2601,6 +2628,11 @@ static Array const commands {
     CommandDefinition {
         .command = CommandNames::removeFormat,
         .action = command_remove_format_action,
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-selectall-command
+    CommandDefinition {
+        .command = CommandNames::selectAll,
+        .action = command_select_all_action,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-strikethrough-command
     CommandDefinition {
