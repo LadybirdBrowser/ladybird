@@ -2512,7 +2512,7 @@ void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const& node_list)
     // 8. For each node in node list, insert node into the parent of original parent immediately
     //    before original parent, preserving ranges.
     for (auto node : node_list)
-        move_node_preserving_ranges(node, parent_of_original_parent, original_parent_index - 1);
+        move_node_preserving_ranges(node, parent_of_original_parent, original_parent_index++);
 
     // 9. If follows line break is true, and the first member of node list does not follow a line
     //    break, call createElement("br") on the context object and insert the result immediately
