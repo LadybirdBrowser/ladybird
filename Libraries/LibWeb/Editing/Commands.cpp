@@ -2448,6 +2448,17 @@ bool command_unlink_action(DOM::Document& document, String const&)
     return true;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-usecss-command
+bool command_use_css_action(DOM::Document& document, String const& value)
+{
+    // If value is an ASCII case-insensitive match for the string "false", set the CSS styling flag to true.
+    // Otherwise, set the CSS styling flag to false.
+    document.set_css_styling_flag(value.equals_ignoring_ascii_case("false"sv));
+
+    // Either way, return true.
+    return true;
+}
+
 static Array const commands {
     // https://w3c.github.io/editing/docs/execCommand/#the-backcolor-command
     CommandDefinition {
@@ -2670,6 +2681,11 @@ static Array const commands {
     CommandDefinition {
         .command = CommandNames::unlink,
         .action = command_unlink_action,
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-usecss-command
+    CommandDefinition {
+        .command = CommandNames::useCSS,
+        .action = command_use_css_action,
     },
 };
 
