@@ -135,6 +135,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(novalidate)                 \
     __ENUMERATE_HTML_ATTRIBUTE(nowrap)                     \
     __ENUMERATE_HTML_ATTRIBUTE(onabort)                    \
+    __ENUMERATE_HTML_ATTRIBUTE(onactivate)                 \
     __ENUMERATE_HTML_ATTRIBUTE(onafterprint)               \
     __ENUMERATE_HTML_ATTRIBUTE(onauxclick)                 \
     __ENUMERATE_HTML_ATTRIBUTE(onbeforeinput)              \
@@ -215,6 +216,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(onpopstate)                 \
     __ENUMERATE_HTML_ATTRIBUTE(onprogress)                 \
     __ENUMERATE_HTML_ATTRIBUTE(onratechange)               \
+    __ENUMERATE_HTML_ATTRIBUTE(onreading)                  \
     __ENUMERATE_HTML_ATTRIBUTE(onrejectionhandled)         \
     __ENUMERATE_HTML_ATTRIBUTE(onreset)                    \
     __ENUMERATE_HTML_ATTRIBUTE(onresize)                   \

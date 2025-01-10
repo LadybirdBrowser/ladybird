@@ -11,6 +11,7 @@
 
 #define ENUMERATE_GLOBAL_EVENT_HANDLERS(E)                                    \
     E(onabort, HTML::EventNames::abort)                                       \
+    E(onactivate, HTML::EventNames::activate)                                 \
     E(onauxclick, UIEvents::EventNames::auxclick)                             \
     E(onbeforeinput, HTML::EventNames::beforeinput)                           \
     E(onbeforematch, HTML::EventNames::beforematch)                           \
@@ -77,6 +78,7 @@
     E(onpointerup, UIEvents::EventNames::pointerup)                           \
     E(onprogress, HTML::EventNames::progress)                                 \
     E(onratechange, HTML::EventNames::ratechange)                             \
+    E(onreading, HTML::EventNames::reading)                                   \
     E(onreset, HTML::EventNames::reset)                                       \
     E(onresize, HTML::EventNames::resize)                                     \
     E(onscroll, HTML::EventNames::scroll)                                     \

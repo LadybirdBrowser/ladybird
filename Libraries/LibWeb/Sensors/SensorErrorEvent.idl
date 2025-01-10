@@ -1,0 +1,14 @@
+#import <DOM/EventTarget.idl>
+#import <DOM/Event.idl>
+#import <WebIDL/DOMException.idl>
+
+
+[SecureContext, Exposed=(DedicatedWorker, Window)]
+interface SensorErrorEvent : Event {
+    constructor(DOMString type, SensorErrorEventInit errorEventInitDict);
+    readonly attribute DOMException error;
+};
+
+dictionary SensorErrorEventInit : EventInit {
+//   [FIXME] required DOMException error;
+};

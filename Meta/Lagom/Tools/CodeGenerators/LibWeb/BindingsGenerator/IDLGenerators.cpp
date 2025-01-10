@@ -4429,6 +4429,7 @@ using namespace Web::PerformanceTimeline;
 using namespace Web::RequestIdleCallback;
 using namespace Web::ResizeObserver;
 using namespace Web::Selection;
+using namespace Web::Sensors;
 using namespace Web::ServiceWorker;
 using namespace Web::StorageAPI;
 using namespace Web::Streams;

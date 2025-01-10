@@ -16,6 +16,7 @@ namespace Web::HTML::EventNames {
 
 #define ENUMERATE_HTML_EVENTS                        \
     __ENUMERATE_HTML_EVENT(abort)                    \
+    __ENUMERATE_HTML_EVENT(activate)                 \
     __ENUMERATE_HTML_EVENT(addtrack)                 \
     __ENUMERATE_HTML_EVENT(afterprint)               \
     __ENUMERATE_HTML_EVENT(animationcancel)          \
@@ -97,6 +98,7 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(popstate)                 \
     __ENUMERATE_HTML_EVENT(progress)                 \
     __ENUMERATE_HTML_EVENT(ratechange)               \
+    __ENUMERATE_HTML_EVENT(reading)                  \
     __ENUMERATE_HTML_EVENT(readystatechange)         \
     __ENUMERATE_HTML_EVENT(rejectionhandled)         \
     __ENUMERATE_HTML_EVENT(remove)                   \

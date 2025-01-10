@@ -15,6 +15,7 @@ typedef OnBeforeUnloadEventHandlerNonNull? OnBeforeUnloadEventHandler;
 // https://html.spec.whatwg.org/#globaleventhandlers
 interface mixin GlobalEventHandlers {
     attribute EventHandler onabort;
+    attribute EventHandler onactivate;
     attribute EventHandler onauxclick;
     attribute EventHandler onbeforeinput;
     attribute EventHandler onbeforematch;
@@ -70,6 +71,7 @@ interface mixin GlobalEventHandlers {
     attribute EventHandler onplaying;
     attribute EventHandler onprogress;
     attribute EventHandler onratechange;
+    attribute EventHandler onreading;
     attribute EventHandler onreset;
     attribute EventHandler onresize;
     attribute EventHandler onscroll;

@@ -717,6 +717,11 @@ namespace Web::Selection {
 class Selection;
 }
 
+namespace Web::Sensors {
+class Sensor;
+class SensorErrorEvent;
+}
+
 namespace Web::ServiceWorker {
 class ServiceWorker;
 class ServiceWorkerContainer;

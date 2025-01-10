@@ -1,0 +1,15 @@
+#import <DOM/EventTarget.idl>
+#import <DOM/Event.idl>
+#import <WebIDL/DOMException.idl>
+
+[SecureContext, Exposed=(DedicatedWorker, Window)]
+interface Sensor : EventTarget {
+    readonly attribute boolean activated;
+    readonly attribute boolean hasReading;
+    readonly attribute DOMHighResTimeStamp? timestamp;
+    [FIXME] undefined start();
+    [FIXME] undefined stop();
+    attribute EventHandler onreading;
+    attribute EventHandler onactivate;
+    attribute EventHandler onerror;
+};

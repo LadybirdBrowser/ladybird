@@ -683,6 +683,8 @@ set(SOURCES
     ResizeObserver/ResizeObserverEntry.cpp
     ResizeObserver/ResizeObserverSize.cpp
     SecureContexts/AbstractOperations.cpp
+    Sensors/Sensor.cpp
+    Sensors/SensorErrorEvent.cpp
     ServiceWorker/Job.cpp
     ServiceWorker/Registration.cpp
     ServiceWorker/ServiceWorker.cpp
