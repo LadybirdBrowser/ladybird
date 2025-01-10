@@ -16,7 +16,7 @@ class TreeWalker final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(TreeWalker);
 
 public:
-    [[nodiscard]] static GC::Ref<TreeWalker> create(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter>);
+    [[nodiscard]] static GC::Ref<TreeWalker> create(JS::Realm&, Node& root, unsigned what_to_show, GC::Ptr<NodeFilter>);
 
     virtual ~TreeWalker() override;
 
@@ -38,7 +38,7 @@ public:
     unsigned what_to_show() const { return m_what_to_show; }
 
 private:
-    explicit TreeWalker(Node& root);
+    explicit TreeWalker(JS::Realm&, Node& root);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

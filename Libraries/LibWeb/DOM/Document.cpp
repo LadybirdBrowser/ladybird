@@ -3342,7 +3342,7 @@ GC::Ref<NodeIterator> Document::create_node_iterator(Node& root, unsigned what_t
 // https://dom.spec.whatwg.org/#dom-document-createtreewalker
 GC::Ref<TreeWalker> Document::create_tree_walker(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter> filter)
 {
-    return TreeWalker::create(root, what_to_show, filter);
+    return TreeWalker::create(realm(), root, what_to_show, filter);
 }
 
 void Document::register_node_iterator(Badge<NodeIterator>, NodeIterator& node_iterator)

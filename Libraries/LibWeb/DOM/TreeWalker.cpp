@@ -16,8 +16,8 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(TreeWalker);
 
-TreeWalker::TreeWalker(Node& root)
-    : PlatformObject(root.realm())
+TreeWalker::TreeWalker(JS::Realm& realm, Node& root)
+    : PlatformObject(realm)
     , m_root(root)
     , m_current(root)
 {
@@ -40,12 +40,11 @@ void TreeWalker::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createtreewalker
-GC::Ref<TreeWalker> TreeWalker::create(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter> filter)
+GC::Ref<TreeWalker> TreeWalker::create(JS::Realm& realm, Node& root, unsigned what_to_show, GC::Ptr<NodeFilter> filter)
 {
     // 1. Let walker be a new TreeWalker object.
     // 2. Set walker’s root and walker’s current to root.
-    auto& realm = root.realm();
-    auto walker = realm.create<TreeWalker>(root);
+    auto walker = realm.create<TreeWalker>(realm, root);
 
     // 3. Set walker’s whatToShow to whatToShow.
     walker->m_what_to_show = what_to_show;
