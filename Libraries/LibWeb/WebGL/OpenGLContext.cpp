@@ -13,9 +13,12 @@
 #    include <EGL/egl.h>
 #    include <EGL/eglext.h>
 #    include <EGL/eglext_angle.h>
+#    define GL_GLEXT_PROTOTYPES 1
 #    include <GLES2/gl2.h>
 #    include <GLES2/gl2ext.h>
+extern "C" {
 #    include <GLES2/gl2ext_angle.h>
+}
 #endif
 
 namespace Web::WebGL {
@@ -92,8 +95,12 @@ OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContex
     auto* config = get_egl_config(display);
 
     EGLint context_attributes[] = {
-        EGL_CONTEXT_CLIENT_VERSION, 2,
-        EGL_NONE
+        EGL_CONTEXT_CLIENT_VERSION,
+        2,
+        EGL_CONTEXT_WEBGL_COMPATIBILITY_ANGLE,
+        EGL_TRUE,
+        EGL_NONE,
+        EGL_NONE,
     };
     EGLContext context = eglCreateContext(display, config, EGL_NO_CONTEXT, context_attributes);
     if (context == EGL_NO_CONTEXT) {
@@ -158,6 +165,9 @@ void OpenGLContext::allocate_painting_surface_if_needed()
     m_impl->surface = eglCreatePbufferFromClientBuffer(display, EGL_IOSURFACE_ANGLE, iosurface.core_foundation_pointer(), config, surface_attributes);
 
     eglMakeCurrent(m_impl->display, m_impl->surface, m_impl->surface, m_impl->context);
+
+    // This extension is not enabled by default in WebGL compatibility mode, so we need to request it.
+    glRequestExtensionANGLE("GL_ANGLE_texture_rectangle");
 
     EGLint texture_target_angle = 0;
     eglGetConfigAttrib(display, config, EGL_BIND_TO_TEXTURE_TARGET_ANGLE, &texture_target_angle);
@@ -285,7 +295,7 @@ Vector<String> OpenGLContext::get_supported_extensions()
 #ifdef AK_OS_MACOS
     make_current();
 
-    auto const* extensions_string = reinterpret_cast<char const*>(glGetString(GL_EXTENSIONS));
+    auto const* extensions_string = reinterpret_cast<char const*>(glGetString(GL_REQUESTABLE_EXTENSIONS_ANGLE));
     StringView extensions_view(extensions_string, strlen(extensions_string));
 
     Vector<String> extensions;
