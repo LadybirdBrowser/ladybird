@@ -73,6 +73,7 @@ bool command_justify_right_action(DOM::Document&, String const&);
 bool command_justify_right_indeterminate(DOM::Document const&);
 bool command_justify_right_state(DOM::Document const&);
 String command_justify_right_value(DOM::Document const&);
+bool command_outdent_action(DOM::Document&, String const&);
 bool command_remove_format_action(DOM::Document&, String const&);
 bool command_strikethrough_action(DOM::Document&, String const&);
 bool command_style_with_css_action(DOM::Document&, String const&);
