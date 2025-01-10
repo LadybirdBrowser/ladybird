@@ -1512,7 +1512,7 @@ void Document::obtain_theme_color()
             auto css_value = parse_css_value(context, value, CSS::PropertyID::Color);
 
             // 4. If color is not failure, then return color.
-            if (!css_value.is_null() && css_value->is_color()) {
+            if (!css_value.is_null() && css_value->has_color()) {
                 Optional<Layout::NodeWithStyle const&> root_node;
                 if (html_element() && html_element()->layout_node())
                     root_node = *html_element()->layout_node();
