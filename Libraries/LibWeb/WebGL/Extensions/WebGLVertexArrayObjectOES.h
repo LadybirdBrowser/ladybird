@@ -10,7 +10,7 @@
 #include <LibWeb/WebGL/Types.h>
 #include <LibWeb/WebGL/WebGLObject.h>
 
-namespace Web::WebGL {
+namespace Web::WebGL::Extensions {
 
 class WebGLVertexArrayObjectOES : public WebGLObject {
     WEB_PLATFORM_OBJECT(WebGLVertexArrayObjectOES, WebGLObject);

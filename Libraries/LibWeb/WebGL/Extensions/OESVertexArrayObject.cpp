@@ -5,9 +5,10 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/OESVertexArrayObjectPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/WebGL/OESVertexArrayObject.h>
+#include <LibWeb/Bindings/OESVertexArrayObjectPrototype.h>
+#include <LibWeb/WebGL/Extensions/OESVertexArrayObject.h>
+#include <LibWeb/WebGL/Extensions/WebGLVertexArrayObjectOES.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
 
@@ -15,7 +16,7 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
-namespace Web::WebGL {
+namespace Web::WebGL::Extensions {
 
 GC_DEFINE_ALLOCATOR(OESVertexArrayObject);
 

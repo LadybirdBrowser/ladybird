@@ -13,9 +13,9 @@
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Painting/Paintable.h>
-#include <LibWeb/WebGL/ANGLEInstancedArrays.h>
 #include <LibWeb/WebGL/EventNames.h>
-#include <LibWeb/WebGL/OESVertexArrayObject.h>
+#include <LibWeb/WebGL/Extensions/ANGLEInstancedArrays.h>
+#include <LibWeb/WebGL/Extensions/OESVertexArrayObject.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLContextEvent.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
@@ -191,7 +191,7 @@ JS::Object* WebGLRenderingContext::get_extension(String const& name)
 
     if (Infra::is_ascii_case_insensitive_match(name, "ANGLE_instanced_arrays"sv)) {
         if (!m_angle_instanced_arrays_extension) {
-            m_angle_instanced_arrays_extension = MUST(ANGLEInstancedArrays::create(realm(), *this));
+            m_angle_instanced_arrays_extension = MUST(Extensions::ANGLEInstancedArrays::create(realm(), *this));
         }
 
         VERIFY(m_angle_instanced_arrays_extension);
@@ -200,7 +200,7 @@ JS::Object* WebGLRenderingContext::get_extension(String const& name)
 
     if (Infra::is_ascii_case_insensitive_match(name, "OES_vertex_array_object"sv)) {
         if (!m_oes_vertex_array_object_extension) {
-            m_oes_vertex_array_object_extension = MUST(OESVertexArrayObject::create(realm(), *this));
+            m_oes_vertex_array_object_extension = MUST(Extensions::OESVertexArrayObject::create(realm(), *this));
         }
 
         VERIFY(m_oes_vertex_array_object_extension);

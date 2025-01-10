@@ -1,5 +1,5 @@
+#import <WebGL/Extensions/WebGLVertexArrayObjectOES.idl>
 #import <WebGL/Types.idl>
-#import <WebGL/WebGLVertexArrayObjectOES.idl>
 
 // https://registry.khronos.org/webgl/extensions/OES_vertex_array_object/
 // NOTE: Original OES_vertex_array_object name is changed to title case,
