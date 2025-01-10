@@ -42,6 +42,7 @@ using Selection::Selection;
 // https://w3c.github.io/editing/docs/execCommand/#assorted-common-algorithms
 
 GC::Ptr<DOM::Range> active_range(DOM::Document const&);
+void autolink(DOM::BoundaryPoint);
 GC::Ref<DOM::Range> block_extend_a_range(GC::Ref<DOM::Range>);
 GC::Ptr<DOM::Node> block_node_of_node(GC::Ref<DOM::Node>);
 String canonical_space_sequence(u32 length, bool non_breaking_start, bool non_breaking_end);
@@ -125,6 +126,7 @@ Optional<NonnullRefPtr<CSS::CSSStyleValue const>> property_in_style_attribute(GC
 Optional<CSS::Display> resolved_display(GC::Ref<DOM::Node>);
 Optional<CSS::Keyword> resolved_keyword(GC::Ref<DOM::Node>, CSS::PropertyID);
 Optional<NonnullRefPtr<CSS::CSSStyleValue const>> resolved_value(GC::Ref<DOM::Node>, CSS::PropertyID);
+void take_the_action_for_command(DOM::Document&, FlyString const&, String const&);
 bool value_list_contains_keyword(CSS::StyleValueList const&, CSS::Keyword);
 
 }
