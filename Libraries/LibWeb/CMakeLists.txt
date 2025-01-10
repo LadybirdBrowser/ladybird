@@ -825,6 +825,7 @@ set(SOURCES
     WebDriver/TimeoutsConfiguration.cpp
     WebGL/Extensions/ANGLEInstancedArrays.cpp
     WebGL/Extensions/OESVertexArrayObject.cpp
+    WebGL/Extensions/WebGLDrawBuffers.cpp
     WebGL/Extensions/WebGLVertexArrayObjectOES.cpp
     WebGL/EventNames.cpp
     WebGL/OpenGLContext.cpp

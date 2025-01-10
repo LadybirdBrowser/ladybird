@@ -16,6 +16,7 @@
 #include <LibWeb/WebGL/EventNames.h>
 #include <LibWeb/WebGL/Extensions/ANGLEInstancedArrays.h>
 #include <LibWeb/WebGL/Extensions/OESVertexArrayObject.h>
+#include <LibWeb/WebGL/Extensions/WebGLDrawBuffers.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGLContextEvent.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
@@ -92,6 +93,7 @@ void WebGLRenderingContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_canvas_element);
     visitor.visit(m_angle_instanced_arrays_extension);
     visitor.visit(m_oes_vertex_array_object_extension);
+    visitor.visit(m_webgl_draw_buffers_extension);
 }
 
 void WebGLRenderingContext::present()
@@ -205,6 +207,15 @@ JS::Object* WebGLRenderingContext::get_extension(String const& name)
 
         VERIFY(m_oes_vertex_array_object_extension);
         return m_oes_vertex_array_object_extension;
+    }
+
+    if (Infra::is_ascii_case_insensitive_match(name, "WEBGL_draw_buffers"sv)) {
+        if (!m_webgl_draw_buffers_extension) {
+            m_webgl_draw_buffers_extension = MUST(Extensions::WebGLDrawBuffers::create(realm(), *this));
+        }
+
+        VERIFY(m_webgl_draw_buffers_extension);
+        return m_webgl_draw_buffers_extension;
     }
 
     return nullptr;
