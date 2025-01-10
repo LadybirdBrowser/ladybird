@@ -120,13 +120,13 @@ void CSSStyleSheet::initialize(JS::Realm& realm)
 void CSSStyleSheet::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_style_sheet_list);
     visitor.visit(m_rules);
     visitor.visit(m_owner_css_rule);
     visitor.visit(m_default_namespace_rule);
     visitor.visit(m_constructor_document);
     visitor.visit(m_namespace_rules);
     visitor.visit(m_import_rules);
+    visitor.visit(m_owning_documents_or_shadow_roots);
 }
 
 // https://www.w3.org/TR/cssom/#dom-cssstylesheet-insertrule
@@ -139,7 +139,7 @@ WebIDL::ExceptionOr<unsigned> CSSStyleSheet::insert_rule(StringView rule, unsign
         return WebIDL::NotAllowedError::create(realm(), "Can't call insert_rule() on non-modifiable stylesheets."_string);
 
     // 3. Let parsed rule be the return value of invoking parse a rule with rule.
-    auto context = m_style_sheet_list ? CSS::Parser::ParsingContext { m_style_sheet_list->document() } : CSS::Parser::ParsingContext { realm() };
+    auto context = !m_owning_documents_or_shadow_roots.is_empty() ? Parser::ParsingContext { (*m_owning_documents_or_shadow_roots.begin())->document() } : Parser::ParsingContext { realm() };
     auto parsed_rule = parse_css_rule(context, rule);
 
     // 4. If parsed rule is a syntax error, return parsed rule.
@@ -157,10 +157,7 @@ WebIDL::ExceptionOr<unsigned> CSSStyleSheet::insert_rule(StringView rule, unsign
         // NOTE: The spec doesn't say where to set the parent style sheet, so we'll do it here.
         parsed_rule->set_parent_style_sheet(this);
 
-        if (m_style_sheet_list) {
-            m_style_sheet_list->document().style_computer().invalidate_rule_cache();
-            m_style_sheet_list->document_or_shadow_root().invalidate_style(DOM::StyleInvalidationReason::StyleSheetInsertRule);
-        }
+        invalidate_owners(DOM::StyleInvalidationReason::StyleSheetInsertRule);
     }
 
     return result;
@@ -178,10 +175,7 @@ WebIDL::ExceptionOr<void> CSSStyleSheet::delete_rule(unsigned index)
     // 3. Remove a CSS rule in the CSS rules at index.
     auto result = m_rules->remove_a_css_rule(index);
     if (!result.is_exception()) {
-        if (m_style_sheet_list) {
-            m_style_sheet_list->document().style_computer().invalidate_rule_cache();
-            m_style_sheet_list->document_or_shadow_root().invalidate_style(DOM::StyleInvalidationReason::StyleSheetDeleteRule);
-        }
+        invalidate_owners(DOM::StyleInvalidationReason::StyleSheetDeleteRule);
     }
     return result;
 }
@@ -213,7 +207,7 @@ GC::Ref<WebIDL::Promise> CSSStyleSheet::replace(String text)
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. Let rules be the result of running parse a stylesheet’s contents from text.
-        auto context = m_style_sheet_list ? CSS::Parser::ParsingContext { m_style_sheet_list->document() } : CSS::Parser::ParsingContext { realm };
+        auto context = !m_owning_documents_or_shadow_roots.is_empty() ? Parser::ParsingContext { (*m_owning_documents_or_shadow_roots.begin())->document() } : CSS::Parser::ParsingContext { realm };
         auto* parsed_stylesheet = parse_css_stylesheet(context, text);
         auto& rules = parsed_stylesheet->rules();
 
@@ -247,7 +241,7 @@ WebIDL::ExceptionOr<void> CSSStyleSheet::replace_sync(StringView text)
         return WebIDL::NotAllowedError::create(realm(), "Can't call replaceSync() on non-modifiable stylesheets"_string);
 
     // 2. Let rules be the result of running parse a stylesheet’s contents from text.
-    auto context = m_style_sheet_list ? CSS::Parser::ParsingContext { m_style_sheet_list->document() } : CSS::Parser::ParsingContext { realm() };
+    auto context = !m_owning_documents_or_shadow_roots.is_empty() ? Parser::ParsingContext { (*m_owning_documents_or_shadow_roots.begin())->document() } : CSS::Parser::ParsingContext { realm() };
     auto* parsed_stylesheet = parse_css_stylesheet(context, text);
     auto& rules = parsed_stylesheet->rules();
 
@@ -321,6 +315,25 @@ void CSSStyleSheet::for_each_effective_keyframes_at_rule(Function<void(CSSKeyfra
     });
 }
 
+void CSSStyleSheet::add_owning_document_or_shadow_root(DOM::Node& document_or_shadow_root)
+{
+    VERIFY(document_or_shadow_root.is_document() || document_or_shadow_root.is_shadow_root());
+    m_owning_documents_or_shadow_roots.set(document_or_shadow_root);
+}
+
+void CSSStyleSheet::remove_owning_document_or_shadow_root(DOM::Node& document_or_shadow_root)
+{
+    m_owning_documents_or_shadow_roots.remove(document_or_shadow_root);
+}
+
+void CSSStyleSheet::invalidate_owners(DOM::StyleInvalidationReason reason)
+{
+    for (auto& document_or_shadow_root : m_owning_documents_or_shadow_roots) {
+        document_or_shadow_root->invalidate_style(reason);
+        document_or_shadow_root->document().style_computer().invalidate_rule_cache();
+    }
+}
+
 bool CSSStyleSheet::evaluate_media_queries(HTML::Window const& window)
 {
     bool any_media_queries_changed_match_state = false;
@@ -334,11 +347,6 @@ bool CSSStyleSheet::evaluate_media_queries(HTML::Window const& window)
     m_did_match = now_matches;
 
     return any_media_queries_changed_match_state;
-}
-
-void CSSStyleSheet::set_style_sheet_list(Badge<StyleSheetList>, StyleSheetList* list)
-{
-    m_style_sheet_list = list;
 }
 
 Optional<FlyString> CSSStyleSheet::default_namespace() const
