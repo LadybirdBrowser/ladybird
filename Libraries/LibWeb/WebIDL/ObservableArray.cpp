@@ -48,8 +48,13 @@ JS::ThrowCompletionOr<bool> ObservableArray::internal_set(JS::PropertyKey const&
 
 JS::ThrowCompletionOr<bool> ObservableArray::internal_delete(JS::PropertyKey const& property_key)
 {
-    if (property_key.is_number() && m_on_delete_an_indexed_value)
-        TRY(Bindings::throw_dom_exception_if_needed(vm(), [&] { return m_on_delete_an_indexed_value->function()(); }));
+    if (property_key.is_number() && m_on_delete_an_indexed_value) {
+        auto maybe_value_and_attributes = indexed_properties().get(property_key.as_number());
+        JS::Value deleted_value;
+        if (maybe_value_and_attributes.has_value())
+            deleted_value = maybe_value_and_attributes->value;
+        TRY(Bindings::throw_dom_exception_if_needed(vm(), [&] { return m_on_delete_an_indexed_value->function()(deleted_value); }));
+    }
     return JS::Array::internal_delete(property_key);
 }
 
