@@ -3336,7 +3336,7 @@ WebIDL::ExceptionOr<Document::PrefixAndTagName> Document::validate_qualified_nam
 // https://dom.spec.whatwg.org/#dom-document-createnodeiterator
 GC::Ref<NodeIterator> Document::create_node_iterator(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter> filter)
 {
-    return NodeIterator::create(root, what_to_show, filter).release_value_but_fixme_should_propagate_errors();
+    return NodeIterator::create(realm(), root, what_to_show, filter).release_value_but_fixme_should_propagate_errors();
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createtreewalker

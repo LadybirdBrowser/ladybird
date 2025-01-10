@@ -17,7 +17,7 @@ class NodeIterator final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(NodeIterator);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<NodeIterator>> create(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter>);
+    static WebIDL::ExceptionOr<GC::Ref<NodeIterator>> create(JS::Realm& realm, Node& root, unsigned what_to_show, GC::Ptr<NodeFilter>);
 
     virtual ~NodeIterator() override;
 
@@ -36,7 +36,7 @@ public:
     void run_pre_removing_steps(Node&);
 
 private:
-    explicit NodeIterator(Node& root);
+    explicit NodeIterator(JS::Realm&, Node& root);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
