@@ -1276,6 +1276,51 @@ bool command_insert_html_action(DOM::Document& document, String const& value)
     return true;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-insertimage-command
+bool command_insert_image_action(DOM::Document& document, String const& value)
+{
+    // 1. If value is the empty string, return false.
+    if (value.is_empty())
+        return false;
+
+    // 2. Delete the selection, with strip wrappers false.
+    auto& selection = *document.get_selection();
+    delete_the_selection(selection, true, false);
+
+    // 3. Let range be the active range.
+    auto range = active_range(document);
+
+    // 4. If the active range's start node is neither editable nor an editing host, return true.
+    if (!range->start_container()->is_editable_or_editing_host())
+        return true;
+
+    // 5. If range's start node is a block node whose sole child is a br, and its start offset is 0, remove its start
+    //    node's child from it.
+    auto start_node = range->start_container();
+    if (is_block_node(start_node) && start_node->child_count() == 1 && is<HTML::HTMLBRElement>(*start_node->first_child())
+        && range->start_offset() == 0)
+        start_node->first_child()->remove();
+
+    // 6. Let img be the result of calling createElement("img") on the context object.
+    auto img = MUST(DOM::create_element(document, HTML::TagNames::img, Namespace::HTML));
+
+    // 7. Run setAttribute("src", value) on img.
+    MUST(img->set_attribute(HTML::AttributeNames::src, value));
+
+    // 8. Run insertNode(img) on range.
+    MUST(range->insert_node(img));
+
+    // 9. Let selection be the result of calling getSelection() on the context object.
+    // NOTE: Already done so in step 2.
+
+    // 10. Run collapse() on selection, with first argument equal to the parent of img and the second argument equal to
+    //     one plus the index of img.
+    MUST(selection.collapse(img->parent(), img->index() + 1));
+
+    // 11. Return true.
+    return true;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-insertlinebreak-command
 bool command_insert_linebreak_action(DOM::Document& document, String const&)
 {
@@ -2030,6 +2075,12 @@ static Array const commands {
     CommandDefinition {
         .command = CommandNames::insertHTML,
         .action = command_insert_html_action,
+        .preserves_overrides = true,
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-insertimage-command
+    CommandDefinition {
+        .command = CommandNames::insertImage,
+        .action = command_insert_image_action,
         .preserves_overrides = true,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-insertlinebreak-command
