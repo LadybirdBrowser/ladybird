@@ -35,7 +35,13 @@ GC::Ref<WebIDL::ObservableArray> create_adopted_style_sheets_list(Document& docu
         document.invalidate_style(DOM::StyleInvalidationReason::AdoptedStyleSheetsList);
         return {};
     });
-    adopted_style_sheets->set_on_delete_an_indexed_value_callback([&document]() -> WebIDL::ExceptionOr<void> {
+    adopted_style_sheets->set_on_delete_an_indexed_value_callback([&document](JS::Value value) -> WebIDL::ExceptionOr<void> {
+        VERIFY(value.is_object());
+        auto& object = value.as_object();
+        VERIFY(is<CSS::CSSStyleSheet>(object));
+        auto& style_sheet = static_cast<CSS::CSSStyleSheet&>(object);
+
+        document.style_computer().unload_fonts_from_sheet(style_sheet);
         document.style_computer().invalidate_rule_cache();
         document.invalidate_style(DOM::StyleInvalidationReason::AdoptedStyleSheetsList);
         return {};
