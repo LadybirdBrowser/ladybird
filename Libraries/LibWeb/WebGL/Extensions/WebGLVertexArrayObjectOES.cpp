@@ -8,9 +8,9 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WebGLVertexArrayObjectOESPrototype.h>
-#include <LibWeb/WebGL/WebGLVertexArrayObjectOES.h>
+#include <LibWeb/WebGL/Extensions/WebGLVertexArrayObjectOES.h>
 
-namespace Web::WebGL {
+namespace Web::WebGL::Extensions {
 
 GC_DEFINE_ALLOCATOR(WebGLVertexArrayObjectOES);
 
