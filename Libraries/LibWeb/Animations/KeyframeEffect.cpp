@@ -918,7 +918,7 @@ static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(H
 void KeyframeEffect::update_computed_properties()
 {
     auto target = this->target();
-    if (!target)
+    if (!target || !target->is_connected())
         return;
 
     GC::Ptr<CSS::ComputedProperties> style = {};
