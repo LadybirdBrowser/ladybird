@@ -55,6 +55,54 @@ GC::Ptr<DOM::Range> active_range(DOM::Document const& document)
     return selection->range();
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#alignment-value
+JustifyAlignment alignment_value_of_node(GC::Ptr<DOM::Node> node)
+{
+    // 1. While node is neither null nor an Element, or it is an Element but its "display" property has resolved value
+    //    "inline" or "none", set node to its parent.
+    auto is_display_inline_or_none = [](GC::Ref<DOM::Node> node) {
+        auto display = resolved_display(node);
+        if (!display.has_value())
+            return false;
+        return (display.value().is_inline_outside() && display.value().is_flow_inside()) || display.value().is_none();
+    };
+    while ((node && !is<DOM::Element>(node.ptr())) || (is<DOM::Element>(node.ptr()) && is_display_inline_or_none(*node)))
+        node = node->parent();
+
+    // 2. If node is not an Element, return "left".
+    if (!is<DOM::Element>(node.ptr()))
+        return JustifyAlignment::Left;
+    GC::Ref<DOM::Element> element = static_cast<DOM::Element&>(*node);
+
+    // 3. If node's "text-align" property has resolved value "start", return "left" if the directionality of node is
+    //    "ltr", "right" if it is "rtl".
+    auto text_align_value = resolved_keyword(*node, CSS::PropertyID::TextAlign);
+    if (!text_align_value.has_value())
+        return JustifyAlignment::Left;
+    if (text_align_value.value() == CSS::Keyword::Start)
+        return element->directionality() == DOM::Element::Directionality::Ltr ? JustifyAlignment::Left : JustifyAlignment::Right;
+
+    // 4. If node's "text-align" property has resolved value "end", return "right" if the directionality of node is
+    //    "ltr", "left" if it is "rtl".
+    if (text_align_value.value() == CSS::Keyword::End)
+        return element->directionality() == DOM::Element::Directionality::Ltr ? JustifyAlignment::Right : JustifyAlignment::Left;
+
+    // 5. If node's "text-align" property has resolved value "center", "justify", "left", or "right", return that value.
+    switch (text_align_value.value()) {
+    case CSS::Keyword::Center:
+        return JustifyAlignment::Center;
+    case CSS::Keyword::Justify:
+        return JustifyAlignment::Justify;
+    case CSS::Keyword::Left:
+        return JustifyAlignment::Left;
+    case CSS::Keyword::Right:
+        return JustifyAlignment::Right;
+    default:
+        // 6. Return "left".
+        return JustifyAlignment::Left;
+    }
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#autolink
 void autolink(DOM::BoundaryPoint point)
 {
@@ -2595,6 +2643,130 @@ bool is_whitespace_node(GC::Ref<DOM::Node> node)
     return false;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#justify-the-selection
+void justify_the_selection(DOM::Document& document, JustifyAlignment alignment)
+{
+    // 1. Block-extend the active range, and let new range be the result.
+    auto new_range = block_extend_a_range(*active_range(document));
+
+    // 2. Let element list be a list of all editable Elements contained in new range that either has an attribute in the
+    //    HTML namespace whose local name is "align", or has a style attribute that sets "text-align", or is a center.
+    Vector<GC::Ref<DOM::Element>> element_list;
+    new_range->for_each_contained([&element_list](GC::Ref<DOM::Node> node) {
+        if (!node->is_editable() || !is<DOM::Element>(*node))
+            return IterationDecision::Continue;
+
+        auto& element = static_cast<DOM::Element&>(*node);
+        if (element.has_attribute_ns(Namespace::HTML, HTML::AttributeNames::align)
+            || property_in_style_attribute(element, CSS::PropertyID::TextAlign).has_value()
+            || element.local_name() == HTML::TagNames::center)
+            element_list.append(element);
+
+        return IterationDecision::Continue;
+    });
+
+    // 3. For each element in element list:
+    for (auto element : element_list) {
+        // 1. If element has an attribute in the HTML namespace whose local name is "align", remove that attribute.
+        if (element->has_attribute_ns(Namespace::HTML, HTML::AttributeNames::align))
+            element->remove_attribute_ns(Namespace::HTML, HTML::AttributeNames::align);
+
+        // 2. Unset the CSS property "text-align" on element, if it's set by a style attribute.
+        auto* inline_style = element->style_for_bindings();
+        MUST(inline_style->remove_property(CSS::PropertyID::TextAlign));
+
+        // 3. If element is a div or span or center with no attributes, remove it, preserving its descendants.
+        if (element->local_name().is_one_of(HTML::TagNames::div, HTML::TagNames::span, HTML::TagNames::center)
+            && !element->has_attributes())
+            remove_node_preserving_its_descendants(element);
+
+        // 4. If element is a center with one or more attributes, set the tag name of element to "div".
+        if (element->local_name() == HTML::TagNames::center && element->has_attributes())
+            set_the_tag_name(element, HTML::TagNames::div);
+    }
+
+    // 4. Block-extend the active range, and let new range be the result.
+    new_range = block_extend_a_range(*active_range(document));
+
+    // 5. Let node list be a list of nodes, initially empty.
+    Vector<GC::Ref<DOM::Node>> node_list;
+
+    // 6. For each node node contained in new range, append node to node list if the last member of node list (if any)
+    //    is not an ancestor of node; node is editable; node is an allowed child of "div"; and node's alignment value is
+    //    not alignment.
+    new_range->for_each_contained([&](GC::Ref<DOM::Node> node) {
+        if ((node_list.is_empty() || !node_list.last()->is_ancestor_of(node))
+            && node->is_editable()
+            && is_allowed_child_of_node(node, HTML::TagNames::div)
+            && alignment_value_of_node(node) != alignment)
+            node_list.append(node);
+        return IterationDecision::Continue;
+    });
+
+    // 7. While node list is not empty:
+    while (!node_list.is_empty()) {
+        // 1. Let sublist be a list of nodes, initially empty.
+        Vector<GC::Ref<DOM::Node>> sublist;
+
+        // 2. Remove the first member of node list and append it to sublist.
+        sublist.append(node_list.take_first());
+
+        // 3. While node list is not empty, and the first member of node list is the nextSibling of the last member of
+        //    sublist, remove the first member of node list and append it to sublist.
+        while (!node_list.is_empty() && node_list.first().ptr() == sublist.last()->next_sibling())
+            sublist.append(node_list.take_first());
+
+        // 4. Wrap sublist. Sibling criteria returns true for any div that has one or both of the following two
+        //    attributes and no other attributes, and false otherwise:
+        //    * An align attribute whose value is an ASCII case-insensitive match for alignment.
+        //    * A style attribute which sets exactly one CSS property (including unrecognized or invalid attributes),
+        //      which is "text-align", which is set to alignment.
+        //
+        //    New parent instructions are to call createElement("div") on the context object, then set its CSS property
+        //    "text-align" to alignment and return the result.
+        auto alignment_keyword = string_from_keyword([&alignment] {
+            switch (alignment) {
+            case JustifyAlignment::Center:
+                return CSS::Keyword::Center;
+            case JustifyAlignment::Justify:
+                return CSS::Keyword::Justify;
+            case JustifyAlignment::Left:
+                return CSS::Keyword::Left;
+            case JustifyAlignment::Right:
+                return CSS::Keyword::Right;
+            }
+            VERIFY_NOT_REACHED();
+        }());
+
+        wrap(
+            sublist,
+            [&](GC::Ref<DOM::Node> sibling) {
+                if (!is<HTML::HTMLDivElement>(*sibling))
+                    return false;
+                GC::Ref<DOM::Element> element = static_cast<DOM::Element&>(*sibling);
+                u8 number_of_matching_attributes = 0;
+                if (element->get_attribute_value(HTML::AttributeNames::align).equals_ignoring_ascii_case(alignment_keyword))
+                    ++number_of_matching_attributes;
+                if (element->has_attribute(HTML::AttributeNames::style) && element->inline_style()
+                    && element->inline_style()->length() == 1) {
+                    auto text_align = element->inline_style()->property(CSS::PropertyID::TextAlign);
+                    if (text_align.has_value()) {
+                        auto align_value = text_align.value().value->to_string(CSS::CSSStyleValue::SerializationMode::Normal);
+                        if (align_value.equals_ignoring_ascii_case(alignment_keyword))
+                            ++number_of_matching_attributes;
+                    }
+                }
+                return element->attribute_list_size() == number_of_matching_attributes;
+            },
+            [&] {
+                auto div = MUST(DOM::create_element(document, HTML::TagNames::div, Namespace::HTML));
+                auto inline_style = div->style_for_bindings();
+                MUST(inline_style->set_property(CSS::PropertyID::TextAlign, alignment_keyword));
+                return div;
+            });
+    }
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#last-equivalent-point
 DOM::BoundaryPoint last_equivalent_point(DOM::BoundaryPoint boundary_point)
 {
@@ -4528,6 +4700,21 @@ bool is_heading(FlyString const& local_name)
         HTML::TagNames::h4,
         HTML::TagNames::h5,
         HTML::TagNames::h6);
+}
+
+String justify_alignment_to_string(JustifyAlignment alignment)
+{
+    switch (alignment) {
+    case JustifyAlignment::Center:
+        return "center"_string;
+    case JustifyAlignment::Justify:
+        return "justify"_string;
+    case JustifyAlignment::Left:
+        return "left"_string;
+    case JustifyAlignment::Right:
+        return "right"_string;
+    }
+    VERIFY_NOT_REACHED();
 }
 
 Array<StringView, 7> named_font_sizes()

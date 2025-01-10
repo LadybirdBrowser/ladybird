@@ -36,12 +36,21 @@ enum class SelectionsListState : u8 {
     None,
 };
 
+// https://w3c.github.io/editing/docs/execCommand/#justify-the-selection
+enum class JustifyAlignment : u8 {
+    Center,
+    Justify,
+    Left,
+    Right,
+};
+
 using Selection::Selection;
 
 // Below algorithms are specified here:
 // https://w3c.github.io/editing/docs/execCommand/#assorted-common-algorithms
 
 GC::Ptr<DOM::Range> active_range(DOM::Document const&);
+JustifyAlignment alignment_value_of_node(GC::Ptr<DOM::Node>);
 void autolink(DOM::BoundaryPoint);
 GC::Ref<DOM::Range> block_extend_a_range(GC::Ref<DOM::Range>);
 GC::Ptr<DOM::Node> block_node_of_node(GC::Ref<DOM::Node>);
@@ -85,6 +94,7 @@ bool is_simple_modifiable_element(GC::Ref<DOM::Node>);
 bool is_single_line_container(GC::Ref<DOM::Node>);
 bool is_visible_node(GC::Ref<DOM::Node>);
 bool is_whitespace_node(GC::Ref<DOM::Node>);
+void justify_the_selection(DOM::Document&, JustifyAlignment);
 DOM::BoundaryPoint last_equivalent_point(DOM::BoundaryPoint);
 String legacy_font_size(int);
 void move_node_preserving_ranges(GC::Ref<DOM::Node>, GC::Ref<DOM::Node> new_parent, u32 new_index);
@@ -121,6 +131,7 @@ CSSPixels font_size_to_pixel_size(StringView);
 void for_each_node_effectively_contained_in_range(GC::Ptr<DOM::Range>, Function<TraversalDecision(GC::Ref<DOM::Node>)>);
 bool has_visible_children(GC::Ref<DOM::Node>);
 bool is_heading(FlyString const&);
+String justify_alignment_to_string(JustifyAlignment);
 Array<StringView, 7> named_font_sizes();
 Optional<NonnullRefPtr<CSS::CSSStyleValue const>> property_in_style_attribute(GC::Ref<DOM::Element>, CSS::PropertyID);
 Optional<CSS::Display> resolved_display(GC::Ref<DOM::Node>);

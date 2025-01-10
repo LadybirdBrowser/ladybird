@@ -1,0 +1,21 @@
+<script src="../include.js"></script>
+<div contenteditable="true" id="d1">foobar</div>
+<div contenteditable="true" id="d2"><div style="text-align: left">foobar</div></div>
+<script>
+    test(() => {
+        const range = document.createRange();
+        getSelection().addRange(range);
+
+        const div1 = document.querySelector('#d1');
+        range.setStart(div1.firstChild, 0);
+        range.setEnd(div1.firstChild, 6);
+        document.execCommand('justifyRight');
+        println(div1.innerHTML);
+
+        const div2 = document.querySelector('#d2');
+        range.setStart(div2.firstChild, 0);
+        range.setEnd(div2.firstChild, 1);
+        document.execCommand('justifyRight');
+        println(div2.innerHTML);
+    });
+</script>

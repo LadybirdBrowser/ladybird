@@ -1880,6 +1880,188 @@ bool command_italic_action(DOM::Document& document, String const&)
     return true;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-justifycenter-command
+static bool justify_indeterminate(DOM::Document const& document, JustifyAlignment alignment)
+{
+    // NOTE: This definition is taken from the "justifyCenter" spec and was made generic.
+
+    // Return false if the active range is null. Otherwise, block-extend the active range.
+    auto range = active_range(document);
+    if (!range)
+        return false;
+    range = block_extend_a_range(*range);
+
+    // Return true if among visible editable nodes that are contained in the result and have no children, at least one
+    // has alignment value "[alignment]" and at least one does not. Otherwise return false.
+    Vector<GC::Ref<DOM::Node>> matching_nodes;
+    range->for_each_contained([&matching_nodes](GC::Ref<DOM::Node> node) {
+        if (is_visible_node(node) && node->is_editable() && !node->has_children())
+            matching_nodes.append(node);
+        return IterationDecision::Continue;
+    });
+    return any_of(matching_nodes, [&](GC::Ref<DOM::Node> node) {
+        return alignment_value_of_node(node) == alignment;
+    }) && any_of(matching_nodes, [&](GC::Ref<DOM::Node> node) {
+        return alignment_value_of_node(node) != alignment;
+    });
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-justifycenter-command
+static bool justify_state(DOM::Document const& document, JustifyAlignment alignment)
+{
+    // NOTE: This definition is taken from the "justifyCenter" spec and was made generic.
+
+    // Return false if the active range is null. Otherwise, block-extend the active range.
+    auto range = active_range(document);
+    if (!range)
+        return false;
+    range = block_extend_a_range(*range);
+
+    // Return true if there is at least one visible editable node that is contained in the result and has no children,
+    // and all such nodes have alignment value "[alignment]". Otherwise return false.
+    Vector<GC::Ref<DOM::Node>> matching_nodes;
+    range->for_each_contained([&matching_nodes](GC::Ref<DOM::Node> node) {
+        if (is_visible_node(node) && node->is_editable() && !node->has_children())
+            matching_nodes.append(node);
+        return IterationDecision::Continue;
+    });
+    return !matching_nodes.is_empty() && all_of(matching_nodes, [&](GC::Ref<DOM::Node> node) {
+        return alignment_value_of_node(node) == alignment;
+    });
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-justifycenter-command
+static String justify_value(DOM::Document const& document)
+{
+    // NOTE: This definition is taken from the "justifyCenter" spec and was made generic.
+
+    // Return the empty string if the active range is null. Otherwise, block-extend the active range,
+    auto range = active_range(document);
+    if (!range)
+        return {};
+    range = block_extend_a_range(*range);
+
+    // and return the alignment value of the first visible editable node that is contained in the result and has no
+    // children.
+    GC::Ptr<DOM::Node> first_match;
+    range->for_each_contained([&first_match](GC::Ref<DOM::Node> node) {
+        if (is_visible_node(node) && node->is_editable() && !node->has_children()) {
+            first_match = node;
+            return IterationDecision::Break;
+        }
+        return IterationDecision::Continue;
+    });
+    if (first_match)
+        return justify_alignment_to_string(alignment_value_of_node(first_match));
+
+    // If there is no such node, return "left".
+    return justify_alignment_to_string(JustifyAlignment::Left);
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-justifycenter-command
+bool command_justify_center_action(DOM::Document& document, String const&)
+{
+    // Justify the selection with alignment "center", then return true.
+    justify_the_selection(document, JustifyAlignment::Center);
+    return true;
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-justifycenter-command
+bool command_justify_center_indeterminate(DOM::Document const& document)
+{
+    return justify_indeterminate(document, JustifyAlignment::Center);
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-justifycenter-command
+bool command_justify_center_state(DOM::Document const& document)
+{
+    return justify_state(document, JustifyAlignment::Center);
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-justifycenter-command
+String command_justify_center_value(DOM::Document const& document)
+{
+    return justify_value(document);
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-justifyfull-command
+bool command_justify_full_action(DOM::Document& document, String const&)
+{
+    // Justify the selection with alignment "justify", then return true.
+    justify_the_selection(document, JustifyAlignment::Justify);
+    return true;
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-justifyfull-command
+bool command_justify_full_indeterminate(DOM::Document const& document)
+{
+    return justify_indeterminate(document, JustifyAlignment::Justify);
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-justifyfull-command
+bool command_justify_full_state(DOM::Document const& document)
+{
+    return justify_state(document, JustifyAlignment::Justify);
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-justifyfull-command
+String command_justify_full_value(DOM::Document const& document)
+{
+    return justify_value(document);
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-justifyleft-command
+bool command_justify_left_action(DOM::Document& document, String const&)
+{
+    // Justify the selection with alignment "left", then return true.
+    justify_the_selection(document, JustifyAlignment::Left);
+    return true;
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-justifyleft-command
+bool command_justify_left_indeterminate(DOM::Document const& document)
+{
+    return justify_indeterminate(document, JustifyAlignment::Left);
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-justifyleft-command
+bool command_justify_left_state(DOM::Document const& document)
+{
+    return justify_state(document, JustifyAlignment::Left);
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-justifyleft-command
+String command_justify_left_value(DOM::Document const& document)
+{
+    return justify_value(document);
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-justifyright-command
+bool command_justify_right_action(DOM::Document& document, String const&)
+{
+    // Justify the selection with alignment "right", then return true.
+    justify_the_selection(document, JustifyAlignment::Right);
+    return true;
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-justifyright-command
+bool command_justify_right_indeterminate(DOM::Document const& document)
+{
+    return justify_indeterminate(document, JustifyAlignment::Right);
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-justifyright-command
+bool command_justify_right_state(DOM::Document const& document)
+{
+    return justify_state(document, JustifyAlignment::Right);
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-justifyright-command
+String command_justify_right_value(DOM::Document const& document)
+{
+    return justify_value(document);
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-removeformat-command
 bool command_remove_format_action(DOM::Document& document, String const&)
 {
@@ -2281,6 +2463,42 @@ static Array const commands {
         .action = command_italic_action,
         .relevant_css_property = CSS::PropertyID::FontStyle,
         .inline_activated_values = { "italic"sv, "oblique"sv },
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-justifycenter-command
+    CommandDefinition {
+        .command = CommandNames::justifyCenter,
+        .action = command_justify_center_action,
+        .indeterminate = command_justify_center_indeterminate,
+        .state = command_justify_center_state,
+        .value = command_justify_center_value,
+        .preserves_overrides = true,
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-justifyfull-command
+    CommandDefinition {
+        .command = CommandNames::justifyFull,
+        .action = command_justify_full_action,
+        .indeterminate = command_justify_full_indeterminate,
+        .state = command_justify_full_state,
+        .value = command_justify_full_value,
+        .preserves_overrides = true,
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-justifyleft-command
+    CommandDefinition {
+        .command = CommandNames::justifyLeft,
+        .action = command_justify_left_action,
+        .indeterminate = command_justify_left_indeterminate,
+        .state = command_justify_left_state,
+        .value = command_justify_left_value,
+        .preserves_overrides = true,
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-justifyright-command
+    CommandDefinition {
+        .command = CommandNames::justifyRight,
+        .action = command_justify_right_action,
+        .indeterminate = command_justify_right_indeterminate,
+        .state = command_justify_right_state,
+        .value = command_justify_right_value,
+        .preserves_overrides = true,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-removeformat-command
     CommandDefinition {
