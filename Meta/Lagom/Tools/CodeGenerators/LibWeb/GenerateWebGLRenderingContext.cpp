@@ -512,6 +512,11 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 #include <LibWeb/WebGL/WebGLVertexArrayObject.h>
 #include <LibWeb/WebIDL/Buffers.h>
 
+#include <core/SkColorSpace.h>
+#include <core/SkColorType.h>
+#include <core/SkImage.h>
+#include <core/SkPixmap.h>
+
 namespace Web::WebGL {
 
 static Vector<GLchar> null_terminated_string(StringView string)
@@ -521,6 +526,282 @@ static Vector<GLchar> null_terminated_string(StringView string)
         result.append(c);
     result.append('\\0');
     return result;
+}
+)~~~");
+
+    if (webgl_version == 2) {
+        implementation_file_generator.append(R"~~~(
+static constexpr Optional<int> opengl_format_number_of_components(WebIDL::UnsignedLong format)
+{
+    switch (format) {
+    case GL_RED:
+    case GL_RED_INTEGER:
+    case GL_LUMINANCE:
+    case GL_ALPHA:
+    case GL_DEPTH_COMPONENT:
+        return 1;
+    case GL_RG:
+    case GL_RG_INTEGER:
+    case GL_DEPTH_STENCIL:
+    case GL_LUMINANCE_ALPHA:
+        return 2;
+    case GL_RGB:
+    case GL_RGB_INTEGER:
+        return 3;
+    case GL_RGBA:
+    case GL_RGBA_INTEGER:
+        return 4;
+    default:
+        return OptionalNone {};
+    }
+}
+
+static constexpr Optional<int> opengl_type_size_in_bytes(WebIDL::UnsignedLong type)
+{
+    switch (type) {
+    case GL_UNSIGNED_BYTE:
+    case GL_BYTE:
+        return 1;
+    case GL_UNSIGNED_SHORT:
+    case GL_SHORT:
+    case GL_HALF_FLOAT:
+    case GL_UNSIGNED_SHORT_5_6_5:
+    case GL_UNSIGNED_SHORT_4_4_4_4:
+    case GL_UNSIGNED_SHORT_5_5_5_1:
+        return 2;
+    case GL_UNSIGNED_INT:
+    case GL_INT:
+    case GL_UNSIGNED_INT_2_10_10_10_REV:
+    case GL_UNSIGNED_INT_10F_11F_11F_REV:
+    case GL_UNSIGNED_INT_5_9_9_9_REV:
+    case GL_UNSIGNED_INT_24_8:
+        return 4;
+    case GL_FLOAT_32_UNSIGNED_INT_24_8_REV:
+        return 8;
+    default:
+        return OptionalNone {};
+    }
+}
+
+static constexpr SkColorType opengl_format_and_type_to_skia_color_type(WebIDL::UnsignedLong format, WebIDL::UnsignedLong type)
+{
+    switch (format)
+    {
+    case GL_RGB:
+        switch (type) {
+        case GL_UNSIGNED_BYTE:
+            return SkColorType::kRGB_888x_SkColorType;
+        case GL_UNSIGNED_SHORT_5_6_5:
+            return SkColorType::kRGB_565_SkColorType;
+        default:
+            break;
+        }
+        break;
+    case GL_RGBA:
+        switch (type) {
+        case GL_UNSIGNED_BYTE:
+            return SkColorType::kRGBA_8888_SkColorType;
+        case GL_UNSIGNED_SHORT_4_4_4_4:
+            // FIXME: This is not exactly the same as RGBA.
+            return SkColorType::kARGB_4444_SkColorType;
+        case GL_UNSIGNED_SHORT_5_5_5_1:
+            dbgln("WebGL2 FIXME: Support conversion to RGBA5551.");
+            break;
+        default:
+            break;
+        }
+        break;
+    case GL_ALPHA:
+        switch (type) {
+        case GL_UNSIGNED_BYTE:
+            return SkColorType::kAlpha_8_SkColorType;
+        default:
+            break;
+        }
+        break;
+    case GL_LUMINANCE:
+        switch (type) {
+        case GL_UNSIGNED_BYTE:
+            return SkColorType::kGray_8_SkColorType;
+        default:
+            break;
+        }
+        break;
+    default:
+        break;
+    }
+
+    dbgln("WebGL2: Unsupported format and type combination. format: 0x{:04x}, type: 0x{:04x}", format, type);
+    return SkColorType::kUnknown_SkColorType;
+}
+)~~~");
+    } else {
+        implementation_file_generator.append(R"~~~(
+static constexpr Optional<int> opengl_format_number_of_components(WebIDL::UnsignedLong format)
+{
+    switch (format) {
+    case GL_LUMINANCE:
+    case GL_ALPHA:
+        return 1;
+    case GL_LUMINANCE_ALPHA:
+        return 2;
+    case GL_RGB:
+        return 3;
+    case GL_RGBA:
+        return 4;
+    default:
+        return OptionalNone {};
+    }
+}
+
+static constexpr Optional<int> opengl_type_size_in_bytes(WebIDL::UnsignedLong type)
+{
+    switch (type) {
+    case GL_UNSIGNED_BYTE:
+        return 1;
+    case GL_UNSIGNED_SHORT_5_6_5:
+    case GL_UNSIGNED_SHORT_4_4_4_4:
+    case GL_UNSIGNED_SHORT_5_5_5_1:
+        return 2;
+    default:
+        return OptionalNone {};
+    }
+}
+
+static constexpr SkColorType opengl_format_and_type_to_skia_color_type(WebIDL::UnsignedLong format, WebIDL::UnsignedLong type)
+{
+    switch (format)
+    {
+    case GL_RGB:
+        switch (type) {
+        case GL_UNSIGNED_BYTE:
+            return SkColorType::kRGB_888x_SkColorType;
+        case GL_UNSIGNED_SHORT_5_6_5:
+            return SkColorType::kRGB_565_SkColorType;
+        default:
+            break;
+        }
+        break;
+    case GL_RGBA:
+        switch (type) {
+        case GL_UNSIGNED_BYTE:
+            return SkColorType::kRGBA_8888_SkColorType;
+        case GL_UNSIGNED_SHORT_4_4_4_4:
+            // FIXME: This is not exactly the same as RGBA.
+            return SkColorType::kARGB_4444_SkColorType;
+        case GL_UNSIGNED_SHORT_5_5_5_1:
+            dbgln("WebGL FIXME: Support conversion to RGBA5551.");
+            break;
+        default:
+            break;
+        }
+        break;
+    case GL_ALPHA:
+        switch (type) {
+        case GL_UNSIGNED_BYTE:
+            return SkColorType::kAlpha_8_SkColorType;
+        default:
+            break;
+        }
+        break;
+    case GL_LUMINANCE:
+        switch (type) {
+        case GL_UNSIGNED_BYTE:
+            return SkColorType::kGray_8_SkColorType;
+        default:
+            break;
+        }
+        break;
+    default:
+        break;
+    }
+
+    dbgln("WebGL: Unsupported format and type combination. format: 0x{:04x}, type: 0x{:04x}", format, type);
+    return SkColorType::kUnknown_SkColorType;
+}
+)~~~");
+    }
+
+    implementation_file_generator.append(R"~~~(
+struct ConvertedTexture {
+    ByteBuffer buffer;
+    int width { 0 };
+    int height { 0 };
+};
+
+static Optional<ConvertedTexture> read_and_pixel_convert_texture_image_source(Variant<GC::Root<ImageBitmap>, GC::Root<ImageData>, GC::Root<HTMLImageElement>, GC::Root<HTMLCanvasElement>, GC::Root<HTMLVideoElement>> const& source, WebIDL::UnsignedLong format, WebIDL::UnsignedLong type, Optional<int> destination_width = OptionalNone {}, Optional<int> destination_height = OptionalNone {})
+{
+    // FIXME: If this function is called with an ImageData whose data attribute has been neutered,
+    //        an INVALID_VALUE error is generated.
+    // FIXME: If this function is called with an ImageBitmap that has been neutered, an INVALID_VALUE
+    //        error is generated.
+    // FIXME: If this function is called with an HTMLImageElement or HTMLVideoElement whose origin
+    //        differs from the origin of the containing Document, or with an HTMLCanvasElement,
+    //        ImageBitmap or OffscreenCanvas whose bitmap's origin-clean flag is set to false,
+    //        a SECURITY_ERR exception must be thrown. See Origin Restrictions.
+    // FIXME: If source is null then an INVALID_VALUE error is generated.
+    auto bitmap = source.visit(
+        [](GC::Root<HTMLImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
+            return source->immutable_bitmap();
+        },
+        [](GC::Root<HTMLCanvasElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
+            auto surface = source->surface();
+            if (!surface)
+                return {};
+            auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Premultiplied, surface->size()));
+            surface->read_into_bitmap(*bitmap);
+            return Gfx::ImmutableBitmap::create(*bitmap);
+        },
+        [](GC::Root<HTMLVideoElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
+            return Gfx::ImmutableBitmap::create(*source->bitmap());
+        },
+        [](GC::Root<ImageBitmap> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
+            return Gfx::ImmutableBitmap::create(*source->bitmap());
+        },
+        [](GC::Root<ImageData> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
+            return Gfx::ImmutableBitmap::create(source->bitmap());
+        });
+    if (!bitmap)
+        return OptionalNone {};
+
+    int width = destination_width.value_or(bitmap->width());
+    int height = destination_height.value_or(bitmap->height());
+
+    Checked<size_t> buffer_pitch = width;
+
+    auto number_of_components = opengl_format_number_of_components(format);
+    if (!number_of_components.has_value())
+        return OptionalNone {};
+
+    buffer_pitch *= number_of_components.value();
+
+    auto type_size = opengl_type_size_in_bytes(type);
+    if (!type_size.has_value())
+        return OptionalNone {};
+
+    buffer_pitch *= type_size.value();
+
+    if (buffer_pitch.has_overflow())
+        return OptionalNone {};
+
+    if (Checked<size_t>::multiplication_would_overflow(buffer_pitch.value(), height))
+        return OptionalNone {};
+
+    auto buffer = MUST(ByteBuffer::create_zeroed(buffer_pitch.value() * height));
+
+    auto skia_format = opengl_format_and_type_to_skia_color_type(format, type);
+
+    // FIXME: Respect UNPACK_PREMULTIPLY_ALPHA_WEBGL
+    // FIXME: Respect unpackColorSpace
+    auto color_space = SkColorSpace::MakeSRGB();
+    auto image_info = SkImageInfo::Make(width, height, skia_format, SkAlphaType::kPremul_SkAlphaType, color_space);
+    SkPixmap const pixmap(image_info, buffer.data(), buffer_pitch.value());
+    bitmap->sk_image()->readPixels(pixmap, 0, 0);
+    return ConvertedTexture {
+        .buffer = move(buffer),
+        .width = width,
+        .height = height,
+    };
 }
 
 @class_name@::@class_name@(JS::Realm& realm, NonnullOwnPtr<OpenGLContext> context)
@@ -825,52 +1106,21 @@ public:
         }
 
         if (function.name == "texImage2D"sv && (function.overload_index == 1 || (webgl_version == 2 && function.overload_index == 2))) {
-            // FIXME: If this function is called with an ImageData whose data attribute has been neutered,
-            //        an INVALID_VALUE error is generated.
-            // FIXME: If this function is called with an ImageBitmap that has been neutered, an INVALID_VALUE
-            //        error is generated.
-            // FIXME: If this function is called with an HTMLImageElement or HTMLVideoElement whose origin
-            //        differs from the origin of the containing Document, or with an HTMLCanvasElement,
-            //        ImageBitmap or OffscreenCanvas whose bitmap's origin-clean flag is set to false,
-            //        a SECURITY_ERR exception must be thrown. See Origin Restrictions.
-            // FIXME: If source is null then an INVALID_VALUE error is generated.
-            function_impl_generator.append(R"~~~(
-    auto bitmap = source.visit(
-        [](GC::Root<HTMLImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            return source->immutable_bitmap();
-        },
-        [](GC::Root<HTMLCanvasElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            auto surface = source->surface();
-            if (!surface)
-                return {};
-            auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Premultiplied, surface->size()));
-            surface->read_into_bitmap(*bitmap);
-            return Gfx::ImmutableBitmap::create(*bitmap);
-        },
-        [](GC::Root<HTMLVideoElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            return Gfx::ImmutableBitmap::create(*source->bitmap());
-        },
-        [](GC::Root<ImageBitmap> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            return Gfx::ImmutableBitmap::create(*source->bitmap());
-        },
-        [](GC::Root<ImageData> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            return Gfx::ImmutableBitmap::create(source->bitmap());
-        });
-    if (!bitmap)
-        return;
-
-    void const* pixels_ptr = bitmap->bitmap()->begin();
-)~~~");
-
             if (webgl_version == 2 && function.overload_index == 2) {
                 function_impl_generator.append(R"~~~(
-    glTexImage2D(target, level, internalformat, width, height, border, format, type, pixels_ptr);
+    auto maybe_converted_texture = read_and_pixel_convert_texture_image_source(source, format, type, width, height);
+    if (!maybe_converted_texture.has_value())
+        return;
+    auto converted_texture = maybe_converted_texture.release_value();
+    glTexImage2D(target, level, internalformat, converted_texture.width, converted_texture.height, border, format, type, converted_texture.buffer.data());
 )~~~");
             } else {
                 function_impl_generator.append(R"~~~(
-    int width = bitmap->width();
-    int height = bitmap->height();
-    glTexImage2D(target, level, internalformat, width, height, 0, format, type, pixels_ptr);
+    auto maybe_converted_texture = read_and_pixel_convert_texture_image_source(source, format, type);
+    if (!maybe_converted_texture.has_value())
+        return;
+    auto converted_texture = maybe_converted_texture.release_value();
+    glTexImage2D(target, level, internalformat, converted_texture.width, converted_texture.height, 0, format, type, converted_texture.buffer.data());
 )~~~");
             }
             continue;
@@ -903,53 +1153,22 @@ public:
         }
 
         if (function.name == "texSubImage2D" && (function.overload_index == 1 || (webgl_version == 2 && function.overload_index == 2))) {
-            // FIXME: If this function is called with an ImageData whose data attribute has been neutered,
-            //        an INVALID_VALUE error is generated.
-            // FIXME: If this function is called with an ImageBitmap that has been neutered, an INVALID_VALUE
-            //        error is generated.
-            // FIXME: If this function is called with an HTMLImageElement or HTMLVideoElement whose origin
-            //        differs from the origin of the containing Document, or with an HTMLCanvasElement,
-            //        ImageBitmap or OffscreenCanvas whose bitmap's origin-clean flag is set to false,
-            //        a SECURITY_ERR exception must be thrown. See Origin Restrictions.
-            // FIXME: If source is null then an INVALID_VALUE error is generated.
-            function_impl_generator.append(R"~~~(
-    auto bitmap = source.visit(
-        [](GC::Root<HTMLImageElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            return source->immutable_bitmap();
-        },
-        [](GC::Root<HTMLCanvasElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            auto surface = source->surface();
-            if (!surface)
-                return {};
-            auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Premultiplied, surface->size()));
-            surface->read_into_bitmap(*bitmap);
-            return Gfx::ImmutableBitmap::create(*bitmap);
-        },
-        [](GC::Root<HTMLVideoElement> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            return Gfx::ImmutableBitmap::create(*source->bitmap());
-        },
-        [](GC::Root<ImageBitmap> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            return Gfx::ImmutableBitmap::create(*source->bitmap());
-        },
-        [](GC::Root<ImageData> const& source) -> RefPtr<Gfx::ImmutableBitmap> {
-            return Gfx::ImmutableBitmap::create(source->bitmap());
-        });
-    if (!bitmap)
-        return;
-
-    void const* pixels_ptr = bitmap->bitmap()->begin();
-)~~~");
             if (webgl_version == 2 && function.overload_index == 2) {
                 function_impl_generator.append(R"~~~(
-    glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels_ptr);
+    auto maybe_converted_texture = read_and_pixel_convert_texture_image_source(source, format, type, width, height);
 )~~~");
             } else {
                 function_impl_generator.append(R"~~~(
-    int width = bitmap->width();
-    int height = bitmap->height();
-    glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels_ptr);
+    auto maybe_converted_texture = read_and_pixel_convert_texture_image_source(source, format, type);
 )~~~");
             }
+
+            function_impl_generator.append(R"~~~(
+    if (!maybe_converted_texture.has_value())
+        return;
+    auto converted_texture = maybe_converted_texture.release_value();
+    glTexSubImage2D(target, level, xoffset, yoffset, converted_texture.width, converted_texture.height, format, type, converted_texture.buffer.data());
+)~~~");
             continue;
         }
 
