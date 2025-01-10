@@ -381,9 +381,12 @@ void PageClient::page_did_request_link_context_menu(Web::CSSPixelPoint content_p
     client().async_did_request_link_context_menu(m_id, page().css_to_device_point(content_position).to_type<int>(), url, target, modifiers);
 }
 
-void PageClient::page_did_request_image_context_menu(Web::CSSPixelPoint content_position, URL::URL const& url, ByteString const& target, unsigned modifiers, Gfx::Bitmap const* bitmap_pointer)
+void PageClient::page_did_request_image_context_menu(Web::CSSPixelPoint content_position, URL::URL const& url, ByteString const& target, unsigned modifiers, Optional<Gfx::Bitmap const*> bitmap_pointer)
 {
-    auto bitmap = bitmap_pointer ? bitmap_pointer->to_shareable_bitmap() : Gfx::ShareableBitmap();
+    Optional<Gfx::ShareableBitmap> bitmap;
+    if (bitmap_pointer.has_value() && bitmap_pointer.value())
+        bitmap = bitmap_pointer.value()->to_shareable_bitmap();
+
     client().async_did_request_image_context_menu(m_id, page().css_to_device_point(content_position).to_type<int>(), url, target, modifiers, bitmap);
 }
 

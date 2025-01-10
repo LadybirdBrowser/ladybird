@@ -37,7 +37,7 @@ endpoint WebContentClient
     did_middle_click_link(u64 page_id, URL::URL url, ByteString target, unsigned modifiers) =|
     did_request_context_menu(u64 page_id, Gfx::IntPoint content_position) =|
     did_request_link_context_menu(u64 page_id, Gfx::IntPoint content_position, URL::URL url, ByteString target, unsigned modifiers) =|
-    did_request_image_context_menu(u64 page_id, Gfx::IntPoint content_position, URL::URL url, ByteString target, unsigned modifiers, Gfx::ShareableBitmap bitmap) =|
+    did_request_image_context_menu(u64 page_id, Gfx::IntPoint content_position, URL::URL url, ByteString target, unsigned modifiers, Optional<Gfx::ShareableBitmap> bitmap) =|
     did_request_media_context_menu(u64 page_id, Gfx::IntPoint content_position, ByteString target, unsigned modifiers, Web::Page::MediaContextMenu menu) =|
     did_request_alert(u64 page_id, String message) =|
     did_request_confirm(u64 page_id, String message) =|

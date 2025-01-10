@@ -508,7 +508,11 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPix
                     if (is<HTML::HTMLImageElement>(*node)) {
                         auto& image_element = verify_cast<HTML::HTMLImageElement>(*node);
                         auto image_url = image_element.document().encoding_parse_url(image_element.src());
-                        m_navigable->page().client().page_did_request_image_context_menu(viewport_position, image_url, "", modifiers, image_element.immutable_bitmap()->bitmap());
+                        Optional<Gfx::Bitmap const*> bitmap;
+                        if (image_element.immutable_bitmap())
+                            bitmap = image_element.immutable_bitmap()->bitmap();
+
+                        m_navigable->page().client().page_did_request_image_context_menu(viewport_position, image_url, "", modifiers, bitmap);
                     } else if (is<HTML::HTMLMediaElement>(*node)) {
                         auto& media_element = verify_cast<HTML::HTMLMediaElement>(*node);
 

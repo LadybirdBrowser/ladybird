@@ -151,7 +151,8 @@ private:
     URL::URL m_link_context_menu_url;
 
     QMenu* m_image_context_menu { nullptr };
-    Gfx::ShareableBitmap m_image_context_menu_bitmap;
+    QAction* m_image_context_menu_copy_image_action { nullptr };
+    Optional<Gfx::ShareableBitmap> m_image_context_menu_bitmap;
     URL::URL m_image_context_menu_url;
 
     QMenu* m_audio_context_menu { nullptr };

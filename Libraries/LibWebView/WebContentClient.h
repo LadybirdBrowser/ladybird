@@ -66,7 +66,7 @@ private:
     virtual void did_start_loading(u64 page_id, URL::URL const&, bool) override;
     virtual void did_request_context_menu(u64 page_id, Gfx::IntPoint) override;
     virtual void did_request_link_context_menu(u64 page_id, Gfx::IntPoint, URL::URL const&, ByteString const&, unsigned) override;
-    virtual void did_request_image_context_menu(u64 page_id, Gfx::IntPoint, URL::URL const&, ByteString const&, unsigned, Gfx::ShareableBitmap const&) override;
+    virtual void did_request_image_context_menu(u64 page_id, Gfx::IntPoint, URL::URL const&, ByteString const&, unsigned, Optional<Gfx::ShareableBitmap> const&) override;
     virtual void did_request_media_context_menu(u64 page_id, Gfx::IntPoint, ByteString const&, unsigned, Web::Page::MediaContextMenu const&) override;
     virtual void did_get_source(u64 page_id, URL::URL const&, URL::URL const&, String const&) override;
     virtual void did_inspect_dom_tree(u64 page_id, ByteString const&) override;
