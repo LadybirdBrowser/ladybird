@@ -52,8 +52,10 @@ private:
 
     virtual void inserted() override;
     virtual void removed_from(Node*) override;
+    virtual void children_changed() override;
 
     void ask_for_a_reset();
+    void update_selection_label();
 
     // https://html.spec.whatwg.org/multipage/form-elements.html#concept-option-selectedness
     bool m_selected { false };
