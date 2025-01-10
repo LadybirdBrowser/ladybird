@@ -48,7 +48,7 @@ void NodeIterator::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createnodeiterator
-WebIDL::ExceptionOr<GC::Ref<NodeIterator>> NodeIterator::create(JS::Realm& realm, Node& root, unsigned what_to_show, GC::Ptr<NodeFilter> filter)
+GC::Ref<NodeIterator> NodeIterator::create(JS::Realm& realm, Node& root, unsigned what_to_show, GC::Ptr<NodeFilter> filter)
 {
     // 1. Let iterator be a new NodeIterator object.
     // 2. Set iterator’s root and iterator’s reference to root.
