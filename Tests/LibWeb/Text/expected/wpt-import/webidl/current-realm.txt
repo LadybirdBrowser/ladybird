@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 33 tests
 
-29 Pass
-4 Fail
+30 Pass
+3 Fail
 Pass	querySelectorAll
 Pass	createElement
 Pass	createElementNS
@@ -16,7 +16,7 @@ Pass	createAttributeNS
 Pass	createEvent
 Pass	createRange
 Pass	createNodeIterator
-Fail	createTreeWalker
+Pass	createTreeWalker
 Pass	Request
 Pass	Response
 Fail	getElementsByTagName
