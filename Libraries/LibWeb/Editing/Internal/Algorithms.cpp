@@ -30,6 +30,7 @@
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLLIElement.h>
 #include <LibWeb/HTML/HTMLOListElement.h>
+#include <LibWeb/HTML/HTMLParagraphElement.h>
 #include <LibWeb/HTML/HTMLTableCellElement.h>
 #include <LibWeb/HTML/HTMLTableRowElement.h>
 #include <LibWeb/HTML/HTMLTableSectionElement.h>
@@ -3380,6 +3381,121 @@ void restore_the_values_of_nodes(Vector<RecordedNodeValue> const& values)
     }
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#selection's-list-state
+SelectionsListState selections_list_state(DOM::Document const& document)
+{
+    // 1. If the active range is null, return "none".
+    auto range = active_range(document);
+    if (!range)
+        return SelectionsListState::None;
+
+    // 2. Block-extend the active range, and let new range be the result.
+    auto new_range = block_extend_a_range(*range);
+
+    // 3. Let node list be a list of nodes, initially empty.
+    Vector<GC::Ref<DOM::Node>> node_list;
+
+    // 4. For each node contained in new range, append node to node list if the last member of node list (if any) is not
+    //    an ancestor of node; node is editable; node is not an indentation element; and node is either an ol or ul, or
+    //    the child of an ol or ul, or an allowed child of "li".
+    new_range->for_each_contained([&node_list](GC::Ref<DOM::Node> node) {
+        if ((node_list.is_empty() || !node_list.last()->is_ancestor_of(node))
+            && node->is_editable()
+            && !is_indentation_element(node)
+            && ((is<HTML::HTMLOListElement>(*node) || is<HTML::HTMLUListElement>(*node))
+                || (is<HTML::HTMLOListElement>(node->parent()) || is<HTML::HTMLUListElement>(node->parent()))
+                || is_allowed_child_of_node(node, HTML::TagNames::li)))
+            node_list.append(node);
+        return IterationDecision::Continue;
+    });
+
+    // 5. If node list is empty, return "none".
+    if (node_list.is_empty())
+        return SelectionsListState::None;
+
+    // 6. If every member of node list is either an ol or the child of an ol or the child of an li child of an ol, and
+    //    none is a ul or an ancestor of a ul, return "ol".
+    auto is_ancestor_of_type = []<typename T>(GC::Ref<DOM::Node> node) {
+        bool has_type = false;
+        node->for_each_in_subtree([&has_type](GC::Ref<DOM::Node> descendant) {
+            if (is<T>(*descendant)) {
+                has_type = true;
+                return TraversalDecision::Break;
+            }
+            return TraversalDecision::Continue;
+        });
+        return has_type;
+    };
+    auto is_type_or_child_of_list_type = []<typename T>(GC::Ref<DOM::Node> node) {
+        return is<T>(*node) || is<T>(node->parent())
+            || (is<HTML::HTMLLIElement>(node->parent()) && is<T>(node->parent()->parent()));
+    };
+    auto is_type_or_child_or_ancestor_of_list_type = [&]<typename T>(GC::Ref<DOM::Node> node) {
+        return is_type_or_child_of_list_type.operator()<T>(node) || is_ancestor_of_type.operator()<T>(node);
+    };
+
+    bool all_is_an_ol = true;
+    bool none_is_a_ul = true;
+    for (auto node : node_list) {
+        if (!is_type_or_child_of_list_type.operator()<HTML::HTMLOListElement>(*node)) {
+            all_is_an_ol = false;
+            break;
+        }
+        if (is<HTML::HTMLUListElement>(*node) || is_ancestor_of_type.operator()<HTML::HTMLUListElement>(node)) {
+            none_is_a_ul = false;
+            break;
+        }
+    }
+    if (all_is_an_ol && none_is_a_ul)
+        return SelectionsListState::Ol;
+
+    // 7. If every member of node list is either a ul or the child of a ul or the child of an li child of a ul, and none
+    //    is an ol or an ancestor of an ol, return "ul".
+    bool all_is_a_ul = true;
+    bool none_is_an_ol = true;
+    for (auto node : node_list) {
+        if (!is_type_or_child_of_list_type.operator()<HTML::HTMLUListElement>(*node)) {
+            all_is_a_ul = false;
+            break;
+        }
+        if (is<HTML::HTMLOListElement>(*node) || is_ancestor_of_type.operator()<HTML::HTMLOListElement>(node)) {
+            none_is_an_ol = false;
+            break;
+        }
+    }
+    if (all_is_a_ul && none_is_an_ol)
+        return SelectionsListState::Ul;
+
+    // 8. If some member of node list is either an ol or the child or ancestor of an ol or the child of an li child of
+    //    an ol, and some member of node list is either a ul or the child or ancestor of a ul or the child of an li
+    //    child of a ul, return "mixed".
+    bool any_is_ol = false;
+    bool any_is_ul = false;
+    for (auto node : node_list) {
+        if (is_type_or_child_or_ancestor_of_list_type.operator()<HTML::HTMLOListElement>(*node))
+            any_is_ol = true;
+        if (is_type_or_child_or_ancestor_of_list_type.operator()<HTML::HTMLUListElement>(*node))
+            any_is_ul = true;
+        if (any_is_ol && any_is_ul)
+            break;
+    }
+    if (any_is_ol && any_is_ul)
+        return SelectionsListState::Mixed;
+
+    // 9. If some member of node list is either an ol or the child or ancestor of an ol or the child of an li child of
+    //    an ol, return "mixed ol".
+    if (any_is_ol)
+        return SelectionsListState::MixedOl;
+
+    // 10. If some member of node list is either a ul or the child or ancestor of a ul or the child of an li child of a
+    //     ul, return "mixed ul".
+    if (any_is_ul)
+        return SelectionsListState::MixedUl;
+
+    // 11. Return "none".
+    return SelectionsListState::None;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#set-the-selection's-value
 void set_the_selections_value(DOM::Document& document, FlyString const& command, Optional<String> new_value)
 {
@@ -3741,6 +3857,290 @@ void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const& node_list)
     //     extraneous line breaks at the end of node list's last member's parent.
     if (!last_node->next_sibling() && last_node->parent())
         remove_extraneous_line_breaks_at_the_end_of_node(*last_node->parent());
+}
+
+enum class ToggleListMode : u8 {
+    Enable,
+    Disable,
+};
+
+// https://w3c.github.io/editing/docs/execCommand/#toggle-lists
+void toggle_lists(DOM::Document& document, FlyString const& tag_name)
+{
+    VERIFY(first_is_one_of(tag_name, HTML::TagNames::ol, HTML::TagNames::ul));
+
+    // 1. Let mode be "disable" if the selection's list state is tag name, and "enable" otherwise.
+    auto mode = ToggleListMode::Enable;
+    auto list_state = selections_list_state(document);
+    if ((list_state == SelectionsListState::Ol && tag_name == HTML::TagNames::ol)
+        || (list_state == SelectionsListState::Ul && tag_name == HTML::TagNames::ul))
+        mode = ToggleListMode::Disable;
+
+    // 2. Let other tag name be "ol" if tag name is "ul", and "ul" if tag name is "ol".
+    auto other_tag_name = tag_name == HTML::TagNames::ul ? HTML::TagNames::ol : HTML::TagNames::ul;
+
+    // 3. Let items be a list of all lis that are inclusive ancestors of the active range's start and/or end node.
+    Vector<GC::Ref<DOM::Node>> items;
+    auto add_li_ancestors = [&items](GC::Ref<DOM::Node> node) {
+        node->for_each_inclusive_ancestor([&items](GC::Ref<DOM::Node> ancestor) {
+            if (is<HTML::HTMLLIElement>(*ancestor) && !items.contains_slow(ancestor))
+                items.append(ancestor);
+            return IterationDecision::Continue;
+        });
+    };
+    auto range = active_range(document);
+    add_li_ancestors(range->start_container());
+    add_li_ancestors(range->end_container());
+
+    // 4. For each item in items, normalize sublists of item.
+    for (auto item : items)
+        normalize_sublists_in_node(item);
+
+    // 5. Block-extend the active range, and let new range be the result.
+    auto new_range = block_extend_a_range(*active_range(document));
+
+    // 6. If mode is "enable", then let lists to convert consist of every editable HTML element with local name other
+    //    tag name that is contained in new range, and for every list in lists to convert:
+    if (mode == ToggleListMode::Enable) {
+        Vector<GC::Ref<DOM::Node>> lists_to_convert;
+        new_range->for_each_contained([&](GC::Ref<DOM::Node> node) {
+            if (node->is_editable() && is<HTML::HTMLElement>(*node)
+                && static_cast<DOM::Element&>(*node).local_name() == other_tag_name)
+                lists_to_convert.append(node);
+            return IterationDecision::Continue;
+        });
+        for (auto list : lists_to_convert) {
+            // 1. If list's previousSibling or nextSibling is an editable HTML element with local name tag name:
+            if ((is<HTML::HTMLElement>(list->previous_sibling()) && list->previous_sibling()->is_editable()
+                    && static_cast<DOM::Element&>(*list->previous_sibling()).local_name() == tag_name)
+                || (is<HTML::HTMLElement>(list->next_sibling()) && list->next_sibling()->is_editable()
+                    && static_cast<DOM::Element&>(*list->next_sibling()).local_name() == tag_name)) {
+                // 1. Let children be list's children.
+                Vector<GC::Ref<DOM::Node>> children;
+                list->for_each_child([&children](GC::Ref<DOM::Node> child) {
+                    children.append(child);
+                    return IterationDecision::Continue;
+                });
+
+                // 2. Record the values of children, and let values be the result.
+                auto values = record_the_values_of_nodes(children);
+
+                // 3. Split the parent of children.
+                split_the_parent_of_nodes(children);
+
+                // 4. Wrap children, with sibling criteria returning true for an HTML element with local name tag name and
+                //    false otherwise.
+                wrap(
+                    children,
+                    [&tag_name](GC::Ref<DOM::Node> sibling) {
+                        return is<HTML::HTMLElement>(*sibling)
+                            && static_cast<DOM::Element&>(*sibling).local_name() == tag_name;
+                    },
+                    {});
+
+                // 5. Restore the values from values.
+                restore_the_values_of_nodes(values);
+            }
+
+            // 2. Otherwise, set the tag name of list to tag name.
+            else {
+                set_the_tag_name(static_cast<DOM::Element&>(*list), tag_name);
+            }
+        }
+    }
+
+    // 7. Let node list be a list of nodes, initially empty.
+    Vector<GC::Ref<DOM::Node>> node_list;
+
+    // 8. For each node node contained in new range, if node is editable; the last member of node list (if any) is not
+    //    an ancestor of node; node is not an indentation element; and either node is an ol or ul, or its parent is an
+    //    ol or ul, or it is an allowed child of "li"; then append node to node list.
+    new_range->for_each_contained([&node_list](GC::Ref<DOM::Node> node) {
+        if (node->is_editable()
+            && (node_list.is_empty() || !node_list.last()->is_ancestor_of(node))
+            && !is_indentation_element(node)
+            && ((is<HTML::HTMLOListElement>(*node) || is<HTML::HTMLUListElement>(*node))
+                || (is<HTML::HTMLOListElement>(node->parent()) || is<HTML::HTMLUListElement>(node->parent()))
+                || is_allowed_child_of_node(node, HTML::TagNames::li)))
+            node_list.append(node);
+        return IterationDecision::Continue;
+    });
+
+    // 9. If mode is "enable", remove from node list any ol or ul whose parent is not also an ol or ul.
+    if (mode == ToggleListMode::Enable) {
+        node_list.remove_all_matching([](GC::Ref<DOM::Node> node) {
+            return (is<HTML::HTMLOListElement>(*node) && !is<HTML::HTMLOListElement>(node->parent()))
+                || (is<HTML::HTMLUListElement>(*node) && !is<HTML::HTMLUListElement>(node->parent()));
+        });
+    }
+
+    // 10. If mode is "disable", then while node list is not empty:
+    if (mode == ToggleListMode::Disable) {
+        while (!node_list.is_empty()) {
+            // 1. Let sublist be an empty list of nodes.
+            Vector<GC::Ref<DOM::Node>> sublist;
+
+            // 2. Remove the first member from node list and append it to sublist.
+            sublist.append(node_list.take_first());
+
+            // 3. If the first member of sublist is an HTML element with local name tag name, outdent it and continue this
+            //    loop from the beginning.
+            if (is<HTML::HTMLElement>(*sublist.first()) && static_cast<DOM::Element&>(*sublist.first()).local_name() == tag_name) {
+                outdent(sublist.first());
+                continue;
+            }
+
+            // 4. While node list is not empty, and the first member of node list is the nextSibling of the last member of
+            //    sublist and is not an HTML element with local name tag name, remove the first member from node list and
+            //    append it to sublist.
+            while (!node_list.is_empty() && node_list.first().ptr() == sublist.last()->next_sibling()
+                && !(is<HTML::HTMLElement>(*node_list.first()) && static_cast<DOM::Element&>(*node_list.first()).local_name() == tag_name))
+                sublist.append(node_list.take_first());
+
+            // 5. Record the values of sublist, and let values be the result.
+            auto values = record_the_values_of_nodes(sublist);
+
+            // 6. Split the parent of sublist.
+            split_the_parent_of_nodes(sublist);
+
+            // 7. Fix disallowed ancestors of each member of sublist.
+            for (auto member : sublist)
+                fix_disallowed_ancestors_of_node(member);
+
+            // 8. Restore the values from values.
+            restore_the_values_of_nodes(values);
+        }
+    }
+
+    // 11. Otherwise, while node list is not empty:
+    else {
+        while (!node_list.is_empty()) {
+            // 1. Let sublist be an empty list of nodes.
+            Vector<GC::Ref<DOM::Node>> sublist;
+
+            // 2. While either sublist is empty, or node list is not empty and its first member is the nextSibling of
+            //    sublist's last member:
+            while (sublist.is_empty() || (!node_list.is_empty() && node_list.first().ptr() == sublist.last()->next_sibling())) {
+                // 1. If node list's first member is a p or div, set the tag name of node list's first member to "li",
+                //    and append the result to sublist. Remove the first member from node list.
+                if (is<HTML::HTMLParagraphElement>(*node_list.first()) || is<HTML::HTMLDivElement>(*node_list.first())) {
+                    sublist.append(set_the_tag_name(static_cast<DOM::Element&>(*node_list.first()), HTML::TagNames::li));
+                    node_list.take_first();
+                }
+
+                // 2. Otherwise, if the first member of node list is an li or ol or ul, remove it from node list and
+                //    append it to sublist.
+                else if (is<DOM::Element>(*node_list.first())
+                    && (is<HTML::HTMLLIElement>(*node_list.first())
+                        || is<HTML::HTMLOListElement>(*node_list.first())
+                        || is<HTML::HTMLUListElement>(*node_list.first()))) {
+                    sublist.append(node_list.take_first());
+                }
+
+                // 3. Otherwise:
+                else {
+                    // 1. Let nodes to wrap be a list of nodes, initially empty.
+                    Vector<GC::Ref<DOM::Node>> nodes_to_wrap;
+
+                    // 2. While nodes to wrap is empty, or node list is not empty and its first member is the
+                    //    nextSibling of nodes to wrap's last member and the first member of node list is an inline node
+                    //    and the last member of nodes to wrap is an inline node other than a br, remove the first
+                    //    member from node list and append it to nodes to wrap.
+                    while (nodes_to_wrap.is_empty() || (!node_list.is_empty() && node_list.first().ptr() == nodes_to_wrap.last()->next_sibling() && is_inline_node(node_list.first()) && is_inline_node(nodes_to_wrap.last()) && !is<HTML::HTMLBRElement>(*nodes_to_wrap.last())))
+                        nodes_to_wrap.append(node_list.take_first());
+
+                    // 3. Wrap nodes to wrap, with new parent instructions returning the result of calling
+                    //    createElement("li") on the context object. Append the result to sublist.
+                    auto result = wrap(
+                        nodes_to_wrap,
+                        {},
+                        [&] { return MUST(DOM::create_element(document, HTML::TagNames::li, Namespace::HTML)); });
+                    if (result)
+                        sublist.append(*result);
+                }
+            }
+
+            // 3. If sublist's first member's parent is an HTML element with local name tag name, or if every member of
+            //    sublist is an ol or ul, continue this loop from the beginning.
+            if (!sublist.is_empty() && is<HTML::HTMLElement>(sublist.first()->parent())
+                && static_cast<DOM::Element&>(*sublist.first()->parent()).local_name() == tag_name)
+                continue;
+            bool all_are_ol_or_ul = true;
+            for (auto member : sublist) {
+                if (!is<HTML::HTMLOListElement>(*member) && !is<HTML::HTMLUListElement>(*member)) {
+                    all_are_ol_or_ul = false;
+                    break;
+                }
+            }
+            if (all_are_ol_or_ul)
+                continue;
+
+            // 4. If sublist's first member's parent is an HTML element with local name other tag name:
+            if (!sublist.is_empty() && is<HTML::HTMLElement>(sublist.first()->parent())
+                && static_cast<DOM::Element&>(*sublist.first()->parent()).local_name() == other_tag_name) {
+                // 1. Record the values of sublist, and let values be the result.
+                auto values = record_the_values_of_nodes(sublist);
+
+                // 2. Split the parent of sublist.
+                split_the_parent_of_nodes(sublist);
+
+                // 3. Wrap sublist, with sibling criteria returning true for an HTML element with local name tag name
+                //    and false otherwise, and new parent instructions returning the result of calling
+                //    createElement(tag name) on the context object.
+                wrap(
+                    sublist,
+                    [&](GC::Ref<DOM::Node> sibling) {
+                        return is<HTML::HTMLElement>(*sibling)
+                            && static_cast<DOM::Element&>(*sibling).local_name() == tag_name;
+                    },
+                    [&] { return MUST(DOM::create_element(document, tag_name, Namespace::HTML)); });
+
+                // 4. Restore the values from values.
+                restore_the_values_of_nodes(values);
+
+                // 5. Continue this loop from the beginning.
+                continue;
+            }
+
+            // 5. Wrap sublist, with sibling criteria returning true for an HTML element with local name tag name and
+            //    false otherwise, and new parent instructions being the following:
+            auto result = wrap(
+                sublist,
+                [&](GC::Ref<DOM::Node> sibling) {
+                    return is<HTML::HTMLElement>(*sibling)
+                        && static_cast<DOM::Element&>(*sibling).local_name() == tag_name;
+                },
+                [&] -> GC::Ptr<DOM::Node> {
+                    // 1. If sublist's first member's parent is not an editable simple indentation element, or sublist's
+                    //    first member's parent's previousSibling is not an editable HTML element with local name tag name,
+                    //    call createElement(tag name) on the context object and return the result.
+                    auto* first_parent = sublist.first()->parent();
+                    if (!first_parent->is_editable() || !is_simple_indentation_element(*first_parent)
+                        || !(is<HTML::HTMLElement>(first_parent->previous_sibling())
+                            && static_cast<DOM::Element&>(*first_parent->previous_sibling()).local_name() == tag_name))
+                        return MUST(DOM::create_element(document, tag_name, Namespace::HTML));
+
+                    // 2. Let list be sublist's first member's parent's previousSibling.
+                    GC::Ref<DOM::Node> list = *sublist.first()->parent()->previous_sibling();
+
+                    // 3. Normalize sublists of list's lastChild.
+                    normalize_sublists_in_node(*list->last_child());
+
+                    // 4. If list's lastChild is not an editable HTML element with local name tag name, call
+                    //    createElement(tag name) on the context object, and append the result as the last child of list.
+                    if (!list->last_child()->is_editable() || !is<HTML::HTMLElement>(list->last_child())
+                        || static_cast<DOM::Element&>(*list->last_child()).local_name() != tag_name)
+                        MUST(list->append_child(MUST(DOM::create_element(document, tag_name, Namespace::HTML))));
+
+                    // 5. Return the last child of list.
+                    return list->last_child();
+                });
+
+            // 6. Fix disallowed ancestors of the previous step's result.
+            if (result)
+                fix_disallowed_ancestors_of_node(*result);
+        }
+    }
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#equivalent-values

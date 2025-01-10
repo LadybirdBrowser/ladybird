@@ -1397,6 +1397,28 @@ bool command_insert_linebreak_action(DOM::Document& document, String const&)
     return true;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-insertorderedlist-command
+bool command_insert_ordered_list_action(DOM::Document& document, String const&)
+{
+    // Toggle lists with tag name "ol", then return true.
+    toggle_lists(document, HTML::TagNames::ol);
+    return true;
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-insertorderedlist-command
+bool command_insert_ordered_list_indeterminate(DOM::Document const& document)
+{
+    // True if the selection's list state is "mixed" or "mixed ol", false otherwise.
+    return first_is_one_of(selections_list_state(document), SelectionsListState::Mixed, SelectionsListState::MixedOl);
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-insertorderedlist-command
+bool command_insert_ordered_list_state(DOM::Document const& document)
+{
+    // True if the selection's list state is "ol", false otherwise.
+    return selections_list_state(document) == SelectionsListState::Ol;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-insertparagraph-command
 bool command_insert_paragraph_action(DOM::Document& document, String const&)
 {
@@ -2087,6 +2109,14 @@ static Array const commands {
     CommandDefinition {
         .command = CommandNames::insertLineBreak,
         .action = command_insert_linebreak_action,
+        .preserves_overrides = true,
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-insertorderedlist-command
+    CommandDefinition {
+        .command = CommandNames::insertOrderedList,
+        .action = command_insert_ordered_list_action,
+        .indeterminate = command_insert_ordered_list_indeterminate,
+        .state = command_insert_ordered_list_state,
         .preserves_overrides = true,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-insertparagraph-command

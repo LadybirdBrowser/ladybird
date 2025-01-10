@@ -1,0 +1,31 @@
+<script src="../include.js"></script>
+<div contenteditable="true" id="d1">foobar</div>
+<div contenteditable="true" id="d2"><ol><li>foobar</li></ol></div>
+<div contenteditable="true" id="d3"><ul><li>foobar</li></ul></div>
+<script>
+    test(() => {
+        const range = document.createRange();
+        getSelection().addRange(range);
+
+        // Create ordered list of 'foobar'
+        const div1 = document.querySelector('#d1');
+        range.setStart(div1.firstChild, 0);
+        range.setEnd(div1.firstChild, 6);
+        document.execCommand('insertOrderedList');
+        println(div1.innerHTML);
+
+        // De-ordered list 'foobar'
+        const div2 = document.querySelector('#d2');
+        range.setStart(div2.firstChild.firstChild.firstChild, 0);
+        range.setEnd(div2.firstChild.firstChild.firstChild, 6);
+        document.execCommand('insertOrderedList');
+        println(div2.innerHTML);
+
+        // Change type of list
+        const div3 = document.querySelector('#d3');
+        range.setStart(div3.firstChild.firstChild.firstChild, 0);
+        range.setEnd(div3.firstChild.firstChild.firstChild, 6);
+        document.execCommand('insertOrderedList');
+        println(div3.innerHTML);
+    });
+</script>
