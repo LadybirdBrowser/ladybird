@@ -34,6 +34,7 @@ public:
     u32 default_renderbuffer() const;
 
     Vector<String> get_supported_extensions();
+    void request_extension(char const* extension_name);
 
 private:
     NonnullRefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;

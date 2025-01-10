@@ -313,4 +313,14 @@ Vector<String> OpenGLContext::get_supported_extensions()
 #endif
 }
 
+void OpenGLContext::request_extension(char const* extension_name)
+{
+#ifdef AK_OS_MACOS
+    make_current();
+    glRequestExtensionANGLE(extension_name);
+#else
+    (void)extension_name;
+#endif
+}
+
 }
