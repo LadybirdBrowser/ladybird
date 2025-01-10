@@ -52,6 +52,7 @@ bool command_insert_ordered_list_action(DOM::Document&, String const&);
 bool command_insert_ordered_list_indeterminate(DOM::Document const&);
 bool command_insert_ordered_list_state(DOM::Document const&);
 bool command_insert_paragraph_action(DOM::Document&, String const&);
+bool command_insert_text_action(DOM::Document&, String const&);
 bool command_italic_action(DOM::Document&, String const&);
 bool command_remove_format_action(DOM::Document&, String const&);
 bool command_strikethrough_action(DOM::Document&, String const&);

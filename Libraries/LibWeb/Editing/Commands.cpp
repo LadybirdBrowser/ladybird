@@ -1726,6 +1726,121 @@ bool command_insert_paragraph_action(DOM::Document& document, String const&)
     return true;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-inserttext-command
+bool command_insert_text_action(DOM::Document& document, String const& value)
+{
+    // 1. Delete the selection, with strip wrappers false.
+    auto& selection = *document.get_selection();
+    delete_the_selection(selection, true, false);
+
+    // 2. If the active range's start node is neither editable nor an editing host, return true.
+    auto range = active_range(document);
+    if (!range->start_container()->is_editable_or_editing_host())
+        return true;
+
+    // 3. If value's length is greater than one:
+    if (value.code_points().length() > 1) {
+        // 1. For each code unit el in value, take the action for the insertText command, with value equal to el.
+        for (auto el : value.code_points())
+            command_insert_text_action(document, String::from_code_point(el));
+
+        // 2. Return true.
+        return true;
+    }
+
+    // 4. If value is the empty string, return true.
+    if (value.is_empty())
+        return true;
+
+    // 5. If value is a newline (U+000A), take the action for the insertParagraph command and return true.
+    if (value == "\n"sv) {
+        command_insert_paragraph_action(document, {});
+        return true;
+    }
+
+    // 6. Let node and offset be the active range's start node and offset.
+    auto node = range->start_container();
+    auto offset = range->start_offset();
+
+    // 7. If node has a child whose index is offset − 1, and that child is a Text node, set node to that child, then set
+    //    offset to node's length.
+    if (is<DOM::Text>(node->child_at_index(offset - 1))) {
+        node = *node->child_at_index(offset - 1);
+        offset = node->length();
+    }
+
+    // 8. If node has a child whose index is offset, and that child is a Text node, set node to that child, then set
+    //    offset to zero.
+    if (is<DOM::Text>(node->child_at_index(offset))) {
+        node = *node->child_at_index(offset);
+        offset = 0;
+    }
+
+    // 9. Record current overrides, and let overrides be the result.
+    auto overrides = record_current_overrides(document);
+
+    // 10. Call collapse(node, offset) on the context object's selection.
+    MUST(selection.collapse(node, offset));
+
+    // 11. Canonicalize whitespace at (node, offset).
+    canonicalize_whitespace({ node, offset });
+
+    // 12. Let (node, offset) be the active range's start.
+    range = *active_range(document);
+    node = range->start_container();
+    offset = range->start_offset();
+
+    // 13. If node is a Text node:
+    if (is<DOM::Text>(*node)) {
+        // 1. Call insertData(offset, value) on node.
+        MUST(static_cast<DOM::Text&>(*node).insert_data(offset, value));
+
+        // 2. Call collapse(node, offset) on the context object's selection.
+        MUST(selection.collapse(node, offset));
+
+        // 3. Call extend(node, offset + 1) on the context object's selection.
+        MUST(selection.extend(node, offset + 1));
+    }
+
+    // 14. Otherwise:
+    else {
+        // 1. If node has only one child, which is a collapsed line break, remove its child from it.
+        if (node->child_count() == 1 && is_collapsed_line_break(*node->first_child()))
+            node->first_child()->remove();
+
+        // 2. Let text be the result of calling createTextNode(value) on the context object.
+        auto text = document.create_text_node(value);
+
+        // 3. Call insertNode(text) on the active range.
+        MUST(active_range(document)->insert_node(text));
+
+        // 4. Call collapse(text, 0) on the context object's selection.
+        MUST(selection.collapse(text, 0));
+
+        // 5. Call extend(text, 1) on the context object's selection.
+        MUST(selection.extend(text, 1));
+    }
+
+    // 15. Restore states and values from overrides.
+    restore_states_and_values(document, overrides);
+
+    // 16. Canonicalize whitespace at the active range's start, with fix collapsed space false.
+    canonicalize_whitespace(active_range(document)->start(), false);
+
+    // 17. Canonicalize whitespace at the active range's end, with fix collapsed space false.
+    canonicalize_whitespace(active_range(document)->end(), false);
+
+    // 18. If value is a space character, autolink the active range's start.
+    if (value == " "sv)
+        autolink(active_range(document)->start());
+
+    // 19. Call collapseToEnd() on the context object's selection.
+    MUST(selection.collapse_to_end());
+
+    // 20. Return true.
+    return true;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-italic-command
 bool command_italic_action(DOM::Document& document, String const&)
 {
@@ -2124,6 +2239,11 @@ static Array const commands {
         .command = CommandNames::insertParagraph,
         .action = command_insert_paragraph_action,
         .preserves_overrides = true,
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-inserttext-command
+    CommandDefinition {
+        .command = CommandNames::insertText,
+        .action = command_insert_text_action,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-italic-command
     CommandDefinition {

@@ -55,6 +55,68 @@ GC::Ptr<DOM::Range> active_range(DOM::Document const& document)
     return selection->range();
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#autolink
+void autolink(DOM::BoundaryPoint point)
+{
+    // 1. While (node, end offset)'s previous equivalent point is not null, set it to its previous equivalent point.
+    while (true) {
+        auto previous_point = previous_equivalent_point(point);
+        if (!previous_point.has_value())
+            break;
+        point = previous_point.release_value();
+    }
+
+    // 2. If node is not a Text node, or has an a ancestor, do nothing and abort these steps.
+    if (!is<DOM::Text>(*point.node) || point.node->first_ancestor_of_type<HTML::HTMLAnchorElement>())
+        return;
+
+    // FIXME: 3. Let search be the largest substring of node's data whose end is end offset and that contains no space
+    //    characters.
+
+    // FIXME: 4. If some substring of search is an autolinkable URL:
+    String href;
+    if (false) {
+        // FIXME: 1. While there is no substring of node's data ending at end offset that is an autolinkable URL, decrement end
+        //    offset.
+
+        // FIXME: 2. Let start offset be the start index of the longest substring of node's data that is an autolinkable URL
+        //    ending at end offset.
+
+        // FIXME: 3. Let href be the substring of node's data starting at start offset and ending at end offset.
+    }
+
+    // FIXME: 5. Otherwise, if some substring of search is a valid e-mail address:
+    else if (false) {
+        // FIXME: 1. While there is no substring of node's data ending at end offset that is a valid e-mail address, decrement
+        //    end offset.
+
+        // FIXME: 2. Let start offset be the start index of the longest substring of node's data that is a valid e-mail address
+        //    ending at end offset.
+
+        // FIXME: 3. Let href be "mailto:" concatenated with the substring of node's data starting at start offset and ending
+        //    at end offset.
+    }
+
+    // 6. Otherwise, do nothing and abort these steps.
+    else {
+        return;
+    }
+
+    // 7. Let original range be the active range.
+    auto& document = point.node->document();
+    auto original_range = active_range(document);
+
+    // FIXME: 8. Create a new range with start (node, start offset) and end (node, end offset), and set the context object's
+    //    selection's range to it.
+
+    // 9. Take the action for "createLink", with value equal to href.
+    take_the_action_for_command(document, CommandNames::createLink, href);
+
+    // 10. Set the context object's selection's range to original range.
+    if (original_range)
+        document.get_selection()->add_range(*original_range);
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#block-extend
 GC::Ref<DOM::Range> block_extend_a_range(GC::Ref<DOM::Range> range)
 {
@@ -3268,19 +3330,12 @@ void restore_states_and_values(DOM::Document& document, Vector<RecordedOverride>
 
     // 2. If node is not null,
     if (node) {
-        auto take_the_action_for_command = [&document](FlyString const& command, String const& value) {
-            auto const& command_definition = find_command_definition(command);
-            // FIXME: replace with VERIFY(command_definition.has_value()) as soon as all command definitions are in place.
-            if (command_definition.has_value())
-                command_definition->action(document, value);
-        };
-
         // then for each (command, override) pair in overrides, in order:
         for (auto override : overrides) {
             // 1. If override is a boolean, and queryCommandState(command) returns something different from override,
             //    take the action for command, with value equal to the empty string.
             if (override.value.has<bool>() && document.query_command_state(override.command) != override.value.get<bool>()) {
-                take_the_action_for_command(override.command, {});
+                take_the_action_for_command(document, override.command, {});
             }
 
             // 2. Otherwise, if override is a string, and command is neither "createLink" nor "fontSize", and
@@ -3288,7 +3343,7 @@ void restore_states_and_values(DOM::Document& document, Vector<RecordedOverride>
             //    with value equal to override.
             else if (override.value.has<String>() && !override.command.is_one_of(CommandNames::createLink, CommandNames::fontSize)
                 && document.query_command_value(override.command) != override.value.get<String>()) {
-                take_the_action_for_command(override.command, override.value.get<String>());
+                take_the_action_for_command(document, override.command, override.value.get<String>());
             }
 
             // 3. Otherwise, if override is a string; and command is "createLink"; and either there is a value override
@@ -3300,7 +3355,7 @@ void restore_states_and_values(DOM::Document& document, Vector<RecordedOverride>
                 && ((value_override.has_value() && value_override.value() != override.value.get<String>())
                     || (!value_override.has_value()
                         && effective_command_value(node, CommandNames::createLink) != override.value.get<String>()))) {
-                take_the_action_for_command(CommandNames::createLink, override.value.get<String>());
+                take_the_action_for_command(document, CommandNames::createLink, override.value.get<String>());
             }
 
             // 4. Otherwise, if override is a string; and command is "fontSize"; and either there is a value override
@@ -3320,7 +3375,7 @@ void restore_states_and_values(DOM::Document& document, Vector<RecordedOverride>
                 override.value = legacy_font_size(override_pixel_size.to_int());
 
                 // 2. Take the action for "fontSize", with value equal to override.
-                take_the_action_for_command(CommandNames::fontSize, override.value.get<String>());
+                take_the_action_for_command(document, CommandNames::fontSize, override.value.get<String>());
             }
 
             // 5. Otherwise, continue this loop from the beginning.
@@ -4524,6 +4579,14 @@ Optional<NonnullRefPtr<CSS::CSSStyleValue const>> resolved_value(GC::Ref<DOM::No
     if (!optional_style_property.has_value())
         return {};
     return optional_style_property.value().value;
+}
+
+void take_the_action_for_command(DOM::Document& document, FlyString const& command, String const& value)
+{
+    auto const& command_definition = find_command_definition(command);
+    // FIXME: replace with VERIFY(command_definition.has_value()) as soon as all command definitions are in place.
+    if (command_definition.has_value())
+        command_definition->action(document, value);
 }
 
 bool value_list_contains_keyword(CSS::StyleValueList const& value_list, CSS::Keyword keyword)
