@@ -1204,6 +1204,78 @@ bool command_insert_horizontal_rule_action(DOM::Document& document, String const
     return true;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-inserthtml-command
+bool command_insert_html_action(DOM::Document& document, String const& value)
+{
+    // FIXME: 1. Set value to the result of invoking get trusted types compliant string with TrustedHTML, this's relevant
+    //    global object, value, "Document execCommand", and "script".
+    auto resulting_value = value;
+
+    // 2. Delete the selection.
+    auto& selection = *document.get_selection();
+    delete_the_selection(selection);
+
+    // 3. If the active range's start node is neither editable nor an editing host, return true.
+    auto range = active_range(document);
+    if (!range->start_container()->is_editable_or_editing_host())
+        return true;
+
+    // 4. Let frag be the result of calling createContextualFragment(value) on the active range.
+    auto frag = MUST(range->create_contextual_fragment(resulting_value));
+
+    // 5. Let last child be the lastChild of frag.
+    GC::Ptr<DOM::Node> last_child = frag->last_child();
+
+    // 6. If last child is null, return true.
+    if (!last_child)
+        return true;
+
+    // 7. Let descendants be all descendants of frag.
+    Vector<GC::Ref<DOM::Node>> descendants;
+    frag->for_each_in_subtree([&descendants](GC::Ref<DOM::Node> descendant) {
+        descendants.append(descendant);
+        return TraversalDecision::Continue;
+    });
+
+    // 8. If the active range's start node is a block node:
+    if (is_block_node(range->start_container())) {
+        // 1. Let collapsed block props be all editable collapsed block prop children of the active range's start node
+        //    that have index greater than or equal to the active range's start offset.
+        Vector<GC::Ref<DOM::Node>> collapsed_block_props;
+        range->start_container()->for_each_child([&](GC::Ref<DOM::Node> child) {
+            if (child->is_editable() && is_collapsed_block_prop(child) && child->index() >= range->start_offset())
+                collapsed_block_props.append(child);
+            return IterationDecision::Continue;
+        });
+
+        // 2. For each node in collapsed block props, remove node from its parent.
+        for (auto node : collapsed_block_props)
+            node->remove();
+    }
+
+    // 9. Call insertNode(frag) on the active range.
+    MUST(range->insert_node(frag));
+
+    // 10. If the active range's start node is a block node with no visible children, call createElement("br") on the
+    //     context object and append the result as the last child of the active range's start node.
+    range = active_range(document);
+    if (is_block_node(range->start_container()) && !has_visible_children(range->start_container())) {
+        auto br = MUST(DOM::create_element(document, HTML::TagNames::br, Namespace::HTML));
+        MUST(range->start_container()->append_child(br));
+    }
+
+    // 11. Call collapse() on the context object's selection, with last child's parent as the first argument and one
+    //     plus its index as the second.
+    MUST(selection.collapse(last_child->parent(), last_child->index() + 1));
+
+    // 12. Fix disallowed ancestors of each member of descendants.
+    for (auto member : descendants)
+        fix_disallowed_ancestors_of_node(member);
+
+    // 13. Return true.
+    return true;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-insertlinebreak-command
 bool command_insert_linebreak_action(DOM::Document& document, String const&)
 {
@@ -1952,6 +2024,12 @@ static Array const commands {
     CommandDefinition {
         .command = CommandNames::insertHorizontalRule,
         .action = command_insert_horizontal_rule_action,
+        .preserves_overrides = true,
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-inserthtml-command
+    CommandDefinition {
+        .command = CommandNames::insertHTML,
+        .action = command_insert_html_action,
         .preserves_overrides = true,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-insertlinebreak-command

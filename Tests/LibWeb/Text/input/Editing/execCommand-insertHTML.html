@@ -1,0 +1,18 @@
+<script src="../include.js"></script>
+<div contenteditable="true">foobar</div>
+<script>
+    test(() => {
+        var divElm = document.querySelector('div');
+
+        // Put cursor between 'foo' and 'bar'
+        var range = document.createRange();
+        getSelection().addRange(range);
+        range.setStart(divElm.childNodes[0], 3);
+        range.setEnd(divElm.childNodes[0], 3);
+
+        // Insert HTML
+        document.execCommand('insertHTML', false, '<em>Ladybird</em>');
+
+        println(divElm.innerHTML);
+    });
+</script>
