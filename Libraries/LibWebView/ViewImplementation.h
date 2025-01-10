@@ -167,7 +167,7 @@ public:
     Function<void()> on_close;
     Function<void(Gfx::IntPoint screen_position)> on_context_menu_request;
     Function<void(URL::URL const&, Gfx::IntPoint screen_position)> on_link_context_menu_request;
-    Function<void(URL::URL const&, Gfx::IntPoint screen_position, Gfx::ShareableBitmap const&)> on_image_context_menu_request;
+    Function<void(URL::URL const&, Gfx::IntPoint screen_position, Optional<Gfx::ShareableBitmap> const&)> on_image_context_menu_request;
     Function<void(Gfx::IntPoint screen_position, Web::Page::MediaContextMenu const&)> on_media_context_menu_request;
     Function<void(URL::URL const&)> on_link_hover;
     Function<void()> on_link_unhover;
