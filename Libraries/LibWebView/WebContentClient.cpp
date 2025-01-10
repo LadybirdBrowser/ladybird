@@ -234,7 +234,7 @@ void WebContentClient::did_request_link_context_menu(u64 page_id, Gfx::IntPoint 
     }
 }
 
-void WebContentClient::did_request_image_context_menu(u64 page_id, Gfx::IntPoint content_position, URL::URL const& url, ByteString const&, unsigned, Gfx::ShareableBitmap const& bitmap)
+void WebContentClient::did_request_image_context_menu(u64 page_id, Gfx::IntPoint content_position, URL::URL const& url, ByteString const&, unsigned, Optional<Gfx::ShareableBitmap> const& bitmap)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_image_context_menu_request)

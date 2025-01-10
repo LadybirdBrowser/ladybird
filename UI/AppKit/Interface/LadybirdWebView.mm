@@ -33,6 +33,7 @@ static constexpr NSInteger CONTEXT_MENU_CONTROLS_TAG = 3;
 static constexpr NSInteger CONTEXT_MENU_LOOP_TAG = 4;
 static constexpr NSInteger CONTEXT_MENU_SEARCH_SELECTED_TEXT_TAG = 5;
 static constexpr NSInteger CONTEXT_MENU_COPY_LINK_TAG = 6;
+static constexpr NSInteger CONTEXT_MENU_COPY_IMAGE_TAG = 7;
 
 // Calls to [NSCursor hide] and [NSCursor unhide] must be balanced. We use this struct to ensure
 // we only call [NSCursor hide] once and to ensure that we do call [NSCursor unhide].
@@ -54,7 +55,7 @@ struct HideCursor {
     OwnPtr<Ladybird::WebViewBridge> m_web_view_bridge;
 
     URL::URL m_context_menu_url;
-    Gfx::ShareableBitmap m_context_menu_bitmap;
+    Optional<Gfx::ShareableBitmap> m_context_menu_bitmap;
     Optional<String> m_context_menu_search_text;
 
     Optional<HideCursor> m_hidden_cursor;
@@ -669,6 +670,9 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         TemporaryChange change_url { m_context_menu_url, url };
         TemporaryChange change_bitmap { m_context_menu_bitmap, bitmap };
 
+        auto* copy_image_menu_item = [self.image_context_menu itemWithTag:CONTEXT_MENU_COPY_IMAGE_TAG];
+        [copy_image_menu_item setEnabled:bitmap.has_value()];
+
         auto* event = Ladybird::create_context_menu_mouse_event(self, position);
         [NSMenu popUpContextMenu:self.image_context_menu withEvent:event forView:self];
     };
@@ -1186,7 +1190,10 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
 
 - (void)copyImage:(id)sender
 {
-    auto* bitmap = m_context_menu_bitmap.bitmap();
+    if (!m_context_menu_bitmap.has_value()) {
+        return;
+    }
+    auto* bitmap = m_context_menu_bitmap.value().bitmap();
     if (bitmap == nullptr) {
         return;
     }
@@ -1310,6 +1317,7 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
 {
     if (!_image_context_menu) {
         _image_context_menu = [[NSMenu alloc] initWithTitle:@"Image Context Menu"];
+        [_image_context_menu setAutoenablesItems:NO];
 
         [_image_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Open Image"
                                                                 action:@selector(openLink:)
@@ -1319,9 +1327,12 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
                                                          keyEquivalent:@""]];
         [_image_context_menu addItem:[NSMenuItem separatorItem]];
 
-        [_image_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Copy Image"
+        auto* copy_image_menu_item = [[NSMenuItem alloc] initWithTitle:@"Copy Image"
                                                                 action:@selector(copyImage:)
-                                                         keyEquivalent:@""]];
+                                                         keyEquivalent:@""];
+        [copy_image_menu_item setTag:CONTEXT_MENU_COPY_IMAGE_TAG];
+        [_image_context_menu addItem:copy_image_menu_item];
+
         [_image_context_menu addItem:[[NSMenuItem alloc] initWithTitle:@"Copy Image URL"
                                                                 action:@selector(copyLink:)
                                                          keyEquivalent:@""]];

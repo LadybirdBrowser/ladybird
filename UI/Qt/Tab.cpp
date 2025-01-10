@@ -592,10 +592,13 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         open_link_in_new_tab(m_image_context_menu_url);
     });
 
-    auto* copy_image_action = new QAction("&Copy Image", this);
-    copy_image_action->setIcon(load_icon_from_uri("resource://icons/16x16/edit-copy.png"sv));
-    QObject::connect(copy_image_action, &QAction::triggered, this, [this]() {
-        auto* bitmap = m_image_context_menu_bitmap.bitmap();
+    m_image_context_menu_copy_image_action = new QAction("&Copy Image", this);
+    m_image_context_menu_copy_image_action->setIcon(load_icon_from_uri("resource://icons/16x16/edit-copy.png"sv));
+    QObject::connect(m_image_context_menu_copy_image_action, &QAction::triggered, this, [this]() {
+        if (!m_image_context_menu_bitmap.has_value())
+            return;
+
+        auto* bitmap = m_image_context_menu_bitmap.value().bitmap();
         if (bitmap == nullptr)
             return;
 
@@ -621,14 +624,15 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_image_context_menu->addAction(open_image_action);
     m_image_context_menu->addAction(open_image_in_new_tab_action);
     m_image_context_menu->addSeparator();
-    m_image_context_menu->addAction(copy_image_action);
+    m_image_context_menu->addAction(m_image_context_menu_copy_image_action);
     m_image_context_menu->addAction(copy_image_url_action);
     m_image_context_menu->addSeparator();
     m_image_context_menu->addAction(&m_window->inspect_dom_node_action());
 
-    view().on_image_context_menu_request = [this](auto& image_url, Gfx::IntPoint content_position, Gfx::ShareableBitmap const& shareable_bitmap) {
+    view().on_image_context_menu_request = [this](auto& image_url, Gfx::IntPoint content_position, Optional<Gfx::ShareableBitmap> const& shareable_bitmap) {
         m_image_context_menu_url = image_url;
         m_image_context_menu_bitmap = shareable_bitmap;
+        m_image_context_menu_copy_image_action->setEnabled(shareable_bitmap.has_value());
 
         m_image_context_menu->exec(view().map_point_to_global_position(content_position));
     };
