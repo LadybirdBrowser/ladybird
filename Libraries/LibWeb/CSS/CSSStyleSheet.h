@@ -13,6 +13,7 @@
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/StyleSheet.h>
+#include <LibWeb/DOM/Node.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::CSS {
@@ -62,8 +63,9 @@ public:
     bool evaluate_media_queries(HTML::Window const&);
     void for_each_effective_keyframes_at_rule(Function<void(CSSKeyframesRule const&)> const& callback) const;
 
-    GC::Ptr<StyleSheetList> style_sheet_list() const { return m_style_sheet_list; }
-    void set_style_sheet_list(Badge<StyleSheetList>, StyleSheetList*);
+    void add_owning_document_or_shadow_root(DOM::Node& document_or_shadow_root);
+    void remove_owning_document_or_shadow_root(DOM::Node& document_or_shadow_root);
+    void invalidate_owners(DOM::StyleInvalidationReason);
 
     Optional<FlyString> default_namespace() const;
     GC::Ptr<CSSNamespaceRule> default_namespace_rule() const { return m_default_namespace_rule; }
@@ -109,11 +111,11 @@ private:
     HashMap<FlyString, GC::Ptr<CSSNamespaceRule>> m_namespace_rules;
     Vector<GC::Ref<CSSImportRule>> m_import_rules;
 
-    GC::Ptr<StyleSheetList> m_style_sheet_list;
     GC::Ptr<CSSRule> m_owner_css_rule;
 
     Optional<URL::URL> m_base_url;
     GC::Ptr<DOM::Document const> m_constructor_document;
+    HashTable<GC::Ptr<DOM::Node>> m_owning_documents_or_shadow_roots;
     bool m_constructed { false };
     bool m_disallow_modification { false };
     Optional<bool> m_did_match;

@@ -81,7 +81,7 @@ void StyleSheetList::create_a_css_style_sheet(String type, DOM::Element* owner_n
 
 void StyleSheetList::add_sheet(CSSStyleSheet& sheet)
 {
-    sheet.set_style_sheet_list({}, this);
+    sheet.add_owning_document_or_shadow_root(document_or_shadow_root());
 
     if (m_sheets.is_empty()) {
         // This is the first sheet, append it to the list.
@@ -114,7 +114,7 @@ void StyleSheetList::add_sheet(CSSStyleSheet& sheet)
 
 void StyleSheetList::remove_sheet(CSSStyleSheet& sheet)
 {
-    sheet.set_style_sheet_list({}, nullptr);
+    sheet.remove_owning_document_or_shadow_root(document_or_shadow_root());
     bool did_remove = m_sheets.remove_first_matching([&](auto& entry) { return entry.ptr() == &sheet; });
     VERIFY(did_remove);
 
