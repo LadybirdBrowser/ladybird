@@ -14,8 +14,8 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(NodeIterator);
 
-NodeIterator::NodeIterator(Node& root)
-    : PlatformObject(root.realm())
+NodeIterator::NodeIterator(JS::Realm& realm, Node& root)
+    : PlatformObject(realm)
     , m_root(root)
     , m_reference({ root })
 {
@@ -48,13 +48,12 @@ void NodeIterator::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createnodeiterator
-WebIDL::ExceptionOr<GC::Ref<NodeIterator>> NodeIterator::create(Node& root, unsigned what_to_show, GC::Ptr<NodeFilter> filter)
+WebIDL::ExceptionOr<GC::Ref<NodeIterator>> NodeIterator::create(JS::Realm& realm, Node& root, unsigned what_to_show, GC::Ptr<NodeFilter> filter)
 {
     // 1. Let iterator be a new NodeIterator object.
     // 2. Set iterator’s root and iterator’s reference to root.
     // 3. Set iterator’s pointer before reference to true.
-    auto& realm = root.realm();
-    auto iterator = realm.create<NodeIterator>(root);
+    auto iterator = realm.create<NodeIterator>(realm, root);
 
     // 4. Set iterator’s whatToShow to whatToShow.
     iterator->m_what_to_show = what_to_show;
