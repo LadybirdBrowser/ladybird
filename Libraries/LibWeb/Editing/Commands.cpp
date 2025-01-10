@@ -2062,6 +2062,97 @@ String command_justify_right_value(DOM::Document const& document)
     return justify_value(document);
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-outdent-command
+bool command_outdent_action(DOM::Document& document, String const&)
+{
+    // 1. Let items be a list of all lis that are inclusive ancestors of the active range's start and/or end node.
+    Vector<GC::Ref<DOM::Node>> items;
+    auto add_all_lis = [&items](GC::Ref<DOM::Node> node) {
+        node->for_each_inclusive_ancestor([&items](GC::Ref<DOM::Node> ancestor) {
+            if (is<HTML::HTMLLIElement>(*ancestor) && !items.contains_slow(ancestor))
+                items.append(ancestor);
+            return IterationDecision::Continue;
+        });
+    };
+    auto range = active_range(document);
+    add_all_lis(range->start_container());
+    add_all_lis(range->end_container());
+
+    // 2. For each item in items, normalize sublists of item.
+    for (auto item : items)
+        normalize_sublists_in_node(item);
+
+    // 3. Block-extend the active range, and let new range be the result.
+    auto new_range = block_extend_a_range(*active_range(document));
+
+    // 4. Let node list be a list of nodes, initially empty.
+    Vector<GC::Ref<DOM::Node>> node_list;
+
+    // 5. For each node node contained in new range, append node to node list if the last member of node list (if any)
+    //    is not an ancestor of node; node is editable; and either node has no editable descendants, or is an ol or ul,
+    //    or is an li whose parent is an ol or ul.
+    auto is_ol_or_ul = [](GC::Ptr<DOM::Node> node) {
+        return is<HTML::HTMLOListElement>(node.ptr()) || is<HTML::HTMLUListElement>(node.ptr());
+    };
+    new_range->for_each_contained([&](GC::Ref<DOM::Node> node) {
+        bool has_editable_descendants = false;
+        node->for_each_in_subtree([&has_editable_descendants](GC::Ref<DOM::Node> descendant) {
+            if (descendant->is_editable()) {
+                has_editable_descendants = true;
+                return TraversalDecision::Break;
+            }
+            return TraversalDecision::Continue;
+        });
+
+        if ((node_list.is_empty() || !node_list.last()->is_ancestor_of(node))
+            && node->is_editable()
+            && (!has_editable_descendants || is_ol_or_ul(node)
+                || (is<HTML::HTMLLIElement>(*node) && is_ol_or_ul(node->parent()))))
+            node_list.append(node);
+
+        return IterationDecision::Continue;
+    });
+
+    // 6. While node list is not empty:
+    while (!node_list.is_empty()) {
+        // 1. While the first member of node list is an ol or ul or is not the child of an ol or ul, outdent it and
+        //    remove it from node list.
+        while (!node_list.is_empty() && (is_ol_or_ul(node_list.first()) || !is_ol_or_ul(node_list.first()->parent())))
+            outdent(node_list.take_first());
+
+        // 2. If node list is empty, break from these substeps.
+        if (node_list.is_empty())
+            break;
+
+        // 3. Let sublist be a list of nodes, initially empty.
+        Vector<GC::Ref<DOM::Node>> sublist;
+
+        // 4. Remove the first member of node list and append it to sublist.
+        sublist.append(node_list.take_first());
+
+        // 5. While the first member of node list is the nextSibling of the last member of sublist, and the first member
+        //    of node list is not an ol or ul, remove the first member of node list and append it to sublist.
+        while (!node_list.is_empty() && node_list.first().ptr() == sublist.last()->next_sibling() && !is_ol_or_ul(node_list.first()))
+            sublist.append(node_list.take_first());
+
+        // 6. Record the values of sublist, and let values be the result.
+        auto values = record_the_values_of_nodes(sublist);
+
+        // 7. Split the parent of sublist.
+        split_the_parent_of_nodes(sublist);
+
+        // 8. Fix disallowed ancestors of each member of sublist.
+        for (auto member : sublist)
+            fix_disallowed_ancestors_of_node(member);
+
+        // 9. Restore the values from values.
+        restore_the_values_of_nodes(values);
+    }
+
+    // 7. Return true.
+    return true;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-removeformat-command
 bool command_remove_format_action(DOM::Document& document, String const&)
 {
@@ -2498,6 +2589,12 @@ static Array const commands {
         .indeterminate = command_justify_right_indeterminate,
         .state = command_justify_right_state,
         .value = command_justify_right_value,
+        .preserves_overrides = true,
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-outdent-command
+    CommandDefinition {
+        .command = CommandNames::outdent,
+        .action = command_outdent_action,
         .preserves_overrides = true,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-removeformat-command

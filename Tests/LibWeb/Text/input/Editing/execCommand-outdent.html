@@ -1,0 +1,31 @@
+<script src="../include.js"></script>
+<div contenteditable="true">
+    <ul><li>foobar</li></ul>
+    <ul>
+        <li>foo</li>
+        <li><ul><li>bar</li></ul></li>
+        <li>baz</li>
+    </ul>
+</div>
+<script>
+    test(() => {
+        const range = document.createRange();
+        getSelection().addRange(range);
+
+        const divElm = document.querySelector('div');
+
+        // Outdent 'foobar'
+        const ulElm = document.querySelector('ul:nth-child(1)');
+        range.setStart(ulElm.firstChild.firstChild, 0);
+        range.setEnd(ulElm.firstChild.firstChild, 6);
+        document.execCommand('outdent');
+
+        // Outdent the middle <li>
+        const li = document.querySelector('ul:nth-child(2) > li:nth-child(2)');
+        range.setStart(li.firstChild.firstChild.firstChild, 0);
+        range.setEnd(li.firstChild.firstChild.firstChild, 3);
+        document.execCommand('outdent');
+
+        println(divElm.innerHTML);
+    });
+</script>
