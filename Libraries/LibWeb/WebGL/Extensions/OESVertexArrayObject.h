@@ -9,9 +9,8 @@
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebGL/Types.h>
-#include <LibWeb/WebGL/WebGLVertexArrayObjectOES.h>
 
-namespace Web::WebGL {
+namespace Web::WebGL::Extensions {
 
 class OESVertexArrayObject : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(OESVertexArrayObject, Bindings::PlatformObject);
