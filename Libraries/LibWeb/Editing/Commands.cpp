@@ -1841,6 +1841,28 @@ bool command_insert_text_action(DOM::Document& document, String const& value)
     return true;
 }
 
+// https://w3c.github.io/editing/docs/execCommand/#the-insertunorderedlist-command
+bool command_insert_unordered_list_action(DOM::Document& document, String const&)
+{
+    // Toggle lists with tag name "ul", then return true.
+    toggle_lists(document, HTML::TagNames::ul);
+    return true;
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-insertunorderedlist-command
+bool command_insert_unordered_list_indeterminate(DOM::Document const& document)
+{
+    // True if the selection's list state is "mixed" or "mixed ul", false otherwise.
+    return first_is_one_of(selections_list_state(document), SelectionsListState::Mixed, SelectionsListState::MixedUl);
+}
+
+// https://w3c.github.io/editing/docs/execCommand/#the-insertunorderedlist-command
+bool command_insert_unordered_list_state(DOM::Document const& document)
+{
+    // True if the selection's list state is "ul", false otherwise.
+    return selections_list_state(document) == SelectionsListState::Ul;
+}
+
 // https://w3c.github.io/editing/docs/execCommand/#the-italic-command
 bool command_italic_action(DOM::Document& document, String const&)
 {
@@ -2244,6 +2266,14 @@ static Array const commands {
     CommandDefinition {
         .command = CommandNames::insertText,
         .action = command_insert_text_action,
+    },
+    // https://w3c.github.io/editing/docs/execCommand/#the-insertunorderedlist-command
+    CommandDefinition {
+        .command = CommandNames::insertUnorderedList,
+        .action = command_insert_unordered_list_action,
+        .indeterminate = command_insert_unordered_list_indeterminate,
+        .state = command_insert_unordered_list_state,
+        .preserves_overrides = true,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-italic-command
     CommandDefinition {
