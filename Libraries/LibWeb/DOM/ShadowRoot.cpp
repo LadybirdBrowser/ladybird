@@ -141,14 +141,14 @@ void ShadowRoot::visit_edges(Visitor& visitor)
 GC::Ref<WebIDL::ObservableArray> ShadowRoot::adopted_style_sheets() const
 {
     if (!m_adopted_style_sheets)
-        m_adopted_style_sheets = create_adopted_style_sheets_list(const_cast<Document&>(document()));
+        m_adopted_style_sheets = create_adopted_style_sheets_list(const_cast<ShadowRoot&>(*this));
     return *m_adopted_style_sheets;
 }
 
 WebIDL::ExceptionOr<void> ShadowRoot::set_adopted_style_sheets(JS::Value new_value)
 {
     if (!m_adopted_style_sheets)
-        m_adopted_style_sheets = create_adopted_style_sheets_list(const_cast<Document&>(document()));
+        m_adopted_style_sheets = create_adopted_style_sheets_list(*this);
 
     m_adopted_style_sheets->clear();
     auto iterator_record = TRY(get_iterator(vm(), new_value, JS::IteratorHint::Sync));
