@@ -26,6 +26,16 @@ struct RecordedOverride {
     Variant<String, bool> value;
 };
 
+// https://w3c.github.io/editing/docs/execCommand/#selection's-list-state
+enum class SelectionsListState : u8 {
+    Ol,
+    Ul,
+    Mixed,
+    MixedOl,
+    MixedUl,
+    None,
+};
+
 using Selection::Selection;
 
 // Below algorithms are specified here:
@@ -93,10 +103,12 @@ void remove_node_preserving_its_descendants(GC::Ref<DOM::Node>);
 void reorder_modifiable_descendants(GC::Ref<DOM::Node>, FlyString const&, Optional<String>);
 void restore_states_and_values(DOM::Document&, Vector<RecordedOverride> const&);
 void restore_the_values_of_nodes(Vector<RecordedNodeValue> const&);
+SelectionsListState selections_list_state(DOM::Document const&);
 void set_the_selections_value(DOM::Document&, FlyString const&, Optional<String>);
 GC::Ref<DOM::Element> set_the_tag_name(GC::Ref<DOM::Element>, FlyString const&);
 Optional<String> specified_command_value(GC::Ref<DOM::Element>, FlyString const& command);
 void split_the_parent_of_nodes(Vector<GC::Ref<DOM::Node>> const&);
+void toggle_lists(DOM::Document&, FlyString const&);
 bool values_are_equivalent(FlyString const&, Optional<String>, Optional<String>);
 bool values_are_loosely_equivalent(FlyString const&, Optional<String>, Optional<String>);
 GC::Ptr<DOM::Node> wrap(Vector<GC::Ref<DOM::Node>>, Function<bool(GC::Ref<DOM::Node>)> sibling_criteria, Function<GC::Ptr<DOM::Node>()> new_parent_instructions);
