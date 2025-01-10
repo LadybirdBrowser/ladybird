@@ -46,6 +46,7 @@ bool command_forward_delete_action(DOM::Document&, String const&);
 bool command_indent_action(DOM::Document&, String const&);
 bool command_insert_horizontal_rule_action(DOM::Document&, String const&);
 bool command_insert_html_action(DOM::Document&, String const&);
+bool command_insert_image_action(DOM::Document&, String const&);
 bool command_insert_linebreak_action(DOM::Document&, String const&);
 bool command_insert_paragraph_action(DOM::Document&, String const&);
 bool command_italic_action(DOM::Document&, String const&);
