@@ -42,7 +42,7 @@ private:
     unsigned m_lock_count { 0 };
 };
 
-class MutexLocker {
+class [[nodiscard]] MutexLocker {
     AK_MAKE_NONCOPYABLE(MutexLocker);
     AK_MAKE_NONMOVABLE(MutexLocker);
 
