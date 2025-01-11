@@ -26,11 +26,7 @@
 #include <LibWeb/Bindings/SyntheticHostDefined.h>
 #include <LibWeb/Bindings/WindowExposedInterfaces.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/DOM/MutationType.h>
-#include <LibWeb/Editing/CommandNames.h>
-#include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
-#include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Location.h>
 #include <LibWeb/HTML/PromiseRejectionEvent.h>
@@ -44,25 +40,12 @@
 #include <LibWeb/HTML/Scripting/SyntheticRealmSettings.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/ShadowRealmGlobalScope.h>
-#include <LibWeb/HTML/TagNames.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HTML/WorkletGlobalScope.h>
-#include <LibWeb/MathML/TagNames.h>
-#include <LibWeb/MediaSourceExtensions/EventNames.h>
-#include <LibWeb/Namespace.h>
-#include <LibWeb/NavigationTiming/EntryNames.h>
-#include <LibWeb/PerformanceTimeline/EntryTypes.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
-#include <LibWeb/SVG/AttributeNames.h>
-#include <LibWeb/SVG/TagNames.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerGlobalScope.h>
-#include <LibWeb/UIEvents/EventNames.h>
-#include <LibWeb/UIEvents/InputTypes.h>
-#include <LibWeb/WebGL/EventNames.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
-#include <LibWeb/XHR/EventNames.h>
-#include <LibWeb/XLink/AttributeNames.h>
 
 namespace Web::Bindings {
 
@@ -104,26 +87,6 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
     // NOTE: We intentionally leak the main thread JavaScript VM.
     //       This avoids doing an exhaustive garbage collection on process exit.
     s_main_thread_vm->ref();
-
-    // These strings could potentially live on the VM similar to CommonPropertyNames.
-    DOM::MutationType::initialize_strings();
-    Editing::CommandNames::initialize_strings();
-    HTML::AttributeNames::initialize_strings();
-    HTML::CustomElementReactionNames::initialize_strings();
-    HTML::EventNames::initialize_strings();
-    HTML::TagNames::initialize_strings();
-    MathML::TagNames::initialize_strings();
-    MediaSourceExtensions::EventNames::initialize_strings();
-    Namespace::initialize_strings();
-    NavigationTiming::EntryNames::initialize_strings();
-    PerformanceTimeline::EntryTypes::initialize_strings();
-    SVG::AttributeNames::initialize_strings();
-    SVG::TagNames::initialize_strings();
-    UIEvents::EventNames::initialize_strings();
-    UIEvents::InputTypes::initialize_strings();
-    WebGL::EventNames::initialize_strings();
-    XHR::EventNames::initialize_strings();
-    XLink::AttributeNames::initialize_strings();
 
     // 8.1.5.1 HostEnsureCanAddPrivateElement(O), https://html.spec.whatwg.org/multipage/webappapis.html#the-hostensurecanaddprivateelement-implementation
     s_main_thread_vm->host_ensure_can_add_private_element = [](JS::Object const& object) -> JS::ThrowCompletionOr<void> {

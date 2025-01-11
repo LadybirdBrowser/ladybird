@@ -267,7 +267,7 @@ bool is_unknown_html_element(FlyString const& tag_name)
     // 3. If name is listing or xmp, then return HTMLPreElement.
     // 4. Otherwise, if this specification defines an interface appropriate for the element type corresponding to the local name name, then return that interface.
     // 5. If other applicable specifications define an appropriate interface for name, then return the interface they define.
-#define __ENUMERATE_HTML_TAG(name)        \
+#define __ENUMERATE_HTML_TAG(name, tag)   \
     if (tag_name == HTML::TagNames::name) \
         return false;
     ENUMERATE_HTML_TAGS

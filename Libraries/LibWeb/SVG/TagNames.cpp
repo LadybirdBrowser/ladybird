@@ -8,20 +8,9 @@
 
 namespace Web::SVG::TagNames {
 
-#define __ENUMERATE_SVG_TAG(name) FlyString name;
+#define __ENUMERATE_SVG_TAG(name) \
+    FlyString name = #name##_fly_string;
 ENUMERATE_SVG_TAGS
 #undef __ENUMERATE_SVG_TAG
-
-void initialize_strings()
-{
-    static bool s_initialized = false;
-    VERIFY(!s_initialized);
-
-#define __ENUMERATE_SVG_TAG(name) name = #name##_fly_string;
-    ENUMERATE_SVG_TAGS
-#undef __ENUMERATE_SVG_TAG
-
-    s_initialized = true;
-}
 
 }
