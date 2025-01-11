@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023, MacDue <macdue@dueutil.tech>
+ * Copyright (c) 2025, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -21,21 +22,21 @@ public:
         NoRepeat
     };
 
-    static ErrorOr<NonnullRefPtr<CanvasPatternPaintStyle>> create(Gfx::ImmutableBitmap const& bitmap, Repetition repetition)
+    static ErrorOr<NonnullRefPtr<CanvasPatternPaintStyle>> create(CanvasImageSource image, Repetition repetition)
     {
-        return adopt_nonnull_ref_or_enomem(new (nothrow) CanvasPatternPaintStyle(bitmap, repetition));
+        return adopt_nonnull_ref_or_enomem(new (nothrow) CanvasPatternPaintStyle(move(image), repetition));
     }
 
     virtual void paint(Gfx::IntRect physical_bounding_box, PaintFunction paint) const override;
 
 private:
-    CanvasPatternPaintStyle(Gfx::ImmutableBitmap const& immutable_bitmap, Repetition repetition)
-        : m_immutable_bitmap(immutable_bitmap)
+    CanvasPatternPaintStyle(CanvasImageSource image, Repetition repetition)
+        : m_image(move(image))
         , m_repetition(repetition)
     {
     }
 
-    NonnullRefPtr<Gfx::ImmutableBitmap> m_immutable_bitmap;
+    CanvasImageSource m_image;
     Repetition m_repetition { Repetition::Repeat };
 };
 
