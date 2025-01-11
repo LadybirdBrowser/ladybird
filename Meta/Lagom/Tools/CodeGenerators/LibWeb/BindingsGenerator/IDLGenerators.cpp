@@ -4,7 +4,7 @@
  * Copyright (c) 2021-2023, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2022, Ali Mohammad Pur <mpfard@serenityos.org>
  * Copyright (c) 2023-2024, Kenneth Myhra <kennethmyhra@serenityos.org>
- * Copyright (c) 2023-2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2023-2025, Shannon Booth <shannon@serenityos.org>
  * Copyright (c) 2023-2024, Matthew Olsson <mattco@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -4753,8 +4753,9 @@ void @constructor_class@::initialize(JS::Realm& realm)
     }
 
     generator.append(R"~~~(
-    define_direct_property(vm.names.prototype, &ensure_web_prototype<@prototype_class@>(realm, "@namespaced_name@"_fly_string), 0);
     define_direct_property(vm.names.length, JS::Value(@constructor.length@), JS::Attribute::Configurable);
+    define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, "@namespaced_name@"_string), JS::Attribute::Configurable);
+    define_direct_property(vm.names.prototype, &ensure_web_prototype<@prototype_class@>(realm, "@namespaced_name@"_fly_string), 0);
 
 )~~~");
 

@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Constructor property enumeration order of "length", "name", and "prototype"
+Pass	Method property enumeration order of "length" and "name"
+Pass	Getter property enumeration order of "length" and "name"
