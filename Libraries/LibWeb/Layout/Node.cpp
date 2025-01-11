@@ -1109,6 +1109,11 @@ GC::Ref<NodeWithStyle> NodeWithStyle::create_anonymous_wrapper() const
     return *wrapper;
 }
 
+void NodeWithStyle::set_computed_values(NonnullOwnPtr<CSS::ComputedValues> computed_values)
+{
+    m_computed_values = move(computed_values);
+}
+
 void NodeWithStyle::reset_table_box_computed_values_used_by_wrapper_to_init_values()
 {
     VERIFY(this->display().is_table_inside());

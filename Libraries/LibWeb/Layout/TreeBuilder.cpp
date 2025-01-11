@@ -784,6 +784,11 @@ Vector<GC::Root<Box>> TreeBuilder::generate_missing_parents(NodeWithStyle& root)
 
         // An anonymous table-wrapper box must be generated around each table-root.
         if (parent.display().is_table_inside()) {
+            if (parent.has_been_wrapped_in_table_wrapper()) {
+                VERIFY(parent.parent());
+                VERIFY(parent.parent()->is_table_wrapper());
+                return TraversalDecision::Continue;
+            }
             table_roots_to_wrap.append(parent);
         }
 
@@ -797,6 +802,12 @@ Vector<GC::Root<Box>> TreeBuilder::generate_missing_parents(NodeWithStyle& root)
         auto wrapper_computed_values = table_box->computed_values().clone_inherited_values();
         table_box->transfer_table_box_computed_values_to_wrapper_computed_values(*wrapper_computed_values);
 
+        if (parent.is_table_wrapper()) {
+            auto& existing_wrapper = static_cast<TableWrapper&>(parent);
+            existing_wrapper.set_computed_values(move(wrapper_computed_values));
+            continue;
+        }
+
         auto wrapper = parent.heap().allocate<TableWrapper>(parent.document(), nullptr, move(wrapper_computed_values));
 
         parent.remove_child(*table_box);
@@ -806,6 +817,8 @@ Vector<GC::Root<Box>> TreeBuilder::generate_missing_parents(NodeWithStyle& root)
             parent.insert_before(*wrapper, *nearest_sibling);
         else
             parent.append_child(*wrapper);
+
+        table_box->set_has_been_wrapped_in_table_wrapper(true);
     }
 
     return table_roots_to_wrap;
