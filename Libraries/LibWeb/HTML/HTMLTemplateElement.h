@@ -24,7 +24,7 @@ public:
     void set_template_contents(GC::Ref<DOM::DocumentFragment>);
 
     virtual void adopted_from(DOM::Document&) override;
-    virtual WebIDL::ExceptionOr<void> cloned(Node& copy, bool clone_children) override;
+    virtual WebIDL::ExceptionOr<void> cloned(Node& copy, bool clone_children) const override;
 
 private:
     HTMLTemplateElement(DOM::Document&, DOM::QualifiedName);

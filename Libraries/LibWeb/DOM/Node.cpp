@@ -1030,7 +1030,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::replace_child(GC::Ref<Node> node, GC::R
 }
 
 // https://dom.spec.whatwg.org/#concept-node-clone
-WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(Document* document, bool subtree, Node* parent)
+WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(Document* document, bool subtree, Node* parent) const
 {
     // To clone a node given a node node and an optional document document (default node’s node document),
     // boolean subtree (default false), and node-or-null parent (default null):
@@ -1085,7 +1085,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(Document* document, bool sub
 }
 
 // https://dom.spec.whatwg.org/#clone-a-single-node
-WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document)
+WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document) const
 {
     // To clone a single node given a node node and document document:
 

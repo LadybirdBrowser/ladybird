@@ -136,7 +136,7 @@ void HTMLTextAreaElement::clear_algorithm()
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#the-textarea-element:concept-node-clone-ext
-WebIDL::ExceptionOr<void> HTMLTextAreaElement::cloned(DOM::Node& copy, bool subtree)
+WebIDL::ExceptionOr<void> HTMLTextAreaElement::cloned(DOM::Node& copy, bool subtree) const
 {
     TRY(Base::cloned(copy, subtree));
 

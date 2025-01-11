@@ -78,7 +78,7 @@ void HTMLOrSVGElement<ElementBase>::attribute_changed(FlyString const& local_nam
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#dom-noncedelement-nonce
 template<typename ElementBase>
-WebIDL::ExceptionOr<void> HTMLOrSVGElement<ElementBase>::cloned(DOM::Node& copy, bool)
+WebIDL::ExceptionOr<void> HTMLOrSVGElement<ElementBase>::cloned(DOM::Node& copy, bool) const
 {
     // The cloning steps for elements that include HTMLOrSVGElement given node, copy, and subtree
     // are to set copy's [[CryptographicNonce]] to node's [[CryptographicNonce]].

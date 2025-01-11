@@ -612,7 +612,7 @@ void HTMLElement::attribute_changed(FlyString const& name, Optional<String> cons
 #undef __ENUMERATE
 }
 
-WebIDL::ExceptionOr<void> HTMLElement::cloned(Web::DOM::Node& copy, bool clone_children)
+WebIDL::ExceptionOr<void> HTMLElement::cloned(Web::DOM::Node& copy, bool clone_children) const
 {
     TRY(Base::cloned(copy, clone_children));
     TRY(HTMLOrSVGElement::cloned(copy, clone_children));
