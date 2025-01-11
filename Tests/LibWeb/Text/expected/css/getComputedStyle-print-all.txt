@@ -139,6 +139,7 @@ inset-block-end: auto
 inset-block-start: auto
 inset-inline-end: auto
 inset-inline-start: auto
+isolation: auto
 justify-content: normal
 justify-items: legacy
 justify-self: auto
