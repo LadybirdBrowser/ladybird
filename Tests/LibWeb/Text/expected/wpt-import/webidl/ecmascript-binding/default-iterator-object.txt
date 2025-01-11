@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Default iterator objects for an interface have the same prototype
+Pass	Object.prototype.toString returns correct value
+Pass	@@toStringTag has correct value from prototype

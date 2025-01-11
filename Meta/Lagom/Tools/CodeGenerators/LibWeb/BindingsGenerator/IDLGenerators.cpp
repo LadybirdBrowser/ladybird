@@ -5070,6 +5070,7 @@ void generate_iterator_prototype_implementation(IDL::Interface const& interface,
     generator.set("name", ByteString::formatted("{}Iterator", interface.name));
     generator.set("parent_name", interface.parent_name);
     generator.set("prototype_class", ByteString::formatted("{}IteratorPrototype", interface.name));
+    generator.set("to_string_tag", ByteString::formatted("{} Iterator", interface.name));
     generator.set("prototype_base_class", interface.prototype_base_class);
     generator.set("fully_qualified_name", ByteString::formatted("{}Iterator", interface.fully_qualified_name));
     generator.set("possible_include_path", ByteString::formatted("{}Iterator", interface.name.replace("::"sv, "/"sv, ReplaceMode::All)));
@@ -5111,7 +5112,7 @@ void @prototype_class@::initialize(JS::Realm& realm)
     auto& vm = this->vm();
     Base::initialize(realm);
     define_native_function(realm, vm.names.next, next, 0, JS::Attribute::Writable | JS::Attribute::Enumerable | JS::Attribute::Configurable);
-    define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, "Iterator"_string), JS::Attribute::Configurable);
+    define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, "@to_string_tag@"_string), JS::Attribute::Configurable);
 }
 
 static JS::ThrowCompletionOr<@fully_qualified_name@*> impl_from(JS::VM& vm)
