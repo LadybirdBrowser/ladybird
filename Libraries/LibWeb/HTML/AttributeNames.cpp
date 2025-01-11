@@ -9,33 +9,10 @@
 namespace Web::HTML {
 namespace AttributeNames {
 
-#define __ENUMERATE_HTML_ATTRIBUTE(name) FlyString name;
+#define __ENUMERATE_HTML_ATTRIBUTE(name, attribute) \
+    FlyString name = attribute##_fly_string;
 ENUMERATE_HTML_ATTRIBUTES
 #undef __ENUMERATE_HTML_ATTRIBUTE
-
-void initialize_strings()
-{
-    static bool s_initialized = false;
-    VERIFY(!s_initialized);
-
-#define __ENUMERATE_HTML_ATTRIBUTE(name) \
-    name = #name##_fly_string;
-    ENUMERATE_HTML_ATTRIBUTES
-#undef __ENUMERATE_HTML_ATTRIBUTE
-
-    // NOTE: Special cases for C++ keywords.
-    class_ = "class"_fly_string;
-    for_ = "for"_fly_string;
-    default_ = "default"_fly_string;
-    char_ = "char"_fly_string;
-    switch_ = "switch"_fly_string;
-
-    // NOTE: Special cases for attributes with dashes in them.
-    accept_charset = "accept-charset"_fly_string;
-    http_equiv = "http-equiv"_fly_string;
-
-    s_initialized = true;
-}
 
 }
 

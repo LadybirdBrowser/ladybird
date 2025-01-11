@@ -6,27 +6,24 @@
 
 #pragma once
 
-#include <AK/Error.h>
 #include <AK/FlyString.h>
 
 namespace Web::XLink::AttributeNames {
 
-#define ENUMERATE_XLINK_ATTRIBUTES(E) \
-    E(type)                           \
-    E(href)                           \
-    E(role)                           \
-    E(arcrole)                        \
-    E(title)                          \
-    E(show)                           \
-    E(actuate)                        \
-    E(label)                          \
-    E(from)                           \
-    E(to)
+#define ENUMERATE_XLINK_ATTRIBUTES       \
+    __ENUMERATE_XLINK_ATTRIBUTE(actuate) \
+    __ENUMERATE_XLINK_ATTRIBUTE(arcrole) \
+    __ENUMERATE_XLINK_ATTRIBUTE(from)    \
+    __ENUMERATE_XLINK_ATTRIBUTE(href)    \
+    __ENUMERATE_XLINK_ATTRIBUTE(label)   \
+    __ENUMERATE_XLINK_ATTRIBUTE(role)    \
+    __ENUMERATE_XLINK_ATTRIBUTE(show)    \
+    __ENUMERATE_XLINK_ATTRIBUTE(title)   \
+    __ENUMERATE_XLINK_ATTRIBUTE(to)      \
+    __ENUMERATE_XLINK_ATTRIBUTE(type)
 
 #define __ENUMERATE_XLINK_ATTRIBUTE(name) extern FlyString name;
-ENUMERATE_XLINK_ATTRIBUTES(__ENUMERATE_XLINK_ATTRIBUTE)
+ENUMERATE_XLINK_ATTRIBUTES
 #undef __ENUMERATE_XLINK_ATTRIBUTE
-
-void initialize_strings();
 
 }

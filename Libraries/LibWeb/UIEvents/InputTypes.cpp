@@ -8,21 +8,9 @@
 
 namespace Web::UIEvents::InputTypes {
 
-#define __ENUMERATE_INPUT_TYPE(name) FlyString name;
+#define __ENUMERATE_INPUT_TYPE(name) \
+    FlyString name = #name##_fly_string;
 ENUMERATE_INPUT_TYPES
 #undef __ENUMERATE_INPUT_TYPE
-
-void initialize_strings()
-{
-    static bool s_initialized = false;
-    VERIFY(!s_initialized);
-
-#define __ENUMERATE_INPUT_TYPE(name) \
-    name = #name##_fly_string;
-    ENUMERATE_INPUT_TYPES
-#undef __ENUMERATE_INPUT_TYPE
-
-    s_initialized = true;
-}
 
 }

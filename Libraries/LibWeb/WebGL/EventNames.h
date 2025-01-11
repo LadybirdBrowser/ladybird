@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/Error.h>
 #include <AK/FlyString.h>
 
 namespace Web::WebGL::EventNames {
@@ -19,7 +18,5 @@ namespace Web::WebGL::EventNames {
 #define __ENUMERATE_GL_EVENT(name) extern FlyString name;
 ENUMERATE_GL_EVENTS
 #undef __ENUMERATE_GL_EVENT
-
-void initialize_strings();
 
 }

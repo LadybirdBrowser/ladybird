@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/Error.h>
 #include <AK/FlyString.h>
 
 namespace Web::DOM::MutationType {
@@ -19,7 +18,5 @@ namespace Web::DOM::MutationType {
 #define __ENUMERATE_MUTATION_TYPE(name) extern FlyString name;
 ENUMERATE_MUTATION_TYPES
 #undef __ENUMERATE_MUTATION_TYPE
-
-void initialize_strings();
 
 }
