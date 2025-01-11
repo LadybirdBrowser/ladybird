@@ -191,6 +191,9 @@ public:
     // https://drafts.csswg.org/css-ui/#propdef-user-select
     CSS::UserSelect user_select_used_value() const;
 
+    [[nodiscard]] bool has_been_wrapped_in_table_wrapper() const { return m_has_been_wrapped_in_table_wrapper; }
+    void set_has_been_wrapped_in_table_wrapper(bool value) { m_has_been_wrapped_in_table_wrapper = value; }
+
 protected:
     Node(DOM::Document&, DOM::Node*);
 
@@ -210,6 +213,8 @@ private:
 
     bool m_is_flex_item { false };
     bool m_is_grid_item { false };
+
+    bool m_has_been_wrapped_in_table_wrapper { false };
 
     GeneratedFor m_generated_for { GeneratedFor::NotGenerated };
 
@@ -239,6 +244,8 @@ public:
     bool is_scroll_container() const;
 
     virtual void visit_edges(Cell::Visitor& visitor) override;
+
+    void set_computed_values(NonnullOwnPtr<CSS::ComputedValues>);
 
 protected:
     NodeWithStyle(DOM::Document&, DOM::Node*, GC::Ref<CSS::ComputedProperties>);
