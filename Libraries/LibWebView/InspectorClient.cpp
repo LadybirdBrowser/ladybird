@@ -16,6 +16,7 @@
 #include <LibCore/Resource.h>
 #include <LibJS/MarkupGenerator.h>
 #include <LibWeb/Infra/Strings.h>
+#include <LibWeb/Namespace.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/InspectorClient.h>
@@ -634,7 +635,7 @@ String InspectorClient::generate_dom_tree(JsonObject const& dom_tree)
                 m_body_or_frameset_node_id = node_id;
 
             auto tag = name;
-            if (node.get_byte_string("namespace"sv) == "http://www.w3.org/1999/xhtml")
+            if (node.get_byte_string("namespace"sv) == Web::Namespace::HTML.bytes_as_string_view())
                 tag = tag.to_lowercase();
 
             builder.appendff("<span class=\"hoverable\" {}>", data_attributes.string_view());
