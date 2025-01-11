@@ -633,7 +633,9 @@ String InspectorClient::generate_dom_tree(JsonObject const& dom_tree)
             if (name.equals_ignoring_ascii_case("BODY"sv) || name.equals_ignoring_ascii_case("FRAMESET"sv))
                 m_body_or_frameset_node_id = node_id;
 
-            auto tag = name.to_lowercase();
+            auto tag = name;
+            if (node.get_byte_string("namespace"sv) == "http://www.w3.org/1999/xhtml")
+                tag = tag.to_lowercase();
 
             builder.appendff("<span class=\"hoverable\" {}>", data_attributes.string_view());
             builder.append("<span>&lt;</span>"sv);
