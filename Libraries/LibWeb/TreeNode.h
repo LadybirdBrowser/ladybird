@@ -49,6 +49,8 @@ public:
     void insert_before(GC::Ref<T> node, GC::Ptr<T> child);
     void remove_child(GC::Ref<T> node);
 
+    void replace_child(GC::Ref<T> new_child, GC::Ref<T> old_child);
+
     T* next_in_pre_order()
     {
         if (first_child())
@@ -366,6 +368,28 @@ inline void TreeNode<T>::append_child(GC::Ref<T> node)
     m_last_child = node.ptr();
     if (!m_first_child)
         m_first_child = m_last_child;
+}
+
+template<typename T>
+inline void TreeNode<T>::replace_child(GC::Ref<T> new_child, GC::Ref<T> old_child)
+{
+    VERIFY(old_child != new_child);
+    VERIFY(old_child->m_parent == this);
+    VERIFY(new_child->m_parent == nullptr);
+    if (m_first_child == old_child)
+        m_first_child = new_child;
+    if (m_last_child == old_child)
+        m_last_child = new_child;
+    new_child->m_next_sibling = old_child->m_next_sibling;
+    if (new_child->m_next_sibling)
+        new_child->m_next_sibling->m_previous_sibling = new_child;
+    new_child->m_previous_sibling = old_child->m_previous_sibling;
+    if (new_child->m_previous_sibling)
+        new_child->m_previous_sibling->m_next_sibling = new_child;
+    new_child->m_parent = old_child->m_parent;
+    old_child->m_next_sibling = nullptr;
+    old_child->m_previous_sibling = nullptr;
+    old_child->m_parent = nullptr;
 }
 
 template<typename T>
