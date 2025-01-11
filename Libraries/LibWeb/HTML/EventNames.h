@@ -11,9 +11,6 @@
 
 namespace Web::HTML::EventNames {
 
-// FIXME: Add app cache events https://html.spec.whatwg.org/multipage/offline.html#appcacheevents
-// FIXME: Add drag and drop events https://html.spec.whatwg.org/multipage/dnd.html#dndevents
-
 #define ENUMERATE_HTML_EVENTS                        \
     __ENUMERATE_HTML_EVENT(abort)                    \
     __ENUMERATE_HTML_EVENT(addtrack)                 \
