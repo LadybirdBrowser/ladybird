@@ -1,6 +1,6 @@
 All supported properties and their default values exposed from CSSStyleDeclaration from getComputedStyle:
 'cssText': ''
-'length': '213'
+'length': '214'
 'parentRule': 'null'
 'cssFloat': 'none'
 'WebkitAlignContent': 'normal'
@@ -384,6 +384,7 @@ All supported properties and their default values exposed from CSSStyleDeclarati
 'inset-inline-end': 'auto'
 'insetInlineStart': 'auto'
 'inset-inline-start': 'auto'
+'isolation': 'auto'
 'justifyContent': 'normal'
 'justify-content': 'normal'
 'justifyItems': 'legacy'

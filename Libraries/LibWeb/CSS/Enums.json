@@ -300,6 +300,10 @@
     "optimizespeed=pixelated",
     "optimizequality=smooth"
   ],
+  "isolation": [
+    "auto",
+    "isolate"
+  ],
   "justify-content": [
     "normal",
     "start",
