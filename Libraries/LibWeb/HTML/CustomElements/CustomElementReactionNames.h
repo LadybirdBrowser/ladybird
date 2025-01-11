@@ -25,6 +25,4 @@ namespace Web::HTML::CustomElementReactionNames {
 ENUMERATE_CUSTOM_ELEMENT_REACTION_NAMES
 #undef __ENUMERATE_CUSTOM_ELEMENT_REACTION_NAME
 
-void initialize_strings();
-
 }

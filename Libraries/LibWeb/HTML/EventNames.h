@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/Error.h>
 #include <AK/FlyString.h>
 
 namespace Web::HTML::EventNames {
@@ -85,8 +84,8 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(open)                     \
     __ENUMERATE_HTML_EVENT(pagehide)                 \
     __ENUMERATE_HTML_EVENT(pagereveal)               \
-    __ENUMERATE_HTML_EVENT(pageswap)                 \
     __ENUMERATE_HTML_EVENT(pageshow)                 \
+    __ENUMERATE_HTML_EVENT(pageswap)                 \
     __ENUMERATE_HTML_EVENT(paste)                    \
     __ENUMERATE_HTML_EVENT(pause)                    \
     __ENUMERATE_HTML_EVENT(play)                     \
@@ -117,9 +116,9 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(timeupdate)               \
     __ENUMERATE_HTML_EVENT(toggle)                   \
     __ENUMERATE_HTML_EVENT(transitioncancel)         \
+    __ENUMERATE_HTML_EVENT(transitionend)            \
     __ENUMERATE_HTML_EVENT(transitionrun)            \
     __ENUMERATE_HTML_EVENT(transitionstart)          \
-    __ENUMERATE_HTML_EVENT(transitionend)            \
     __ENUMERATE_HTML_EVENT(unhandledrejection)       \
     __ENUMERATE_HTML_EVENT(unload)                   \
     __ENUMERATE_HTML_EVENT(upgradeneeded)            \
@@ -135,7 +134,5 @@ namespace Web::HTML::EventNames {
 #define __ENUMERATE_HTML_EVENT(name) extern FlyString name;
 ENUMERATE_HTML_EVENTS
 #undef __ENUMERATE_HTML_EVENT
-
-void initialize_strings();
 
 }

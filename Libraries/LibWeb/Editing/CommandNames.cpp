@@ -8,22 +8,9 @@
 
 namespace Web::Editing::CommandNames {
 
-#define __ENUMERATE_COMMAND_NAME(name) FlyString name;
+#define __ENUMERATE_COMMAND_NAME(name, command) \
+    FlyString name = command##_fly_string;
 ENUMERATE_COMMAND_NAMES
 #undef __ENUMERATE_COMMAND_NAME
-FlyString delete_;
-
-void initialize_strings()
-{
-    static bool s_initialized = false;
-    VERIFY(!s_initialized);
-
-#define __ENUMERATE_COMMAND_NAME(name) name = #name##_fly_string;
-    ENUMERATE_COMMAND_NAMES
-#undef __ENUMERATE_COMMAND_NAME
-    delete_ = "delete"_fly_string;
-
-    s_initialized = true;
-}
 
 }

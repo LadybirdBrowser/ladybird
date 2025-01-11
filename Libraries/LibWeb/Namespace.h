@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/Error.h>
 #include <AK/FlyString.h>
 
 namespace Web::Namespace {
@@ -22,7 +21,5 @@ namespace Web::Namespace {
 #define __ENUMERATE_NAMESPACE(name, namespace_) extern FlyString name;
 ENUMERATE_NAMESPACES
 #undef __ENUMERATE_NAMESPACE
-
-void initialize_strings();
 
 }

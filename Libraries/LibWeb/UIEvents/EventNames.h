@@ -47,6 +47,4 @@ namespace Web::UIEvents::EventNames {
 ENUMERATE_UI_EVENTS
 #undef __ENUMERATE_UI_EVENT
 
-void initialize_strings();
-
 }
