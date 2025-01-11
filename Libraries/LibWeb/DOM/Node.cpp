@@ -1099,11 +1099,24 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document) c
         auto element_copy = TRY(DOM::create_element(document, element.local_name(), element.namespace_uri(), element.prefix(), element.is_value()));
 
         // 2. For each attribute of node’s attribute list:
-        element.for_each_attribute([&](auto& name, auto& value) {
-            // FIXME: 1. Let copyAttribute be the result of cloning a single node given attribute and document.
+        Optional<WebIDL::Exception> maybe_exception;
+        element.for_each_attribute([&](Attr const& attr) {
+            // 1. Let copyAttribute be the result of cloning a single node given attribute and document.
+            auto copy_attribute_or_error = attr.clone_single_node(document);
+            if (copy_attribute_or_error.is_error()) {
+                maybe_exception = copy_attribute_or_error.release_error();
+                return;
+            }
+
+            auto copy_attribute = copy_attribute_or_error.release_value();
+
             // 2. Append copyAttribute to copy.
-            element_copy->append_attribute(name, value);
+            element_copy->append_attribute(verify_cast<Attr>(*copy_attribute));
         });
+
+        if (maybe_exception.has_value())
+            return *maybe_exception;
+
         copy = move(element_copy);
     }
 

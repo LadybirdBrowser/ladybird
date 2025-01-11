@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	cloned <svg> should have the right properties
+Pass	cloned <svg>'s xmlns:xlink attribute should have the right properties
+Pass	cloned <use> should have the right properties
+Pass	cloned <use>'s xlink:href attribute should have the right properties
