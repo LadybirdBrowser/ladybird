@@ -29,8 +29,9 @@ void OptionConstructor::initialize(JS::Realm& realm)
     auto& vm = this->vm();
     Base::initialize(realm);
 
-    define_direct_property(vm.names.prototype, &ensure_web_prototype<Bindings::HTMLOptionElementPrototype>(realm, "HTMLOptionElement"_fly_string), 0);
     define_direct_property(vm.names.length, JS::Value(0), JS::Attribute::Configurable);
+    define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, "Option"_string), JS::Attribute::Configurable);
+    define_direct_property(vm.names.prototype, &ensure_web_prototype<Bindings::HTMLOptionElementPrototype>(realm, "HTMLOptionElement"_fly_string), 0);
 }
 
 JS::ThrowCompletionOr<JS::Value> OptionConstructor::call()
