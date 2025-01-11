@@ -2005,7 +2005,8 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         auto dictionary_generator = scoped_generator.fork();
 
         dictionary_generator.append(R"~~~(
-    auto dictionary_object@recursion_depth@ = JS::Object::create(realm, realm.intrinsics().object_prototype());
+    {
+        auto dictionary_object@recursion_depth@ = JS::Object::create(realm, realm.intrinsics().object_prototype());
 )~~~");
 
         auto* current_dictionary = &interface.dictionaries.find(type.name())->value;
@@ -2021,12 +2022,12 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
                 dictionary_generator.set("wrapped_value_name", wrapped_value_name);
 
                 dictionary_generator.append(R"~~~(
-    JS::Value @wrapped_value_name@;
+        JS::Value @wrapped_value_name@;
 )~~~");
                 generate_wrap_statement(dictionary_generator, ByteString::formatted("{}{}{}", value, type.is_nullable() ? "->" : ".", member.name.to_snakecase()), member.type, interface, ByteString::formatted("{} =", wrapped_value_name), WrappingReference::No, recursion_depth + 1);
 
                 dictionary_generator.append(R"~~~(
-    MUST(dictionary_object@recursion_depth@->create_data_property("@member_key@", @wrapped_value_name@));
+        MUST(dictionary_object@recursion_depth@->create_data_property("@member_key@", @wrapped_value_name@));
 )~~~");
             }
 
@@ -2037,7 +2038,8 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         }
 
         dictionary_generator.append(R"~~~(
-    @result_expression@ dictionary_object@recursion_depth@;
+        @result_expression@ dictionary_object@recursion_depth@;
+    }
 )~~~");
     } else if (type.name() == "object") {
         scoped_generator.append(R"~~~(
