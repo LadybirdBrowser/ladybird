@@ -218,6 +218,11 @@ bool Node::establishes_stacking_context() const
     if (computed_values().mask().has_value() || computed_values().clip_path().has_value() || computed_values().mask_image())
         return true;
 
+    // https://drafts.fxtf.org/compositing/#propdef-isolation
+    // For CSS, setting isolation to isolate will turn the element into a stacking context.
+    if (computed_values().isolation() == CSS::Isolation::Isolate)
+        return true;
+
     return computed_values().opacity() < 1.0f;
 }
 
@@ -1007,6 +1012,9 @@ void NodeWithStyle::apply_style(const CSS::ComputedProperties& computed_style)
 
     if (auto user_select = computed_style.user_select(); user_select.has_value())
         computed_values.set_user_select(user_select.value());
+
+    if (auto isolation = computed_style.isolation(); isolation.has_value())
+        computed_values.set_isolation(isolation.value());
 
     propagate_style_to_anonymous_wrappers();
 }

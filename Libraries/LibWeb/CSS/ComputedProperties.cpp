@@ -1440,6 +1440,12 @@ Optional<CSS::UserSelect> ComputedProperties::user_select() const
     return keyword_to_user_select(value.to_keyword());
 }
 
+Optional<CSS::Isolation> ComputedProperties::isolation() const
+{
+    auto const& value = property(CSS::PropertyID::Isolation);
+    return keyword_to_isolation(value.to_keyword());
+}
+
 Optional<CSS::MaskType> ComputedProperties::mask_type() const
 {
     auto const& value = property(CSS::PropertyID::MaskType);

@@ -1684,6 +1684,14 @@
     ],
     "max-values": 1
   },
+  "isolation": {
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "auto",
+    "valid-types": [
+      "isolation"
+    ]
+  },
   "justify-content": {
     "animation-type": "discrete",
     "inherited": false,
