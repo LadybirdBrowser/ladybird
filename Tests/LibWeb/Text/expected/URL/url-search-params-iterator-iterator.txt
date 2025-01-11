@@ -1,5 +1,5 @@
-[object Iterator]
-[object Iterator]
+[object URLSearchParams Iterator]
+[object URLSearchParams Iterator]
 true
 hello
 1
