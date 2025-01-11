@@ -1868,6 +1868,39 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 
     @result_expression@ new_array@recursion_depth@;
 )~~~");
+    } else if (type.name() == "record") {
+        // https://webidl.spec.whatwg.org/#es-record
+
+        auto& parameterized_type = as<IDL::ParameterizedType>(type);
+        VERIFY(parameterized_type.parameters().size() == 2);
+        VERIFY(parameterized_type.parameters()[0]->is_string());
+
+        scoped_generator.append(R"~~~(
+    {
+        // An IDL record<…> value D is converted to a JavaScript value as follows:
+        // 1. Let result be OrdinaryObjectCreate(%Object.prototype%).
+        auto result = JS::Object::create(realm, realm.intrinsics().object_prototype());
+
+        // 2. For each key → value of D:
+        for (auto const& [key, value] : @value@) {
+            // 1. Let jsKey be key converted to a JavaScript value.
+            auto js_key = JS::PropertyKey { key.to_byte_string() };
+
+            // 2. Let jsValue be value converted to a JavaScript value.
+)~~~");
+        generate_wrap_statement(scoped_generator, "value"sv, parameterized_type.parameters()[1], interface, "auto js_value ="sv, WrappingReference::Yes, recursion_depth + 1);
+        scoped_generator.append(R"~~~(
+
+            // 3. Let created be ! CreateDataProperty(result, jsKey, jsValue).
+            bool created = MUST(result->create_data_property(js_key, js_value));
+
+            // 4. Assert: created is true.
+            VERIFY(created);
+        }
+
+        @result_expression@ result;
+    }
+)~~~");
     } else if (type.name() == "boolean" || type.is_floating_point()) {
         if (type.is_nullable()) {
             scoped_generator.append(R"~~~(
