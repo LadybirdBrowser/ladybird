@@ -83,7 +83,7 @@ void SVGElement::attribute_changed(FlyString const& local_name, Optional<String>
     update_use_elements_that_reference_this();
 }
 
-WebIDL::ExceptionOr<void> SVGElement::cloned(DOM::Node& copy, bool clone_children)
+WebIDL::ExceptionOr<void> SVGElement::cloned(DOM::Node& copy, bool clone_children) const
 {
     TRY(Base::cloned(copy, clone_children));
     TRY(HTMLOrSVGElement::cloned(copy, clone_children));

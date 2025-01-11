@@ -26,7 +26,7 @@ public:
 
 protected:
     void attribute_changed(FlyString const&, Optional<String> const&, Optional<String> const&, Optional<FlyString> const&);
-    WebIDL::ExceptionOr<void> cloned(DOM::Node&, bool);
+    WebIDL::ExceptionOr<void> cloned(DOM::Node&, bool) const;
     void inserted();
     void visit_edges(JS::Cell::Visitor&);
 

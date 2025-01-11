@@ -1706,7 +1706,7 @@ void HTMLInputElement::apply_presentational_hints(GC::Ref<CSS::CascadedPropertie
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#the-input-element%3Aconcept-node-clone-ext
-WebIDL::ExceptionOr<void> HTMLInputElement::cloned(DOM::Node& copy, bool subtree)
+WebIDL::ExceptionOr<void> HTMLInputElement::cloned(DOM::Node& copy, bool subtree) const
 {
     TRY(Base::cloned(copy, subtree));
 

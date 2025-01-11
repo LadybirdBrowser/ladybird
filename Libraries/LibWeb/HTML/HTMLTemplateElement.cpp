@@ -46,7 +46,7 @@ void HTMLTemplateElement::adopted_from(DOM::Document&)
 }
 
 // https://html.spec.whatwg.org/multipage/scripting.html#the-template-element:concept-node-clone-ext
-WebIDL::ExceptionOr<void> HTMLTemplateElement::cloned(Node& copy, bool subtree)
+WebIDL::ExceptionOr<void> HTMLTemplateElement::cloned(Node& copy, bool subtree) const
 {
     TRY(Base::cloned(copy, subtree));
 

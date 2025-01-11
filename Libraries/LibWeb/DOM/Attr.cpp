@@ -28,7 +28,7 @@ GC::Ref<Attr> Attr::create(Document& document, QualifiedName qualified_name, Str
     return document.realm().create<Attr>(document, move(qualified_name), move(value), owner_element);
 }
 
-GC::Ref<Attr> Attr::clone(Document& document)
+GC::Ref<Attr> Attr::clone(Document& document) const
 {
     return realm().create<Attr>(document, m_qualified_name, m_value, nullptr);
 }
