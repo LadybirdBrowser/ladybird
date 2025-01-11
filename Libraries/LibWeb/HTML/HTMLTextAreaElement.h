@@ -64,7 +64,7 @@ public:
     virtual void reset_algorithm() override;
     virtual void clear_algorithm() override;
 
-    virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) override;
+    virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) const override;
 
     virtual void form_associated_element_was_inserted() override;
     virtual void form_associated_element_was_removed(DOM::Node*) override;

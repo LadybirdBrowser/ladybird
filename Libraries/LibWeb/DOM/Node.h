@@ -199,8 +199,8 @@ public:
 
     WebIDL::ExceptionOr<GC::Ref<Node>> replace_child(GC::Ref<Node> node, GC::Ref<Node> child);
 
-    WebIDL::ExceptionOr<GC::Ref<Node>> clone_node(Document* document = nullptr, bool subtree = false, Node* parent = nullptr);
-    WebIDL::ExceptionOr<GC::Ref<Node>> clone_single_node(Document&);
+    WebIDL::ExceptionOr<GC::Ref<Node>> clone_node(Document* document = nullptr, bool subtree = false, Node* parent = nullptr) const;
+    WebIDL::ExceptionOr<GC::Ref<Node>> clone_single_node(Document&) const;
     WebIDL::ExceptionOr<GC::Ref<Node>> clone_node_binding(bool subtree);
 
     // NOTE: This is intended for the JS bindings.
@@ -263,7 +263,7 @@ public:
     virtual void removed_from(Node*);
     virtual void children_changed() { }
     virtual void adopted_from(Document&) { }
-    virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) { return {}; }
+    virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) const { return {}; }
 
     Layout::Node const* layout_node() const { return m_layout_node; }
     Layout::Node* layout_node() { return m_layout_node; }

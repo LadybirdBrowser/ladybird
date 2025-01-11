@@ -651,7 +651,7 @@ void HTMLScriptElement::set_async(bool async)
 }
 
 // https://html.spec.whatwg.org/multipage/scripting.html#script-processing-model:concept-node-clone-ext
-WebIDL::ExceptionOr<void> HTMLScriptElement::cloned(Node& copy, bool subtree)
+WebIDL::ExceptionOr<void> HTMLScriptElement::cloned(Node& copy, bool subtree) const
 {
     TRY(Base::cloned(copy, subtree));
 

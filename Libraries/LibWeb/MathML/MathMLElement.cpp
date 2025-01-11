@@ -26,7 +26,7 @@ void MathMLElement::attribute_changed(FlyString const& local_name, Optional<Stri
     HTMLOrSVGElement::attribute_changed(local_name, old_value, value, namespace_);
 }
 
-WebIDL::ExceptionOr<void> MathMLElement::cloned(DOM::Node& node, bool clone_children)
+WebIDL::ExceptionOr<void> MathMLElement::cloned(DOM::Node& node, bool clone_children) const
 {
     TRY(Base::cloned(node, clone_children));
     TRY(HTMLOrSVGElement::cloned(node, clone_children));
