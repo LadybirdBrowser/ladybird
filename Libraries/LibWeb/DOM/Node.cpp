@@ -1544,6 +1544,9 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object) c
         MUST(object.add("type"sv, "element"));
 
         auto const* element = static_cast<DOM::Element const*>(this);
+        if (element->namespace_uri().has_value())
+            MUST(object.add("namespace"sv, element->namespace_uri().value()));
+
         if (element->has_attributes()) {
             auto attributes = MUST(object.add_object("attributes"sv));
             element->for_each_attribute([&attributes](auto& name, auto& value) {
