@@ -9,10 +9,7 @@
 #include <AK/Error.h>
 #include <AK/Format.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
-
-#include <openssl/bn.h>
-#include <openssl/err.h>
-#include <openssl/evp.h>
+#include <LibCrypto/OpenSSLForward.h>
 
 namespace Crypto {
 
