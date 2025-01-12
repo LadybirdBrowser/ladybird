@@ -568,8 +568,6 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
         // 1. If the synchronous custom elements flag is set, then run these steps while catching any exceptions:
         if (synchronous_custom_elements_flag) {
             auto synchronously_upgrade_custom_element = [&]() -> JS::ThrowCompletionOr<GC::Ref<HTML::HTMLElement>> {
-                auto& vm = document.vm();
-
                 // 1. Let C be definition’s constructor.
                 auto& constructor = definition->constructor();
 
@@ -578,7 +576,7 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
 
                 // NOTE: IDL does not currently convert the object for us, so we will have to do it here.
                 if (!result.has_value() || !result->is_object() || !is<HTML::HTMLElement>(result->as_object()))
-                    return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "HTMLElement"sv);
+                    return JS::throw_completion(JS::TypeError::create(realm, "Custom element constructor must return an object that implements HTMLElement"_string));
 
                 GC::Ref<HTML::HTMLElement> element = verify_cast<HTML::HTMLElement>(result->as_object());
 
