@@ -196,7 +196,7 @@ public:
     WebIDL::ExceptionOr<void> post_message(JS::Value message, String const&, Vector<GC::Root<JS::Object>> const&);
     WebIDL::ExceptionOr<void> post_message(JS::Value message, WindowPostMessageOptions const&);
 
-    Variant<GC::Root<DOM::Event>, JS::Value> event() const;
+    Variant<GC::Root<DOM::Event>, Empty> event() const;
 
     [[nodiscard]] GC::Ref<CSS::CSSStyleDeclaration> get_computed_style(DOM::Element&, Optional<String> const& pseudo_element) const;
 
