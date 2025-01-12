@@ -462,7 +462,7 @@ void Element::run_attribute_change_steps(FlyString const& local_name, Optional<S
     attribute_changed(local_name, old_value, value, namespace_);
 
     if (old_value != value) {
-        invalidate_style_after_attribute_change(local_name);
+        invalidate_style_after_attribute_change(local_name, old_value, value);
         document().bump_dom_tree_version();
     }
 }
@@ -1140,6 +1140,29 @@ bool Element::affected_by_hover() const
         }
     }
     return false;
+}
+
+bool Element::affected_by_invalidation_property(CSS::InvalidationSet::Property const& property) const
+{
+    switch (property.type) {
+    case CSS::InvalidationSet::Property::Type::Class:
+        return m_classes.contains_slow(property.name);
+    case CSS::InvalidationSet::Property::Type::Id:
+        return m_id == property.name;
+    case CSS::InvalidationSet::Property::Type::TagName:
+        return local_name() == property.name;
+    case CSS::InvalidationSet::Property::Type::Attribute: {
+        if (property.name == HTML::AttributeNames::id || property.name == HTML::AttributeNames::class_)
+            return true;
+        return has_attribute(property.name);
+    }
+    case CSS::InvalidationSet::Property::Type::InvalidateSelf:
+        return false;
+    case CSS::InvalidationSet::Property::Type::InvalidateWholeSubtree:
+        return true;
+    default:
+        VERIFY_NOT_REACHED();
+    }
 }
 
 bool Element::has_pseudo_elements() const
@@ -1948,7 +1971,7 @@ static bool attribute_name_may_affect_selectors(Element const& element, FlyStrin
     return element.document().style_computer().has_attribute_selector(attribute_name);
 }
 
-void Element::invalidate_style_after_attribute_change(FlyString const& attribute_name)
+void Element::invalidate_style_after_attribute_change(FlyString const& attribute_name, Optional<String> const& old_value, Optional<String> const& new_value)
 {
     // FIXME: Only invalidate if the attribute can actually affect style.
 
@@ -1967,6 +1990,29 @@ void Element::invalidate_style_after_attribute_change(FlyString const& attribute
         } else {
             invalidate_style(StyleInvalidationReason::ElementAttributeChange);
         }
+        return;
+    }
+
+    if (attribute_name == HTML::AttributeNames::class_) {
+        Vector<StringView> old_classes;
+        Vector<StringView> new_classes;
+        if (old_value.has_value())
+            old_classes = old_value->bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
+        if (new_value.has_value())
+            new_classes = new_value->bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
+        Vector<CSS::InvalidationSet::Property> changed_properties;
+        for (auto& old_class : old_classes) {
+            if (!new_classes.contains_slow(old_class)) {
+                changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Class, .name = FlyString::from_utf8_without_validation(old_class.bytes()) });
+            }
+        }
+        for (auto& new_class : new_classes) {
+            if (!old_classes.contains_slow(new_class)) {
+                changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Class, .name = FlyString::from_utf8_without_validation(new_class.bytes()) });
+            }
+        }
+        changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Attribute, .name = HTML::AttributeNames::class_ });
+        invalidate_style(StyleInvalidationReason::ElementAttributeChange, changed_properties);
         return;
     }
 

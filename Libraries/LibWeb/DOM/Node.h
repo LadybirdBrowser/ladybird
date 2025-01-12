@@ -14,6 +14,7 @@
 #include <AK/RefPtr.h>
 #include <AK/TypeCasts.h>
 #include <AK/Vector.h>
+#include <LibWeb/CSS/InvalidationSet.h>
 #include <LibWeb/DOM/AccessibilityTreeNode.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/DOM/Slottable.h>
@@ -297,6 +298,7 @@ public:
     void set_child_needs_style_update(bool b) { m_child_needs_style_update = b; }
 
     void invalidate_style(StyleInvalidationReason);
+    void invalidate_style(StyleInvalidationReason, Vector<CSS::InvalidationSet::Property> const&);
 
     void set_document(Badge<Document>, Document&);
 
