@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	HTML parser must create a fallback HTMLUnknownElement when a custom element constructor returns a Text node
+Pass	HTML parser must create a fallback HTMLUnknownElement when a custom element constructor returns non-Element object
+Pass	HTML parser must create a fallback HTMLUnknownElement when a custom element constructor does not call super()
+Pass	HTML parser must create a fallback HTMLUnknownElement when a custom element constructor throws an exception
