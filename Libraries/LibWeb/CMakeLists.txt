@@ -82,6 +82,7 @@ set(SOURCES
     CSS/GridTrackPlacement.cpp
     CSS/GridTrackSize.cpp
     CSS/Interpolation.cpp
+    CSS/InvalidationSet.cpp
     CSS/Length.cpp
     CSS/LengthBox.cpp
     CSS/MediaList.cpp
@@ -116,6 +117,7 @@ set(SOURCES
     CSS/Sizing.cpp
     CSS/StyleComputer.cpp
     CSS/StyleInvalidation.cpp
+    CSS/StyleInvalidationData.cpp
     CSS/StyleProperty.cpp
     CSS/StyleSheet.cpp
     CSS/StyleSheetIdentifier.cpp
