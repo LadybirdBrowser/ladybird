@@ -15,10 +15,7 @@ class SHA1 final : public OpenSSLHashFunction<SHA1, 512, 160> {
     AK_MAKE_NONCOPYABLE(SHA1);
 
 public:
-    explicit SHA1(EVP_MD_CTX* context)
-        : OpenSSLHashFunction(EVP_sha1(), context)
-    {
-    }
+    explicit SHA1(EVP_MD_CTX* context);
 
     virtual ByteString class_name() const override
     {

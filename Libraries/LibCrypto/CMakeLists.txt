@@ -30,6 +30,10 @@ set(SOURCES
     Curves/Ed448.cpp
     Curves/X25519.cpp
     Curves/X448.cpp
+    Hash/BLAKE2b.cpp
+    Hash/MD5.cpp
+    Hash/SHA1.cpp
+    Hash/SHA2.cpp
     NumberTheory/ModularFunctions.cpp
     PK/RSA.cpp
     PK/EC.cpp
