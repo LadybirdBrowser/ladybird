@@ -326,7 +326,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-customelementregistry-get
-Variant<GC::Root<WebIDL::CallbackType>, JS::Value> CustomElementRegistry::get(String const& name) const
+Variant<GC::Root<WebIDL::CallbackType>, Empty> CustomElementRegistry::get(String const& name) const
 {
     // 1. If this's custom element definition set contains an item with name name, then return that item's constructor.
     auto existing_definition_iterator = m_custom_element_definitions.find_if([&name](auto const& definition) {
@@ -337,7 +337,7 @@ Variant<GC::Root<WebIDL::CallbackType>, JS::Value> CustomElementRegistry::get(St
         return GC::make_root((*existing_definition_iterator)->constructor());
 
     // 2. Return undefined.
-    return JS::js_undefined();
+    return Empty {};
 }
 
 // https://html.spec.whatwg.org/multipage/custom-elements.html#dom-customelementregistry-getname

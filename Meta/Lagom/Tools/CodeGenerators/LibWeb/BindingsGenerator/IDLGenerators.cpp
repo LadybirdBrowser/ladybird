@@ -231,8 +231,14 @@ CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
     if (type.name() == "long" && !type.is_nullable())
         return { .name = "WebIDL::Long", .sequence_storage_type = SequenceStorageType::Vector };
 
-    if (type.name() == "any" || type.name() == "undefined")
+    if (type.name() == "any")
         return { .name = "JS::Value", .sequence_storage_type = SequenceStorageType::RootVector };
+
+    // NOTE: undefined is a somewhat special case that may be used in a union to represent the javascript 'undefined' (and
+    //       only ever js_undefined). Therefore, we say that the type is Empty here, so that a union of (T, undefined) is
+    //       generated as Variant<T, Empty>, which is then returned in the Variant's visit as undefined if it is Empty.
+    if (type.name() == "undefined")
+        return { .name = "Empty", .sequence_storage_type = SequenceStorageType::RootVector };
 
     if (type.name() == "object")
         return { .name = "GC::Root<JS::Object>", .sequence_storage_type = SequenceStorageType::Vector };
