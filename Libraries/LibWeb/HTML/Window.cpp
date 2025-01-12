@@ -1199,12 +1199,12 @@ WebIDL::ExceptionOr<void> Window::post_message(JS::Value message, String const& 
 }
 
 // https://dom.spec.whatwg.org/#dom-window-event
-Variant<GC::Root<DOM::Event>, JS::Value> Window::event() const
+Variant<GC::Root<DOM::Event>, Empty> Window::event() const
 {
     // The event getter steps are to return this’s current event.
     if (auto* current_event = this->current_event())
         return make_root(const_cast<DOM::Event&>(*current_event));
-    return JS::js_undefined();
+    return Empty {};
 }
 
 // https://w3c.github.io/csswg-drafts/cssom/#dom-window-getcomputedstyle
