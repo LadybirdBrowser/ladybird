@@ -88,20 +88,14 @@ class OpenSSL_BN {
     OPENSSL_WRAPPER_CLASS(OpenSSL_BN, BIGNUM, BN);
 
 public:
-    static ErrorOr<OpenSSL_BN> create()
-    {
-        return OpenSSL_BN(OPENSSL_TRY_PTR(BN_new()));
-    }
+    static ErrorOr<OpenSSL_BN> create();
 };
 
 class OpenSSL_PKEY {
     OPENSSL_WRAPPER_CLASS(OpenSSL_PKEY, EVP_PKEY, EVP_PKEY);
 
 public:
-    static ErrorOr<OpenSSL_PKEY> create()
-    {
-        return OpenSSL_PKEY(OPENSSL_TRY_PTR(EVP_PKEY_new()));
-    }
+    static ErrorOr<OpenSSL_PKEY> create();
 };
 
 class OpenSSL_PKEY_CTX {
@@ -112,10 +106,7 @@ class OpenSSL_MD_CTX {
     OPENSSL_WRAPPER_CLASS(OpenSSL_MD_CTX, EVP_MD_CTX, EVP_MD_CTX);
 
 public:
-    static ErrorOr<OpenSSL_MD_CTX> create()
-    {
-        return OpenSSL_MD_CTX(OPENSSL_TRY_PTR(EVP_MD_CTX_new()));
-    }
+    static ErrorOr<OpenSSL_MD_CTX> create();
 };
 
 #undef OPENSSL_WRAPPER_CLASS

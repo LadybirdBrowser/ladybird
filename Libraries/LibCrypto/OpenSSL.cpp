@@ -6,9 +6,26 @@
 
 #include <AK/ByteBuffer.h>
 #include <LibCrypto/OpenSSL.h>
+
+#include <openssl/bn.h>
 #include <openssl/evp.h>
 
 namespace Crypto {
+
+ErrorOr<OpenSSL_BN> OpenSSL_BN::create()
+{
+    return OpenSSL_BN(OPENSSL_TRY_PTR(BN_new()));
+}
+
+ErrorOr<OpenSSL_PKEY> OpenSSL_PKEY::create()
+{
+    return OpenSSL_PKEY(OPENSSL_TRY_PTR(EVP_PKEY_new()));
+}
+
+ErrorOr<OpenSSL_MD_CTX> OpenSSL_MD_CTX::create()
+{
+    return OpenSSL_MD_CTX(OPENSSL_TRY_PTR(EVP_MD_CTX_new()));
+}
 
 ErrorOr<OpenSSL_BN> unsigned_big_integer_to_openssl_bignum(UnsignedBigInteger const& integer)
 {
