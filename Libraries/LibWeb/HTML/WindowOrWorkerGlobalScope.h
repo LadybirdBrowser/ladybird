@@ -72,7 +72,12 @@ public:
     GC::Ref<IndexedDB::IDBFactory> indexed_db();
 
     void report_error(JS::Value e);
-    void report_an_exception(JS::Value const& e);
+
+    enum class OmitError {
+        Yes,
+        No,
+    };
+    void report_an_exception(JS::Value exception, OmitError = OmitError::No);
 
     [[nodiscard]] GC::Ref<Crypto::Crypto> crypto();
 
