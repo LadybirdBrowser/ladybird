@@ -97,13 +97,15 @@ ThrowCompletionOr<Value> await(VM& vm, Value value)
     promise->perform_then(on_fulfilled, on_rejected, {});
 
     // FIXME: Since we don't support context suspension, we attempt to "wait" for the promise to resolve
-    //        by letting the event loop spin until our promise is no longer pending, and then synchronously
-    //        running all queued promise jobs.
-    // Note: This is not used by LibJS itself, and is performed for the embedder (i.e. LibWeb).
+    //        by syncronously running all queued promise jobs.
     if (auto* custom_data = vm.custom_data()) {
+        // Embedder case (i.e. LibWeb). Runs all promise jobs by performing a microtask checkpoint.
         custom_data->spin_event_loop_until(GC::create_function(vm.heap(), [success] {
             return success.has_value();
         }));
+    } else {
+        // No embbedder, standalone LibJS implementation
+        vm.run_queued_promise_jobs();
     }
 
     // 8. Remove asyncContext from the execution context stack and restore the execution context that is at the top of the execution context stack as the running execution context.
@@ -112,8 +114,6 @@ ThrowCompletionOr<Value> await(VM& vm, Value value)
     // 9. Set the code evaluation state of asyncContext such that when evaluation is resumed with a Completion Record completion, the following steps of the algorithm that invoked Await will be performed, with completion available.
     // 10. Return NormalCompletion(unused).
     // 11. NOTE: This returns to the evaluation of the operation that had most previously resumed evaluation of asyncContext.
-
-    vm.run_queued_promise_jobs();
 
     // Make sure that the promise _actually_ resolved.
     // Note that this is checked down the chain (result.is_empty()) anyway, but let's make the source of the issue more clear.
