@@ -10,8 +10,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Types.h>
 #include <LibCrypto/Hash/HashFunction.h>
-
-#include <openssl/evp.h>
+#include <LibCrypto/OpenSSLForward.h>
 
 namespace Crypto::Hash {
 
