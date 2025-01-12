@@ -2,6 +2,7 @@
  * Copyright (c) 2022, Andrew Kaster <akaster@serenityos.org>
  * Copyright (c) 2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2023, Luke Wilde <lukew@serenityos.org>
+ * Copyright (c) 2025, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -718,99 +719,151 @@ void WindowOrWorkerGlobalScopeMixin::report_error(JS::Value e)
     report_an_exception(e);
 }
 
-// https://html.spec.whatwg.org/multipage/webappapis.html#report-an-exception
-void WindowOrWorkerGlobalScopeMixin::report_an_exception(JS::Value const& e)
+// https://html.spec.whatwg.org/multipage/webappapis.html#extract-error
+struct ErrorInformation {
+    String message;
+    String filename;
+    JS::Value error;
+    size_t lineno { 0 };
+    size_t colno { 0 };
+};
+
+// https://html.spec.whatwg.org/multipage/webappapis.html#extract-error
+static ErrorInformation extract_error_information(JS::VM& vm, JS::Value exception)
 {
-    auto& target = static_cast<DOM::EventTarget&>(this_impl());
-    auto& realm = relevant_realm(target);
-    auto& vm = realm.vm();
-    auto script_or_module = vm.get_active_script_or_module();
+    // 1. Let attributes be an empty map keyed by IDL attributes.
+    ErrorInformation attributes;
 
-    // FIXME: Get the current position in the script.
-    auto line = 0;
-    auto col = 0;
+    // 2. Set attributes[error] to exception.
+    attributes.error = exception;
 
-    // 1. If target is in error reporting mode, then return; the error is not handled.
-    if (m_error_reporting_mode) {
-        report_exception_to_console(e, realm, ErrorInPromise::No);
-        return;
-    }
-
-    // 2. Let target be in error reporting mode.
-    m_error_reporting_mode = true;
-
-    // 3. Let message be an implementation-defined string describing the error in a helpful manner.
-    auto message = [&] {
-        if (e.is_object()) {
-            auto& object = e.as_object();
+    // 3. Set attributes[message], attributes[filename], attributes[lineno], and attributes[colno] to
+    //    implementation-defined values derived from exception.
+    attributes.message = [&] {
+        if (exception.is_object()) {
+            auto& object = exception.as_object();
             if (MUST(object.has_own_property(vm.names.message))) {
                 auto message = object.get_without_side_effects(vm.names.message);
                 return message.to_string_without_side_effects();
             }
         }
 
-        return MUST(String::formatted("Uncaught exception: {}", e.to_string_without_side_effects()));
+        return MUST(String::formatted("Uncaught exception: {}", exception.to_string_without_side_effects()));
     }();
 
-    // 4. Let errorValue be the value that represents the error: in the case of an uncaught exception,
-    //    that would be the value that was thrown; in the case of a JavaScript error that would be an Error object
-    //    If there is no corresponding value, then the null value must be used instead.
-    auto error_value = e;
+    // FIXME: This offset is relative to the javascript source. Other browsers appear to do it relative
+    //        to the entire source document! Calculate that somehow.
 
-    // 5. Let urlString be the result of applying the URL serializer to the URL record that corresponds to the resource from which script was obtained.
-    // NOTE: urlString is set below once we have determined whether we are dealing with a script or a module.
-    String url_string;
-    auto script_or_module_filename = [](auto const& script_or_module) {
-        return MUST(String::from_utf8(script_or_module->filename()));
-    };
+    // If we got an Error object, then try and extract the information from the location the object was made.
+    if (exception.is_object() && is<JS::Error>(exception.as_object())) {
+        auto const& error = static_cast<JS::Error&>(exception.as_object());
+        for (auto const& frame : error.traceback()) {
+            auto source_range = frame.source_range();
+            if (source_range.start.line != 0 || source_range.start.column != 0) {
+                attributes.filename = MUST(String::from_byte_string(source_range.filename()));
+                attributes.lineno = source_range.start.line;
+                attributes.colno = source_range.start.column;
+                break;
+            }
+        }
+    }
+    // Otherwise, we fall back to try and find the location of the invocation of the function itself.
+    else {
+        for (ssize_t i = vm.execution_context_stack().size() - 1; i >= 0; --i) {
+            auto& frame = vm.execution_context_stack()[i];
+            if (frame->executable && frame->program_counter.has_value()) {
+                auto source_range = frame->executable->source_range_at(frame->program_counter.value()).realize();
+                attributes.filename = MUST(String::from_byte_string(source_range.filename()));
+                attributes.lineno = source_range.start.line;
+                attributes.colno = source_range.start.column;
+                break;
+            }
+        }
+    }
 
-    // 6. If script is a classic script and script's muted errors is true, then set message to "Script error.",
-    //    urlString to the empty string, line and col to 0, and errorValue to null.
+    // 4. Return attributes.
+    return attributes;
+}
+
+// https://html.spec.whatwg.org/multipage/webappapis.html#report-an-exception
+void WindowOrWorkerGlobalScopeMixin::report_an_exception(JS::Value exception, OmitError omit_error)
+{
+    auto& target = static_cast<DOM::EventTarget&>(this_impl());
+    auto& realm = relevant_realm(target);
+    auto& vm = realm.vm();
+
+    // 1. Let notHandled be true.
+    bool not_handled = true;
+
+    // 2. Let errorInfo be the result of extracting error information from exception.
+    auto error_info = extract_error_information(vm, exception);
+
+    // 3. Let script be a script found in an implementation-defined way, or null. This should usually be the
+    //    running script (most notably during run a classic script).
+    auto script_or_module = vm.get_active_script_or_module();
+
+    // 4. If script is a classic script and script's muted errors is true, then set errorInfo[error] to null,
+    //    errorInfo[message] to "Script error.", errorInfo[filename] to the empty string, errorInfo[lineno] to
+    //    0, and errorInfo[colno] to 0.
     script_or_module.visit(
         [&](GC::Ref<JS::Script> const& js_script) {
             if (verify_cast<ClassicScript>(js_script->host_defined())->muted_errors() == ClassicScript::MutedErrors::Yes) {
-                message = "Script error."_string;
-                url_string = String {};
-                line = 0;
-                col = 0;
-                error_value = JS::js_null();
-            } else {
-                url_string = script_or_module_filename(js_script);
+                error_info.error = JS::js_null();
+                error_info.message = "Script error."_string;
+                error_info.filename = String {};
+                error_info.lineno = 0;
+                error_info.colno = 0;
             }
         },
-        [&](GC::Ref<JS::Module> const& js_module) {
-            url_string = script_or_module_filename(js_module);
-        },
-        [](Empty) {});
+        [](auto const&) {});
 
-    // 7. Let notHandled be true.
-    auto not_handled = true;
+    // 5. If omitError is true, then set errorInfo[error] to null.
+    if (omit_error == OmitError::Yes)
+        error_info.error = JS::js_null();
 
-    // 8. If target implements EventTarget, then set notHandled to the result of firing an event named error at target,
-    //    using ErrorEvent, with the cancelable attribute initialized to true, the message attribute initialized to message,
-    //    the filename attribute initialized to urlString, the lineno attribute initialized to line, the colno attribute initialized to col,
-    //    and the error attribute initialized to errorValue.
-    ErrorEventInit event_init = {};
-    event_init.cancelable = true;
-    event_init.message = message;
-    event_init.filename = url_string;
-    event_init.lineno = line;
-    event_init.colno = col;
-    event_init.error = error_value;
+    // 6. If global is not in error reporting mode, then:
+    if (!m_error_reporting_mode) {
+        // 1. Set global's in error reporting mode to true.
+        m_error_reporting_mode = true;
 
-    not_handled = target.dispatch_event(ErrorEvent::create(realm, EventNames::error, event_init));
+        // 2. If global implements EventTarget, then set notHandled to the result of firing an event named
+        //    error at global, using ErrorEvent, with the cancelable attribute initialized to true, and
+        //    additional attributes initialized according to errorInfo.
+        ErrorEventInit event_init = {};
+        event_init.cancelable = true;
+        event_init.message = error_info.message;
+        event_init.filename = error_info.filename;
+        event_init.lineno = error_info.lineno;
+        event_init.colno = error_info.colno;
+        event_init.error = error_info.error;
 
-    // 9. Let target no longer be in error reporting mode.
-    m_error_reporting_mode = false;
+        not_handled = target.dispatch_event(ErrorEvent::create(realm, EventNames::error, event_init));
 
-    // 10. If notHandled is false, then the error is handled. Otherwise, the error is not handled.
+        // 3. Set global's in error reporting mode to false.
+        m_error_reporting_mode = false;
+    }
+
+    // 7. If notHandled is true, then:
     if (not_handled) {
-        // When the user agent is to report an exception E, the user agent must report the error for the relevant script,
-        // with the problematic position (line number and column number) in the resource containing the script,
-        // using the global object specified by the script's settings object as the target.
-        // If the error is still not handled after this, then the error may be reported to a developer console.
-        // https://html.spec.whatwg.org/multipage/webappapis.html#report-the-exception
-        report_exception_to_console(e, realm, ErrorInPromise::No);
+        // 1. Set errorInfo[error] to null.
+        error_info.error = JS::js_null();
+
+        // FIXME: 2. If global implements DedicatedWorkerGlobalScope, queue a global task on the DOM manipulation
+        //        task source with the global's associated Worker's relevant global object to run these steps:
+        if (false) {
+            // FIXME: 1. Let workerObject be the Worker object associated with global.
+
+            // FIXME: 2. Set notHandled be the result of firing an event named error at workerObject, using ErrorEvent,
+            //    with the cancelable attribute initialized to true, and additional attributes initialized
+            //    according to errorInfo.
+
+            // FIXME: 3. If notHandled is true, then report exception for workerObject's relevant global object with
+            //    omitError set to true.
+        }
+    }
+    // 8. Otherwise, the user agent may report exception to a developer console.
+    else {
+        report_exception_to_console(exception, realm, ErrorInPromise::No);
     }
 }
 

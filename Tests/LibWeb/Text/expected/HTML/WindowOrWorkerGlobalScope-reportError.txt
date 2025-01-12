@@ -1,6 +1,6 @@
 message = Reporting an Error!
-lineno = 0
-colno = 0
+lineno = 17
+colno = 28
 error = Error: Reporting an Error!
 filename URL scheme = file:
 filename URL final path segment = WindowOrWorkerGlobalScope-reportError.html
