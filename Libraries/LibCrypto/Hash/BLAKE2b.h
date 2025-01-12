@@ -15,10 +15,7 @@ class BLAKE2b final : public OpenSSLHashFunction<BLAKE2b, 1024, 512> {
     AK_MAKE_NONCOPYABLE(BLAKE2b);
 
 public:
-    explicit BLAKE2b(EVP_MD_CTX* context)
-        : OpenSSLHashFunction(EVP_blake2b512(), context)
-    {
-    }
+    explicit BLAKE2b(EVP_MD_CTX* context);
 
     virtual ByteString class_name() const override
     {
