@@ -263,6 +263,7 @@ public:
     static GC::Ptr<Layout::NodeWithStyle> create_layout_node_for_display_type(DOM::Document&, CSS::Display const&, GC::Ref<CSS::ComputedProperties>, Element*);
 
     bool affected_by_hover() const;
+    bool affected_by_invalidation_property(CSS::InvalidationSet::Property const&) const;
 
     void set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::Selector::PseudoElement::Type, GC::Ptr<Layout::NodeWithStyle>);
     GC::Ptr<Layout::NodeWithStyle> get_pseudo_element_node(CSS::Selector::PseudoElement::Type) const;
@@ -420,7 +421,7 @@ protected:
 private:
     void make_html_uppercased_qualified_name();
 
-    void invalidate_style_after_attribute_change(FlyString const& attribute_name);
+    void invalidate_style_after_attribute_change(FlyString const& attribute_name, Optional<String> const& old_value, Optional<String> const& new_value);
 
     WebIDL::ExceptionOr<GC::Ptr<Node>> insert_adjacent(StringView where, GC::Ref<Node> node);
 

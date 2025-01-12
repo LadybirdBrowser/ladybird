@@ -37,6 +37,7 @@
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/Interpolation.h>
+#include <LibWeb/CSS/InvalidationSet.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/SelectorEngine.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -425,6 +426,46 @@ Vector<MatchingRule> const& StyleComputer::get_hover_rules() const
 {
     build_rule_cache_if_needed();
     return m_hover_rules;
+}
+
+InvalidationSet StyleComputer::invalidation_set_for_properties(Vector<InvalidationSet::Property> const& properties) const
+{
+    if (!m_style_invalidation_data)
+        return {};
+    auto const& descendant_invalidation_sets = m_style_invalidation_data->descendant_invalidation_sets;
+    InvalidationSet result;
+    for (auto const& property : properties) {
+        if (auto it = descendant_invalidation_sets.find(property); it != descendant_invalidation_sets.end())
+            result.include_all_from(it->value);
+    }
+    return result;
+}
+
+bool StyleComputer::invalidation_property_used_in_has_selector(InvalidationSet::Property const& property) const
+{
+    if (!m_style_invalidation_data)
+        return true;
+    switch (property.type) {
+    case InvalidationSet::Property::Type::Id:
+        if (m_style_invalidation_data->ids_used_in_has_selectors.contains(property.name))
+            return true;
+        break;
+    case InvalidationSet::Property::Type::Class:
+        if (m_style_invalidation_data->class_names_used_in_has_selectors.contains(property.name))
+            return true;
+        break;
+    case InvalidationSet::Property::Type::Attribute:
+        if (m_style_invalidation_data->attribute_names_used_in_has_selectors.contains(property.name))
+            return true;
+        break;
+    case InvalidationSet::Property::Type::TagName:
+        if (m_style_invalidation_data->tag_names_used_in_has_selectors.contains(property.name))
+            return true;
+        break;
+    default:
+        break;
+    }
+    return false;
 }
 
 Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& element, CascadeOrigin cascade_origin, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, bool& did_match_any_hover_rules, FlyString const& qualified_layer_name) const
@@ -2576,6 +2617,11 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
                     return static_cast<CSSNestedDeclarations const&>(rule).parent_style_rule().absolutized_selectors();
                 VERIFY_NOT_REACHED();
             }();
+
+            for (auto const& selector : absolutized_selectors) {
+                m_style_invalidation_data->build_invalidation_sets_for_selector(selector);
+            }
+
             for (CSS::Selector const& selector : absolutized_selectors) {
                 MatchingRule matching_rule {
                     shadow_root,
@@ -2842,6 +2888,7 @@ void StyleComputer::build_qualified_layer_names_cache()
 void StyleComputer::build_rule_cache()
 {
     m_selector_insights = make<SelectorInsights>();
+    m_style_invalidation_data = make<StyleInvalidationData>();
 
     if (auto user_style_source = document().page().user_style(); user_style_source.has_value()) {
         m_user_style_sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingContext(document()), user_style_source.value()));
@@ -2869,6 +2916,7 @@ void StyleComputer::invalidate_rule_cache()
     m_user_agent_rule_cache = nullptr;
 
     m_hover_rules.clear_with_capacity();
+    m_style_invalidation_data = nullptr;
 }
 
 void StyleComputer::did_load_font(FlyString const&)

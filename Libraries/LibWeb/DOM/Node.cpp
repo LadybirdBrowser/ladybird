@@ -470,6 +470,64 @@ void Node::invalidate_style(StyleInvalidationReason reason)
     document().schedule_style_update();
 }
 
+void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::InvalidationSet::Property> const& properties)
+{
+    if (is_character_data())
+        return;
+
+    bool properties_used_in_has_selectors = false;
+    for (auto const& property : properties) {
+        properties_used_in_has_selectors |= document().style_computer().invalidation_property_used_in_has_selector(property);
+    }
+    if (properties_used_in_has_selectors) {
+        document().invalidate_style(reason);
+        return;
+    }
+
+    auto invalidation_set = document().style_computer().invalidation_set_for_properties(properties);
+    if (invalidation_set.is_empty())
+        return;
+
+    if (invalidation_set.needs_invalidate_self()) {
+        set_needs_style_update(true);
+    }
+
+    auto element_has_properties_from_invalidation_set = [&](Element& element) {
+        bool result = false;
+        invalidation_set.for_each_property([&](auto const& property) {
+            if (element.affected_by_invalidation_property(property))
+                result = true;
+        });
+        return result;
+    };
+
+    auto invalidate_entire_subtree = [&](Node& subtree_root) {
+        subtree_root.for_each_shadow_including_inclusive_descendant([&](Node& node) {
+            if (!node.is_element())
+                return TraversalDecision::Continue;
+            auto& element = static_cast<Element&>(node);
+            bool needs_style_recalculation = invalidation_set.needs_invalidate_whole_subtree() || element_has_properties_from_invalidation_set(element);
+            if (needs_style_recalculation) {
+                element.set_needs_style_update(true);
+            } else {
+                element.set_needs_inherited_style_update(true);
+            }
+            return TraversalDecision::Continue;
+        });
+    };
+
+    invalidate_entire_subtree(*this);
+
+    if (invalidation_set.needs_invalidate_whole_subtree()) {
+        for (auto* sibling = next_sibling(); sibling; sibling = sibling->next_sibling()) {
+            if (sibling->is_element())
+                invalidate_entire_subtree(*sibling);
+        }
+    }
+
+    document().schedule_style_update();
+}
+
 String Node::child_text_content() const
 {
     if (!is<ParentNode>(*this))
