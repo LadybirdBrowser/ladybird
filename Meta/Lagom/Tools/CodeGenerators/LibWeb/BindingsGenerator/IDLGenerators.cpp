@@ -1821,8 +1821,11 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 
     if (type.is_string()) {
         if (type.is_nullable() || is_optional) {
+            // FIXME: Ideally we would not need to do this const_cast, but we currently rely on temporary
+            //        lifetime extension to allow Variants to compile and handle an interface returning a
+            //        GC::Ref while the generated code will visit it as a GC::Root.
             scoped_generator.append(R"~~~(
-    @result_expression@ JS::PrimitiveString::create(vm, @value@.release_value());
+    @result_expression@ JS::PrimitiveString::create(vm, const_cast<decltype(@value@)&>(@value@).release_value());
 )~~~");
         } else {
             scoped_generator.append(R"~~~(
