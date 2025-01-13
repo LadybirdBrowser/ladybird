@@ -1,0 +1,26 @@
+<!doctype html>
+<style>
+    * {
+        outline: 1px solid black;
+    }
+    #foo {
+        width: max-content;
+        display: flex;
+    }
+</style>
+<script src="../include.js"></script>
+<body>
+    <div id="foo">
+        <div id="a">a</div>
+        <div id="b">b</div>
+    </div>
+</body>
+<script>
+    test(() => {
+        println(getComputedStyle(foo).width);
+        a.textContent = "foo";
+        println(getComputedStyle(foo).width);
+        b.textContent = "bar";
+        println(getComputedStyle(foo).width);
+    });
+</script>
