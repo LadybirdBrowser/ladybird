@@ -1009,6 +1009,7 @@ void Document::tear_down_layout_tree()
 {
     m_layout_root = nullptr;
     m_paintable = nullptr;
+    m_needs_full_layout_tree_update = true;
 }
 
 Color Document::background_color() const
@@ -1218,7 +1219,7 @@ void Document::update_layout()
     auto* document_element = this->document_element();
     auto viewport_rect = navigable->viewport_rect();
 
-    if (!m_layout_root) {
+    if (!m_layout_root || needs_layout_tree_update() || child_needs_layout_tree_update() || needs_full_layout_tree_update()) {
         Layout::TreeBuilder tree_builder;
         m_layout_root = verify_cast<Layout::Viewport>(*tree_builder.build(*this));
 
@@ -1226,6 +1227,8 @@ void Document::update_layout()
             propagate_overflow_to_viewport(*document_element, *m_layout_root);
             propagate_scrollbar_width_to_viewport(*document_element, *m_layout_root);
         }
+
+        set_needs_full_layout_tree_update(false);
     }
 
     // Assign each box that establishes a formatting context a list of absolutely positioned children it should take care of during layout
