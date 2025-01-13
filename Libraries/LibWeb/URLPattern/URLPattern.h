@@ -16,6 +16,7 @@ namespace Web::URLPattern {
 using URLPatternInit = URL::Pattern::Init;
 using URLPatternInput = URL::Pattern::Input;
 using URLPatternOptions = URL::Pattern::Options;
+using URLPatternResult = URL::Pattern::Result;
 
 // https://urlpattern.spec.whatwg.org/#urlpattern
 class URLPattern : public Bindings::PlatformObject {
@@ -25,6 +26,8 @@ class URLPattern : public Bindings::PlatformObject {
 public:
     static WebIDL::ExceptionOr<GC::Ref<URLPattern>> construct_impl(JS::Realm&, URLPatternInput const&, String const& base_url, URLPatternOptions const& = {});
     static WebIDL::ExceptionOr<GC::Ref<URLPattern>> construct_impl(JS::Realm&, URLPatternInput const&, URLPatternOptions const& = {});
+
+    Optional<URLPatternResult> exec(URLPatternInput const&, Optional<String> const&) const;
 
     virtual ~URLPattern() override;
 
