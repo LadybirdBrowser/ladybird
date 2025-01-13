@@ -25,7 +25,7 @@ dictionary AudioContextOptions {
 };
 
 dictionary AudioTimestamp {
-    double contextTime;
+    [GenerateAsRequired] double contextTime;
     // FIXME: Should be DOMHighResTimeStamp, but DOMHighResTimeStamp doesn't get parsed as a double during codegen
-    double performanceTime;
+    [GenerateAsRequired] double performanceTime;
 };

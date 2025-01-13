@@ -45,8 +45,8 @@ dictionary NavigationReloadOptions : NavigationOptions {
 };
 
 dictionary NavigationResult {
-    Promise<NavigationHistoryEntry> committed;
-    Promise<NavigationHistoryEntry> finished;
+    [GenerateAsRequired] Promise<NavigationHistoryEntry> committed;
+    [GenerateAsRequired] Promise<NavigationHistoryEntry> finished;
 };
 
 enum NavigationHistoryBehavior {
