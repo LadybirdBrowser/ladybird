@@ -147,6 +147,8 @@ public:
     };
     CachedLayoutBoxes& cached_layout_boxes(Badge<Painting::MediaPaintable>) const { return m_layout_boxes; }
 
+    CORSSettingAttribute crossorigin() const { return m_crossorigin; }
+
 protected:
     HTMLMediaElement(DOM::Document&, DOM::QualifiedName);
 
