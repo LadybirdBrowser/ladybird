@@ -2,8 +2,8 @@
 
 // https://encoding.spec.whatwg.org/#dictdef-textencoderencodeintoresult
 dictionary TextEncoderEncodeIntoResult {
-    unsigned long long read;
-    unsigned long long written;
+    [GenerateAsRequired] unsigned long long read;
+    [GenerateAsRequired] unsigned long long written;
 };
 
 // https://encoding.spec.whatwg.org/#textencoder

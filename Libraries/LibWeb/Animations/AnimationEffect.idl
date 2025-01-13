@@ -30,8 +30,8 @@ enum PlaybackDirection { "normal", "reverse", "alternate", "alternate-reverse" }
 
 // https://www.w3.org/TR/web-animations-1/#the-computedeffecttiming-dictionary
 dictionary ComputedEffectTiming : EffectTiming {
-    unrestricted double endTime;
-    unrestricted double activeDuration;
+    [GenerateAsRequired] unrestricted double endTime;
+    [GenerateAsRequired] unrestricted double activeDuration;
     double? localTime;
     double? progress;
     unrestricted double? currentIteration;

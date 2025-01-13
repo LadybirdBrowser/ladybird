@@ -1764,7 +1764,7 @@ enum class WrappingReference {
     Yes,
 };
 
-static void generate_wrap_statement(SourceGenerator& generator, ByteString const& value, IDL::Type const& type, IDL::Interface const& interface, StringView result_expression, WrappingReference wrapping_reference = WrappingReference::No, size_t recursion_depth = 0)
+static void generate_wrap_statement(SourceGenerator& generator, ByteString const& value, IDL::Type const& type, IDL::Interface const& interface, StringView result_expression, WrappingReference wrapping_reference = WrappingReference::No, size_t recursion_depth = 0, bool is_optional = false)
 {
     auto scoped_generator = generator.fork();
     scoped_generator.set("value", value);
@@ -1791,7 +1791,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         return;
     }
 
-    if (type.is_nullable() && !is<UnionType>(type)) {
+    if ((is_optional || type.is_nullable()) && !is<UnionType>(type)) {
         if (type.is_string()) {
             scoped_generator.append(R"~~~(
     if (!@value@.has_value()) {
@@ -1820,7 +1820,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
     }
 
     if (type.is_string()) {
-        if (type.is_nullable()) {
+        if (type.is_nullable() || is_optional) {
             scoped_generator.append(R"~~~(
     @result_expression@ JS::PrimitiveString::create(vm, @value@.release_value());
 )~~~");
@@ -1837,16 +1837,16 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
     auto new_array@recursion_depth@ = MUST(JS::Array::create(realm, 0));
 )~~~");
 
-        if (!type.is_nullable()) {
-            scoped_generator.append(R"~~~(
-    for (size_t i@recursion_depth@ = 0; i@recursion_depth@ < @value@.size(); ++i@recursion_depth@) {
-        auto& element@recursion_depth@ = @value@.at(i@recursion_depth@);
-)~~~");
-        } else {
+        if (type.is_nullable() || is_optional) {
             scoped_generator.append(R"~~~(
     auto& @value@_non_optional = @value@.value();
     for (size_t i@recursion_depth@ = 0; i@recursion_depth@ < @value@_non_optional.size(); ++i@recursion_depth@) {
         auto& element@recursion_depth@ = @value@_non_optional.at(i@recursion_depth@);
+)~~~");
+        } else {
+            scoped_generator.append(R"~~~(
+    for (size_t i@recursion_depth@ = 0; i@recursion_depth@ < @value@.size(); ++i@recursion_depth@) {
+        auto& element@recursion_depth@ = @value@.at(i@recursion_depth@);
 )~~~");
         }
 
@@ -2024,7 +2024,14 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
                 dictionary_generator.append(R"~~~(
         JS::Value @wrapped_value_name@;
 )~~~");
-                generate_wrap_statement(dictionary_generator, ByteString::formatted("{}{}{}", value, type.is_nullable() ? "->" : ".", member.name.to_snakecase()), member.type, interface, ByteString::formatted("{} =", wrapped_value_name), WrappingReference::No, recursion_depth + 1);
+                // NOTE: This has similar semantics as 'required' in WebIDL. However, the spec does not put 'required' on
+                //       _returned_ dictionary members since with the way the spec is worded it has no normative effect to
+                //      do so. We could implement this without the 'GenerateAsRequired' extended attribute, but it would require
+                //      the generated code to do some metaprogramming to inspect the type of the member in the C++ struct to
+                //      determine whether the type is present or not (e.g through a has_value() on an Optional<T>, or a null
+                //      check on a GC::Ptr<T>). So to save some complexity in the generator, give ourselves a hint of what to do.
+                bool is_optional = !member.extended_attributes.contains("GenerateAsRequired") && !member.default_value.has_value();
+                generate_wrap_statement(dictionary_generator, ByteString::formatted("{}{}{}", value, type.is_nullable() ? "->" : ".", member.name.to_snakecase()), member.type, interface, ByteString::formatted("{} =", wrapped_value_name), WrappingReference::No, recursion_depth + 1, is_optional);
 
                 dictionary_generator.append(R"~~~(
         MUST(dictionary_object@recursion_depth@->create_data_property("@member_key@", @wrapped_value_name@));
@@ -2057,7 +2064,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         }
     }
 
-    if (type.is_nullable() && !is<UnionType>(type)) {
+    if ((type.is_nullable() || is_optional) && !is<UnionType>(type)) {
         scoped_generator.append(R"~~~(
     }
 )~~~");
