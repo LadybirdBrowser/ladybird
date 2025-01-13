@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/clip-path-scrolling.html" />
+<style>
+  body {
+    height: 200vh;
+    position: relative;
+  }
+  div {
+    position: absolute;
+    top: 100px;
+    background-color: green;
+    width: 100px;
+    height: 100px;
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+  }
+</style>
+<div></div>
+<script>
+  window.scrollTo(0, 100);
+</script>
