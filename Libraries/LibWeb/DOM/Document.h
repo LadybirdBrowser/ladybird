@@ -502,6 +502,9 @@ public:
     bool needs_full_style_update() const { return m_needs_full_style_update; }
     void set_needs_full_style_update(bool b) { m_needs_full_style_update = b; }
 
+    [[nodiscard]] bool needs_full_layout_tree_update() const { return m_needs_full_layout_tree_update; }
+    void set_needs_full_layout_tree_update(bool b) { m_needs_full_layout_tree_update = b; }
+
     void set_needs_to_refresh_scroll_state(bool b);
 
     bool has_active_favicon() const { return m_active_favicon; }
@@ -936,6 +939,7 @@ private:
     bool m_needs_layout { false };
 
     bool m_needs_full_style_update { false };
+    bool m_needs_full_layout_tree_update { false };
 
     bool m_needs_animated_style_update { false };
 
