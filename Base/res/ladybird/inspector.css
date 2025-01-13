@@ -24,6 +24,7 @@
         --console-table-border: gray;
         --property-table-head: rgb(57, 57, 57);
         --property-table-row: rgb(45, 45, 45);
+        --property-filter-border: rgb(57, 57, 57);
     }
 }
 
@@ -48,6 +49,7 @@
         --console-table-border: gray;
         --property-table-head: rgb(229, 229, 229);
         --property-table-row: rgb(240, 240, 240);
+        --property-filter-border: rgb(229, 229, 229);
     }
 }
 
@@ -176,6 +178,12 @@ body {
     padding: 8px 0px 0px 4px;
 
     overflow: auto scroll;
+}
+
+.tab-content:has(table.property-table) input {
+    border: solid var(--property-filter-border);
+    margin-bottom: 16px;
+    width: 100%;
 }
 
 .tab-header {
