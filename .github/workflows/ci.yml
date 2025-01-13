@@ -7,34 +7,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Look at changed paths in the commit or PR to determine whether we need to run the complete CI job. If only
-  # documentation or .md files were changed, we wouldn't need to compile and check anything here.
-  path-changes:
-    runs-on: ubuntu-24.04
-    permissions:
-      pull-requests: read
-    outputs:
-      source_excluding_docs: ${{ steps.filter.outputs.source_excluding_docs }}
-    steps:
-      # Only need a checkout if we're not running as part of a PR
-      - uses: actions/checkout@v4
-        if: github.event_name != 'pull_request'
-
-      # FIXME: change into `dorny/paths-filter@v3` when https://github.com/dorny/paths-filter/pull/226 is merged
-      - uses: petermetz/paths-filter@5ee2f5d4cf5d7bdd998a314a42da307e2ae1639d
-        id: filter
-        with:
-          predicate-quantifier: every  # all globs below must match
-          filters: |
-            source_excluding_docs:
-              - '**'
-              - '!Documentation/**'
-              - '!*.md'
-
   # CI matrix - runs the job in lagom-template.yml with different configurations.
   Lagom:
-    needs: path-changes
-    if: github.repository == 'LadybirdBrowser/ladybird' && needs.path-changes.outputs.source_excluding_docs == 'true'
+    if: github.repository == 'LadybirdBrowser/ladybird'
 
     strategy:
       fail-fast: false
