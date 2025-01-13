@@ -1,0 +1,32 @@
+<!doctype html>
+<style>
+    * {
+        outline: 1px solid black;
+    }
+    #foo {
+        width: max-content;
+        display: flex;
+    }
+    #a, #b {
+        width: 100px;
+        height: 100px;
+    }
+</style>
+<script src="../include.js"></script>
+<body>
+    <div id="foo">
+        <div id="a">a</div>
+        <div id="b">b</div>
+    </div>
+</body>
+<script>
+    test(() => {
+        const a = document.getElementById("a");
+        const b = document.getElementById("b");
+        println(getComputedStyle(foo).width);
+        a.remove();
+        println(getComputedStyle(foo).width);
+        foo.insertBefore(a, b);
+        println(getComputedStyle(foo).width);
+    });
+</script>
