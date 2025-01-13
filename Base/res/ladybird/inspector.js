@@ -813,5 +813,45 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    const filters = document.querySelectorAll(
+        "#inspector-bottom .tab-content input:not(#console-input)"
+    );
+    const filterPropertyFunction = event => {
+        const toFind = event.target.value.toUpperCase();
+        const body = event.target.closest("div").querySelector("table tbody");
+        const propertiesRows = body.getElementsByTagName("tr");
+        let property, text;
+        for (let i = 0; i < propertiesRows.length; i++) {
+            const row = propertiesRows[i];
+            property = row.getElementsByTagName("td")[0];
+
+            if (property) {
+                text = property.textContent || property.innerText;
+
+                if (text.toUpperCase().indexOf(toFind) > -1) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            }
+        }
+    };
+
+    // simple debounce
+    const debounce = (fn, delay) => {
+        let id;
+        return function (...args) {
+            clearTimeout(id);
+
+            id = setTimeout(() => {
+                fn.apply(this, args);
+            }, delay);
+        };
+    };
+
+    filters.forEach(filter => {
+        filter.addEventListener("keydown", debounce(filterPropertyFunction, 100));
+    });
+
     inspector.inspectorLoaded();
 });
