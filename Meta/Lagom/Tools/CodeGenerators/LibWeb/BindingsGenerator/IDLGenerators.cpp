@@ -3572,7 +3572,6 @@ void @class_name@::initialize(JS::Realm& realm)
                 auto attribute_name = attribute.extended_attributes.get(reflected_attribute).value();
                 if (attribute_name.is_empty())
                     attribute_name = attribute.name.to_lowercase();
-                attribute_name = make_input_acceptable_cpp(attribute_name);
 
                 attribute_generator.set("attribute.reflect_name", attribute_name);
                 found = true;
