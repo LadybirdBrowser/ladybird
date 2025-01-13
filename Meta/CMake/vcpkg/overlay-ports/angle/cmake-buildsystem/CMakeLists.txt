@@ -286,10 +286,6 @@ if (USE_ANGLE_EGL OR ENABLE_WEBGL)
         target_sources(GLESv2 PRIVATE src/libGLESv2/libGLESv2_autogen.def)
         set_target_properties(GLESv2 PROPERTIES OUTPUT_NAME libGLESv2)
     endif ()
-    # Rename libs to avoid conflict with system OpenGL
-    if(NOT VCPKG_TARGET_IS_WINDOWS)
-        set_target_properties(GLESv2 PROPERTIES OUTPUT_NAME libGLESv2_angle)
-    endif()
 
     add_library(GLESv2Framework INTERFACE)
     target_link_libraries(GLESv2Framework INTERFACE GLESv2)
@@ -316,10 +312,6 @@ if (USE_ANGLE_EGL OR ENABLE_WEBGL)
             target_sources(EGL PRIVATE src/libEGL/libEGL_autogen.def)
             set_target_properties(EGL PROPERTIES OUTPUT_NAME libEGL)
         endif ()
-        # Rename libs to avoid conflict with system OpenGL
-        if(NOT VCPKG_TARGET_IS_WINDOWS)
-            set_target_properties(EGL PROPERTIES OUTPUT_NAME libEGL_angle)
-        endif()
 
         add_library(EGLFramework INTERFACE)
         target_include_directories(EGLFramework INTERFACE ${ANGLE_FRAMEWORK_HEADERS_DIR}/)

@@ -34,6 +34,8 @@ public:
 
 #ifdef AK_OS_MACOS
     static NonnullRefPtr<PaintingSurface> wrap_iosurface(Core::IOSurfaceHandle const&, RefPtr<SkiaBackendContext>, Origin = Origin::TopLeft);
+#elif defined(USE_VULKAN)
+    static NonnullRefPtr<PaintingSurface> wrap_vkimage(Vulkan::Image, RefPtr<SkiaBackendContext>, Origin = Origin::TopLeft);
 #endif
 
     void read_into_bitmap(Bitmap&);
