@@ -1326,6 +1326,29 @@ void Node::set_needs_inherited_style_update(bool value)
     }
 }
 
+void Node::set_needs_layout_tree_update(bool value)
+{
+    if (m_needs_layout_tree_update == value)
+        return;
+    m_needs_layout_tree_update = value;
+
+    // NOTE: If this is a shadow root, we need to propagate the layout tree update to the host.
+    if (is_shadow_root()) {
+        auto& shadow_root = static_cast<ShadowRoot&>(*this);
+        if (auto host = shadow_root.host())
+            host->set_needs_layout_tree_update(value);
+    }
+
+    if (m_needs_layout_tree_update) {
+        for (auto* ancestor = parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
+            if (ancestor->m_child_needs_layout_tree_update)
+                break;
+            ancestor->m_child_needs_layout_tree_update = true;
+        }
+        document().set_needs_layout();
+    }
+}
+
 void Node::set_needs_style_update(bool value)
 {
     if (m_needs_style_update == value)
