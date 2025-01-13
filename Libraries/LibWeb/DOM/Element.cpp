@@ -2634,7 +2634,7 @@ void Element::determine_proximity_to_the_viewport()
     //   containment box's overflow clip edge intersects with the viewport, or a user-agent defined margin around the
     //   viewport.
     auto viewport_rect = document().viewport_rect();
-    // NOTE: This margin is meant to allow the user agent to begin preparing for an element to be in the
+    // Spec Note: This margin is meant to allow the user agent to begin preparing for an element to be in the
     // viewport soon. A margin of 50% is suggested as a reasonable default.
     viewport_rect.inflate(viewport_rect.width(), viewport_rect.height());
     // FIXME: We don't have paint containment or the overflow clip edge yet, so this is just using the absolute rect for now.
