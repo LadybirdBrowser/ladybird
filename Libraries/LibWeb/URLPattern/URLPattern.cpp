@@ -36,4 +36,11 @@ WebIDL::ExceptionOr<GC::Ref<URLPattern>> URLPattern::construct_impl(JS::Realm& r
     return realm.create<URLPattern>(realm);
 }
 
+// https://urlpattern.spec.whatwg.org/#dom-urlpattern-exec
+Optional<URLPatternResult> URLPattern::exec(URLPatternInput const&, Optional<String> const&) const
+{
+    dbgln("FIXME: Implement URLPattern::match");
+    return {};
+}
+
 }

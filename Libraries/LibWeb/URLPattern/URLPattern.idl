@@ -8,7 +8,7 @@ interface URLPattern {
 
     [FIXME] boolean test(optional URLPatternInput input = {}, optional USVString baseURL);
 
-    [FIXME] URLPatternResult? exec(optional URLPatternInput input = {}, optional USVString baseURL);
+    URLPatternResult? exec(optional URLPatternInput input = {}, optional USVString baseURL);
 
     [FIXME] readonly attribute USVString protocol;
     [FIXME] readonly attribute USVString username;
