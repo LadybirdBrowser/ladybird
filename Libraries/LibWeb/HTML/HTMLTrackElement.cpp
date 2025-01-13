@@ -41,17 +41,17 @@ void HTMLTrackElement::attribute_changed(FlyString const& name, Optional<String>
 
     // https://html.spec.whatwg.org/multipage/media.html#sourcing-out-of-band-text-tracks
     // As the kind, label, and srclang attributes are set, changed, or removed, the text track must update accordingly, as per the definitions above.
-    if (name.equals_ignoring_ascii_case("kind"sv)) {
+    if (name.equals_ignoring_ascii_case(HTML::AttributeNames::kind)) {
         m_track->set_kind(text_track_kind_from_string(value.value_or({})));
-    } else if (name.equals_ignoring_ascii_case("label"sv)) {
+    } else if (name.equals_ignoring_ascii_case(HTML::AttributeNames::label)) {
         m_track->set_label(value.value_or({}));
-    } else if (name.equals_ignoring_ascii_case("srclang"sv)) {
+    } else if (name.equals_ignoring_ascii_case(HTML::AttributeNames::srclang)) {
         m_track->set_language(value.value_or({}));
     }
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-texttrack-id
     // For tracks that correspond to track elements, the track's identifier is the value of the element's id attribute, if any.
-    if (name.equals_ignoring_ascii_case("id"sv)) {
+    if (name.equals_ignoring_ascii_case(HTML::AttributeNames::id)) {
         m_track->set_id(value.value_or({}));
     }
 }
