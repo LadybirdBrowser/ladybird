@@ -11,8 +11,6 @@
 #include <LibCore/Promise.h>
 #include <LibCore/ThreadEventQueue.h>
 #include <LibThreading/Mutex.h>
-#include <errno.h>
-#include <pthread.h>
 
 namespace Core {
 
@@ -40,23 +38,9 @@ struct ThreadEventQueue::Private {
     bool warned_promise_count { false };
 };
 
-static pthread_key_t s_current_thread_event_queue_key;
-static pthread_once_t s_current_thread_event_queue_key_once = PTHREAD_ONCE_INIT;
-
 ThreadEventQueue& ThreadEventQueue::current()
 {
-    pthread_once(&s_current_thread_event_queue_key_once, [] {
-        pthread_key_create(&s_current_thread_event_queue_key, [](void* value) {
-            if (value)
-                delete static_cast<ThreadEventQueue*>(value);
-        });
-    });
-
-    auto* ptr = static_cast<ThreadEventQueue*>(pthread_getspecific(s_current_thread_event_queue_key));
-    if (!ptr) {
-        ptr = new ThreadEventQueue;
-        pthread_setspecific(s_current_thread_event_queue_key, ptr);
-    }
+    thread_local auto ptr = adopt_own(*new ThreadEventQueue);
     return *ptr;
 }
 
@@ -64,8 +48,6 @@ ThreadEventQueue::ThreadEventQueue()
     : m_private(make<Private>())
 {
 }
-
-ThreadEventQueue::~ThreadEventQueue() = default;
 
 void ThreadEventQueue::post_event(Core::EventReceiver& receiver, NonnullOwnPtr<Core::Event> event)
 {

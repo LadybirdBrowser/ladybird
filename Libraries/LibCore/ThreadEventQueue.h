@@ -36,7 +36,6 @@ public:
 
 private:
     ThreadEventQueue();
-    ~ThreadEventQueue();
 
     struct Private;
     OwnPtr<Private> m_private;
