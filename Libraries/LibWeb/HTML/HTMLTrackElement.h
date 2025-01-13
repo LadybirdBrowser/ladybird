@@ -29,10 +29,25 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
+    String track_url() const { return m_track_url; }
+    void set_track_url(String);
+
+    void start_the_track_processing_model();
+    void start_the_track_processing_model_parallel_steps(JS::Realm& realm);
+
     // ^DOM::Element
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
+    virtual void inserted() override;
 
     GC::Ptr<TextTrack> m_track;
+
+    // https://html.spec.whatwg.org/multipage/media.html#track-url
+    String m_track_url {};
+
+    GC::Ptr<Fetch::Infrastructure::FetchAlgorithms> m_fetch_algorithms;
+    GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
+
+    bool m_loading { false };
 };
 
 }

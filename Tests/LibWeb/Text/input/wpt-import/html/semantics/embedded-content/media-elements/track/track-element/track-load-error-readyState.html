@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<title>Error event on HTMLTrackElement and ERROR readyState on TextTrack</title>
+<script src="../../../../../../resources/testharness.js"></script>
+<script src="../../../../../../resources/testharnessreport.js"></script>
+<video>
+  <track src="junk" default>
+  <script>
+  async_test(function(t) {
+    var track = document.querySelector("track");
+    track.onerror = t.step_func_done(function() {
+      assert_equals(track.readyState, HTMLTrackElement.ERROR);
+    });
+  });
+  </script>
+</video>
