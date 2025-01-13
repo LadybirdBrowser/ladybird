@@ -117,17 +117,28 @@ RefPtr<CSSStyleValue const> interpolate_transform(DOM::Element& element, CSSStyl
 {
     // Note that the spec uses column-major notation, so all the matrix indexing is reversed.
 
-    static constexpr auto make_transformation = [](TransformationStyleValue const& transformation) -> AK::Optional<Transformation> {
-        AK::Vector<TransformValue> values;
+    static constexpr auto make_transformation = [](TransformationStyleValue const& transformation) -> Optional<Transformation> {
+        Vector<TransformValue> values;
 
         for (auto const& value : transformation.values()) {
             switch (value->type()) {
             case CSSStyleValue::Type::Angle:
                 values.append(AngleOrCalculated { value->as_angle().angle() });
                 break;
-            case CSSStyleValue::Type::Calculated:
-                values.append(LengthPercentage { value->as_calculated() });
+            case CSSStyleValue::Type::Calculated: {
+                auto& calculated = value->as_calculated();
+                if (calculated.resolves_to_angle()) {
+                    values.append(AngleOrCalculated { calculated });
+                } else if (calculated.resolves_to_length_percentage()) {
+                    values.append(LengthPercentage { calculated });
+                } else if (calculated.resolves_to_number()) {
+                    values.append(NumberPercentage { calculated });
+                } else {
+                    dbgln("Calculation `{}` inside {} transform-function is not a recognized type", calculated.to_string(CSSStyleValue::SerializationMode::Normal), to_string(transformation.transform_function()));
+                    return {};
+                }
                 break;
+            }
             case CSSStyleValue::Type::Length:
                 values.append(LengthPercentage { value->as_length().length() });
                 break;
