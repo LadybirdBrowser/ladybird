@@ -6,6 +6,7 @@
  * Copyright (c) 2023, Bastiaan van der Plaat <bastiaan.v.d.plaat@gmail.com>
  * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
  * Copyright (c) 2024, Fernando Kiotheka <fer@k6a.dev>
+ * Copyright (c) 2025, Felipe Muñoz Mazur <felipe.munoz.mazur@protonmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -376,8 +377,15 @@ WebIDL::ExceptionOr<void> HTMLInputElement::run_input_activation_behavior(DOM::E
         auto change_event = DOM::Event::create(realm(), HTML::EventNames::change);
         change_event->set_bubbles(true);
         dispatch_event(*change_event);
-    } else if (type_state() == TypeAttributeState::SubmitButton) {
+    }
+    // https://html.spec.whatwg.org/multipage/input.html#submit-button-state-(type=submit)
+    else if (type_state() == TypeAttributeState::SubmitButton) {
         GC::Ptr<HTMLFormElement> form;
+
+        // The input element represents a button that, when activated, submits the form.
+        if (is_actually_disabled())
+            return {};
+
         // 1. If the element does not have a form owner, then return.
         if (!(form = this->form()))
             return {};
@@ -418,6 +426,10 @@ WebIDL::ExceptionOr<void> HTMLInputElement::run_input_activation_behavior(DOM::E
     }
     // https://html.spec.whatwg.org/multipage/input.html#reset-button-state-(type=reset)
     else if (type_state() == TypeAttributeState::ResetButton) {
+        // The input element represents a button that, when activated, resets the form.
+        if (is_actually_disabled())
+            return {};
+
         // 1. If the element does not have a form owner, then return.
         auto* form = this->form();
         if (!form)
