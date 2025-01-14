@@ -492,6 +492,7 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPix
                 //
                 //        https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable
 
+                auto top_level_viewport_position = m_navigable->to_top_level_position(viewport_position);
                 if (GC::Ptr<HTML::HTMLAnchorElement const> link = node->enclosing_link_element()) {
                     GC::Ref<DOM::Document> document = *m_navigable->active_document();
                     auto href = link->href();
@@ -502,7 +503,7 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPix
                     } else if (button == UIEvents::MouseButton::Middle) {
                         m_navigable->page().client().page_did_middle_click_link(url, link->target().to_byte_string(), modifiers);
                     } else if (button == UIEvents::MouseButton::Secondary) {
-                        m_navigable->page().client().page_did_request_link_context_menu(viewport_position, url, link->target().to_byte_string(), modifiers);
+                        m_navigable->page().client().page_did_request_link_context_menu(top_level_viewport_position, url, link->target().to_byte_string(), modifiers);
                     }
                 } else if (button == UIEvents::MouseButton::Secondary) {
                     if (is<HTML::HTMLImageElement>(*node)) {
@@ -512,7 +513,7 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPix
                         if (image_element.immutable_bitmap())
                             bitmap = image_element.immutable_bitmap()->bitmap();
 
-                        m_navigable->page().client().page_did_request_image_context_menu(viewport_position, image_url, "", modifiers, bitmap);
+                        m_navigable->page().client().page_did_request_image_context_menu(top_level_viewport_position, image_url, "", modifiers, bitmap);
                     } else if (is<HTML::HTMLMediaElement>(*node)) {
                         auto& media_element = as<HTML::HTMLMediaElement>(*node);
 
@@ -525,9 +526,9 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPix
                             .is_looping = media_element.has_attribute(HTML::AttributeNames::loop),
                         };
 
-                        m_navigable->page().did_request_media_context_menu(media_element.unique_id(), viewport_position, "", modifiers, move(menu));
+                        m_navigable->page().did_request_media_context_menu(media_element.unique_id(), top_level_viewport_position, "", modifiers, move(menu));
                     } else {
-                        m_navigable->page().client().page_did_request_context_menu(viewport_position);
+                        m_navigable->page().client().page_did_request_context_menu(top_level_viewport_position);
                     }
                 }
             }

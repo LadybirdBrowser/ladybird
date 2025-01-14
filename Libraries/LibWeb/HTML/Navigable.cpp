@@ -2152,13 +2152,14 @@ CSSPixelRect Navigable::to_top_level_rect(CSSPixelRect const& a_rect)
 CSSPixelPoint Navigable::to_top_level_position(CSSPixelPoint a_position)
 {
     auto position = a_position;
-    for (auto ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
+    for (auto ancestor = this; ancestor; ancestor = ancestor->parent()) {
         if (is<TraversableNavigable>(*ancestor))
             break;
         if (!ancestor->container())
             return {};
         if (!ancestor->container()->paintable())
             return {};
+        // FIXME: Handle CSS transforms that might affect the ancestor.
         position.translate_by(ancestor->container()->paintable()->box_type_agnostic_position());
     }
     return position;
