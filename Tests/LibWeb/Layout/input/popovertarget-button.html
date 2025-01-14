@@ -1,0 +1,12 @@
+<button popovertarget="pop" id="button"></button>
+<div popover id="pop">
+    <span>I'm a node</span>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        let button = document.getElementById('button');
+        const rect = button.getBoundingClientRect();
+        internals.click(rect.x + rect.width / 2, rect.y + rect.height / 2);
+    });
+</script>

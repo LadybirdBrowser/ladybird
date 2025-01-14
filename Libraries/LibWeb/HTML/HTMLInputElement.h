@@ -16,6 +16,7 @@
 #include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/HTML/PopoverInvokerElement.h>
 #include <LibWeb/Layout/ImageProvider.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -50,7 +51,8 @@ namespace Web::HTML {
 class HTMLInputElement final
     : public HTMLElement
     , public FormAssociatedTextControlElement
-    , public Layout::ImageProvider {
+    , public Layout::ImageProvider
+    , public PopoverInvokerElement {
     WEB_PLATFORM_OBJECT(HTMLInputElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLInputElement);
     FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLInputElement)
