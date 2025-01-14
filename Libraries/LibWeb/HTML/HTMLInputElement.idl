@@ -1,5 +1,6 @@
 #import <HTML/HTMLElement.idl>
 #import <HTML/HTMLFormElement.idl>
+#import <HTML/PopoverInvokerElement.idl>
 #import <HTML/ValidityState.idl>
 #import <FileAPI/FileList.idl>
 
@@ -73,4 +74,4 @@ interface HTMLInputElement : HTMLElement {
     [CEReactions, Reflect] attribute DOMString align;
     [CEReactions, Reflect=usemap] attribute DOMString useMap;
 };
-// FIXME: HTMLInputElement includes PopoverInvokerElement;
+HTMLInputElement includes PopoverInvokerElement;

@@ -1261,8 +1261,10 @@ void HTMLInputElement::did_lose_focus()
     commit_pending_changes();
 }
 
-void HTMLInputElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& value, Optional<FlyString> const&)
+void HTMLInputElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
+    PopoverInvokerElement::associated_attribute_changed(name, value, namespace_);
+
     if (name == HTML::AttributeNames::checked) {
         // https://html.spec.whatwg.org/multipage/input.html#the-input-element:concept-input-checked-dirty-2
         // When the checked content attribute is added, if the control does not have dirty checkedness, the user agent must set the checkedness of the element to true;
@@ -2538,6 +2540,7 @@ bool HTMLInputElement::has_activation_behavior() const
     return true;
 }
 
+// https://html.spec.whatwg.org/multipage/input.html#the-input-element:activation-behaviour
 void HTMLInputElement::activation_behavior(DOM::Event const& event)
 {
     // The activation behavior for input elements are these steps:
@@ -2546,6 +2549,10 @@ void HTMLInputElement::activation_behavior(DOM::Event const& event)
 
     // 2. Run this element's input activation behavior, if any, and do nothing otherwise.
     run_input_activation_behavior(event).release_value_but_fixme_should_propagate_errors();
+
+    // 3. Run the popover target attribute activation behavior given element and event's target.
+    if (event.target() && event.target()->is_dom_node())
+        PopoverInvokerElement::popover_target_activation_behaviour(*this, as<DOM::Node>(*event.target()));
 }
 
 bool HTMLInputElement::has_input_activation_behavior() const

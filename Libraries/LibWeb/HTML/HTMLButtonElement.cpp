@@ -6,6 +6,7 @@
 
 #include <LibWeb/Bindings/HTMLButtonElementPrototype.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/HTMLButtonElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 
@@ -115,7 +116,9 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
         }
     }
 
-    // 4. FIXME: Run the popover target attribute activation behavior given element.
+    // 4. Run the popover target attribute activation behavior given element and event's target.
+    if (event.target() && event.target()->is_dom_node())
+        PopoverInvokerElement::popover_target_activation_behaviour(*this, as<DOM::Node>(*event.target()));
 }
 
 bool HTMLButtonElement::is_focusable() const

@@ -459,7 +459,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
 
     if (dom_node.is_element()) {
         auto& element = static_cast<DOM::Element&>(dom_node);
-        if (element.in_top_layer() && !context.layout_top_layer)
+        if (element.rendered_in_top_layer() && !context.layout_top_layer)
             return;
     }
     if (dom_node.is_element())
@@ -595,8 +595,10 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
                 // Elements in the top layer do not lay out normally based on their position in the document; instead they
                 // generate boxes as if they were siblings of the root element.
                 TemporaryChange<bool> layout_mask(context.layout_top_layer, true);
-                for (auto const& top_layer_element : document.top_layer_elements())
-                    update_layout_tree(top_layer_element, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
+                for (auto const& top_layer_element : document.top_layer_elements()) {
+                    if (top_layer_element->rendered_in_top_layer())
+                        update_layout_tree(top_layer_element, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
+                }
             }
             pop_parent();
         }

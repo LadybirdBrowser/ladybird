@@ -5864,10 +5864,11 @@ void Document::add_an_element_to_the_top_layer(GC::Ref<Element> element)
 
     // 3. Append el to doc’s top layer.
     m_top_layer_elements.set(element);
-
     element->set_in_top_layer(true);
 
     // FIXME: 4. At the UA !important cascade origin, add a rule targeting el containing an overlay: auto declaration.
+    element->set_rendered_in_top_layer(true);
+    element->set_needs_style_update(true);
 }
 
 // https://drafts.csswg.org/css-position-4/#request-an-element-to-be-removed-from-the-top-layer
@@ -5880,9 +5881,12 @@ void Document::request_an_element_to_be_remove_from_the_top_layer(GC::Ref<Elemen
         return;
 
     // FIXME: 3. Remove the UA !important overlay: auto rule targeting el.
+    element->set_rendered_in_top_layer(false);
+    element->set_needs_style_update(true);
 
     // 4. Append el to doc’s pending top layer removals.
     m_top_layer_pending_removals.set(element);
+    element->set_in_top_layer(false);
 }
 
 // https://drafts.csswg.org/css-position-4/#remove-an-element-from-the-top-layer-immediately
@@ -5892,10 +5896,11 @@ void Document::remove_an_element_from_the_top_layer_immediately(GC::Ref<Element>
 
     // 2. Remove el from doc’s top layer and pending top layer removals.
     m_top_layer_elements.remove(element);
-
     element->set_in_top_layer(false);
 
     // FIXME: 3. Remove the UA !important overlay: auto rule targeting el, if it exists.
+    element->set_rendered_in_top_layer(false);
+    element->set_needs_style_update(true);
 }
 
 // https://drafts.csswg.org/css-position-4/#process-top-layer-removals
@@ -5904,11 +5909,10 @@ void Document::process_top_layer_removals()
     // 1. For each element el in doc’s pending top layer removals: if el’s computed value of overlay is none, or el is
     //    not rendered, remove el from doc’s top layer and pending top layer removals.
     for (auto& element : m_top_layer_pending_removals) {
-        // FIXME: Check overlay property
-        if (!element->paintable()) {
+        // FIXME: Implement overlay property
+        if (true || !element->paintable()) {
             m_top_layer_elements.remove(element);
             m_top_layer_pending_removals.remove(element);
-            element->set_in_top_layer(false);
         }
     }
 }

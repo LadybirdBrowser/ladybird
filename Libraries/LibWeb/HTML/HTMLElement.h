@@ -131,6 +131,7 @@ public:
     WebIDL::ExceptionOr<void> hide_popover_for_bindings();
     WebIDL::ExceptionOr<bool> toggle_popover(TogglePopoverOptionsOrForceBoolean const&);
 
+    WebIDL::ExceptionOr<bool> check_popover_validity(ExpectedToBeShowing expected_to_be_showing, ThrowExceptions throw_exceptions, GC::Ptr<DOM::Document>);
     WebIDL::ExceptionOr<void> show_popover(ThrowExceptions throw_exceptions, GC::Ptr<HTMLElement> invoker);
     WebIDL::ExceptionOr<void> hide_popover(FocusPreviousElement focus_previous_element, FireEvents fire_events, ThrowExceptions throw_exceptions);
 
@@ -159,8 +160,6 @@ private:
     GC::Ref<DOM::DocumentFragment> rendered_text_fragment(StringView input);
 
     GC::Ptr<DOM::NodeList> m_labels;
-
-    WebIDL::ExceptionOr<bool> check_popover_validity(ExpectedToBeShowing expected_to_be_showing, ThrowExceptions throw_exceptions, GC::Ptr<DOM::Document>);
 
     void queue_a_popover_toggle_event_task(String old_state, String new_state);
 
