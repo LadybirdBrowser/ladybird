@@ -8,5 +8,7 @@
         pop.hidePopover();
         pop.showPopover();
         println("Didn't crash when showing recently hidden popover");
+        pop.remove();
+        println("Didn't crash when removing visible popover");
     });
 </script>

@@ -34,6 +34,7 @@ void PopoverInvokerElement::visit_edges(JS::Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/popover.html#popover-target-attribute-activation-behavior
+// https://whatpr.org/html/9457/popover.html#popover-target-attribute-activation-behavior
 void PopoverInvokerElement::popover_target_activation_behaviour(GC::Ref<DOM::Node> node, GC::Ref<DOM::Node> event_target)
 {
     // To run the popover target attribute activation behavior given a Node node and a Node eventTarget:
@@ -60,14 +61,14 @@ void PopoverInvokerElement::popover_target_activation_behaviour(GC::Ref<DOM::Nod
         && popover->popover_visibility_state() == HTMLElement::PopoverVisibilityState::Hidden)
         return;
 
-    // 6. If popover's popover visibility state is showing, then run the hide popover algorithm given popover, true, true, and false.
+    // 6. If popover's popover visibility state is showing, then run the hide popover algorithm given popover, true, true, false, and false.
     if (popover->popover_visibility_state() == HTMLElement::PopoverVisibilityState::Showing) {
-        MUST(popover->hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::No));
+        MUST(popover->hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::No, IgnoreDomState::No));
     }
 
-    // 7. Otherwise, if popover's popover visibility state is hidden and the result of running check popover validity given popover, false, false, and null is true, then run show popover given popover, false, and node.
+    // 7. Otherwise, if popover's popover visibility state is hidden and the result of running check popover validity given popover, false, false, null, and false is true, then run show popover given popover, false, and node.
     else if (popover->popover_visibility_state() == HTMLElement::PopoverVisibilityState::Hidden
-        && MUST(popover->check_popover_validity(ExpectedToBeShowing::No, ThrowExceptions::No, nullptr))) {
+        && MUST(popover->check_popover_validity(ExpectedToBeShowing::No, ThrowExceptions::No, nullptr, IgnoreDomState::No))) {
         MUST(popover->show_popover(ThrowExceptions::No, as<HTMLElement>(*node)));
     }
 }
