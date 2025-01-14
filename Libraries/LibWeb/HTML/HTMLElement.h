@@ -60,6 +60,11 @@ enum class ExpectedToBeShowing {
     No,
 };
 
+enum class IgnoreDomState {
+    Yes,
+    No,
+};
+
 class HTMLElement
     : public DOM::Element
     , public HTML::GlobalEventHandlers
@@ -131,9 +136,9 @@ public:
     WebIDL::ExceptionOr<void> hide_popover_for_bindings();
     WebIDL::ExceptionOr<bool> toggle_popover(TogglePopoverOptionsOrForceBoolean const&);
 
-    WebIDL::ExceptionOr<bool> check_popover_validity(ExpectedToBeShowing expected_to_be_showing, ThrowExceptions throw_exceptions, GC::Ptr<DOM::Document>);
+    WebIDL::ExceptionOr<bool> check_popover_validity(ExpectedToBeShowing expected_to_be_showing, ThrowExceptions throw_exceptions, GC::Ptr<DOM::Document>, IgnoreDomState ignore_dom_state);
     WebIDL::ExceptionOr<void> show_popover(ThrowExceptions throw_exceptions, GC::Ptr<HTMLElement> invoker);
-    WebIDL::ExceptionOr<void> hide_popover(FocusPreviousElement focus_previous_element, FireEvents fire_events, ThrowExceptions throw_exceptions);
+    WebIDL::ExceptionOr<void> hide_popover(FocusPreviousElement focus_previous_element, FireEvents fire_events, ThrowExceptions throw_exceptions, IgnoreDomState ignore_dom_state);
 
 protected:
     HTMLElement(DOM::Document&, DOM::QualifiedName);
