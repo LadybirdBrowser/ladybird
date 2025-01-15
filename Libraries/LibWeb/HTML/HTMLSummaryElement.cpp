@@ -37,7 +37,7 @@ void HTMLSummaryElement::activation_behavior(DOM::Event const&)
     if (parent->has_attribute(HTML::AttributeNames::open))
         parent->remove_attribute(HTML::AttributeNames::open);
     else
-        parent->set_attribute(HTML::AttributeNames::open, String {}).release_value_but_fixme_should_propagate_errors();
+        MUST(parent->set_attribute(HTML::AttributeNames::open, String {}));
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#summary-for-its-parent-details
