@@ -152,6 +152,9 @@ public:
         return m_detail->m_members.last();
     }
 
+    auto begin() const { return m_detail->m_members.begin(); }
+    auto end() const { return m_detail->m_members.end(); }
+
 private:
     void copy()
     {
