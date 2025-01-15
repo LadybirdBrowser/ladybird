@@ -1004,9 +1004,21 @@ static auto g_lots_of_a_s = ByteString::repeated('a', 10'000'000);
 
 BENCHMARK_CASE(fork_performance)
 {
-    Regex<ECMA262> re("(?:aa)*");
-    auto result = re.match(g_lots_of_a_s);
-    EXPECT_EQ(result.success, true);
+    {
+        Regex<ECMA262> re("(?:aa)*");
+        auto result = re.match(g_lots_of_a_s);
+        EXPECT_EQ(result.success, true);
+    }
+    {
+        Regex<ECMA262> re("(a+)+b");
+        auto result = re.match(g_lots_of_a_s.substring_view(0, 100));
+        EXPECT_EQ(result.success, false);
+    }
+    {
+        Regex<ECMA262> re("^(a|a?)+$");
+        auto result = re.match(ByteString::formatted("{}b", g_lots_of_a_s.substring_view(0, 100)));
+        EXPECT_EQ(result.success, false);
+    }
 }
 
 BENCHMARK_CASE(anchor_performance)
