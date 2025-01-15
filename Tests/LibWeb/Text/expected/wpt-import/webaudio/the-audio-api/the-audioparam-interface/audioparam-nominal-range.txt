@@ -1,9 +1,9 @@
 Harness status: OK
 
-Found 304 tests
+Found 306 tests
 
-294 Pass
-10 Fail
+297 Pass
+9 Fail
 Pass	# AUDIT TASK RUNNER STARTED.
 Pass	Executing "initialize"
 Pass	Executing "Offline createGain"
@@ -24,7 +24,7 @@ Fail	Executing "Offline createScriptProcessor"
 Pass	Executing "Offline createPeriodicWave"
 Pass	Executing "Offline createChannelSplitter"
 Pass	Executing "Offline createChannelMerger"
-Fail	Executing "Online createMediaElementSource"
+Pass	Executing "Online createMediaElementSource"
 Fail	Executing "Online createMediaStreamDestination"
 Pass	Executing "AudioListener"
 Pass	Executing "verifyTests"
@@ -243,6 +243,8 @@ Pass	> [Offline createChannelMerger]
 Pass	  AudioNode has no AudioParams as expected
 Pass	< [Offline createChannelMerger] All assertions passed. (total 1 assertions)
 Pass	> [Online createMediaElementSource] 
+Pass	  MediaElementAudioSourceNode has no AudioParams as expected
+Pass	< [Online createMediaElementSource] All assertions passed. (total 1 assertions)
 Pass	> [Online createMediaStreamDestination] 
 Pass	> [AudioListener] 
 Pass	  AudioListener.positionX.minValue is equal to -3.4028234663852886e+38.
