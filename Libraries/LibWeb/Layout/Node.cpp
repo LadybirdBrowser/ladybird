@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -13,7 +14,6 @@
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
-#include <LibWeb/CSS/StyleValues/MathDepthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
@@ -30,7 +30,6 @@
 #include <LibWeb/Layout/TableWrapper.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
-#include <LibWeb/Platform/FontPlugin.h>
 
 namespace Web::Layout {
 
@@ -328,7 +327,7 @@ static CSSPixels snap_a_length_as_a_border_width(double device_pixels_per_css_pi
     return length;
 }
 
-void NodeWithStyle::apply_style(const CSS::ComputedProperties& computed_style)
+void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 {
     auto& computed_values = mutable_computed_values();
 
@@ -1015,6 +1014,9 @@ void NodeWithStyle::apply_style(const CSS::ComputedProperties& computed_style)
         computed_values.set_isolation(isolation.value());
 
     propagate_style_to_anonymous_wrappers();
+
+    if (is<NodeWithStyleAndBoxModelMetrics>(this))
+        static_cast<NodeWithStyleAndBoxModelMetrics&>(*this).propagate_style_along_continuation(computed_style);
 }
 
 void NodeWithStyle::propagate_style_to_anonymous_wrappers()
@@ -1276,6 +1278,20 @@ CSS::UserSelect Node::user_select_used_value() const
     }
 
     return computed_value;
+}
+
+void NodeWithStyleAndBoxModelMetrics::propagate_style_along_continuation(CSS::ComputedProperties const& computed_style) const
+{
+    for (auto continuation = continuation_of_node(); continuation; continuation = continuation->continuation_of_node()) {
+        if (!continuation->is_anonymous())
+            continuation->apply_style(computed_style);
+    }
+}
+
+void NodeWithStyleAndBoxModelMetrics::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_continuation_of_node);
 }
 
 }

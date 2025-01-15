@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="match" href="../expected/block-element-inside-inline-element-ref.html" />
+</head>
+<body>
+    <!-- Block at end of inline element -->
+    <b>foo<div>bar</div></b>
+    <!-- Block at beginning of inline element -->
+    <hr>
+    <b><div>foo</div>bar</b>
+    <!-- Block in middle of inline element -->
+    <hr>
+    <b>foo<div>bar</div>baz</b>
+    <!-- Block in middle of two inline elements -->
+    <hr>
+    <b>foo<i>bar<div>baz</div>lorem</i>ipsum</b>
+    <!-- Multiple subsequent blocks -->
+    <hr>
+    <b>foo<div>bar</div><div>baz</div>lorem</b>
+    <!-- Multiple subsequent blocks with inline element between them -->
+    <hr>
+    <b>foo<div>bar</div><u>baz</u><div>lorem</div>ipsum</b>
+    <!-- Block in inline element following inline element -->
+    <hr>
+    <div>foo<b><div>bar</div></b></div>
+    <!-- Dynamic tree mutation test -->
+    <hr>
+    <div id="target1"></div>
+    <script>
+        document.querySelector('#target1').innerHTML = '<b>foo<div>bar</div>baz</b>';
+    </script>
+    <!-- Dynamic style update -->
+    <hr>
+    <span id="target2" style="font-weight: bold">foo <div>bar</div></span>
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            document.body.offsetWidth;  // force layout
+            const target2 = document.querySelector('#target2');
+            target2.setAttribute('style', null);
+        });
+    </script>
+</body>
+</html>

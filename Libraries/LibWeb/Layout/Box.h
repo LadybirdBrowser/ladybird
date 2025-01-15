@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/OwnPtr.h>
-#include <LibGfx/Rect.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Layout/Node.h>
 
