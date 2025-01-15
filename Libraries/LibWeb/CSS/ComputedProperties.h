@@ -166,7 +166,7 @@ public:
     Vector<CSS::Transformation> transformations() const;
     Optional<CSS::TransformBox> transform_box() const;
     CSS::TransformOrigin transform_origin() const;
-    Optional<CSS::Transformation> rotate(Layout::Node const&) const;
+    Optional<CSS::Transformation> rotate() const;
     Optional<CSS::Transformation> translate() const;
     Optional<CSS::Transformation> scale() const;
 
