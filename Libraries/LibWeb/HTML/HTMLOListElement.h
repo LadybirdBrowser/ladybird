@@ -25,7 +25,7 @@ public:
     WebIDL::Long start();
     void set_start(WebIDL::Long start)
     {
-        set_attribute(AttributeNames::start, String::number(start)).release_value_but_fixme_should_propagate_errors();
+        MUST(set_attribute(AttributeNames::start, String::number(start)));
     }
 
 private:

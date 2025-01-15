@@ -38,7 +38,7 @@ public:
     WebIDL::Long value();
     void set_value(WebIDL::Long value)
     {
-        set_attribute(AttributeNames::value, String::number(value)).release_value_but_fixme_should_propagate_errors();
+        MUST(set_attribute(AttributeNames::value, String::number(value)));
     }
 
 private:
