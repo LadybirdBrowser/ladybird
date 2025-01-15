@@ -50,6 +50,11 @@ public:
     void remove_child(GC::Ref<T> node);
 
     void replace_child(GC::Ref<T> new_child, GC::Ref<T> old_child);
+    void remove()
+    {
+        VERIFY(m_parent);
+        m_parent->remove_child(*static_cast<T*>(this));
+    }
 
     T* next_in_pre_order()
     {
