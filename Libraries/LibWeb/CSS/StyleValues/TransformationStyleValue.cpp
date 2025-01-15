@@ -87,6 +87,32 @@ String TransformationStyleValue::to_string(SerializationMode mode) const
         }
         return builder.to_string_without_validation();
     }
+    if (m_properties.property == PropertyID::Translate) {
+        auto resolve_to_string = [mode](CSSStyleValue const& value) -> Optional<String> {
+            if (value.is_length()) {
+                if (value.as_length().length().raw_value() == 0)
+                    return {};
+            }
+            if (value.is_percentage()) {
+                if (value.as_percentage().percentage().value() == 0)
+                    return {};
+            }
+            return value.to_string(mode);
+        };
+
+        auto x_value = resolve_to_string(m_properties.values[0]);
+        auto y_value = resolve_to_string(m_properties.values[1]);
+        // FIXME: 3D translation
+
+        StringBuilder builder;
+        builder.append(x_value.value_or("0px"_string));
+        if (y_value.has_value()) {
+            builder.append(" "sv);
+            builder.append(y_value.value());
+        }
+
+        return builder.to_string_without_validation();
+    }
 
     StringBuilder builder;
     builder.append(CSS::to_string(m_properties.transform_function));

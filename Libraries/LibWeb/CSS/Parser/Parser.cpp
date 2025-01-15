@@ -78,7 +78,6 @@
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransitionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/TranslationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 #include <LibWeb/Dump.h>
@@ -7671,21 +7670,21 @@ RefPtr<CSSStyleValue> Parser::parse_translate_value(TokenStream<ComponentValue>&
 
     auto transaction = tokens.begin_transaction();
 
-    auto maybe_x = parse_length_percentage(tokens);
-    if (!maybe_x.has_value())
+    auto maybe_x = parse_length_percentage_value(tokens);
+    if (!maybe_x)
         return nullptr;
 
     if (!tokens.has_next_token()) {
         transaction.commit();
-        return TranslationStyleValue::create(maybe_x.release_value(), LengthPercentage(Length::make_px(0)));
+        return TransformationStyleValue::create(PropertyID::Translate, TransformFunction::Translate, { maybe_x.release_nonnull(), LengthStyleValue::create(Length::make_px(0)) });
     }
 
-    auto maybe_y = parse_length_percentage(tokens);
-    if (!maybe_y.has_value())
+    auto maybe_y = parse_length_percentage_value(tokens);
+    if (!maybe_y)
         return nullptr;
 
     transaction.commit();
-    return TranslationStyleValue::create(maybe_x.release_value(), maybe_y.release_value());
+    return TransformationStyleValue::create(PropertyID::Translate, TransformFunction::Translate, { maybe_x.release_nonnull(), maybe_y.release_nonnull() });
 }
 
 RefPtr<CSSStyleValue> Parser::parse_scale_value(TokenStream<ComponentValue>& tokens)

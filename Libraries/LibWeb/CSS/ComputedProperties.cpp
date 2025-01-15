@@ -36,7 +36,6 @@
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
-#include <LibWeb/CSS/StyleValues/TranslationStyleValue.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Platform/FontPlugin.h>
@@ -596,18 +595,12 @@ Optional<CSS::Transformation> ComputedProperties::rotate(Layout::Node const& lay
     return CSS::Transformation(CSS::TransformFunction::Rotate3d, move(values));
 }
 
-Optional<CSS::Transformation> ComputedProperties::translate() const
+Optional<Transformation> ComputedProperties::translate() const
 {
-    auto const& value = property(CSS::PropertyID::Translate);
-    if (!value.is_translation())
+    auto const& value = property(PropertyID::Translate);
+    if (!value.is_transformation())
         return {};
-    auto const& translation = value.as_translation();
-
-    Vector<TransformValue> values;
-    values.append(translation.x());
-    values.append(translation.y());
-
-    return CSS::Transformation(CSS::TransformFunction::Translate, move(values));
+    return value.as_transformation().to_transformation();
 }
 
 Optional<Transformation> ComputedProperties::scale() const
