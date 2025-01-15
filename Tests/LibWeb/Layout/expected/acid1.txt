@@ -33,23 +33,28 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
                 TextNode <#text>
                 InlineNode <form>
                   TextNode <#text>
+              BlockContainer <(anonymous)> at (235,65) content-size 139.96875x19 children: not-inline continuation
+                BlockContainer <p> at (235,65) content-size 139.96875x19 children: inline
+                  frag 0 from TextNode start: 1, length: 5, rect: [235,65 27.5x19] baseline: 12.5
+                      "bang "
+                  frag 1 from RadioButton start: 0, length: 0, rect: [262.5,65 12x12] baseline: 12
                   TextNode <#text>
+                  RadioButton <input> at (262.5,65) content-size 12x12 inline-block children: not-inline
                   TextNode <#text>
-              BlockContainer <p> at (235,65) content-size 139.96875x19 children: inline
-                frag 0 from TextNode start: 1, length: 5, rect: [235,65 27.5x19] baseline: 12.5
-                    "bang "
-                frag 1 from RadioButton start: 0, length: 0, rect: [262.5,65 12x12] baseline: 12
-                TextNode <#text>
-                RadioButton <input> at (262.5,65) content-size 12x12 inline-block children: not-inline
-                TextNode <#text>
-              BlockContainer <p> at (235,84) content-size 139.96875x19 children: inline
-                frag 0 from TextNode start: 1, length: 8, rect: [235,84 45.171875x19] baseline: 12.5
-                    "whimper "
-                frag 1 from RadioButton start: 0, length: 0, rect: [280.171875,84 12x12] baseline: 12
-                TextNode <#text>
-                RadioButton <input> at (280.171875,84) content-size 12x12 inline-block children: not-inline
-                TextNode <#text>
+              BlockContainer <(anonymous)> at (235,84) content-size 139.96875x0 children: inline
+                InlineNode <form> continuation
+                  TextNode <#text>
+              BlockContainer <(anonymous)> at (235,84) content-size 139.96875x19 children: not-inline continuation
+                BlockContainer <p> at (235,84) content-size 139.96875x19 children: inline
+                  frag 0 from TextNode start: 1, length: 8, rect: [235,84 45.171875x19] baseline: 12.5
+                      "whimper "
+                  frag 1 from RadioButton start: 0, length: 0, rect: [280.171875,84 12x12] baseline: 12
+                  TextNode <#text>
+                  RadioButton <input> at (280.171875,84) content-size 12x12 inline-block children: not-inline
+                  TextNode <#text>
               BlockContainer <(anonymous)> at (235,103) content-size 139.96875x0 children: inline
+                InlineNode <form> continuation
+                  TextNode <#text>
                 TextNode <#text>
             TextNode <#text>
             BlockContainer <li> at (409.96875,60) content-size 50x90 floating [BFC] children: inline
@@ -136,13 +141,18 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
                 TextPaintable (TextNode<#text>)
               PaintableWithLines (BlockContainer(anonymous)) [235,65 139.96875x0]
                 PaintableWithLines (InlineNode<FORM>)
-              PaintableWithLines (BlockContainer<P>) [235,65 139.96875x19]
-                TextPaintable (TextNode<#text>)
-                RadioButtonPaintable (RadioButton<INPUT>) [262.5,65 12x12]
-              PaintableWithLines (BlockContainer<P>) [235,84 139.96875x19]
-                TextPaintable (TextNode<#text>)
-                RadioButtonPaintable (RadioButton<INPUT>) [280.171875,84 12x12]
+              PaintableWithLines (BlockContainer(anonymous)) [235,65 139.96875x19]
+                PaintableWithLines (BlockContainer<P>) [235,65 139.96875x19]
+                  TextPaintable (TextNode<#text>)
+                  RadioButtonPaintable (RadioButton<INPUT>) [262.5,65 12x12]
+              PaintableWithLines (BlockContainer(anonymous)) [235,84 139.96875x0]
+                PaintableWithLines (InlineNode<FORM>)
+              PaintableWithLines (BlockContainer(anonymous)) [235,84 139.96875x19]
+                PaintableWithLines (BlockContainer<P>) [235,84 139.96875x19]
+                  TextPaintable (TextNode<#text>)
+                  RadioButtonPaintable (RadioButton<INPUT>) [280.171875,84 12x12]
               PaintableWithLines (BlockContainer(anonymous)) [235,103 139.96875x0]
+                PaintableWithLines (InlineNode<FORM>)
             PaintableWithLines (BlockContainer<LI>) [394.96875,45 80x120]
               TextPaintable (TextNode<#text>)
             PaintableWithLines (BlockContainer<LI>#baz) [135,175 120x120]

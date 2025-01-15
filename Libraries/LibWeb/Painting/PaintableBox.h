@@ -57,8 +57,6 @@ public:
         CSSPixelPoint scroll_offset {};
     };
 
-    CSSPixelRect absolute_rect() const;
-
     // Offset from the top left of the containing block's content edge.
     [[nodiscard]] CSSPixelPoint offset() const;
 
@@ -78,35 +76,15 @@ public:
     CSSPixels content_width() const { return m_content_size.width(); }
     CSSPixels content_height() const { return m_content_size.height(); }
 
-    CSSPixelRect absolute_padding_box_rect() const
-    {
-        auto absolute_rect = this->absolute_rect();
-        CSSPixelRect rect;
-        rect.set_x(absolute_rect.x() - box_model().padding.left);
-        rect.set_width(content_width() + box_model().padding.left + box_model().padding.right);
-        rect.set_y(absolute_rect.y() - box_model().padding.top);
-        rect.set_height(content_height() + box_model().padding.top + box_model().padding.bottom);
-        return rect;
-    }
-
-    CSSPixelRect absolute_border_box_rect() const
-    {
-        auto padded_rect = this->absolute_padding_box_rect();
-        CSSPixelRect rect;
-        auto use_collapsing_borders_model = override_borders_data().has_value();
-        // Implement the collapsing border model https://www.w3.org/TR/CSS22/tables.html#collapsing-borders.
-        auto border_top = use_collapsing_borders_model ? round(box_model().border.top / 2) : box_model().border.top;
-        auto border_bottom = use_collapsing_borders_model ? round(box_model().border.bottom / 2) : box_model().border.bottom;
-        auto border_left = use_collapsing_borders_model ? round(box_model().border.left / 2) : box_model().border.left;
-        auto border_right = use_collapsing_borders_model ? round(box_model().border.right / 2) : box_model().border.right;
-        rect.set_x(padded_rect.x() - border_left);
-        rect.set_width(padded_rect.width() + border_left + border_right);
-        rect.set_y(padded_rect.y() - border_top);
-        rect.set_height(padded_rect.height() + border_top + border_bottom);
-        return rect;
-    }
-
+    CSSPixelRect absolute_rect() const;
+    CSSPixelRect absolute_padding_box_rect() const;
+    CSSPixelRect absolute_border_box_rect() const;
     CSSPixelRect absolute_paint_rect() const;
+
+    // These united versions of the above rects take continuation into account.
+    CSSPixelRect absolute_united_border_box_rect() const;
+    CSSPixelRect absolute_united_content_rect() const;
+    CSSPixelRect absolute_united_padding_box_rect() const;
 
     CSSPixels border_box_width() const
     {

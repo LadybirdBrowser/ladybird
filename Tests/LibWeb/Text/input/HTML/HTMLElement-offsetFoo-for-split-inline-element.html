@@ -1,0 +1,12 @@
+<b>foo<div>bar</div>baz</b>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const b = document.querySelector('b');
+
+        println(`b.offsetTop: ${b.offsetTop}`);
+        println(`b.offsetLeft: ${b.offsetLeft}`);
+        println(`b.offsetWidth: ${b.offsetWidth}`);
+        println(`b.offsetHeight: ${b.offsetHeight}`);
+    });
+</script>

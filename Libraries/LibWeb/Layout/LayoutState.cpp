@@ -222,7 +222,12 @@ void LayoutState::commit(Box& root)
     root.document().for_each_shadow_including_inclusive_descendant([&](DOM::Node& node) {
         node.clear_paintable();
         if (node.layout_node() && is<InlineNode>(node.layout_node())) {
-            inline_nodes.set(static_cast<InlineNode*>(node.layout_node()));
+            // Inline nodes might have a continuation chain; add all inline nodes that are part of it.
+            for (GC::Ptr inline_node = static_cast<NodeWithStyleAndBoxModelMetrics*>(node.layout_node());
+                inline_node; inline_node = inline_node->continuation_of_node()) {
+                if (is<InlineNode>(*inline_node))
+                    inline_nodes.set(static_cast<InlineNode*>(inline_node.ptr()));
+            }
         }
         return TraversalDecision::Continue;
     });
