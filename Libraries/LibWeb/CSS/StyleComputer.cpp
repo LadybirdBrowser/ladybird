@@ -27,6 +27,7 @@
 #include <LibGfx/Font/WOFF2/Loader.h>
 #include <LibWeb/Animations/AnimationEffect.h>
 #include <LibWeb/Animations/DocumentTimeline.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/CSS/AnimationEvent.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
@@ -242,8 +243,12 @@ void FontLoader::start_loading_next_url()
         return;
     if (m_urls.is_empty())
         return;
+    auto& style_computer_realm = m_style_computer.document().realm();
+    auto& page = Bindings::principal_host_defined_page(HTML::principal_realm(style_computer_realm));
+
     LoadRequest request;
     request.set_url(m_urls.take_first());
+    request.set_page(page);
 
     // HACK: We're crudely computing the referer value and shoving it into the
     //       request until fetch infrastructure is used here.
