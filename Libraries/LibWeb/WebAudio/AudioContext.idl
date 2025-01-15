@@ -13,7 +13,7 @@ interface AudioContext : BaseAudioContext {
     Promise<undefined> resume ();
     Promise<undefined> suspend ();
     Promise<undefined> close ();
-    [FIXME] MediaElementAudioSourceNode createMediaElementSource (HTMLMediaElement mediaElement);
+    MediaElementAudioSourceNode createMediaElementSource (HTMLMediaElement mediaElement);
     [FIXME] MediaStreamAudioSourceNode createMediaStreamSource (MediaStream mediaStream);
     [FIXME] MediaStreamTrackAudioSourceNode createMediaStreamTrackSource (MediaStreamTrack mediaStreamTrack);
     [FIXME] MediaStreamAudioDestinationNode createMediaStreamDestination ();
