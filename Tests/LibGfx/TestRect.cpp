@@ -57,28 +57,41 @@ TEST_CASE(rect_closest_to)
     EXPECT_EQ(screen_rect.side(closest), Gfx::IntRect::Side::Top);
 }
 
+TEST_CASE(rect_unite)
+{
+    Gfx::IntRect rect_a { 10, 10, 100, 100 };
+    Gfx::IntRect rect_b { 50, 50, 60, 70 };
+
+    rect_a.unite(rect_b);
+
+    EXPECT_EQ(rect_a.left(), 10);
+    EXPECT_EQ(rect_a.right(), 110);
+    EXPECT_EQ(rect_a.top(), 10);
+    EXPECT_EQ(rect_a.bottom(), 120);
+}
+
 TEST_CASE(rect_unite_horizontally)
 {
-    Gfx::IntRect rect { 10, 10, 100, 100 };
-    Gfx::IntRect huge_rect { 0, 0, 1000, 1000 };
+    Gfx::IntRect rect_a { 10, 10, 1000, 100 };
+    Gfx::IntRect rect_b { 0, 0, 100, 1000 };
 
-    rect.unite_horizontally(huge_rect);
+    rect_a.unite_horizontally(rect_b);
 
-    EXPECT_EQ(rect.left(), 0);
-    EXPECT_EQ(rect.right(), 1000);
-    EXPECT_EQ(rect.top(), 10);
-    EXPECT_EQ(rect.bottom(), 110);
+    EXPECT_EQ(rect_a.left(), 0);
+    EXPECT_EQ(rect_a.right(), 1010);
+    EXPECT_EQ(rect_a.top(), 10);
+    EXPECT_EQ(rect_a.bottom(), 110);
 }
 
 TEST_CASE(rect_unite_vertically)
 {
-    Gfx::IntRect rect { 10, 10, 100, 100 };
-    Gfx::IntRect huge_rect { 0, 0, 1000, 1000 };
+    Gfx::IntRect rect_a { 10, 10, 1000, 1000 };
+    Gfx::IntRect rect_b { 0, 0, 100, 100 };
 
-    rect.unite_vertically(huge_rect);
+    rect_a.unite_vertically(rect_b);
 
-    EXPECT_EQ(rect.top(), 0);
-    EXPECT_EQ(rect.bottom(), 1000);
-    EXPECT_EQ(rect.left(), 10);
-    EXPECT_EQ(rect.right(), 110);
+    EXPECT_EQ(rect_a.top(), 0);
+    EXPECT_EQ(rect_a.bottom(), 1010);
+    EXPECT_EQ(rect_a.left(), 10);
+    EXPECT_EQ(rect_a.right(), 1010);
 }

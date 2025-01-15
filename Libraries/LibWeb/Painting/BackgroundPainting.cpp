@@ -271,15 +271,11 @@ void paint_background(PaintContext& context, PaintableBox const& paintable_box, 
             //               However, we must first figure out the real coverage area, taking repeat etc into account.
 
             // FIXME: This could be written in a far more efficient way.
-            auto fill_rect = Optional<DevicePixelRect> {};
+            DevicePixelRect fill_rect;
             for_each_image_device_rect([&](auto const& image_device_rect) {
-                if (!fill_rect.has_value()) {
-                    fill_rect = image_device_rect;
-                } else {
-                    fill_rect = fill_rect->united(image_device_rect);
-                }
+                fill_rect.unite(image_device_rect);
             });
-            display_list_recorder.fill_rect(fill_rect->to_type<int>(), color.value());
+            display_list_recorder.fill_rect(fill_rect.to_type<int>(), color.value());
         } else if (is<CSS::ImageStyleValue>(image) && repeat_x && repeat_y && !repeat_x_has_gap && !repeat_y_has_gap) {
             // Use a dedicated painting command for repeated images instead of recording a separate command for each instance
             // of a repeated background, so the painter has the opportunity to optimize the painting of repeated images.

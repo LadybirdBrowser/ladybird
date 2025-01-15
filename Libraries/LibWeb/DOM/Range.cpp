@@ -1243,7 +1243,7 @@ GC::Ref<Geometry::DOMRect> Range::get_bounding_client_rect()
         auto const& rect = list->item(i);
         if (rect->width() == 0 || rect->height() == 0)
             continue;
-        bounding_rect = bounding_rect.united({ rect->x(), rect->y(), rect->width(), rect->height() });
+        bounding_rect.unite({ rect->x(), rect->y(), rect->width(), rect->height() });
     }
     return Geometry::DOMRect::create(realm(), bounding_rect.to_type<float>());
 }
