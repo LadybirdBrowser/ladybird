@@ -1,0 +1,23 @@
+<style>
+    * {
+        font-family: sans-serif;
+    }
+</style>
+<script src="../include.js"></script>
+<body>foo<b id="b1">bar<div id="d1">baz</div>lorem</b>
+    <script>
+        test(() => {
+            logHitTest = (x, y) => {
+                const hit = internals.hitTest(x, y);
+                printElement(hit.node);
+                println(`index: ${hit.indexInNode}`);
+                printElement(hit.node.parentNode);
+                println('---');
+            }
+            logHitTest(20, 15);
+            logHitTest(48, 15);
+            logHitTest(23, 30);
+            logHitTest(33, 50);
+        });
+    </script>
+</body>

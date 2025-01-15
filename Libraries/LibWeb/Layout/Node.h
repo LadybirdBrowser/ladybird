@@ -230,7 +230,7 @@ public:
     CSS::ImmutableComputedValues const& computed_values() const { return static_cast<CSS::ImmutableComputedValues const&>(*m_computed_values); }
     CSS::MutableComputedValues& mutable_computed_values() { return static_cast<CSS::MutableComputedValues&>(*m_computed_values); }
 
-    void apply_style(const CSS::ComputedProperties&);
+    void apply_style(CSS::ComputedProperties const&);
 
     Gfx::Font const& first_available_font() const;
     Vector<CSS::BackgroundLayerData> const& background_layers() const { return computed_values().background_layers(); }
@@ -266,6 +266,13 @@ public:
     BoxModelMetrics& box_model() { return m_box_model; }
     BoxModelMetrics const& box_model() const { return m_box_model; }
 
+    GC::Ptr<NodeWithStyleAndBoxModelMetrics> continuation_of_node() const { return m_continuation_of_node; }
+    void set_continuation_of_node(Badge<TreeBuilder>, GC::Ptr<NodeWithStyleAndBoxModelMetrics> node) { m_continuation_of_node = node; }
+
+    void propagate_style_along_continuation(CSS::ComputedProperties const&) const;
+
+    virtual void visit_edges(Cell::Visitor& visitor) override;
+
 protected:
     NodeWithStyleAndBoxModelMetrics(DOM::Document& document, DOM::Node* node, GC::Ref<CSS::ComputedProperties> style)
         : NodeWithStyle(document, node, style)
@@ -281,6 +288,7 @@ private:
     virtual bool is_node_with_style_and_box_model_metrics() const final { return true; }
 
     BoxModelMetrics m_box_model;
+    GC::Ptr<NodeWithStyleAndBoxModelMetrics> m_continuation_of_node;
 };
 
 template<>

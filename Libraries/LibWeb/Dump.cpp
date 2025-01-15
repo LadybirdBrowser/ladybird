@@ -210,7 +210,6 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
             nonbox_color_on,
             identifier,
             color_off);
-        builder.append("\n"sv);
     } else {
         auto& box = as<Layout::Box>(layout_node);
         StringView color_on = is<Layout::SVGBox>(box) ? svg_box_color_on : box_color_on;
@@ -334,9 +333,13 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
                 }
             }
         }
-
-        builder.append("\n"sv);
     }
+
+    if (is<Layout::NodeWithStyleAndBoxModelMetrics>(layout_node)
+        && static_cast<Layout::NodeWithStyleAndBoxModelMetrics const&>(layout_node).continuation_of_node())
+        builder.append(" continuation"sv);
+
+    builder.append("\n"sv);
 
     if (layout_node.dom_node() && is<HTML::HTMLImageElement>(*layout_node.dom_node())) {
         if (auto image_data = static_cast<HTML::HTMLImageElement const&>(*layout_node.dom_node()).current_request().image_data()) {

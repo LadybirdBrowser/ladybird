@@ -1,0 +1,16 @@
+<#text >
+index: 1
+<BODY >
+---
+<#text >
+index: 1
+<B id="b1" >
+---
+<#text >
+index: 1
+<DIV id="d1" >
+---
+<#text >
+index: 3
+<B id="b1" >
+---
