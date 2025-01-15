@@ -2,7 +2,7 @@
  * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, Adam Hodgen <ant1441@gmail.com>
  * Copyright (c) 2022, Andrew Kaster <akaster@serenityos.org>
- * Copyright (c) 2023-2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2023-2025, Shannon Booth <shannon@serenityos.org>
  * Copyright (c) 2023, Bastiaan van der Plaat <bastiaan.v.d.plaat@gmail.com>
  * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
  * Copyright (c) 2024, Fernando Kiotheka <fer@k6a.dev>
@@ -721,10 +721,27 @@ static bool is_allowed_to_be_readonly(HTML::HTMLInputElement::TypeAttributeState
     }
 }
 
+// https://html.spec.whatwg.org/multipage/input.html#the-input-element:attr-input-maxlength-3
+static bool is_applicable_for_maxlength_attribute(HTML::HTMLInputElement::TypeAttributeState state)
+{
+    switch (state) {
+    case HTML::HTMLInputElement::TypeAttributeState::Text:
+    case HTML::HTMLInputElement::TypeAttributeState::Search:
+    case HTML::HTMLInputElement::TypeAttributeState::Telephone:
+    case HTML::HTMLInputElement::TypeAttributeState::URL:
+    case HTML::HTMLInputElement::TypeAttributeState::Email:
+    case HTML::HTMLInputElement::TypeAttributeState::Password:
+        return true;
+    default:
+        return false;
+    }
+}
+
 // https://html.spec.whatwg.org/multipage/input.html#attr-input-maxlength
 void HTMLInputElement::handle_maxlength_attribute()
 {
-    if (m_text_node) {
+    // The maxlength attribute, when it applies, is a form control maxlength attribute.
+    if (m_text_node && is_applicable_for_maxlength_attribute(type_state())) {
         auto max_length = this->max_length();
         if (max_length >= 0) {
             m_text_node->set_max_length(max_length);
