@@ -12,6 +12,7 @@
 #include <LibTextCodec/Decoder.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/HTMLLinkElementPrototype.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
@@ -81,6 +82,7 @@ void HTMLLinkElement::inserted()
             // FIXME: Respect the "as" attribute.
             LoadRequest request;
             request.set_url(maybe_href.value());
+            request.set_page(Bindings::principal_host_defined_page(HTML::principal_realm(realm())));
             set_resource(ResourceLoader::the().load_resource(Resource::Type::Generic, request));
         }
     } else if (m_relationship & Relationship::DNSPrefetch) {
