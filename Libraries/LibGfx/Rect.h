@@ -835,6 +835,18 @@ public:
         return { { point.x() - size.width() / 2, point.y() - size.height() / 2 }, size };
     }
 
+    void unite(Rect<T> const& other)
+    {
+        if (is_empty()) {
+            *this = other;
+            return;
+        }
+        if (other.is_empty())
+            return;
+        unite_horizontally(other);
+        unite_vertically(other);
+    }
+
     void unite_horizontally(Rect<T> const& other)
     {
         auto new_left = min(left(), other.left());
@@ -853,15 +865,8 @@ public:
 
     [[nodiscard]] Rect<T> united(Rect<T> const& other) const
     {
-        if (is_empty())
-            return other;
-        if (other.is_empty())
-            return *this;
-        Rect<T> rect;
-        rect.set_left(min(left(), other.left()));
-        rect.set_top(min(top(), other.top()));
-        rect.set_right(max(right(), other.right()));
-        rect.set_bottom(max(bottom(), other.bottom()));
+        Rect<T> rect = *this;
+        rect.unite(other);
         return rect;
     }
 

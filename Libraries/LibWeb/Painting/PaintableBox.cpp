@@ -209,7 +209,7 @@ CSSPixelRect PaintableBox::compute_absolute_paint_rect() const
             continue;
         auto inflate = shadow.spread_distance + shadow.blur_radius;
         auto shadow_rect = rect.inflated(inflate, inflate, inflate, inflate).translated(shadow.offset_x, shadow.offset_y);
-        rect = rect.united(shadow_rect);
+        rect.unite(shadow_rect);
     }
     return rect;
 }
