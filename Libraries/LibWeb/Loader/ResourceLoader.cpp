@@ -108,11 +108,11 @@ RefPtr<Resource> ResourceLoader::load_resource(Resource::Type type, LoadRequest&
 
     load(
         request,
-        GC::create_function(m_heap, [=](ReadonlyBytes data, HTTP::HeaderMap const& headers, Optional<u32> status_code, Optional<String> const&) {
-            const_cast<Resource&>(*resource).did_load({}, data, headers, status_code);
+        GC::create_function(m_heap, [resource](ReadonlyBytes data, HTTP::HeaderMap const& headers, Optional<u32> status_code, Optional<String> const&) {
+            resource->did_load({}, data, headers, status_code);
         }),
-        GC::create_function(m_heap, [=](ByteString const& error, Optional<u32> status_code, Optional<String> const&, ReadonlyBytes data, HTTP::HeaderMap const& headers) {
-            const_cast<Resource&>(*resource).did_fail({}, error, data, headers, status_code);
+        GC::create_function(m_heap, [resource](ByteString const& error, Optional<u32> status_code, Optional<String> const&, ReadonlyBytes data, HTTP::HeaderMap const& headers) {
+            resource->did_fail({}, error, data, headers, status_code);
         }));
 
     return resource;
