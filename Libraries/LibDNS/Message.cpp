@@ -711,6 +711,23 @@ String DomainName::to_string() const
     return MUST(builder.to_string());
 }
 
+String DomainName::to_canonical_string() const
+{
+    StringBuilder builder;
+    for (size_t i = 0; i < labels.size(); ++i) {
+        auto& label = labels[i];
+        for (size_t j = 0; j < label.length(); ++j) {
+            auto ch = label[j];
+            if (ch >= 'A' && ch <= 'Z')
+                ch = to_ascii_lowercase(ch);
+            builder.append(ch);
+        }
+        builder.append('.');
+    }
+
+    return MUST(builder.to_string());
+}
+
 class RecordingStream final : public Stream {
 public:
     explicit RecordingStream(Stream& stream)
@@ -887,9 +904,11 @@ ErrorOr<void> ResourceRecord::to_raw(ByteBuffer& buffer) const
 ErrorOr<String> ResourceRecord::to_string() const
 {
     StringBuilder builder;
+    builder.appendff("[{} {} ", Messages::to_string(class_), Messages::to_string(type));
     record.visit(
         [&](auto const& record) { builder.appendff("{}", MUST(record.to_string())); },
         [&](ByteBuffer const& raw) { builder.appendff("{:hex-dump}", raw.bytes()); });
+    builder.appendff(" | ttl={}, name={}]", ttl, name.to_string());
     return builder.to_string();
 }
 
@@ -901,6 +920,16 @@ ErrorOr<Records::A> Records::A::from_raw(ParseContext& ctx)
     u32 const address = TRY(ctx.stream.read_value<LittleEndian<u32>>());
     return Records::A { IPv4Address { address } };
 }
+
+ErrorOr<void> Records::A::to_raw(ByteBuffer& buffer) const
+{
+    auto const address = this->address.to_u32();
+    auto const net_address = static_cast<NetworkOrdered<u32>>(address);
+    auto bytes = TRY(buffer.get_bytes_for_writing(sizeof(net_address)));
+    bytes.overwrite(0, &net_address, sizeof(net_address));
+    return {};
+}
+
 
 ErrorOr<Records::AAAA> Records::AAAA::from_raw(ParseContext& ctx)
 {
@@ -1005,11 +1034,20 @@ ErrorOr<Records::DNSKEY> Records::DNSKEY::from_raw(ParseContext& ctx)
     // | ALGORITHM| an 8-bit value that identifies the public key's cryptographic algorithm.
     // | PUBLICKEY| the public key material.
 
+    u32 key_tag = 0;
     auto flags = static_cast<u16>(TRY(ctx.stream.read_value<NetworkOrdered<u16>>()));
+    key_tag += (bit_cast<u16>(NetworkOrdered<u16>(flags)) & 0xff) << 8;
+    key_tag += (bit_cast<u16>(NetworkOrdered<u16>(flags)) >> 8) & 0xff;
     auto protocol = TRY(ctx.stream.read_value<u8>());
+    key_tag += static_cast<u16>(protocol) << 8;
     auto algorithm = static_cast<DNSSEC::Algorithm>(static_cast<u8>(TRY(ctx.stream.read_value<u8>())));
+    key_tag += static_cast<u16>(algorithm);
     auto public_key = TRY(ctx.stream.read_until_eof());
-    return Records::DNSKEY { flags, protocol, algorithm, move(public_key) };
+    for (size_t i = 0; i < public_key.size(); ++i) {
+        key_tag += (i & 1) ? static_cast<u16>(public_key[i]) : static_cast<u16>(public_key[i]) << 8;
+    }
+    key_tag += (key_tag >> 16) & 0xffff;
+    return Records::DNSKEY { flags, protocol, algorithm, move(public_key), static_cast<u16>(key_tag & 0xffff) };
 }
 
 ErrorOr<Records::DS> Records::DS::from_raw(ParseContext& ctx)
@@ -1076,6 +1114,23 @@ ErrorOr<Records::SIG> Records::SIG::from_raw(ParseContext& ctx)
 
     return Records::SIG { type_covered, algorithm, labels, original_ttl, UnixDateTime::from_seconds_since_epoch(signature_expiration), UnixDateTime::from_seconds_since_epoch(signature_inception), key_tag, move(signer_name), move(signature) };
 }
+
+ErrorOr<void> Records::SIG::to_raw_excluding_signature(ByteBuffer& buffer) const
+{
+    AllocatingMemoryStream stream;
+    TRY(stream.write_value(static_cast<NetworkOrdered<u16>>(to_underlying(type_covered))));
+    TRY(stream.write_value(static_cast<u8>(algorithm)));
+    TRY(stream.write_value(label_count));
+    TRY(stream.write_value(static_cast<NetworkOrdered<u32>>(original_ttl)));
+    TRY(stream.write_value(static_cast<NetworkOrdered<u32>>(expiration.seconds_since_epoch())));
+    TRY(stream.write_value(static_cast<NetworkOrdered<u32>>(inception.seconds_since_epoch())));
+    TRY(stream.write_value(static_cast<NetworkOrdered<u16>>(key_tag)));
+
+    TRY(stream.read_until_filled(TRY(buffer.get_bytes_for_writing(stream.used_buffer_size()))));
+    TRY(signers_name.to_raw(buffer));
+    return {};
+}
+
 
 ErrorOr<String> Records::SIG::to_string() const
 {

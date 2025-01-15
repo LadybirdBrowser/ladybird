@@ -548,6 +548,13 @@ private:
         }
     }
 
+    using RRSet = Vector<Messages::ResourceRecord>;
+    struct CanonicalizedRRSetWithRRSIG {
+        RRSet rrset;
+        Messages::Records::RRSIG rrsig;
+        Vector<Messages::Records::DNSKEY> dnskeys;
+    };
+
     ErrorOr<void> validate_dnssec(Messages::Message message, PendingLookup& lookup, NonnullRefPtr<LookupResult> result)
     {
         struct RecordAndRRSIG {
@@ -588,6 +595,9 @@ private:
                     dbgln("DNS: Validating {} RRSIGs for {}", records_with_rrsigs.size(), name.to_string());
                     Vector<NonnullRefPtr<Core::Promise<Empty>>> promises;
 
+                    // (owner | type | class) -> (RRSet, RRSIG, DNSKey*)
+                    HashMap<String, CanonicalizedRRSetWithRRSIG> rrsets_with_rrsigs;
+
                     for (auto& [type, pair] : records_with_rrsigs) {
                         if (!pair.record.has_value())
                             continue;
@@ -595,24 +605,34 @@ private:
                         auto& record = *pair.record;
                         auto& rrsig = pair.rrsig;
 
-                        dbgln("Validating RRSIG for {} with DNSKEY", record.to_string());
-                        auto dnskey = [&] -> Optional<Messages::Records::DNSKEY> {
-                            for (auto& dnskey_record : dnskey_lookup_result->records()) {
-                                if (auto r = dnskey_record.record.get_pointer<Messages::Records::DNSKEY>())
-                                    return *r;
-                            }
-                            return {};
-                        }();
+                        auto canonicalized_name = record.name.to_canonical_string();
+                        auto key = MUST(String::formatted("{}|{}|{}", canonicalized_name, to_underlying(record.type), to_underlying(record.class_)));
 
-                        if (!dnskey.has_value()) {
-                            dbgln("DNS: No DNSKEY found for RRSIG validation of {}", record.to_string());
+                        if (!rrsets_with_rrsigs.contains(key)) {
+                            auto dnskeys = [&] -> Vector<Messages::Records::DNSKEY> {
+                                Vector<Messages::Records::DNSKEY> keys;
+                                for (auto& dnskey_record : dnskey_lookup_result->records()) {
+                                    if (auto r = dnskey_record.record.get_pointer<Messages::Records::DNSKEY>(); r && r->algorithm == rrsig.algorithm)
+                                        keys.append(*r);
+                                }
+                                return keys;
+                            }();
+                            rrsets_with_rrsigs.set(key, CanonicalizedRRSetWithRRSIG { {}, rrsig, move(dnskeys) });
+                        }
+
+                        auto& rrset_with_rrsig = *rrsets_with_rrsigs.get(key);
+                        rrset_with_rrsig.rrset.append(record);
+                    }
+
+                    for (auto& entry : rrsets_with_rrsigs) {
+                        auto& rrset_with_rrsig = entry.value;
+
+                        if (rrset_with_rrsig.dnskeys.is_empty()) {
+                            dbgln("DNS: No DNSKEY found for validation of {} RRs", rrset_with_rrsig.rrset.size());
                             continue;
                         }
 
-                        dbgln("DNSKEY: {}", dnskey->to_string());
-                        dbgln("RRSIG: {}", rrsig.to_string());
-
-                        promises.append(validate_record_with_rrsig(record, rrsig, *dnskey, result));
+                        promises.append(validate_rrset_with_rrsig(move(rrset_with_rrsig), result));
                     }
 
                     auto promise = Core::Promise<Empty>::after(move(promises))
@@ -637,14 +657,44 @@ private:
         return {};
     }
 
-    NonnullRefPtr<Core::Promise<Empty>> validate_record_with_rrsig(Messages::ResourceRecord const& record, Messages::Records::RRSIG const& rrsig, Messages::Records::DNSKEY const& dnskey, NonnullRefPtr<LookupResult> result)
+    Messages::Records::DNSKEY const& find_dnskey(CanonicalizedRRSetWithRRSIG const& rrset_with_rrsig)
     {
-        dbgln("Validating RRSIG {} for RR: {} with DNSKEY: {}", rrsig.to_string(), record.to_string(), dnskey.to_string());
+        for (auto& key : rrset_with_rrsig.dnskeys) {
+            if (key.calculated_key_tag == rrset_with_rrsig.rrsig.key_tag)
+                return key;
+            dbgln("DNS: DNSKEY with tag {} does not match RRSIG with tag {}", key.calculated_key_tag, rrset_with_rrsig.rrsig.key_tag);
+        }
+        VERIFY_NOT_REACHED();
+    }
+
+    NonnullRefPtr<Core::Promise<Empty>> validate_rrset_with_rrsig(CanonicalizedRRSetWithRRSIG rrset_with_rrsig, NonnullRefPtr<LookupResult> result)
+    {
         auto promise = Core::Promise<Empty>::construct();
+        auto& rrsig = rrset_with_rrsig.rrsig;
+
+        ByteBuffer canon_encoded;
+        for (auto& rr : rrset_with_rrsig.rrset) {
+            rr.ttl = rrsig.original_ttl;
+            dbgln("Canonical RR: {}", rr.to_string());
+            MUST(rr.to_raw(canon_encoded));
+        }
+
+        auto& dnskey = find_dnskey(rrset_with_rrsig);
+
+        dbgln("Validating RRSet with RRSIG for {}", result->name().to_string());
+        for (auto& rr : rrset_with_rrsig.rrset)
+            dbgln("- RR {}", rr.to_string());
+        dbgln("- DNSKEY {}", dnskey.to_string());
+        dbgln("- RRSIG {}", rrset_with_rrsig.rrsig.to_string());
 
         switch (dnskey.algorithm) {
         case Messages::DNSSEC::Algorithm::RSAMD5: {
             Crypto::PK::RSA rsa { dnskey.public_key };
+            auto result = rsa.verify(canon_encoded, rrsig.signature.bytes());
+            if (result.is_error())
+                promise->reject(result.release_error());
+            else if (!result.value())
+                promise->reject(Error::from_string_literal("Invalid signature for RR"));
             break;
         }
         case Messages::DNSSEC::Algorithm::DSA:
@@ -656,8 +706,50 @@ private:
         case Messages::DNSSEC::Algorithm::RSASHA512:
             break;
         case Messages::DNSSEC::Algorithm::ECDSAP256SHA256: {
-            auto key = MUST(Crypto::PK::EC::parse_ec_key(dnskey.public_key, false, {}));
-            Crypto::PK::EC ec { key };
+            // RFC 6605, 4. DNSKEY and RRSIG Resource Records for ECDSA
+            ByteBuffer buffer;
+            // In DNSSEC keys, Q is a simple bit string that represents the uncompressed form of a curve point, "x | y".
+            // our parser expects the uncompressed form to start with 0x04, so we add it here.
+            buffer.ensure_capacity(dnskey.public_key.size() + 1);
+            buffer.append(0x04);
+            buffer.append(dnskey.public_key);
+            auto point = MUST(Crypto::Curves::SECPxxxr1Point::from_uncompressed(buffer));
+            auto key = Crypto::PK::EC::KeyPairType { move(point), {} };
+            Crypto::Curves::SECP256r1 curve;
+            // The ECDSA signature is the combination of two non-negative integers,
+            // called "r" and "s" in FIPS 186-3.  The two integers, each of which is
+            // formatted as a simple octet string, are combined into a single longer
+            // octet string for DNSSEC as the concatenation "r | s".
+            Crypto::Curves::SECPxxxr1Signature signature;
+            // For P-256, each integer MUST be encoded as 32 octets
+            if (rrsig.signature.size() != 64) {
+                promise->reject(Error::from_string_literal("Invalid signature length for ECDSAP256"));
+                break;
+            }
+
+            signature.r = Crypto::UnsignedBigInteger::import_data(rrsig.signature.bytes().data(), rrsig.signature.size() / 2);
+            signature.s = Crypto::UnsignedBigInteger::import_data(rrsig.signature.bytes().offset_pointer(rrsig.signature.size() / 2), rrsig.signature.size() / 2);
+
+            ByteBuffer signed_data;
+            // signature = sign(RRSIG_RDATA | RR(1) | RR(2)... )
+            // RRSIG_RDATA = type_covered | algorithm | labels | original_ttl | signature_expiration | signature_inception | key_tag | signer_name
+            // RR(n) = owner | type | class | TTL | RDATA length | RDATA
+            if (auto result = rrsig.to_raw_excluding_signature(signed_data); result.is_error()) {
+                promise->reject(result.release_error());
+                break;
+            }
+            signed_data.append(canon_encoded);
+
+            dbgln("Signed data: {:32hex-dump}", signed_data.bytes());
+
+            auto hash = Crypto::Hash::SHA256::hash(signed_data);
+
+            auto result = curve.verify_point(hash.bytes(), key.public_key.to_secpxxxr1_point(), signature);
+            if (result.is_error())
+                promise->reject(result.release_error());
+            else if (!result.value())
+                promise->reject(Error::from_string_literal("Invalid signature for RR"));
+
             break;
         }
         case Messages::DNSSEC::Algorithm::ECDSAP384SHA384:
@@ -667,11 +759,14 @@ private:
         case Messages::DNSSEC::Algorithm::Unknown:
             dbgln("DNS: Unsupported algorithm for DNSSEC validation: {}", to_string(dnskey.algorithm));
             promise->reject(Error::from_string_literal("Unsupported algorithm for DNSSEC validation"));
-            return promise;
+            break;
         }
 
-        result->add_record(record);
-        promise->resolve({});
+        if (!promise->is_rejected()) {
+            for (auto& record : rrset_with_rrsig.rrset)
+                result->add_record(move(record));
+            promise->resolve({});
+        }
         return promise;
     }
 

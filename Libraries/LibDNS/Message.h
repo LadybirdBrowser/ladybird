@@ -91,6 +91,7 @@ struct DomainName {
     static ErrorOr<DomainName> from_raw(ParseContext&);
     ErrorOr<void> to_raw(ByteBuffer&) const;
     String to_string() const;
+    String to_canonical_string() const;
 };
 
 // Listing from IANA https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml#dns-parameters-4.
@@ -364,7 +365,7 @@ struct A {
 
     static constexpr ResourceType type = ResourceType::A;
     static ErrorOr<A> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
     ErrorOr<String> to_string() const { return address.to_string(); }
 };
 struct AAAA {
@@ -449,6 +450,8 @@ struct DNSKEY {
     u8 protocol;
     DNSSEC::Algorithm algorithm;
     ByteBuffer public_key;
+    // Extra: calculated key tag
+    u16 calculated_key_tag;
 
     constexpr static inline u16 FlagSecureEntryPoint = 0b1000000000000000;
     constexpr static inline u16 FlagZoneKey = 0b0100000000000000;
@@ -519,6 +522,7 @@ struct SIG {
     static constexpr ResourceType type = ResourceType::SIG;
     static ErrorOr<SIG> from_raw(ParseContext&);
     ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented"); }
+    ErrorOr<void> to_raw_excluding_signature(ByteBuffer&) const;
     ErrorOr<String> to_string() const;
 };
 struct RRSIG : public SIG {
@@ -530,6 +534,7 @@ struct RRSIG : public SIG {
 
     static constexpr ResourceType type = ResourceType::RRSIG;
     static ErrorOr<RRSIG> from_raw(ParseContext& raw) { return SIG::from_raw(raw); }
+    ErrorOr<void> to_raw_excluding_signature(ByteBuffer& buffer) const { return SIG::to_raw_excluding_signature(buffer); }
 };
 struct NSEC {
     DomainName next_domain_name;
