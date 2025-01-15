@@ -53,19 +53,39 @@ void HTMLDetailsElement::removed_from(DOM::Node*)
     set_shadow_root(nullptr);
 }
 
-void HTMLDetailsElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+// https://html.spec.whatwg.org/multipage/interactive-elements.html#the-details-element:concept-element-attributes-change-ext
+void HTMLDetailsElement::attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
-    Base::attribute_changed(name, old_value, value, namespace_);
+    Base::attribute_changed(local_name, old_value, value, namespace_);
 
-    // https://html.spec.whatwg.org/multipage/interactive-elements.html#details-notification-task-steps
-    if (name == HTML::AttributeNames::open) {
-        // 1. If the open attribute is added, queue a details toggle event task given the details element, "closed", and "open".
-        if (value.has_value()) {
-            queue_a_details_toggle_event_task("closed"_string, "open"_string);
+    // 1. If namespace is not null, then return.
+    if (namespace_.has_value())
+        return;
+
+    // 2. If localName is name, then ensure details exclusivity by closing the given element if needed given element.
+    if (local_name == HTML::AttributeNames::name) {
+        // FIXME: Implement the exclusivity steps.
+    }
+
+    // 3. If localName is open, then:
+    else if (local_name == HTML::AttributeNames::open) {
+        // 1. If one of oldValue or value is null and the other is not null, run the following steps, which are known as
+        //    the details notification task steps, for this details element:
+        {
+            // 1. If oldValue is null, queue a details toggle event task given the details element, "closed", and "open".
+            if (!old_value.has_value()) {
+                queue_a_details_toggle_event_task("closed"_string, "open"_string);
+            }
+            // 2. Otherwise, queue a details toggle event task given the details element, "open", and "closed".
+            else {
+                queue_a_details_toggle_event_task("open"_string, "closed"_string);
+            }
         }
-        // 2. Otherwise, queue a details toggle event task given the details element, "open", and "closed".
-        else {
-            queue_a_details_toggle_event_task("open"_string, "closed"_string);
+
+        // 2. If oldValue is null and value is not null, then ensure details exclusivity by closing other elements if
+        //    needed given element.
+        if (!old_value.has_value() && value.has_value()) {
+            // FIXME: Implement the exclusivity steps.
         }
 
         update_shadow_tree_style();
