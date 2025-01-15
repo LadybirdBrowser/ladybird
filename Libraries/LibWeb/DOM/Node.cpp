@@ -228,7 +228,7 @@ void Node::set_text_content(Optional<String> const& maybe_content)
 
     if (is_connected()) {
         invalidate_style(StyleInvalidationReason::NodeSetTextContent);
-        document().invalidate_layout_tree();
+        set_needs_layout_tree_update(true);
     }
 
     document().bump_dom_tree_version();
@@ -727,7 +727,7 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
     if (is_connected()) {
         // FIXME: This will need to become smarter when we implement the :has() selector.
         invalidate_style(StyleInvalidationReason::ParentOfInsertedNode);
-        document().invalidate_layout_tree();
+        set_needs_layout_tree_update(true);
     }
 
     document().bump_dom_tree_version();
@@ -835,9 +835,8 @@ void Node::remove(bool suppress_observers)
 
         // NOTE: If we didn't have a layout node before, rebuilding the layout tree isn't gonna give us one
         //       after we've been removed from the DOM.
-        if (layout_node()) {
-            document().invalidate_layout_tree();
-        }
+        if (layout_node())
+            parent->set_needs_layout_tree_update(true);
     }
 
     // 11. Remove node from its parent’s children.
