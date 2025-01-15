@@ -147,10 +147,7 @@ WebIDL::ExceptionOr<JS::Value> package_data(JS::Realm& realm, ByteBuffer bytes, 
             // 1. Let entries be the result of parsing bytes.
             auto entries = DOMURL::url_decode(StringView { bytes });
 
-            // 2. If entries is failure, then throw a TypeError.
-            // FIXME: Spec bug? It doesn't seem possible to throw an error here.
-
-            // 3. Return a new FormData object whose entry list is entries.
+            // 2. Return a new FormData object whose entry list is entries.
             return TRY(XHR::FormData::create(realm, entries));
         }
         // Otherwise, throw a TypeError.
