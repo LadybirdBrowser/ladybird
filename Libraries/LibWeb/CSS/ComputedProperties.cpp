@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -31,7 +31,6 @@
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RotationStyleValue.h>
-#include <LibWeb/CSS/StyleValues/ScaleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ScrollbarGutterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
@@ -611,18 +610,12 @@ Optional<CSS::Transformation> ComputedProperties::translate() const
     return CSS::Transformation(CSS::TransformFunction::Translate, move(values));
 }
 
-Optional<CSS::Transformation> ComputedProperties::scale() const
+Optional<Transformation> ComputedProperties::scale() const
 {
-    auto const& value = property(CSS::PropertyID::Scale);
-    if (!value.is_scale())
+    auto const& value = property(PropertyID::Scale);
+    if (!value.is_transformation())
         return {};
-    auto const& scale = value.as_scale();
-
-    Vector<TransformValue> values;
-    values.append(scale.x());
-    values.append(scale.y());
-
-    return CSS::Transformation(CSS::TransformFunction::Scale, move(values));
+    return value.as_transformation().to_transformation();
 }
 
 static Optional<LengthPercentage> length_percentage_for_style_value(CSSStyleValue const& value)
