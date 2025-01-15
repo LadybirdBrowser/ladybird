@@ -334,11 +334,9 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
     }
 
     if (url.scheme() == "file") {
-        if (request.page())
-            m_page = request.page();
-
-        if (!m_page.has_value()) {
-            log_failure(request, "INTERNAL ERROR: No Page for request");
+        auto page = request.page();
+        if (!page) {
+            log_failure(request, "INTERNAL ERROR: No Page for file scheme request");
             return;
         }
 
@@ -396,7 +394,7 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
             success_callback->function()(data, response_headers, {}, {});
         });
 
-        (*m_page)->client().request_file(move(file_request));
+        page->client().request_file(move(file_request));
 
         ++m_pending_loads;
         if (on_load_counter_change)

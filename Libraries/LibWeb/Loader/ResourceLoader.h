@@ -93,7 +93,6 @@ private:
     Vector<String> m_preferred_languages = { "en"_string };
     NavigatorCompatibilityMode m_navigator_compatibility_mode;
     bool m_enable_do_not_track { false };
-    Optional<GC::Ptr<Page>> m_page {};
 };
 
 }
