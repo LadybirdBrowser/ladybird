@@ -750,7 +750,7 @@ void NodeWithStyle::apply_style(const CSS::ComputedProperties& computed_style)
 
     computed_values.set_box_shadow(computed_style.box_shadow(*this));
 
-    if (auto rotate_value = computed_style.rotate(*this); rotate_value.has_value())
+    if (auto rotate_value = computed_style.rotate(); rotate_value.has_value())
         computed_values.set_rotate(rotate_value.release_value());
 
     if (auto translate_value = computed_style.translate(); translate_value.has_value())
