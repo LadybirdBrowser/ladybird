@@ -1,7 +1,7 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
- * Copyright (c) 2021-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -63,6 +63,31 @@ Transformation TransformationStyleValue::to_transformation() const
 
 String TransformationStyleValue::to_string(SerializationMode mode) const
 {
+    // https://drafts.csswg.org/css-transforms-2/#individual-transform-serialization
+    if (m_properties.property == PropertyID::Scale) {
+        auto resolve_to_string = [mode](CSSStyleValue const& value) -> String {
+            if (value.is_number()) {
+                return MUST(String::formatted("{}", value.as_number().number()));
+            }
+            if (value.is_percentage()) {
+                return MUST(String::formatted("{}", value.as_percentage().percentage().as_fraction()));
+            }
+            return value.to_string(mode);
+        };
+
+        auto x_value = resolve_to_string(m_properties.values[0]);
+        auto y_value = resolve_to_string(m_properties.values[1]);
+        // FIXME: 3D scaling
+
+        StringBuilder builder;
+        builder.append(x_value);
+        if (x_value != y_value) {
+            builder.append(" "sv);
+            builder.append(y_value);
+        }
+        return builder.to_string_without_validation();
+    }
+
     StringBuilder builder;
     builder.append(CSS::to_string(m_properties.transform_function));
     builder.append('(');
@@ -93,7 +118,9 @@ String TransformationStyleValue::to_string(SerializationMode mode) const
 
 bool TransformationStyleValue::Properties::operator==(Properties const& other) const
 {
-    return transform_function == other.transform_function && values.span() == other.values.span();
+    return property == other.property
+        && transform_function == other.transform_function
+        && values.span() == other.values.span();
 }
 
 }
