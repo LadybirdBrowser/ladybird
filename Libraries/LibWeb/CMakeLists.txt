@@ -800,6 +800,7 @@ set(SOURCES
     WebAudio/DelayNode.cpp
     WebAudio/DynamicsCompressorNode.cpp
     WebAudio/GainNode.cpp
+    WebAudio/MediaElementAudioSourceNode.cpp
     WebAudio/OfflineAudioContext.cpp
     WebAudio/OscillatorNode.cpp
     WebAudio/PannerNode.cpp
