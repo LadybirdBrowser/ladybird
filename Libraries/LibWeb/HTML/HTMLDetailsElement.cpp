@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020, the SerenityOS developers.
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -42,8 +42,12 @@ void HTMLDetailsElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLDetailsElement);
 }
 
+// https://html.spec.whatwg.org/multipage/interactive-elements.html#the-details-element:html-element-insertion-steps
 void HTMLDetailsElement::inserted()
 {
+    // 1. Ensure details exclusivity by closing the given element if needed given insertedNode.
+    ensure_details_exclusivity_by_closing_the_given_element_if_needed();
+
     create_shadow_tree_if_needed().release_value_but_fixme_should_propagate_errors();
     update_shadow_tree_slots();
 }
@@ -64,7 +68,8 @@ void HTMLDetailsElement::attribute_changed(FlyString const& local_name, Optional
 
     // 2. If localName is name, then ensure details exclusivity by closing the given element if needed given element.
     if (local_name == HTML::AttributeNames::name) {
-        // FIXME: Implement the exclusivity steps.
+        ensure_details_exclusivity_by_closing_the_given_element_if_needed();
+        update_shadow_tree_style();
     }
 
     // 3. If localName is open, then:
@@ -85,7 +90,7 @@ void HTMLDetailsElement::attribute_changed(FlyString const& local_name, Optional
         // 2. If oldValue is null and value is not null, then ensure details exclusivity by closing other elements if
         //    needed given element.
         if (!old_value.has_value() && value.has_value()) {
-            // FIXME: Implement the exclusivity steps.
+            ensure_details_exclusivity_by_closing_other_elements_if_needed();
         }
 
         update_shadow_tree_style();
@@ -134,6 +139,87 @@ void HTMLDetailsElement::queue_a_details_toggle_event_task(String old_state, Str
         .task_id = task_id,
         .old_state = move(old_state),
     };
+}
+
+// https://html.spec.whatwg.org/multipage/interactive-elements.html#details-name-group
+template<typename Callback>
+void for_each_element_in_details_name_group(HTMLDetailsElement& details, FlyString const& name, Callback&& callback)
+{
+    // The details name group that contains a details element a also contains all the other details elements b that
+    // fulfill all of the following conditions:
+    auto name_group_contains_element = [&](auto const& element) {
+        // 1. Both a and b are in the same tree.
+        // NOTE: This is true due to the way we iterate the tree below.
+
+        // 2. They both have a name attribute, their name attributes are not the empty string, and the value of a's name
+        //    attribute equals the value of b's name attribute.
+        return element.attribute(HTML::AttributeNames::name) == name;
+    };
+
+    details.root().for_each_in_inclusive_subtree_of_type<HTMLDetailsElement>([&](HTMLDetailsElement& candidate) {
+        if (&details != &candidate && name_group_contains_element(candidate))
+            return callback(candidate);
+        return TraversalDecision::Continue;
+    });
+}
+
+// https://html.spec.whatwg.org/multipage/interactive-elements.html#ensure-details-exclusivity-by-closing-other-elements-if-needed
+void HTMLDetailsElement::ensure_details_exclusivity_by_closing_other_elements_if_needed()
+{
+    // 1. Assert: element has an open attribute.
+    VERIFY(has_attribute(HTML::AttributeNames::open));
+
+    // 2. If element does not have a name attribute, or its name attribute is the empty string, then return.
+    auto name = attribute(HTML::AttributeNames::name);
+    if (!name.has_value() || name->is_empty())
+        return;
+
+    // 3. Let groupMembers be a list of elements, containing all elements in element's details name group except for
+    //    element, in tree order.
+    // 4. For each element otherElement of groupMembers:
+    for_each_element_in_details_name_group(*this, *name, [&](HTMLDetailsElement& other_element) {
+        // 1. If the open attribute is set on otherElement, then:
+        if (other_element.has_attribute(HTML::AttributeNames::open)) {
+            // 1. Assert: otherElement is the only element in groupMembers that has the open attribute set.
+
+            // 2. Remove the open attribute on otherElement.
+            other_element.remove_attribute(HTML::AttributeNames::open);
+
+            // 3. Break.
+            return TraversalDecision::Break;
+        }
+
+        return TraversalDecision::Continue;
+    });
+}
+
+// https://html.spec.whatwg.org/multipage/interactive-elements.html#ensure-details-exclusivity-by-closing-the-given-element-if-needed
+void HTMLDetailsElement::ensure_details_exclusivity_by_closing_the_given_element_if_needed()
+{
+    // 1. If element does not have an open attribute, then return.
+    if (!has_attribute(HTML::AttributeNames::open))
+        return;
+
+    // 2. If element does not have a name attribute, or its name attribute is the empty string, then return.
+    auto name = attribute(HTML::AttributeNames::name);
+    if (!name.has_value() || name->is_empty())
+        return;
+
+    // 3. Let groupMembers be a list of elements, containing all elements in element's details name group except for
+    //    element, in tree order.
+    // 4. For each element otherElement of groupMembers:
+    for_each_element_in_details_name_group(*this, *name, [&](HTMLDetailsElement const& other_element) {
+        // 1. If the open attribute is set on otherElement, then:
+        if (other_element.has_attribute(HTML::AttributeNames::open)) {
+            // 1. Remove the open attribute on element.
+            remove_attribute(HTML::AttributeNames::open);
+
+            // 2. Break.
+            return TraversalDecision::Break;
+        }
+
+        return TraversalDecision::Continue;
+    });
 }
 
 // https://html.spec.whatwg.org/#the-details-and-summary-elements
