@@ -927,7 +927,7 @@ GC::Ref<Geometry::DOMRect> Element::get_bounding_client_rect() const
         auto const& rect = list->item(i);
         if (rect->width() == 0 || rect->height() == 0)
             continue;
-        bounding_rect = bounding_rect.united({ rect->x(), rect->y(), rect->width(), rect->height() });
+        bounding_rect.unite({ rect->x(), rect->y(), rect->width(), rect->height() });
     }
     return Geometry::DOMRect::create(realm(), bounding_rect.to_type<float>());
 }
