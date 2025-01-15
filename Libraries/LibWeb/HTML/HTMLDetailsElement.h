@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020, the SerenityOS developers.
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -37,6 +37,8 @@ private:
     virtual void attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
     void queue_a_details_toggle_event_task(String old_state, String new_state);
+    void ensure_details_exclusivity_by_closing_other_elements_if_needed();
+    void ensure_details_exclusivity_by_closing_the_given_element_if_needed();
 
     WebIDL::ExceptionOr<void> create_shadow_tree_if_needed();
     void update_shadow_tree_slots();

@@ -1,0 +1,56 @@
+<details id="details0" name="group1">
+    <summary>Summary 0</summary>
+    <span>Contents 0</span>
+</details>
+<details id="details1" name="group1">
+    <summary>Summary 1</summary>
+    <span>Contents 1</span>
+</details>
+<details id="details2" name="group1">
+    <summary>Summary 2</summary>
+    <span>Contents 2</span>
+</details>
+<details id="details3" name="group2">
+    <summary>Summary 3</summary>
+    <span>Contents 3</span>
+</details>
+<details id="details4">
+    <summary>Summary 4</summary>
+    <span>Contents 4</span>
+</details>
+<script src="../include.js"></script>
+<script>
+    test(done => {
+        const elements = document.getElementsByTagName("details");
+
+        const logState = () => {
+            let result = "";
+
+            for (const element of elements) {
+                result += `${element.id}=${element.open ? "✓" : "✗"} `;
+            }
+
+            println(result.trimEnd());
+        };
+
+        logState();
+
+        elements[0].toggleAttribute("open");
+        logState();
+
+        elements[1].toggleAttribute("open");
+        logState();
+
+        elements[2].toggleAttribute("open");
+        logState();
+
+        elements[3].toggleAttribute("open");
+        logState();
+
+        elements[4].toggleAttribute("open");
+        logState();
+
+        elements[0].toggleAttribute("open");
+        logState();
+    });
+</script>
