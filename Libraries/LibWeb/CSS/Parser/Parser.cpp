@@ -69,7 +69,6 @@
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RotationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ScrollbarGutterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
@@ -5237,7 +5236,7 @@ RefPtr<CSSStyleValue> Parser::parse_rotate_value(TokenStream<ComponentValue>& to
 
         // <angle>
         if (auto angle = parse_angle_value(tokens))
-            return RotationStyleValue::create(angle.release_nonnull(), NumberStyleValue::create(0), NumberStyleValue::create(0), NumberStyleValue::create(1));
+            return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::Rotate, { angle.release_nonnull() });
     }
 
     auto parse_one_of_xyz = [&]() -> Optional<ComponentValue const&> {
@@ -5258,11 +5257,11 @@ RefPtr<CSSStyleValue> Parser::parse_rotate_value(TokenStream<ComponentValue>& to
         if (auto axis = parse_one_of_xyz(); axis.has_value()) {
             if (auto angle = parse_angle_value(tokens); angle) {
                 if (axis->is_ident("x"sv))
-                    return RotationStyleValue::create(angle.release_nonnull(), NumberStyleValue::create(1), NumberStyleValue::create(0), NumberStyleValue::create(0));
+                    return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateX, { angle.release_nonnull() });
                 if (axis->is_ident("y"sv))
-                    return RotationStyleValue::create(angle.release_nonnull(), NumberStyleValue::create(0), NumberStyleValue::create(1), NumberStyleValue::create(0));
+                    return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateY, { angle.release_nonnull() });
                 if (axis->is_ident("z"sv))
-                    return RotationStyleValue::create(angle.release_nonnull(), NumberStyleValue::create(0), NumberStyleValue::create(0), NumberStyleValue::create(1));
+                    return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateZ, { angle.release_nonnull() });
             }
         }
 
@@ -5270,11 +5269,11 @@ RefPtr<CSSStyleValue> Parser::parse_rotate_value(TokenStream<ComponentValue>& to
         if (auto angle = parse_angle_value(tokens); angle) {
             if (auto axis = parse_one_of_xyz(); axis.has_value()) {
                 if (axis->is_ident("x"sv))
-                    return RotationStyleValue::create(angle.release_nonnull(), NumberStyleValue::create(1), NumberStyleValue::create(0), NumberStyleValue::create(0));
+                    return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateX, { angle.release_nonnull() });
                 if (axis->is_ident("y"sv))
-                    return RotationStyleValue::create(angle.release_nonnull(), NumberStyleValue::create(0), NumberStyleValue::create(1), NumberStyleValue::create(0));
+                    return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateY, { angle.release_nonnull() });
                 if (axis->is_ident("z"sv))
-                    return RotationStyleValue::create(angle.release_nonnull(), NumberStyleValue::create(0), NumberStyleValue::create(0), NumberStyleValue::create(1));
+                    return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::RotateZ, { angle.release_nonnull() });
             }
         }
     }
@@ -5299,7 +5298,7 @@ RefPtr<CSSStyleValue> Parser::parse_rotate_value(TokenStream<ComponentValue>& to
         if (auto maybe_numbers = parse_three_numbers(); maybe_numbers.has_value()) {
             if (auto angle = parse_angle_value(tokens); angle) {
                 auto numbers = maybe_numbers.release_value();
-                return RotationStyleValue::create(angle.release_nonnull(), numbers[0], numbers[1], numbers[2]);
+                return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::Rotate3d, { numbers[0], numbers[1], numbers[2], angle.release_nonnull() });
             }
         }
 
@@ -5307,7 +5306,7 @@ RefPtr<CSSStyleValue> Parser::parse_rotate_value(TokenStream<ComponentValue>& to
         if (auto angle = parse_angle_value(tokens); angle) {
             if (auto maybe_numbers = parse_three_numbers(); maybe_numbers.has_value()) {
                 auto numbers = maybe_numbers.release_value();
-                return RotationStyleValue::create(angle.release_nonnull(), numbers[0], numbers[1], numbers[2]);
+                return TransformationStyleValue::create(PropertyID::Rotate, TransformFunction::Rotate3d, { numbers[0], numbers[1], numbers[2], angle.release_nonnull() });
             }
         }
     }

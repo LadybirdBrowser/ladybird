@@ -30,7 +30,6 @@
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RotationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ScrollbarGutterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
@@ -558,41 +557,12 @@ Vector<CSS::Transformation> ComputedProperties::transformations() const
     return transformations_for_style_value(property(CSS::PropertyID::Transform));
 }
 
-Optional<CSS::Transformation> ComputedProperties::rotate(Layout::Node const& layout_node) const
+Optional<Transformation> ComputedProperties::rotate() const
 {
-    auto const& value = property(CSS::PropertyID::Rotate);
-    if (!value.is_rotation())
+    auto const& value = property(PropertyID::Rotate);
+    if (!value.is_transformation())
         return {};
-    auto& rotation = value.as_rotation();
-
-    auto resolve_angle = [&layout_node](CSSStyleValue const& value) -> Optional<Angle> {
-        if (value.is_angle())
-            return value.as_angle().angle();
-        if (value.is_calculated() && value.as_calculated().resolves_to_angle())
-            return value.as_calculated().resolve_angle(layout_node);
-        return {};
-    };
-
-    auto resolve_number = [&](CSSStyleValue const& value) -> Optional<double> {
-        if (value.is_number())
-            return value.as_number().number();
-        if (value.is_calculated() && value.as_calculated().resolves_to_number())
-            return value.as_calculated().resolve_number();
-        return {};
-    };
-
-    auto x = resolve_number(rotation.rotation_x()).value_or(0);
-    auto y = resolve_number(rotation.rotation_y()).value_or(0);
-    auto z = resolve_number(rotation.rotation_z()).value_or(0);
-    auto angle = resolve_angle(rotation.angle()).value_or(Angle::make_degrees(0));
-
-    Vector<TransformValue> values;
-    values.append({ Number(Number::Type::Number, x) });
-    values.append({ Number(Number::Type::Number, y) });
-    values.append({ Number(Number::Type::Number, z) });
-    values.append({ angle });
-
-    return CSS::Transformation(CSS::TransformFunction::Rotate3d, move(values));
+    return value.as_transformation().to_transformation();
 }
 
 Optional<Transformation> ComputedProperties::translate() const

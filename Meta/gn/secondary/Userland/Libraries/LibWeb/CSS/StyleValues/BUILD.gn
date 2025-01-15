@@ -38,7 +38,6 @@ source_set("StyleValues") {
     "PositionStyleValue.cpp",
     "RadialGradientStyleValue.cpp",
     "RectStyleValue.cpp",
-    "RotationStyleValue.cpp",
     "ShadowStyleValue.cpp",
     "ShorthandStyleValue.cpp",
     "StyleValueList.cpp",
