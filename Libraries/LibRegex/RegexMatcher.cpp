@@ -80,7 +80,7 @@ Regex<Parser>::Regex(regex::Parser::Result parse_result, ByteString pattern, typ
 {
     run_optimization_passes();
     if (parser_result.error == regex::Error::NoError)
-        matcher = make<Matcher<Parser>>(this, regex_options | static_cast<decltype(regex_options.value())>(parse_result.options.value()));
+        matcher = make<Matcher<Parser>>(this, regex_options | static_cast<decltype(regex_options.value())>(parser_result.options.value()));
 }
 
 template<class Parser>
