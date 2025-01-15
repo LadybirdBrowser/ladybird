@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2021, the SerenityOS developers.
- * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2022, MacDue <macdue@dueutil.tech>
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
@@ -70,7 +70,6 @@
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RotationStyleValue.h>
-#include <LibWeb/CSS/StyleValues/ScaleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ScrollbarGutterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
@@ -7426,7 +7425,7 @@ RefPtr<CSSStyleValue> Parser::parse_transform_value(TokenStream<ComponentValue>&
                 return nullptr;
         }
 
-        transformations.append(TransformationStyleValue::create(function, move(values)));
+        transformations.append(TransformationStyleValue::create(PropertyID::Transform, function, move(values)));
     }
     transaction.commit();
     return StyleValueList::create(move(transformations), StyleValueList::Separator::Space);
@@ -7699,21 +7698,21 @@ RefPtr<CSSStyleValue> Parser::parse_scale_value(TokenStream<ComponentValue>& tok
 
     auto transaction = tokens.begin_transaction();
 
-    auto maybe_x = parse_number_percentage(tokens);
-    if (!maybe_x.has_value())
+    auto maybe_x = parse_number_percentage_value(tokens);
+    if (!maybe_x)
         return nullptr;
 
     if (!tokens.has_next_token()) {
         transaction.commit();
-        return ScaleStyleValue::create(maybe_x.value(), maybe_x.value());
+        return TransformationStyleValue::create(PropertyID::Scale, TransformFunction::Scale, { *maybe_x, *maybe_x });
     }
 
-    auto maybe_y = parse_number_percentage(tokens);
-    if (!maybe_y.has_value())
+    auto maybe_y = parse_number_percentage_value(tokens);
+    if (!maybe_y)
         return nullptr;
 
     transaction.commit();
-    return ScaleStyleValue::create(maybe_x.release_value(), maybe_y.release_value());
+    return TransformationStyleValue::create(PropertyID::Scale, TransformFunction::Scale, { maybe_x.release_nonnull(), maybe_y.release_nonnull() });
 }
 
 Optional<CSS::GridFitContent> Parser::parse_fit_content(Vector<ComponentValue> const& component_values)

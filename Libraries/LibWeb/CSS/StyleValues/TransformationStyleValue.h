@@ -16,9 +16,9 @@ namespace Web::CSS {
 
 class TransformationStyleValue final : public StyleValueWithDefaultOperators<TransformationStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<TransformationStyleValue> create(CSS::TransformFunction transform_function, StyleValueVector&& values)
+    static ValueComparingNonnullRefPtr<TransformationStyleValue> create(PropertyID property, TransformFunction transform_function, StyleValueVector&& values)
     {
-        return adopt_ref(*new (nothrow) TransformationStyleValue(transform_function, move(values)));
+        return adopt_ref(*new (nothrow) TransformationStyleValue(property, transform_function, move(values)));
     }
     virtual ~TransformationStyleValue() override = default;
 
@@ -32,14 +32,15 @@ public:
     bool properties_equal(TransformationStyleValue const& other) const { return m_properties == other.m_properties; }
 
 private:
-    TransformationStyleValue(CSS::TransformFunction transform_function, StyleValueVector&& values)
+    TransformationStyleValue(PropertyID property, TransformFunction transform_function, StyleValueVector&& values)
         : StyleValueWithDefaultOperators(Type::Transformation)
-        , m_properties { .transform_function = transform_function, .values = move(values) }
+        , m_properties { .property = property, .transform_function = transform_function, .values = move(values) }
     {
     }
 
     struct Properties {
-        CSS::TransformFunction transform_function;
+        PropertyID property;
+        TransformFunction transform_function;
         StyleValueVector values;
         bool operator==(Properties const& other) const;
     } m_properties;

@@ -407,7 +407,7 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
                 NumberStyleValue::create(transform.elements()[0][3]),
                 NumberStyleValue::create(transform.elements()[1][3]),
             };
-            return TransformationStyleValue::create(TransformFunction::Matrix, move(parameters));
+            return TransformationStyleValue::create(PropertyID::Transform, TransformFunction::Matrix, move(parameters));
         }
         // -> Otherwise
         //        Serialize transform to a <matrix3d()> function.
@@ -430,7 +430,7 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
                 NumberStyleValue::create(transform.elements()[2][3]),
                 NumberStyleValue::create(transform.elements()[3][3]),
             };
-            return TransformationStyleValue::create(TransformFunction::Matrix3d, move(parameters));
+            return TransformationStyleValue::create(PropertyID::Transform, TransformFunction::Matrix3d, move(parameters));
         }
     }
 

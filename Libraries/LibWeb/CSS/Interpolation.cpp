@@ -420,7 +420,7 @@ RefPtr<CSSStyleValue const> interpolate_transform(DOM::Element& element, CSSStyl
     values.ensure_capacity(16);
     for (int i = 0; i < 16; i++)
         values.append(NumberStyleValue::create(static_cast<double>(interpolated(i % 4, i / 4))));
-    return StyleValueList::create({ TransformationStyleValue::create(TransformFunction::Matrix3d, move(values)) }, StyleValueList::Separator::Comma);
+    return StyleValueList::create({ TransformationStyleValue::create(PropertyID::Transform, TransformFunction::Matrix3d, move(values)) }, StyleValueList::Separator::Comma);
 }
 
 Color interpolate_color(Color from, Color to, float delta)
