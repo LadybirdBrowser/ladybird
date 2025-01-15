@@ -468,6 +468,7 @@ bool Matcher<Parser>::execute(MatchInput const& input, MatchState& state, size_t
     }
 
     BumpAllocatedLinkedList<MatchState> states_to_try_next;
+    HashTable<u64> seen_state_hashes;
 #if REGEX_DEBUG
     size_t recursion_level = 0;
 #endif
@@ -545,17 +546,34 @@ bool Matcher<Parser>::execute(MatchInput const& input, MatchState& state, size_t
             continue;
         case ExecutionResult::Succeeded:
             return true;
-        case ExecutionResult::Failed:
-            if (!states_to_try_next.is_empty()) {
+        case ExecutionResult::Failed: {
+            bool found = false;
+            while (!states_to_try_next.is_empty()) {
                 state = states_to_try_next.take_last();
+                if (auto hash = state.u64_hash(); seen_state_hashes.set(hash) != HashSetResult::InsertedNewEntry) {
+                    dbgln_if(REGEX_DEBUG, "Already seen state, skipping: {}", hash);
+                    continue;
+                }
+                found = true;
+                break;
+            }
+            if (found)
                 continue;
-            }
             return false;
+        }
         case ExecutionResult::Failed_ExecuteLowPrioForks: {
-            if (states_to_try_next.is_empty()) {
-                return false;
+            bool found = false;
+            while (!states_to_try_next.is_empty()) {
+                state = states_to_try_next.take_last();
+                if (auto hash = state.u64_hash(); seen_state_hashes.set(hash) != HashSetResult::InsertedNewEntry) {
+                    dbgln_if(REGEX_DEBUG, "Already seen state, skipping: {}", hash);
+                    continue;
+                }
+                found = true;
+                break;
             }
-            state = states_to_try_next.take_last();
+            if (!found)
+                return false;
 #if REGEX_DEBUG
             ++recursion_level;
 #endif

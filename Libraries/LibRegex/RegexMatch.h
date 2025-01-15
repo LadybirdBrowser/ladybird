@@ -561,6 +561,33 @@ struct MatchState {
     COWVector<Vector<Match>> capture_group_matches;
     COWVector<u64> repetition_marks;
     Vector<u64, 64> checkpoints;
+
+    // For size_t in {0..100}, ips in {0..500} and repetitions in {0..30}, there are zero collisions.
+    // For the full range, zero collisions were found in 8 million random samples.
+    u64 u64_hash() const
+    {
+        u64 hash = 0xcbf29ce484222325;
+        auto combine = [&hash](auto value) {
+            hash ^= value + 0x9e3779b97f4a7c15 + (hash << 6) + (hash >> 2);
+        };
+        auto combine_vector = [&hash](auto const& vector) {
+            for (auto& value : vector) {
+                hash ^= value;
+                hash *= 0x100000001b3;
+            }
+        };
+
+        combine(string_position_before_match);
+        combine(string_position);
+        combine(string_position_in_code_units);
+        combine(instruction_position);
+        combine(fork_at_position);
+        combine(initiating_fork.value_or(0) + initiating_fork.has_value());
+        combine_vector(repetition_marks);
+        combine_vector(checkpoints);
+
+        return hash;
+    }
 };
 
 }
