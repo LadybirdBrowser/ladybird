@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1975 tests
 
-1955 Pass
-20 Fail
+1959 Pass
+16 Fail
 Pass	Selectors-API Test Suite: HTML
 Pass	Document supports querySelector
 Pass	Document supports querySelectorAll
@@ -601,8 +601,8 @@ Pass	Document.querySelectorAll: :link and :visited pseudo-class selectors, match
 Pass	Document.querySelector: :link and :visited pseudo-class selectors, matching a and area elements with href attributes: #pseudo-link :link, #pseudo-link :visited
 Pass	Document.querySelectorAll: :link and :visited pseudo-class selectors, matching no elements: #head :link, #head :visited
 Pass	Document.querySelector: :link and :visited pseudo-class selectors, matching no elements: #head :link, #head :visited
-Fail	Document.querySelectorAll: :target pseudo-class selector, matching the element referenced by the URL fragment identifier: :target
-Fail	Document.querySelector: :target pseudo-class selector, matching the element referenced by the URL fragment identifier: :target
+Pass	Document.querySelectorAll: :target pseudo-class selector, matching the element referenced by the URL fragment identifier: :target
+Pass	Document.querySelector: :target pseudo-class selector, matching the element referenced by the URL fragment identifier: :target
 Pass	Document.querySelectorAll: :lang pseudo-class selector, matching inherited language: #pseudo-lang-div1:lang(en)
 Pass	Document.querySelector: :lang pseudo-class selector, matching inherited language: #pseudo-lang-div1:lang(en)
 Pass	Document.querySelectorAll: :lang pseudo-class selector, matching specified language with exact value: #pseudo-lang-div2:lang(fr)
@@ -1893,8 +1893,8 @@ Pass	In-document Element.querySelectorAll: :link and :visited pseudo-class selec
 Pass	In-document Element.querySelector: :link and :visited pseudo-class selectors, not matching link elements with href attributes: #head :link, #head :visited
 Pass	In-document Element.querySelectorAll: :link and :visited pseudo-class selectors, chained, mutually exclusive pseudo-classes match nothing: :link:visited
 Pass	In-document Element.querySelector: :link and :visited pseudo-class selectors, chained, mutually exclusive pseudo-classes match nothing: :link:visited
-Fail	In-document Element.querySelectorAll: :target pseudo-class selector, matching the element referenced by the URL fragment identifier: :target
-Fail	In-document Element.querySelector: :target pseudo-class selector, matching the element referenced by the URL fragment identifier: :target
+Pass	In-document Element.querySelectorAll: :target pseudo-class selector, matching the element referenced by the URL fragment identifier: :target
+Pass	In-document Element.querySelector: :target pseudo-class selector, matching the element referenced by the URL fragment identifier: :target
 Pass	In-document Element.querySelectorAll: :lang pseudo-class selector, matching inherited language: #pseudo-lang-div1:lang(en)
 Pass	In-document Element.querySelector: :lang pseudo-class selector, matching inherited language: #pseudo-lang-div1:lang(en)
 Pass	In-document Element.querySelectorAll: :lang pseudo-class selector, matching specified language with exact value: #pseudo-lang-div2:lang(fr)
