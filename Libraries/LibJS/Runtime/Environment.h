@@ -26,6 +26,7 @@ public:
     enum class InitializeBindingHint {
         Normal,
         SyncDispose,
+        AsyncDispose,
     };
 
     virtual bool has_this_binding() const { return false; }

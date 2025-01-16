@@ -671,6 +671,7 @@ ThrowCompletionOr<ResolvedBinding> SourceTextModule::resolve_export(VM& vm, Depr
 }
 
 // 16.2.1.6.5 ExecuteModule ( [ capability ] ), https://tc39.es/ecma262/#sec-source-text-module-record-execute-module
+// 9.1.1.1.2 ExecuteModule ( [ capability ] ), https://tc39.es/proposal-explicit-resource-management/#sec-source-text-module-record-execute-module
 ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<PromiseCapability> capability)
 {
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] SourceTextModule::execute_module({}, PromiseCapability @ {})", filename(), capability.ptr());
@@ -708,6 +709,7 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
     if (!m_has_top_level_await) {
         // a. Assert: capability is not present.
         VERIFY(capability == nullptr);
+
         // b. Push moduleContext onto the execution context stack; moduleContext is now the running execution context.
         TRY(vm.push_execution_context(*module_context, {}));
 
@@ -730,11 +732,10 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
         }
 
         // d. Let env be moduleContext's LexicalEnvironment.
-        auto env = module_context->lexical_environment;
-        VERIFY(is<DeclarativeEnvironment>(*env));
+        auto& env = verify_cast<DeclarativeEnvironment>(*module_context->lexical_environment);
 
-        // e. Set result to DisposeResources(env, result).
-        result = dispose_resources(vm, static_cast<DeclarativeEnvironment*>(env.ptr()), result);
+        // e. Set result to Completion(DisposeResources(env.[[DisposeCapability]], result)).
+        result = dispose_resources(vm, env.dispose_capability(), result);
 
         // f. Suspend moduleContext and remove it from the execution context stack.
         vm.pop_execution_context();

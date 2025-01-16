@@ -12,6 +12,7 @@
 #include <LibGC/RootVector.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/CanonicalIndex.h>
+#include <LibJS/Runtime/Environment.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Iterator.h>
@@ -44,16 +45,28 @@ ThrowCompletionOr<Object*> get_prototype_from_constructor(VM&, FunctionObject co
 Object* create_unmapped_arguments_object(VM&, ReadonlySpan<Value> arguments);
 Object* create_mapped_arguments_object(VM&, FunctionObject&, Vector<FunctionParameter> const&, ReadonlySpan<Value> arguments, Environment&);
 
-struct DisposableResource {
-    Value resource_value;
-    GC::Ref<FunctionObject> dispose_method;
+// 2.1.1 DisposeCapability Records, https://tc39.es/proposal-explicit-resource-management/#sec-disposecapability-records
+struct DisposeCapability {
+    void visit_edges(GC::Cell::Visitor&) const;
+
+    Vector<DisposableResource> disposable_resource_stack; // [[DisposableResourceStack]]
 };
-ThrowCompletionOr<void> add_disposable_resource(VM&, Vector<DisposableResource>& disposable, Value, Environment::InitializeBindingHint, FunctionObject* = nullptr);
-ThrowCompletionOr<DisposableResource> create_disposable_resource(VM&, Value, Environment::InitializeBindingHint, FunctionObject* method = nullptr);
+
+// 2.1.2 DisposableResource Records, https://tc39.es/proposal-explicit-resource-management/#sec-disposableresource-records
+struct DisposableResource {
+    void visit_edges(GC::Cell::Visitor&) const;
+
+    GC::Ptr<Object> resource_value;          // [[ResourceValue]]
+    Environment::InitializeBindingHint hint; // [[Hint]]
+    GC::Ptr<FunctionObject> dispose_method;  // [[DisposeMethod]]
+};
+
+DisposeCapability new_dispose_capability();
+ThrowCompletionOr<void> add_disposable_resource(VM&, DisposeCapability&, Value, Environment::InitializeBindingHint, GC::Ptr<FunctionObject> = {});
+ThrowCompletionOr<DisposableResource> create_disposable_resource(VM&, Value, Environment::InitializeBindingHint, GC::Ptr<FunctionObject> = {});
 ThrowCompletionOr<GC::Ptr<FunctionObject>> get_dispose_method(VM&, Value, Environment::InitializeBindingHint);
-Completion dispose(VM& vm, Value, GC::Ref<FunctionObject> method);
-Completion dispose_resources(VM& vm, Vector<DisposableResource> const& disposable, Completion completion);
-Completion dispose_resources(VM& vm, GC::Ptr<DeclarativeEnvironment> disposable, Completion completion);
+Completion dispose(VM&, Value, Environment::InitializeBindingHint, GC::Ptr<FunctionObject> method);
+Completion dispose_resources(VM&, DisposeCapability&, Completion);
 
 ThrowCompletionOr<Value> perform_import_call(VM&, Value specifier, Value options_value);
 

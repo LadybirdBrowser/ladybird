@@ -387,13 +387,15 @@ ThrowCompletionOr<Object*> get_prototype_from_constructor(VM& vm, FunctionObject
 }
 
 // 9.1.2.2 NewDeclarativeEnvironment ( E ), https://tc39.es/ecma262/#sec-newdeclarativeenvironment
+// 4.1.2.1 NewDeclarativeEnvironment ( E ), https://tc39.es/proposal-explicit-resource-management/#sec-declarative-environment-records-initializebinding-n-v
 GC::Ref<DeclarativeEnvironment> new_declarative_environment(Environment& environment)
 {
     auto& heap = environment.heap();
 
     // 1. Let env be a new Declarative Environment Record containing no bindings.
     // 2. Set env.[[OuterEnv]] to E.
-    // 3. Return env.
+    // 3. Set env.[[DisposeCapability]] to NewDisposeCapability().
+    // 4. Return env.
     return heap.allocate<DeclarativeEnvironment>(&environment);
 }
 
@@ -411,6 +413,7 @@ GC::Ref<ObjectEnvironment> new_object_environment(Object& object, bool is_with_e
 }
 
 // 9.1.2.4 NewFunctionEnvironment ( F, newTarget ), https://tc39.es/ecma262/#sec-newfunctionenvironment
+// 4.1.2.2 NewFunctionEnvironment ( F, newTarget ), https://tc39.es/proposal-explicit-resource-management/#sec-newfunctionenvironment
 GC::Ref<FunctionEnvironment> new_function_environment(ECMAScriptFunctionObject& function, Object* new_target)
 {
     auto& heap = function.heap();
@@ -432,9 +435,10 @@ GC::Ref<FunctionEnvironment> new_function_environment(ECMAScriptFunctionObject& 
     env->set_new_target(new_target ?: js_undefined());
 
     // 6. Set env.[[OuterEnv]] to F.[[Environment]].
+    // 7. Set env.[[DisposeCapability]] to NewDisposeCapability().
     // NOTE: Done in step 1 via the FunctionEnvironment constructor.
 
-    // 7. Return env.
+    // 8. Return env.
     return env;
 }
 
@@ -1403,159 +1407,278 @@ ThrowCompletionOr<String> get_substitution(VM& vm, Utf16View const& matched, Utf
     return MUST(Utf16View { result }.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes));
 }
 
-// 2.1.2 AddDisposableResource ( disposable, V, hint [ , method ] ), https://tc39.es/proposal-explicit-resource-management/#sec-adddisposableresource-disposable-v-hint-disposemethod
-ThrowCompletionOr<void> add_disposable_resource(VM& vm, Vector<DisposableResource>& disposable, Value value, Environment::InitializeBindingHint hint, FunctionObject* method)
+void DisposeCapability::visit_edges(GC::Cell::Visitor& visitor) const
 {
-    // NOTE: For now only sync is a valid hint
-    VERIFY(hint == Environment::InitializeBindingHint::SyncDispose);
+    for (auto const& disposable_resource : disposable_resource_stack)
+        disposable_resource.visit_edges(visitor);
+}
 
+void DisposableResource::visit_edges(GC::Cell::Visitor& visitor) const
+{
+    visitor.visit(resource_value);
+    visitor.visit(dispose_method);
+}
+
+// 2.1.3 NewDisposeCapability ( ), https://tc39.es/proposal-explicit-resource-management/#sec-newdisposecapability
+DisposeCapability new_dispose_capability()
+{
+    // 1. Let stack be a new empty List.
+    // 2. Return the DisposeCapability Record { [[DisposableResourceStack]]: stack }.
+    return DisposeCapability {};
+}
+
+// 2.1.4 AddDisposableResource ( disposeCapability, V, hint [ , method ] ), https://tc39.es/proposal-explicit-resource-management/#sec-adddisposableresource-disposable-v-hint-disposemethod
+ThrowCompletionOr<void> add_disposable_resource(VM& vm, DisposeCapability& dispose_capability, Value value, Environment::InitializeBindingHint hint, GC::Ptr<FunctionObject> method)
+{
     Optional<DisposableResource> resource;
 
     // 1. If method is not present then,
     if (!method) {
-        // a. If V is null or undefined, return NormalCompletion(empty).
-        if (value.is_nullish())
+        // a. If V is either null or undefined and hint is sync-dispose, then
+        if (value.is_nullish() && hint == Environment::InitializeBindingHint::SyncDispose) {
+            // i. Return unused.
             return {};
+        }
 
-        // b. If Type(V) is not Object, throw a TypeError exception.
-        if (!value.is_object())
-            return vm.throw_completion<TypeError>(ErrorType::NotAnObject, value.to_string_without_side_effects());
+        // b. NOTE: When V is either null or undefined and hint is async-dispose, we record that the resource was evaluated
+        //    to ensure we will still perform an Await when resources are later disposed.
 
         // c. Let resource be ? CreateDisposableResource(V, hint).
         resource = TRY(create_disposable_resource(vm, value, hint));
     }
     // 2. Else,
     else {
-        // a. If V is null or undefined, then
-        if (value.is_nullish()) {
-            // i. Let resource be ? CreateDisposableResource(undefined, hint, method).
-            resource = TRY(create_disposable_resource(vm, js_undefined(), hint, method));
-        }
-        // b. Else,
-        else {
-            // i. If Type(V) is not Object, throw a TypeError exception.
-            if (!value.is_object())
-                return vm.throw_completion<TypeError>(ErrorType::NotAnObject, value.to_string_without_side_effects());
+        // a. Assert: V is undefined.
+        VERIFY(value.is_undefined());
 
-            // ii. Let resource be ? CreateDisposableResource(V, hint, method).
-            resource = TRY(create_disposable_resource(vm, value, hint, method));
-        }
+        // b. Let resource be ? CreateDisposableResource(undefined, hint, method).
+        resource = TRY(create_disposable_resource(vm, js_undefined(), hint, method));
     }
 
-    // 3. Append resource to disposable.[[DisposableResourceStack]].
-    VERIFY(resource.has_value());
-    disposable.append(resource.release_value());
+    // 3. Append resource to disposeCapability.[[DisposableResourceStack]].
+    dispose_capability.disposable_resource_stack.append(resource.release_value());
 
-    // 4. Return NormalCompletion(empty).
+    // 4. Return unused.
     return {};
 }
 
-// 2.1.3 CreateDisposableResource ( V, hint [ , method ] ), https://tc39.es/proposal-explicit-resource-management/#sec-createdisposableresource
-ThrowCompletionOr<DisposableResource> create_disposable_resource(VM& vm, Value value, Environment::InitializeBindingHint hint, FunctionObject* method)
+// 2.1.5 CreateDisposableResource ( V, hint [ , method ] ), https://tc39.es/proposal-explicit-resource-management/#sec-createdisposableresource
+ThrowCompletionOr<DisposableResource> create_disposable_resource(VM& vm, Value value, Environment::InitializeBindingHint hint, GC::Ptr<FunctionObject> method)
 {
     // 1. If method is not present, then
     if (!method) {
-        // a. If V is undefined, throw a TypeError exception.
-        if (value.is_undefined())
-            return vm.throw_completion<TypeError>(ErrorType::IsUndefined, "value");
+        // a. If V is either null or undefined, then
+        if (value.is_nullish()) {
+            // i. Set V to undefined.
+            // ii. Set method to undefined.
+        }
+        // b. Else,
+        else {
+            // i. If V is not an Object, throw a TypeError exception.
+            if (!value.is_object())
+                return vm.throw_completion<TypeError>(ErrorType::NotAnObject, value);
 
-        // b. Set method to ? GetDisposeMethod(V, hint).
-        method = TRY(get_dispose_method(vm, value, hint));
+            // ii. Set method to ? GetDisposeMethod(V, hint).
+            method = TRY(get_dispose_method(vm, value, hint));
 
-        // c. If method is undefined, throw a TypeError exception.
-        if (!method)
-            return vm.throw_completion<TypeError>(ErrorType::NoDisposeMethod, value.to_string_without_side_effects());
+            // iii. If method is undefined, throw a TypeError exception.
+            if (!method)
+                return vm.throw_completion<TypeError>(ErrorType::NoDisposeMethod, value);
+        }
     }
     // 2. Else,
-    // a. If IsCallable(method) is false, throw a TypeError exception.
-    // NOTE: This is guaranteed to never occur from the type.
-    VERIFY(method);
+    else {
+        // a. If IsCallable(method) is false, throw a TypeError exception.
+        // NOTE: This is guaranteed to never occur due to its type.
+    }
 
     // 3. Return the DisposableResource Record { [[ResourceValue]]: V, [[Hint]]: hint, [[DisposeMethod]]: method }.
-    // NOTE: Since we only support sync dispose we don't store the hint for now.
-    VERIFY(hint == Environment::InitializeBindingHint::SyncDispose);
     return DisposableResource {
-        value,
-        *method
+        .resource_value = value.is_object() ? GC::Ptr { value.as_object() } : nullptr,
+        .hint = hint,
+        .dispose_method = method,
     };
 }
 
-// 2.1.4 GetDisposeMethod ( V, hint ), https://tc39.es/proposal-explicit-resource-management/#sec-getdisposemethod
+// 2.1.6 GetDisposeMethod ( V, hint ), https://tc39.es/proposal-explicit-resource-management/#sec-getdisposemethod
 ThrowCompletionOr<GC::Ptr<FunctionObject>> get_dispose_method(VM& vm, Value value, Environment::InitializeBindingHint hint)
 {
-    // NOTE: We only have sync dispose for now which means we ignore step 1.
-    VERIFY(hint == Environment::InitializeBindingHint::SyncDispose);
+    GC::Ptr<FunctionObject> method;
 
-    // 2. Else,
-    // a. Let method be ? GetMethod(V, @@dispose).
-    return TRY(value.get_method(vm, vm.well_known_symbol_dispose()));
-}
+    // 1. If hint is async-dispose, then
+    if (hint == Environment::InitializeBindingHint::AsyncDispose) {
+        // a. Let method be ? GetMethod(V, @@asyncDispose).
+        method = TRY(value.get_method(vm, vm.well_known_symbol_async_dispose()));
 
-// 2.1.5 Dispose ( V, hint, method ), https://tc39.es/proposal-explicit-resource-management/#sec-dispose
-Completion dispose(VM& vm, Value value, GC::Ref<FunctionObject> method)
-{
-    // 1. Let result be ? Call(method, V).
-    [[maybe_unused]] auto result = TRY(call(vm, *method, value));
+        // b. If method is undefined, then
+        if (!method) {
+            // i. Set method to ? GetMethod(V, @@dispose).
+            method = TRY(value.get_method(vm, vm.well_known_symbol_dispose()));
 
-    // NOTE: Hint can only be sync-dispose so we ignore step 2.
-    // 2. If hint is async-dispose and result is not undefined, then
-    //    a. Perform ? Await(result).
+            // ii. If method is not undefined, then
+            if (method) {
+                auto& realm = *vm.current_realm();
 
-    // 3. Return undefined.
-    return js_undefined();
-}
+                // 1. Let closure be a new Abstract Closure with no parameters that captures method and performs the following steps when called:
+                auto closure = [&realm, method](VM& vm) -> ThrowCompletionOr<Value> {
+                    // a. Let O be the this value.
+                    auto object = vm.this_value();
 
-// 2.1.6 DisposeResources ( disposable, completion ), https://tc39.es/proposal-explicit-resource-management/#sec-disposeresources-disposable-completion-errors
-Completion dispose_resources(VM& vm, Vector<DisposableResource> const& disposable, Completion completion)
-{
-    // 1. If disposable is not undefined, then
-    // NOTE: At this point disposable is always defined.
+                    // b. Let promiseCapability be ! NewPromiseCapability(%Promise%).
+                    auto promise_capability = MUST(new_promise_capability(vm, realm.intrinsics().promise_constructor()));
 
-    // a. For each resource of disposable.[[DisposableResourceStack]], in reverse list order, do
-    for (auto const& resource : disposable.in_reverse()) {
-        // i. Let result be Dispose(resource.[[ResourceValue]], resource.[[Hint]], resource.[[DisposeMethod]]).
-        auto result = dispose(vm, resource.resource_value, resource.dispose_method);
+                    // c. Let result be Completion(Call(method, O)).
+                    // d. IfAbruptRejectPromise(result, promiseCapability).
+                    TRY_OR_REJECT(vm, promise_capability, call(vm, method, object));
 
-        // ii. If result.[[Type]] is throw, then
-        if (result.is_error()) {
-            // 1. If completion.[[Type]] is throw, then
-            if (completion.is_error()) {
-                // a. Set result to result.[[Value]].
+                    // e. Perform ? Call(promiseCapability.[[Resolve]], undefined, « undefined »).
+                    TRY(call(vm, *promise_capability->resolve(), js_undefined(), js_undefined()));
 
-                // b. Let suppressed be completion.[[Value]].
-                auto suppressed = completion.value().value();
+                    // f. Return promiseCapability.[[Promise]].
+                    return promise_capability->promise();
+                };
 
-                // c. Let error be a newly created SuppressedError object.
-                auto error = SuppressedError::create(*vm.current_realm());
+                // 2. NOTE: This function is not observable to user code. It is used to ensure that a Promise returned
+                //    from a synchronous @@dispose method will not be awaited and that any exception thrown will not be
+                //    thrown synchronously.
 
-                // d. Perform ! DefinePropertyOrThrow(error, "error", PropertyDescriptor { [[Configurable]]: true, [[Enumerable]]: false, [[Writable]]: true, [[Value]]: result }).
-                MUST(error->define_property_or_throw(vm.names.error, { .value = result.value(), .writable = true, .enumerable = true, .configurable = true }));
-
-                // e. Perform ! DefinePropertyOrThrow(error, "suppressed", PropertyDescriptor { [[Configurable]]: true, [[Enumerable]]: false, [[Writable]]: true, [[Value]]: suppressed }).
-                MUST(error->define_property_or_throw(vm.names.suppressed, { .value = suppressed, .writable = true, .enumerable = false, .configurable = true }));
-
-                // f. Set completion to ThrowCompletion(error).
-                completion = throw_completion(error);
-            }
-            // 2. Else,
-            else {
-                // a. Set completion to result.
-                completion = result;
+                // 3. Return CreateBuiltinFunction(closure, 0, "", « »).
+                return NativeFunction::create(realm, move(closure), 0, "");
             }
         }
     }
+    // 2. Else,
+    else {
+        // a. Let method be ? GetMethod(V, @@dispose).
+        method = TRY(value.get_method(vm, vm.well_known_symbol_dispose()));
+    }
 
-    // 2. Return completion.
-    return completion;
+    // 3. Return method.
+    return method;
 }
 
-Completion dispose_resources(VM& vm, GC::Ptr<DeclarativeEnvironment> disposable, Completion completion)
+// 2.1.7 Dispose ( V, hint, method ), https://tc39.es/proposal-explicit-resource-management/#sec-dispose
+Completion dispose(VM& vm, Value value, Environment::InitializeBindingHint hint, GC::Ptr<FunctionObject> method)
 {
-    // 1. If disposable is not undefined, then
-    if (disposable)
-        return dispose_resources(vm, disposable->disposable_resource_stack(), completion);
+    Value result;
 
-    // 2. Return completion.
+    // 1. If method is undefined, let result be undefined.
+    if (!method) {
+        result = js_undefined();
+    }
+    // 2. Else, let result be ? Call(method, V).
+    else {
+        result = TRY(call(vm, *method, value));
+    }
+
+    // 3. If hint is async-dispose, then
+    if (hint == Environment::InitializeBindingHint::AsyncDispose) {
+        // a. Perform ? Await(result).
+        TRY(await(vm, result));
+    }
+
+    // 4. Return undefined.
+    return js_undefined();
+}
+
+// 2.1.8 DisposeResources ( disposeCapability, completion ), https://tc39.es/proposal-explicit-resource-management/#sec-disposeresources
+Completion dispose_resources(VM& vm, DisposeCapability& dispose_capability, Completion completion)
+{
+    // 1. Let needsAwait be false.
+    bool needs_await = false;
+
+    // 2. Let hasAwaited be false.
+    bool has_awaited = false;
+
+    // 3. For each element resource of disposeCapability.[[DisposableResourceStack]], in reverse list order, do
+    for (auto const& resource : dispose_capability.disposable_resource_stack.in_reverse()) {
+        // a. Let value be resource.[[ResourceValue]].
+        auto value = resource.resource_value;
+
+        // b. Let hint be resource.[[Hint]].
+        auto hint = resource.hint;
+
+        // c. Let method be resource.[[DisposeMethod]].
+        auto method = resource.dispose_method;
+
+        // d. If hint is sync-dispose and needsAwait is true and hasAwaited is false, then
+        if (hint == Environment::InitializeBindingHint::SyncDispose && needs_await && !has_awaited) {
+            // i. Perform ! Await(undefined).
+            MUST(await(vm, js_undefined()));
+
+            // ii. Set needsAwait to false.
+            needs_await = false;
+        }
+
+        // e. If method is not undefined, then
+        if (method) {
+            // i. Let result be Completion(Call(method, value)).
+            auto result = call(vm, *method, value);
+
+            // ii. If result is a normal completion and hint is async-dispose, then
+            if (!result.is_throw_completion() && hint == Environment::InitializeBindingHint::AsyncDispose) {
+                // 1. Set result to Completion(Await(result.[[Value]])).
+                result = await(vm, result.value());
+
+                // 2. Set hasAwaited to true.
+                has_awaited = true;
+            }
+            // iii. If result is a throw completion, then
+            else if (result.is_throw_completion()) {
+                // 1. If completion is a throw completion, then
+                if (completion.type() == Completion::Type::Throw) {
+                    // a. Set result to result.[[Value]].
+                    auto result_value = result.error().value().value();
+
+                    // b. Let suppressed be completion.[[Value]].
+                    auto suppressed = completion.value().value();
+
+                    // c. Let error be a newly created SuppressedError object.
+                    auto error = SuppressedError::create(*vm.current_realm());
+
+                    // d. Perform CreateNonEnumerableDataPropertyOrThrow(error, "error", result).
+                    error->create_non_enumerable_data_property_or_throw(vm.names.error, result_value);
+
+                    // e. Perform CreateNonEnumerableDataPropertyOrThrow(error, "suppressed", suppressed).
+                    error->create_non_enumerable_data_property_or_throw(vm.names.suppressed, suppressed);
+
+                    // f. Set completion to ThrowCompletion(error).
+                    completion = throw_completion(error);
+                }
+                // 2. Else,
+                else {
+                    // a. Set completion to result.
+                    completion = result.release_error();
+                }
+            }
+        }
+        // f. Else,
+        else {
+            // i. Assert: hint is async-dispose.
+            VERIFY(hint == Environment::InitializeBindingHint::AsyncDispose);
+
+            // ii. Set needsAwait to true.
+            needs_await = true;
+
+            // iii. NOTE: This can only indicate a case where either null or undefined was the initialized value of an
+            //      await using declaration.
+        }
+    }
+
+    // 4. If needsAwait is true and hasAwaited is false, then
+    if (needs_await && !has_awaited) {
+        // a. Perform ! Await(undefined).
+        MUST(await(vm, js_undefined()));
+    }
+
+    // 5. NOTE: After disposeCapability has been disposed, it will never be used again. The contents of
+    //    disposeCapability.[[DisposableResourceStack]] can be discarded in implementations, such as by garbage
+    //    collection, at this point.
+
+    // 6. Set disposeCapability.[[DisposableResourceStack]] to a new empty List.
+    dispose_capability.disposable_resource_stack.clear();
+
+    // 7. Return completion.
     return completion;
 }
 

@@ -1,12 +1,13 @@
 /*
  * Copyright (c) 2022, David Tuin <davidot@serenityos.org>
+ * Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <LibJS/Runtime/FinalizationRegistry.h>
+#include <LibJS/Runtime/DisposableStack.h>
 #include <LibJS/Runtime/PrototypeObject.h>
 
 namespace JS {
@@ -22,12 +23,12 @@ public:
 private:
     explicit DisposableStackPrototype(Realm&);
 
-    JS_DECLARE_NATIVE_FUNCTION(disposed_getter);
-    JS_DECLARE_NATIVE_FUNCTION(dispose);
-    JS_DECLARE_NATIVE_FUNCTION(use);
     JS_DECLARE_NATIVE_FUNCTION(adopt);
     JS_DECLARE_NATIVE_FUNCTION(defer);
+    JS_DECLARE_NATIVE_FUNCTION(dispose);
+    JS_DECLARE_NATIVE_FUNCTION(disposed_getter);
     JS_DECLARE_NATIVE_FUNCTION(move_);
+    JS_DECLARE_NATIVE_FUNCTION(use);
 };
 
 }

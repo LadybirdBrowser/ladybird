@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2022, David Tuin <davidot@serenityos.org>
+ * Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -22,13 +23,13 @@ void DisposableStackConstructor::initialize(Realm& realm)
     auto& vm = this->vm();
     Base::initialize(realm);
 
-    // 26.2.2.1 DisposableStack.prototype, https://tc39.es/ecma262/#sec-finalization-registry.prototype
+    // 12.3.2.1 DisposableStack.prototype, https://tc39.es/proposal-explicit-resource-management/#sec-disposablestack.prototype
     define_direct_property(vm.names.prototype, realm.intrinsics().disposable_stack_prototype(), 0);
 
     define_direct_property(vm.names.length, Value(0), Attribute::Configurable);
 }
 
-// 11.3.1.1 DisposableStack ( ), https://tc39.es/proposal-explicit-resource-management/#sec-disposablestack
+// 12.3.1.1 DisposableStack ( ), https://tc39.es/proposal-explicit-resource-management/#sec-disposablestack
 ThrowCompletionOr<Value> DisposableStackConstructor::call()
 {
     auto& vm = this->vm();
@@ -37,16 +38,16 @@ ThrowCompletionOr<Value> DisposableStackConstructor::call()
     return vm.throw_completion<TypeError>(ErrorType::ConstructorWithoutNew, vm.names.DisposableStack);
 }
 
-// 11.3.1.1 DisposableStack ( ), https://tc39.es/proposal-explicit-resource-management/#sec-disposablestack
+// 12.3.1.1 DisposableStack ( ), https://tc39.es/proposal-explicit-resource-management/#sec-disposablestack
 ThrowCompletionOr<GC::Ref<Object>> DisposableStackConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 
-    // 2. Let disposableStack be ? OrdinaryCreateFromConstructor(NewTarget, "%DisposableStack.prototype%", « [[DisposableState]], [[DisposableResourceStack]] »).
+    // 2. Let disposableStack be ? OrdinaryCreateFromConstructor(NewTarget, "%DisposableStack.prototype%", « [[DisposableState]], [[DisposeCapability]] »).
     // 3. Set disposableStack.[[DisposableState]] to pending.
-    // 4. Set disposableStack.[[DisposableResourceStack]] to a new empty List.
+    // 4. Set disposableStack.[[DisposeCapability]] to NewDisposeCapability().
     // 5. Return disposableStack.
-    return TRY(ordinary_create_from_constructor<DisposableStack>(vm, new_target, &Intrinsics::disposable_stack_prototype, Vector<DisposableResource> {}));
+    return TRY(ordinary_create_from_constructor<DisposableStack>(vm, new_target, &Intrinsics::disposable_stack_prototype, new_dispose_capability()));
 }
 
 }
