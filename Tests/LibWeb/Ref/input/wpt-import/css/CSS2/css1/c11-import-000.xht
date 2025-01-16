@@ -1,0 +1,29 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Test: Basic Containment</title>
+  <link rel="help" href="http://www.w3.org/TR/REC-CSS1#containment-in-html"/>
+  <link rel="author" title="CSS1 Test Suite Contributors" href="http://www.w3.org/Style/CSS/Test/CSS1/current/tsack.html"/>
+  <link rel="author" title="Ian Hickson" href="mailto:ian@hixie.ch"/>
+  <style type="text/css"><![CDATA[
+   @import url(support/a-green.css);
+   @import "support/b-green.css";
+   .c { color: green; }
+   @import url(support/c-red.css);
+   <!-- .d { color: green; } -->
+  ]]></style>
+  <link rel="help" href="http://www.w3.org/TR/CSS21/cascade.html#at-import" title="6.3 The @import rule"/>
+  <link rel="help" href="http://www.w3.org/TR/css-cascade-3/#at-import"/>
+  <link rel="help" href="http://www.w3.org/TR/css-cascade-4/#at-import"/>
+  <link rel="help" href="http://www.w3.org/TR/CSS21/syndata.html#comments" title="4.1.9 Comments"/>
+  <link rel="help" href="http://www.w3.org/TR/CSS21/syndata.html#uri" title="4.3.4 URLs and URIs"/>
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/css1/c11-import-000-ref.xht" />
+
+ </head>
+ <body>
+  <p class="a">This text should be green.</p>
+  <p class="b">This text should be green.</p>
+  <p class="c">This text should be green.</p>
+  <p class="d">This text should be green.</p>
+ </body>
+</html>

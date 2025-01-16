@@ -13,6 +13,11 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/GenericLexer.h>
+#include <AK/SourceLocation.h>
+#include <AK/TemporaryChange.h>
+#include <LibWeb/CSS/CSSImportRule.h>
+#include <LibWeb/CSS/CSSLayerStatementRule.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/MediaList.h>
@@ -123,11 +128,25 @@ CSSStyleSheet* Parser::parse_as_css_stylesheet(Optional<URL::URL> location)
 
     // Interpret all of the resulting top-level qualified rules as style rules, defined below.
     GC::RootVector<CSSRule*> rules(realm().heap());
+    auto more_import_rules_allowed = true;
     for (auto const& raw_rule : style_sheet.rules) {
         auto rule = convert_to_rule(raw_rule, Nested::No);
         // If any style rule is invalid, or any at-rule is not recognized or is invalid according to its grammar or context, it’s a parse error.
         // Discard that rule.
         if (!rule) {
+            log_parse_error();
+            continue;
+        }
+        // https://drafts.csswg.org/css-cascade-5/#at-import
+        // Any @import rules must precede all other valid at-rules and style rules in a style sheet (ignoring @charset and @layer statement rules)
+        // and must not have any other valid at-rules or style rules between it and previous @import rules, or else the @import rule is invalid.
+        auto is_layer_statement_rule = is<CSSLayerStatementRule>(*rule);
+        auto is_import_rule = is<CSSImportRule>(*rule);
+
+        // FIXME: Include @charset rules in this check when they are added.
+        if (!(is_layer_statement_rule || is_import_rule)) {
+            more_import_rules_allowed = false;
+        } else if (is_import_rule && !more_import_rules_allowed) {
             log_parse_error();
             continue;
         }
