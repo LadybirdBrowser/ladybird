@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
 
 namespace Web {
