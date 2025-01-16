@@ -1394,7 +1394,7 @@ void FlexFormattingContext::distribute_any_remaining_free_space()
 
         CSSPixels cursor_offset = initial_offset;
 
-        auto place_item = [&](FlexItem& item) {
+        auto place_item = [&](FlexItem& item, size_t index) {
             // CSS-FLEXBOX-2: Account for gap between items.
             auto amount_of_main_size_used = item.main_size.value()
                 + item.margins.main_before
@@ -1403,8 +1403,15 @@ void FlexFormattingContext::distribute_any_remaining_free_space()
                 + item.margins.main_after
                 + item.borders.main_after
                 + item.padding.main_after
-                + space_between_items
-                + main_gap();
+                + space_between_items;
+
+            if (!is_direction_reverse() && flex_region_render_cursor == FlexRegionRenderCursor::Right) {
+                if (index < flex_line.items.size() - 1) {
+                    amount_of_main_size_used += main_gap();
+                }
+            } else {
+                amount_of_main_size_used += main_gap();
+            }
 
             if (is_direction_reverse() && flex_region_render_cursor == FlexRegionRenderCursor::Right) {
                 item.main_offset = cursor_offset - item.main_size.value() - item.margins.main_after - item.borders.main_after - item.padding.main_after;
@@ -1421,12 +1428,12 @@ void FlexFormattingContext::distribute_any_remaining_free_space()
         if (flex_region_render_cursor == FlexRegionRenderCursor::Right) {
             for (ssize_t i = flex_line.items.size() - 1; i >= 0; --i) {
                 auto& item = flex_line.items[i];
-                place_item(item);
+                place_item(item, i);
             }
         } else {
             for (size_t i = 0; i < flex_line.items.size(); ++i) {
                 auto& item = flex_line.items[i];
-                place_item(item);
+                place_item(item, i);
             }
         }
     }

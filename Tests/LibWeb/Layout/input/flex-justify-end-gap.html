@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<div class="container col">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<div class="container row">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<style>
+    .container {
+        display: flex;
+        gap: 50px;
+        border: 2px solid black;
+    }
+    
+    .item {
+        width: 50px;
+        height: 50px;
+        background: crimson;
+    }
+
+    .col {
+        flex-direction: column;
+        justify-content: flex-end;
+        height: 400px;
+        width: fit-content;
+    }
+
+    .row {
+        flex-direction: row;
+        justify-content: flex-end;
+        width: 400px;
+    }
+</style>
