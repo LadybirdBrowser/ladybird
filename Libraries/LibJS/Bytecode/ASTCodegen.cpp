@@ -2469,10 +2469,24 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TemplateLiteral::genera
     return dst;
 }
 
+struct TagAndThisValue {
+    ScopedOperand tag;
+    ScopedOperand this_value;
+};
+
 Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TaggedTemplateLiteral::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
-    auto tag = TRY(m_tag->generate_bytecode(generator)).value();
+    auto [tag, this_value] = TRY([&]() -> CodeGenerationErrorOr<TagAndThisValue> {
+        if (is<MemberExpression>(*m_tag)) {
+            auto& member_expression = static_cast<MemberExpression const&>(*m_tag);
+            auto base_and_value = TRY(get_base_and_value_from_member_expression(generator, member_expression));
+            return TagAndThisValue { .tag = base_and_value.value, .this_value = base_and_value.base };
+        }
+
+        auto tag = TRY(m_tag->generate_bytecode(generator)).value();
+        return TagAndThisValue { .tag = tag, .this_value = generator.add_constant(js_undefined()) };
+    }());
 
     // FIXME: Follow
     //        13.2.8.3 GetTemplateObject ( templateLiteral ), https://tc39.es/ecma262/#sec-gettemplateobject
@@ -2539,7 +2553,7 @@ Bytecode::CodeGenerationErrorOr<Optional<ScopedOperand>> TaggedTemplateLiteral::
         generator.emit<Bytecode::Op::NewArray>(arguments);
 
     auto dst = choose_dst(generator, preferred_dst);
-    generator.emit<Bytecode::Op::CallWithArgumentArray>(Bytecode::Op::CallType::Call, dst, tag, generator.add_constant(js_undefined()), arguments);
+    generator.emit<Bytecode::Op::CallWithArgumentArray>(Bytecode::Op::CallType::Call, dst, tag, this_value, arguments);
     return dst;
 }
 
