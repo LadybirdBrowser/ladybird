@@ -9,6 +9,7 @@
 #include <AK/Array.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibUnicode/Segmenter.h>
 
@@ -125,4 +126,32 @@ TEST_CASE(word_segmentation)
     test_word_segmentation(
         "The quick (“brown”) fox can’t jump 32.3 feet, right?"sv,
         { 0u, 3u, 4u, 9u, 10u, 11u, 14u, 19u, 22u, 23u, 24u, 27u, 28u, 35u, 36u, 40u, 41u, 45u, 46u, 50u, 51u, 52u, 57u, 58u });
+}
+
+TEST_CASE(out_of_bounds)
+{
+    {
+        auto text = "foo"_string;
+
+        auto segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Word);
+        segmenter->set_segmented_text(text);
+
+        auto result = segmenter->previous_boundary(text.byte_count());
+        EXPECT(!result.has_value());
+
+        result = segmenter->next_boundary(text.byte_count());
+        EXPECT(!result.has_value());
+    }
+    {
+        auto text = MUST(AK::utf8_to_utf16("foo"sv));
+
+        auto segmenter = Unicode::Segmenter::create(Unicode::SegmenterGranularity::Word);
+        segmenter->set_segmented_text(Utf16View { text });
+
+        auto result = segmenter->previous_boundary(text.size());
+        EXPECT(!result.has_value());
+
+        result = segmenter->next_boundary(text.size());
+        EXPECT(!result.has_value());
+    }
 }

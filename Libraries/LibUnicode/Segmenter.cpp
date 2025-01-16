@@ -87,13 +87,15 @@ public:
     virtual Optional<size_t> previous_boundary(size_t boundary, Inclusive inclusive) override
     {
         auto icu_boundary = align_boundary(boundary);
+        if (!icu_boundary.has_value())
+            return {};
 
         if (inclusive == Inclusive::Yes) {
-            if (static_cast<bool>(m_segmenter->isBoundary(icu_boundary)))
-                return static_cast<size_t>(icu_boundary);
+            if (static_cast<bool>(m_segmenter->isBoundary(*icu_boundary)))
+                return static_cast<size_t>(*icu_boundary);
         }
 
-        if (auto index = m_segmenter->preceding(icu_boundary); index != icu::BreakIterator::DONE)
+        if (auto index = m_segmenter->preceding(*icu_boundary); index != icu::BreakIterator::DONE)
             return static_cast<size_t>(index);
 
         return {};
@@ -102,13 +104,15 @@ public:
     virtual Optional<size_t> next_boundary(size_t boundary, Inclusive inclusive) override
     {
         auto icu_boundary = align_boundary(boundary);
+        if (!icu_boundary.has_value())
+            return {};
 
         if (inclusive == Inclusive::Yes) {
-            if (static_cast<bool>(m_segmenter->isBoundary(icu_boundary)))
-                return static_cast<size_t>(icu_boundary);
+            if (static_cast<bool>(m_segmenter->isBoundary(*icu_boundary)))
+                return static_cast<size_t>(*icu_boundary);
         }
 
-        if (auto index = m_segmenter->following(icu_boundary); index != icu::BreakIterator::DONE)
+        if (auto index = m_segmenter->following(*icu_boundary); index != icu::BreakIterator::DONE)
             return static_cast<size_t>(index);
 
         return {};
@@ -173,19 +177,25 @@ public:
     }
 
 private:
-    i32 align_boundary(size_t boundary)
+    Optional<i32> align_boundary(size_t boundary)
     {
         auto icu_boundary = static_cast<i32>(boundary);
 
         return m_segmented_text.visit(
-            [&](String const& text) {
+            [&](String const& text) -> Optional<i32> {
+                if (boundary >= text.byte_count())
+                    return {};
+
                 U8_SET_CP_START(text.bytes().data(), 0, icu_boundary);
                 return icu_boundary;
             },
-            [&](icu::UnicodeString const& text) {
+            [&](icu::UnicodeString const& text) -> Optional<i32> {
+                if (icu_boundary >= text.length())
+                    return {};
+
                 return text.getChar32Start(icu_boundary);
             },
-            [](Empty) -> i32 { VERIFY_NOT_REACHED(); });
+            [](Empty) -> Optional<i32> { VERIFY_NOT_REACHED(); });
     }
 
     void for_each_boundary(SegmentationCallback callback)
