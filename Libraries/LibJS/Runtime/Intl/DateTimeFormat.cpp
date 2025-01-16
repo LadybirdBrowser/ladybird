@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -389,8 +389,8 @@ Optional<Unicode::CalendarPattern> get_date_time_format(Unicode::CalendarPattern
             return IterationDecision::Continue;
         });
 
-        // c. If defaults is ZONED-DATE-TIME, then
-        if (defaults == OptionDefaults::ZonedDateTime) {
+        // c. If defaults is ZONED-DATE-TIME and formatOptions.[[timeZoneName]] is undefined, then
+        if (defaults == OptionDefaults::ZonedDateTime && !format_options.time_zone_name.has_value()) {
             // i. Set formatOptions.[[timeZoneName]] to "short".
             format_options.time_zone_name = Unicode::CalendarPatternStyle::Short;
         }
