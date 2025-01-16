@@ -80,4 +80,12 @@ describe("errors", () => {
             new Temporal.PlainDateTime(1970, 1, 1).with({ timeZone: {} });
         }).toThrowWithMessage(TypeError, "Object must be a partial Temporal object");
     });
+
+    test("invalid ISO date range", () => {
+        const plainDateTime = new Temporal.PlainDateTime(-271821, 4, 19, 0, 0, 0, 0, 0, 1);
+
+        expect(() => {
+            plainDateTime.with({ nanosecond: 0 });
+        }).toThrowWithMessage(RangeError, "Invalid plain date time");
+    });
 });
