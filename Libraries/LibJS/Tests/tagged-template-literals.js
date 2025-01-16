@@ -164,7 +164,7 @@ describe("tagged template literal functionality", () => {
         expect(firstResult).toBe(secondResult);
     });
 
-    test.xfail("this value of call comes from reference", () => {
+    test("this value of call comes from reference for non-computed, non-super property", () => {
         let thisValue = null;
         const obj = {
             func() {
@@ -173,6 +173,108 @@ describe("tagged template literal functionality", () => {
         };
 
         obj.func``;
+
+        expect(thisValue).toBe(obj);
+    });
+
+    test("this value of call comes from reference for computed, non-super property", () => {
+        let thisValue = null;
+        const obj = {
+            func() {
+                thisValue = this;
+            },
+        };
+
+        obj["func"]``;
+
+        expect(thisValue).toBe(obj);
+    });
+
+    test("this value of call comes from reference for private property", () => {
+        let thisValue = null;
+        const obj = new (class A {
+            #func = () => {
+                thisValue = this;
+            };
+
+            constructor() {
+                this.#func``;
+            }
+        })();
+
+        expect(thisValue).toBe(obj);
+    });
+
+    test("this value of call comes from reference for non-computed super call property", () => {
+        let thisValue = null;
+
+        class A {
+            func() {
+                thisValue = this;
+            }
+        }
+
+        const obj = new (class B extends A {
+            constructor() {
+                super().func``;
+            }
+        })();
+
+        expect(thisValue).toBe(obj);
+    });
+
+    test("this value of call comes from reference for computed super call property", () => {
+        let thisValue = null;
+
+        class A {
+            func() {
+                thisValue = this;
+            }
+        }
+
+        const obj = new (class B extends A {
+            constructor() {
+                super()["func"]``;
+            }
+        })();
+
+        expect(thisValue).toBe(obj);
+    });
+
+    test("this value of call comes from reference for non-computed super property", () => {
+        let thisValue = null;
+
+        class A {
+            func() {
+                thisValue = this;
+            }
+        }
+
+        const obj = new (class B extends A {
+            constructor() {
+                super();
+                super.func``;
+            }
+        })();
+
+        expect(thisValue).toBe(obj);
+    });
+
+    test("this value of call comes from reference for computed super property", () => {
+        let thisValue = null;
+
+        class A {
+            func() {
+                thisValue = this;
+            }
+        }
+
+        const obj = new (class B extends A {
+            constructor() {
+                super();
+                super["func"]``;
+            }
+        })();
 
         expect(thisValue).toBe(obj);
     });
