@@ -87,10 +87,15 @@ describe("errors", () => {
     });
 
     test("relativeTo with invalid date", () => {
-        const duration = new Temporal.Duration(0, 0, 0, 31);
-
         expect(() => {
+            const duration = new Temporal.Duration(0, 0, 0, 31);
             duration.total({ unit: "minute", relativeTo: "-271821-04-19" });
         }).toThrowWithMessage(RangeError, "Invalid ISO date time");
+
+        expect(() => {
+            const duration = new Temporal.Duration(0, 0, 0, 0, 0, 0, 0, 0, 0, 1);
+            const relativeTo = new Temporal.ZonedDateTime(864n * 10n ** 19n - 1n, "UTC");
+            duration.total({ unit: "years", relativeTo: relativeTo });
+        }).toThrowWithMessage(RangeError, "Invalid ISO date");
     });
 });

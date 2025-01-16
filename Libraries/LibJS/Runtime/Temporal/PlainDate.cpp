@@ -2,12 +2,13 @@
  * Copyright (c) 2021, Idan Horowitz <idan.horowitz@serenityos.org>
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <AK/Checked.h>
+#include <AK/NumericLimits.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/Calendar.h>
 #include <LibJS/Runtime/Temporal/DateEquations.h>
@@ -202,9 +203,10 @@ ThrowCompletionOr<ISODate> regulate_iso_date(VM& vm, double year, double month, 
         // c. Set day to the result of clamping day between 1 and daysInMonth.
         day = clamp(day, 1, iso_days_in_month(year, month));
 
-        // AD-HOC: We further clamp the year to the range allowed by ISOYearMonthWithinLimits, to ensure we do not
-        //         overflow when we store the year as an integer.
-        year = clamp(year, -271821, 275760);
+        // AD-HOC: We further clamp the year to the range allowed by ISODate.year, to ensure we do not overflow when we
+        //         store the year as an integer.
+        using YearType = decltype(declval<ISODate>().year);
+        year = clamp(year, static_cast<double>(NumericLimits<YearType>::min()), static_cast<double>(NumericLimits<YearType>::max()));
 
         break;
 
