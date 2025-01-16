@@ -289,7 +289,7 @@ JS_DEFINE_NATIVE_FUNCTION(PlainDateTimePrototype::with)
     auto result = TRY(interpret_temporal_date_time_fields(vm, calendar, fields, overflow));
 
     // 17. Return ? CreateTemporalDateTime(result, calendar).
-    return MUST(create_temporal_date_time(vm, result, calendar));
+    return TRY(create_temporal_date_time(vm, result, calendar));
 }
 
 // 5.3.26 Temporal.PlainDateTime.prototype.withPlainTime ( [ plainTimeLike ] ), https://tc39.es/proposal-temporal/#sec-temporal.plaindatetime.prototype.withplaintime
