@@ -1,6 +1,6 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x200 children: inline
+    BlockContainer <body> at (8,8) content-size 784x584 children: inline
       frag 0 from BlockContainer start: 0, length: 0, rect: [22,19 48.6875x178] baseline: 81.296875
       TextNode <#text>
       BlockContainer <button.button.border-black> at (22,19) content-size 48.6875x178 inline-block [BFC] children: not-inline
@@ -23,7 +23,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x200]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x584]
       PaintableWithLines (BlockContainer<BUTTON>.button.border-black) [8,8 76.6875x200]
         PaintableWithLines (BlockContainer(anonymous)) [22,19 48.6875x178]
           PaintableWithLines (BlockContainer(anonymous)) [22,29.5 48.6875x157]

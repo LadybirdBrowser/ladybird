@@ -1,6 +1,6 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x259 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x608 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x584 children: not-inline
       BlockContainer <form> at (8,8) content-size 784x259 children: inline
         frag 0 from ImageBox start: 0, length: 0, rect: [8,216 48x48] baseline: 48
         frag 1 from TextNode start: 0, length: 1, rect: [56,250 8x17] baseline: 13.296875
@@ -25,9 +25,9 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
       BlockContainer <(anonymous)> at (8,283) content-size 784x0 children: inline
         TextNode <#text>
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x259]
+ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x608]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x608]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x584]
       PaintableWithLines (BlockContainer<FORM>) [8,8 784x259]
         ImagePaintable (ImageBox<INPUT>) [8,216 48x48]
           PaintableWithLines (BlockContainer(anonymous)) [8,8 784x0]

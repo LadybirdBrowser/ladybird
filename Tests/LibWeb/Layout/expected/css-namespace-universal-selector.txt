@@ -1,6 +1,6 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x324 children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x584 children: not-inline
       SVGSVGBox <svg> at (18,18) content-size 100x100 [SVG] children: not-inline
       BlockContainer <(anonymous)> at (8,128) content-size 784x0 children: inline
         TextNode <#text>
@@ -13,7 +13,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x324]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x584]
       SVGSVGPaintable (SVGSVGBox<svg>) [8,8 120x120]
       PaintableWithLines (BlockContainer(anonymous)) [8,128 784x0]
       PaintableWithLines (BlockContainer<math>) [8,128 102x102]

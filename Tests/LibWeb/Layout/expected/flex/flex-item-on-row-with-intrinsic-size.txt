@@ -1,6 +1,6 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x8 children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x584 children: not-inline
       Box <div> at (8,8) content-size 784x8 flex-container(row) [FFC] children: not-inline
         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text>
@@ -10,6 +10,6 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x8]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x584]
       PaintableBox (Box<DIV>) [8,8 784x8]
         ImagePaintable (ImageBox<IMG>) [8,8 8x8]

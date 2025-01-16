@@ -1,6 +1,6 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x1008 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x105 children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x584 children: not-inline
       BlockContainer <div.wrapper> at (8,8) content-size 784x105 children: not-inline
         BlockContainer <div.float> at (592,8) content-size 200x1000 floating [BFC] children: not-inline
         BlockContainer <div.bfc> at (18,18) content-size 564x85 [BFC] children: inline
@@ -18,7 +18,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x1008]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x1008]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x105] overflow: [8,8 784x1000]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x584] overflow: [8,8 784x1000]
       PaintableWithLines (BlockContainer<DIV>.wrapper) [8,8 784x105] overflow: [8,8 784x1000]
         PaintableWithLines (BlockContainer<DIV>.float) [592,8 200x1000]
         PaintableWithLines (BlockContainer<DIV>.bfc) [8,8 584x105]
