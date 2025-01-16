@@ -6,7 +6,7 @@
 interface CloseWatcher : EventTarget {
     constructor(optional CloseWatcherOptions options = {});
 
-    undefined requestClose();
+    [ImplementedAs=request_close_for_bindings] undefined requestClose();
     undefined close();
     undefined destroy();
 

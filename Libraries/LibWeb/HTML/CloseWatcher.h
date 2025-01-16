@@ -25,9 +25,14 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<CloseWatcher>> construct_impl(JS::Realm&, CloseWatcherOptions const& = {});
     [[nodiscard]] static GC::Ref<CloseWatcher> establish(HTML::Window&);
 
-    bool request_close();
+    void request_close_for_bindings();
     void close();
     void destroy();
+
+    bool request_close(bool require_history_action_activation);
+
+    bool get_enabled_state() const { return m_is_enabled; }
+    void set_enabled(bool enabled) { m_is_enabled = enabled; }
 
     virtual ~CloseWatcher() override = default;
 
@@ -44,6 +49,7 @@ private:
 
     bool m_is_running_cancel_action { false };
     bool m_is_active { true };
+    bool m_is_enabled { true };
 };
 
 }
