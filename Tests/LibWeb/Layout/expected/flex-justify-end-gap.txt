@@ -1,0 +1,46 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x474 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x458 children: not-inline
+      Box <div.container.col> at (10,10) content-size 50x400 flex-container(column) [FFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (10,160) content-size 50x50 flex-item [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (10,260) content-size 50x50 flex-item [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (10,360) content-size 50x50 flex-item [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+      BlockContainer <(anonymous)> at (8,412) content-size 784x0 children: inline
+        TextNode <#text>
+      Box <div.container.row> at (10,414) content-size 400x50 flex-container(row) [FFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (160,414) content-size 50x50 flex-item [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (260,414) content-size 50x50 flex-item [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+        BlockContainer <div.item> at (360,414) content-size 50x50 flex-item [BFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text>
+      BlockContainer <(anonymous)> at (8,466) content-size 784x0 children: inline
+        TextNode <#text>
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x474]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x458]
+      PaintableBox (Box<DIV>.container.col) [8,8 54x404]
+        PaintableWithLines (BlockContainer<DIV>.item) [10,160 50x50]
+        PaintableWithLines (BlockContainer<DIV>.item) [10,260 50x50]
+        PaintableWithLines (BlockContainer<DIV>.item) [10,360 50x50]
+      PaintableWithLines (BlockContainer(anonymous)) [8,412 784x0]
+      PaintableBox (Box<DIV>.container.row) [8,412 404x54]
+        PaintableWithLines (BlockContainer<DIV>.item) [160,414 50x50]
+        PaintableWithLines (BlockContainer<DIV>.item) [260,414 50x50]
+        PaintableWithLines (BlockContainer<DIV>.item) [360,414 50x50]
+      PaintableWithLines (BlockContainer(anonymous)) [8,466 784x0]
