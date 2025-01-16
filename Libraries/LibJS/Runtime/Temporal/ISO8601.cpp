@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021-2022, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -71,7 +71,7 @@ static bool is_valid_date(ParseResult const& result)
     return true;
 }
 
-// 13.30 ISO 8601 grammar, https://tc39.es/proposal-temporal/#sec-temporal-iso8601grammar
+// 13.30 RFC 9557 / ISO 8601 grammar, https://tc39.es/proposal-temporal/#sec-temporal-iso8601grammar
 class ISO8601Parser {
 public:
     explicit ISO8601Parser(StringView input)
