@@ -122,21 +122,21 @@
     JS_ENUMERATE_TYPED_ARRAYS
 
 #define JS_ENUMERATE_WELL_KNOWN_SYMBOLS                      \
-    __JS_ENUMERATE(iterator, iterator)                       \
     __JS_ENUMERATE(asyncIterator, async_iterator)            \
+    __JS_ENUMERATE(dispose, dispose)                         \
+    __JS_ENUMERATE(hasInstance, has_instance)                \
+    __JS_ENUMERATE(isConcatSpreadable, is_concat_spreadable) \
+    __JS_ENUMERATE(iterator, iterator)                       \
     __JS_ENUMERATE(match, match)                             \
     __JS_ENUMERATE(matchAll, match_all)                      \
     __JS_ENUMERATE(replace, replace)                         \
     __JS_ENUMERATE(replaceAll, replace_all)                  \
     __JS_ENUMERATE(search, search)                           \
-    __JS_ENUMERATE(split, split)                             \
-    __JS_ENUMERATE(hasInstance, has_instance)                \
-    __JS_ENUMERATE(isConcatSpreadable, is_concat_spreadable) \
-    __JS_ENUMERATE(unscopables, unscopables)                 \
     __JS_ENUMERATE(species, species)                         \
+    __JS_ENUMERATE(split, split)                             \
     __JS_ENUMERATE(toPrimitive, to_primitive)                \
     __JS_ENUMERATE(toStringTag, to_string_tag)               \
-    __JS_ENUMERATE(dispose, dispose)
+    __JS_ENUMERATE(unscopables, unscopables)
 
 #define JS_ENUMERATE_REGEXP_FLAGS                             \
     __JS_ENUMERATE(HasIndices, hasIndices, has_indices, d)    \
