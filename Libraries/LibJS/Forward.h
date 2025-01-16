@@ -122,6 +122,7 @@
     JS_ENUMERATE_TYPED_ARRAYS
 
 #define JS_ENUMERATE_WELL_KNOWN_SYMBOLS                      \
+    __JS_ENUMERATE(asyncDispose, async_dispose)              \
     __JS_ENUMERATE(asyncIterator, async_iterator)            \
     __JS_ENUMERATE(dispose, dispose)                         \
     __JS_ENUMERATE(hasInstance, has_instance)                \
@@ -163,6 +164,8 @@ class Completion;
 class Console;
 class CyclicModule;
 class DeclarativeEnvironment;
+struct DisposeCapability;
+struct DisposableResource;
 class ECMAScriptFunctionObject;
 class Environment;
 class Error;

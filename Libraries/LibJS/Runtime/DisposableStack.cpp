@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2022, David Tuin <davidot@serenityos.org>
+ * Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -10,19 +11,16 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(DisposableStack);
 
-DisposableStack::DisposableStack(Vector<DisposableResource> stack, Object& prototype)
+DisposableStack::DisposableStack(DisposeCapability dispose_capability, Object& prototype)
     : Object(ConstructWithPrototypeTag::Tag, prototype)
-    , m_disposable_resource_stack(move(stack))
+    , m_dispose_capability(move(dispose_capability))
 {
 }
 
 void DisposableStack::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    for (auto& resource : m_disposable_resource_stack) {
-        visitor.visit(resource.resource_value);
-        visitor.visit(resource.dispose_method);
-    }
+    m_dispose_capability.visit_edges(visitor);
 }
 
 }

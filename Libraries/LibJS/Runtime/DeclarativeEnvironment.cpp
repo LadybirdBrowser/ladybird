@@ -25,30 +25,30 @@ DeclarativeEnvironment* DeclarativeEnvironment::create_for_per_iteration_binding
 
 DeclarativeEnvironment::DeclarativeEnvironment()
     : Environment(nullptr, IsDeclarative::Yes)
+    , m_dispose_capability(new_dispose_capability())
 {
 }
 
 DeclarativeEnvironment::DeclarativeEnvironment(Environment* parent_environment)
     : Environment(parent_environment, IsDeclarative::Yes)
+    , m_dispose_capability(new_dispose_capability())
 {
 }
 
 DeclarativeEnvironment::DeclarativeEnvironment(Environment* parent_environment, ReadonlySpan<Binding> bindings)
     : Environment(parent_environment, IsDeclarative::Yes)
     , m_bindings(bindings)
+    , m_dispose_capability(new_dispose_capability())
 {
 }
 
 void DeclarativeEnvironment::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    m_dispose_capability.visit_edges(visitor);
+
     for (auto& binding : m_bindings)
         visitor.visit(binding.value);
-
-    for (auto& disposable : m_disposable_resource_stack) {
-        visitor.visit(disposable.resource_value);
-        visitor.visit(disposable.dispose_method);
-    }
 }
 
 // 9.1.1.1.1 HasBinding ( N ), https://tc39.es/ecma262/#sec-declarative-environment-records-hasbinding-n
@@ -122,9 +122,9 @@ ThrowCompletionOr<void> DeclarativeEnvironment::initialize_binding_direct(VM& vm
     // 1. Assert: envRec must have an uninitialized binding for N.
     VERIFY(binding.initialized == false);
 
-    // 2. If hint is not normal, perform ? AddDisposableResource(envRec, V, hint).
+    // 2. If hint is not normal, perform ? AddDisposableResource(envRec.[[DisposeCapability]], V, hint).
     if (hint != Environment::InitializeBindingHint::Normal)
-        TRY(add_disposable_resource(vm, m_disposable_resource_stack, value, hint));
+        TRY(add_disposable_resource(vm, m_dispose_capability, value, hint));
 
     // 3. Set the bound value for N in envRec to V.
     binding.value = value;
