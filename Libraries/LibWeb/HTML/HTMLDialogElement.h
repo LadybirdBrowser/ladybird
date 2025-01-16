@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Forward.h>
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/ToggleTaskTracker.h>
@@ -28,6 +29,7 @@ public:
     WebIDL::ExceptionOr<void> show();
     WebIDL::ExceptionOr<void> show_modal();
     void close(Optional<String> return_value);
+    void request_close(Optional<String> return_value);
 
     // https://www.w3.org/TR/html-aria/#el-dialog
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::dialog; }
@@ -50,6 +52,7 @@ private:
 
     String m_return_value;
     bool m_is_modal { false };
+    Optional<String> m_request_close_return_value;
     GC::Ptr<CloseWatcher> m_close_watcher;
 
     // https://html.spec.whatwg.org/multipage/interactive-elements.html#dialog-toggle-task-tracker

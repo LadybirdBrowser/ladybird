@@ -1177,7 +1177,8 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
             0, "", &realm());
         auto close_callback = realm().heap().allocate<WebIDL::CallbackType>(*close_callback_function, realm());
         m_popover_close_watcher->add_event_listener_without_options(HTML::EventNames::close, DOM::IDLEventListener::create(realm(), close_callback));
-        // FIXME: - getEnabledState being to return true.
+        // - getEnabledState being to return true.
+        m_popover_close_watcher->set_enabled(true);
     }
     // FIXME: 19. Set element's previously focused element to null.
     // FIXME: 20. Let originallyFocusedElement be document's focused area of the document's DOM anchor.

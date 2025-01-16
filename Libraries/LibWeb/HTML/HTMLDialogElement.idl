@@ -12,6 +12,6 @@ interface HTMLDialogElement : HTMLElement {
     [CEReactions] undefined show();
     [CEReactions] undefined showModal();
     [CEReactions] undefined close(optional DOMString returnValue);
-    [FIXME, CEReactions] undefined requestClose(optional DOMString returnValue);
+    [CEReactions] undefined requestClose(optional DOMString returnValue);
 
 };

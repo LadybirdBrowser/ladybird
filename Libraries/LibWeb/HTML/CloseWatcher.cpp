@@ -79,14 +79,23 @@ CloseWatcher::CloseWatcher(JS::Realm& realm)
 {
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#dom-closewatcher-requestclose
+void CloseWatcher::request_close_for_bindings()
+{
+    // The requestClose() method steps are to request to close this's internal close watcher with false.
+    request_close(false);
+}
+
 // https://html.spec.whatwg.org/multipage/interaction.html#close-watcher-request-close
-bool CloseWatcher::request_close()
+bool CloseWatcher::request_close(bool require_history_action_activation)
 {
     // 1. If closeWatcher is not active, then return true.
     if (!m_is_active)
         return true;
 
-    // FIXME: 2. If the result of running closeWatcher's get enabled state is false, then return true.
+    // 2. If the result of running closeWatcher's get enabled state is false, then return true.
+    if (!get_enabled_state())
+        return true;
 
     // 3. If closeWatcher's is running cancel action is true, then return true.
     if (m_is_running_cancel_action)
@@ -99,10 +108,10 @@ bool CloseWatcher::request_close()
     if (!window.associated_document().is_fully_active())
         return true;
 
-    // 6. Let canPreventClose be true if window's close watcher manager's groups's size is less than window's close watcher manager's allowed number of groups,
+    // 6. Let canPreventClose be true if requireHistoryActionActivation is false, or if window's close watcher manager's groups's size is less than window's close watcher manager's allowed number of groups,
     // and window has history-action activation; otherwise false.
     auto manager = window.close_watcher_manager();
-    bool can_prevent_close = manager->can_prevent_close() && window.has_history_action_activation();
+    bool can_prevent_close = !require_history_action_activation || (manager->can_prevent_close() && window.has_history_action_activation());
     // 7. Set closeWatcher's is running cancel action to true.
     m_is_running_cancel_action = true;
     // 8. Let shouldContinue be the result of running closeWatcher's cancel action given canPreventClose.
@@ -133,7 +142,9 @@ void CloseWatcher::close()
     if (!m_is_active)
         return;
 
-    // FIXME: 2. If the result of running closeWatcher's get enabled state is false, then return.
+    // 2. If the result of running closeWatcher's get enabled state is false, then return.
+    if (!get_enabled_state())
+        return;
 
     // 3. If closeWatcher's window's associated Document is not fully active, then return.
     if (!as<HTML::Window>(realm().global_object()).associated_document().is_fully_active())

@@ -132,7 +132,8 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show()
 
     // FIXME: 7. Assert: this's node document's open dialogs list does not contain this.
     // FIXME: 8. Add this to this's node document's open dialogs list.
-    // FIXME: 9. Set the dialog close watcher with this.
+    // 9. Set the dialog close watcher with this.
+    set_close_watcher();
     // FIXME: 10. Set this's previously focused element to the focused element.
     // FIXME: 11. Let document be this's node document.
     // FIXME: 12. Let hideUntil be the result of running topmost popover ancestor given this, document's showing hint popover list, null, and false.
@@ -235,6 +236,29 @@ void HTMLDialogElement::close(Optional<String> return_value)
     close_the_dialog(move(return_value));
 }
 
+// https://html.spec.whatwg.org/multipage/interactive-elements.html#dom-dialog-requestclose
+void HTMLDialogElement::request_close(Optional<String> return_value)
+{
+    // 1. If this does not have an open attribute, then return.
+    if (!has_attribute(AttributeNames::open))
+        return;
+    // 2. Assert: this's close watcher is not null.
+    VERIFY(m_close_watcher);
+    // 3. Set dialog's enable close watcher for requestClose() to true.
+    // ADHOC: Implemented slightly differently to the spec, as the spec is unnecessarily complex.
+    m_close_watcher->set_enabled(true);
+    // 4. If returnValue is not given, then set it to null.
+    // 5. Set this's request close return value to returnValue.
+    m_request_close_return_value = return_value;
+    // 6. Request to close dialog's close watcher with false.
+    m_close_watcher->request_close(false);
+    // 7. Set dialog's enable close watcher for requestClose() to false.
+    // ADHOC: Implemented slightly differently to the spec, as the spec is unnecessarily complex.
+    // FIXME: This should be set based on dialog closedby state, when implemented.
+    if (m_close_watcher)
+        m_close_watcher->set_enabled(m_is_modal);
+}
+
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#dom-dialog-returnvalue
 String HTMLDialogElement::return_value() const
 {
@@ -286,7 +310,8 @@ void HTMLDialogElement::close_the_dialog(Optional<String> result)
     if (result.has_value())
         set_return_value(result.release_value());
 
-    // FIXME: 11. Set the request close return value to null.
+    // 11. Set the request close return value to null.
+    m_request_close_return_value = {};
 
     // FIXME: 12. If subject's previously focused element is not null, then:
     //           1. Let element be subject's previously focused element.
@@ -327,17 +352,20 @@ void HTMLDialogElement::set_close_watcher()
         0, "", &realm());
     auto cancel_callback = realm().heap().allocate<WebIDL::CallbackType>(*cancel_callback_function, realm());
     m_close_watcher->add_event_listener_without_options(HTML::EventNames::cancel, DOM::IDLEventListener::create(realm(), cancel_callback));
-    // - closeAction being to close the dialog given dialog and FIXME: dialog's request close return value.
+    // - closeAction being to close the dialog given dialog and dialog's request close return value.
     auto close_callback_function = JS::NativeFunction::create(
         realm(), [this](JS::VM&) {
-            close_the_dialog({});
+            close_the_dialog(m_request_close_return_value);
 
             return JS::js_undefined();
         },
         0, "", &realm());
     auto close_callback = realm().heap().allocate<WebIDL::CallbackType>(*close_callback_function, realm());
     m_close_watcher->add_event_listener_without_options(HTML::EventNames::close, DOM::IDLEventListener::create(realm(), close_callback));
-    // FIXME: - getEnabledState being to return true if dialog's enable close watcher for requestClose() is true or dialog's computed closed-by state is not None; otherwise false.
+    // - getEnabledState being to return true if dialog's enable close watcher for requestClose() is true or dialog's computed closed-by state is not None; otherwise false.
+    // ADHOC: Implemented slightly differently to the spec, as the spec is unnecessarily complex.
+    // FIXME: This should be set based on dialog closedby state, when implemented.
+    m_close_watcher->set_enabled(m_is_modal);
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#dialog-focusing-steps
