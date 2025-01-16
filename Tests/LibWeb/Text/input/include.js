@@ -86,7 +86,10 @@ function asyncTest(f) {
         __finishTest();
     };
     document.addEventListener("DOMContentLoaded", () => {
-        f(done);
+        Promise.resolve(f(done)).catch(error => {
+            println(`Caught error while running async test: ${error}`);
+            done();
+        });
     });
 }
 
