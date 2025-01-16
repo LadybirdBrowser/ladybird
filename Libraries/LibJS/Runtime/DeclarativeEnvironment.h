@@ -69,12 +69,12 @@ public:
 
     [[nodiscard]] u64 environment_serial_number() const { return m_environment_serial_number; }
 
+    DisposeCapability const& dispose_capability() const { return m_dispose_capability; }
+    DisposeCapability& dispose_capability() { return m_dispose_capability; }
+
 private:
     ThrowCompletionOr<Value> get_binding_value_direct(VM&, Binding const&) const;
     ThrowCompletionOr<void> set_mutable_binding_direct(VM&, Binding&, Value, bool strict);
-
-    friend Completion dispose_resources(VM&, GC::Ptr<DeclarativeEnvironment>, Completion);
-    Vector<DisposableResource> const& disposable_resource_stack() const { return m_disposable_resource_stack; }
 
 protected:
     DeclarativeEnvironment();
@@ -125,7 +125,7 @@ protected:
 private:
     Vector<Binding> m_bindings;
     HashMap<DeprecatedFlyString, size_t> m_bindings_assoc;
-    Vector<DisposableResource> m_disposable_resource_stack;
+    DisposeCapability m_dispose_capability;
 
     u64 m_environment_serial_number { 0 };
 };
