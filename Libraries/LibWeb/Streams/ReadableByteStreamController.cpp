@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2023, Matthew Olsson <mattco@serenityos.org>
- * Copyright (c) 2023-2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2023-2025, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -17,7 +17,15 @@
 
 namespace Web::Streams {
 
+GC_DEFINE_ALLOCATOR(PullIntoDescriptor);
 GC_DEFINE_ALLOCATOR(ReadableByteStreamController);
+
+void PullIntoDescriptor::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(buffer);
+    visitor.visit(view_constructor);
+}
 
 // https://streams.spec.whatwg.org/#rbs-controller-desired-size
 Optional<double> ReadableByteStreamController::desired_size() const
@@ -149,20 +157,19 @@ void ReadableByteStreamController::pull_steps(GC::Ref<ReadRequest> read_request)
 
         // 3. Let pullIntoDescriptor be a new pull-into descriptor with buffer buffer.[[Value]], buffer byte length autoAllocateChunkSize, byte offset 0,
         //    byte length autoAllocateChunkSize, bytes filled 0, element size 1, view constructor %Uint8Array%, and reader type "default".
-        PullIntoDescriptor pull_into_descriptor {
-            .buffer = buffer.release_value(),
-            .buffer_byte_length = *m_auto_allocate_chunk_size,
-            .byte_offset = 0,
-            .byte_length = *m_auto_allocate_chunk_size,
-            .bytes_filled = 0,
-            .minimum_fill = 1,
-            .element_size = 1,
-            .view_constructor = *realm.intrinsics().uint8_array_constructor(),
-            .reader_type = ReaderType::Default,
-        };
+        auto pull_into_descriptor = realm.heap().allocate<PullIntoDescriptor>(
+            buffer.release_value(),
+            *m_auto_allocate_chunk_size,
+            0,
+            *m_auto_allocate_chunk_size,
+            0,
+            1,
+            1,
+            *realm.intrinsics().uint8_array_constructor(),
+            ReaderType::Default);
 
         // 4. Append pullIntoDescriptor to this.[[pendingPullIntos]].
-        m_pending_pull_intos.append(move(pull_into_descriptor));
+        m_pending_pull_intos.append(pull_into_descriptor);
     }
 
     // 6. Perform ! ReadableStreamAddReadRequest(stream, readRequest).
@@ -178,7 +185,7 @@ void ReadableByteStreamController::release_steps()
     // 1. If this.[[pendingPullIntos]] is not empty,
     if (!m_pending_pull_intos.is_empty()) {
         // 1. Let firstPendingPullInto be this.[[pendingPullIntos]][0].
-        auto first_pending_pull_into = m_pending_pull_intos.first();
+        auto& first_pending_pull_into = *m_pending_pull_intos.first();
 
         // 2. Set firstPendingPullInto’s reader type to "none".
         first_pending_pull_into.reader_type = ReaderType::None;
@@ -193,10 +200,8 @@ void ReadableByteStreamController::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_byob_request);
-    for (auto const& pending_pull_into : m_pending_pull_intos) {
-        visitor.visit(pending_pull_into.buffer);
-        visitor.visit(pending_pull_into.view_constructor);
-    }
+    for (auto const& pending_pull_into : m_pending_pull_intos)
+        visitor.visit(pending_pull_into);
     for (auto const& item : m_queue)
         visitor.visit(item.buffer);
     visitor.visit(m_stream);
