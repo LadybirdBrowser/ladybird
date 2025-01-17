@@ -188,6 +188,7 @@ static void generate_get_parameter(SourceGenerator& generator, int webgl_version
         { "MAX_DRAW_BUFFERS"sv, { "GLint"sv }, 2 },
         { "MAX_VERTEX_UNIFORM_BLOCKS"sv, { "GLint"sv }, 2 },
         { "MAX_FRAGMENT_INPUT_COMPONENTS"sv, { "GLint"sv }, 2 },
+        { "MAX_FRAGMENT_UNIFORM_COMPONENTS"sv, { "GLint"sv }, 2 },
         { "MAX_COMBINED_UNIFORM_BLOCKS"sv, { "GLint"sv }, 2 },
         { "MAX_COMBINED_VERTEX_UNIFORM_COMPONENTS"sv, { "GLint64"sv }, 2 },
         { "MAX_COMBINED_FRAGMENT_UNIFORM_COMPONENTS"sv, { "GLint64"sv }, 2 },
@@ -198,10 +199,20 @@ static void generate_get_parameter(SourceGenerator& generator, int webgl_version
         { "MAX_ELEMENT_INDEX"sv, { "GLint64"sv }, 2 },
         { "MAX_FRAGMENT_UNIFORM_BLOCKS"sv, { "GLint"sv }, 2 },
         { "MAX_VARYING_COMPONENTS"sv, { "GLint"sv }, 2 },
+        { "MAX_ELEMENTS_INDICES"sv, { "GLint"sv }, 2 },
+        { "MAX_ELEMENTS_VERTICES"sv, { "GLint"sv }, 2 },
+        { "MAX_TEXTURE_LOD_BIAS"sv, { "GLfloat"sv }, 2 },
+        { "MAX_TRANSFORM_FEEDBACK_INTERLEAVED_COMPONENTS"sv, { "GLint"sv }, 2 },
+        { "MAX_TRANSFORM_FEEDBACK_SEPARATE_ATTRIBS"sv, { "GLint"sv }, 2 },
+        { "MAX_TRANSFORM_FEEDBACK_SEPARATE_COMPONENTS"sv, { "GLint"sv }, 2 },
+        { "MIN_PROGRAM_TEXEL_OFFSET"sv, { "GLint"sv }, 2 },
+        { "MAX_PROGRAM_TEXEL_OFFSET"sv, { "GLint"sv }, 2 },
+        { "MAX_VERTEX_OUTPUT_COMPONENTS"sv, { "GLint"sv }, 2 },
+        { "MAX_SERVER_WAIT_TIMEOUT"sv, { "GLint64"sv }, 2 },
     };
 
-    auto is_primitive_type = [](StringView type) {
-        return type == "GLboolean"sv || type == "GLint"sv || type == "GLfloat"sv || type == "GLenum"sv || type == "GLuint"sv;
+    auto is_integer_type = [](StringView type) {
+        return type == "GLint"sv || type == "GLenum"sv || type == "GLuint"sv;
     };
 
     generator.append("    switch (pname) {");
@@ -218,11 +229,23 @@ static void generate_get_parameter(SourceGenerator& generator, int webgl_version
         impl_generator.set("type_name", type_name);
         impl_generator.append(R"~~~(
     case GL_@parameter_name@: {)~~~");
-        if (is_primitive_type(type_name)) {
+        if (is_integer_type(type_name)) {
             impl_generator.append(R"~~~(
         GLint result;
         glGetIntegerv(GL_@parameter_name@, &result);
         return JS::Value(result);
+)~~~");
+        } else if (type_name == "GLfloat"sv) {
+            impl_generator.append(R"~~~(
+        GLfloat result;
+        glGetFloatv(GL_@parameter_name@, &result);
+        return JS::Value(result);
+)~~~");
+        } else if (type_name == "GLboolean"sv) {
+            impl_generator.append(R"~~~(
+        GLboolean result;
+        glGetBooleanv(GL_@parameter_name@, &result);
+        return JS::Value(result == GL_TRUE);
 )~~~");
         } else if (type_name == "GLint64"sv) {
             impl_generator.append(R"~~~(
