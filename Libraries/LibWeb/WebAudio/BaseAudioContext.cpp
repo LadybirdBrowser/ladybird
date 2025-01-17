@@ -160,6 +160,13 @@ WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> BaseAudioContext::create_periodic_wav
     return PeriodicWave::construct_impl(realm(), *this, options);
 }
 
+// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createstereopanner
+WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> BaseAudioContext::create_stereo_panner()
+{
+    // Factory method for a StereoPannerNode.
+    return StereoPannerNode::create(realm(), *this);
+}
+
 WebIDL::ExceptionOr<void> BaseAudioContext::verify_audio_options_inside_nominal_range(JS::Realm& realm, float sample_rate)
 {
     if (sample_rate < MIN_SAMPLE_RATE || sample_rate > MAX_SAMPLE_RATE)

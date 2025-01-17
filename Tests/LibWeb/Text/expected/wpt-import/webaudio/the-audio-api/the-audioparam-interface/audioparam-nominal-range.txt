@@ -1,15 +1,15 @@
 Harness status: OK
 
-Found 306 tests
+Found 317 tests
 
-297 Pass
-9 Fail
+309 Pass
+8 Fail
 Pass	# AUDIT TASK RUNNER STARTED.
 Pass	Executing "initialize"
 Pass	Executing "Offline createGain"
 Pass	Executing "Offline createDelay"
 Pass	Executing "Offline createBufferSource"
-Fail	Executing "Offline createStereoPanner"
+Pass	Executing "Offline createStereoPanner"
 Pass	Executing "Offline createDynamicsCompressor"
 Pass	Executing "Offline createBiquadFilter"
 Pass	Executing "Offline createOscillator"
@@ -71,6 +71,17 @@ Pass	  AudioBufferSourceNode.detune.maxValue is read-only is equal to true.
 Pass	  Nominal ranges for AudioParam(s) of AudioBufferSourceNode are correct
 Pass	< [Offline createBufferSource] All assertions passed. (total 13 assertions)
 Pass	> [Offline createStereoPanner] 
+Pass	  StereoPannerNode.pan.minValue is equal to -1.
+Pass	  StereoPannerNode.pan.maxValue is equal to 1.
+Pass	  StereoPannerNode.pan.minValue = 42 is not equal to 42.
+Pass	  StereoPannerNode.pan.minValue is read-only is equal to true.
+Pass	  StereoPannerNode.pan.maxValue = 42 is not equal to 42.
+Pass	  StereoPannerNode.pan.maxValue is read-only is equal to true.
+Pass	  Set StereoPannerNode.pan.value = -3 is equal to -1.
+Pass	  Set StereoPannerNode.pan.value = 3 is equal to 1.
+Pass	  StereoPannerNode.pan was clipped to lie within the nominal range is equal to true.
+Pass	  Nominal ranges for AudioParam(s) of StereoPannerNode are correct
+Pass	< [Offline createStereoPanner] All assertions passed. (total 10 assertions)
 Pass	> [Offline createDynamicsCompressor] 
 Pass	  DynamicsCompressorNode.threshold.minValue is equal to -100.
 Pass	  DynamicsCompressorNode.threshold.maxValue is equal to 0.

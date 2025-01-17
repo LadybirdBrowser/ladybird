@@ -18,6 +18,7 @@
 #include <LibWeb/WebAudio/ConstantSourceNode.h>
 #include <LibWeb/WebAudio/DelayNode.h>
 #include <LibWeb/WebAudio/PeriodicWave.h>
+#include <LibWeb/WebAudio/StereoPannerNode.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::WebAudio {
@@ -74,6 +75,7 @@ public:
     WebIDL::ExceptionOr<GC::Ref<GainNode>> create_gain();
     WebIDL::ExceptionOr<GC::Ref<PannerNode>> create_panner();
     WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> create_periodic_wave(Vector<float> const& real, Vector<float> const& imag, Optional<PeriodicWaveConstraints> const& constraints = {});
+    WebIDL::ExceptionOr<GC::Ref<StereoPannerNode>> create_stereo_panner();
 
     GC::Ref<WebIDL::Promise> decode_audio_data(GC::Root<WebIDL::BufferSource>, GC::Ptr<WebIDL::CallbackType>, GC::Ptr<WebIDL::CallbackType>);
 
