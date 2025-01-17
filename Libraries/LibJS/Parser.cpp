@@ -281,7 +281,7 @@ public:
             return;
         }
 
-        if (m_parent_scope && m_contains_direct_call_to_eval) {
+        if (m_parent_scope && (m_contains_direct_call_to_eval || m_screwed_by_eval_in_scope_chain)) {
             m_parent_scope->m_screwed_by_eval_in_scope_chain = true;
         }
 

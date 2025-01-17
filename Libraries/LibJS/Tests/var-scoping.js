@@ -48,3 +48,27 @@ test("Referencing the declared var in the initializer of a duplicate var declara
     // It's all good as long as go() doesn't throw.
     expect(go()).toBe(0);
 });
+
+test("direct eval can access variables in the entire scope chain", () => {
+    var a = 1;
+    let g = 4;
+    const j = 8;
+
+    const result = (function () {
+        var e = 2;
+        let h = 5;
+        const k = 9;
+
+        return (function () {
+            var f = 3;
+            let i = 7;
+            const l = 10;
+
+            return (function () {
+                return eval("a + e + f + g + h + i + j + k + l");
+            })();
+        })();
+    })();
+
+    expect(result).toBe(49);
+});
