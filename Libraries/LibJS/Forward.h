@@ -21,6 +21,7 @@
     __JS_ENUMERATE(AggregateError, aggregate_error, AggregateErrorPrototype, AggregateErrorConstructor, void)                                  \
     __JS_ENUMERATE(Array, array, ArrayPrototype, ArrayConstructor, void)                                                                       \
     __JS_ENUMERATE(ArrayBuffer, array_buffer, ArrayBufferPrototype, ArrayBufferConstructor, void)                                              \
+    __JS_ENUMERATE(AsyncDisposableStack, async_disposable_stack, AsyncDisposableStackPrototype, AsyncDisposableStackConstructor, void)         \
     __JS_ENUMERATE(AsyncFunction, async_function, AsyncFunctionPrototype, AsyncFunctionConstructor, void)                                      \
     __JS_ENUMERATE(AsyncGeneratorFunction, async_generator_function, AsyncGeneratorFunctionPrototype, AsyncGeneratorFunctionConstructor, void) \
     __JS_ENUMERATE(BigIntObject, bigint, BigIntPrototype, BigIntConstructor, void)                                                             \

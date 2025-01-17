@@ -127,6 +127,7 @@ namespace JS {
     P(direction)                             \
     P(disabledFeatures)                      \
     P(disambiguation)                        \
+    P(disposeAsync)                          \
     P(disposed)                              \
     P(done)                                  \
     P(dotAll)                                \

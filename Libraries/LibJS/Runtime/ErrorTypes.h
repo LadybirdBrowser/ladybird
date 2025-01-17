@@ -13,6 +13,7 @@
     M(AccessorValueOrWritable, "Accessor property descriptor cannot specify a value or writable key")                               \
     M(AgentCannotSuspend, "Agent is not allowed to suspend")                                                                        \
     M(ArrayMaxSize, "Maximum array size exceeded")                                                                                  \
+    M(AsyncDisposableStackAlreadyDisposed, "AsyncDisposableStack is already disposed")                                              \
     M(BadArgCountMany, "{}() needs {} arguments")                                                                                   \
     M(BadArgCountOne, "{}() needs one argument")                                                                                    \
     M(BigIntBadOperator, "Cannot use {} operator with BigInt")                                                                      \

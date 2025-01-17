@@ -41,6 +41,9 @@ set(SOURCES
     Runtime/ArrayIterator.cpp
     Runtime/ArrayIteratorPrototype.cpp
     Runtime/ArrayPrototype.cpp
+    Runtime/AsyncDisposableStack.cpp
+    Runtime/AsyncDisposableStackConstructor.cpp
+    Runtime/AsyncDisposableStackPrototype.cpp
     Runtime/AsyncFromSyncIterator.cpp
     Runtime/AsyncFromSyncIteratorPrototype.cpp
     Runtime/AsyncFunctionConstructor.cpp

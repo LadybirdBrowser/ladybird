@@ -11,6 +11,8 @@
 #include <LibJS/Runtime/ArrayConstructor.h>
 #include <LibJS/Runtime/ArrayIteratorPrototype.h>
 #include <LibJS/Runtime/ArrayPrototype.h>
+#include <LibJS/Runtime/AsyncDisposableStackConstructor.h>
+#include <LibJS/Runtime/AsyncDisposableStackPrototype.h>
 #include <LibJS/Runtime/AsyncFromSyncIteratorPrototype.h>
 #include <LibJS/Runtime/AsyncFunctionConstructor.h>
 #include <LibJS/Runtime/AsyncFunctionPrototype.h>
