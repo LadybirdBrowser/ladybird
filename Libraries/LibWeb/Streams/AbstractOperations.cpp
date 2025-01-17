@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2023, Matthew Olsson <mattco@serenityos.org>
- * Copyright (c) 2023-2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2023-2025, Shannon Booth <shannon@serenityos.org>
  * Copyright (c) 2023-2024, Kenneth Myhra <kennethmyhra@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -1686,7 +1686,7 @@ void readable_stream_byob_reader_error_read_into_requests(ReadableStreamBYOBRead
 void readable_byte_stream_controller_fill_head_pull_into_descriptor(ReadableByteStreamController const& controller, u64 size, PullIntoDescriptor& pull_into_descriptor)
 {
     // 1. Assert: either controller.[[pendingPullIntos]] is empty, or controller.[[pendingPullIntos]][0] is pullIntoDescriptor.
-    VERIFY(controller.pending_pull_intos().is_empty() || &controller.pending_pull_intos().first() == &pull_into_descriptor);
+    VERIFY(controller.pending_pull_intos().is_empty() || controller.pending_pull_intos().first().ptr() == &pull_into_descriptor);
 
     // 2. Assert: controller.[[byobRequest]] is null.
     VERIFY(!controller.raw_byob_request());
@@ -1915,17 +1915,16 @@ void readable_byte_stream_controller_pull_into(ReadableByteStreamController& con
 
     // 10. Let pullIntoDescriptor be a new pull-into descriptor with buffer buffer, buffer byte length buffer.[[ArrayBufferByteLength]],
     //     byte offset byteOffset, byte length byteLength, bytes filled 0, element size elementSize, view constructor ctor, and reader type "byob".
-    PullIntoDescriptor pull_into_descriptor {
-        .buffer = buffer,
-        .buffer_byte_length = buffer->byte_length(),
-        .byte_offset = byte_offset,
-        .byte_length = byte_length,
-        .bytes_filled = 0,
-        .minimum_fill = minimum_fill,
-        .element_size = element_size,
-        .view_constructor = *ctor,
-        .reader_type = ReaderType::Byob,
-    };
+    auto pull_into_descriptor = vm.heap().allocate<PullIntoDescriptor>(
+        buffer,
+        buffer->byte_length(),
+        byte_offset,
+        byte_length,
+        0,
+        minimum_fill,
+        element_size,
+        *ctor,
+        ReaderType::Byob);
 
     // 11. If controller.[[pendingPullIntos]] is not empty,
     if (!controller.pending_pull_intos().is_empty()) {
@@ -1942,7 +1941,7 @@ void readable_byte_stream_controller_pull_into(ReadableByteStreamController& con
     // 12. If stream.[[state]] is "closed",
     if (stream->is_closed()) {
         // 1. Let emptyView be ! Construct(ctor, « pullIntoDescriptor’s buffer, pullIntoDescriptor’s byte offset, 0 »).
-        auto empty_view = MUST(JS::construct(vm, *ctor, pull_into_descriptor.buffer, JS::Value(pull_into_descriptor.byte_offset), JS::Value(0)));
+        auto empty_view = MUST(JS::construct(vm, *ctor, pull_into_descriptor->buffer, JS::Value(pull_into_descriptor->byte_offset), JS::Value(0)));
 
         // 2. Perform readIntoRequest’s close steps, given emptyView.
         read_into_request.on_close(empty_view);
@@ -2263,7 +2262,7 @@ GC::Ptr<ReadableStreamBYOBRequest> readable_byte_stream_controller_get_byob_requ
     // 1. If controller.[[byobRequest]] is null and controller.[[pendingPullIntos]] is not empty,
     if (!controller->raw_byob_request() && !controller->pending_pull_intos().is_empty()) {
         // 1. Let firstDescriptor be controller.[[pendingPullIntos]][0].
-        auto const& first_descriptor = controller->pending_pull_intos().first();
+        auto const& first_descriptor = *controller->pending_pull_intos().first();
 
         // 2. Let view be ! Construct(%Uint8Array%, « firstDescriptor’s buffer, firstDescriptor’s byte offset + firstDescriptor’s bytes filled, firstDescriptor’s byte length − firstDescriptor’s bytes filled »).
         auto view = MUST(JS::construct(vm, *realm.intrinsics().uint8_array_constructor(), first_descriptor.buffer, JS::Value(first_descriptor.byte_offset + first_descriptor.bytes_filled), JS::Value(first_descriptor.byte_length - first_descriptor.bytes_filled)));
@@ -2319,7 +2318,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_in_readable_st
         // 3. For each filledPullInto of filledPullIntos,
         for (auto& filled_pull_into : filled_pulled_intos) {
             // 1. Perform ! ReadableByteStreamControllerCommitPullIntoDescriptor(controller.[[stream]], filledPullInto).
-            readable_byte_stream_controller_commit_pull_into_descriptor(*controller.stream(), filled_pull_into);
+            readable_byte_stream_controller_commit_pull_into_descriptor(*controller.stream(), *filled_pull_into);
         }
 
         // 4. Return.
@@ -2333,34 +2332,33 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_in_readable_st
     // NOTE: A descriptor for a read() request that is not yet filled up to its minimum length will stay at the head of the queue, so the underlying source can keep filling it.
 
     // 5. Perform ! ReadableByteStreamControllerShiftPendingPullInto(controller).
-    // NOTE: We need to take a copy of pull_into_descriptor here as the shift destroys the pull into descriptor we are given.
-    auto pull_into_descriptor_copy = readable_byte_stream_controller_shift_pending_pull_into(controller);
+    readable_byte_stream_controller_shift_pending_pull_into(controller);
 
     // 6. Let remainderSize be the remainder after dividing pullIntoDescriptor’s bytes filled by pullIntoDescriptor’s element size.
-    auto remainder_size = pull_into_descriptor_copy.bytes_filled % pull_into_descriptor_copy.element_size;
+    auto remainder_size = pull_into_descriptor.bytes_filled % pull_into_descriptor.element_size;
 
     // 7. If remainderSize > 0,
     if (remainder_size > 0) {
         // 1. Let end be pullIntoDescriptor’s byte offset + pullIntoDescriptor’s bytes filled.
-        auto end = pull_into_descriptor_copy.byte_offset + pull_into_descriptor_copy.bytes_filled;
+        auto end = pull_into_descriptor.byte_offset + pull_into_descriptor.bytes_filled;
 
         // 2. Perform ? ReadableByteStreamControllerEnqueueClonedChunkToQueue(controller, pullIntoDescriptor’s buffer, end − remainderSize, remainderSize).
-        TRY(readable_byte_stream_controller_enqueue_cloned_chunk_to_queue(controller, *pull_into_descriptor_copy.buffer, end - remainder_size, remainder_size));
+        TRY(readable_byte_stream_controller_enqueue_cloned_chunk_to_queue(controller, *pull_into_descriptor.buffer, end - remainder_size, remainder_size));
     }
 
     // 8. Set pullIntoDescriptor’s bytes filled to pullIntoDescriptor’s bytes filled − remainderSize.
-    pull_into_descriptor_copy.bytes_filled -= remainder_size;
+    pull_into_descriptor.bytes_filled -= remainder_size;
 
     // 9. Let filledPullIntos be the result of performing ! ReadableByteStreamControllerProcessPullIntoDescriptorsUsingQueue(controller).
     auto filled_pulled_intos = readable_byte_stream_controller_process_pull_into_descriptors_using_queue(controller);
 
     // 10. Perform ! ReadableByteStreamControllerCommitPullIntoDescriptor(controller.[[stream]], pullIntoDescriptor).
-    readable_byte_stream_controller_commit_pull_into_descriptor(*controller.stream(), pull_into_descriptor_copy);
+    readable_byte_stream_controller_commit_pull_into_descriptor(*controller.stream(), pull_into_descriptor);
 
     // 11. For each filledPullInto of filledPullIntos,
     for (auto& filled_pull_into : filled_pulled_intos) {
         // 1. Perform ! ReadableByteStreamControllerCommitPullIntoDescriptor(controller.[[stream]], filledPullInto).
-        readable_byte_stream_controller_commit_pull_into_descriptor(*controller.stream(), filled_pull_into);
+        readable_byte_stream_controller_commit_pull_into_descriptor(*controller.stream(), *filled_pull_into);
     }
     return {};
 }
@@ -2381,7 +2379,7 @@ void readable_byte_stream_controller_respond_in_closed_state(ReadableByteStreamC
     // 4. If ! ReadableStreamHasBYOBReader(stream) is true,
     if (readable_stream_has_byob_reader(stream)) {
         // 1. Let filledPullIntos be a new empty list.
-        SinglyLinkedList<PullIntoDescriptor> filled_pull_intos;
+        SinglyLinkedList<GC::Root<PullIntoDescriptor>> filled_pull_intos;
 
         // 2. Let i be 0.
         u64 i = 0;
@@ -2400,7 +2398,7 @@ void readable_byte_stream_controller_respond_in_closed_state(ReadableByteStreamC
             // 4. For each filledPullInto of filledPullIntos,
             for (auto& filled_pull_into : filled_pull_intos) {
                 // 1. Perform ! ReadableByteStreamControllerCommitPullIntoDescriptor(stream, filledPullInto).
-                readable_byte_stream_controller_commit_pull_into_descriptor(stream, filled_pull_into);
+                readable_byte_stream_controller_commit_pull_into_descriptor(stream, *filled_pull_into);
             }
         }
     }
@@ -2410,7 +2408,7 @@ void readable_byte_stream_controller_respond_in_closed_state(ReadableByteStreamC
 WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_internal(ReadableByteStreamController& controller, u64 bytes_written)
 {
     // 1. Let firstDescriptor be controller.[[pendingPullIntos]][0].
-    auto& first_descriptor = controller.pending_pull_intos().first();
+    auto& first_descriptor = *controller.pending_pull_intos().first();
 
     // 2. Assert: ! CanTransferArrayBuffer(firstDescriptor’s buffer) is true.
     VERIFY(can_transfer_array_buffer(*first_descriptor.buffer));
@@ -2456,7 +2454,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond(ReadableByteSt
     VERIFY(!controller.pending_pull_intos().is_empty());
 
     // 2. Let firstDescriptor be controller.[[pendingPullIntos]][0].
-    auto& first_descriptor = controller.pending_pull_intos().first();
+    auto& first_descriptor = *controller.pending_pull_intos().first();
 
     // 3. Let state be controller.[[stream]].[[state]].
     auto state = controller.stream()->state();
@@ -2498,7 +2496,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_respond_with_new_view(
     VERIFY(!view.viewed_array_buffer()->is_detached());
 
     // 3. Let firstDescriptor be controller.[[pendingPullIntos]][0].
-    auto& first_descriptor = controller.pending_pull_intos().first();
+    auto& first_descriptor = *controller.pending_pull_intos().first();
 
     // 4. Let state be controller.[[stream]].[[state]].
     auto state = controller.stream()->state();
@@ -2809,7 +2807,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_close(ReadableByteStre
     // 4. If controller.[[pendingPullIntos]] is not empty,
     if (!controller.pending_pull_intos().is_empty()) {
         // 1. Let firstPendingPullInto be controller.[[pendingPullIntos]][0].
-        auto& first_pending_pull_into = controller.pending_pull_intos().first();
+        auto& first_pending_pull_into = *controller.pending_pull_intos().first();
 
         // 2. If the remainder after dividing firstPendingPullInto’s bytes filled by firstPendingPullInto’s element size is not 0,
         if (first_pending_pull_into.bytes_filled % first_pending_pull_into.element_size != 0) {
@@ -3312,7 +3310,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue(ReadableByteSt
     // 8. If controller.[[pendingPullIntos]] is not empty,
     if (!controller.pending_pull_intos().is_empty()) {
         // 1. Let firstPendingPullInto be controller.[[pendingPullIntos]][0].
-        auto& first_pending_pull_into = controller.pending_pull_intos().first();
+        auto& first_pending_pull_into = *controller.pending_pull_intos().first();
 
         // 2. If ! IsDetachedBuffer(firstPendingPullInto’s buffer) is true, throw a TypeError exception.
         if (first_pending_pull_into.buffer->is_detached()) {
@@ -3352,7 +3350,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue(ReadableByteSt
             // 2. If controller.[[pendingPullIntos]] is not empty,
             if (!controller.pending_pull_intos().is_empty()) {
                 // 1. Assert: controller.[[pendingPullIntos]][0]'s reader type is "default".
-                VERIFY(controller.pending_pull_intos().first().reader_type == ReaderType::Default);
+                VERIFY(controller.pending_pull_intos().first()->reader_type == ReaderType::Default);
 
                 // 2. Perform ! ReadableByteStreamControllerShiftPendingPullInto(controller).
                 readable_byte_stream_controller_shift_pending_pull_into(controller);
@@ -3376,7 +3374,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue(ReadableByteSt
         // 3. For each filledPullInto of filledPullIntos,
         for (auto& filled_pull_into : filled_pull_intos) {
             // 1. Perform ! ReadableByteStreamControllerCommitPullIntoDescriptor(controller.[[stream]], filledPullInto).
-            readable_byte_stream_controller_commit_pull_into_descriptor(*stream, filled_pull_into);
+            readable_byte_stream_controller_commit_pull_into_descriptor(*stream, *filled_pull_into);
         }
     }
     // 11. Otherwise,
@@ -3468,13 +3466,13 @@ void readable_byte_stream_controller_commit_pull_into_descriptor(ReadableStream&
 }
 
 // https://streams.spec.whatwg.org/#readable-byte-stream-controller-process-pull-into-descriptors-using-queue
-SinglyLinkedList<PullIntoDescriptor> readable_byte_stream_controller_process_pull_into_descriptors_using_queue(ReadableByteStreamController& controller)
+SinglyLinkedList<GC::Root<PullIntoDescriptor>> readable_byte_stream_controller_process_pull_into_descriptors_using_queue(ReadableByteStreamController& controller)
 {
     // 1. Assert: controller.[[closeRequested]] is false.
     VERIFY(!controller.close_requested());
 
     // 2. Let filledPullIntos be a new empty list.
-    SinglyLinkedList<PullIntoDescriptor> filled_pull_intos;
+    SinglyLinkedList<GC::Root<PullIntoDescriptor>> filled_pull_intos;
 
     // 3. While controller.[[pendingPullIntos]] is not empty,
     while (!controller.pending_pull_intos().is_empty()) {
@@ -3568,7 +3566,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue_cloned_chunk_t
 }
 
 // https://streams.spec.whatwg.org/#readable-byte-stream-controller-shift-pending-pull-into
-PullIntoDescriptor readable_byte_stream_controller_shift_pending_pull_into(ReadableByteStreamController& controller)
+GC::Ref<PullIntoDescriptor> readable_byte_stream_controller_shift_pending_pull_into(ReadableByteStreamController& controller)
 {
     // 1. Assert: controller.[[byobRequest]] is null.
     VERIFY(!controller.raw_byob_request());
