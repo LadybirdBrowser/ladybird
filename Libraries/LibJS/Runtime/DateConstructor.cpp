@@ -193,6 +193,7 @@ static double parse_date_string(VM& vm, StringView date_string)
         "%B%t%d%t%Y%t%T%t%z"sv,                // "November 19 2024 00:00:00 +0900"
         "%a%t%b%t%e%t%Y"sv,                    // "Wed Nov 20 2024"
         "%Y-%m-%d%t%H:%M:%S%z"sv,              // "2024-12-30 03:00:00+0000"
+        "%Y-%m-%d%t%H:%M:%S%X"sv,              // "2025-01-13 00:00:00.000"
     };
 
     for (auto const& format : extra_formats) {
