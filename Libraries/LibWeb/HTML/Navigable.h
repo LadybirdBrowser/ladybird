@@ -192,6 +192,7 @@ protected:
     explicit Navigable(GC::Ref<Page>);
 
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual void finalize() override;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#ongoing-navigation
     Variant<Empty, Traversal, String> m_ongoing_navigation;
@@ -236,7 +237,7 @@ private:
     Web::EventHandler m_event_handler;
 };
 
-HashTable<Navigable*>& all_navigables();
+HashTable<GC::RawRef<Navigable>>& all_navigables();
 
 bool navigation_must_be_a_replace(URL::URL const& url, DOM::Document const& document);
 void finalize_a_cross_document_navigation(GC::Ref<Navigable>, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ref<SessionHistoryEntry>);

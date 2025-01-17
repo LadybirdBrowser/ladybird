@@ -73,9 +73,9 @@ private:
 
 GC_DEFINE_ALLOCATOR(ResponseHolder);
 
-HashTable<Navigable*>& all_navigables()
+HashTable<GC::RawRef<Navigable>>& all_navigables()
 {
-    static HashTable<Navigable*> set;
+    static HashTable<GC::RawRef<Navigable>> set;
     return set;
 }
 
@@ -111,12 +111,15 @@ Navigable::Navigable(GC::Ref<Page> page)
     : m_page(page)
     , m_event_handler({}, *this)
 {
-    all_navigables().set(this);
+    all_navigables().set(*this);
 }
 
-Navigable::~Navigable()
+Navigable::~Navigable() = default;
+
+void Navigable::finalize()
 {
-    all_navigables().remove(this);
+    all_navigables().remove(*this);
+    Base::finalize();
 }
 
 void Navigable::visit_edges(Cell::Visitor& visitor)
@@ -159,7 +162,7 @@ void Navigable::set_delaying_load_events(bool value)
 
 GC::Ptr<Navigable> Navigable::navigable_with_active_document(GC::Ref<DOM::Document> document)
 {
-    for (auto* navigable : all_navigables()) {
+    for (auto navigable : all_navigables()) {
         if (navigable->active_document() == document)
             return navigable;
     }
