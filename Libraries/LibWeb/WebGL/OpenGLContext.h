@@ -41,6 +41,7 @@ private:
     Gfx::IntSize m_size;
     RefPtr<Gfx::PaintingSurface> m_painting_surface;
     NonnullOwnPtr<Impl> m_impl;
+    Optional<Vector<String>> m_requestable_extensions;
 };
 
 }
