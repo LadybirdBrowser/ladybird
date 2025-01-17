@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023, Matthew Olsson <mattco@serenityos.org>
+ * Copyright (c) 2025, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -20,7 +21,10 @@ enum class ReaderType {
 };
 
 // https://streams.spec.whatwg.org/#pull-into-descriptor
-struct PullIntoDescriptor {
+struct PullIntoDescriptor : public GC::Cell {
+    GC_CELL(PullIntoDescriptor, GC::Cell);
+    GC_DECLARE_ALLOCATOR(PullIntoDescriptor);
+
     // https://streams.spec.whatwg.org/#pull-into-descriptor-buffer
     // An ArrayBuffer
     GC::Ref<JS::ArrayBuffer> buffer;
@@ -56,6 +60,24 @@ struct PullIntoDescriptor {
     // https://streams.spec.whatwg.org/#pull-into-descriptor-reader-type
     // Either "default" or "byob", indicating what type of readable stream reader initiated this request, or "none" if the initiating reader was released
     ReaderType reader_type;
+
+protected:
+    virtual void visit_edges(Cell::Visitor& visitor) override;
+
+private:
+    PullIntoDescriptor(GC::Ref<JS::ArrayBuffer> buffer, u64 buffer_byte_length, u64 byte_offset, u64 byte_length, u64 bytes_filled,
+        u64 minimum_fill, u64 element_size, GC::Ref<JS::NativeFunction> view_constructor, ReaderType reader_type)
+        : buffer(buffer)
+        , buffer_byte_length(buffer_byte_length)
+        , byte_offset(byte_offset)
+        , byte_length(byte_length)
+        , bytes_filled(bytes_filled)
+        , minimum_fill(minimum_fill)
+        , element_size(element_size)
+        , view_constructor(view_constructor)
+        , reader_type(reader_type)
+    {
+    }
 };
 
 // https://streams.spec.whatwg.org/#readable-byte-stream-queue-entry
@@ -113,8 +135,8 @@ public:
     bool pulling() const { return m_pulling; }
     void set_pulling(bool value) { m_pulling = value; }
 
-    SinglyLinkedList<PullIntoDescriptor>& pending_pull_intos() { return m_pending_pull_intos; }
-    SinglyLinkedList<PullIntoDescriptor> const& pending_pull_intos() const { return m_pending_pull_intos; }
+    SinglyLinkedList<GC::Ref<PullIntoDescriptor>>& pending_pull_intos() { return m_pending_pull_intos; }
+    SinglyLinkedList<GC::Ref<PullIntoDescriptor>> const& pending_pull_intos() const { return m_pending_pull_intos; }
 
     SinglyLinkedList<ReadableByteStreamQueueEntry>& queue() { return m_queue; }
 
@@ -172,7 +194,7 @@ private:
 
     // https://streams.spec.whatwg.org/#readablebytestreamcontroller-pendingpullintos
     // A list of pull-into descriptors
-    SinglyLinkedList<PullIntoDescriptor> m_pending_pull_intos;
+    SinglyLinkedList<GC::Ref<PullIntoDescriptor>> m_pending_pull_intos;
 
     // https://streams.spec.whatwg.org/#readablestreamdefaultcontroller-queue
     // A list representing the stream’s internal queue of chunks
