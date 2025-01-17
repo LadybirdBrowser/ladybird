@@ -361,6 +361,7 @@ SharedArrayBuffer
 SourceBuffer
 SourceBufferList
 StaticRange
+StereoPannerNode
 Storage
 StorageEvent
 StorageManager
