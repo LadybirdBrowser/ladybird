@@ -581,7 +581,7 @@ Messages::WebDriverClient::SwitchToWindowResponse WebDriverConnection::switch_to
     //    Otherwise, return error with error code no such window.
     bool found_matching_context = false;
 
-    for (auto* navigable : Web::HTML::all_navigables()) {
+    for (auto navigable : Web::HTML::all_navigables()) {
         auto traversable = navigable->top_level_traversable();
         if (!traversable || !traversable->active_browsing_context())
             continue;

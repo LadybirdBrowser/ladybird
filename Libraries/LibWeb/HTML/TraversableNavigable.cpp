@@ -1268,7 +1268,7 @@ void TraversableNavigable::destroy_top_level_traversable()
     // FIXME: Figure out why we need to do this... we shouldn't be leaking Navigables for all time.
     //        However, without this, we can keep stale destroyed traversables around.
     set_has_been_destroyed();
-    all_navigables().remove(this);
+    all_navigables().remove(*this);
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-same-document-navigation
