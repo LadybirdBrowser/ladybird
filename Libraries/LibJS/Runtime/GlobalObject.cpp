@@ -18,6 +18,7 @@
 #include <LibJS/Runtime/ArrayBufferConstructor.h>
 #include <LibJS/Runtime/ArrayConstructor.h>
 #include <LibJS/Runtime/ArrayPrototype.h>
+#include <LibJS/Runtime/AsyncDisposableStackConstructor.h>
 #include <LibJS/Runtime/AsyncFunctionConstructor.h>
 #include <LibJS/Runtime/AsyncGeneratorFunctionConstructor.h>
 #include <LibJS/Runtime/AsyncGeneratorPrototype.h>
@@ -123,6 +124,7 @@ void set_default_global_bindings(Realm& realm)
     global.define_intrinsic_accessor(vm.names.AggregateError, attr, [](auto& realm) -> Value { return realm.intrinsics().aggregate_error_constructor(); });
     global.define_intrinsic_accessor(vm.names.Array, attr, [](auto& realm) -> Value { return realm.intrinsics().array_constructor(); });
     global.define_intrinsic_accessor(vm.names.ArrayBuffer, attr, [](auto& realm) -> Value { return realm.intrinsics().array_buffer_constructor(); });
+    global.define_intrinsic_accessor(vm.names.AsyncDisposableStack, attr, [](auto& realm) -> Value { return realm.intrinsics().async_disposable_stack_constructor(); });
     global.define_intrinsic_accessor(vm.names.BigInt, attr, [](auto& realm) -> Value { return realm.intrinsics().bigint_constructor(); });
     global.define_intrinsic_accessor(vm.names.BigInt64Array, attr, [](auto& realm) -> Value { return realm.intrinsics().big_int64_array_constructor(); });
     global.define_intrinsic_accessor(vm.names.BigUint64Array, attr, [](auto& realm) -> Value { return realm.intrinsics().big_uint64_array_constructor(); });

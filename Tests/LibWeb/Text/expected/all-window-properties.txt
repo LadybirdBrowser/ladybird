@@ -10,6 +10,7 @@ AnimationPlaybackEvent
 AnimationTimeline
 Array
 ArrayBuffer
+AsyncDisposableStack
 Attr
 Audio
 AudioBuffer
