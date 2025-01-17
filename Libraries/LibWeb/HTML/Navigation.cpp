@@ -245,9 +245,8 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::navigate(String url, Navigatio
 
     // 5. Let serializedState be StructuredSerializeForStorage(state).
     //    If this throws an exception, then return an early error result for that exception.
-    // FIXME: Fix this spec grammaro in the note
-    // NOTE: It is importantly to perform this step early, since serialization can invoke web developer code,
-    //       which in turn might change various things we check in later steps.
+    // Spec-Note: It is important to perform this step early, since serialization can invoke web developer code,
+    //            which in turn might change various things we check in later steps.
     auto serialized_state_or_error = structured_serialize_for_storage(vm, state);
     if (serialized_state_or_error.is_error()) {
         return early_error_result(serialized_state_or_error.release_error());
@@ -309,8 +308,8 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::reload(NavigationReloadOptions
 
     // 3. If options["state"] exists, then set serializedState to StructuredSerializeForStorage(options["state"]).
     //    If this throws an exception, then return an early error result for that exception.
-    // NOTE: It is importantly to perform this step early, since serialization can invoke web developer
-    //       code, which in turn might change various things we check in later steps.
+    // Spec-Note: It is important to perform this step early, since serialization can invoke web developer
+    //            code, which in turn might change various things we check in later steps.
     if (options.state.has_value()) {
         auto serialized_state_or_error = structured_serialize_for_storage(vm, options.state.value());
         if (serialized_state_or_error.is_error())
