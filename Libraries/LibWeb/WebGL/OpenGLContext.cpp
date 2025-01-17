@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/HashMap.h>
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
 #include <LibGfx/PaintingSurface.h>
@@ -231,82 +232,107 @@ u32 OpenGLContext::default_framebuffer() const
 #endif
 }
 
-Vector<StringView> s_available_webgl_extensions {
+struct Extension {
+    String webgl_extension_name;
+    Vector<StringView> required_angle_extensions;
+    Optional<u32> only_for_webgl_version { OptionalNone {} };
+};
+
+Vector<Extension> s_available_webgl_extensions {
     // Khronos ratified WebGL Extensions
-    "ANGLE_instanced_arrays"sv,
-    "EXT_blend_minmax"sv,
-    "EXT_frag_depth"sv,
-    "EXT_shader_texture_lod"sv,
-    "EXT_texture_filter_anisotropic"sv,
-    "OES_element_index_uint"sv,
-    "OES_standard_derivatives"sv,
-    "OES_texture_float"sv,
-    "OES_texture_float_linear"sv,
-    "OES_texture_half_float"sv,
-    "OES_texture_half_float_linear"sv,
-    "OES_vertex_array_object"sv,
-    "WEBGL_compressed_texture_s3tc"sv,
-    "WEBGL_debug_renderer_info"sv,
-    "WEBGL_debug_shaders"sv,
-    "WEBGL_depth_texture"sv,
-    "WEBGL_draw_buffers"sv,
-    "WEBGL_lose_context"sv,
+    { "ANGLE_instanced_arrays"_string, { "GL_ANGLE_instanced_arrays"sv }, 1 },
+    { "EXT_blend_minmax"_string, { "GL_EXT_blend_minmax"sv }, 1 },
+    { "EXT_frag_depth"_string, { "GL_EXT_frag_depth"sv }, 1 },
+    { "EXT_shader_texture_lod"_string, { "GL_EXT_shader_texture_lod"sv }, 1 },
+    { "EXT_texture_filter_anisotropic"_string, { "GL_EXT_texture_filter_anisotropic"sv } },
+    { "OES_element_index_uint"_string, { "GL_OES_element_index_uint"sv }, 1 },
+    { "OES_standard_derivatives"_string, { "GL_OES_standard_derivatives"sv }, 1 },
+    { "OES_texture_float"_string, { "GL_OES_texture_float"sv }, 1 },
+    { "OES_texture_float_linear"_string, { "GL_OES_texture_float_linear"sv } },
+    { "OES_texture_half_float"_string, { "GL_OES_texture_half_float"sv }, 1 },
+    { "OES_texture_half_float_linear"_string, { "GL_OES_texture_half_float_linear"sv }, 1 },
+    { "OES_vertex_array_object"_string, { "GL_OES_vertex_array_object"sv }, 1 },
+    { "WEBGL_compressed_texture_s3tc"_string, { "GL_EXT_texture_compression_dxt1"sv, "GL_ANGLE_texture_compression_dxt3"sv, "GL_ANGLE_texture_compression_dxt5"sv } },
+    { "WEBGL_debug_renderer_info"_string, {} },
+    { "WEBGL_debug_shaders"_string, {} },
+    { "WEBGL_depth_texture"_string, { "GL_ANGLE_depth_texture"sv }, 1 },
+    { "WEBGL_draw_buffers"_string, { "GL_EXT_draw_buffers"sv }, 1 },
+    { "WEBGL_lose_context"_string, {} },
 
     // Community approved WebGL Extensions
-    "EXT_clip_control"sv,
-    "EXT_color_buffer_float"sv,
-    "EXT_color_buffer_half_float"sv,
-    "EXT_conservative_depth"sv,
-    "EXT_depth_clamp"sv,
-    "EXT_disjoint_timer_query"sv,
-    "EXT_disjoint_timer_query_webgl2"sv,
-    "EXT_float_blend"sv,
-    "EXT_polygon_offset_clamp"sv,
-    "EXT_render_snorm"sv,
-    "EXT_sRGB"sv,
-    "EXT_texture_compression_bptc"sv,
-    "EXT_texture_compression_rgtc"sv,
-    "EXT_texture_mirror_clamp_to_edge"sv,
-    "EXT_texture_norm16"sv,
-    "KHR_parallel_shader_compile"sv,
-    "NV_shader_noperspective_interpolation"sv,
-    "OES_draw_buffers_indexed"sv,
-    "OES_fbo_render_mipmap"sv,
-    "OES_sample_variables"sv,
-    "OES_shader_multisample_interpolation"sv,
-    "OVR_multiview2"sv,
-    "WEBGL_blend_func_extended"sv,
-    "WEBGL_clip_cull_distance"sv,
-    "WEBGL_color_buffer_float"sv,
-    "WEBGL_compressed_texture_astc"sv,
-    "WEBGL_compressed_texture_etc"sv,
-    "WEBGL_compressed_texture_etc1"sv,
-    "WEBGL_compressed_texture_pvrtc"sv,
-    "WEBGL_compressed_texture_s3tc_srgb"sv,
-    "WEBGL_multi_draw"sv,
-    "WEBGL_polygon_mode"sv,
-    "WEBGL_provoking_vertex"sv,
-    "WEBGL_render_shared_exponent"sv,
-    "WEBGL_stencil_texturing"sv,
+    { "EXT_clip_control"_string, { "GL_EXT_clip_control"sv } },
+    { "EXT_color_buffer_float"_string, { "GL_EXT_color_buffer_float"sv }, 2 },
+    { "EXT_color_buffer_half_float"_string, { "GL_EXT_color_buffer_half_float"sv } },
+    { "EXT_conservative_depth"_string, { "GL_EXT_conservative_depth"sv }, 2 },
+    { "EXT_depth_clamp"_string, { "GL_EXT_depth_clamp"sv } },
+    { "EXT_disjoint_timer_query"_string, { "GL_EXT_disjoint_timer_query"sv }, 1 },
+    { "EXT_disjoint_timer_query_webgl2"_string, { "GL_EXT_disjoint_timer_query"sv }, 2 },
+    { "EXT_float_blend"_string, { "GL_EXT_float_blend"sv } },
+    { "EXT_polygon_offset_clamp"_string, { "GL_EXT_polygon_offset_clamp"sv } },
+    { "EXT_render_snorm"_string, { "GL_EXT_render_snorm"sv }, 2 },
+    { "EXT_sRGB"_string, { "GL_EXT_sRGB"sv }, 1 },
+    { "EXT_texture_compression_bptc"_string, { "GL_EXT_texture_compression_bptc"sv } },
+    { "EXT_texture_compression_rgtc"_string, { "GL_EXT_texture_compression_rgtc"sv } },
+    { "EXT_texture_mirror_clamp_to_edge"_string, { "GL_EXT_texture_mirror_clamp_to_edge"sv } },
+    { "EXT_texture_norm16"_string, { "GL_EXT_texture_norm16"sv }, 2 },
+    { "KHR_parallel_shader_compile"_string, { "GL_KHR_parallel_shader_compile"sv } },
+    { "NV_shader_noperspective_interpolation"_string, { "GL_NV_shader_noperspective_interpolation"sv }, 2 },
+    { "OES_draw_buffers_indexed"_string, { "GL_OES_draw_buffers_indexed"sv } },
+    { "OES_fbo_render_mipmap"_string, { "GL_OES_fbo_render_mipmap"sv }, 1 },
+    { "OES_sample_variables"_string, { "GL_OES_sample_variables"sv }, 2 },
+    { "OES_shader_multisample_interpolation"_string, { "GL_OES_shader_multisample_interpolation"sv }, 2 },
+    { "OVR_multiview2"_string, { "GL_OVR_multiview2"sv }, 2 },
+    { "WEBGL_blend_func_extended"_string, { "GL_EXT_blend_func_extended"sv } },
+    { "WEBGL_clip_cull_distance"_string, { "GL_EXT_clip_cull_distance"sv }, 2 },
+    { "WEBGL_color_buffer_float"_string, { "EXT_color_buffer_half_float"sv, "OES_texture_float"sv }, 1 },
+    { "WEBGL_compressed_texture_astc"_string, { "KHR_texture_compression_astc_hdr"sv, "KHR_texture_compression_astc_ldr"sv } },
+    { "WEBGL_compressed_texture_etc"_string, { "GL_ANGLE_compressed_texture_etc"sv } },
+    { "WEBGL_compressed_texture_etc1"_string, { "GL_OES_compressed_ETC1_RGB8_texture"sv } },
+    { "WEBGL_compressed_texture_pvrtc"_string, { "GL_IMG_texture_compression_pvrtc"sv } },
+    { "WEBGL_compressed_texture_s3tc_srgb"_string, { "GL_EXT_texture_compression_s3tc_srgb"sv } },
+    { "WEBGL_multi_draw"_string, { "GL_ANGLE_multi_draw"sv } },
+    { "WEBGL_polygon_mode"_string, { "GL_ANGLE_polygon_mode"sv } },
+    { "WEBGL_provoking_vertex"_string, { "GL_ANGLE_provoking_vertex"sv }, 2 },
+    { "WEBGL_render_shared_exponent"_string, { "GL_QCOM_render_shared_exponent"sv }, 2 },
+    { "WEBGL_stencil_texturing"_string, { "GL_ANGLE_stencil_texturing"sv }, 2 },
 };
 
 Vector<String> OpenGLContext::get_supported_extensions()
 {
 #ifdef AK_OS_MACOS
+    if (m_requestable_extensions.has_value())
+        return m_requestable_extensions.value();
+
     make_current();
 
-    auto const* extensions_string = reinterpret_cast<char const*>(glGetString(GL_REQUESTABLE_EXTENSIONS_ANGLE));
-    StringView extensions_view(extensions_string, strlen(extensions_string));
+    auto const* requestable_extensions_string = reinterpret_cast<char const*>(glGetString(GL_REQUESTABLE_EXTENSIONS_ANGLE));
+    StringView requestable_extensions_view(requestable_extensions_string, strlen(requestable_extensions_string));
+    auto requestable_extensions = requestable_extensions_view.split_view(' ');
 
     Vector<String> extensions;
-    for (auto const& extension : extensions_view.split_view(' ')) {
-        auto extension_name_without_gl_prefix = extension.substring_view(3);
-        // FIXME: WebGL 1 and WebGL 2 have different sets of available extensions, but for now we simply
-        //        filter out everything that is not listed in https://registry.khronos.org/webgl/extensions/
-        if (s_available_webgl_extensions.contains_slow(extension_name_without_gl_prefix))
-            extensions.append(MUST(String::from_utf8(extension_name_without_gl_prefix)));
+    for (auto const& available_extension : s_available_webgl_extensions) {
+        // FIXME: Check WebGL version.
+        bool supported = true;
+
+        for (auto const& required_extension : available_extension.required_angle_extensions) {
+            auto maybe_required_extension = requestable_extensions.find_if([&](StringView requestable_extension) {
+                return required_extension == requestable_extension;
+            });
+
+            if (maybe_required_extension == requestable_extensions.end()) {
+                supported = false;
+                break;
+            }
+        }
+
+        if (supported)
+            extensions.append(available_extension.webgl_extension_name);
     }
 
+    // We must cache this, because once extensions have been requested, they're no longer requestable extensions and would
+    // not appear in this list. However, we must always report every supported extension, regardless of what has already
+    // been requested.
+    m_requestable_extensions = extensions;
     return extensions;
 #else
     return {};
