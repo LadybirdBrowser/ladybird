@@ -94,6 +94,8 @@ WebIDL::ExceptionOr<void> AudioBuffer::copy_from_channel(GC::Root<WebIDL::Buffer
     if (!is<JS::Float32Array>(*destination->raw_object()))
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Float32Array");
     auto& float32_array = static_cast<JS::Float32Array&>(*destination->raw_object());
+    if (float32_array.viewed_array_buffer()->is_shared_array_buffer())
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::SharedArrayBuffer, "Float32Array");
 
     auto const channel = TRY(get_channel_data(channel_number));
 
@@ -122,6 +124,8 @@ WebIDL::ExceptionOr<void> AudioBuffer::copy_to_channel(GC::Root<WebIDL::BufferSo
     if (!is<JS::Float32Array>(*source->raw_object()))
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "Float32Array");
     auto const& float32_array = static_cast<JS::Float32Array const&>(*source->raw_object());
+    if (float32_array.viewed_array_buffer()->is_shared_array_buffer())
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::SharedArrayBuffer, "Float32Array");
 
     auto channel = TRY(get_channel_data(channel_number));
 
