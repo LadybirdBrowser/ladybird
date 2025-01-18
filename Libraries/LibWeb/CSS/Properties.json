@@ -923,6 +923,16 @@
       "column-count"
     ]
   },
+  "contain": {
+    "__comment": "FIXME: Some values of contain need to be mutually exclusive. The grammar this should adhere to is 'none | strict | content | [ [size | inline-size] || layout || style || paint ]'.",
+    "affects-stacking-context": true,
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "none",
+    "valid-types": [
+      "contain"
+    ]
+  },
   "content": {
     "animation-type": "discrete",
     "inherited": false,

@@ -1360,6 +1360,74 @@ Optional<CSS::Isolation> ComputedProperties::isolation() const
     return keyword_to_isolation(value.to_keyword());
 }
 
+CSS::Containment ComputedProperties::contain() const
+{
+    CSS::Containment containment = {};
+    auto const& value = property(CSS::PropertyID::Contain);
+
+    switch (value.to_keyword()) {
+    case Keyword::None:
+        // This value indicates that the property has no effect. The element renders as normal, with no containment effects applied.
+        return {};
+    case Keyword::Strict:
+        // This value computes to 'size layout paint style', and thus turns on all forms of containment for the element.
+        containment.size_containment = true;
+        containment.layout_containment = true;
+        containment.paint_containment = true;
+        containment.style_containment = true;
+        break;
+    case Keyword::Content:
+        //  This value computes to 'layout paint style', and thus turns on all forms of containment except size containment for the element.
+        containment.layout_containment = true;
+        containment.paint_containment = true;
+        containment.style_containment = true;
+        break;
+    case Keyword::Size:
+        containment.size_containment = true;
+        break;
+    case Keyword::InlineSize:
+        containment.inline_size_containment = true;
+        break;
+    case Keyword::Layout:
+        containment.layout_containment = true;
+        break;
+    case Keyword::Style:
+        containment.style_containment = true;
+        break;
+    case Keyword::Paint:
+        containment.paint_containment = true;
+        break;
+    default:
+        if (value.is_value_list()) {
+            auto& values = value.as_value_list().values();
+            for (auto const& item : values) {
+                switch (item->to_keyword()) {
+                case Keyword::Size:
+                    containment.size_containment = true;
+                    break;
+                case Keyword::InlineSize:
+                    containment.inline_size_containment = true;
+                    break;
+                case Keyword::Layout:
+                    containment.layout_containment = true;
+                    break;
+                case Keyword::Style:
+                    containment.style_containment = true;
+                    break;
+                case Keyword::Paint:
+                    containment.paint_containment = true;
+                    break;
+                default:
+                    dbgln("`{}` is not supported in `contain` (yet?)", item->to_string(CSSStyleValue::SerializationMode::Normal));
+                    break;
+                }
+            }
+        }
+    }
+
+    return containment;
+}
+
 Optional<CSS::MaskType> ComputedProperties::mask_type() const
 {
     auto const& value = property(CSS::PropertyID::MaskType);

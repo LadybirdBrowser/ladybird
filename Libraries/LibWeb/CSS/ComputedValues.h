@@ -66,6 +66,18 @@ struct ObjectPosition {
     CSS::LengthPercentage offset_y { Percentage(50) };
 };
 
+// https://drafts.csswg.org/css-contain-2/#containment-types
+struct Containment {
+    // FIXME: It'd be nice if this was a single-byte bitfield instead of some bools.
+    bool size_containment = false;
+    bool inline_size_containment = false;
+    bool layout_containment = false;
+    bool style_containment = false;
+    bool paint_containment = false;
+
+    bool is_empty() const { return !(size_containment || inline_size_containment || layout_containment || style_containment || paint_containment); }
+};
+
 class InitialValues {
 public:
     static AspectRatio aspect_ratio() { return AspectRatio { true, {} }; }
@@ -172,6 +184,7 @@ public:
     static CSS::WritingMode writing_mode() { return CSS::WritingMode::HorizontalTb; }
     static CSS::UserSelect user_select() { return CSS::UserSelect::Auto; }
     static CSS::Isolation isolation() { return CSS::Isolation::Auto; }
+    static CSS::Containment contain() { return {}; }
 
     // https://www.w3.org/TR/SVG/geometry.html
     static LengthPercentage cx() { return CSS::Length::make_px(0); }
@@ -428,6 +441,7 @@ public:
     CSS::WritingMode writing_mode() const { return m_inherited.writing_mode; }
     CSS::UserSelect user_select() const { return m_noninherited.user_select; }
     CSS::Isolation isolation() const { return m_noninherited.isolation; }
+    CSS::Containment const& contain() const { return m_noninherited.contain; }
 
     CSS::LengthBox const& inset() const { return m_noninherited.inset; }
     const CSS::LengthBox& margin() const { return m_noninherited.margin; }
@@ -681,6 +695,7 @@ protected:
         CSS::UnicodeBidi unicode_bidi { InitialValues::unicode_bidi() };
         CSS::UserSelect user_select { InitialValues::user_select() };
         CSS::Isolation isolation { InitialValues::isolation() };
+        CSS::Containment contain { InitialValues::contain() };
 
         Optional<CSS::Transformation> rotate;
         Optional<CSS::Transformation> translate;
@@ -855,6 +870,7 @@ public:
     void set_writing_mode(CSS::WritingMode value) { m_inherited.writing_mode = value; }
     void set_user_select(CSS::UserSelect value) { m_noninherited.user_select = value; }
     void set_isolation(CSS::Isolation value) { m_noninherited.isolation = value; }
+    void set_contain(CSS::Containment value) { m_noninherited.contain = move(value); }
 
     void set_fill(SVGPaint value) { m_inherited.fill = move(value); }
     void set_stroke(SVGPaint value) { m_inherited.stroke = move(value); }

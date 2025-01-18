@@ -89,6 +89,17 @@ bool Node::can_contain_boxes_with_position_absolute() const
     if (computed_values().scale().has_value())
         return true;
 
+    // https://drafts.csswg.org/css-contain-2/#containment-types
+    // 4. The layout containment box establishes an absolute positioning containing block and a fixed positioning
+    //    containing block.
+    // 4. The paint containment box establishes an absolute positioning containing block and a fixed positioning
+    //    containing block.
+    if (dom_node() && dom_node()->is_element()) {
+        auto element = as<DOM::Element>(dom_node());
+        if (element->has_layout_containment() || element->has_paint_containment())
+            return true;
+    }
+
     return false;
 }
 
@@ -219,6 +230,15 @@ bool Node::establishes_stacking_context() const
     // For CSS, setting isolation to isolate will turn the element into a stacking context.
     if (computed_values().isolation() == CSS::Isolation::Isolate)
         return true;
+
+    // https://drafts.csswg.org/css-contain-2/#containment-types
+    // 5. The layout containment box creates a stacking context.
+    // 3. The paint containment box creates a stacking context.
+    if (dom_node() && dom_node()->is_element()) {
+        auto element = as<DOM::Element>(dom_node());
+        if (element->has_layout_containment() || element->has_paint_containment())
+            return true;
+    }
 
     return computed_values().opacity() < 1.0f;
 }

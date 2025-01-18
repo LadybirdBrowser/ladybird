@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Containment Test: Paint containment independent formatting context</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-contain-1/#containment-paint">
+<link rel="match" href="../../../../expected/wpt-import/css/css-contain/reference/contain-paint-independent-formatting-context-001-ref.html">
+<meta name=assert content="Paint containment elements establish an independent formatting context. The test checks that this feature of paint containment applies to blocks.">
+<style>
+.wrapper {
+  border: solid thick;
+  margin: 1em;
+}
+</style>
+<p>Test passes if it has the same output than the reference.</p>
+<div class="wrapper">
+  <div style="margin: 1em 0; contain: paint;">
+    <div style="margin: 1em 0;">This text should have 2em top and bottom margins (margins do not collapse).</div>
+  </div>
+</div>

@@ -1,6 +1,6 @@
 All supported properties and their default values exposed from CSSStyleDeclaration from getComputedStyle:
 'cssText': ''
-'length': '214'
+'length': '215'
 'parentRule': 'null'
 'cssFloat': 'none'
 'WebkitAlignContent': 'normal'
@@ -261,6 +261,7 @@ All supported properties and their default values exposed from CSSStyleDeclarati
 'columnWidth': 'auto'
 'column-width': 'auto'
 'columns': 'auto'
+'contain': 'none'
 'content': 'normal'
 'contentVisibility': 'visible'
 'content-visibility': 'visible'

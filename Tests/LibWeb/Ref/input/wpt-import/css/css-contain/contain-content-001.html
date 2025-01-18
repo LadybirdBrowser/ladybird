@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Containment Test: a block with 'contain: content' alongside a float</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+  <link rel="help" href="https://www.w3.org/TR/css-contain-1/#contain-property">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-contain/reference/contain-layout-ifc-022-ref.html">
+
+
+  <style>
+  div
+    {
+      color: transparent;
+      font-size: 16px;
+      padding: 8px;
+    }
+
+  div#floated-left
+    {
+      background-color: blue;
+      float: left;
+      margin: 8px;
+      width: 6em;
+    }
+
+  div#with-contain-content
+    {
+      background-color: orange;
+      width: 12em;
+
+      contain: content;
+    }
+  </style>
+
+
+  <p>Test passes if the orange rectangle and blue rectangle do not overlap.
+
+  <div id="floated-left">Some text in a blue rectangle.</div>
+
+  <div id="with-contain-content">Some text in an orange rectangle. Some text in an orange rectangle. Some text in an orange rectangle.</div>

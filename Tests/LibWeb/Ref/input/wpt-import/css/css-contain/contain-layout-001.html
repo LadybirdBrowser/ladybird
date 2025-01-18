@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang=en>
+  <meta charset=utf-8>
+  <title>CSS-contain test: layout containment on non-atomic inlines</title>
+  <link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net">
+  <meta name=flags content="">
+  <meta name=assert content="layout containment does not apply to non atomic inlines">
+  <link rel="match" href="../../../../expected/wpt-import/css/reference/pass_if_pass_below.html">
+  <link rel=help href="https://drafts.csswg.org/css-contain-1/#containment-layout">
+
+<style>
+#pa {
+  contain: layout;
+  height: 100vh; /*If layout containment applies, the span becomes a BFC, height applies, and knocks SS off the page */
+}
+
+#ss {
+  vertical-align: bottom;
+}
+</style>
+
+<p>Test passes if there is the word "PASS" below.</p>
+<div><span id="pa">PA</span><span id="ss">SS</span></div>

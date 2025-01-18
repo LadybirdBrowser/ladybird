@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 13 tests
+
+8 Pass
+5 Fail
+Pass	e.style['contain'] = "none" should set the property value
+Pass	e.style['contain'] = "strict" should set the property value
+Pass	e.style['contain'] = "content" should set the property value
+Pass	e.style['contain'] = "size" should set the property value
+Pass	e.style['contain'] = "layout" should set the property value
+Pass	e.style['contain'] = "style" should set the property value
+Pass	e.style['contain'] = "paint" should set the property value
+Fail	e.style['contain'] = "layout size" should set the property value
+Fail	e.style['contain'] = "paint style" should set the property value
+Fail	e.style['contain'] = "layout style paint" should set the property value
+Fail	e.style['contain'] = "layout paint style size" should set the property value
+Pass	e.style['contain'] = "inline-size" should set the property value
+Fail	e.style['contain'] = "layout inline-size" should set the property value

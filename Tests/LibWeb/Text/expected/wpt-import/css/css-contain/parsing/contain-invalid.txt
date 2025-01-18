@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	e.style['contain'] = "auto" should not set the property value
+Pass	e.style['contain'] = "layout layout" should not set the property value
+Pass	e.style['contain'] = "strict layout" should not set the property value
+Pass	e.style['contain'] = "paint strict" should not set the property value
+Pass	e.style['contain'] = "paint layout style paint" should not set the property value
+Pass	e.style['contain'] = "none none" should not set the property value
+Pass	e.style['contain'] = "none strict" should not set the property value
+Pass	e.style['contain'] = "strict strict" should not set the property value
+Pass	e.style['contain'] = "strict none" should not set the property value
+Pass	e.style['contain'] = "strict content" should not set the property value
+Pass	e.style['contain'] = "size layout size" should not set the property value
+Pass	e.style['contain'] = "paint content" should not set the property value
+Pass	e.style['contain'] = "size inline-size" should not set the property value
+Pass	e.style['contain'] = "inline-size inline-size" should not set the property value
