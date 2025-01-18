@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Containment Module Level 3: parsing contain with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-contain-3/#contain-property">
+<meta name="assert" content="contain supports only the grammar 'none | strict | content | [ [ size | inline-size ] || layout || style || paint ]'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value("contain", "auto");
+test_invalid_value("contain", "layout layout");
+test_invalid_value("contain", "strict layout");
+test_invalid_value("contain", "paint strict");
+test_invalid_value("contain", "paint layout style paint");
+test_invalid_value("contain", "none none");
+test_invalid_value("contain", "none strict");
+test_invalid_value("contain", "strict strict");
+test_invalid_value("contain", "strict none");
+test_invalid_value("contain", "strict content");
+test_invalid_value("contain", "size layout size");
+test_invalid_value("contain", "paint content");
+test_invalid_value("contain", "size inline-size");
+test_invalid_value("contain", "inline-size inline-size");
+</script>
+</body>
+</html>

@@ -62,6 +62,11 @@ public:
     bool is_table_cell() const { return is_internal() && internal() == DisplayInternal::TableCell; }
     bool is_table_column_group() const { return is_internal() && internal() == DisplayInternal::TableColumnGroup; }
     bool is_table_caption() const { return is_internal() && internal() == DisplayInternal::TableCaption; }
+    // https://drafts.csswg.org/css-display-3/#internal-table-element
+    bool is_internal_table() const
+    {
+        return is_internal() && (internal() == DisplayInternal::TableRowGroup || internal() == DisplayInternal::TableHeaderGroup || internal() == DisplayInternal::TableFooterGroup || internal() == DisplayInternal::TableRow || internal() == DisplayInternal::TableCell || internal() == DisplayInternal::TableColumnGroup || internal() == DisplayInternal::TableColumn);
+    }
 
     bool is_none() const { return m_type == Type::Box && m_value.box == DisplayBox::None; }
     bool is_contents() const { return m_type == Type::Box && m_value.box == DisplayBox::Contents; }

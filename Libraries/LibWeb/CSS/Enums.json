@@ -107,6 +107,16 @@
     "none",
     "all"
   ],
+  "contain": [
+    "none",
+    "strict",
+    "content",
+    "size",
+    "inline-size",
+    "layout",
+    "style",
+    "paint"
+  ],
   "content-visibility": [
     "visible",
     "auto",
