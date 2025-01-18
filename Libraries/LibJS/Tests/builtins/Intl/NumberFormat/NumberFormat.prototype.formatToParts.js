@@ -20,9 +20,9 @@ describe("special values", () => {
         expect(en.formatToParts(undefined)).toEqual([{ type: "nan", value: "NaN" }]);
 
         const ar = new Intl.NumberFormat("ar-u-nu-arab");
-        expect(ar.formatToParts()).toEqual([{ type: "nan", value: "ليس رقم" }]);
-        expect(ar.formatToParts(NaN)).toEqual([{ type: "nan", value: "ليس رقم" }]);
-        expect(ar.formatToParts(undefined)).toEqual([{ type: "nan", value: "ليس رقم" }]);
+        expect(ar.formatToParts()).toEqual([{ type: "nan", value: "ليس رقمًا" }]);
+        expect(ar.formatToParts(NaN)).toEqual([{ type: "nan", value: "ليس رقمًا" }]);
+        expect(ar.formatToParts(undefined)).toEqual([{ type: "nan", value: "ليس رقمًا" }]);
     });
 
     test("Infinity", () => {
