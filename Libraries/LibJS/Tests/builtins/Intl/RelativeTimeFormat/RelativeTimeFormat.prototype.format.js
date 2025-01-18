@@ -52,7 +52,7 @@ describe("errors", () => {
 
 let formatters = {};
 
-["en", "ar", "pl"].forEach(locale => {
+["en", "ar-u-nu-arab", "pl"].forEach(locale => {
     formatters[locale] = {};
 
     ["long", "short", "narrow"].forEach(style => {
@@ -72,11 +72,11 @@ function runTest(unit, style, numeric, en, ar, pl) {
 
     [-2, -1, -0, 0, 1, 2].forEach((value, i) => {
         expect(formatters["en"][style][numeric].format(value, unit)).toBe(en[i]);
-        expect(formatters["ar"][style][numeric].format(value, unit)).toBe(ar[i]);
+        expect(formatters["ar-u-nu-arab"][style][numeric].format(value, unit)).toBe(ar[i]);
         expect(formatters["pl"][style][numeric].format(value, unit)).toBe(pl[i]);
 
         expect(formatters["en"][style][numeric].format(value, pluralUnit)).toBe(en[i]);
-        expect(formatters["ar"][style][numeric].format(value, pluralUnit)).toBe(ar[i]);
+        expect(formatters["ar-u-nu-arab"][style][numeric].format(value, pluralUnit)).toBe(ar[i]);
         expect(formatters["pl"][style][numeric].format(value, pluralUnit)).toBe(pl[i]);
     });
 }

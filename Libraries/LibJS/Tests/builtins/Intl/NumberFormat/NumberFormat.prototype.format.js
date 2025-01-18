@@ -23,7 +23,7 @@ describe("special values", () => {
         expect(en.format(NaN)).toBe("NaN");
         expect(en.format(undefined)).toBe("NaN");
 
-        const ar = new Intl.NumberFormat("ar");
+        const ar = new Intl.NumberFormat("ar-u-nu-arab");
         expect(ar.format()).toBe("ليس رقم");
         expect(ar.format(NaN)).toBe("ليس رقم");
         expect(ar.format(undefined)).toBe("ليس رقم");
@@ -34,7 +34,7 @@ describe("special values", () => {
         expect(en.format(Infinity)).toBe("∞");
         expect(en.format(-Infinity)).toBe("-∞");
 
-        const ar = new Intl.NumberFormat("ar");
+        const ar = new Intl.NumberFormat("ar-u-nu-arab");
         expect(ar.format(Infinity)).toBe("∞");
         expect(ar.format(-Infinity)).toBe("\u061c-∞");
     });
@@ -48,7 +48,7 @@ describe("style=decimal", () => {
         expect(en.format(123)).toBe("123");
         expect(en.format("987654321987654321")).toBe("987,654,321,987,654,321");
 
-        const ar = new Intl.NumberFormat("ar");
+        const ar = new Intl.NumberFormat("ar-u-nu-arab");
         expect(ar.format(1)).toBe("\u0661");
         expect(ar.format(12)).toBe("\u0661\u0662");
         expect(ar.format(123)).toBe("\u0661\u0662\u0663");
@@ -63,7 +63,7 @@ describe("style=decimal", () => {
         expect(en.format(12)).toBe("12");
         expect(en.format(123)).toBe("123");
 
-        const ar = new Intl.NumberFormat("ar", { minimumIntegerDigits: 2 });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { minimumIntegerDigits: 2 });
         expect(ar.format(1)).toBe("\u0660\u0661");
         expect(ar.format(12)).toBe("\u0661\u0662");
         expect(ar.format(123)).toBe("\u0661\u0662\u0663");
@@ -111,7 +111,7 @@ describe("style=decimal", () => {
             "123,456,789,123,456,789,123,000,000,000,000,000"
         );
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             minimumSignificantDigits: 4,
             maximumSignificantDigits: 6,
         });
@@ -146,7 +146,7 @@ describe("style=decimal", () => {
             "-12,344,501,000,000,000,000,000,000,000,000,000.000"
         );
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             minimumFractionDigits: 3,
             maximumFractionDigits: 5,
         });
@@ -179,7 +179,7 @@ describe("style=decimal", () => {
         expect(en.format(0.12)).toBe("1.2E-1");
         expect(en.format(0.01)).toBe("1E-2");
 
-        const ar = new Intl.NumberFormat("ar", { notation: "scientific" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { notation: "scientific" });
         expect(ar.format(1)).toBe("\u0661\u0623\u0633\u0660");
         expect(ar.format(1.2)).toBe("\u0661\u066b\u0662\u0623\u0633\u0660");
         expect(ar.format(12)).toBe("\u0661\u066b\u0662\u0623\u0633\u0661");
@@ -204,7 +204,7 @@ describe("style=decimal", () => {
         expect(en.format(0.12)).toBe("120E-3");
         expect(en.format(1.23)).toBe("1.23E0");
 
-        const ar = new Intl.NumberFormat("ar", { notation: "engineering" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { notation: "engineering" });
         expect(ar.format(1)).toBe("\u0661\u0623\u0633\u0660");
         expect(ar.format(1.2)).toBe("\u0661\u066b\u0662\u0623\u0633\u0660");
         expect(ar.format(12)).toBe("\u0661\u0662\u0623\u0633\u0660");
@@ -230,7 +230,7 @@ describe("style=decimal", () => {
         expect(en.format(12.3)).toBe("12");
         expect(en.format(12.34)).toBe("12");
 
-        const ar = new Intl.NumberFormat("ar", { notation: "compact" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { notation: "compact" });
         expect(ar.format(1)).toBe("\u0661");
         expect(ar.format(1.2)).toBe("\u0661\u066b\u0662");
         expect(ar.format(1.23)).toBe("\u0661\u066b\u0662");
@@ -267,7 +267,10 @@ describe("style=decimal", () => {
         expect(enFullwide.format(12000000)).toBe("１２ million");
         expect(enFullwide.format(12900000)).toBe("１３ million");
 
-        const ar = new Intl.NumberFormat("ar", { notation: "compact", compactDisplay: "long" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
+            notation: "compact",
+            compactDisplay: "long",
+        });
         expect(ar.format(1)).toBe("\u0661");
         expect(ar.format(1200)).toBe("\u0661\u066b\u0662 ألف");
         expect(ar.format(1290)).toBe("\u0661\u066b\u0663 ألف");
@@ -317,7 +320,10 @@ describe("style=decimal", () => {
         expect(en.format(12000000)).toBe("12M");
         expect(en.format(12900000)).toBe("13M");
 
-        const ar = new Intl.NumberFormat("ar", { notation: "compact", compactDisplay: "short" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
+            notation: "compact",
+            compactDisplay: "short",
+        });
         expect(ar.format(1)).toBe("\u0661");
         expect(ar.format(1200)).toBe("\u0661\u066b\u0662\u00a0ألف");
         expect(ar.format(1290)).toBe("\u0661\u066b\u0663\u00a0ألف");
@@ -360,7 +366,7 @@ describe("style=decimal", () => {
         expect(en.format(1)).toBe("1");
         expect(en.format(-1)).toBe("1");
 
-        const ar = new Intl.NumberFormat("ar", { signDisplay: "never" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { signDisplay: "never" });
         expect(ar.format(1)).toBe("\u0661");
         expect(ar.format(-1)).toBe("\u0661");
     });
@@ -372,7 +378,7 @@ describe("style=decimal", () => {
         expect(en.format(-0)).toBe("-0");
         expect(en.format(-1)).toBe("-1");
 
-        const ar = new Intl.NumberFormat("ar", { signDisplay: "auto" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { signDisplay: "auto" });
         expect(ar.format(0)).toBe("\u0660");
         expect(ar.format(1)).toBe("\u0661");
         expect(ar.format(-0)).toBe("\u061c-\u0660");
@@ -386,7 +392,7 @@ describe("style=decimal", () => {
         expect(en.format(-0)).toBe("-0");
         expect(en.format(-1)).toBe("-1");
 
-        const ar = new Intl.NumberFormat("ar", { signDisplay: "always" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { signDisplay: "always" });
         expect(ar.format(0)).toBe("\u061c+\u0660");
         expect(ar.format(1)).toBe("\u061c+\u0661");
         expect(ar.format(-0)).toBe("\u061c-\u0660");
@@ -400,7 +406,7 @@ describe("style=decimal", () => {
         expect(en.format(-0)).toBe("0");
         expect(en.format(-1)).toBe("-1");
 
-        const ar = new Intl.NumberFormat("ar", { signDisplay: "exceptZero" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { signDisplay: "exceptZero" });
         expect(ar.format(0)).toBe("\u0660");
         expect(ar.format(1)).toBe("\u061c+\u0661");
         expect(ar.format(-0)).toBe("\u0660");
@@ -414,7 +420,7 @@ describe("style=decimal", () => {
         expect(en.format(-0)).toBe("0");
         expect(en.format(-1)).toBe("-1");
 
-        const ar = new Intl.NumberFormat("ar", { signDisplay: "negative" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { signDisplay: "negative" });
         expect(ar.format(0)).toBe("\u0660");
         expect(ar.format(1)).toBe("\u0661");
         expect(ar.format(-0)).toBe("\u0660");
@@ -436,7 +442,7 @@ describe("style=decimal", () => {
         expect(enIn.format(123456)).toBe("1,23,456");
         expect(enIn.format(1234567)).toBe("12,34,567");
 
-        const ar = new Intl.NumberFormat("ar", { useGrouping: "always" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { useGrouping: "always" });
         expect(ar.format(123)).toBe("\u0661\u0662\u0663");
         expect(ar.format(1234)).toBe("\u0661\u066c\u0662\u0663\u0664");
         expect(ar.format(12345)).toBe("\u0661\u0662\u066c\u0663\u0664\u0665");
@@ -466,7 +472,7 @@ describe("style=decimal", () => {
         expect(enIn.format(123456)).toBe("1,23,456");
         expect(enIn.format(1234567)).toBe("12,34,567");
 
-        const ar = new Intl.NumberFormat("ar", { useGrouping: "auto" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { useGrouping: "auto" });
         expect(ar.format(123)).toBe("\u0661\u0662\u0663");
         expect(ar.format(1234)).toBe("\u0661\u066c\u0662\u0663\u0664");
         expect(ar.format(12345)).toBe("\u0661\u0662\u066c\u0663\u0664\u0665");
@@ -496,7 +502,7 @@ describe("style=decimal", () => {
         expect(enIn.format(123456)).toBe("1,23,456");
         expect(enIn.format(1234567)).toBe("12,34,567");
 
-        const ar = new Intl.NumberFormat("ar", { useGrouping: "min2" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { useGrouping: "min2" });
         expect(ar.format(123)).toBe("\u0661\u0662\u0663");
         expect(ar.format(1234)).toBe("\u0661\u0662\u0663\u0664");
         expect(ar.format(12345)).toBe("\u0661\u0662\u066c\u0663\u0664\u0665");
@@ -526,7 +532,7 @@ describe("style=decimal", () => {
         expect(enIn.format(123456)).toBe("123456");
         expect(enIn.format(1234567)).toBe("1234567");
 
-        const ar = new Intl.NumberFormat("ar", { useGrouping: false });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { useGrouping: false });
         expect(ar.format(123)).toBe("\u0661\u0662\u0663");
         expect(ar.format(1234)).toBe("\u0661\u0662\u0663\u0664");
         expect(ar.format(12345)).toBe("\u0661\u0662\u0663\u0664\u0665");
@@ -557,10 +563,16 @@ describe("style=decimal", () => {
         expect(nf("en", undefined, 2, undefined, 2).format(1.23)).toBe("1.2");
         expect(nf("en", undefined, 3, undefined, 1).format(1.23)).toBe("1.2");
 
-        expect(nf("ar", 2, undefined, 2, undefined).format(1)).toBe("\u0661\u066b\u0660\u0660");
-        expect(nf("ar", 3, undefined, 1, undefined).format(1)).toBe("\u0661\u066b\u0660");
-        expect(nf("ar", undefined, 2, undefined, 2).format(1.23)).toBe("\u0661\u066b\u0662");
-        expect(nf("ar", undefined, 3, undefined, 1).format(1.23)).toBe("\u0661\u066b\u0662");
+        expect(nf("ar-u-nu-arab", 2, undefined, 2, undefined).format(1)).toBe(
+            "\u0661\u066b\u0660\u0660"
+        );
+        expect(nf("ar-u-nu-arab", 3, undefined, 1, undefined).format(1)).toBe("\u0661\u066b\u0660");
+        expect(nf("ar-u-nu-arab", undefined, 2, undefined, 2).format(1.23)).toBe(
+            "\u0661\u066b\u0662"
+        );
+        expect(nf("ar-u-nu-arab", undefined, 3, undefined, 1).format(1.23)).toBe(
+            "\u0661\u066b\u0662"
+        );
     });
 
     test("roundingPriority=morePrecision", () => {
@@ -579,10 +591,16 @@ describe("style=decimal", () => {
         expect(nf("en", undefined, 2, undefined, 2).format(1.23)).toBe("1.23");
         expect(nf("en", undefined, 3, undefined, 1).format(1.23)).toBe("1.23");
 
-        expect(nf("ar", 2, undefined, 2, undefined).format(1)).toBe("\u0661\u066b\u0660");
-        expect(nf("ar", 3, undefined, 1, undefined).format(1)).toBe("\u0661\u066b\u0660\u0660");
-        expect(nf("ar", undefined, 2, undefined, 2).format(1.23)).toBe("\u0661\u066b\u0662\u0663");
-        expect(nf("ar", undefined, 3, undefined, 1).format(1.23)).toBe("\u0661\u066b\u0662\u0663");
+        expect(nf("ar-u-nu-arab", 2, undefined, 2, undefined).format(1)).toBe("\u0661\u066b\u0660");
+        expect(nf("ar-u-nu-arab", 3, undefined, 1, undefined).format(1)).toBe(
+            "\u0661\u066b\u0660\u0660"
+        );
+        expect(nf("ar-u-nu-arab", undefined, 2, undefined, 2).format(1.23)).toBe(
+            "\u0661\u066b\u0662\u0663"
+        );
+        expect(nf("ar-u-nu-arab", undefined, 3, undefined, 1).format(1.23)).toBe(
+            "\u0661\u066b\u0662\u0663"
+        );
     });
 
     test("roundingMode=ceil", () => {
@@ -597,7 +615,7 @@ describe("style=decimal", () => {
         expect(en.format(-1.15)).toBe("-1.1");
         expect(en.format(-1.2)).toBe("-1.2");
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             maximumSignificantDigits: 2,
             roundingMode: "ceil",
         });
@@ -621,7 +639,7 @@ describe("style=decimal", () => {
         expect(en.format(-1.15)).toBe("-1.2");
         expect(en.format(-1.2)).toBe("-1.2");
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             maximumSignificantDigits: 2,
             roundingMode: "expand",
         });
@@ -645,7 +663,7 @@ describe("style=decimal", () => {
         expect(en.format(-1.15)).toBe("-1.2");
         expect(en.format(-1.2)).toBe("-1.2");
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             maximumSignificantDigits: 2,
             roundingMode: "floor",
         });
@@ -669,7 +687,7 @@ describe("style=decimal", () => {
         expect(en.format(-1.15)).toBe("-1.1");
         expect(en.format(-1.2)).toBe("-1.2");
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             maximumSignificantDigits: 2,
             roundingMode: "halfCeil",
         });
@@ -693,7 +711,7 @@ describe("style=decimal", () => {
         expect(en.format(-1.15)).toBe("-1.2");
         expect(en.format(-1.2)).toBe("-1.2");
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             maximumSignificantDigits: 2,
             roundingMode: "halfEven",
         });
@@ -717,7 +735,7 @@ describe("style=decimal", () => {
         expect(en.format(-1.15)).toBe("-1.2");
         expect(en.format(-1.2)).toBe("-1.2");
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             maximumSignificantDigits: 2,
             roundingMode: "halfExpand",
         });
@@ -741,7 +759,7 @@ describe("style=decimal", () => {
         expect(en.format(-1.15)).toBe("-1.2");
         expect(en.format(-1.2)).toBe("-1.2");
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             maximumSignificantDigits: 2,
             roundingMode: "halfFloor",
         });
@@ -765,7 +783,7 @@ describe("style=decimal", () => {
         expect(en.format(-1.15)).toBe("-1.1");
         expect(en.format(-1.2)).toBe("-1.2");
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             maximumSignificantDigits: 2,
             roundingMode: "halfTrunc",
         });
@@ -789,7 +807,7 @@ describe("style=decimal", () => {
         expect(en.format(-1.15)).toBe("-1.1");
         expect(en.format(-1.2)).toBe("-1.2");
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             maximumSignificantDigits: 2,
             roundingMode: "trunc",
         });
@@ -924,7 +942,7 @@ describe("style=decimal", () => {
         expect(en.format(12n)).toBe("12.000");
         expect(en.format(1.2)).toBe("1.2000");
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             trailingZeroDisplay: "auto",
             minimumSignificantDigits: 5,
         });
@@ -946,7 +964,7 @@ describe("style=decimal", () => {
         expect(en.format(12n)).toBe("12");
         expect(en.format(1.2)).toBe("1.2000");
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             trailingZeroDisplay: "stripIfInteger",
             minimumSignificantDigits: 5,
         });
@@ -965,7 +983,7 @@ describe("style=percent", () => {
         expect(en.format(1.2)).toBe("120%");
         expect(en.format(0.234)).toBe("23%");
 
-        const ar = new Intl.NumberFormat("ar", { style: "percent" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { style: "percent" });
         expect(ar.format(1)).toBe("\u0661\u0660\u0660\u066a\u061c");
         expect(ar.format(1.2)).toBe("\u0661\u0662\u0660\u066a\u061c");
         expect(ar.format(0.234)).toBe("\u0662\u0663\u066a\u061c");
@@ -977,7 +995,10 @@ describe("style=percent", () => {
         expect(en.format(0.12)).toBe("12%");
         expect(en.format(1.23)).toBe("123%");
 
-        const ar = new Intl.NumberFormat("ar", { style: "percent", minimumIntegerDigits: 2 });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
+            style: "percent",
+            minimumIntegerDigits: 2,
+        });
         expect(ar.format(0.01)).toBe("\u0660\u0661\u066a\u061c");
         expect(ar.format(0.12)).toBe("\u0661\u0662\u066a\u061c");
         expect(ar.format(1.23)).toBe("\u0661\u0662\u0663\u066a\u061c");
@@ -998,7 +1019,7 @@ describe("style=percent", () => {
         expect(en.format(1.234567)).toBe("123.457%");
         expect(en.format(1.234561)).toBe("123.456%");
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "percent",
             minimumSignificantDigits: 4,
             maximumSignificantDigits: 6,
@@ -1029,7 +1050,7 @@ describe("style=percent", () => {
         expect(en.format(0.1234567)).toBe("12.3457%");
         expect(en.format(0.1234561)).toBe("12.3456%");
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "percent",
             minimumFractionDigits: 2,
             maximumFractionDigits: 4,
@@ -1068,7 +1089,7 @@ describe("style=percent", () => {
         expect(enFullwide.format(0.123)).toBe("１２%");
         expect(enFullwide.format(0.1234)).toBe("１２%");
 
-        const ar = new Intl.NumberFormat("ar", { style: "percent", notation: "compact" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { style: "percent", notation: "compact" });
         expect(ar.format(0.01)).toBe("\u0661\u066a");
         expect(ar.format(0.012)).toBe("\u0661\u066b\u0662\u066a");
         expect(ar.format(0.0123)).toBe("\u0661\u066b\u0662\u066a");
@@ -1083,7 +1104,10 @@ describe("style=percent", () => {
         expect(en.format(0.01)).toBe("1%");
         expect(en.format(-0.01)).toBe("1%");
 
-        const ar = new Intl.NumberFormat("ar", { style: "percent", signDisplay: "never" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
+            style: "percent",
+            signDisplay: "never",
+        });
         expect(ar.format(0.01)).toBe("\u0661\u066a\u061c");
         expect(ar.format(-0.01)).toBe("\u0661\u066a\u061c");
     });
@@ -1095,7 +1119,7 @@ describe("style=percent", () => {
         expect(en.format(-0.0)).toBe("-0%");
         expect(en.format(-0.01)).toBe("-1%");
 
-        const ar = new Intl.NumberFormat("ar", { style: "percent", signDisplay: "auto" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { style: "percent", signDisplay: "auto" });
         expect(ar.format(0.0)).toBe("\u0660\u066a\u061c");
         expect(ar.format(0.01)).toBe("\u0661\u066a\u061c");
         expect(ar.format(-0.0)).toBe("\u061c-\u0660\u066a\u061c");
@@ -1109,7 +1133,10 @@ describe("style=percent", () => {
         expect(en.format(-0.0)).toBe("-0%");
         expect(en.format(-0.01)).toBe("-1%");
 
-        const ar = new Intl.NumberFormat("ar", { style: "percent", signDisplay: "always" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
+            style: "percent",
+            signDisplay: "always",
+        });
         expect(ar.format(0.0)).toBe("\u061c+\u0660\u066a\u061c");
         expect(ar.format(0.01)).toBe("\u061c+\u0661\u066a\u061c");
         expect(ar.format(-0.0)).toBe("\u061c-\u0660\u066a\u061c");
@@ -1123,7 +1150,10 @@ describe("style=percent", () => {
         expect(en.format(-0.0)).toBe("0%");
         expect(en.format(-0.01)).toBe("-1%");
 
-        const ar = new Intl.NumberFormat("ar", { style: "percent", signDisplay: "exceptZero" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
+            style: "percent",
+            signDisplay: "exceptZero",
+        });
         expect(ar.format(0.0)).toBe("\u0660\u066a\u061c");
         expect(ar.format(0.01)).toBe("\u061c+\u0661\u066a\u061c");
         expect(ar.format(-0.0)).toBe("\u0660\u066a\u061c");
@@ -1137,7 +1167,10 @@ describe("style=percent", () => {
         expect(en.format(-0.0)).toBe("0%");
         expect(en.format(-0.01)).toBe("-1%");
 
-        const ar = new Intl.NumberFormat("ar", { style: "percent", signDisplay: "negative" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
+            style: "percent",
+            signDisplay: "negative",
+        });
         expect(ar.format(0.0)).toBe("\u0660\u066a\u061c");
         expect(ar.format(0.01)).toBe("\u0661\u066a\u061c");
         expect(ar.format(-0.0)).toBe("\u0660\u066a\u061c");
@@ -1165,7 +1198,7 @@ describe("style=currency", () => {
         expect(en2.format(1.2)).toBe("KHR\u00a01.20");
         expect(en2.format(1.23)).toBe("KHR\u00a01.23");
 
-        const ar1 = new Intl.NumberFormat("ar", {
+        const ar1 = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             currencyDisplay: "code",
@@ -1174,7 +1207,7 @@ describe("style=currency", () => {
         expect(ar1.format(1.2)).toBe("\u200f\u0661\u066b\u0662\u0660\u00a0USD");
         expect(ar1.format(1.23)).toBe("\u200f\u0661\u066b\u0662\u0663\u00a0USD");
 
-        const ar2 = new Intl.NumberFormat("ar", {
+        const ar2 = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             currencyDisplay: "code",
@@ -1204,7 +1237,7 @@ describe("style=currency", () => {
         expect(en2.format(1.2)).toBe("KHR\u00a01.20");
         expect(en2.format(1.23)).toBe("KHR\u00a01.23");
 
-        const ar1 = new Intl.NumberFormat("ar", {
+        const ar1 = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             currencyDisplay: "symbol",
@@ -1213,7 +1246,7 @@ describe("style=currency", () => {
         expect(ar1.format(1.2)).toBe("\u200f\u0661\u066b\u0662\u0660\u00a0US$");
         expect(ar1.format(1.23)).toBe("\u200f\u0661\u066b\u0662\u0663\u00a0US$");
 
-        const ar2 = new Intl.NumberFormat("ar", {
+        const ar2 = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             currencyDisplay: "symbol",
@@ -1243,7 +1276,7 @@ describe("style=currency", () => {
         expect(en2.format(1.2)).toBe("៛1.20");
         expect(en2.format(1.23)).toBe("៛1.23");
 
-        const ar1 = new Intl.NumberFormat("ar", {
+        const ar1 = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             currencyDisplay: "narrowSymbol",
@@ -1252,7 +1285,7 @@ describe("style=currency", () => {
         expect(ar1.format(1.2)).toBe("\u200f\u0661\u066b\u0662\u0660\u00a0US$");
         expect(ar1.format(1.23)).toBe("\u200f\u0661\u066b\u0662\u0663\u00a0US$");
 
-        const ar2 = new Intl.NumberFormat("ar", {
+        const ar2 = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             currencyDisplay: "narrowSymbol",
@@ -1282,7 +1315,7 @@ describe("style=currency", () => {
         expect(en2.format(1.2)).toBe("1.20 Cambodian riels");
         expect(en2.format(1.23)).toBe("1.23 Cambodian riels");
 
-        const ar1 = new Intl.NumberFormat("ar", {
+        const ar1 = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             currencyDisplay: "name",
@@ -1291,7 +1324,7 @@ describe("style=currency", () => {
         expect(ar1.format(1.2)).toBe("\u0661\u066b\u0662\u0660 دولار أمريكي");
         expect(ar1.format(1.23)).toBe("\u0661\u066b\u0662\u0663 دولار أمريكي");
 
-        const ar2 = new Intl.NumberFormat("ar", {
+        const ar2 = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             currencyDisplay: "name",
@@ -1319,7 +1352,7 @@ describe("style=currency", () => {
         expect(en.format(12000000)).toBe("$12M");
         expect(en.format(12900000)).toBe("$13M");
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             notation: "compact",
@@ -1389,7 +1422,7 @@ describe("style=currency", () => {
         expect(en.format(12000000)).toBe("$12M");
         expect(en.format(12900000)).toBe("$13M");
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             notation: "compact",
@@ -1460,7 +1493,7 @@ describe("style=currency", () => {
         expect(en2.format(1)).toBe("$1.00");
         expect(en2.format(-1)).toBe("$1.00");
 
-        const ar1 = new Intl.NumberFormat("ar", {
+        const ar1 = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             signDisplay: "never",
@@ -1468,7 +1501,7 @@ describe("style=currency", () => {
         expect(ar1.format(1)).toBe("\u200f\u0661\u066b\u0660\u0660\u00a0US$");
         expect(ar1.format(-1)).toBe("\u200f\u0661\u066b\u0660\u0660\u00a0US$");
 
-        const ar2 = new Intl.NumberFormat("ar", {
+        const ar2 = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             currencySign: "accounting",
@@ -1500,7 +1533,7 @@ describe("style=currency", () => {
         expect(en2.format(-0)).toBe("($0.00)");
         expect(en2.format(-1)).toBe("($1.00)");
 
-        const ar1 = new Intl.NumberFormat("ar", {
+        const ar1 = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             signDisplay: "auto",
@@ -1510,7 +1543,7 @@ describe("style=currency", () => {
         expect(ar1.format(-0)).toBe("\u061c-\u200f\u0660\u066b\u0660\u0660\u00a0US$");
         expect(ar1.format(-1)).toBe("\u061c-\u200f\u0661\u066b\u0660\u0660\u00a0US$");
 
-        const ar2 = new Intl.NumberFormat("ar", {
+        const ar2 = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             currencySign: "accounting",
@@ -1544,7 +1577,7 @@ describe("style=currency", () => {
         expect(en2.format(-0)).toBe("($0.00)");
         expect(en2.format(-1)).toBe("($1.00)");
 
-        const ar1 = new Intl.NumberFormat("ar", {
+        const ar1 = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             signDisplay: "always",
@@ -1554,7 +1587,7 @@ describe("style=currency", () => {
         expect(ar1.format(-0)).toBe("\u061c-\u200f\u0660\u066b\u0660\u0660\u00a0US$");
         expect(ar1.format(-1)).toBe("\u061c-\u200f\u0661\u066b\u0660\u0660\u00a0US$");
 
-        const ar2 = new Intl.NumberFormat("ar", {
+        const ar2 = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             currencySign: "accounting",
@@ -1588,7 +1621,7 @@ describe("style=currency", () => {
         expect(en2.format(-0)).toBe("$0.00");
         expect(en2.format(-1)).toBe("($1.00)");
 
-        const ar1 = new Intl.NumberFormat("ar", {
+        const ar1 = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             signDisplay: "exceptZero",
@@ -1598,7 +1631,7 @@ describe("style=currency", () => {
         expect(ar1.format(-0)).toBe("\u200f\u0660\u066b\u0660\u0660\u00a0US$");
         expect(ar1.format(-1)).toBe("\u061c-\u200f\u0661\u066b\u0660\u0660\u00a0US$");
 
-        const ar2 = new Intl.NumberFormat("ar", {
+        const ar2 = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             currencySign: "accounting",
@@ -1632,7 +1665,7 @@ describe("style=currency", () => {
         expect(en2.format(-0)).toBe("$0.00");
         expect(en2.format(-1)).toBe("($1.00)");
 
-        const ar1 = new Intl.NumberFormat("ar", {
+        const ar1 = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             signDisplay: "negative",
@@ -1642,7 +1675,7 @@ describe("style=currency", () => {
         expect(ar1.format(-0)).toBe("\u200f\u0660\u066b\u0660\u0660\u00a0US$");
         expect(ar1.format(-1)).toBe("\u061c-\u200f\u0661\u066b\u0660\u0660\u00a0US$");
 
-        const ar2 = new Intl.NumberFormat("ar", {
+        const ar2 = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             currencySign: "accounting",
@@ -1684,7 +1717,7 @@ describe("style=unit", () => {
         expect(en3.format(1.2)).toBe("1.2 nanoseconds");
         expect(en3.format(123)).toBe("123 nanoseconds");
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "unit",
             unit: "foot",
             unitDisplay: "long",
@@ -1731,7 +1764,7 @@ describe("style=unit", () => {
         expect(en3.format(1.2)).toBe("1.2 ns");
         expect(en3.format(123)).toBe("123 ns");
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "unit",
             unit: "foot",
             unitDisplay: "short",
@@ -1778,7 +1811,7 @@ describe("style=unit", () => {
         expect(en3.format(1.2)).toBe("1.2ns");
         expect(en3.format(123)).toBe("123ns");
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "unit",
             unit: "foot",
             unitDisplay: "narrow",
@@ -1808,7 +1841,7 @@ describe("bigint", () => {
             "123,456,789,123,456,789,123,456,789,123,456,789"
         );
 
-        const ar = new Intl.NumberFormat("ar");
+        const ar = new Intl.NumberFormat("ar-u-nu-arab");
         expect(ar.format(1n)).toBe("\u0661");
         expect(ar.format(12n)).toBe("\u0661\u0662");
         expect(ar.format(123n)).toBe("\u0661\u0662\u0663");
@@ -1823,7 +1856,7 @@ describe("bigint", () => {
         expect(en.format(12n)).toBe("12");
         expect(en.format(123n)).toBe("123");
 
-        const ar = new Intl.NumberFormat("ar", { minimumIntegerDigits: 2 });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { minimumIntegerDigits: 2 });
         expect(ar.format(1n)).toBe("\u0660\u0661");
         expect(ar.format(12n)).toBe("\u0661\u0662");
         expect(ar.format(123n)).toBe("\u0661\u0662\u0663");
@@ -1843,7 +1876,7 @@ describe("bigint", () => {
         expect(en.format(1234567n)).toBe("1,234,570");
         expect(en.format(1234561n)).toBe("1,234,560");
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             minimumSignificantDigits: 4,
             maximumSignificantDigits: 6,
         });

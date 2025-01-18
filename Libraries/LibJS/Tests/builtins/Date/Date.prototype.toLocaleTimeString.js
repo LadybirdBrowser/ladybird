@@ -40,8 +40,8 @@ describe("correct behavior", () => {
         expect(d0.toLocaleTimeString("en", { timeZone: "UTC" })).toBe("5:40:50 PM");
         expect(d1.toLocaleTimeString("en", { timeZone: "UTC" })).toBe("7:08:09 AM");
 
-        expect(d0.toLocaleTimeString("ar", { timeZone: "UTC" })).toBe("٥:٤٠:٥٠ م");
-        expect(d1.toLocaleTimeString("ar", { timeZone: "UTC" })).toBe("٧:٠٨:٠٩ ص");
+        expect(d0.toLocaleTimeString("ar-u-nu-arab", { timeZone: "UTC" })).toBe("٥:٤٠:٥٠ م");
+        expect(d1.toLocaleTimeString("ar-u-nu-arab", { timeZone: "UTC" })).toBe("٧:٠٨:٠٩ ص");
     });
 
     test("timeStyle may be set", () => {
@@ -52,10 +52,10 @@ describe("correct behavior", () => {
             "7:08:09 AM UTC"
         );
 
-        expect(d0.toLocaleTimeString("ar", { timeStyle: "long", timeZone: "UTC" })).toBe(
+        expect(d0.toLocaleTimeString("ar-u-nu-arab", { timeStyle: "long", timeZone: "UTC" })).toBe(
             "٥:٤٠:٥٠ م UTC"
         );
-        expect(d1.toLocaleTimeString("ar", { timeStyle: "long", timeZone: "UTC" })).toBe(
+        expect(d1.toLocaleTimeString("ar-u-nu-arab", { timeStyle: "long", timeZone: "UTC" })).toBe(
             "٧:٠٨:٠٩ ص UTC"
         );
     });

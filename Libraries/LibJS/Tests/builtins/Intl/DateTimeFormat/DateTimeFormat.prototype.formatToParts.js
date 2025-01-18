@@ -104,7 +104,7 @@ describe("dateStyle", () => {
             { type: "year", value: "1989" },
         ]);
 
-        const ar = new Intl.DateTimeFormat("ar", { dateStyle: "full", timeZone: "UTC" });
+        const ar = new Intl.DateTimeFormat("ar-u-nu-arab", { dateStyle: "full", timeZone: "UTC" });
         expect(ar.formatToParts(d)).toEqual([
             { type: "weekday", value: "الاثنين" },
             { type: "literal", value: "، " },
@@ -126,7 +126,7 @@ describe("dateStyle", () => {
             { type: "year", value: "1989" },
         ]);
 
-        const ar = new Intl.DateTimeFormat("ar", { dateStyle: "long", timeZone: "UTC" });
+        const ar = new Intl.DateTimeFormat("ar-u-nu-arab", { dateStyle: "long", timeZone: "UTC" });
         expect(ar.formatToParts(d)).toEqual([
             { type: "day", value: "٢٣" },
             { type: "literal", value: " " },
@@ -146,7 +146,10 @@ describe("dateStyle", () => {
             { type: "year", value: "1989" },
         ]);
 
-        const ar = new Intl.DateTimeFormat("ar", { dateStyle: "medium", timeZone: "UTC" });
+        const ar = new Intl.DateTimeFormat("ar-u-nu-arab", {
+            dateStyle: "medium",
+            timeZone: "UTC",
+        });
         expect(ar.formatToParts(d)).toEqual([
             { type: "day", value: "٢٣" },
             { type: "literal", value: "‏/" },
@@ -166,7 +169,7 @@ describe("dateStyle", () => {
             { type: "year", value: "89" },
         ]);
 
-        const ar = new Intl.DateTimeFormat("ar", { dateStyle: "short", timeZone: "UTC" });
+        const ar = new Intl.DateTimeFormat("ar-u-nu-arab", { dateStyle: "short", timeZone: "UTC" });
         expect(ar.formatToParts(d)).toEqual([
             { type: "day", value: "٢٣" },
             { type: "literal", value: "‏/" },
@@ -192,7 +195,7 @@ describe("timeStyle", () => {
             { type: "timeZoneName", value: "Coordinated Universal Time" },
         ]);
 
-        const ar = new Intl.DateTimeFormat("ar", { timeStyle: "full", timeZone: "UTC" });
+        const ar = new Intl.DateTimeFormat("ar-u-nu-arab", { timeStyle: "full", timeZone: "UTC" });
         expect(ar.formatToParts(d)).toEqual([
             { type: "hour", value: "٧" },
             { type: "literal", value: ":" },
@@ -220,7 +223,7 @@ describe("timeStyle", () => {
             { type: "timeZoneName", value: "UTC" },
         ]);
 
-        const ar = new Intl.DateTimeFormat("ar", { timeStyle: "long", timeZone: "UTC" });
+        const ar = new Intl.DateTimeFormat("ar-u-nu-arab", { timeStyle: "long", timeZone: "UTC" });
         expect(ar.formatToParts(d)).toEqual([
             { type: "hour", value: "٧" },
             { type: "literal", value: ":" },
@@ -246,7 +249,10 @@ describe("timeStyle", () => {
             { type: "dayPeriod", value: "AM" },
         ]);
 
-        const ar = new Intl.DateTimeFormat("ar", { timeStyle: "medium", timeZone: "UTC" });
+        const ar = new Intl.DateTimeFormat("ar-u-nu-arab", {
+            timeStyle: "medium",
+            timeZone: "UTC",
+        });
         expect(ar.formatToParts(d)).toEqual([
             { type: "hour", value: "٧" },
             { type: "literal", value: ":" },
@@ -268,7 +274,7 @@ describe("timeStyle", () => {
             { type: "dayPeriod", value: "AM" },
         ]);
 
-        const ar = new Intl.DateTimeFormat("ar", { timeStyle: "short", timeZone: "UTC" });
+        const ar = new Intl.DateTimeFormat("ar-u-nu-arab", { timeStyle: "short", timeZone: "UTC" });
         expect(ar.formatToParts(d)).toEqual([
             { type: "hour", value: "٧" },
             { type: "literal", value: ":" },
@@ -292,7 +298,7 @@ describe("special cases", () => {
             { type: "dayPeriod", value: "in the morning" },
         ]);
 
-        const ar = new Intl.DateTimeFormat("ar", {
+        const ar = new Intl.DateTimeFormat("ar-u-nu-arab", {
             dayPeriod: "long",
             hour: "numeric",
             timeZone: "UTC",
@@ -319,7 +325,7 @@ describe("special cases", () => {
             { type: "fractionalSecond", value: "045" },
         ]);
 
-        const ar = new Intl.DateTimeFormat("ar", {
+        const ar = new Intl.DateTimeFormat("ar-u-nu-arab", {
             fractionalSecondDigits: 3,
             second: "numeric",
             minute: "numeric",
