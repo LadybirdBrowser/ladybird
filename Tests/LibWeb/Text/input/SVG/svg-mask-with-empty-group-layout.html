@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+test(() => {
+  // Create the SVG element
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 200 200");
+  svg.setAttribute("width", "200");
+  svg.setAttribute("height", "200");
+  document.body.appendChild(svg);
+
+  // Create an element group to be masked
+  const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+
+  // Add a rectangle as background with a specific test color
+  const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  rect.setAttribute("x", "0");
+  rect.setAttribute("y", "0");
+  rect.setAttribute("width", "200");
+  rect.setAttribute("height", "200");
+  rect.setAttribute("fill", "rgb(0, 0, 255)"); // Blue
+  group.appendChild(rect);
+
+  // Create a mask with a specific pattern
+  const maskId = "testCircleMask";
+  const mask = document.createElementNS("http://www.w3.org/2000/svg", "mask");
+  mask.setAttribute("id", maskId);
+
+  // Create white background for mask (white = opaque in masks)
+  const maskBg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  maskBg.setAttribute("x", "0");
+  maskBg.setAttribute("y", "0");
+  maskBg.setAttribute("width", "200");
+  maskBg.setAttribute("height", "200");
+  maskBg.setAttribute("fill", "white");
+  mask.appendChild(maskBg);
+
+  // Create circle in mask (black = transparent in masks)
+  const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  circle.setAttribute("cx", "100");
+  circle.setAttribute("cy", "100");
+  circle.setAttribute("r", "50");
+  circle.setAttribute("fill", "black");
+  mask.appendChild(circle);
+
+  // Apply mask to group
+  group.setAttribute("mask", `url(#${maskId})`);
+
+  // Add to SVG
+  svg.appendChild(mask);
+  svg.appendChild(group);
+
+  // Add a reference canvas for pixel testing
+  const canvas = document.createElement("canvas");
+  canvas.width = 200;
+  canvas.height = 200;
+  document.body.appendChild(canvas);
+
+  // Force layout
+  svg.getBoundingClientRect();
+
+  // Set up for checking pixel colors
+  setTimeout(() => {
+    const ctx = canvas.getContext("2d");
+
+    // Draw the SVG to the canvas
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const svgBlob = new Blob([svgData], {type: "image/svg+xml;charset=utf-8"});
+    const url = URL.createObjectURL(svgBlob);
+
+    const img = new Image();
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+
+      // Check pixels
+      // Center (should be transparent/white because of mask)
+      const centerPixel = ctx.getImageData(100, 100, 1, 1).data;
+
+      // Edge (should be blue, outside the masked circle)
+      const edgePixel = ctx.getImageData(10, 10, 1, 1).data;
+
+      // Log results
+      println(`Center pixel: R=${centerPixel[0]}, G=${centerPixel[1]}, B=${centerPixel[2]}, A=${centerPixel[3]}`);
+      println(`Edge pixel: R=${edgePixel[0]}, G=${edgePixel[1]}, B=${edgePixel[2]}, A=${edgePixel[3]}`);
+
+      // Verify mask is working correctly
+      const isMaskWorking = (
+        // Center should not be blue (masked out)
+        (centerPixel[2] < 100) &&
+        // Edge should be blue (not masked)
+        (edgePixel[2] > 200)
+      );
+
+      if (isMaskWorking) {
+        println("PASS: Mask is correctly applying the circle path!");
+      } else {
+        println("FAIL: Mask is not correctly applied. Circle path may not be retrieved properly.");
+      }
+    };
+
+    img.src = url;
+  }, 100); // Give some time for rendering to complete
+
+  println("PASS (didn't crash)");
+});
+</script>
