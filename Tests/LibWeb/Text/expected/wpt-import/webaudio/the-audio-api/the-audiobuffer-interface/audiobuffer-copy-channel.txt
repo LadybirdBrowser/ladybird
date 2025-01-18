@@ -1,0 +1,67 @@
+Harness status: OK
+
+Found 62 tests
+
+62 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "initialize"
+Pass	Executing "copyFrom-exceptions"
+Pass	Executing "copyTo-exceptions"
+Pass	Executing "copyFrom-validate"
+Pass	Executing "copyTo-validate"
+Pass	Audit report
+Pass	> [initialize] 
+Pass	  Initialized values contains only the constant -1.
+Pass	< [initialize] All assertions passed. (total 1 assertions)
+Pass	> [copyFrom-exceptions] 
+Pass	  AudioBuffer.prototype.copyFromChannel does exist.
+Pass	  0: buffer = context.createBuffer(3, 16, context.sampleRate) did not throw an exception.
+Pass	  1: buffer.copyFromChannel(null, 0) threw TypeError: "Not an object of type Float32Array".
+Pass	  2: buffer.copyFromChannel(context, 0) threw TypeError: "Not an object of type Float32Array".
+Pass	  3: buffer.copyFromChannel(x, -1) threw IndexSizeError: "Channel index is out of range".
+Pass	  4: buffer.copyFromChannel(x, 3) threw IndexSizeError: "Channel index is out of range".
+Pass	  5: buffer.copyFromChannel(x, 0, -1) did not throw an exception.
+Pass	  6: buffer.copyFromChannel(x, 0, 16) did not throw an exception.
+Pass	  7: buffer.copyFromChannel(x, 3) threw IndexSizeError: "Channel index is out of range".
+Pass	  8: buffer.copyFromChannel(SharedArrayBuffer view, 0) threw TypeError: "The array buffer object cannot be a SharedArrayBuffer".
+Pass	  9: buffer.copyFromChannel(SharedArrayBuffer view, 0, 0) threw TypeError: "The array buffer object cannot be a SharedArrayBuffer".
+Pass	< [copyFrom-exceptions] All assertions passed. (total 11 assertions)
+Pass	> [copyTo-exceptions] 
+Pass	  AudioBuffer.prototype.copyToChannel does exist.
+Pass	  0: buffer.copyToChannel(null, 0) threw TypeError: "Not an object of type Float32Array".
+Pass	  1: buffer.copyToChannel(context, 0) threw TypeError: "Not an object of type Float32Array".
+Pass	  2: buffer.copyToChannel(x, -1) threw IndexSizeError: "Channel index is out of range".
+Pass	  3: buffer.copyToChannel(x, 3) threw IndexSizeError: "Channel index is out of range".
+Pass	  4: buffer.copyToChannel(x, 0, -1) did not throw an exception.
+Pass	  5: buffer.copyToChannel(x, 0, 16) did not throw an exception.
+Pass	  6: buffer.copyToChannel(x, 3) threw IndexSizeError: "Channel index is out of range".
+Pass	  7: buffer.copyToChannel(SharedArrayBuffer view, 0) threw TypeError: "The array buffer object cannot be a SharedArrayBuffer".
+Pass	  8: buffer.copyToChannel(SharedArrayBuffer view, 0, 0) threw TypeError: "The array buffer object cannot be a SharedArrayBuffer".
+Pass	< [copyTo-exceptions] All assertions passed. (total 10 assertions)
+Pass	> [copyFrom-validate] 
+Pass	  buffer.copyFromChannel(dst8, 0) is identical to the array [1,2,3,4,5,6,7,8].
+Pass	  buffer.copyFromChannel(dst8, 1) is identical to the array [2,3,4,5,6,7,8,9].
+Pass	  buffer.copyFromChannel(dst8, 2) is identical to the array [3,4,5,6,7,8,9,10].
+Pass	  buffer.copyFromChannel(dst8, 0, 1) is identical to the array [2,3,4,5,6,7,8,9].
+Pass	  buffer.copyFromChannel(dst8, 1, 1) is identical to the array [3,4,5,6,7,8,9,10].
+Pass	  buffer.copyFromChannel(dst8, 2, 1) is identical to the array [4,5,6,7,8,9,10,11].
+Pass	  buffer.copyFromChannel(dst8, 0, 11) is identical to the array [12,13,14,15,16,-1,-1,-1].
+Pass	  buffer.copyFromChannel(dst8, 1, 11) is identical to the array [13,14,15,16,17,-1,-1,-1].
+Pass	  buffer.copyFromChannel(dst8, 2, 11) is identical to the array [14,15,16,17,18,-1,-1,-1].
+Pass	  buffer.copyFromChannel(dst26, 0) is identical to the array [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16...].
+Pass	  buffer.copyFromChannel(dst26, 1) is identical to the array [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17...].
+Pass	  buffer.copyFromChannel(dst26, 2) is identical to the array [3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18...].
+Pass	< [copyFrom-validate] All assertions passed. (total 12 assertions)
+Pass	> [copyTo-validate] 
+Pass	  buffer = createConstantBuffer(context, 16, [-1,-1,-1]) did not throw an exception.
+Pass	  buffer.copyToChannel(src, 0) is identical to the array [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16...].
+Pass	  buffer.copyToChannel(src, 1) is identical to the array [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16...].
+Pass	  buffer.copyToChannel(src, 2) is identical to the array [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16...].
+Pass	  buffer.copyToChannel(src10, 0) is identical to the array [1,2,3,4,5,6,7,8,9,10,-1,-1,-1,-1,-1,-1...].
+Pass	  buffer.copyToChannel(src10, 1) is identical to the array [1,2,3,4,5,6,7,8,9,10,-1,-1,-1,-1,-1,-1...].
+Pass	  buffer.copyToChannel(src10, 2) is identical to the array [1,2,3,4,5,6,7,8,9,10,-1,-1,-1,-1,-1,-1...].
+Pass	  buffer.copyToChannel(src10, 0, 5) is identical to the array [-1,-1,-1,-1,-1,1,2,3,4,5,6,7,8,9,10,-1...].
+Pass	  buffer.copyToChannel(src10, 1, 5) is identical to the array [-1,-1,-1,-1,-1,1,2,3,4,5,6,7,8,9,10,-1...].
+Pass	  buffer.copyToChannel(src10, 2, 5) is identical to the array [-1,-1,-1,-1,-1,1,2,3,4,5,6,7,8,9,10,-1...].
+Pass	< [copyTo-validate] All assertions passed. (total 10 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 5 tasks ran successfully.
