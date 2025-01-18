@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // Create the SVG element with viewBox
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("viewBox", "0 0 200 200");
+
+        // Create the group element with mask reference
+        const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        g.setAttribute("mask", "url(#excludedEndPoints)");
+
+        // Create the mask element
+        const mask = document.createElementNS("http://www.w3.org/2000/svg", "mask");
+        mask.setAttribute("id", "excludedEndPoints");
+
+        // Create the circle element with all attributes
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", "50");
+        circle.setAttribute("cy", "50");
+        circle.setAttribute("r", "4");
+        circle.setAttribute("fill", "black");
+        circle.setAttribute("stroke", "black");
+
+        // Build the DOM structure
+        mask.appendChild(circle);
+        svg.appendChild(g);
+        svg.appendChild(mask);
+        document.body.appendChild(svg);
+
+        // Force layout
+        svg.getBoundingClientRect();
+
+        println("PASS (didn't crash)");
+    });
+</script>
