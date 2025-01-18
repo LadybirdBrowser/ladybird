@@ -19,25 +19,27 @@ describe("special values", () => {
     test("NaN", () => {
         expect(NaN.toLocaleString()).toBe("NaN");
         expect(NaN.toLocaleString("en")).toBe("NaN");
-        expect(NaN.toLocaleString("ar")).toBe("ليس رقم");
+        expect(NaN.toLocaleString("ar-u-nu-arab")).toBe("ليس رقم");
     });
 
     test("Infinity", () => {
         expect(Infinity.toLocaleString()).toBe("∞");
         expect(Infinity.toLocaleString("en")).toBe("∞");
-        expect(Infinity.toLocaleString("ar")).toBe("∞");
+        expect(Infinity.toLocaleString("ar-u-nu-arab")).toBe("∞");
     });
 });
 
 describe("styles", () => {
     test("decimal", () => {
         expect((12).toLocaleString("en")).toBe("12");
-        expect((12).toLocaleString("ar")).toBe("\u0661\u0662");
+        expect((12).toLocaleString("ar-u-nu-arab")).toBe("\u0661\u0662");
     });
 
     test("percent", () => {
         expect((0.234).toLocaleString("en", { style: "percent" })).toBe("23%");
-        expect((0.234).toLocaleString("ar", { style: "percent" })).toBe("\u0662\u0663\u066a\u061c");
+        expect((0.234).toLocaleString("ar-u-nu-arab", { style: "percent" })).toBe(
+            "\u0662\u0663\u066a\u061c"
+        );
     });
 
     test("currency", () => {
@@ -50,7 +52,7 @@ describe("styles", () => {
         ).toBe("1.23 US dollars");
 
         expect(
-            (1.23).toLocaleString("ar", {
+            (1.23).toLocaleString("ar-u-nu-arab", {
                 style: "currency",
                 currency: "USD",
                 currencyDisplay: "name",
@@ -68,7 +70,7 @@ describe("styles", () => {
         ).toBe("1.23 kilometers per hour");
 
         expect(
-            (1.23).toLocaleString("ar", {
+            (1.23).toLocaleString("ar-u-nu-arab", {
                 style: "unit",
                 unit: "kilometer-per-hour",
                 unitDisplay: "long",
