@@ -13,6 +13,8 @@
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
+#include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
@@ -44,10 +46,12 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& rea
     navigation_params->opener_policy = HTML::OpenerPolicy {};
 
     // FIXME: Use Navigable::navigate() instead of manually replacing the navigable's document.
-    auto document = DOM::Document::create_and_initialize(DOM::Document::Type::HTML, "text/html"_string, navigation_params).release_value_but_fixme_should_propagate_errors();
+    auto document = MUST(DOM::Document::create_and_initialize(DOM::Document::Type::HTML, "text/html"_string, navigation_params));
     navigable->set_ongoing_navigation({});
     navigable->active_document()->destroy();
     navigable->active_session_history_entry()->document_state()->set_document(document);
+    auto& window = verify_cast<HTML::Window>(HTML::relevant_global_object(document));
+    document->browsing_context()->window_proxy()->set_window(window);
 
     auto parser = HTML::HTMLParser::create_with_uncertain_encoding(document, data);
     parser->run(document->url());
