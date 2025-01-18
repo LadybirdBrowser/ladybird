@@ -19,7 +19,7 @@ describe("special values", () => {
     test("NaN", () => {
         expect(NaN.toLocaleString()).toBe("NaN");
         expect(NaN.toLocaleString("en")).toBe("NaN");
-        expect(NaN.toLocaleString("ar-u-nu-arab")).toBe("ليس رقم");
+        expect(NaN.toLocaleString("ar-u-nu-arab")).toBe("ليس رقمًا");
     });
 
     test("Infinity", () => {

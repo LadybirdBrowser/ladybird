@@ -24,9 +24,9 @@ describe("special values", () => {
         expect(en.format(undefined)).toBe("NaN");
 
         const ar = new Intl.NumberFormat("ar-u-nu-arab");
-        expect(ar.format()).toBe("ليس رقم");
-        expect(ar.format(NaN)).toBe("ليس رقم");
-        expect(ar.format(undefined)).toBe("ليس رقم");
+        expect(ar.format()).toBe("ليس رقمًا");
+        expect(ar.format(NaN)).toBe("ليس رقمًا");
+        expect(ar.format(undefined)).toBe("ليس رقمًا");
     });
 
     test("Infinity", () => {

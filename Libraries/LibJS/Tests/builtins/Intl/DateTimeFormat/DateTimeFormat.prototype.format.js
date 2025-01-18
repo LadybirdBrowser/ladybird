@@ -308,9 +308,9 @@ describe("day", () => {
 describe("dayPeriod", () => {
     // prettier-ignore
     const data = [
-        { dayPeriod: "narrow", en0: "5 in the afternoon", en1: "7 in the morning", ar0: "٥ بعد الظهر", ar1: "٧ صباحًا", as0: "অপৰাহ্ন ৫", as1: "পূৰ্বাহ্ন ৭"},
-        { dayPeriod: "short", en0: "5 in the afternoon", en1: "7 in the morning", ar0: "٥ بعد الظهر", ar1: "٧ ص", as0: "অপৰাহ্ন ৫", as1: "পূৰ্বাহ্ন ৭"},
-        { dayPeriod: "long", en0: "5 in the afternoon", en1: "7 in the morning", ar0: "٥ بعد الظهر", ar1: "٧ صباحًا", as0: "অপৰাহ্ন ৫", as1: "পূৰ্বাহ্ন ৭"},
+        { dayPeriod: "narrow", en0: "5 in the afternoon", en1: "7 in the morning", ar0: "٥ بعد الظهر", ar1: "٧ صباحًا", as0: "pm ৫", as1: "am ৭"},
+        { dayPeriod: "short", en0: "5 in the afternoon", en1: "7 in the morning", ar0: "٥ بعد الظهر", ar1: "٧ ص", as0: "PM ৫", as1: "AM ৭"},
+        { dayPeriod: "long", en0: "5 in the afternoon", en1: "7 in the morning", ar0: "٥ بعد الظهر", ar1: "٧ صباحًا", as0: "PM ৫", as1: "AM ৭"},
     ];
 
     test("all", () => {
@@ -404,9 +404,9 @@ describe("dayPeriod", () => {
     test("dayPeriod without time", () => {
         // prettier-ignore
         const data = [
-            { dayPeriod: "narrow", en0: "in the afternoon", en1: "in the morning", ar0: "بعد الظهر", ar1: "صباحًا", as0: "অপৰাহ্ন", as1: "পূৰ্বাহ্ন"},
-            { dayPeriod: "short", en0: "in the afternoon", en1: "in the morning", ar0: "بعد الظهر", ar1: "ص", as0: "অপৰাহ্ন", as1: "পূৰ্বাহ্ন"},
-            { dayPeriod: "long", en0: "in the afternoon", en1: "in the morning", ar0: "بعد الظهر", ar1: "صباحًا", as0: "অপৰাহ্ন", as1: "পূৰ্বাহ্ন"},
+            { dayPeriod: "narrow", en0: "in the afternoon", en1: "in the morning", ar0: "بعد الظهر", ar1: "صباحًا", as0: "pm", as1: "am"},
+            { dayPeriod: "short", en0: "in the afternoon", en1: "in the morning", ar0: "بعد الظهر", ar1: "ص", as0: "PM", as1: "AM"},
+            { dayPeriod: "long", en0: "in the afternoon", en1: "in the morning", ar0: "بعد الظهر", ar1: "صباحًا", as0: "PM", as1: "AM"},
         ];
 
         data.forEach(d => {
