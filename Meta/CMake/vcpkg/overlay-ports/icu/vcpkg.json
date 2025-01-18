@@ -1,0 +1,23 @@
+{
+  "name": "icu",
+  "version": "74.2",
+  "port-version": 4,
+  "description": "Mature and widely used Unicode and localization library.",
+  "homepage": "https://icu.unicode.org/home",
+  "license": "ICU",
+  "dependencies": [
+    {
+      "name": "icu",
+      "host": true,
+      "features": [
+        "tools"
+      ]
+    }
+  ],
+  "features": {
+    "tools": {
+      "description": "Build tools",
+      "supports": "!uwp"
+    }
+  }
+}
