@@ -124,7 +124,7 @@ describe("correct behavior", () => {
         expect(es419.of("Latn")).toBe("latín");
 
         const zhHant = new Intl.DisplayNames(["zh-Hant"], { type: "script" });
-        expect(zhHant.of("Latn")).toBe("拉丁文");
+        expect(zhHant.of("Latn")).toBe("拉丁字母");
 
         expect(en.of("Aaaa")).toBe("Aaaa");
         expect(es419.of("Aaaa")).toBe("Aaaa");
@@ -211,14 +211,14 @@ describe("correct behavior", () => {
     test("option type dateTimeField, style long", () => {
         // prettier-ignore
         const data = [
-            { dateTimeField: "era", en: "era", es419: "era", zhHant: "年代" },
+            { dateTimeField: "era", en: "era", es419: "era", zhHant: "紀元" },
             { dateTimeField: "year", en: "year", es419: "año", zhHant: "年" },
-            { dateTimeField: "quarter", en: "quarter", es419: "trimestre", zhHant: "季" },
+            { dateTimeField: "quarter", en: "quarter", es419: "trimestre", zhHant: "季度" },
             { dateTimeField: "month", en: "month", es419: "mes", zhHant: "月" },
             { dateTimeField: "weekOfYear", en: "week", es419: "semana", zhHant: "週" },
-            { dateTimeField: "weekday", en: "day of the week", es419: "día de la semana", zhHant: "週天" },
+            { dateTimeField: "weekday", en: "day of the week", es419: "día de la semana", zhHant: "星期" },
             { dateTimeField: "day", en: "day", es419: "día", zhHant: "日" },
-            { dateTimeField: "dayPeriod", en: "AM/PM", es419: "a.m./p.m.", zhHant: "上午/下午" },
+            { dateTimeField: "dayPeriod", en: "AM/PM", es419: "a.m./p.m.", zhHant: "時段" },
             { dateTimeField: "hour", en: "hour", es419: "hora", zhHant: "小時" },
             { dateTimeField: "minute", en: "minute", es419: "minuto", zhHant: "分鐘" },
             { dateTimeField: "second", en: "second", es419: "segundo", zhHant: "秒" },
@@ -239,16 +239,16 @@ describe("correct behavior", () => {
     test("option type dateTimeField, style short", () => {
         // prettier-ignore
         const data = [
-            { dateTimeField: "era", en: "era", es419: "era", zhHant: "年代" },
+            { dateTimeField: "era", en: "era", es419: "era", zhHant: "紀元" },
             { dateTimeField: "year", en: "yr.", es419: "a", zhHant: "年" },
-            { dateTimeField: "quarter", en: "qtr.", es419: "trim.", zhHant: "季" },
+            { dateTimeField: "quarter", en: "qtr.", es419: "trim.", zhHant: "季度" },
             { dateTimeField: "month", en: "mo.", es419: "m", zhHant: "月" },
             { dateTimeField: "weekOfYear", en: "wk.", es419: "sem.", zhHant: "週" },
-            { dateTimeField: "weekday", en: "day of wk.", es419: "día de sem.", zhHant: "週天" },
+            { dateTimeField: "weekday", en: "day of wk.", es419: "día de sem.", zhHant: "星期" },
             { dateTimeField: "day", en: "day", es419: "d", zhHant: "日" },
-            { dateTimeField: "dayPeriod", en: "AM/PM", es419: "a.m./p.m.", zhHant: "上午/下午" },
-            { dateTimeField: "hour", en: "hr.", es419: "h", zhHant: "小時" },
-            { dateTimeField: "minute", en: "min.", es419: "min", zhHant: "分鐘" },
+            { dateTimeField: "dayPeriod", en: "AM/PM", es419: "a.m./p.m.", zhHant: "時段" },
+            { dateTimeField: "hour", en: "hr.", es419: "h", zhHant: "時" },
+            { dateTimeField: "minute", en: "min.", es419: "min", zhHant: "分" },
             { dateTimeField: "second", en: "sec.", es419: "s", zhHant: "秒" },
             { dateTimeField: "timeZoneName", en: "zone", es419: "zona", zhHant: "時區" },
         ];
@@ -267,16 +267,16 @@ describe("correct behavior", () => {
     test("option type dateTimeField, style narrow", () => {
         // prettier-ignore
         const data = [
-            { dateTimeField: "era", en: "era", es419: "era", zhHant: "年代" },
+            { dateTimeField: "era", en: "era", es419: "era", zhHant: "紀元" },
             { dateTimeField: "year", en: "yr", es419: "a", zhHant: "年" },
-            { dateTimeField: "quarter", en: "qtr", es419: "trim.", zhHant: "季" },
+            { dateTimeField: "quarter", en: "qtr", es419: "trim.", zhHant: "季度" },
             { dateTimeField: "month", en: "mo", es419: "m", zhHant: "月" },
             { dateTimeField: "weekOfYear", en: "wk", es419: "sem.", zhHant: "週" },
-            { dateTimeField: "weekday", en: "day of wk.", es419: "día de sem.", zhHant: "週天" },
+            { dateTimeField: "weekday", en: "day of wk.", es419: "día de sem.", zhHant: "星期" },
             { dateTimeField: "day", en: "day", es419: "d", zhHant: "日" },
-            { dateTimeField: "dayPeriod", en: "AM/PM", es419: "a.m./p.m.", zhHant: "上午/下午" },
-            { dateTimeField: "hour", en: "hr", es419: "h", zhHant: "小時" },
-            { dateTimeField: "minute", en: "min", es419: "min", zhHant: "分鐘" },
+            { dateTimeField: "dayPeriod", en: "AM/PM", es419: "a.m./p.m.", zhHant: "時段" },
+            { dateTimeField: "hour", en: "hr", es419: "h", zhHant: "時" },
+            { dateTimeField: "minute", en: "min", es419: "min", zhHant: "分" },
             { dateTimeField: "second", en: "sec", es419: "s", zhHant: "秒" },
             { dateTimeField: "timeZoneName", en: "zone", es419: "zona", zhHant: "時區" },
         ];

@@ -138,7 +138,13 @@ Optional<TimeZoneOffset> time_zone_offset(StringView time_zone, UnixDateTime tim
     i32 raw_offset = 0;
     i32 dst_offset = 0;
 
-    time_zone_data->time_zone().getOffset(static_cast<UDate>(time.milliseconds_since_epoch()), 0, raw_offset, dst_offset, status);
+    // We must clamp the time we provide to ICU such that the result of converting milliseconds to days fits in an i32.
+    // Further, that conversion must still be valid after applying DST offsets to the time we provide.
+    static constexpr auto min_time = (static_cast<UDate>(AK::NumericLimits<i32>::min()) + U_MILLIS_PER_DAY) * U_MILLIS_PER_DAY;
+    static constexpr auto max_time = (static_cast<UDate>(AK::NumericLimits<i32>::max()) - U_MILLIS_PER_DAY) * U_MILLIS_PER_DAY;
+    auto icu_time = clamp(static_cast<UDate>(time.milliseconds_since_epoch()), min_time, max_time);
+
+    time_zone_data->time_zone().getOffset(icu_time, 0, raw_offset, dst_offset, status);
     if (icu_failure(status))
         return {};
 
