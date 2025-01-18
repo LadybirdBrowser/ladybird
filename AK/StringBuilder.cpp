@@ -40,6 +40,11 @@ ErrorOr<StringBuilder> StringBuilder::create(size_t initial_capacity)
     return StringBuilder { move(buffer) };
 }
 
+StringBuilder::StringBuilder()
+    : StringBuilder(inline_capacity)
+{
+}
+
 StringBuilder::StringBuilder(size_t initial_capacity)
     : m_buffer(MUST(create_buffer(initial_capacity)))
 {
