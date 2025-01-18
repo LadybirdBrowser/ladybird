@@ -23,7 +23,8 @@ public:
 
     static ErrorOr<StringBuilder> create(size_t initial_capacity = inline_capacity);
 
-    explicit StringBuilder(size_t initial_capacity = inline_capacity);
+    StringBuilder();
+    explicit StringBuilder(size_t initial_capacity);
     ~StringBuilder() = default;
 
     ErrorOr<void> try_append(StringView);
