@@ -40,8 +40,8 @@ describe("correct behavior", () => {
         expect(d0.toLocaleDateString("en", { timeZone: "UTC" })).toBe("12/7/2021");
         expect(d1.toLocaleDateString("en", { timeZone: "UTC" })).toBe("1/23/1989");
 
-        expect(d0.toLocaleDateString("ar", { timeZone: "UTC" })).toBe("٧‏/١٢‏/٢٠٢١");
-        expect(d1.toLocaleDateString("ar", { timeZone: "UTC" })).toBe("٢٣‏/١‏/١٩٨٩");
+        expect(d0.toLocaleDateString("ar-u-nu-arab", { timeZone: "UTC" })).toBe("٧‏/١٢‏/٢٠٢١");
+        expect(d1.toLocaleDateString("ar-u-nu-arab", { timeZone: "UTC" })).toBe("٢٣‏/١‏/١٩٨٩");
     });
 
     test("dateStyle may be set", () => {
@@ -52,10 +52,10 @@ describe("correct behavior", () => {
             "Monday, January 23, 1989"
         );
 
-        expect(d0.toLocaleDateString("ar", { dateStyle: "full", timeZone: "UTC" })).toBe(
+        expect(d0.toLocaleDateString("ar-u-nu-arab", { dateStyle: "full", timeZone: "UTC" })).toBe(
             "الثلاثاء، ٧ ديسمبر ٢٠٢١"
         );
-        expect(d1.toLocaleDateString("ar", { dateStyle: "full", timeZone: "UTC" })).toBe(
+        expect(d1.toLocaleDateString("ar-u-nu-arab", { dateStyle: "full", timeZone: "UTC" })).toBe(
             "الاثنين، ٢٣ يناير ١٩٨٩"
         );
     });

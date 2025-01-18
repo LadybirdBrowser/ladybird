@@ -19,7 +19,7 @@ describe("special values", () => {
         expect(en.formatToParts(NaN)).toEqual([{ type: "nan", value: "NaN" }]);
         expect(en.formatToParts(undefined)).toEqual([{ type: "nan", value: "NaN" }]);
 
-        const ar = new Intl.NumberFormat("ar");
+        const ar = new Intl.NumberFormat("ar-u-nu-arab");
         expect(ar.formatToParts()).toEqual([{ type: "nan", value: "ليس رقم" }]);
         expect(ar.formatToParts(NaN)).toEqual([{ type: "nan", value: "ليس رقم" }]);
         expect(ar.formatToParts(undefined)).toEqual([{ type: "nan", value: "ليس رقم" }]);
@@ -33,7 +33,7 @@ describe("special values", () => {
             { type: "infinity", value: "∞" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar");
+        const ar = new Intl.NumberFormat("ar-u-nu-arab");
         expect(ar.formatToParts(Infinity)).toEqual([{ type: "infinity", value: "∞" }]);
         expect(ar.formatToParts(-Infinity)).toEqual([
             { type: "literal", value: "\u061c" },
@@ -58,7 +58,7 @@ describe("style=decimal", () => {
             { type: "fraction", value: "3" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar");
+        const ar = new Intl.NumberFormat("ar-u-nu-arab");
         expect(ar.formatToParts(123)).toEqual([{ type: "integer", value: "\u0661\u0662\u0663" }]);
         expect(ar.formatToParts(1.23)).toEqual([
             { type: "integer", value: "\u0661" },
@@ -77,7 +77,7 @@ describe("style=decimal", () => {
         expect(en.formatToParts(1)).toEqual([{ type: "integer", value: "1" }]);
         expect(en.formatToParts(-1)).toEqual([{ type: "integer", value: "1" }]);
 
-        const ar = new Intl.NumberFormat("ar", { signDisplay: "never" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { signDisplay: "never" });
         expect(ar.formatToParts(1)).toEqual([{ type: "integer", value: "\u0661" }]);
         expect(ar.formatToParts(-1)).toEqual([{ type: "integer", value: "\u0661" }]);
     });
@@ -95,7 +95,7 @@ describe("style=decimal", () => {
             { type: "integer", value: "1" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", { signDisplay: "auto" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { signDisplay: "auto" });
         expect(ar.formatToParts(0)).toEqual([{ type: "integer", value: "\u0660" }]);
         expect(ar.formatToParts(1)).toEqual([{ type: "integer", value: "\u0661" }]);
         expect(ar.formatToParts(-0)).toEqual([
@@ -129,7 +129,7 @@ describe("style=decimal", () => {
             { type: "integer", value: "1" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", { signDisplay: "always" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { signDisplay: "always" });
         expect(ar.formatToParts(0)).toEqual([
             { type: "literal", value: "\u061c" },
             { type: "plusSign", value: "+" },
@@ -165,7 +165,7 @@ describe("style=decimal", () => {
             { type: "integer", value: "1" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", { signDisplay: "exceptZero" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { signDisplay: "exceptZero" });
         expect(ar.formatToParts(0)).toEqual([{ type: "integer", value: "\u0660" }]);
         expect(ar.formatToParts(1)).toEqual([
             { type: "literal", value: "\u061c" },
@@ -190,7 +190,7 @@ describe("style=decimal", () => {
             { type: "integer", value: "1" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", { signDisplay: "negative" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { signDisplay: "negative" });
         expect(ar.formatToParts(0)).toEqual([{ type: "integer", value: "\u0660" }]);
         expect(ar.formatToParts(1)).toEqual([{ type: "integer", value: "\u0661" }]);
         expect(ar.formatToParts(-0)).toEqual([{ type: "integer", value: "\u0660" }]);
@@ -258,7 +258,7 @@ describe("style=decimal", () => {
             { type: "integer", value: "567" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", { useGrouping: "auto" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { useGrouping: "auto" });
         expect(ar.formatToParts(123456)).toEqual([
             { type: "integer", value: "\u0661\u0662\u0663" },
             { type: "group", value: "\u066c" },
@@ -300,7 +300,7 @@ describe("style=decimal", () => {
         expect(enIn.formatToParts(123456)).toEqual([{ type: "integer", value: "123456" }]);
         expect(enIn.formatToParts(1234567)).toEqual([{ type: "integer", value: "1234567" }]);
 
-        const ar = new Intl.NumberFormat("ar", { useGrouping: false });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { useGrouping: false });
         expect(ar.formatToParts(123456)).toEqual([
             { type: "integer", value: "\u0661\u0662\u0663\u0664\u0665\u0666" },
         ]);
@@ -327,7 +327,7 @@ describe("style=decimal", () => {
             { type: "exponentInteger", value: "1" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", { notation: "scientific" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { notation: "scientific" });
         expect(ar.formatToParts(12.3)).toEqual([
             { type: "integer", value: "\u0661" },
             { type: "decimal", value: "\u066b" },
@@ -362,7 +362,7 @@ describe("style=decimal", () => {
             { type: "exponentInteger", value: "3" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", { notation: "engineering" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { notation: "engineering" });
         expect(ar.formatToParts(1234)).toEqual([
             { type: "integer", value: "\u0661" },
             { type: "decimal", value: "\u066b" },
@@ -394,7 +394,10 @@ describe("style=decimal", () => {
             { type: "compact", value: "million" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", { notation: "compact", compactDisplay: "long" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
+            notation: "compact",
+            compactDisplay: "long",
+        });
         expect(ar.formatToParts(1200)).toEqual([
             { type: "integer", value: "\u0661" },
             { type: "decimal", value: "\u066b" },
@@ -422,7 +425,10 @@ describe("style=decimal", () => {
             { type: "compact", value: "M" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", { notation: "compact", compactDisplay: "short" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
+            notation: "compact",
+            compactDisplay: "short",
+        });
         expect(ar.formatToParts(1200)).toEqual([
             { type: "integer", value: "\u0661" },
             { type: "decimal", value: "\u066b" },
@@ -454,7 +460,10 @@ describe("style=percent", () => {
             { type: "percentSign", value: "%" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", { style: "percent", minimumFractionDigits: 2 });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
+            style: "percent",
+            minimumFractionDigits: 2,
+        });
         expect(ar.formatToParts(1)).toEqual([
             { type: "integer", value: "\u0661\u0660\u0660" },
             { type: "decimal", value: "\u066b" },
@@ -482,7 +491,10 @@ describe("style=percent", () => {
             { type: "percentSign", value: "%" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", { style: "percent", signDisplay: "never" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
+            style: "percent",
+            signDisplay: "never",
+        });
         expect(ar.formatToParts(0.01)).toEqual([
             { type: "integer", value: "\u0661" },
             { type: "percentSign", value: "\u066a" },
@@ -516,7 +528,7 @@ describe("style=percent", () => {
             { type: "percentSign", value: "%" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", { style: "percent", signDisplay: "auto" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { style: "percent", signDisplay: "auto" });
         expect(ar.formatToParts(0.0)).toEqual([
             { type: "integer", value: "\u0660" },
             { type: "percentSign", value: "\u066a" },
@@ -566,7 +578,10 @@ describe("style=percent", () => {
             { type: "percentSign", value: "%" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", { style: "percent", signDisplay: "always" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
+            style: "percent",
+            signDisplay: "always",
+        });
         expect(ar.formatToParts(0.0)).toEqual([
             { type: "literal", value: "\u061c" },
             { type: "plusSign", value: "+" },
@@ -618,7 +633,10 @@ describe("style=percent", () => {
             { type: "percentSign", value: "%" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", { style: "percent", signDisplay: "exceptZero" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
+            style: "percent",
+            signDisplay: "exceptZero",
+        });
         expect(ar.formatToParts(0.0)).toEqual([
             { type: "integer", value: "\u0660" },
             { type: "percentSign", value: "\u066a" },
@@ -665,7 +683,10 @@ describe("style=percent", () => {
             { type: "percentSign", value: "%" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", { style: "percent", signDisplay: "negative" });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
+            style: "percent",
+            signDisplay: "negative",
+        });
         expect(ar.formatToParts(0.0)).toEqual([
             { type: "integer", value: "\u0660" },
             { type: "percentSign", value: "\u066a" },
@@ -713,7 +734,7 @@ describe("style=currency", () => {
             { type: "fraction", value: "23" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             currencyDisplay: "code",
@@ -755,7 +776,7 @@ describe("style=currency", () => {
             { type: "fraction", value: "23" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             currencyDisplay: "symbol",
@@ -797,7 +818,7 @@ describe("style=currency", () => {
             { type: "fraction", value: "23" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             currencyDisplay: "narrowSymbol",
@@ -841,7 +862,7 @@ describe("style=currency", () => {
             { type: "currency", value: "US dollars" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             currencyDisplay: "name",
@@ -881,7 +902,7 @@ describe("style=currency", () => {
             { type: "fraction", value: "00" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             signDisplay: "never",
@@ -956,7 +977,7 @@ describe("style=currency", () => {
             { type: "fraction", value: "00" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             signDisplay: "auto",
@@ -1069,7 +1090,7 @@ describe("style=currency", () => {
             { type: "fraction", value: "00" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             signDisplay: "always",
@@ -1186,7 +1207,7 @@ describe("style=currency", () => {
             { type: "fraction", value: "00" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             signDisplay: "exceptZero",
@@ -1295,7 +1316,7 @@ describe("style=currency", () => {
             { type: "fraction", value: "00" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "currency",
             currency: "USD",
             signDisplay: "negative",
@@ -1408,7 +1429,7 @@ describe("style=unit", () => {
             { type: "unit", value: "kilometers per hour" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "unit",
             unit: "foot",
             unitDisplay: "long",
@@ -1482,7 +1503,7 @@ describe("style=unit", () => {
             { type: "unit", value: "km/h" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "unit",
             unit: "foot",
             unitDisplay: "short",
@@ -1548,7 +1569,7 @@ describe("style=unit", () => {
             { type: "unit", value: "km/h" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             style: "unit",
             unit: "foot",
             unitDisplay: "narrow",
@@ -1589,7 +1610,7 @@ describe("bigint", () => {
             { type: "integer", value: "456" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar");
+        const ar = new Intl.NumberFormat("ar-u-nu-arab");
         expect(ar.formatToParts(123456n)).toEqual([
             { type: "integer", value: "\u0661\u0662\u0663" },
             { type: "group", value: "\u066c" },
@@ -1601,7 +1622,7 @@ describe("bigint", () => {
         const en = new Intl.NumberFormat("en", { useGrouping: false });
         expect(en.formatToParts(123456n)).toEqual([{ type: "integer", value: "123456" }]);
 
-        const ar = new Intl.NumberFormat("ar", { useGrouping: false });
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", { useGrouping: false });
         expect(ar.formatToParts(123456n)).toEqual([
             { type: "integer", value: "\u0661\u0662\u0663\u0664\u0665\u0666" },
         ]);
@@ -1627,7 +1648,7 @@ describe("bigint", () => {
             { type: "integer", value: "560" },
         ]);
 
-        const ar = new Intl.NumberFormat("ar", {
+        const ar = new Intl.NumberFormat("ar-u-nu-arab", {
             minimumSignificantDigits: 4,
             maximumSignificantDigits: 6,
         });
