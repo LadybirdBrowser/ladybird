@@ -2016,6 +2016,17 @@ void Element::invalidate_style_after_attribute_change(FlyString const& attribute
         return;
     }
 
+    if (attribute_name == HTML::AttributeNames::id) {
+        Vector<CSS::InvalidationSet::Property> changed_properties;
+        if (old_value.has_value())
+            changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Id, .name = old_value.value() });
+        if (new_value.has_value())
+            changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Id, .name = new_value.value() });
+        changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Attribute, .name = HTML::AttributeNames::id });
+        invalidate_style(StyleInvalidationReason::ElementAttributeChange, changed_properties);
+        return;
+    }
+
     if (is_presentational_hint(attribute_name)
         || attribute_name_may_affect_selectors(*this, attribute_name)) {
         invalidate_style(StyleInvalidationReason::ElementAttributeChange);
