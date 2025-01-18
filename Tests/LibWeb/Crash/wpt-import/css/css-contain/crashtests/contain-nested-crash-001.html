@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-contain/#contain-property">
+<link rel="help" href="https://crbug.com/1214198">
+<link rel="author" title="Koji Ishii" href="mailto:kojii@chromium.org">
+<style>
+.contain {
+  contain: strict;
+  display: block;
+  width: 100px;
+  height: 100px;
+}
+</style>
+<body>
+  <div id="outer" class="contain">
+    <div>
+      <div id="inner" class="contain"></div>
+    </div>
+  </div>
+<script>
+  document.body.offsetTop;
+  inner.appendChild(document.createTextNode('inner-child'));
+  outer.appendChild(document.createTextNode('outer-child'));
+</script>
+</body>

@@ -398,6 +398,16 @@ public:
     void determine_proximity_to_the_viewport();
     bool is_relevant_to_the_user();
 
+    // https://drafts.csswg.org/css-contain-2/#skips-its-contents
+    bool skips_its_contents();
+
+    // https://drafts.csswg.org/css-contain-2/#containment-types
+    bool has_size_containment() const;
+    bool has_inline_size_containment() const;
+    bool has_layout_containment() const;
+    bool has_style_containment() const;
+    bool has_paint_containment() const;
+
 protected:
     Element(Document&, DOM::QualifiedName);
     virtual void initialize(JS::Realm&) override;

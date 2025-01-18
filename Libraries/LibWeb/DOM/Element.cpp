@@ -2741,6 +2741,148 @@ bool Element::is_relevant_to_the_user()
     return false;
 }
 
+// https://drafts.csswg.org/css-contain-2/#skips-its-contents
+bool Element::skips_its_contents()
+{
+    // https://drafts.csswg.org/css-contain-2/#valdef-content-visibility-hidden
+    // The element skips its contents.
+    if (computed_properties()->content_visibility() == CSS::ContentVisibility::Hidden)
+        return true;
+
+    // https://drafts.csswg.org/css-contain-2/#valdef-content-visibility-auto
+    // If the element is not relevant to the user, it also skips its contents.
+    if (computed_properties()->content_visibility() == CSS::ContentVisibility::Auto && !this->is_relevant_to_the_user()) {
+        return true;
+    }
+
+    return false;
+}
+
+// https://drafts.csswg.org/css-contain-2/#containment-size
+bool Element::has_size_containment() const
+{
+    // However, giving an element size containment has no effect if any of the following are true:
+
+    // - if the element does not generate a principal box (as is the case with 'display: contents' or 'display: none')
+    if (!layout_node())
+        return false;
+
+    // - if its inner display type is 'table'
+    if (layout_node()->display().is_table_inside())
+        return false;
+
+    // - if its principal box is an internal table box
+    if (layout_node()->display().is_internal_table())
+        return false;
+
+    // - if its principal box is an internal ruby box or a non-atomic inline-level box
+    // FIXME: Implement this.
+
+    if (computed_properties()->contain().size_containment)
+        return true;
+
+    return false;
+}
+// https://drafts.csswg.org/css-contain-2/#containment-inline-size
+bool Element::has_inline_size_containment() const
+{
+    // Giving an element inline-size containment has no effect if any of the following are true:
+
+    // - if the element does not generate a principal box (as is the case with 'display: contents' or 'display: none')
+    if (!layout_node())
+        return false;
+
+    // - if its inner display type is 'table'
+    if (layout_node()->display().is_table_inside())
+        return false;
+
+    // - if its principal box is an internal table box
+    if (layout_node()->display().is_internal_table())
+        return false;
+
+    // - if its principal box is an internal ruby box or a non-atomic inline-level box
+    // FIXME: Implement this.
+
+    if (computed_properties()->contain().inline_size_containment)
+        return true;
+
+    return false;
+}
+// https://drafts.csswg.org/css-contain-2/#containment-layout
+bool Element::has_layout_containment() const
+{
+    // However, giving an element layout containment has no effect if any of the following are true:
+
+    // - if the element does not generate a principal box (as is the case with 'display: contents' or 'display: none')
+    if (!layout_node())
+        return false;
+
+    // - if its principal box is an internal table box other than 'table-cell'
+    if (layout_node()->display().is_internal_table() && !layout_node()->display().is_table_cell())
+        return false;
+
+    // - if its principal box is an internal ruby box or a non-atomic inline-level box
+    // FIXME: Implement this.
+
+    if (computed_properties()->contain().layout_containment)
+        return true;
+
+    // https://drafts.csswg.org/css-contain-2/#valdef-content-visibility-auto
+    // Changes the used value of the 'contain' property so as to turn on layout containment, style containment, and
+    // paint containment for the element.
+    if (computed_properties()->content_visibility() == CSS::ContentVisibility::Auto)
+        return true;
+
+    return false;
+}
+// https://drafts.csswg.org/css-contain-2/#containment-style
+bool Element::has_style_containment() const
+{
+    // However, giving an element style containment has no effect if any of the following are true:
+
+    // - if the element does not generate a principal box (as is the case with 'display: contents' or 'display: none')
+    if (!layout_node())
+        return false;
+
+    if (computed_properties()->contain().style_containment)
+        return true;
+
+    // https://drafts.csswg.org/css-contain-2/#valdef-content-visibility-auto
+    // Changes the used value of the 'contain' property so as to turn on layout containment, style containment, and
+    // paint containment for the element.
+    if (computed_properties()->content_visibility() == CSS::ContentVisibility::Auto)
+        return true;
+
+    return false;
+}
+// https://drafts.csswg.org/css-contain-2/#containment-paint
+bool Element::has_paint_containment() const
+{
+    // However, giving an element paint containment has no effect if any of the following are true:
+
+    // - if the element does not generate a principal box (as is the case with 'display: contents' or 'display: none')
+    if (!layout_node())
+        return false;
+
+    // - if its principal box is an internal table box other than 'table-cell'
+    if (layout_node()->display().is_internal_table() && !layout_node()->display().is_table_cell())
+        return false;
+
+    // - if its principal box is an internal ruby box or a non-atomic inline-level box
+    // FIXME: Implement this
+
+    if (computed_properties()->contain().paint_containment)
+        return true;
+
+    // https://drafts.csswg.org/css-contain-2/#valdef-content-visibility-auto
+    // Changes the used value of the 'contain' property so as to turn on layout containment, style containment, and
+    // paint containment for the element.
+    if (computed_properties()->content_visibility() == CSS::ContentVisibility::Auto)
+        return true;
+
+    return false;
+}
+
 bool Element::id_reference_exists(String const& id_reference) const
 {
     return document().get_element_by_id(id_reference);
@@ -3153,6 +3295,12 @@ void Element::resolve_counters(CSS::ComputedProperties& style)
     auto counter_reset = style.counter_data(CSS::PropertyID::CounterReset);
     for (auto const& counter : counter_reset)
         ensure_counters_set().instantiate_a_counter(counter.name, unique_id(), counter.is_reversed, counter.value);
+
+    // FIXME: Take style containment into account
+    // https://drafts.csswg.org/css-contain-2/#containment-style
+    // Giving an element style containment has the following effects:
+    // 1. The 'counter-increment' and 'counter-set' properties must be scoped to the element’s sub-tree and create a
+    //    new counter.
 
     // 3. Counter values are incremented (counter-increment).
     auto counter_increment = style.counter_data(CSS::PropertyID::CounterIncrement);

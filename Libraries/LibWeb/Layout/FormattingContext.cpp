@@ -94,7 +94,14 @@ bool FormattingContext::creates_block_formatting_context(Box const& box)
     if (box.display().is_flow_root_inside())
         return true;
 
-    // FIXME: Elements with contain: layout, content, or paint.
+    // https://drafts.csswg.org/css-contain-2/#containment-types
+    // 1. The layout containment box establishes an independent formatting context.
+    // 4. The paint containment box establishes an independent formatting context.
+    if (box.dom_node() && box.dom_node()->is_element()) {
+        auto element = as<DOM::Element>(box.dom_node());
+        if (element->has_layout_containment() || element->has_paint_containment())
+            return true;
+    }
 
     if (box.parent()) {
         auto parent_display = box.parent()->display();

@@ -1190,9 +1190,21 @@ static void propagate_scrollbar_width_to_viewport(Element& root_element, Layout:
     viewport_computed_values.set_scrollbar_width(root_element_computed_values.scrollbar_width());
 }
 
+// https://drafts.csswg.org/css-overflow-3/#overflow-propagation
 static void propagate_overflow_to_viewport(Element& root_element, Layout::Viewport& viewport)
 {
-    // https://drafts.csswg.org/css-overflow-3/#overflow-propagation
+    // https://drafts.csswg.org/css-contain-2/#contain-property
+    // Additionally, when any containments are active on either the HTML <html> or <body> elements, propagation of
+    // properties from the <body> element to the initial containing block, the viewport, or the canvas background, is
+    // disabled. Notably, this affects:
+    // - 'overflow' and its longhands (see CSS Overflow 3 § 3.3 Overflow Viewport Propagation)
+    if (root_element.is_html_html_element() && !root_element.computed_properties()->contain().is_empty())
+        return;
+
+    auto* body_element = root_element.first_child_of_type<HTML::HTMLBodyElement>();
+    if (body_element && !body_element->computed_properties()->contain().is_empty())
+        return;
+
     // UAs must apply the overflow-* values set on the root element to the viewport
     // when the root element’s display value is not none.
     auto overflow_origin_node = root_element.layout_node();

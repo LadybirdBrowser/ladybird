@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Containment Test: Size containment replaced elements intrinsic size</title>
+<link rel="help" href="https://drafts.csswg.org/css-contain-1/#containment-size">
+<link rel="match" href="../../../../expected/wpt-import/css/reference/ref-filled-green-100px-square.xht">
+<meta name=assert content="This test checks that intrinsic size of replaced elements with 'contain: size' is zero.">
+<style>
+object {
+  background: green;
+  padding: 50px;
+  contain: size;
+}
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<object data="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><rect fill='red' width='100' height='100'/></svg>">
+</object>

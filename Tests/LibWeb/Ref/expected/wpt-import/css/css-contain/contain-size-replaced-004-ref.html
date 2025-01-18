@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Containment Reference: Size containment replaced elements intrinsic size</title>
+<style>
+  body > div, video, audio, img, canvas, svg, iframe {
+    border: 3px solid orange;
+    contain: size;
+    margin-bottom: 15px;
+    width: 0px;
+    height: 0px;
+    float: left;
+    clear: both;
+  }
+</style>
+<div>abc</div>
+<video></video><br>
+<video controls></video><br>
+<img src="support/60x60-green.png"><br>
+<picture>
+<source srcset="support/60x60-green.png">
+    <img>
+</picture><br>
+<canvas></canvas><br>
+<svg></svg><br>
+<iframe></iframe>

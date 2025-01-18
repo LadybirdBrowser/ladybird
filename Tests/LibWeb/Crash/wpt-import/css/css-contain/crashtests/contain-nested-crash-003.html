@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1386673">
+<div style="contain:layout size;">
+  <div style="display:inline-block;">
+    <div style="contain:layout size;">
+      <div id="firstVictim"></div>
+    </div>
+  </div>
+  <div style="position:absolute;">
+    <div id="secondVictim"></div>
+  </div>
+</div>
+<script>
+  document.body.offsetTop;
+  firstVictim.style.display = "none";
+  secondVictim.style.display = "none";
+</script>

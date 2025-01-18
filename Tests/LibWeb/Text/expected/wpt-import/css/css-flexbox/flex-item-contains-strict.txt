@@ -2,13 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-4 Pass
-4 Fail
-Fail	.inline-flex 1
-Fail	.inline-flex 2
+8 Pass
+Pass	.inline-flex 1
+Pass	.inline-flex 2
 Pass	.inline-flex 3
 Pass	.inline-flex 4
-Fail	.inline-flex 5
-Fail	.inline-flex 6
+Pass	.inline-flex 5
+Pass	.inline-flex 6
 Pass	.inline-flex 7
 Pass	.inline-flex 8

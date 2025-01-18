@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Containment Module Level 3: getComputedStyle().contain</title>
+<link rel="help" href="https://drafts.csswg.org/css-contain-3/#contain-property">
+<meta name="assert" content="contain computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("contain", "none");
+test_computed_value("contain", "strict");
+test_computed_value("contain", "content");
+
+test_computed_value("contain", "size");
+test_computed_value("contain", "layout");
+test_computed_value("contain", "style");
+test_computed_value("contain", "paint");
+test_computed_value("contain", "size layout");
+test_computed_value("contain", "style paint");
+test_computed_value("contain", "style layout paint", "content");
+test_computed_value("contain", "size style layout paint", "strict");
+test_computed_value("contain", "size layout paint", "size layout paint");
+test_computed_value("contain", "layout paint");
+test_computed_value("contain", "inline-size");
+test_computed_value("contain", "inline-size layout style paint");
+</script>
+</body>
+</html>

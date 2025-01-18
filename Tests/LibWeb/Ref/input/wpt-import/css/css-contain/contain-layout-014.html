@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>CSS Containment Test: Layout containment on table-caption</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-contain-1/#containment-layout">
+<link rel="match" href="../../../../expected/wpt-import/css/reference/ref-filled-green-100px-square.xht">
+<meta name=assert content="Layout containment does apply to table-caption elements.">
+
+<style>
+#table-caption {
+  display: table-caption;
+  contain: layout;
+  width: 100px;
+  height: 100px;
+  background: red;
+}
+#abspos {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background: green;
+  width: 100px;
+  height: 100px;
+}
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div id="table-caption">
+  <div id="abspos"></div>
+</div>

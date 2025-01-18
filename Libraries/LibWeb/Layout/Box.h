@@ -25,9 +25,9 @@ public:
     Painting::PaintableBox* paintable_box();
 
     // https://www.w3.org/TR/css-images-3/#natural-dimensions
-    Optional<CSSPixels> natural_width() const { return m_natural_width; }
-    Optional<CSSPixels> natural_height() const { return m_natural_height; }
-    Optional<CSSPixelFraction> natural_aspect_ratio() const { return m_natural_aspect_ratio; }
+    Optional<CSSPixels> natural_width() const;
+    Optional<CSSPixels> natural_height() const;
+    Optional<CSSPixelFraction> natural_aspect_ratio() const;
 
     bool has_natural_width() const { return natural_width().has_value(); }
     bool has_natural_height() const { return natural_height().has_value(); }

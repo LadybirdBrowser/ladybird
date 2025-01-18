@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="help" href="https://drafts.csswg.org/css-contain-2/#contain-property">
+<link rel="match" href="../../../../expected/wpt-import/css/reference/ref-filled-green-100px-square.xht">
+<script src="../../common/reftest-wait.js"></script>
+<script src="../../common/rendering-utils.js"></script>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="width: 100px; background: red">
+  <div id="container" style="contain: paint; opacity: 0.1">
+    <div style="height: 100px; background: green; position: relative"></div>
+  </div>
+</div>
+<script>
+waitForAtLeastOneFrame().then(() => {
+  container.style.opacity = 1;
+  takeScreenshot();
+});
+</script>
+</html>
