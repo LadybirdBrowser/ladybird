@@ -2578,9 +2578,6 @@ void StyleComputer::collect_selector_insights(Selector const& selector, Selector
 {
     for (auto const& compound_selector : selector.compound_selectors()) {
         for (auto const& simple_selector : compound_selector.simple_selectors) {
-            if (simple_selector.type == Selector::SimpleSelector::Type::Attribute) {
-                insights.all_names_used_in_attribute_selectors.set(simple_selector.attribute().qualified_name.name.lowercase_name);
-            }
             if (simple_selector.type == Selector::SimpleSelector::Type::PseudoClass) {
                 if (simple_selector.pseudo_class().type == PseudoClass::Has) {
                     insights.has_has_selectors = true;
@@ -3103,15 +3100,6 @@ bool StyleComputer::has_defined_selectors() const
 
     build_rule_cache_if_needed();
     return m_selector_insights->has_defined_selectors;
-}
-
-bool StyleComputer::has_attribute_selector(FlyString const& attribute_name) const
-{
-    if (!document().is_active())
-        return false;
-
-    build_rule_cache_if_needed();
-    return m_selector_insights->all_names_used_in_attribute_selectors.contains(attribute_name);
 }
 
 }
