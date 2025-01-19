@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
  * Copyright (c) 2024, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2024-2025, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -14,6 +14,7 @@
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/StorageAPI/StorageKey.h>
 
 namespace Web::FileAPI {
 
@@ -76,6 +77,41 @@ ErrorOr<String> add_entry_to_blob_url_store(GC::Ref<Blob> object)
 
     // 5. Return url.
     return url;
+}
+
+// https://www.w3.org/TR/FileAPI/#check-for-same-partition-blob-url-usage
+bool check_for_same_partition_blob_url_usage(URL::BlobURLEntry const& blob_url_entry, GC::Ref<HTML::Environment> environment)
+{
+    // 1. Let blobStorageKey be the result of obtaining a storage key for non-storage purposes with blobUrlEntry’s environment.
+    auto blob_storage_key = StorageAPI::obtain_a_storage_key_for_non_storage_purposes(blob_url_entry.environment.origin);
+
+    // 2. Let environmentStorageKey be the result of obtaining a storage key for non-storage purposes with environment.
+    auto environment_storage_key = StorageAPI::obtain_a_storage_key_for_non_storage_purposes(environment);
+
+    // 3. If blobStorageKey is not equal to environmentStorageKey, then return false.
+    if (blob_storage_key != environment_storage_key)
+        return false;
+
+    // 4. Return true.
+    return true;
+}
+
+// https://www.w3.org/TR/FileAPI/#blob-url-obtain-object
+Optional<URL::BlobURLEntry::Object> obtain_a_blob_object(URL::BlobURLEntry const& blob_url_entry, Variant<GC::Ref<HTML::Environment>, NavigationEnvironment> environment)
+{
+    // 1. Let isAuthorized be true.
+    bool is_authorized = true;
+
+    // 2. If environment is not the string "navigation", then set isAuthorized to the result of checking for same-partition blob URL usage with blobUrlEntry and environment.
+    if (!environment.has<NavigationEnvironment>())
+        is_authorized = check_for_same_partition_blob_url_usage(blob_url_entry, environment.get<GC::Ref<HTML::Environment>>());
+
+    // 3. If isAuthorized is false, then return failure.
+    if (!is_authorized)
+        return {};
+
+    // 4. Return blobUrlEntry’s object.
+    return blob_url_entry.object;
 }
 
 // https://w3c.github.io/FileAPI/#removeTheEntry

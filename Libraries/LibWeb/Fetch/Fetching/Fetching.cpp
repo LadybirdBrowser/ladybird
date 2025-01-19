@@ -3,6 +3,7 @@
  * Copyright (c) 2023, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2023, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
+ * Copyright (c) 2025, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -595,6 +596,21 @@ WebIDL::ExceptionOr<GC::Ptr<PendingResponse>> main_fetch(JS::Realm& realm, Infra
     return GC::Ptr<PendingResponse> {};
 }
 
+// https://fetch.spec.whatwg.org/#request-determine-the-environment
+static GC::Ptr<HTML::Environment> determine_the_environment(GC::Ref<Infrastructure::Request> request)
+{
+    // 1. If request’s reserved client is non-null, then return request’s reserved client.
+    if (request->reserved_client())
+        return request->reserved_client();
+
+    // 2. If request’s client is non-null, then return request’s client.
+    if (request->client())
+        return request->client();
+
+    // 3. Return null.
+    return {};
+}
+
 // https://fetch.spec.whatwg.org/#fetch-finale
 void fetch_response_handover(JS::Realm& realm, Infrastructure::FetchParams const& fetch_params, Infrastructure::Response& response)
 {
@@ -817,30 +833,52 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> scheme_fetch(JS::Realm& realm, Inf
         // 1. Let blobURLEntry be request’s current URL’s blob URL entry.
         auto const& blob_url_entry = request->current_url().blob_url_entry();
 
-        // 2. If request’s method is not `GET`, blobURLEntry is null, or blobURLEntry’s object is not a Blob object,
-        //    then return a network error. [FILEAPI]
+        // 2. If request’s method is not `GET` or blobURLEntry is null, then return a network error. [FILEAPI]
         if (request->method() != "GET"sv.bytes() || !blob_url_entry.has_value()) {
             // FIXME: Handle "blobURLEntry’s object is not a Blob object". It could be a MediaSource object, but we
             //        have not yet implemented the Media Source Extensions spec.
             return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request has an invalid 'blob:' URL"sv));
         }
 
-        // 3. Let blob be blobURLEntry’s object.
-        auto const blob = FileAPI::Blob::create(realm, blob_url_entry.value().object.data, blob_url_entry.value().object.type);
+        // 3. Let requestEnvironment be the result of determining the environment given request.
+        auto request_environment = determine_the_environment(request);
 
-        // 4. Let response be a new response.
+        // 4. Let isTopLevelNavigation be true if request’s destination is "document"; otherwise, false.
+        bool is_top_level_navigation = request->destination() == Infrastructure::Request::Destination::Document;
+
+        // 5. If isTopLevelNavigation is false and requestEnvironment is null, then return a network error.
+        if (!is_top_level_navigation && !request_environment)
+            return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Request is missing fetch client"sv));
+
+        // 6. Let navigationOrEnvironment be the string "navigation" if isTopLevelNavigation is true; otherwise, requestEnvironment.
+        auto navigation_or_environment = [&]() -> Variant<FileAPI::NavigationEnvironment, GC::Ref<HTML::Environment>> {
+            if (is_top_level_navigation)
+                return FileAPI::NavigationEnvironment {};
+            return GC::Ref { *request_environment };
+        }();
+
+        // 7. Let blob be the result of obtaining a blob object given blobURLEntry and navigationOrEnvironment.
+        auto blob_object = FileAPI::obtain_a_blob_object(blob_url_entry.value(), navigation_or_environment);
+
+        // 8. If blob is not a Blob object, then return a network error.
+        // FIXME: This should probably check for a MediaSource object as well, once we implement that.
+        if (!blob_object.has_value())
+            return PendingResponse::create(vm, request, Infrastructure::Response::network_error(vm, "Failed to obtain a Blob object from 'blob:' URL"sv));
+        auto const blob = FileAPI::Blob::create(realm, blob_object->data, blob_object->type);
+
+        // 9. Let response be a new response.
         auto response = Infrastructure::Response::create(vm);
 
-        // 5. Let fullLength be blob’s size.
+        // 10. Let fullLength be blob’s size.
         auto full_length = blob->size();
 
-        // 6. Let serializedFullLength be fullLength, serialized and isomorphic encoded.
+        // 11. Let serializedFullLength be fullLength, serialized and isomorphic encoded.
         auto serialized_full_length = String::number(full_length);
 
-        // 7. Let type be blob’s type.
+        // 12. Let type be blob’s type.
         auto const& type = blob->type();
 
-        // 8. If request’s header list does not contain `Range`:
+        // 13. If request’s header list does not contain `Range`:
         if (!request->header_list()->contains("Range"sv.bytes())) {
             // 1. Let bodyWithType be the result of safely extracting blob.
             auto body_with_type = safely_extract_body(realm, blob->raw_bytes());
@@ -858,7 +896,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> scheme_fetch(JS::Realm& realm, Inf
             auto content_type_header = Infrastructure::Header::from_string_pair("Content-Type"sv, type);
             response->header_list()->append(move(content_type_header));
         }
-        // 9. Otherwise:
+        // 14. Otherwise:
         else {
             // 1. Set response’s range-requested flag.
             response->set_range_requested(true);
@@ -933,7 +971,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> scheme_fetch(JS::Realm& realm, Inf
             response->header_list()->append(move(content_range_header));
         }
 
-        // 10. Return response.
+        // 15. Return response.
         return PendingResponse::create(vm, request, response);
     }
     // -> "data"
