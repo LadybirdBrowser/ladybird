@@ -18,7 +18,11 @@ class AudioParam final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(AudioParam);
 
 public:
-    static GC::Ref<AudioParam> create(JS::Realm&, GC::Ref<BaseAudioContext>, float default_value, float min_value, float max_value, Bindings::AutomationRate);
+    enum class FixedAutomationRate {
+        No,
+        Yes,
+    };
+    static GC::Ref<AudioParam> create(JS::Realm&, GC::Ref<BaseAudioContext>, float default_value, float min_value, float max_value, Bindings::AutomationRate, FixedAutomationRate = FixedAutomationRate::No);
 
     virtual ~AudioParam() override;
 
@@ -43,7 +47,7 @@ public:
     WebIDL::ExceptionOr<GC::Ref<AudioParam>> cancel_and_hold_at_time(double cancel_time);
 
 private:
-    AudioParam(JS::Realm&, GC::Ref<BaseAudioContext>, float default_value, float min_value, float max_value, Bindings::AutomationRate);
+    AudioParam(JS::Realm&, GC::Ref<BaseAudioContext>, float default_value, float min_value, float max_value, Bindings::AutomationRate, FixedAutomationRate = FixedAutomationRate::No);
 
     GC::Ref<BaseAudioContext> m_context;
 
@@ -56,6 +60,8 @@ private:
     float m_max_value {};
 
     Bindings::AutomationRate m_automation_rate {};
+
+    FixedAutomationRate m_fixed_automation_rate { FixedAutomationRate::No };
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;

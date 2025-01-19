@@ -41,11 +41,11 @@ WebIDL::ExceptionOr<GC::Ref<DynamicsCompressorNode>> DynamicsCompressorNode::con
 
 DynamicsCompressorNode::DynamicsCompressorNode(JS::Realm& realm, GC::Ref<BaseAudioContext> context, DynamicsCompressorOptions const& options)
     : AudioNode(realm, context)
-    , m_threshold(AudioParam::create(realm, context, options.threshold, -100, 0, Bindings::AutomationRate::KRate))
-    , m_knee(AudioParam::create(realm, context, options.knee, 0, 40, Bindings::AutomationRate::KRate))
-    , m_ratio(AudioParam::create(realm, context, options.ratio, 1, 20, Bindings::AutomationRate::KRate))
-    , m_attack(AudioParam::create(realm, context, options.attack, 0, 1, Bindings::AutomationRate::KRate))
-    , m_release(AudioParam::create(realm, context, options.release, 0, 1, Bindings::AutomationRate::KRate))
+    , m_threshold(AudioParam::create(realm, context, options.threshold, -100, 0, Bindings::AutomationRate::KRate, AudioParam::FixedAutomationRate::Yes))
+    , m_knee(AudioParam::create(realm, context, options.knee, 0, 40, Bindings::AutomationRate::KRate, AudioParam::FixedAutomationRate::Yes))
+    , m_ratio(AudioParam::create(realm, context, options.ratio, 1, 20, Bindings::AutomationRate::KRate, AudioParam::FixedAutomationRate::Yes))
+    , m_attack(AudioParam::create(realm, context, options.attack, 0, 1, Bindings::AutomationRate::KRate, AudioParam::FixedAutomationRate::Yes))
+    , m_release(AudioParam::create(realm, context, options.release, 0, 1, Bindings::AutomationRate::KRate, AudioParam::FixedAutomationRate::Yes))
 {
 }
 
