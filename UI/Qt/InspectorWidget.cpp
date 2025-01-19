@@ -11,6 +11,7 @@
 #include <UI/Qt/StringUtils.h>
 
 #include <QAction>
+#include <QClipboard>
 #include <QCloseEvent>
 #include <QGuiApplication>
 #include <QMenu>
@@ -36,6 +37,29 @@ InspectorWidget::InspectorWidget(QWidget* tab, WebContentView& content_view)
     inspector_close_action->setShortcuts({ QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_I), QKeySequence(Qt::CTRL | Qt::Key_W), QKeySequence(Qt::Key_F12) });
     addAction(inspector_close_action);
     connect(inspector_close_action, &QAction::triggered, [this]() { close(); });
+
+    auto* copy_action = new QAction("&Copy", this);
+    copy_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Copy));
+    addAction(copy_action);
+    connect(copy_action, &QAction::triggered, [this]() {
+        auto text = m_inspector_view->selected_text();
+        QGuiApplication::clipboard()->setText(qstring_from_ak_string(text));
+    });
+
+    auto* paste_action = new QAction("&Paste", this);
+    paste_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Paste));
+    addAction(paste_action);
+    connect(paste_action, &QAction::triggered, [this]() {
+        auto* clipboard = QGuiApplication::clipboard();
+        m_inspector_view->paste(ak_string_from_qstring(clipboard->text()));
+    });
+
+    auto* select_all_action = new QAction("Select &All", this);
+    select_all_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::SelectAll));
+    addAction(select_all_action);
+    connect(select_all_action, &QAction::triggered, [this]() {
+        m_inspector_view->select_all();
+    });
 
     m_inspector_client = make<WebView::InspectorClient>(content_view, *m_inspector_view);
 
