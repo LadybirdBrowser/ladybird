@@ -1,0 +1,127 @@
+Harness status: OK
+
+Found 122 tests
+
+122 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "AudioBufferSourceNode"
+Pass	Executing "BiquadFilterNode"
+Pass	Executing "ConstantSourceNode"
+Pass	Executing "DelayNode"
+Pass	Executing "DynamicsCompressorNode"
+Pass	Executing "GainNode"
+Pass	Executing "OscillatorNode"
+Pass	Executing "PannerNode"
+Pass	Executing "StereoPannerNode"
+Pass	Executing "AudioListener"
+Pass	Audit report
+Pass	> [AudioBufferSourceNode] 
+Pass	  Default AudioBufferSourceNode.detune.automationRate is equal to k-rate.
+Pass	  Set AudioBufferSourceNode.detune.automationRate to "a-rate" threw InvalidStateError: "Automation rate cannot be changed".
+Pass	  Default AudioBufferSourceNode.playbackRate.automationRate is equal to k-rate.
+Pass	  Set AudioBufferSourceNode.playbackRate.automationRate to "a-rate" threw InvalidStateError: "Automation rate cannot be changed".
+Pass	< [AudioBufferSourceNode] All assertions passed. (total 4 assertions)
+Pass	> [BiquadFilterNode] 
+Pass	  Default BiquadFilterNode.frequency.automationRate is equal to a-rate.
+Pass	  Set BiquadFilterNode.frequency.automationRate to "k-rate" did not throw an exception.
+Pass	  BiquadFilterNode.frequency.automationRate is equal to k-rate.
+Pass	  Default BiquadFilterNode.detune.automationRate is equal to a-rate.
+Pass	  Set BiquadFilterNode.detune.automationRate to "k-rate" did not throw an exception.
+Pass	  BiquadFilterNode.detune.automationRate is equal to k-rate.
+Pass	  Default BiquadFilterNode.Q.automationRate is equal to a-rate.
+Pass	  Set BiquadFilterNode.Q.automationRate to "k-rate" did not throw an exception.
+Pass	  BiquadFilterNode.Q.automationRate is equal to k-rate.
+Pass	  Default BiquadFilterNode.gain.automationRate is equal to a-rate.
+Pass	  Set BiquadFilterNode.gain.automationRate to "k-rate" did not throw an exception.
+Pass	  BiquadFilterNode.gain.automationRate is equal to k-rate.
+Pass	< [BiquadFilterNode] All assertions passed. (total 12 assertions)
+Pass	> [ConstantSourceNode] 
+Pass	  Default ConstantSourceNode.offset.automationRate is equal to a-rate.
+Pass	  Set ConstantSourceNode.offset.automationRate to "k-rate" did not throw an exception.
+Pass	  ConstantSourceNode.offset.automationRate is equal to k-rate.
+Pass	< [ConstantSourceNode] All assertions passed. (total 3 assertions)
+Pass	> [DelayNode] 
+Pass	  Default DelayNode.delayTime.automationRate is equal to a-rate.
+Pass	  Set DelayNode.delayTime.automationRate to "k-rate" did not throw an exception.
+Pass	  DelayNode.delayTime.automationRate is equal to k-rate.
+Pass	< [DelayNode] All assertions passed. (total 3 assertions)
+Pass	> [DynamicsCompressorNode] 
+Pass	  Default DynamicsCompressorNode.threshold.automationRate is equal to k-rate.
+Pass	  Set DynamicsCompressorNode.threshold.automationRate to "a-rate" threw InvalidStateError: "Automation rate cannot be changed".
+Pass	  Default DynamicsCompressorNode.knee.automationRate is equal to k-rate.
+Pass	  Set DynamicsCompressorNode.knee.automationRate to "a-rate" threw InvalidStateError: "Automation rate cannot be changed".
+Pass	  Default DynamicsCompressorNode.ratio.automationRate is equal to k-rate.
+Pass	  Set DynamicsCompressorNode.ratio.automationRate to "a-rate" threw InvalidStateError: "Automation rate cannot be changed".
+Pass	  Default DynamicsCompressorNode.attack.automationRate is equal to k-rate.
+Pass	  Set DynamicsCompressorNode.attack.automationRate to "a-rate" threw InvalidStateError: "Automation rate cannot be changed".
+Pass	  Default DynamicsCompressorNode.release.automationRate is equal to k-rate.
+Pass	  Set DynamicsCompressorNode.release.automationRate to "a-rate" threw InvalidStateError: "Automation rate cannot be changed".
+Pass	< [DynamicsCompressorNode] All assertions passed. (total 10 assertions)
+Pass	> [GainNode] 
+Pass	  Default GainNode.gain.automationRate is equal to a-rate.
+Pass	  Set GainNode.gain.automationRate to "k-rate" did not throw an exception.
+Pass	  GainNode.gain.automationRate is equal to k-rate.
+Pass	< [GainNode] All assertions passed. (total 3 assertions)
+Pass	> [OscillatorNode] 
+Pass	  Default OscillatorNode.frequency.automationRate is equal to a-rate.
+Pass	  Set OscillatorNode.frequency.automationRate to "k-rate" did not throw an exception.
+Pass	  OscillatorNode.frequency.automationRate is equal to k-rate.
+Pass	  Default OscillatorNode.detune.automationRate is equal to a-rate.
+Pass	  Set OscillatorNode.detune.automationRate to "k-rate" did not throw an exception.
+Pass	  OscillatorNode.detune.automationRate is equal to k-rate.
+Pass	< [OscillatorNode] All assertions passed. (total 6 assertions)
+Pass	> [PannerNode] 
+Pass	  Default PannerNode.positionX.automationRate is equal to a-rate.
+Pass	  Set PannerNode.positionX.automationRate to "k-rate" did not throw an exception.
+Pass	  PannerNode.positionX.automationRate is equal to k-rate.
+Pass	  Default PannerNode.positionY.automationRate is equal to a-rate.
+Pass	  Set PannerNode.positionY.automationRate to "k-rate" did not throw an exception.
+Pass	  PannerNode.positionY.automationRate is equal to k-rate.
+Pass	  Default PannerNode.positionZ.automationRate is equal to a-rate.
+Pass	  Set PannerNode.positionZ.automationRate to "k-rate" did not throw an exception.
+Pass	  PannerNode.positionZ.automationRate is equal to k-rate.
+Pass	  Default PannerNode.orientationX.automationRate is equal to a-rate.
+Pass	  Set PannerNode.orientationX.automationRate to "k-rate" did not throw an exception.
+Pass	  PannerNode.orientationX.automationRate is equal to k-rate.
+Pass	  Default PannerNode.orientationY.automationRate is equal to a-rate.
+Pass	  Set PannerNode.orientationY.automationRate to "k-rate" did not throw an exception.
+Pass	  PannerNode.orientationY.automationRate is equal to k-rate.
+Pass	  Default PannerNode.orientationZ.automationRate is equal to a-rate.
+Pass	  Set PannerNode.orientationZ.automationRate to "k-rate" did not throw an exception.
+Pass	  PannerNode.orientationZ.automationRate is equal to k-rate.
+Pass	< [PannerNode] All assertions passed. (total 18 assertions)
+Pass	> [StereoPannerNode] 
+Pass	  Default StereoPannerNode.pan.automationRate is equal to a-rate.
+Pass	  Set StereoPannerNode.pan.automationRate to "k-rate" did not throw an exception.
+Pass	  StereoPannerNode.pan.automationRate is equal to k-rate.
+Pass	< [StereoPannerNode] All assertions passed. (total 3 assertions)
+Pass	> [AudioListener] 
+Pass	  Default AudioListener.positionX.automationRate is equal to a-rate.
+Pass	  Set AudioListener.positionX.automationRate to "k-rate" did not throw an exception.
+Pass	  AudioListener.positionX.automationRate is equal to k-rate.
+Pass	  Default AudioListener.positionY.automationRate is equal to a-rate.
+Pass	  Set AudioListener.positionY.automationRate to "k-rate" did not throw an exception.
+Pass	  AudioListener.positionY.automationRate is equal to k-rate.
+Pass	  Default AudioListener.positionZ.automationRate is equal to a-rate.
+Pass	  Set AudioListener.positionZ.automationRate to "k-rate" did not throw an exception.
+Pass	  AudioListener.positionZ.automationRate is equal to k-rate.
+Pass	  Default AudioListener.forwardX.automationRate is equal to a-rate.
+Pass	  Set AudioListener.forwardX.automationRate to "k-rate" did not throw an exception.
+Pass	  AudioListener.forwardX.automationRate is equal to k-rate.
+Pass	  Default AudioListener.forwardY.automationRate is equal to a-rate.
+Pass	  Set AudioListener.forwardY.automationRate to "k-rate" did not throw an exception.
+Pass	  AudioListener.forwardY.automationRate is equal to k-rate.
+Pass	  Default AudioListener.forwardZ.automationRate is equal to a-rate.
+Pass	  Set AudioListener.forwardZ.automationRate to "k-rate" did not throw an exception.
+Pass	  AudioListener.forwardZ.automationRate is equal to k-rate.
+Pass	  Default AudioListener.upX.automationRate is equal to a-rate.
+Pass	  Set AudioListener.upX.automationRate to "k-rate" did not throw an exception.
+Pass	  AudioListener.upX.automationRate is equal to k-rate.
+Pass	  Default AudioListener.upY.automationRate is equal to a-rate.
+Pass	  Set AudioListener.upY.automationRate to "k-rate" did not throw an exception.
+Pass	  AudioListener.upY.automationRate is equal to k-rate.
+Pass	  Default AudioListener.upZ.automationRate is equal to a-rate.
+Pass	  Set AudioListener.upZ.automationRate to "k-rate" did not throw an exception.
+Pass	  AudioListener.upZ.automationRate is equal to k-rate.
+Pass	< [AudioListener] All assertions passed. (total 27 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 10 tasks ran successfully.
