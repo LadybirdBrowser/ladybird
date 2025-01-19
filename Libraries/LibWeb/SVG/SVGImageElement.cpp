@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Ledbetter <tim.ledbetter@ladybird.org>
+ * Copyright (c) 2024-2025, Tim Ledbetter <tim.ledbetter@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -140,7 +140,13 @@ Gfx::Rect<CSSPixels> SVGImageElement::bounding_box() const
 // https://www.w3.org/TR/SVG2/linking.html#processingURL
 void SVGImageElement::process_the_url(Optional<String> const& href)
 {
-    m_href = document().url().complete_url(href.value_or(String {}));
+    if (!href.has_value()) {
+        m_href = {};
+        return;
+    }
+
+    m_href = document().parse_url(*href);
+
     if (!m_href.is_valid())
         return;
 
