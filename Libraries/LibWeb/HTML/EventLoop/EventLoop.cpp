@@ -503,6 +503,9 @@ void perform_a_microtask_checkpoint()
 // https://html.spec.whatwg.org/#perform-a-microtask-checkpoint
 void EventLoop::perform_a_microtask_checkpoint()
 {
+    if (execution_paused())
+        return;
+
     // NOTE: This assertion is per requirement 9.5 of the ECMA-262 spec, see: https://tc39.es/ecma262/#sec-jobs
     // > At some future point in time, when there is no running context in the agent for which the job is scheduled and that agent's execution context stack is empty...
     VERIFY(vm().execution_context_stack().is_empty());
@@ -653,6 +656,8 @@ EventLoop::PauseHandle::~PauseHandle()
 // https://html.spec.whatwg.org/multipage/webappapis.html#pause
 EventLoop::PauseHandle EventLoop::pause()
 {
+    m_execution_paused = true;
+
     // 1. Let global be the current global object.
     auto& global = current_principal_global_object();
 
@@ -667,7 +672,6 @@ EventLoop::PauseHandle EventLoop::pause()
     //    not run further tasks, and any script in the currently running task must block. User agents should remain
     //    responsive to user input while paused, however, albeit in a reduced capacity since the event loop will not be
     //    doing anything.
-    m_execution_paused = true;
 
     return PauseHandle { *this, global, time_before_pause };
 }
