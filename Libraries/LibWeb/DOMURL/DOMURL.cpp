@@ -516,9 +516,11 @@ URL::URL parse(StringView input, Optional<URL::URL const&> base_url, Optional<St
     auto blob_url_entry = FileAPI::resolve_a_blob_url(*url);
     if (blob_url_entry.has_value()) {
         url->set_blob_url_entry(URL::BlobURLEntry {
-            .type = blob_url_entry->object->type(),
-            .byte_buffer = MUST(ByteBuffer::copy(blob_url_entry->object->raw_bytes())),
-            .environment_origin = blob_url_entry->environment->origin(),
+            .object = URL::BlobURLEntry::Object {
+                .type = blob_url_entry->object->type(),
+                .data = MUST(ByteBuffer::copy(blob_url_entry->object->raw_bytes())),
+            },
+            .environment { .origin = blob_url_entry->environment->origin() },
         });
     }
 

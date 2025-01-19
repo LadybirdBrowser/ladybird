@@ -41,11 +41,20 @@ enum class ExcludeFragment {
 };
 
 // https://w3c.github.io/FileAPI/#blob-url-entry
-// NOTE: This represents the raw bytes behind a 'Blob' (and does not yet support a MediaSourceQuery).
 struct BlobURLEntry {
-    String type;
-    ByteBuffer byte_buffer;
-    Origin environment_origin;
+    // This represents the raw bytes behind a 'Blob' (and does not yet support a MediaSourceQuery).
+    struct Object {
+        String type;
+        ByteBuffer data;
+    };
+
+    // This represents the parts of HTML::Environment that we need for a BlobURL entry.
+    struct Environment {
+        Origin origin;
+    };
+
+    Object object;
+    Environment environment;
 };
 
 void append_percent_encoded_if_necessary(StringBuilder&, u32 code_point, PercentEncodeSet set = PercentEncodeSet::Userinfo);

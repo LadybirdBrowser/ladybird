@@ -826,7 +826,7 @@ WebIDL::ExceptionOr<GC::Ref<PendingResponse>> scheme_fetch(JS::Realm& realm, Inf
         }
 
         // 3. Let blob be blobURLEntry’s object.
-        auto const blob = FileAPI::Blob::create(realm, blob_url_entry.value().byte_buffer, blob_url_entry.value().type);
+        auto const blob = FileAPI::Blob::create(realm, blob_url_entry.value().object.data, blob_url_entry.value().object.type);
 
         // 4. Let response be a new response.
         auto response = Infrastructure::Response::create(vm);
