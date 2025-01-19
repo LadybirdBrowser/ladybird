@@ -11,6 +11,7 @@
 #include <AK/Forward.h>
 #include <AK/HashTable.h>
 #include <AK/Traits.h>
+#include <LibWeb/CSS/PseudoClass.h>
 
 namespace Web::CSS {
 
@@ -24,10 +25,13 @@ public:
             Id,
             TagName,
             Attribute,
+            PseudoClass,
         };
 
         Type type;
-        FlyString name {};
+        Variant<FlyString, PseudoClass, Empty> value { Empty {} };
+
+        FlyString const& name() const { return value.get<FlyString>(); }
 
         bool operator==(Property const& other) const = default;
     };
@@ -44,6 +48,7 @@ public:
     void set_needs_invalidate_id(FlyString const& name) { m_properties.set({ Property::Type::Id, name }); }
     void set_needs_invalidate_tag_name(FlyString const& name) { m_properties.set({ Property::Type::TagName, name }); }
     void set_needs_invalidate_attribute(FlyString const& name) { m_properties.set({ Property::Type::Attribute, name }); }
+    void set_needs_invalidate_pseudo_class(PseudoClass pseudo_class) { m_properties.set({ Property::Type::PseudoClass, pseudo_class }); }
 
     bool is_empty() const;
     void for_each_property(Function<void(Property const&)> const& callback) const;

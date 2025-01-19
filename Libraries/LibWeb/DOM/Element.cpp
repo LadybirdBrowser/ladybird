@@ -1146,15 +1146,32 @@ bool Element::affected_by_invalidation_property(CSS::InvalidationSet::Property c
 {
     switch (property.type) {
     case CSS::InvalidationSet::Property::Type::Class:
-        return m_classes.contains_slow(property.name);
+        return m_classes.contains_slow(property.name());
     case CSS::InvalidationSet::Property::Type::Id:
-        return m_id == property.name;
+        return m_id == property.name();
     case CSS::InvalidationSet::Property::Type::TagName:
-        return local_name() == property.name;
+        return local_name() == property.name();
     case CSS::InvalidationSet::Property::Type::Attribute: {
-        if (property.name == HTML::AttributeNames::id || property.name == HTML::AttributeNames::class_)
+        if (property.name() == HTML::AttributeNames::id || property.name() == HTML::AttributeNames::class_)
             return true;
-        return has_attribute(property.name);
+        return has_attribute(property.name());
+    }
+    case CSS::InvalidationSet::Property::Type::PseudoClass: {
+        switch (property.value.get<CSS::PseudoClass>()) {
+        case CSS::PseudoClass::Enabled: {
+            return (is<HTML::HTMLButtonElement>(*this) || is<HTML::HTMLInputElement>(*this) || is<HTML::HTMLSelectElement>(*this) || is<HTML::HTMLTextAreaElement>(*this) || is<HTML::HTMLOptGroupElement>(*this) || is<HTML::HTMLOptionElement>(*this) || is<HTML::HTMLFieldSetElement>(*this))
+                && !is_actually_disabled();
+        }
+        case CSS::PseudoClass::Disabled: {
+            return is_actually_disabled();
+        }
+        case CSS::PseudoClass::Checked: {
+            // FIXME: This could be narrowed down to return true only if element is actually checked.
+            return is<HTML::HTMLInputElement>(*this) || is<HTML::HTMLOptionElement>(*this);
+        }
+        default:
+            VERIFY_NOT_REACHED();
+        }
     }
     case CSS::InvalidationSet::Property::Type::InvalidateSelf:
         return false;
@@ -1951,26 +1968,6 @@ ErrorOr<void> Element::scroll_into_view(Optional<Variant<bool, ScrollIntoViewOpt
     // FIXME: 8. Optionally perform some other action that brings the element to the user’s attention.
 }
 
-static bool attribute_name_may_affect_selectors(Element const& element, FlyString const& attribute_name)
-{
-    // FIXME: We could make these cases more narrow by making the conditions more elaborate.
-    if (attribute_name == HTML::AttributeNames::id
-        || attribute_name == HTML::AttributeNames::class_
-        || attribute_name == HTML::AttributeNames::dir
-        || attribute_name == HTML::AttributeNames::lang
-        || attribute_name == HTML::AttributeNames::checked
-        || attribute_name == HTML::AttributeNames::disabled
-        || attribute_name == HTML::AttributeNames::readonly
-        || attribute_name == HTML::AttributeNames::switch_
-        || attribute_name == HTML::AttributeNames::href
-        || attribute_name == HTML::AttributeNames::open
-        || attribute_name == HTML::AttributeNames::placeholder) {
-        return true;
-    }
-
-    return element.document().style_computer().has_attribute_selector(attribute_name);
-}
-
 void Element::invalidate_style_after_attribute_change(FlyString const& attribute_name, Optional<String> const& old_value, Optional<String> const& new_value)
 {
     // FIXME: Only invalidate if the attribute can actually affect style.
@@ -2003,15 +2000,15 @@ void Element::invalidate_style_after_attribute_change(FlyString const& attribute
         Vector<CSS::InvalidationSet::Property> changed_properties;
         for (auto& old_class : old_classes) {
             if (!new_classes.contains_slow(old_class)) {
-                changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Class, .name = FlyString::from_utf8_without_validation(old_class.bytes()) });
+                changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Class, .value = FlyString::from_utf8_without_validation(old_class.bytes()) });
             }
         }
         for (auto& new_class : new_classes) {
             if (!old_classes.contains_slow(new_class)) {
-                changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Class, .name = FlyString::from_utf8_without_validation(new_class.bytes()) });
+                changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Class, .value = FlyString::from_utf8_without_validation(new_class.bytes()) });
             }
         }
-        changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Attribute, .name = HTML::AttributeNames::class_ });
+        changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Attribute, .value = HTML::AttributeNames::class_ });
         invalidate_style(StyleInvalidationReason::ElementAttributeChange, changed_properties);
         return;
     }
@@ -2019,19 +2016,31 @@ void Element::invalidate_style_after_attribute_change(FlyString const& attribute
     if (attribute_name == HTML::AttributeNames::id) {
         Vector<CSS::InvalidationSet::Property> changed_properties;
         if (old_value.has_value())
-            changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Id, .name = old_value.value() });
+            changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Id, .value = FlyString(old_value.value()) });
         if (new_value.has_value())
-            changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Id, .name = new_value.value() });
-        changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Attribute, .name = HTML::AttributeNames::id });
+            changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Id, .value = FlyString(new_value.value()) });
+        changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Attribute, .value = HTML::AttributeNames::id });
         invalidate_style(StyleInvalidationReason::ElementAttributeChange, changed_properties);
         return;
     }
 
-    if (is_presentational_hint(attribute_name)
-        || attribute_name_may_affect_selectors(*this, attribute_name)) {
+    Vector<CSS::InvalidationSet::Property> changed_properties;
+    if (attribute_name == HTML::AttributeNames::disabled) {
+        changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::Disabled });
+        changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::Enabled });
+    } else if (attribute_name == HTML::AttributeNames::placeholder) {
+        changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::PlaceholderShown });
+    } else if (attribute_name == HTML::AttributeNames::value) {
+        changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::Checked });
+    }
+
+    if (is_presentational_hint(attribute_name)) {
         invalidate_style(StyleInvalidationReason::ElementAttributeChange);
         return;
     }
+
+    changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Attribute, .value = attribute_name });
+    invalidate_style(StyleInvalidationReason::ElementAttributeChange, changed_properties);
 }
 
 bool Element::is_hidden() const

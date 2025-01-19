@@ -37,7 +37,11 @@ namespace AK {
 
 unsigned Traits<Web::CSS::InvalidationSet::Property>::hash(Web::CSS::InvalidationSet::Property const& invalidation_set_property)
 {
-    return pair_int_hash(to_underlying(invalidation_set_property.type), invalidation_set_property.name.hash());
+    auto value_hash = invalidation_set_property.value.visit(
+        [](FlyString const& value) -> int { return value.hash(); },
+        [](Web::CSS::PseudoClass const& value) -> int { return to_underlying(value); },
+        [](Empty) -> int { return 0; });
+    return pair_int_hash(to_underlying(invalidation_set_property.type), value_hash);
 }
 
 ErrorOr<void> Formatter<Web::CSS::InvalidationSet::Property>::format(FormatBuilder& builder, Web::CSS::InvalidationSet::Property const& invalidation_set_property)
@@ -49,22 +53,27 @@ ErrorOr<void> Formatter<Web::CSS::InvalidationSet::Property>::format(FormatBuild
     }
     case Web::CSS::InvalidationSet::Property::Type::Class: {
         TRY(builder.put_string("."sv));
-        TRY(builder.put_string(invalidation_set_property.name));
+        TRY(builder.put_string(invalidation_set_property.name()));
         return {};
     }
     case Web::CSS::InvalidationSet::Property::Type::Id: {
         TRY(builder.put_string("#"sv));
-        TRY(builder.put_string(invalidation_set_property.name));
+        TRY(builder.put_string(invalidation_set_property.name()));
         return {};
     }
     case Web::CSS::InvalidationSet::Property::Type::TagName: {
-        TRY(builder.put_string(invalidation_set_property.name));
+        TRY(builder.put_string(invalidation_set_property.name()));
         return {};
     }
     case Web::CSS::InvalidationSet::Property::Type::Attribute: {
         TRY(builder.put_string("["sv));
-        TRY(builder.put_string(invalidation_set_property.name));
+        TRY(builder.put_string(invalidation_set_property.name()));
         TRY(builder.put_string("]"sv));
+        return {};
+    }
+    case Web::CSS::InvalidationSet::Property::Type::PseudoClass: {
+        TRY(builder.put_string(":"sv));
+        TRY(builder.put_string(pseudo_class_name(invalidation_set_property.value.get<Web::CSS::PseudoClass>())));
         return {};
     }
     case Web::CSS::InvalidationSet::Property::Type::InvalidateWholeSubtree: {

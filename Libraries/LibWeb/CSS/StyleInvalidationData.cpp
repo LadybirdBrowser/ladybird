@@ -66,6 +66,16 @@ static void collect_properties_used_in_has(Selector::SimpleSelector const& selec
     }
     case Selector::SimpleSelector::Type::PseudoClass: {
         auto const& pseudo_class = selector.pseudo_class();
+        switch (pseudo_class.type) {
+        case PseudoClass::Enabled:
+        case PseudoClass::Disabled:
+        case PseudoClass::PlaceholderShown:
+        case PseudoClass::Checked:
+            style_invalidation_data.pseudo_classes_used_in_has_selectors.set(pseudo_class.type);
+            break;
+        default:
+            break;
+        }
         for (auto const& child_selector : pseudo_class.argument_selector_list) {
             for (auto const& compound_selector : child_selector->compound_selectors()) {
                 for (auto const& simple_selector : compound_selector.simple_selectors) {
@@ -102,6 +112,16 @@ static void build_invalidation_sets_for_simple_selector(Selector::SimpleSelector
         break;
     case Selector::SimpleSelector::Type::PseudoClass: {
         auto const& pseudo_class = selector.pseudo_class();
+        switch (pseudo_class.type) {
+        case PseudoClass::Enabled:
+        case PseudoClass::Disabled:
+        case PseudoClass::PlaceholderShown:
+        case PseudoClass::Checked:
+            invalidation_set.set_needs_invalidate_pseudo_class(pseudo_class.type);
+            break;
+        default:
+            break;
+        }
         if (pseudo_class.type == PseudoClass::Has)
             break;
         if (exclude_properties_nested_in_not_pseudo_class == ExcludePropertiesNestedInNotPseudoClass::Yes && pseudo_class.type == PseudoClass::Not)
