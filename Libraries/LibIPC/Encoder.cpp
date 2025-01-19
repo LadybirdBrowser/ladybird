@@ -109,9 +109,9 @@ ErrorOr<void> encode(Encoder& encoder, URL::URL const& value)
 
     auto const& blob = value.blob_url_entry().value();
 
-    TRY(encoder.encode(blob.type));
-    TRY(encoder.encode(blob.byte_buffer));
-    TRY(encoder.encode(blob.environment_origin));
+    TRY(encoder.encode(blob.object.type));
+    TRY(encoder.encode(blob.object.data));
+    TRY(encoder.encode(blob.environment.origin));
 
     return {};
 }

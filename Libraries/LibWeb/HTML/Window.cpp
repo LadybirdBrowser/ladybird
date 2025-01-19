@@ -161,7 +161,7 @@ static TokenizedFeature::NoOpener get_noopener_for_window_open(DOM::Document con
     // 1. If url is not null and url's blob URL entry is not null:
     if (url.has_value() && url->blob_url_entry().has_value()) {
         // 1. Let blobOrigin be url's blob URL entry's environment's origin.
-        auto blob_origin = url->blob_url_entry()->environment_origin;
+        auto blob_origin = url->blob_url_entry()->environment.origin;
 
         // 2. Let topLevelOrigin be sourceDocument's relevant settings object's top-level origin.
         auto top_level_origin = source_document.relevant_settings_object().top_level_origin;
