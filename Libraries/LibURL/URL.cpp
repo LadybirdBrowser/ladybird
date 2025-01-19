@@ -365,7 +365,7 @@ Origin URL::origin() const
     if (scheme() == "blob"sv) {
         // 1. If url’s blob URL entry is non-null, then return url’s blob URL entry’s environment’s origin.
         if (blob_url_entry().has_value())
-            return blob_url_entry()->environment_origin;
+            return blob_url_entry()->environment.origin;
 
         // 2. Let pathURL be the result of parsing the result of URL path serializing url.
         auto path_url = Parser::basic_parse(serialize_path());
