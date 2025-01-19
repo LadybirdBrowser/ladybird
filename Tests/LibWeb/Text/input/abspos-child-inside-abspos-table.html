@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+.outer {
+  display: table;
+  position: absolute;
+}
+.inner {
+  position: absolute;
+}
+</style><div class="outer"><div class="inner"></div></div>
+<script>test(() => println("PASS (did not crash)"));</script>
