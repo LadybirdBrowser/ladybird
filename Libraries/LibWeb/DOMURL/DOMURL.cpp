@@ -2,7 +2,7 @@
  * Copyright (c) 2021, Idan Horowitz <idan.horowitz@serenityos.org>
  * Copyright (c) 2021, the SerenityOS developers.
  * Copyright (c) 2023, networkException <networkexception@serenityos.org>
- * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2024-2025, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -136,17 +136,21 @@ void DOMURL::revoke_object_url(JS::VM&, StringView url)
     if (url_record.scheme() != "blob"sv)
         return;
 
-    // 3. Let origin be the origin of url record.
-    auto origin = url_record.origin();
+    // 3. Let entry be urlRecord’s blob URL entry.
+    auto& entry = url_record.blob_url_entry();
 
-    // 4. Let settings be the current settings object.
-    auto& settings = HTML::current_principal_settings_object();
-
-    // 5. If origin is not same origin with settings’s origin, return.
-    if (!origin.is_same_origin(settings.origin()))
+    // 4. If entry is null, return.
+    if (!entry.has_value())
         return;
 
-    // 6. Remove an entry from the Blob URL Store for url.
+    // 5. Let isAuthorized be the result of checking for same-partition blob URL usage with entry and the current settings object.
+    bool is_authorized = FileAPI::check_for_same_partition_blob_url_usage(entry.value(), HTML::current_principal_settings_object());
+
+    // 6. If isAuthorized is false, then return.
+    if (!is_authorized)
+        return;
+
+    // 7. Remove an entry from the Blob URL Store for url.
     FileAPI::remove_entry_from_blob_url_store(url);
 }
 
