@@ -3485,14 +3485,11 @@ SinglyLinkedList<GC::Root<PullIntoDescriptor>> readable_byte_stream_controller_p
 
         // 3. If ! ReadableByteStreamControllerFillPullIntoDescriptorFromQueue(controller, pullIntoDescriptor) is true,
         if (readable_byte_stream_controller_fill_pull_into_descriptor_from_queue(controller, pull_into_descriptor)) {
-            // NOTE: We store the returned pull into descriptor here as the 'shift pending pull into' will remove
-            //       the first entry into the list which we have a reference to above.
-
             // 1. Perform ! ReadableByteStreamControllerShiftPendingPullInto(controller).
-            auto descriptor = readable_byte_stream_controller_shift_pending_pull_into(controller);
+            readable_byte_stream_controller_shift_pending_pull_into(controller);
 
             // 2. Append pullIntoDescriptor to filledPullIntos.
-            filled_pull_intos.append(descriptor);
+            filled_pull_intos.append(pull_into_descriptor);
         }
     }
 
