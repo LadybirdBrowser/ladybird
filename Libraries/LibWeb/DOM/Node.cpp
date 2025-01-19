@@ -470,7 +470,7 @@ void Node::invalidate_style(StyleInvalidationReason reason)
     document().schedule_style_update();
 }
 
-void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::InvalidationSet::Property> const& properties)
+void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::InvalidationSet::Property> const& properties, ForceSelfStyleInvalidation force_self_invalidation)
 {
     if (is_character_data())
         return;
@@ -485,6 +485,8 @@ void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::Invalida
     }
 
     auto invalidation_set = document().style_computer().invalidation_set_for_properties(properties);
+    if (force_self_invalidation == ForceSelfStyleInvalidation::Yes)
+        invalidation_set.set_needs_invalidate_self();
     if (invalidation_set.is_empty())
         return;
 

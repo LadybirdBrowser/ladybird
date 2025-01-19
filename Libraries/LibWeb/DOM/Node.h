@@ -297,8 +297,12 @@ public:
     bool child_needs_style_update() const { return m_child_needs_style_update; }
     void set_child_needs_style_update(bool b) { m_child_needs_style_update = b; }
 
+    enum class ForceSelfStyleInvalidation : bool {
+        Yes,
+        No
+    };
     void invalidate_style(StyleInvalidationReason);
-    void invalidate_style(StyleInvalidationReason, Vector<CSS::InvalidationSet::Property> const&);
+    void invalidate_style(StyleInvalidationReason, Vector<CSS::InvalidationSet::Property> const&, ForceSelfStyleInvalidation = ForceSelfStyleInvalidation::No);
 
     void set_document(Badge<Document>, Document&);
 
