@@ -1,0 +1,10 @@
+<script src="../include.js"></script>
+<svg><symbol id="foo"></symbol><use href="#foo"></use></svg>
+<script>
+    test(() => {
+        document.body.offsetWidth; // force layout
+        foo.setAttribute("id", "bar");
+        document.body.offsetWidth; // force layout
+        println("PASS (didn't fall apart)");
+    });
+</script>
