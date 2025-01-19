@@ -14,7 +14,7 @@ namespace Web::WebAudio {
 
 GC_DEFINE_ALLOCATOR(AudioParam);
 
-AudioParam::AudioParam(JS::Realm& realm, GC::Ref<BaseAudioContext> context, float default_value, float min_value, float max_value, Bindings::AutomationRate automation_rate)
+AudioParam::AudioParam(JS::Realm& realm, GC::Ref<BaseAudioContext> context, float default_value, float min_value, float max_value, Bindings::AutomationRate automation_rate, FixedAutomationRate fixed_automation_rate)
     : Bindings::PlatformObject(realm)
     , m_context(context)
     , m_current_value(default_value)
@@ -22,12 +22,13 @@ AudioParam::AudioParam(JS::Realm& realm, GC::Ref<BaseAudioContext> context, floa
     , m_min_value(min_value)
     , m_max_value(max_value)
     , m_automation_rate(automation_rate)
+    , m_fixed_automation_rate(fixed_automation_rate)
 {
 }
 
-GC::Ref<AudioParam> AudioParam::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, float default_value, float min_value, float max_value, Bindings::AutomationRate automation_rate)
+GC::Ref<AudioParam> AudioParam::create(JS::Realm& realm, GC::Ref<BaseAudioContext> context, float default_value, float min_value, float max_value, Bindings::AutomationRate automation_rate, FixedAutomationRate fixed_automation_rate)
 {
-    return realm.create<AudioParam>(realm, context, default_value, min_value, max_value, automation_rate);
+    return realm.create<AudioParam>(realm, context, default_value, min_value, max_value, automation_rate, fixed_automation_rate);
 }
 
 AudioParam::~AudioParam() = default;
@@ -56,7 +57,9 @@ Bindings::AutomationRate AudioParam::automation_rate() const
 // https://webaudio.github.io/web-audio-api/#dom-audioparam-automationrate
 WebIDL::ExceptionOr<void> AudioParam::set_automation_rate(Bindings::AutomationRate automation_rate)
 {
-    dbgln("FIXME: Fully implement AudioParam::set_automation_rate");
+    if (automation_rate != m_automation_rate && m_fixed_automation_rate == FixedAutomationRate::Yes)
+        return WebIDL::InvalidStateError::create(realm(), "Automation rate cannot be changed"_string);
+
     m_automation_rate = automation_rate;
     return {};
 }
