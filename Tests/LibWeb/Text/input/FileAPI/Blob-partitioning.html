@@ -1,0 +1,42 @@
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        try {
+            const httpServer = httpTestServer();
+            const url = await httpServer.createEcho("GET", "/blob-partitioned-fetched", {
+                status: 200,
+                headers: {
+                    "Access-Control-Allow-Origin": "*",
+                },
+                body: `
+                <script>
+                    const blob = new Blob(["Hello, world!"], { type: "text/plain" });
+                    const blobURL = URL.createObjectURL(blob);
+                    window.parent.postMessage(blobURL, "*");
+                <\/script>
+                `
+            });
+
+            const options = {
+                method: 'GET',
+                mode: 'no-cors'
+            };
+            window.addEventListener("message", async (event) => {
+                const blobURL = event.data;
+                try {
+                    const response = await fetch(blobURL, options);
+                } catch (e) {
+                    println(e);
+                }
+                done();
+            });
+
+            const iframe = document.getElementById("testIframe");
+            iframe.src = url;
+
+        } catch (err) {
+            console.log("FAIL - " + err);
+        }
+    });
+</script>
+<iframe id="testIframe" src="about:blank"></iframe>
