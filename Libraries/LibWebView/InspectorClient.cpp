@@ -512,6 +512,7 @@ void InspectorClient::load_inspector()
     auto generate_property_table = [&](auto name) {
         return MUST(String::formatted(R"~~~(
             <div id="{0}" class="tab-content">
+                <input class="property-filter" id="{0}-filter" placeholder="Filter properties" />
                 <table class="property-table">
                     <thead>
                         <tr>

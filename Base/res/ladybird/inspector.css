@@ -259,6 +259,18 @@ details > :not(:first-child) {
     color: var(--console-warning-color);
 }
 
+.property-filter {
+    display: block;
+    width: calc(100% - 10px);
+    height: 20px;
+    padding: 4px;
+    position: sticky;
+    top: 0;
+    border: 1px solid var(--console-table-border);
+    background-color: var(--console-input-color);
+    color: var(--text-color);
+}
+
 .property-table {
     width: 100%;
 
@@ -269,7 +281,7 @@ details > :not(:first-child) {
 .property-table th {
     background-color: var(--property-table-head);
     position: sticky;
-    top: 0px;
+    top: 30px;
 }
 
 .property-table th,
