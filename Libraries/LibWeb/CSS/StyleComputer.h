@@ -178,7 +178,6 @@ public:
 
     [[nodiscard]] bool has_has_selectors() const;
     [[nodiscard]] bool has_defined_selectors() const;
-    [[nodiscard]] bool has_attribute_selector(FlyString const& attribute_name) const;
 
     size_t number_of_css_font_faces_with_loading_in_progress() const;
 
@@ -259,7 +258,6 @@ private:
     struct SelectorInsights {
         bool has_has_selectors { false };
         bool has_defined_selectors { false };
-        HashTable<FlyString> all_names_used_in_attribute_selectors;
     };
 
     struct RuleCache {
