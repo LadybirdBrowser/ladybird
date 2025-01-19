@@ -118,8 +118,6 @@ Box const* Node::containing_block() const
         auto const* ancestor = parent();
         while (ancestor && !ancestor->can_contain_boxes_with_position_absolute())
             ancestor = ancestor->parent();
-        while (ancestor && ancestor->is_anonymous())
-            ancestor = nearest_ancestor_capable_of_forming_a_containing_block(*ancestor);
         return static_cast<Box const*>(ancestor);
     }
 
