@@ -447,19 +447,23 @@ bool StyleComputer::invalidation_property_used_in_has_selector(InvalidationSet::
         return true;
     switch (property.type) {
     case InvalidationSet::Property::Type::Id:
-        if (m_style_invalidation_data->ids_used_in_has_selectors.contains(property.name))
+        if (m_style_invalidation_data->ids_used_in_has_selectors.contains(property.name()))
             return true;
         break;
     case InvalidationSet::Property::Type::Class:
-        if (m_style_invalidation_data->class_names_used_in_has_selectors.contains(property.name))
+        if (m_style_invalidation_data->class_names_used_in_has_selectors.contains(property.name()))
             return true;
         break;
     case InvalidationSet::Property::Type::Attribute:
-        if (m_style_invalidation_data->attribute_names_used_in_has_selectors.contains(property.name))
+        if (m_style_invalidation_data->attribute_names_used_in_has_selectors.contains(property.name()))
             return true;
         break;
     case InvalidationSet::Property::Type::TagName:
-        if (m_style_invalidation_data->tag_names_used_in_has_selectors.contains(property.name))
+        if (m_style_invalidation_data->tag_names_used_in_has_selectors.contains(property.name()))
+            return true;
+        break;
+    case InvalidationSet::Property::Type::PseudoClass:
+        if (m_style_invalidation_data->pseudo_classes_used_in_has_selectors.contains(property.value.get<PseudoClass>()))
             return true;
         break;
     default:

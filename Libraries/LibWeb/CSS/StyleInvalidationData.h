@@ -18,6 +18,7 @@ struct StyleInvalidationData {
     HashTable<FlyString> class_names_used_in_has_selectors;
     HashTable<FlyString> attribute_names_used_in_has_selectors;
     HashTable<FlyString> tag_names_used_in_has_selectors;
+    HashTable<PseudoClass> pseudo_classes_used_in_has_selectors;
 
     InvalidationSet build_invalidation_sets_for_selector(Selector const& selector);
 };
