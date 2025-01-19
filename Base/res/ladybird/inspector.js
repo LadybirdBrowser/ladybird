@@ -336,10 +336,26 @@ inspector.setStyleSheetSource = (identifier, sourceBase64) => {
     styleSheetSource.innerHTML = decodeBase64(sourceBase64);
 };
 
+const setupPropertyFilter = inputId => {
+    const filterInput = document.getElementById(`${inputId}-filter`);
+
+    filterInput.addEventListener("input", event => {
+        const searchText = event.target.value.toLowerCase();
+        const tbody = document.getElementById(`${inputId}-table`);
+        const rows = tbody.getElementsByTagName("tr");
+
+        for (let row of rows) {
+            const nameMatch = row.cells[0].textContent.toLowerCase().includes(searchText);
+            const valueMatch = row.cells[1].textContent.toLowerCase().includes(searchText);
+
+            row.style.display = nameMatch || valueMatch ? "" : "none";
+        }
+    });
+};
+
 inspector.createPropertyTables = (computedStyle, resolvedStyle, customProperties) => {
     const createPropertyTable = (tableID, properties) => {
         let oldTable = document.getElementById(tableID);
-
         let newTable = document.createElement("tbody");
         newTable.setAttribute("id", tableID);
 
@@ -812,6 +828,9 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
     });
+
+    // Setup filters for property tables
+    ["computed-style", "resolved-style", "custom-properties"].forEach(setupPropertyFilter);
 
     inspector.inspectorLoaded();
 });
