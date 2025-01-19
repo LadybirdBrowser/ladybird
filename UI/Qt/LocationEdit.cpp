@@ -43,7 +43,10 @@ LocationEdit::LocationEdit(QWidget* parent)
 
         auto query = ak_string_from_qstring(text());
 
-        if (auto url = WebView::sanitize_url(query, search_engine_url); url.has_value())
+        auto ctrl_held = QApplication::keyboardModifiers() & Qt::ControlModifier;
+        auto append_tld = ctrl_held ? WebView::AppendTLD::Yes : WebView::AppendTLD::No;
+
+        if (auto url = WebView::sanitize_url(query, search_engine_url, append_tld); url.has_value())
             set_url(url.release_value());
     });
 
