@@ -1699,11 +1699,11 @@ static bool all_import_attributes_supported(VM& vm, Vector<ImportAttribute> cons
     return true;
 }
 
+// 13.3.10.2 EvaluateImportCall ( specifierExpression [ , optionsExpression ] ), https://tc39.es/proposal-import-attributes/#sec-evaluate-import-call
 ThrowCompletionOr<Value> perform_import_call(VM& vm, Value specifier, Value options_value)
 {
     auto& realm = *vm.current_realm();
 
-    // 13.3.10.2 EvaluateImportCall ( specifierExpression [ , optionsExpression ] ), https://tc39.es/proposal-import-attributes/#sec-evaluate-import-call
     // 1. Let referrer be GetActiveScriptOrModule().
     auto referrer = [&]() -> ImportedModuleReferrer {
         auto active_script_or_module = vm.get_active_script_or_module();
@@ -1744,17 +1744,9 @@ ThrowCompletionOr<Value> perform_import_call(VM& vm, Value specifier, Value opti
         // c. IfAbruptRejectPromise(attributesObj, promiseCapability).
         auto attributes_obj = TRY_OR_REJECT_WITH_VALUE(vm, promise_capability, options_value.get(vm, vm.names.with));
 
-        // d. Normative Optional, Deprecated
-        // 11. If the host supports the deprecated assert keyword for import attributes and attributesObj is undefined, then
-        if (attributes_obj.is_undefined()) {
-            // i. Set attributesObj to Completion(Get(options, "assert")).
-            // ii. IfAbruptRejectPromise(attributesObj, promiseCapability).
-            attributes_obj = TRY_OR_REJECT_WITH_VALUE(vm, promise_capability, options_value.get(vm, vm.names.assert));
-        }
-
-        // e. If attributesObj is not undefined,
+        // d. If attributesObj is not undefined, then
         if (!attributes_obj.is_undefined()) {
-            // i. If Type(attributesObj) is not Object,
+            // i. If Type(attributesObj) is not Object, then
             if (!attributes_obj.is_object()) {
                 auto error = TypeError::create(realm, TRY_OR_THROW_OOM(vm, String::formatted(ErrorType::NotAnObject.message(), "ImportOptionsAssertions")));
                 // 1. Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
@@ -1791,7 +1783,7 @@ ThrowCompletionOr<Value> perform_import_call(VM& vm, Value specifier, Value opti
             }
         }
 
-        // f. If AllImportAttributesSupported(attributes) is false, then
+        // e. If AllImportAttributesSupported(attributes) is false, then
         if (!all_import_attributes_supported(vm, attributes)) {
             auto error = TypeError::create(realm, TRY_OR_THROW_OOM(vm, String::formatted(ErrorType::NotAnObject.message(), "ImportOptionsAssertions")));
             // i. Perform ! Call(promiseCapability.[[Reject]], undefined, « a newly created TypeError object »).
@@ -1801,7 +1793,7 @@ ThrowCompletionOr<Value> perform_import_call(VM& vm, Value specifier, Value opti
             return Value { promise_capability->promise() };
         }
 
-        // g. Sort attributes according to the lexicographic order of their [[Key]] fields,
+        // f. Sort attributes according to the lexicographic order of their [[Key]] fields,
         //    treating the value of each such field as a sequence of UTF-16 code unit values.
         //    NOTE: This sorting is observable only in that hosts are prohibited from
         //    distinguishing among attributes by the order they occur in.
