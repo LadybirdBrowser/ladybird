@@ -51,9 +51,26 @@ ALWAYS_INLINE CopyConst<InputType, OutputType>& verify_cast(InputType& input)
     return static_cast<CopyConst<InputType, OutputType>&>(input);
 }
 
+template<typename OutputType, typename InputType>
+ALWAYS_INLINE CopyConst<InputType, OutputType>* as_if(InputType& input)
+{
+    if (!is<OutputType>(input))
+        return nullptr;
+    return static_cast<CopyConst<InputType, OutputType>*>(&input);
+}
+
+template<typename OutputType, typename InputType>
+ALWAYS_INLINE CopyConst<InputType, OutputType>* as_if(InputType* input)
+{
+    if (!input)
+        return nullptr;
+    return as_if<OutputType>(*input);
+}
+
 }
 
 #if USING_AK_GLOBALLY
+using AK::as_if;
 using AK::is;
 using AK::verify_cast;
 #endif
