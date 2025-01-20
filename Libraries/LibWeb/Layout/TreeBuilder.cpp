@@ -402,17 +402,20 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
 
     if (dom_node.is_document()) {
         m_layout_root = layout_node;
-    } else if (layout_node->is_svg_box()) {
-        m_ancestor_stack.last()->append_child(*layout_node);
     } else if (should_create_layout_node) {
         // Decide whether to replace an existing node (partial tree update) or insert a new one appropriately.
-        if (must_create_subtree == MustCreateSubtree::No
+        bool const may_replace_existing_layout_node = must_create_subtree == MustCreateSubtree::No
             && old_layout_node
             && old_layout_node->parent()
-            && old_layout_node != layout_node) {
+            && old_layout_node != layout_node;
+        if (may_replace_existing_layout_node) {
             old_layout_node->parent()->replace_child(*layout_node, *old_layout_node);
         } else {
-            insert_node_into_inline_or_block_ancestor(*layout_node, display, AppendOrPrepend::Append);
+            if (layout_node->is_svg_box()) {
+                m_ancestor_stack.last()->append_child(*layout_node);
+            } else {
+                insert_node_into_inline_or_block_ancestor(*layout_node, display, AppendOrPrepend::Append);
+            }
         }
     }
 
