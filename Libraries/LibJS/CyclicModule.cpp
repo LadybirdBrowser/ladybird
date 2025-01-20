@@ -47,17 +47,19 @@ void GraphLoadingState::visit_edges(Cell::Visitor& visitor)
 // 16.2.1.5.1 LoadRequestedModules ( [ hostDefined ] ), https://tc39.es/ecma262/#sec-LoadRequestedModules
 PromiseCapability& CyclicModule::load_requested_modules(GC::Ptr<GraphLoadingState::HostDefined> host_defined)
 {
+    auto& vm = this->vm();
+
     // 1. If hostDefined is not present, let hostDefined be EMPTY.
     // NOTE: The empty state is handled by hostDefined being an optional without value.
 
     // 2. Let pc be ! NewPromiseCapability(%Promise%).
-    auto promise_capability = MUST(new_promise_capability(vm(), vm().current_realm()->intrinsics().promise_constructor()));
+    auto promise_capability = MUST(new_promise_capability(vm, vm.current_realm()->intrinsics().promise_constructor()));
 
     // 3. Let state be the GraphLoadingState Record { [[IsLoading]]: true, [[PendingModulesCount]]: 1, [[Visited]]: « », [[PromiseCapability]]: pc, [[HostDefined]]: hostDefined }.
     auto state = heap().allocate<GraphLoadingState>(promise_capability, true, 1, HashTable<GC::Ptr<CyclicModule>> {}, move(host_defined));
 
     // 4. Perform InnerModuleLoading(state, module).
-    inner_module_loading(state);
+    inner_module_loading(vm, state, *this);
 
     // NOTE: This is likely a spec bug, see https://matrixlogs.bakkot.com/WHATWG/2023-02-13#L1
     // FIXME: 5. Return pc.[[Promise]].
@@ -65,33 +67,33 @@ PromiseCapability& CyclicModule::load_requested_modules(GC::Ptr<GraphLoadingStat
 }
 
 // 16.2.1.5.1.1 InnerModuleLoading ( state, module ), https://tc39.es/ecma262/#sec-InnerModuleLoading
-void CyclicModule::inner_module_loading(JS::GraphLoadingState& state)
+void inner_module_loading(VM& vm, JS::GraphLoadingState& state, GC::Ref<Module> module)
 {
     // 1. Assert: state.[[IsLoading]] is true.
     VERIFY(state.is_loading);
 
     // 2. If module is a Cyclic Module Record, module.[[Status]] is NEW, and state.[[Visited]] does not contain module, then
-    if (m_status == ModuleStatus::New && !state.visited.contains(this)) {
+    if (auto* cyclic_module = as_if<CyclicModule>(*module); cyclic_module && cyclic_module->status() == ModuleStatus::New && !state.visited.contains(cyclic_module)) {
         // a. Append module to state.[[Visited]].
-        state.visited.set(this);
+        state.visited.set(cyclic_module);
 
         // b. Let requestedModulesCount be the number of elements in module.[[RequestedModules]].
-        auto requested_modules_count = m_requested_modules.size();
+        auto requested_modules_count = cyclic_module->requested_modules().size();
 
         // c. Set state.[[PendingModulesCount]] to state.[[PendingModulesCount]] + requestedModulesCount.
         state.pending_module_count += requested_modules_count;
 
         // d. For each String required of module.[[RequestedModules]], do
-        for (auto const& required : m_requested_modules) {
+        for (auto const& required : cyclic_module->requested_modules()) {
             bool found_record_in_loaded_modules = false;
 
             // i. If module.[[LoadedModules]] contains a Record whose [[Specifier]] is required, then
-            for (auto const& record : m_loaded_modules) {
+            for (auto const& record : cyclic_module->loaded_modules()) {
                 if (record.specifier == required.module_specifier) {
                     // 1. Let record be that Record.
 
                     // 2. Perform InnerModuleLoading(state, record.[[Module]]).
-                    static_cast<CyclicModule&>(*record.module).inner_module_loading(state);
+                    inner_module_loading(vm, state, record.module);
 
                     found_record_in_loaded_modules = true;
                     break;
@@ -101,7 +103,7 @@ void CyclicModule::inner_module_loading(JS::GraphLoadingState& state)
             // ii. Else,
             if (!found_record_in_loaded_modules) {
                 // 1. Perform HostLoadImportedModule(module, required, state.[[HostDefined]], state).
-                vm().host_load_imported_module(GC::Ref<CyclicModule> { *this }, required, state.host_defined, GC::Ref<GraphLoadingState> { state });
+                vm.host_load_imported_module(GC::Ref { *cyclic_module }, required, state.host_defined, GC::Ref<GraphLoadingState> { state });
 
                 // 2. NOTE: HostLoadImportedModule will call FinishLoadingImportedModule, which re-enters the graph loading process through ContinueModuleLoading.
             }
@@ -126,12 +128,12 @@ void CyclicModule::inner_module_loading(JS::GraphLoadingState& state)
         // b. For each Cyclic Module Record loaded of state.[[Visited]], do
         for (auto const& loaded : state.visited) {
             // i. If loaded.[[Status]] is NEW, set loaded.[[Status]] to UNLINKED.
-            if (loaded->m_status == ModuleStatus::New)
-                loaded->m_status = ModuleStatus::Unlinked;
+            if (loaded->status() == ModuleStatus::New)
+                loaded->set_status(ModuleStatus::Unlinked);
         }
 
         // c. Perform ! Call(state.[[PromiseCapability]].[[Resolve]], undefined, « undefined »).
-        MUST(call(vm(), *state.promise_capability->resolve(), js_undefined(), js_undefined()));
+        MUST(call(vm, *state.promise_capability->resolve(), js_undefined(), js_undefined()));
     }
 
     // 6. Return unused.
@@ -149,7 +151,7 @@ void continue_module_loading(GraphLoadingState& state, ThrowCompletionOr<GC::Ref
         auto module = module_completion.value();
 
         // a. Perform InnerModuleLoading(state, moduleCompletion.[[Value]]).
-        verify_cast<CyclicModule>(*module).inner_module_loading(state);
+        inner_module_loading(state.vm(), state, module);
     }
     // 3. Else,
     else {
