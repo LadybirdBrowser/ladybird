@@ -12,6 +12,9 @@ on:
         os:
           required: true
           type: string
+        arch:
+          required: true
+          type: string
         fuzzer:
           required: false
           type: string
@@ -55,7 +58,7 @@ jobs:
         uses: ./.github/actions/setup
         with:
           os: ${{ inputs.os_name }}
-          arch: 'Lagom'
+          arch: ${{ inputs.arch }}
 
       # === PREPARE FOR BUILDING ===
 
@@ -88,7 +91,7 @@ jobs:
         id: 'cache-restore'
         with:
           os: ${{ inputs.os_name }}
-          arch: 'Lagom'
+          arch: ${{ inputs.arch }}
           toolchain: ${{ inputs.toolchain }}
           cache_key_extra: ${{ steps.build-parameters.outputs.ccache_key }}
           ccache_path: ${{ env.CCACHE_DIR }}
@@ -173,7 +176,7 @@ jobs:
       - name: Save Caches
         uses: ./.github/actions/cache-save
         with:
-          arch: 'Lagom'
+          arch: ${{ inputs.arch }}
           ccache_path: ${{ env.CCACHE_DIR }}
           ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}
 

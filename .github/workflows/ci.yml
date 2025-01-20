@@ -16,6 +16,7 @@ jobs:
       matrix:
         os_name: ['Linux']
         os: [ubuntu-24.04]
+        arch: ['x86_64']
         fuzzer: ['NO_FUZZ']
         toolchain: ['GNU']
         clang_plugins: [false]
@@ -23,18 +24,21 @@ jobs:
         include:
           - os_name: 'Linux'
             os: ubuntu-24.04
+            arch: 'x86_64'
             fuzzer: 'NO_FUZZ'
             toolchain: 'Clang'
             clang_plugins: true
 
           - os_name: 'macOS'
             os: macos-15
+            arch: 'arm64'
             fuzzer: 'NO_FUZZ'
             toolchain: 'Clang'
             clang_plugins: false
 
           - os_name: 'Linux'
             os: ubuntu-24.04
+            arch: 'x86_64'
             fuzzer: 'FUZZ'
             toolchain: 'Clang'
             clang_plugins: false
@@ -44,5 +48,6 @@ jobs:
       toolchain: ${{ matrix.toolchain }}
       os_name: ${{ matrix.os_name }}
       os: ${{ matrix.os }}
+      arch: ${{ matrix.arch }}
       fuzzer: ${{ matrix.fuzzer }}
       clang_plugins: ${{ matrix.clang_plugins }}
