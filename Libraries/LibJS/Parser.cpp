@@ -4589,7 +4589,7 @@ ModuleRequest Parser::parse_module_request()
         return request;
 
     VERIFY(m_state.current_token.original_value().is_one_of("with"sv, "assert"sv));
-    consume(TokenType::Identifier);
+    consume();
     consume(TokenType::CurlyOpen);
 
     while (!done() && !match(TokenType::CurlyClose)) {
