@@ -75,6 +75,9 @@ get_build_dir() {
         "Sanitizer")
             BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/sanitizers"
             ;;
+        "Distribution")
+            BUILD_DIR="${LADYBIRD_SOURCE_DIR}/Build/distribution"
+            ;;
         *)
             echo "Unknown BUILD_PRESET: '$1'" >&2
             exit 1
