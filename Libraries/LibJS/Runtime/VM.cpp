@@ -551,7 +551,10 @@ ThrowCompletionOr<void> VM::link_and_eval_module(Badge<Bytecode::Interpreter>, S
 ThrowCompletionOr<void> VM::link_and_eval_module(CyclicModule& module)
 {
     auto filename = module.filename();
-    module.load_requested_modules(nullptr);
+    auto& promise_capability = module.load_requested_modules(nullptr);
+
+    if (auto const& promise = verify_cast<Promise>(*promise_capability.promise()); promise.state() == Promise::State::Rejected)
+        return JS::throw_completion(promise.result());
 
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] Linking module {}", filename);
     auto linked_or_error = module.link(*this);
