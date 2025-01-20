@@ -197,9 +197,6 @@ public:
         Round,
         Mod,
         Rem,
-
-        // This only exists during parsing.
-        Unparsed,
     };
     using NumericValue = CalculatedStyleValue::CalculationResult::Value;
 
