@@ -212,6 +212,24 @@
       ]
     },
     {
+      "name": "Distribution",
+      "configurePreset": "Distribution",
+      "displayName": "Build",
+      "description": "Build the project for distribution",
+      "targets": [
+        "all"
+      ]
+    },
+    {
+      "name": "Debug",
+      "configurePreset": "Debug",
+      "displayName": "Build",
+      "description": "Build the project in debug",
+      "targets": [
+          "all"
+      ]
+    },
+    {
       "name": "Sanitizer",
       "configurePreset": "Sanitizer",
       "displayName": "Build with Sanitizers",
@@ -249,6 +267,11 @@
       "name": "Debug",
       "inherits": "default",
       "configurePreset": "Debug"
+    },
+    {
+      "name": "Distribution",
+      "inherits": "default",
+      "configurePreset": "Distribution"
     }
   ]
 }
