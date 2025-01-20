@@ -28,21 +28,21 @@ Optional<URL::URL> sanitize_url(StringView url, Optional<StringView> search_engi
         return MUST(String::formatted(*search_engine, URL::percent_decode(url)));
     };
 
-    String url_buffer;
-
-    if (append_tld == AppendTLD::Yes) {
-        // FIXME: Expand the list of top level domains.
-        if (!url.ends_with(".com"sv) && !url.ends_with(".net"sv) && !url.ends_with(".org"sv)) {
-            url_buffer = MUST(String::formatted("{}.com", url));
-            url = url_buffer;
-        }
-    }
-
     ByteString url_with_scheme = url;
     if (!(url_with_scheme.starts_with("about:"sv) || url_with_scheme.contains("://"sv) || url_with_scheme.starts_with("data:"sv)))
         url_with_scheme = ByteString::formatted("https://{}"sv, url_with_scheme);
 
     auto result = URL::create_with_url_or_path(url_with_scheme);
+
+    if (result.is_valid() && append_tld == AppendTLD::Yes) {
+        if (auto maybe_host = result.host(); maybe_host.has_value()) {
+            auto serialized_host = maybe_host->serialize();
+            auto maybe_public_suffix = URL::get_public_suffix(serialized_host);
+            if (!maybe_public_suffix.has_value() || *maybe_public_suffix == serialized_host)
+                result.set_host(MUST(String::formatted("{}.com", serialized_host)));
+        }
+    }
+
     if (!result.is_valid())
         return format_search_engine();
 
