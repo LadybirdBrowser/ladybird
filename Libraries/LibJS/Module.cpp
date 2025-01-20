@@ -106,11 +106,12 @@ void finish_loading_imported_module(ImportedModuleReferrer referrer, ModuleReque
         }
     }
 
+    // 2. If payload is a GraphLoadingState Record, then
     if (payload.has<GC::Ref<GraphLoadingState>>()) {
         // a. Perform ContinueModuleLoading(payload, result)
         continue_module_loading(payload.get<GC::Ref<GraphLoadingState>>(), result);
     }
-    // Else,
+    // 3. Else,
     else {
         // a. Perform ContinueDynamicImport(payload, result).
         continue_dynamic_import(payload.get<GC::Ref<PromiseCapability>>(), result);
