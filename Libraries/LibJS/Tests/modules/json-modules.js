@@ -4,7 +4,7 @@ describe("basic behavior", () => {
         let error = null;
         let result = null;
 
-        import("./json-module.json", { assert: { type: "json" } })
+        import("./json-module.json", { with: { type: "json" } })
             .then(jsonObj => {
                 passed = true;
                 result = jsonObj;
