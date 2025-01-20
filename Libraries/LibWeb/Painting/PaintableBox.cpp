@@ -941,8 +941,7 @@ TraversalDecision PaintableBox::hit_test(CSSPixelPoint position, HitTestType typ
     if (clip_rect_for_hit_testing().has_value() && !clip_rect_for_hit_testing()->contains(position))
         return TraversalDecision::Continue;
 
-    auto position_adjusted_by_scroll_offset = position;
-    position_adjusted_by_scroll_offset.translate_by(-cumulative_offset_of_enclosing_scroll_frame());
+    auto position_adjusted_by_scroll_offset = position.translated(-cumulative_offset_of_enclosing_scroll_frame());
 
     if (!is_visible())
         return TraversalDecision::Continue;
@@ -966,7 +965,7 @@ TraversalDecision PaintableBox::hit_test(CSSPixelPoint position, HitTestType typ
             return TraversalDecision::Break;
     }
 
-    if (!absolute_border_box_rect().contains(position_adjusted_by_scroll_offset.x(), position_adjusted_by_scroll_offset.y()))
+    if (!visible_for_hit_testing())
         return TraversalDecision::Continue;
 
     if (!absolute_border_box_rect().contains(position_adjusted_by_scroll_offset))
@@ -999,8 +998,7 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
     if (clip_rect_for_hit_testing().has_value() && !clip_rect_for_hit_testing()->contains(position))
         return TraversalDecision::Continue;
 
-    auto position_adjusted_by_scroll_offset = position;
-    position_adjusted_by_scroll_offset.translate_by(-cumulative_offset_of_enclosing_scroll_frame());
+    auto position_adjusted_by_scroll_offset = position.translated(-cumulative_offset_of_enclosing_scroll_frame());
 
     // TextCursor hit testing mode should be able to place cursor in contenteditable elements even if they are empty
     if (m_fragments.is_empty()
@@ -1018,15 +1016,11 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
             return TraversalDecision::Break;
     }
 
-    if (!layout_node_with_style_and_box_metrics().children_are_inline() || m_fragments.is_empty()) {
+    if (!layout_node_with_style_and_box_metrics().children_are_inline() || m_fragments.is_empty())
         return PaintableBox::hit_test(position, type, callback);
-    }
 
     // NOTE: This CSSPixels -> Float -> CSSPixels conversion is because we can't AffineTransform::map() a CSSPixelPoint.
-    Gfx::FloatPoint offset_position {
-        (position_adjusted_by_scroll_offset.x() - transform_origin().x()).to_float(),
-        (position_adjusted_by_scroll_offset.y() - transform_origin().y()).to_float()
-    };
+    auto offset_position = position_adjusted_by_scroll_offset.translated(-transform_origin()).to_type<float>();
     auto transformed_position_adjusted_by_scroll_offset = combined_css_transform().inverse().value_or({}).map(offset_position).to_type<CSSPixels>() + transform_origin();
 
     if (hit_test_scrollbars(transformed_position_adjusted_by_scroll_offset, callback) == TraversalDecision::Break)
@@ -1100,7 +1094,7 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
         }
     }
 
-    if (!stacking_context() && is_visible() && absolute_border_box_rect().contains(transformed_position_adjusted_by_scroll_offset.x(), transformed_position_adjusted_by_scroll_offset.y())) {
+    if (!stacking_context() && is_visible() && absolute_border_box_rect().contains(transformed_position_adjusted_by_scroll_offset)) {
         if (callback(HitTestResult { const_cast<PaintableWithLines&>(*this) }) == TraversalDecision::Break)
             return TraversalDecision::Break;
     }
