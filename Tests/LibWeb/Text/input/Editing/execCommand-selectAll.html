@@ -33,5 +33,17 @@
         // Perform selectAll
         document.execCommand('selectAll');
         reportSelection();
+
+        // Report whether command is enabled and make sure it does not crash
+        const documents = [
+            document,
+            new Document(),
+            document.implementation.createHTMLDocument(),
+        ];
+        for (const doc of documents) {
+            println(doc.queryCommandEnabled('selectAll'));
+            doc.execCommand('selectAll');
+        }
+        println('Did not crash!');
     });
 </script>

@@ -1,3 +1,7 @@
 No range.
 DIV 0 - DIV 0
 BODY 0 - BODY 5
+true
+false
+false
+Did not crash!

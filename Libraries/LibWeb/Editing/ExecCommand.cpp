@@ -112,17 +112,17 @@ bool Document::query_command_enabled(FlyString const& command)
     if (command.is_one_of(
             Editing::CommandNames::defaultParagraphSeparator,
             Editing::CommandNames::redo,
-            Editing::CommandNames::selectAll,
             Editing::CommandNames::styleWithCSS,
             Editing::CommandNames::undo,
             Editing::CommandNames::useCSS))
         return true;
 
+    // AD-HOC: selectAll requires a selection object to exist.
+    if (command == Editing::CommandNames::selectAll)
+        return get_selection();
+
     // The other commands defined here are enabled if the active range is not null,
-    auto selection = get_selection();
-    if (!selection)
-        return false;
-    auto active_range = selection->range();
+    auto active_range = Editing::active_range(*this);
     if (!active_range)
         return false;
 
