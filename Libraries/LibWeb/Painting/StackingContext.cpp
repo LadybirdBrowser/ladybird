@@ -374,10 +374,7 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
 
     CSSPixelPoint transform_origin = paintable_box().transform_origin();
     // NOTE: This CSSPixels -> Float -> CSSPixels conversion is because we can't AffineTransform::map() a CSSPixelPoint.
-    Gfx::FloatPoint offset_position {
-        (position.x() - transform_origin.x()).to_float(),
-        (position.y() - transform_origin.y()).to_float()
-    };
+    auto offset_position = position.translated(-transform_origin).to_type<float>();
     auto transformed_position = affine_transform_matrix().inverse().value_or({}).map(offset_position).to_type<CSSPixels>() + transform_origin;
 
     // NOTE: Hit testing basically happens in reverse painting order.
