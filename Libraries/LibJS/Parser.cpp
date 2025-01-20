@@ -4631,10 +4631,10 @@ static DeprecatedFlyString default_string_value = "default";
 NonnullRefPtr<ImportStatement const> Parser::parse_import_statement(Program& program)
 {
     // We use the extended syntax which adds:
-    //  ImportDeclaration:
-    //      import ImportClause FromClause [no LineTerminator here] WithClause;
-    //      import ModuleSpecifier [no LineTerminator here] WithClause;
-    // From:  https://tc39.es/proposal-import-attributes/#prod-ImportDeclaration
+    //     ImportDeclaration:
+    //         import ImportClause FromClause WithClause[opt] ;
+    //         import ModuleSpecifier WithClause[opt] ;
+    // From: https://tc39.es/proposal-import-attributes/#prod-ImportDeclaration
 
     auto rule_start = push_start();
     if (program.type() != Program::Type::Module)
