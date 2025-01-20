@@ -179,8 +179,8 @@ describe("in- and exports", () => {
         );
     });
 
-    test("can import with (useless) assertions", () => {
-        expectModulePassed("./import-with-assertions.mjs");
+    test("can import with (useless) attributes", () => {
+        expectModulePassed("./import-with-attributes.mjs");
     });
 
     test("namespace has expected ordering", () => {

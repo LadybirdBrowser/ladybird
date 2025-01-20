@@ -225,7 +225,6 @@ private:
     bool match_secondary_expression(ForbiddenTokens forbidden = {}) const;
     bool match_statement() const;
     bool match_export_or_import() const;
-    bool match_with_clause() const;
 
     enum class AllowUsingDeclaration {
         No,
