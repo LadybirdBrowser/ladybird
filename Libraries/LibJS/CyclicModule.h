@@ -36,7 +36,9 @@ public:
     virtual ThrowCompletionOr<Promise*> evaluate(VM& vm) override final;
 
     virtual PromiseCapability& load_requested_modules(GC::Ptr<GraphLoadingState::HostDefined>) override;
-    virtual void inner_module_loading(GraphLoadingState& state);
+
+    ModuleStatus status() const { return m_status; }
+    void set_status(ModuleStatus status) { m_status = status; }
 
     Vector<ModuleRequest> const& requested_modules() const { return m_requested_modules; }
     Vector<ModuleWithSpecifier> const& loaded_modules() const { return m_loaded_modules; }
@@ -74,6 +76,7 @@ protected:
     Optional<u32> m_pending_async_dependencies;           // [[PendingAsyncDependencies]]
 };
 
+void inner_module_loading(VM&, GraphLoadingState& state, GC::Ref<Module>);
 void continue_module_loading(GraphLoadingState&, ThrowCompletionOr<GC::Ref<Module>> const&);
 void continue_dynamic_import(GC::Ref<PromiseCapability>, ThrowCompletionOr<GC::Ref<Module>> const& module_completion);
 
