@@ -82,7 +82,14 @@ jobs:
             echo "cmake_options=-DENABLE_CLANG_PLUGINS=ON" >> "$GITHUB_OUTPUT"
           else
             echo "ccache_key=${{ inputs.build_preset }}" >> "$GITHUB_OUTPUT"
-            echo "cmake_options=" >> "$GITHUB_OUTPUT"
+            if ${{ inputs.os_name == 'Linux' && inputs.arch == 'arm64' }} ; then
+                # FIXME: https://github.com/WebAssembly/wabt/issues/2533
+                #        wabt doesn't have binary releases for arm64 Linux
+                PKGCONFIG=$(which pkg-config)
+                echo "cmake_options=-DPKG_CONFIG_EXECUTABLE=$PKGCONFIG" >> "$GITHUB_OUTPUT"
+            else
+              echo "cmake_options=-DINCLUDE_WASM_SPEC_TESTS=ON -DWASM_SPEC_TEST_SKIP_FORMATTING=ON" >> "$GITHUB_OUTPUT"
+            fi
           fi
 
       - name: Restore Caches
@@ -112,8 +119,6 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           cmake --preset ${{ inputs.build_preset }} -B Build \
-            -DINCLUDE_WASM_SPEC_TESTS=ON \
-            -DWASM_SPEC_TEST_SKIP_FORMATTING=ON \
             ${{ steps.build-parameters.outputs.cmake_options }} \
             -DPython3_EXECUTABLE=${{ env.pythonLocation }}/bin/python \
             -DCMAKE_C_COMPILER=${{ steps.build-parameters.outputs.host_cc }} \
