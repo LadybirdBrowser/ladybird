@@ -1,0 +1,34 @@
+name: Nightly Lagom
+
+on:
+  # Automatically run at the end of every day.
+  schedule:
+    - cron: '0 0 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # CI matrix - runs the job in lagom-template.yml with different configurations.
+  Lagom:
+    if: github.repository == 'LadybirdBrowser/ladybird'
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os_name: ['Linux']
+        os: [ubuntu-24.04-arm]
+        arch: ['arm64']
+        build_preset: ['Sanitizer_CI']
+        toolchain: ['Clang']
+        clang_plugins: [false]
+
+    uses: ./.github/workflows/lagom-template.yml
+    with:
+      toolchain: ${{ matrix.toolchain }}
+      os_name: ${{ matrix.os_name }}
+      os: ${{ matrix.os }}
+      arch: ${{ matrix.arch }}
+      build_preset: ${{ matrix.build_preset }}
+      clang_plugins: ${{ matrix.clang_plugins }}
