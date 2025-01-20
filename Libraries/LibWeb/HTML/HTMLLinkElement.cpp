@@ -124,6 +124,7 @@ void HTMLLinkElement::attribute_changed(FlyString const& name, Optional<String> 
     Base::attribute_changed(name, old_value, value, namespace_);
 
     // 4.6.7 Link types - https://html.spec.whatwg.org/multipage/links.html#linkTypes
+    auto old_relationship = m_relationship;
     if (name == HTML::AttributeNames::rel) {
         m_relationship = 0;
         // Keywords are always ASCII case-insensitive, and must be compared as such.
@@ -165,8 +166,8 @@ void HTMLLinkElement::attribute_changed(FlyString const& name, Optional<String> 
         if (
             is_browsing_context_connected()
             && (
-                // AD-HOC: When the rel attribute changes
-                name == AttributeNames::rel ||
+                // AD-HOC: When the link element's type becomes a stylesheet
+                !(old_relationship & Relationship::Stylesheet) ||
                 // - When the href attribute of the link element of an external resource link that is already browsing-context connected is changed.
                 name == AttributeNames::href ||
                 // - When the disabled attribute of the link element of an external resource link that is already browsing-context connected is set, changed, or removed.
