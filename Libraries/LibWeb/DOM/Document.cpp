@@ -5315,7 +5315,7 @@ GC::RootVector<GC::Ref<Element>> Document::elements_from_point(double x, double 
     if (auto const* paintable_box = this->paintable_box(); paintable_box) {
         (void)paintable_box->hit_test(position, Painting::HitTestType::Exact, [&](Painting::HitTestResult result) {
             auto* dom_node = result.dom_node();
-            if (dom_node && dom_node->is_element())
+            if (dom_node && dom_node->is_element() && result.paintable->visible_for_hit_testing())
                 sequence.append(*static_cast<Element*>(dom_node));
             return TraversalDecision::Continue;
         });

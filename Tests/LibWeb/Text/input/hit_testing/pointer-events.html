@@ -1,0 +1,37 @@
+<script src="../include.js"></script>
+<body>
+    <!-- #a2 should be invisible to hit testing -->
+    <div id="a1">
+        <div id="a2" style="width: 100px; height: 100px; pointer-events: none"></div>
+    </div>
+
+    <!-- #b3 should be visible to hit testing -->
+    <div id="b1">
+        <div id="b2" style="width: 100px; height: 100px; pointer-events: none">
+            <div id="b3" style="width: 100px; height: 100px; pointer-events: auto"></div>
+        </div>
+    </div>
+
+    <!-- #c1 should be hit, even though it is an inline element surrounding a block element -->
+    <a id="c1">
+        <div id="c2" style="width: 100px; height: 100px; pointer-events: none"></div>
+    </a>
+
+    <!-- a pointer event on #d4 should hit #d2 instead -->
+    <b id="d1">foo<i id="d2"><div id="d3">bar</div>baz<u id="d4" style="pointer-events: none">lorem</u></i></b>
+</body>
+<script>
+    test(() => {
+        const printHit = (x, y) => {
+            const hit = internals.hitTest(x, y);
+            printElement(hit.node);
+            printElement(hit.node.parentNode);
+            println('---');
+        };
+
+        printHit(a1.offsetLeft + 50, a1.offsetTop + 50);
+        printHit(b1.offsetLeft + 50, b1.offsetTop + 50);
+        printHit(c1.offsetLeft + 50, c1.offsetTop + 50);
+        printHit(d4.offsetLeft + 10, d4.offsetTop + 8);
+    });
+</script>
