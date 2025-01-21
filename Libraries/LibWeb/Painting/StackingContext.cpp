@@ -426,7 +426,7 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
             if (!child->is_paintable_box())
                 continue;
 
-            auto const& paintable_box = verify_cast<PaintableBox>(*child);
+            auto const& paintable_box = as<PaintableBox>(*child);
             if (!paintable_box.is_absolutely_positioned() && !paintable_box.is_floating() && !paintable_box.stacking_context()) {
                 if (paintable_box.hit_test(transformed_position, type, callback) == TraversalDecision::Break)
                     return TraversalDecision::Break;

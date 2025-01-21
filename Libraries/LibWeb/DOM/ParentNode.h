@@ -63,7 +63,7 @@ inline U* Node::shadow_including_first_ancestor_of_type()
 {
     for (auto* ancestor = parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
         if (is<U>(*ancestor))
-            return &verify_cast<U>(*ancestor);
+            return &as<U>(*ancestor);
     }
     return nullptr;
 }

@@ -55,7 +55,7 @@ void DedicatedWorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHo
 
     // 8. Let worker global scope be the global object of realm execution context's Realm component.
     // NOTE: This is the DedicatedWorkerGlobalScope or SharedWorkerGlobalScope object created in the previous step.
-    GC::Ref<Web::HTML::WorkerGlobalScope> worker_global_scope = verify_cast<Web::HTML::WorkerGlobalScope>(realm_execution_context->realm->global_object());
+    GC::Ref<Web::HTML::WorkerGlobalScope> worker_global_scope = as<Web::HTML::WorkerGlobalScope>(realm_execution_context->realm->global_object());
 
     // 9. Set up a worker environment settings object with realm execution context,
     //    outside settings, and unsafeWorkerCreationTime, and let inside settings be the result.
@@ -187,7 +187,7 @@ void DedicatedWorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataHo
         if (is<Web::HTML::ClassicScript>(*script))
             (void)static_cast<Web::HTML::ClassicScript&>(*script).run();
         else
-            (void)verify_cast<Web::HTML::JavaScriptModuleScript>(*script).run();
+            (void)as<Web::HTML::JavaScriptModuleScript>(*script).run();
 
         // FIXME: 11. Enable outside port's port message queue.
 

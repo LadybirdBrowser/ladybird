@@ -107,7 +107,7 @@ static void concatenate_descendants_text_content(DOM::Node const* node, StringBu
     if (is<HTMLScriptElement>(node) || is<SVG::SVGScriptElement>(node))
         return;
     if (is<DOM::Text>(node))
-        builder.append(verify_cast<DOM::Text>(node)->data());
+        builder.append(as<DOM::Text>(node)->data());
     node->for_each_child([&](auto const& node) {
         concatenate_descendants_text_content(&node, builder);
         return IterationDecision::Continue;
@@ -202,7 +202,7 @@ GC::Ptr<HTMLFormElement> HTMLOptionElement::form() const
         parent = parent->parent_element();
 
     if (is<HTML::HTMLSelectElement>(parent)) {
-        auto const* select_element = verify_cast<HTMLSelectElement>(parent);
+        auto const* select_element = as<HTMLSelectElement>(parent);
         return const_cast<HTMLFormElement*>(select_element->form());
     }
 

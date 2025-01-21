@@ -211,7 +211,7 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show_modal()
     // - cancelAction given canPreventClose being to return the result of firing an event named cancel at this, with the cancelable attribute initialized to canPreventClose.
     auto cancel_callback_function = JS::NativeFunction::create(
         realm(), [this](JS::VM& vm) {
-            auto& event = verify_cast<DOM::Event>(vm.argument(0).as_object());
+            auto& event = as<DOM::Event>(vm.argument(0).as_object());
             bool can_prevent_close = event.cancelable();
             auto should_continue = dispatch_event(DOM::Event::create(realm(), HTML::EventNames::cancel, { .cancelable = can_prevent_close }));
             if (!should_continue)

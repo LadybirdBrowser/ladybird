@@ -132,7 +132,7 @@ void execute_script(HTML::BrowsingContext const& browsing_context, ByteString bo
             return JS::js_undefined();
         timer->stop();
 
-        auto promise_promise = GC::Ref { verify_cast<JS::Promise>(*promise->promise()) };
+        auto promise_promise = GC::Ref { as<JS::Promise>(*promise->promise()) };
         on_complete->function()({ promise_promise->state(), promise_promise->result() });
 
         return JS::js_undefined();
@@ -164,7 +164,7 @@ void execute_async_script(HTML::BrowsingContext const& browsing_context, ByteStr
 
     // 7. Let promise be a new Promise.
     auto promise_capability = WebIDL::create_promise(realm);
-    GC::Ref promise { verify_cast<JS::Promise>(*promise_capability->promise()) };
+    GC::Ref promise { as<JS::Promise>(*promise_capability->promise()) };
 
     // 8. Run the following substeps in parallel:
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&vm, &realm, &browsing_context, timer, promise_capability, promise, body = move(body), arguments = move(arguments)]() mutable {

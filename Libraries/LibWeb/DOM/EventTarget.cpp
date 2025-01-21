@@ -161,7 +161,7 @@ static bool default_passive_value(FlyString const& type, EventTarget* event_targ
             return true;
 
         if (is<Node>(event_target)) {
-            auto* node = verify_cast<Node>(event_target);
+            auto* node = as<Node>(event_target);
             if (&node->document() == event_target || node->document().document_element() == event_target || node->document().body() == event_target)
                 return true;
         }
@@ -353,7 +353,7 @@ static EventTarget* determine_target_of_event_handler(EventTarget& event_target,
         return nullptr;
 
     // 4. Return eventTarget's node document's relevant global object.
-    return &verify_cast<EventTarget>(HTML::relevant_global_object(event_target_element.document()));
+    return &as<EventTarget>(HTML::relevant_global_object(event_target_element.document()));
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-attributes:event-handler-idl-attributes-2
@@ -397,12 +397,12 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(FlyString 
         GC::Ptr<Document> document;
 
         if (is<Element>(this)) {
-            auto* element_event_target = verify_cast<Element>(this);
+            auto* element_event_target = as<Element>(this);
             element = element_event_target;
             document = &element_event_target->document();
         } else {
             VERIFY(is<HTML::Window>(this));
-            auto* window_event_target = verify_cast<HTML::Window>(this);
+            auto* window_event_target = as<HTML::Window>(this);
             document = &window_event_target->associated_document();
         }
 
@@ -608,7 +608,7 @@ void EventTarget::activate_event_handler(FlyString const& name, HTML::EventHandl
             // The argument must be an object and it must be an Event.
             auto event_wrapper_argument = vm.argument(0);
             VERIFY(event_wrapper_argument.is_object());
-            auto& event = verify_cast<DOM::Event>(event_wrapper_argument.as_object());
+            auto& event = as<DOM::Event>(event_wrapper_argument.as_object());
 
             TRY(event_target->process_event_handler_for_event(name, event));
             return JS::js_undefined();
@@ -682,7 +682,7 @@ JS::ThrowCompletionOr<void> EventTarget::process_event_handler_for_event(FlyStri
         //    Invoke callback with five arguments, the first one having the value of event's message attribute, the second having the value of event's filename attribute, the third having the value of event's lineno attribute,
         //    the fourth having the value of event's colno attribute, the fifth having the value of event's error attribute, and with the callback this value set to event's currentTarget.
         //    Let return value be the callback's return value. [WEBIDL]
-        auto& error_event = verify_cast<HTML::ErrorEvent>(event);
+        auto& error_event = as<HTML::ErrorEvent>(event);
         auto wrapped_message = JS::PrimitiveString::create(vm(), error_event.message());
         auto wrapped_filename = JS::PrimitiveString::create(vm(), error_event.filename());
         auto wrapped_lineno = JS::Value(error_event.lineno());

@@ -331,7 +331,7 @@ GC::Ptr<TraversableNavigable> Navigable::top_level_traversable()
         navigable = navigable->parent();
 
     // 3. Return navigable.
-    return verify_cast<TraversableNavigable>(navigable);
+    return as<TraversableNavigable>(navigable);
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#set-the-ongoing-navigation
@@ -2044,7 +2044,7 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
     navigable->set_active_session_history_entry(new_entry);
 
     // 11. Update the navigation API entries for a same-document navigation given document's relevant global object's navigation API, newEntry, and historyHandling.
-    auto& relevant_global_object = verify_cast<Window>(HTML::relevant_global_object(document));
+    auto& relevant_global_object = as<Window>(HTML::relevant_global_object(document));
     auto navigation_type = history_handling == HistoryHandlingBehavior::Push ? Bindings::NavigationType::Push : Bindings::NavigationType::Replace;
     relevant_global_object.navigation()->update_the_navigation_api_entries_for_a_same_document_navigation(new_entry, navigation_type);
 

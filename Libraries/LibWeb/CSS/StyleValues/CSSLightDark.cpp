@@ -24,7 +24,7 @@ bool CSSLightDark::equals(CSSStyleValue const& other) const
     auto const& other_color = other.as_color();
     if (color_type() != other_color.color_type())
         return false;
-    auto const& other_light_dark = verify_cast<CSSLightDark>(other_color);
+    auto const& other_light_dark = as<CSSLightDark>(other_color);
     return m_properties == other_light_dark.m_properties;
 }
 

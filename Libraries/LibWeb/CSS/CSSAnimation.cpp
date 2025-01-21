@@ -22,7 +22,7 @@ GC::Ref<CSSAnimation> CSSAnimation::create(JS::Realm& realm)
 // https://www.w3.org/TR/css-animations-2/#animation-composite-order
 Optional<int> CSSAnimation::class_specific_composite_order(GC::Ref<Animations::Animation> other_animation) const
 {
-    auto other = GC::Ref { verify_cast<CSSAnimation>(*other_animation) };
+    auto other = GC::Ref { as<CSSAnimation>(*other_animation) };
 
     // The existance of an owning element determines the animation class, so both animations should have their owning
     // element in the same state

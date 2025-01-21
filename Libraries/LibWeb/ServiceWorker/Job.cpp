@@ -591,7 +591,7 @@ void schedule_job(JS::VM& vm, GC::Ref<Job> job)
 
         // 2. If job is equivalent to lastJob and lastJob’s job promise has not settled, append job to lastJob’s list of equivalent jobs.
         // FIXME: There's no WebIDL AO that corresponds to checking if an ECMAScript promise has settled
-        if (job == last_job && !verify_cast<JS::Promise>(*job->job_promise->promise()).is_handled()) {
+        if (job == last_job && !as<JS::Promise>(*job->job_promise->promise()).is_handled()) {
             last_job->list_of_equivalent_jobs.append(job);
         }
         // 3. Else, set job’s containing job queue to jobQueue, and enqueue job to jobQueue.

@@ -294,7 +294,7 @@ static Vector<Variant<String, RequiredLineBreakCount>> rendered_text_collection_
     //           or it ends with a br element. Soft hyphens should be preserved. [CSSTEXT]
 
     if (is<DOM::Text>(node)) {
-        auto const* layout_text_node = verify_cast<Layout::TextNode>(layout_node);
+        auto const* layout_text_node = as<Layout::TextNode>(layout_node);
         items.append(layout_text_node->text_for_rendering());
         return items;
     }
@@ -667,7 +667,7 @@ GC::Ptr<DOM::NodeList> HTMLElement::labels()
 
     if (!m_labels) {
         m_labels = DOM::LiveNodeList::create(realm(), root(), DOM::LiveNodeList::Scope::Descendants, [&](auto& node) {
-            return is<HTMLLabelElement>(node) && verify_cast<HTMLLabelElement>(node).control() == this;
+            return is<HTMLLabelElement>(node) && as<HTMLLabelElement>(node).control() == this;
         });
     }
 
@@ -962,7 +962,7 @@ WebIDL::ExceptionOr<bool> HTMLElement::check_popover_validity(ExpectedToBeShowin
     // then:
     // 3.1 If throwExceptions is true, then throw an "InvalidStateError" DOMException.
     // 3.2 Return false.
-    if (!is_connected() || !document().is_fully_active() || (expected_document && &document() != expected_document) || (is<HTMLDialogElement>(*this) && verify_cast<HTMLDialogElement>(*this).is_modal())) {
+    if (!is_connected() || !document().is_fully_active() || (expected_document && &document() != expected_document) || (is<HTMLDialogElement>(*this) && as<HTMLDialogElement>(*this).is_modal())) {
         if (throw_exceptions == ThrowExceptions::Yes)
             return WebIDL::InvalidStateError::create(realm(), "Element is not in a valid state to show a popover"_string);
         return false;

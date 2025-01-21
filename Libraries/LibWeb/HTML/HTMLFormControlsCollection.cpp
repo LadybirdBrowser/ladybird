@@ -72,7 +72,7 @@ Variant<Empty, DOM::Element*, GC::Root<RadioNodeList>> HTMLFormControlsCollectio
         if (!is<DOM::Element>(node))
             return false;
 
-        auto const& element = verify_cast<DOM::Element>(node);
+        auto const& element = as<DOM::Element>(node);
         return element.id() == name || element.name() == name;
     }));
 }

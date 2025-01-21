@@ -118,7 +118,7 @@ WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referri
 
     // 5. If realm's global object implements Window, then set importMap to settingsObject's global object's import map.
     if (is<Window>(realm->global_object()))
-        import_map = verify_cast<Window>(realm->global_object()).import_map();
+        import_map = as<Window>(realm->global_object()).import_map();
 
     // 6. Let serializedBaseURL be baseURL, serialized.
     auto serialized_base_url = base_url->serialize();
@@ -321,7 +321,7 @@ ScriptFetchOptions get_descendant_script_fetch_options(ScriptFetchOptions const&
 String resolve_a_module_integrity_metadata(const URL::URL& url, EnvironmentSettingsObject& settings_object)
 {
     // 1. Let map be settingsObject's global object's import map.
-    auto map = verify_cast<Window>(settings_object.global_object()).import_map();
+    auto map = as<Window>(settings_object.global_object()).import_map();
 
     // 2. If map's integrity[url] does not exist, then return the empty string.
     // 3. Return map's integrity[url].
@@ -587,7 +587,7 @@ WebIDL::ExceptionOr<void> fetch_worklet_module_worker_script_graph(URL::URL cons
         }
 
         // 2. Fetch the descendants of and link result given fetchClient, destination, and onComplete. If performFetch was given, pass it along as well.
-        fetch_descendants_of_and_link_a_module_script(realm, verify_cast<JavaScriptModuleScript>(*result), fetch_client, destination, move(perform_fetch), on_complete);
+        fetch_descendants_of_and_link_a_module_script(realm, as<JavaScriptModuleScript>(*result), fetch_client, destination, move(perform_fetch), on_complete);
     });
 
     // 2. Fetch a single module script given url, fetchClient, destination, options, settingsObject's realm, "client", true,
@@ -621,7 +621,7 @@ void fetch_internal_module_script_graph(JS::Realm& realm, JS::ModuleRequest cons
         }
 
         // 2. Fetch the descendants of result given fetch client settings object, destination, visited set, and with onComplete. If performFetch was given, pass it along as well.
-        auto& module_script = verify_cast<JavaScriptModuleScript>(*result);
+        auto& module_script = as<JavaScriptModuleScript>(*result);
         fetch_descendants_of_a_module_script(realm, module_script, fetch_client_settings_object, destination, visited_set, perform_fetch, on_complete);
     });
 
@@ -873,7 +873,7 @@ void fetch_external_module_script_graph(JS::Realm& realm, URL::URL const& url, E
         }
 
         // 2. Fetch the descendants of and link result given settingsObject, "script", and onComplete.
-        auto& module_script = verify_cast<JavaScriptModuleScript>(*result);
+        auto& module_script = as<JavaScriptModuleScript>(*result);
         fetch_descendants_of_and_link_a_module_script(realm, module_script, settings_object, Fetch::Infrastructure::Request::Destination::Script, nullptr, on_complete);
     });
 

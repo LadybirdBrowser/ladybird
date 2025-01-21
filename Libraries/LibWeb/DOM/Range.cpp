@@ -56,7 +56,7 @@ GC::Ref<Range> Range::create(GC::Ref<Node> start_container, WebIDL::UnsignedLong
 
 WebIDL::ExceptionOr<GC::Ref<Range>> Range::construct_impl(JS::Realm& realm)
 {
-    auto& window = verify_cast<HTML::Window>(realm.global_object());
+    auto& window = as<HTML::Window>(realm.global_object());
     return Range::create(window);
 }
 
@@ -625,7 +625,7 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::extract()
         // 2. Set the data of clone to the result of substringing data with node original start node,
         //    offset original start offset, and count original end offset minus original start offset.
         auto result = TRY(static_cast<CharacterData const&>(*original_start_node).substring_data(original_start_offset, original_end_offset - original_start_offset));
-        verify_cast<CharacterData>(*clone).set_data(move(result));
+        as<CharacterData>(*clone).set_data(move(result));
 
         // 3. Append clone to fragment.
         TRY(fragment->append_child(clone));
@@ -715,7 +715,7 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::extract()
         // 2. Set the data of clone to the result of substringing data with node original start node, offset original start offset,
         //    and count original start node’s length minus original start offset.
         auto result = TRY(static_cast<CharacterData const&>(*original_start_node).substring_data(original_start_offset, original_start_node->length() - original_start_offset));
-        verify_cast<CharacterData>(*clone).set_data(move(result));
+        as<CharacterData>(*clone).set_data(move(result));
 
         // 3. Append clone to fragment.
         TRY(fragment->append_child(clone));
@@ -753,13 +753,13 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::extract()
 
         // 2. Set the data of clone to the result of substringing data with node original end node, offset 0, and count original end offset.
         auto result = TRY(static_cast<CharacterData const&>(*original_end_node).substring_data(0, original_end_offset));
-        verify_cast<CharacterData>(*clone).set_data(move(result));
+        as<CharacterData>(*clone).set_data(move(result));
 
         // 3. Append clone to fragment.
         TRY(fragment->append_child(clone));
 
         // 4. Replace data with node original end node, offset 0, count original end offset, and data the empty string.
-        TRY(verify_cast<CharacterData>(*original_end_node).replace_data(0, original_end_offset, String {}));
+        TRY(as<CharacterData>(*original_end_node).replace_data(0, original_end_offset, String {}));
     }
     // 19. Otherwise, if last partially contained child is not null:
     else if (last_partially_contained_child) {
@@ -951,7 +951,7 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::clone_the_contents()
         // 2. Set the data of clone to the result of substringing data with node original start node,
         //    offset original start offset, and count original end offset minus original start offset.
         auto result = TRY(static_cast<CharacterData const&>(*original_start_node).substring_data(original_start_offset, original_end_offset - original_start_offset));
-        verify_cast<CharacterData>(*clone).set_data(move(result));
+        as<CharacterData>(*clone).set_data(move(result));
 
         // 3. Append clone to fragment.
         TRY(fragment->append_child(clone));
@@ -1016,7 +1016,7 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::clone_the_contents()
         // 2. Set the data of clone to the result of substringing data with node original start node, offset original start offset,
         //    and count original start node’s length minus original start offset.
         auto result = TRY(static_cast<CharacterData const&>(*original_start_node).substring_data(original_start_offset, original_start_node->length() - original_start_offset));
-        verify_cast<CharacterData>(*clone).set_data(move(result));
+        as<CharacterData>(*clone).set_data(move(result));
 
         // 3. Append clone to fragment.
         TRY(fragment->append_child(clone));
@@ -1055,7 +1055,7 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::clone_the_contents()
 
         // 2. Set the data of clone to the result of substringing data with node original end node, offset 0, and count original end offset.
         auto result = TRY(static_cast<CharacterData const&>(*original_end_node).substring_data(0, original_end_offset));
-        verify_cast<CharacterData>(*clone).set_data(move(result));
+        as<CharacterData>(*clone).set_data(move(result));
 
         // 3. Append clone to fragment.
         TRY(fragment->append_child(clone));

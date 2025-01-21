@@ -37,7 +37,7 @@ public:
         for (auto& entry : indexed_properties()) {
             auto value_and_attributes = indexed_properties().storage()->get(entry.index());
             if (value_and_attributes.has_value()) {
-                auto& style_sheet = verify_cast<T>(value_and_attributes->value.as_object());
+                auto& style_sheet = as<T>(value_and_attributes->value.as_object());
                 callback(style_sheet);
             }
         }

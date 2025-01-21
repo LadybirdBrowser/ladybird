@@ -211,7 +211,7 @@ WebIDL::ExceptionOr<BrowsingContext::BrowsingContextAndDocument> BrowsingContext
     auto load_timing_info = DOM::DocumentLoadTimingInfo();
     load_timing_info.navigation_start_time = HighResolutionTime::coarsen_time(
         unsafe_context_creation_time,
-        verify_cast<WindowEnvironmentSettingsObject>(Bindings::principal_host_defined_environment_settings_object(window->realm())).cross_origin_isolated_capability() == CanUseCrossOriginIsolatedAPIs::Yes);
+        as<WindowEnvironmentSettingsObject>(Bindings::principal_host_defined_environment_settings_object(window->realm())).cross_origin_isolated_capability() == CanUseCrossOriginIsolatedAPIs::Yes);
 
     // 15. Let document be a new Document, with:
     auto document = HTML::HTMLDocument::create(window->realm());

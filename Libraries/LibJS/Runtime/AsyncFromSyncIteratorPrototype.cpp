@@ -61,7 +61,7 @@ static Object* async_from_sync_iterator_continuation(VM& vm, Object& result, Pro
     auto on_fulfilled = NativeFunction::create(realm, move(unwrap), 1, "");
 
     // 11. Perform PerformPromiseThen(valueWrapper, onFulfilled, undefined, promiseCapability).
-    verify_cast<Promise>(value_wrapper)->perform_then(move(on_fulfilled), js_undefined(), &promise_capability);
+    as<Promise>(value_wrapper)->perform_then(move(on_fulfilled), js_undefined(), &promise_capability);
 
     // 12. Return promiseCapability.[[Promise]].
     return promise_capability.promise();

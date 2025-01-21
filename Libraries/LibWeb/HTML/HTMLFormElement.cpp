@@ -521,7 +521,7 @@ static bool is_form_control(DOM::Element const& element, HTMLFormElement const& 
 GC::Ref<HTMLFormControlsCollection> HTMLFormElement::elements() const
 {
     if (!m_elements) {
-        auto& root = verify_cast<ParentNode>(const_cast<HTMLFormElement*>(this)->root());
+        auto& root = as<ParentNode>(const_cast<HTMLFormElement*>(this)->root());
         m_elements = HTMLFormControlsCollection::create(root, DOM::HTMLCollection::Scope::Descendants, [this](Element const& element) {
             return is_form_control(element, *this);
         });
@@ -1017,7 +1017,7 @@ Vector<FlyString> HTMLFormElement::supported_property_names() const
 JS::Value HTMLFormElement::named_item_value(FlyString const& name) const
 {
     auto& realm = this->realm();
-    auto& root = verify_cast<ParentNode>(this->root());
+    auto& root = as<ParentNode>(this->root());
 
     // To determine the value of a named property name for a form element, the user agent must run the following steps:
 

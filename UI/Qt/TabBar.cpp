@@ -40,8 +40,8 @@ QSize TabBar::tabSizeHint(int index) const
 
 void TabBar::contextMenuEvent(QContextMenuEvent* event)
 {
-    auto* tab_widget = verify_cast<QTabWidget>(this->parent());
-    auto* tab = verify_cast<Tab>(tab_widget->widget(tabAt(event->pos())));
+    auto* tab_widget = as<QTabWidget>(this->parent());
+    auto* tab = as<Tab>(tab_widget->widget(tabAt(event->pos())));
     if (tab)
         tab->context_menu()->exec(event->globalPos());
 }
@@ -147,7 +147,7 @@ QRect TabStyle::subElementRect(QStyle::SubElement sub_element, QStyleOption cons
 {
     // Place our add-tab button (set as the top-right corner widget) directly after the last tab
     if (sub_element == QStyle::SE_TabWidgetRightCorner) {
-        auto* tab_widget = verify_cast<TabWidget>(widget);
+        auto* tab_widget = as<TabWidget>(widget);
         auto tab_bar_size = tab_widget->tabBar()->sizeHint();
         auto new_tab_button_size = tab_bar_size.height();
         return QRect {

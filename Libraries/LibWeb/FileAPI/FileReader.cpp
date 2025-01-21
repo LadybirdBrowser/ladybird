@@ -153,7 +153,7 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
         while (true) {
             auto& vm = realm.vm();
             // FIXME: Try harder to not reach into the [[Promise]] slot of chunkPromise
-            auto promise = GC::Ref { verify_cast<JS::Promise>(*chunk_promise->promise()) };
+            auto promise = GC::Ref { as<JS::Promise>(*chunk_promise->promise()) };
 
             // 1. Wait for chunkPromise to be fulfilled or rejected.
             // FIXME: Create spec issue to use WebIDL react to promise steps here instead of this custom logic
@@ -181,7 +181,7 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
             // 4. If chunkPromise is fulfilled with an object whose done property is false and whose value property is a Uint8Array object, run these steps:
             if (promise->state() == JS::Promise::State::Fulfilled && !done.as_bool() && is<JS::Uint8Array>(value.as_object())) {
                 // 1. Let bs be the byte sequence represented by the Uint8Array object.
-                auto const& byte_sequence = verify_cast<JS::Uint8Array>(value.as_object());
+                auto const& byte_sequence = as<JS::Uint8Array>(value.as_object());
 
                 // 2. Append bs to bytes.
                 bytes.append(byte_sequence.data());

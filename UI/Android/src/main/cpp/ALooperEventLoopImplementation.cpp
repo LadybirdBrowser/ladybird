@@ -24,7 +24,7 @@ EventLoopThreadData& EventLoopThreadData::the()
 
 static ALooperEventLoopImplementation& current_impl()
 {
-    return verify_cast<ALooperEventLoopImplementation>(Core::EventLoop::current().impl());
+    return as<ALooperEventLoopImplementation>(Core::EventLoop::current().impl());
 }
 
 static int looper_callback(int fd, int events, void* data);

@@ -23,7 +23,7 @@ Counter& CountersSet::instantiate_a_counter(FlyString name, UniqueNodeID origina
     if (innermost_counter.has_value()) {
         auto* originating_node = DOM::Node::from_unique_id(innermost_counter->originating_element_id);
         VERIFY(originating_node);
-        auto& innermost_element = verify_cast<DOM::Element>(*originating_node);
+        auto& innermost_element = as<DOM::Element>(*originating_node);
 
         if (&innermost_element == element
             || (innermost_element.parent() == element->parent() && innermost_element.is_before(*element))) {

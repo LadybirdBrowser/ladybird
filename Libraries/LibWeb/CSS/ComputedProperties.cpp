@@ -1060,7 +1060,7 @@ Vector<ShadowData> ComputedProperties::shadow(PropertyID property_id, Layout::No
             maybe_offset_y.release_value(),
             maybe_blur_radius.release_value(),
             maybe_spread_distance.release_value(),
-            value.color()->to_color(verify_cast<Layout::NodeWithStyle>(layout_node)),
+            value.color()->to_color(as<Layout::NodeWithStyle>(layout_node)),
             value.placement()
         };
     };

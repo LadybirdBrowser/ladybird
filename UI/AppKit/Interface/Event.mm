@@ -131,7 +131,7 @@ Web::DragEvent ns_event_to_drag_event(Web::DragEvent::Type type, id<NSDraggingIn
 
 Vector<URL::URL> drag_event_url_list(Web::DragEvent const& event)
 {
-    auto& chrome_data = verify_cast<DragData>(*event.chrome_data);
+    auto& chrome_data = as<DragData>(*event.chrome_data);
     return move(chrome_data.urls);
 }
 
@@ -322,7 +322,7 @@ Web::KeyEvent ns_event_to_key_event(Web::KeyEvent::Type type, NSEvent* event)
 
 NSEvent* key_event_to_ns_event(Web::KeyEvent const& event)
 {
-    auto& chrome_data = verify_cast<KeyData>(*event.chrome_data);
+    auto& chrome_data = as<KeyData>(*event.chrome_data);
     return chrome_data.take_event();
 }
 

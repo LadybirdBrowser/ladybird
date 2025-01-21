@@ -39,7 +39,7 @@ private:
     GC::Ptr<SVGRadialGradientElement const> linked_radial_gradient(HashTable<SVGGradientElement const*>& seen_gradients) const
     {
         if (auto gradient = linked_gradient(seen_gradients); gradient && is<SVGRadialGradientElement>(*gradient))
-            return &verify_cast<SVGRadialGradientElement>(*gradient);
+            return &as<SVGRadialGradientElement>(*gradient);
         return {};
     }
 

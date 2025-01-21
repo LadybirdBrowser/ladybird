@@ -130,7 +130,7 @@ void HTMLScriptElement::execute_script()
             dbgln_if(HTML_SCRIPT_DEBUG, "HTMLScriptElement: Running inline script");
 
         // 3. Run the classic script given by el's result.
-        (void)verify_cast<ClassicScript>(*m_result.get<GC::Ref<Script>>()).run();
+        (void)as<ClassicScript>(*m_result.get<GC::Ref<Script>>()).run();
 
         // 4. Set document's currentScript attribute to oldCurrentScript.
         document->set_current_script({}, old_current_script);
@@ -141,12 +141,12 @@ void HTMLScriptElement::execute_script()
         VERIFY(document->current_script() == nullptr);
 
         // 2. Run the module script given by el's result.
-        (void)verify_cast<JavaScriptModuleScript>(*m_result.get<GC::Ref<Script>>()).run();
+        (void)as<JavaScriptModuleScript>(*m_result.get<GC::Ref<Script>>()).run();
     }
     // -> "importmap"
     else if (m_script_type == ScriptType::ImportMap) {
         // 1. Register an import map given el's relevant global object and el's result.
-        m_result.get<GC::Ref<ImportMapParseResult>>()->register_import_map(verify_cast<Window>(relevant_global_object(*this)));
+        m_result.get<GC::Ref<ImportMapParseResult>>()->register_import_map(as<Window>(relevant_global_object(*this)));
     }
 
     // 7. Decrement the ignore-destructive-writes counter of document, if it was incremented in the earlier step.
@@ -656,7 +656,7 @@ WebIDL::ExceptionOr<void> HTMLScriptElement::cloned(Node& copy, bool subtree) co
     TRY(Base::cloned(copy, subtree));
 
     // The cloning steps for script elements given node, copy, and subtree are to set copy's already started to node's already started.
-    auto& script_copy = verify_cast<HTMLScriptElement>(copy);
+    auto& script_copy = as<HTMLScriptElement>(copy);
     script_copy.m_already_started = m_already_started;
 
     return {};

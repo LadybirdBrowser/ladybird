@@ -62,7 +62,7 @@ StringView LineBoxFragment::text() const
 {
     if (!is<TextNode>(layout_node()))
         return {};
-    return verify_cast<TextNode>(layout_node()).text_for_rendering().bytes_as_string_view().substring_view(m_start, m_length);
+    return as<TextNode>(layout_node()).text_for_rendering().bytes_as_string_view().substring_view(m_start, m_length);
 }
 
 bool LineBoxFragment::is_atomic_inline() const

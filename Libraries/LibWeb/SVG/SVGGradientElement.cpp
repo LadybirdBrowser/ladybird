@@ -139,9 +139,9 @@ GC::Ptr<SVGGradientElement const> SVGGradientElement::linked_gradient(HashTable<
             return {};
         if (!is<SVGGradientElement>(*element))
             return {};
-        if (seen_gradients.set(&verify_cast<SVGGradientElement>(*element)) != AK::HashSetResult::InsertedNewEntry)
+        if (seen_gradients.set(&as<SVGGradientElement>(*element)) != AK::HashSetResult::InsertedNewEntry)
             return {};
-        return &verify_cast<SVGGradientElement>(*element);
+        return &as<SVGGradientElement>(*element);
     }
     return {};
 }

@@ -660,7 +660,7 @@ CodeGenerationErrorOr<Generator::ReferenceOperands> Generator::emit_load_from_re
             emit<Bytecode::Op::GetByValueWithThis>(dst, *super_reference.base, *super_reference.referenced_name, *super_reference.this_value);
         } else {
             // 3. Let propertyKey be StringValue of IdentifierName.
-            auto identifier_table_ref = intern_identifier(verify_cast<Identifier>(expression.property()).string());
+            auto identifier_table_ref = intern_identifier(as<Identifier>(expression.property()).string());
             emit_get_by_id_with_this(dst, *super_reference.base, identifier_table_ref, *super_reference.this_value);
         }
 
@@ -685,7 +685,7 @@ CodeGenerationErrorOr<Generator::ReferenceOperands> Generator::emit_load_from_re
         };
     }
     if (expression.property().is_identifier()) {
-        auto identifier_table_ref = intern_identifier(verify_cast<Identifier>(expression.property()).string());
+        auto identifier_table_ref = intern_identifier(as<Identifier>(expression.property()).string());
         auto dst = preferred_dst.has_value() ? preferred_dst.value() : allocate_register();
         emit_get_by_id(dst, base, identifier_table_ref, move(base_identifier));
         return ReferenceOperands {
@@ -696,7 +696,7 @@ CodeGenerationErrorOr<Generator::ReferenceOperands> Generator::emit_load_from_re
         };
     }
     if (expression.property().is_private_identifier()) {
-        auto identifier_table_ref = intern_identifier(verify_cast<PrivateIdentifier>(expression.property()).string());
+        auto identifier_table_ref = intern_identifier(as<PrivateIdentifier>(expression.property()).string());
         auto dst = preferred_dst.has_value() ? preferred_dst.value() : allocate_register();
         emit<Bytecode::Op::GetPrivateById>(dst, base, identifier_table_ref);
         return ReferenceOperands {
@@ -733,7 +733,7 @@ CodeGenerationErrorOr<void> Generator::emit_store_to_reference(JS::ASTNode const
                 emit<Bytecode::Op::PutByValueWithThis>(*super_reference.base, *super_reference.referenced_name, *super_reference.this_value, value);
             } else {
                 // 3. Let propertyKey be StringValue of IdentifierName.
-                auto identifier_table_ref = intern_identifier(verify_cast<Identifier>(expression.property()).string());
+                auto identifier_table_ref = intern_identifier(as<Identifier>(expression.property()).string());
                 emit<Bytecode::Op::PutByIdWithThis>(*super_reference.base, *super_reference.this_value, identifier_table_ref, value, Bytecode::Op::PropertyKind::KeyValue, next_property_lookup_cache());
             }
         } else {
@@ -743,10 +743,10 @@ CodeGenerationErrorOr<void> Generator::emit_store_to_reference(JS::ASTNode const
                 auto property = TRY(expression.property().generate_bytecode(*this)).value();
                 emit<Bytecode::Op::PutByValue>(object, property, value);
             } else if (expression.property().is_identifier()) {
-                auto identifier_table_ref = intern_identifier(verify_cast<Identifier>(expression.property()).string());
+                auto identifier_table_ref = intern_identifier(as<Identifier>(expression.property()).string());
                 emit<Bytecode::Op::PutById>(object, identifier_table_ref, value, Bytecode::Op::PropertyKind::KeyValue, next_property_lookup_cache());
             } else if (expression.property().is_private_identifier()) {
-                auto identifier_table_ref = intern_identifier(verify_cast<PrivateIdentifier>(expression.property()).string());
+                auto identifier_table_ref = intern_identifier(as<PrivateIdentifier>(expression.property()).string());
                 emit<Bytecode::Op::PutPrivateById>(object, identifier_table_ref, value);
             } else {
                 return CodeGenerationError {
@@ -808,7 +808,7 @@ CodeGenerationErrorOr<Optional<ScopedOperand>> Generator::emit_delete_reference(
             if (super_reference.referenced_name.has_value()) {
                 emit<Bytecode::Op::DeleteByValueWithThis>(dst, *super_reference.base, *super_reference.this_value, *super_reference.referenced_name);
             } else {
-                auto identifier_table_ref = intern_identifier(verify_cast<Identifier>(expression.property()).string());
+                auto identifier_table_ref = intern_identifier(as<Identifier>(expression.property()).string());
                 emit<Bytecode::Op::DeleteByIdWithThis>(dst, *super_reference.base, *super_reference.this_value, identifier_table_ref);
             }
 
@@ -822,7 +822,7 @@ CodeGenerationErrorOr<Optional<ScopedOperand>> Generator::emit_delete_reference(
             auto property = TRY(expression.property().generate_bytecode(*this)).value();
             emit<Bytecode::Op::DeleteByValue>(dst, object, property);
         } else if (expression.property().is_identifier()) {
-            auto identifier_table_ref = intern_identifier(verify_cast<Identifier>(expression.property()).string());
+            auto identifier_table_ref = intern_identifier(as<Identifier>(expression.property()).string());
             emit<Bytecode::Op::DeleteById>(dst, object, identifier_table_ref);
         } else {
             // NOTE: Trying to delete a private field generates a SyntaxError in the parser.

@@ -88,19 +88,19 @@ void dump_tree(StringBuilder& builder, DOM::Node const& node)
     for (int i = 0; i < indent; ++i)
         builder.append("  "sv);
     if (is<DOM::Element>(node)) {
-        builder.appendff("<{}", verify_cast<DOM::Element>(node).local_name());
-        verify_cast<DOM::Element>(node).for_each_attribute([&](auto& name, auto& value) {
+        builder.appendff("<{}", as<DOM::Element>(node).local_name());
+        as<DOM::Element>(node).for_each_attribute([&](auto& name, auto& value) {
             builder.appendff(" {}={}", name, value);
         });
         builder.append(">\n"sv);
-        auto& element = verify_cast<DOM::Element>(node);
+        auto& element = as<DOM::Element>(node);
         if (element.use_pseudo_element().has_value()) {
             for (int i = 0; i < indent; ++i)
                 builder.append("  "sv);
             builder.appendff("  (pseudo-element: {})\n", CSS::Selector::PseudoElement::name(element.use_pseudo_element().value()));
         }
     } else if (is<DOM::Text>(node)) {
-        builder.appendff("\"{}\"\n", verify_cast<DOM::Text>(node).data());
+        builder.appendff("\"{}\"\n", as<DOM::Text>(node).data());
     } else {
         builder.appendff("{}\n", node.node_name());
     }
@@ -117,7 +117,7 @@ void dump_tree(StringBuilder& builder, DOM::Node const& node)
                 for (int i = 0; i < indent; ++i)
                     builder.append("  "sv);
                 builder.append("(SVG-as-image isolated context)\n"sv);
-                auto& svg_data = verify_cast<SVG::SVGDecodedImageData>(*image_data);
+                auto& svg_data = as<SVG::SVGDecodedImageData>(*image_data);
                 dump_tree(builder, svg_data.svg_document());
                 --indent;
             }
@@ -130,7 +130,7 @@ void dump_tree(StringBuilder& builder, DOM::Node const& node)
                 return IterationDecision::Continue;
             });
         } else {
-            auto& template_element = verify_cast<HTML::HTMLTemplateElement>(node);
+            auto& template_element = as<HTML::HTMLTemplateElement>(node);
             dump_tree(builder, template_element.content());
         }
     }
@@ -154,13 +154,13 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
     if (layout_node.is_anonymous())
         tag_name = "(anonymous)"_fly_string;
     else if (is<DOM::Element>(layout_node.dom_node()))
-        tag_name = verify_cast<DOM::Element>(*layout_node.dom_node()).local_name();
+        tag_name = as<DOM::Element>(*layout_node.dom_node()).local_name();
     else
         tag_name = layout_node.dom_node()->node_name();
 
     String identifier;
     if (layout_node.dom_node() && is<DOM::Element>(*layout_node.dom_node())) {
-        auto& element = verify_cast<DOM::Element>(*layout_node.dom_node());
+        auto& element = as<DOM::Element>(*layout_node.dom_node());
         StringBuilder builder;
         if (element.id().has_value() && !element.id()->is_empty()) {
             builder.append('#');
@@ -212,7 +212,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
             color_off);
         builder.append("\n"sv);
     } else {
-        auto& box = verify_cast<Layout::Box>(layout_node);
+        auto& box = as<Layout::Box>(layout_node);
         StringView color_on = is<Layout::SVGBox>(box) ? svg_box_color_on : box_color_on;
 
         builder.appendff("{}{}{} <{}{}{}{}> ",
@@ -341,7 +341,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
     if (layout_node.dom_node() && is<HTML::HTMLImageElement>(*layout_node.dom_node())) {
         if (auto image_data = static_cast<HTML::HTMLImageElement const&>(*layout_node.dom_node()).current_request().image_data()) {
             if (is<SVG::SVGDecodedImageData>(*image_data)) {
-                auto& svg_data = verify_cast<SVG::SVGDecodedImageData>(*image_data);
+                auto& svg_data = as<SVG::SVGDecodedImageData>(*image_data);
                 if (svg_data.svg_document().layout_node()) {
                     ++indent;
                     for (size_t i = 0; i < indent; ++i)
@@ -397,13 +397,13 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
         }
     }
 
-    if (show_cascaded_properties && layout_node.dom_node() && layout_node.dom_node()->is_element() && verify_cast<DOM::Element>(layout_node.dom_node())->computed_properties()) {
+    if (show_cascaded_properties && layout_node.dom_node() && layout_node.dom_node()->is_element() && as<DOM::Element>(layout_node.dom_node())->computed_properties()) {
         struct NameAndValue {
             FlyString name;
             String value;
         };
         Vector<NameAndValue> properties;
-        verify_cast<DOM::Element>(*layout_node.dom_node()).computed_properties()->for_each_property([&](auto property_id, auto& value) {
+        as<DOM::Element>(*layout_node.dom_node()).computed_properties()->for_each_property([&](auto property_id, auto& value) {
             properties.append({ CSS::string_from_property_id(property_id), value.to_string(CSS::CSSStyleValue::SerializationMode::Normal) });
         });
         quick_sort(properties, [](auto& a, auto& b) { return a.name < b.name; });
@@ -637,38 +637,38 @@ void dump_rule(StringBuilder& builder, CSS::CSSRule const& rule, int indent_leve
 
     switch (rule.type()) {
     case CSS::CSSRule::Type::FontFace:
-        dump_font_face_rule(builder, verify_cast<CSS::CSSFontFaceRule const>(rule), indent_levels);
+        dump_font_face_rule(builder, as<CSS::CSSFontFaceRule const>(rule), indent_levels);
         break;
     case CSS::CSSRule::Type::Import:
-        dump_import_rule(builder, verify_cast<CSS::CSSImportRule const>(rule), indent_levels);
+        dump_import_rule(builder, as<CSS::CSSImportRule const>(rule), indent_levels);
         break;
     case CSS::CSSRule::Type::Keyframe:
     case CSS::CSSRule::Type::Keyframes:
         // TODO: Dump them!
         break;
     case CSS::CSSRule::Type::LayerBlock:
-        dump_layer_block_rule(builder, verify_cast<CSS::CSSLayerBlockRule const>(rule), indent_levels);
+        dump_layer_block_rule(builder, as<CSS::CSSLayerBlockRule const>(rule), indent_levels);
         break;
     case CSS::CSSRule::Type::LayerStatement:
-        dump_layer_statement_rule(builder, verify_cast<CSS::CSSLayerStatementRule const>(rule), indent_levels);
+        dump_layer_statement_rule(builder, as<CSS::CSSLayerStatementRule const>(rule), indent_levels);
         break;
     case CSS::CSSRule::Type::Media:
-        dump_media_rule(builder, verify_cast<CSS::CSSMediaRule const>(rule), indent_levels);
+        dump_media_rule(builder, as<CSS::CSSMediaRule const>(rule), indent_levels);
         break;
     case CSS::CSSRule::Type::Namespace:
-        dump_namespace_rule(builder, verify_cast<CSS::CSSNamespaceRule const>(rule), indent_levels);
+        dump_namespace_rule(builder, as<CSS::CSSNamespaceRule const>(rule), indent_levels);
         break;
     case CSS::CSSRule::Type::NestedDeclarations:
-        dump_nested_declarations(builder, verify_cast<CSS::CSSNestedDeclarations const>(rule), indent_levels);
+        dump_nested_declarations(builder, as<CSS::CSSNestedDeclarations const>(rule), indent_levels);
         break;
     case CSS::CSSRule::Type::Style:
-        dump_style_rule(builder, verify_cast<CSS::CSSStyleRule const>(rule), indent_levels);
+        dump_style_rule(builder, as<CSS::CSSStyleRule const>(rule), indent_levels);
         break;
     case CSS::CSSRule::Type::Supports:
-        dump_supports_rule(builder, verify_cast<CSS::CSSSupportsRule const>(rule), indent_levels);
+        dump_supports_rule(builder, as<CSS::CSSSupportsRule const>(rule), indent_levels);
         break;
     case CSS::CSSRule::Type::Property:
-        dump_property_rule(builder, verify_cast<CSS::CSSPropertyRule const>(rule), indent_levels);
+        dump_property_rule(builder, as<CSS::CSSPropertyRule const>(rule), indent_levels);
         break;
     }
 }
@@ -863,7 +863,7 @@ void dump_sheet(CSS::StyleSheet const& sheet)
 
 void dump_sheet(StringBuilder& builder, CSS::StyleSheet const& sheet)
 {
-    auto& css_stylesheet = verify_cast<CSS::CSSStyleSheet>(sheet);
+    auto& css_stylesheet = as<CSS::CSSStyleSheet>(sheet);
 
     builder.appendff("CSSStyleSheet{{{}}}: {} rule(s)\n", &sheet, css_stylesheet.rules().length());
 

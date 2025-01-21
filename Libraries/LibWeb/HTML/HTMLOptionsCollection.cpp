@@ -183,12 +183,12 @@ WebIDL::Long HTMLOptionsCollection::selected_index() const
 {
     // The selectedIndex IDL attribute must act like the identically named attribute
     // on the select element on which the HTMLOptionsCollection is rooted.
-    return verify_cast<HTMLSelectElement>(*root()).selected_index();
+    return as<HTMLSelectElement>(*root()).selected_index();
 }
 
 void HTMLOptionsCollection::set_selected_index(WebIDL::Long index)
 {
-    verify_cast<HTMLSelectElement>(*root()).set_selected_index(index);
+    as<HTMLSelectElement>(*root()).set_selected_index(index);
 }
 
 }

@@ -33,7 +33,7 @@ void Inspector::initialize(JS::Realm& realm)
 
 PageClient& Inspector::inspector_page_client() const
 {
-    return verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).page().client();
+    return as<HTML::Window>(HTML::relevant_global_object(*this)).page().client();
 }
 
 void Inspector::inspector_loaded()

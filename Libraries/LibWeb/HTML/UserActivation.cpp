@@ -33,14 +33,14 @@ void UserActivation::initialize(JS::Realm& realm)
 bool UserActivation::has_been_active() const
 {
     // The hasBeenActive getter steps are to return true if this's relevant global object has sticky activation, and false otherwise.
-    return verify_cast<HTML::Window>(relevant_global_object(*this)).has_sticky_activation();
+    return as<HTML::Window>(relevant_global_object(*this)).has_sticky_activation();
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-useractivation-isactive
 bool UserActivation::is_active() const
 {
     // The isActive getter steps are to return true if this's relevant global object has transient activation, and false otherwise.
-    return verify_cast<HTML::Window>(relevant_global_object(*this)).has_transient_activation();
+    return as<HTML::Window>(relevant_global_object(*this)).has_transient_activation();
 }
 
 }

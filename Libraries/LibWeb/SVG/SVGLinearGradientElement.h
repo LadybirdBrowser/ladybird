@@ -37,7 +37,7 @@ private:
     GC::Ptr<SVGLinearGradientElement const> linked_linear_gradient(HashTable<SVGGradientElement const*>& seen_gradients) const
     {
         if (auto gradient = linked_gradient(seen_gradients); gradient && is<SVGLinearGradientElement>(*gradient))
-            return &verify_cast<SVGLinearGradientElement>(*gradient);
+            return &as<SVGLinearGradientElement>(*gradient);
         return {};
     }
 

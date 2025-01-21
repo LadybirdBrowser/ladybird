@@ -112,7 +112,7 @@ EventLoop& EnvironmentSettingsObject::responsible_event_loop()
 RunScriptDecision can_run_script(JS::Realm const& realm)
 {
     // 1. If the global object specified by realm is a Window object whose Document object is not fully active, then return "do not run".
-    if (is<HTML::Window>(realm.global_object()) && !verify_cast<HTML::Window>(realm.global_object()).associated_document().is_fully_active())
+    if (is<HTML::Window>(realm.global_object()) && !as<HTML::Window>(realm.global_object()).associated_document().is_fully_active())
         return RunScriptDecision::DoNotRun;
 
     // 2. If scripting is disabled for realm, then return "do not run".
@@ -146,7 +146,7 @@ JS::ExecutionContext const& execution_context_of_realm(JS::Realm const& realm)
 
     // 2. Assert: realm is a synthetic realm.
     // 3. Return the execution context of the synthetic realm settings object of realm.
-    return *verify_cast<Bindings::SyntheticHostDefined>(*realm.host_defined()).synthetic_realm_settings.execution_context;
+    return *as<Bindings::SyntheticHostDefined>(*realm.host_defined()).synthetic_realm_settings.execution_context;
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#clean-up-after-running-script
@@ -276,7 +276,7 @@ bool is_scripting_enabled(JS::Realm const& realm)
         return true;
 
     // The user has not disabled scripting for realm at this time. (User agents may provide users with the option to disable scripting globally, or in a finer-grained manner, e.g., on a per-origin basis, down to the level of individual realms.)
-    auto const& document = verify_cast<HTML::Window>(realm.global_object()).associated_document();
+    auto const& document = as<HTML::Window>(realm.global_object()).associated_document();
     if (!document.page().is_scripting_enabled())
         return false;
 
@@ -328,7 +328,7 @@ void add_module_to_resolved_module_set(JS::Realm& realm, String const& serialize
     };
 
     // 4. Append record to global's resolved module set.
-    return verify_cast<Window>(global).append_resolved_module(move(resolution));
+    return as<Window>(global).append_resolved_module(move(resolution));
 }
 
 // https://whatpr.org/html/9893/webappapis.html#concept-realm-module-map
@@ -342,7 +342,7 @@ ModuleMap& module_map_of_realm(JS::Realm& realm)
 
     // 2. Assert: realm is a synthetic realm.
     // 3. Return the module map of the synthetic realm settings object of realm.
-    return *verify_cast<Bindings::SyntheticHostDefined>(*realm.host_defined()).synthetic_realm_settings.module_map;
+    return *as<Bindings::SyntheticHostDefined>(*realm.host_defined()).synthetic_realm_settings.module_map;
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#concept-incumbent-realm

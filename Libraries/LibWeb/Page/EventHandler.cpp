@@ -56,7 +56,7 @@ static GC::Ptr<DOM::Node> dom_node_for_event_dispatch(Painting::Paintable& paint
 static DOM::Node* input_control_associated_with_ancestor_label_element(Painting::Paintable& paintable)
 {
     if (is<Layout::Label>(paintable.layout_node())) {
-        auto const& label = verify_cast<Layout::Label>(paintable.layout_node());
+        auto const& label = as<Layout::Label>(paintable.layout_node());
         return label.dom_node().control().ptr();
     }
     if (auto const* label = paintable.layout_node().first_ancestor_of_type<Layout::Label>())
@@ -506,7 +506,7 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPix
                     }
                 } else if (button == UIEvents::MouseButton::Secondary) {
                     if (is<HTML::HTMLImageElement>(*node)) {
-                        auto& image_element = verify_cast<HTML::HTMLImageElement>(*node);
+                        auto& image_element = as<HTML::HTMLImageElement>(*node);
                         auto image_url = image_element.document().encoding_parse_url(image_element.src());
                         Optional<Gfx::Bitmap const*> bitmap;
                         if (image_element.immutable_bitmap())
@@ -514,7 +514,7 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPix
 
                         m_navigable->page().client().page_did_request_image_context_menu(viewport_position, image_url, "", modifiers, bitmap);
                     } else if (is<HTML::HTMLMediaElement>(*node)) {
-                        auto& media_element = verify_cast<HTML::HTMLMediaElement>(*node);
+                        auto& media_element = as<HTML::HTMLMediaElement>(*node);
 
                         Page::MediaContextMenu menu {
                             .media_url = media_element.document().encoding_parse_url(media_element.current_src()),
@@ -885,7 +885,7 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint viewport_position, CS
                 return EventResult::Accepted;
 
             auto& hit_paintable = static_cast<Painting::TextPaintable const&>(*result->paintable);
-            auto& hit_dom_node = const_cast<DOM::Text&>(verify_cast<DOM::Text>(*hit_paintable.dom_node()));
+            auto& hit_dom_node = const_cast<DOM::Text&>(as<DOM::Text>(*hit_paintable.dom_node()));
             auto previous_boundary = hit_dom_node.word_segmenter().previous_boundary(result->index_in_node, Unicode::Segmenter::Inclusive::Yes).value_or(0);
             auto next_boundary = hit_dom_node.word_segmenter().next_boundary(result->index_in_node).value_or(hit_dom_node.length());
 
@@ -1036,7 +1036,7 @@ EventResult EventHandler::fire_keyboard_event(FlyString const& event_name, HTML:
 
     if (GC::Ptr<DOM::Element> focused_element = document->focused_element()) {
         if (is<HTML::NavigableContainer>(*focused_element)) {
-            auto& navigable_container = verify_cast<HTML::NavigableContainer>(*focused_element);
+            auto& navigable_container = as<HTML::NavigableContainer>(*focused_element);
             if (navigable_container.content_navigable())
                 return fire_keyboard_event(event_name, *navigable_container.content_navigable(), key, modifiers, code_point, repeat);
         }
@@ -1080,7 +1080,7 @@ EventResult EventHandler::input_event(FlyString const& event_name, FlyString con
 
     if (auto* focused_element = document->focused_element()) {
         if (is<HTML::NavigableContainer>(*focused_element)) {
-            auto& navigable_container = verify_cast<HTML::NavigableContainer>(*focused_element);
+            auto& navigable_container = as<HTML::NavigableContainer>(*focused_element);
             if (navigable_container.content_navigable())
                 return input_event(event_name, input_type, *navigable_container.content_navigable(), code_point);
         }

@@ -33,7 +33,7 @@ public:
     Box const& table_box() const { return context_box(); }
     TableWrapper const& table_wrapper() const
     {
-        return verify_cast<TableWrapper>(*table_box().containing_block());
+        return as<TableWrapper>(*table_box().containing_block());
     }
 
     static bool border_is_less_specific(const CSS::BorderData& a, const CSS::BorderData& b);

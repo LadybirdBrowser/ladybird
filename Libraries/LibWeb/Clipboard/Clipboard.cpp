@@ -86,7 +86,7 @@ static String os_specific_well_known_format(StringView mime_type_string)
 // https://w3c.github.io/clipboard-apis/#write-blobs-and-option-to-the-clipboard
 static void write_blobs_and_option_to_clipboard(JS::Realm& realm, ReadonlySpan<GC::Ref<FileAPI::Blob>> items, String presentation_style)
 {
-    auto& window = verify_cast<HTML::Window>(realm.global_object());
+    auto& window = as<HTML::Window>(realm.global_object());
 
     // FIXME: 1. Let webCustomFormats be a sequence<Blob>.
 
@@ -127,7 +127,7 @@ static bool check_clipboard_write_permission(JS::Realm& realm)
     //       https://pr-preview.s3.amazonaws.com/w3c/clipboard-apis/pull/164.html#write-permission
 
     // 1. Let hasGesture be true if the relevant global object of this has transient activation, false otherwise.
-    auto has_gesture = verify_cast<HTML::Window>(realm.global_object()).has_transient_activation();
+    auto has_gesture = as<HTML::Window>(realm.global_object()).has_transient_activation();
 
     // 2. If hasGesture then,
     if (has_gesture) {

@@ -1202,7 +1202,7 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::process_media_data(Function<void(Str
             auto duration = video_track ? video_track->duration() : audio_track->duration();
             set_duration(static_cast<double>(duration.to_milliseconds()) / 1000.0);
 
-            auto& video_element = verify_cast<HTMLVideoElement>(*this);
+            auto& video_element = as<HTMLVideoElement>(*this);
             video_element.set_video_width(video_track->pixel_width());
             video_element.set_video_height(video_track->pixel_height());
 

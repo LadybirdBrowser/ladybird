@@ -81,7 +81,7 @@ void BlockFormattingContext::run(AvailableSpace const& available_space)
         else
             layout_block_level_children(root(), available_space);
 
-        auto const& fieldset_box = verify_cast<FieldSetBox>(root());
+        auto const& fieldset_box = as<FieldSetBox>(root());
         if (!(fieldset_box.has_rendered_legend())) {
             return;
         }
@@ -145,7 +145,7 @@ void BlockFormattingContext::parent_context_did_dimension_child_root_box()
     if (m_layout_mode == LayoutMode::Normal) {
         // We can also layout absolutely positioned boxes within this BFC.
         for (auto& child : root().contained_abspos_children()) {
-            auto& box = verify_cast<Box>(*child);
+            auto& box = as<Box>(*child);
             auto& cb_state = m_state.get(*box.containing_block());
             auto available_width = AvailableSize::make_definite(cb_state.content_width() + cb_state.padding_left + cb_state.padding_right);
             auto available_height = AvailableSize::make_definite(cb_state.content_height() + cb_state.padding_top + cb_state.padding_bottom);
@@ -189,7 +189,7 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
     if (box_is_sized_as_replaced_element(box)) {
         // FIXME: This should not be done *by* ReplacedBox
         if (is<ReplacedBox>(box)) {
-            auto& replaced = verify_cast<ReplacedBox>(box);
+            auto& replaced = as<ReplacedBox>(box);
             // FIXME: This const_cast is gross.
             const_cast<ReplacedBox&>(replaced).prepare_for_replaced_layout();
         }
@@ -792,7 +792,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     } else {
         // This box participates in the current block container's flow.
         if (box.children_are_inline()) {
-            layout_inline_children(verify_cast<BlockContainer>(box), box_state.available_inner_space_or_constraints_from(available_space));
+            layout_inline_children(as<BlockContainer>(box), box_state.available_inner_space_or_constraints_from(available_space));
         } else {
             if (box_state.border_top > 0 || box_state.padding_top > 0) {
                 // margin-top of block container can't collapse with it's children if it has non zero border or padding
@@ -806,7 +806,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
                 });
             }
 
-            layout_block_level_children(verify_cast<BlockContainer>(box), box_state.available_inner_space_or_constraints_from(available_space));
+            layout_block_level_children(as<BlockContainer>(box), box_state.available_inner_space_or_constraints_from(available_space));
         }
     }
 
@@ -1005,7 +1005,7 @@ void BlockFormattingContext::layout_viewport(AvailableSpace const& available_spa
     //       The root <svg> container gets the same size as the viewport,
     //       and we call directly into the SVG layout code from here.
     if (root().first_child() && root().first_child()->is_svg_svg_box()) {
-        auto const& svg_root = verify_cast<SVGSVGBox>(*root().first_child());
+        auto const& svg_root = as<SVGSVGBox>(*root().first_child());
         auto content_height = m_state.get(*svg_root.containing_block()).content_height();
         m_state.get_mutable(svg_root).set_content_height(content_height);
         auto svg_formatting_context = create_independent_formatting_context_if_needed(m_state, m_layout_mode, svg_root);
@@ -1312,7 +1312,7 @@ CSSPixels BlockFormattingContext::greatest_child_width(Box const& box) const
     // but this one takes floats into account!
     CSSPixels max_width = m_left_floats.max_width + m_right_floats.max_width;
     if (box.children_are_inline()) {
-        for (auto const& line_box : m_state.get(verify_cast<BlockContainer>(box)).line_boxes) {
+        for (auto const& line_box : m_state.get(as<BlockContainer>(box)).line_boxes) {
             CSSPixels width_here = line_box.width();
             CSSPixels extra_width_from_left_floats = 0;
             for (auto& left_float : m_left_floats.all_boxes) {

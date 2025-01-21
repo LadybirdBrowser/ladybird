@@ -1645,7 +1645,7 @@ bool command_insert_paragraph_action(DOM::Document& document, String const&)
         || ((new_line_range->start_container() == new_line_range->end_container() && new_line_range->start_offset() == new_line_range->end_offset() - 1)
             && is<HTML::HTMLBRElement>(*new_line_range->start_container()));
 
-    auto& container_element = verify_cast<DOM::Element>(*container);
+    auto& container_element = as<DOM::Element>(*container);
     auto new_container_name = [&] -> FlyString {
         // 18. If the local name of container is "h1", "h2", "h3", "h4", "h5", or "h6", and end of line is true, let new
         //     container name be the default single-line container name.

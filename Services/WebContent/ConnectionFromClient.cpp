@@ -505,7 +505,7 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
     node->document().set_inspected_node(node, pseudo_element);
 
     if (node->is_element()) {
-        auto& element = verify_cast<Web::DOM::Element>(*node);
+        auto& element = as<Web::DOM::Element>(*node);
         if (!element.computed_properties()) {
             async_did_inspect_dom_node(page_id, false, {}, {}, {}, {}, {}, {});
             return;

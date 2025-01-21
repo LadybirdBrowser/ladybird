@@ -586,7 +586,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> EcdhKeyDeriveParams::from_
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "CryptoKey");
     }
 
-    auto& key = verify_cast<CryptoKey>(*key_object);
+    auto& key = as<CryptoKey>(*key_object);
 
     return adopt_own<AlgorithmParams>(*new EcdhKeyDeriveParams { key });
 }
@@ -672,7 +672,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::encrypt(AlgorithmParams c
 
     auto const& handle = key->handle();
     auto public_key = handle.get<::Crypto::PK::RSAPublicKey<>>();
-    auto hash = TRY(verify_cast<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
+    auto hash = TRY(as<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
 
     // 3. Perform the encryption operation defined in Section 7.1 of [RFC3447] with the key represented by key as the recipient's RSA public key,
     //    the contents of plaintext as the message to be encrypted, M and label as the label, L, and with the hash function specified by the hash attribute
@@ -721,7 +721,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAOAEP::decrypt(AlgorithmParams c
 
     auto const& handle = key->handle();
     auto private_key = handle.get<::Crypto::PK::RSAPrivateKey<>>();
-    auto hash = TRY(verify_cast<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
+    auto hash = TRY(as<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
 
     // 3. Perform the decryption operation defined in Section 7.1 of [RFC3447] with the key represented by key as the recipient's RSA private key,
     //    the contents of ciphertext as the ciphertext to be decrypted, C, and label as the label, L, and with the hash function specified by the hash attribute
@@ -1158,7 +1158,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAOAEP::export_key(Bindings::KeyFormat
         jwk.kty = "RSA"_string;
 
         // 4. Let hash be the name attribute of the hash attribute of the [[algorithm]] internal slot of key.
-        auto hash = TRY(verify_cast<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
+        auto hash = TRY(as<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
 
         // 4. If hash is "SHA-1":
         //      - Set the alg attribute of jwk to the string "RSA-OAEP".
@@ -1325,7 +1325,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSAPSS::sign(AlgorithmParams const
 
     auto const& private_key = key->handle().get<::Crypto::PK::RSAPrivateKey<>>();
     auto pss_params = static_cast<RsaPssParams const&>(params);
-    auto hash = TRY(verify_cast<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
+    auto hash = TRY(as<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
 
     // 3. Perform the signature generation operation defined in Section 8.1 of [RFC3447] with the key represented by the [[handle]] internal slot
     //    of key as the signer's private key, K, and the contents of message as the message to be signed, M, and using the hash function specified
@@ -1371,7 +1371,7 @@ WebIDL::ExceptionOr<JS::Value> RSAPSS::verify(AlgorithmParams const& params, GC:
 
     auto const& public_key = key->handle().get<::Crypto::PK::RSAPublicKey<>>();
     auto pss_params = static_cast<RsaPssParams const&>(params);
-    auto hash = TRY(verify_cast<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
+    auto hash = TRY(as<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
 
     // 2. Perform the signature verification operation defined in Section 8.1 of [RFC3447] with the key represented by the [[handle]] internal slot
     //    of key as the signer's RSA public key and the contents of message as M and the contents of signature as S and using the hash function specified
@@ -1736,7 +1736,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAPSS::export_key(Bindings::KeyFormat 
         jwk.kty = "RSA"_string;
 
         // 3. Let hash be the name attribute of the hash attribute of the [[algorithm]] internal slot of key.
-        auto hash = TRY(verify_cast<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
+        auto hash = TRY(as<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
 
         // 4. If hash is "SHA-1":
         //      - Set the alg attribute of jwk to the string "PS1".
@@ -1903,7 +1903,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> RSASSAPKCS1::sign(AlgorithmParams 
         return WebIDL::InvalidAccessError::create(realm, "Key is not a private key"_string);
 
     auto const& private_key = key->handle().get<::Crypto::PK::RSAPrivateKey<>>();
-    auto hash = TRY(verify_cast<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
+    auto hash = TRY(as<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
 
     // 3. Perform the signature generation operation defined in Section 8.2 of [RFC3447] with the key represented by the [[handle]] internal slot
     //    of key as the signer's private key and the contents of message as M and using the hash function specified in the hash attribute
@@ -1946,7 +1946,7 @@ WebIDL::ExceptionOr<JS::Value> RSASSAPKCS1::verify(AlgorithmParams const&, GC::R
         return WebIDL::InvalidAccessError::create(realm, "Key is not a public key"_string);
 
     auto const& public_key = key->handle().get<::Crypto::PK::RSAPublicKey<>>();
-    auto hash = TRY(verify_cast<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
+    auto hash = TRY(as<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
 
     // 2. Perform the signature verification operation defined in Section 8.2 of [RFC3447] with the key represented by the [[handle]] internal slot
     //    of key as the signer's RSA public key and the contents of message as M and the contents of signature as S and using the hash function specified
@@ -2307,7 +2307,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSASSAPKCS1::export_key(Bindings::KeyFo
         jwk.kty = "RSA"_string;
 
         // 3. Let hash be the name attribute of the hash attribute of the [[algorithm]] internal slot of key.
-        auto hash = TRY(verify_cast<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
+        auto hash = TRY(as<RsaHashedKeyAlgorithm>(*key->algorithm()).hash().name(vm));
 
         // 4. If hash is "SHA-1":
         //      - Set the alg attribute of jwk to the string "RS1".
@@ -7810,7 +7810,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> HMAC::sign(AlgorithmParams const&,
     //    function identified by the hash attribute of the [[algorithm]] internal slot of key and
     //    message as the input data text.
     auto const& key_data = key->handle().get<ByteBuffer>();
-    auto const& algorithm = verify_cast<HmacKeyAlgorithm>(*key->algorithm());
+    auto const& algorithm = as<HmacKeyAlgorithm>(*key->algorithm());
     auto mac = TRY(hmac_calculate_message_digest(m_realm, algorithm.hash(), key_data.bytes(), message.bytes()));
 
     // 2. Return the result of creating an ArrayBuffer containing mac.
@@ -7825,7 +7825,7 @@ WebIDL::ExceptionOr<JS::Value> HMAC::verify(AlgorithmParams const&, GC::Ref<Cryp
     //    function identified by the hash attribute of the [[algorithm]] internal slot of key and
     //    message as the input data text.
     auto const& key_data = key->handle().get<ByteBuffer>();
-    auto const& algorithm = verify_cast<HmacKeyAlgorithm>(*key->algorithm());
+    auto const& algorithm = as<HmacKeyAlgorithm>(*key->algorithm());
     auto mac = TRY(hmac_calculate_message_digest(m_realm, algorithm.hash(), key_data.bytes(), message.bytes()));
 
     // 2. Return true if mac is equal to signature and false otherwise.
@@ -8098,7 +8098,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> HMAC::export_key(Bindings::KeyFormat fo
         jwk.k = MUST(encode_base64url(data, AK::OmitPadding::Yes));
 
         // Let algorithm be the [[algorithm]] internal slot of key.
-        auto const& algorithm = verify_cast<HmacKeyAlgorithm>(*key->algorithm());
+        auto const& algorithm = as<HmacKeyAlgorithm>(*key->algorithm());
 
         // Let hash be the hash attribute of algorithm.
         auto hash = algorithm.hash();

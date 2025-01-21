@@ -349,7 +349,7 @@ void PageClient::page_did_change_active_document_in_top_level_browsing_context(W
     auto& realm = document.realm();
 
     if (auto console_client = document.console_client()) {
-        auto& web_content_console_client = verify_cast<WebContentConsoleClient>(*console_client);
+        auto& web_content_console_client = as<WebContentConsoleClient>(*console_client);
         m_top_level_document_console_client = web_content_console_client;
 
         auto console_object = realm.intrinsics().console_object();

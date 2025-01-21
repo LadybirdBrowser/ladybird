@@ -883,7 +883,7 @@ NonnullOwnPtr<DateTimeFormat> DateTimeFormat::create_for_date_and_time_style(
     auto locale_data = LocaleData::for_locale(locale);
     VERIFY(locale_data.has_value());
 
-    auto formatter = adopt_own(*verify_cast<icu::SimpleDateFormat>([&]() {
+    auto formatter = adopt_own(*as<icu::SimpleDateFormat>([&]() {
         if (date_style.has_value() && time_style.has_value()) {
             return icu::DateFormat::createDateTimeInstance(
                 icu_date_time_style(*date_style), icu_date_time_style(*time_style), locale_data->locale());

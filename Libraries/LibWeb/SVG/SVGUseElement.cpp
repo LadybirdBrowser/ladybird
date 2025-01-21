@@ -149,7 +149,7 @@ GC::Ptr<DOM::Element> SVGUseElement::referenced_element()
     if (!data || !is<SVG::SVGDecodedImageData>(*data))
         return nullptr;
 
-    return verify_cast<SVG::SVGDecodedImageData>(*data).svg_document().get_element_by_id(*m_href.fragment());
+    return as<SVG::SVGDecodedImageData>(*data).svg_document().get_element_by_id(*m_href.fragment());
 }
 
 // https://svgwg.org/svg2-draft/linking.html#processingURL-fetch

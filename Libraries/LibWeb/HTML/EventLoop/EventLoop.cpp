@@ -466,7 +466,7 @@ TaskID queue_global_task(HTML::Task::Source source, JS::Object& global_object, G
     // 2. Let document be global's associated Document, if global is a Window object; otherwise null.
     DOM::Document* document { nullptr };
     if (is<HTML::Window>(global_object)) {
-        auto& window_object = verify_cast<HTML::Window>(global_object);
+        auto& window_object = as<HTML::Window>(global_object);
         document = &window_object.associated_document();
     }
 

@@ -1309,7 +1309,7 @@ void HTMLInputElement::form_associated_element_attribute_changed(FlyString const
         handle_src_attribute(value.value_or({})).release_value_but_fixme_should_propagate_errors();
     } else if (name == HTML::AttributeNames::alt) {
         if (layout_node() && type_state() == TypeAttributeState::ImageButton)
-            did_update_alt_text(verify_cast<Layout::ImageBox>(*layout_node()));
+            did_update_alt_text(as<Layout::ImageBox>(*layout_node()));
     } else if (name == HTML::AttributeNames::maxlength) {
         handle_maxlength_attribute();
     } else if (name == HTML::AttributeNames::multiple) {
@@ -1728,7 +1728,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::cloned(DOM::Node& copy, bool subtree
     TRY(Base::cloned(copy, subtree));
 
     // The cloning steps for input elements given node, copy, and subtree are to propagate the value, dirty value flag, checkedness, and dirty checkedness flag from node to copy.
-    auto& input_clone = verify_cast<HTMLInputElement>(copy);
+    auto& input_clone = as<HTMLInputElement>(copy);
     input_clone.m_value = m_value;
     input_clone.m_dirty_value = m_dirty_value;
     input_clone.m_checked = m_checked;

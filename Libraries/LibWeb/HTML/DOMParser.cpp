@@ -47,14 +47,14 @@ GC::Ref<DOM::Document> DOMParser::parse_from_string(StringView string, Bindings:
     // 3. Switch on type:
     if (type == Bindings::DOMParserSupportedType::Text_Html) {
         // -> "text/html"
-        document = HTML::HTMLDocument::create(realm(), verify_cast<HTML::Window>(relevant_global_object(*this)).associated_document().url());
+        document = HTML::HTMLDocument::create(realm(), as<HTML::Window>(relevant_global_object(*this)).associated_document().url());
         document->set_content_type(Bindings::idl_enum_to_string(type));
 
         // 1. Parse HTML from a string given document and compliantString. FIXME: Use compliantString.
         document->parse_html_from_a_string(string);
     } else {
         // -> Otherwise
-        document = DOM::XMLDocument::create(realm(), verify_cast<HTML::Window>(relevant_global_object(*this)).associated_document().url());
+        document = DOM::XMLDocument::create(realm(), as<HTML::Window>(relevant_global_object(*this)).associated_document().url());
         document->set_content_type(Bindings::idl_enum_to_string(type));
         document->set_document_type(DOM::Document::Type::XML);
 

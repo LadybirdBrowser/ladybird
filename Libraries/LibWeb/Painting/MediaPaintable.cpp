@@ -280,7 +280,7 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mousedown(Badge<E
     if (button != UIEvents::MouseButton::Primary)
         return DispatchEventOfSameName::Yes;
 
-    auto& media_element = *verify_cast<HTML::HTMLMediaElement>(layout_node_with_style_and_box_metrics().dom_node());
+    auto& media_element = *as<HTML::HTMLMediaElement>(layout_node_with_style_and_box_metrics().dom_node());
     auto const& cached_layout_boxes = media_element.cached_layout_boxes({});
 
     auto position_adjusted_by_scroll_offset = position;
@@ -302,7 +302,7 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mousedown(Badge<E
 
 MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mouseup(Badge<EventHandler>, CSSPixelPoint position, unsigned button, unsigned)
 {
-    auto& media_element = *verify_cast<HTML::HTMLMediaElement>(layout_node_with_style_and_box_metrics().dom_node());
+    auto& media_element = *as<HTML::HTMLMediaElement>(layout_node_with_style_and_box_metrics().dom_node());
     auto const& cached_layout_boxes = media_element.cached_layout_boxes({});
 
     auto position_adjusted_by_scroll_offset = position;
@@ -350,7 +350,7 @@ MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mouseup(Badge<Eve
 
 MediaPaintable::DispatchEventOfSameName MediaPaintable::handle_mousemove(Badge<EventHandler>, CSSPixelPoint position, unsigned, unsigned)
 {
-    auto& media_element = *verify_cast<HTML::HTMLMediaElement>(layout_node_with_style_and_box_metrics().dom_node());
+    auto& media_element = *as<HTML::HTMLMediaElement>(layout_node_with_style_and_box_metrics().dom_node());
     auto const& cached_layout_boxes = media_element.cached_layout_boxes({});
 
     auto position_adjusted_by_scroll_offset = position;

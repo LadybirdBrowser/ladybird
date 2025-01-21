@@ -419,7 +419,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         }
     }
 
-    auto shadow_root = is<DOM::Element>(dom_node) ? verify_cast<DOM::Element>(dom_node).shadow_root() : nullptr;
+    auto shadow_root = is<DOM::Element>(dom_node) ? as<DOM::Element>(dom_node).shadow_root() : nullptr;
 
     auto element_has_content_visibility_hidden = [&dom_node]() {
         if (is<DOM::Element>(dom_node)) {
@@ -434,7 +434,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
 
     if (should_create_layout_node || dom_node.child_needs_layout_tree_update()) {
         if ((dom_node.has_children() || shadow_root) && layout_node->can_have_children() && !element_has_content_visibility_hidden) {
-            push_parent(verify_cast<NodeWithStyle>(*layout_node));
+            push_parent(as<NodeWithStyle>(*layout_node));
             if (shadow_root) {
                 for (auto* node = shadow_root->first_child(); node; node = node->next_sibling()) {
                     update_layout_tree(*node, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
@@ -442,8 +442,8 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
                 shadow_root->set_child_needs_layout_tree_update(false);
                 shadow_root->set_needs_layout_tree_update(false);
             } else {
-                // This is the same as verify_cast<DOM::ParentNode>(dom_node).for_each_child
-                for (auto* node = verify_cast<DOM::ParentNode>(dom_node).first_child(); node; node = node->next_sibling())
+                // This is the same as as<DOM::ParentNode>(dom_node).for_each_child
+                for (auto* node = as<DOM::ParentNode>(dom_node).first_child(); node; node = node->next_sibling())
                     update_layout_tree(*node, context, should_create_layout_node ? MustCreateSubtree::Yes : MustCreateSubtree::No);
             }
 
@@ -470,7 +470,7 @@ void TreeBuilder::update_layout_tree_before_children(DOM::Node& dom_node, GC::Re
     // Add node for the ::before pseudo-element.
     if (is<DOM::Element>(dom_node) && layout_node->can_have_children() && !element_has_content_visibility_hidden) {
         auto& element = static_cast<DOM::Element&>(dom_node);
-        push_parent(verify_cast<NodeWithStyle>(*layout_node));
+        push_parent(as<NodeWithStyle>(*layout_node));
         create_pseudo_element_if_needed(element, CSS::Selector::PseudoElement::Type::Before, AppendOrPrepend::Prepend);
         pop_parent();
     }
@@ -498,7 +498,7 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, GC::Ref
             return;
 
         auto slottables = slot_element.assigned_nodes_internal();
-        push_parent(verify_cast<NodeWithStyle>(*layout_node));
+        push_parent(as<NodeWithStyle>(*layout_node));
 
         for (auto const& slottable : slottables)
             slottable.visit([&](auto& node) { update_layout_tree(node, context, MustCreateSubtree::Yes); });
@@ -514,7 +514,7 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, GC::Ref
         // duplication is necessary.
         auto layout_mask_or_clip_path = [&](GC::Ptr<SVG::SVGElement const> mask_or_clip_path) {
             TemporaryChange<bool> layout_mask(context.layout_svg_mask_or_clip_path, true);
-            push_parent(verify_cast<NodeWithStyle>(*layout_node));
+            push_parent(as<NodeWithStyle>(*layout_node));
             update_layout_tree(const_cast<SVG::SVGElement&>(*mask_or_clip_path), context, MustCreateSubtree::Yes);
             pop_parent();
         };
@@ -540,7 +540,7 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, GC::Ref
     // https://html.spec.whatwg.org/multipage/rendering.html#button-layout
     // If the computed value of 'inline-size' is 'auto', then the used value is the fit-content inline size.
     if (is_button_layout && dom_node.layout_node()->computed_values().width().is_auto()) {
-        auto& computed_values = verify_cast<NodeWithStyle>(*dom_node.layout_node()).mutable_computed_values();
+        auto& computed_values = as<NodeWithStyle>(*dom_node.layout_node()).mutable_computed_values();
         computed_values.set_width(CSS::Size::make_fit_content());
     }
 
@@ -587,7 +587,7 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, GC::Ref
     // Add nodes for the ::after pseudo-element.
     if (is<DOM::Element>(dom_node) && layout_node->can_have_children() && !element_has_content_visibility_hidden) {
         auto& element = static_cast<DOM::Element&>(dom_node);
-        push_parent(verify_cast<NodeWithStyle>(*layout_node));
+        push_parent(as<NodeWithStyle>(*layout_node));
         create_pseudo_element_if_needed(element, CSS::Selector::PseudoElement::Type::After, AppendOrPrepend::Append);
         pop_parent();
     }

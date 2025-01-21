@@ -209,7 +209,7 @@ static WebIDL::ExceptionOr<GC::Ref<JS::Set>> find_matching_font_faces(JS::Realm&
         auto const& font_family_name = font_family->as_string().string_value();
 
         for (auto font_face_value : *available_font_faces) {
-            auto& font_face = verify_cast<FontFace>(font_face_value.key.as_object());
+            auto& font_face = as<FontFace>(font_face_value.key.as_object());
             if (font_face.family() != font_family_name)
                 continue;
 
@@ -253,7 +253,7 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> FontFaceSet::load(String const& 
 
             // 1. For all of the font faces in the font face list, call their load() method.
             for (auto font_face_value : *matched_font_faces) {
-                auto& font_face = verify_cast<FontFace>(font_face_value.key.as_object());
+                auto& font_face = as<FontFace>(font_face_value.key.as_object());
                 font_face.load();
 
                 promises.append(font_face.font_status_promise());

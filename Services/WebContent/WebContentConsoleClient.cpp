@@ -30,7 +30,7 @@ WebContentConsoleClient::WebContentConsoleClient(JS::Console& console, JS::Realm
     : ConsoleClient(console)
     , m_client(client)
 {
-    auto& window = verify_cast<Web::HTML::Window>(realm.global_object());
+    auto& window = as<Web::HTML::Window>(realm.global_object());
     m_console_global_environment_extensions = realm.create<ConsoleGlobalEnvironmentExtensions>(realm, window);
 }
 

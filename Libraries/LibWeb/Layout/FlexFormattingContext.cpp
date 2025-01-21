@@ -194,7 +194,7 @@ void FlexFormattingContext::parent_context_did_dimension_child_root_box()
     });
 
     for (auto& child : flex_container().contained_abspos_children()) {
-        auto& box = verify_cast<Box>(*child);
+        auto& box = as<Box>(*child);
         auto& cb_state = m_state.get(*box.containing_block());
         auto available_width = AvailableSize::make_definite(cb_state.content_width() + cb_state.padding_left + cb_state.padding_right);
         auto available_height = AvailableSize::make_definite(cb_state.content_height() + cb_state.padding_top + cb_state.padding_bottom);

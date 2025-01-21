@@ -793,11 +793,11 @@ WebIDL::ExceptionOr<void> Element::set_inner_html(StringView value)
     DOM::Node* context = this;
 
     // 3. Let fragment be the result of invoking the fragment parsing algorithm steps with context and compliantString. FIXME: Use compliantString.
-    auto fragment = TRY(verify_cast<Element>(*context).parse_fragment(value));
+    auto fragment = TRY(as<Element>(*context).parse_fragment(value));
 
     // 4. If context is a template element, then set context to the template element's template contents (a DocumentFragment).
     if (is<HTML::HTMLTemplateElement>(*context))
-        context = verify_cast<HTML::HTMLTemplateElement>(*context).content();
+        context = as<HTML::HTMLTemplateElement>(*context).content();
 
     // 5. Replace all with fragment within context.
     context->replace_all(fragment);
@@ -1627,7 +1627,7 @@ WebIDL::ExceptionOr<void> Element::set_outer_html(String const& value)
         parent = TRY(create_element(document(), HTML::TagNames::body, Namespace::HTML));
 
     // 6. Let fragment be the result of invoking the fragment parsing algorithm steps given parent and compliantString. FIXME: Use compliantString.
-    auto fragment = TRY(verify_cast<Element>(*parent).parse_fragment(value));
+    auto fragment = TRY(as<Element>(*parent).parse_fragment(value));
 
     // 6. Replace this with fragment within this's parent.
     TRY(parent->replace_child(fragment, *this));
@@ -1678,7 +1678,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
     }
 
     // 4. Let fragment be the result of invoking the fragment parsing algorithm steps with context and string.
-    auto fragment = TRY(verify_cast<Element>(*context).parse_fragment(string));
+    auto fragment = TRY(as<Element>(*context).parse_fragment(string));
 
     // 5. Use the first matching item from this list:
 
@@ -1756,7 +1756,7 @@ WebIDL::ExceptionOr<GC::Ptr<Element>> Element::insert_adjacent_element(String co
     auto returned_node = TRY(insert_adjacent(where, element));
     if (!returned_node)
         return GC::Ptr<Element> { nullptr };
-    return GC::Ptr<Element> { verify_cast<Element>(*returned_node) };
+    return GC::Ptr<Element> { as<Element>(*returned_node) };
 }
 
 // https://dom.spec.whatwg.org/#dom-element-insertadjacenttext
@@ -3101,7 +3101,7 @@ WebIDL::ExceptionOr<void> Element::set_html_unsafe(StringView html)
     // 2. Let target be this's template contents if this is a template element; otherwise this.
     DOM::Node* target = this;
     if (is<HTML::HTMLTemplateElement>(*this))
-        target = verify_cast<HTML::HTMLTemplateElement>(*this).content().ptr();
+        target = as<HTML::HTMLTemplateElement>(*this).content().ptr();
 
     // 3. Unsafe set HTML given target, this, and compliantHTML. FIXME: Use compliantHTML.
     TRY(target->unsafely_set_html(*this, html));

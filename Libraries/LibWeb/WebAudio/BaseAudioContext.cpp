@@ -209,7 +209,7 @@ GC::Ref<WebIDL::Promise> BaseAudioContext::decode_audio_data(GC::Root<WebIDL::Bu
 
     // 1. If this's relevant global object's associated Document is not fully active then return a
     //    promise rejected with "InvalidStateError" DOMException.
-    auto const& associated_document = verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
+    auto const& associated_document = as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
     if (!associated_document.is_fully_active()) {
         auto error = WebIDL::InvalidStateError::create(realm, "The document is not fully active."_string);
         return WebIDL::create_rejected_promise_from_exception(realm, error);

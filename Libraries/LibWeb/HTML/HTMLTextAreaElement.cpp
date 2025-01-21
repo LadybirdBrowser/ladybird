@@ -141,7 +141,7 @@ WebIDL::ExceptionOr<void> HTMLTextAreaElement::cloned(DOM::Node& copy, bool subt
     TRY(Base::cloned(copy, subtree));
 
     // The cloning steps for textarea elements given node, copy, and subtree are to propagate the raw value and dirty value flag from node to copy.
-    auto& textarea_copy = verify_cast<HTMLTextAreaElement>(copy);
+    auto& textarea_copy = as<HTMLTextAreaElement>(copy);
     textarea_copy.m_raw_value = m_raw_value;
     textarea_copy.m_dirty_value = m_dirty_value;
 

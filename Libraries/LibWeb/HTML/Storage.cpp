@@ -187,7 +187,7 @@ void Storage::broadcast(Optional<String> const& key, Optional<String> const& old
 
     // 1. Let thisDocument be storage's relevant global object's associated Document.
     auto& relevant_global = relevant_global_object(*this);
-    auto const& this_document = verify_cast<Window>(relevant_global).associated_document();
+    auto const& this_document = as<Window>(relevant_global).associated_document();
 
     // 2. Let url be the serialization of thisDocument's URL.
     auto url = this_document.url().serialize();
@@ -235,7 +235,7 @@ void Storage::broadcast(Optional<String> const& key, Optional<String> const& old
             init.new_value = move(new_value);
             init.url = move(url);
             init.storage_area = remote_storage;
-            verify_cast<Window>(relevant_global_object(remote_storage)).dispatch_event(StorageEvent::create(realm, EventNames::storage, init));
+            as<Window>(relevant_global_object(remote_storage)).dispatch_event(StorageEvent::create(realm, EventNames::storage, init));
         }));
     }
 }

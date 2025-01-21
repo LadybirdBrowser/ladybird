@@ -4098,7 +4098,7 @@ void writable_stream_default_writer_ensure_closed_promise_rejected(WritableStrea
     auto& realm = writer.realm();
 
     // 1. If writer.[[closedPromise]].[[PromiseState]] is "pending", reject writer.[[closedPromise]] with error.
-    auto& closed_promise = verify_cast<JS::Promise>(*writer.closed_promise()->promise());
+    auto& closed_promise = as<JS::Promise>(*writer.closed_promise()->promise());
     if (closed_promise.state() == JS::Promise::State::Pending) {
         WebIDL::reject_promise(realm, *writer.closed_promise(), error);
     }
@@ -4117,7 +4117,7 @@ void writable_stream_default_writer_ensure_ready_promise_rejected(WritableStream
     auto& realm = writer.realm();
 
     // 1. If writer.[[readyPromise]].[[PromiseState]] is "pending", reject writer.[[readyPromise]] with error.
-    auto& ready_promise = verify_cast<JS::Promise>(*writer.ready_promise()->promise());
+    auto& ready_promise = as<JS::Promise>(*writer.ready_promise()->promise());
     if (ready_promise.state() == JS::Promise::State::Pending) {
         WebIDL::reject_promise(realm, *writer.ready_promise(), error);
     }

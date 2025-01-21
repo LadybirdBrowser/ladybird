@@ -366,7 +366,7 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
 
         // 2. Post-multiply all <transform-function>s in <transform-list> to transform.
         VERIFY(layout_node.first_paintable());
-        auto const& paintable_box = verify_cast<Painting::PaintableBox const>(*layout_node.first_paintable());
+        auto const& paintable_box = as<Painting::PaintableBox const>(*layout_node.first_paintable());
         for (auto transformation : transformations) {
             transform = transform * transformation.to_matrix(paintable_box).release_value();
         }
@@ -497,14 +497,14 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
         // https://www.w3.org/TR/css-grid-2/#resolved-track-list-standalone
         if (property_id == PropertyID::GridTemplateColumns) {
             if (layout_node.first_paintable() && layout_node.first_paintable()->is_paintable_box()) {
-                auto const& paintable_box = verify_cast<Painting::PaintableBox const>(*layout_node.first_paintable());
+                auto const& paintable_box = as<Painting::PaintableBox const>(*layout_node.first_paintable());
                 if (auto used_values_for_grid_template_columns = paintable_box.used_values_for_grid_template_columns()) {
                     return used_values_for_grid_template_columns;
                 }
             }
         } else if (property_id == PropertyID::GridTemplateRows) {
             if (layout_node.first_paintable() && layout_node.first_paintable()->is_paintable_box()) {
-                auto const& paintable_box = verify_cast<Painting::PaintableBox const>(*layout_node.first_paintable());
+                auto const& paintable_box = as<Painting::PaintableBox const>(*layout_node.first_paintable());
                 if (auto used_values_for_grid_template_rows = paintable_box.used_values_for_grid_template_rows()) {
                     return used_values_for_grid_template_rows;
                 }

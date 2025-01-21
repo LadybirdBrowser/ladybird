@@ -1110,7 +1110,7 @@ public:
         count = vector_data.size() / matrix_size;
     } else {
         auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*@array_argument_name@.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-        auto& float32_array = verify_cast<JS::Float32Array>(typed_array_base);
+        auto& float32_array = as<JS::Float32Array>(typed_array_base);
         raw_data = float32_array.data().data();
         count = float32_array.array_length().length() / matrix_size;
     }
@@ -1162,7 +1162,7 @@ public:
         count = vector.size();
     } else if (v.has<GC::Root<WebIDL::BufferSource>>()) {
         auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*v.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-        auto& typed_array = verify_cast<JS::@typed_array_type@>(typed_array_base);
+        auto& typed_array = as<JS::@typed_array_type@>(typed_array_base);
         data = typed_array.data().data();
         count = typed_array.array_length().length();
     } else {
@@ -1203,7 +1203,7 @@ public:
     }
 
     auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*values.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-    auto& float32_array = verify_cast<JS::Float32Array>(typed_array_base);
+    auto& float32_array = as<JS::Float32Array>(typed_array_base);
     float const* data = float32_array.data().data();
     glVertexAttrib@number_of_vector_elements@fv(index, data);
 )~~~");
@@ -1544,7 +1544,7 @@ public:
         count = vector.size();
     } else if (values.has<GC::Root<WebIDL::BufferSource>>()) {
         auto& typed_array_base = static_cast<JS::TypedArrayBase&>(*values.get<GC::Root<WebIDL::BufferSource>>()->raw_object());
-        auto& typed_array = verify_cast<JS::@typed_array_type@>(typed_array_base);
+        auto& typed_array = as<JS::@typed_array_type@>(typed_array_base);
         data = typed_array.data().data();
         count = typed_array.array_length().length();
     } else {

@@ -19,7 +19,7 @@ public:
     {
         for (auto* sibling = static_cast<NodeType*>(this)->previous_sibling(); sibling; sibling = sibling->previous_sibling()) {
             if (is<Element>(*sibling))
-                return verify_cast<Element>(sibling);
+                return as<Element>(sibling);
         }
         return nullptr;
     }
@@ -28,7 +28,7 @@ public:
     {
         for (auto* node = static_cast<NodeType*>(this)->previous_in_pre_order(); node; node = node->previous_in_pre_order()) {
             if (is<Element>(*node))
-                return verify_cast<Element>(node);
+                return as<Element>(node);
         }
         return nullptr;
     }
@@ -37,7 +37,7 @@ public:
     {
         for (auto* sibling = static_cast<NodeType*>(this)->next_sibling(); sibling; sibling = sibling->next_sibling()) {
             if (is<Element>(*sibling))
-                return verify_cast<Element>(sibling);
+                return as<Element>(sibling);
         }
         return nullptr;
     }
@@ -46,7 +46,7 @@ public:
     {
         for (auto* node = static_cast<NodeType*>(this)->next_in_pre_order(); node; node = node->next_in_pre_order()) {
             if (is<Element>(*node))
-                return verify_cast<Element>(node);
+                return as<Element>(node);
         }
         return nullptr;
     }

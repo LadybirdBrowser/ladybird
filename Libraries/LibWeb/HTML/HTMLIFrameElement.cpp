@@ -70,7 +70,7 @@ void HTMLIFrameElement::attribute_changed(FlyString const& name, Optional<String
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-iframe-element:html-element-post-connection-steps
 void HTMLIFrameElement::post_connection()
 {
-    DOM::Document& document = verify_cast<DOM::Document>(shadow_including_root());
+    DOM::Document& document = as<DOM::Document>(shadow_including_root());
 
     // NOTE: The check for "not fully active" is to prevent a crash on the dom/nodes/node-appendchild-crash.html WPT test.
     if (!document.browsing_context() || !document.is_fully_active())

@@ -301,7 +301,7 @@ void XMLDocumentBuilder::document_end()
             return;
 
         // Let window be the Document's relevant global object.
-        GC::Ref<HTML::Window> window = verify_cast<HTML::Window>(relevant_global_object(*document));
+        GC::Ref<HTML::Window> window = as<HTML::Window>(relevant_global_object(*document));
 
         // Set the Document's load timing info's load event start time to the current high resolution time given window.
         document->load_timing_info().load_event_start_time = HighResolutionTime::current_high_resolution_time(window);

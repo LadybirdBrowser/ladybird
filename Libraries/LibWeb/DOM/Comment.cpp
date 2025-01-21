@@ -21,7 +21,7 @@ Comment::Comment(Document& document, String const& data)
 // https://dom.spec.whatwg.org/#dom-comment-comment
 WebIDL::ExceptionOr<GC::Ref<Comment>> Comment::construct_impl(JS::Realm& realm, String const& data)
 {
-    auto& window = verify_cast<HTML::Window>(realm.global_object());
+    auto& window = as<HTML::Window>(realm.global_object());
     return realm.create<Comment>(window.associated_document(), data);
 }
 

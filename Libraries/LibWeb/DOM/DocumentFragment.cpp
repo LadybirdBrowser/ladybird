@@ -37,7 +37,7 @@ void DocumentFragment::set_host(Web::DOM::Element* element)
 // https://dom.spec.whatwg.org/#dom-documentfragment-documentfragment
 WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> DocumentFragment::construct_impl(JS::Realm& realm)
 {
-    auto& window = verify_cast<HTML::Window>(realm.global_object());
+    auto& window = as<HTML::Window>(realm.global_object());
     return realm.create<DocumentFragment>(window.associated_document());
 }
 

@@ -28,7 +28,7 @@ ScaledFont::ScaledFont(NonnullRefPtr<Typeface> typeface, float point_width, floa
     m_pixel_size = m_point_height * (DEFAULT_DPI / POINTS_PER_INCH);
     m_pixel_size_rounded_up = static_cast<int>(ceilf(m_pixel_size));
 
-    auto const* sk_typeface = verify_cast<TypefaceSkia>(*m_typeface).sk_typeface();
+    auto const* sk_typeface = as<TypefaceSkia>(*m_typeface).sk_typeface();
     SkFont const font { sk_ref_sp(sk_typeface), m_pixel_size };
 
     SkFontMetrics skMetrics;

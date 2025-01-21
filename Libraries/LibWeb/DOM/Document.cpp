@@ -268,7 +268,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
             });
 
         // 6. Set window to the global object of realmExecutionContext's Realm component.
-        window = verify_cast<HTML::Window>(realm_execution_context->realm->global_object());
+        window = as<HTML::Window>(realm_execution_context->realm->global_object());
 
         // 7. Let topLevelCreationURL be creationURL.
         auto top_level_creation_url = creation_url;
@@ -824,7 +824,7 @@ HTML::HTMLHtmlElement* Document::html_element()
     // The html element of a document is its document element, if it's an html element, and null otherwise.
     auto* html = document_element();
     if (is<HTML::HTMLHtmlElement>(html))
-        return verify_cast<HTML::HTMLHtmlElement>(html);
+        return as<HTML::HTMLHtmlElement>(html);
     return nullptr;
 }
 
@@ -1221,7 +1221,7 @@ void Document::update_layout()
 
     if (!m_layout_root || needs_layout_tree_update() || child_needs_layout_tree_update() || needs_full_layout_tree_update()) {
         Layout::TreeBuilder tree_builder;
-        m_layout_root = verify_cast<Layout::Viewport>(*tree_builder.build(*this));
+        m_layout_root = as<Layout::Viewport>(*tree_builder.build(*this));
 
         if (document_element && document_element->layout_node()) {
             propagate_overflow_to_viewport(*document_element, *m_layout_root);
@@ -1266,7 +1266,7 @@ void Document::update_layout()
         viewport_state.set_content_height(viewport_rect.height());
 
         if (document_element && document_element->layout_node()) {
-            auto& icb_state = layout_state.get_mutable(verify_cast<Layout::NodeWithStyleAndBoxModelMetrics>(*document_element->layout_node()));
+            auto& icb_state = layout_state.get_mutable(as<Layout::NodeWithStyleAndBoxModelMetrics>(*document_element->layout_node()));
             icb_state.set_content_width(viewport_rect.width());
         }
 
@@ -1747,7 +1747,7 @@ GC::Ref<NodeList> Document::get_elements_by_name(FlyString const& name)
     return LiveNodeList::create(realm(), *this, LiveNodeList::Scope::Descendants, [name](auto const& node) {
         if (!is<HTML::HTMLElement>(node))
             return false;
-        return verify_cast<HTML::HTMLElement>(node).name() == name;
+        return as<HTML::HTMLElement>(node).name() == name;
     });
 }
 
@@ -2208,7 +2208,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Document::adopt_node_binding(GC::Ref<Node> no
     if (is<ShadowRoot>(*node))
         return WebIDL::HierarchyRequestError::create(realm(), "Cannot adopt a shadow root into a document"_string);
 
-    if (is<DocumentFragment>(*node) && verify_cast<DocumentFragment>(*node).host())
+    if (is<DocumentFragment>(*node) && as<DocumentFragment>(*node).host())
         return node;
 
     adopt_node(*node);
@@ -2239,7 +2239,7 @@ void Document::update_active_element()
     Node* candidate = focused_element();
 
     // 2. Set candidate to the result of retargeting candidate against this DocumentOrShadowRoot.
-    candidate = verify_cast<Node>(retarget(candidate, this));
+    candidate = as<Node>(retarget(candidate, this));
 
     // 3. If candidate's root is not this DocumentOrShadowRoot, then return null.
     if (&candidate->root() != this) {
@@ -2249,7 +2249,7 @@ void Document::update_active_element()
 
     // 4. If candidate is not a Document object, then return candidate.
     if (!is<Document>(candidate)) {
-        set_active_element(verify_cast<Element>(candidate));
+        set_active_element(as<Element>(candidate));
         return;
     }
 
@@ -2530,7 +2530,7 @@ void Document::dispatch_events_for_transition(GC::Ref<CSS::CSSTransition> transi
 void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::Animation> animation)
 {
     if (animation->is_css_transition()) {
-        dispatch_events_for_transition(verify_cast<CSS::CSSTransition>(*animation));
+        dispatch_events_for_transition(as<CSS::CSSTransition>(*animation));
         return;
     }
 
@@ -2541,7 +2541,7 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
     if (!effect || !effect->is_keyframe_effect() || !animation->is_css_animation() || animation->pending())
         return;
 
-    auto& css_animation = verify_cast<CSS::CSSAnimation>(*animation);
+    auto& css_animation = as<CSS::CSSAnimation>(*animation);
 
     GC::Ptr<Element> target = effect->target();
     if (!target)
@@ -3496,7 +3496,7 @@ GC::Ptr<HTML::CustomElementDefinition> Document::lookup_custom_element_definitio
         return nullptr;
 
     // 3. Let registry be document's relevant global object's custom element registry.
-    auto registry = verify_cast<HTML::Window>(relevant_global_object(*this)).custom_elements();
+    auto registry = as<HTML::Window>(relevant_global_object(*this)).custom_elements();
 
     // 4. If registry's custom element definition set contains an item with name and local name both equal to localName, then return that item.
     auto converted_local_name = local_name.to_string();
@@ -3604,7 +3604,7 @@ HTML::SourceSnapshotParams Document::snapshot_source_snapshot_params() const
     //     sourceDocument's policy container
 
     return HTML::SourceSnapshotParams {
-        .has_transient_activation = verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).has_transient_activation(),
+        .has_transient_activation = as<HTML::Window>(HTML::relevant_global_object(*this)).has_transient_activation(),
         .sandboxing_flags = m_active_sandboxing_flag_set,
         .allows_downloading = !has_flag(m_active_sandboxing_flag_set, HTML::SandboxingFlagSet::SandboxedDownloads),
         .fetch_client = relevant_settings_object(),
@@ -3972,7 +3972,7 @@ void Document::unload(GC::Ptr<Document>)
         m_page_showing = false;
 
         // 2. Fire a page transition event named pagehide at oldDocument's relevant global object with oldDocument's salvageable state.
-        verify_cast<HTML::Window>(relevant_global_object(*this)).fire_a_page_transition_event(HTML::EventNames::pagehide, m_salvageable);
+        as<HTML::Window>(relevant_global_object(*this)).fire_a_page_transition_event(HTML::EventNames::pagehide, m_salvageable);
 
         // 3. Update the visibility state of oldDocument to "hidden".
         update_the_visibility_state(HTML::VisibilityState::Hidden);
@@ -3987,7 +3987,7 @@ void Document::unload(GC::Ptr<Document>)
         // FIXME: The legacy target override flag is currently set by a virtual override of dispatch_event()
         //        We should reorganize this so that the flag appears explicitly here instead.
         auto event = DOM::Event::create(realm(), HTML::EventNames::unload);
-        verify_cast<HTML::Window>(relevant_global_object(*this)).dispatch_event(event);
+        as<HTML::Window>(relevant_global_object(*this)).dispatch_event(event);
     }
 
     // FIXME: 13. If unloadTimingInfo is not null, then set unloadTimingInfo's unload event end time to the current high resolution time given newDocument's relevant global object, coarsened
@@ -4193,7 +4193,7 @@ WebIDL::ExceptionOr<GC::Ref<Attr>> Document::create_attribute_ns(Optional<FlyStr
 void Document::make_active()
 {
     // 1. Let window be document's relevant global object.
-    auto& window = verify_cast<HTML::Window>(HTML::relevant_global_object(*this));
+    auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
 
     set_window(window);
 
@@ -4520,12 +4520,12 @@ void Document::start_intersection_observing_a_lazy_loading_element(Element& elem
         // - The callback is these steps, with arguments entries and observer:
         auto callback = JS::NativeFunction::create(realm, "", [this](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
             // For each entry in entries using a method of iteration which does not trigger developer-modifiable array accessors or iteration hooks:
-            auto& entries = verify_cast<JS::Array>(vm.argument(0).as_object());
+            auto& entries = as<JS::Array>(vm.argument(0).as_object());
             auto entries_length = MUST(MUST(entries.get(vm.names.length)).to_length(vm));
 
             for (size_t i = 0; i < entries_length; ++i) {
                 auto property_key = JS::PropertyKey { i };
-                auto& entry = verify_cast<IntersectionObserver::IntersectionObserverEntry>(entries.get_without_side_effects(property_key).as_object());
+                auto& entry = as<IntersectionObserver::IntersectionObserverEntry>(entries.get_without_side_effects(property_key).as_object());
 
                 // 1. Let resumptionSteps be null.
                 GC::Ptr<GC::Function<void()>> resumption_steps;
@@ -4784,7 +4784,7 @@ void Document::update_for_history_step_application(GC::Ref<HTML::SessionHistoryE
     history()->m_length = script_history_length;
 
     // 5. Let navigation be history's relevant global object's navigation API.
-    auto navigation = verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).navigation();
+    auto navigation = as<HTML::Window>(HTML::relevant_global_object(*this)).navigation();
 
     // 6. If documentsEntryChanged is true, then:
     // NOTE: documentsEntryChanged can be false for one of two reasons: either we are restoring from bfcache,
@@ -4820,7 +4820,7 @@ void Document::update_for_history_step_application(GC::Ref<HTML::SessionHistoryE
             // FIXME: Initialise hasUAVisualTransition
             HTML::PopStateEventInit popstate_event_init;
             popstate_event_init.state = history()->unsafe_state();
-            auto& relevant_global_object = verify_cast<HTML::Window>(HTML::relevant_global_object(*this));
+            auto& relevant_global_object = as<HTML::Window>(HTML::relevant_global_object(*this));
             auto pop_state_event = HTML::PopStateEvent::create(realm(), "popstate"_fly_string, popstate_event_init);
             relevant_global_object.dispatch_event(pop_state_event);
 
@@ -4951,8 +4951,8 @@ void Document::update_animations_and_send_events(Optional<double> const& timesta
             return true;
         if (!b.animation->effect())
             return false;
-        auto& a_effect = verify_cast<Animations::KeyframeEffect>(*a.animation->effect());
-        auto& b_effect = verify_cast<Animations::KeyframeEffect>(*b.animation->effect());
+        auto& a_effect = as<Animations::KeyframeEffect>(*a.animation->effect());
+        auto& b_effect = as<Animations::KeyframeEffect>(*b.animation->effect());
         return Animations::KeyframeEffect::composite_order(a_effect, b_effect) < 0;
     };
 
@@ -5655,11 +5655,11 @@ Optional<String> Document::get_style_sheet_source(CSS::StyleSheetIdentifier cons
         if (identifier.dom_element_unique_id.has_value()) {
             if (auto* node = Node::from_unique_id(*identifier.dom_element_unique_id)) {
                 if (node->is_html_style_element()) {
-                    if (auto* sheet = verify_cast<HTML::HTMLStyleElement>(*node).sheet())
+                    if (auto* sheet = as<HTML::HTMLStyleElement>(*node).sheet())
                         return sheet->source_text({});
                 }
                 if (node->is_svg_style_element()) {
-                    if (auto* sheet = verify_cast<SVG::SVGStyleElement>(*node).sheet())
+                    if (auto* sheet = as<SVG::SVGStyleElement>(*node).sheet())
                         return sheet->source_text({});
                 }
             }
@@ -5876,7 +5876,7 @@ void Document::parse_html_from_a_string(StringView html)
     auto parser = HTML::HTMLParser::create(*this, html, "UTF-8"sv);
 
     // 4. Start parser and let it run until it has consumed all the characters just inserted into the input stream.
-    parser->run(verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).associated_document().url());
+    parser->run(as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document().url());
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsehtmlunsafe
@@ -6106,7 +6106,7 @@ Document::StepsToFireBeforeunloadResult Document::steps_to_fire_beforeunload(boo
     // 4. Let eventFiringResult be the result of firing an event named beforeunload at document's relevant global object,
     //    using BeforeUnloadEvent, with the cancelable attribute initialized to true.
     auto& global_object = HTML::relevant_global_object(*this);
-    auto& window = verify_cast<HTML::Window>(global_object);
+    auto& window = as<HTML::Window>(global_object);
     auto beforeunload_event = HTML::BeforeUnloadEvent::create(realm(), HTML::EventNames::beforeunload);
     beforeunload_event->set_cancelable(true);
     auto event_firing_result = window.dispatch_event(*beforeunload_event);
