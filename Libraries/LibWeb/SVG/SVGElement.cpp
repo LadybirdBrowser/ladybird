@@ -115,7 +115,7 @@ void SVGElement::update_use_elements_that_reference_this()
         // An unconnected node cannot have valid references.
         // This also prevents searches for elements that are in the process of being constructed - as clones.
         || !this->is_connected()
-        // Each use element already listens for the completely_loaded event and then clones its referece,
+        // Each use element already listens for the completely_loaded event and then clones its reference,
         // we do not have to also clone it in the process of initial DOM building.
         || !document().is_completely_loaded()) {
 

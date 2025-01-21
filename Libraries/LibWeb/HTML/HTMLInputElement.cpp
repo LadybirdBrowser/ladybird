@@ -149,7 +149,7 @@ void HTMLInputElement::adjust_computed_style(CSS::ComputedProperties& style)
             style.set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length(size(), CSS::Length::Type::Ch)));
     }
 
-    // NOTE: The following line-height check is done for web compatability and usability reasons.
+    // NOTE: The following line-height check is done for web compatibility and usability reasons.
     // FIXME: The "normal" line-height value should be calculated but assume 1.0 for now.
     double normal_line_height = 1.0;
     double current_line_height = style.line_height().to_double();

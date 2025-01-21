@@ -60,7 +60,7 @@ struct HideCursor {
 
     Optional<HideCursor> m_hidden_cursor;
 
-    // We have to send key events for modifer keys, but AppKit does not generate key down/up events when only a modifier
+    // We have to send key events for modifier keys, but AppKit does not generate key down/up events when only a modifier
     // key is pressed. Instead, we only receive an event that the modifier flags have changed, and we must determine for
     // ourselves whether the modifier key was pressed or released.
     NSEventModifierFlags m_modifier_flags;
