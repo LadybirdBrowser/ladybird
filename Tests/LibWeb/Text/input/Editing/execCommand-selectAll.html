@@ -41,8 +41,12 @@
             document.implementation.createHTMLDocument(),
         ];
         for (const doc of documents) {
-            println(doc.queryCommandEnabled('selectAll'));
-            doc.execCommand('selectAll');
+            try {
+                println(doc.queryCommandEnabled('selectAll'));
+                doc.execCommand('selectAll');
+            } catch (e) {
+                println(`queryCommandEnabled threw exception of type: ${e.name}`);
+            }
         }
         println('Did not crash!');
     });

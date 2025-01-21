@@ -14,15 +14,19 @@
 namespace Web::DOM {
 
 // https://w3c.github.io/editing/docs/execCommand/#execcommand()
-bool Document::exec_command(FlyString const& command, [[maybe_unused]] bool show_ui, String const& value)
+WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[maybe_unused]] bool show_ui, String const& value)
 {
+    // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
+    if (!is_html_document())
+        return WebIDL::InvalidStateError::create(realm(), "execCommand is only supported on HTML documents"_string);
+
     // 1. If only one argument was provided, let show UI be false.
     // 2. If only one or two arguments were provided, let value be the empty string.
     // NOTE: these steps are dealt by the default values for both show_ui and value
 
     // 3. If command is not supported or not enabled, return false.
     // NOTE: query_command_enabled() also checks if command is supported
-    if (!query_command_enabled(command))
+    if (!MUST(query_command_enabled(command)))
         return false;
 
     // 4. If command is not in the Miscellaneous commands section:
@@ -54,7 +58,7 @@ bool Document::exec_command(FlyString const& command, [[maybe_unused]] bool show
         //
         //    We have to check again whether the command is enabled, because the beforeinput handler
         //    might have done something annoying like getSelection().removeAllRanges().
-        if (!query_command_enabled(command))
+        if (!MUST(query_command_enabled(command)))
             return false;
 
         // FIXME: 5. Let affected editing host be the editing host that is an inclusive ancestor of the
@@ -99,10 +103,14 @@ bool Document::exec_command(FlyString const& command, [[maybe_unused]] bool show
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#querycommandenabled()
-bool Document::query_command_enabled(FlyString const& command)
+WebIDL::ExceptionOr<bool> Document::query_command_enabled(FlyString const& command)
 {
+    // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
+    if (!is_html_document())
+        return WebIDL::InvalidStateError::create(realm(), "queryCommandEnabled is only supported on HTML documents"_string);
+
     // 2. Return true if command is both supported and enabled, false otherwise.
-    if (!query_command_supported(command))
+    if (!MUST(query_command_supported(command)))
         return false;
 
     // https://w3c.github.io/editing/docs/execCommand/#enabled
@@ -119,7 +127,7 @@ bool Document::query_command_enabled(FlyString const& command)
 
     // AD-HOC: selectAll requires a selection object to exist.
     if (command == Editing::CommandNames::selectAll)
-        return get_selection();
+        return get_selection() != nullptr;
 
     // The other commands defined here are enabled if the active range is not null,
     auto active_range = Editing::active_range(*this);
@@ -179,8 +187,12 @@ bool Document::query_command_enabled(FlyString const& command)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#querycommandindeterm()
-bool Document::query_command_indeterm(FlyString const& command)
+WebIDL::ExceptionOr<bool> Document::query_command_indeterm(FlyString const& command)
 {
+    // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
+    if (!is_html_document())
+        return WebIDL::InvalidStateError::create(realm(), "queryCommandIndeterm is only supported on HTML documents"_string);
+
     // 1. If command is not supported or has no indeterminacy, return false.
     auto optional_command = Editing::find_command_definition(command);
     if (!optional_command.has_value())
@@ -251,8 +263,12 @@ bool Document::query_command_indeterm(FlyString const& command)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#querycommandstate()
-bool Document::query_command_state(FlyString const& command)
+WebIDL::ExceptionOr<bool> Document::query_command_state(FlyString const& command)
 {
+    // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
+    if (!is_html_document())
+        return WebIDL::InvalidStateError::create(realm(), "queryCommandState is only supported on HTML documents"_string);
+
     // 1. If command is not supported or has no state, return false.
     auto optional_command = Editing::find_command_definition(command);
     if (!optional_command.has_value())
@@ -293,8 +309,12 @@ bool Document::query_command_state(FlyString const& command)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#querycommandsupported()
-bool Document::query_command_supported(FlyString const& command)
+WebIDL::ExceptionOr<bool> Document::query_command_supported(FlyString const& command)
 {
+    // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
+    if (!is_html_document())
+        return WebIDL::InvalidStateError::create(realm(), "queryCommandSupported is only supported on HTML documents"_string);
+
     // When the queryCommandSupported(command) method on the Document interface is invoked, the
     // user agent must return true if command is supported and available within the current script
     // on the current site, and false otherwise.
@@ -302,16 +322,20 @@ bool Document::query_command_supported(FlyString const& command)
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#querycommandvalue()
-String Document::query_command_value(FlyString const& command)
+WebIDL::ExceptionOr<String> Document::query_command_value(FlyString const& command)
 {
+    // AD-HOC: This is not directly mentioned in the spec, but all major browsers limit editing API calls to HTML documents
+    if (!is_html_document())
+        return WebIDL::InvalidStateError::create(realm(), "queryCommandValue is only supported on HTML documents"_string);
+
     // 1. If command is not supported or has no value, return the empty string.
     auto optional_command = Editing::find_command_definition(command);
     if (!optional_command.has_value())
-        return {};
+        return String {};
     auto const& command_definition = optional_command.release_value();
     auto value_override = command_value_override(command);
     if (!command_definition.value && !value_override.has_value())
-        return {};
+        return String {};
 
     // 2. If command is "fontSize" and its value override is set, convert the value override to an
     //    integer number of pixels and return the legacy font size for the result.
