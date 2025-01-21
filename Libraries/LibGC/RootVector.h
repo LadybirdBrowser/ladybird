@@ -46,6 +46,12 @@ public:
 
     virtual ~RootVector() = default;
 
+    RootVector(Heap& heap, ReadonlySpan<T> other)
+        : RootVectorBase(heap)
+        , Vector<T, inline_capacity>(other)
+    {
+    }
+
     RootVector(RootVector const& other)
         : RootVectorBase(*other.m_heap)
         , Vector<T, inline_capacity>(other)
