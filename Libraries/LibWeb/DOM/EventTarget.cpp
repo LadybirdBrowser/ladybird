@@ -2,6 +2,7 @@
  * Copyright (c) 2020-2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2024, Glenn Skrzypczak <glenn.skrzypczak@gmail.com>
+ * Copyright (c) 2025, Felipe Muñoz Mazur <felipe.munoz.mazur@protonmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -716,8 +717,10 @@ JS::ThrowCompletionOr<void> EventTarget::process_event_handler_for_event(FlyStri
     // FIXME: Ideally, invoke_callback would convert JS::Value to the appropriate return type for us as per the spec, but it doesn't currently.
     auto return_value = *return_value_or_error.value();
 
+    auto is_beforeunload = event.type() == HTML::EventNames::beforeunload;
+
     // 5. Process return value as follows:
-    if (is<HTML::BeforeUnloadEvent>(event) && event.type() == "beforeunload") {
+    if (is<HTML::BeforeUnloadEvent>(event) && is_beforeunload) {
         // ->  If event is a BeforeUnloadEvent object and event's type is "beforeunload"
         //         If return value is not null, then:
         if (!return_value.is_nullish()) {
@@ -741,7 +744,10 @@ JS::ThrowCompletionOr<void> EventTarget::process_event_handler_for_event(FlyStri
         // -> Otherwise
         //      If return value is false, then set event's canceled flag.
         // NOTE: the return type of EventHandler is `any`, so no coercion happens, meaning we have to check if it's a boolean first.
-        if (return_value.is_boolean() && !return_value.as_bool())
+        // Spec-Note: If we've gotten to this "Otherwise" clause because event's type is "beforeunload" but event is
+        //            not a BeforeUnloadEvent object, then return value will never be false, since in such cases
+        //            return value will have been coerced into either null or a DOMString.
+        if (return_value.is_boolean() && !return_value.as_bool() && !is_beforeunload)
             event.set_cancelled(true);
     }
 
