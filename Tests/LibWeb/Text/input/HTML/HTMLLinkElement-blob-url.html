@@ -1,0 +1,27 @@
+<script src="../include.js"></script>
+<div id="test-element">Test Element</div>
+<script>
+    asyncTest((done) => {
+        const cssContent = `
+            #test-element {
+                color: red;
+                font-weight: bold;
+            }
+        `;
+        const blob = new Blob([cssContent], { type: "text/css" });
+        const blobURL = URL.createObjectURL(blob);
+
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = blobURL;
+        document.head.appendChild(link);
+
+        link.onload = () => {
+            const testElement = document.getElementById('test-element');
+            const computedStyle = window.getComputedStyle(testElement);
+            println(computedStyle.color);
+            println(computedStyle.fontWeight);
+            done();
+        };
+    })
+</script>
