@@ -17,6 +17,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
@@ -264,7 +265,7 @@ GC::Ptr<Fetch::Infrastructure::Request> HTMLLinkElement::create_link_request(HTM
     // 3. Let url be the result of encoding-parsing a URL given options's href, relative to options's base URL.
     // FIXME: Spec issue: We should be parsing this URL relative to a document or environment settings object.
     //        https://github.com/whatwg/html/issues/9715
-    auto url = options.base_url.complete_url(options.href);
+    auto url = DOMURL::parse(options.href, options.base_url);
 
     // 4. If url is failure, then return null.
     if (!url.is_valid())
