@@ -52,7 +52,7 @@ bool command_back_color_action(DOM::Document& document, String const& value)
 bool command_bold_action(DOM::Document& document, String const&)
 {
     // If queryCommandState("bold") returns true, set the selection's value to "normal".
-    if (document.query_command_state(CommandNames::bold)) {
+    if (MUST(document.query_command_state(CommandNames::bold))) {
         set_the_selections_value(document, CommandNames::bold, "normal"_string);
     }
 
@@ -1864,7 +1864,7 @@ bool command_insert_unordered_list_state(DOM::Document const& document)
 bool command_italic_action(DOM::Document& document, String const&)
 {
     // If queryCommandState("italic") returns true, set the selection's value to "normal".
-    if (document.query_command_state(CommandNames::italic)) {
+    if (MUST(document.query_command_state(CommandNames::italic))) {
         set_the_selections_value(document, CommandNames::italic, "normal"_string);
     }
 
@@ -2256,7 +2256,7 @@ bool command_select_all_action(DOM::Document& document, String const&)
 bool command_strikethrough_action(DOM::Document& document, String const&)
 {
     // If queryCommandState("strikethrough") returns true, set the selection's value to null.
-    if (document.query_command_state(CommandNames::strikethrough)) {
+    if (MUST(document.query_command_state(CommandNames::strikethrough))) {
         set_the_selections_value(document, CommandNames::strikethrough, {});
     }
 
@@ -2291,7 +2291,7 @@ bool command_style_with_css_state(DOM::Document const& document)
 bool command_subscript_action(DOM::Document& document, String const&)
 {
     // 1. Call queryCommandState("subscript"), and let state be the result.
-    auto state = document.query_command_state(CommandNames::subscript);
+    auto state = MUST(document.query_command_state(CommandNames::subscript));
 
     // 2. Set the selection's value to null.
     set_the_selections_value(document, CommandNames::subscript, {});
@@ -2344,7 +2344,7 @@ bool command_subscript_indeterminate(DOM::Document const& document)
 bool command_superscript_action(DOM::Document& document, String const&)
 {
     // 1. Call queryCommandState("superscript"), and let state be the result.
-    auto state = document.query_command_state(CommandNames::superscript);
+    auto state = MUST(document.query_command_state(CommandNames::superscript));
 
     // 2. Set the selection's value to null.
     set_the_selections_value(document, CommandNames::superscript, {});
@@ -2397,7 +2397,7 @@ bool command_superscript_indeterminate(DOM::Document const& document)
 bool command_underline_action(DOM::Document& document, String const&)
 {
     // If queryCommandState("underline") returns true, set the selection's value to null.
-    if (document.query_command_state(CommandNames::underline)) {
+    if (MUST(document.query_command_state(CommandNames::underline))) {
         set_the_selections_value(document, CommandNames::underline, {});
     }
 
