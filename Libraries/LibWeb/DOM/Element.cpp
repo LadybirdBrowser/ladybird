@@ -1970,13 +1970,12 @@ ErrorOr<void> Element::scroll_into_view(Optional<Variant<bool, ScrollIntoViewOpt
 
 void Element::invalidate_style_after_attribute_change(FlyString const& attribute_name, Optional<String> const& old_value, Optional<String> const& new_value)
 {
+    Vector<CSS::InvalidationSet::Property, 1> changed_properties;
+    ForceSelfStyleInvalidation force_self_invalidation = ForceSelfStyleInvalidation::No;
     if (is_presentational_hint(attribute_name)) {
-        invalidate_style(StyleInvalidationReason::ElementAttributeChange);
-        return;
+        force_self_invalidation = ForceSelfStyleInvalidation::Yes;
     }
 
-    Vector<CSS::InvalidationSet::Property> changed_properties;
-    ForceSelfStyleInvalidation force_self_invalidation = ForceSelfStyleInvalidation::No;
     if (attribute_name == HTML::AttributeNames::style) {
         force_self_invalidation = ForceSelfStyleInvalidation::Yes;
         changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Attribute, .value = HTML::AttributeNames::style });
