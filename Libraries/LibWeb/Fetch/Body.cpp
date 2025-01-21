@@ -63,8 +63,13 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> BodyMixin::array_buffer() const
     auto& vm = Bindings::main_thread_vm();
     auto& realm = *vm.current_realm();
 
-    // The arrayBuffer() method steps are to return the result of running consume body with this and ArrayBuffer.
-    return consume_body(realm, *this, PackageDataType::ArrayBuffer);
+    // The arrayBuffer() method steps are to return the result of running consume body with this and
+    // the following step given a byte sequence bytes:
+    return consume_body(realm, *this, GC::create_function(realm.heap(), [&realm](ByteBuffer bytes) -> WebIDL::ExceptionOr<JS::Value> {
+        // return the result of creating an ArrayBuffer from bytes in this’s relevant realm.
+        // NOTE: The above method can reject with a RangeError.
+        return JS::ArrayBuffer::create(realm, move(bytes));
+    }));
 }
 
 // https://fetch.spec.whatwg.org/#dom-body-blob
@@ -73,8 +78,15 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> BodyMixin::blob() const
     auto& vm = Bindings::main_thread_vm();
     auto& realm = *vm.current_realm();
 
-    // The blob() method steps are to return the result of running consume body with this and Blob.
-    return consume_body(realm, *this, PackageDataType::Blob);
+    // The blob() method steps are to return the result of running consume body with this and
+    // the following step given a byte sequence bytes:
+    return consume_body(realm, *this, GC::create_function(realm.heap(), [this, &realm](ByteBuffer bytes) -> WebIDL::ExceptionOr<JS::Value> {
+        // return a Blob whose contents are bytes and whose type attribute is the result of get the MIME type with this.
+        // NOTE: If extracting the mime type returns failure, other browsers set it to an empty string - not sure if that's spec'd.
+        auto mime_type = this->mime_type_impl();
+        auto mime_type_string = mime_type.has_value() ? mime_type->serialized() : String {};
+        return FileAPI::Blob::create(realm, move(bytes), move(mime_type_string));
+    }));
 }
 
 // https://fetch.spec.whatwg.org/#dom-body-bytes
@@ -83,8 +95,15 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> BodyMixin::bytes() const
     auto& vm = Bindings::main_thread_vm();
     auto& realm = *vm.current_realm();
 
-    // The bytes() method steps are to return the result of running consume body with this and Uint8Array.
-    return consume_body(realm, *this, PackageDataType::Uint8Array);
+    // The bytes() method steps are to return the result of running consume body with this and
+    // the following step given a byte sequence bytes:
+    return consume_body(realm, *this, GC::create_function(realm.heap(), [&realm](ByteBuffer bytes) -> WebIDL::ExceptionOr<JS::Value> {
+        // return the result of creating a Uint8Array from bytes in this’s relevant realm.
+        // NOTE: The above method can reject with a RangeError.
+        auto bytes_length = bytes.size();
+        auto array_buffer = JS::ArrayBuffer::create(realm, move(bytes));
+        return JS::Uint8Array::create(realm, bytes_length, *array_buffer);
+    }));
 }
 
 // https://fetch.spec.whatwg.org/#dom-body-formdata
@@ -93,8 +112,39 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> BodyMixin::form_data() const
     auto& vm = Bindings::main_thread_vm();
     auto& realm = *vm.current_realm();
 
-    // The formData() method steps are to return the result of running consume body with this and FormData.
-    return consume_body(realm, *this, PackageDataType::FormData);
+    // The formData() method steps are to return the result of running consume body with this and
+    // the following steps given a byte sequence bytes:
+    return consume_body(realm, *this, GC::create_function(realm.heap(), [this, &realm](ByteBuffer bytes) -> WebIDL::ExceptionOr<JS::Value> {
+        // 1. Let mimeType be the result of get the MIME type with this.
+        auto mime_type = this->mime_type_impl();
+
+        // 2. If mimeType is non-null, then switch on mimeType’s essence and run the corresponding steps:
+        if (mime_type.has_value()) {
+            // -> "multipart/form-data"
+            if (mime_type->essence() == "multipart/form-data"sv) {
+                // 1. Parse bytes, using the value of the `boundary` parameter from mimeType, per the rules set forth in Returning Values from Forms: multipart/form-data. [RFC7578]
+                auto error_or_entry_list = parse_multipart_form_data(realm, bytes, mime_type.value());
+
+                // 2. If that fails for some reason, then throw a TypeError.
+                if (error_or_entry_list.is_error())
+                    return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Failed to parse multipart form data: {}", error_or_entry_list.release_error().message)) };
+
+                // 3. Return a new FormData object, appending each entry, resulting from the parsing operation, to its entry list.
+                return TRY(XHR::FormData::create(realm, error_or_entry_list.release_value()));
+            }
+            // -> "application/x-www-form-urlencoded"
+            if (mime_type->essence() == "application/x-www-form-urlencoded"sv) {
+                // 1. Let entries be the result of parsing bytes.
+                auto entries = DOMURL::url_decode(StringView { bytes });
+
+                // 2. Return a new FormData object whose entry list is entries.
+                return TRY(XHR::FormData::create(realm, entries));
+            }
+        }
+
+        // 3. Throw a TypeError.
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Mime type must be 'multipart/form-data' or 'application/x-www-form-urlencoded'"sv };
+    }));
 }
 
 // https://fetch.spec.whatwg.org/#dom-body-json
@@ -103,8 +153,11 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> BodyMixin::json() const
     auto& vm = Bindings::main_thread_vm();
     auto& realm = *vm.current_realm();
 
-    // The json() method steps are to return the result of running consume body with this and JSON.
-    return consume_body(realm, *this, PackageDataType::JSON);
+    // The json() method steps are to return the result of running consume body with this and parse JSON from bytes.
+    // NOTE: The above method can reject with a SyntaxError.
+    return consume_body(realm, *this, GC::create_function(realm.heap(), [&realm](ByteBuffer bytes) -> WebIDL::ExceptionOr<JS::Value> {
+        return Infra::parse_json_bytes_to_javascript_value(realm, bytes);
+    }));
 }
 
 // https://fetch.spec.whatwg.org/#dom-body-text
@@ -113,74 +166,18 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> BodyMixin::text() const
     auto& vm = Bindings::main_thread_vm();
     auto& realm = *vm.current_realm();
 
-    // The text() method steps are to return the result of running consume body with this and text.
-    return consume_body(realm, *this, PackageDataType::Text);
-}
-
-// https://fetch.spec.whatwg.org/#concept-body-package-data
-WebIDL::ExceptionOr<JS::Value> package_data(JS::Realm& realm, ByteBuffer bytes, PackageDataType type, Optional<MimeSniff::MimeType> const& mime_type)
-{
-    auto& vm = realm.vm();
-
-    switch (type) {
-    case PackageDataType::ArrayBuffer:
-        // Return a new ArrayBuffer whose contents are bytes.
-        return JS::ArrayBuffer::create(realm, move(bytes));
-    case PackageDataType::Blob: {
-        // Return a Blob whose contents are bytes and type attribute is mimeType.
-        // NOTE: If extracting the mime type returns failure, other browsers set it to an empty string - not sure if that's spec'd.
-        auto mime_type_string = mime_type.has_value() ? mime_type->serialized() : String {};
-        return FileAPI::Blob::create(realm, move(bytes), move(mime_type_string));
-    }
-    case PackageDataType::Uint8Array: {
-        // Return the result of creating a Uint8Array from bytes in this’s relevant realm.
-        auto bytes_length = bytes.size();
-        auto array_buffer = JS::ArrayBuffer::create(realm, move(bytes));
-        return JS::Uint8Array::create(realm, bytes_length, *array_buffer);
-    }
-    case PackageDataType::FormData:
-        // If mimeType’s essence is "multipart/form-data", then:
-        if (mime_type.has_value() && mime_type->essence() == "multipart/form-data"sv) {
-            // 1. Parse bytes, using the value of the `boundary` parameter from mimeType, per the rules set forth in Returning Values from Forms: multipart/form-data. [RFC7578]
-            auto error_or_entry_list = parse_multipart_form_data(realm, bytes, mime_type.value());
-
-            // 2. If that fails for some reason, then throw a TypeError.
-            if (error_or_entry_list.is_error())
-                return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, MUST(String::formatted("Failed to parse multipart form data: {}", error_or_entry_list.release_error().message)) };
-
-            // 3. Return a new FormData object, appending each entry, resulting from the parsing operation, to its entry list.
-            return TRY(XHR::FormData::create(realm, error_or_entry_list.release_value()));
-        }
-        // Otherwise, if mimeType’s essence is "application/x-www-form-urlencoded", then:
-        else if (mime_type.has_value() && mime_type->essence() == "application/x-www-form-urlencoded"sv) {
-            // 1. Let entries be the result of parsing bytes.
-            auto entries = DOMURL::url_decode(StringView { bytes });
-
-            // 2. Return a new FormData object whose entry list is entries.
-            return TRY(XHR::FormData::create(realm, entries));
-        }
-        // Otherwise, throw a TypeError.
-        else {
-            return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Mime type must be 'multipart/form-data' or 'application/x-www-form-urlencoded'"sv };
-        }
-    case PackageDataType::JSON:
-        // Return the result of running parse JSON from bytes on bytes.
-        return Infra::parse_json_bytes_to_javascript_value(realm, bytes);
-    case PackageDataType::Text: {
-        // Return the result of running UTF-8 decode on bytes.
+    // The text() method steps are to return the result of running consume body with this and UTF-8 decode.
+    return consume_body(realm, *this, GC::create_function(realm.heap(), [&vm](ByteBuffer bytes) -> WebIDL::ExceptionOr<JS::Value> {
         auto decoder = TextCodec::decoder_for("UTF-8"sv);
         VERIFY(decoder.has_value());
 
         auto utf8_text = MUST(TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, bytes));
         return JS::PrimitiveString::create(vm, move(utf8_text));
-    }
-    default:
-        VERIFY_NOT_REACHED();
-    }
+    }));
 }
 
 // https://fetch.spec.whatwg.org/#concept-body-consume-body
-WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> consume_body(JS::Realm& realm, BodyMixin const& object, PackageDataType type)
+WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> consume_body(JS::Realm& realm, BodyMixin const& object, ConvertBytesToJSValueCallback convert_bytes_to_js_value)
 {
     // 1. If object is unusable, then return a promise rejected with a TypeError.
     if (object.is_unusable()) {
@@ -202,15 +199,14 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> consume_body(JS::Realm& realm, Bod
     // 4. Let successSteps given a byte sequence data be to resolve promise with the result of running convertBytesToJSValue
     //    with data. If that threw an exception, then run errorSteps with that exception.
     // NOTE: `promise`, `realm` and `object` is protected by GC::HeapFunction.
-    // FIXME: Refactor this to the new version of the spec introduced with https://github.com/whatwg/fetch/commit/464326e8eb6a602122c030cd40042480a3c0e265
-    auto success_steps = GC::create_function(realm.heap(), [promise, &realm, &object, type](ByteBuffer data) {
+    auto success_steps = GC::create_function(realm.heap(), [promise, &realm, convert_bytes_to_js_value](ByteBuffer data) {
         auto& vm = realm.vm();
 
         // AD-HOC: An execution context is required for Promise's reject function and JSON.parse.
         HTML::TemporaryExecutionContext execution_context { realm };
 
         auto value_or_error = Bindings::throw_dom_exception_if_needed(vm, [&]() -> WebIDL::ExceptionOr<JS::Value> {
-            return package_data(realm, data, type, object.mime_type_impl());
+            return convert_bytes_to_js_value->function()(data);
         });
 
         if (value_or_error.is_error()) {

@@ -11,20 +11,15 @@
 #include <AK/HashMap.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <LibGC/Function.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::Fetch {
 
-enum class PackageDataType {
-    ArrayBuffer,
-    Blob,
-    Uint8Array,
-    FormData,
-    JSON,
-    Text,
-};
+// convertBytesToJSValue is an algorithm that takes a byte sequence and returns a JavaScript value or throws an exception
+using ConvertBytesToJSValueCallback = GC::Ref<GC::Function<WebIDL::ExceptionOr<JS::Value>(ByteBuffer bytes)>>;
 
 struct MultiPartFormDataHeader {
     Optional<String> name;
@@ -68,8 +63,7 @@ public:
     [[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> text() const;
 };
 
-[[nodiscard]] WebIDL::ExceptionOr<JS::Value> package_data(JS::Realm&, ByteBuffer, PackageDataType, Optional<MimeSniff::MimeType> const&);
-[[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> consume_body(JS::Realm&, BodyMixin const&, PackageDataType);
+[[nodiscard]] WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> consume_body(JS::Realm&, BodyMixin const&, ConvertBytesToJSValueCallback);
 [[nodiscard]] MultipartParsingErrorOr<Vector<XHR::FormDataEntry>> parse_multipart_form_data(JS::Realm&, StringView input, MimeSniff::MimeType const& mime_type);
 
 }
