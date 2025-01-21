@@ -31,14 +31,14 @@ Transformation TransformationStyleValue::to_transformation() const
             } else if (calculated.resolves_to_percentage()) {
                 // FIXME: Maybe transform this for loop to always check the metadata for the correct types
                 if (function_metadata.parameters[argument_index].type == TransformFunctionParameterType::NumberPercentage) {
-                    values.append(NumberPercentage { calculated.resolve_percentage().value() });
+                    values.append(NumberPercentage { calculated });
                 } else {
-                    values.append(LengthPercentage { calculated.resolve_percentage().value() });
+                    values.append(LengthPercentage { calculated });
                 }
             } else if (calculated.resolves_to_number()) {
-                values.append({ Number(Number::Type::Number, calculated.resolve_number().value()) });
+                values.append(NumberPercentage { calculated });
             } else if (calculated.resolves_to_angle()) {
-                values.append({ calculated.resolve_angle().value() });
+                values.append(AngleOrCalculated { calculated });
             } else {
                 dbgln("FIXME: Unsupported calc value in transform! {}", calculated.to_string(SerializationMode::Normal));
             }
