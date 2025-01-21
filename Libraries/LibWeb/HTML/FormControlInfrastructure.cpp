@@ -51,7 +51,7 @@ WebIDL::ExceptionOr<XHR::FormDataEntry> create_entry(JS::Realm& realm, String co
                 blob = TRY(FileAPI::File::create(realm, { GC::make_root(*blob) }, *filename, move(options)));
             }
 
-            return GC::make_root(verify_cast<FileAPI::File>(*blob));
+            return GC::make_root(as<FileAPI::File>(*blob));
         }));
 
     // 4. Return an entry whose name is name and whose value is value.

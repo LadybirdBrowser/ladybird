@@ -238,7 +238,7 @@ void LineBuilder::update_last_line()
             if (fragment.layout_node().is_text_node()) {
                 fragment_baseline = CSSPixels::nearest_value_for(font_metrics.ascent) + half_leading;
             } else {
-                auto const& box = verify_cast<Layout::Box>(fragment.layout_node());
+                auto const& box = as<Layout::Box>(fragment.layout_node());
                 fragment_baseline = m_context.box_baseline(box);
             }
 

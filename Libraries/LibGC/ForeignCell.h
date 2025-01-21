@@ -71,11 +71,11 @@ struct ForeignRef {
         DeferGC const defer_gc(heap);
         auto* cell = T::create(&heap, forward<Args>(args)...);
         if constexpr (IsSame<decltype(cell), Cell*>) {
-            return ForeignRef(*verify_cast<ForeignCell>(cell));
+            return ForeignRef(*as<ForeignCell>(cell));
         } else {
             static_assert(IsSame<decltype(cell), void*>);
             auto* cast_cell = static_cast<Cell*>(cell);
-            return ForeignRef(*verify_cast<ForeignCell>(cast_cell));
+            return ForeignRef(*as<ForeignCell>(cast_cell));
         }
     }
 

@@ -43,7 +43,7 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> ImageConstructor::construct(FunctionO
     auto& vm = this->vm();
 
     // 1. Let document be the current principal global object's associated Document.
-    auto& window = verify_cast<HTML::Window>(HTML::current_principal_global_object());
+    auto& window = as<HTML::Window>(HTML::current_principal_global_object());
     auto& document = window.associated_document();
 
     // 2. Let img be the result of creating an element given document, "img", and the HTML namespace.

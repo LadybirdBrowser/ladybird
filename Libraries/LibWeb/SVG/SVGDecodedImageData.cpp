@@ -50,7 +50,7 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& rea
     navigable->set_ongoing_navigation({});
     navigable->active_document()->destroy();
     navigable->active_session_history_entry()->document_state()->set_document(document);
-    auto& window = verify_cast<HTML::Window>(HTML::relevant_global_object(document));
+    auto& window = as<HTML::Window>(HTML::relevant_global_object(document));
     document->browsing_context()->window_proxy()->set_window(window);
 
     auto parser = HTML::HTMLParser::create_with_uncertain_encoding(document, data);

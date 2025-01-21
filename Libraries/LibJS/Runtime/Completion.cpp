@@ -93,7 +93,7 @@ ThrowCompletionOr<Value> await(VM& vm, Value value)
     auto on_rejected = NativeFunction::create(realm, move(rejected_closure), 1, "");
 
     // 7. Perform PerformPromiseThen(promise, onFulfilled, onRejected).
-    auto promise = verify_cast<Promise>(promise_object);
+    auto promise = as<Promise>(promise_object);
     promise->perform_then(on_fulfilled, on_rejected, {});
 
     // FIXME: Since we don't support context suspension, we attempt to "wait" for the promise to resolve

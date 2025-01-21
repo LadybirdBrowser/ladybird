@@ -260,7 +260,7 @@ CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
         return { .name = "GC::Root<WebIDL::Promise>", .sequence_storage_type = SequenceStorageType::RootVector };
 
     if (type.name() == "sequence") {
-        auto& parameterized_type = verify_cast<ParameterizedType>(type);
+        auto& parameterized_type = as<ParameterizedType>(type);
         auto& sequence_type = parameterized_type.parameters().first();
         auto sequence_cpp_type = idl_type_name_to_cpp_type(sequence_type, interface);
         auto storage_type_name = sequence_storage_type_to_cpp_storage_type_name(sequence_cpp_type.sequence_storage_type);
@@ -272,7 +272,7 @@ CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
     }
 
     if (type.name() == "record") {
-        auto& parameterized_type = verify_cast<ParameterizedType>(type);
+        auto& parameterized_type = as<ParameterizedType>(type);
         auto& record_key_type = parameterized_type.parameters()[0];
         auto& record_value_type = parameterized_type.parameters()[1];
         auto record_key_cpp_type = idl_type_name_to_cpp_type(record_key_type, interface);
@@ -282,7 +282,7 @@ CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
     }
 
     if (is<UnionType>(type)) {
-        auto& union_type = verify_cast<UnionType>(type);
+        auto& union_type = as<UnionType>(type);
         return { .name = union_type_to_variant(union_type, interface), .sequence_storage_type = SequenceStorageType::Vector };
     }
 
@@ -989,7 +989,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         // https://webidl.spec.whatwg.org/#es-sequence
 
         auto sequence_generator = scoped_generator.fork();
-        auto& parameterized_type = verify_cast<IDL::ParameterizedType>(*parameter.type);
+        auto& parameterized_type = as<IDL::ParameterizedType>(*parameter.type);
         sequence_generator.set("recursion_depth", ByteString::number(recursion_depth));
 
         // An ECMAScript value V is converted to an IDL sequence<T> value as follows:
@@ -1054,7 +1054,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         // https://webidl.spec.whatwg.org/#es-record
 
         auto record_generator = scoped_generator.fork();
-        auto& parameterized_type = verify_cast<IDL::ParameterizedType>(*parameter.type);
+        auto& parameterized_type = as<IDL::ParameterizedType>(*parameter.type);
         record_generator.set("recursion_depth", ByteString::number(recursion_depth));
 
         // A record can only have two types: key type and value type.
@@ -1124,7 +1124,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 
         auto union_generator = scoped_generator.fork();
 
-        auto& union_type = verify_cast<IDL::UnionType>(*parameter.type);
+        auto& union_type = as<IDL::UnionType>(*parameter.type);
         union_generator.set("union_type", union_type_to_variant(union_type, interface));
         union_generator.set("recursion_depth", ByteString::number(recursion_depth));
 
@@ -1348,7 +1348,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         RefPtr<IDL::ParameterizedType const> sequence_type;
         for (auto& type : types) {
             if (type->name() == "sequence") {
-                sequence_type = verify_cast<IDL::ParameterizedType>(*type);
+                sequence_type = as<IDL::ParameterizedType>(*type);
                 break;
             }
         }
@@ -1388,7 +1388,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         RefPtr<IDL::ParameterizedType const> record_type;
         for (auto& type : types) {
             if (type->name() == "record") {
-                record_type = verify_cast<IDL::ParameterizedType>(*type);
+                record_type = as<IDL::ParameterizedType>(*type);
                 break;
             }
         }
@@ -1810,7 +1810,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         }
     } else if (type.name() == "sequence") {
         // https://webidl.spec.whatwg.org/#es-sequence
-        auto& sequence_generic_type = verify_cast<IDL::ParameterizedType>(type);
+        auto& sequence_generic_type = as<IDL::ParameterizedType>(type);
 
         scoped_generator.append(R"~~~(
     auto new_array@recursion_depth@ = MUST(JS::Array::create(realm, 0));
@@ -1865,14 +1865,14 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 )~~~");
     } else if (type.name() == "Promise") {
         scoped_generator.append(R"~~~(
-    @result_expression@ GC::Ref { verify_cast<JS::Promise>(*@value@->promise()) };
+    @result_expression@ GC::Ref { as<JS::Promise>(*@value@->promise()) };
 )~~~");
     } else if (type.name() == "ArrayBufferView" || type.name() == "BufferSource") {
         scoped_generator.append(R"~~~(
     @result_expression@ JS::Value(@value@->raw_object());
 )~~~");
     } else if (is<IDL::UnionType>(type)) {
-        auto& union_type = verify_cast<IDL::UnionType>(type);
+        auto& union_type = as<IDL::UnionType>(type);
         auto union_types = union_type.flattened_member_types();
         auto union_generator = scoped_generator.fork();
 
@@ -2531,7 +2531,7 @@ static void generate_html_constructor(SourceGenerator& generator, IDL::Construct
     }
 
     constructor_generator.append(R"~~~(
-    auto& window = verify_cast<HTML::Window>(HTML::current_principal_global_object());
+    auto& window = as<HTML::Window>(HTML::current_principal_global_object());
 
     // 1. Let registry be current global object's custom element registry.
     auto registry = TRY(throw_dom_exception_if_needed(vm, [&] { return window.custom_elements(); }));
@@ -3178,7 +3178,7 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> @named_properties_class@
 
     // 2. Let object be O.[[Realm]]'s global object.
     // 3. Assert: object implements A.
-    auto& object = verify_cast<A>(realm.global_object());
+    auto& object = as<A>(realm.global_object());
 
     // 4. If the result of running the named property visibility algorithm with property name P and object object is true, then:
     if (TRY(object.is_named_property_exposed_on_object(property_name))) {
@@ -3810,7 +3810,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
             else if (attribute.type->is_nullable() && attribute.type->name() == "Element") {
                 // The getter steps are to return the result of running this's get the attr-associated element.
                 attribute_generator.append(R"~~~(
-    auto retval = GC::Ptr<Element> {};                
+    auto retval = GC::Ptr<Element> {};
 )~~~");
 
                 // 1. Let element be the result of running reflectedTarget's get the element.

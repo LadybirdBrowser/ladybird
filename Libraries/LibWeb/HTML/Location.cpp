@@ -79,7 +79,7 @@ GC::Ptr<DOM::Document> Location::relevant_document() const
     // A Location object has an associated relevant Document, which is this Location object's
     // relevant global object's browsing context's active document, if this Location object's
     // relevant global object's browsing context is non-null, and null otherwise.
-    auto* browsing_context = verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).browsing_context();
+    auto* browsing_context = as<HTML::Window>(HTML::relevant_global_object(*this)).browsing_context();
     return browsing_context ? browsing_context->active_document() : nullptr;
 }
 
@@ -87,13 +87,13 @@ GC::Ptr<DOM::Document> Location::relevant_document() const
 WebIDL::ExceptionOr<void> Location::navigate(URL::URL url, Bindings::NavigationHistoryBehavior history_handling)
 {
     // 1. Let navigable be location's relevant global object's navigable.
-    auto navigable = verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).navigable();
+    auto navigable = as<HTML::Window>(HTML::relevant_global_object(*this)).navigable();
 
     // 2. Let sourceDocument be the incumbent global object's associated Document.
-    auto& source_document = verify_cast<HTML::Window>(incumbent_global_object()).associated_document();
+    auto& source_document = as<HTML::Window>(incumbent_global_object()).associated_document();
 
     // 3. If location's relevant Document is not yet completely loaded, and the incumbent global object does not have transient activation, then set historyHandling to "replace".
-    if (!relevant_document()->is_completely_loaded() && !verify_cast<HTML::Window>(incumbent_global_object()).has_transient_activation()) {
+    if (!relevant_document()->is_completely_loaded() && !as<HTML::Window>(incumbent_global_object()).has_transient_activation()) {
         history_handling = Bindings::NavigationHistoryBehavior::Replace;
     }
 

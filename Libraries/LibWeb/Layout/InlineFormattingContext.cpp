@@ -291,7 +291,7 @@ void InlineFormattingContext::generate_line_boxes()
             break;
         }
         case InlineLevelIterator::Item::Type::Element: {
-            auto& box = verify_cast<Layout::Box>(*item.node);
+            auto& box = as<Layout::Box>(*item.node);
             compute_inset(box, content_box_rect(m_containing_block_used_values).size());
             if (containing_block().computed_values().white_space() != CSS::WhiteSpace::Nowrap) {
                 auto minimum_space_needed_on_line = item.border_box_width();
@@ -324,7 +324,7 @@ void InlineFormattingContext::generate_line_boxes()
             break;
 
         case InlineLevelIterator::Item::Type::Text: {
-            auto& text_node = verify_cast<Layout::TextNode>(*item.node);
+            auto& text_node = as<Layout::TextNode>(*item.node);
 
             if (text_node.computed_values().white_space() != CSS::WhiteSpace::Nowrap) {
                 bool is_whitespace = false;

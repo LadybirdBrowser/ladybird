@@ -251,7 +251,7 @@ Variant<GC::Root<DOM::Element>, GC::Root<DOM::Document>> IntersectionObserver::i
     }
 
     // otherwise, it is the top-level browsing context’s document node, referred to as the implicit root.
-    return GC::make_root(verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).page().top_level_browsing_context().active_document());
+    return GC::make_root(as<HTML::Window>(HTML::relevant_global_object(*this)).page().top_level_browsing_context().active_document());
 }
 
 // https://www.w3.org/TR/intersection-observer/#intersectionobserver-root-intersection-rectangle

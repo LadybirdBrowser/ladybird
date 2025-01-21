@@ -37,7 +37,7 @@ static HTMLInputElement const* radio_button(DOM::Node const& node)
     if (!is<HTMLInputElement>(node))
         return nullptr;
 
-    auto const& input_element = verify_cast<HTMLInputElement>(node);
+    auto const& input_element = as<HTMLInputElement>(node);
     if (input_element.type_state() != HTMLInputElement::TypeAttributeState::RadioButton)
         return nullptr;
 
@@ -49,7 +49,7 @@ FlyString RadioNodeList::value() const
 {
     // 1. Let element be the first element in tree order represented by the RadioNodeList object that is an input element whose type
     //    attribute is in the Radio Button state and whose checkedness is true. Otherwise, let it be null.
-    auto* element = verify_cast<HTMLInputElement>(first_matching([](DOM::Node const& node) -> bool {
+    auto* element = as<HTMLInputElement>(first_matching([](DOM::Node const& node) -> bool {
         auto const* button = radio_button(node);
         if (!button)
             return false;
@@ -74,7 +74,7 @@ void RadioNodeList::set_value(FlyString const& value)
     //    that is an input element whose type attribute is in the Radio Button state and whose value content attribute is either absent,
     //    or present and equal to the new value, if any. If no such element exists, then instead let element be null.
     if (value == "on"sv) {
-        element = verify_cast<HTMLInputElement>(first_matching([&value](auto const& node) {
+        element = as<HTMLInputElement>(first_matching([&value](auto const& node) {
             auto const* button = radio_button(node);
             if (!button)
                 return false;
@@ -87,7 +87,7 @@ void RadioNodeList::set_value(FlyString const& value)
     //    type attribute is in the Radio Button state and whose value content attribute is present and equal to the new value, if any. If
     //    no such element exists, then instead let element be null.
     else {
-        element = verify_cast<HTMLInputElement>(first_matching([&value](auto const& node) {
+        element = as<HTMLInputElement>(first_matching([&value](auto const& node) {
             auto const* button = radio_button(node);
             if (!button)
                 return false;

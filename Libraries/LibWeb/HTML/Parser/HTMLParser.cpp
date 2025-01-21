@@ -355,7 +355,7 @@ void HTMLParser::the_end(GC::Ref<DOM::Document> document, GC::Ptr<HTMLParser> pa
             return;
 
         // 3. Let window be the Document's relevant global object.
-        auto& window = verify_cast<Window>(relevant_global_object(*document));
+        auto& window = as<Window>(relevant_global_object(*document));
 
         // 4. Set the Document's load timing info's load event start time to the current high resolution time given window.
         document->load_timing_info().load_event_start_time = HighResolutionTime::current_high_resolution_time(window);
@@ -689,7 +689,7 @@ HTMLParser::AdjustedInsertionLocation HTMLParser::find_appropriate_place_for_ins
             // then: let adjusted insertion location be inside last template's template contents, after its last child (if any), and abort these steps.
 
             // NOTE: This returns the template content, so no need to check the parent is a template.
-            return { verify_cast<HTMLTemplateElement>(*last_template.element).content().ptr(), nullptr };
+            return { as<HTMLTemplateElement>(*last_template.element).content().ptr(), nullptr };
         }
         // 4. If there is no last table, then let adjusted insertion location be inside the first element in the stack of open elements (the html element),
         //    after its last child (if any), and abort these steps. (fragment case)
@@ -861,7 +861,7 @@ void HTMLParser::handle_before_head(HTMLToken& token)
 
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::head) {
         auto element = insert_html_element(token);
-        m_head_element = verify_cast<HTMLHeadElement>(*element);
+        m_head_element = as<HTMLHeadElement>(*element);
         m_insertion_mode = InsertionMode::InHead;
         return;
     }
@@ -876,7 +876,7 @@ void HTMLParser::handle_before_head(HTMLToken& token)
     }
 
 AnythingElse:
-    m_head_element = verify_cast<HTMLHeadElement>(*insert_html_element(HTMLToken::make_start_tag(HTML::TagNames::head)));
+    m_head_element = as<HTMLHeadElement>(*insert_html_element(HTMLToken::make_start_tag(HTML::TagNames::head)));
     m_insertion_mode = InsertionMode::InHead;
     process_using_the_rules_for(InsertionMode::InHead, token);
     return;
@@ -947,7 +947,7 @@ void HTMLParser::handle_in_head(HTMLToken& token)
     if (token.is_start_tag() && token.tag_name() == HTML::TagNames::script) {
         auto adjusted_insertion_location = find_appropriate_place_for_inserting_node();
         auto element = create_element_for(token, Namespace::HTML, *adjusted_insertion_location.parent);
-        auto& script_element = verify_cast<HTMLScriptElement>(*element);
+        auto& script_element = as<HTMLScriptElement>(*element);
         script_element.set_parser_document(Badge<HTMLParser> {}, document());
         script_element.set_force_async(Badge<HTMLParser> {}, false);
         script_element.set_source_line_number({}, token.start_position().line + 1); // FIXME: This +1 is incorrect for script tags whose script does not start on a new line
@@ -1072,7 +1072,7 @@ void HTMLParser::handle_in_head(HTMLToken& token)
                 shadow.set_declarative(true);
 
                 // 4. Set template's template contents property to shadow.
-                verify_cast<HTMLTemplateElement>(*template_).set_template_contents(shadow);
+                as<HTMLTemplateElement>(*template_).set_template_contents(shadow);
 
                 // 5. Set shadow's available to element internals to true.
                 shadow.set_available_to_element_internals(true);
@@ -2032,7 +2032,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         // Insert an HTML element for the token, and, if there is no template element on the stack of open elements, set the form element pointer to point to the element created.
         auto element = insert_html_element(token);
         if (!m_stack_of_open_elements.contains_template_element())
-            m_form_element = verify_cast<HTMLFormElement>(*element);
+            m_form_element = as<HTMLFormElement>(*element);
         return;
     }
 
@@ -2959,7 +2959,7 @@ void HTMLParser::handle_text(HTMLToken& token)
     if (token.is_end_of_file()) {
         log_parse_error();
         if (current_node()->local_name() == HTML::TagNames::script)
-            verify_cast<HTMLScriptElement>(*current_node()).set_already_started(Badge<HTMLParser> {}, true);
+            as<HTMLScriptElement>(*current_node()).set_already_started(Badge<HTMLParser> {}, true);
         (void)m_stack_of_open_elements.pop();
         m_insertion_mode = m_original_insertion_mode;
         process_using_the_rules_for(m_insertion_mode, token);
@@ -2980,7 +2980,7 @@ void HTMLParser::handle_text(HTMLToken& token)
             perform_a_microtask_checkpoint();
 
         // Let script be the current node (which will be a script element).
-        GC::Ref<HTMLScriptElement> script = verify_cast<HTMLScriptElement>(*current_node());
+        GC::Ref<HTMLScriptElement> script = as<HTMLScriptElement>(*current_node());
 
         // Pop the current node off the stack of open elements.
         (void)m_stack_of_open_elements.pop();
@@ -3566,7 +3566,7 @@ void HTMLParser::handle_in_table(HTMLToken& token)
 
         // Otherwise:
         // Insert an HTML element for the token, and set the form element pointer to point to the element created.
-        m_form_element = verify_cast<HTMLFormElement>(*insert_html_element(token));
+        m_form_element = as<HTMLFormElement>(*insert_html_element(token));
 
         // Pop that form element off the stack of open elements.
         (void)m_stack_of_open_elements.pop();
@@ -4257,7 +4257,7 @@ void HTMLParser::process_using_the_rules_for_foreign_content(HTMLToken& token)
 
             // -> If the token's tag name is "script", and the new current node is in the SVG namespace
             if (token.tag_name() == SVG::TagNames::script && current_node()->namespace_uri() == Namespace::SVG) {
-                auto& script_element = verify_cast<SVG::SVGScriptElement>(*current_node());
+                auto& script_element = as<SVG::SVGScriptElement>(*current_node());
                 script_element.set_source_line_number({}, token.start_position().line + 1); // FIXME: This +1 is incorrect for script tags whose script does not start on a new line
 
                 // Acknowledge the token's self-closing flag, and then act as described in the steps for a "script" end tag below.
@@ -4279,7 +4279,7 @@ void HTMLParser::process_using_the_rules_for_foreign_content(HTMLToken& token)
     if (token.is_end_tag() && current_node()->namespace_uri() == Namespace::SVG && current_node()->local_name() == SVG::TagNames::script) {
     ScriptEndTag:
         // Pop the current node off the stack of open elements.
-        auto& script_element = verify_cast<SVG::SVGScriptElement>(*m_stack_of_open_elements.pop());
+        auto& script_element = as<SVG::SVGScriptElement>(*m_stack_of_open_elements.pop());
         // Let the old insertion point have the same value as the current insertion point.
         m_tokenizer.store_insertion_point();
         // Let the insertion point be just before the next input character.
@@ -4709,7 +4709,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
     };
 
     if (fragment_serialization_mode == DOM::FragmentSerializationMode::Outer) {
-        serialize_element(verify_cast<DOM::Element>(node));
+        serialize_element(as<DOM::Element>(node));
         return builder.to_string_without_validation();
     }
 
@@ -4718,7 +4718,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
     GC::Ref<DOM::Node const> actual_node = node;
 
     if (is<DOM::Element>(node)) {
-        auto const& element = verify_cast<DOM::Element>(node);
+        auto const& element = as<DOM::Element>(node);
 
         // 1. If the node serializes as void, then return the empty string.
         //    (NOTE: serializes as void is defined only on elements in the spec)
@@ -4728,7 +4728,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
         // 3. If the node is a template element, then let the node instead be the template element's template contents (a DocumentFragment node).
         //    (NOTE: This is out of order of the spec to avoid another dynamic cast. The second step just creates a string builder, so it shouldn't matter)
         if (is<HTML::HTMLTemplateElement>(element))
-            actual_node = verify_cast<HTML::HTMLTemplateElement>(element).content();
+            actual_node = as<HTML::HTMLTemplateElement>(element).content();
 
         // 4. If current node is a shadow host, then:
         if (element.is_shadow_host()) {
@@ -4783,18 +4783,18 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
 
         if (is<DOM::Element>(current_node)) {
             // -> If current node is an Element
-            auto& element = verify_cast<DOM::Element>(current_node);
+            auto& element = as<DOM::Element>(current_node);
             serialize_element(element);
             return IterationDecision::Continue;
         }
 
         if (is<DOM::Text>(current_node)) {
             // -> If current node is a Text node
-            auto& text_node = verify_cast<DOM::Text>(current_node);
+            auto& text_node = as<DOM::Text>(current_node);
             auto* parent = current_node.parent();
 
             if (is<DOM::Element>(parent)) {
-                auto& parent_element = verify_cast<DOM::Element>(*parent);
+                auto& parent_element = as<DOM::Element>(*parent);
 
                 // If the parent of current node is a style, script, xmp, iframe, noembed, noframes, or plaintext element,
                 // or if the parent of current node is a noscript element and scripting is enabled for the node, then append the value of current node's data IDL attribute literally.
@@ -4811,7 +4811,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
 
         if (is<DOM::Comment>(current_node)) {
             // -> If current node is a Comment
-            auto& comment_node = verify_cast<DOM::Comment>(current_node);
+            auto& comment_node = as<DOM::Comment>(current_node);
 
             // Append the literal string "<!--" (U+003C LESS-THAN SIGN, U+0021 EXCLAMATION MARK, U+002D HYPHEN-MINUS, U+002D HYPHEN-MINUS),
             // followed by the value of current node's data IDL attribute, followed by the literal string "-->" (U+002D HYPHEN-MINUS, U+002D HYPHEN-MINUS, U+003E GREATER-THAN SIGN).
@@ -4823,7 +4823,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
 
         if (is<DOM::ProcessingInstruction>(current_node)) {
             // -> If current node is a ProcessingInstruction
-            auto& processing_instruction_node = verify_cast<DOM::ProcessingInstruction>(current_node);
+            auto& processing_instruction_node = as<DOM::ProcessingInstruction>(current_node);
 
             // Append the literal string "<?" (U+003C LESS-THAN SIGN, U+003F QUESTION MARK), followed by the value of current node's target IDL attribute,
             // followed by a single U+0020 SPACE character, followed by the value of current node's data IDL attribute, followed by a single U+003E GREATER-THAN SIGN character (>).
@@ -4837,7 +4837,7 @@ String HTMLParser::serialize_html_fragment(DOM::Node const& node, SerializableSh
 
         if (is<DOM::DocumentType>(current_node)) {
             // -> If current node is a DocumentType
-            auto& document_type_node = verify_cast<DOM::DocumentType>(current_node);
+            auto& document_type_node = as<DOM::DocumentType>(current_node);
 
             // Append the literal string "<!DOCTYPE" (U+003C LESS-THAN SIGN, U+0021 EXCLAMATION MARK, U+0044 LATIN CAPITAL LETTER D, U+004F LATIN CAPITAL LETTER O,
             // U+0043 LATIN CAPITAL LETTER C, U+0054 LATIN CAPITAL LETTER T, U+0059 LATIN CAPITAL LETTER Y, U+0050 LATIN CAPITAL LETTER P, U+0045 LATIN CAPITAL LETTER E),

@@ -32,7 +32,7 @@ bool Intrinsics::is_exposed(StringView name) const
 Intrinsics& host_defined_intrinsics(JS::Realm& realm)
 {
     VERIFY(realm.host_defined());
-    return verify_cast<Bindings::HostDefined>(*realm.host_defined()).intrinsics;
+    return as<Bindings::HostDefined>(*realm.host_defined()).intrinsics;
 }
 
 }

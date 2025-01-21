@@ -894,25 +894,25 @@ ALWAYS_INLINE bool is<OpCode_Compare>(OpCode const& opcode)
 template<typename T>
 ALWAYS_INLINE T const& to(OpCode const& opcode)
 {
-    return verify_cast<T>(opcode);
+    return as<T>(opcode);
 }
 
 template<typename T>
 ALWAYS_INLINE T* to(OpCode* opcode)
 {
-    return verify_cast<T>(opcode);
+    return as<T>(opcode);
 }
 
 template<typename T>
 ALWAYS_INLINE T const* to(OpCode const* opcode)
 {
-    return verify_cast<T>(opcode);
+    return as<T>(opcode);
 }
 
 template<typename T>
 ALWAYS_INLINE T& to(OpCode& opcode)
 {
-    return verify_cast<T>(opcode);
+    return as<T>(opcode);
 }
 
 }

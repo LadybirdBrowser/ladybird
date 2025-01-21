@@ -36,7 +36,7 @@ WebIDL::ExceptionOr<GC::Ref<DocumentTimeline>> DocumentTimeline::construct_impl(
 {
     // Creates a new DocumentTimeline. The Document with which the timeline is associated is the Document associated
     // with the Window that is the current global object.
-    auto& window = verify_cast<HTML::Window>(realm.global_object());
+    auto& window = as<HTML::Window>(realm.global_object());
     return create(realm, window.associated_document(), options.origin_time);
 }
 

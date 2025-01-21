@@ -150,8 +150,8 @@ const HTML::HTMLElement* Node::enclosing_html_element() const
 const HTML::HTMLElement* Node::enclosing_html_element_with_attribute(FlyString const& attribute) const
 {
     for (auto* node = this; node; node = node->parent()) {
-        if (is<HTML::HTMLElement>(*node) && verify_cast<HTML::HTMLElement>(*node).has_attribute(attribute))
-            return verify_cast<HTML::HTMLElement>(node);
+        if (is<HTML::HTMLElement>(*node) && as<HTML::HTMLElement>(*node).has_attribute(attribute))
+            return as<HTML::HTMLElement>(node);
     }
     return nullptr;
 }
@@ -212,7 +212,7 @@ void Node::set_text_content(Optional<String> const& maybe_content)
     // If CharacterData, replace data with node this, offset 0, count this’s length, and data the given value.
     else if (is<CharacterData>(this)) {
 
-        auto* character_data_node = verify_cast<CharacterData>(this);
+        auto* character_data_node = as<CharacterData>(this);
         character_data_node->set_data(content);
 
         // FIXME: CharacterData::set_data is not spec compliant. Make this match the spec when set_data becomes spec compliant.
@@ -343,12 +343,12 @@ Optional<String> Node::node_value() const
 
     // If Attr, return this’s value.
     if (is<Attr>(this)) {
-        return verify_cast<Attr>(this)->value();
+        return as<Attr>(this)->value();
     }
 
     // If CharacterData, return this’s data.
     if (is<CharacterData>(this)) {
-        return verify_cast<CharacterData>(this)->data();
+        return as<CharacterData>(this)->data();
     }
 
     // Otherwise, return null.
@@ -364,10 +364,10 @@ void Node::set_node_value(Optional<String> const& maybe_value)
 
     // If Attr, set an existing attribute value with this and the given value.
     if (is<Attr>(this)) {
-        verify_cast<Attr>(this)->set_value(move(value));
+        as<Attr>(this)->set_value(move(value));
     } else if (is<CharacterData>(this)) {
         // If CharacterData, replace data with node this, offset 0, count this’s length, and data the given value.
-        verify_cast<CharacterData>(this)->set_data(value);
+        as<CharacterData>(this)->set_data(value);
     }
 
     // Otherwise, do nothing.
@@ -536,9 +536,9 @@ String Node::child_text_content() const
         return String {};
 
     StringBuilder builder;
-    verify_cast<ParentNode>(*this).for_each_child([&](auto& child) {
+    as<ParentNode>(*this).for_each_child([&](auto& child) {
         if (is<Text>(child)) {
-            auto maybe_content = verify_cast<Text>(child).text_content();
+            auto maybe_content = as<Text>(child).text_content();
             if (maybe_content.has_value())
                 builder.append(maybe_content.value());
         }
@@ -615,7 +615,7 @@ WebIDL::ExceptionOr<void> Node::ensure_pre_insertion_validity(GC::Ref<Node> node
         if (is<DocumentFragment>(*node)) {
             // If node has more than one element child or has a Text node child.
             // Otherwise, if node has one element child and either parent has an element child, child is a doctype, or child is non-null and a doctype is following child.
-            auto node_element_child_count = verify_cast<DocumentFragment>(*node).child_element_count();
+            auto node_element_child_count = as<DocumentFragment>(*node).child_element_count();
             if ((node_element_child_count > 1 || node->has_child_of_type<Text>())
                 || (node_element_child_count == 1 && (has_child_of_type<Element>() || is<DocumentType>(child.ptr()) || (child && child->has_following_node_of_type_in_tree_order<DocumentType>())))) {
                 return WebIDL::HierarchyRequestError::create(realm(), "Invalid node type for insertion"_string);
@@ -1025,7 +1025,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::replace_child(GC::Ref<Node> node, GC::R
         if (is<DocumentFragment>(*node)) {
             // If node has more than one element child or has a Text node child.
             // Otherwise, if node has one element child and either parent has an element child that is not child or a doctype is following child.
-            auto node_element_child_count = verify_cast<DocumentFragment>(*node).child_element_count();
+            auto node_element_child_count = as<DocumentFragment>(*node).child_element_count();
             if ((node_element_child_count > 1 || node->has_child_of_type<Text>())
                 || (node_element_child_count == 1 && (first_child_of_type<Element>() != child || child->has_following_node_of_type_in_tree_order<DocumentType>()))) {
                 return WebIDL::HierarchyRequestError::create(realm(), "Invalid node type for insertion"_string);
@@ -1119,10 +1119,10 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_node(Document* document, bool sub
 
     // 6. If node is an element, node is a shadow host, and node’s shadow root’s clonable is true:
     if (is_element()) {
-        auto& node_element = verify_cast<Element>(*this);
+        auto& node_element = as<Element>(*this);
         if (node_element.is_shadow_host() && node_element.shadow_root()->clonable()) {
             // 1. Assert: copy is not a shadow host.
-            auto& copy_element = verify_cast<Element>(*copy);
+            auto& copy_element = as<Element>(*copy);
             VERIFY(!copy_element.is_shadow_host());
 
             // 2. Attach a shadow root with copy, node’s shadow root’s mode, true, node’s shadow root’s serializable, node’s shadow root’s delegates focus, and node’s shadow root’s slot assignment.
@@ -1154,7 +1154,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document) c
     // 2. If node is an element:
     if (is_element()) {
         // 1. Set copy to the result of creating an element, given document, node’s local name, node’s namespace, node’s namespace prefix, and node’s is value.
-        auto& element = *verify_cast<Element>(this);
+        auto& element = *as<Element>(this);
         auto element_copy = TRY(DOM::create_element(document, element.local_name(), element.namespace_uri(), element.prefix(), element.is_value()));
 
         // 2. For each attribute of node’s attribute list:
@@ -1170,7 +1170,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document) c
             auto copy_attribute = copy_attribute_or_error.release_value();
 
             // 2. Append copyAttribute to copy.
-            element_copy->append_attribute(verify_cast<Attr>(*copy_attribute));
+            element_copy->append_attribute(as<Attr>(*copy_attribute));
         });
 
         if (maybe_exception.has_value())
@@ -1183,7 +1183,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document) c
     else {
         if (is_document()) {
             // -> Document
-            auto& document_ = verify_cast<Document>(*this);
+            auto& document_ = as<Document>(*this);
             auto document_copy = [&] -> GC::Ref<Document> {
                 switch (document_.document_type()) {
                 case Document::Type::XML:
@@ -1205,7 +1205,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document) c
             copy = move(document_copy);
         } else if (is_document_type()) {
             // -> DocumentType
-            auto& document_type = verify_cast<DocumentType>(*this);
+            auto& document_type = as<DocumentType>(*this);
             auto document_type_copy = realm().create<DocumentType>(document);
 
             // Set copy’s name, public ID, and system ID to those of node.
@@ -1216,11 +1216,11 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document) c
         } else if (is_attribute()) {
             // -> Attr
             // Set copy’s namespace, namespace prefix, local name, and value to those of node.
-            auto& attr = verify_cast<Attr>(*this);
+            auto& attr = as<Attr>(*this);
             copy = attr.clone(document);
         } else if (is_text()) {
             // -> Text
-            auto& text = verify_cast<Text>(*this);
+            auto& text = as<Text>(*this);
 
             // Set copy’s data to that of node.
             copy = [&]() -> GC::Ref<Text> {
@@ -1235,14 +1235,14 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Node::clone_single_node(Document& document) c
             }();
         } else if (is_comment()) {
             // -> Comment
-            auto& comment = verify_cast<Comment>(*this);
+            auto& comment = as<Comment>(*this);
 
             // Set copy’s data to that of node.
             auto comment_copy = realm().create<Comment>(document, comment.data());
             copy = move(comment_copy);
         } else if (is<ProcessingInstruction>(this)) {
             // -> ProcessingInstruction
-            auto& processing_instruction = verify_cast<ProcessingInstruction>(*this);
+            auto& processing_instruction = as<ProcessingInstruction>(*this);
 
             // Set copy’s target and data to those of node.
             auto processing_instruction_copy = realm().create<ProcessingInstruction>(document, processing_instruction.data(), processing_instruction.target());
@@ -1443,7 +1443,7 @@ ParentNode* Node::parent_or_shadow_host()
 {
     if (is<ShadowRoot>(*this))
         return static_cast<ShadowRoot&>(*this).host();
-    return verify_cast<ParentNode>(parent());
+    return as<ParentNode>(parent());
 }
 
 Element* Node::parent_or_shadow_host_element()
@@ -1513,14 +1513,14 @@ u16 Node::compare_document_position(GC::Ptr<Node> other)
 
     // 4. If node1 is an attribute, then set attr1 to node1 and node1 to attr1’s element.
     if (is<Attr>(node1)) {
-        attr1 = verify_cast<Attr>(node1);
+        attr1 = as<Attr>(node1);
         node1 = const_cast<Element*>(attr1->owner_element());
     }
 
     // 5. If node2 is an attribute, then:
     if (is<Attr>(node2)) {
         // 1. Set attr2 to node2 and node2 to attr2’s element.
-        attr2 = verify_cast<Attr>(node2);
+        attr2 = as<Attr>(node2);
         node2 = const_cast<Element*>(attr2->owner_element());
 
         // 2. If attr1 and node1 are non-null, and node2 is node1, then:
@@ -1750,7 +1750,7 @@ bool Node::is_shadow_including_descendant_of(Node const& other) const
         return false;
 
     // and A’s root’s host is a shadow-including inclusive descendant of B.
-    auto& shadow_root = verify_cast<ShadowRoot>(root());
+    auto& shadow_root = as<ShadowRoot>(root());
     return shadow_root.host() && shadow_root.host()->is_shadow_including_inclusive_descendant_of(other);
 }
 
@@ -1892,8 +1892,8 @@ bool Node::is_equal_node(Node const* other_node) const
     switch (node_type()) {
     case (u16)NodeType::DOCUMENT_TYPE_NODE: {
         // Its name, public ID, and system ID.
-        auto& this_doctype = verify_cast<DocumentType>(*this);
-        auto& other_doctype = verify_cast<DocumentType>(*other_node);
+        auto& this_doctype = as<DocumentType>(*this);
+        auto& other_doctype = as<DocumentType>(*other_node);
         if (this_doctype.name() != other_doctype.name()
             || this_doctype.public_id() != other_doctype.public_id()
             || this_doctype.system_id() != other_doctype.system_id())
@@ -1902,8 +1902,8 @@ bool Node::is_equal_node(Node const* other_node) const
     }
     case (u16)NodeType::ELEMENT_NODE: {
         // Its namespace, namespace prefix, local name, and its attribute list’s size.
-        auto& this_element = verify_cast<Element>(*this);
-        auto& other_element = verify_cast<Element>(*other_node);
+        auto& this_element = as<Element>(*this);
+        auto& other_element = as<Element>(*other_node);
         if (this_element.namespace_uri() != other_element.namespace_uri()
             || this_element.prefix() != other_element.prefix()
             || this_element.local_name() != other_element.local_name()
@@ -1922,16 +1922,16 @@ bool Node::is_equal_node(Node const* other_node) const
     case (u16)NodeType::COMMENT_NODE:
     case (u16)NodeType::TEXT_NODE: {
         // Its data.
-        auto& this_cdata = verify_cast<CharacterData>(*this);
-        auto& other_cdata = verify_cast<CharacterData>(*other_node);
+        auto& this_cdata = as<CharacterData>(*this);
+        auto& other_cdata = as<CharacterData>(*other_node);
         if (this_cdata.data() != other_cdata.data())
             return false;
         break;
     }
     case (u16)NodeType::ATTRIBUTE_NODE: {
         // Its namespace, local name, and value.
-        auto& this_attr = verify_cast<Attr>(*this);
-        auto& other_attr = verify_cast<Attr>(*other_node);
+        auto& this_attr = as<Attr>(*this);
+        auto& other_attr = as<Attr>(*other_node);
         if (this_attr.namespace_uri() != other_attr.namespace_uri())
             return false;
         if (this_attr.local_name() != other_attr.local_name())
@@ -1942,8 +1942,8 @@ bool Node::is_equal_node(Node const* other_node) const
     }
     case (u16)NodeType::PROCESSING_INSTRUCTION_NODE: {
         // Its target and data.
-        auto& this_processing_instruction = verify_cast<ProcessingInstruction>(*this);
-        auto& other_processing_instruction = verify_cast<ProcessingInstruction>(*other_node);
+        auto& this_processing_instruction = as<ProcessingInstruction>(*this);
+        auto& other_processing_instruction = as<ProcessingInstruction>(*other_node);
         if (this_processing_instruction.target() != other_processing_instruction.target())
             return false;
         if (this_processing_instruction.data() != other_processing_instruction.data())
@@ -1989,7 +1989,7 @@ Optional<String> Node::locate_a_namespace(Optional<String> const& prefix) const
             return Web::Namespace::XMLNS.to_string();
 
         // 3. If its namespace is non-null and its namespace prefix is prefix, then return namespace.
-        auto& element = verify_cast<Element>(*this);
+        auto& element = as<Element>(*this);
         if (element.namespace_uri().has_value() && element.prefix() == prefix)
             return element.namespace_uri()->to_string();
 
@@ -2023,7 +2023,7 @@ Optional<String> Node::locate_a_namespace(Optional<String> const& prefix) const
     // Document
     if (is<Document>(*this)) {
         // 1. If its document element is null, then return null.
-        auto* document_element = verify_cast<Document>(*this).document_element();
+        auto* document_element = as<Document>(*this).document_element();
         if (!document_element)
             return {};
 
@@ -2041,7 +2041,7 @@ Optional<String> Node::locate_a_namespace(Optional<String> const& prefix) const
     // Attr
     if (is<Attr>(*this)) {
         // 1. If its element is null, then return null.
-        auto* element = verify_cast<Attr>(*this).owner_element();
+        auto* element = as<Attr>(*this).owner_element();
         if (!element)
             return {};
 
@@ -2082,14 +2082,14 @@ Optional<String> Node::lookup_prefix(Optional<String> namespace_) const
     // Element
     if (is<Element>(*this)) {
         // Return the result of locating a namespace prefix for it using namespace.
-        auto& element = verify_cast<Element>(*this);
+        auto& element = as<Element>(*this);
         return element.locate_a_namespace_prefix(namespace_);
     }
 
     // Document
     if (is<Document>(*this)) {
         // Return the result of locating a namespace prefix for its document element, if its document element is non-null; otherwise null.
-        auto* document_element = verify_cast<Document>(*this).document_element();
+        auto* document_element = as<Document>(*this).document_element();
         if (!document_element)
             return {};
 
@@ -2105,7 +2105,7 @@ Optional<String> Node::lookup_prefix(Optional<String> namespace_) const
     // Attr
     if (is<Attr>(*this)) {
         // Return the result of locating a namespace prefix for its element, if its element is non-null; otherwise null.
-        auto* element = verify_cast<Attr>(*this).owner_element();
+        auto* element = as<Attr>(*this).owner_element();
         if (!element)
             return {};
 
@@ -2176,7 +2176,7 @@ size_t Node::length() const
 
     // 2. If node is a CharacterData node, then return node’s data’s length.
     if (is_character_data())
-        return verify_cast<CharacterData>(*this).length_in_utf16_code_units();
+        return as<CharacterData>(*this).length_in_utf16_code_units();
 
     // 3. Return the number of node’s children.
     return child_count();
@@ -2826,7 +2826,7 @@ ErrorOr<String> Node::name_or_description(NameOrDescription target, Document con
     // aria-labelledby or aria-describedby and/or un-hidden. See the comment for substep A above.
     if (is_text() && (!parent_element() || (parent_element()->is_referenced() || !parent_element()->is_hidden() || !parent_element()->has_hidden_ancestor() || parent_element()->has_referenced_and_hidden_ancestor()))) {
         if (layout_node() && layout_node()->is_text_node())
-            return verify_cast<Layout::TextNode>(layout_node())->text_for_rendering();
+            return as<Layout::TextNode>(layout_node())->text_for_rendering();
         return text_content().release_value();
     }
 

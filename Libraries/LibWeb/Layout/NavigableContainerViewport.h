@@ -21,8 +21,8 @@ public:
 
     virtual void prepare_for_replaced_layout() override;
 
-    [[nodiscard]] HTML::NavigableContainer const& dom_node() const { return verify_cast<HTML::NavigableContainer>(ReplacedBox::dom_node()); }
-    [[nodiscard]] HTML::NavigableContainer& dom_node() { return verify_cast<HTML::NavigableContainer>(ReplacedBox::dom_node()); }
+    [[nodiscard]] HTML::NavigableContainer const& dom_node() const { return as<HTML::NavigableContainer>(ReplacedBox::dom_node()); }
+    [[nodiscard]] HTML::NavigableContainer& dom_node() { return as<HTML::NavigableContainer>(ReplacedBox::dom_node()); }
 
     virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 

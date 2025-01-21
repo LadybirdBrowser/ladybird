@@ -85,11 +85,11 @@ void Event::append_to_path(EventTarget& invocation_target, GC::Ptr<EventTarget> 
 
     // 2. If invocationTarget is a node and its root is a shadow root, then set invocationTargetInShadowTree to true.
     if (is<Node>(invocation_target)) {
-        auto& invocation_target_node = verify_cast<Node>(invocation_target);
+        auto& invocation_target_node = as<Node>(invocation_target);
         if (is<ShadowRoot>(invocation_target_node.root()))
             invocation_target_in_shadow_tree = true;
         if (is<ShadowRoot>(invocation_target_node)) {
-            auto& invocation_target_shadow_root = verify_cast<ShadowRoot>(invocation_target_node);
+            auto& invocation_target_shadow_root = as<ShadowRoot>(invocation_target_node);
             // 4. If invocationTarget is a shadow root whose mode is "closed", then set root-of-closed-tree to true.
             root_of_closed_tree = invocation_target_shadow_root.mode() == Bindings::ShadowRootMode::Closed;
         }

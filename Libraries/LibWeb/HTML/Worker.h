@@ -29,7 +29,7 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<Worker>> create(String const& script_url, WorkerOptions const& options, DOM::Document& document);
     static WebIDL::ExceptionOr<GC::Ref<Worker>> construct_impl(JS::Realm& realm, String const& script_url, WorkerOptions const& options)
     {
-        auto& window = verify_cast<HTML::Window>(realm.global_object());
+        auto& window = as<HTML::Window>(realm.global_object());
         return Worker::create(script_url, options, window.associated_document());
     }
 

@@ -136,7 +136,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::resume()
     auto& realm = this->realm();
 
     // 1. If this's relevant global object's associated Document is not fully active then return a promise rejected with "InvalidStateError" DOMException.
-    auto const& associated_document = verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
+    auto const& associated_document = as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
     if (!associated_document.is_fully_active())
         return WebIDL::InvalidStateError::create(realm, "Document is not fully active"_string);
 
@@ -228,7 +228,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::suspend()
     auto& realm = this->realm();
 
     // 1. If this's relevant global object's associated Document is not fully active then return a promise rejected with "InvalidStateError" DOMException.
-    auto const& associated_document = verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
+    auto const& associated_document = as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
     if (!associated_document.is_fully_active())
         return WebIDL::InvalidStateError::create(realm, "Document is not fully active"_string);
 
@@ -287,7 +287,7 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> AudioContext::close()
     auto& realm = this->realm();
 
     // 1. If this's relevant global object's associated Document is not fully active then return a promise rejected with "InvalidStateError" DOMException.
-    auto const& associated_document = verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
+    auto const& associated_document = as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
     if (!associated_document.is_fully_active())
         return WebIDL::InvalidStateError::create(realm, "Document is not fully active"_string);
 

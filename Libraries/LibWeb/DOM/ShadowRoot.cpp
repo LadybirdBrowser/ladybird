@@ -53,7 +53,7 @@ WebIDL::CallbackType* ShadowRoot::onslotchange()
 EventTarget* ShadowRoot::get_parent(Event const& event)
 {
     if (!event.composed()) {
-        auto& events_first_invocation_target = verify_cast<Node>(*event.path().first().invocation_target);
+        auto& events_first_invocation_target = as<Node>(*event.path().first().invocation_target);
         if (&events_first_invocation_target.root() == this)
             return nullptr;
     }

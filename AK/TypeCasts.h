@@ -36,7 +36,7 @@ ALWAYS_INLINE bool is(NonnullRefPtr<InputType> const& input)
 }
 
 template<typename OutputType, typename InputType>
-ALWAYS_INLINE CopyConst<InputType, OutputType>* verify_cast(InputType* input)
+ALWAYS_INLINE CopyConst<InputType, OutputType>* as(InputType* input)
 {
     static_assert(IsBaseOf<InputType, OutputType>);
     VERIFY(!input || is<OutputType>(*input));
@@ -44,7 +44,7 @@ ALWAYS_INLINE CopyConst<InputType, OutputType>* verify_cast(InputType* input)
 }
 
 template<typename OutputType, typename InputType>
-ALWAYS_INLINE CopyConst<InputType, OutputType>& verify_cast(InputType& input)
+ALWAYS_INLINE CopyConst<InputType, OutputType>& as(InputType& input)
 {
     static_assert(IsBaseOf<InputType, OutputType>);
     VERIFY(is<OutputType>(input));
@@ -70,7 +70,7 @@ ALWAYS_INLINE CopyConst<InputType, OutputType>* as_if(InputType* input)
 }
 
 #if USING_AK_GLOBALLY
+using AK::as;
 using AK::as_if;
 using AK::is;
-using AK::verify_cast;
 #endif

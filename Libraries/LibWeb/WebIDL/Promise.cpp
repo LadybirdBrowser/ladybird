@@ -141,7 +141,7 @@ GC::Ref<Promise> react_to_promise(Promise const& promise, GC::Ptr<ReactionSteps>
     // 7. Return PerformPromiseThen(promise.[[Promise]], onFulfilled, onRejected, newCapability).
     // FIXME: https://github.com/whatwg/webidl/issues/1443
     //  Returning newCapability instead of newCapability.[[Promise].
-    auto promise_object = verify_cast<JS::Promise>(promise.promise().ptr());
+    auto promise_object = as<JS::Promise>(promise.promise().ptr());
     auto value = promise_object->perform_then(on_fulfilled, on_rejected, new_capability);
 
     VERIFY(value == new_capability->promise());
@@ -173,7 +173,7 @@ GC::Ref<Promise> upon_rejection(Promise const& promise, GC::Ref<ReactionSteps> s
 void mark_promise_as_handled(Promise const& promise)
 {
     // To mark as handled a Promise<T> promise, set promise.[[Promise]].[[PromiseIsHandled]] to true.
-    auto promise_object = verify_cast<JS::Promise>(promise.promise().ptr());
+    auto promise_object = as<JS::Promise>(promise.promise().ptr());
     promise_object->set_is_handled();
 }
 

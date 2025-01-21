@@ -352,7 +352,7 @@ Value VM::get_new_target()
 
     // 2. Assert: envRec has a [[NewTarget]] field.
     // 3. Return envRec.[[NewTarget]].
-    return verify_cast<FunctionEnvironment>(*env).new_target();
+    return as<FunctionEnvironment>(*env).new_target();
 }
 
 // 13.3.12.1 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-meta-properties-runtime-semantics-evaluation
@@ -363,7 +363,7 @@ Object* VM::get_import_meta()
     auto script_or_module = get_active_script_or_module();
 
     // 2. Assert: module is a Source Text Module Record.
-    auto& module = verify_cast<SourceTextModule>(*script_or_module.get<GC::Ref<Module>>());
+    auto& module = as<SourceTextModule>(*script_or_module.get<GC::Ref<Module>>());
 
     // 3. Let importMeta be module.[[ImportMeta]].
     auto* import_meta = module.import_meta();
@@ -553,7 +553,7 @@ ThrowCompletionOr<void> VM::link_and_eval_module(CyclicModule& module)
     auto filename = module.filename();
     auto& promise_capability = module.load_requested_modules(nullptr);
 
-    if (auto const& promise = verify_cast<Promise>(*promise_capability.promise()); promise.state() == Promise::State::Rejected)
+    if (auto const& promise = as<Promise>(*promise_capability.promise()); promise.state() == Promise::State::Rejected)
         return JS::throw_completion(promise.result());
 
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] Linking module {}", filename);

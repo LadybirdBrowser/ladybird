@@ -19,8 +19,8 @@ public:
     SVGGraphicsBox(DOM::Document&, SVG::SVGGraphicsElement&, GC::Ref<CSS::ComputedProperties>);
     virtual ~SVGGraphicsBox() override = default;
 
-    SVG::SVGGraphicsElement& dom_node() { return verify_cast<SVG::SVGGraphicsElement>(SVGBox::dom_node()); }
-    SVG::SVGGraphicsElement const& dom_node() const { return verify_cast<SVG::SVGGraphicsElement>(SVGBox::dom_node()); }
+    SVG::SVGGraphicsElement& dom_node() { return as<SVG::SVGGraphicsElement>(SVGBox::dom_node()); }
+    SVG::SVGGraphicsElement const& dom_node() const { return as<SVG::SVGGraphicsElement>(SVGBox::dom_node()); }
 
     virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 };

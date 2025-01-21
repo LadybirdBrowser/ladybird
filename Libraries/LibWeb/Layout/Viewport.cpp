@@ -69,7 +69,7 @@ void Viewport::update_text_blocks()
         }
 
         if (layout_node.is_text_node()) {
-            auto const& text_node = verify_cast<Layout::TextNode>(layout_node);
+            auto const& text_node = as<Layout::TextNode>(layout_node);
             auto& dom_node = const_cast<DOM::Text&>(text_node.dom_node());
             if (text_positions.is_empty()) {
                 text_positions.empend(dom_node);

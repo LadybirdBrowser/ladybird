@@ -20,8 +20,8 @@ public:
     SVGClipBox(DOM::Document&, SVG::SVGClipPathElement&, GC::Ref<CSS::ComputedProperties>);
     virtual ~SVGClipBox() override = default;
 
-    SVG::SVGClipPathElement& dom_node() { return verify_cast<SVG::SVGClipPathElement>(SVGBox::dom_node()); }
-    SVG::SVGClipPathElement const& dom_node() const { return verify_cast<SVG::SVGClipPathElement>(SVGBox::dom_node()); }
+    SVG::SVGClipPathElement& dom_node() { return as<SVG::SVGClipPathElement>(SVGBox::dom_node()); }
+    SVG::SVGClipPathElement const& dom_node() const { return as<SVG::SVGClipPathElement>(SVGBox::dom_node()); }
 
     virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 };

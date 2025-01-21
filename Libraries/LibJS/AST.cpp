@@ -1217,8 +1217,8 @@ ByteString MemberExpression::to_string_approximation() const
     if (is_computed())
         return ByteString::formatted("{}[<computed>]", object_string);
     if (is<PrivateIdentifier>(*m_property))
-        return ByteString::formatted("{}.{}", object_string, verify_cast<PrivateIdentifier>(*m_property).string());
-    return ByteString::formatted("{}.{}", object_string, verify_cast<Identifier>(*m_property).string());
+        return ByteString::formatted("{}.{}", object_string, as<PrivateIdentifier>(*m_property).string());
+    return ByteString::formatted("{}.{}", object_string, as<Identifier>(*m_property).string());
 }
 
 bool MemberExpression::ends_in_private_name() const

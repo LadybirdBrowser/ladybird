@@ -196,7 +196,7 @@ OwnPtr<FormattingContext> FormattingContext::create_independent_formatting_conte
 
     switch (type.value()) {
     case Type::Block:
-        return make<BlockFormattingContext>(state, layout_mode, verify_cast<BlockContainer>(child_box), this);
+        return make<BlockFormattingContext>(state, layout_mode, as<BlockContainer>(child_box), this);
     case Type::SVG:
         return make<SVGFormattingContext>(state, layout_mode, child_box, this);
     case Type::Flex:
@@ -1440,7 +1440,7 @@ CSSPixels FormattingContext::calculate_min_content_width(Layout::Box const& box)
 
     auto context = const_cast<FormattingContext*>(this)->create_independent_formatting_context_if_needed(throwaway_state, LayoutMode::IntrinsicSizing, box);
     if (!context) {
-        context = make<BlockFormattingContext>(throwaway_state, LayoutMode::IntrinsicSizing, verify_cast<BlockContainer>(box), nullptr);
+        context = make<BlockFormattingContext>(throwaway_state, LayoutMode::IntrinsicSizing, as<BlockContainer>(box), nullptr);
     }
 
     auto available_width = AvailableSize::make_min_content();
@@ -1480,7 +1480,7 @@ CSSPixels FormattingContext::calculate_max_content_width(Layout::Box const& box)
 
     auto context = const_cast<FormattingContext*>(this)->create_independent_formatting_context_if_needed(throwaway_state, LayoutMode::IntrinsicSizing, box);
     if (!context) {
-        context = make<BlockFormattingContext>(throwaway_state, LayoutMode::IntrinsicSizing, verify_cast<BlockContainer>(box), nullptr);
+        context = make<BlockFormattingContext>(throwaway_state, LayoutMode::IntrinsicSizing, as<BlockContainer>(box), nullptr);
     }
 
     auto available_width = AvailableSize::make_max_content();
@@ -1529,7 +1529,7 @@ CSSPixels FormattingContext::calculate_min_content_height(Layout::Box const& box
 
     auto context = const_cast<FormattingContext*>(this)->create_independent_formatting_context_if_needed(throwaway_state, LayoutMode::IntrinsicSizing, box);
     if (!context) {
-        context = make<BlockFormattingContext>(throwaway_state, LayoutMode::IntrinsicSizing, verify_cast<BlockContainer>(box), nullptr);
+        context = make<BlockFormattingContext>(throwaway_state, LayoutMode::IntrinsicSizing, as<BlockContainer>(box), nullptr);
     }
 
     context->run(AvailableSpace(AvailableSize::make_definite(width), AvailableSize::make_min_content()));
@@ -1573,7 +1573,7 @@ CSSPixels FormattingContext::calculate_max_content_height(Layout::Box const& box
 
     auto context = const_cast<FormattingContext*>(this)->create_independent_formatting_context_if_needed(throwaway_state, LayoutMode::IntrinsicSizing, box);
     if (!context) {
-        context = make<BlockFormattingContext>(throwaway_state, LayoutMode::IntrinsicSizing, verify_cast<BlockContainer>(box), nullptr);
+        context = make<BlockFormattingContext>(throwaway_state, LayoutMode::IntrinsicSizing, as<BlockContainer>(box), nullptr);
     }
 
     context->run(AvailableSpace(AvailableSize::make_definite(width), AvailableSize::make_max_content()));

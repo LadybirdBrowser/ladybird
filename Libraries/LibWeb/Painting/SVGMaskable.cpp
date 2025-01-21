@@ -35,7 +35,7 @@ static auto get_clip_box(SVG::SVGGraphicsElement const& graphics_element)
 
 Optional<CSSPixelRect> SVGMaskable::get_masking_area_of_svg() const
 {
-    auto const& graphics_element = verify_cast<SVG::SVGGraphicsElement const>(*dom_node_of_svg());
+    auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*dom_node_of_svg());
     Optional<CSSPixelRect> masking_area = {};
     if (auto* mask_box = get_mask_box(graphics_element)) {
         masking_area = mask_box->dom_node().resolve_masking_area(mask_box->paintable_box()->absolute_border_box_rect());
@@ -65,7 +65,7 @@ static Gfx::Bitmap::MaskKind mask_type_to_gfx_mask_kind(CSS::MaskType mask_type)
 
 Optional<Gfx::Bitmap::MaskKind> SVGMaskable::get_mask_type_of_svg() const
 {
-    auto const& graphics_element = verify_cast<SVG::SVGGraphicsElement const>(*dom_node_of_svg());
+    auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*dom_node_of_svg());
     if (auto* mask_box = get_mask_box(graphics_element))
         return mask_type_to_gfx_mask_kind(mask_box->computed_values().mask_type());
     if (get_clip_box(graphics_element))
@@ -75,7 +75,7 @@ Optional<Gfx::Bitmap::MaskKind> SVGMaskable::get_mask_type_of_svg() const
 
 RefPtr<Gfx::ImmutableBitmap> SVGMaskable::calculate_mask_of_svg(PaintContext& context, CSSPixelRect const& masking_area) const
 {
-    auto const& graphics_element = verify_cast<SVG::SVGGraphicsElement const>(*dom_node_of_svg());
+    auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*dom_node_of_svg());
     auto mask_rect = context.enclosing_device_rect(masking_area);
     auto paint_mask_or_clip = [&](PaintableBox const& paintable) -> RefPtr<Gfx::Bitmap> {
         auto mask_bitmap_or_error = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, mask_rect.size().to_type<int>());

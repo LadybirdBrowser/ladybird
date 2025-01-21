@@ -35,7 +35,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> CSSStyleSheet::construct_impl(JS::Re
     auto sheet = create(realm, CSSRuleList::create_empty(realm), CSS::MediaList::create(realm, {}), {});
 
     // 2. Set sheet’s location to the base URL of the associated Document for the current principal global object.
-    auto associated_document = verify_cast<HTML::Window>(HTML::current_principal_global_object()).document();
+    auto associated_document = as<HTML::Window>(HTML::current_principal_global_object()).document();
     sheet->set_location(associated_document->base_url().to_string());
 
     // 3. Set sheet’s stylesheet base URL to the baseURL attribute value from options.
@@ -387,11 +387,11 @@ void CSSStyleSheet::recalculate_rule_caches()
             // @import rules must appear before @namespace rules, so skip this if we've seen @namespace.
             if (!m_namespace_rules.is_empty())
                 continue;
-            m_import_rules.append(verify_cast<CSSImportRule>(*rule));
+            m_import_rules.append(as<CSSImportRule>(*rule));
             break;
         }
         case CSSRule::Type::Namespace: {
-            auto& namespace_rule = verify_cast<CSSNamespaceRule>(*rule);
+            auto& namespace_rule = as<CSSNamespaceRule>(*rule);
             if (!namespace_rule.namespace_uri().is_empty() && namespace_rule.prefix().is_empty())
                 m_default_namespace_rule = namespace_rule;
 

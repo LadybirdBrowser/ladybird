@@ -447,7 +447,7 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::export_key(Binding
         // 5. If the name member of the [[algorithm]] internal slot of key does not identify a registered algorithm that supports the export key operation,
         //    then throw a NotSupportedError.
         // Note: Handled by the base AlgorithmMethods implementation
-        auto& algorithm = verify_cast<KeyAlgorithm>(*key->algorithm());
+        auto& algorithm = as<KeyAlgorithm>(*key->algorithm());
         // FIXME: Stash the AlgorithmMethods on the KeyAlgorithm
         auto normalized_algorithm_or_error = normalize_an_algorithm(realm, algorithm.name(), "exportKey"_string);
         if (normalized_algorithm_or_error.is_error()) {
@@ -808,7 +808,7 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::wrap_key(Bindings:
 
         // 12. Let key be the result of performing the export key operation specified the [[algorithm]] internal slot of key using key and format.
         // NOTE: The spec does not mention we need to normalize this, but it's the only way we have to get to export_key.
-        auto& key_algorithm = verify_cast<KeyAlgorithm>(*key->algorithm());
+        auto& key_algorithm = as<KeyAlgorithm>(*key->algorithm());
         auto normalized_key_algorithm = normalize_an_algorithm(realm, key_algorithm.name(), "exportKey"_string);
         if (normalized_key_algorithm.is_error()) {
             WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), normalized_key_algorithm.release_error()).release_value().value());
@@ -827,7 +827,7 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::wrap_key(Bindings:
         // 13. If format is equal to the strings "raw", "pkcs8", or "spki":
         if (format == Bindings::KeyFormat::Raw || format == Bindings::KeyFormat::Pkcs8 || format == Bindings::KeyFormat::Spki) {
             // Set bytes be set to key.
-            bytes = verify_cast<JS::ArrayBuffer>(*key_data).buffer();
+            bytes = as<JS::ArrayBuffer>(*key_data).buffer();
         }
 
         // If format is equal to the string "jwk":

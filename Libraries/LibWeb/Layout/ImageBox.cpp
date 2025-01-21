@@ -36,7 +36,7 @@ void ImageBox::prepare_for_replaced_layout()
     set_natural_aspect_ratio(m_image_provider.intrinsic_aspect_ratio());
 
     if (renders_as_alt_text()) {
-        auto const& element = verify_cast<HTML::HTMLElement>(dom_node());
+        auto const& element = as<HTML::HTMLElement>(dom_node());
         auto alt = element.get_attribute_value(HTML::AttributeNames::alt);
 
         if (alt.is_empty()) {

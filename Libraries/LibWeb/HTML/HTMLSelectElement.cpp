@@ -145,14 +145,14 @@ WebIDL::ExceptionOr<void> HTMLSelectElement::set_length(WebIDL::UnsignedLong len
 HTMLOptionElement* HTMLSelectElement::item(WebIDL::UnsignedLong index)
 {
     // The item(index) method must return the value returned by the method of the same name on the options collection, when invoked with the same argument.
-    return verify_cast<HTMLOptionElement>(const_cast<HTMLOptionsCollection&>(*options()).item(index));
+    return as<HTMLOptionElement>(const_cast<HTMLOptionsCollection&>(*options()).item(index));
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-nameditem
 HTMLOptionElement* HTMLSelectElement::named_item(FlyString const& name)
 {
     // The namedItem(name) method must return the value returned by the method of the same name on the options collection, when invoked with the same argument.
-    return verify_cast<HTMLOptionElement>(const_cast<HTMLOptionsCollection&>(*options()).named_item(name));
+    return as<HTMLOptionElement>(const_cast<HTMLOptionsCollection&>(*options()).named_item(name));
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-add
@@ -187,7 +187,7 @@ GC::Ref<DOM::HTMLCollection> HTMLSelectElement::selected_options()
     if (!m_selected_options) {
         m_selected_options = DOM::HTMLCollection::create(*this, DOM::HTMLCollection::Scope::Descendants, [](Element const& element) {
             if (is<HTML::HTMLOptionElement>(element)) {
-                auto const& option_element = verify_cast<HTMLOptionElement>(element);
+                auto const& option_element = as<HTMLOptionElement>(element);
                 return option_element.selected();
             }
             return false;
@@ -408,11 +408,11 @@ void HTMLSelectElement::show_the_picker_if_applicable()
     u32 id_counter = 1;
     for (auto const& child : children_as_vector()) {
         if (is<HTMLOptGroupElement>(*child)) {
-            auto& opt_group_element = verify_cast<HTMLOptGroupElement>(*child);
+            auto& opt_group_element = as<HTMLOptGroupElement>(*child);
             Vector<SelectItemOption> option_group_items;
             for (auto const& child : opt_group_element.children_as_vector()) {
                 if (is<HTMLOptionElement>(*child)) {
-                    auto& option_element = verify_cast<HTMLOptionElement>(*child);
+                    auto& option_element = as<HTMLOptionElement>(*child);
                     option_group_items.append(SelectItemOption { id_counter++, option_element.selected(), option_element.disabled(), option_element, strip_newlines(option_element.label()), option_element.value() });
                 }
             }
@@ -420,7 +420,7 @@ void HTMLSelectElement::show_the_picker_if_applicable()
         }
 
         if (is<HTMLOptionElement>(*child)) {
-            auto& option_element = verify_cast<HTMLOptionElement>(*child);
+            auto& option_element = as<HTMLOptionElement>(*child);
             m_select_items.append(SelectItemOption { id_counter++, option_element.selected(), option_element.disabled(), option_element, strip_newlines(option_element.label()), option_element.value() });
         }
 

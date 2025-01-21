@@ -43,7 +43,7 @@ void PluginArray::refresh() const
 Vector<FlyString> PluginArray::supported_property_names() const
 {
     // The PluginArray interface supports named properties. If the user agent's PDF viewer supported is true, then they are the PDF viewer plugin names. Otherwise, they are the empty list.
-    auto const& window = verify_cast<HTML::Window>(HTML::relevant_global_object(*this));
+    auto const& window = as<HTML::Window>(HTML::relevant_global_object(*this));
     if (!window.page().pdf_viewer_supported())
         return {};
 
@@ -63,7 +63,7 @@ Vector<FlyString> PluginArray::supported_property_names() const
 size_t PluginArray::length() const
 {
     // The PluginArray interface's length getter steps are to return this's relevant global object's PDF viewer plugin objects's size.
-    auto& window = verify_cast<HTML::Window>(HTML::relevant_global_object(*this));
+    auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
     return window.pdf_viewer_plugin_objects().size();
 }
 
@@ -71,7 +71,7 @@ size_t PluginArray::length() const
 GC::Ptr<Plugin> PluginArray::item(u32 index) const
 {
     // 1. Let plugins be this's relevant global object's PDF viewer plugin objects.
-    auto& window = verify_cast<HTML::Window>(HTML::relevant_global_object(*this));
+    auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
     auto plugins = window.pdf_viewer_plugin_objects();
 
     // 2. If index < plugins's size, then return plugins[index].
@@ -86,7 +86,7 @@ GC::Ptr<Plugin> PluginArray::item(u32 index) const
 GC::Ptr<Plugin> PluginArray::named_item(FlyString const& name) const
 {
     // 1. For each Plugin plugin of this's relevant global object's PDF viewer plugin objects: if plugin's name is name, then return plugin.
-    auto& window = verify_cast<HTML::Window>(HTML::relevant_global_object(*this));
+    auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
     auto plugins = window.pdf_viewer_plugin_objects();
 
     for (auto& plugin : plugins) {

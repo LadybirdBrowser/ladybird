@@ -334,7 +334,7 @@ ThrowCompletionOr<Promise*> CyclicModule::evaluate(VM& vm)
     //       In that case we first check if this module itself has a top level capability.
     //       See also: https://github.com/tc39/ecma262/issues/2823 .
     if (m_top_level_capability != nullptr)
-        return verify_cast<Promise>(m_top_level_capability->promise().ptr());
+        return as<Promise>(m_top_level_capability->promise().ptr());
 
     // 3. If module.[[Status]] is either evaluating-async or evaluated, set module to module.[[CycleRoot]].
     if ((m_status == ModuleStatus::EvaluatingAsync || m_status == ModuleStatus::Evaluated) && m_cycle_root != this) {
@@ -348,7 +348,7 @@ ThrowCompletionOr<Promise*> CyclicModule::evaluate(VM& vm)
     // 4. If module.[[TopLevelCapability]] is not empty, then
     if (m_top_level_capability != nullptr) {
         // a. Return module.[[TopLevelCapability]].[[Promise]].
-        return verify_cast<Promise>(m_top_level_capability->promise().ptr());
+        return as<Promise>(m_top_level_capability->promise().ptr());
     }
 
     // 5. Let stack be a new empty List.
@@ -414,7 +414,7 @@ ThrowCompletionOr<Promise*> CyclicModule::evaluate(VM& vm)
     }
 
     // 11. Return capability.[[Promise]].
-    return verify_cast<Promise>(m_top_level_capability->promise().ptr());
+    return as<Promise>(m_top_level_capability->promise().ptr());
 }
 
 // 16.2.1.5.2.1 InnerModuleEvaluation ( module, stack, index ), https://tc39.es/ecma262/#sec-innermoduleevaluation
@@ -471,7 +471,7 @@ ThrowCompletionOr<u32> CyclicModule::inner_module_evaluation(VM& vm, Vector<Modu
         if (!is<CyclicModule>(*required_module))
             continue;
 
-        GC::Ref<CyclicModule> cyclic_module = verify_cast<CyclicModule>(*required_module);
+        GC::Ref<CyclicModule> cyclic_module = as<CyclicModule>(*required_module);
         // i. Assert: requiredModule.[[Status]] is either evaluating, evaluating-async, or evaluated.
         VERIFY(cyclic_module->m_status == ModuleStatus::Evaluating || cyclic_module->m_status == ModuleStatus::EvaluatingAsync || cyclic_module->m_status == ModuleStatus::Evaluated);
 
@@ -628,7 +628,7 @@ void CyclicModule::execute_async_module(VM& vm)
     auto on_rejected = NativeFunction::create(realm, move(rejected_closure), 0, "");
 
     // 8. Perform PerformPromiseThen(capability.[[Promise]], onFulfilled, onRejected).
-    verify_cast<Promise>(capability->promise().ptr())->perform_then(on_fulfilled, on_rejected, {});
+    as<Promise>(capability->promise().ptr())->perform_then(on_fulfilled, on_rejected, {});
 
     // 9. Perform ! module.ExecuteModule(capability).
     MUST(execute_module(vm, capability));
@@ -911,7 +911,7 @@ void continue_dynamic_import(GC::Ref<PromiseCapability> promise_capability, Thro
 
     // 8. Perform PerformPromiseThen(loadPromise, linkAndEvaluate, onRejected).
     // FIXME: This is likely a spec bug, see load_requested_modules.
-    verify_cast<Promise>(*load_promise.promise()).perform_then(link_and_evaluate, on_rejected, {});
+    as<Promise>(*load_promise.promise()).perform_then(link_and_evaluate, on_rejected, {});
 
     // 9. Return unused.
 }

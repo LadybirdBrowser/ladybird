@@ -496,7 +496,7 @@ Object* get_super_constructor(VM& vm)
     // 2. Assert: envRec is a function Environment Record.
     // 3. Let activeFunction be envRec.[[FunctionObject]].
     // 4. Assert: activeFunction is an ECMAScript function object.
-    auto& active_function = verify_cast<FunctionEnvironment>(*env).function_object();
+    auto& active_function = as<FunctionEnvironment>(*env).function_object();
 
     // 5. Let superConstructor be ! activeFunction.[[GetPrototypeOf]]().
     auto* super_constructor = MUST(active_function.internal_get_prototype_of());
@@ -1715,7 +1715,7 @@ ThrowCompletionOr<Value> perform_import_call(VM& vm, Value specifier, Value opti
         if (active_script_or_module.has<GC::Ref<Script>>())
             return active_script_or_module.get<GC::Ref<Script>>();
 
-        return GC::Ref<CyclicModule> { verify_cast<CyclicModule>(*active_script_or_module.get<GC::Ref<Module>>()) };
+        return GC::Ref<CyclicModule> { as<CyclicModule>(*active_script_or_module.get<GC::Ref<Module>>()) };
     }();
 
     // 7. Let promiseCapability be ! NewPromiseCapability(%Promise%).

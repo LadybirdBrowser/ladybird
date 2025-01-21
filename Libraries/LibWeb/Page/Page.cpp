@@ -395,7 +395,7 @@ void Page::color_picker_update(Optional<Color> picked_color, HTML::ColorPickerUp
             m_pending_non_blocking_dialog = PendingNonBlockingDialog::None;
 
         if (m_pending_non_blocking_dialog_target) {
-            auto& input_element = verify_cast<HTML::HTMLInputElement>(*m_pending_non_blocking_dialog_target);
+            auto& input_element = as<HTML::HTMLInputElement>(*m_pending_non_blocking_dialog_target);
             input_element.did_pick_color(move(picked_color), state);
             if (state == HTML::ColorPickerUpdateState::Closed)
                 m_pending_non_blocking_dialog_target.clear();
@@ -419,7 +419,7 @@ void Page::file_picker_closed(Span<HTML::SelectedFile> selected_files)
         m_pending_non_blocking_dialog = PendingNonBlockingDialog::None;
 
         if (m_pending_non_blocking_dialog_target) {
-            auto& input_element = verify_cast<HTML::HTMLInputElement>(*m_pending_non_blocking_dialog_target);
+            auto& input_element = as<HTML::HTMLInputElement>(*m_pending_non_blocking_dialog_target);
             input_element.did_select_files(selected_files);
 
             m_pending_non_blocking_dialog_target.clear();
@@ -442,7 +442,7 @@ void Page::select_dropdown_closed(Optional<u32> const& selected_item_id)
         m_pending_non_blocking_dialog = PendingNonBlockingDialog::None;
 
         if (m_pending_non_blocking_dialog_target) {
-            auto& select_element = verify_cast<HTML::HTMLSelectElement>(*m_pending_non_blocking_dialog_target);
+            auto& select_element = as<HTML::HTMLSelectElement>(*m_pending_non_blocking_dialog_target);
             select_element.did_select_item(selected_item_id);
             m_pending_non_blocking_dialog_target.clear();
         }
@@ -535,7 +535,7 @@ void Page::toggle_page_mute_state()
 
     for (auto media_id : m_media_elements) {
         if (auto* node = DOM::Node::from_unique_id(media_id)) {
-            auto& media_element = verify_cast<HTML::HTMLMediaElement>(*node);
+            auto& media_element = as<HTML::HTMLMediaElement>(*node);
             media_element.page_mute_state_changed({});
         }
     }

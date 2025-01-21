@@ -265,7 +265,7 @@ ThrowCompletionOr<Value> shadow_realm_import_value(VM& vm, ByteString specifier_
     });
 
     // 13. Return PerformPromiseThen(innerCapability.[[Promise]], onFulfilled, callerRealm.[[Intrinsics]].[[%ThrowTypeError%]], promiseCapability).
-    return verify_cast<Promise>(inner_capability->promise().ptr())->perform_then(on_fulfilled, throw_type_error, promise_capability);
+    return as<Promise>(inner_capability->promise().ptr())->perform_then(on_fulfilled, throw_type_error, promise_capability);
 }
 
 // 3.1.5 GetWrappedValue ( callerRealm: a Realm Record, value: unknown, ), https://tc39.es/proposal-shadowrealm/#sec-getwrappedvalue

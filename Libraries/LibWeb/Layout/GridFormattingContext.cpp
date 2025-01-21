@@ -2212,7 +2212,7 @@ void GridFormattingContext::parent_context_did_dimension_child_root_box()
     });
 
     for (auto const& child : grid_container().contained_abspos_children()) {
-        auto const& box = verify_cast<Box>(*child);
+        auto const& box = as<Box>(*child);
         layout_absolutely_positioned_element(box);
     }
 }

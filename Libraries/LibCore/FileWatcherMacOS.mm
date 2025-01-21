@@ -284,13 +284,13 @@ FileWatcher::~FileWatcher() = default;
 
 ErrorOr<bool> FileWatcherBase::add_watch(ByteString path, FileWatcherEvent::Type event_mask)
 {
-    auto& file_watcher = verify_cast<FileWatcherMacOS>(*this);
+    auto& file_watcher = as<FileWatcherMacOS>(*this);
     return file_watcher.add_watch(move(path), event_mask);
 }
 
 ErrorOr<bool> FileWatcherBase::remove_watch(ByteString path)
 {
-    auto& file_watcher = verify_cast<FileWatcherMacOS>(*this);
+    auto& file_watcher = as<FileWatcherMacOS>(*this);
     return file_watcher.remove_watch(move(path));
 }
 

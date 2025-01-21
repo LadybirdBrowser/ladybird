@@ -52,12 +52,12 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> OptionConstructor::construct(Function
         text_value = &vm.empty_string();
 
     // 1. Let document be the current principal global object's associated Document.
-    auto& window = verify_cast<HTML::Window>(HTML::current_principal_global_object());
+    auto& window = as<HTML::Window>(HTML::current_principal_global_object());
     auto& document = window.associated_document();
 
     // 2. Let option be the result of creating an element given document, "option", and the HTML namespace.
     auto element = TRY(Bindings::throw_dom_exception_if_needed(vm, [&]() { return DOM::create_element(document, HTML::TagNames::option, Namespace::HTML); }));
-    GC::Ref<HTML::HTMLOptionElement> option_element = verify_cast<HTML::HTMLOptionElement>(*element);
+    GC::Ref<HTML::HTMLOptionElement> option_element = as<HTML::HTMLOptionElement>(*element);
 
     // 3. If text is not the empty string, then append to option a new Text node whose data is text.
     auto text = TRY(text_value.to_string(vm));

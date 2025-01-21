@@ -100,7 +100,7 @@ WebIDL::ExceptionOr<void> MutationObserver::observe(Node& target, MutationObserv
 
                 if (node->registered_observer_list()) {
                     node->registered_observer_list()->remove_all_matching([&registered_observer](RegisteredObserver& observer) {
-                        return is<TransientRegisteredObserver>(observer) && verify_cast<TransientRegisteredObserver>(observer).source().ptr() == registered_observer;
+                        return is<TransientRegisteredObserver>(observer) && as<TransientRegisteredObserver>(observer).source().ptr() == registered_observer;
                     });
                 }
             }

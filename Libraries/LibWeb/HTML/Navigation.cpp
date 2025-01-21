@@ -233,7 +233,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::navigate(String url, Navigatio
         return early_error_result(WebIDL::SyntaxError::create(realm, "Cannot navigate to Invalid URL"_string));
 
     // 2. Let document be this's relevant global object's associated Document.
-    auto& document = verify_cast<HTML::Window>(relevant_global_object(*this)).associated_document();
+    auto& document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
 
     // 3. If options["history"] is "push", and the navigation must be a replace given urlRecord and document,
     //    then return an early error result for a "NotSupportedError" DOMException.
@@ -301,7 +301,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::reload(NavigationReloadOptions
     // The reload(options) method steps are:
 
     // 1. Let document be this's relevant global object's associated Document.
-    auto& document = verify_cast<HTML::Window>(relevant_global_object(*this)).associated_document();
+    auto& document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
 
     // 2. Let serializedState be StructuredSerializeForStorage(undefined).
     auto serialized_state = MUST(structured_serialize_for_storage(vm, JS::js_undefined()));
@@ -451,7 +451,7 @@ bool Navigation::has_entries_and_events_disabled() const
     // A Navigation navigation has entries and events disabled if the following steps return true:
 
     // 1. Let document be navigation's relevant global object's associated Document.
-    auto const& document = verify_cast<HTML::Window>(relevant_global_object(*this)).associated_document();
+    auto const& document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
 
     // 2. If document is not fully active, then return true.
     if (!document.is_fully_active())
@@ -620,7 +620,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
     // To perform a navigation API traversal given a Navigation navigation, a string key, and a NavigationOptions options:
 
     // 1. Let document be this's relevant global object's associated Document.
-    auto& document = verify_cast<HTML::Window>(relevant_global_object(*this)).associated_document();
+    auto& document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
 
     // 2. If document is not fully active, then return an early error result for an "InvalidStateError" DOMException.
     if (!document.is_fully_active())
@@ -957,7 +957,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
     auto api_method_tracker = m_ongoing_api_method_tracker;
 
     // 7. Let navigable be navigation's relevant global object's navigable.
-    auto& relevant_global_object = verify_cast<HTML::Window>(Web::HTML::relevant_global_object(*this));
+    auto& relevant_global_object = as<HTML::Window>(Web::HTML::relevant_global_object(*this));
     auto navigable = relevant_global_object.navigable();
 
     // 8. Let document be navigation's relevant global object's associated Document.
@@ -1157,7 +1157,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
 
                 // FIXME: Spec issue: Event's relevant global objects' *associated document*
                 // 1. If event's relevant global object is not fully active, then abort these steps.
-                auto& relevant_global_object = verify_cast<HTML::Window>(HTML::relevant_global_object(*event));
+                auto& relevant_global_object = as<HTML::Window>(HTML::relevant_global_object(*event));
                 auto& realm = event->realm();
                 if (!relevant_global_object.associated_document().is_fully_active())
                     return;
@@ -1193,7 +1193,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
             [event, this, api_method_tracker](JS::Value rejection_reason) -> void {
                 // FIXME: Spec issue: Event's relevant global objects' *associated document*
                 // 1. If event's relevant global object is not fully active, then abort these steps.
-                auto& relevant_global_object = verify_cast<HTML::Window>(HTML::relevant_global_object(*event));
+                auto& relevant_global_object = as<HTML::Window>(HTML::relevant_global_object(*event));
                 auto& realm = event->realm();
                 if (!relevant_global_object.associated_document().is_fully_active())
                     return;
@@ -1291,7 +1291,7 @@ bool Navigation::fire_a_traverse_navigate_event(GC::Ref<SessionHistoryEntry> des
 
     // 8. Set destination's is same document to true if destinationSHE's document is equal to
     //    navigation's relevant global object's associated Document; otherwise false.
-    destination->set_is_same_document(destination_she->document() == &verify_cast<Window>(relevant_global_object(*this)).associated_document());
+    destination->set_is_same_document(destination_she->document() == &as<Window>(relevant_global_object(*this)).associated_document());
 
     // 9. Return the result of performing the inner navigate event firing algorithm given navigation, "traverse", event, destination, userInvolvement, null, and null.
     // AD-HOC: We don't pass the event, but we do pass the classic_history_api state at the end to be set later

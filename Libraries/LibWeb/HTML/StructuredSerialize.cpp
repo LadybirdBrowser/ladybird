@@ -854,7 +854,7 @@ public:
         case ValueTag::ArrayBufferView: {
             auto* realm = m_vm.current_realm();
             auto array_buffer_value = TRY(deserialize());
-            auto& array_buffer = verify_cast<JS::ArrayBuffer>(array_buffer_value.as_object());
+            auto& array_buffer = as<JS::ArrayBuffer>(array_buffer_value.as_object());
             auto constructor_name = TRY(deserialize_string(m_vm, m_serialized, m_position));
             u32 byte_length = deserialize_primitive_type<u32>(m_serialized, m_position);
             u32 byte_offset = deserialize_primitive_type<u32>(m_serialized, m_position);

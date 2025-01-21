@@ -289,7 +289,7 @@ JS::ThrowCompletionOr<void> CustomElementRegistry::define(String const& name, We
     m_custom_element_definitions.append(definition);
 
     // 17. Let document be this's relevant global object's associated Document.
-    auto& document = verify_cast<HTML::Window>(relevant_global_object(*this)).associated_document();
+    auto& document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
 
     // 18. Let upgradeCandidates be all elements that are shadow-including descendants of document, whose namespace is the HTML namespace
     //     and whose local name is localName, in shadow-including tree order.

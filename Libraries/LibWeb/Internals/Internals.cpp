@@ -40,7 +40,7 @@ void Internals::initialize(JS::Realm& realm)
 
 HTML::Window& Internals::internals_window() const
 {
-    return verify_cast<HTML::Window>(HTML::relevant_global_object(*this));
+    return as<HTML::Window>(HTML::relevant_global_object(*this));
 }
 
 Page& Internals::internals_page() const

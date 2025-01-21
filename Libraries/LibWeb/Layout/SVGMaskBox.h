@@ -22,8 +22,8 @@ public:
 
     virtual bool is_svg_mask_box() const override { return true; }
 
-    SVG::SVGMaskElement& dom_node() { return verify_cast<SVG::SVGMaskElement>(SVGGraphicsBox::dom_node()); }
-    SVG::SVGMaskElement const& dom_node() const { return verify_cast<SVG::SVGMaskElement>(SVGGraphicsBox::dom_node()); }
+    SVG::SVGMaskElement& dom_node() { return as<SVG::SVGMaskElement>(SVGGraphicsBox::dom_node()); }
+    SVG::SVGMaskElement const& dom_node() const { return as<SVG::SVGMaskElement>(SVGGraphicsBox::dom_node()); }
 
     virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 };

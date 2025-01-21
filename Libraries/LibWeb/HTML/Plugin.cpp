@@ -61,7 +61,7 @@ String Plugin::filename() const
 Vector<FlyString> Plugin::supported_property_names() const
 {
     // The Plugin interface supports named properties. If the user agent's PDF viewer supported is true, then they are the PDF viewer mime types. Otherwise, they are the empty list.
-    auto const& window = verify_cast<HTML::Window>(HTML::relevant_global_object(*this));
+    auto const& window = as<HTML::Window>(HTML::relevant_global_object(*this));
     if (!window.page().pdf_viewer_supported())
         return {};
 
@@ -78,7 +78,7 @@ Vector<FlyString> Plugin::supported_property_names() const
 size_t Plugin::length() const
 {
     // The Plugin interface's length getter steps are to return this's relevant global object's PDF viewer mime type objects's size.
-    auto& window = verify_cast<HTML::Window>(HTML::relevant_global_object(*this));
+    auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
     return window.pdf_viewer_mime_type_objects().size();
 }
 
@@ -86,7 +86,7 @@ size_t Plugin::length() const
 GC::Ptr<MimeType> Plugin::item(u32 index) const
 {
     // 1. Let mimeTypes be this's relevant global object's PDF viewer mime type objects.
-    auto& window = verify_cast<HTML::Window>(HTML::relevant_global_object(*this));
+    auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
     auto mime_types = window.pdf_viewer_mime_type_objects();
 
     // 2. If index < mimeType's size, then return mimeTypes[index].
@@ -100,7 +100,7 @@ GC::Ptr<MimeType> Plugin::item(u32 index) const
 GC::Ptr<MimeType> Plugin::named_item(FlyString const& name) const
 {
     // 1. For each MimeType mimeType of this's relevant global object's PDF viewer mime type objects: if mimeType's type is name, then return mimeType.
-    auto& window = verify_cast<HTML::Window>(HTML::relevant_global_object(*this));
+    auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
     auto mime_types = window.pdf_viewer_mime_type_objects();
 
     for (auto& mime_type : mime_types) {
