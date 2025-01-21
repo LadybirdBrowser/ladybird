@@ -1,0 +1,36 @@
+{
+  "name": "angle",
+  "version-string": "chromium_5414",
+  "port-version": 9,
+  "description": [
+    "A conformant OpenGL ES implementation for Windows, Mac and Linux.",
+    "The goal of ANGLE is to allow users of multiple operating systems to seamlessly run WebGL and other OpenGL ES content by translating OpenGL ES API calls to one of the hardware-supported APIs available for that platform. ANGLE currently provides translation from OpenGL ES 2.0 and 3.0 to desktop OpenGL, OpenGL ES, Direct3D 9, and Direct3D 11. Support for translation from OpenGL ES to Vulkan is underway, and future plans include compute shader support (ES 3.1) and MacOS support."
+  ],
+  "homepage": "https://github.com/google/angle",
+  "license": "BSD-3-Clause",
+  "dependencies": [
+    "egl-registry",
+    {
+      "name": "libx11",
+      "platform": "linux"
+    },
+    {
+      "name": "libxext",
+      "platform": "linux"
+    },
+    {
+      "name": "libxi",
+      "platform": "linux"
+    },
+    "opengl-registry",
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    },
+    "zlib"
+  ]
+}

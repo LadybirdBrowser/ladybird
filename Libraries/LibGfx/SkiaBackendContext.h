@@ -23,6 +23,7 @@ class SkSurface;
 namespace Gfx {
 
 class MetalContext;
+struct VulkanContext;
 
 class SkiaBackendContext : public RefCounted<SkiaBackendContext> {
     AK_MAKE_NONCOPYABLE(SkiaBackendContext);
@@ -44,6 +45,7 @@ public:
     virtual GrDirectContext* sk_context() const = 0;
 
     virtual MetalContext& metal_context() = 0;
+    virtual VulkanContext& vulkan_context() = 0;
 };
 
 }

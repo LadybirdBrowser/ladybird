@@ -5,6 +5,7 @@
  */
 
 #include <AK/Format.h>
+#include <AK/NonnullRefPtr.h>
 #include <AK/Vector.h>
 #include <LibGfx/VulkanContext.h>
 
@@ -22,9 +23,16 @@ static ErrorOr<VkInstance> create_instance(uint32_t api_version)
     app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
     app_info.apiVersion = api_version;
 
+    Array<char const*, 2> required_extensions = {
+        VK_KHR_SURFACE_EXTENSION_NAME,
+        VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME
+    };
+
     VkInstanceCreateInfo create_info {};
     create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     create_info.pApplicationInfo = &app_info;
+    create_info.enabledExtensionCount = required_extensions.size();
+    create_info.ppEnabledExtensionNames = required_extensions.data();
 
     auto result = vkCreateInstance(&create_info, nullptr, &instance);
     if (result != VK_SUCCESS) {
@@ -93,11 +101,19 @@ static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device)
 
     VkPhysicalDeviceFeatures deviceFeatures {};
 
+    Array<char const*, 3> device_extensions = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+        VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME,
+        VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
+    };
+
     VkDeviceCreateInfo create_device_info {};
     create_device_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     create_device_info.pQueueCreateInfos = &queue_create_info;
     create_device_info.queueCreateInfoCount = 1;
     create_device_info.pEnabledFeatures = &deviceFeatures;
+    create_device_info.enabledExtensionCount = device_extensions.size();
+    create_device_info.ppEnabledExtensionNames = device_extensions.data();
 
     if (vkCreateDevice(physical_device, &create_device_info, nullptr, &device) != VK_SUCCESS) {
         return Error::from_string_literal("Logical device creation failed");
@@ -106,7 +122,7 @@ static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device)
     return device;
 }
 
-ErrorOr<VulkanContext> create_vulkan_context()
+ErrorOr<NonnullRefPtr<VulkanContext>> create_vulkan_context()
 {
     uint32_t const api_version = VK_API_VERSION_1_0;
     auto* instance = TRY(create_instance(api_version));
@@ -116,13 +132,114 @@ ErrorOr<VulkanContext> create_vulkan_context()
     VkQueue graphics_queue;
     vkGetDeviceQueue(logical_device, 0, 0, &graphics_queue);
 
-    return VulkanContext {
-        .api_version = api_version,
-        .instance = instance,
-        .physical_device = physical_device,
-        .logical_device = logical_device,
-        .graphics_queue = graphics_queue,
+    return make_ref_counted<VulkanContext>(
+        api_version,
+        instance,
+        physical_device,
+        logical_device,
+        graphics_queue);
+}
+
+namespace Vulkan {
+
+static uint32_t findMemoryType(VkPhysicalDevice physical_device, uint32_t type_filter, VkMemoryPropertyFlags properties)
+{
+    VkPhysicalDeviceMemoryProperties memory_properties = {};
+    vkGetPhysicalDeviceMemoryProperties(physical_device, &memory_properties);
+
+    for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++) {
+        if ((type_filter & (1 << i)) && (memory_properties.memoryTypes[i].propertyFlags & properties) == properties) {
+            return i;
+        }
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
+static ErrorOr<int> export_memory_to_dmabuf(VkDevice device, VkDeviceMemory memory)
+{
+    VkMemoryGetFdInfoKHR get_fd_info {};
+    get_fd_info.sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR;
+    get_fd_info.memory = memory;
+    get_fd_info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
+
+    int dma_buf_fd = -1;
+    PFN_vkGetMemoryFdKHR vkGetMemoryFdKHR = (PFN_vkGetMemoryFdKHR)vkGetDeviceProcAddr(device, "vkGetMemoryFdKHR");
+    VERIFY(vkGetMemoryFdKHR);
+
+    if (vkGetMemoryFdKHR(device, &get_fd_info, &dma_buf_fd) != VK_SUCCESS) {
+        return Error::from_string_literal("Failed to export memory to dma_buf");
+    }
+
+    return dma_buf_fd;
+}
+
+ErrorOr<Image> create_image(VulkanContext& context, VkExtent2D extent, VkFormat format)
+{
+    VkImageCreateInfo image_create_info {};
+    image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    image_create_info.imageType = VK_IMAGE_TYPE_2D;
+    image_create_info.format = format;
+    image_create_info.extent = { extent.width, extent.height, 1 };
+    image_create_info.mipLevels = 1;
+    image_create_info.arrayLayers = 1;
+    image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
+    image_create_info.tiling = VK_IMAGE_TILING_LINEAR;
+    image_create_info.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+    ;
+    image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    image_create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    VkExternalMemoryImageCreateInfo external_memory_image_create_info {};
+    external_memory_image_create_info.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO;
+    external_memory_image_create_info.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
+    image_create_info.pNext = &external_memory_image_create_info;
+
+    VkImage image = VK_NULL_HANDLE;
+    if (vkCreateImage(context.logical_device, &image_create_info, nullptr, &image) != VK_SUCCESS) {
+        return Error::from_string_literal("Image creation failed");
+    }
+
+    VkMemoryRequirements memory_requirements = {};
+    vkGetImageMemoryRequirements(context.logical_device, image, &memory_requirements);
+
+    VkMemoryAllocateInfo alloc_info {};
+    alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    alloc_info.allocationSize = memory_requirements.size;
+    alloc_info.memoryTypeIndex = findMemoryType(context.physical_device, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    VkExportMemoryAllocateInfo export_memory_allocate_info {};
+    export_memory_allocate_info.sType = VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO;
+    export_memory_allocate_info.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
+    alloc_info.pNext = &export_memory_allocate_info;
+
+    VkDeviceMemory image_memory = {};
+    if (vkAllocateMemory(context.logical_device, &alloc_info, nullptr, &image_memory) != VK_SUCCESS) {
+        vkDestroyImage(context.logical_device, image, nullptr);
+        return Error::from_string_literal("Image memory allocation failed");
+    }
+
+    if (vkBindImageMemory(context.logical_device, image, image_memory, 0) != VK_SUCCESS) {
+        vkFreeMemory(context.logical_device, image_memory, nullptr);
+        vkDestroyImage(context.logical_device, image, nullptr);
+        return Error::from_string_literal("Image memory binding failed");
+    }
+
+    auto exported_fd = TRY(export_memory_to_dmabuf(context.logical_device, image_memory));
+
+    auto image_create_info_copy = image_create_info;
+    image_create_info_copy.pNext = nullptr;
+
+    return Image {
+        .device = context.logical_device,
+        .image = image,
+        .memory = image_memory,
+        .alloc_size = memory_requirements.size,
+        .create_info = image_create_info_copy,
+        .exported_fd = exported_fd
     };
+}
+
 }
 
 }

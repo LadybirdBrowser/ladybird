@@ -34,9 +34,10 @@ class SkiaVulkanBackendContext final : public SkiaBackendContext {
     AK_MAKE_NONMOVABLE(SkiaVulkanBackendContext);
 
 public:
-    SkiaVulkanBackendContext(sk_sp<GrDirectContext> context, NonnullOwnPtr<skgpu::VulkanExtensions> extensions)
+    SkiaVulkanBackendContext(sk_sp<GrDirectContext> context, NonnullOwnPtr<skgpu::VulkanExtensions> extensions, VulkanContext& vulkan_context)
         : m_context(move(context))
         , m_extensions(move(extensions))
+        , m_vulkan_context(vulkan_context)
     {
     }
 
@@ -54,10 +55,12 @@ public:
     GrDirectContext* sk_context() const override { return m_context.get(); }
 
     MetalContext& metal_context() override { VERIFY_NOT_REACHED(); }
+    VulkanContext& vulkan_context() override { return m_vulkan_context; }
 
 private:
     sk_sp<GrDirectContext> m_context;
     NonnullOwnPtr<skgpu::VulkanExtensions> m_extensions;
+    NonnullRefPtr<VulkanContext> m_vulkan_context;
 };
 
 RefPtr<SkiaBackendContext> SkiaBackendContext::create_vulkan_context(Gfx::VulkanContext& vulkan_context)
@@ -81,7 +84,7 @@ RefPtr<SkiaBackendContext> SkiaBackendContext::create_vulkan_context(Gfx::Vulkan
 
     sk_sp<GrDirectContext> ctx = GrDirectContexts::MakeVulkan(backend_context);
     VERIFY(ctx);
-    return adopt_ref(*new SkiaVulkanBackendContext(ctx, move(extensions)));
+    return adopt_ref(*new SkiaVulkanBackendContext(ctx, move(extensions), vulkan_context));
 }
 #endif
 

@@ -16,6 +16,9 @@
 
 #ifdef AK_OS_MACOS
 #    include <gpu/ganesh/mtl/GrMtlBackendSurface.h>
+#elif USE_VULKAN
+#    include <gpu/ganesh/vk/GrVkBackendSurface.h>
+#    include <gpu/vk/GrVkTypes.h>
 #endif
 
 namespace Gfx {
@@ -77,6 +80,32 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::wrap_iosurface(Core::IOSurfaceHa
     }
     auto surface = SkSurfaces::WrapBackendRenderTarget(context->sk_context(), backend_render_target, sk_origin, kBGRA_8888_SkColorType, nullptr, nullptr);
     return adopt_ref(*new PaintingSurface(make<Impl>(size, surface, nullptr, context)));
+}
+#else
+NonnullRefPtr<PaintingSurface> PaintingSurface::wrap_vkimage(Vulkan::Image image, RefPtr<SkiaBackendContext> context, Origin origin)
+{
+    auto image_info = SkImageInfo::Make(image.create_info.extent.width, image.create_info.extent.height, kBGRA_8888_SkColorType, kPremul_SkAlphaType, SkColorSpace::MakeSRGB());
+    GrVkImageInfo vk_info = {};
+    vk_info.fCurrentQueueFamily = VK_QUEUE_FAMILY_IGNORED;
+    vk_info.fFormat = image.create_info.format;
+    vk_info.fImage = image.image;
+    vk_info.fImageLayout = image.create_info.initialLayout;
+    vk_info.fImageTiling = image.create_info.tiling;
+    vk_info.fImageUsageFlags = image.create_info.usage;
+    vk_info.fSharingMode = image.create_info.sharingMode;
+    vk_info.fAlloc.fMemory = image.memory;
+    vk_info.fAlloc.fOffset = 0;
+    vk_info.fAlloc.fSize = image.alloc_size;
+    vk_info.fAlloc.fFlags = 0;
+    vk_info.fAlloc.fBackendMemory = 0;
+    vk_info.fProtected = skgpu::Protected::kNo;
+    vk_info.fSampleCount = 1;
+    vk_info.fLevelCount = 0;
+
+    auto backend_render_target = GrBackendRenderTargets::MakeVk(image_info.height(), image_info.height(), vk_info);
+    GrSurfaceOrigin sk_origin = origin == Origin::TopLeft ? kTopLeft_GrSurfaceOrigin : kBottomLeft_GrSurfaceOrigin;
+    auto surface = SkSurfaces::WrapBackendRenderTarget(context->sk_context(), backend_render_target, sk_origin, kBGRA_8888_SkColorType, nullptr, nullptr);
+    return adopt_ref(*new PaintingSurface(make<Impl>(IntSize { image.create_info.extent.width, image.create_info.extent.height }, surface, nullptr, context)));
 }
 #endif
 
