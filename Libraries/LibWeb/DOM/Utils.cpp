@@ -23,17 +23,17 @@ EventTarget* retarget(EventTarget* a, EventTarget* b)
             return a;
 
         // - A’s root is not a shadow root
-        auto* a_node = verify_cast<Node>(a);
+        auto* a_node = as<Node>(a);
         auto& a_root = a_node->root();
         if (!is<ShadowRoot>(a_root))
             return a;
 
         // - B is a node and A’s root is a shadow-including inclusive ancestor of B
-        if (is<Node>(b) && a_root.is_shadow_including_inclusive_ancestor_of(verify_cast<Node>(*b)))
+        if (is<Node>(b) && a_root.is_shadow_including_inclusive_ancestor_of(as<Node>(*b)))
             return a;
 
         // 2. Set A to A’s root’s host.
-        auto& a_shadow_root = verify_cast<ShadowRoot>(a_root);
+        auto& a_shadow_root = as<ShadowRoot>(a_root);
         a = a_shadow_root.host();
     }
 }

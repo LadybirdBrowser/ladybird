@@ -59,7 +59,7 @@ WebIDL::ExceptionOr<void> HTMLTemplateElement::cloned(Node& copy, bool subtree) 
     // 2. For each child of node's template contents's children, in tree order:
     //    clone a node given child with document set to copy's template contents's node document,
     //    subtree set to true, and parent set to copy's template contents.
-    auto& template_copy = verify_cast<HTMLTemplateElement>(copy);
+    auto& template_copy = as<HTMLTemplateElement>(copy);
     for (auto child = content()->first_child(); child; child = child->next_sibling()) {
         TRY(child->clone_node(&template_copy.content()->document(), true, template_copy.content()));
     }

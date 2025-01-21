@@ -403,7 +403,7 @@ void MessagePort::post_message_task_steps(SerializedTransferRecord& serialize_wi
     Vector<GC::Root<MessagePort>> new_ports;
     for (auto const& object : deserialize_record.transferred_values) {
         if (is<HTML::MessagePort>(*object)) {
-            new_ports.append(verify_cast<MessagePort>(*object));
+            new_ports.append(as<MessagePort>(*object));
         }
     }
 

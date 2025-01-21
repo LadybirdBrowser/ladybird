@@ -175,7 +175,7 @@ void HTMLTrackElement::start_the_track_processing_model_parallel_steps(JS::Realm
     //    parent media element's crossorigin content attribute. Otherwise, let corsAttributeState be No CORS.
     auto cors_attribute_state = CORSSettingAttribute::NoCORS;
     if (is<HTMLMediaElement>(parent())) {
-        cors_attribute_state = verify_cast<HTMLMediaElement>(parent())->crossorigin();
+        cors_attribute_state = as<HTMLMediaElement>(parent())->crossorigin();
     }
 
     // 9. End the synchronous section, continuing the remaining steps in parallel.

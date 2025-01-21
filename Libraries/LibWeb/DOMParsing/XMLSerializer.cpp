@@ -700,7 +700,7 @@ static WebIDL::ExceptionOr<String> serialize_element(DOM::Element const& element
     // 18. If ns is the HTML namespace, and the node's localName matches the string "template", then this is a template element.
     if (ns == Namespace::HTML && element.local_name() == HTML::TagNames::template_) {
         // Append to markup the result of XML serializing a DocumentFragment node given the template element's template contents (a DocumentFragment), providing inherited ns, map, prefix index, and the require well-formed flag.
-        auto const& template_element = verify_cast<HTML::HTMLTemplateElement>(element);
+        auto const& template_element = as<HTML::HTMLTemplateElement>(element);
         markup.append(TRY(serialize_document_fragment(template_element.content(), inherited_ns, map, prefix_index, require_well_formed)));
     }
 

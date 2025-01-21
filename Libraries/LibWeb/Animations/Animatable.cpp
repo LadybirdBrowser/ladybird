@@ -62,7 +62,7 @@ WebIDL::ExceptionOr<GC::Ref<Animation>> Animatable::animate(Optional<GC::Root<JS
 // https://drafts.csswg.org/web-animations-1/#dom-animatable-getanimations
 WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> Animatable::get_animations(Optional<GetAnimationsOptions> options)
 {
-    verify_cast<DOM::Element>(*this).document().update_style();
+    as<DOM::Element>(*this).document().update_style();
     return get_animations_internal(options);
 }
 
@@ -103,8 +103,8 @@ WebIDL::ExceptionOr<Vector<GC::Ref<Animation>>> Animatable::get_animations_inter
     // The returned list is sorted using the composite order described for the associated animations of effects in
     // §5.4.2 The effect stack.
     quick_sort(relevant_animations, [](GC::Ref<Animation>& a, GC::Ref<Animation>& b) {
-        auto& a_effect = verify_cast<KeyframeEffect>(*a->effect());
-        auto& b_effect = verify_cast<KeyframeEffect>(*b->effect());
+        auto& a_effect = as<KeyframeEffect>(*a->effect());
+        auto& b_effect = as<KeyframeEffect>(*b->effect());
         return KeyframeEffect::composite_order(a_effect, b_effect) < 0;
     });
 

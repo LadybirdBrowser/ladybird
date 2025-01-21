@@ -35,7 +35,7 @@ ErrorOr<GC::Ref<HTML::HTMLCanvasElement>, WebDriver::Error> draw_bounding_box_fr
 
     // 4. Let canvas be a new canvas element, and set its width and height to paint width and paint height, respectively.
     auto canvas_element = DOM::create_element(element.document(), HTML::TagNames::canvas, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
-    auto& canvas = verify_cast<HTML::HTMLCanvasElement>(*canvas_element);
+    auto& canvas = as<HTML::HTMLCanvasElement>(*canvas_element);
 
     // FIXME: Handle DevicePixelRatio in HiDPI mode.
     MUST(canvas.set_width(paint_width));

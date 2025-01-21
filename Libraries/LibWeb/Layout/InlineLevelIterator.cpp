@@ -158,7 +158,7 @@ CSSPixels InlineLevelIterator::next_non_whitespace_sequence_width()
                 break;
             if (next_item.is_collapsible_whitespace)
                 break;
-            auto& next_text_node = verify_cast<Layout::TextNode>(*(next_item.node));
+            auto& next_text_node = as<Layout::TextNode>(*(next_item.node));
             auto next_view = next_text_node.text_for_rendering().bytes_as_string_view().substring_view(next_item.offset_in_node, next_item.length_in_node);
             if (next_view.is_whitespace())
                 break;
@@ -614,7 +614,7 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
         const_cast<Layout::ReplacedBox&>(replaced_box).prepare_for_replaced_layout();
     }
 
-    auto& box = verify_cast<Layout::Box>(*m_current_node);
+    auto& box = as<Layout::Box>(*m_current_node);
     auto& box_state = m_layout_state.get(box);
     m_inline_formatting_context.dimension_box_on_line(box, m_layout_mode);
 

@@ -28,7 +28,7 @@ GC::Ref<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(
     VERIFY(realm);
 
     // 3. Let worker global scope be realm's global object.
-    auto& worker = verify_cast<HTML::WorkerGlobalScope>(realm->global_object());
+    auto& worker = as<HTML::WorkerGlobalScope>(realm->global_object());
 
     // 4. Let settings object be a new environment settings object whose algorithms are defined as follows:
     // NOTE: See the functions defined for this class.

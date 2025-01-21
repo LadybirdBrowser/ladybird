@@ -30,7 +30,7 @@ InternalAnimationTimeline::InternalAnimationTimeline(JS::Realm& realm)
 {
     m_current_time = 0.0;
 
-    auto& document = verify_cast<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
+    auto& document = as<HTML::Window>(HTML::relevant_global_object(*this)).associated_document();
     document.associate_with_timeline(*this);
 }
 

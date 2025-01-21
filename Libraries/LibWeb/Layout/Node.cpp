@@ -100,7 +100,7 @@ static Box const* nearest_ancestor_capable_of_forming_a_containing_block(Node co
             || ancestor->display().is_flex_inside()
             || ancestor->display().is_grid_inside()
             || ancestor->is_svg_svg_box()) {
-            return verify_cast<Box>(ancestor);
+            return as<Box>(ancestor);
         }
     }
     return nullptr;

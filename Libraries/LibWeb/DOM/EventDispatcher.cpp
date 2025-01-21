@@ -71,7 +71,7 @@ bool EventDispatcher::inner_invoke(Event& event, Vector<GC::Root<DOM::DOMEventLi
 
         // 8. If global is a Window object, then:
         if (is<HTML::Window>(global)) {
-            auto& window = verify_cast<HTML::Window>(global);
+            auto& window = as<HTML::Window>(global);
 
             // 1. Set currentEvent to global’s current event.
             current_event = window.current_event();
@@ -109,7 +109,7 @@ bool EventDispatcher::inner_invoke(Event& event, Vector<GC::Root<DOM::DOMEventLi
 
         // 13. If global is a Window object, then set global’s current event to currentEvent.
         if (is<HTML::Window>(global)) {
-            auto& window = verify_cast<HTML::Window>(global);
+            auto& window = as<HTML::Window>(global);
             window.set_current_event(current_event);
         }
 
@@ -203,7 +203,7 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
     if (!legacy_target_override) {
         target_override = target;
     } else {
-        target_override = &verify_cast<HTML::Window>(*target).associated_document();
+        target_override = &as<HTML::Window>(*target).associated_document();
     }
 
     // 3. Let activationTarget be null.
@@ -279,7 +279,7 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
 
             // 6. If parent is a Window object, or parent is a node and target’s root is a shadow-including inclusive ancestor of parent, then:
             if (is<HTML::Window>(parent)
-                || (is<Node>(parent) && verify_cast<Node>(*target).root().is_shadow_including_inclusive_ancestor_of(verify_cast<Node>(*parent)))) {
+                || (is<Node>(parent) && as<Node>(*target).root().is_shadow_including_inclusive_ancestor_of(as<Node>(*parent)))) {
                 // 1. If isActivationEvent is true, event’s bubbles attribute is true, activationTarget is null, and parent has activation behavior, then set activationTarget to parent.
                 if (is_activation_event && event.bubbles() && !activation_target && parent->has_activation_behavior())
                     activation_target = parent;
@@ -323,13 +323,13 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
         // 11. Let clearTargets be true if clearTargetsStruct’s shadow-adjusted target, clearTargetsStruct’s relatedTarget,
         //     or an EventTarget object in clearTargetsStruct’s touch target list is a node and its root is a shadow root; otherwise false.
         if (is<Node>(clear_targets_struct.value().shadow_adjusted_target.ptr())) {
-            auto& shadow_adjusted_target_node = verify_cast<Node>(*clear_targets_struct.value().shadow_adjusted_target);
+            auto& shadow_adjusted_target_node = as<Node>(*clear_targets_struct.value().shadow_adjusted_target);
             if (is<ShadowRoot>(shadow_adjusted_target_node.root()))
                 clear_targets = true;
         }
 
         if (!clear_targets && is<Node>(clear_targets_struct.value().related_target.ptr())) {
-            auto& related_target_node = verify_cast<Node>(*clear_targets_struct.value().related_target);
+            auto& related_target_node = as<Node>(*clear_targets_struct.value().related_target);
             if (is<ShadowRoot>(related_target_node.root()))
                 clear_targets = true;
         }
@@ -337,7 +337,7 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
         if (!clear_targets) {
             for (auto touch_target : clear_targets_struct.value().touch_target_list) {
                 if (is<Node>(*touch_target.ptr())) {
-                    auto& touch_target_node = verify_cast<Node>(*touch_target.ptr());
+                    auto& touch_target_node = as<Node>(*touch_target.ptr());
                     if (is<ShadowRoot>(touch_target_node.root())) {
                         clear_targets = true;
                         break;

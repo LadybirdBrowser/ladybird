@@ -61,10 +61,10 @@ HTML::Script* active_script()
     // 3. Return record.[[HostDefined]].
     return record.visit(
         [](GC::Ref<JS::Script>& js_script) -> HTML::Script* {
-            return verify_cast<HTML::ClassicScript>(js_script->host_defined());
+            return as<HTML::ClassicScript>(js_script->host_defined());
         },
         [](GC::Ref<JS::Module>& js_module) -> HTML::Script* {
-            return verify_cast<HTML::ModuleScript>(js_module->host_defined());
+            return as<HTML::ModuleScript>(js_module->host_defined());
         },
         [](Empty) -> HTML::Script* {
             return nullptr;
@@ -77,7 +77,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
 
     s_main_thread_vm = TRY(JS::VM::create(make<WebEngineCustomData>()));
 
-    auto& custom_data = verify_cast<WebEngineCustomData>(*s_main_thread_vm->custom_data());
+    auto& custom_data = as<WebEngineCustomData>(*s_main_thread_vm->custom_data());
     custom_data.agent.event_loop = s_main_thread_vm->heap().allocate<HTML::EventLoop>(type);
 
     s_main_thread_vm->on_unimplemented_property_access = [](auto const& object, auto const& property_key) {
@@ -110,10 +110,10 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         HTML::Script* script { nullptr };
         vm.running_execution_context().script_or_module.visit(
             [&script](GC::Ref<JS::Script>& js_script) {
-                script = verify_cast<HTML::ClassicScript>(js_script->host_defined());
+                script = as<HTML::ClassicScript>(js_script->host_defined());
             },
             [&script](GC::Ref<JS::Module>& js_module) {
-                script = verify_cast<HTML::ModuleScript>(js_module->host_defined());
+                script = as<HTML::ModuleScript>(js_module->host_defined());
             },
             [](Empty) {
             });
@@ -160,7 +160,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             //    with the promise attribute initialized to promise, and the reason attribute initialized to the value of promise's [[PromiseResult]] internal slot.
             HTML::queue_global_task(HTML::Task::Source::DOMManipulation, global, GC::create_function(s_main_thread_vm->heap(), [&global, &promise] {
                 // FIXME: This currently assumes that global is a WindowObject.
-                auto& window = verify_cast<HTML::Window>(global);
+                auto& window = as<HTML::Window>(global);
 
                 HTML::PromiseRejectionEventInit event_init {
                     {}, // Initialize the inherited DOM::EventInit
@@ -180,7 +180,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
     // 8.1.5.4.1 HostCallJobCallback(callback, V, argumentsList), https://html.spec.whatwg.org/multipage/webappapis.html#hostcalljobcallback
     // https://whatpr.org/html/9893/webappapis.html#hostcalljobcallback
     s_main_thread_vm->host_call_job_callback = [](JS::JobCallback& callback, JS::Value this_value, ReadonlySpan<JS::Value> arguments_list) {
-        auto& callback_host_defined = verify_cast<WebEngineCustomJobCallbackData>(*callback.custom_data());
+        auto& callback_host_defined = as<WebEngineCustomJobCallbackData>(*callback.custom_data());
 
         // 1. Let incumbent realm be callback.[[HostDefined]].[[IncumbentRealm]].
         auto& incumbent_realm = callback_host_defined.incumbent_realm;
@@ -327,10 +327,10 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             script_execution_context->function = nullptr;
             script_execution_context->realm = &script->realm();
             if (is<HTML::ClassicScript>(script)) {
-                script_execution_context->script_or_module = GC::Ref<JS::Script>(*verify_cast<HTML::ClassicScript>(script)->script_record());
+                script_execution_context->script_or_module = GC::Ref<JS::Script>(*as<HTML::ClassicScript>(script)->script_record());
             } else if (is<HTML::ModuleScript>(script)) {
                 if (is<HTML::JavaScriptModuleScript>(script)) {
-                    script_execution_context->script_or_module = GC::Ref<JS::Module>(*verify_cast<HTML::JavaScriptModuleScript>(script)->record());
+                    script_execution_context->script_or_module = GC::Ref<JS::Module>(*as<HTML::JavaScriptModuleScript>(script)->record());
                 } else {
                     // NOTE: Handle CSS and JSON module scripts once we have those.
                     VERIFY_NOT_REACHED();
@@ -351,7 +351,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         auto& vm = realm.vm();
 
         // 1. Let moduleScript be moduleRecord.[[HostDefined]].
-        auto& module_script = *verify_cast<HTML::Script>(module_record.host_defined());
+        auto& module_script = *as<HTML::Script>(module_record.host_defined());
 
         // 2. Assert: moduleScript's base URL is not null, as moduleScript is a JavaScript module script.
         VERIFY(module_script.base_url().is_valid());
@@ -424,7 +424,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         // 6. If referrer is a Script Record or a Cyclic Module Record, then:
         if (referrer.has<GC::Ref<JS::Script>>() || referrer.has<GC::Ref<JS::CyclicModule>>()) {
             // 1. Set referencingScript to referrer.[[HostDefined]].
-            referencing_script = verify_cast<HTML::Script>(referrer.has<GC::Ref<JS::Script>>() ? *referrer.get<GC::Ref<JS::Script>>()->host_defined() : *referrer.get<GC::Ref<JS::CyclicModule>>()->host_defined());
+            referencing_script = as<HTML::Script>(referrer.has<GC::Ref<JS::Script>>() ? *referrer.get<GC::Ref<JS::Script>>()->host_defined() : *referrer.get<GC::Ref<JS::CyclicModule>>()->host_defined());
 
             // 2. Set fetchReferrer to referencingScript's base URL.
             fetch_referrer = referencing_script->base_url();
@@ -657,7 +657,7 @@ JS::VM& main_thread_vm()
 void queue_mutation_observer_microtask(DOM::Document const& document)
 {
     auto& vm = main_thread_vm();
-    auto& surrounding_agent = verify_cast<WebEngineCustomData>(*vm.custom_data()).agent;
+    auto& surrounding_agent = as<WebEngineCustomData>(*vm.custom_data()).agent;
 
     // 1. If the surrounding agent’s mutation observer microtask queued is true, then return.
     if (surrounding_agent.mutation_observer_microtask_queued)

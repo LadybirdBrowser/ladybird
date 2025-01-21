@@ -110,7 +110,7 @@ TEST_CASE(move_moves)
     EXPECT(second_variant.has<NoCopy>());
 }
 
-TEST_CASE(verify_cast)
+TEST_CASE(as)
 {
     Variant<i8, i16, i32, i64> one_integer_to_rule_them_all { static_cast<i32>(42) };
     auto fake_integer = one_integer_to_rule_them_all.downcast<i8, i32>();

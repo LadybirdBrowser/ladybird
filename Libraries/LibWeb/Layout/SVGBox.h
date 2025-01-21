@@ -19,8 +19,8 @@ public:
     SVGBox(DOM::Document&, SVG::SVGElement&, GC::Ref<CSS::ComputedProperties>);
     virtual ~SVGBox() override = default;
 
-    SVG::SVGElement& dom_node() { return verify_cast<SVG::SVGElement>(*Box::dom_node()); }
-    SVG::SVGElement const& dom_node() const { return verify_cast<SVG::SVGElement>(*Box::dom_node()); }
+    SVG::SVGElement& dom_node() { return as<SVG::SVGElement>(*Box::dom_node()); }
+    SVG::SVGElement const& dom_node() const { return as<SVG::SVGElement>(*Box::dom_node()); }
 
 private:
     virtual bool is_svg_box() const final { return true; }

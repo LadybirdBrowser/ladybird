@@ -34,7 +34,7 @@ GC::Ref<Animation> Animation::create(JS::Realm& realm, GC::Ptr<AnimationEffect> 
     //    a timeline argument is missing, passing the default document timeline of the Document associated with the
     //    Window that is the current global object.
     if (!timeline.has_value()) {
-        auto& window = verify_cast<HTML::Window>(HTML::current_principal_global_object());
+        auto& window = as<HTML::Window>(HTML::current_principal_global_object());
         timeline = window.associated_document().timeline();
     }
     animation->set_timeline(timeline.release_value());
@@ -1143,7 +1143,7 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
             //    manipulation task source.
             else {
                 // Manually create a task so its ID can be saved
-                auto& document = verify_cast<HTML::Window>(realm.global_object()).associated_document();
+                auto& document = as<HTML::Window>(realm.global_object()).associated_document();
                 auto task = HTML::Task::create(vm(), HTML::Task::Source::DOMManipulation, &document,
                     GC::create_function(heap(), [this, finish_event]() {
                         dispatch_event(finish_event);
@@ -1166,7 +1166,7 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
         //    Otherwise, if synchronously notify is false, queue a microtask to run finish notification steps for
         //    animation unless there is already a microtask queued to run those steps for animation.
         else if (!m_pending_finish_microtask_id.has_value()) {
-            auto& document = verify_cast<HTML::Window>(realm.global_object()).associated_document();
+            auto& document = as<HTML::Window>(realm.global_object()).associated_document();
             auto task = HTML::Task::create(vm(), HTML::Task::Source::DOMManipulation, &document, move(finish_notification_steps));
             m_pending_finish_microtask_id = task->id();
             HTML::main_thread_event_loop().task_queue().add(move(task));

@@ -732,7 +732,7 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
         }
 
         // d. Let env be moduleContext's LexicalEnvironment.
-        auto& env = verify_cast<DeclarativeEnvironment>(*module_context->lexical_environment);
+        auto& env = as<DeclarativeEnvironment>(*module_context->lexical_environment);
 
         // e. Set result to Completion(DisposeResources(env.[[DisposeCapability]], result)).
         result = dispose_resources(vm, env.dispose_capability(), result);

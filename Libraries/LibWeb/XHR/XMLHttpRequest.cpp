@@ -144,7 +144,7 @@ WebIDL::ExceptionOr<GC::Ptr<DOM::Document>> XMLHttpRequest::response_xml()
 
     // 4. If this’s response object is non-null, then return it.
     if (!m_response_object.has<Empty>())
-        return &verify_cast<DOM::Document>(*m_response_object.get<GC::Ref<JS::Object>>());
+        return &as<DOM::Document>(*m_response_object.get<GC::Ref<JS::Object>>());
 
     // 5. Set a document response for this.
     set_document_response();
@@ -152,7 +152,7 @@ WebIDL::ExceptionOr<GC::Ptr<DOM::Document>> XMLHttpRequest::response_xml()
     // 6. Return this’s response object.
     if (m_response_object.has<Empty>())
         return nullptr;
-    return &verify_cast<DOM::Document>(*m_response_object.get<GC::Ref<JS::Object>>());
+    return &as<DOM::Document>(*m_response_object.get<GC::Ref<JS::Object>>());
 }
 
 // https://xhr.spec.whatwg.org/#dom-xmlhttprequest-responsetype

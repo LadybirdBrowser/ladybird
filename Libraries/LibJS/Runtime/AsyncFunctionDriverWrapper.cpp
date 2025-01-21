@@ -104,7 +104,7 @@ ThrowCompletionOr<void> AsyncFunctionDriverWrapper::await(JS::Value value)
     auto on_rejected = NativeFunction::create(realm, move(rejected_closure), 1, "");
 
     // 7. Perform PerformPromiseThen(promise, onFulfilled, onRejected).
-    m_current_promise = verify_cast<Promise>(promise_object);
+    m_current_promise = as<Promise>(promise_object);
     m_current_promise->perform_then(on_fulfilled, on_rejected, {});
 
     // 8. Remove asyncContext from the execution context stack and restore the execution context that is at the top of the

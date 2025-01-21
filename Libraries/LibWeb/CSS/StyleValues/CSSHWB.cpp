@@ -37,7 +37,7 @@ bool CSSHWB::equals(CSSStyleValue const& other) const
     auto const& other_color = other.as_color();
     if (color_type() != other_color.color_type())
         return false;
-    auto const& other_hwb = verify_cast<CSSHWB>(other_color);
+    auto const& other_hwb = as<CSSHWB>(other_color);
     return m_properties == other_hwb.m_properties;
 }
 

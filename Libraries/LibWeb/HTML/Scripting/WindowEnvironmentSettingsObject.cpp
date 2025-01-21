@@ -36,7 +36,7 @@ void WindowEnvironmentSettingsObject::setup(Page& page, URL::URL const& creation
     VERIFY(realm);
 
     // 2. Let window be realm's global object.
-    auto& window = verify_cast<HTML::Window>(realm->global_object());
+    auto& window = as<HTML::Window>(realm->global_object());
 
     // 3. Let settings object be a new environment settings object whose algorithms are defined as follows:
     // NOTE: See the functions defined for this class.

@@ -55,7 +55,7 @@ String const& MimeType::suffixes() const
 GC::Ref<Plugin> MimeType::enabled_plugin() const
 {
     // The MimeType interface's enabledPlugin getter steps are to return this's relevant global object's PDF viewer plugin objects[0] (i.e., the generic "PDF Viewer" one).
-    auto& window = verify_cast<HTML::Window>(HTML::relevant_global_object(*this));
+    auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
     auto plugin_objects = window.pdf_viewer_plugin_objects();
 
     // NOTE: If a MimeType object was created, that means PDF viewer support is enabled, meaning there will be Plugin objects.

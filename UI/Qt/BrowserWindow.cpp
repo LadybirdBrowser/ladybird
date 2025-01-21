@@ -59,7 +59,7 @@ public:
     {
         if (!isVisible())
             return;
-        auto* browser_window = verify_cast<BrowserWindow>(parentWidget());
+        auto* browser_window = as<BrowserWindow>(parentWidget());
         if (!browser_window)
             return;
         auto* current_tab = browser_window->current_tab();
@@ -626,7 +626,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         m_settings_dialog->setFocus();
     });
     QObject::connect(m_tabs_container, &QTabWidget::currentChanged, [this](int index) {
-        auto* tab = verify_cast<Tab>(m_tabs_container->widget(index));
+        auto* tab = as<Tab>(m_tabs_container->widget(index));
         if (tab)
             setWindowTitle(QString("%1 - Ladybird").arg(tab->title()));
 
@@ -915,7 +915,7 @@ void BrowserWindow::create_close_button_for_tab(Tab* tab)
 
 void BrowserWindow::tab_audio_play_state_changed(int index, Web::HTML::AudioPlayState play_state)
 {
-    auto* tab = verify_cast<Tab>(m_tabs_container->widget(index));
+    auto* tab = as<Tab>(m_tabs_container->widget(index));
     auto position = audio_button_position_for_tab(index);
 
     switch (play_state) {
@@ -939,7 +939,7 @@ void BrowserWindow::tab_audio_play_state_changed(int index, Web::HTML::AudioPlay
                 break;
             case Web::HTML::AudioPlayState::Playing:
                 auto* button = m_tabs_container->tabBar()->tabButton(index, position);
-                verify_cast<TabBarButton>(button)->setIcon(icon_for_page_mute_state(*tab));
+                as<TabBarButton>(button)->setIcon(icon_for_page_mute_state(*tab));
                 button->setToolTip(tool_tip_for_page_mute_state(*tab));
                 break;
             }
@@ -952,7 +952,7 @@ void BrowserWindow::tab_audio_play_state_changed(int index, Web::HTML::AudioPlay
 
 void BrowserWindow::tab_navigation_buttons_state_changed(int index)
 {
-    auto* tab = verify_cast<Tab>(m_tabs_container->widget(index));
+    auto* tab = as<Tab>(m_tabs_container->widget(index));
     tab->update_navigation_buttons_state();
 }
 

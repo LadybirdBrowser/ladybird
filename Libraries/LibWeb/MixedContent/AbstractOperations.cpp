@@ -51,7 +51,7 @@ ProhibitsMixedSecurityContexts does_settings_prohibit_mixed_security_contexts(GC
     // 2. If settings’ global object is a window, then:
     if (is<HTML::Window>(settings->global_object())) {
         // 1. Set document to settings’ global object's associated Document.
-        auto document = verify_cast<HTML::Window>(settings->global_object()).document();
+        auto document = as<HTML::Window>(settings->global_object()).document();
 
         // 2. For each navigable navigable in document’s ancestor navigables:
         for (auto const& navigable : document->ancestor_navigables()) {

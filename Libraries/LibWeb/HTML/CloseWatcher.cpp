@@ -43,7 +43,7 @@ GC::Ref<CloseWatcher> CloseWatcher::establish(HTML::Window& window)
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-closewatcher
 WebIDL::ExceptionOr<GC::Ref<CloseWatcher>> CloseWatcher::construct_impl(JS::Realm& realm, CloseWatcherOptions const& options)
 {
-    auto& window = verify_cast<HTML::Window>(realm.global_object());
+    auto& window = as<HTML::Window>(realm.global_object());
 
     // NOTE: Not in spec explicitly, but this should account for detached iframes too. See /close-watcher/frame-removal.html WPT.
     auto navigable = window.navigable();
@@ -91,7 +91,7 @@ bool CloseWatcher::request_close()
         return true;
 
     // 3. Let window be closeWatcher's window.
-    auto& window = verify_cast<HTML::Window>(realm().global_object());
+    auto& window = as<HTML::Window>(realm().global_object());
 
     // 4. If window's associated Document is not fully active, then return true.
     if (!window.associated_document().is_fully_active())
@@ -131,7 +131,7 @@ void CloseWatcher::close()
         return;
 
     // 2. If closeWatcher's window's associated Document is not fully active, then return.
-    if (!verify_cast<HTML::Window>(realm().global_object()).associated_document().is_fully_active())
+    if (!as<HTML::Window>(realm().global_object()).associated_document().is_fully_active())
         return;
 
     // 3. Destroy closeWatcher.
@@ -145,7 +145,7 @@ void CloseWatcher::close()
 void CloseWatcher::destroy()
 {
     // 1. Let manager be closeWatcher's window's close watcher manager.
-    auto manager = verify_cast<HTML::Window>(realm().global_object()).close_watcher_manager();
+    auto manager = as<HTML::Window>(realm().global_object()).close_watcher_manager();
 
     // 2-3. Moved to CloseWatcherManager::remove
     manager->remove(*this);

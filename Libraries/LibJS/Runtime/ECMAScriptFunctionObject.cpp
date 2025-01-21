@@ -688,7 +688,7 @@ void ECMAScriptFunctionObject::ordinary_call_bind_this(ExecutionContext& callee_
     // 9. Perform ! localEnv.BindThisValue(thisValue).
     callee_context.this_value = this_value;
     if (m_function_environment_needed)
-        MUST(verify_cast<FunctionEnvironment>(*local_env).bind_this_value(vm, this_value));
+        MUST(as<FunctionEnvironment>(*local_env).bind_this_value(vm, this_value));
 
     // 10. Return unused.
 }

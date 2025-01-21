@@ -1177,7 +1177,7 @@ static void apply_animation_properties(DOM::Document& document, CascadedProperti
     if (!animation.effect())
         return;
 
-    auto& effect = verify_cast<Animations::KeyframeEffect>(*animation.effect());
+    auto& effect = as<Animations::KeyframeEffect>(*animation.effect());
 
     Optional<CSS::Time> duration;
     if (auto duration_value = cascaded_properties.property(PropertyID::AnimationDuration); duration_value) {
@@ -2339,7 +2339,7 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::Element& elem
 
     // Special path for elements that use pseudo element as style selector
     if (element.use_pseudo_element().has_value()) {
-        auto& parent_element = verify_cast<HTML::HTMLElement>(*element.root().parent_or_shadow_host());
+        auto& parent_element = as<HTML::HTMLElement>(*element.root().parent_or_shadow_host());
         auto style = compute_style(parent_element, *element.use_pseudo_element());
 
         // Merge back inline styles
@@ -2772,7 +2772,7 @@ NonnullOwnPtr<StyleComputer::RuleCache> StyleComputer::make_rule_cache_for_casca
 
             // Forwards pass, resolve all the user-specified keyframe properties.
             for (auto const& keyframe_rule : *rule.css_rules()) {
-                auto const& keyframe = verify_cast<CSSKeyframeRule>(*keyframe_rule);
+                auto const& keyframe = as<CSSKeyframeRule>(*keyframe_rule);
                 Animations::KeyframeEffect::KeyFrameSet::ResolvedKeyFrame resolved_keyframe;
 
                 auto key = static_cast<u64>(keyframe.key().value() * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor);

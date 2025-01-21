@@ -136,7 +136,7 @@ void HTMLImageElement::form_associated_element_attribute_changed(FlyString const
 
     if (name == HTML::AttributeNames::alt) {
         if (layout_node())
-            did_update_alt_text(verify_cast<Layout::ImageBox>(*layout_node()));
+            did_update_alt_text(as<Layout::ImageBox>(*layout_node()));
     }
 
     if (name == HTML::AttributeNames::decoding) {

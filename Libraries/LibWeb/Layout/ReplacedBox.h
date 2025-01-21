@@ -18,8 +18,8 @@ public:
     ReplacedBox(DOM::Document&, DOM::Element&, GC::Ref<CSS::ComputedProperties>);
     virtual ~ReplacedBox() override;
 
-    DOM::Element const& dom_node() const { return verify_cast<DOM::Element>(*Node::dom_node()); }
-    DOM::Element& dom_node() { return verify_cast<DOM::Element>(*Node::dom_node()); }
+    DOM::Element const& dom_node() const { return as<DOM::Element>(*Node::dom_node()); }
+    DOM::Element& dom_node() { return as<DOM::Element>(*Node::dom_node()); }
 
     virtual void prepare_for_replaced_layout() { }
 

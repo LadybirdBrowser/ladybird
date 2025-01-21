@@ -35,7 +35,7 @@ VideoTrack::VideoTrack(JS::Realm& realm, GC::Ref<HTMLMediaElement> media_element
         auto playback_position = static_cast<double>(position().to_milliseconds()) / 1000.0;
 
         if (is<HTMLVideoElement>(*m_media_element))
-            verify_cast<HTMLVideoElement>(*m_media_element).set_current_frame({}, move(frame), playback_position);
+            as<HTMLVideoElement>(*m_media_element).set_current_frame({}, move(frame), playback_position);
 
         m_media_element->set_current_playback_position(playback_position);
     };
@@ -169,7 +169,7 @@ void VideoTrack::set_selected(bool selected)
 
     // AD-HOC: Inform the video element node that we have (un)selected a video track for layout.
     if (is<HTMLVideoElement>(*m_media_element)) {
-        auto& video_element = verify_cast<HTMLVideoElement>(*m_media_element);
+        auto& video_element = as<HTMLVideoElement>(*m_media_element);
         video_element.set_video_track(m_selected ? this : nullptr);
     }
 }

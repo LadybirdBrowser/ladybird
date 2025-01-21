@@ -1499,7 +1499,7 @@ inline ThrowCompletionOr<void> create_variable(VM& vm, DeprecatedFlyString const
 
     // NOTE: CreateVariable with m_is_global set to true is expected to only be used in GlobalDeclarationInstantiation currently, which only uses "false" for "can_be_deleted".
     //       The only area that sets "can_be_deleted" to true is EvalDeclarationInstantiation, which is currently fully implemented in C++ and not in Bytecode.
-    return verify_cast<GlobalEnvironment>(vm.variable_environment())->create_global_var_binding(name, false);
+    return as<GlobalEnvironment>(vm.variable_environment())->create_global_var_binding(name, false);
 }
 
 inline ThrowCompletionOr<ECMAScriptFunctionObject*> new_class(VM& vm, Value super_class, ClassExpression const& class_expression, Optional<IdentifierTableIndex> const& lhs_name, ReadonlySpan<Value> element_keys)
@@ -1555,7 +1555,7 @@ inline ThrowCompletionOr<GC::Ref<Object>> super_call_with_argument_array(VM& vm,
     auto result = TRY(construct(vm, static_cast<FunctionObject&>(*func), arg_list.span(), &new_target.as_function()));
 
     // 7. Let thisER be GetThisEnvironment().
-    auto& this_environment = verify_cast<FunctionEnvironment>(*get_this_environment(vm));
+    auto& this_environment = as<FunctionEnvironment>(*get_this_environment(vm));
 
     // 8. Perform ? thisER.BindThisValue(result).
     TRY(this_environment.bind_this_value(vm, result));
@@ -1575,7 +1575,7 @@ inline ThrowCompletionOr<GC::Ref<Object>> super_call_with_argument_array(VM& vm,
 
 inline ThrowCompletionOr<GC::Ref<Array>> iterator_to_array(VM& vm, Value iterator)
 {
-    auto& iterator_record = verify_cast<IteratorRecord>(iterator.as_object());
+    auto& iterator_record = as<IteratorRecord>(iterator.as_object());
 
     auto array = MUST(Array::create(*vm.current_realm(), 0));
     size_t index = 0;
@@ -2522,7 +2522,7 @@ ThrowCompletionOr<void> ResolveSuperBase::execute_impl(Bytecode::Interpreter& in
     auto& vm = interpreter.vm();
 
     // 1. Let env be GetThisEnvironment().
-    auto& env = verify_cast<FunctionEnvironment>(*get_this_environment(vm));
+    auto& env = as<FunctionEnvironment>(*get_this_environment(vm));
 
     // 2. Assert: env.HasSuperBinding() is true.
     VERIFY(env.has_super_binding());
@@ -2870,14 +2870,14 @@ ThrowCompletionOr<void> GetIterator::execute_impl(Bytecode::Interpreter& interpr
 
 ThrowCompletionOr<void> GetObjectFromIteratorRecord::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto& iterator_record = verify_cast<IteratorRecord>(interpreter.get(m_iterator_record).as_object());
+    auto& iterator_record = as<IteratorRecord>(interpreter.get(m_iterator_record).as_object());
     interpreter.set(m_object, iterator_record.iterator);
     return {};
 }
 
 ThrowCompletionOr<void> GetNextMethodFromIteratorRecord::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto& iterator_record = verify_cast<IteratorRecord>(interpreter.get(m_iterator_record).as_object());
+    auto& iterator_record = as<IteratorRecord>(interpreter.get(m_iterator_record).as_object());
     interpreter.set(m_next_method, iterator_record.next_method);
     return {};
 }
@@ -2900,7 +2900,7 @@ ThrowCompletionOr<void> GetObjectPropertyIterator::execute_impl(Bytecode::Interp
 ThrowCompletionOr<void> IteratorClose::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& vm = interpreter.vm();
-    auto& iterator = verify_cast<IteratorRecord>(interpreter.get(m_iterator_record).as_object());
+    auto& iterator = as<IteratorRecord>(interpreter.get(m_iterator_record).as_object());
 
     // FIXME: Return the value of the resulting completion. (Note that m_completion_value can be empty!)
     TRY(iterator_close(vm, iterator, Completion { m_completion_type, m_completion_value }));
@@ -2910,7 +2910,7 @@ ThrowCompletionOr<void> IteratorClose::execute_impl(Bytecode::Interpreter& inter
 ThrowCompletionOr<void> AsyncIteratorClose::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& vm = interpreter.vm();
-    auto& iterator = verify_cast<IteratorRecord>(interpreter.get(m_iterator_record).as_object());
+    auto& iterator = as<IteratorRecord>(interpreter.get(m_iterator_record).as_object());
 
     // FIXME: Return the value of the resulting completion. (Note that m_completion_value can be empty!)
     TRY(async_iterator_close(vm, iterator, Completion { m_completion_type, m_completion_value }));
@@ -2920,7 +2920,7 @@ ThrowCompletionOr<void> AsyncIteratorClose::execute_impl(Bytecode::Interpreter& 
 ThrowCompletionOr<void> IteratorNext::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto& vm = interpreter.vm();
-    auto& iterator_record = verify_cast<IteratorRecord>(interpreter.get(m_iterator_record).as_object());
+    auto& iterator_record = as<IteratorRecord>(interpreter.get(m_iterator_record).as_object());
     interpreter.set(dst(), TRY(iterator_next(vm, iterator_record)));
     return {};
 }

@@ -178,7 +178,7 @@ FontFace::FontFace(JS::Realm& realm, GC::Ref<WebIDL::Promise> font_status_promis
     // FIXME: Have gettter reflect this member instead of the string
     m_unicode_ranges.empend(0x0u, 0x10FFFFu);
 
-    if (verify_cast<JS::Promise>(*m_font_status_promise->promise()).state() == JS::Promise::State::Rejected)
+    if (as<JS::Promise>(*m_font_status_promise->promise()).state() == JS::Promise::State::Rejected)
         m_status = Bindings::FontFaceLoadStatus::Error;
 }
 

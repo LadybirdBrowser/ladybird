@@ -149,7 +149,7 @@ WebIDL::ExceptionOr<void> NavigateEvent::perform_shared_checks()
 
     // 1. If event's relevant global object's associated Document is not fully active,
     //    then throw an "InvalidStateError" DOMException.
-    auto& associated_document = verify_cast<HTML::Window>(relevant_global_object(*this)).associated_document();
+    auto& associated_document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
     if (!associated_document.is_fully_active())
         return WebIDL::InvalidStateError::create(realm(), "Document is not fully active"_string);
 
@@ -184,7 +184,7 @@ void NavigateEvent::process_scroll_behavior()
     // 4. Otherwise:
     else {
         // 1. Let document be event's relevant global object's associated Document.
-        auto& document = verify_cast<HTML::Window>(relevant_global_object(*this)).associated_document();
+        auto& document = as<HTML::Window>(relevant_global_object(*this)).associated_document();
 
         // 2. If document's indicated part is null, then scroll to the beginning of the document given document. [CSSOMVIEW]
         auto indicated_part = document.determine_the_indicated_part();
@@ -226,7 +226,7 @@ void NavigateEvent::potentially_reset_the_focus()
     VERIFY(m_interception_state == InterceptionState::Committed || m_interception_state == InterceptionState::Scrolled);
 
     // 2. Let navigation be event's relevant global object's navigation API.
-    auto& relevant_global_object = verify_cast<Window>(HTML::relevant_global_object(*this));
+    auto& relevant_global_object = as<Window>(HTML::relevant_global_object(*this));
     auto navigation = relevant_global_object.navigation();
 
     // 3. Let focusChanged be navigation's focus changed during ongoing navigation.

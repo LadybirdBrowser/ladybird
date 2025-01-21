@@ -37,7 +37,7 @@ public:
     Optional<ConnectionFromClient&> client()
     {
         if (auto strong_connection = m_connection.strong_ref())
-            return verify_cast<ConnectionFromClient>(*strong_connection);
+            return as<ConnectionFromClient>(*strong_connection);
         return {};
     }
 

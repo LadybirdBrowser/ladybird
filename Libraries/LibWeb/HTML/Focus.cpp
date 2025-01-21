@@ -27,7 +27,7 @@ static void fire_a_focus_event(GC::Ptr<DOM::EventTarget> focus_event_target, GC:
     // object, and the composed flag set.
     UIEvents::FocusEventInit focus_event_init {};
     focus_event_init.related_target = related_focus_target;
-    focus_event_init.view = verify_cast<HTML::Window>(focus_event_target->realm().global_object()).window();
+    focus_event_init.view = as<HTML::Window>(focus_event_target->realm().global_object()).window();
 
     auto focus_event = UIEvents::FocusEvent::create(focus_event_target->realm(), event_name, focus_event_init);
     // AD-HOC: support bubbling focus events, used for focusin & focusout.
@@ -283,7 +283,7 @@ void run_unfocusing_steps(DOM::Node* old_focus_target)
         return;
 
     // 7. Let topDocument be old chain's last entry.
-    auto* top_document = verify_cast<DOM::Document>(old_chain.last().ptr());
+    auto* top_document = as<DOM::Document>(old_chain.last().ptr());
 
     // 8. If topDocument's node navigable has system focus, then run the focusing steps for topDocument's viewport.
     if (top_document->navigable()->traversable_navigable()->system_visibility_state() == HTML::VisibilityState::Visible) {

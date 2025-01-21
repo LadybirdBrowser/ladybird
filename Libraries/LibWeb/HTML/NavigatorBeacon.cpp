@@ -19,7 +19,7 @@ namespace Web::HTML {
 // https://w3c.github.io/beacon/#sendbeacon-method
 WebIDL::ExceptionOr<bool> NavigatorBeaconMixin::send_beacon(String const& url, Optional<Fetch::BodyInit> const& data)
 {
-    auto& navigator = verify_cast<Navigator>(*this);
+    auto& navigator = as<Navigator>(*this);
     auto& realm = navigator.realm();
     auto& vm = realm.vm();
     auto& relevant_settings_object = HTML::relevant_settings_object(navigator);

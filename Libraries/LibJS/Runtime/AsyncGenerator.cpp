@@ -134,7 +134,7 @@ ThrowCompletionOr<void> AsyncGenerator::await(Value value)
     auto on_rejected = NativeFunction::create(realm, move(rejected_closure), 1, "");
 
     // 7. Perform PerformPromiseThen(promise, onFulfilled, onRejected).
-    m_current_promise = verify_cast<Promise>(promise_object);
+    m_current_promise = as<Promise>(promise_object);
     m_current_promise->perform_then(on_fulfilled, on_rejected, {});
 
     // 8. Remove asyncContext from the execution context stack and restore the execution context that is at the top of the
@@ -420,7 +420,7 @@ void AsyncGenerator::await_return()
     // 14. Perform PerformPromiseThen(promise, onFulfilled, onRejected).
     // NOTE: await_return should only be called when the generator is in SuspendedStart or Completed state,
     //       so an await shouldn't be running currently, so it should be safe to overwrite m_current_promise.
-    m_current_promise = verify_cast<Promise>(promise);
+    m_current_promise = as<Promise>(promise);
     m_current_promise->perform_then(on_fulfilled, on_rejected, {});
 
     // 15. Return unused.

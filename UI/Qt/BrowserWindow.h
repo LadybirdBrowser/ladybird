@@ -160,7 +160,7 @@ private:
     void for_each_tab(Callback&& callback)
     {
         for (int i = 0; i < m_tabs_container->count(); ++i) {
-            auto& tab = verify_cast<Tab>(*m_tabs_container->widget(i));
+            auto& tab = as<Tab>(*m_tabs_container->widget(i));
             callback(tab);
         }
     }
