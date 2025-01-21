@@ -29,7 +29,8 @@ interface SVGSVGElement : SVGGraphicsElement {
     SVGTransform createSVGTransform();
     [FIXME] SVGTransform createSVGTransformFromMatrix(optional DOMMatrix2DInit matrix = {});
 
-    Element getElementById(DOMString elementId);
+    // NOTE: The spec says this returns `Element` but that's a bug: https://github.com/w3c/svgwg/issues/923
+    Element? getElementById(DOMString elementId);
 
     // Deprecated methods that have no effect when called,
     // but which are kept for compatibility reasons.
