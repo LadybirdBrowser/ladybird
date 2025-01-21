@@ -953,6 +953,11 @@ void BlockFormattingContext::place_block_level_element_in_normal_flow_vertically
     auto& box_state = m_state.get_mutable(child_box);
     y += box_state.border_box_top();
     box_state.set_content_offset(CSSPixelPoint { box_state.offset.x(), y });
+    for (auto const& float_box : m_left_floats.all_boxes)
+        float_box->margin_box_rect_in_root_coordinate_space = margin_box_rect_in_ancestor_coordinate_space(float_box->used_values, root());
+
+    for (auto const& float_box : m_right_floats.all_boxes)
+        float_box->margin_box_rect_in_root_coordinate_space = margin_box_rect_in_ancestor_coordinate_space(float_box->used_values, root());
 }
 
 // Returns whether the given box has the given ancestor on the path to root, ignoring the anonymous blocks.
@@ -1148,6 +1153,7 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
             .offset_from_edge = offset_from_edge,
             .top_margin_edge = top_margin_edge,
             .bottom_margin_edge = y + box_state.content_height() + box_state.margin_box_bottom(),
+            .margin_box_rect_in_root_coordinate_space = margin_box_rect_in_ancestor_coordinate_space(box_state, root()),
         }));
         side_data.current_boxes.append(*side_data.all_boxes.last());
 
@@ -1247,7 +1253,7 @@ BlockFormattingContext::SpaceUsedAndContainingMarginForFloats BlockFormattingCon
     for (auto const& floating_box_ptr : m_left_floats.all_boxes.in_reverse()) {
         auto const& floating_box = *floating_box_ptr;
         // NOTE: The floating box is *not* in the final horizontal position yet, but the size and vertical position is valid.
-        auto rect = margin_box_rect_in_ancestor_coordinate_space(floating_box.used_values, root());
+        auto rect = floating_box.margin_box_rect_in_root_coordinate_space;
         if (rect.contains_vertically(y)) {
             CSSPixels offset_from_containing_block_chain_margins_between_here_and_root = 0;
             for (auto const* containing_block = floating_box.used_values.containing_block_used_values(); containing_block && &containing_block->node() != &root(); containing_block = containing_block->containing_block_used_values()) {
@@ -1265,7 +1271,7 @@ BlockFormattingContext::SpaceUsedAndContainingMarginForFloats BlockFormattingCon
     for (auto const& floating_box_ptr : m_right_floats.all_boxes.in_reverse()) {
         auto const& floating_box = *floating_box_ptr;
         // NOTE: The floating box is *not* in the final horizontal position yet, but the size and vertical position is valid.
-        auto rect = margin_box_rect_in_ancestor_coordinate_space(floating_box.used_values, root());
+        auto rect = floating_box.margin_box_rect_in_root_coordinate_space;
         if (rect.contains_vertically(y)) {
             CSSPixels offset_from_containing_block_chain_margins_between_here_and_root = 0;
             for (auto const* containing_block = floating_box.used_values.containing_block_used_values(); containing_block && &containing_block->node() != &root(); containing_block = containing_block->containing_block_used_values()) {

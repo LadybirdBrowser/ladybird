@@ -99,6 +99,8 @@ private:
 
         // Bottom margin edge of `box`.
         CSSPixels bottom_margin_edge { 0 };
+
+        CSSPixelRect margin_box_rect_in_root_coordinate_space;
     };
 
     struct FloatSideData {
