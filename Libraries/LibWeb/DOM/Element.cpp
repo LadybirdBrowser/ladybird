@@ -1978,7 +1978,6 @@ void Element::invalidate_style_after_attribute_change(FlyString const& attribute
 
     if (attribute_name == HTML::AttributeNames::style) {
         force_self_invalidation = ForceSelfStyleInvalidation::Yes;
-        changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Attribute, .value = HTML::AttributeNames::style });
     } else if (attribute_name == HTML::AttributeNames::class_) {
         Vector<StringView> old_classes;
         Vector<StringView> new_classes;
@@ -1996,13 +1995,11 @@ void Element::invalidate_style_after_attribute_change(FlyString const& attribute
                 changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Class, .value = FlyString::from_utf8_without_validation(new_class.bytes()) });
             }
         }
-        changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Attribute, .value = HTML::AttributeNames::class_ });
     } else if (attribute_name == HTML::AttributeNames::id) {
         if (old_value.has_value())
             changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Id, .value = FlyString(old_value.value()) });
         if (new_value.has_value())
             changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Id, .value = FlyString(new_value.value()) });
-        changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Attribute, .value = HTML::AttributeNames::id });
     } else if (attribute_name == HTML::AttributeNames::disabled) {
         changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::Disabled });
         changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::Enabled });
