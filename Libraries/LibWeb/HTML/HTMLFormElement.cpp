@@ -317,7 +317,8 @@ void HTMLFormElement::reset_form()
 
     // 2. If reset is true, then invoke the reset algorithm of each resettable element whose form owner is form.
     if (reset) {
-        for (auto element : m_associated_elements) {
+        GC::RootVector<GC::Ref<HTMLElement>> associated_elements_copy(heap(), m_associated_elements);
+        for (auto element : associated_elements_copy) {
             VERIFY(is<FormAssociatedElement>(*element));
             auto& form_associated_element = dynamic_cast<FormAssociatedElement&>(*element);
             if (form_associated_element.is_resettable())
