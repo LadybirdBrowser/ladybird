@@ -1,0 +1,8 @@
+<script src="../include.js"></script>
+<svg id="svgRoot"></svg>
+<script>
+    test(() => {
+        const x = svgRoot.getElementById("x");
+        println(`PASS: ${x === null}`);
+    });
+</script>
