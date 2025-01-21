@@ -3323,7 +3323,7 @@ Vector<RecordedOverride> record_current_states_and_values(DOM::Document const& d
     // 6. For each command in the list "fontName", "foreColor", "hiliteColor", in order: add (command, command's value)
     //    to overrides.
     for (auto const& command : { CommandNames::fontName, CommandNames::foreColor, CommandNames::hiliteColor })
-        overrides.empend(command, node->document().query_command_value(command));
+        overrides.empend(command, MUST(node->document().query_command_value(command)));
 
     // 7. Add ("fontSize", node's effective command value for "fontSize") to overrides.
     effective_value = effective_command_value(node, CommandNames::fontSize);
@@ -3506,7 +3506,7 @@ void restore_states_and_values(DOM::Document& document, Vector<RecordedOverride>
         for (auto override : overrides) {
             // 1. If override is a boolean, and queryCommandState(command) returns something different from override,
             //    take the action for command, with value equal to the empty string.
-            if (override.value.has<bool>() && document.query_command_state(override.command) != override.value.get<bool>()) {
+            if (override.value.has<bool>() && MUST(document.query_command_state(override.command)) != override.value.get<bool>()) {
                 take_the_action_for_command(document, override.command, {});
             }
 
@@ -3514,7 +3514,7 @@ void restore_states_and_values(DOM::Document& document, Vector<RecordedOverride>
             //    queryCommandValue(command) returns something not equivalent to override, take the action for command,
             //    with value equal to override.
             else if (override.value.has<String>() && !override.command.is_one_of(CommandNames::createLink, CommandNames::fontSize)
-                && document.query_command_value(override.command) != override.value.get<String>()) {
+                && MUST(document.query_command_value(override.command)) != override.value.get<String>()) {
                 take_the_action_for_command(document, override.command, override.value.get<String>());
             }
 
@@ -3761,7 +3761,7 @@ void set_the_selections_value(DOM::Document& document, FlyString const& command,
         }
 
         // 5. Otherwise, if command is "createLink" or it has a value specified, set the value override to new value.
-        else if (command == CommandNames::createLink || !document.query_command_value(CommandNames::createLink).is_empty()) {
+        else if (command == CommandNames::createLink || !MUST(document.query_command_value(CommandNames::createLink)).is_empty()) {
             document.set_command_value_override(command, new_value.value());
         }
 
