@@ -910,12 +910,12 @@ void CanvasRenderingContext2D::set_filter(String filter)
                 [&](CSS::FilterOperation::DropShadow const& drop_shadow) {
                     auto resolution_context = CSS::Length::ResolutionContext::for_layout_node(*layout_node);
 
-                    float offset_x = static_cast<float>(drop_shadow.offset_x.resolved(resolution_context).raw_value());
-                    float offset_y = static_cast<float>(drop_shadow.offset_y.resolved(resolution_context).raw_value());
+                    float offset_x = static_cast<float>(drop_shadow.offset_x.resolved(resolution_context).to_px(resolution_context));
+                    float offset_y = static_cast<float>(drop_shadow.offset_y.resolved(resolution_context).to_px(resolution_context));
 
                     float radius = 0.0f;
                     if (drop_shadow.radius.has_value()) {
-                        radius = drop_shadow.radius->resolved(resolution_context).raw_value();
+                        radius = static_cast<float>(drop_shadow.radius->resolved(resolution_context).to_px(resolution_context));
                     };
 
                     auto color = drop_shadow.color.value_or(Gfx::Color { 0, 0, 0, 255 });
