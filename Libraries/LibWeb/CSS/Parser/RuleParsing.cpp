@@ -621,7 +621,7 @@ GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
             // TODO: Once we implement calc-simplification in the parser, we should no longer see math values here,
             //       unless they're impossible to resolve and thus invalid.
             if (percentage_value->is_calculated()) {
-                if (auto result = percentage_value->as_calculated().resolve_percentage(); result.has_value())
+                if (auto result = percentage_value->as_calculated().resolve_percentage({}); result.has_value())
                     return result.value();
             }
 
@@ -736,7 +736,7 @@ GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
                         if (setting_value->is_integer()) {
                             settings.set(feature_tag->as_open_type_tagged().tag(), setting_value->as_integer().integer());
                         } else if (setting_value->is_calculated() && setting_value->as_calculated().resolves_to_number()) {
-                            if (auto integer = setting_value->as_calculated().resolve_integer(); integer.has_value()) {
+                            if (auto integer = setting_value->as_calculated().resolve_integer({}); integer.has_value()) {
                                 settings.set(feature_tag->as_open_type_tagged().tag(), *integer);
                             } else {
                                 dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Calculated value in font-feature-settings descriptor cannot be resolved at parse time; skipping");
@@ -810,7 +810,7 @@ GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
                         if (setting_value->is_number()) {
                             settings.set(variation_tag->as_open_type_tagged().tag(), setting_value->as_number().number());
                         } else if (setting_value->is_calculated() && setting_value->as_calculated().resolves_to_number()) {
-                            if (auto number = setting_value->as_calculated().resolve_number(); number.has_value()) {
+                            if (auto number = setting_value->as_calculated().resolve_number({}); number.has_value()) {
                                 settings.set(variation_tag->as_open_type_tagged().tag(), *number);
                             } else {
                                 dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Calculated value in font-variation-settings descriptor cannot be resolved at parse time; skipping");

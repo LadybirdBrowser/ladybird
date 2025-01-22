@@ -2174,6 +2174,10 @@ Optional<Ratio> Parser::parse_ratio(TokenStream<ComponentValue>& tokens)
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
 
+    // FIXME: It seems like `calc(...) / calc(...)` is a valid <ratio>, but this case is neither mentioned in a spec,
+    //        nor tested in WPT, as far as I can tell.
+    //        Still, we should probably support it. That means not assuming we can resolve the calculation immediately.
+
     auto read_number_value = [this](ComponentValue const& component_value) -> Optional<double> {
         if (component_value.is(Token::Type::Number)) {
             return component_value.token().number_value();
@@ -2181,7 +2185,7 @@ Optional<Ratio> Parser::parse_ratio(TokenStream<ComponentValue>& tokens)
             auto maybe_calc = parse_calculated_value(component_value);
             if (!maybe_calc || !maybe_calc->resolves_to_number())
                 return {};
-            if (auto resolved_number = maybe_calc->resolve_number(); resolved_number.has_value() && resolved_number.value() >= 0) {
+            if (auto resolved_number = maybe_calc->resolve_number({}); resolved_number.has_value() && resolved_number.value() >= 0) {
                 return resolved_number.value();
             }
         }
@@ -8129,7 +8133,7 @@ RefPtr<GridTrackPlacementStyleValue> Parser::parse_grid_track_placement(TokenStr
         auto const& token = tokens.consume_a_token();
         if (auto maybe_calculated = parse_calculated_value(token); maybe_calculated && maybe_calculated->resolves_to_number()) {
             transaction.commit();
-            return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_line(static_cast<int>(maybe_calculated->resolve_integer().value()), {}));
+            return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_line(static_cast<int>(maybe_calculated->resolve_integer({}).value()), {}));
         }
         if (token.is_ident("auto"sv)) {
             transaction.commit();
@@ -9710,17 +9714,19 @@ bool Parser::expand_unresolved_values(DOM::Element& element, FlyString const& pr
             }
 
             if (property.has_value()) {
+                // FIXME: I think we don't need any of this once simplification is implemented. It runs inside parse_calculation_node() already.
+                // So, this is just a temporary hack to not change behaviour until that's done.
                 if (auto maybe_calc_value = parse_calculated_value(value); maybe_calc_value && maybe_calc_value->is_calculated()) {
-                    // FIXME: Run the actual simplification algorithm
                     auto& calc_value = maybe_calc_value->as_calculated();
+                    CalculationResolutionContext context {};
                     if (property_accepts_type(*property, ValueType::Angle) && calc_value.resolves_to_angle()) {
-                        auto resolved_value = calc_value.resolve_angle();
-                        dest.empend(Token::create_dimension(resolved_value->to_degrees(), "deg"_fly_string));
+                        if (auto resolved_value = calc_value.resolve_angle(context); resolved_value.has_value())
+                            dest.empend(Token::create_dimension(resolved_value->to_degrees(), "deg"_fly_string));
                         continue;
                     }
                     if (property_accepts_type(*property, ValueType::Frequency) && calc_value.resolves_to_frequency()) {
-                        auto resolved_value = calc_value.resolve_frequency();
-                        dest.empend(Token::create_dimension(resolved_value->to_hertz(), "hz"_fly_string));
+                        if (auto resolved_value = calc_value.resolve_frequency(context); resolved_value.has_value())
+                            dest.empend(Token::create_dimension(resolved_value->to_hertz(), "hz"_fly_string));
                         continue;
                     }
                     if (property_accepts_type(*property, ValueType::Length) && calc_value.resolves_to_length()) {
@@ -9729,23 +9735,23 @@ bool Parser::expand_unresolved_values(DOM::Element& element, FlyString const& pr
                         //  This might be easier once we have calc-simplification implemented.
                     }
                     if (property_accepts_type(*property, ValueType::Percentage) && calc_value.resolves_to_percentage()) {
-                        auto resolved_value = calc_value.resolve_percentage();
-                        dest.empend(Token::create_percentage(resolved_value.value().value()));
+                        if (auto resolved_value = calc_value.resolve_percentage(context); resolved_value.has_value())
+                            dest.empend(Token::create_percentage(resolved_value.value().value()));
                         continue;
                     }
                     if (property_accepts_type(*property, ValueType::Time) && calc_value.resolves_to_time()) {
-                        auto resolved_value = calc_value.resolve_time();
-                        dest.empend(Token::create_dimension(resolved_value->to_seconds(), "s"_fly_string));
+                        if (auto resolved_value = calc_value.resolve_time(context); resolved_value.has_value())
+                            dest.empend(Token::create_dimension(resolved_value->to_seconds(), "s"_fly_string));
                         continue;
                     }
                     if (property_accepts_type(*property, ValueType::Number) && calc_value.resolves_to_number()) {
-                        auto resolved_value = calc_value.resolve_number();
-                        dest.empend(Token::create_number(resolved_value.value(), Number::Type::Number));
+                        if (auto resolved_value = calc_value.resolve_number(context); resolved_value.has_value())
+                            dest.empend(Token::create_number(resolved_value.value(), Number::Type::Number));
                         continue;
                     }
                     if (property_accepts_type(*property, ValueType::Integer) && calc_value.resolves_to_number()) {
-                        auto resolved_value = calc_value.resolve_integer();
-                        dest.empend(Token::create_number(resolved_value.value(), Number::Type::Integer));
+                        if (auto resolved_value = calc_value.resolve_integer(context); resolved_value.has_value())
+                            dest.empend(Token::create_number(resolved_value.value(), Number::Type::Integer));
                         continue;
                     }
                 }

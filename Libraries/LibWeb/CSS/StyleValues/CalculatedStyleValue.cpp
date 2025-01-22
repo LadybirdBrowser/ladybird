@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
- * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -198,23 +198,23 @@ bool NumericCalculationNode::contains_percentage() const
     return m_value.has<Percentage>();
 }
 
-CalculatedStyleValue::CalculationResult NumericCalculationNode::resolve(Optional<Length::ResolutionContext const&> resolution_context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult NumericCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
     if (m_value.has<Percentage>()) {
         // NOTE: Depending on whether percentage_basis is set, the caller of resolve() is expecting a raw percentage or
         //       resolved type.
-        return percentage_basis.visit(
+        return context.percentage_basis.visit(
             [&](Empty const&) {
                 VERIFY(numeric_type_from_calculated_style_value(m_value, {}) == numeric_type());
-                return CalculatedStyleValue::CalculationResult::from_value(m_value, resolution_context, numeric_type());
+                return CalculatedStyleValue::CalculationResult::from_value(m_value, context, numeric_type());
             },
             [&](auto const& value) {
                 auto const calculated_value = value.percentage_of(m_value.get<Percentage>());
-                return CalculatedStyleValue::CalculationResult::from_value(calculated_value, resolution_context, numeric_type_from_calculated_style_value(calculated_value, {}));
+                return CalculatedStyleValue::CalculationResult::from_value(calculated_value, context, numeric_type_from_calculated_style_value(calculated_value, {}));
             });
     }
 
-    return CalculatedStyleValue::CalculationResult::from_value(m_value, resolution_context, numeric_type());
+    return CalculatedStyleValue::CalculationResult::from_value(m_value, context, numeric_type());
 }
 
 void NumericCalculationNode::dump(StringBuilder& builder, int indent) const
@@ -272,17 +272,17 @@ bool SumCalculationNode::contains_percentage() const
     return false;
 }
 
-CalculatedStyleValue::CalculationResult SumCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult SumCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
     Optional<CalculatedStyleValue::CalculationResult> total;
 
     for (auto& additional_product : m_values) {
-        auto additional_value = additional_product->resolve(context, percentage_basis);
+        auto additional_value = additional_product->resolve(context);
         if (!total.has_value()) {
             total = additional_value;
             continue;
         }
-        total->add(additional_value, context, percentage_basis);
+        total->add(additional_value);
     }
 
     return total.value();
@@ -350,17 +350,17 @@ bool ProductCalculationNode::contains_percentage() const
     return false;
 }
 
-CalculatedStyleValue::CalculationResult ProductCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult ProductCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
     Optional<CalculatedStyleValue::CalculationResult> total;
 
     for (auto& additional_product : m_values) {
-        auto additional_value = additional_product->resolve(context, percentage_basis);
+        auto additional_value = additional_product->resolve(context);
         if (!total.has_value()) {
             total = additional_value;
             continue;
         }
-        total->multiply_by(additional_value, context);
+        total->multiply_by(additional_value);
     }
 
     return total.value();
@@ -412,9 +412,9 @@ bool NegateCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-CalculatedStyleValue::CalculationResult NegateCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult NegateCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
-    auto child_value = m_value->resolve(context, percentage_basis);
+    auto child_value = m_value->resolve(context);
     child_value.negate();
     return child_value;
 }
@@ -464,9 +464,9 @@ bool InvertCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-CalculatedStyleValue::CalculationResult InvertCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult InvertCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
-    auto child_value = m_value->resolve(context, percentage_basis);
+    auto child_value = m_value->resolve(context);
     child_value.invert();
     return child_value;
 }
@@ -525,13 +525,13 @@ bool MinCalculationNode::contains_percentage() const
     return false;
 }
 
-CalculatedStyleValue::CalculationResult MinCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult MinCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
-    CalculatedStyleValue::CalculationResult smallest_node = m_values.first()->resolve(context, percentage_basis);
+    CalculatedStyleValue::CalculationResult smallest_node = m_values.first()->resolve(context);
     auto smallest_value = smallest_node.value();
 
     for (size_t i = 1; i < m_values.size(); i++) {
-        auto child_resolved = m_values[i]->resolve(context, percentage_basis);
+        auto child_resolved = m_values[i]->resolve(context);
         auto child_value = child_resolved.value();
 
         if (child_value < smallest_value) {
@@ -604,13 +604,13 @@ bool MaxCalculationNode::contains_percentage() const
     return false;
 }
 
-CalculatedStyleValue::CalculationResult MaxCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult MaxCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
-    CalculatedStyleValue::CalculationResult largest_node = m_values.first()->resolve(context, percentage_basis);
+    CalculatedStyleValue::CalculationResult largest_node = m_values.first()->resolve(context);
     auto largest_value = largest_node.value();
 
     for (size_t i = 1; i < m_values.size(); i++) {
-        auto child_resolved = m_values[i]->resolve(context, percentage_basis);
+        auto child_resolved = m_values[i]->resolve(context);
         auto child_value = child_resolved.value();
 
         if (child_value > largest_value) {
@@ -680,11 +680,11 @@ bool ClampCalculationNode::contains_percentage() const
     return m_min_value->contains_percentage() || m_center_value->contains_percentage() || m_max_value->contains_percentage();
 }
 
-CalculatedStyleValue::CalculationResult ClampCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult ClampCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
-    auto min_node = m_min_value->resolve(context, percentage_basis);
-    auto center_node = m_center_value->resolve(context, percentage_basis);
-    auto max_node = m_max_value->resolve(context, percentage_basis);
+    auto min_node = m_min_value->resolve(context);
+    auto center_node = m_center_value->resolve(context);
+    auto max_node = m_max_value->resolve(context);
 
     auto min_value = min_node.value();
     auto center_value = center_node.value();
@@ -750,9 +750,9 @@ bool AbsCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-CalculatedStyleValue::CalculationResult AbsCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult AbsCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
-    auto node_a = m_value->resolve(context, percentage_basis);
+    auto node_a = m_value->resolve(context);
     if (node_a.value() < 0)
         node_a.negate();
     return node_a;
@@ -801,9 +801,9 @@ bool SignCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-CalculatedStyleValue::CalculationResult SignCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult SignCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
-    auto node_a = m_value->resolve(context, percentage_basis);
+    auto node_a = m_value->resolve(context);
     auto node_a_value = node_a.value();
 
     if (node_a_value < 0)
@@ -864,7 +864,7 @@ String ConstantCalculationNode::to_string() const
     VERIFY_NOT_REACHED();
 }
 
-CalculatedStyleValue::CalculationResult ConstantCalculationNode::resolve([[maybe_unused]] Optional<Length::ResolutionContext const&> context, [[maybe_unused]] CalculatedStyleValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult ConstantCalculationNode::resolve(CalculationResolutionContext const&) const
 {
     switch (m_constant) {
     case ConstantType::E:
@@ -925,9 +925,9 @@ bool SinCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-CalculatedStyleValue::CalculationResult SinCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult SinCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
-    auto node_a = m_value->resolve(context, percentage_basis);
+    auto node_a = m_value->resolve(context);
     auto node_a_value = AK::to_radians(node_a.value());
     auto result = sin(node_a_value);
 
@@ -977,9 +977,9 @@ bool CosCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-CalculatedStyleValue::CalculationResult CosCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult CosCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
-    auto node_a = m_value->resolve(context, percentage_basis);
+    auto node_a = m_value->resolve(context);
     auto node_a_value = AK::to_radians(node_a.value());
     auto result = cos(node_a_value);
 
@@ -1029,9 +1029,9 @@ bool TanCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-CalculatedStyleValue::CalculationResult TanCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult TanCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
-    auto node_a = m_value->resolve(context, percentage_basis);
+    auto node_a = m_value->resolve(context);
     auto node_a_value = AK::to_radians(node_a.value());
     auto result = tan(node_a_value);
 
@@ -1081,9 +1081,9 @@ bool AsinCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-CalculatedStyleValue::CalculationResult AsinCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult AsinCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
-    auto node_a = m_value->resolve(context, percentage_basis);
+    auto node_a = m_value->resolve(context);
     auto result = AK::to_degrees(asin(node_a.value()));
     return { result, CSSNumericType { CSSNumericType::BaseType::Angle, 1 } };
 }
@@ -1131,9 +1131,9 @@ bool AcosCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-CalculatedStyleValue::CalculationResult AcosCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult AcosCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
-    auto node_a = m_value->resolve(context, percentage_basis);
+    auto node_a = m_value->resolve(context);
     auto result = AK::to_degrees(acos(node_a.value()));
     return { result, CSSNumericType { CSSNumericType::BaseType::Angle, 1 } };
 }
@@ -1181,9 +1181,9 @@ bool AtanCalculationNode::contains_percentage() const
     return m_value->contains_percentage();
 }
 
-CalculatedStyleValue::CalculationResult AtanCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult AtanCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
-    auto node_a = m_value->resolve(context, percentage_basis);
+    auto node_a = m_value->resolve(context);
     auto result = AK::to_degrees(atan(node_a.value()));
     return { result, CSSNumericType { CSSNumericType::BaseType::Angle, 1 } };
 }
@@ -1234,10 +1234,10 @@ bool Atan2CalculationNode::contains_percentage() const
     return m_y->contains_percentage() || m_x->contains_percentage();
 }
 
-CalculatedStyleValue::CalculationResult Atan2CalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult Atan2CalculationNode::resolve(CalculationResolutionContext const& context) const
 {
-    auto node_a = m_y->resolve(context, percentage_basis);
-    auto node_b = m_x->resolve(context, percentage_basis);
+    auto node_a = m_y->resolve(context);
+    auto node_b = m_x->resolve(context);
     auto result = AK::to_degrees(atan2(node_a.value(), node_b.value()));
     return { result, CSSNumericType { CSSNumericType::BaseType::Angle, 1 } };
 }
@@ -1284,10 +1284,10 @@ String PowCalculationNode::to_string() const
     return MUST(builder.to_string());
 }
 
-CalculatedStyleValue::CalculationResult PowCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult PowCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
-    auto node_a = m_x->resolve(context, percentage_basis);
-    auto node_b = m_y->resolve(context, percentage_basis);
+    auto node_a = m_x->resolve(context);
+    auto node_b = m_y->resolve(context);
     auto result = pow(node_a.value(), node_b.value());
     return { result, CSSNumericType {} };
 }
@@ -1331,9 +1331,9 @@ String SqrtCalculationNode::to_string() const
     return MUST(builder.to_string());
 }
 
-CalculatedStyleValue::CalculationResult SqrtCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult SqrtCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
-    auto node_a = m_value->resolve(context, percentage_basis);
+    auto node_a = m_value->resolve(context);
     auto result = sqrt(node_a.value());
     return { result, CSSNumericType {} };
 }
@@ -1391,13 +1391,13 @@ bool HypotCalculationNode::contains_percentage() const
     return false;
 }
 
-CalculatedStyleValue::CalculationResult HypotCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult HypotCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
     double square_sum = 0.0;
     Optional<CSSNumericType> result_type;
 
     for (auto const& value : m_values) {
-        auto child_resolved = value->resolve(context, percentage_basis);
+        auto child_resolved = value->resolve(context);
         auto child_value = child_resolved.value();
 
         square_sum += child_value * child_value;
@@ -1459,10 +1459,10 @@ String LogCalculationNode::to_string() const
     return MUST(builder.to_string());
 }
 
-CalculatedStyleValue::CalculationResult LogCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult LogCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
-    auto node_a = m_x->resolve(context, percentage_basis);
-    auto node_b = m_y->resolve(context, percentage_basis);
+    auto node_a = m_x->resolve(context);
+    auto node_b = m_y->resolve(context);
     auto result = log2(node_a.value()) / log2(node_b.value());
     return { result, CSSNumericType {} };
 }
@@ -1506,9 +1506,9 @@ String ExpCalculationNode::to_string() const
     return MUST(builder.to_string());
 }
 
-CalculatedStyleValue::CalculationResult ExpCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult ExpCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
-    auto node_a = m_value->resolve(context, percentage_basis);
+    auto node_a = m_value->resolve(context);
     auto result = exp(node_a.value());
     return { result, CSSNumericType {} };
 }
@@ -1563,10 +1563,10 @@ bool RoundCalculationNode::contains_percentage() const
     return m_x->contains_percentage() || m_y->contains_percentage();
 }
 
-CalculatedStyleValue::CalculationResult RoundCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult RoundCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
-    auto node_a = m_x->resolve(context, percentage_basis);
-    auto node_b = m_y->resolve(context, percentage_basis);
+    auto node_a = m_x->resolve(context);
+    auto node_b = m_y->resolve(context);
 
     auto node_a_value = node_a.value();
     auto node_b_value = node_b.value();
@@ -1650,10 +1650,10 @@ bool ModCalculationNode::contains_percentage() const
     return m_x->contains_percentage() || m_y->contains_percentage();
 }
 
-CalculatedStyleValue::CalculationResult ModCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult ModCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
-    auto node_a = m_x->resolve(context, percentage_basis);
-    auto node_b = m_y->resolve(context, percentage_basis);
+    auto node_a = m_x->resolve(context);
+    auto node_b = m_y->resolve(context);
 
     auto node_a_value = node_a.value();
     auto node_b_value = node_b.value();
@@ -1711,10 +1711,10 @@ bool RemCalculationNode::contains_percentage() const
     return m_x->contains_percentage() || m_y->contains_percentage();
 }
 
-CalculatedStyleValue::CalculationResult RemCalculationNode::resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const& percentage_basis) const
+CalculatedStyleValue::CalculationResult RemCalculationNode::resolve(CalculationResolutionContext const& context) const
 {
-    auto node_a = m_x->resolve(context, percentage_basis);
-    auto node_b = m_y->resolve(context, percentage_basis);
+    auto node_a = m_x->resolve(context);
+    auto node_b = m_y->resolve(context);
     auto value = fmod(node_a.value(), node_b.value());
     return { value, node_a.type() };
 }
@@ -1734,7 +1734,7 @@ bool RemCalculationNode::equals(CalculationNode const& other) const
         && m_y->equals(*static_cast<RemCalculationNode const&>(other).m_y);
 }
 
-CalculatedStyleValue::CalculationResult CalculatedStyleValue::CalculationResult::from_value(Value const& value, Optional<Length::ResolutionContext const&> context, Optional<CSSNumericType> numeric_type)
+CalculatedStyleValue::CalculationResult CalculatedStyleValue::CalculationResult::from_value(Value const& value, CalculationResolutionContext const& context, Optional<CSSNumericType> numeric_type)
 {
     auto const expected_numeric_type = numeric_type_from_calculated_style_value(value, {});
     if (numeric_type.has_value()) {
@@ -1755,12 +1755,12 @@ CalculatedStyleValue::CalculationResult CalculatedStyleValue::CalculationResult:
                 return length.absolute_length_to_px().to_double();
 
             // If we don't have a context, we cant resolve the length, so return NAN
-            if (!context.has_value()) {
+            if (!context.length_resolution_context.has_value()) {
                 dbgln("Failed to resolve length, likely due to calc() being used with relative units and a property not taking it into account");
                 return AK::NaN<double>;
             }
 
-            return length.to_px(*context).to_double();
+            return length.to_px(context.length_resolution_context.value()).to_double();
         },
         [](Resolution const& resolution) { return resolution.to_dots_per_pixel(); },
         [](Time const& time) { return time.to_seconds(); },
@@ -1769,25 +1769,25 @@ CalculatedStyleValue::CalculationResult CalculatedStyleValue::CalculationResult:
     return CalculationResult { number, numeric_type };
 }
 
-void CalculatedStyleValue::CalculationResult::add(CalculationResult const& other, Optional<Length::ResolutionContext const&>, PercentageBasis const&)
+void CalculatedStyleValue::CalculationResult::add(CalculationResult const& other)
 {
     m_value = m_value + other.m_value;
     m_type = m_type.has_value() && other.m_type.has_value() ? m_type->added_to(*other.m_type) : OptionalNone {};
 }
 
-void CalculatedStyleValue::CalculationResult::subtract(CalculationResult const& other, Optional<Length::ResolutionContext const&>, PercentageBasis const&)
+void CalculatedStyleValue::CalculationResult::subtract(CalculationResult const& other)
 {
     m_value = m_value - other.m_value;
     m_type = m_type.has_value() && other.m_type.has_value() ? m_type->added_to(*other.m_type) : OptionalNone {};
 }
 
-void CalculatedStyleValue::CalculationResult::multiply_by(CalculationResult const& other, Optional<Length::ResolutionContext const&>)
+void CalculatedStyleValue::CalculationResult::multiply_by(CalculationResult const& other)
 {
     m_value = m_value * other.m_value;
     m_type = m_type.has_value() && other.m_type.has_value() ? m_type->multiplied_by(*other.m_type) : OptionalNone {};
 }
 
-void CalculatedStyleValue::CalculationResult::divide_by(CalculationResult const& other, Optional<Length::ResolutionContext const&>)
+void CalculatedStyleValue::CalculationResult::divide_by(CalculationResult const& other)
 {
     auto other_copy = other;
     other_copy.invert();
@@ -1822,162 +1822,76 @@ bool CalculatedStyleValue::equals(CSSStyleValue const& other) const
     return m_calculation->equals(*other.as_calculated().m_calculation);
 }
 
-Optional<Angle> CalculatedStyleValue::resolve_angle() const
+Optional<Angle> CalculatedStyleValue::resolve_angle(CalculationResolutionContext const& context) const
 {
-    auto result = m_calculation->resolve({}, {});
+    auto result = m_calculation->resolve(context);
     if (result.type().has_value() && result.type()->matches_angle(m_context.percentages_resolve_as))
         return Angle::make_degrees(result.value());
     return {};
 }
 
-Optional<Angle> CalculatedStyleValue::resolve_angle(Layout::Node const& layout_node) const
+Optional<Flex> CalculatedStyleValue::resolve_flex(CalculationResolutionContext const& context) const
 {
-    return resolve_angle(Length::ResolutionContext::for_layout_node(layout_node));
-}
-
-Optional<Angle> CalculatedStyleValue::resolve_angle(Length::ResolutionContext const& context) const
-{
-    auto result = m_calculation->resolve(context, {});
-    if (result.type().has_value() && result.type()->matches_angle(m_context.percentages_resolve_as))
-        return Angle::make_degrees(result.value());
-    return {};
-}
-
-Optional<Angle> CalculatedStyleValue::resolve_angle_percentage(Angle const& percentage_basis) const
-{
-    auto result = m_calculation->resolve({}, percentage_basis);
-    if (result.type().has_value() && result.type()->matches_angle(m_context.percentages_resolve_as))
-        return Angle::make_degrees(result.value());
-    return {};
-}
-
-Optional<Flex> CalculatedStyleValue::resolve_flex() const
-{
-    auto result = m_calculation->resolve({}, {});
+    auto result = m_calculation->resolve(context);
     if (result.type().has_value() && result.type()->matches_flex(m_context.percentages_resolve_as))
         return Flex::make_fr(result.value());
     return {};
 }
 
-Optional<Frequency> CalculatedStyleValue::resolve_frequency() const
+Optional<Frequency> CalculatedStyleValue::resolve_frequency(CalculationResolutionContext const& context) const
 {
-    auto result = m_calculation->resolve({}, {});
+    auto result = m_calculation->resolve(context);
     if (result.type().has_value() && result.type()->matches_frequency(m_context.percentages_resolve_as))
         return Frequency::make_hertz(result.value());
     return {};
 }
 
-Optional<Frequency> CalculatedStyleValue::resolve_frequency_percentage(Frequency const& percentage_basis) const
+Optional<Length> CalculatedStyleValue::resolve_length(CalculationResolutionContext const& context) const
 {
-    auto result = m_calculation->resolve({}, percentage_basis);
-    if (result.type().has_value() && result.type()->matches_frequency(m_context.percentages_resolve_as))
-        return Frequency::make_hertz(result.value());
-    return {};
-}
-
-Optional<Length> CalculatedStyleValue::resolve_length(Length::ResolutionContext const& context) const
-{
-    auto result = m_calculation->resolve(context, {});
+    auto result = m_calculation->resolve(context);
     if (result.type().has_value() && result.type()->matches_length(m_context.percentages_resolve_as))
         return Length::make_px(CSSPixels { result.value() });
     return {};
 }
 
-Optional<Length> CalculatedStyleValue::resolve_length(Layout::Node const& layout_node) const
+Optional<Percentage> CalculatedStyleValue::resolve_percentage(CalculationResolutionContext const& context) const
 {
-    return resolve_length(Length::ResolutionContext::for_layout_node(layout_node));
-}
-
-Optional<Length> CalculatedStyleValue::resolve_length_percentage(Layout::Node const& layout_node, Length const& percentage_basis) const
-{
-    return resolve_length_percentage(Length::ResolutionContext::for_layout_node(layout_node), percentage_basis);
-}
-
-Optional<Length> CalculatedStyleValue::resolve_length_percentage(Layout::Node const& layout_node, CSSPixels percentage_basis) const
-{
-    return resolve_length_percentage(Length::ResolutionContext::for_layout_node(layout_node), Length::make_px(percentage_basis));
-}
-
-Optional<Length> CalculatedStyleValue::resolve_length_percentage(Length::ResolutionContext const& resolution_context, Length const& percentage_basis) const
-{
-    auto result = m_calculation->resolve(resolution_context, percentage_basis);
-    if (result.type().has_value() && result.type()->matches_length(m_context.percentages_resolve_as))
-        return Length::make_px(CSSPixels { result.value() });
-    return {};
-}
-
-Optional<Percentage> CalculatedStyleValue::resolve_percentage() const
-{
-    auto result = m_calculation->resolve({}, {});
+    auto result = m_calculation->resolve(context);
     if (result.type().has_value() && result.type()->matches_percentage())
         return Percentage { result.value() };
     return {};
 }
 
-Optional<Resolution> CalculatedStyleValue::resolve_resolution() const
+Optional<Resolution> CalculatedStyleValue::resolve_resolution(CalculationResolutionContext const& context) const
 {
-    auto result = m_calculation->resolve({}, {});
+    auto result = m_calculation->resolve(context);
     if (result.type().has_value() && result.type()->matches_resolution(m_context.percentages_resolve_as))
         return Resolution::make_dots_per_pixel(result.value());
     return {};
 }
 
-Optional<Time> CalculatedStyleValue::resolve_time() const
+Optional<Time> CalculatedStyleValue::resolve_time(CalculationResolutionContext const& context) const
 {
-    auto result = m_calculation->resolve({}, {});
+    auto result = m_calculation->resolve(context);
     if (result.type().has_value() && result.type()->matches_time(m_context.percentages_resolve_as))
         return Time::make_seconds(result.value());
     return {};
 }
 
-Optional<Time> CalculatedStyleValue::resolve_time_percentage(Time const& percentage_basis) const
+Optional<double> CalculatedStyleValue::resolve_number(CalculationResolutionContext const& context) const
 {
-    auto result = m_calculation->resolve({}, percentage_basis);
-    if (result.type().has_value() && result.type()->matches_time(m_context.percentages_resolve_as))
-        return Time::make_seconds(result.value());
-    return {};
-}
-
-Optional<double> CalculatedStyleValue::resolve_number() const
-{
-    auto result = m_calculation->resolve({}, {});
+    auto result = m_calculation->resolve(context);
     if (result.type().has_value() && result.type()->matches_number(m_context.percentages_resolve_as))
         return result.value();
     return {};
 }
 
-Optional<double> CalculatedStyleValue::resolve_number(Length::ResolutionContext const& context) const
+Optional<i64> CalculatedStyleValue::resolve_integer(CalculationResolutionContext const& context) const
 {
-    auto result = m_calculation->resolve(context, {});
-    if (result.type().has_value() && result.type()->matches_number(m_context.percentages_resolve_as))
-        return result.value();
-    return {};
-}
-
-Optional<double> CalculatedStyleValue::resolve_number(Layout::Node const& layout_node) const
-{
-    return resolve_number(Length::ResolutionContext::for_layout_node(layout_node));
-}
-
-Optional<i64> CalculatedStyleValue::resolve_integer() const
-{
-    auto result = m_calculation->resolve({}, {});
+    auto result = m_calculation->resolve(context);
     if (result.type().has_value() && result.type()->matches_number(m_context.percentages_resolve_as))
         return llround(result.value());
     return {};
-}
-
-Optional<i64> CalculatedStyleValue::resolve_integer(Length::ResolutionContext const& context) const
-{
-    auto result = m_calculation->resolve(context, {});
-    if (result.type().has_value() && result.type()->matches_number(m_context.percentages_resolve_as))
-        return llround(result.value());
-    return {};
-}
-
-Optional<i64> CalculatedStyleValue::resolve_integer(Layout::Node const& layout_node) const
-{
-    return resolve_integer(Length::ResolutionContext::for_layout_node(layout_node));
 }
 
 bool CalculatedStyleValue::contains_percentage() const

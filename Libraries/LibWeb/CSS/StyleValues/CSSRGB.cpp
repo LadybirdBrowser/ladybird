@@ -32,10 +32,11 @@ Color CSSRGB::to_color(Optional<Layout::NodeWithStyle const&>) const
 
         if (style_value.is_calculated()) {
             auto const& calculated = style_value.as_calculated();
+            CalculationResolutionContext context {};
             if (calculated.resolves_to_number())
-                return normalized(calculated.resolve_number().value());
+                return normalized(calculated.resolve_number(context).value());
             if (calculated.resolves_to_percentage())
-                return normalized(calculated.resolve_percentage().value().value() * 255 / 100);
+                return normalized(calculated.resolve_percentage(context).value().value() * 255 / 100);
         }
 
         if (style_value.is_keyword() && style_value.to_keyword() == Keyword::None)

@@ -787,7 +787,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
         computed_values.set_transition_delay(transition_delay.time());
     } else if (transition_delay_property.is_calculated()) {
         auto const& transition_delay = transition_delay_property.as_calculated();
-        computed_values.set_transition_delay(transition_delay.resolve_time().value());
+        computed_values.set_transition_delay(transition_delay.resolve_time({ .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) }).value());
     }
 
     auto do_border_style = [&](CSS::BorderData& border, CSS::PropertyID width_property, CSS::PropertyID color_property, CSS::PropertyID style_property) {
@@ -808,7 +808,8 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
             auto resolve_border_width = [&]() -> CSSPixels {
                 auto const& value = computed_style.property(width_property);
                 if (value.is_calculated())
-                    return max(CSSPixels { 0 }, value.as_calculated().resolve_length(*this)->to_px(*this));
+                    return max(CSSPixels { 0 },
+                        value.as_calculated().resolve_length({ .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this) })->to_px(*this));
                 if (value.is_length())
                     return value.as_length().length().to_px(*this);
                 if (value.is_keyword()) {

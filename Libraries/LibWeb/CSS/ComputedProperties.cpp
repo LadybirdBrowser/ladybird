@@ -301,8 +301,12 @@ CSSPixels ComputedProperties::compute_line_height(CSSPixelRect const& viewport_r
     }
 
     if (line_height.is_calculated()) {
+        CalculationResolutionContext context {
+            .percentage_basis = Length(1, Length::Type::Em),
+            .length_resolution_context = Length::ResolutionContext { viewport_rect, font_metrics, root_font_metrics },
+        };
         if (line_height.as_calculated().resolves_to_number()) {
-            auto resolved = line_height.as_calculated().resolve_number();
+            auto resolved = line_height.as_calculated().resolve_number(context);
             if (!resolved.has_value()) {
                 dbgln("FIXME: Failed to resolve calc() line-height (number): {}", line_height.as_calculated().to_string(CSSStyleValue::SerializationMode::Normal));
                 return CSSPixels::nearest_value_for(m_font_list->first().pixel_metrics().line_spacing());
@@ -310,7 +314,7 @@ CSSPixels ComputedProperties::compute_line_height(CSSPixelRect const& viewport_r
             return Length(resolved.value(), Length::Type::Em).to_px(viewport_rect, font_metrics, root_font_metrics);
         }
 
-        auto resolved = line_height.as_calculated().resolve_length(Length::ResolutionContext { viewport_rect, font_metrics, root_font_metrics });
+        auto resolved = line_height.as_calculated().resolve_length(context);
         if (!resolved.has_value()) {
             dbgln("FIXME: Failed to resolve calc() line-height: {}", line_height.as_calculated().to_string(CSSStyleValue::SerializationMode::Normal));
             return CSSPixels::nearest_value_for(m_font_list->first().pixel_metrics().line_spacing());
@@ -346,14 +350,15 @@ float ComputedProperties::resolve_opacity_value(CSSStyleValue const& value)
         unclamped_opacity = value.as_number().number();
     } else if (value.is_calculated()) {
         auto const& calculated = value.as_calculated();
+        CalculationResolutionContext context {};
         if (calculated.resolves_to_percentage()) {
-            auto maybe_percentage = value.as_calculated().resolve_percentage();
+            auto maybe_percentage = value.as_calculated().resolve_percentage(context);
             if (maybe_percentage.has_value())
                 unclamped_opacity = maybe_percentage->as_fraction();
             else
                 dbgln("Unable to resolve calc() as opacity (percentage): {}", value.to_string(CSSStyleValue::SerializationMode::Normal));
         } else if (calculated.resolves_to_number()) {
-            auto maybe_number = value.as_calculated().resolve_number();
+            auto maybe_number = value.as_calculated().resolve_number(context);
             if (maybe_number.has_value())
                 unclamped_opacity = maybe_number.value();
             else
@@ -485,7 +490,7 @@ CSS::Length ComputedProperties::border_spacing_horizontal(Layout::Node const& la
     if (value.is_length())
         return value.as_length().length();
     if (value.is_calculated())
-        return value.as_calculated().resolve_length(layout_node).value_or(CSS::Length(0, CSS::Length::Type::Px));
+        return value.as_calculated().resolve_length({ .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) }).value_or(CSS::Length(0, CSS::Length::Type::Px));
     auto const& list = value.as_value_list();
     return list.value_at(0, false)->as_length().length();
 }
@@ -496,7 +501,7 @@ CSS::Length ComputedProperties::border_spacing_vertical(Layout::Node const& layo
     if (value.is_length())
         return value.as_length().length();
     if (value.is_calculated())
-        return value.as_calculated().resolve_length(layout_node).value_or(CSS::Length(0, CSS::Length::Type::Px));
+        return value.as_calculated().resolve_length({ .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) }).value_or(CSS::Length(0, CSS::Length::Type::Px));
     auto const& list = value.as_value_list();
     return list.value_at(1, false)->as_length().length();
 }
@@ -1038,7 +1043,7 @@ Vector<ShadowData> ComputedProperties::shadow(PropertyID property_id, Layout::No
         if (value->is_length())
             return value->as_length().length();
         if (value->is_calculated())
-            return value->as_calculated().resolve_length(layout_node);
+            return value->as_calculated().resolve_length({ .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) });
         return {};
     };
 
@@ -1503,7 +1508,7 @@ Vector<CounterData> ComputedProperties::counter_data(PropertyID property_id) con
                 if (counter.value->is_integer()) {
                     data.value = AK::clamp_to<i32>(counter.value->as_integer().integer());
                 } else if (counter.value->is_calculated()) {
-                    auto maybe_int = counter.value->as_calculated().resolve_integer();
+                    auto maybe_int = counter.value->as_calculated().resolve_integer({});
                     if (maybe_int.has_value())
                         data.value = AK::clamp_to<i32>(*maybe_int);
                 } else {

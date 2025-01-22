@@ -411,12 +411,22 @@ Length Length::absolutized(CSSPixelRect const& viewport_rect, FontMetrics const&
 
 Length Length::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const& calculated, Layout::Node const& layout_node, Length const& reference_value)
 {
-    return calculated->resolve_length_percentage(layout_node, reference_value).value();
+    return calculated->resolve_length(
+                         {
+                             .percentage_basis = reference_value,
+                             .length_resolution_context = ResolutionContext::for_layout_node(layout_node),
+                         })
+        .value();
 }
 
 Length Length::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const& calculated, Layout::Node const& layout_node, CSSPixels reference_value)
 {
-    return calculated->resolve_length_percentage(layout_node, reference_value).value();
+    return calculated->resolve_length(
+                         {
+                             .percentage_basis = make_px(reference_value),
+                             .length_resolution_context = ResolutionContext::for_layout_node(layout_node),
+                         })
+        .value();
 }
 
 }
