@@ -133,15 +133,15 @@ void DOMURL::revoke_object_url(JS::VM&, StringView url)
     auto url_record = parse(url);
 
     // Spec Bug: https://github.com/w3c/FileAPI/issues/207, missing check for URL failure parsing.
-    if (!url_record.is_valid())
+    if (!url_record.has_value())
         return;
 
     // 2. If url record’s scheme is not "blob", return.
-    if (url_record.scheme() != "blob"sv)
+    if (url_record->scheme() != "blob"sv)
         return;
 
     // 3. Let entry be urlRecord’s blob URL entry.
-    auto& entry = url_record.blob_url_entry();
+    auto const& entry = url_record->blob_url_entry();
 
     // 4. If entry is null, return.
     if (!entry.has_value())
@@ -156,7 +156,7 @@ void DOMURL::revoke_object_url(JS::VM&, StringView url)
 
     // 7. Remove an entry from the Blob URL Store for url.
     // FIXME: Spec bug: https://github.com/w3c/FileAPI/issues/207, urlRecord should instead be passed through.
-    FileAPI::remove_entry_from_blob_url_store(url_record);
+    FileAPI::remove_entry_from_blob_url_store(*url_record);
 }
 
 // https://url.spec.whatwg.org/#dom-url-canparse
@@ -485,7 +485,7 @@ void strip_trailing_spaces_from_an_opaque_path(DOMURL& url)
 }
 
 // https://url.spec.whatwg.org/#concept-url-parser
-URL::URL parse(StringView input, Optional<URL::URL const&> base_url, Optional<StringView> encoding)
+Optional<URL::URL> parse(StringView input, Optional<URL::URL const&> base_url, Optional<StringView> encoding)
 {
     // FIXME: We should probably have an extended version of URL::URL for LibWeb instead of standalone functions like this.
 
@@ -494,7 +494,7 @@ URL::URL parse(StringView input, Optional<URL::URL const&> base_url, Optional<St
 
     // 2. If url is failure, return failure.
     if (!url.has_value())
-        return {}; // FIXME: Migrate this API to return an OptionalNone on failure.
+        return {};
 
     // 3. If url’s scheme is not "blob", return url.
     if (url->scheme() != "blob")

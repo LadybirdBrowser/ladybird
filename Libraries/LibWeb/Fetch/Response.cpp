@@ -186,7 +186,7 @@ WebIDL::ExceptionOr<GC::Ref<Response>> Response::redirect(JS::VM& vm, String con
     auto parsed_url = DOMURL::parse(url, api_base_url);
 
     // 2. If parsedURL is failure, then throw a TypeError.
-    if (!parsed_url.is_valid())
+    if (!parsed_url.has_value())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Redirect URL is not valid"sv };
 
     // 3. If status is not a redirect status, then throw a RangeError.
@@ -201,7 +201,7 @@ WebIDL::ExceptionOr<GC::Ref<Response>> Response::redirect(JS::VM& vm, String con
     response_object->response()->set_status(status);
 
     // 6. Let value be parsedURL, serialized and isomorphic encoded.
-    auto value = parsed_url.serialize();
+    auto value = parsed_url->serialize();
 
     // 7. Append (`Location`, value) to responseObject’s response’s header list.
     auto header = Infrastructure::Header::from_string_pair("Location"sv, value);

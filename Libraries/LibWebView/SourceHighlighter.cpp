@@ -286,9 +286,7 @@ String SourceHighlighterClient::to_html_string(URL::URL const& url, URL::URL con
         auto attribute_url = MUST(String::formatted("{}", attribute_value));
         auto attribute_url_without_quotes = attribute_url.bytes_as_string_view().trim("\""sv);
 
-        if (auto resolved = Web::DOMURL::parse(attribute_url_without_quotes, base_url); resolved.is_valid())
-            return resolved;
-        return {};
+        return Web::DOMURL::parse(attribute_url_without_quotes, base_url);
     };
 
     size_t span_index = 0;

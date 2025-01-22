@@ -221,15 +221,15 @@ WebIDL::ExceptionOr<Optional<URL::URL>> resolve_imports_match(ByteString const& 
 
             // 6. If url is failure, then throw a TypeError indicating that resolution of normalizedSpecifier was blocked since the afterPrefix portion
             //    could not be URL-parsed relative to the resolutionResult mapped to by the specifierKey prefix.
-            if (!url.is_valid())
+            if (!url.has_value())
                 return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, String::formatted("Could not resolve '{}' as the after prefix portion could not be URL-parsed.", normalized_specifier).release_value_but_fixme_should_propagate_errors() };
 
             // 7. Assert: url is a URL.
-            VERIFY(url.is_valid());
+            VERIFY(url.has_value());
 
             // 8. If the serialization of resolutionResult is not a code unit prefix of the serialization of url, then throw a TypeError indicating
             //    that the resolution of normalizedSpecifier was blocked due to it backtracking above its prefix specifierKey.
-            if (!Infra::is_code_unit_prefix(resolution_result->serialize(), url.serialize()))
+            if (!Infra::is_code_unit_prefix(resolution_result->serialize(), url->serialize()))
                 return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, String::formatted("Could not resolve '{}' as it backtracks above its prefix specifierKey.", normalized_specifier).release_value_but_fixme_should_propagate_errors() };
 
             // 9. Return url.
@@ -250,7 +250,7 @@ Optional<URL::URL> resolve_url_like_module_specifier(ByteString const& specifier
         auto url = DOMURL::parse(specifier, base_url);
 
         // 2. If url is failure, then return null.
-        if (!url.is_valid())
+        if (!url.has_value())
             return {};
 
         // 3. Return url.
@@ -261,7 +261,7 @@ Optional<URL::URL> resolve_url_like_module_specifier(ByteString const& specifier
     auto url = DOMURL::parse(specifier);
 
     // 3. If url is failure, then return null.
-    if (!url.is_valid())
+    if (!url.has_value())
         return {};
 
     // 4. Return url.

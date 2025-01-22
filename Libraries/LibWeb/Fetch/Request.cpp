@@ -124,16 +124,16 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
         auto parsed_url = DOMURL::parse(input.get<String>(), base_url);
 
         // 2. If parsedURL is failure, then throw a TypeError.
-        if (!parsed_url.is_valid())
+        if (!parsed_url.has_value())
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Input URL is not valid"sv };
 
         // 3. If parsedURL includes credentials, then throw a TypeError.
-        if (parsed_url.includes_credentials())
+        if (parsed_url->includes_credentials())
             return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Input URL must not include credentials"sv };
 
         // 4. Set request to a new request whose URL is parsedURL.
         input_request = Infrastructure::Request::create(vm);
-        input_request->set_url(move(parsed_url));
+        input_request->set_url(parsed_url.release_value());
 
         // 5. Set fallbackMode to "cors".
         fallback_mode = Infrastructure::Request::Mode::CORS;
@@ -302,21 +302,21 @@ WebIDL::ExceptionOr<GC::Ref<Request>> Request::construct_impl(JS::Realm& realm, 
             auto parsed_referrer = DOMURL::parse(referrer, base_url);
 
             // 2. If parsedReferrer is failure, then throw a TypeError.
-            if (!parsed_referrer.is_valid())
+            if (!parsed_referrer.has_value())
                 return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Referrer must be a valid URL"sv };
 
             // 3. If one of the following is true
             // - parsedReferrer’s scheme is "about" and path is the string "client"
             // - parsedReferrer’s origin is not same origin with origin
             // then set request’s referrer to "client".
-            auto parsed_referrer_origin = parsed_referrer.origin();
-            if ((parsed_referrer.scheme() == "about"sv && parsed_referrer.paths().size() == 1 && parsed_referrer.paths()[0] == "client"sv)
+            auto parsed_referrer_origin = parsed_referrer->origin();
+            if ((parsed_referrer->scheme() == "about"sv && parsed_referrer->paths().size() == 1 && parsed_referrer->paths()[0] == "client"sv)
                 || !parsed_referrer_origin.is_same_origin(origin)) {
                 request->set_referrer(Infrastructure::Request::Referrer::Client);
             }
             // 4. Otherwise, set request’s referrer to parsedReferrer.
             else {
-                request->set_referrer(move(parsed_referrer));
+                request->set_referrer(parsed_referrer.release_value());
             }
         }
     }
