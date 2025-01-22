@@ -31,7 +31,7 @@ struct CalculationContext {
 
 class CalculatedStyleValue : public CSSStyleValue {
 public:
-    using PercentageBasis = Variant<Empty, Angle, Flex, Frequency, Length, Time>;
+    using PercentageBasis = Variant<Empty, Angle, Frequency, Length, Time>;
 
     class CalculationResult {
     public:
