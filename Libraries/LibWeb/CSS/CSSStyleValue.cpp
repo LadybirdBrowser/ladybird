@@ -386,7 +386,7 @@ int CSSStyleValue::to_font_weight() const
         return round_to<int>(as_number().number());
     }
     if (is_calculated()) {
-        auto maybe_weight = as_calculated().resolve_integer();
+        auto maybe_weight = as_calculated().resolve_integer({});
         if (maybe_weight.has_value())
             return maybe_weight.value();
     }

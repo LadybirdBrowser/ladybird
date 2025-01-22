@@ -84,9 +84,14 @@ Optional<Angle::Type> Angle::unit_from_name(StringView name)
     return {};
 }
 
-Angle Angle::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const& calculated, Layout::Node const&, Angle const& reference_value)
+Angle Angle::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const& calculated, Layout::Node const& layout_node, Angle const& reference_value)
 {
-    return calculated->resolve_angle_percentage(reference_value).value();
+    return calculated->resolve_angle(
+                         {
+                             .percentage_basis = reference_value,
+                             .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node),
+                         })
+        .value();
 }
 
 }

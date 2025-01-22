@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
- * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -25,18 +25,22 @@ namespace Web::CSS {
 class CalculationNode;
 
 // https://drafts.csswg.org/css-values-4/#ref-for-calc-calculation%E2%91%A2%E2%91%A7
+// Contains the context available at parse-time.
 struct CalculationContext {
     Optional<ValueType> percentages_resolve_as {};
+};
+// Contains the context for resolving the calculation.
+struct CalculationResolutionContext {
+    Variant<Empty, Angle, Frequency, Length, Time> percentage_basis {};
+    Optional<Length::ResolutionContext> length_resolution_context;
 };
 
 class CalculatedStyleValue : public CSSStyleValue {
 public:
-    using PercentageBasis = Variant<Empty, Angle, Frequency, Length, Time>;
-
     class CalculationResult {
     public:
         using Value = Variant<Number, Angle, Flex, Frequency, Length, Percentage, Resolution, Time>;
-        static CalculationResult from_value(Value const&, Optional<Length::ResolutionContext const&>, Optional<CSSNumericType>);
+        static CalculationResult from_value(Value const&, CalculationResolutionContext const&, Optional<CSSNumericType>);
 
         CalculationResult(double value, Optional<CSSNumericType> type)
             : m_value(value)
@@ -44,10 +48,10 @@ public:
         {
         }
 
-        void add(CalculationResult const& other, Optional<Length::ResolutionContext const&>, PercentageBasis const& percentage_basis);
-        void subtract(CalculationResult const& other, Optional<Length::ResolutionContext const&>, PercentageBasis const& percentage_basis);
-        void multiply_by(CalculationResult const& other, Optional<Length::ResolutionContext const&>);
-        void divide_by(CalculationResult const& other, Optional<Length::ResolutionContext const&>);
+        void add(CalculationResult const& other);
+        void subtract(CalculationResult const& other);
+        void multiply_by(CalculationResult const& other);
+        void divide_by(CalculationResult const& other);
         void negate();
         void invert();
 
@@ -71,45 +75,32 @@ public:
 
     bool resolves_to_angle() const { return m_resolved_type.matches_angle(m_context.percentages_resolve_as); }
     bool resolves_to_angle_percentage() const { return m_resolved_type.matches_angle_percentage(m_context.percentages_resolve_as); }
-    Optional<Angle> resolve_angle() const;
-    Optional<Angle> resolve_angle(Layout::Node const& layout_node) const;
-    Optional<Angle> resolve_angle(Length::ResolutionContext const& context) const;
-    Optional<Angle> resolve_angle_percentage(Angle const& percentage_basis) const;
+    Optional<Angle> resolve_angle(CalculationResolutionContext const&) const;
 
     bool resolves_to_flex() const { return m_resolved_type.matches_flex(m_context.percentages_resolve_as); }
-    Optional<Flex> resolve_flex() const;
+    Optional<Flex> resolve_flex(CalculationResolutionContext const&) const;
 
     bool resolves_to_frequency() const { return m_resolved_type.matches_frequency(m_context.percentages_resolve_as); }
     bool resolves_to_frequency_percentage() const { return m_resolved_type.matches_frequency_percentage(m_context.percentages_resolve_as); }
-    Optional<Frequency> resolve_frequency() const;
-    Optional<Frequency> resolve_frequency_percentage(Frequency const& percentage_basis) const;
+    Optional<Frequency> resolve_frequency(CalculationResolutionContext const&) const;
 
     bool resolves_to_length() const { return m_resolved_type.matches_length(m_context.percentages_resolve_as); }
     bool resolves_to_length_percentage() const { return m_resolved_type.matches_length_percentage(m_context.percentages_resolve_as); }
-    Optional<Length> resolve_length(Length::ResolutionContext const&) const;
-    Optional<Length> resolve_length(Layout::Node const& layout_node) const;
-    Optional<Length> resolve_length_percentage(Layout::Node const&, Length const& percentage_basis) const;
-    Optional<Length> resolve_length_percentage(Layout::Node const&, CSSPixels percentage_basis) const;
-    Optional<Length> resolve_length_percentage(Length::ResolutionContext const&, Length const& percentage_basis) const;
+    Optional<Length> resolve_length(CalculationResolutionContext const&) const;
 
     bool resolves_to_percentage() const { return m_resolved_type.matches_percentage(); }
-    Optional<Percentage> resolve_percentage() const;
+    Optional<Percentage> resolve_percentage(CalculationResolutionContext const&) const;
 
     bool resolves_to_resolution() const { return m_resolved_type.matches_resolution(m_context.percentages_resolve_as); }
-    Optional<Resolution> resolve_resolution() const;
+    Optional<Resolution> resolve_resolution(CalculationResolutionContext const&) const;
 
     bool resolves_to_time() const { return m_resolved_type.matches_time(m_context.percentages_resolve_as); }
     bool resolves_to_time_percentage() const { return m_resolved_type.matches_time_percentage(m_context.percentages_resolve_as); }
-    Optional<Time> resolve_time() const;
-    Optional<Time> resolve_time_percentage(Time const& percentage_basis) const;
+    Optional<Time> resolve_time(CalculationResolutionContext const&) const;
 
     bool resolves_to_number() const { return m_resolved_type.matches_number(m_context.percentages_resolve_as); }
-    Optional<double> resolve_number() const;
-    Optional<double> resolve_number(Length::ResolutionContext const&) const;
-    Optional<double> resolve_number(Layout::Node const& layout_node) const;
-    Optional<i64> resolve_integer() const;
-    Optional<i64> resolve_integer(Length::ResolutionContext const&) const;
-    Optional<i64> resolve_integer(Layout::Node const& layout_node) const;
+    Optional<double> resolve_number(CalculationResolutionContext const&) const;
+    Optional<i64> resolve_integer(CalculationResolutionContext const&) const;
 
     bool resolves_to_dimension() const { return m_resolved_type.matches_dimension(); }
 
@@ -249,7 +240,7 @@ public:
     virtual String to_string() const = 0;
     Optional<CSSNumericType> const& numeric_type() const { return m_numeric_type; }
     virtual bool contains_percentage() const = 0;
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const&) const = 0;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const = 0;
 
     virtual void dump(StringBuilder&, int indent) const = 0;
     virtual bool equals(CalculationNode const&) const = 0;
@@ -269,7 +260,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool contains_percentage() const override;
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const&) const override;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -286,7 +277,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool contains_percentage() const override;
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const&) const override;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -303,7 +294,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool contains_percentage() const override;
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const&) const override;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -320,7 +311,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool contains_percentage() const override;
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const&) const override;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -337,7 +328,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool contains_percentage() const override;
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const&) const override;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -354,7 +345,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool contains_percentage() const override;
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const&) const override;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -371,7 +362,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool contains_percentage() const override;
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const&) const override;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -388,7 +379,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool contains_percentage() const override;
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const&) const override;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -407,7 +398,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool contains_percentage() const override;
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const&) const override;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -424,7 +415,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool contains_percentage() const override;
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const&) const override;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -441,7 +432,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool contains_percentage() const override { return false; }
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&> context, CalculatedStyleValue::PercentageBasis const&) const override;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -458,7 +449,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool contains_percentage() const override;
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const&) const override;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -475,7 +466,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool contains_percentage() const override;
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const&) const override;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -492,7 +483,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool contains_percentage() const override;
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const&) const override;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -509,7 +500,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool contains_percentage() const override;
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const&) const override;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -526,7 +517,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool contains_percentage() const override;
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const&) const override;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -543,7 +534,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool contains_percentage() const override;
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const&) const override;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -560,7 +551,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool contains_percentage() const override;
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const&) const override;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -578,7 +569,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool contains_percentage() const override { return false; }
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const&) const override;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -596,7 +587,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool contains_percentage() const override { return false; }
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const&) const override;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -613,7 +604,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool contains_percentage() const override;
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const&) const override;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -630,7 +621,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool contains_percentage() const override { return false; }
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const&) const override;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -648,7 +639,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool contains_percentage() const override { return false; }
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const&) const override;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -665,7 +656,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool contains_percentage() const override;
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const&) const override;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -684,7 +675,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool contains_percentage() const override;
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const&) const override;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;
@@ -702,7 +693,7 @@ public:
 
     virtual String to_string() const override;
     virtual bool contains_percentage() const override;
-    virtual CalculatedStyleValue::CalculationResult resolve(Optional<Length::ResolutionContext const&>, CalculatedStyleValue::PercentageBasis const&) const override;
+    virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
 
     virtual void dump(StringBuilder&, int indent) const override;
     virtual bool equals(CalculationNode const&) const override;

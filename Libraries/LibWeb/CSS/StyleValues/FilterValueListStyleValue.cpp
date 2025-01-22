@@ -43,11 +43,12 @@ float FilterOperation::Color::resolved_amount() const
         return amount->percentage().as_fraction();
 
     if (amount->is_calculated()) {
+        CalculationResolutionContext context {};
         if (amount->calculated()->resolves_to_number())
-            return amount->calculated()->resolve_number().value();
+            return amount->calculated()->resolve_number(context).value();
 
         if (amount->calculated()->resolves_to_percentage())
-            return amount->calculated()->resolve_percentage()->as_fraction();
+            return amount->calculated()->resolve_percentage(context)->as_fraction();
     }
 
     VERIFY_NOT_REACHED();
