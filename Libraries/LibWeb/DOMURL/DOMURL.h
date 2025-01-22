@@ -92,8 +92,6 @@ private:
     GC::Ref<URLSearchParams> m_query;
 };
 
-bool host_is_domain(URL::Host const&);
-
 // https://url.spec.whatwg.org/#potentially-strip-trailing-spaces-from-an-opaque-path
 void strip_trailing_spaces_from_an_opaque_path(DOMURL& url);
 
