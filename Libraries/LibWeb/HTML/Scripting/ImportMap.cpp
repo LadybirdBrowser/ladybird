@@ -202,7 +202,7 @@ WebIDL::ExceptionOr<HashMap<URL::URL, ModuleSpecifierMap>> sort_and_normalise_sc
         auto scope_prefix_url = DOMURL::parse(scope_prefix.as_string(), base_url);
 
         // 3. If scopePrefixURL is failure, then:
-        if (!scope_prefix_url.is_valid()) {
+        if (!scope_prefix_url.has_value()) {
             // 1. The user agent may report a warning to the console that the scope prefix URL was not parseable.
             auto& console = realm.intrinsics().console_object()->console();
             console.output_debug_message(JS::Console::LogLevel::Warn,
@@ -213,7 +213,7 @@ WebIDL::ExceptionOr<HashMap<URL::URL, ModuleSpecifierMap>> sort_and_normalise_sc
         }
 
         // 4. Let normalizedScopePrefix be the serialization of scopePrefixURL.
-        auto normalised_scope_prefix = scope_prefix_url.serialize();
+        auto normalised_scope_prefix = scope_prefix_url->serialize();
 
         // 5. Set normalized[normalizedScopePrefix] to the result of sorting and normalizing a module specifier map given potentialSpecifierMap and baseURL.
         normalised.set(normalised_scope_prefix, TRY(sort_and_normalise_module_specifier_map(realm, potential_specifier_map.as_object(), base_url)));

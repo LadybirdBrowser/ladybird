@@ -49,22 +49,22 @@ WebIDL::ExceptionOr<GC::Ref<WebSocket>> WebSocket::construct_impl(JS::Realm& rea
     auto url_record = DOMURL::parse(url, base_url);
 
     // 3. If urlRecord is failure, then throw a "SyntaxError" DOMException.
-    if (!url_record.is_valid())
+    if (!url_record.has_value())
         return WebIDL::SyntaxError::create(realm, "Invalid URL"_string);
 
     // 4. If urlRecord’s scheme is "http", then set urlRecord’s scheme to "ws".
-    if (url_record.scheme() == "http"sv)
-        url_record.set_scheme("ws"_string);
+    if (url_record->scheme() == "http"sv)
+        url_record->set_scheme("ws"_string);
     // 5. Otherwise, if urlRecord’s scheme is "https", set urlRecord’s scheme to "wss".
-    else if (url_record.scheme() == "https"sv)
-        url_record.set_scheme("wss"_string);
+    else if (url_record->scheme() == "https"sv)
+        url_record->set_scheme("wss"_string);
 
     // 6. If urlRecord’s scheme is not "ws" or "wss", then throw a "SyntaxError" DOMException.
-    if (!url_record.scheme().is_one_of("ws"sv, "wss"sv))
+    if (!url_record->scheme().is_one_of("ws"sv, "wss"sv))
         return WebIDL::SyntaxError::create(realm, "Invalid protocol"_string);
 
     // 7. If urlRecord’s fragment is non-null, then throw a "SyntaxError" DOMException.
-    if (url_record.fragment().has_value())
+    if (url_record->fragment().has_value())
         return WebIDL::SyntaxError::create(realm, "Presence of URL fragment is invalid"_string);
 
     Vector<String> protocols_sequence;
@@ -94,14 +94,14 @@ WebIDL::ExceptionOr<GC::Ref<WebSocket>> WebSocket::construct_impl(JS::Realm& rea
     }
 
     // 10. Set this's url to urlRecord.
-    web_socket->set_url(url_record);
+    web_socket->set_url(*url_record);
 
     // 11. Let client be this’s relevant settings object.
     auto& client = relevant_settings_object;
 
     // FIXME: 12. Run this step in parallel:
     //     1. Establish a WebSocket connection given urlRecord, protocols, and client. [FETCH]
-    TRY_OR_THROW_OOM(vm, web_socket->establish_web_socket_connection(url_record, protocols_sequence, client));
+    TRY_OR_THROW_OOM(vm, web_socket->establish_web_socket_connection(*url_record, protocols_sequence, client));
 
     return web_socket;
 }

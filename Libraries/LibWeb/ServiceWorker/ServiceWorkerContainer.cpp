@@ -81,13 +81,13 @@ GC::Ref<WebIDL::Promise> ServiceWorkerContainer::register_(String script_url, Re
 }
 
 // https://w3c.github.io/ServiceWorker/#start-register-algorithm
-void ServiceWorkerContainer::start_register(Optional<URL::URL> scope_url, URL::URL script_url, GC::Ref<WebIDL::Promise> promise, HTML::EnvironmentSettingsObject& client, URL::URL referrer, Bindings::WorkerType worker_type, Bindings::ServiceWorkerUpdateViaCache update_via_cache)
+void ServiceWorkerContainer::start_register(Optional<URL::URL> scope_url, Optional<URL::URL> script_url, GC::Ref<WebIDL::Promise> promise, HTML::EnvironmentSettingsObject& client, URL::URL referrer, Bindings::WorkerType worker_type, Bindings::ServiceWorkerUpdateViaCache update_via_cache)
 {
     auto& realm = this->realm();
     auto& vm = realm.vm();
 
     // 1. If scriptURL is failure, reject promise with a TypeError and abort these steps.
-    if (!script_url.is_valid()) {
+    if (!script_url.has_value()) {
         WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "scriptURL is not a valid URL"sv));
         return;
     }
@@ -95,17 +95,17 @@ void ServiceWorkerContainer::start_register(Optional<URL::URL> scope_url, URL::U
     // 2. Set scriptURL’s fragment to null.
     // Note:  The user agent does not store the fragment of the script’s url.
     //        This means that the fragment does not have an effect on identifying service workers.
-    script_url.set_fragment({});
+    script_url->set_fragment({});
 
     // 3. If scriptURL’s scheme is not one of "http" and "https", reject promise with a TypeError and abort these steps.
-    if (!script_url.scheme().is_one_of("http"sv, "https"sv)) {
+    if (!script_url->scheme().is_one_of("http"sv, "https"sv)) {
         WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "scriptURL must have a scheme of 'http' or 'https'"sv));
         return;
     }
 
     // 4. If any of the strings in scriptURL’s path contains either ASCII case-insensitive "%2f" or ASCII case-insensitive "%5c",
     //    reject promise with a TypeError and abort these steps.
-    auto invalid_path = script_url.paths().first_matching([&](auto& path) {
+    auto invalid_path = script_url->paths().first_matching([&](auto& path) {
         return path.contains("%2f"sv, CaseSensitivity::CaseInsensitive) || path.contains("%5c"sv, CaseSensitivity::CaseInsensitive);
     });
     if (invalid_path.has_value()) {
@@ -156,7 +156,7 @@ void ServiceWorkerContainer::start_register(Optional<URL::URL> scope_url, URL::U
     }
 
     // 11. Let job be the result of running Create Job with register, storage key, scopeURL, scriptURL, promise, and client.
-    auto job = Job::create(vm, Job::Type::Register, storage_key.value(), scope_url.value(), script_url, promise, client);
+    auto job = Job::create(vm, Job::Type::Register, storage_key.value(), scope_url.value(), script_url.release_value(), promise, client);
 
     // 12. Set job’s worker type to workerType.
     job->worker_type = worker_type;

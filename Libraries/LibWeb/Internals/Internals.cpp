@@ -167,14 +167,14 @@ void Internals::spoof_current_url(String const& url_string)
 {
     auto url = DOMURL::parse(url_string);
 
-    VERIFY(url.is_valid());
+    VERIFY(url.has_value());
 
-    auto origin = url.origin();
+    auto origin = url->origin();
 
     auto& window = internals_window();
-    window.associated_document().set_url(url);
+    window.associated_document().set_url(url.value());
     window.associated_document().set_origin(origin);
-    HTML::relevant_settings_object(window.associated_document()).creation_url = url;
+    HTML::relevant_settings_object(window.associated_document()).creation_url = url.release_value();
 }
 
 GC::Ref<InternalAnimationTimeline> Internals::create_internal_animation_timeline()

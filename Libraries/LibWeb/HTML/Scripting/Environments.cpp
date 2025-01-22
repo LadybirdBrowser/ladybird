@@ -205,7 +205,7 @@ URL::URL EnvironmentSettingsObject::parse_url(StringView url)
     auto base_url = api_base_url();
 
     // 2. Return the result of applying the URL parser to url, with baseURL.
-    return DOMURL::parse(url, base_url);
+    return DOMURL::parse(url, base_url).value_or(URL::URL {});
 }
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#encoding-parsing-a-url
@@ -225,7 +225,7 @@ URL::URL EnvironmentSettingsObject::encoding_parse_url(StringView url)
     auto base_url = api_base_url();
 
     // 5. Return the result of applying the URL parser to url, with baseURL and encoding.
-    return DOMURL::parse(url, base_url, encoding);
+    return DOMURL::parse(url, base_url, encoding).value_or(URL::URL {});
 }
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#encoding-parsing-and-serializing-a-url
