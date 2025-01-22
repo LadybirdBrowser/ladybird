@@ -215,23 +215,18 @@ String DOMURL::origin() const
 }
 
 // https://url.spec.whatwg.org/#dom-url-protocol
-WebIDL::ExceptionOr<String> DOMURL::protocol() const
+String DOMURL::protocol() const
 {
-    auto& vm = realm().vm();
-
     // The protocol getter steps are to return this’s URL’s scheme, followed by U+003A (:).
-    return TRY_OR_THROW_OOM(vm, String::formatted("{}:", m_url.scheme()));
+    return MUST(String::formatted("{}:", m_url.scheme()));
 }
 
 // https://url.spec.whatwg.org/#ref-for-dom-url-protocol%E2%91%A0
-WebIDL::ExceptionOr<void> DOMURL::set_protocol(String const& protocol)
+void DOMURL::set_protocol(String const& protocol)
 {
-    auto& vm = realm().vm();
-
     // The protocol setter steps are to basic URL parse the given value, followed by U+003A (:), with this’s URL as
     // url and scheme start state as state override.
-    (void)URL::Parser::basic_parse(TRY_OR_THROW_OOM(vm, String::formatted("{}:", protocol)), {}, &m_url, URL::Parser::State::SchemeStart);
-    return {};
+    (void)URL::Parser::basic_parse(MUST(String::formatted("{}:", protocol)), {}, &m_url, URL::Parser::State::SchemeStart);
 }
 
 // https://url.spec.whatwg.org/#dom-url-username
@@ -271,12 +266,10 @@ void DOMURL::set_password(String const& password)
 }
 
 // https://url.spec.whatwg.org/#dom-url-host
-WebIDL::ExceptionOr<String> DOMURL::host() const
+String DOMURL::host() const
 {
-    auto& vm = realm().vm();
-
     // 1. Let url be this’s URL.
-    auto& url = m_url;
+    auto const& url = m_url;
 
     // 2. If url’s host is null, then return the empty string.
     if (!url.host().has_value())
@@ -287,7 +280,7 @@ WebIDL::ExceptionOr<String> DOMURL::host() const
         return url.serialized_host();
 
     // 4. Return url’s host, serialized, followed by U+003A (:) and url’s port, serialized.
-    return TRY_OR_THROW_OOM(vm, String::formatted("{}:{}", url.serialized_host(), *url.port()));
+    return MUST(String::formatted("{}:{}", url.serialized_host(), *url.port()));
 }
 
 // https://url.spec.whatwg.org/#dom-url-hostref-for-dom-url-host%E2%91%A0
@@ -302,7 +295,7 @@ void DOMURL::set_host(String const& host)
 }
 
 // https://url.spec.whatwg.org/#dom-url-hostname
-WebIDL::ExceptionOr<String> DOMURL::hostname() const
+String DOMURL::hostname() const
 {
     // 1. If this’s URL’s host is null, then return the empty string.
     if (!m_url.host().has_value())
@@ -324,16 +317,14 @@ void DOMURL::set_hostname(String const& hostname)
 }
 
 // https://url.spec.whatwg.org/#dom-url-port
-WebIDL::ExceptionOr<String> DOMURL::port() const
+String DOMURL::port() const
 {
-    auto& vm = realm().vm();
-
     // 1. If this’s URL’s port is null, then return the empty string.
     if (!m_url.port().has_value())
         return String {};
 
     // 2. Return this’s URL’s port, serialized.
-    return TRY_OR_THROW_OOM(vm, String::formatted("{}", *m_url.port()));
+    return MUST(String::formatted("{}", *m_url.port()));
 }
 
 // https://url.spec.whatwg.org/#ref-for-dom-url-port%E2%91%A0
@@ -376,16 +367,14 @@ void DOMURL::set_pathname(String const& pathname)
 }
 
 // https://url.spec.whatwg.org/#dom-url-search
-WebIDL::ExceptionOr<String> DOMURL::search() const
+String DOMURL::search() const
 {
-    auto& vm = realm().vm();
-
     // 1. If this’s URL’s query is either null or the empty string, then return the empty string.
     if (!m_url.query().has_value() || m_url.query()->is_empty())
         return String {};
 
     // 2. Return U+003F (?), followed by this’s URL’s query.
-    return TRY_OR_THROW_OOM(vm, String::formatted("?{}", *m_url.query()));
+    return MUST(String::formatted("?{}", *m_url.query()));
 }
 
 // https://url.spec.whatwg.org/#ref-for-dom-url-search%E2%91%A0
@@ -431,16 +420,14 @@ GC::Ref<URLSearchParams const> DOMURL::search_params() const
 }
 
 // https://url.spec.whatwg.org/#dom-url-hash
-WebIDL::ExceptionOr<String> DOMURL::hash() const
+String DOMURL::hash() const
 {
-    auto& vm = realm().vm();
-
     // 1. If this’s URL’s fragment is either null or the empty string, then return the empty string.
     if (!m_url.fragment().has_value() || m_url.fragment()->is_empty())
         return String {};
 
     // 2. Return U+0023 (#), followed by this’s URL’s fragment.
-    return TRY_OR_THROW_OOM(vm, String::formatted("#{}", m_url.fragment()));
+    return MUST(String::formatted("#{}", m_url.fragment()));
 }
 
 // https://url.spec.whatwg.org/#ref-for-dom-url-hash%E2%91%A0
