@@ -20,7 +20,7 @@ String EdgeStyleValue::to_string(SerializationMode mode) const
             // FIXME: Figure out how to get the proper calculation context here
             CalculationContext context = {};
 
-            Vector<NonnullOwnPtr<CalculationNode>> sum_parts;
+            Vector<NonnullRefPtr<CalculationNode>> sum_parts;
             sum_parts.append(NumericCalculationNode::create(Percentage(100), context));
             if (offset().is_length()) {
                 sum_parts.append(NegateCalculationNode::create(NumericCalculationNode::create(offset().length(), context)));
