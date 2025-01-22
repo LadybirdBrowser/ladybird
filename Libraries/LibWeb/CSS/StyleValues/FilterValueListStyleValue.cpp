@@ -16,7 +16,7 @@ namespace Web::CSS {
 float FilterOperation::Blur::resolved_radius(Layout::Node const& node) const
 {
     if (radius.has_value())
-        return radius->resolved(Length::ResolutionContext::for_layout_node(node)).to_px(node).to_float();
+        return radius->resolved({ .length_resolution_context = Length::ResolutionContext::for_layout_node(node) })->to_px(node).to_float();
 
     // Default value when omitted is 0px.
     return 0;
@@ -27,7 +27,7 @@ float FilterOperation::HueRotate::angle_degrees(Layout::Node const& node) const
     // Default value when omitted is 0deg.
     if (!angle.has_value())
         return 0.0f;
-    return angle->visit([&](AngleOrCalculated const& a) { return a.resolved(node).to_degrees(); }, [&](Zero) { return 0.0; });
+    return angle->visit([&](AngleOrCalculated const& a) { return a.resolved({ .length_resolution_context = Length::ResolutionContext::for_layout_node(node) })->to_degrees(); }, [&](Zero) { return 0.0; });
 }
 
 float FilterOperation::Color::resolved_amount() const

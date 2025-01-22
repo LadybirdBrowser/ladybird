@@ -20,8 +20,14 @@ ErrorOr<Gfx::FloatMatrix4x4> Transformation::to_matrix(Optional<Painting::Painta
 {
     auto count = m_values.size();
     auto value = [&](size_t index, CSSPixels const& reference_length = 0) -> ErrorOr<float> {
+        CalculationResolutionContext context {};
+        if (paintable_box.has_value())
+            context.length_resolution_context = Length::ResolutionContext::for_layout_node(paintable_box->layout_node());
+
         return m_values[index].visit(
             [&](CSS::LengthPercentage const& value) -> ErrorOr<float> {
+                context.percentage_basis = Length::make_px(reference_length);
+
                 if (paintable_box.has_value())
                     return value.resolved(paintable_box->layout_node(), reference_length).to_px(paintable_box->layout_node()).to_float();
                 if (value.is_length()) {
@@ -31,8 +37,8 @@ ErrorOr<Gfx::FloatMatrix4x4> Transformation::to_matrix(Optional<Painting::Painta
                 return Error::from_string_literal("Transform contains non absolute units");
             },
             [&](CSS::AngleOrCalculated const& value) -> ErrorOr<float> {
-                if (paintable_box.has_value())
-                    return value.resolved(paintable_box->layout_node()).to_radians();
+                if (auto resolved = value.resolved(context); resolved.has_value())
+                    return resolved->to_radians();
                 if (!value.is_calculated())
                     return value.value().to_radians();
                 return Error::from_string_literal("Transform contains non absolute units");

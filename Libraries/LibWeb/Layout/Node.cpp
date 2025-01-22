@@ -581,13 +581,18 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
                         .radius = blur.resolved_radius(*this) });
                 },
                 [&](CSS::FilterOperation::DropShadow const& drop_shadow) {
-                    auto context = CSS::Length::ResolutionContext::for_layout_node(*this);
+                    CSS::CalculationResolutionContext context {
+                        .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*this),
+                    };
+                    auto to_px = [&](CSS::LengthOrCalculated const& length) {
+                        return static_cast<float>(length.resolved(context).map([&](auto& it) { return it.to_px(*this).to_double(); }).value_or(0.0));
+                    };
                     // The default value for omitted values is missing length values set to 0
                     // and the missing used color is taken from the color property.
                     resolved_filter.append(Gfx::DropShadowFilter {
-                        .offset_x = static_cast<float>(drop_shadow.offset_x.resolved(context).to_px(*this).to_double()),
-                        .offset_y = static_cast<float>(drop_shadow.offset_y.resolved(context).to_px(*this).to_double()),
-                        .radius = static_cast<float>(drop_shadow.radius.has_value() ? drop_shadow.radius->resolved(context).to_px(*this).to_double() : 0.0),
+                        .offset_x = to_px(drop_shadow.offset_x),
+                        .offset_y = to_px(drop_shadow.offset_y),
+                        .radius = drop_shadow.radius.has_value() ? to_px(*drop_shadow.radius) : 0.0f,
                         .color = drop_shadow.color.has_value() ? *drop_shadow.color : this->computed_values().color() });
                 },
                 [&](CSS::FilterOperation::Color const& color_operation) {

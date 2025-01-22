@@ -437,12 +437,12 @@ Gfx::ShapeFeatures InlineLevelIterator::create_and_merge_font_features() const
     // FIXME 4. Feature settings determined by properties other than ‘font-variant’ or ‘font-feature-settings’. For example, setting a non-default value for the ‘letter-spacing’ property disables common ligatures.
 
     // 5. Font features implied by the value of ‘font-feature-settings’ property.
-    auto resolution_context = CSS::Length::ResolutionContext::for_layout_node(*m_current_node.ptr());
+    CSS::CalculationResolutionContext calculation_context { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*m_current_node.ptr()) };
     auto font_feature_settings = computed_values.font_feature_settings();
     if (font_feature_settings.has_value()) {
         auto const& feature_settings = font_feature_settings.value();
         for (auto const& [key, feature_value] : feature_settings) {
-            merged_features.set(key, feature_value.resolved(resolution_context));
+            merged_features.set(key, feature_value.resolved(calculation_context).value_or(0));
         }
     }
 
@@ -497,9 +497,9 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
             };
         }
 
-        auto resolution_context = CSS::Length::ResolutionContext::for_layout_node(text_node);
-        auto letter_spacing = text_node.computed_values().letter_spacing().resolved(resolution_context).to_px(text_node);
-        auto word_spacing = text_node.computed_values().word_spacing().resolved(resolution_context).to_px(text_node);
+        CSS::CalculationResolutionContext calculation_context { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(text_node) };
+        auto letter_spacing = text_node.computed_values().letter_spacing().resolved(calculation_context).map([&](auto& it) { return it.to_px(text_node); }).value_or(0);
+        auto word_spacing = text_node.computed_values().word_spacing().resolved(calculation_context).map([&](auto& it) { return it.to_px(text_node); }).value_or(0);
 
         auto x = 0.0f;
         if (chunk.has_breaking_tab) {
@@ -513,15 +513,15 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::next_without_lookahead(
 
             // https://drafts.csswg.org/css-text/#tab-size-property
             auto tab_size = text_node.computed_values().tab_size();
-            auto resolution_context = CSS::Length::ResolutionContext::for_layout_node(text_node);
             CSSPixels tab_width;
             tab_width = tab_size.visit(
                 [&](CSS::LengthOrCalculated const& t) -> CSSPixels {
-                    auto value = t.resolved(resolution_context);
-                    return value.to_px(text_node);
+                    return t.resolved(calculation_context)
+                        .map([&](auto& it) { return it.to_px(text_node); })
+                        .value_or(0);
                 },
                 [&](CSS::NumberOrCalculated const& n) -> CSSPixels {
-                    auto tab_number = n.resolved(text_node);
+                    auto tab_number = n.resolved(calculation_context).value_or(0);
 
                     return CSSPixels::nearest_value_for(tab_number * (chunk.font->glyph_width(' ') + word_spacing.to_float() + letter_spacing.to_float()));
                 });
