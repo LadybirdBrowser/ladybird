@@ -51,7 +51,6 @@ source_set("CSS") {
     "MediaQueryList.cpp",
     "MediaQueryListEvent.cpp",
     "ParsedFontFace.cpp",
-    "PercentageOr.cpp",
     "PreferredColorScheme.cpp",
     "PreferredContrast.cpp",
     "PreferredMotion.cpp",

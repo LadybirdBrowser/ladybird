@@ -101,7 +101,6 @@ set(SOURCES
     CSS/Parser/Tokenizer.cpp
     CSS/Parser/Types.cpp
     CSS/ParsedFontFace.cpp
-    CSS/PercentageOr.cpp
     CSS/PreferredColorScheme.cpp
     CSS/PreferredContrast.cpp
     CSS/PreferredMotion.cpp
