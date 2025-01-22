@@ -24,7 +24,7 @@ GC::Ref<Promise> AsyncFunctionDriverWrapper::create(Realm& realm, GeneratorObjec
     auto wrapper = realm.create<AsyncFunctionDriverWrapper>(realm, *generator_object, *top_level_promise);
     // Prime the generator:
     // This runs until the first `await value;`
-    wrapper->continue_async_execution(realm.vm(), js_undefined(), true, IsInitialExecution::Yes);
+    wrapper->continue_async_execution(realm.vm(), js_undefined(), true);
 
     return top_level_promise;
 }
@@ -64,6 +64,7 @@ ThrowCompletionOr<void> AsyncFunctionDriverWrapper::await(JS::Value value)
         // d. Resume the suspended evaluation of asyncContext using NormalCompletion(v) as the result of the operation that
         //    suspended it.
         continue_async_execution(vm, value, true);
+        vm.pop_execution_context();
 
         // e. Assert: When we reach this step, asyncContext has already been removed from the execution context stack and
         //    prevContext is the currently running execution context.
@@ -91,6 +92,7 @@ ThrowCompletionOr<void> AsyncFunctionDriverWrapper::await(JS::Value value)
         // d. Resume the suspended evaluation of asyncContext using ThrowCompletion(reason) as the result of the operation that
         //    suspended it.
         continue_async_execution(vm, reason, false);
+        vm.pop_execution_context();
 
         // e. Assert: When we reach this step, asyncContext has already been removed from the execution context stack and
         //    prevContext is the currently running execution context.
@@ -107,11 +109,9 @@ ThrowCompletionOr<void> AsyncFunctionDriverWrapper::await(JS::Value value)
     m_current_promise = as<Promise>(promise_object);
     m_current_promise->perform_then(on_fulfilled, on_rejected, {});
 
+    // NOTE: None of these are necessary. 8-12 are handled by step d of the above lambdas.
     // 8. Remove asyncContext from the execution context stack and restore the execution context that is at the top of the
     //    execution context stack as the running execution context.
-    // NOTE: This is done later on for us in continue_async_execution.
-
-    // NOTE: None of these are necessary. 10-12 are handled by step d of the above lambdas.
     // 9. Let callerContext be the running execution context.
     // 10. Resume callerContext passing empty. If asyncContext is ever resumed again, let completion be the Completion Record with which it is resumed.
     // 11. Assert: If control reaches here, then asyncContext is the running execution context again.
@@ -119,7 +119,7 @@ ThrowCompletionOr<void> AsyncFunctionDriverWrapper::await(JS::Value value)
     return {};
 }
 
-void AsyncFunctionDriverWrapper::continue_async_execution(VM& vm, Value value, bool is_successful, IsInitialExecution is_initial_execution)
+void AsyncFunctionDriverWrapper::continue_async_execution(VM& vm, Value value, bool is_successful)
 {
     auto generator_result = is_successful
         ? m_generator_object->resume(vm, value, {})
@@ -168,10 +168,6 @@ void AsyncFunctionDriverWrapper::continue_async_execution(VM& vm, Value value, b
     if (result.is_throw_completion()) {
         m_top_level_promise->reject(result.throw_completion().value().value_or(js_undefined()));
     }
-
-    // For the initial execution, the execution context will be popped for us later on by ECMAScriptFunctionObject.
-    if (is_initial_execution == IsInitialExecution::No)
-        vm.pop_execution_context();
 }
 
 void AsyncFunctionDriverWrapper::visit_edges(Cell::Visitor& visitor)

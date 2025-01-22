@@ -19,17 +19,12 @@ class AsyncFunctionDriverWrapper final : public Promise {
     GC_DECLARE_ALLOCATOR(AsyncFunctionDriverWrapper);
 
 public:
-    enum class IsInitialExecution {
-        No,
-        Yes,
-    };
-
     [[nodiscard]] static GC::Ref<Promise> create(Realm&, GeneratorObject*);
 
     virtual ~AsyncFunctionDriverWrapper() override = default;
     void visit_edges(Cell::Visitor&) override;
 
-    void continue_async_execution(VM&, Value, bool is_successful, IsInitialExecution is_initial_execution = IsInitialExecution::No);
+    void continue_async_execution(VM&, Value, bool is_successful);
 
 private:
     AsyncFunctionDriverWrapper(Realm&, GC::Ref<GeneratorObject>, GC::Ref<Promise> top_level_promise);
