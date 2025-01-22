@@ -165,6 +165,7 @@ min-block-size: 0px
 min-height: auto
 min-inline-size: 0px
 min-width: auto
+mix-blend-mode: normal
 object-fit: fill
 object-position: 50% 50%
 opacity: 1

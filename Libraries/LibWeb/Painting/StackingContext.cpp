@@ -299,8 +299,21 @@ void StackingContext::paint(PaintContext& context) const
     auto transform_matrix = paintable_box().transform();
     auto transform_origin = paintable_box().transform_origin().to_type<float>();
 
+    Gfx::CompositingAndBlendingOperator compositing_and_blending_operator;
+    switch (paintable_box().computed_values().mix_blend_mode()) {
+#undef __ENUMERATE
+#define __ENUMERATE(mix_blend_mode)                                                              \
+    case CSS::MixBlendMode::mix_blend_mode:                                                      \
+        compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::mix_blend_mode; \
+        break;
+        ENUMERATE_MIX_BLEND_MODES(__ENUMERATE)
+#undef __ENUMERATE
+    }
+
     DisplayListRecorder::PushStackingContextParams push_stacking_context_params {
         .opacity = opacity,
+        .compositing_and_blending_operator = compositing_and_blending_operator,
+        .isolate = paintable_box().computed_values().isolation() == CSS::Isolation::Isolate,
         .is_fixed_position = paintable_box().is_fixed_position(),
         .source_paintable_rect = source_paintable_rect,
         .transform = {

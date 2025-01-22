@@ -299,6 +299,8 @@ void DisplayListRecorder::push_stacking_context(PushStackingContextParams params
 {
     append(PushStackingContext {
         .opacity = params.opacity,
+        .compositing_and_blending_operator = params.compositing_and_blending_operator,
+        .isolate = params.isolate,
         .source_paintable_rect = params.source_paintable_rect,
         .transform = {
             .origin = params.transform.origin,
@@ -409,6 +411,11 @@ void DisplayListRecorder::paint_scrollbar(int scroll_frame_id, Gfx::IntRect rect
 void DisplayListRecorder::apply_opacity(float opacity)
 {
     append(ApplyOpacity { .opacity = opacity });
+}
+
+void DisplayListRecorder::apply_compositing_and_blending_operator(Gfx::CompositingAndBlendingOperator compositing_and_blending_operator)
+{
+    append(ApplyCompositeAndBlendingOperator { .compositing_and_blending_operator = compositing_and_blending_operator });
 }
 
 void DisplayListRecorder::apply_filters(Vector<Gfx::Filter> filter)

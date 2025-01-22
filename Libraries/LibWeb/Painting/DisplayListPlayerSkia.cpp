@@ -23,6 +23,8 @@
 #include <pathops/SkPathOps.h>
 
 #include <LibGfx/Font/ScaledFont.h>
+#include <LibGfx/PainterSkia.h>
+#include <LibGfx/PathSkia.h>
 #include <LibGfx/SkiaUtils.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
@@ -195,11 +197,15 @@ void DisplayListPlayerSkia::push_stacking_context(PushStackingContext const& com
                              .translate(-command.transform.origin);
     auto matrix = to_skia_matrix(new_transform);
 
-    if (command.opacity < 1) {
+    if (command.opacity < 1 || command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal || command.isolate) {
         auto source_paintable_rect = to_skia_rect(command.source_paintable_rect);
         SkRect dest;
         matrix.mapRect(&dest, source_paintable_rect);
-        canvas.saveLayerAlphaf(&dest, command.opacity);
+
+        SkPaint paint;
+        paint.setAlphaf(command.opacity);
+        paint.setBlender(Gfx::to_skia_blender(command.compositing_and_blending_operator));
+        canvas.saveLayer(&dest, &paint);
     } else {
         canvas.save();
     }
@@ -875,6 +881,14 @@ void DisplayListPlayerSkia::apply_opacity(ApplyOpacity const& command)
     auto& canvas = surface().canvas();
     SkPaint paint;
     paint.setAlphaf(command.opacity);
+    canvas.saveLayer(nullptr, &paint);
+}
+
+void DisplayListPlayerSkia::apply_composite_and_blending_operator(ApplyCompositeAndBlendingOperator const& command)
+{
+    auto& canvas = surface().canvas();
+    SkPaint paint;
+    paint.setBlender(Gfx::to_skia_blender(command.compositing_and_blending_operator));
     canvas.saveLayer(nullptr, &paint);
 }
 

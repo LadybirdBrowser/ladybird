@@ -67,6 +67,7 @@ private:
     virtual void paint_nested_display_list(PaintNestedDisplayList const&) = 0;
     virtual void paint_scrollbar(PaintScrollBar const&) = 0;
     virtual void apply_opacity(ApplyOpacity const&) = 0;
+    virtual void apply_composite_and_blending_operator(ApplyCompositeAndBlendingOperator const&) = 0;
     virtual void apply_filters(ApplyFilters const&) = 0;
     virtual void apply_transform(ApplyTransform const&) = 0;
     virtual void apply_mask_bitmap(ApplyMaskBitmap const&) = 0;

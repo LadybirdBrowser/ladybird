@@ -162,6 +162,7 @@ public:
     Optional<CSS::UserSelect> user_select() const;
     Optional<CSS::Isolation> isolation() const;
     CSS::Containment contain() const;
+    Optional<CSS::MixBlendMode> mix_blend_mode() const;
 
     static Vector<CSS::Transformation> transformations_for_style_value(CSSStyleValue const& value);
     Vector<CSS::Transformation> transformations() const;
