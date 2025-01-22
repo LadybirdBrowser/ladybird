@@ -65,7 +65,7 @@ public:
         Optional<CSSNumericType> m_type;
     };
 
-    static ValueComparingNonnullRefPtr<CalculatedStyleValue> create(NonnullOwnPtr<CalculationNode> calculation, CSSNumericType resolved_type, CalculationContext context)
+    static ValueComparingNonnullRefPtr<CalculatedStyleValue> create(NonnullRefPtr<CalculationNode> calculation, CSSNumericType resolved_type, CalculationContext context)
     {
         return adopt_ref(*new (nothrow) CalculatedStyleValue(move(calculation), move(resolved_type), move(context)));
     }
@@ -109,7 +109,7 @@ public:
     String dump() const;
 
 private:
-    explicit CalculatedStyleValue(NonnullOwnPtr<CalculationNode> calculation, CSSNumericType resolved_type, CalculationContext context)
+    explicit CalculatedStyleValue(NonnullRefPtr<CalculationNode> calculation, CSSNumericType resolved_type, CalculationContext context)
         : CSSStyleValue(Type::Calculated)
         , m_resolved_type(move(resolved_type))
         , m_calculation(move(calculation))
@@ -120,12 +120,12 @@ private:
     Optional<ValueType> percentage_resolved_type() const;
 
     CSSNumericType m_resolved_type;
-    NonnullOwnPtr<CalculationNode> m_calculation;
+    NonnullRefPtr<CalculationNode> m_calculation;
     CalculationContext m_context;
 };
 
 // https://www.w3.org/TR/css-values-4/#calculation-tree
-class CalculationNode {
+class CalculationNode : public RefCounted<CalculationNode> {
 public:
     // https://drafts.csswg.org/css-values-4/#calc-constants
     // https://drafts.csswg.org/css-values-4/#calc-error-constants
@@ -255,7 +255,7 @@ private:
 
 class NumericCalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<NumericCalculationNode> create(NumericValue, CalculationContext const&);
+    static NonnullRefPtr<NumericCalculationNode> create(NumericValue, CalculationContext const&);
     ~NumericCalculationNode();
 
     virtual String to_string() const override;
@@ -272,7 +272,7 @@ private:
 
 class SumCalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<SumCalculationNode> create(Vector<NonnullOwnPtr<CalculationNode>>);
+    static NonnullRefPtr<SumCalculationNode> create(Vector<NonnullRefPtr<CalculationNode>>);
     ~SumCalculationNode();
 
     virtual String to_string() const override;
@@ -283,13 +283,13 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    SumCalculationNode(Vector<NonnullOwnPtr<CalculationNode>>, Optional<CSSNumericType>);
-    Vector<NonnullOwnPtr<CalculationNode>> m_values;
+    SumCalculationNode(Vector<NonnullRefPtr<CalculationNode>>, Optional<CSSNumericType>);
+    Vector<NonnullRefPtr<CalculationNode>> m_values;
 };
 
 class ProductCalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<ProductCalculationNode> create(Vector<NonnullOwnPtr<CalculationNode>>);
+    static NonnullRefPtr<ProductCalculationNode> create(Vector<NonnullRefPtr<CalculationNode>>);
     ~ProductCalculationNode();
 
     virtual String to_string() const override;
@@ -300,13 +300,13 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    ProductCalculationNode(Vector<NonnullOwnPtr<CalculationNode>>, Optional<CSSNumericType>);
-    Vector<NonnullOwnPtr<CalculationNode>> m_values;
+    ProductCalculationNode(Vector<NonnullRefPtr<CalculationNode>>, Optional<CSSNumericType>);
+    Vector<NonnullRefPtr<CalculationNode>> m_values;
 };
 
 class NegateCalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<NegateCalculationNode> create(NonnullOwnPtr<CalculationNode>);
+    static NonnullRefPtr<NegateCalculationNode> create(NonnullRefPtr<CalculationNode>);
     ~NegateCalculationNode();
 
     virtual String to_string() const override;
@@ -317,13 +317,13 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    NegateCalculationNode(NonnullOwnPtr<CalculationNode>);
-    NonnullOwnPtr<CalculationNode> m_value;
+    NegateCalculationNode(NonnullRefPtr<CalculationNode>);
+    NonnullRefPtr<CalculationNode> m_value;
 };
 
 class InvertCalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<InvertCalculationNode> create(NonnullOwnPtr<CalculationNode>);
+    static NonnullRefPtr<InvertCalculationNode> create(NonnullRefPtr<CalculationNode>);
     ~InvertCalculationNode();
 
     virtual String to_string() const override;
@@ -334,13 +334,13 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    InvertCalculationNode(NonnullOwnPtr<CalculationNode>, Optional<CSSNumericType>);
-    NonnullOwnPtr<CalculationNode> m_value;
+    InvertCalculationNode(NonnullRefPtr<CalculationNode>, Optional<CSSNumericType>);
+    NonnullRefPtr<CalculationNode> m_value;
 };
 
 class MinCalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<MinCalculationNode> create(Vector<NonnullOwnPtr<CalculationNode>>);
+    static NonnullRefPtr<MinCalculationNode> create(Vector<NonnullRefPtr<CalculationNode>>);
     ~MinCalculationNode();
 
     virtual String to_string() const override;
@@ -351,13 +351,13 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    MinCalculationNode(Vector<NonnullOwnPtr<CalculationNode>>, Optional<CSSNumericType>);
-    Vector<NonnullOwnPtr<CalculationNode>> m_values;
+    MinCalculationNode(Vector<NonnullRefPtr<CalculationNode>>, Optional<CSSNumericType>);
+    Vector<NonnullRefPtr<CalculationNode>> m_values;
 };
 
 class MaxCalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<MaxCalculationNode> create(Vector<NonnullOwnPtr<CalculationNode>>);
+    static NonnullRefPtr<MaxCalculationNode> create(Vector<NonnullRefPtr<CalculationNode>>);
     ~MaxCalculationNode();
 
     virtual String to_string() const override;
@@ -368,13 +368,13 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    MaxCalculationNode(Vector<NonnullOwnPtr<CalculationNode>>, Optional<CSSNumericType>);
-    Vector<NonnullOwnPtr<CalculationNode>> m_values;
+    MaxCalculationNode(Vector<NonnullRefPtr<CalculationNode>>, Optional<CSSNumericType>);
+    Vector<NonnullRefPtr<CalculationNode>> m_values;
 };
 
 class ClampCalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<ClampCalculationNode> create(NonnullOwnPtr<CalculationNode>, NonnullOwnPtr<CalculationNode>, NonnullOwnPtr<CalculationNode>);
+    static NonnullRefPtr<ClampCalculationNode> create(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
     ~ClampCalculationNode();
 
     virtual String to_string() const override;
@@ -385,15 +385,15 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    ClampCalculationNode(NonnullOwnPtr<CalculationNode>, NonnullOwnPtr<CalculationNode>, NonnullOwnPtr<CalculationNode>, Optional<CSSNumericType>);
-    NonnullOwnPtr<CalculationNode> m_min_value;
-    NonnullOwnPtr<CalculationNode> m_center_value;
-    NonnullOwnPtr<CalculationNode> m_max_value;
+    ClampCalculationNode(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>, Optional<CSSNumericType>);
+    NonnullRefPtr<CalculationNode> m_min_value;
+    NonnullRefPtr<CalculationNode> m_center_value;
+    NonnullRefPtr<CalculationNode> m_max_value;
 };
 
 class AbsCalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<AbsCalculationNode> create(NonnullOwnPtr<CalculationNode>);
+    static NonnullRefPtr<AbsCalculationNode> create(NonnullRefPtr<CalculationNode>);
     ~AbsCalculationNode();
 
     virtual String to_string() const override;
@@ -404,13 +404,13 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    AbsCalculationNode(NonnullOwnPtr<CalculationNode>);
-    NonnullOwnPtr<CalculationNode> m_value;
+    AbsCalculationNode(NonnullRefPtr<CalculationNode>);
+    NonnullRefPtr<CalculationNode> m_value;
 };
 
 class SignCalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<SignCalculationNode> create(NonnullOwnPtr<CalculationNode>);
+    static NonnullRefPtr<SignCalculationNode> create(NonnullRefPtr<CalculationNode>);
     ~SignCalculationNode();
 
     virtual String to_string() const override;
@@ -421,13 +421,13 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    SignCalculationNode(NonnullOwnPtr<CalculationNode>);
-    NonnullOwnPtr<CalculationNode> m_value;
+    SignCalculationNode(NonnullRefPtr<CalculationNode>);
+    NonnullRefPtr<CalculationNode> m_value;
 };
 
 class ConstantCalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<ConstantCalculationNode> create(CalculationNode::ConstantType);
+    static NonnullRefPtr<ConstantCalculationNode> create(CalculationNode::ConstantType);
     ~ConstantCalculationNode();
 
     virtual String to_string() const override;
@@ -444,7 +444,7 @@ private:
 
 class SinCalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<SinCalculationNode> create(NonnullOwnPtr<CalculationNode>);
+    static NonnullRefPtr<SinCalculationNode> create(NonnullRefPtr<CalculationNode>);
     ~SinCalculationNode();
 
     virtual String to_string() const override;
@@ -455,13 +455,13 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    SinCalculationNode(NonnullOwnPtr<CalculationNode>);
-    NonnullOwnPtr<CalculationNode> m_value;
+    SinCalculationNode(NonnullRefPtr<CalculationNode>);
+    NonnullRefPtr<CalculationNode> m_value;
 };
 
 class CosCalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<CosCalculationNode> create(NonnullOwnPtr<CalculationNode>);
+    static NonnullRefPtr<CosCalculationNode> create(NonnullRefPtr<CalculationNode>);
     ~CosCalculationNode();
 
     virtual String to_string() const override;
@@ -472,13 +472,13 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    CosCalculationNode(NonnullOwnPtr<CalculationNode>);
-    NonnullOwnPtr<CalculationNode> m_value;
+    CosCalculationNode(NonnullRefPtr<CalculationNode>);
+    NonnullRefPtr<CalculationNode> m_value;
 };
 
 class TanCalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<TanCalculationNode> create(NonnullOwnPtr<CalculationNode>);
+    static NonnullRefPtr<TanCalculationNode> create(NonnullRefPtr<CalculationNode>);
     ~TanCalculationNode();
 
     virtual String to_string() const override;
@@ -489,13 +489,13 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    TanCalculationNode(NonnullOwnPtr<CalculationNode>);
-    NonnullOwnPtr<CalculationNode> m_value;
+    TanCalculationNode(NonnullRefPtr<CalculationNode>);
+    NonnullRefPtr<CalculationNode> m_value;
 };
 
 class AsinCalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<AsinCalculationNode> create(NonnullOwnPtr<CalculationNode>);
+    static NonnullRefPtr<AsinCalculationNode> create(NonnullRefPtr<CalculationNode>);
     ~AsinCalculationNode();
 
     virtual String to_string() const override;
@@ -506,13 +506,13 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    AsinCalculationNode(NonnullOwnPtr<CalculationNode>);
-    NonnullOwnPtr<CalculationNode> m_value;
+    AsinCalculationNode(NonnullRefPtr<CalculationNode>);
+    NonnullRefPtr<CalculationNode> m_value;
 };
 
 class AcosCalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<AcosCalculationNode> create(NonnullOwnPtr<CalculationNode>);
+    static NonnullRefPtr<AcosCalculationNode> create(NonnullRefPtr<CalculationNode>);
     ~AcosCalculationNode();
 
     virtual String to_string() const override;
@@ -523,13 +523,13 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    AcosCalculationNode(NonnullOwnPtr<CalculationNode>);
-    NonnullOwnPtr<CalculationNode> m_value;
+    AcosCalculationNode(NonnullRefPtr<CalculationNode>);
+    NonnullRefPtr<CalculationNode> m_value;
 };
 
 class AtanCalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<AtanCalculationNode> create(NonnullOwnPtr<CalculationNode>);
+    static NonnullRefPtr<AtanCalculationNode> create(NonnullRefPtr<CalculationNode>);
     ~AtanCalculationNode();
 
     virtual String to_string() const override;
@@ -540,13 +540,13 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    AtanCalculationNode(NonnullOwnPtr<CalculationNode>);
-    NonnullOwnPtr<CalculationNode> m_value;
+    AtanCalculationNode(NonnullRefPtr<CalculationNode>);
+    NonnullRefPtr<CalculationNode> m_value;
 };
 
 class Atan2CalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<Atan2CalculationNode> create(NonnullOwnPtr<CalculationNode>, NonnullOwnPtr<CalculationNode>);
+    static NonnullRefPtr<Atan2CalculationNode> create(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
     ~Atan2CalculationNode();
 
     virtual String to_string() const override;
@@ -557,14 +557,14 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    Atan2CalculationNode(NonnullOwnPtr<CalculationNode>, NonnullOwnPtr<CalculationNode>);
-    NonnullOwnPtr<CalculationNode> m_y;
-    NonnullOwnPtr<CalculationNode> m_x;
+    Atan2CalculationNode(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
+    NonnullRefPtr<CalculationNode> m_y;
+    NonnullRefPtr<CalculationNode> m_x;
 };
 
 class PowCalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<PowCalculationNode> create(NonnullOwnPtr<CalculationNode>, NonnullOwnPtr<CalculationNode>);
+    static NonnullRefPtr<PowCalculationNode> create(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
     ~PowCalculationNode();
 
     virtual String to_string() const override;
@@ -575,14 +575,14 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    PowCalculationNode(NonnullOwnPtr<CalculationNode>, NonnullOwnPtr<CalculationNode>);
-    NonnullOwnPtr<CalculationNode> m_x;
-    NonnullOwnPtr<CalculationNode> m_y;
+    PowCalculationNode(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
+    NonnullRefPtr<CalculationNode> m_x;
+    NonnullRefPtr<CalculationNode> m_y;
 };
 
 class SqrtCalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<SqrtCalculationNode> create(NonnullOwnPtr<CalculationNode>);
+    static NonnullRefPtr<SqrtCalculationNode> create(NonnullRefPtr<CalculationNode>);
     ~SqrtCalculationNode();
 
     virtual String to_string() const override;
@@ -593,13 +593,13 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    SqrtCalculationNode(NonnullOwnPtr<CalculationNode>);
-    NonnullOwnPtr<CalculationNode> m_value;
+    SqrtCalculationNode(NonnullRefPtr<CalculationNode>);
+    NonnullRefPtr<CalculationNode> m_value;
 };
 
 class HypotCalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<HypotCalculationNode> create(Vector<NonnullOwnPtr<CalculationNode>>);
+    static NonnullRefPtr<HypotCalculationNode> create(Vector<NonnullRefPtr<CalculationNode>>);
     ~HypotCalculationNode();
 
     virtual String to_string() const override;
@@ -610,13 +610,13 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    HypotCalculationNode(Vector<NonnullOwnPtr<CalculationNode>>, Optional<CSSNumericType>);
-    Vector<NonnullOwnPtr<CalculationNode>> m_values;
+    HypotCalculationNode(Vector<NonnullRefPtr<CalculationNode>>, Optional<CSSNumericType>);
+    Vector<NonnullRefPtr<CalculationNode>> m_values;
 };
 
 class LogCalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<LogCalculationNode> create(NonnullOwnPtr<CalculationNode>, NonnullOwnPtr<CalculationNode>);
+    static NonnullRefPtr<LogCalculationNode> create(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
     ~LogCalculationNode();
 
     virtual String to_string() const override;
@@ -627,14 +627,14 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    LogCalculationNode(NonnullOwnPtr<CalculationNode>, NonnullOwnPtr<CalculationNode>);
-    NonnullOwnPtr<CalculationNode> m_x;
-    NonnullOwnPtr<CalculationNode> m_y;
+    LogCalculationNode(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
+    NonnullRefPtr<CalculationNode> m_x;
+    NonnullRefPtr<CalculationNode> m_y;
 };
 
 class ExpCalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<ExpCalculationNode> create(NonnullOwnPtr<CalculationNode>);
+    static NonnullRefPtr<ExpCalculationNode> create(NonnullRefPtr<CalculationNode>);
     ~ExpCalculationNode();
 
     virtual String to_string() const override;
@@ -645,13 +645,13 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    ExpCalculationNode(NonnullOwnPtr<CalculationNode>);
-    NonnullOwnPtr<CalculationNode> m_value;
+    ExpCalculationNode(NonnullRefPtr<CalculationNode>);
+    NonnullRefPtr<CalculationNode> m_value;
 };
 
 class RoundCalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<RoundCalculationNode> create(RoundingStrategy, NonnullOwnPtr<CalculationNode>, NonnullOwnPtr<CalculationNode>);
+    static NonnullRefPtr<RoundCalculationNode> create(RoundingStrategy, NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
     ~RoundCalculationNode();
 
     virtual String to_string() const override;
@@ -662,15 +662,15 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    RoundCalculationNode(RoundingStrategy, NonnullOwnPtr<CalculationNode>, NonnullOwnPtr<CalculationNode>, Optional<CSSNumericType>);
+    RoundCalculationNode(RoundingStrategy, NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>, Optional<CSSNumericType>);
     RoundingStrategy m_strategy;
-    NonnullOwnPtr<CalculationNode> m_x;
-    NonnullOwnPtr<CalculationNode> m_y;
+    NonnullRefPtr<CalculationNode> m_x;
+    NonnullRefPtr<CalculationNode> m_y;
 };
 
 class ModCalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<ModCalculationNode> create(NonnullOwnPtr<CalculationNode>, NonnullOwnPtr<CalculationNode>);
+    static NonnullRefPtr<ModCalculationNode> create(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
     ~ModCalculationNode();
 
     virtual String to_string() const override;
@@ -681,14 +681,14 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    ModCalculationNode(NonnullOwnPtr<CalculationNode>, NonnullOwnPtr<CalculationNode>, Optional<CSSNumericType>);
-    NonnullOwnPtr<CalculationNode> m_x;
-    NonnullOwnPtr<CalculationNode> m_y;
+    ModCalculationNode(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>, Optional<CSSNumericType>);
+    NonnullRefPtr<CalculationNode> m_x;
+    NonnullRefPtr<CalculationNode> m_y;
 };
 
 class RemCalculationNode final : public CalculationNode {
 public:
-    static NonnullOwnPtr<RemCalculationNode> create(NonnullOwnPtr<CalculationNode>, NonnullOwnPtr<CalculationNode>);
+    static NonnullRefPtr<RemCalculationNode> create(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>);
     ~RemCalculationNode();
 
     virtual String to_string() const override;
@@ -699,9 +699,9 @@ public:
     virtual bool equals(CalculationNode const&) const override;
 
 private:
-    RemCalculationNode(NonnullOwnPtr<CalculationNode>, NonnullOwnPtr<CalculationNode>, Optional<CSSNumericType>);
-    NonnullOwnPtr<CalculationNode> m_x;
-    NonnullOwnPtr<CalculationNode> m_y;
+    RemCalculationNode(NonnullRefPtr<CalculationNode>, NonnullRefPtr<CalculationNode>, Optional<CSSNumericType>);
+    NonnullRefPtr<CalculationNode> m_x;
+    NonnullRefPtr<CalculationNode> m_y;
 };
 
 }

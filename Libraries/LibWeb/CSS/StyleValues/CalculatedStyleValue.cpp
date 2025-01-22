@@ -13,7 +13,7 @@
 
 namespace Web::CSS {
 
-static Optional<CSSNumericType> add_the_types(Vector<NonnullOwnPtr<CalculationNode>> const& nodes)
+static Optional<CSSNumericType> add_the_types(Vector<NonnullRefPtr<CalculationNode>> const& nodes)
 {
     Optional<CSSNumericType> left_type;
     for (auto const& value : nodes) {
@@ -58,7 +58,7 @@ static Optional<CSSNumericType> add_the_types(CalculationNode const& a, Calculat
     return a_and_b_type->added_to(*c_type);
 }
 
-static Optional<CSSNumericType> multiply_the_types(Vector<NonnullOwnPtr<CalculationNode>> const& nodes)
+static Optional<CSSNumericType> multiply_the_types(Vector<NonnullRefPtr<CalculationNode>> const& nodes)
 {
     // At a * sub-expression, multiply the types of the left and right arguments.
     // The sub-expression’s type is the returned result.
@@ -174,10 +174,10 @@ static CSSNumericType numeric_type_from_calculated_style_value(CalculatedStyleVa
         });
 }
 
-NonnullOwnPtr<NumericCalculationNode> NumericCalculationNode::create(NumericValue value, CalculationContext const& context)
+NonnullRefPtr<NumericCalculationNode> NumericCalculationNode::create(NumericValue value, CalculationContext const& context)
 {
     auto numeric_type = numeric_type_from_calculated_style_value(value, context);
-    return adopt_own(*new (nothrow) NumericCalculationNode(move(value), numeric_type));
+    return adopt_ref(*new (nothrow) NumericCalculationNode(move(value), numeric_type));
 }
 
 NumericCalculationNode::NumericCalculationNode(NumericValue value, CSSNumericType numeric_type)
@@ -231,17 +231,17 @@ bool NumericCalculationNode::equals(CalculationNode const& other) const
     return m_value == static_cast<NumericCalculationNode const&>(other).m_value;
 }
 
-NonnullOwnPtr<SumCalculationNode> SumCalculationNode::create(Vector<NonnullOwnPtr<CalculationNode>> values)
+NonnullRefPtr<SumCalculationNode> SumCalculationNode::create(Vector<NonnullRefPtr<CalculationNode>> values)
 {
     // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
     // At a + or - sub-expression, attempt to add the types of the left and right arguments.
     // If this returns failure, the entire calculation’s type is failure.
     // Otherwise, the sub-expression’s type is the returned type.
     auto numeric_type = add_the_types(values);
-    return adopt_own(*new (nothrow) SumCalculationNode(move(values), move(numeric_type)));
+    return adopt_ref(*new (nothrow) SumCalculationNode(move(values), move(numeric_type)));
 }
 
-SumCalculationNode::SumCalculationNode(Vector<NonnullOwnPtr<CalculationNode>> values, Optional<CSSNumericType> numeric_type)
+SumCalculationNode::SumCalculationNode(Vector<NonnullRefPtr<CalculationNode>> values, Optional<CSSNumericType> numeric_type)
     : CalculationNode(Type::Sum, move(numeric_type))
     , m_values(move(values))
 {
@@ -310,16 +310,16 @@ bool SumCalculationNode::equals(CalculationNode const& other) const
     return true;
 }
 
-NonnullOwnPtr<ProductCalculationNode> ProductCalculationNode::create(Vector<NonnullOwnPtr<CalculationNode>> values)
+NonnullRefPtr<ProductCalculationNode> ProductCalculationNode::create(Vector<NonnullRefPtr<CalculationNode>> values)
 {
     // https://drafts.csswg.org/css-values-4/#determine-the-type-of-a-calculation
     // At a * sub-expression, multiply the types of the left and right arguments.
     // The sub-expression’s type is the returned result.
     auto numeric_type = multiply_the_types(values);
-    return adopt_own(*new (nothrow) ProductCalculationNode(move(values), move(numeric_type)));
+    return adopt_ref(*new (nothrow) ProductCalculationNode(move(values), move(numeric_type)));
 }
 
-ProductCalculationNode::ProductCalculationNode(Vector<NonnullOwnPtr<CalculationNode>> values, Optional<CSSNumericType> numeric_type)
+ProductCalculationNode::ProductCalculationNode(Vector<NonnullRefPtr<CalculationNode>> values, Optional<CSSNumericType> numeric_type)
     : CalculationNode(Type::Product, move(numeric_type))
     , m_values(move(values))
 {
@@ -388,12 +388,12 @@ bool ProductCalculationNode::equals(CalculationNode const& other) const
     return true;
 }
 
-NonnullOwnPtr<NegateCalculationNode> NegateCalculationNode::create(NonnullOwnPtr<CalculationNode> value)
+NonnullRefPtr<NegateCalculationNode> NegateCalculationNode::create(NonnullRefPtr<CalculationNode> value)
 {
-    return adopt_own(*new (nothrow) NegateCalculationNode(move(value)));
+    return adopt_ref(*new (nothrow) NegateCalculationNode(move(value)));
 }
 
-NegateCalculationNode::NegateCalculationNode(NonnullOwnPtr<CalculationNode> value)
+NegateCalculationNode::NegateCalculationNode(NonnullRefPtr<CalculationNode> value)
     // NOTE: `- foo` doesn't change the type
     : CalculationNode(Type::Negate, value->numeric_type())
     , m_value(move(value))
@@ -434,7 +434,7 @@ bool NegateCalculationNode::equals(CalculationNode const& other) const
     return m_value->equals(*static_cast<NegateCalculationNode const&>(other).m_value);
 }
 
-NonnullOwnPtr<InvertCalculationNode> InvertCalculationNode::create(NonnullOwnPtr<CalculationNode> value)
+NonnullRefPtr<InvertCalculationNode> InvertCalculationNode::create(NonnullRefPtr<CalculationNode> value)
 {
     // https://drafts.csswg.org/css-values-4/#determine-the-type-of-a-calculation
     // At a / sub-expression, let left type be the result of finding the types of its left argument,
@@ -443,10 +443,10 @@ NonnullOwnPtr<InvertCalculationNode> InvertCalculationNode::create(NonnullOwnPtr
     // NOTE: An InvertCalculationNode only represents the right argument here, and the multiplication
     //       is handled in the parent ProductCalculationNode.
     auto numeric_type = value->numeric_type().map([](auto& it) { return it.inverted(); });
-    return adopt_own(*new (nothrow) InvertCalculationNode(move(value), move(numeric_type)));
+    return adopt_ref(*new (nothrow) InvertCalculationNode(move(value), move(numeric_type)));
 }
 
-InvertCalculationNode::InvertCalculationNode(NonnullOwnPtr<CalculationNode> value, Optional<CSSNumericType> numeric_type)
+InvertCalculationNode::InvertCalculationNode(NonnullRefPtr<CalculationNode> value, Optional<CSSNumericType> numeric_type)
     : CalculationNode(Type::Invert, move(numeric_type))
     , m_value(move(value))
 {
@@ -486,15 +486,15 @@ bool InvertCalculationNode::equals(CalculationNode const& other) const
     return m_value->equals(*static_cast<InvertCalculationNode const&>(other).m_value);
 }
 
-NonnullOwnPtr<MinCalculationNode> MinCalculationNode::create(Vector<NonnullOwnPtr<CalculationNode>> values)
+NonnullRefPtr<MinCalculationNode> MinCalculationNode::create(Vector<NonnullRefPtr<CalculationNode>> values)
 {
     // https://drafts.csswg.org/css-values-4/#determine-the-type-of-a-calculation
     // The result of adding the types of its comma-separated calculations.
     auto numeric_type = add_the_types(values);
-    return adopt_own(*new (nothrow) MinCalculationNode(move(values), move(numeric_type)));
+    return adopt_ref(*new (nothrow) MinCalculationNode(move(values), move(numeric_type)));
 }
 
-MinCalculationNode::MinCalculationNode(Vector<NonnullOwnPtr<CalculationNode>> values, Optional<CSSNumericType> numeric_type)
+MinCalculationNode::MinCalculationNode(Vector<NonnullRefPtr<CalculationNode>> values, Optional<CSSNumericType> numeric_type)
     : CalculationNode(Type::Min, move(numeric_type))
     , m_values(move(values))
 {
@@ -565,15 +565,15 @@ bool MinCalculationNode::equals(CalculationNode const& other) const
     return true;
 }
 
-NonnullOwnPtr<MaxCalculationNode> MaxCalculationNode::create(Vector<NonnullOwnPtr<CalculationNode>> values)
+NonnullRefPtr<MaxCalculationNode> MaxCalculationNode::create(Vector<NonnullRefPtr<CalculationNode>> values)
 {
     // https://drafts.csswg.org/css-values-4/#determine-the-type-of-a-calculation
     // The result of adding the types of its comma-separated calculations.
     auto numeric_type = add_the_types(values);
-    return adopt_own(*new (nothrow) MaxCalculationNode(move(values), move(numeric_type)));
+    return adopt_ref(*new (nothrow) MaxCalculationNode(move(values), move(numeric_type)));
 }
 
-MaxCalculationNode::MaxCalculationNode(Vector<NonnullOwnPtr<CalculationNode>> values, Optional<CSSNumericType> numeric_type)
+MaxCalculationNode::MaxCalculationNode(Vector<NonnullRefPtr<CalculationNode>> values, Optional<CSSNumericType> numeric_type)
     : CalculationNode(Type::Max, move(numeric_type))
     , m_values(move(values))
 {
@@ -644,15 +644,15 @@ bool MaxCalculationNode::equals(CalculationNode const& other) const
     return true;
 }
 
-NonnullOwnPtr<ClampCalculationNode> ClampCalculationNode::create(NonnullOwnPtr<CalculationNode> min, NonnullOwnPtr<CalculationNode> center, NonnullOwnPtr<CalculationNode> max)
+NonnullRefPtr<ClampCalculationNode> ClampCalculationNode::create(NonnullRefPtr<CalculationNode> min, NonnullRefPtr<CalculationNode> center, NonnullRefPtr<CalculationNode> max)
 {
     // https://drafts.csswg.org/css-values-4/#determine-the-type-of-a-calculation
     // The result of adding the types of its comma-separated calculations.
     auto numeric_type = add_the_types(*min, *center, *max);
-    return adopt_own(*new (nothrow) ClampCalculationNode(move(min), move(center), move(max), move(numeric_type)));
+    return adopt_ref(*new (nothrow) ClampCalculationNode(move(min), move(center), move(max), move(numeric_type)));
 }
 
-ClampCalculationNode::ClampCalculationNode(NonnullOwnPtr<CalculationNode> min, NonnullOwnPtr<CalculationNode> center, NonnullOwnPtr<CalculationNode> max, Optional<CSSNumericType> numeric_type)
+ClampCalculationNode::ClampCalculationNode(NonnullRefPtr<CalculationNode> min, NonnullRefPtr<CalculationNode> center, NonnullRefPtr<CalculationNode> max, Optional<CSSNumericType> numeric_type)
     : CalculationNode(Type::Clamp, move(numeric_type))
     , m_min_value(move(min))
     , m_center_value(move(center))
@@ -721,12 +721,12 @@ bool ClampCalculationNode::equals(CalculationNode const& other) const
         && m_max_value->equals(*static_cast<ClampCalculationNode const&>(other).m_max_value);
 }
 
-NonnullOwnPtr<AbsCalculationNode> AbsCalculationNode::create(NonnullOwnPtr<CalculationNode> value)
+NonnullRefPtr<AbsCalculationNode> AbsCalculationNode::create(NonnullRefPtr<CalculationNode> value)
 {
-    return adopt_own(*new (nothrow) AbsCalculationNode(move(value)));
+    return adopt_ref(*new (nothrow) AbsCalculationNode(move(value)));
 }
 
-AbsCalculationNode::AbsCalculationNode(NonnullOwnPtr<CalculationNode> value)
+AbsCalculationNode::AbsCalculationNode(NonnullRefPtr<CalculationNode> value)
     // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
     // The type of its contained calculation.
     : CalculationNode(Type::Abs, value->numeric_type())
@@ -772,12 +772,12 @@ bool AbsCalculationNode::equals(CalculationNode const& other) const
     return m_value->equals(*static_cast<AbsCalculationNode const&>(other).m_value);
 }
 
-NonnullOwnPtr<SignCalculationNode> SignCalculationNode::create(NonnullOwnPtr<CalculationNode> value)
+NonnullRefPtr<SignCalculationNode> SignCalculationNode::create(NonnullRefPtr<CalculationNode> value)
 {
-    return adopt_own(*new (nothrow) SignCalculationNode(move(value)));
+    return adopt_ref(*new (nothrow) SignCalculationNode(move(value)));
 }
 
-SignCalculationNode::SignCalculationNode(NonnullOwnPtr<CalculationNode> value)
+SignCalculationNode::SignCalculationNode(NonnullRefPtr<CalculationNode> value)
     // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
     // «[ ]» (empty map).
     : CalculationNode(Type::Sign, CSSNumericType {})
@@ -829,9 +829,9 @@ bool SignCalculationNode::equals(CalculationNode const& other) const
     return m_value->equals(*static_cast<SignCalculationNode const&>(other).m_value);
 }
 
-NonnullOwnPtr<ConstantCalculationNode> ConstantCalculationNode::create(ConstantType constant)
+NonnullRefPtr<ConstantCalculationNode> ConstantCalculationNode::create(ConstantType constant)
 {
-    return adopt_own(*new (nothrow) ConstantCalculationNode(constant));
+    return adopt_ref(*new (nothrow) ConstantCalculationNode(constant));
 }
 
 ConstantCalculationNode::ConstantCalculationNode(ConstantType constant)
@@ -897,12 +897,12 @@ bool ConstantCalculationNode::equals(CalculationNode const& other) const
     return m_constant == static_cast<ConstantCalculationNode const&>(other).m_constant;
 }
 
-NonnullOwnPtr<SinCalculationNode> SinCalculationNode::create(NonnullOwnPtr<CalculationNode> value)
+NonnullRefPtr<SinCalculationNode> SinCalculationNode::create(NonnullRefPtr<CalculationNode> value)
 {
-    return adopt_own(*new (nothrow) SinCalculationNode(move(value)));
+    return adopt_ref(*new (nothrow) SinCalculationNode(move(value)));
 }
 
-SinCalculationNode::SinCalculationNode(NonnullOwnPtr<CalculationNode> value)
+SinCalculationNode::SinCalculationNode(NonnullRefPtr<CalculationNode> value)
     // «[ ]» (empty map).
     : CalculationNode(Type::Sin, CSSNumericType {})
     , m_value(move(value))
@@ -948,12 +948,12 @@ bool SinCalculationNode::equals(CalculationNode const& other) const
     return m_value->equals(*static_cast<SinCalculationNode const&>(other).m_value);
 }
 
-NonnullOwnPtr<CosCalculationNode> CosCalculationNode::create(NonnullOwnPtr<CalculationNode> value)
+NonnullRefPtr<CosCalculationNode> CosCalculationNode::create(NonnullRefPtr<CalculationNode> value)
 {
-    return adopt_own(*new (nothrow) CosCalculationNode(move(value)));
+    return adopt_ref(*new (nothrow) CosCalculationNode(move(value)));
 }
 
-CosCalculationNode::CosCalculationNode(NonnullOwnPtr<CalculationNode> value)
+CosCalculationNode::CosCalculationNode(NonnullRefPtr<CalculationNode> value)
     // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
     // «[ ]» (empty map).
     : CalculationNode(Type::Cos, CSSNumericType {})
@@ -1000,12 +1000,12 @@ bool CosCalculationNode::equals(CalculationNode const& other) const
     return m_value->equals(*static_cast<CosCalculationNode const&>(other).m_value);
 }
 
-NonnullOwnPtr<TanCalculationNode> TanCalculationNode::create(NonnullOwnPtr<CalculationNode> value)
+NonnullRefPtr<TanCalculationNode> TanCalculationNode::create(NonnullRefPtr<CalculationNode> value)
 {
-    return adopt_own(*new (nothrow) TanCalculationNode(move(value)));
+    return adopt_ref(*new (nothrow) TanCalculationNode(move(value)));
 }
 
-TanCalculationNode::TanCalculationNode(NonnullOwnPtr<CalculationNode> value)
+TanCalculationNode::TanCalculationNode(NonnullRefPtr<CalculationNode> value)
     // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
     // «[ ]» (empty map).
     : CalculationNode(Type::Tan, CSSNumericType {})
@@ -1052,12 +1052,12 @@ bool TanCalculationNode::equals(CalculationNode const& other) const
     return m_value->equals(*static_cast<TanCalculationNode const&>(other).m_value);
 }
 
-NonnullOwnPtr<AsinCalculationNode> AsinCalculationNode::create(NonnullOwnPtr<CalculationNode> value)
+NonnullRefPtr<AsinCalculationNode> AsinCalculationNode::create(NonnullRefPtr<CalculationNode> value)
 {
-    return adopt_own(*new (nothrow) AsinCalculationNode(move(value)));
+    return adopt_ref(*new (nothrow) AsinCalculationNode(move(value)));
 }
 
-AsinCalculationNode::AsinCalculationNode(NonnullOwnPtr<CalculationNode> value)
+AsinCalculationNode::AsinCalculationNode(NonnullRefPtr<CalculationNode> value)
     // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
     // «[ "angle" → 1 ]».
     : CalculationNode(Type::Asin, CSSNumericType { CSSNumericType::BaseType::Angle, 1 })
@@ -1102,12 +1102,12 @@ bool AsinCalculationNode::equals(CalculationNode const& other) const
     return m_value->equals(*static_cast<AsinCalculationNode const&>(other).m_value);
 }
 
-NonnullOwnPtr<AcosCalculationNode> AcosCalculationNode::create(NonnullOwnPtr<CalculationNode> value)
+NonnullRefPtr<AcosCalculationNode> AcosCalculationNode::create(NonnullRefPtr<CalculationNode> value)
 {
-    return adopt_own(*new (nothrow) AcosCalculationNode(move(value)));
+    return adopt_ref(*new (nothrow) AcosCalculationNode(move(value)));
 }
 
-AcosCalculationNode::AcosCalculationNode(NonnullOwnPtr<CalculationNode> value)
+AcosCalculationNode::AcosCalculationNode(NonnullRefPtr<CalculationNode> value)
     // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
     // «[ "angle" → 1 ]».
     : CalculationNode(Type::Acos, CSSNumericType { CSSNumericType::BaseType::Angle, 1 })
@@ -1152,12 +1152,12 @@ bool AcosCalculationNode::equals(CalculationNode const& other) const
     return m_value->equals(*static_cast<AcosCalculationNode const&>(other).m_value);
 }
 
-NonnullOwnPtr<AtanCalculationNode> AtanCalculationNode::create(NonnullOwnPtr<CalculationNode> value)
+NonnullRefPtr<AtanCalculationNode> AtanCalculationNode::create(NonnullRefPtr<CalculationNode> value)
 {
-    return adopt_own(*new (nothrow) AtanCalculationNode(move(value)));
+    return adopt_ref(*new (nothrow) AtanCalculationNode(move(value)));
 }
 
-AtanCalculationNode::AtanCalculationNode(NonnullOwnPtr<CalculationNode> value)
+AtanCalculationNode::AtanCalculationNode(NonnullRefPtr<CalculationNode> value)
     // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
     // «[ "angle" → 1 ]».
     : CalculationNode(Type::Atan, CSSNumericType { CSSNumericType::BaseType::Angle, 1 })
@@ -1202,12 +1202,12 @@ bool AtanCalculationNode::equals(CalculationNode const& other) const
     return m_value->equals(*static_cast<AtanCalculationNode const&>(other).m_value);
 }
 
-NonnullOwnPtr<Atan2CalculationNode> Atan2CalculationNode::create(NonnullOwnPtr<CalculationNode> y, NonnullOwnPtr<CalculationNode> x)
+NonnullRefPtr<Atan2CalculationNode> Atan2CalculationNode::create(NonnullRefPtr<CalculationNode> y, NonnullRefPtr<CalculationNode> x)
 {
-    return adopt_own(*new (nothrow) Atan2CalculationNode(move(y), move(x)));
+    return adopt_ref(*new (nothrow) Atan2CalculationNode(move(y), move(x)));
 }
 
-Atan2CalculationNode::Atan2CalculationNode(NonnullOwnPtr<CalculationNode> y, NonnullOwnPtr<CalculationNode> x)
+Atan2CalculationNode::Atan2CalculationNode(NonnullRefPtr<CalculationNode> y, NonnullRefPtr<CalculationNode> x)
     // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
     // «[ "angle" → 1 ]».
     : CalculationNode(Type::Atan2, CSSNumericType { CSSNumericType::BaseType::Angle, 1 })
@@ -1257,12 +1257,12 @@ bool Atan2CalculationNode::equals(CalculationNode const& other) const
         && m_y->equals(*static_cast<Atan2CalculationNode const&>(other).m_y);
 }
 
-NonnullOwnPtr<PowCalculationNode> PowCalculationNode::create(NonnullOwnPtr<CalculationNode> x, NonnullOwnPtr<CalculationNode> y)
+NonnullRefPtr<PowCalculationNode> PowCalculationNode::create(NonnullRefPtr<CalculationNode> x, NonnullRefPtr<CalculationNode> y)
 {
-    return adopt_own(*new (nothrow) PowCalculationNode(move(x), move(y)));
+    return adopt_ref(*new (nothrow) PowCalculationNode(move(x), move(y)));
 }
 
-PowCalculationNode::PowCalculationNode(NonnullOwnPtr<CalculationNode> x, NonnullOwnPtr<CalculationNode> y)
+PowCalculationNode::PowCalculationNode(NonnullRefPtr<CalculationNode> x, NonnullRefPtr<CalculationNode> y)
     // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
     // «[ ]» (empty map).
     : CalculationNode(Type::Pow, CSSNumericType {})
@@ -1307,12 +1307,12 @@ bool PowCalculationNode::equals(CalculationNode const& other) const
         && m_y->equals(*static_cast<PowCalculationNode const&>(other).m_y);
 }
 
-NonnullOwnPtr<SqrtCalculationNode> SqrtCalculationNode::create(NonnullOwnPtr<CalculationNode> value)
+NonnullRefPtr<SqrtCalculationNode> SqrtCalculationNode::create(NonnullRefPtr<CalculationNode> value)
 {
-    return adopt_own(*new (nothrow) SqrtCalculationNode(move(value)));
+    return adopt_ref(*new (nothrow) SqrtCalculationNode(move(value)));
 }
 
-SqrtCalculationNode::SqrtCalculationNode(NonnullOwnPtr<CalculationNode> value)
+SqrtCalculationNode::SqrtCalculationNode(NonnullRefPtr<CalculationNode> value)
     // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
     // «[ ]» (empty map).
     : CalculationNode(Type::Sqrt, CSSNumericType {})
@@ -1352,15 +1352,15 @@ bool SqrtCalculationNode::equals(CalculationNode const& other) const
     return m_value->equals(*static_cast<SqrtCalculationNode const&>(other).m_value);
 }
 
-NonnullOwnPtr<HypotCalculationNode> HypotCalculationNode::create(Vector<NonnullOwnPtr<CalculationNode>> values)
+NonnullRefPtr<HypotCalculationNode> HypotCalculationNode::create(Vector<NonnullRefPtr<CalculationNode>> values)
 {
     // https://drafts.csswg.org/css-values-4/#determine-the-type-of-a-calculation
     // The result of adding the types of its comma-separated calculations.
     auto numeric_type = add_the_types(values);
-    return adopt_own(*new (nothrow) HypotCalculationNode(move(values), move(numeric_type)));
+    return adopt_ref(*new (nothrow) HypotCalculationNode(move(values), move(numeric_type)));
 }
 
-HypotCalculationNode::HypotCalculationNode(Vector<NonnullOwnPtr<CalculationNode>> values, Optional<CSSNumericType> numeric_type)
+HypotCalculationNode::HypotCalculationNode(Vector<NonnullRefPtr<CalculationNode>> values, Optional<CSSNumericType> numeric_type)
     : CalculationNode(Type::Hypot, move(numeric_type))
     , m_values(move(values))
 {
@@ -1432,12 +1432,12 @@ bool HypotCalculationNode::equals(CalculationNode const& other) const
     return true;
 }
 
-NonnullOwnPtr<LogCalculationNode> LogCalculationNode::create(NonnullOwnPtr<CalculationNode> x, NonnullOwnPtr<CalculationNode> y)
+NonnullRefPtr<LogCalculationNode> LogCalculationNode::create(NonnullRefPtr<CalculationNode> x, NonnullRefPtr<CalculationNode> y)
 {
-    return adopt_own(*new (nothrow) LogCalculationNode(move(x), move(y)));
+    return adopt_ref(*new (nothrow) LogCalculationNode(move(x), move(y)));
 }
 
-LogCalculationNode::LogCalculationNode(NonnullOwnPtr<CalculationNode> x, NonnullOwnPtr<CalculationNode> y)
+LogCalculationNode::LogCalculationNode(NonnullRefPtr<CalculationNode> x, NonnullRefPtr<CalculationNode> y)
     // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
     // «[ ]» (empty map).
     : CalculationNode(Type::Log, CSSNumericType {})
@@ -1482,12 +1482,12 @@ bool LogCalculationNode::equals(CalculationNode const& other) const
         && m_y->equals(*static_cast<LogCalculationNode const&>(other).m_y);
 }
 
-NonnullOwnPtr<ExpCalculationNode> ExpCalculationNode::create(NonnullOwnPtr<CalculationNode> value)
+NonnullRefPtr<ExpCalculationNode> ExpCalculationNode::create(NonnullRefPtr<CalculationNode> value)
 {
-    return adopt_own(*new (nothrow) ExpCalculationNode(move(value)));
+    return adopt_ref(*new (nothrow) ExpCalculationNode(move(value)));
 }
 
-ExpCalculationNode::ExpCalculationNode(NonnullOwnPtr<CalculationNode> value)
+ExpCalculationNode::ExpCalculationNode(NonnullRefPtr<CalculationNode> value)
     // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
     // «[ ]» (empty map).
     : CalculationNode(Type::Exp, CSSNumericType {})
@@ -1527,15 +1527,15 @@ bool ExpCalculationNode::equals(CalculationNode const& other) const
     return m_value->equals(*static_cast<ExpCalculationNode const&>(other).m_value);
 }
 
-NonnullOwnPtr<RoundCalculationNode> RoundCalculationNode::create(RoundingStrategy strategy, NonnullOwnPtr<CalculationNode> x, NonnullOwnPtr<CalculationNode> y)
+NonnullRefPtr<RoundCalculationNode> RoundCalculationNode::create(RoundingStrategy strategy, NonnullRefPtr<CalculationNode> x, NonnullRefPtr<CalculationNode> y)
 {
     // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
     // The result of adding the types of its comma-separated calculations.
     auto numeric_type = add_the_types(*x, *y);
-    return adopt_own(*new (nothrow) RoundCalculationNode(strategy, move(x), move(y), move(numeric_type)));
+    return adopt_ref(*new (nothrow) RoundCalculationNode(strategy, move(x), move(y), move(numeric_type)));
 }
 
-RoundCalculationNode::RoundCalculationNode(RoundingStrategy mode, NonnullOwnPtr<CalculationNode> x, NonnullOwnPtr<CalculationNode> y, Optional<CSSNumericType> numeric_type)
+RoundCalculationNode::RoundCalculationNode(RoundingStrategy mode, NonnullRefPtr<CalculationNode> x, NonnullRefPtr<CalculationNode> y, Optional<CSSNumericType> numeric_type)
     : CalculationNode(Type::Round, move(numeric_type))
     , m_strategy(mode)
     , m_x(move(x))
@@ -1617,15 +1617,15 @@ bool RoundCalculationNode::equals(CalculationNode const& other) const
         && m_y->equals(*static_cast<RoundCalculationNode const&>(other).m_y);
 }
 
-NonnullOwnPtr<ModCalculationNode> ModCalculationNode::create(NonnullOwnPtr<CalculationNode> x, NonnullOwnPtr<CalculationNode> y)
+NonnullRefPtr<ModCalculationNode> ModCalculationNode::create(NonnullRefPtr<CalculationNode> x, NonnullRefPtr<CalculationNode> y)
 {
     // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
     // The result of adding the types of its comma-separated calculations.
     auto numeric_type = add_the_types(*x, *y);
-    return adopt_own(*new (nothrow) ModCalculationNode(move(x), move(y), move(numeric_type)));
+    return adopt_ref(*new (nothrow) ModCalculationNode(move(x), move(y), move(numeric_type)));
 }
 
-ModCalculationNode::ModCalculationNode(NonnullOwnPtr<CalculationNode> x, NonnullOwnPtr<CalculationNode> y, Optional<CSSNumericType> numeric_type)
+ModCalculationNode::ModCalculationNode(NonnullRefPtr<CalculationNode> x, NonnullRefPtr<CalculationNode> y, Optional<CSSNumericType> numeric_type)
     : CalculationNode(Type::Mod, move(numeric_type))
     , m_x(move(x))
     , m_y(move(y))
@@ -1678,15 +1678,15 @@ bool ModCalculationNode::equals(CalculationNode const& other) const
         && m_y->equals(*static_cast<ModCalculationNode const&>(other).m_y);
 }
 
-NonnullOwnPtr<RemCalculationNode> RemCalculationNode::create(NonnullOwnPtr<CalculationNode> x, NonnullOwnPtr<CalculationNode> y)
+NonnullRefPtr<RemCalculationNode> RemCalculationNode::create(NonnullRefPtr<CalculationNode> x, NonnullRefPtr<CalculationNode> y)
 {
     // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
     // The result of adding the types of its comma-separated calculations.
     auto numeric_type = add_the_types(*x, *y);
-    return adopt_own(*new (nothrow) RemCalculationNode(move(x), move(y), move(numeric_type)));
+    return adopt_ref(*new (nothrow) RemCalculationNode(move(x), move(y), move(numeric_type)));
 }
 
-RemCalculationNode::RemCalculationNode(NonnullOwnPtr<CalculationNode> x, NonnullOwnPtr<CalculationNode> y, Optional<CSSNumericType> numeric_type)
+RemCalculationNode::RemCalculationNode(NonnullRefPtr<CalculationNode> x, NonnullRefPtr<CalculationNode> y, Optional<CSSNumericType> numeric_type)
     : CalculationNode(Type::Rem, move(numeric_type))
     , m_x(move(x))
     , m_y(move(y))

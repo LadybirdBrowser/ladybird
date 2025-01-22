@@ -536,7 +536,7 @@ NonnullRefPtr<CSSStyleValue const> interpolate_value(DOM::Element& element, Calc
             }
         };
 
-        static auto to_calculation_node = [calculation_context](CSSStyleValue const& value) -> NonnullOwnPtr<CalculationNode> {
+        static auto to_calculation_node = [calculation_context](CSSStyleValue const& value) -> NonnullRefPtr<CalculationNode> {
             switch (value.type()) {
             case CSSStyleValue::Type::Angle:
                 return NumericCalculationNode::create(value.as_angle().angle(), calculation_context);
@@ -565,7 +565,7 @@ NonnullRefPtr<CSSStyleValue const> interpolate_value(DOM::Element& element, Calc
             auto interpolated_from = interpolate_value(element, calculation_context, from, from_base_type_and_default->default_value, delta);
             auto interpolated_to = interpolate_value(element, calculation_context, to_base_type_and_default->default_value, to, delta);
 
-            Vector<NonnullOwnPtr<CalculationNode>> values;
+            Vector<NonnullRefPtr<CalculationNode>> values;
             values.ensure_capacity(2);
             values.unchecked_append(to_calculation_node(interpolated_from));
             values.unchecked_append(to_calculation_node(interpolated_to));
