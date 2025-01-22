@@ -487,20 +487,20 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method_string, Stri
     auto parsed_url = DOMURL::parse(url, api_base_url, api_url_character_encoding);
 
     // 6. If parsedURL is failure, then throw a "SyntaxError" DOMException.
-    if (!parsed_url.is_valid())
+    if (!parsed_url.has_value())
         return WebIDL::SyntaxError::create(realm(), "Invalid URL"_string);
 
     // 7. If the async argument is omitted, set async to true, and set username and password to null.
     // NOTE: This is handled in the overload lacking the async argument.
 
     // 8. If parsedURL’s host is non-null, then:
-    if (parsed_url.host().has_value()) {
+    if (parsed_url->host().has_value()) {
         // 1. If the username argument is not null, set the username given parsedURL and username.
         if (username.has_value())
-            parsed_url.set_username(username.value());
+            parsed_url->set_username(username.value());
         // 2. If the password argument is not null, set the password given parsedURL and password.
         if (password.has_value())
-            parsed_url.set_password(password.value());
+            parsed_url->set_password(password.value());
     }
 
     // 9. If async is false, the current global object is a Window object, and either this’s timeout is
@@ -523,7 +523,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method_string, Stri
     // Set this’s request method to method.
     m_request_method = normalized_method.span();
     // Set this’s request URL to parsedURL.
-    m_request_url = parsed_url;
+    m_request_url = parsed_url.release_value();
     // Set this’s synchronous flag if async is false; otherwise unset this’s synchronous flag.
     m_synchronous = !async;
     // Empty this’s author request headers.

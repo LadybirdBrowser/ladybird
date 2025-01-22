@@ -268,11 +268,11 @@ GC::Ptr<Fetch::Infrastructure::Request> HTMLLinkElement::create_link_request(HTM
     auto url = DOMURL::parse(options.href, options.base_url);
 
     // 4. If url is failure, then return null.
-    if (!url.is_valid())
+    if (!url.has_value())
         return nullptr;
 
     // 5. Let request be the result of creating a potential-CORS request given url, options's destination, and options's crossorigin.
-    auto request = create_potential_CORS_request(vm(), url, options.destination, options.crossorigin);
+    auto request = create_potential_CORS_request(vm(), *url, options.destination, options.crossorigin);
 
     // 6. Set request's policy container to options's policy container.
     request->set_policy_container(options.policy_container);

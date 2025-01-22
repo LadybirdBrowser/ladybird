@@ -135,12 +135,12 @@ ErrorOr<Optional<URL::URL>> Response::location_url(Optional<String> const& reque
 
     // 3. If location is a header value, then set location to the result of parsing location with response’s URL.
     auto location = DOMURL::parse(location_values.first(), url());
-    if (!location.is_valid())
+    if (!location.has_value())
         return Error::from_string_literal("Invalid 'Location' header URL");
 
     // 4. If location is a URL whose fragment is null, then set location’s fragment to requestFragment.
-    if (!location.fragment().has_value())
-        location.set_fragment(request_fragment);
+    if (!location->fragment().has_value())
+        location->set_fragment(request_fragment);
 
     // 5. Return location.
     return location;
