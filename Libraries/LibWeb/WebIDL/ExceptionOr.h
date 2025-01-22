@@ -134,3 +134,53 @@ public:
 };
 
 }
+
+namespace AK {
+
+template<>
+struct Formatter<Web::WebIDL::SimpleException> : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, Web::WebIDL::SimpleException const& exception)
+    {
+        auto message_view = exception.message.visit(
+            [](String const& message) -> StringView {
+                return message.bytes_as_string_view();
+            },
+            [](StringView message) -> StringView {
+                return message;
+            });
+
+        return Formatter<StringView>::format(builder, message_view);
+    }
+};
+
+template<>
+struct Formatter<Web::WebIDL::Exception> : Formatter<FormatString> {
+    ErrorOr<void> format(FormatBuilder& builder, Web::WebIDL::Exception const& exception)
+    {
+        return exception.visit(
+            [&](Web::WebIDL::SimpleException const& simple_exception) -> ErrorOr<void> {
+                return Formatter<FormatString>::format(builder, "{}"sv, simple_exception);
+            },
+            [&](GC::Ref<Web::WebIDL::DOMException> const& dom_exception) -> ErrorOr<void> {
+                return Formatter<FormatString>::format(builder, "{}"sv, *dom_exception);
+            },
+            [&](JS::Completion const& completion) -> ErrorOr<void> {
+                VERIFY(completion.is_error());
+                auto value = *completion.value();
+
+                if (value.is_object()) {
+                    auto& object = value.as_object();
+                    static const JS::PropertyKey message_property_key { "message" };
+                    auto has_message_or_error = object.has_own_property(message_property_key);
+                    if (!has_message_or_error.is_error() && has_message_or_error.value()) {
+                        auto message_object = object.get_without_side_effects(message_property_key);
+                        return Formatter<StringView>::format(builder, message_object.to_string_without_side_effects());
+                    }
+                }
+
+                return Formatter<StringView>::format(builder, value.to_string_without_side_effects());
+            });
+    }
+};
+
+}
