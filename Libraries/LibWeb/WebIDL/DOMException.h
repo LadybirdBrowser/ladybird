@@ -148,3 +148,15 @@ inline JS::Completion throw_completion(GC::Ref<WebIDL::DOMException> exception)
 }
 
 }
+
+namespace AK {
+
+template<>
+struct Formatter<Web::WebIDL::DOMException> : Formatter<FormatString> {
+    ErrorOr<void> format(FormatBuilder& builder, Web::WebIDL::DOMException const& exception)
+    {
+        return Formatter<FormatString>::format(builder, "[{}]: {}"sv, exception.name(), exception.message());
+    }
+};
+
+}
