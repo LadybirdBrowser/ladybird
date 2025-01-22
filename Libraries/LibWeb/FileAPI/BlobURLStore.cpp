@@ -115,13 +115,13 @@ Optional<URL::BlobURLEntry::Object> obtain_a_blob_object(URL::BlobURLEntry const
 }
 
 // https://w3c.github.io/FileAPI/#removeTheEntry
-void remove_entry_from_blob_url_store(StringView url)
+void remove_entry_from_blob_url_store(URL::URL const& url)
 {
     // 1. Let store be the user agent’s blob URL store;
     auto& store = blob_url_store();
 
     // 2. Let url string be the result of serializing url.
-    auto url_string = URL::URL { url }.to_string();
+    auto url_string = url.serialize();
 
     // 3. Remove store[url string].
     store.remove(url_string);

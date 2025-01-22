@@ -132,6 +132,10 @@ void DOMURL::revoke_object_url(JS::VM&, StringView url)
     // 1. Let url record be the result of parsing url.
     auto url_record = parse(url);
 
+    // Spec Bug: https://github.com/w3c/FileAPI/issues/207, missing check for URL failure parsing.
+    if (!url_record.is_valid())
+        return;
+
     // 2. If url record’s scheme is not "blob", return.
     if (url_record.scheme() != "blob"sv)
         return;
@@ -151,7 +155,8 @@ void DOMURL::revoke_object_url(JS::VM&, StringView url)
         return;
 
     // 7. Remove an entry from the Blob URL Store for url.
-    FileAPI::remove_entry_from_blob_url_store(url);
+    // FIXME: Spec bug: https://github.com/w3c/FileAPI/issues/207, urlRecord should instead be passed through.
+    FileAPI::remove_entry_from_blob_url_store(url_record);
 }
 
 // https://url.spec.whatwg.org/#dom-url-canparse
