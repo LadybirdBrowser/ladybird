@@ -469,14 +469,6 @@ void DOMURL::set_hash(String const& hash)
     (void)URL::Parser::basic_parse(input, {}, &m_url, URL::Parser::State::Fragment);
 }
 
-// https://url.spec.whatwg.org/#concept-domain
-// FIXME: Move into URL::Host
-bool host_is_domain(URL::Host const& host)
-{
-    // A domain is a non-empty ASCII string that identifies a realm within a network.
-    return host.has<String>() && host.get<String>() != String {};
-}
-
 // https://url.spec.whatwg.org/#potentially-strip-trailing-spaces-from-an-opaque-path
 void strip_trailing_spaces_from_an_opaque_path(DOMURL& url)
 {
