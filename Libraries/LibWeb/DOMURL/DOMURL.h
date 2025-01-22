@@ -37,8 +37,8 @@ public:
 
     String origin() const;
 
-    WebIDL::ExceptionOr<String> protocol() const;
-    WebIDL::ExceptionOr<void> set_protocol(String const&);
+    String protocol() const;
+    void set_protocol(String const&);
 
     String const& username() const;
     void set_username(String const&);
@@ -46,13 +46,13 @@ public:
     String const& password() const;
     void set_password(String const&);
 
-    WebIDL::ExceptionOr<String> host() const;
+    String host() const;
     void set_host(String const&);
 
-    WebIDL::ExceptionOr<String> hostname() const;
+    String hostname() const;
     void set_hostname(String const&);
 
-    WebIDL::ExceptionOr<String> port() const;
+    String port() const;
     void set_port(String const&);
 
     String pathname() const;
@@ -67,12 +67,12 @@ public:
     // FIXME: Reimplement this to meet the definition in https://url.spec.whatwg.org/#url-opaque-path once we modernize URL to meet the spec.
     bool cannot_be_a_base_url() const { return m_url.cannot_be_a_base_url(); }
 
-    WebIDL::ExceptionOr<String> search() const;
+    String search() const;
     void set_search(String const&);
 
     GC::Ref<URLSearchParams const> search_params() const;
 
-    WebIDL::ExceptionOr<String> hash() const;
+    String hash() const;
     void set_hash(String const&);
 
     String to_json() const;
