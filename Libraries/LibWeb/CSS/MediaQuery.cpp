@@ -90,20 +90,22 @@ bool MediaFeature::evaluate(HTML::Window const& window) const
         return false;
     auto queried_value = maybe_queried_value.release_value();
 
-    auto resolution_context = Length::ResolutionContext::for_window(window);
+    CalculationResolutionContext calculation_context {
+        .length_resolution_context = Length::ResolutionContext::for_window(window),
+    };
     switch (m_type) {
     case Type::IsTrue:
         if (queried_value.is_integer())
-            return queried_value.integer().resolved(resolution_context) != 0;
+            return queried_value.integer().resolved(calculation_context) != 0;
         if (queried_value.is_length()) {
-            auto length = queried_value.length().resolved(resolution_context);
-            return length.raw_value() != 0;
+            auto length = queried_value.length().resolved(calculation_context);
+            return length->raw_value() != 0;
         }
         // FIXME: I couldn't figure out from the spec how ratios should be evaluated in a boolean context.
         if (queried_value.is_ratio())
             return !queried_value.ratio().is_degenerate();
         if (queried_value.is_resolution())
-            return queried_value.resolution().resolved().to_dots_per_pixel() != 0;
+            return queried_value.resolution().resolved(calculation_context).map([](auto& it) { return it.to_dots_per_pixel(); }).value_or(0) != 0;
         if (queried_value.is_ident()) {
             // NOTE: It is not technically correct to always treat `no-preference` as false, but every
             //       media-feature that accepts it as a value treats it as false, so good enough. :^)
@@ -148,19 +150,22 @@ bool MediaFeature::compare(HTML::Window const& window, MediaFeatureValue left, C
         return false;
     }
 
+    CalculationResolutionContext calculation_context {
+        .length_resolution_context = Length::ResolutionContext::for_window(window),
+    };
+
     if (left.is_integer()) {
-        auto resolution_context = Length::ResolutionContext::for_window(window);
         switch (comparison) {
         case Comparison::Equal:
-            return left.integer().resolved(resolution_context) == right.integer().resolved(resolution_context);
+            return left.integer().resolved(calculation_context).value_or(0) == right.integer().resolved(calculation_context).value_or(0);
         case Comparison::LessThan:
-            return left.integer().resolved(resolution_context) < right.integer().resolved(resolution_context);
+            return left.integer().resolved(calculation_context).value_or(0) < right.integer().resolved(calculation_context).value_or(0);
         case Comparison::LessThanOrEqual:
-            return left.integer().resolved(resolution_context) <= right.integer().resolved(resolution_context);
+            return left.integer().resolved(calculation_context).value_or(0) <= right.integer().resolved(calculation_context).value_or(0);
         case Comparison::GreaterThan:
-            return left.integer().resolved(resolution_context) > right.integer().resolved(resolution_context);
+            return left.integer().resolved(calculation_context).value_or(0) > right.integer().resolved(calculation_context).value_or(0);
         case Comparison::GreaterThanOrEqual:
-            return left.integer().resolved(resolution_context) >= right.integer().resolved(resolution_context);
+            return left.integer().resolved(calculation_context).value_or(0) >= right.integer().resolved(calculation_context).value_or(0);
         }
         VERIFY_NOT_REACHED();
     }
@@ -168,9 +173,8 @@ bool MediaFeature::compare(HTML::Window const& window, MediaFeatureValue left, C
     if (left.is_length()) {
         CSSPixels left_px;
         CSSPixels right_px;
-        auto resolution_context = Length::ResolutionContext::for_window(window);
-        auto left_length = left.length().resolved(resolution_context);
-        auto right_length = right.length().resolved(resolution_context);
+        auto left_length = left.length().resolved(calculation_context).value_or(Length::make_px(0));
+        auto right_length = right.length().resolved(calculation_context).value_or(Length::make_px(0));
         // Save ourselves some work if neither side is a relative length.
         if (left_length.is_absolute() && right_length.is_absolute()) {
             left_px = left_length.absolute_length_to_px();
@@ -222,8 +226,8 @@ bool MediaFeature::compare(HTML::Window const& window, MediaFeatureValue left, C
     }
 
     if (left.is_resolution()) {
-        auto left_dppx = left.resolution().resolved().to_dots_per_pixel();
-        auto right_dppx = right.resolution().resolved().to_dots_per_pixel();
+        auto left_dppx = left.resolution().resolved(calculation_context).map([](auto& it) { return it.to_dots_per_pixel(); }).value_or(0);
+        auto right_dppx = right.resolution().resolved(calculation_context).map([](auto& it) { return it.to_dots_per_pixel(); }).value_or(0);
 
         switch (comparison) {
         case Comparison::Equal:

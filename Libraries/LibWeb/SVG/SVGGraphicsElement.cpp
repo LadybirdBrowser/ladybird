@@ -306,7 +306,10 @@ Vector<float> SVGGraphicsElement::stroke_dasharray() const
                 dasharray.append(resolve_relative_to_viewport_size(length_percentage));
             },
             [&](CSS::NumberOrCalculated const& number_or_calculated) {
-                dasharray.append(number_or_calculated.resolved(*layout_node()));
+                CSS::CalculationResolutionContext calculation_context {
+                    .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(*layout_node()),
+                };
+                dasharray.append(number_or_calculated.resolved(calculation_context).value_or(0));
             });
     }
 
