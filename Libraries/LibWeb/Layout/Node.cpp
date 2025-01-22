@@ -240,6 +240,11 @@ bool Node::establishes_stacking_context() const
             return true;
     }
 
+    // https://drafts.fxtf.org/compositing/#mix-blend-mode
+    // Applying a blendmode other than normal to the element must establish a new stacking context.
+    if (computed_values().mix_blend_mode() != CSS::MixBlendMode::Normal)
+        return true;
+
     return computed_values().opacity() < 1.0f;
 }
 
@@ -1038,6 +1043,9 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     if (auto isolation = computed_style.isolation(); isolation.has_value())
         computed_values.set_isolation(isolation.value());
+
+    if (auto mix_blend_mode = computed_style.mix_blend_mode(); mix_blend_mode.has_value())
+        computed_values.set_mix_blend_mode(mix_blend_mode.value());
 
     propagate_style_to_anonymous_wrappers();
 

@@ -1433,6 +1433,12 @@ CSS::Containment ComputedProperties::contain() const
     return containment;
 }
 
+Optional<CSS::MixBlendMode> ComputedProperties::mix_blend_mode() const
+{
+    auto const& value = property(CSS::PropertyID::MixBlendMode);
+    return keyword_to_mix_blend_mode(value.to_keyword());
+}
+
 Optional<CSS::MaskType> ComputedProperties::mask_type() const
 {
     auto const& value = property(CSS::PropertyID::MaskType);

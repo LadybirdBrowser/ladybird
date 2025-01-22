@@ -2116,6 +2116,14 @@
       "unitless-length"
     ]
   },
+  "mix-blend-mode": {
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "normal",
+    "valid-types": [
+      "mix-blend-mode"
+    ]
+  },
   "object-fit": {
     "animation-type": "discrete",
     "inherited": false,

@@ -12,6 +12,7 @@
 #include <AK/Utf8View.h>
 #include <AK/Vector.h>
 #include <LibGfx/Color.h>
+#include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Gradients.h>
 #include <LibGfx/ImmutableBitmap.h>
@@ -118,6 +119,8 @@ struct StackingContextTransform {
 
 struct PushStackingContext {
     float opacity;
+    Gfx::CompositingAndBlendingOperator compositing_and_blending_operator;
+    bool isolate;
     // The bounding box of the source paintable (pre-transform).
     Gfx::IntRect source_paintable_rect;
     // A translation to be applied after the stacking context has been transformed.
@@ -410,6 +413,10 @@ struct ApplyOpacity {
     float opacity;
 };
 
+struct ApplyCompositeAndBlendingOperator {
+    Gfx::CompositingAndBlendingOperator compositing_and_blending_operator;
+};
+
 struct ApplyFilters {
     Vector<Gfx::Filter> filter;
 };
@@ -469,8 +476,8 @@ using Command = Variant<
     PaintNestedDisplayList,
     PaintScrollBar,
     ApplyOpacity,
+    ApplyCompositeAndBlendingOperator,
     ApplyFilters,
     ApplyTransform,
     ApplyMaskBitmap>;
-
 }

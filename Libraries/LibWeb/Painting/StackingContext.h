@@ -12,6 +12,26 @@
 
 namespace Web::Painting {
 
+#define ENUMERATE_MIX_BLEND_MODES(E) \
+    E(Normal)                        \
+    E(Multiply)                      \
+    E(Screen)                        \
+    E(Overlay)                       \
+    E(Darken)                        \
+    E(Lighten)                       \
+    E(ColorDodge)                    \
+    E(ColorBurn)                     \
+    E(HardLight)                     \
+    E(SoftLight)                     \
+    E(Difference)                    \
+    E(Exclusion)                     \
+    E(Hue)                           \
+    E(Saturation)                    \
+    E(Color)                         \
+    E(Luminosity)                    \
+    E(PlusDarker)                    \
+    E(PlusLighter)
+
 class StackingContext {
     friend class ViewportPaintable;
 

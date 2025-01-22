@@ -1,6 +1,6 @@
 All supported properties and their default values exposed from CSSStyleDeclaration from getComputedStyle:
 'cssText': ''
-'length': '218'
+'length': '219'
 'parentRule': 'null'
 'cssFloat': 'none'
 'WebkitAlignContent': 'normal'
@@ -455,6 +455,8 @@ All supported properties and their default values exposed from CSSStyleDeclarati
 'min-inline-size': '0px'
 'minWidth': 'auto'
 'min-width': 'auto'
+'mixBlendMode': 'normal'
+'mix-blend-mode': 'normal'
 'objectFit': 'fill'
 'object-fit': 'fill'
 'objectPosition': '50% 50%'

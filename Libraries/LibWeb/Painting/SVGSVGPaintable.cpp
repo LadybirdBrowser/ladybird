@@ -6,6 +6,7 @@
 
 #include <LibWeb/Layout/ImageBox.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
+#include <LibWeb/Painting/StackingContext.h>
 
 namespace Web::Painting {
 
@@ -55,9 +56,21 @@ void SVGSVGPaintable::paint_svg_box(PaintContext& context, PaintableBox const& s
 {
     auto const& computed_values = svg_box.computed_values();
 
-    auto const& filter = svg_box.computed_values().filter();
+    auto const& filter = computed_values.filter();
     auto masking_area = svg_box.get_masking_area();
-    auto needs_to_save_state = svg_box.has_css_transform() || svg_box.get_masking_area().has_value();
+
+    Gfx::CompositingAndBlendingOperator compositing_and_blending_operator;
+    switch (computed_values.mix_blend_mode()) {
+#undef __ENUMERATE
+#define __ENUMERATE(mix_blend_mode)                                                              \
+    case CSS::MixBlendMode::mix_blend_mode:                                                      \
+        compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::mix_blend_mode; \
+        break;
+        ENUMERATE_MIX_BLEND_MODES(__ENUMERATE)
+#undef __ENUMERATE
+    }
+
+    auto needs_to_save_state = computed_values.isolation() == CSS::Isolation::Isolate || compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal || svg_box.has_css_transform() || svg_box.get_masking_area().has_value();
 
     if (needs_to_save_state) {
         context.display_list_recorder().save();
@@ -69,6 +82,10 @@ void SVGSVGPaintable::paint_svg_box(PaintContext& context, PaintableBox const& s
 
     if (!filter.is_empty()) {
         context.display_list_recorder().apply_filters(filter);
+    }
+
+    if (compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal) {
+        context.display_list_recorder().apply_compositing_and_blending_operator(compositing_and_blending_operator);
     }
 
     if (svg_box.has_css_transform()) {
@@ -94,6 +111,10 @@ void SVGSVGPaintable::paint_svg_box(PaintContext& context, PaintableBox const& s
     svg_box.after_paint(context, PaintPhase::Foreground);
 
     paint_descendants(context, svg_box, phase);
+
+    if (compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal) {
+        context.display_list_recorder().restore();
+    }
 
     if (!filter.is_empty()) {
         context.display_list_recorder().restore();

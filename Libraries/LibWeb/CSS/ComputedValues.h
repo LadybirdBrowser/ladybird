@@ -185,6 +185,7 @@ public:
     static CSS::UserSelect user_select() { return CSS::UserSelect::Auto; }
     static CSS::Isolation isolation() { return CSS::Isolation::Auto; }
     static CSS::Containment contain() { return {}; }
+    static CSS::MixBlendMode mix_blend_mode() { return CSS::MixBlendMode::Normal; }
 
     // https://www.w3.org/TR/SVG/geometry.html
     static LengthPercentage cx() { return CSS::Length::make_px(0); }
@@ -442,6 +443,7 @@ public:
     CSS::UserSelect user_select() const { return m_noninherited.user_select; }
     CSS::Isolation isolation() const { return m_noninherited.isolation; }
     CSS::Containment const& contain() const { return m_noninherited.contain; }
+    CSS::MixBlendMode mix_blend_mode() const { return m_noninherited.mix_blend_mode; }
 
     CSS::LengthBox const& inset() const { return m_noninherited.inset; }
     const CSS::LengthBox& margin() const { return m_noninherited.margin; }
@@ -696,6 +698,7 @@ protected:
         CSS::UserSelect user_select { InitialValues::user_select() };
         CSS::Isolation isolation { InitialValues::isolation() };
         CSS::Containment contain { InitialValues::contain() };
+        CSS::MixBlendMode mix_blend_mode { InitialValues::mix_blend_mode() };
 
         Optional<CSS::Transformation> rotate;
         Optional<CSS::Transformation> translate;
@@ -871,6 +874,7 @@ public:
     void set_user_select(CSS::UserSelect value) { m_noninherited.user_select = value; }
     void set_isolation(CSS::Isolation value) { m_noninherited.isolation = value; }
     void set_contain(CSS::Containment value) { m_noninherited.contain = move(value); }
+    void set_mix_blend_mode(CSS::MixBlendMode value) { m_noninherited.mix_blend_mode = value; }
 
     void set_fill(SVGPaint value) { m_inherited.fill = move(value); }
     void set_stroke(SVGPaint value) { m_inherited.stroke = move(value); }
