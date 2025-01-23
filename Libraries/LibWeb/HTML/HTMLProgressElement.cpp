@@ -92,6 +92,7 @@ double HTMLProgressElement::position() const
 
 void HTMLProgressElement::inserted()
 {
+    Base::inserted();
     create_shadow_tree_if_needed();
 }
 
