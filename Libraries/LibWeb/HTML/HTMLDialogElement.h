@@ -20,7 +20,7 @@ class HTMLDialogElement final : public HTMLElement {
 public:
     virtual ~HTMLDialogElement() override;
 
-    virtual void removed_from(Node*) override;
+    virtual void removed_from(Node* old_parent, Node& old_root) override;
 
     String return_value() const;
     void set_return_value(String);

@@ -261,7 +261,7 @@ public:
 
     virtual void inserted();
     virtual void post_connection();
-    virtual void removed_from(Node*);
+    virtual void removed_from(Node* old_parent, Node& old_root);
     virtual void children_changed() { }
     virtual void adopted_from(Document&) { }
     virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) const { return {}; }

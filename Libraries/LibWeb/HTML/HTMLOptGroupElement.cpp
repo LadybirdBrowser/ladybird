@@ -36,9 +36,9 @@ void HTMLOptGroupElement::inserted()
         static_cast<HTMLSelectElement&>(*parent()).update_selectedness();
 }
 
-void HTMLOptGroupElement::removed_from(Node* old_parent)
+void HTMLOptGroupElement::removed_from(Node* old_parent, Node& old_root)
 {
-    Base::removed_from(old_parent);
+    Base::removed_from(old_parent, old_root);
 
     // The optgroup HTML element removing steps, given removedNode and oldParent, are:
     // 1. If oldParent is a select element and removedNode has an option child, then run oldParent's selectedness setting algorithm.

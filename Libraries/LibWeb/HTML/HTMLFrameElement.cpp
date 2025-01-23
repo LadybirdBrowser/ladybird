@@ -56,9 +56,9 @@ void HTMLFrameElement::inserted()
 }
 
 // https://html.spec.whatwg.org/multipage/obsolete.html#frames:html-element-removing-steps
-void HTMLFrameElement::removed_from(DOM::Node* node)
+void HTMLFrameElement::removed_from(DOM::Node* old_parent, DOM::Node& old_root)
 {
-    Base::removed_from(node);
+    Base::removed_from(old_parent, old_root);
 
     // The frame HTML element removing steps, given removedNode, are to destroy a child navigable given removedNode.
     destroy_the_child_navigable();

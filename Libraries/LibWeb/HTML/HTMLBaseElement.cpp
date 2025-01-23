@@ -40,9 +40,9 @@ void HTMLBaseElement::inserted()
         set_the_frozen_base_url();
 }
 
-void HTMLBaseElement::removed_from(Node* parent)
+void HTMLBaseElement::removed_from(Node* old_parent, Node& old_root)
 {
-    HTMLElement::removed_from(parent);
+    HTMLElement::removed_from(old_parent, old_root);
     document().update_base_element({});
 }
 

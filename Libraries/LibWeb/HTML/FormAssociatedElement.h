@@ -38,11 +38,11 @@ private:                                                                        
         form_associated_element_was_inserted();                                                                                                                             \
     }                                                                                                                                                                       \
                                                                                                                                                                             \
-    virtual void removed_from(DOM::Node* node) override                                                                                                                     \
+    virtual void removed_from(DOM::Node* old_parent, DOM::Node& old_root) override                                                                                          \
     {                                                                                                                                                                       \
-        ElementBaseClass::removed_from(node);                                                                                                                               \
+        ElementBaseClass::removed_from(old_parent, old_root);                                                                                                               \
         form_node_was_removed();                                                                                                                                            \
-        form_associated_element_was_removed(node);                                                                                                                          \
+        form_associated_element_was_removed(old_parent);                                                                                                                    \
     }                                                                                                                                                                       \
                                                                                                                                                                             \
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override \

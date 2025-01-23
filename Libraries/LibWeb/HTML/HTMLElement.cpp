@@ -1286,9 +1286,9 @@ void HTMLElement::did_lose_focus()
     document().editing_host_manager()->set_active_contenteditable_element(nullptr);
 }
 
-void HTMLElement::removed_from(Node* old_parent)
+void HTMLElement::removed_from(Node* old_parent, Node& old_root)
 {
-    Element::removed_from(old_parent);
+    Element::removed_from(old_parent, old_root);
 
     // If removedNode's popover attribute is not in the no popover state, then run the hide popover algorithm given removedNode, false, false, and false.
     if (popover().has_value())

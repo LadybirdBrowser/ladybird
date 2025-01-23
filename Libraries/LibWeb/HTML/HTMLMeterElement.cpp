@@ -173,8 +173,9 @@ void HTMLMeterElement::inserted()
     create_shadow_tree_if_needed();
 }
 
-void HTMLMeterElement::removed_from(DOM::Node*)
+void HTMLMeterElement::removed_from(DOM::Node* old_parent, DOM::Node& old_root)
 {
+    Base::removed_from(old_parent, old_root);
     set_shadow_root(nullptr);
 }
 

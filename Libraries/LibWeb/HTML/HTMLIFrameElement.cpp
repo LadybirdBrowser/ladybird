@@ -173,9 +173,9 @@ void HTMLIFrameElement::process_the_iframe_attributes(bool initial_insertion)
 }
 
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#the-iframe-element:the-iframe-element-7
-void HTMLIFrameElement::removed_from(DOM::Node* node)
+void HTMLIFrameElement::removed_from(DOM::Node* old_parent, DOM::Node& old_root)
 {
-    HTMLElement::removed_from(node);
+    HTMLElement::removed_from(old_parent, old_root);
 
     // When an iframe element is removed from a document, the user agent must destroy the nested navigable of the element.
     destroy_the_child_navigable();

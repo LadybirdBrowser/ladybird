@@ -232,9 +232,9 @@ void HTMLOptionElement::inserted()
         static_cast<HTMLSelectElement&>(*parent()->parent()).update_selectedness();
 }
 
-void HTMLOptionElement::removed_from(Node* old_parent)
+void HTMLOptionElement::removed_from(Node* old_parent, Node& old_root)
 {
-    Base::removed_from(old_parent);
+    Base::removed_from(old_parent, old_root);
 
     // The option HTML element removing steps, given removedNode and oldParent, are:
     // 1. If oldParent is a select element, or oldParent is an optgroup element whose parent is a select element,
