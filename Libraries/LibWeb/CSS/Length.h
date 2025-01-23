@@ -87,6 +87,7 @@ public:
     ~Length();
 
     static Length make_auto();
+    static Length make_px(double value);
     static Length make_px(CSSPixels value);
     Length percentage_of(Percentage const&) const;
 
