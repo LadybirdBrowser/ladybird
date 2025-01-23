@@ -170,6 +170,7 @@ WebIDL::ExceptionOr<void> HTMLMeterElement::set_optimum(double value)
 
 void HTMLMeterElement::inserted()
 {
+    Base::inserted();
     create_shadow_tree_if_needed();
 }
 

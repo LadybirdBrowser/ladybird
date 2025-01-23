@@ -45,6 +45,8 @@ void HTMLDetailsElement::initialize(JS::Realm& realm)
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#the-details-element:html-element-insertion-steps
 void HTMLDetailsElement::inserted()
 {
+    Base::inserted();
+
     // 1. Ensure details exclusivity by closing the given element if needed given insertedNode.
     ensure_details_exclusivity_by_closing_the_given_element_if_needed();
 
