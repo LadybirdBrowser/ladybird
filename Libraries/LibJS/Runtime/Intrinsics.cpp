@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2022-2023, Linus Groh <linusg@serenityos.org>
+ * Copyright (c) 2020-2025, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -41,6 +42,7 @@
 #include <LibJS/Runtime/GeneratorFunctionConstructor.h>
 #include <LibJS/Runtime/GeneratorFunctionPrototype.h>
 #include <LibJS/Runtime/GeneratorPrototype.h>
+#include <LibJS/Runtime/Intl/Collator.h>
 #include <LibJS/Runtime/Intl/CollatorConstructor.h>
 #include <LibJS/Runtime/Intl/CollatorPrototype.h>
 #include <LibJS/Runtime/Intl/DateTimeFormatConstructor.h>
@@ -418,6 +420,16 @@ void Intrinsics::visit_edges(Visitor& visitor)
     visitor.visit(m_##snake_name##_prototype);
     JS_ENUMERATE_ITERATOR_PROTOTYPES
 #undef __JS_ENUMERATE
+
+    visitor.visit(m_default_collator);
+}
+
+GC::Ref<Intl::Collator> Intrinsics::default_collator()
+{
+    if (!m_default_collator) {
+        m_default_collator = as<Intl::Collator>(*MUST(construct(this->vm(), intl_collator_constructor(), js_undefined(), js_undefined())));
+    }
+    return *m_default_collator;
 }
 
 // 10.2.4 AddRestrictedFunctionProperties ( F, realm ), https://tc39.es/ecma262/#sec-addrestrictedfunctionproperties

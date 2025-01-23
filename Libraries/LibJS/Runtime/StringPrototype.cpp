@@ -544,7 +544,15 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::locale_compare)
     auto that_value = TRY(vm.argument(0).to_string(vm));
 
     // 4. Let collator be ? Construct(%Collator%, « locales, options »).
-    auto collator = TRY(construct(vm, realm.intrinsics().intl_collator_constructor(), vm.argument(1), vm.argument(2)));
+    auto locales = vm.argument(1);
+    auto options = vm.argument(2);
+
+    // OPTIMIZATION: If both locales and options are undefined, we can use a cached default-constructed Collator.
+    GC::Ptr<Object> collator;
+    if (locales.is_undefined() && options.is_undefined())
+        collator = realm.intrinsics().default_collator();
+    else
+        collator = TRY(construct(vm, realm.intrinsics().intl_collator_constructor(), locales, options));
 
     // 5. Return CompareStrings(collator, S, thatValue).
     return Intl::compare_strings(static_cast<Intl::Collator const&>(*collator), string, that_value);
