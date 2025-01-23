@@ -5,11 +5,13 @@
  */
 
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/Editing/CommandNames.h>
 #include <LibWeb/Editing/Commands.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/Selection/Selection.h>
+#include <LibWeb/UIEvents/InputEvent.h>
 
 namespace Web::DOM {
 
@@ -37,46 +39,52 @@ WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[may
 
     // 4. If command is not in the Miscellaneous commands section:
     //
-    //    We don't fire events for copy/cut/paste/undo/redo/selectAll because they should all have
-    //    their own events. We don't fire events for styleWithCSS/useCSS because it's not obvious
-    //    where to fire them, or why anyone would want them. We don't fire events for unsupported
-    //    commands, because then if they became supported and were classified with the miscellaneous
-    //    events, we'd have to stop firing events for consistency's sake.
+    //    We don't fire events for copy/cut/paste/undo/redo/selectAll because they should all have their own events. We
+    //    don't fire events for styleWithCSS/useCSS because it's not obvious where to fire them, or why anyone would
+    //    want them. We don't fire events for unsupported commands, because then if they became supported and were
+    //    classified with the miscellaneous events, we'd have to stop firing events for consistency's sake.
     //
     // AD-HOC: The defaultParagraphSeparator command is also in the Miscellaneous commands section
-    if (command != Editing::CommandNames::defaultParagraphSeparator
-        && command != Editing::CommandNames::redo
-        && command != Editing::CommandNames::selectAll
-        && command != Editing::CommandNames::styleWithCSS
-        && command != Editing::CommandNames::undo
-        && command != Editing::CommandNames::useCSS) {
-        // FIXME: 1. Let affected editing host be the editing host that is an inclusive ancestor of the
-        //    active range's start node and end node, and is not the ancestor of any editing host
-        //    that is an inclusive ancestor of the active range's start node and end node.
+    GC::Ptr<Node> affected_editing_host;
+    if (!command.is_one_of(Editing::CommandNames::copy, Editing::CommandNames::cut,
+            Editing::CommandNames::defaultParagraphSeparator, Editing::CommandNames::paste, Editing::CommandNames::redo,
+            Editing::CommandNames::selectAll, Editing::CommandNames::styleWithCSS, Editing::CommandNames::undo,
+            Editing::CommandNames::useCSS)) {
+        // 1. Let affected editing host be the editing host that is an inclusive ancestor of the active range's start
+        //    node and end node, and is not the ancestor of any editing host that is an inclusive ancestor of the active
+        //    range's start node and end node.
+        //
+        // NOTE: Because either the start or end node of the range could be inside an editing host that is part of the
+        //       other node's editing host, we can probe both and see if either one is the other's ancestor.
+        // NOTE: We can reuse Editing::editing_host_of_node() here since query_command_enabled() above already checked
+        //       that both the start and end nodes are either editable or an editing host.
+        auto range = Editing::active_range(*this);
+        auto& start_node_editing_host = *Editing::editing_host_of_node(range->start_container());
+        auto& end_node_editing_host = *Editing::editing_host_of_node(range->end_container());
+        affected_editing_host = start_node_editing_host.is_ancestor_of(end_node_editing_host)
+            ? end_node_editing_host
+            : start_node_editing_host;
 
-        // FIXME: 2. Fire an event named "beforeinput" at affected editing host using InputEvent, with its
+        // 2. Fire an event named "beforeinput" at affected editing host using InputEvent, with its
         //    bubbles and cancelable attributes initialized to true, and its data attribute
         //    initialized to null.
-
-        // FIXME: 3. If the value returned by the previous step is false, return false.
-
+        // 3. If the value returned by the previous step is false, return false.
         // 4. If command is not enabled, return false.
         //
-        //    We have to check again whether the command is enabled, because the beforeinput handler
-        //    might have done something annoying like getSelection().removeAllRanges().
-        if (!MUST(query_command_enabled(command)))
-            return false;
-
-        // FIXME: 5. Let affected editing host be the editing host that is an inclusive ancestor of the
-        //    active range's start node and end node, and is not the ancestor of any editing host
-        //    that is an inclusive ancestor of the active range's start node and end node.
+        //    We have to check again whether the command is enabled, because the beforeinput handler might have done
+        //    something annoying like getSelection().removeAllRanges().
+        // 5. Let affected editing host be the editing host that is an inclusive ancestor of the active range's start
+        //    node and end node, and is not the ancestor of any editing host that is an inclusive ancestor of the active
+        //    range's start node and end node.
         //
-        //    This new affected editing host is what we'll fire the input event at in a couple of
-        //    lines. We want to compute it beforehand just to be safe: bugs in the command action
-        //    might remove the selection or something bad like that, and we don't want to have to
-        //    handle it later. We recompute it after the beforeinput event is handled so that if the
-        //    handler moves the selection to some other editing host, the input event will be fired
-        //    at the editing host that was actually affected.
+        //    This new affected editing host is what we'll fire the input event at in a couple of lines. We want to
+        //    compute it beforehand just to be safe: bugs in the command action might remove the selection or something
+        //    bad like that, and we don't want to have to handle it later. We recompute it after the beforeinput event
+        //    is handled so that if the handler moves the selection to some other editing host, the input event will be
+        //    fired at the editing host that was actually affected.
+
+        // AD-HOC: No, we don't. Neither Chrome nor Firefox fire the "beforeinput" event for execCommand(). This is an
+        //         open discussion for the spec: https://github.com/w3c/editing/issues/200
     }
 
     // https://w3c.github.io/editing/docs/execCommand/#preserves-overrides
@@ -87,6 +95,10 @@ WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[may
     Vector<Editing::RecordedOverride> overrides;
     if (command_definition.preserves_overrides)
         overrides = Editing::record_current_overrides(*this);
+
+    // NOTE: Step 7 below asks us whether the DOM tree was modified, so keep track of the document versions.
+    auto old_dom_tree_version = dom_tree_version();
+    auto old_character_data_version = character_data_version();
 
     // 5. Take the action for command, passing value to the instructions as an argument.
     auto command_result = command_definition.action(*this, value);
@@ -101,10 +113,19 @@ WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[may
     if (!command_result)
         return false;
 
-    // FIXME: 7. If the action modified DOM tree, then fire an event named "input" at affected editing host
-    //    using InputEvent, with its isTrusted and bubbles attributes initialized to true, inputType
-    //    attribute initialized to the mapped value of command, and its data attribute initialized
-    //    to null.
+    // 7. If the action modified DOM tree, then fire an event named "input" at affected editing host using InputEvent,
+    //    with its isTrusted and bubbles attributes initialized to true, inputType attribute initialized to the mapped
+    //    value of command, and its data attribute initialized to null.
+    bool tree_was_modified = dom_tree_version() != old_dom_tree_version
+        || character_data_version() != old_character_data_version;
+    if (tree_was_modified && affected_editing_host) {
+        UIEvents::InputEventInit event_init {};
+        event_init.bubbles = true;
+        event_init.input_type = command_definition.mapped_value;
+        auto event = realm().create<UIEvents::InputEvent>(realm(), HTML::EventNames::input, event_init);
+        event->set_is_trusted(true);
+        affected_editing_host->dispatch_event(event);
+    }
 
     // 8. Return true.
     return true;
@@ -148,7 +169,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_enabled(FlyString const& comma
         return false;
 
     // FIXME: the editing host of its start node is not an EditContext editing host,
-    auto start_node_editing_host = Editing::editing_host_of_node(start_node);
+    [[maybe_unused]] auto start_node_editing_host = Editing::editing_host_of_node(start_node);
 
     // its end node is either editable or an editing host,
     auto& end_node = *active_range->end_container();
@@ -156,13 +177,23 @@ WebIDL::ExceptionOr<bool> Document::query_command_enabled(FlyString const& comma
         return false;
 
     // FIXME: the editing host of its end node is not an EditContext editing host,
+    [[maybe_unused]] auto end_node_editing_host = Editing::editing_host_of_node(end_node);
 
-    // FIXME: and there is some editing host that is an inclusive ancestor of both its start node and its
-    //        end node.
+    // and there is some editing host that is an inclusive ancestor of both its start node and its end node.
+    GC::Ptr<Node> inclusive_ancestor_editing_host;
+    start_node->for_each_inclusive_ancestor([&](GC::Ref<Node> ancestor) {
+        if (ancestor->is_editing_host() && ancestor->is_inclusive_ancestor_of(end_node)) {
+            inclusive_ancestor_editing_host = ancestor;
+            return IterationDecision::Break;
+        }
+        return IterationDecision::Continue;
+    });
+    if (!inclusive_ancestor_editing_host)
+        return false;
 
     // NOTE: Commands can define additional conditions for being enabled, and currently the only condition mentioned in
     //       the spec is that certain commands must not be enabled if the editing host is in the plaintext-only state.
-    if (auto const* html_element = as_if<HTML::HTMLElement>(start_node_editing_host.ptr()); html_element
+    if (auto const* html_element = as_if<HTML::HTMLElement>(inclusive_ancestor_editing_host.ptr()); html_element
         && html_element->content_editable_state() == HTML::ContentEditableState::PlaintextOnly
         && command.is_one_of(
             Editing::CommandNames::backColor,

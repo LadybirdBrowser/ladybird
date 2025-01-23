@@ -3,6 +3,7 @@
 <script>
     test(() => {
         var divElm = document.querySelector('div');
+        divElm.addEventListener('input', (e) => println('input triggered'));
 
         // Put cursor between 'foo' and 'bar'
         var range = document.createRange();

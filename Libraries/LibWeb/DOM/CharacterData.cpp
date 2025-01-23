@@ -135,6 +135,7 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
         static_cast<Layout::TextNode&>(*layout_node).invalidate_text_for_rendering();
 
     document().set_needs_layout();
+    document().bump_character_data_version();
 
     if (m_grapheme_segmenter)
         m_grapheme_segmenter->set_segmented_text(m_data);

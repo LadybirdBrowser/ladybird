@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <AK/RefCounted.h>
 #include <LibGC/Root.h>
 #include <LibWeb/DOM/MutationRecord.h>
 #include <LibWeb/WebIDL/CallbackType.h>

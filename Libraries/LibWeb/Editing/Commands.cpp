@@ -2464,6 +2464,7 @@ static Array const commands {
         .command = CommandNames::backColor,
         .action = command_back_color_action,
         .relevant_css_property = CSS::PropertyID::BackgroundColor,
+        .mapped_value = "formatBackColor"_fly_string,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-bold-command
     CommandDefinition {
@@ -2471,17 +2472,20 @@ static Array const commands {
         .action = command_bold_action,
         .relevant_css_property = CSS::PropertyID::FontWeight,
         .inline_activated_values = { "bold"sv, "600"sv, "700"sv, "800"sv, "900"sv },
+        .mapped_value = "formatBold"_fly_string,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-createlink-command
     CommandDefinition {
         .command = CommandNames::createLink,
         .action = command_create_link_action,
+        .mapped_value = "insertLink"_fly_string,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-delete-command
     CommandDefinition {
         .command = CommandNames::delete_,
         .action = command_delete_action,
         .preserves_overrides = true,
+        .mapped_value = "deleteContentBackward"_fly_string,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-defaultparagraphseparator-command
     CommandDefinition {
@@ -2494,6 +2498,7 @@ static Array const commands {
         .command = CommandNames::fontName,
         .action = command_font_name_action,
         .relevant_css_property = CSS::PropertyID::FontFamily,
+        .mapped_value = "formatFontName"_fly_string,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-fontsize-command
     CommandDefinition {
@@ -2507,6 +2512,7 @@ static Array const commands {
         .command = CommandNames::foreColor,
         .action = command_fore_color_action,
         .relevant_css_property = CSS::PropertyID::Color,
+        .mapped_value = "formatFontColor"_fly_string,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-formatblock-command
     CommandDefinition {
@@ -2521,6 +2527,7 @@ static Array const commands {
         .command = CommandNames::forwardDelete,
         .action = command_forward_delete_action,
         .preserves_overrides = true,
+        .mapped_value = "deleteContentForward"_fly_string,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-hilitecolor-command
     CommandDefinition {
@@ -2533,12 +2540,14 @@ static Array const commands {
         .command = CommandNames::indent,
         .action = command_indent_action,
         .preserves_overrides = true,
+        .mapped_value = "formatIndent"_fly_string,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-inserthorizontalrule-command
     CommandDefinition {
         .command = CommandNames::insertHorizontalRule,
         .action = command_insert_horizontal_rule_action,
         .preserves_overrides = true,
+        .mapped_value = "insertHorizontalRule"_fly_string,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-inserthtml-command
     CommandDefinition {
@@ -2557,6 +2566,7 @@ static Array const commands {
         .command = CommandNames::insertLineBreak,
         .action = command_insert_linebreak_action,
         .preserves_overrides = true,
+        .mapped_value = "insertLineBreak"_fly_string,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-insertorderedlist-command
     CommandDefinition {
@@ -2565,17 +2575,20 @@ static Array const commands {
         .indeterminate = command_insert_ordered_list_indeterminate,
         .state = command_insert_ordered_list_state,
         .preserves_overrides = true,
+        .mapped_value = "insertOrderedList"_fly_string,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-insertparagraph-command
     CommandDefinition {
         .command = CommandNames::insertParagraph,
         .action = command_insert_paragraph_action,
         .preserves_overrides = true,
+        .mapped_value = "insertParagraph"_fly_string,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-inserttext-command
     CommandDefinition {
         .command = CommandNames::insertText,
         .action = command_insert_text_action,
+        .mapped_value = "insertText"_fly_string,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-insertunorderedlist-command
     CommandDefinition {
@@ -2584,6 +2597,7 @@ static Array const commands {
         .indeterminate = command_insert_unordered_list_indeterminate,
         .state = command_insert_unordered_list_state,
         .preserves_overrides = true,
+        .mapped_value = "insertUnorderedList"_fly_string,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-italic-command
     CommandDefinition {
@@ -2600,6 +2614,7 @@ static Array const commands {
         .state = command_justify_center_state,
         .value = command_justify_center_value,
         .preserves_overrides = true,
+        .mapped_value = "formatJustifyCenter"_fly_string,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-justifyfull-command
     CommandDefinition {
@@ -2609,6 +2624,7 @@ static Array const commands {
         .state = command_justify_full_state,
         .value = command_justify_full_value,
         .preserves_overrides = true,
+        .mapped_value = "formatJustifyFull"_fly_string,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-justifyleft-command
     CommandDefinition {
@@ -2618,6 +2634,7 @@ static Array const commands {
         .state = command_justify_left_state,
         .value = command_justify_left_value,
         .preserves_overrides = true,
+        .mapped_value = "formatJustifyLeft"_fly_string,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-justifyright-command
     CommandDefinition {
@@ -2627,12 +2644,14 @@ static Array const commands {
         .state = command_justify_right_state,
         .value = command_justify_right_value,
         .preserves_overrides = true,
+        .mapped_value = "formatJustifyRight"_fly_string,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-outdent-command
     CommandDefinition {
         .command = CommandNames::outdent,
         .action = command_outdent_action,
         .preserves_overrides = true,
+        .mapped_value = "formatOutdent"_fly_string,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-removeformat-command
     CommandDefinition {
@@ -2649,6 +2668,7 @@ static Array const commands {
         .command = CommandNames::strikethrough,
         .action = command_strikethrough_action,
         .inline_activated_values = { "line-through"sv },
+        .mapped_value = "formatStrikeThrough"_fly_string,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-stylewithcss-command
     CommandDefinition {
@@ -2669,6 +2689,7 @@ static Array const commands {
         .action = command_superscript_action,
         .indeterminate = command_superscript_indeterminate,
         .inline_activated_values = { "superscript"sv },
+        .mapped_value = "formatSuperscript"_fly_string,
     },
     // https://w3c.github.io/editing/docs/execCommand/#the-underline-command
     CommandDefinition {

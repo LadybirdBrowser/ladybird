@@ -24,6 +24,9 @@ struct CommandDefinition {
 
     // https://w3c.github.io/editing/docs/execCommand/#inline-command-activated-values
     Vector<StringView> inline_activated_values {};
+
+    // https://w3c.github.io/editing/docs/execCommand/#dfn-map-an-edit-command-to-input-type-value
+    FlyString mapped_value {};
 };
 
 Optional<CommandDefinition const&> find_command_definition(FlyString const&);
