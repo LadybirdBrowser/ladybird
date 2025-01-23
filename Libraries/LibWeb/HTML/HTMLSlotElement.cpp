@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/HTMLSlotElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 
@@ -145,6 +146,23 @@ void HTMLSlotElement::attribute_changed(FlyString const& local_name, Optional<St
         // 6. Run assign slottables for a tree with element’s root.
         DOM::assign_slottables_for_a_tree(root());
     }
+}
+
+void HTMLSlotElement::inserted()
+{
+    Base::inserted();
+    auto& root = this->root();
+    if (!root.is_shadow_root())
+        return;
+    static_cast<DOM::ShadowRoot&>(root).increment_slot_count();
+}
+
+void HTMLSlotElement::removed_from(Node* old_parent, Node& old_root)
+{
+    Base::removed_from(old_parent, old_root);
+    if (!old_root.is_shadow_root())
+        return;
+    static_cast<DOM::ShadowRoot&>(old_root).decrement_slot_count();
 }
 
 }

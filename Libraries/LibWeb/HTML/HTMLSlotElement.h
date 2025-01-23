@@ -45,6 +45,9 @@ private:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
+    virtual void inserted() override;
+    virtual void removed_from(Node* old_parent, Node& old_root) override;
+
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
     // https://html.spec.whatwg.org/multipage/scripting.html#manually-assigned-nodes

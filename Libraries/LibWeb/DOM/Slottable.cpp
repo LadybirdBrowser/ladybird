@@ -74,32 +74,32 @@ GC::Ptr<HTML::HTMLSlotElement> find_a_slot(Slottable const& slottable, OpenFlag 
     // 5. If shadow’s slot assignment is "manual", then return the slot in shadow’s descendants whose manually assigned
     //    nodes contains slottable, if any; otherwise null.
     if (shadow->slot_assignment() == Bindings::SlotAssignmentMode::Manual) {
-        GC::Ptr<HTML::HTMLSlotElement> slot;
+        GC::Ptr<HTML::HTMLSlotElement> found_slot;
 
-        shadow->for_each_in_subtree_of_type<HTML::HTMLSlotElement>([&](auto& child) {
-            if (!child.manually_assigned_nodes().contains_slow(slottable))
+        shadow->for_each_slot([&](auto& slot) {
+            if (!slot.manually_assigned_nodes().contains_slow(slottable))
                 return TraversalDecision::Continue;
 
-            slot = child;
+            found_slot = slot;
             return TraversalDecision::Break;
         });
 
-        return slot;
+        return found_slot;
     }
 
     // 6. Return the first slot in tree order in shadow’s descendants whose name is slottable’s name, if any; otherwise null.
     auto const& slottable_name = slottable.visit([](auto const& node) { return node->slottable_name(); });
-    GC::Ptr<HTML::HTMLSlotElement> slot;
+    GC::Ptr<HTML::HTMLSlotElement> found_slot;
 
-    shadow->for_each_in_subtree_of_type<HTML::HTMLSlotElement>([&](auto& child) {
-        if (child.slot_name() != slottable_name)
+    shadow->for_each_slot([&](auto& slot) {
+        if (slot.slot_name() != slottable_name)
             return TraversalDecision::Continue;
 
-        slot = child;
+        found_slot = slot;
         return TraversalDecision::Break;
     });
 
-    return slot;
+    return found_slot;
 }
 
 // https://dom.spec.whatwg.org/#find-slotables
@@ -186,7 +186,7 @@ void assign_slottables_for_a_tree(GC::Ref<Node> root)
 
     // To assign slottables for a tree, given a node root, run assign slottables for each slot slot in root’s inclusive
     // descendants, in tree order.
-    root->for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([](auto& slot) {
+    static_cast<DOM::ShadowRoot&>(*root).for_each_slot([](auto& slot) {
         assign_slottables(slot);
         return TraversalDecision::Continue;
     });
