@@ -43,9 +43,14 @@ Length Length::make_auto()
     return Length(0, Type::Auto);
 }
 
+Length Length::make_px(double value)
+{
+    return Length(value, Type::Px);
+}
+
 Length Length::make_px(CSSPixels value)
 {
-    return Length(value.to_double(), Type::Px);
+    return make_px(value.to_double());
 }
 
 Length Length::percentage_of(Percentage const& percentage) const
