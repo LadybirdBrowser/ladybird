@@ -35,9 +35,10 @@ bool command_back_color_action(DOM::Document& document, String const& value)
         resulting_value = MUST(String::formatted("#{}", resulting_value));
 
         // 2. If value is still not a valid CSS color, or if it is currentColor, return false.
+        // AD-HOC: No browser does this. They always return true.
         if (!Color::from_string(resulting_value).has_value()) {
-            // FIXME: Also return false in case of currentColor.
-            return false;
+            // FIXME: Also return true in case of currentColor.
+            return true;
         }
     }
 
@@ -602,9 +603,10 @@ bool command_fore_color_action(DOM::Document& document, String const& value)
         resulting_value = MUST(String::formatted("#{}", resulting_value));
 
         // 2. If value is still not a valid CSS color, or if it is currentColor, return false.
+        // AD-HOC: No browser does this. They always return true.
         if (!Color::from_string(resulting_value).has_value()) {
-            // FIXME: Also return false in case of currentColor.
-            return false;
+            // FIXME: Also return true in case of currentColor.
+            return true;
         }
     }
 
