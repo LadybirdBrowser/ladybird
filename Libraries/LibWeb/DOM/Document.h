@@ -113,6 +113,11 @@ public:
     u64 dom_tree_version() const { return m_dom_tree_version; }
     void bump_dom_tree_version() { ++m_dom_tree_version; }
 
+    // AD-HOC: This number increments whenever CharacterData is modified in the document. It is used together with
+    //         dom_tree_version() to understand whether either the DOM tree structure or contents were changed.
+    u64 character_data_version() const { return m_character_data_version; }
+    void bump_character_data_version() { ++m_character_data_version; }
+
     WebIDL::ExceptionOr<void> populate_with_html_head_and_body();
 
     GC::Ptr<Selection::Selection> get_selection() const;
@@ -1067,6 +1072,7 @@ private:
     Optional<Core::DateTime> m_last_modified;
 
     u64 m_dom_tree_version { 0 };
+    u64 m_character_data_version { 0 };
 
     // https://drafts.csswg.org/css-position-4/#document-top-layer
     // Documents have a top layer, an ordered set containing elements from the document.
