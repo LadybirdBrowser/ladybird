@@ -18,5 +18,8 @@
         range.setEnd(divElm.childNodes[1], 3);
         document.execCommand('hiliteColor', false, 'red');
         println(`Div contents: "${divElm.innerHTML}"`);
+
+        // Invalid color
+        println(`Invalid color result: ${document.execCommand('backColor', false, '%*&')}`);
     });
 </script>
