@@ -20,6 +20,12 @@ WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[may
     if (!is_html_document())
         return WebIDL::InvalidStateError::create(realm(), "execCommand is only supported on HTML documents"_string);
 
+    // AD-HOC: All major browsers refuse to recursively execute execCommand() (e.g. inside input event handlers).
+    if (m_inside_exec_command)
+        return false;
+    ScopeGuard guard_recursion = [&] { m_inside_exec_command = false; };
+    m_inside_exec_command = true;
+
     // 1. If only one argument was provided, let show UI be false.
     // 2. If only one or two arguments were provided, let value be the empty string.
     // NOTE: these steps are dealt by the default values for both show_ui and value

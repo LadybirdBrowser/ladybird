@@ -1101,6 +1101,8 @@ private:
 
     GC::Ref<EditingHostManager> m_editing_host_manager;
 
+    bool m_inside_exec_command { false };
+
     // https://w3c.github.io/editing/docs/execCommand/#default-single-line-container-name
     FlyString m_default_single_line_container_name { HTML::TagNames::div };
 
