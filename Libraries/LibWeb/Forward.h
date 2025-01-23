@@ -357,7 +357,6 @@ class RefCountedFlag;
 
 namespace Web::Fetch::Infrastructure {
 class Body;
-class ConnectionTimingInfo;
 class FetchAlgorithms;
 class FetchController;
 class FetchParams;
@@ -369,6 +368,7 @@ class Request;
 class Response;
 
 struct BodyWithType;
+struct ConnectionTimingInfo;
 struct Header;
 }
 
