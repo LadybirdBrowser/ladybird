@@ -202,7 +202,7 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Str
         url_record = source_document.encoding_parse_url(url);
 
         // 2. If urlRecord is failure, then throw a "SyntaxError" DOMException.
-        if (!url_record->is_valid())
+        if (!url_record.has_value())
             return WebIDL::SyntaxError::create(realm(), MUST(String::formatted("Invalid URL '{}'", url)));
     }
 

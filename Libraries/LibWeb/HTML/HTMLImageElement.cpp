@@ -522,13 +522,13 @@ ErrorOr<void> HTMLImageElement::update_the_image_data(bool restart_animations, b
         //    If that is not successful, then abort this inner set of steps.
         //    Otherwise, let urlString be the resulting URL string.
         auto url_string = document().parse_url(selected_source.value());
-        if (!url_string.is_valid())
+        if (!url_string.has_value())
             goto after_step_7;
 
         // 2. Let key be a tuple consisting of urlString, the img element's crossorigin attribute's mode,
         //    and, if that mode is not No CORS, the node document's origin.
         ListOfAvailableImages::Key key;
-        key.url = url_string;
+        key.url = url_string.value();
         key.mode = m_cors_setting;
         key.origin = document().origin();
 
@@ -564,7 +564,7 @@ ErrorOr<void> HTMLImageElement::update_the_image_data(bool restart_animations, b
                     restart_the_animation();
 
                 // 2. Set current request's current URL to urlString.
-                m_current_request->set_current_url(realm(), url_string);
+                m_current_request->set_current_url(realm(), *url_string);
 
                 // 3. If maybe omit events is not set or previousURL is not equal to urlString, then fire an event named load at the img element.
                 if (!maybe_omit_events || previous_url != url_string)
@@ -622,7 +622,7 @@ after_step_7:
         // 12. Parse selected source, relative to the element's node document, and let urlString be the resulting URL string.
         auto url_string = document().parse_url(selected_source.value().url.to_byte_string());
         // If that is not successful, then:
-        if (!url_string.is_valid()) {
+        if (!url_string.has_value()) {
             // 1. Abort the image request for the current request and the pending request.
             abort_the_image_request(realm(), m_current_request);
             abort_the_image_request(realm(), m_pending_request);
@@ -673,7 +673,7 @@ after_step_7:
 
         // 16. Set image request to a new image request whose current URL is urlString.
         auto image_request = ImageRequest::create(realm(), document().page());
-        image_request->set_current_url(realm(), url_string);
+        image_request->set_current_url(realm(), *url_string);
 
         // 17. If current request's state is unavailable or broken, then set the current request to image request.
         //     Otherwise, set the pending request to image request.
@@ -690,7 +690,7 @@ after_step_7:
         if (delay_load_event)
             m_load_event_delayer.emplace(document());
 
-        add_callbacks_to_image_request(*image_request, maybe_omit_events, url_string, previous_url);
+        add_callbacks_to_image_request(*image_request, maybe_omit_events, *url_string, previous_url);
 
         // AD-HOC: If the image request is already available or fetching, no need to start another fetch.
         if (image_request->is_available() || image_request->is_fetching())
@@ -698,7 +698,7 @@ after_step_7:
 
         // 18. Let request be the result of creating a potential-CORS request given urlString, "image",
         //     and the current state of the element's crossorigin content attribute.
-        auto request = create_potential_CORS_request(vm(), url_string, Fetch::Infrastructure::Request::Destination::Image, m_cors_setting);
+        auto request = create_potential_CORS_request(vm(), *url_string, Fetch::Infrastructure::Request::Destination::Image, m_cors_setting);
 
         // 19. Set request's client to the element's node document's relevant settings object.
         request->set_client(&document().relevant_settings_object());
@@ -848,7 +848,7 @@ void HTMLImageElement::react_to_changes_in_the_environment()
     // 6. ⌛ Parse selected source, relative to the element's node document,
     //       and let urlString be the resulting URL string. If that is not successful, then return.
     auto url_string = document().parse_url(selected_source.value());
-    if (!url_string.is_valid())
+    if (!url_string.has_value())
         return;
 
     // 7. ⌛ Let corsAttributeState be the state of the element's crossorigin content attribute.
@@ -862,14 +862,14 @@ void HTMLImageElement::react_to_changes_in_the_environment()
 
     // 10. ⌛ Let key be a tuple consisting of urlString, corsAttributeState, and, if corsAttributeState is not No CORS, origin.
     ListOfAvailableImages::Key key;
-    key.url = url_string;
+    key.url = *url_string;
     key.mode = m_cors_setting;
     if (cors_attribute_state != CORSSettingAttribute::NoCORS)
         key.origin = document().origin();
 
     // 11. ⌛ Let image request be a new image request whose current URL is urlString
     auto image_request = ImageRequest::create(realm(), document().page());
-    image_request->set_current_url(realm(), url_string);
+    image_request->set_current_url(realm(), *url_string);
 
     // 12. ⌛ Let the element's pending request be image request.
     m_pending_request = image_request;
@@ -917,7 +917,7 @@ void HTMLImageElement::react_to_changes_in_the_environment()
     // Otherwise:
     else {
         // 1. Let request be the result of creating a potential-CORS request given urlString, "image", and corsAttributeState.
-        auto request = create_potential_CORS_request(vm(), url_string, Fetch::Infrastructure::Request::Destination::Image, m_cors_setting);
+        auto request = create_potential_CORS_request(vm(), *url_string, Fetch::Infrastructure::Request::Destination::Image, m_cors_setting);
 
         // 2. Set request's client to client, initiator to "imageset", and set request's synchronous flag.
         request->set_client(&client);

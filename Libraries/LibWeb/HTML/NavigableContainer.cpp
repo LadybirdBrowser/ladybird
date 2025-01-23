@@ -208,8 +208,8 @@ Optional<URL::URL> NavigableContainer::shared_attribute_processing_steps_for_ifr
     auto src_attribute_value = get_attribute_value(HTML::AttributeNames::src);
     if (!src_attribute_value.is_empty()) {
         auto parsed_src = document().parse_url(src_attribute_value);
-        if (parsed_src.is_valid())
-            url = parsed_src;
+        if (parsed_src.has_value())
+            url = parsed_src.release_value();
     }
 
     // 3. If the inclusive ancestor navigables of element's node navigable contains a navigable

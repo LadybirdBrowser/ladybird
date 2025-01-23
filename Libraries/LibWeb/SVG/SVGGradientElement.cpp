@@ -129,7 +129,9 @@ GC::Ptr<SVGGradientElement const> SVGGradientElement::linked_gradient(HashTable<
     auto link = has_attribute(AttributeNames::href) ? get_attribute(AttributeNames::href) : get_attribute("xlink:href"_fly_string);
     if (auto href = link; href.has_value() && !link->is_empty()) {
         auto url = document().encoding_parse_url(*href);
-        auto id = url.fragment();
+        if (!url.has_value())
+            return {};
+        auto id = url->fragment();
         if (!id.has_value() || id->is_empty())
             return {};
         auto element = document().get_element_by_id(id.value());

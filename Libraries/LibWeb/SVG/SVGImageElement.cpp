@@ -146,11 +146,10 @@ void SVGImageElement::process_the_url(Optional<String> const& href)
     }
 
     m_href = document().parse_url(*href);
-
-    if (!m_href.is_valid())
+    if (!m_href.has_value())
         return;
 
-    fetch_the_document(m_href);
+    fetch_the_document(*m_href);
 }
 
 // https://svgwg.org/svg2-draft/linking.html#processingURL-fetch

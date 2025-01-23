@@ -2923,7 +2923,7 @@ Optional<FontLoader&> StyleComputer::load_font_face(ParsedFontFace const& font_f
     for (auto const& source : font_face.sources()) {
         // FIXME: These should be loaded relative to the stylesheet URL instead of the document URL.
         if (source.local_or_url.has<URL::URL>())
-            urls.append(m_document->encoding_parse_url(source.local_or_url.get<URL::URL>().to_string()));
+            urls.append(*m_document->encoding_parse_url(source.local_or_url.get<URL::URL>().to_string()));
         // FIXME: Handle local()
     }
 

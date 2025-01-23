@@ -91,8 +91,8 @@ void HTMLTableElement::apply_presentational_hints(GC::Ref<CSS::CascadedPropertie
         }
         if (name == HTML::AttributeNames::background) {
             // https://html.spec.whatwg.org/multipage/rendering.html#tables-2:encoding-parsing-and-serializing-a-url
-            if (auto parsed_value = document().encoding_parse_url(value); parsed_value.is_valid())
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundImage, CSS::ImageStyleValue::create(parsed_value));
+            if (auto parsed_value = document().encoding_parse_url(value); parsed_value.has_value())
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundImage, CSS::ImageStyleValue::create(*parsed_value));
             return;
         }
         if (name == HTML::AttributeNames::bgcolor) {

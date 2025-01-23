@@ -1122,17 +1122,17 @@ URL::URL Document::base_url() const
 }
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#parse-a-url
-URL::URL Document::parse_url(StringView url) const
+Optional<URL::URL> Document::parse_url(StringView url) const
 {
     // 1. Let baseURL be environment's base URL, if environment is a Document object; otherwise environment's API base URL.
     auto base_url = this->base_url();
 
     // 2. Return the result of applying the URL parser to url, with baseURL.
-    return DOMURL::parse(url, base_url).value_or(URL::URL {});
+    return DOMURL::parse(url, base_url);
 }
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#encoding-parsing-a-url
-URL::URL Document::encoding_parse_url(StringView url) const
+Optional<URL::URL> Document::encoding_parse_url(StringView url) const
 {
     // 1. Let encoding be UTF-8.
     // 2. If environment is a Document object, then set encoding to environment's character encoding.
@@ -1145,7 +1145,7 @@ URL::URL Document::encoding_parse_url(StringView url) const
     auto base_url = this->base_url();
 
     // 5. Return the result of applying the URL parser to url, with baseURL and encoding.
-    return DOMURL::parse(url, base_url, encoding).value_or(URL::URL {});
+    return DOMURL::parse(url, base_url, encoding);
 }
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#encoding-parsing-and-serializing-a-url
@@ -1155,11 +1155,11 @@ Optional<String> Document::encoding_parse_and_serialize_url(StringView url) cons
     auto parsed_url = encoding_parse_url(url);
 
     // 2. If url is failure, then return failure.
-    if (!parsed_url.is_valid())
+    if (!parsed_url.has_value())
         return {};
 
     // 3. Return the result of applying the URL serializer to url.
-    return parsed_url.serialize();
+    return parsed_url->serialize();
 }
 
 void Document::set_needs_layout()
@@ -4752,10 +4752,10 @@ void Document::shared_declarative_refresh_steps(StringView input, GC::Ptr<HTML::
         // 11. Parse: Parse urlString relative to document. If that fails, return. Otherwise, set urlRecord to the
         //     resulting URL record.
         auto maybe_url_record = parse_url(url_string);
-        if (!maybe_url_record.is_valid())
+        if (!maybe_url_record.has_value())
             return;
 
-        url_record = maybe_url_record;
+        url_record = maybe_url_record.release_value();
     }
 
     // 12. Set document's will declaratively refresh to true.

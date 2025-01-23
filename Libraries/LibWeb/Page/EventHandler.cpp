@@ -497,28 +497,31 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint viewport_position, CSSPix
                     GC::Ref<DOM::Document> document = *m_navigable->active_document();
                     auto href = link->href();
                     auto url = document->encoding_parse_url(href);
-
-                    if (button == UIEvents::MouseButton::Primary && (modifiers & UIEvents::Mod_PlatformCtrl) != 0) {
-                        m_navigable->page().client().page_did_click_link(url, link->target().to_byte_string(), modifiers);
-                    } else if (button == UIEvents::MouseButton::Middle) {
-                        m_navigable->page().client().page_did_middle_click_link(url, link->target().to_byte_string(), modifiers);
-                    } else if (button == UIEvents::MouseButton::Secondary) {
-                        m_navigable->page().client().page_did_request_link_context_menu(top_level_viewport_position, url, link->target().to_byte_string(), modifiers);
+                    if (url.has_value()) {
+                        if (button == UIEvents::MouseButton::Primary && (modifiers & UIEvents::Mod_PlatformCtrl) != 0) {
+                            m_navigable->page().client().page_did_click_link(*url, link->target().to_byte_string(), modifiers);
+                        } else if (button == UIEvents::MouseButton::Middle) {
+                            m_navigable->page().client().page_did_middle_click_link(*url, link->target().to_byte_string(), modifiers);
+                        } else if (button == UIEvents::MouseButton::Secondary) {
+                            m_navigable->page().client().page_did_request_link_context_menu(top_level_viewport_position, *url, link->target().to_byte_string(), modifiers);
+                        }
                     }
                 } else if (button == UIEvents::MouseButton::Secondary) {
                     if (is<HTML::HTMLImageElement>(*node)) {
                         auto& image_element = as<HTML::HTMLImageElement>(*node);
                         auto image_url = image_element.document().encoding_parse_url(image_element.src());
-                        Optional<Gfx::Bitmap const*> bitmap;
-                        if (image_element.immutable_bitmap())
-                            bitmap = image_element.immutable_bitmap()->bitmap();
+                        if (image_url.has_value()) {
+                            Optional<Gfx::Bitmap const*> bitmap;
+                            if (image_element.immutable_bitmap())
+                                bitmap = image_element.immutable_bitmap()->bitmap();
 
-                        m_navigable->page().client().page_did_request_image_context_menu(top_level_viewport_position, image_url, "", modifiers, bitmap);
+                            m_navigable->page().client().page_did_request_image_context_menu(top_level_viewport_position, *image_url, "", modifiers, bitmap);
+                        }
                     } else if (is<HTML::HTMLMediaElement>(*node)) {
                         auto& media_element = as<HTML::HTMLMediaElement>(*node);
 
                         Page::MediaContextMenu menu {
-                            .media_url = media_element.document().encoding_parse_url(media_element.current_src()),
+                            .media_url = *media_element.document().encoding_parse_url(media_element.current_src()),
                             .is_video = is<HTML::HTMLVideoElement>(*node),
                             .is_playing = media_element.potentially_playing(),
                             .is_muted = media_element.muted(),
@@ -811,7 +814,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSP
 
         if (is_hovering_link) {
             page.set_is_hovering_link(true);
-            page.client().page_did_hover_link(document.encoding_parse_url(hovered_link_element->href()));
+            page.client().page_did_hover_link(*document.encoding_parse_url(hovered_link_element->href()));
         } else if (page.is_hovering_link()) {
             page.set_is_hovering_link(false);
             page.client().page_did_unhover_link();

@@ -169,7 +169,11 @@ String HTMLObjectElement::data() const
     if (!data.has_value())
         return {};
 
-    return document().encoding_parse_url(*data).to_string();
+    auto maybe_url = document().encoding_parse_url(*data);
+    if (!maybe_url.has_value())
+        return {};
+
+    return maybe_url->to_string();
 }
 
 GC::Ptr<Layout::Node> HTMLObjectElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)
@@ -257,7 +261,7 @@ void HTMLObjectElement::queue_element_task_to_run_object_representation_steps()
             auto url = document().encoding_parse_url(*data);
 
             // 3. If url is failure, then fire an event named error at the element and jump to the step below labeled fallback.
-            if (!url.is_valid()) {
+            if (!url.has_value()) {
                 dispatch_event(DOM::Event::create(realm, HTML::EventNames::error));
                 run_object_representation_fallback_steps();
                 return;
@@ -267,7 +271,7 @@ void HTMLObjectElement::queue_element_task_to_run_object_representation_steps()
             //    object, destination is "object", credentials mode is "include", mode is "navigate", initiator type is
             //    "object", and whose use-URL-credentials flag is set.
             auto request = Fetch::Infrastructure::Request::create(vm);
-            request->set_url(move(url));
+            request->set_url(url.release_value());
             request->set_client(&document().relevant_settings_object());
             request->set_destination(Fetch::Infrastructure::Request::Destination::Object);
             request->set_credentials_mode(Fetch::Infrastructure::Request::CredentialsMode::Include);
@@ -512,7 +516,13 @@ void HTMLObjectElement::load_image()
     // FIXME: This currently reloads the image instead of reusing the resource we've already downloaded.
     auto data = get_attribute_value(HTML::AttributeNames::data);
     auto url = document().encoding_parse_url(data);
-    m_resource_request = HTML::SharedResourceRequest::get_or_create(realm(), document().page(), url);
+
+    if (!url.has_value()) {
+        run_object_representation_fallback_steps();
+        return;
+    }
+
+    m_resource_request = HTML::SharedResourceRequest::get_or_create(realm(), document().page(), *url);
     m_resource_request->add_callbacks(
         [this] {
             run_object_representation_completed_steps(Representation::Image);
@@ -522,7 +532,7 @@ void HTMLObjectElement::load_image()
         });
 
     if (m_resource_request->needs_fetching()) {
-        auto request = HTML::create_potential_CORS_request(vm(), url, Fetch::Infrastructure::Request::Destination::Image, HTML::CORSSettingAttribute::NoCORS);
+        auto request = HTML::create_potential_CORS_request(vm(), *url, Fetch::Infrastructure::Request::Destination::Image, HTML::CORSSettingAttribute::NoCORS);
         request->set_client(&document().relevant_settings_object());
         m_resource_request->fetch_resource(realm(), request);
     }

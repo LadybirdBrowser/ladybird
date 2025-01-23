@@ -385,7 +385,7 @@ void HTMLScriptElement::prepare_script()
         auto url = document().parse_url(src);
 
         // 6. If the previous step failed, then queue an element task on the DOM manipulation task source given el to fire an event named error at el, and return. Otherwise, let url be the resulting URL record.
-        if (!url.is_valid()) {
+        if (!url.has_value()) {
             dbgln("HTMLScriptElement: Refusing to run script because the src URL '{}' is invalid.", url);
             queue_an_element_task(HTML::Task::Source::DOMManipulation, [this] {
                 dispatch_event(DOM::Event::create(realm(), HTML::EventNames::error));
@@ -413,16 +413,16 @@ void HTMLScriptElement::prepare_script()
         // -> "classic"
         if (m_script_type == ScriptType::Classic) {
             // Fetch a classic script given url, settings object, options, classic script CORS setting, encoding, and onComplete.
-            fetch_classic_script(*this, url, settings_object, move(options), classic_script_cors_setting, encoding.release_value(), on_complete).release_value_but_fixme_should_propagate_errors();
+            fetch_classic_script(*this, *url, settings_object, move(options), classic_script_cors_setting, encoding.release_value(), on_complete).release_value_but_fixme_should_propagate_errors();
         }
         // -> "module"
         else if (m_script_type == ScriptType::Module) {
             // If el does not have an integrity attribute, then set options's integrity metadata to the result of resolving a module integrity metadata with url and settings object.
             if (!has_attribute(HTML::AttributeNames::integrity))
-                options.integrity_metadata = resolve_a_module_integrity_metadata(url, settings_object);
+                options.integrity_metadata = resolve_a_module_integrity_metadata(*url, settings_object);
 
             // Fetch an external module script graph given url, settings object, options, and onComplete.
-            fetch_external_module_script_graph(realm(), url, settings_object, options, on_complete);
+            fetch_external_module_script_graph(realm(), *url, settings_object, options, on_complete);
         }
     }
 

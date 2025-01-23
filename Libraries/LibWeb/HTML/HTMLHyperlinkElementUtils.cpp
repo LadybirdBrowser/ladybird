@@ -47,8 +47,8 @@ void HTMLHyperlinkElementUtils::set_the_url()
     auto url = hyperlink_element_utils_document().encoding_parse_url(*href_content_attribute);
 
     // 4. If url is not failure, then set this element's url to url.
-    if (url.is_valid())
-        m_url = move(url);
+    if (url.has_value())
+        m_url = url.release_value();
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#dom-hyperlink-origin
