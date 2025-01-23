@@ -60,7 +60,7 @@ private:
     size_t m_current_frame_index { 0 };
     size_t m_loops_completed { 0 };
 
-    URL::URL m_href;
+    Optional<URL::URL> m_href;
 
     GC::Ptr<HTML::SharedResourceRequest> m_resource_request;
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;

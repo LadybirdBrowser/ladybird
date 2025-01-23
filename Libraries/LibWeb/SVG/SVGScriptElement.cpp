@@ -53,11 +53,12 @@ void SVGScriptElement::process_the_script_element()
     if (has_attribute(SVG::AttributeNames::href) || has_attribute_ns(Namespace::XLink.to_string(), SVG::AttributeNames::href)) {
         auto href_value = href()->base_val();
 
-        script_url = document().parse_url(href_value);
-        if (!script_url.is_valid()) {
+        auto maybe_script_url = document().parse_url(href_value);
+        if (!maybe_script_url.has_value()) {
             dbgln("Invalid script URL: {}", href_value);
             return;
         }
+        script_url = maybe_script_url.release_value();
 
         auto& vm = realm().vm();
         auto request = Fetch::Infrastructure::Request::create(vm);

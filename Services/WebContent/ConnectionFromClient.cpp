@@ -433,14 +433,14 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString const& request,
             } else {
                 auto link = maybe_link.release_value();
                 auto url = document->encoding_parse_url(link->get_attribute_value(Web::HTML::AttributeNames::href));
-                if (url.query().has_value() && !url.query()->is_empty()) {
+                if (url->query().has_value() && !url->query()->is_empty()) {
                     load_html(page_id, "<h1>Invalid ref test link - query string must be empty</h1>");
                     return;
                 }
                 if (has_mismatch_selector)
-                    url.set_query("mismatch"_string);
+                    url->set_query("mismatch"_string);
 
-                load_url(page_id, url);
+                load_url(page_id, *url);
             }
         }
         return;

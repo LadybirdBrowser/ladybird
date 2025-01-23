@@ -125,12 +125,13 @@ void HTMLBodyElement::attribute_changed(FlyString const& name, Optional<String> 
             document().set_visited_link_color(color.value());
     } else if (name.equals_ignoring_ascii_case("background"sv)) {
         // https://html.spec.whatwg.org/multipage/rendering.html#the-page:attr-background
-        m_background_style_value = CSS::ImageStyleValue::create(document().encoding_parse_url(value.value_or(String {})));
-        m_background_style_value->on_animate = [this] {
-            if (paintable()) {
-                paintable()->set_needs_display();
-            }
-        };
+        if (auto maybe_background_url = document().encoding_parse_url(value.value_or(String {})); maybe_background_url.has_value()) {
+            m_background_style_value = CSS::ImageStyleValue::create(maybe_background_url.value());
+            m_background_style_value->on_animate = [this] {
+                if (paintable())
+                    paintable()->set_needs_display();
+            };
+        }
     }
 
 #undef __ENUMERATE

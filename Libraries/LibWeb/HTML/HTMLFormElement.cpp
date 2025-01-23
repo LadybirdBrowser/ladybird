@@ -223,13 +223,13 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
     // 14. Parse a URL given action, relative to the submitter element's node document. If this fails, return.
     // 15. Let parsed action be the resulting URL record.
     auto parsed_action = submitter->document().parse_url(action);
-    if (!parsed_action.is_valid()) {
+    if (!parsed_action.has_value()) {
         dbgln("Failed to submit form: Invalid URL: {}", action);
         return {};
     }
 
     // 16. Let scheme be the scheme of parsed action.
-    auto const& scheme = parsed_action.scheme();
+    auto const& scheme = parsed_action->scheme();
 
     // 17. Let enctype be the submitter element's enctype.
     auto encoding_type = encoding_type_state_from_form_element(submitter);
@@ -282,21 +282,21 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
 
     if (scheme.is_one_of("http"sv, "https"sv)) {
         if (method == MethodAttributeState::GET)
-            TRY_OR_THROW_OOM(vm, mutate_action_url(move(parsed_action), move(entry_list), move(encoding), *target_navigable, history_handling, options.user_involvement));
+            TRY_OR_THROW_OOM(vm, mutate_action_url(parsed_action.release_value(), move(entry_list), move(encoding), *target_navigable, history_handling, options.user_involvement));
         else
-            TRY_OR_THROW_OOM(vm, submit_as_entity_body(move(parsed_action), move(entry_list), encoding_type, move(encoding), *target_navigable, history_handling, options.user_involvement));
+            TRY_OR_THROW_OOM(vm, submit_as_entity_body(parsed_action.release_value(), move(entry_list), encoding_type, move(encoding), *target_navigable, history_handling, options.user_involvement));
     } else if (scheme.is_one_of("ftp"sv, "javascript"sv)) {
-        get_action_url(move(parsed_action), *target_navigable, history_handling, options.user_involvement);
+        get_action_url(parsed_action.release_value(), *target_navigable, history_handling, options.user_involvement);
     } else if (scheme.is_one_of("data"sv, "file"sv)) {
         if (method == MethodAttributeState::GET)
-            TRY_OR_THROW_OOM(vm, mutate_action_url(move(parsed_action), move(entry_list), move(encoding), *target_navigable, history_handling, options.user_involvement));
+            TRY_OR_THROW_OOM(vm, mutate_action_url(parsed_action.release_value(), move(entry_list), move(encoding), *target_navigable, history_handling, options.user_involvement));
         else
-            get_action_url(move(parsed_action), *target_navigable, history_handling, options.user_involvement);
+            get_action_url(parsed_action.release_value(), *target_navigable, history_handling, options.user_involvement);
     } else if (scheme == "mailto"sv) {
         if (method == MethodAttributeState::GET)
-            TRY_OR_THROW_OOM(vm, mail_with_headers(move(parsed_action), move(entry_list), move(encoding), *target_navigable, history_handling, options.user_involvement));
+            TRY_OR_THROW_OOM(vm, mail_with_headers(parsed_action.release_value(), move(entry_list), move(encoding), *target_navigable, history_handling, options.user_involvement));
         else
-            TRY_OR_THROW_OOM(vm, mail_as_body(move(parsed_action), move(entry_list), encoding_type, move(encoding), *target_navigable, history_handling, options.user_involvement));
+            TRY_OR_THROW_OOM(vm, mail_as_body(parsed_action.release_value(), move(entry_list), encoding_type, move(encoding), *target_navigable, history_handling, options.user_involvement));
     } else {
         dbgln("Failed to submit form: Unknown scheme: {}", scheme);
         return {};

@@ -1385,14 +1385,14 @@ WebIDL::ExceptionOr<void> HTMLInputElement::handle_src_attribute(String const& v
     auto url = document().encoding_parse_url(value);
 
     // 2. If url is failure, then return.
-    if (!url.is_valid())
+    if (!url.has_value())
         return {};
 
     // 3. Let request be a new request whose URL is url, client is the element's node document's relevant settings
     //    object, destination is "image", initiator type is "input", credentials mode is "include", and whose
     //    use-URL-credentials flag is set.
     auto request = Fetch::Infrastructure::Request::create(vm);
-    request->set_url(move(url));
+    request->set_url(url.release_value());
     request->set_client(&document().relevant_settings_object());
     request->set_destination(Fetch::Infrastructure::Request::Destination::Image);
     request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Input);

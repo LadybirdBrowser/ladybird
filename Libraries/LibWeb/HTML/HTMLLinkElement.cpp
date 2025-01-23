@@ -77,18 +77,25 @@ void HTMLLinkElement::inserted()
 
     // FIXME: Follow spec for fetching and processing these attributes as well
     if (m_relationship & Relationship::Preload) {
-        // FIXME: Respect the "as" attribute.
-        LoadRequest request;
-        request.set_url(document().encoding_parse_url(get_attribute_value(HTML::AttributeNames::href)));
-        set_resource(ResourceLoader::the().load_resource(Resource::Type::Generic, request));
+        if (auto maybe_href = document().encoding_parse_url(get_attribute_value(HTML::AttributeNames::href)); maybe_href.has_value()) {
+            // FIXME: Respect the "as" attribute.
+            LoadRequest request;
+            request.set_url(maybe_href.value());
+            set_resource(ResourceLoader::the().load_resource(Resource::Type::Generic, request));
+        }
     } else if (m_relationship & Relationship::DNSPrefetch) {
-        ResourceLoader::the().prefetch_dns(document().encoding_parse_url(get_attribute_value(HTML::AttributeNames::href)));
+        if (auto dns_prefetch_url = document().encoding_parse_url(get_attribute_value(HTML::AttributeNames::href)); dns_prefetch_url.has_value()) {
+            ResourceLoader::the().prefetch_dns(dns_prefetch_url.value());
+        }
     } else if (m_relationship & Relationship::Preconnect) {
-        ResourceLoader::the().preconnect(document().encoding_parse_url(get_attribute_value(HTML::AttributeNames::href)));
+        if (auto maybe_href = document().encoding_parse_url(get_attribute_value(HTML::AttributeNames::href)); maybe_href.has_value()) {
+            ResourceLoader::the().preconnect(maybe_href.value());
+        }
     } else if (m_relationship & Relationship::Icon) {
-        auto favicon_url = document().encoding_parse_url(href());
-        auto favicon_request = LoadRequest::create_for_url_on_page(favicon_url, &document().page());
-        set_resource(ResourceLoader::the().load_resource(Resource::Type::Generic, favicon_request));
+        if (auto favicon_url = document().encoding_parse_url(href()); favicon_url.has_value()) {
+            auto favicon_request = LoadRequest::create_for_url_on_page(favicon_url.value(), &document().page());
+            set_resource(ResourceLoader::the().load_resource(Resource::Type::Generic, favicon_request));
+        }
     }
 }
 
@@ -572,7 +579,7 @@ WebIDL::ExceptionOr<void> HTMLLinkElement::load_fallback_favicon_if_needed(GC::R
     //    synchronous flag is set, credentials mode is "include", and whose use-URL-credentials flag is set.
     // NOTE: Fetch requests no longer have a synchronous flag, see https://github.com/whatwg/fetch/pull/1165
     auto request = Fetch::Infrastructure::Request::create(vm);
-    request->set_url(document->parse_url("/favicon.ico"sv));
+    request->set_url(*document->parse_url("/favicon.ico"sv));
     request->set_client(&document->relevant_settings_object());
     request->set_destination(Fetch::Infrastructure::Request::Destination::Image);
     request->set_credentials_mode(Fetch::Infrastructure::Request::CredentialsMode::Include);

@@ -164,14 +164,14 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
     // 3. Parse the poster attribute's value relative to the element's node document. If this fails, then there is no
     //    poster frame; return.
     auto url_record = document().parse_url(*poster);
-    if (!url_record.is_valid())
+    if (!url_record.has_value())
         return {};
 
     // 4. Let request be a new request whose URL is the resulting URL record, client is the element's node document's
     //    relevant settings object, destination is "image", initiator type is "video", credentials mode is "include",
     //    and whose use-URL-credentials flag is set.
     auto request = Fetch::Infrastructure::Request::create(vm);
-    request->set_url(move(url_record));
+    request->set_url(url_record.release_value());
     request->set_client(&document().relevant_settings_object());
     request->set_destination(Fetch::Infrastructure::Request::Destination::Image);
     request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Video);
