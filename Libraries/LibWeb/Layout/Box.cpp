@@ -33,8 +33,12 @@ Optional<CSSPixels> Box::natural_width() const
     // https://drafts.csswg.org/css-contain-2/#containment-size
     // Replaced elements must be treated as having a natural width and height of 0 and no natural aspect
     // ratio.
-    if (dom_node() && dom_node()->is_element() && as<DOM::Element>(dom_node())->has_size_containment())
-        return 0;
+    // NOTE: inline-size containment is the same thing along the inline axis only
+    if (dom_node() && dom_node()->is_element()) {
+        auto& element = as<DOM::Element>(dom_node());
+        if (element->has_size_containment() || (text_flow_direction() == Gfx::Orientation::Horizontal && element->has_inline_size_containment()))
+            return 0;
+    }
 
     return m_natural_width;
 }
@@ -43,8 +47,12 @@ Optional<CSSPixels> Box::natural_height() const
     // https://drafts.csswg.org/css-contain-2/#containment-size
     // Replaced elements must be treated as having a natural width and height of 0 and no natural aspect
     // ratio.
-    if (dom_node() && dom_node()->is_element() && as<DOM::Element>(dom_node())->has_size_containment())
-        return 0;
+    // NOTE: inline-size containment is the same thing along the inline axis only
+    if (dom_node() && dom_node()->is_element()) {
+        auto& element = as<DOM::Element>(dom_node());
+        if (element->has_size_containment() || (text_flow_direction() == Gfx::Orientation::Vertical && element->has_inline_size_containment()))
+            return 0;
+    }
 
     return m_natural_height;
 }
