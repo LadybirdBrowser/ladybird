@@ -25,7 +25,7 @@ private:
     HTMLOptGroupElement(DOM::Document&, DOM::QualifiedName);
 
     virtual void initialize(JS::Realm&) override;
-    virtual void removed_from(Node*) override;
+    virtual void removed_from(Node* old_parent, Node& old_root) override;
     virtual void inserted() override;
 };
 

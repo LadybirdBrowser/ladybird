@@ -41,9 +41,9 @@ void HTMLDialogElement::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_close_watcher);
 }
 
-void HTMLDialogElement::removed_from(Node* old_parent)
+void HTMLDialogElement::removed_from(Node* old_parent, Node& old_root)
 {
-    HTMLElement::removed_from(old_parent);
+    HTMLElement::removed_from(old_parent, old_root);
 
     // 1. If removedNode's close watcher is not null, then:
     if (m_close_watcher) {

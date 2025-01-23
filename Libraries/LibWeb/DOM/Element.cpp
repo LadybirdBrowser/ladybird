@@ -1089,9 +1089,9 @@ void Element::inserted()
         document().element_with_name_was_added({}, *this);
 }
 
-void Element::removed_from(Node* node)
+void Element::removed_from(Node* old_parent, Node& old_root)
 {
-    Base::removed_from(node);
+    Base::removed_from(old_parent, old_root);
 
     if (m_id.has_value())
         document().element_with_id_was_removed({}, *this);

@@ -38,7 +38,7 @@ protected:
     virtual WebIDL::ExceptionOr<void> cloned(DOM::Node&, bool) const override;
     virtual void children_changed() override;
     virtual void inserted() override;
-    virtual void removed_from(Node*) override;
+    virtual void removed_from(Node* old_parent, Node& old_root) override;
 
     void update_use_elements_that_reference_this();
     void remove_from_use_element_that_reference_this();

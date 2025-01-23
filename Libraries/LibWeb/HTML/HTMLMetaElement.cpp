@@ -151,9 +151,9 @@ void HTMLMetaElement::inserted()
     }
 }
 
-void HTMLMetaElement::removed_from(Node* parent)
+void HTMLMetaElement::removed_from(Node* old_parent, Node& old_root)
 {
-    Base::removed_from(parent);
+    Base::removed_from(old_parent, old_root);
     update_metadata();
 }
 

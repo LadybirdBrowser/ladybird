@@ -157,7 +157,7 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
-    virtual void removed_from(DOM::Node*) override;
+    virtual void removed_from(DOM::Node* old_parent, DOM::Node& old_root) override;
     virtual void children_changed() override;
 
     // Override in subclasses to handle implementation-specific behavior when the element state changes

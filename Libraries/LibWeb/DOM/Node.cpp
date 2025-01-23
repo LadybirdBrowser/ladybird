@@ -906,9 +906,11 @@ void Node::remove(bool suppress_observers)
     if (auto assigned_slot = assigned_slot_for_node(*this))
         assign_slottables(*assigned_slot);
 
+    auto& parent_root = parent->root();
+
     // 13. If parent’s root is a shadow root, and parent is a slot whose assigned nodes is the empty list, then run
     //     signal a slot change for parent.
-    if (parent->root().is_shadow_root() && is<HTML::HTMLSlotElement>(parent)) {
+    if (parent_root.is_shadow_root() && is<HTML::HTMLSlotElement>(parent)) {
         auto& slot = static_cast<HTML::HTMLSlotElement&>(*parent);
 
         if (slot.assigned_nodes_internal().is_empty())
@@ -925,14 +927,14 @@ void Node::remove(bool suppress_observers)
 
     if (has_descendent_slot) {
         // 1. Run assign slottables for a tree with parent’s root.
-        assign_slottables_for_a_tree(parent->root());
+        assign_slottables_for_a_tree(parent_root);
 
         // 2. Run assign slottables for a tree with node.
         assign_slottables_for_a_tree(*this);
     }
 
     // 15. Run the removing steps with node and parent.
-    removed_from(parent);
+    removed_from(parent, parent_root);
 
     // 16. Let isParentConnected be parent’s connected.
     bool is_parent_connected = parent->is_connected();
@@ -953,7 +955,7 @@ void Node::remove(bool suppress_observers)
     // 18. For each shadow-including descendant descendant of node, in shadow-including tree order, then:
     for_each_shadow_including_descendant([&](Node& descendant) {
         // 1. Run the removing steps with descendant
-        descendant.removed_from(nullptr);
+        descendant.removed_from(nullptr, parent_root);
 
         // 2. If descendant is custom and isParentConnected is true, then enqueue a custom element callback reaction with descendant,
         //    callback name "disconnectedCallback", and an empty argument list.
@@ -1433,7 +1435,7 @@ void Node::inserted()
     set_needs_style_update(true);
 }
 
-void Node::removed_from(Node*)
+void Node::removed_from(Node*, Node&)
 {
     m_layout_node = nullptr;
     m_paintable = nullptr;

@@ -116,7 +116,7 @@ public:
     WebIDL::ExceptionOr<void> set_popover(Optional<String> value);
     Optional<String> popover() const;
 
-    virtual void removed_from(Node*) override;
+    virtual void removed_from(Node* old_parent, Node& old_root) override;
 
     enum class PopoverVisibilityState {
         Hidden,

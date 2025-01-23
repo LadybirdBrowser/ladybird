@@ -52,8 +52,9 @@ void HTMLDetailsElement::inserted()
     update_shadow_tree_slots();
 }
 
-void HTMLDetailsElement::removed_from(DOM::Node*)
+void HTMLDetailsElement::removed_from(DOM::Node* old_parent, DOM::Node& old_root)
 {
+    Base::removed_from(old_parent, old_root);
     set_shadow_root(nullptr);
 }
 

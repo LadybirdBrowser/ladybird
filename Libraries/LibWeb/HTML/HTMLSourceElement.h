@@ -23,7 +23,7 @@ private:
     virtual void initialize(JS::Realm&) override;
 
     virtual void inserted() override;
-    virtual void removed_from(DOM::Node*) override;
+    virtual void removed_from(DOM::Node* old_parent, DOM::Node& old_root) override;
 };
 
 }

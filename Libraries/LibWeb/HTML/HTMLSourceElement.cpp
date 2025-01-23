@@ -47,10 +47,10 @@ void HTMLSourceElement::inserted()
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#the-source-element:the-source-element-16
-void HTMLSourceElement::removed_from(DOM::Node* old_parent)
+void HTMLSourceElement::removed_from(DOM::Node* old_parent, DOM::Node& old_root)
 {
     // The source HTML element removing steps, given removedNode and oldParent, are:
-    Base::removed_from(old_parent);
+    Base::removed_from(old_parent, old_root);
 
     // FIXME: 1. If removedNode's next sibling was an img element and oldParent is a picture element, then, count this as a
     //           relevant mutation for the img element.

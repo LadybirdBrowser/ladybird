@@ -21,7 +21,7 @@ public:
 
     virtual void children_changed() override;
     virtual void inserted() override;
-    virtual void removed_from(Node*) override;
+    virtual void removed_from(Node* old_parent, Node& old_root) override;
 
     bool disabled();
     void set_disabled(bool disabled);

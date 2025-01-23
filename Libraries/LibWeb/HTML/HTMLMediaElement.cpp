@@ -112,9 +112,9 @@ void HTMLMediaElement::attribute_changed(FlyString const& name, Optional<String>
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#playing-the-media-resource:media-element-83
-void HTMLMediaElement::removed_from(DOM::Node* node)
+void HTMLMediaElement::removed_from(DOM::Node* old_parent, DOM::Node& old_root)
 {
-    Base::removed_from(node);
+    Base::removed_from(old_parent, old_root);
 
     // When a media element is removed from a Document, the user agent must run the following steps:
 
