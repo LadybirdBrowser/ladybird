@@ -48,8 +48,8 @@ public:
     [[nodiscard]] HighResolutionTime::DOMHighResTimeStamp end_time() const { return m_end_time; }
     void set_end_time(HighResolutionTime::DOMHighResTimeStamp end_time) { m_end_time = end_time; }
 
-    [[nodiscard]] GC::Ptr<ConnectionTimingInfo> final_connection_timing_info() const { return m_final_connection_timing_info; }
-    void set_final_connection_timing_info(GC::Ptr<ConnectionTimingInfo> final_connection_timing_info) { m_final_connection_timing_info = final_connection_timing_info; }
+    [[nodiscard]] Optional<ConnectionTimingInfo> const& final_connection_timing_info() const { return m_final_connection_timing_info; }
+    void set_final_connection_timing_info(ConnectionTimingInfo final_connection_timing_info) { m_final_connection_timing_info = move(final_connection_timing_info); }
 
     [[nodiscard]] Vector<String>& server_timing_headers() { return m_server_timing_headers; }
     [[nodiscard]] Vector<String> const& server_timing_headers() const { return m_server_timing_headers; }
@@ -106,7 +106,7 @@ private:
     // https://fetch.spec.whatwg.org/#fetch-timing-info-final-connection-timing-info
     // final connection timing info (default null)
     //     Null or a connection timing info.
-    GC::Ptr<ConnectionTimingInfo> m_final_connection_timing_info;
+    Optional<ConnectionTimingInfo> m_final_connection_timing_info;
 
     // https://fetch.spec.whatwg.org/#fetch-timing-info-server-timing-headers
     // server-timing headers (default « »)
