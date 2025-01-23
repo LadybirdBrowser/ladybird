@@ -1,0 +1,19 @@
+<script src="../include.js"></script>
+<script>
+
+// NOTE: This test is only reliable when GC'ing after each allocation.
+
+const registry = new FinalizationRegistry((heldValue) => {
+    console.log(heldValue);
+});
+
+const makeGarbage = () => {
+    registry.register(new String("ok"), "hello");
+};
+makeGarbage();
+
+if (window.internals !== undefined)
+    internals.gc();
+
+println("PASS");
+</script>

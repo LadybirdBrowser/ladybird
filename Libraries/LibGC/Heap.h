@@ -76,6 +76,8 @@ public:
 
     bool is_gc_deferred() const { return m_gc_deferrals > 0; }
 
+    void enqueue_post_gc_task(AK::Function<void()>);
+
 private:
     friend class MarkingVisitor;
     friend class GraphConstructorVisitor;
@@ -151,6 +153,8 @@ private:
     bool m_collecting_garbage { false };
     StackInfo m_stack_info;
     AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> m_gather_embedder_roots;
+
+    Vector<AK::Function<void()>> m_post_gc_tasks;
 } SWIFT_IMMORTAL_REFERENCE;
 
 inline void Heap::did_create_root(Badge<RootImpl>, RootImpl& impl)
