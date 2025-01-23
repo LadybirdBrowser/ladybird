@@ -1,0 +1,20 @@
+<script src="../include.js"></script>
+<div contenteditable="true"></div>
+<script>
+    test(() => {
+        const range = document.createRange();
+        getSelection().addRange(range);
+
+        const divElm = document.querySelector('div');
+        range.setStart(divElm, 0);
+        range.setEnd(divElm, 0);
+
+        divElm.addEventListener('input', () => {
+            println('input event');
+            println(`inner result: ${document.execCommand('insertText', false, 'bar')}`);
+        });
+
+        println(`outer result: ${document.execCommand('insertText', false, 'foo')}`);
+        println(divElm.innerHTML);
+    });
+</script>
