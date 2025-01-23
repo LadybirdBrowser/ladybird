@@ -177,13 +177,6 @@ size_t ConnectionFromClient::on_data_received(void* buffer, size_t size, size_t 
         remaining_length -= nwritten;
     }
 
-    Optional<u64> content_length_for_ipc;
-    curl_off_t content_length = -1;
-    auto res = curl_easy_getinfo(request->easy, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &content_length);
-    if (res == CURLE_OK && content_length != -1) {
-        content_length_for_ipc = content_length;
-    }
-
     request->downloaded_so_far += total_size;
 
     return total_size;
