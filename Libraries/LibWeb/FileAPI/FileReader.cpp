@@ -105,8 +105,12 @@ WebIDL::ExceptionOr<FileReader::Result> FileReader::blob_package_data(JS::Realm&
         // Return a new ArrayBuffer whose contents are bytes.
         return JS::ArrayBuffer::create(realm, move(bytes));
     case Type::BinaryString:
-        // FIXME: Return bytes as a binary string, in which every byte is represented by a code unit of equal value [0..255].
-        return WebIDL::NotSupportedError::create(realm, "BinaryString not supported yet"_string);
+        // Return bytes as a binary string, in which every byte is represented by a code unit of equal value [0..255].
+        Vector<u16> builder;
+        builder.ensure_capacity(bytes.size());
+        for (auto byte : bytes.bytes())
+            builder.unchecked_append(byte);
+        return MUST(Utf16View { builder }.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes));
     }
     VERIFY_NOT_REACHED();
 }
