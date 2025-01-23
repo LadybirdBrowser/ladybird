@@ -240,23 +240,35 @@ AK::JsonObject Heap::dump_graph()
 void Heap::collect_garbage(CollectionType collection_type, bool print_report)
 {
     VERIFY(!m_collecting_garbage);
-    TemporaryChange change(m_collecting_garbage, true);
 
-    Core::ElapsedTimer collection_measurement_timer;
-    if (print_report)
-        collection_measurement_timer.start();
+    {
+        TemporaryChange change(m_collecting_garbage, true);
 
-    if (collection_type == CollectionType::CollectGarbage) {
-        if (m_gc_deferrals) {
-            m_should_gc_when_deferral_ends = true;
-            return;
+        Core::ElapsedTimer collection_measurement_timer;
+        if (print_report)
+            collection_measurement_timer.start();
+
+        if (collection_type == CollectionType::CollectGarbage) {
+            if (m_gc_deferrals) {
+                m_should_gc_when_deferral_ends = true;
+                return;
+            }
+            HashMap<Cell*, HeapRoot> roots;
+            gather_roots(roots);
+            mark_live_cells(roots);
         }
-        HashMap<Cell*, HeapRoot> roots;
-        gather_roots(roots);
-        mark_live_cells(roots);
+        finalize_unmarked_cells();
+        sweep_dead_cells(print_report, collection_measurement_timer);
     }
-    finalize_unmarked_cells();
-    sweep_dead_cells(print_report, collection_measurement_timer);
+
+    auto tasks = move(m_post_gc_tasks);
+    for (auto& task : tasks)
+        task();
+}
+
+void Heap::enqueue_post_gc_task(AK::Function<void()> task)
+{
+    m_post_gc_tasks.append(move(task));
 }
 
 void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots)
