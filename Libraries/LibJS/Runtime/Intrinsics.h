@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2022-2023, Linus Groh <linusg@serenityos.org>
+ * Copyright (c) 2020-2025, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -95,6 +96,8 @@ public:
     JS_ENUMERATE_ITERATOR_PROTOTYPES
 #undef __JS_ENUMERATE
 
+    [[nodiscard]] GC::Ref<Intl::Collator> default_collator();
+
 private:
     Intrinsics(Realm& realm)
         : m_realm(realm)
@@ -189,6 +192,8 @@ private:
     GC::Ptr<Object> m_##snake_name##_prototype;
     JS_ENUMERATE_ITERATOR_PROTOTYPES
 #undef __JS_ENUMERATE
+
+    GC::Ptr<Intl::Collator> m_default_collator;
 };
 
 void add_restricted_function_properties(FunctionObject&, Realm&);
