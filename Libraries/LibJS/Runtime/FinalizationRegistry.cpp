@@ -57,8 +57,13 @@ void FinalizationRegistry::remove_dead_cells(Badge<GC::Heap>)
         any_cells_were_removed = true;
         break;
     }
-    if (any_cells_were_removed)
-        vm().host_enqueue_finalization_registry_cleanup_job(*this);
+    if (any_cells_were_removed) {
+        // NOTE: We make a GC::Root here to ensure that the FinalizationRegistry stays alive
+        //       even if a subsequent GC is triggered before the callback has a chance to run.
+        heap().enqueue_post_gc_task([that = GC::make_root(this)]() {
+            that->vm().host_enqueue_finalization_registry_cleanup_job(*that);
+        });
+    }
 }
 
 // 9.13 CleanupFinalizationRegistry ( finalizationRegistry ), https://tc39.es/ecma262/#sec-cleanup-finalization-registry
