@@ -1,0 +1,31 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Selectors Invalidation: :nth-child(... of pseudo-class)</title>
+<link rel="author" title="Zach Hoffman" href="mailto:zach@zrhoffman.net">
+<link rel="match" href="../../../../../expected/wpt-import/css/selectors/invalidation/nth-child-of-pseudo-class-ref.html">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#child-index">
+<style>
+  p:nth-child(odd of :defined) {
+    color: green;
+  }
+
+  not-defined, my-element {
+    display: block;
+    margin-block: 1em;
+    margin-inline: 0;
+  }
+</style>
+<div>
+  <not-defined>Ignored</not-defined>
+  <not-defined>Ignored</not-defined>
+  <p>Not ignored</p>
+  <my-element>Selectively ignored</my-element>
+  <p>Not ignored</p>
+  <p>Not ignored</p>
+  <p>Not ignored</p>
+  <not-defined>Ignored</not-defined>
+</div>
+<script>
+  document.documentElement.offsetTop;
+  customElements.define("my-element", class MyElement extends HTMLElement{});
+</script>
