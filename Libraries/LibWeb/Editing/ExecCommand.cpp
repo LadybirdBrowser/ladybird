@@ -171,6 +171,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_enabled(FlyString const& comma
             Editing::CommandNames::fontName,
             Editing::CommandNames::fontSize,
             Editing::CommandNames::foreColor,
+            Editing::CommandNames::formatBlock, // AD-HOC: https://github.com/w3c/editing/issues/478
             Editing::CommandNames::hiliteColor,
             Editing::CommandNames::indent,
             Editing::CommandNames::insertHorizontalRule,
