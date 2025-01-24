@@ -683,6 +683,58 @@ GC::Ptr<DOM::NodeList> HTMLElement::labels()
     return m_labels;
 }
 
+Variant<bool, double, String> HTMLElement::hidden() const
+{
+    // 1. If the hidden attribute is in the hidden until found state, then return "until-found".
+    if (get_attribute(HTML::AttributeNames::hidden) == "until-found")
+        return "until-found"_string;
+    // 2. If the hidden attribute is set, then return true.
+    if (has_attribute(HTML::AttributeNames::hidden))
+        return true;
+    // 3. Return false.
+    return false;
+}
+
+void HTMLElement::set_hidden(Variant<bool, double, String> const& given_value)
+{
+    // 1. If the given value is a string that is an ASCII case-insensitive match for "until-found", then set the hidden attribute to "until-found".
+    if (given_value.has<String>()) {
+        auto const& string = given_value.get<String>();
+        if (string.equals_ignoring_ascii_case("until-found"sv)) {
+            MUST(set_attribute(HTML::AttributeNames::hidden, "until-found"_string));
+            return;
+        }
+        // 3. Otherwise, if the given value is the empty string, then remove the hidden attribute.
+        if (string.is_empty()) {
+            remove_attribute(HTML::AttributeNames::hidden);
+            return;
+        }
+        // 4. Otherwise, if the given value is null, then remove the hidden attribute.
+        if (string.equals_ignoring_ascii_case("null"sv) || string.equals_ignoring_ascii_case("undefined"sv)) {
+            remove_attribute(HTML::AttributeNames::hidden);
+            return;
+        }
+    }
+    // 2. Otherwise, if the given value is false, then remove the hidden attribute.
+    else if (given_value.has<bool>()) {
+        if (!given_value.get<bool>()) {
+            remove_attribute(HTML::AttributeNames::hidden);
+            return;
+        }
+    }
+    // 5. Otherwise, if the given value is 0, then remove the hidden attribute.
+    // 6. Otherwise, if the given value is NaN, then remove the hidden attribute.
+    else if (given_value.has<double>()) {
+        auto const& double_value = given_value.get<double>();
+        if (double_value == 0 || isnan(double_value)) {
+            remove_attribute(HTML::AttributeNames::hidden);
+            return;
+        }
+    }
+    // 7. Otherwise, set the hidden attribute to the empty string.
+    MUST(set_attribute(HTML::AttributeNames::hidden, ""_string));
+}
+
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-click
 void HTMLElement::click()
 {
