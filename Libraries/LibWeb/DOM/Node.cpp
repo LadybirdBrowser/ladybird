@@ -408,7 +408,7 @@ void Node::invalidate_style(StyleInvalidationReason reason)
 
     // FIXME: This is very not optimal! We should figure out a smaller set of elements to invalidate,
     //        but right now the :has() selector means we have to invalidate everything.
-    if (!is_document() && document().style_computer().has_has_selectors()) {
+    if (!is_document() && document().style_computer().may_have_has_selectors()) {
         document().invalidate_style(reason);
         return;
     }

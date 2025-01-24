@@ -2328,7 +2328,7 @@ void Element::set_custom_element_state(CustomElementState state)
         return;
     m_custom_element_state = state;
 
-    if (document().style_computer().has_defined_selectors())
+    if (document().style_computer().may_have_defined_selectors())
         invalidate_style(StyleInvalidationReason::CustomElementStateChange);
 }
 

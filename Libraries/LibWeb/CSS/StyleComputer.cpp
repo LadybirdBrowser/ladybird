@@ -2530,7 +2530,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
 
 void StyleComputer::build_rule_cache_if_needed() const
 {
-    if (m_author_rule_cache && m_user_rule_cache && m_user_agent_rule_cache)
+    if (has_valid_rule_cache())
         return;
     const_cast<StyleComputer&>(*this).build_rule_cache();
 }
@@ -3077,19 +3077,19 @@ size_t StyleComputer::number_of_css_font_faces_with_loading_in_progress() const
     return count;
 }
 
-bool StyleComputer::has_has_selectors() const
+bool StyleComputer::may_have_has_selectors() const
 {
-    if (!document().is_active())
-        return false;
+    if (!has_valid_rule_cache())
+        return true;
 
     build_rule_cache_if_needed();
     return m_selector_insights->has_has_selectors;
 }
 
-bool StyleComputer::has_defined_selectors() const
+bool StyleComputer::may_have_defined_selectors() const
 {
-    if (!document().is_active())
-        return false;
+    if (!has_valid_rule_cache())
+        return true;
 
     build_rule_cache_if_needed();
     return m_selector_insights->has_defined_selectors;
