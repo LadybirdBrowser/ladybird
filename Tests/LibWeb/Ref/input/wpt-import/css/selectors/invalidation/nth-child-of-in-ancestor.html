@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Selectors Invalidation: :nth-child(... of class) as ancestor</title>
+<link rel="author" title="Steinar H. Gunderson" href="sesse@chromium.org">
+<link rel="match" href="../../../../../expected/wpt-import/css/selectors/invalidation/nth-child-of-in-ancestor-ref.html">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#child-index">
+<style>
+  p:nth-child(odd of .c) span {
+    color: green;
+  }
+</style>
+<div>
+  <p class="c">Not <span>ignored</span></p>
+  <p class="c" id="toggler">Selectively <span>ignored<span></p>
+  <p class="c">Not <span>ignored</span></p>
+  <p class="c">Not <span>ignored</span></p>
+  <p class="c">Not <span>ignored</span></p>
+  <p>Ignored</p>
+</div>
+<script>
+  document.documentElement.offsetTop;
+  toggler.classList.toggle("c");
+</script>

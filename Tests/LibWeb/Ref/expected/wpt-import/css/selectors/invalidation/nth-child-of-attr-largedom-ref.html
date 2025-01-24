@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Selectors Invalidation: :nth-child(... of attribute) with a large DOM</title>
+<link rel="author" title="Bramus" href="https://www.bram.us/">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#child-index">
+<table border="1">
+  <thead>
+    <tr>
+      <th>#</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr hidden="hidden">
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>2</td>
+    </tr>
+    <tr style="background: lightgrey;">
+      <td>3</td>
+    </tr>
+    <tr>
+      <td>4</td>
+    </tr>
+    <tr style="background: lightgrey;">
+      <td>5</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>6</td>
+    </tr>
+    <tr>
+      <td>7</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>8</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>9</td>
+    </tr>
+    <tr style="background: lightgrey;">
+      <td>10</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>11</td>
+    </tr>
+    <tr>
+      <td>12</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>13</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>14</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>15</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>16</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>17</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>18</td>
+    </tr>
+    <tr style="background: lightgrey;">
+      <td>19</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>20</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>21</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>22</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>23</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>24</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>25</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>26</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>27</td>
+    </tr>
+    <tr>
+      <td>28</td>
+    </tr>
+    <tr style="background: lightgrey;">
+      <td>29</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>30</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>31</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>32</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>33</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>34</td>
+    </tr>
+    <tr>
+      <td>35</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>36</td>
+    </tr>
+    <tr style="background: lightgrey;">
+      <td>37</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>38</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>39</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>40</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>41</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>42</td>
+    </tr>
+    <tr>
+      <td>43</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>44</td>
+    </tr>
+    <tr style="background: lightgrey;">
+      <td>45</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>46</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>47</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>48</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>49</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>50</td>
+    </tr>
+    <tr>
+      <td>51</td>
+    </tr>
+    <tr style="background: lightgrey;">
+      <td>52</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>53</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>54</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>55</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>56</td>
+    </tr>
+    <tr>
+      <td>57</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>58</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>59</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>60</td>
+    </tr>
+    <tr style="background: lightgrey;">
+      <td>61</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>62</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>63</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>64</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>65</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>66</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>67</td>
+    </tr>
+    <tr>
+      <td>68</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>69</td>
+    </tr>
+    <tr style="background: lightgrey;">
+      <td>70</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>71</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>72</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>73</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>74</td>
+    </tr>
+    <tr>
+      <td>75</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>76</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>77</td>
+    </tr>
+    <tr style="background: lightgrey;">
+      <td>78</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>79</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>80</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>81</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>82</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>83</td>
+    </tr>
+    <tr>
+      <td>84</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>85</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>86</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>87</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>88</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>89</td>
+    </tr>
+    <tr style="background: lightgrey;">
+      <td>90</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>91</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>92</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>93</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>94</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>95</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>96</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>97</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>98</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>99</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>100</td>
+    </tr>
+    <tr>
+      <td>101</td>
+    </tr>
+    <tr style="background: lightgrey;">
+      <td>102</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>103</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>104</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>105</td>
+    </tr>
+    <tr>
+      <td>106</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>107</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>108</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>109</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>110</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>111</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>112</td>
+    </tr>
+    <tr style="background: lightgrey;">
+      <td>113</td>
+    </tr>
+    <tr>
+      <td>114</td>
+    </tr>
+    <tr style="background: lightgrey;">
+      <td>115</td>
+    </tr>
+    <tr>
+      <td>116</td>
+    </tr>
+    <tr style="background: lightgrey;">
+      <td>117</td>
+    </tr>
+    <tr>
+      <td>118</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>119</td>
+    </tr>
+    <tr style="background: lightgrey;">
+      <td>120</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>121</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>122</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>123</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>124</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>125</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>126</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>127</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>128</td>
+    </tr>
+    <tr>
+      <td>129</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>130</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>131</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>132</td>
+    </tr>
+    <tr style="background: lightgrey;">
+      <td>133</td>
+    </tr>
+    <tr>
+      <td>134</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>135</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>136</td>
+    </tr>
+    <tr style="background: lightgrey;">
+      <td>137</td>
+    </tr>
+    <tr>
+      <td>138</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>139</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>140</td>
+    </tr>
+    <tr style="background: lightgrey;">
+      <td>141</td>
+    </tr>
+    <tr>
+      <td>142</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>143</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>144</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>145</td>
+    </tr>
+    <tr hidden="hidden">
+      <td>146</td>
+    </tr>
+  </tbody>
+</table>
