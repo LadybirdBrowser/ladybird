@@ -272,9 +272,13 @@ private:
         HashMap<FlyString, NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet>> rules_by_animation_keyframes;
     };
 
-    NonnullOwnPtr<RuleCache> make_rule_cache_for_cascade_origin(CascadeOrigin, SelectorInsights&, Vector<MatchingRule>& hover_rules);
+    struct BuiltRuleCaches {
+        NonnullOwnPtr<RuleCache> main_rules;
+        HashMap<FlyString, NonnullOwnPtr<RuleCache>> layer_rules;
+    };
+    [[nodiscard]] BuiltRuleCaches make_rule_cache_for_cascade_origin(CascadeOrigin, SelectorInsights&, Vector<MatchingRule>& hover_rules);
 
-    RuleCache const& rule_cache_for_cascade_origin(CascadeOrigin) const;
+    [[nodiscard]] RuleCache const* rule_cache_for_cascade_origin(CascadeOrigin, FlyString const& qualified_layer_name) const;
 
     static void collect_selector_insights(Selector const&, SelectorInsights&);
 
@@ -282,6 +286,7 @@ private:
     Vector<MatchingRule> m_hover_rules;
     OwnPtr<StyleInvalidationData> m_style_invalidation_data;
     OwnPtr<RuleCache> m_author_rule_cache;
+    HashMap<FlyString, NonnullOwnPtr<RuleCache>> m_layer_rule_caches;
     OwnPtr<RuleCache> m_user_rule_cache;
     OwnPtr<RuleCache> m_user_agent_rule_cache;
     GC::Root<CSSStyleSheet> m_user_style_sheet;
