@@ -51,6 +51,7 @@
     ]
   },
   "clamp": {
+    "__comment": "FIXME: Support `none` keyword for min or max.",
     "parameter-validation": "consistent",
     "parameters": [
       {
@@ -197,6 +198,7 @@
         "required": true
       },
       {
+        "__comment": "FIXME: This is supposed to be optional, defaulting to 1, if the value is a <number>.",
         "name": "interval",
         "type": "<number>|<dimension>|<percentage>",
         "required": true
