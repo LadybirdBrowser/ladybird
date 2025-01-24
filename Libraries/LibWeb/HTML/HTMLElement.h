@@ -95,6 +95,9 @@ public:
 
     bool cannot_navigate() const;
 
+    Variant<bool, double, String> hidden() const;
+    void set_hidden(Variant<bool, double, String> const&);
+
     void click();
 
     [[nodiscard]] String access_key_label() const;
