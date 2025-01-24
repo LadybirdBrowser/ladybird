@@ -195,12 +195,12 @@ JsonValue::JsonValue(JsonArray const& value)
 }
 
 JsonValue::JsonValue(JsonObject&& value)
-    : m_value(make<JsonObject>(value))
+    : m_value(make<JsonObject>(move(value)))
 {
 }
 
 JsonValue::JsonValue(JsonArray&& value)
-    : m_value(make<JsonArray>(value))
+    : m_value(make<JsonArray>(move(value)))
 {
 }
 
