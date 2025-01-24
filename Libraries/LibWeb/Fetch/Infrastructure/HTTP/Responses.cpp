@@ -25,7 +25,7 @@ GC_DEFINE_ALLOCATOR(OpaqueRedirectFilteredResponse);
 
 Response::Response(GC::Ref<HeaderList> header_list)
     : m_header_list(header_list)
-    , m_response_time(UnixDateTime::now())
+    , m_response_time(MonotonicTime::now())
 {
 }
 
@@ -257,14 +257,14 @@ u64 Response::current_age() const
 
     // The term "date_value" denotes the value of the Date header field, in a form appropriate for arithmetic operations. See Section 6.6.1 of [HTTP] for the definition of the Date header field and for requirements regarding responses without it.
     // FIXME: Do we have a parser for HTTP-date?
-    auto const date_value = UnixDateTime::now() - AK::Duration::from_seconds(5);
+    auto const date_value = MonotonicTime::now() - AK::Duration::from_seconds(5);
 
     // The term "now" means the current value of this implementation's clock (Section 5.6.7 of [HTTP]).
-    auto const now = UnixDateTime::now();
+    auto const now = MonotonicTime::now();
 
     // The value of the clock at the time of the request that resulted in the stored response.
     // FIXME: Let's get the correct time.
-    auto const request_time = UnixDateTime::now() - AK::Duration::from_seconds(5);
+    auto const request_time = MonotonicTime::now() - AK::Duration::from_seconds(5);
 
     // The value of the clock at the time the response was received.
     auto const response_time = m_response_time;
