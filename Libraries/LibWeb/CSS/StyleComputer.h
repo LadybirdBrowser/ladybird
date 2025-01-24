@@ -153,6 +153,7 @@ public:
     InvalidationSet invalidation_set_for_properties(Vector<InvalidationSet::Property> const&) const;
     bool invalidation_property_used_in_has_selector(InvalidationSet::Property const&) const;
 
+    [[nodiscard]] bool has_valid_rule_cache() const { return m_author_rule_cache; }
     void invalidate_rule_cache();
 
     Gfx::Font const& initial_font() const;
@@ -176,8 +177,8 @@ public:
     };
     void collect_animation_into(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, GC::Ref<Animations::KeyframeEffect> animation, ComputedProperties&, AnimationRefresh = AnimationRefresh::No) const;
 
-    [[nodiscard]] bool has_has_selectors() const;
-    [[nodiscard]] bool has_defined_selectors() const;
+    [[nodiscard]] bool may_have_has_selectors() const;
+    [[nodiscard]] bool may_have_defined_selectors() const;
 
     size_t number_of_css_font_faces_with_loading_in_progress() const;
 

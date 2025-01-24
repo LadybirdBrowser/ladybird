@@ -1617,7 +1617,7 @@ void Document::invalidate_style_for_elements_affected_by_hover_change(Node& old_
         return;
 
     auto& invalidation_root = [&] -> Node& {
-        if (style_computer().has_has_selectors())
+        if (style_computer().may_have_has_selectors())
             return old_new_hovered_common_ancestor;
         return old_new_hovered_common_ancestor;
     }();
