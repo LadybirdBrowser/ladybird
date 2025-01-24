@@ -82,44 +82,47 @@ CloseWatcher::CloseWatcher(JS::Realm& realm)
 // https://html.spec.whatwg.org/multipage/interaction.html#close-watcher-request-close
 bool CloseWatcher::request_close()
 {
-    // 1. If closeWatcher is not active, then return.
+    // 1. If closeWatcher is not active, then return true.
     if (!m_is_active)
         return true;
 
-    // 2. If closeWatcher's is running cancel action is true, then return true.
+    // FIXME: 2. If the result of running closeWatcher's get enabled state is false, then return true.
+
+    // 3. If closeWatcher's is running cancel action is true, then return true.
     if (m_is_running_cancel_action)
         return true;
 
-    // 3. Let window be closeWatcher's window.
+    // 4. Let window be closeWatcher's window.
     auto& window = as<HTML::Window>(realm().global_object());
 
-    // 4. If window's associated Document is not fully active, then return true.
+    // 5. If window's associated Document is not fully active, then return true.
     if (!window.associated_document().is_fully_active())
         return true;
 
-    // 5. Let canPreventClose be true if window's close watcher manager's groups's size is less than window's close watcher manager's allowed number of groups,
+    // 6. Let canPreventClose be true if window's close watcher manager's groups's size is less than window's close watcher manager's allowed number of groups,
     // and window has history-action activation; otherwise false.
     auto manager = window.close_watcher_manager();
     bool can_prevent_close = manager->can_prevent_close() && window.has_history_action_activation();
-    // 6. Set closeWatcher's is running cancel action to true.
+    // 7. Set closeWatcher's is running cancel action to true.
     m_is_running_cancel_action = true;
-    // 7. Let shouldContinue be the result of running closeWatcher's cancel action given canPreventClose.
+    // 8. Let shouldContinue be the result of running closeWatcher's cancel action given canPreventClose.
     bool should_continue = dispatch_event(DOM::Event::create(realm(), HTML::EventNames::cancel, { .cancelable = can_prevent_close }));
-    // 8. Set closeWatcher's is running cancel action to false.
+    // 9. Set closeWatcher's is running cancel action to false.
     m_is_running_cancel_action = false;
-    // 9. If shouldContinue is false, then:
+    // 10. If shouldContinue is false, then:
     if (!should_continue) {
-        // 9.1 Assert: canPreventClose is true.
+        // 10.1 Assert: canPreventClose is true.
         VERIFY(can_prevent_close);
-        // 9.2 Consume history-action user activation given window.
+        // 10.2 Consume history-action user activation given window.
         window.consume_history_action_user_activation();
+        // 10.3 Return false.
         return false;
     }
 
-    // 10. Close closeWatcher.
+    // 11. Close closeWatcher.
     close();
 
-    // 11. Return true.
+    // 12. Return true.
     return true;
 }
 
@@ -130,14 +133,16 @@ void CloseWatcher::close()
     if (!m_is_active)
         return;
 
-    // 2. If closeWatcher's window's associated Document is not fully active, then return.
+    // FIXME: 2. If the result of running closeWatcher's get enabled state is false, then return.
+
+    // 3. If closeWatcher's window's associated Document is not fully active, then return.
     if (!as<HTML::Window>(realm().global_object()).associated_document().is_fully_active())
         return;
 
-    // 3. Destroy closeWatcher.
+    // 4. Destroy closeWatcher.
     destroy();
 
-    // 4. Run closeWatcher's close action.
+    // 5. Run closeWatcher's close action.
     dispatch_event(DOM::Event::create(realm(), HTML::EventNames::close));
 }
 

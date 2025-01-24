@@ -46,6 +46,8 @@ private:
 
     void run_dialog_focusing_steps();
 
+    void set_close_watcher();
+
     String m_return_value;
     bool m_is_modal { false };
     GC::Ptr<CloseWatcher> m_close_watcher;
