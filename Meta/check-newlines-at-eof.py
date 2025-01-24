@@ -14,6 +14,8 @@ def should_check_file(filename):
         return False
     if filename.startswith('Tests/LibWeb/Layout/'):
         return False
+    if filename.startswith('Tests/LibWeb/Ref/'):
+        return False
     if filename.startswith('Tests/LibWeb/Text/'):
         return False
     if filename.endswith('.txt'):
