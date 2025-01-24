@@ -970,6 +970,8 @@ Optional<String> HTMLElement::popover() const
     if (value.value().is_empty() || value.value().equals_ignoring_ascii_case("auto"sv))
         return "auto"_string;
 
+    // FIXME: This should reflect the hint value too.
+
     return "manual"_string;
 }
 
@@ -1061,17 +1063,19 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
     // 5. Let nestedShow be element's popover showing or hiding.
     auto nested_show = m_popover_showing_or_hiding;
 
-    // 6. Set element's popover showing or hiding to true.
+    // FIXME: 6. Let fireEvents be the boolean negation of nestedShow.
+
+    // 7. Set element's popover showing or hiding to true.
     m_popover_showing_or_hiding = true;
 
-    // 7. Let cleanupShowingFlag be the following steps:
+    // 8. Let cleanupShowingFlag be the following steps:
     auto cleanup_showing_flag = [&nested_show, this] {
-        // 7.1. If nestedShow is false, then set element's popover showing or hiding to false.
+        // 8.1. If nestedShow is false, then set element's popover showing or hiding to false.
         if (!nested_show)
             m_popover_showing_or_hiding = false;
     };
 
-    // 8. If the result of firing an event named beforetoggle, using ToggleEvent, with the cancelable attribute initialized to true, the oldState attribute initialized to "closed", and the newState attribute initialized to "open" at element is false, then run cleanupShowingFlag and return.
+    // 9. If the result of firing an event named beforetoggle, using ToggleEvent, with the cancelable attribute initialized to true, the oldState attribute initialized to "closed", and the newState attribute initialized to "open" at element is false, then run cleanupShowingFlag and return.
     ToggleEventInit event_init {};
     event_init.old_state = "closed"_string;
     event_init.new_state = "open"_string;
@@ -1081,25 +1085,54 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
         return {};
     }
 
-    // 9. If the result of running check popover validity given element, false, throwExceptions, and document is false, then run cleanupShowingFlag and return.
+    // 10. If the result of running check popover validity given element, false, throwExceptions, and document is false, then run cleanupShowingFlag and return.
     if (!TRY(check_popover_validity(ExpectedToBeShowing::No, throw_exceptions, nullptr))) {
         cleanup_showing_flag();
         return {};
     }
 
-    // 10. Let shouldRestoreFocus be false.
-    bool should_restore_focus = false;
+    // FIXME: 11. Let shouldRestoreFocus be false.
 
-    // 11. If element's popover attribute is in the auto state, then:
-    if (popover().has_value() && popover().value() == "auto"sv) {
-        // FIXME: 11.1. Let originalType be the value of element's popover attribute.
-        // FIXME: 11.2. Let ancestor be the result of running the topmost popover ancestor algorithm given element, invoker, and true.
-        // FIXME: 11.3. If ancestor is null, then set ancestor to document.
-        // FIXME: 11.4. Run hide all popovers until given ancestor, false, and not nestedShow.
-        // FIXME: 11.5. If originalType is not equal to the value of element's popover attribute, then throw a "InvalidStateError" DOMException.
-        // FIXME: 11.6. If the result of running check popover validity given element, false, throwExceptions, and document is false, then run cleanupShowingFlag and return.
-        // FIXME: 11.7. If the result of running topmost auto popover on document is null, then set shouldRestoreFocus to true.
-        // 11.8. Set element's popover close watcher to the result of establishing a close watcher given element's relevant global object, with:
+    // 12. Let originalType be the current state of element's popover attribute.
+    auto original_type = popover();
+
+    // FIXME: 13. Let stackToAppendTo be null.
+
+    // FIXME: 14. Let autoAncestor be the result of running the topmost popover ancestor algorithm given element, document's showing auto popover list, invoker, and true.
+
+    // FIXME: 15. Let hintAncestor be the result of running the topmost popover ancestor algorithm given element, document's showing hint popover list, invoker, and true.
+    // FIXME: 16. If originalType is the auto state, then:
+    // FIXME: 16.1. Run close entire popover list given document's showing hint popover list, shouldRestoreFocus, and fireEvents.
+    // FIXME: 16.2. Let ancestor be the result of running the topmost popover ancestor algorithm given element, document's showing auto popover list, invoker, and true.
+    // FIXME: 16.3. If ancestor is null, then set ancestor to document.
+    // FIXME: 16.4. Run hide all popovers until given ancestor, shouldRestoreFocus, and fireEvents.
+    // FIXME: 16.5. Set stackToAppendTo to "auto".
+    // FIXME: 17. If originalType is the hint state, then:
+    // FIXME: 17.1. If hintAncestor is not null, then:
+    // FIXME: 17.1.1. Run hide all popovers until given hintAncestor, shouldRestoreFocus, and fireEvents.
+    // FIXME: 17.1.2. Set stackToAppendTo to "hint".
+    // FIXME: 17.2. Otherwise:
+    // FIXME: 17.2.1. Run close entire popover list given document's showing hint popover list, shouldRestoreFocus, and fireEvents.
+    // FIXME: 17.2.2. If autoAncestor is not null, then:
+    // FIXME: 17.2.2.1. Run hide all popovers until given autoAncestor, shouldRestoreFocus, and fireEvents.
+    // FIXME: 17.2.2.2. Set stackToAppendTo to "auto".
+    // FIXME: 17.3. Otherwise, set stackToAppendTo to "hint".
+    // 18. If originalType is auto or FIXME: hint, then:
+    if (original_type.has_value() && (original_type.value() == "auto"sv)) {
+        //  FIXME: 18.1. Assert: stackToAppendTo is not null.
+        //  FIXME: 18.2. If originalType is not equal to the value of element's popover attribute, then:
+        //  FIXME: 18.2.1. If throwExceptions is true, then throw a "InvalidStateError" DOMException.
+        //  FIXME: 18.2.2. Return.
+        //  FIXME: 18.3. If the result of running check popover validity given element, false, throwExceptions, and document is false, then run cleanupShowingFlag and return.
+        //  FIXME: 18.4. If the result of running topmost auto or hint popover on document is null, then set shouldRestoreFocus to true.
+        //  FIXME: 18.5. If stackToAppendTo is "auto":
+        //  FIXME: 18.5.1. Assert: document's showing auto popover list does not contain element.
+        //  FIXME: 18.5.2. Set element's opened in popover mode to "auto".
+        // Otherwise:
+        // FIXME: 1. Assert: stackToAppendTo is "hint".
+        // FIXME: 2. Assert: document's showing hint popover list does not contain element.
+        // FIXME: 3. Set element's opened in popover mode to "hint".
+        // 18.6. Set element's popover close watcher to the result of establishing a close watcher given element's relevant global object, with:
         m_popover_close_watcher = CloseWatcher::establish(*document.window());
         // - cancelAction being to return true.
         // We simply don't add an event listener for the cancel action.
@@ -1113,31 +1146,22 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
             0, "", &realm());
         auto close_callback = realm().heap().allocate<WebIDL::CallbackType>(*close_callback_function, realm());
         m_popover_close_watcher->add_event_listener_without_options(HTML::EventNames::close, DOM::IDLEventListener::create(realm(), close_callback));
+        // FIXME: - getEnabledState being to return true.
     }
-
-    // FIXME: 12. Set element's previously focused element to null.
-    // FIXME: 13. Let originallyFocusedElement be document's focused area of the document's DOM anchor.
-
-    // 14. Add an element to the top layer given element.
+    // FIXME: 19. Set element's previously focused element to null.
+    // FIXME: 20. Let originallyFocusedElement be document's focused area of the document's DOM anchor.
+    // 21. Add an element to the top layer given element.
     document.add_an_element_to_the_top_layer(*this);
-    // 15. Set element's popover visibility state to showing.
+    // 22. Set element's popover visibility state to showing.
     m_popover_visibility_state = PopoverVisibilityState::Showing;
-    // 16. Set element's popover invoker to invoker.
+    // 23. Set element's popover invoker to invoker.
     m_popover_invoker = invoker;
-
-    // FIXME: 17. Set element's implicit anchor element to invoker.
-
-    // FIXME: 18. Run the popover focusing steps given element.
-
-    // 19. If shouldRestoreFocus is true and element's popover attribute is not in the no popover state
-    if (should_restore_focus && popover().has_value()) {
-        // FIXME: then set element's previously focused element to originallyFocusedElement.
-    }
-
-    // 20. Queue a popover toggle event task given element, "closed", and "open".
+    // FIXME: 24. Set element's implicit anchor element to invoker.
+    // FIXME: 25. Run the popover focusing steps given element.
+    // FIXME: 26. If shouldRestoreFocus is true and element's popover attribute is not in the no popover state, then set element's previously focused element to originallyFocusedElement.
+    // 27. Queue a popover toggle event task given element, "closed", and "open".
     queue_a_popover_toggle_event_task("closed"_string, "open"_string);
-
-    // 21. Run cleanupShowingFlag.
+    // 28. Run cleanupShowingFlag.
     cleanup_showing_flag();
 
     return {};
@@ -1184,7 +1208,7 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement, FireEv
         }
     };
 
-    // 7. If element's popover attribute is in the auto state, then:
+    // 7. If element's popover attribute is in the auto state FIXME: or the hint state, then:
     if (popover().has_value() && popover().value() == "auto"sv) {
         // FIXME: 7.1. Run hide all popovers until given element, focusPreviousElement, and fireEvents.
         // FIXME: 7.2. If the result of running check popover validity given element, true, and throwExceptions is false, then run cleanupSteps and return.
@@ -1216,20 +1240,22 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement, FireEv
         document.remove_an_element_from_the_top_layer_immediately(*this);
     }
 
-    // 12. Set element's popover visibility state to hidden.
+    // FIXME: 12. Set element's opened in popover mode to null.
+
+    // 13. Set element's popover visibility state to hidden.
     m_popover_visibility_state = PopoverVisibilityState::Hidden;
 
-    // 13. If fireEvents is true, then queue a popover toggle event task given element, "open", and "closed".
+    // 14. If fireEvents is true, then queue a popover toggle event task given element, "open", and "closed".
     if (fire_events == FireEvents::Yes)
         queue_a_popover_toggle_event_task("open"_string, "closed"_string);
 
-    // FIXME: 14. Let previouslyFocusedElement be element's previously focused element.
+    // FIXME: 15. Let previouslyFocusedElement be element's previously focused element.
 
-    // FIXME: 15. If previouslyFocusedElement is not null, then:
-    // FIXME: 15.1. Set element's previously focused element to null.
-    // FIXME: 15.2. If focusPreviousElement is true and document's focused area of the document's DOM anchor is a shadow-including inclusive descendant of element, then run the focusing steps for previouslyFocusedElement; the viewport should not be scrolled by doing this step.
+    // FIXME: 16. If previouslyFocusedElement is not null, then:
+    // FIXME: 16.1. Set element's previously focused element to null.
+    // FIXME: 16.2. If focusPreviousElement is true and document's focused area of the document's DOM anchor is a shadow-including inclusive descendant of element, then run the focusing steps for previouslyFocusedElement; the viewport should not be scrolled by doing this step.
 
-    // 16. Run cleanupSteps.
+    // 17. Run cleanupSteps.
     cleanup_steps();
 
     return {};
