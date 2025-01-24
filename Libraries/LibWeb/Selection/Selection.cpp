@@ -467,6 +467,7 @@ void Selection::set_range(GC::Ptr<DOM::Range> range)
     if (m_range)
         m_range->set_associated_selection({}, nullptr);
 
+    auto range_changed = ((m_range == nullptr) != (range == nullptr)) || (m_range && *m_range != *range);
     m_range = range;
 
     if (m_range)
@@ -476,8 +477,10 @@ void Selection::set_range(GC::Ptr<DOM::Range> range)
     // Whenever the number of ranges in the selection changes to something different, and whenever a boundary point of
     // the range at a given index in the selection changes to something different, the state override and value override
     // must be unset for every command.
-    m_document->reset_command_state_overrides();
-    m_document->reset_command_value_overrides();
+    if (range_changed) {
+        m_document->reset_command_state_overrides();
+        m_document->reset_command_value_overrides();
+    }
 }
 
 GC::Ptr<DOM::Position> Selection::cursor_position() const
