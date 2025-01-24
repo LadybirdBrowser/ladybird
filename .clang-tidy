@@ -45,6 +45,7 @@ Checks: >
   -readability-named-parameter,
   -readability-uppercase-literal-suffix,
   -readability-use-anyofallof,
+  -readability-implicit-bool-conversion,
 WarningsAsErrors: ''
 HeaderFilterRegex: 'AK|Libraries|Services|Tests|Utilities'
 FormatStyle: none
@@ -52,6 +53,4 @@ CheckOptions:
   - key: bugprone-dangling-handle.HandleClasses
     value: 'AK::StringView;AK::Span'
   - key: misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
-    value: true
-  - key: readability-implicit-bool-conversion.AllowPointerConditions
     value: true
