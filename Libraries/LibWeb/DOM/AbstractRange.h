@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2022, Luke Wilde <lukew@serenityos.org>
  * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -39,6 +40,14 @@ public:
     {
         // A range is collapsed if its start node is its end node and its start offset is its end offset.
         return start_container() == end_container() && start_offset() == end_offset();
+    }
+
+    bool operator==(AbstractRange const& other) const
+    {
+        return start_container() == other.start_container()
+            && start_offset() == other.start_offset()
+            && end_container() == other.end_container()
+            && end_offset() == other.end_offset();
     }
 
 protected:
