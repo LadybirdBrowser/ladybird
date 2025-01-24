@@ -125,6 +125,7 @@ public:
 
     // Non-standard
     [[nodiscard]] Optional<StringView> network_error_message() const;
+    MonotonicTime response_time() const { return m_response_time; }
 
 protected:
     explicit Response(GC::Ref<HeaderList>);

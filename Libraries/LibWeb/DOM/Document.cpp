@@ -325,7 +325,11 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
             top_level_origin);
     }
 
-    // FIXME: 8. Let loadTimingInfo be a new document load timing info with its navigation start time set to navigationParams's response's timing info's start time.
+    // 8. Let loadTimingInfo be a new document load timing info with its navigation start time set to navigationParams's response's timing info's start time.
+    DOM::DocumentLoadTimingInfo load_timing_info;
+    // AD-HOC: The response object no longer has an associated timing info object. For now, we use response's non-standard response time property,
+    //         which represents the time that the time that the response object was created.
+    load_timing_info.navigation_start_time = navigation_params.response->response_time().nanoseconds() / 1e6;
 
     // 9. Let document be a new Document, with
     //    type: type
@@ -336,7 +340,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     //    FIXME: permissions policy: permissionsPolicy
     //    active sandboxing flag set: navigationParams's final sandboxing flag set
     //    FIXME: opener policy: navigationParams's opener policy
-    //    FIXME: load timing info: loadTimingInfo
+    //    load timing info: loadTimingInfo
     //    FIXME: was created via cross-origin redirects: navigationParams's response's has cross-origin redirects
     //    during-loading navigation ID for WebDriver BiDi: navigationParams's id
     //    URL: creationURL
@@ -351,6 +355,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     document->m_policy_container = navigation_params.policy_container;
     document->m_active_sandboxing_flag_set = navigation_params.final_sandboxing_flag_set;
     document->m_navigation_id = navigation_params.id;
+    document->set_load_timing_info(load_timing_info);
     document->set_url(*creation_url);
     document->m_readiness = HTML::DocumentReadyState::Loading;
     document->m_about_base_url = navigation_params.about_base_url;
