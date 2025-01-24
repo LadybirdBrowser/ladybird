@@ -95,7 +95,14 @@ enum class ExcludePropertiesNestedInNotPseudoClass : bool {
     Yes,
 };
 
-static void build_invalidation_sets_for_simple_selector(Selector::SimpleSelector const& selector, InvalidationSet& invalidation_set, ExcludePropertiesNestedInNotPseudoClass exclude_properties_nested_in_not_pseudo_class, StyleInvalidationData& rule_invalidation_data)
+enum class InsideNthChildPseudoClass {
+    No,
+    Yes
+};
+
+static InvalidationSet build_invalidation_sets_for_selector_impl(StyleInvalidationData& style_invalidation_data, Selector const& selector, InsideNthChildPseudoClass inside_nth_child_pseudo_class);
+
+static void build_invalidation_sets_for_simple_selector(Selector::SimpleSelector const& selector, InvalidationSet& invalidation_set, ExcludePropertiesNestedInNotPseudoClass exclude_properties_nested_in_not_pseudo_class, StyleInvalidationData& style_invalidation_data, InsideNthChildPseudoClass inside_nth_child_selector)
 {
     switch (selector.type) {
     case Selector::SimpleSelector::Type::Class:
@@ -126,8 +133,12 @@ static void build_invalidation_sets_for_simple_selector(Selector::SimpleSelector
             break;
         if (exclude_properties_nested_in_not_pseudo_class == ExcludePropertiesNestedInNotPseudoClass::Yes && pseudo_class.type == PseudoClass::Not)
             break;
+        InsideNthChildPseudoClass inside_nth_child_pseudo_class_for_nested = inside_nth_child_selector;
+        if (AK::first_is_one_of(pseudo_class.type, PseudoClass::NthChild, PseudoClass::NthLastChild, PseudoClass::NthOfType, PseudoClass::NthLastOfType)) {
+            inside_nth_child_pseudo_class_for_nested = InsideNthChildPseudoClass::Yes;
+        }
         for (auto const& nested_selector : pseudo_class.argument_selector_list) {
-            auto rightmost_invalidation_set_for_selector = rule_invalidation_data.build_invalidation_sets_for_selector(*nested_selector);
+            auto rightmost_invalidation_set_for_selector = build_invalidation_sets_for_selector_impl(style_invalidation_data, *nested_selector, inside_nth_child_pseudo_class_for_nested);
             invalidation_set.include_all_from(rightmost_invalidation_set_for_selector);
         }
         break;
@@ -137,7 +148,7 @@ static void build_invalidation_sets_for_simple_selector(Selector::SimpleSelector
     }
 }
 
-InvalidationSet StyleInvalidationData::build_invalidation_sets_for_selector(Selector const& selector)
+static InvalidationSet build_invalidation_sets_for_selector_impl(StyleInvalidationData& style_invalidation_data, Selector const& selector, InsideNthChildPseudoClass inside_nth_child_pseudo_class)
 {
     auto const& compound_selectors = selector.compound_selectors();
     int compound_selector_index = compound_selectors.size() - 1;
@@ -155,7 +166,7 @@ InvalidationSet StyleInvalidationData::build_invalidation_sets_for_selector(Sele
                 if (pseudo_class.type == PseudoClass::Has)
                     in_has = true;
             }
-            collect_properties_used_in_has(simple_selector, *this, in_has);
+            collect_properties_used_in_has(simple_selector, style_invalidation_data, in_has);
         }
 
         if (is_rightmost) {
@@ -169,23 +180,28 @@ InvalidationSet StyleInvalidationData::build_invalidation_sets_for_selector(Sele
             //                      which means invalidation_set_for_rightmost_selector should be empty
             for (auto const& simple_selector : simple_selectors) {
                 InvalidationSet s;
-                build_invalidation_sets_for_simple_selector(simple_selector, s, ExcludePropertiesNestedInNotPseudoClass::No, *this);
+                build_invalidation_sets_for_simple_selector(simple_selector, s, ExcludePropertiesNestedInNotPseudoClass::No, style_invalidation_data, inside_nth_child_pseudo_class);
                 s.for_each_property([&](auto const& invalidation_property) {
-                    auto& descendant_invalidation_set = descendant_invalidation_sets.ensure(invalidation_property, [] { return InvalidationSet {}; });
+                    auto& descendant_invalidation_set = style_invalidation_data.descendant_invalidation_sets.ensure(invalidation_property, [] { return InvalidationSet {}; });
                     descendant_invalidation_set.set_needs_invalidate_self();
+                    if (inside_nth_child_pseudo_class == InsideNthChildPseudoClass::Yes) {
+                        // When invalidation property is nested in nth-child selector like p:nth-child(even of #t1, #t2, #t3)
+                        // we need to make all siblings are invalidated.
+                        descendant_invalidation_set.set_needs_invalidate_whole_subtree();
+                    }
                 });
             }
 
             for (auto const& simple_selector : simple_selectors) {
-                build_invalidation_sets_for_simple_selector(simple_selector, invalidation_set_for_rightmost_selector, ExcludePropertiesNestedInNotPseudoClass::Yes, *this);
+                build_invalidation_sets_for_simple_selector(simple_selector, invalidation_set_for_rightmost_selector, ExcludePropertiesNestedInNotPseudoClass::Yes, style_invalidation_data, inside_nth_child_pseudo_class);
             }
         } else {
             VERIFY(previous_compound_combinator != Selector::Combinator::None);
             for (auto const& simple_selector : simple_selectors) {
                 InvalidationSet s;
-                build_invalidation_sets_for_simple_selector(simple_selector, s, ExcludePropertiesNestedInNotPseudoClass::No, *this);
+                build_invalidation_sets_for_simple_selector(simple_selector, s, ExcludePropertiesNestedInNotPseudoClass::No, style_invalidation_data, inside_nth_child_pseudo_class);
                 s.for_each_property([&](auto const& invalidation_property) {
-                    auto& descendant_invalidation_set = descendant_invalidation_sets.ensure(invalidation_property, [] {
+                    auto& descendant_invalidation_set = style_invalidation_data.descendant_invalidation_sets.ensure(invalidation_property, [] {
                         return InvalidationSet {};
                     });
                     // If the rightmost selector's invalidation set is empty, it means there's no
@@ -207,6 +223,11 @@ InvalidationSet StyleInvalidationData::build_invalidation_sets_for_selector(Sele
     });
 
     return invalidation_set_for_rightmost_selector;
+}
+
+void StyleInvalidationData::build_invalidation_sets_for_selector(Selector const& selector)
+{
+    (void)build_invalidation_sets_for_selector_impl(*this, selector, InsideNthChildPseudoClass::No);
 }
 
 }

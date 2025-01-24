@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Selectors Invalidation: :nth-child(... of IDs)</title>
+<link rel="author" title="Zach Hoffman" href="mailto:zach@zrhoffman.net">
+<link rel="match" href="../../../../../expected/wpt-import/css/selectors/invalidation/nth-child-of-class-ref.html">
+<link rel="help" href="https://drafts.csswg.org/selectors-4/#child-index">
+<style>
+  p:nth-child(even of #t1, #t2, #t3, #t4, #t5) {
+    color: green;
+  }
+</style>
+<!--
+This test is modified version of nth-child-of-ids.html that does not contain empty text node
+between <div> and <script> elements. This is important, because insertion of this empty text node
+causes style invalidation that does not use invalidation sets (at the time of writing this comment),
+so we cannot check if modification of id on #t2 correctly invalidates style of sibling <p> elements.
+-->
+<div>
+  <p>Ignored</p>
+  <p>Ignored</p>
+  <p id="t1">Not ignored</p>
+  <p id="t2">Selectively ignored</p>
+  <p id="t3">Not ignored</p>
+  <p id="t4">Not ignored</p>
+  <p id="t5">Not ignored</p>
+  <p>Ignored</p>
+</div><script>
+  document.documentElement.offsetTop;
+  t2.id = "new-id";
+</script>
