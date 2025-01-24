@@ -75,18 +75,20 @@ WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[may
 
     // https://w3c.github.io/editing/docs/execCommand/#preserves-overrides
     // If a command preserves overrides, then before taking its action, the user agent must record current overrides.
-    auto overrides = Editing::record_current_overrides(*this);
-
-    // 5. Take the action for command, passing value to the instructions as an argument.
     auto optional_command = Editing::find_command_definition(command);
     VERIFY(optional_command.has_value());
     auto const& command_definition = optional_command.release_value();
+    Vector<Editing::RecordedOverride> overrides;
+    if (command_definition.preserves_overrides)
+        overrides = Editing::record_current_overrides(*this);
+
+    // 5. Take the action for command, passing value to the instructions as an argument.
     auto command_result = command_definition.action(*this, value);
 
     // https://w3c.github.io/editing/docs/execCommand/#preserves-overrides
     // After taking the action, if the active range is collapsed, it must restore states and values from the recorded
     // list.
-    if (m_selection && m_selection->is_collapsed())
+    if (!overrides.is_empty() && m_selection && m_selection->is_collapsed())
         Editing::restore_states_and_values(*this, overrides);
 
     // 6. If the previous step returned false, return false.
