@@ -1068,6 +1068,18 @@ static bool produces_character_value(u32 code_point)
         || Unicode::code_point_has_symbol_general_category(code_point);
 }
 
+// https://github.com/w3c/uievents/issues/183#issuecomment-448091687
+static bool is_enter_key_or_interoperable_enter_key_combo(UIEvents::KeyCode key, u32 modifiers)
+{
+    if (key != UIEvents::KeyCode::Key_Return)
+        return false;
+    if (!modifiers)
+        return true;
+    if (modifiers & (UIEvents::KeyModifier::Mod_Shift | UIEvents::KeyModifier::Mod_Ctrl))
+        return true;
+    return false;
+}
+
 EventResult EventHandler::input_event(FlyString const& event_name, FlyString const& input_type, HTML::Navigable& navigable, u32 code_point)
 {
     auto document = navigable.active_document();
@@ -1115,7 +1127,10 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     // https://w3c.github.io/uievents/#event-type-keypress
     // If supported by a user agent, this event MUST be dispatched when a key is pressed down, if and only if that key
     // normally produces a character value.
-    if (produces_character_value(code_point)) {
+    // AD-HOC: For web compat and for interop with other engines, we make an exception here for the Enter key. See:
+    //         https://github.com/w3c/uievents/issues/183#issuecomment-448091687 and
+    //         https://github.com/w3c/uievents/issues/266#issuecomment-1887917756
+    if (produces_character_value(code_point) || is_enter_key_or_interoperable_enter_key_combo(key, modifiers)) {
         dispatch_result = fire_keyboard_event(UIEvents::EventNames::keypress, m_navigable, key, modifiers, code_point, repeat);
         if (dispatch_result != EventResult::Accepted)
             return dispatch_result;

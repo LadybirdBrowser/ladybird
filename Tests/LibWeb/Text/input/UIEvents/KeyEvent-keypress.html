@@ -4,15 +4,39 @@
     test(() => {
         let input = document.getElementById("input");
 
+        const modifierKeys = ['Alt', 'Control', 'Shift', 'Super', 'NumLock'];
         input.addEventListener("keydown", e => {
-            println(`keydown key=${e.key} charCode=${e.charCode}`);
+            const activeModifiers = modifierKeys.filter(modifier => e.getModifierState(modifier));
+            if (activeModifiers.length > 0) {
+                  println(`keydown key=${e.key} charCode=${e.charCode} modifiers=${activeModifiers.join(', ')}`);
+            } else {
+                  println(`keydown key=${e.key} charCode=${e.charCode}`);
+            }
         });
         input.addEventListener("keypress", e => {
-            println(`keypress key=${e.key} charCode=${e.charCode}`);
+            const activeModifiers = modifierKeys.filter(modifier => e.getModifierState(modifier));
+            if (activeModifiers.length > 0) {
+                println(`keypress key=${e.key} charCode=${e.charCode} modifiers=${activeModifiers.join(', ')}`);
+            } else {
+                println(`keypress key=${e.key} charCode=${e.charCode}`);
+            }
         });
 
         internals.sendText(input, "A");
         internals.sendKey(input, "LeftShift");
         internals.sendText(input, "B");
+
+        internals.sendKey(input, "Return");
+
+        let modifiers = 1 << 0; // Mod_Alt
+        internals.sendKey(input, "Return", modifiers);
+        modifiers = 1 << 1; // Mod_Ctrl
+        internals.sendKey(input, "Return", modifiers);
+        modifiers = 1 << 2; // Mod_Shift
+        internals.sendKey(input, "Return", modifiers);
+        modifiers = 1 << 3; // Mod_Super
+        internals.sendKey(input, "Return", modifiers);
+        modifiers = 1 << 4; // Mod_Keypad
+        internals.sendKey(input, "Return", modifiers);
     });
 </script>

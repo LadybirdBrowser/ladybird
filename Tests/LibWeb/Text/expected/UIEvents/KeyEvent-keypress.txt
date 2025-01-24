@@ -3,3 +3,12 @@ keypress key=A charCode=65
 keydown key=Shift charCode=0
 keydown key=B charCode=0
 keypress key=B charCode=66
+keydown key=Enter charCode=0
+keypress key=Enter charCode=0
+keydown key=Enter charCode=0 modifiers=Alt
+keydown key=Enter charCode=0 modifiers=Control
+keypress key=Enter charCode=0 modifiers=Control
+keydown key=Enter charCode=0 modifiers=Shift
+keypress key=Enter charCode=0 modifiers=Shift
+keydown key=Enter charCode=0
+keydown key=Enter charCode=0
