@@ -87,7 +87,6 @@ struct MatchingRule {
     bool contains_pseudo_element { false };
     bool can_use_fast_matches { false };
     bool must_be_hovered { false };
-    bool skip { false };
 
     // Helpers to deal with the fact that `rule` might be a CSSStyleRule or a CSSNestedDeclarations
     PropertyOwningCSSStyleDeclaration const& declaration() const;
@@ -148,7 +147,7 @@ public:
     [[nodiscard]] GC::Ptr<ComputedProperties> compute_pseudo_element_style_if_needed(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>) const;
 
     Vector<MatchingRule> const& get_hover_rules() const;
-    Vector<MatchingRule> collect_matching_rules(DOM::Element const&, CascadeOrigin, Optional<CSS::Selector::PseudoElement::Type>, bool& did_match_any_hover_rules, FlyString const& qualified_layer_name = {}) const;
+    [[nodiscard]] Vector<MatchingRule const*> collect_matching_rules(DOM::Element const&, CascadeOrigin, Optional<CSS::Selector::PseudoElement::Type>, bool& did_match_any_hover_rules, FlyString const& qualified_layer_name = {}) const;
 
     InvalidationSet invalidation_set_for_properties(Vector<InvalidationSet::Property> const&) const;
     bool invalidation_property_used_in_has_selector(InvalidationSet::Property const&) const;
@@ -233,12 +232,12 @@ private:
 
     struct LayerMatchingRules {
         FlyString qualified_layer_name;
-        Vector<MatchingRule> rules;
+        Vector<MatchingRule const*> rules;
     };
 
     struct MatchingRuleSet {
-        Vector<MatchingRule> user_agent_rules;
-        Vector<MatchingRule> user_rules;
+        Vector<MatchingRule const*> user_agent_rules;
+        Vector<MatchingRule const*> user_rules;
         Vector<LayerMatchingRules> author_rules;
     };
 
@@ -246,7 +245,7 @@ private:
         CascadedProperties&,
         DOM::Element&,
         Optional<CSS::Selector::PseudoElement::Type>,
-        Vector<MatchingRule> const&,
+        Vector<MatchingRule const*> const&,
         CascadeOrigin,
         Important,
         Optional<FlyString> layer_name) const;

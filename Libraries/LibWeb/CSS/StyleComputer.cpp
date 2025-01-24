@@ -467,7 +467,7 @@ bool StyleComputer::invalidation_property_used_in_has_selector(InvalidationSet::
     return false;
 }
 
-Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& element, CascadeOrigin cascade_origin, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, bool& did_match_any_hover_rules, FlyString const& qualified_layer_name) const
+Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element const& element, CascadeOrigin cascade_origin, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, bool& did_match_any_hover_rules, FlyString const& qualified_layer_name) const
 {
     auto const& root_node = element.root();
     auto shadow_root = is<DOM::ShadowRoot>(root_node) ? static_cast<DOM::ShadowRoot const*>(&root_node) : nullptr;
@@ -483,18 +483,44 @@ Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& e
         return {};
     auto& rule_cache = *maybe_rule_cache;
 
-    Vector<MatchingRule, 512> rules_to_run;
+    Vector<MatchingRule const&, 512> rules_to_run;
+
+    auto add_rule_to_run = [&](MatchingRule const& rule_to_run) {
+        // FIXME: This needs to be revised when adding support for the ::shadow selector, as it needs to cross shadow boundaries.
+        auto rule_root = rule_to_run.shadow_root;
+        auto from_user_agent_or_user_stylesheet = rule_to_run.cascade_origin == CascadeOrigin::UserAgent || rule_to_run.cascade_origin == CascadeOrigin::User;
+
+        // NOTE: Inside shadow trees, we only match rules that are defined in the shadow tree's style sheets.
+        //       The key exception is the shadow tree's *shadow host*, which needs to match :host rules from inside the shadow root.
+        //       Also note that UA or User style sheets don't have a scope, so they are always relevant.
+        // FIXME: We should reorganize the data so that the document-level StyleComputer doesn't cache *all* rules,
+        //        but instead we'd have some kind of "style scope" at the document level, and also one for each shadow root.
+        //        Then we could only evaluate rules from the current style scope.
+        bool rule_is_relevant_for_current_scope = rule_root == shadow_root
+            || (element.is_shadow_host() && rule_root == element.shadow_root())
+            || from_user_agent_or_user_stylesheet;
+
+        if (!rule_is_relevant_for_current_scope)
+            return;
+
+        auto const& selector = rule_to_run.absolutized_selectors()[rule_to_run.selector_index];
+        if (should_reject_with_ancestor_filter(*selector))
+            return;
+
+        rules_to_run.unchecked_append(rule_to_run);
+    };
+
     auto add_rules_to_run = [&](Vector<MatchingRule> const& rules) {
         rules_to_run.grow_capacity(rules_to_run.size() + rules.size());
         if (pseudo_element.has_value()) {
             for (auto const& rule : rules) {
                 if (rule.contains_pseudo_element && filter_namespace_rule(element, rule))
-                    rules_to_run.unchecked_append(rule);
+                    add_rule_to_run(rule);
             }
         } else {
             for (auto const& rule : rules) {
                 if (!rule.contains_pseudo_element && filter_namespace_rule(element, rule))
-                    rules_to_run.unchecked_append(rule);
+                    add_rule_to_run(rule);
             }
         }
     };
@@ -528,47 +554,10 @@ Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& e
 
     add_rules_to_run(rule_cache.other_rules);
 
-    size_t maximum_match_count = 0;
-
-    for (auto& rule_to_run : rules_to_run) {
-        // FIXME: This needs to be revised when adding support for the ::shadow selector, as it needs to cross shadow boundaries.
-        auto rule_root = rule_to_run.shadow_root;
-        auto from_user_agent_or_user_stylesheet = rule_to_run.cascade_origin == CascadeOrigin::UserAgent || rule_to_run.cascade_origin == CascadeOrigin::User;
-
-        // NOTE: Inside shadow trees, we only match rules that are defined in the shadow tree's style sheets.
-        //       The key exception is the shadow tree's *shadow host*, which needs to match :host rules from inside the shadow root.
-        //       Also note that UA or User style sheets don't have a scope, so they are always relevant.
-        // FIXME: We should reorganize the data so that the document-level StyleComputer doesn't cache *all* rules,
-        //        but instead we'd have some kind of "style scope" at the document level, and also one for each shadow root.
-        //        Then we could only evaluate rules from the current style scope.
-        bool rule_is_relevant_for_current_scope = rule_root == shadow_root
-            || (element.is_shadow_host() && rule_root == element.shadow_root())
-            || from_user_agent_or_user_stylesheet;
-
-        if (!rule_is_relevant_for_current_scope) {
-            rule_to_run.skip = true;
-            continue;
-        }
-
-        auto const& selector = rule_to_run.absolutized_selectors()[rule_to_run.selector_index];
-        if (should_reject_with_ancestor_filter(*selector)) {
-            rule_to_run.skip = true;
-            continue;
-        }
-
-        ++maximum_match_count;
-    }
-
-    if (maximum_match_count == 0)
-        return {};
-
-    Vector<MatchingRule> matching_rules;
-    matching_rules.ensure_capacity(maximum_match_count);
+    Vector<MatchingRule const*> matching_rules;
+    matching_rules.ensure_capacity(rules_to_run.size());
 
     for (auto const& rule_to_run : rules_to_run) {
-        if (rule_to_run.skip)
-            continue;
-
         // NOTE: When matching an element against a rule from outside the shadow root's style scope,
         //       we have to pass in null for the shadow host, otherwise combinator traversal will
         //       be confined to the element itself (since it refuses to cross the shadow boundary).
@@ -591,22 +580,22 @@ Vector<MatchingRule> StyleComputer::collect_matching_rules(DOM::Element const& e
             if (!SelectorEngine::matches(selector, element, shadow_host_to_use, context, pseudo_element))
                 continue;
         }
-        matching_rules.append(rule_to_run);
+        matching_rules.append(&rule_to_run);
     }
     return matching_rules;
 }
 
-static void sort_matching_rules(Vector<MatchingRule>& matching_rules)
+static void sort_matching_rules(Vector<MatchingRule const*>& matching_rules)
 {
-    quick_sort(matching_rules, [&](MatchingRule& a, MatchingRule& b) {
-        auto const& a_selector = a.absolutized_selectors()[a.selector_index];
-        auto const& b_selector = b.absolutized_selectors()[b.selector_index];
+    quick_sort(matching_rules, [&](MatchingRule const* a, MatchingRule const* b) {
+        auto const& a_selector = a->absolutized_selectors()[a->selector_index];
+        auto const& b_selector = b->absolutized_selectors()[b->selector_index];
         auto a_specificity = a_selector->specificity();
         auto b_specificity = b_selector->specificity();
         if (a_specificity == b_specificity) {
-            if (a.style_sheet_index == b.style_sheet_index)
-                return a.rule_index < b.rule_index;
-            return a.style_sheet_index < b.style_sheet_index;
+            if (a->style_sheet_index == b->style_sheet_index)
+                return a->rule_index < b->rule_index;
+            return a->style_sheet_index < b->style_sheet_index;
         }
         return a_specificity < b_specificity;
     });
@@ -992,18 +981,18 @@ void StyleComputer::cascade_declarations(
     CascadedProperties& cascaded_properties,
     DOM::Element& element,
     Optional<CSS::Selector::PseudoElement::Type> pseudo_element,
-    Vector<MatchingRule> const& matching_rules,
+    Vector<MatchingRule const*> const& matching_rules,
     CascadeOrigin cascade_origin,
     Important important,
     Optional<FlyString> layer_name) const
 {
     for (auto const& match : matching_rules) {
-        for (auto const& property : match.declaration().properties()) {
+        for (auto const& property : match->declaration().properties()) {
             if (important != property.important)
                 continue;
 
             if (property.property_id == CSS::PropertyID::All) {
-                set_all_properties(cascaded_properties, element, pseudo_element, property.value, m_document, &match.declaration(), cascade_origin, important, layer_name);
+                set_all_properties(cascaded_properties, element, pseudo_element, property.value, m_document, &match->declaration(), cascade_origin, important, layer_name);
                 continue;
             }
 
@@ -1011,7 +1000,7 @@ void StyleComputer::cascade_declarations(
             if (property.value->is_unresolved())
                 property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingContext { document() }, element, pseudo_element, property.property_id, property.value->as_unresolved());
             if (!property_value->is_unresolved())
-                set_property_expanding_shorthands(cascaded_properties, property.property_id, property_value, &match.declaration(), cascade_origin, important, layer_name);
+                set_property_expanding_shorthands(cascaded_properties, property.property_id, property_value, &match->declaration(), cascade_origin, important, layer_name);
         }
     }
 
@@ -1036,11 +1025,11 @@ void StyleComputer::cascade_declarations(
     }
 }
 
-static void cascade_custom_properties(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, Vector<MatchingRule> const& matching_rules, HashMap<FlyString, StyleProperty>& custom_properties)
+static void cascade_custom_properties(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, Vector<MatchingRule const*> const& matching_rules, HashMap<FlyString, StyleProperty>& custom_properties)
 {
     size_t needed_capacity = 0;
     for (auto const& matching_rule : matching_rules)
-        needed_capacity += matching_rule.declaration().custom_properties().size();
+        needed_capacity += matching_rule->declaration().custom_properties().size();
 
     if (!pseudo_element.has_value()) {
         if (auto const inline_style = element.inline_style())
@@ -1050,7 +1039,7 @@ static void cascade_custom_properties(DOM::Element& element, Optional<CSS::Selec
     custom_properties.ensure_capacity(custom_properties.size() + needed_capacity);
 
     for (auto const& matching_rule : matching_rules) {
-        for (auto const& it : matching_rule.declaration().custom_properties()) {
+        for (auto const& it : matching_rule->declaration().custom_properties()) {
             auto style_value = it.value.value;
             if (style_value->is_revert_layer())
                 continue;
