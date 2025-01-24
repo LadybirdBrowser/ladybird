@@ -11,6 +11,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/Performance.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Animations {
@@ -22,10 +23,9 @@ GC::Ref<DocumentTimeline> DocumentTimeline::create(JS::Realm& realm, DOM::Docume
     auto timeline = realm.create<DocumentTimeline>(realm, document, origin_time);
     auto current_time = document.last_animation_frame_timestamp();
     if (!current_time.has_value()) {
-        // The document hasn't processed an animation frame yet, so just use the exact current time
-        auto* window_or_worker = dynamic_cast<HTML::WindowOrWorkerGlobalScopeMixin*>(&realm.global_object());
-        VERIFY(window_or_worker);
-        current_time = window_or_worker->performance()->now();
+        // The document hasn't processed an animation frame yet, we use the navigation start time, which is either the time
+        // that the previous document started to be unloaded or the creation time of the current document.
+        current_time = HighResolutionTime::relative_high_resolution_time(document.load_timing_info().navigation_start_time, realm.global_object());
     }
     timeline->set_current_time(current_time);
     return timeline;

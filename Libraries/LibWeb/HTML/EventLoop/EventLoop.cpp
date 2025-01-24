@@ -261,7 +261,8 @@ void EventLoop::update_the_rendering()
         m_is_running_rendering_task = false;
     };
 
-    // FIXME: 1. Let frameTimestamp be eventLoop's last render opportunity time.
+    // 1. Let frameTimestamp be eventLoop's last render opportunity time.
+    auto frame_timestamp = m_last_render_opportunity_time;
 
     // FIXME: 2. Let docs be all fully active Document objects whose relevant agent's event loop is eventLoop, sorted arbitrarily except that the following conditions must be met:
     // 3. Filter non-renderable documents: Remove from docs any Document object doc for which any of the following are true:
@@ -313,7 +314,7 @@ void EventLoop::update_the_rendering()
 
     // 11. For each doc of docs, update animations and send events for doc, passing in relative high resolution time given frameTimestamp and doc's relevant global object as the timestamp [WEBANIMATIONS]
     for (auto& document : docs) {
-        document->update_animations_and_send_events(document->window()->performance()->now());
+        document->update_animations_and_send_events(HighResolutionTime::relative_high_resolution_time(frame_timestamp, relevant_global_object(*document)));
     };
 
     // FIXME: 12. For each doc of docs, run the fullscreen steps for doc. [FULLSCREEN]
@@ -321,8 +322,8 @@ void EventLoop::update_the_rendering()
     // FIXME: 13. For each doc of docs, if the user agent detects that the backing storage associated with a CanvasRenderingContext2D or an OffscreenCanvasRenderingContext2D, context, has been lost, then it must run the context lost steps for each such context:
 
     // 14. For each doc of docs, run the animation frame callbacks for doc, passing in the relative high resolution time given frameTimestamp and doc's relevant global object as the timestamp.
-    auto now = HighResolutionTime::unsafe_shared_current_time();
     for (auto& document : docs) {
+        auto now = HighResolutionTime::relative_high_resolution_time(frame_timestamp, relevant_global_object(*document));
         run_animation_frame_callbacks(*document, now);
     }
 
@@ -398,6 +399,7 @@ void EventLoop::update_the_rendering()
 
     // 19. For each doc of docs, run the update intersection observations steps for doc, passing in the relative high resolution time given now and doc's relevant global object as the timestamp. [INTERSECTIONOBSERVER]
     for (auto& document : docs) {
+        auto now = HighResolutionTime::relative_high_resolution_time(frame_timestamp, relevant_global_object(*document));
         document->run_the_update_intersection_observations_steps(now);
     }
 
