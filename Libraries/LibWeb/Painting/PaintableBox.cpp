@@ -965,10 +965,34 @@ TraversalDecision PaintableBox::hit_test(CSSPixelPoint position, HitTestType typ
             return TraversalDecision::Break;
     }
 
+    if (!visible_for_hit_testing())
+        return TraversalDecision::Continue;
+
     if (!absolute_border_box_rect().contains(position_adjusted_by_scroll_offset))
         return TraversalDecision::Continue;
 
+    if (hit_test_continuation(callback) == TraversalDecision::Break)
+        return TraversalDecision::Break;
+
     return callback(HitTestResult { const_cast<PaintableBox&>(*this) });
+}
+
+TraversalDecision PaintableBox::hit_test_continuation(Function<TraversalDecision(HitTestResult)> const& callback) const
+{
+    // If we're hit testing the "middle" part of a continuation chain, we are dealing with an anonymous box that is
+    // linked to a parent inline node. Since our block element children did not match the hit test, but we did, we
+    // should walk the continuation chain up to the inline parent and return a hit on that instead.
+    auto continuation_node = layout_node_with_style_and_box_metrics().continuation_of_node();
+    if (!continuation_node || !layout_node().is_anonymous())
+        return TraversalDecision::Continue;
+
+    while (continuation_node->continuation_of_node())
+        continuation_node = continuation_node->continuation_of_node();
+    auto& paintable = *continuation_node->first_paintable();
+    if (!paintable.visible_for_hit_testing())
+        return TraversalDecision::Continue;
+
+    return callback(HitTestResult { paintable });
 }
 
 Optional<HitTestResult> PaintableBox::hit_test(CSSPixelPoint position, HitTestType type) const
@@ -985,28 +1009,6 @@ Optional<HitTestResult> PaintableBox::hit_test(CSSPixelPoint position, HitTestTy
             return TraversalDecision::Break;
         return TraversalDecision::Continue;
     });
-
-    // If our hit-testing has resulted in a hit on a paintable, we know that it is the most specific hit. If that
-    // paintable turns out to be invisible for hit-testing, we need to traverse up the paintable tree to find the next
-    // paintable that is visible for hit-testing. This implements the behavior expected for pointer-events.
-    while (result.has_value() && !result->paintable->visible_for_hit_testing()) {
-        result->index_in_node = result->paintable->dom_node() ? result->paintable->dom_node()->index() : 0;
-        result->paintable = result->paintable->parent();
-
-        // If the new parent is an anonymous box part of a continuation, we need to follow the chain to the inline node
-        // that spawned the anonymous "middle" part of the continuation, since that inline node is the actual parent.
-        if (is<PaintableBox>(*result->paintable)) {
-            auto const& box_layout_node = static_cast<PaintableBox&>(*result->paintable).layout_node_with_style_and_box_metrics();
-            if (box_layout_node.is_anonymous() && box_layout_node.continuation_of_node()) {
-                auto const* original_inline_node = &box_layout_node;
-                while (original_inline_node->continuation_of_node())
-                    original_inline_node = original_inline_node->continuation_of_node();
-
-                result->paintable = const_cast<Paintable*>(original_inline_node->first_paintable());
-            }
-        }
-    }
-
     return result;
 }
 
@@ -1047,6 +1049,9 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
         if (child->hit_test(position, type, callback) == TraversalDecision::Break)
             return TraversalDecision::Break;
     }
+
+    if (!visible_for_hit_testing())
+        return TraversalDecision::Continue;
 
     for (auto const& fragment : fragments()) {
         if (fragment.paintable().has_stacking_context())
