@@ -471,9 +471,10 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element c
 {
     auto const& root_node = element.root();
     auto shadow_root = is<DOM::ShadowRoot>(root_node) ? static_cast<DOM::ShadowRoot const*>(&root_node) : nullptr;
+    auto element_shadow_root = element.shadow_root();
 
     GC::Ptr<DOM::Element const> shadow_host;
-    if (element.is_shadow_host())
+    if (element_shadow_root)
         shadow_host = element;
     else if (shadow_root)
         shadow_host = shadow_root->host();
@@ -497,7 +498,7 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element c
         //        but instead we'd have some kind of "style scope" at the document level, and also one for each shadow root.
         //        Then we could only evaluate rules from the current style scope.
         bool rule_is_relevant_for_current_scope = rule_root == shadow_root
-            || (element.is_shadow_host() && rule_root == element.shadow_root())
+            || (element_shadow_root && rule_root == element_shadow_root)
             || from_user_agent_or_user_stylesheet;
 
         if (!rule_is_relevant_for_current_scope)
