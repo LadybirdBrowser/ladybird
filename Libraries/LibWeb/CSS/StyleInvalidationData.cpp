@@ -71,7 +71,8 @@ static void collect_properties_used_in_has(Selector::SimpleSelector const& selec
         case PseudoClass::Disabled:
         case PseudoClass::PlaceholderShown:
         case PseudoClass::Checked:
-            style_invalidation_data.pseudo_classes_used_in_has_selectors.set(pseudo_class.type);
+            if (in_has)
+                style_invalidation_data.pseudo_classes_used_in_has_selectors.set(pseudo_class.type);
             break;
         default:
             break;
