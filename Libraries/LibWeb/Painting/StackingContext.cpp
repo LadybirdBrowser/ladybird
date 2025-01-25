@@ -443,13 +443,12 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
 
     CSSPixelPoint enclosing_scroll_offset = paintable_box().cumulative_offset_of_enclosing_scroll_frame();
 
-    auto position_adjusted_by_scroll_offset = transformed_position;
-    position_adjusted_by_scroll_offset.translate_by(-enclosing_scroll_offset);
+    auto position_adjusted_by_scroll_offset = transformed_position.translated(-enclosing_scroll_offset);
 
     // 1. the background and borders of the element forming the stacking context.
-    if (paintable_box().absolute_border_box_rect().contains(position_adjusted_by_scroll_offset.x(), position_adjusted_by_scroll_offset.y())) {
-        auto hit_test_result = HitTestResult { .paintable = const_cast<PaintableBox&>(paintable_box()) };
-        if (callback(hit_test_result) == TraversalDecision::Break)
+    if (paintable_box().visible_for_hit_testing()
+        && paintable_box().absolute_border_box_rect().contains(position_adjusted_by_scroll_offset)) {
+        if (callback({ const_cast<PaintableBox&>(paintable_box()) }) == TraversalDecision::Break)
             return TraversalDecision::Break;
     }
 

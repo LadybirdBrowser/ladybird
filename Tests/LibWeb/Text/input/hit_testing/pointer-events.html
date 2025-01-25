@@ -19,6 +19,10 @@
 
     <!-- a pointer event on #d4 should hit #d2 instead -->
     <b id="d1">foo<i id="d2"><div id="d3">bar</div>baz<u id="d4" style="pointer-events: none">lorem</u></i></b>
+
+    <!-- div creates its own stacking context, #e2 must be hit instead of crashing -->
+    <div id="e1" style="position: fixed; width: 100px; height: 100px; pointer-events: none; background-color: red"></div>
+    <div id="e2" style="width: 100px; height: 100px; background-color: green"></div>
 </body>
 <script>
     test(() => {
@@ -33,5 +37,6 @@
         printHit(b1.offsetLeft + 50, b1.offsetTop + 50);
         printHit(c1.offsetLeft + 50, c1.offsetTop + 50);
         printHit(d4.offsetLeft + 10, d4.offsetTop + 8);
+        printHit(e1.offsetLeft + 50, e1.offsetTop + 50);
     });
 </script>
