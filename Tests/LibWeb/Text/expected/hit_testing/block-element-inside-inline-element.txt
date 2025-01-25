@@ -1,16 +1,16 @@
-<#text >
+<#text>
 index: 1
-<BODY >
+<BODY>
 ---
-<#text >
+<#text>
 index: 1
-<B id="b1" >
+<B id="b1">
 ---
-<#text >
+<#text>
 index: 1
-<DIV id="d1" >
+<DIV id="d1">
 ---
-<#text >
+<#text>
 index: 3
-<B id="b1" >
+<B id="b1">
 ---

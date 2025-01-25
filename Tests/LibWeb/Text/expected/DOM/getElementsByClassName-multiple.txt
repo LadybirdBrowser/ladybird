@@ -1,4 +1,4 @@
 document.getElementsByClassName("te st").length: 3
-<DIV id="1" >
-<DIV id="2" >
-<DIV id="3" >
+<DIV id="1">
+<DIV id="2">
+<DIV id="3">

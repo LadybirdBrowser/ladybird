@@ -1,1 +1,1 @@
-<DIV id="box" >
+<DIV id="box">

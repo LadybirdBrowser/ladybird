@@ -1,4 +1,4 @@
 Submitter is null
-<INPUT id="form-associated-button" >
+<INPUT id="form-associated-button">
 Exception: NotFoundError
 Exception: TypeError

@@ -1,2 +1,2 @@
-<SPAN id="name" >
-<SPAN id="value" >
+<SPAN id="name">
+<SPAN id="value">

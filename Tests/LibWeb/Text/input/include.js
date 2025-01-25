@@ -34,8 +34,8 @@ function println(s) {
 }
 
 function printElement(e) {
-    let element_string = `<${e.nodeName} `;
-    if (e.id) element_string += `id="${e.id}" `;
+    let element_string = `<${e.nodeName}`;
+    if (e.id) element_string += ` id="${e.id}"`;
     element_string += ">";
     println(element_string);
 }

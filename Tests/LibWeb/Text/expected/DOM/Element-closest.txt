@@ -1,1 +1,1 @@
-<DIV id="target" >
+<DIV id="target">

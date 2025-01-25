@@ -1,5 +1,5 @@
 Negative coordinates return null: true
 Coordinates outside the viewport return null: true
-<HTML id="root-element" >
-<DIV id="large-box" >
-<DIV id="small-box" >
+<HTML id="root-element">
+<DIV id="large-box">
+<DIV id="small-box">
