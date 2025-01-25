@@ -1,0 +1,15 @@
+<script src="../include.js"></script>
+<body>
+    <div>
+        <!-- this div should not be hit, nor should its parent -->
+        <div id="a1" style="position: fixed; width: 100px; height: 100px; pointer-events: none"></div>
+        foobar
+    </div>
+</body>
+<script>
+    test(() => {
+        const hit = internals.hitTest(a1.offsetLeft + 50, a1.offsetTop + 80);
+        printElement(hit.node);
+        printElement(hit.node.parentNode);
+    });
+</script>
