@@ -1,11 +1,11 @@
 Negative coordinates return empty array: true
 Coordinates outside the viewport return empty array: true
 == Elements at (500, 10) ==
-<DIV id="large-box" >
-<HTML >
+<DIV id="large-box">
+<HTML>
 == Elements at (550, 60) ==
-<DIV id="small-box" >
-<DIV id="large-box" >
-<PRE id="out" >
-<BODY >
-<HTML >
+<DIV id="small-box">
+<DIV id="large-box">
+<PRE id="out">
+<BODY>
+<HTML>

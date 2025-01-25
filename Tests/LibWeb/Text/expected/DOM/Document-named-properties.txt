@@ -1,17 +1,17 @@
-<FORM >
+<FORM>
 document.bob === document.forms[0]: true
-<BUTTON id="fred" >
+<BUTTON id="fred">
 img element with name 'foo' and id 'bar':
-<IMG id="bar" >
+<IMG id="bar">
 img element with id 'baz', but no name:
 baz === undefined: true
 Multiple elements with name 'foo':
 foos.length = 2
-<IMG id="bar" >
-<FORM >
+<IMG id="bar">
+<FORM>
 obj element with name 'greg' and id 'banana':
-<OBJECT id="banana" >
-<OBJECT id="banana" >
+<OBJECT id="banana">
+<OBJECT id="banana">
 goodbye greg/banana
 no more greg or banana: true, true
 meta tag does not match: true

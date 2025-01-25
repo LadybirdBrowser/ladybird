@@ -1,2 +1,2 @@
-<P id="line-6" >
-<SPAN id="line-8" >
+<P id="line-6">
+<SPAN id="line-8">

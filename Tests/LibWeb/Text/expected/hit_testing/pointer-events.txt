@@ -1,12 +1,12 @@
-<DIV id="a1" >
-<BODY >
+<DIV id="a1">
+<BODY>
 ---
-<DIV id="b3" >
-<DIV id="b2" >
+<DIV id="b3">
+<DIV id="b2">
 ---
-<A id="c1" >
-<BODY >
+<A id="c1">
+<BODY>
 ---
-<I id="d2" >
-<B id="d1" >
+<I id="d2">
+<B id="d1">
 ---
