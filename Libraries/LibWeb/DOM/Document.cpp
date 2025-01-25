@@ -1652,7 +1652,7 @@ void Document::invalidate_style_for_elements_affected_by_hover_change(Node& old_
                 if (!rule_is_relevant_for_current_scope)
                     continue;
 
-                auto const& selector = rule.absolutized_selectors()[rule.selector_index];
+                auto const& selector = rule.selector;
 
                 SelectorEngine::MatchContext context;
                 bool selector_matched = false;
