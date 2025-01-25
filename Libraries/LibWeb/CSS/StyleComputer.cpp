@@ -503,8 +503,7 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element c
         if (!rule_is_relevant_for_current_scope)
             return;
 
-        auto const& selector = rule_to_run.absolutized_selectors()[rule_to_run.selector_index];
-        if (should_reject_with_ancestor_filter(*selector))
+        if (should_reject_with_ancestor_filter(rule_to_run.selector))
             return;
 
         rules_to_run.unchecked_append(rule_to_run);
@@ -566,7 +565,7 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element c
         if (element.is_shadow_host() && rule_root != element.shadow_root())
             shadow_host_to_use = nullptr;
 
-        auto const& selector = rule_to_run.absolutized_selectors()[rule_to_run.selector_index];
+        auto const& selector = rule_to_run.selector;
 
         SelectorEngine::MatchContext context { .style_sheet_for_rule = *rule_to_run.sheet };
         ScopeGuard guard = [&] {
@@ -582,16 +581,17 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element c
         }
         matching_rules.append(&rule_to_run);
     }
+
     return matching_rules;
 }
 
 static void sort_matching_rules(Vector<MatchingRule const*>& matching_rules)
 {
     quick_sort(matching_rules, [&](MatchingRule const* a, MatchingRule const* b) {
-        auto const& a_selector = a->absolutized_selectors()[a->selector_index];
-        auto const& b_selector = b->absolutized_selectors()[b->selector_index];
-        auto a_specificity = a_selector->specificity();
-        auto b_specificity = b_selector->specificity();
+        auto const& a_selector = a->selector;
+        auto const& b_selector = b->selector;
+        auto a_specificity = a_selector.specificity();
+        auto b_specificity = b_selector.specificity();
         if (a_specificity == b_specificity) {
             if (a->style_sheet_index == b->style_sheet_index)
                 return a->rule_index < b->rule_index;
@@ -2599,7 +2599,6 @@ StyleComputer::BuiltRuleCaches StyleComputer::make_rule_cache_for_cascade_origin
     for_each_stylesheet(cascade_origin, [&](auto& sheet, GC::Ptr<DOM::ShadowRoot> shadow_root) {
         size_t rule_index = 0;
         sheet.for_each_effective_style_producing_rule([&](auto const& rule) {
-            size_t selector_index = 0;
             SelectorList const& absolutized_selectors = [&]() {
                 if (rule.type() == CSSRule::Type::Style)
                     return static_cast<CSSStyleRule const&>(rule).absolutized_selectors();
@@ -2617,9 +2616,9 @@ StyleComputer::BuiltRuleCaches StyleComputer::make_rule_cache_for_cascade_origin
                     shadow_root,
                     &rule,
                     sheet,
+                    selector,
                     style_sheet_index,
                     rule_index,
-                    selector_index,
                     selector.specificity(),
                     cascade_origin,
                     false,
@@ -2751,8 +2750,6 @@ StyleComputer::BuiltRuleCaches StyleComputer::make_rule_cache_for_cascade_origin
                         }
                     }
                 }
-
-                ++selector_index;
             }
             ++rule_index;
         });
