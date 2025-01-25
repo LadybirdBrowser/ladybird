@@ -1169,6 +1169,14 @@ bool Element::affected_by_invalidation_property(CSS::InvalidationSet::Property c
             // FIXME: This could be narrowed down to return true only if element is actually checked.
             return is<HTML::HTMLInputElement>(*this) || is<HTML::HTMLOptionElement>(*this);
         }
+        case CSS::PseudoClass::PlaceholderShown: {
+            if (is<HTML::HTMLInputElement>(*this) && has_attribute(HTML::AttributeNames::placeholder)) {
+                auto const& input_element = static_cast<HTML::HTMLInputElement const&>(*this);
+                return input_element.placeholder_element() && input_element.placeholder_value().has_value();
+            }
+            // - FIXME: textarea elements that have a placeholder attribute whose value is currently being presented to the user.
+            return false;
+        }
         default:
             VERIFY_NOT_REACHED();
         }
