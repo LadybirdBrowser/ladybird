@@ -397,13 +397,11 @@ StyleComputer::RuleCache const* StyleComputer::rule_cache_for_cascade_origin(Cas
     }
 }
 
-[[nodiscard]] static bool filter_namespace_rule(DOM::Element const& element, MatchingRule const& rule)
+[[nodiscard]] static bool filter_namespace_rule(Optional<FlyString> const& element_namespace_uri, MatchingRule const& rule)
 {
     // FIXME: Filter out non-default namespace using prefixes
-    if (auto namespace_rule = rule.sheet->default_namespace_rule()) {
-        if (namespace_rule->namespace_uri() != element.namespace_uri())
-            return false;
-    }
+    if (rule.default_namespace.has_value() && element_namespace_uri != rule.default_namespace)
+        return false;
     return true;
 }
 
@@ -472,6 +470,7 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element c
     auto const& root_node = element.root();
     auto shadow_root = is<DOM::ShadowRoot>(root_node) ? static_cast<DOM::ShadowRoot const*>(&root_node) : nullptr;
     auto element_shadow_root = element.shadow_root();
+    auto const& element_namespace_uri = element.namespace_uri();
 
     GC::Ptr<DOM::Element const> shadow_host;
     if (element_shadow_root)
@@ -514,12 +513,12 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element c
         rules_to_run.grow_capacity(rules_to_run.size() + rules.size());
         if (pseudo_element.has_value()) {
             for (auto const& rule : rules) {
-                if (rule.contains_pseudo_element && filter_namespace_rule(element, rule))
+                if (rule.contains_pseudo_element && filter_namespace_rule(element_namespace_uri, rule))
                     add_rule_to_run(rule);
             }
         } else {
             for (auto const& rule : rules) {
-                if (!rule.contains_pseudo_element && filter_namespace_rule(element, rule))
+                if (!rule.contains_pseudo_element && filter_namespace_rule(element_namespace_uri, rule))
                     add_rule_to_run(rule);
             }
         }
@@ -2617,6 +2616,7 @@ StyleComputer::BuiltRuleCaches StyleComputer::make_rule_cache_for_cascade_origin
                     shadow_root,
                     &rule,
                     sheet,
+                    sheet.default_namespace(),
                     selector,
                     style_sheet_index,
                     rule_index,
