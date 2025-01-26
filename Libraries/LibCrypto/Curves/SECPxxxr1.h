@@ -286,33 +286,40 @@ public:
 
     ErrorOr<ByteBuffer> compute_coordinate(ReadonlyBytes scalar_bytes, ReadonlyBytes point_bytes) override
     {
-        AK::FixedMemoryStream scalar_stream { scalar_bytes };
-        AK::FixedMemoryStream point_stream { point_bytes };
-
-        StorageType scalar = TRY(scalar_stream.read_value<BigEndian<StorageType>>());
-        JacobianPoint point = TRY(read_uncompressed_point(point_stream));
-        JacobianPoint result = TRY(compute_coordinate_internal(scalar, point));
-
-        // Export the values into an output buffer
-        auto buf = TRY(ByteBuffer::create_uninitialized(POINT_BYTE_SIZE));
-        AK::FixedMemoryStream buf_stream { buf.bytes() };
-        TRY(buf_stream.write_value<u8>(0x04));
-        TRY(buf_stream.write_value<BigEndian<StorageType>>(result.x));
-        TRY(buf_stream.write_value<BigEndian<StorageType>>(result.y));
-        return buf;
+        auto scalar = UnsignedBigInteger::import_data(scalar_bytes);
+        auto point = TRY(SECPxxxr1Point::from_uncompressed(point_bytes));
+        auto result = TRY(compute_coordinate_point(scalar, { point.x, point.y, KEY_BYTE_SIZE }));
+        return result.to_uncompressed();
     }
 
     ErrorOr<SECPxxxr1Point> compute_coordinate_point(UnsignedBigInteger scalar, SECPxxxr1Point point)
     {
-        auto scalar_int = unsigned_big_integer_to_storage_type(scalar);
-        auto point_x_int = unsigned_big_integer_to_storage_type(point.x);
-        auto point_y_int = unsigned_big_integer_to_storage_type(point.y);
+        auto* group = EC_GROUP_new_by_curve_name(EC_curve_nist2nid(CURVE_PARAMETERS.name));
+        ScopeGuard const free_group = [&] { EC_GROUP_free(group); };
 
-        auto result_point = TRY(compute_coordinate_internal(scalar_int, JacobianPoint { point_x_int, point_y_int, 1u }));
+        auto scalar_int = TRY(unsigned_big_integer_to_openssl_bignum(scalar));
+
+        auto qx = TRY(unsigned_big_integer_to_openssl_bignum(point.x));
+        auto qy = TRY(unsigned_big_integer_to_openssl_bignum(point.y));
+
+        auto* q = EC_POINT_new(group);
+        ScopeGuard const free_q = [&] { EC_POINT_free(q); };
+
+        OPENSSL_TRY(EC_POINT_set_affine_coordinates(group, q, qx.ptr(), qy.ptr(), nullptr));
+
+        auto* r = EC_POINT_new(group);
+        ScopeGuard const free_r = [&] { EC_POINT_free(r); };
+
+        OPENSSL_TRY(EC_POINT_mul(group, r, nullptr, q, scalar_int.ptr(), nullptr));
+
+        auto rx = TRY(OpenSSL_BN::create());
+        auto ry = TRY(OpenSSL_BN::create());
+
+        OPENSSL_TRY(EC_POINT_get_affine_coordinates(group, r, rx.ptr(), ry.ptr(), nullptr));
 
         return SECPxxxr1Point {
-            storage_type_to_unsigned_big_integer(result_point.x),
-            storage_type_to_unsigned_big_integer(result_point.y),
+            TRY(openssl_bignum_to_unsigned_big_integer(rx)),
+            TRY(openssl_bignum_to_unsigned_big_integer(ry)),
             KEY_BYTE_SIZE,
         };
     }
