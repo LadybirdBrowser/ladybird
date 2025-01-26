@@ -15,6 +15,7 @@
 #include <AK/StringView.h>
 #include <AK/UFixedBigInt.h>
 #include <AK/UFixedBigIntDivision.h>
+#include <LibCrypto/ASN1/Constants.h>
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/Curves/EllipticCurve.h>
 #include <LibCrypto/OpenSSL.h>
@@ -98,14 +99,40 @@ struct SECPxxxr1Point {
 struct SECPxxxr1Signature {
     UnsignedBigInteger r;
     UnsignedBigInteger s;
+    size_t size;
 
-    static ErrorOr<SECPxxxr1Signature> from_asn(ReadonlyBytes signature, Vector<StringView> current_scope)
+    static ErrorOr<SECPxxxr1Signature> from_asn(Span<int const> curve_oid, ReadonlyBytes signature, Vector<StringView> current_scope)
     {
         ASN1::Decoder decoder(signature);
         ENTER_TYPED_SCOPE(Sequence, "SECPxxxr1Signature");
         READ_OBJECT(Integer, UnsignedBigInteger, r_big_int);
         READ_OBJECT(Integer, UnsignedBigInteger, s_big_int);
-        return SECPxxxr1Signature { r_big_int, s_big_int };
+
+        size_t scalar_size;
+        if (curve_oid == ASN1::secp256r1_oid) {
+            scalar_size = ceil_div(256, 8);
+        } else if (curve_oid == ASN1::secp384r1_oid) {
+            scalar_size = ceil_div(384, 8);
+        } else if (curve_oid == ASN1::secp521r1_oid) {
+            scalar_size = ceil_div(521, 8);
+        } else {
+            return Error::from_string_literal("Unknown SECPxxxr1 curve");
+        }
+
+        if (r_big_int.byte_length() < scalar_size || s_big_int.byte_length() < scalar_size)
+            return Error::from_string_literal("Invalid SECPxxxr1 signature");
+
+        return SECPxxxr1Signature { r_big_int, s_big_int, scalar_size };
+    }
+
+    ErrorOr<ByteBuffer> r_bytes() const
+    {
+        return SECPxxxr1Point::scalar_to_bytes(r, size);
+    }
+
+    ErrorOr<ByteBuffer> s_bytes() const
+    {
+        return SECPxxxr1Point::scalar_to_bytes(s, size);
     }
 
     ErrorOr<ByteBuffer> to_asn()
@@ -458,7 +485,7 @@ public:
             return sign_scalar(hash, private_key);
         }
 
-        return SECPxxxr1Signature { storage_type_to_unsigned_big_integer(r), storage_type_to_unsigned_big_integer(s) };
+        return SECPxxxr1Signature { storage_type_to_unsigned_big_integer(r), storage_type_to_unsigned_big_integer(s), KEY_BYTE_SIZE };
     }
 
     ErrorOr<SECPxxxr1Signature> sign(ReadonlyBytes hash, ReadonlyBytes private_key_bytes)

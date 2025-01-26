@@ -3921,12 +3921,14 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ECDSA::sign(AlgorithmParams const&
 
         // 4. Let n be the smallest integer such that n * 8 is greater than the logarithm to base 2 of the order of the base point of the elliptic curve identified by params.
         // 5. Convert r to an octet string of length n and append this sequence of bytes to result.
-        VERIFY(signature.r.byte_length() <= coord_size);
-        (void)signature.r.export_data(result.span());
+        auto r_bytes = TRY_OR_THROW_OOM(vm, signature.r_bytes());
+        VERIFY(r_bytes.size() <= coord_size);
+        result.overwrite(0, r_bytes.data(), r_bytes.size());
 
         // 6. Convert s to an octet string of length n and append this sequence of bytes to result.
-        VERIFY(signature.s.byte_length() <= coord_size);
-        (void)signature.s.export_data(result.span().slice(coord_size));
+        auto s_bytes = TRY_OR_THROW_OOM(vm, signature.s_bytes());
+        VERIFY(s_bytes.size() <= coord_size);
+        result.overwrite(coord_size, s_bytes.data(), s_bytes.size());
     } else {
         // FIXME: Otherwise, the namedCurve attribute of the [[algorithm]] internal slot of key is a value specified in an applicable specification:
         // FIXME: Perform the ECDSA signature steps specified in that specification, passing in M, params and d and resulting in result.
@@ -4001,7 +4003,7 @@ WebIDL::ExceptionOr<JS::Value> ECDSA::verify(AlgorithmParams const& params, GC::
 
         auto maybe_result = curve.visit(
             [](Empty const&) -> ErrorOr<bool> { return Error::from_string_literal("Failed to create valid crypto instance"); },
-            [&](auto instance) { return instance.verify_point(M, Q.to_secpxxxr1_point(), ::Crypto::Curves::SECPxxxr1Signature { r, s }); });
+            [&](auto instance) { return instance.verify_point(M, Q.to_secpxxxr1_point(), ::Crypto::Curves::SECPxxxr1Signature { r, s, half_size }); });
 
         if (maybe_result.is_error()) {
             auto error_message = MUST(String::from_utf8(maybe_result.error().string_literal()));
