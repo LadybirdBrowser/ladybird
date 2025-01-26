@@ -429,6 +429,12 @@ void Node::invalidate_style(StyleInvalidationReason reason)
         return;
     }
 
+    // If any ancestor is already marked for an entire subtree update, there's no need to do anything here.
+    for (auto* ancestor = this; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
+        if (ancestor->entire_subtree_needs_style_update())
+            return;
+    }
+
     // When invalidating style for a node, we actually invalidate:
     // - the node itself
     // - all of its descendants
@@ -436,37 +442,23 @@ void Node::invalidate_style(StyleInvalidationReason reason)
     // - all of its subsequent siblings and their descendants
     // FIXME: This is a lot of invalidation and we should implement more sophisticated invalidation to do less work!
 
-    auto invalidate_entire_subtree = [&](Node& subtree_root) {
-        subtree_root.for_each_in_inclusive_subtree([&](Node& node) {
-            node.m_needs_style_update = true;
-            if (node.has_children())
-                node.m_child_needs_style_update = true;
-            if (auto shadow_root = node.is_element() ? static_cast<DOM::Element&>(node).shadow_root() : nullptr) {
-                node.m_child_needs_style_update = true;
-                shadow_root->m_needs_style_update = true;
-                if (shadow_root->has_children())
-                    shadow_root->m_child_needs_style_update = true;
-            }
-            return TraversalDecision::Continue;
-        });
-    };
-
-    invalidate_entire_subtree(*this);
+    set_entire_subtree_needs_style_update(true);
 
     if (reason == StyleInvalidationReason::NodeInsertBefore || reason == StyleInvalidationReason::NodeRemove) {
         for (auto* sibling = previous_sibling(); sibling; sibling = sibling->previous_sibling()) {
             if (sibling->is_element())
-                invalidate_entire_subtree(*sibling);
+                sibling->set_entire_subtree_needs_style_update(true);
         }
     }
 
     for (auto* sibling = next_sibling(); sibling; sibling = sibling->next_sibling()) {
         if (sibling->is_element())
-            invalidate_entire_subtree(*sibling);
+            sibling->set_entire_subtree_needs_style_update(true);
     }
 
     for (auto* ancestor = parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host())
         ancestor->m_child_needs_style_update = true;
+
     document().schedule_style_update();
 }
 
