@@ -253,9 +253,9 @@ void HTMLOptionElement::removed_from(Node* old_parent, Node& old_root)
     }
 }
 
-void HTMLOptionElement::children_changed()
+void HTMLOptionElement::children_changed(ChildrenChangedMetadata const* metadata)
 {
-    Base::children_changed();
+    Base::children_changed(metadata);
 
     update_selection_label();
 }

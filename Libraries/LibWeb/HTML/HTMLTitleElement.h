@@ -24,7 +24,7 @@ private:
     HTMLTitleElement(DOM::Document&, DOM::QualifiedName);
 
     virtual void initialize(JS::Realm&) override;
-    virtual void children_changed() override;
+    virtual void children_changed(ChildrenChangedMetadata const*) override;
 };
 
 }

@@ -766,9 +766,9 @@ private:
 
 GC_DEFINE_ALLOCATOR(SourceElementSelector);
 
-void HTMLMediaElement::children_changed()
+void HTMLMediaElement::children_changed(ChildrenChangedMetadata const* metadata)
 {
-    Base::children_changed();
+    Base::children_changed(metadata);
 
     if (m_source_element_selector)
         m_source_element_selector->process_next_candidate().release_value_but_fixme_should_propagate_errors();

@@ -745,7 +745,8 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
     }
 
     // 9. Run the children changed steps for parent.
-    children_changed();
+    ChildrenChangedMetadata metadata { ChildrenChangedMetadata::Type::Inserted, node };
+    children_changed(&metadata);
 
     // 10. Let staticNodeList be a list of nodes, initially « ».
     // Spec-Note: We collect all nodes before calling the post-connection steps on any one of them, instead of calling
@@ -977,7 +978,7 @@ void Node::remove(bool suppress_observers)
     }
 
     // 21. Run the children changed steps for parent.
-    parent->children_changed();
+    parent->children_changed(nullptr);
 
     document().bump_dom_tree_version();
 }

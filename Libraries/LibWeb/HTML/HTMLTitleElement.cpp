@@ -27,9 +27,9 @@ void HTMLTitleElement::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(HTMLTitleElement);
 }
 
-void HTMLTitleElement::children_changed()
+void HTMLTitleElement::children_changed(ChildrenChangedMetadata const* metadata)
 {
-    HTMLElement::children_changed();
+    HTMLElement::children_changed(metadata);
     auto navigable = this->navigable();
     if (navigable && navigable->is_traversable()) {
         navigable->traversable_navigable()->page().client().page_did_change_title(document().title().to_byte_string());

@@ -292,9 +292,9 @@ i32 HTMLSelectElement::default_tab_index_value() const
     return 0;
 }
 
-void HTMLSelectElement::children_changed()
+void HTMLSelectElement::children_changed(ChildrenChangedMetadata const* metadata)
 {
-    Base::children_changed();
+    Base::children_changed(metadata);
     update_cached_list_of_options();
     update_selectedness();
 }

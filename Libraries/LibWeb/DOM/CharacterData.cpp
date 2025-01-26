@@ -126,7 +126,7 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
 
     // 12. If node’s parent is non-null, then run the children changed steps for node’s parent.
     if (parent())
-        parent()->children_changed();
+        parent()->children_changed(nullptr);
 
     // NOTE: Since the text node's data has changed, we need to invalidate the text for rendering.
     //       This ensures that the new text is reflected in layout, even if we don't end up

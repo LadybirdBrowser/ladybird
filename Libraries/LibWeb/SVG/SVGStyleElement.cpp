@@ -30,9 +30,9 @@ void SVGStyleElement::visit_edges(Cell::Visitor& visitor)
     m_style_element_utils.visit_edges(visitor);
 }
 
-void SVGStyleElement::children_changed()
+void SVGStyleElement::children_changed(ChildrenChangedMetadata const* metadata)
 {
-    Base::children_changed();
+    Base::children_changed(metadata);
     m_style_element_utils.update_a_style_block(*this);
 }
 

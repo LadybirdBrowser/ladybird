@@ -1107,9 +1107,9 @@ void Element::removed_from(Node* old_parent, Node& old_root)
         document().element_with_name_was_removed({}, *this);
 }
 
-void Element::children_changed()
+void Element::children_changed(ChildrenChangedMetadata const* metadata)
 {
-    Node::children_changed();
+    Node::children_changed(metadata);
     set_needs_style_update(true);
 }
 
