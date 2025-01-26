@@ -541,8 +541,8 @@ public:
     template<typename U, typename Callback>
     TraversalDecision for_each_in_inclusive_subtree_of_type(Callback callback)
     {
-        if (is<U>(static_cast<Node&>(*this))) {
-            if (auto decision = callback(static_cast<U&>(*this)); decision != TraversalDecision::Continue)
+        if (auto* maybe_node_of_type = as_if<U>(static_cast<Node&>(*this))) {
+            if (auto decision = callback(*maybe_node_of_type); decision != TraversalDecision::Continue)
                 return decision;
         }
         for (auto* child = first_child(); child; child = child->next_sibling()) {
@@ -555,8 +555,8 @@ public:
     template<typename U, typename Callback>
     TraversalDecision for_each_in_inclusive_subtree_of_type(Callback callback) const
     {
-        if (is<U>(static_cast<Node const&>(*this))) {
-            if (auto decision = callback(static_cast<U const&>(*this)); decision != TraversalDecision::Continue)
+        if (auto* maybe_node_of_type = as_if<U>(static_cast<Node const&>(*this))) {
+            if (auto decision = callback(*maybe_node_of_type); decision != TraversalDecision::Continue)
                 return decision;
         }
         for (auto* child = first_child(); child; child = child->next_sibling()) {
@@ -655,8 +655,8 @@ public:
     void for_each_child_of_type(Callback callback)
     {
         for (auto* node = first_child(); node; node = node->next_sibling()) {
-            if (is<U>(node)) {
-                if (callback(as<U>(*node)) == IterationDecision::Break)
+            if (auto* maybe_child_of_type = as_if<U>(node)) {
+                if (callback(*maybe_child_of_type) == IterationDecision::Break)
                     return;
             }
         }
@@ -672,8 +672,8 @@ public:
     WebIDL::ExceptionOr<void> for_each_child_of_type_fallible(Callback callback)
     {
         for (auto* node = first_child(); node; node = node->next_sibling()) {
-            if (is<U>(node)) {
-                if (TRY(callback(as<U>(*node))) == IterationDecision::Break)
+            if (auto* maybe_node_of_type = as_if<U>(node)) {
+                if (TRY(callback(*maybe_node_of_type)) == IterationDecision::Break)
                     return {};
             }
         }
@@ -690,8 +690,8 @@ public:
     inline U* next_sibling_of_type()
     {
         for (auto* sibling = next_sibling(); sibling; sibling = sibling->next_sibling()) {
-            if (is<U>(*sibling))
-                return &as<U>(*sibling);
+            if (auto* maybe_sibling_of_type = as_if<U>(*sibling))
+                return maybe_sibling_of_type;
         }
         return nullptr;
     }
@@ -706,8 +706,8 @@ public:
     U* previous_sibling_of_type()
     {
         for (auto* sibling = previous_sibling(); sibling; sibling = sibling->previous_sibling()) {
-            if (is<U>(*sibling))
-                return &as<U>(*sibling);
+            if (auto* maybe_sibling_of_type = as_if<U>(*sibling))
+                return maybe_sibling_of_type;
         }
         return nullptr;
     }
@@ -728,8 +728,8 @@ public:
     U* first_child_of_type()
     {
         for (auto* child = first_child(); child; child = child->next_sibling()) {
-            if (is<U>(*child))
-                return &as<U>(*child);
+            if (auto* maybe_child_of_type = as_if<U>(*child))
+                return maybe_child_of_type;
         }
         return nullptr;
     }
@@ -738,8 +738,8 @@ public:
     U* last_child_of_type()
     {
         for (auto* child = last_child(); child; child = child->previous_sibling()) {
-            if (is<U>(*child))
-                return &as<U>(*child);
+            if (auto* maybe_child_of_type = as_if<U>(*child))
+                return maybe_child_of_type;
         }
         return nullptr;
     }
@@ -760,8 +760,8 @@ public:
     U* first_ancestor_of_type()
     {
         for (auto* ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
-            if (is<U>(*ancestor))
-                return &as<U>(*ancestor);
+            if (auto* maybe_ancestor_of_type = as_if<U>(*ancestor))
+                return maybe_ancestor_of_type;
         }
         return nullptr;
     }
