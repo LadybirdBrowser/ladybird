@@ -34,8 +34,8 @@ void HTMLStyleElement::visit_edges(Cell::Visitor& visitor)
 
 void HTMLStyleElement::children_changed()
 {
-    m_style_element_utils.update_a_style_block(*this);
     Base::children_changed();
+    m_style_element_utils.update_a_style_block(*this);
 }
 
 void HTMLStyleElement::inserted()

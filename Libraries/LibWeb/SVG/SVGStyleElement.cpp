@@ -32,8 +32,8 @@ void SVGStyleElement::visit_edges(Cell::Visitor& visitor)
 
 void SVGStyleElement::children_changed()
 {
-    m_style_element_utils.update_a_style_block(*this);
     Base::children_changed();
+    m_style_element_utils.update_a_style_block(*this);
 }
 
 void SVGStyleElement::inserted()

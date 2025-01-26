@@ -768,6 +768,8 @@ GC_DEFINE_ALLOCATOR(SourceElementSelector);
 
 void HTMLMediaElement::children_changed()
 {
+    Base::children_changed();
+
     if (m_source_element_selector)
         m_source_element_selector->process_next_candidate().release_value_but_fixme_should_propagate_errors();
 }
