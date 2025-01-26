@@ -482,7 +482,7 @@ ssize_t TLSv12::verify_ecdsa_server_key_exchange(ReadonlyBytes server_key_info_b
         return (i8)Error::NotUnderstood;
     }
 
-    auto maybe_signature = Crypto::Curves::SECPxxxr1Signature::from_asn(signature_bytes, {});
+    auto maybe_signature = Crypto::Curves::SECPxxxr1Signature::from_asn(*public_key.algorithm.ec_parameters, signature_bytes, {});
     if (maybe_signature.is_error()) {
         dbgln("verify_ecdsa_server_key_exchange failed: Signature is not ASN.1 DER encoded");
         return (i8)Error::NotUnderstood;

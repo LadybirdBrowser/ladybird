@@ -354,7 +354,7 @@ bool Context::verify_certificate_pair(Certificate const& subject, Certificate co
 
     auto public_point = issuer.public_key.ec.to_secpxxxr1_point();
 
-    auto maybe_signature = Crypto::Curves::SECPxxxr1Signature::from_asn(subject.signature_value, {});
+    auto maybe_signature = Crypto::Curves::SECPxxxr1Signature::from_asn(*issuer.public_key.algorithm.ec_parameters, subject.signature_value, {});
     if (maybe_signature.is_error()) {
         dbgln("verify_certificate_pair: Signature is not ASN.1 DER encoded");
         return false;
