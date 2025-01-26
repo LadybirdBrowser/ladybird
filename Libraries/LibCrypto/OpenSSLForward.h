@@ -14,8 +14,7 @@ typedef struct evp_md_ctx_st EVP_MD_CTX;
 typedef struct evp_pkey_st EVP_PKEY;
 typedef struct evp_pkey_ctx_st EVP_PKEY_CTX;
 
-long unsigned int ERR_get_error();
-char* ERR_error_string(long unsigned int, char*);
+void ERR_print_errors_cb(int (*cb)(char const* str, size_t len, void* u), void* u);
 
 EVP_MD_CTX* EVP_MD_CTX_new();
 void EVP_MD_CTX_free(EVP_MD_CTX*);
