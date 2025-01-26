@@ -20,6 +20,7 @@
 #include <LibWeb/CSS/SelectorEngine.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
+#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/DOMTokenList.h>
@@ -567,15 +568,21 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
 
 CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
 {
-    // Traversal of the subtree is necessary to update the animated properties inherited from the target element.
     auto computed_properties = this->computed_properties();
-    if (!computed_properties || !layout_node())
+    if (!m_cascaded_properties || !computed_properties || !layout_node())
         return {};
 
     CSS::RequiredInvalidationAfterStyleChange invalidation;
 
     for (auto i = to_underlying(CSS::first_property_id); i <= to_underlying(CSS::last_property_id); ++i) {
         auto property_id = static_cast<CSS::PropertyID>(i);
+        auto const& preabsolutized_value = m_cascaded_properties->property(property_id);
+        // Update property if it uses relative units as it might have been affected by a change in ancestor element style.
+        if (preabsolutized_value && preabsolutized_value->is_length() && preabsolutized_value->as_length().length().is_font_relative()) {
+            auto is_inherited = computed_properties->is_property_inherited(property_id);
+            computed_properties->set_property(property_id, *preabsolutized_value, is_inherited ? CSS::ComputedProperties::Inherited::Yes : CSS::ComputedProperties::Inherited::No);
+            invalidation |= CSS::compute_property_invalidation(property_id, preabsolutized_value, preabsolutized_value);
+        }
         if (!computed_properties->is_property_inherited(property_id))
             continue;
         RefPtr old_value = computed_properties->maybe_null_property(property_id);
