@@ -431,6 +431,8 @@ void HTMLTextAreaElement::update_placeholder_visibility()
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element:children-changed-steps
 void HTMLTextAreaElement::children_changed()
 {
+    Base::children_changed();
+
     // The children changed steps for textarea elements must, if the element's dirty value flag is false,
     // set the element's raw value to its child text content.
     if (!m_dirty_value) {
