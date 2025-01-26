@@ -380,11 +380,8 @@ void HTMLSelectElement::show_the_picker_if_applicable()
     // To show the picker, if applicable for a select element:
 
     // 1. If element's relevant global object does not have transient activation, then return.
-    auto& global_object = relevant_global_object(*this);
-    if (!is<HTML::Window>(global_object))
-        return;
-    auto& relevant_global_object = static_cast<HTML::Window&>(global_object);
-    if (!relevant_global_object.has_transient_activation())
+    auto& relevant_global = as<HTML::Window>(relevant_global_object(*this));
+    if (!relevant_global.has_transient_activation())
         return;
 
     // 2. If element is not mutable, then return.
@@ -392,7 +389,7 @@ void HTMLSelectElement::show_the_picker_if_applicable()
         return;
 
     // 3. Consume user activation given element's relevant global object.
-    relevant_global_object.consume_user_activation();
+    relevant_global.consume_user_activation();
 
     // 4. If element's type attribute is in the File Upload state, then run these steps in parallel:
     // Not Applicable to select elements
@@ -454,9 +451,8 @@ WebIDL::ExceptionOr<void> HTMLSelectElement::show_picker()
     }
 
     // 3. If this's relevant global object does not have transient activation, then throw a "NotAllowedError" DOMException.
-    // FIXME: The global object we get here should probably not need casted to Window to check for transient activation
     auto& global_object = relevant_global_object(*this);
-    if (!is<HTML::Window>(global_object) || !static_cast<HTML::Window&>(global_object).has_transient_activation()) {
+    if (!as<HTML::Window>(global_object).has_transient_activation()) {
         return WebIDL::NotAllowedError::create(realm(), "Too long since user activation to show picker"_string);
     }
 
