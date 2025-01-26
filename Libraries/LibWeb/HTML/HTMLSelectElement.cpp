@@ -593,10 +593,12 @@ void HTMLSelectElement::update_selectedness()
     if (has_attribute(AttributeNames::multiple))
         return;
 
+    auto list_of_options = this->list_of_options();
+
     // If element's multiple attribute is absent, and element's display size is 1,
     if (display_size() == 1) {
         bool has_selected_elements = false;
-        for (auto const& option_element : list_of_options()) {
+        for (auto const& option_element : list_of_options) {
             if (option_element->selected()) {
                 has_selected_elements = true;
                 break;
@@ -607,7 +609,7 @@ void HTMLSelectElement::update_selectedness()
         if (!has_selected_elements) {
             // then set the selectedness of the first option element in the list of options in tree order
             // that is not disabled, if any, to true, and return.
-            for (auto const& option_element : list_of_options()) {
+            for (auto const& option_element : list_of_options) {
                 if (!option_element->disabled()) {
                     option_element->set_selected_internal(true);
                     update_inner_text_element();
@@ -623,7 +625,7 @@ void HTMLSelectElement::update_selectedness()
     // then set the selectedness of all but the last option element with its selectedness set to true
     // in the list of options in tree order to false.
     int number_of_selected = 0;
-    for (auto const& option_element : list_of_options()) {
+    for (auto const& option_element : list_of_options) {
         if (option_element->selected())
             ++number_of_selected;
     }
@@ -634,7 +636,7 @@ void HTMLSelectElement::update_selectedness()
         GC::Ptr<HTML::HTMLOptionElement> last_selected_option;
         u64 last_selected_option_update_index = 0;
 
-        for (auto const& option_element : list_of_options()) {
+        for (auto const& option_element : list_of_options) {
             if (!option_element->selected())
                 continue;
             if (!last_selected_option
@@ -644,7 +646,7 @@ void HTMLSelectElement::update_selectedness()
             }
         }
 
-        for (auto const& option_element : list_of_options()) {
+        for (auto const& option_element : list_of_options) {
             if (option_element != last_selected_option)
                 option_element->set_selected_internal(false);
         }
