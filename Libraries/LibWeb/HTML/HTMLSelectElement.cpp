@@ -203,18 +203,19 @@ Vector<GC::Root<HTMLOptionElement>> HTMLSelectElement::list_of_options() const
     // and all the option element children of all the optgroup element children of the select element, in tree order.
     Vector<GC::Root<HTMLOptionElement>> list;
 
-    for_each_child_of_type<HTMLOptionElement>([&](HTMLOptionElement& option_element) {
-        list.append(GC::make_root(option_element));
-        return IterationDecision::Continue;
-    });
+    for (auto* node = first_child(); node; node = node->next_sibling()) {
+        if (auto* maybe_option = as_if<HTMLOptionElement>(*node)) {
+            list.append(GC::make_root(const_cast<HTMLOptionElement&>(*maybe_option)));
+            continue;
+        }
 
-    for_each_child_of_type<HTMLOptGroupElement>([&](HTMLOptGroupElement const& optgroup_element) {
-        optgroup_element.for_each_child_of_type<HTMLOptionElement>([&](HTMLOptionElement& option_element) {
-            list.append(GC::make_root(option_element));
-            return IterationDecision::Continue;
-        });
-        return IterationDecision::Continue;
-    });
+        if (auto* maybe_opt_group = as_if<HTMLOptGroupElement>(node)) {
+            maybe_opt_group->for_each_child_of_type<HTMLOptionElement>([&](HTMLOptionElement& option_element) {
+                list.append(GC::make_root(option_element));
+                return IterationDecision::Continue;
+            });
+        }
+    }
 
     return list;
 }
