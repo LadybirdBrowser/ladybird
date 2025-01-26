@@ -36,9 +36,12 @@ public:
 
     bool disabled() const;
 
-    GC::Ptr<HTML::HTMLFormElement> form() const;
+    GC::Ptr<HTML::HTMLFormElement const> form() const;
 
     virtual Optional<ARIA::Role> default_role() const override;
+
+    GC::Ptr<HTMLSelectElement> owner_select_element();
+    GC::Ptr<HTMLSelectElement const> owner_select_element() const { return const_cast<HTMLOptionElement&>(*this).owner_select_element(); }
 
 private:
     friend class Bindings::OptionConstructor;
