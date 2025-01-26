@@ -78,6 +78,7 @@ struct MatchingRule {
     GC::Ptr<DOM::ShadowRoot const> shadow_root;
     GC::Ptr<CSSRule const> rule; // Either CSSStyleRule or CSSNestedDeclarations
     GC::Ptr<CSSStyleSheet const> sheet;
+    Optional<FlyString> default_namespace;
     Selector const& selector;
     size_t style_sheet_index { 0 };
     size_t rule_index { 0 };
