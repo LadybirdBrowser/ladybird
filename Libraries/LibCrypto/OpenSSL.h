@@ -13,14 +13,17 @@
 
 namespace Crypto {
 
+static int openssl_print_errors(char const* str, size_t len, [[maybe_unused]] void* u)
+{
+    dbgln("{}", StringView { str, len });
+    return 1;
+}
+
 #define OPENSSL_TRY_PTR(...)                                           \
     ({                                                                 \
         auto* _temporary_result = (__VA_ARGS__);                       \
         if (!_temporary_result) [[unlikely]] {                         \
-            auto err = ERR_get_error();                                \
-            VERIFY(err);                                               \
-            auto* err_message = ERR_error_string(err, nullptr);        \
-            dbgln("OpenSSL error: {}", err_message);                   \
+            ERR_print_errors_cb(openssl_print_errors, nullptr);        \
             return Error::from_string_literal(#__VA_ARGS__ " failed"); \
         }                                                              \
         _temporary_result;                                             \
@@ -30,10 +33,7 @@ namespace Crypto {
     ({                                                                 \
         auto _temporary_result = (__VA_ARGS__);                        \
         if (_temporary_result != 1) [[unlikely]] {                     \
-            auto err = ERR_get_error();                                \
-            VERIFY(err);                                               \
-            auto* err_message = ERR_error_string(err, nullptr);        \
-            dbgln("OpenSSL error: {}", err_message);                   \
+            ERR_print_errors_cb(openssl_print_errors, nullptr);        \
             return Error::from_string_literal(#__VA_ARGS__ " failed"); \
         }                                                              \
         _temporary_result;                                             \
