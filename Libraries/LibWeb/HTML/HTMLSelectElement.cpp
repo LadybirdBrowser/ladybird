@@ -297,11 +297,9 @@ Optional<ARIA::Role> HTMLSelectElement::default_role() const
     // https://www.w3.org/TR/html-aria/#el-select-multiple-or-size-greater-1
     if (has_attribute(AttributeNames::multiple))
         return ARIA::Role::listbox;
-    if (has_attribute(AttributeNames::size)) {
-        if (auto size_string = get_attribute(HTML::AttributeNames::size); size_string.has_value()) {
-            if (auto size = size_string->to_number<int>(); size.has_value() && *size > 1)
-                return ARIA::Role::listbox;
-        }
+    if (auto size_string = get_attribute(HTML::AttributeNames::size); size_string.has_value()) {
+        if (auto size = size_string->to_number<int>(); size.has_value() && *size > 1)
+            return ARIA::Role::listbox;
     }
     // https://www.w3.org/TR/html-aria/#el-select
     return ARIA::Role::combobox;
