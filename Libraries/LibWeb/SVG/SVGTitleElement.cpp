@@ -30,9 +30,9 @@ GC::Ptr<Layout::Node> SVGTitleElement::create_layout_node(GC::Ref<CSS::ComputedP
     return nullptr;
 }
 
-void SVGTitleElement::children_changed()
+void SVGTitleElement::children_changed(ChildrenChangedMetadata const* metadata)
 {
-    Base::children_changed();
+    Base::children_changed(metadata);
 
     auto& page = document().page();
     if (document().browsing_context() != &page.top_level_browsing_context())

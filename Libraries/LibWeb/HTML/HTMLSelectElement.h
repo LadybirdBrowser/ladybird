@@ -109,7 +109,7 @@ private:
 
     virtual void computed_properties_changed() override;
 
-    virtual void children_changed() override;
+    virtual void children_changed(ChildrenChangedMetadata const*) override;
 
     void update_cached_list_of_options() const;
     void show_the_picker_if_applicable();

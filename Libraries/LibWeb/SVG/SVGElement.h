@@ -36,7 +36,7 @@ protected:
 
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
     virtual WebIDL::ExceptionOr<void> cloned(DOM::Node&, bool) const override;
-    virtual void children_changed() override;
+    virtual void children_changed(ChildrenChangedMetadata const*) override;
     virtual void inserted() override;
     virtual void removed_from(Node* old_parent, Node& old_root) override;
 

@@ -33,7 +33,7 @@ private:
 
     virtual void inserted() override;
     virtual void removed_from(DOM::Node* old_parent, DOM::Node& old_root) override;
-    virtual void children_changed() override;
+    virtual void children_changed(ChildrenChangedMetadata const*) override;
     virtual void attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
     void queue_a_details_toggle_event_task(String old_state, String new_state);

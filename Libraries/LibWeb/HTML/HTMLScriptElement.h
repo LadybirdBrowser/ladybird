@@ -43,7 +43,7 @@ public:
 
     bool is_parser_inserted() const { return !!m_parser_document; }
 
-    virtual void children_changed() override;
+    virtual void children_changed(ChildrenChangedMetadata const*) override;
     virtual void post_connection() override;
 
     // https://html.spec.whatwg.org/multipage/scripting.html#dom-script-supports

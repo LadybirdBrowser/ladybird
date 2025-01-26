@@ -18,7 +18,7 @@ class SVGStyleElement final : public SVGElement {
 public:
     virtual ~SVGStyleElement() override;
 
-    virtual void children_changed() override;
+    virtual void children_changed(ChildrenChangedMetadata const*) override;
     virtual void inserted() override;
     virtual void removed_from(Node* old_parent, Node& old_root) override;
 

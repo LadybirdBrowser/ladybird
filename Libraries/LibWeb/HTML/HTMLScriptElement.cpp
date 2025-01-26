@@ -572,9 +572,9 @@ void HTMLScriptElement::prepare_script()
 }
 
 // https://html.spec.whatwg.org/multipage/scripting.html#script-processing-model:html-element-post-connection-steps-4
-void HTMLScriptElement::children_changed()
+void HTMLScriptElement::children_changed(ChildrenChangedMetadata const* metadata)
 {
-    Base::children_changed();
+    Base::children_changed(metadata);
 
     // 1. Run the script HTML element post-connection steps, given the script element.
     post_connection();
