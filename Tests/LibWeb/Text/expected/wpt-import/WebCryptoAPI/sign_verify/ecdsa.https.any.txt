@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 253 tests
 
-205 Pass
-48 Fail
+253 Pass
 Pass	setup
 Pass	ECDSA P-256 with SHA-1 verification
 Pass	ECDSA P-256 with SHA-256 verification
@@ -13,10 +12,10 @@ Pass	ECDSA P-384 with SHA-1 verification
 Pass	ECDSA P-384 with SHA-256 verification
 Pass	ECDSA P-384 with SHA-384 verification
 Pass	ECDSA P-384 with SHA-512 verification
-Fail	ECDSA P-521 with SHA-1 verification
-Fail	ECDSA P-521 with SHA-256 verification
-Fail	ECDSA P-521 with SHA-384 verification
-Fail	ECDSA P-521 with SHA-512 verification
+Pass	ECDSA P-521 with SHA-1 verification
+Pass	ECDSA P-521 with SHA-256 verification
+Pass	ECDSA P-521 with SHA-384 verification
+Pass	ECDSA P-521 with SHA-512 verification
 Pass	ECDSA P-256 with SHA-1 verification with altered signature after call
 Pass	ECDSA P-256 with SHA-256 verification with altered signature after call
 Pass	ECDSA P-256 with SHA-384 verification with altered signature after call
@@ -25,10 +24,10 @@ Pass	ECDSA P-384 with SHA-1 verification with altered signature after call
 Pass	ECDSA P-384 with SHA-256 verification with altered signature after call
 Pass	ECDSA P-384 with SHA-384 verification with altered signature after call
 Pass	ECDSA P-384 with SHA-512 verification with altered signature after call
-Fail	ECDSA P-521 with SHA-1 verification with altered signature after call
-Fail	ECDSA P-521 with SHA-256 verification with altered signature after call
-Fail	ECDSA P-521 with SHA-384 verification with altered signature after call
-Fail	ECDSA P-521 with SHA-512 verification with altered signature after call
+Pass	ECDSA P-521 with SHA-1 verification with altered signature after call
+Pass	ECDSA P-521 with SHA-256 verification with altered signature after call
+Pass	ECDSA P-521 with SHA-384 verification with altered signature after call
+Pass	ECDSA P-521 with SHA-512 verification with altered signature after call
 Pass	ECDSA P-256 with SHA-1 with altered plaintext after call
 Pass	ECDSA P-256 with SHA-256 with altered plaintext after call
 Pass	ECDSA P-256 with SHA-384 with altered plaintext after call
@@ -37,10 +36,10 @@ Pass	ECDSA P-384 with SHA-1 with altered plaintext after call
 Pass	ECDSA P-384 with SHA-256 with altered plaintext after call
 Pass	ECDSA P-384 with SHA-384 with altered plaintext after call
 Pass	ECDSA P-384 with SHA-512 with altered plaintext after call
-Fail	ECDSA P-521 with SHA-1 with altered plaintext after call
-Fail	ECDSA P-521 with SHA-256 with altered plaintext after call
-Fail	ECDSA P-521 with SHA-384 with altered plaintext after call
-Fail	ECDSA P-521 with SHA-512 with altered plaintext after call
+Pass	ECDSA P-521 with SHA-1 with altered plaintext after call
+Pass	ECDSA P-521 with SHA-256 with altered plaintext after call
+Pass	ECDSA P-521 with SHA-384 with altered plaintext after call
+Pass	ECDSA P-521 with SHA-512 with altered plaintext after call
 Pass	ECDSA P-256 with SHA-1 using privateKey to verify
 Pass	ECDSA P-256 with SHA-256 using privateKey to verify
 Pass	ECDSA P-256 with SHA-384 using privateKey to verify
@@ -85,10 +84,10 @@ Pass	ECDSA P-384 with SHA-1 round trip
 Pass	ECDSA P-384 with SHA-256 round trip
 Pass	ECDSA P-384 with SHA-384 round trip
 Pass	ECDSA P-384 with SHA-512 round trip
-Fail	ECDSA P-521 with SHA-1 round trip
-Fail	ECDSA P-521 with SHA-256 round trip
-Fail	ECDSA P-521 with SHA-384 round trip
-Fail	ECDSA P-521 with SHA-512 round trip
+Pass	ECDSA P-521 with SHA-1 round trip
+Pass	ECDSA P-521 with SHA-256 round trip
+Pass	ECDSA P-521 with SHA-384 round trip
+Pass	ECDSA P-521 with SHA-512 round trip
 Pass	ECDSA P-256 with SHA-1 signing with wrong algorithm name
 Pass	ECDSA P-256 with SHA-256 signing with wrong algorithm name
 Pass	ECDSA P-256 with SHA-384 signing with wrong algorithm name
@@ -121,10 +120,10 @@ Pass	ECDSA P-384 with SHA-1 verification failure due to altered signature
 Pass	ECDSA P-384 with SHA-256 verification failure due to altered signature
 Pass	ECDSA P-384 with SHA-384 verification failure due to altered signature
 Pass	ECDSA P-384 with SHA-512 verification failure due to altered signature
-Fail	ECDSA P-521 with SHA-1 verification failure due to altered signature
-Fail	ECDSA P-521 with SHA-256 verification failure due to altered signature
-Fail	ECDSA P-521 with SHA-384 verification failure due to altered signature
-Fail	ECDSA P-521 with SHA-512 verification failure due to altered signature
+Pass	ECDSA P-521 with SHA-1 verification failure due to altered signature
+Pass	ECDSA P-521 with SHA-256 verification failure due to altered signature
+Pass	ECDSA P-521 with SHA-384 verification failure due to altered signature
+Pass	ECDSA P-521 with SHA-512 verification failure due to altered signature
 Pass	ECDSA P-256 with SHA-1 verification failure due to wrong hash
 Pass	ECDSA P-256 with SHA-256 verification failure due to wrong hash
 Pass	ECDSA P-256 with SHA-384 verification failure due to wrong hash
@@ -133,10 +132,10 @@ Pass	ECDSA P-384 with SHA-1 verification failure due to wrong hash
 Pass	ECDSA P-384 with SHA-256 verification failure due to wrong hash
 Pass	ECDSA P-384 with SHA-384 verification failure due to wrong hash
 Pass	ECDSA P-384 with SHA-512 verification failure due to wrong hash
-Fail	ECDSA P-521 with SHA-1 verification failure due to wrong hash
-Fail	ECDSA P-521 with SHA-256 verification failure due to wrong hash
-Fail	ECDSA P-521 with SHA-384 verification failure due to wrong hash
-Fail	ECDSA P-521 with SHA-512 verification failure due to wrong hash
+Pass	ECDSA P-521 with SHA-1 verification failure due to wrong hash
+Pass	ECDSA P-521 with SHA-256 verification failure due to wrong hash
+Pass	ECDSA P-521 with SHA-384 verification failure due to wrong hash
+Pass	ECDSA P-521 with SHA-512 verification failure due to wrong hash
 Pass	ECDSA P-256 with SHA-1 verification failure due to bad hash name
 Pass	ECDSA P-256 with SHA-256 verification failure due to bad hash name
 Pass	ECDSA P-256 with SHA-384 verification failure due to bad hash name
@@ -157,10 +156,10 @@ Pass	ECDSA P-384 with SHA-1 verification failure due to shortened signature
 Pass	ECDSA P-384 with SHA-256 verification failure due to shortened signature
 Pass	ECDSA P-384 with SHA-384 verification failure due to shortened signature
 Pass	ECDSA P-384 with SHA-512 verification failure due to shortened signature
-Fail	ECDSA P-521 with SHA-1 verification failure due to shortened signature
-Fail	ECDSA P-521 with SHA-256 verification failure due to shortened signature
-Fail	ECDSA P-521 with SHA-384 verification failure due to shortened signature
-Fail	ECDSA P-521 with SHA-512 verification failure due to shortened signature
+Pass	ECDSA P-521 with SHA-1 verification failure due to shortened signature
+Pass	ECDSA P-521 with SHA-256 verification failure due to shortened signature
+Pass	ECDSA P-521 with SHA-384 verification failure due to shortened signature
+Pass	ECDSA P-521 with SHA-512 verification failure due to shortened signature
 Pass	ECDSA P-256 with SHA-1 verification failure due to altered plaintext
 Pass	ECDSA P-256 with SHA-256 verification failure due to altered plaintext
 Pass	ECDSA P-256 with SHA-384 verification failure due to altered plaintext
@@ -169,10 +168,10 @@ Pass	ECDSA P-384 with SHA-1 verification failure due to altered plaintext
 Pass	ECDSA P-384 with SHA-256 verification failure due to altered plaintext
 Pass	ECDSA P-384 with SHA-384 verification failure due to altered plaintext
 Pass	ECDSA P-384 with SHA-512 verification failure due to altered plaintext
-Fail	ECDSA P-521 with SHA-1 verification failure due to altered plaintext
-Fail	ECDSA P-521 with SHA-256 verification failure due to altered plaintext
-Fail	ECDSA P-521 with SHA-384 verification failure due to altered plaintext
-Fail	ECDSA P-521 with SHA-512 verification failure due to altered plaintext
+Pass	ECDSA P-521 with SHA-1 verification failure due to altered plaintext
+Pass	ECDSA P-521 with SHA-256 verification failure due to altered plaintext
+Pass	ECDSA P-521 with SHA-384 verification failure due to altered plaintext
+Pass	ECDSA P-521 with SHA-512 verification failure due to altered plaintext
 Pass	ECDSA P-256 with SHA-1 - The signature was truncated by 1 byte verification
 Pass	ECDSA P-256 with SHA-1 - The signature was made using SHA-1, however verification is being done using SHA-256 verification
 Pass	ECDSA P-256 with SHA-1 - The signature was made using SHA-1, however verification is being done using SHA-384 verification
@@ -229,31 +228,31 @@ Pass	ECDSA P-384 with SHA-512 - The signature was made using SHA-512, however ve
 Pass	ECDSA P-384 with SHA-512 - Signature has excess padding verification
 Pass	ECDSA P-384 with SHA-512 - The signature is empty verification
 Pass	ECDSA P-384 with SHA-512 - The signature is all zeroes verification
-Fail	ECDSA P-521 with SHA-1 - The signature was truncated by 1 byte verification
-Fail	ECDSA P-521 with SHA-1 - The signature was made using SHA-1, however verification is being done using SHA-256 verification
-Fail	ECDSA P-521 with SHA-1 - The signature was made using SHA-1, however verification is being done using SHA-384 verification
-Fail	ECDSA P-521 with SHA-1 - The signature was made using SHA-1, however verification is being done using SHA-512 verification
+Pass	ECDSA P-521 with SHA-1 - The signature was truncated by 1 byte verification
+Pass	ECDSA P-521 with SHA-1 - The signature was made using SHA-1, however verification is being done using SHA-256 verification
+Pass	ECDSA P-521 with SHA-1 - The signature was made using SHA-1, however verification is being done using SHA-384 verification
+Pass	ECDSA P-521 with SHA-1 - The signature was made using SHA-1, however verification is being done using SHA-512 verification
 Pass	ECDSA P-521 with SHA-1 - Signature has excess padding verification
 Pass	ECDSA P-521 with SHA-1 - The signature is empty verification
 Pass	ECDSA P-521 with SHA-1 - The signature is all zeroes verification
-Fail	ECDSA P-521 with SHA-256 - The signature was truncated by 1 byte verification
-Fail	ECDSA P-521 with SHA-256 - The signature was made using SHA-256, however verification is being done using SHA-1 verification
-Fail	ECDSA P-521 with SHA-256 - The signature was made using SHA-256, however verification is being done using SHA-384 verification
-Fail	ECDSA P-521 with SHA-256 - The signature was made using SHA-256, however verification is being done using SHA-512 verification
+Pass	ECDSA P-521 with SHA-256 - The signature was truncated by 1 byte verification
+Pass	ECDSA P-521 with SHA-256 - The signature was made using SHA-256, however verification is being done using SHA-1 verification
+Pass	ECDSA P-521 with SHA-256 - The signature was made using SHA-256, however verification is being done using SHA-384 verification
+Pass	ECDSA P-521 with SHA-256 - The signature was made using SHA-256, however verification is being done using SHA-512 verification
 Pass	ECDSA P-521 with SHA-256 - Signature has excess padding verification
 Pass	ECDSA P-521 with SHA-256 - The signature is empty verification
 Pass	ECDSA P-521 with SHA-256 - The signature is all zeroes verification
-Fail	ECDSA P-521 with SHA-384 - The signature was truncated by 1 byte verification
-Fail	ECDSA P-521 with SHA-384 - The signature was made using SHA-384, however verification is being done using SHA-1 verification
-Fail	ECDSA P-521 with SHA-384 - The signature was made using SHA-384, however verification is being done using SHA-256 verification
-Fail	ECDSA P-521 with SHA-384 - The signature was made using SHA-384, however verification is being done using SHA-512 verification
+Pass	ECDSA P-521 with SHA-384 - The signature was truncated by 1 byte verification
+Pass	ECDSA P-521 with SHA-384 - The signature was made using SHA-384, however verification is being done using SHA-1 verification
+Pass	ECDSA P-521 with SHA-384 - The signature was made using SHA-384, however verification is being done using SHA-256 verification
+Pass	ECDSA P-521 with SHA-384 - The signature was made using SHA-384, however verification is being done using SHA-512 verification
 Pass	ECDSA P-521 with SHA-384 - Signature has excess padding verification
 Pass	ECDSA P-521 with SHA-384 - The signature is empty verification
 Pass	ECDSA P-521 with SHA-384 - The signature is all zeroes verification
-Fail	ECDSA P-521 with SHA-512 - The signature was truncated by 1 byte verification
-Fail	ECDSA P-521 with SHA-512 - The signature was made using SHA-512, however verification is being done using SHA-1 verification
-Fail	ECDSA P-521 with SHA-512 - The signature was made using SHA-512, however verification is being done using SHA-256 verification
-Fail	ECDSA P-521 with SHA-512 - The signature was made using SHA-512, however verification is being done using SHA-384 verification
+Pass	ECDSA P-521 with SHA-512 - The signature was truncated by 1 byte verification
+Pass	ECDSA P-521 with SHA-512 - The signature was made using SHA-512, however verification is being done using SHA-1 verification
+Pass	ECDSA P-521 with SHA-512 - The signature was made using SHA-512, however verification is being done using SHA-256 verification
+Pass	ECDSA P-521 with SHA-512 - The signature was made using SHA-512, however verification is being done using SHA-384 verification
 Pass	ECDSA P-521 with SHA-512 - Signature has excess padding verification
 Pass	ECDSA P-521 with SHA-512 - The signature is empty verification
 Pass	ECDSA P-521 with SHA-512 - The signature is all zeroes verification
