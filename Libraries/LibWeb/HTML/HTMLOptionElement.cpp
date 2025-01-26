@@ -191,22 +191,30 @@ bool HTMLOptionElement::disabled() const
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-option-form
-GC::Ptr<HTMLFormElement> HTMLOptionElement::form() const
+GC::Ptr<HTMLFormElement const> HTMLOptionElement::form() const
 {
     // The form IDL attribute's behavior depends on whether the option element is in a select element or not.
     // If the option has a select element as its parent, or has an optgroup element as its parent and that optgroup element has a select element as its parent,
     // then the form IDL attribute must return the same value as the form IDL attribute on that select element.
     // Otherwise, it must return null.
-    auto const* parent = parent_element();
-    if (is<HTMLOptGroupElement>(parent))
-        parent = parent->parent_element();
-
-    if (is<HTML::HTMLSelectElement>(parent)) {
-        auto const* select_element = as<HTMLSelectElement>(parent);
-        return const_cast<HTMLFormElement*>(select_element->form());
-    }
+    if (auto select_element = owner_select_element())
+        return select_element->form();
 
     return {};
+}
+
+GC::Ptr<HTMLSelectElement> HTMLOptionElement::owner_select_element()
+{
+    if (auto* maybe_parent = parent()) {
+        if (auto* select_element = as_if<HTMLSelectElement>(*maybe_parent))
+            return select_element;
+        if (auto* opt_group_element = as_if<HTMLOptGroupElement>(*maybe_parent)) {
+            if (auto* maybe_parent = opt_group_element->parent())
+                return as_if<HTMLSelectElement>(*maybe_parent);
+        }
+    }
+
+    return nullptr;
 }
 
 Optional<ARIA::Role> HTMLOptionElement::default_role() const
@@ -226,10 +234,8 @@ void HTMLOptionElement::inserted()
     //    If insertedNode's parent is a select element,
     //    or insertedNode's parent is an optgroup element whose parent is a select element,
     //    then run that select element's selectedness setting algorithm.
-    if (is<HTMLSelectElement>(*parent()))
-        static_cast<HTMLSelectElement&>(*parent()).update_selectedness();
-    else if (is<HTMLOptGroupElement>(parent()) && parent()->parent() && is<HTMLSelectElement>(*parent()->parent()))
-        static_cast<HTMLSelectElement&>(*parent()->parent()).update_selectedness();
+    if (auto select_element = owner_select_element())
+        select_element->update_selectedness();
 }
 
 void HTMLOptionElement::removed_from(Node* old_parent, Node& old_root)
