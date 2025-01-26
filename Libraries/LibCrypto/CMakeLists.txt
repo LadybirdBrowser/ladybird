@@ -28,6 +28,7 @@ set(SOURCES
     Curves/Curve25519.cpp
     Curves/Ed25519.cpp
     Curves/Ed448.cpp
+    Curves/SECPxxxr1.cpp
     Curves/X25519.cpp
     Curves/X448.cpp
     Hash/BLAKE2b.cpp
