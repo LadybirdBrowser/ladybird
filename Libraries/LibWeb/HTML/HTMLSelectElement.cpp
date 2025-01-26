@@ -505,11 +505,6 @@ void HTMLSelectElement::did_select_item(Optional<u32> const& id)
 void HTMLSelectElement::form_associated_element_was_inserted()
 {
     create_shadow_tree_if_needed();
-
-    // Wait until children are ready
-    queue_an_element_task(HTML::Task::Source::Microtask, [this] {
-        update_selectedness();
-    });
 }
 
 void HTMLSelectElement::form_associated_element_was_removed(DOM::Node*)
