@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 246 tests
 
-192 Pass
-6 Fail
+198 Pass
 48 Optional Feature Unsupported
 Pass	Good parameters: P-256 bits (spki, buffer(91), {name: ECDSA, namedCurve: P-256}, true, [verify])
 Optional Feature Unsupported	Good parameters: P-256 bits (spki, buffer(59, compressed), {name: ECDSA, namedCurve: P-256}, true, [verify])
@@ -107,8 +106,8 @@ Optional Feature Unsupported	Good parameters: P-521 bits (raw, buffer(67, compre
 Pass	Good parameters: P-521 bits (pkcs8, buffer(241), {name: ECDSA, namedCurve: P-521}, true, [sign])
 Pass	Good parameters: P-521 bits (pkcs8, buffer(241), {name: ECDSA, namedCurve: P-521}, true, [sign, sign])
 Pass	Empty Usages: P-521 bits (pkcs8, buffer(241), {name: ECDSA, namedCurve: P-521}, true, [])
-Fail	Good parameters: P-521 bits (jwk, object(kty, crv, x, y, d), {name: ECDSA, namedCurve: P-521}, true, [sign])
-Fail	Good parameters: P-521 bits (jwk, object(kty, crv, x, y, d), {name: ECDSA, namedCurve: P-521}, true, [sign, sign])
+Pass	Good parameters: P-521 bits (jwk, object(kty, crv, x, y, d), {name: ECDSA, namedCurve: P-521}, true, [sign])
+Pass	Good parameters: P-521 bits (jwk, object(kty, crv, x, y, d), {name: ECDSA, namedCurve: P-521}, true, [sign, sign])
 Pass	Empty Usages: P-521 bits (jwk, object(kty, crv, x, y, d), {name: ECDSA, namedCurve: P-521}, true, [])
 Pass	Good parameters: P-521 bits (spki, buffer(158), {name: ECDSA, namedCurve: P-521}, false, [verify])
 Optional Feature Unsupported	Good parameters: P-521 bits (spki, buffer(90, compressed), {name: ECDSA, namedCurve: P-521}, false, [verify])
@@ -222,13 +221,13 @@ Pass	Good parameters: P-521 bits (pkcs8, buffer(241), {name: ECDH, namedCurve: P
 Pass	Good parameters: P-521 bits (pkcs8, buffer(241), {name: ECDH, namedCurve: P-521}, true, [deriveBits])
 Pass	Good parameters: P-521 bits (pkcs8, buffer(241), {name: ECDH, namedCurve: P-521}, true, [deriveKey, deriveBits, deriveKey, deriveBits])
 Pass	Empty Usages: P-521 bits (pkcs8, buffer(241), {name: ECDH, namedCurve: P-521}, true, [])
-Fail	Good parameters: P-521 bits (jwk, object(kty, crv, x, y, d), {name: ECDH, namedCurve: P-521}, true, [deriveKey])
+Pass	Good parameters: P-521 bits (jwk, object(kty, crv, x, y, d), {name: ECDH, namedCurve: P-521}, true, [deriveKey])
 Pass	ECDH any JWK alg: P-521 bits (jwk, object(kty, crv, x, y, d, alg), {name: ECDH, namedCurve: P-521}, true, [deriveKey])
-Fail	Good parameters: P-521 bits (jwk, object(kty, crv, x, y, d), {name: ECDH, namedCurve: P-521}, true, [deriveBits, deriveKey])
+Pass	Good parameters: P-521 bits (jwk, object(kty, crv, x, y, d), {name: ECDH, namedCurve: P-521}, true, [deriveBits, deriveKey])
 Pass	ECDH any JWK alg: P-521 bits (jwk, object(kty, crv, x, y, d, alg), {name: ECDH, namedCurve: P-521}, true, [deriveBits, deriveKey])
-Fail	Good parameters: P-521 bits (jwk, object(kty, crv, x, y, d), {name: ECDH, namedCurve: P-521}, true, [deriveBits])
+Pass	Good parameters: P-521 bits (jwk, object(kty, crv, x, y, d), {name: ECDH, namedCurve: P-521}, true, [deriveBits])
 Pass	ECDH any JWK alg: P-521 bits (jwk, object(kty, crv, x, y, d, alg), {name: ECDH, namedCurve: P-521}, true, [deriveBits])
-Fail	Good parameters: P-521 bits (jwk, object(kty, crv, x, y, d), {name: ECDH, namedCurve: P-521}, true, [deriveKey, deriveBits, deriveKey, deriveBits])
+Pass	Good parameters: P-521 bits (jwk, object(kty, crv, x, y, d), {name: ECDH, namedCurve: P-521}, true, [deriveKey, deriveBits, deriveKey, deriveBits])
 Pass	ECDH any JWK alg: P-521 bits (jwk, object(kty, crv, x, y, d, alg), {name: ECDH, namedCurve: P-521}, true, [deriveKey, deriveBits, deriveKey, deriveBits])
 Pass	Empty Usages: P-521 bits (jwk, object(kty, crv, x, y, d), {name: ECDH, namedCurve: P-521}, true, [])
 Pass	Good parameters: P-521 bits (spki, buffer(158), {name: ECDH, namedCurve: P-521}, false, [])

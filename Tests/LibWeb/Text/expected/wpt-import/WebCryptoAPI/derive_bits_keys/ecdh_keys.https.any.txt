@@ -2,15 +2,15 @@ Harness status: OK
 
 Found 31 tests
 
-28 Pass
-3 Fail
+29 Pass
+2 Fail
 Pass	setup - define tests
 Fail	P-521 good parameters
 Fail	P-521 mixed case parameters
 Pass	P-521 missing public curve
 Pass	P-521 public property of algorithm is not a CryptoKey
 Pass	P-521 mismatched curves
-Fail	P-521 public property of algorithm is not an ECDSA public key
+Pass	P-521 public property of algorithm is not an ECDSA public key
 Pass	P-521 no deriveKey usage for base key
 Pass	P-521 base key is not a private key
 Pass	P-521 public property value is a private key

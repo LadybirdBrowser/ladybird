@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2023, Michiel Visser <opensource@webmichiel.nl>
- * Copyright (c) 2024, Altomani Gianluca <altomanigianluca@gmail.com>
+ * Copyright (c) 2024-2025, Altomani Gianluca <altomanigianluca@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,14 +11,17 @@
 #include <AK/Endian.h>
 #include <AK/Error.h>
 #include <AK/MemoryStream.h>
-#include <AK/Random.h>
 #include <AK/StdLibExtras.h>
 #include <AK/StringView.h>
 #include <AK/UFixedBigInt.h>
 #include <AK/UFixedBigIntDivision.h>
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/Curves/EllipticCurve.h>
-#include <LibCrypto/SecureRandom.h>
+#include <LibCrypto/OpenSSL.h>
+
+#include <openssl/core_names.h>
+#include <openssl/evp.h>
+#include <openssl/ec.h>
 
 namespace {
 // Used by ASN1 macros
@@ -28,6 +31,7 @@ static String s_error_string;
 namespace Crypto::Curves {
 
 struct SECPxxxr1CurveParameters {
+    char const* name;
     StringView prime;
     StringView a;
     StringView b;
@@ -230,31 +234,54 @@ public:
 
     ErrorOr<ByteBuffer> generate_private_key() override
     {
+        auto key = TRY(generate_private_key_scalar());
+
         auto buffer = TRY(ByteBuffer::create_uninitialized(KEY_BYTE_SIZE));
-        fill_with_secure_random(buffer);
-        return buffer;
+        auto buffer_bytes = buffer.bytes();
+        auto size = key.export_data(buffer_bytes);
+        return buffer.slice(0, size);
     }
 
     ErrorOr<UnsignedBigInteger> generate_private_key_scalar()
     {
-        auto buffer = TRY(generate_private_key());
-        return UnsignedBigInteger::import_data(buffer.data(), buffer.size());
+        auto key = TRY(OpenSSL_PKEY::wrap(EVP_PKEY_Q_keygen(nullptr, nullptr, "EC", CURVE_PARAMETERS.name)));
+
+        auto priv_bn = TRY(OpenSSL_BN::create());
+        auto* priv_bn_ptr = priv_bn.ptr();
+        OPENSSL_TRY(EVP_PKEY_get_bn_param(key.ptr(), OSSL_PKEY_PARAM_PRIV_KEY, &priv_bn_ptr));
+
+        return TRY(openssl_bignum_to_unsigned_big_integer(priv_bn));
     }
 
     ErrorOr<ByteBuffer> generate_public_key(ReadonlyBytes a) override
     {
-        return compute_coordinate(a, GENERATOR_POINT);
+        auto a_int = UnsignedBigInteger::import_data(a);
+        auto point = TRY(generate_public_key_point(a_int));
+        return point.to_uncompressed();
     }
 
     ErrorOr<SECPxxxr1Point> generate_public_key_point(UnsignedBigInteger scalar)
     {
-        VERIFY(scalar.byte_length() >= KEY_BYTE_SIZE);
+        auto* group = EC_GROUP_new_by_curve_name(EC_curve_nist2nid(CURVE_PARAMETERS.name));
+        ScopeGuard const free_group = [&] { EC_GROUP_free(group); };
 
-        return compute_coordinate_point(scalar, SECPxxxr1Point {
-                                                    UnsignedBigInteger::import_data(GENERATOR_POINT.data() + 1, KEY_BYTE_SIZE),
-                                                    UnsignedBigInteger::import_data(GENERATOR_POINT.data() + 1 + KEY_BYTE_SIZE, KEY_BYTE_SIZE),
-                                                    KEY_BYTE_SIZE,
-                                                });
+        auto scalar_int = TRY(unsigned_big_integer_to_openssl_bignum(scalar));
+
+        auto* r = EC_POINT_new(group);
+        ScopeGuard const free_r = [&] { EC_POINT_free(r); };
+
+        OPENSSL_TRY(EC_POINT_mul(group, r, scalar_int.ptr(), nullptr, nullptr, nullptr));
+
+        auto x = TRY(OpenSSL_BN::create());
+        auto y = TRY(OpenSSL_BN::create());
+
+        OPENSSL_TRY(EC_POINT_get_affine_coordinates(group, r, x.ptr(), y.ptr(), nullptr));
+
+        return SECPxxxr1Point {
+            TRY(openssl_bignum_to_unsigned_big_integer(x)),
+            TRY(openssl_bignum_to_unsigned_big_integer(y)),
+            KEY_BYTE_SIZE,
+        };
     }
 
     ErrorOr<ByteBuffer> compute_coordinate(ReadonlyBytes scalar_bytes, ReadonlyBytes point_bytes) override
@@ -872,6 +899,7 @@ private:
 
 // SECP256r1 curve
 static constexpr SECPxxxr1CurveParameters SECP256r1_CURVE_PARAMETERS {
+    .name = "P-256",
     .prime = "FFFFFFFF_00000001_00000000_00000000_00000000_FFFFFFFF_FFFFFFFF_FFFFFFFF"sv,
     .a = "FFFFFFFF_00000001_00000000_00000000_00000000_FFFFFFFF_FFFFFFFF_FFFFFFFC"sv,
     .b = "5AC635D8_AA3A93E7_B3EBBD55_769886BC_651D06B0_CC53B0F6_3BCE3C3E_27D2604B"sv,
@@ -882,6 +910,7 @@ using SECP256r1 = SECPxxxr1<256, SECP256r1_CURVE_PARAMETERS>;
 
 // SECP384r1 curve
 static constexpr SECPxxxr1CurveParameters SECP384r1_CURVE_PARAMETERS {
+    .name = "P-384",
     .prime = "FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFE_FFFFFFFF_00000000_00000000_FFFFFFFF"sv,
     .a = "FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFE_FFFFFFFF_00000000_00000000_FFFFFFFC"sv,
     .b = "B3312FA7_E23EE7E4_988E056B_E3F82D19_181D9C6E_FE814112_0314088F_5013875A_C656398D_8A2ED19D_2A85C8ED_D3EC2AEF"sv,
@@ -892,6 +921,7 @@ using SECP384r1 = SECPxxxr1<384, SECP384r1_CURVE_PARAMETERS>;
 
 // SECP521r1 curve
 static constexpr SECPxxxr1CurveParameters SECP521r1_CURVE_PARAMETERS {
+    .name = "P-521",
     .prime = "01FF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF"sv,
     .a = "01FF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFC"sv,
     .b = "0051_953EB961_8E1C9A1F_929A21A0_B68540EE_A2DA725B_99B315F3_B8B48991_8EF109E1_56193951_EC7E937B_1652C0BD_3BB1BF07_3573DF88_3D2C34F1_EF451FD4_6B503F00"sv,

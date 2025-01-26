@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 476 tests
 
-474 Pass
-2 Fail
+476 Pass
 Pass	Bad algorithm: generateKey(AES, false, [decrypt])
 Pass	Bad algorithm: generateKey(AES, true, [decrypt])
 Pass	Bad algorithm: generateKey(AES, RED, [decrypt])
@@ -478,5 +477,5 @@ Pass	Empty usages: generateKey({name: ECDH, namedCurve: P-256}, false, [])
 Pass	Empty usages: generateKey({name: ECDH, namedCurve: P-256}, true, [])
 Pass	Empty usages: generateKey({name: ECDH, namedCurve: P-384}, false, [])
 Pass	Empty usages: generateKey({name: ECDH, namedCurve: P-384}, true, [])
-Fail	Empty usages: generateKey({name: ECDH, namedCurve: P-521}, false, [])
-Fail	Empty usages: generateKey({name: ECDH, namedCurve: P-521}, true, [])
+Pass	Empty usages: generateKey({name: ECDH, namedCurve: P-521}, false, [])
+Pass	Empty usages: generateKey({name: ECDH, namedCurve: P-521}, true, [])
