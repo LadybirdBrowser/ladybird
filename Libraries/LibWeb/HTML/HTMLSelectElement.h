@@ -111,6 +111,7 @@ private:
 
     virtual void children_changed() override;
 
+    void update_cached_list_of_options() const;
     void show_the_picker_if_applicable();
 
     void create_shadow_tree_if_needed();
@@ -118,6 +119,9 @@ private:
     void queue_input_and_change_events();
 
     u32 display_size() const;
+
+    mutable Vector<GC::Ref<HTMLOptionElement>> m_cached_list_of_options;
+    mutable size_t m_cached_number_of_selected_options { 0 };
 
     GC::Ptr<HTMLOptionsCollection> m_options;
     GC::Ptr<DOM::HTMLCollection> m_selected_options;

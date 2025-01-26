@@ -51,6 +51,7 @@ void HTMLSelectElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_selected_options);
     visitor.visit(m_inner_text_element);
     visitor.visit(m_chevron_icon_element);
+    visitor.visit(m_cached_list_of_options);
 
     for (auto const& item : m_select_items) {
         if (item.has<SelectItemOption>())
@@ -197,25 +198,40 @@ GC::Ref<DOM::HTMLCollection> HTMLSelectElement::selected_options()
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#concept-select-option-list
-Vector<GC::Root<HTMLOptionElement>> HTMLSelectElement::list_of_options() const
+void HTMLSelectElement::update_cached_list_of_options() const
 {
     // The list of options for a select element consists of all the option element children of the select element,
     // and all the option element children of all the optgroup element children of the select element, in tree order.
-    Vector<GC::Root<HTMLOptionElement>> list;
+    m_cached_list_of_options.clear();
+    m_cached_number_of_selected_options = 0;
 
     for (auto* node = first_child(); node; node = node->next_sibling()) {
         if (auto* maybe_option = as_if<HTMLOptionElement>(*node)) {
-            list.append(GC::make_root(const_cast<HTMLOptionElement&>(*maybe_option)));
+            if (maybe_option->selected())
+                ++m_cached_number_of_selected_options;
+            m_cached_list_of_options.append(const_cast<HTMLOptionElement&>(*maybe_option));
             continue;
         }
 
         if (auto* maybe_opt_group = as_if<HTMLOptGroupElement>(node)) {
             maybe_opt_group->for_each_child_of_type<HTMLOptionElement>([&](HTMLOptionElement& option_element) {
-                list.append(GC::make_root(option_element));
+                if (option_element.selected())
+                    ++m_cached_number_of_selected_options;
+                m_cached_list_of_options.append(option_element);
                 return IterationDecision::Continue;
             });
         }
     }
+}
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#concept-select-option-list
+Vector<GC::Root<HTMLOptionElement>> HTMLSelectElement::list_of_options() const
+{
+    update_cached_list_of_options();
+    Vector<GC::Root<HTMLOptionElement>> list;
+    list.ensure_capacity(m_cached_list_of_options.size());
+    for (auto& item : m_cached_list_of_options)
+        list.unchecked_append(GC::make_root(item));
 
     return list;
 }
@@ -223,8 +239,10 @@ Vector<GC::Root<HTMLOptionElement>> HTMLSelectElement::list_of_options() const
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-select-element:concept-form-reset-control
 void HTMLSelectElement::reset_algorithm()
 {
+    update_cached_list_of_options();
+
     // The reset algorithm for select elements is to go through all the option elements in the element's list of options,
-    for (auto const& option_element : list_of_options()) {
+    for (auto const& option_element : m_cached_list_of_options) {
         // set their selectedness to true if the option element has a selected attribute, and false otherwise,
         option_element->set_selected_internal(option_element->has_attribute(AttributeNames::selected));
         // set their dirtiness to false,
@@ -239,9 +257,10 @@ WebIDL::Long HTMLSelectElement::selected_index() const
 {
     // The selectedIndex IDL attribute, on getting, must return the index of the first option element in the list of options
     // in tree order that has its selectedness set to true, if any. If there isn't one, then it must return −1.
+    update_cached_list_of_options();
 
     WebIDL::Long index = 0;
-    for (auto const& option_element : list_of_options()) {
+    for (auto const& option_element : m_cached_list_of_options) {
         if (option_element->selected())
             return index;
         ++index;
@@ -251,17 +270,17 @@ WebIDL::Long HTMLSelectElement::selected_index() const
 
 void HTMLSelectElement::set_selected_index(WebIDL::Long index)
 {
+    update_cached_list_of_options();
     // On setting, the selectedIndex attribute must set the selectedness of all the option elements in the list of options to false,
     // and then the option element in the list of options whose index is the given new value,
     // if any, must have its selectedness set to true and its dirtiness set to true.
-    auto options = list_of_options();
-    for (auto& option : options)
+    for (auto& option : m_cached_list_of_options)
         option->set_selected_internal(false);
 
-    if (index < 0 || index >= static_cast<int>(options.size()))
+    if (index < 0 || static_cast<size_t>(index) >= m_cached_list_of_options.size())
         return;
 
-    auto& selected_option = options[index];
+    auto& selected_option = m_cached_list_of_options[index];
     selected_option->set_selected_internal(true);
     selected_option->m_dirty = true;
 }
@@ -276,6 +295,7 @@ i32 HTMLSelectElement::default_tab_index_value() const
 void HTMLSelectElement::children_changed()
 {
     Base::children_changed();
+    update_cached_list_of_options();
     update_selectedness();
 }
 
@@ -307,7 +327,8 @@ Optional<ARIA::Role> HTMLSelectElement::default_role() const
 
 String HTMLSelectElement::value() const
 {
-    for (auto const& option_element : list_of_options())
+    update_cached_list_of_options();
+    for (auto const& option_element : m_cached_list_of_options)
         if (option_element->selected())
             return option_element->value();
     return ""_string;
@@ -315,7 +336,8 @@ String HTMLSelectElement::value() const
 
 WebIDL::ExceptionOr<void> HTMLSelectElement::set_value(String const& value)
 {
-    for (auto const& option_element : list_of_options())
+    update_cached_list_of_options();
+    for (auto const& option_element : m_cached_list_of_options)
         option_element->set_selected(option_element->value() == value);
     update_inner_text_element();
     return {};
@@ -474,7 +496,8 @@ void HTMLSelectElement::did_select_item(Optional<u32> const& id)
     if (!id.has_value())
         return;
 
-    for (auto const& option_element : list_of_options())
+    update_cached_list_of_options();
+    for (auto const& option_element : m_cached_list_of_options)
         option_element->set_selected(false);
 
     for (auto const& item : m_select_items) {
@@ -559,6 +582,7 @@ void HTMLSelectElement::create_shadow_tree_if_needed()
 
 void HTMLSelectElement::update_inner_text_element(Badge<HTMLOptionElement>)
 {
+    update_cached_list_of_options();
     update_inner_text_element();
 }
 
@@ -569,7 +593,7 @@ void HTMLSelectElement::update_inner_text_element()
         return;
 
     // Update inner text element to the label of the selected option
-    for (auto const& option_element : list_of_options()) {
+    for (auto const& option_element : m_cached_list_of_options) {
         if (option_element->selected()) {
             m_inner_text_element->set_text_content(strip_newlines(option_element->label()));
             return;
@@ -583,23 +607,15 @@ void HTMLSelectElement::update_selectedness()
     if (has_attribute(AttributeNames::multiple))
         return;
 
-    auto list_of_options = this->list_of_options();
+    update_cached_list_of_options();
 
     // If element's multiple attribute is absent, and element's display size is 1,
     if (display_size() == 1) {
-        bool has_selected_elements = false;
-        for (auto const& option_element : list_of_options) {
-            if (option_element->selected()) {
-                has_selected_elements = true;
-                break;
-            }
-        }
-
         // and no option elements in the element's list of options have their selectedness set to true,
-        if (!has_selected_elements) {
+        if (m_cached_number_of_selected_options == 0) {
             // then set the selectedness of the first option element in the list of options in tree order
             // that is not disabled, if any, to true, and return.
-            for (auto const& option_element : list_of_options) {
+            for (auto const& option_element : m_cached_list_of_options) {
                 if (!option_element->disabled()) {
                     option_element->set_selected_internal(true);
                     update_inner_text_element();
@@ -614,19 +630,13 @@ void HTMLSelectElement::update_selectedness()
     // and two or more option elements in element's list of options have their selectedness set to true,
     // then set the selectedness of all but the last option element with its selectedness set to true
     // in the list of options in tree order to false.
-    int number_of_selected = 0;
-    for (auto const& option_element : list_of_options) {
-        if (option_element->selected())
-            ++number_of_selected;
-    }
-    // and two or more option elements in element's list of options have their selectedness set to true,
-    if (number_of_selected >= 2) {
+    if (m_cached_number_of_selected_options >= 2) {
         // then set the selectedness of all but the last option element with its selectedness set to true
         // in the list of options in tree order to false.
         GC::Ptr<HTML::HTMLOptionElement> last_selected_option;
         u64 last_selected_option_update_index = 0;
 
-        for (auto const& option_element : list_of_options) {
+        for (auto const& option_element : m_cached_list_of_options) {
             if (!option_element->selected())
                 continue;
             if (!last_selected_option
@@ -636,7 +646,7 @@ void HTMLSelectElement::update_selectedness()
             }
         }
 
-        for (auto const& option_element : list_of_options) {
+        for (auto const& option_element : m_cached_list_of_options) {
             if (option_element != last_selected_option)
                 option_element->set_selected_internal(false);
         }
