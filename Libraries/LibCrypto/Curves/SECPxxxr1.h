@@ -21,8 +21,9 @@
 #include <LibCrypto/OpenSSL.h>
 
 #include <openssl/core_names.h>
-#include <openssl/evp.h>
 #include <openssl/ec.h>
+#include <openssl/evp.h>
+#include <openssl/param_build.h>
 
 namespace {
 // Used by ASN1 macros
@@ -365,72 +366,57 @@ public:
 
     ErrorOr<bool> verify_point(ReadonlyBytes hash, SECPxxxr1Point pubkey, SECPxxxr1Signature signature)
     {
-        static constexpr size_t expected_word_count = KEY_BIT_SIZE / 32;
-        if (signature.r.length() < expected_word_count || signature.s.length() < expected_word_count) {
+        auto ctx_import = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_name(nullptr, "EC", nullptr)));
+
+        OPENSSL_TRY(EVP_PKEY_fromdata_init(ctx_import.ptr()));
+
+        auto* params_bld = OPENSSL_TRY_PTR(OSSL_PARAM_BLD_new());
+        ScopeGuard const free_params_bld = [&] { OSSL_PARAM_BLD_free(params_bld); };
+
+        OPENSSL_TRY(OSSL_PARAM_BLD_push_utf8_string(params_bld, OSSL_PKEY_PARAM_GROUP_NAME, CURVE_PARAMETERS.name, strlen(CURVE_PARAMETERS.name)));
+
+        auto pubkey_bytes = TRY(pubkey.to_uncompressed());
+        OPENSSL_TRY(OSSL_PARAM_BLD_push_octet_string(params_bld, OSSL_PKEY_PARAM_PUB_KEY, pubkey_bytes.data(), pubkey_bytes.size()));
+
+        auto* params = OPENSSL_TRY_PTR(OSSL_PARAM_BLD_to_param(params_bld));
+        ScopeGuard const free_params = [&] { OSSL_PARAM_free(params); };
+
+        auto key = TRY(OpenSSL_PKEY::wrap(EVP_PKEY_new()));
+        auto* key_ptr = key.ptr();
+        OPENSSL_TRY(EVP_PKEY_fromdata(ctx_import.ptr(), &key_ptr, EVP_PKEY_PUBLIC_KEY, params));
+
+        auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_pkey(nullptr, key.ptr(), nullptr)));
+
+        OPENSSL_TRY(EVP_PKEY_verify_init(ctx.ptr()));
+
+        auto* sig_obj = OPENSSL_TRY_PTR(ECDSA_SIG_new());
+        ScopeGuard const free_sig_obj = [&] { ECDSA_SIG_free(sig_obj); };
+
+        auto r = TRY(unsigned_big_integer_to_openssl_bignum(signature.r));
+        auto s = TRY(unsigned_big_integer_to_openssl_bignum(signature.s));
+
+        // Let sig_obj own a copy of r and s
+        OPENSSL_TRY(ECDSA_SIG_set0(sig_obj, BN_dup(r.ptr()), BN_dup(s.ptr())));
+
+        u8* sig = nullptr;
+        ScopeGuard const free_sig = [&] { OPENSSL_free(sig); };
+
+        auto sig_len = TRY([&] -> ErrorOr<int> {
+            auto ret = i2d_ECDSA_SIG(sig_obj, &sig);
+            if (ret <= 0) {
+                OPENSSL_TRY(ret);
+                VERIFY_NOT_REACHED();
+            }
+            return ret;
+        }());
+
+        auto ret = EVP_PKEY_verify(ctx.ptr(), sig, sig_len, hash.data(), hash.size());
+        if (ret == 1)
+            return true;
+        if (ret == 0)
             return false;
-        }
-
-        auto r = unsigned_big_integer_to_storage_type(signature.r);
-        auto s = unsigned_big_integer_to_storage_type(signature.s);
-        if (r.is_zero_constant_time() || s.is_zero_constant_time())
-            return false;
-
-        // z is the hash
-        StorageType z = 0u;
-        for (size_t i = 0; i < KEY_BYTE_SIZE && i < hash.size(); i++) {
-            z <<= 8;
-            z |= hash[i];
-        }
-
-        StorageType r_mo = to_montgomery_order(r);
-        StorageType s_mo = to_montgomery_order(s);
-        StorageType z_mo = to_montgomery_order(z);
-
-        StorageType s_inv = modular_inverse_order(s_mo);
-
-        StorageType u1 = modular_multiply_order(z_mo, s_inv);
-        StorageType u2 = modular_multiply_order(r_mo, s_inv);
-
-        u1 = from_montgomery_order(u1);
-        u2 = from_montgomery_order(u2);
-
-        JacobianPoint point1 = TRY(generate_public_key_internal(u1));
-        JacobianPoint point2 = TRY(compute_coordinate_internal(u2, JacobianPoint {
-                                                                       unsigned_big_integer_to_storage_type(pubkey.x),
-                                                                       unsigned_big_integer_to_storage_type(pubkey.y),
-                                                                       1u,
-                                                                   }));
-
-        // Convert the input point into Montgomery form
-        point1.x = to_montgomery(point1.x);
-        point1.y = to_montgomery(point1.y);
-        point1.z = to_montgomery(point1.z);
-
-        VERIFY(is_point_on_curve(point1));
-
-        // Convert the input point into Montgomery form
-        point2.x = to_montgomery(point2.x);
-        point2.y = to_montgomery(point2.y);
-        point2.z = to_montgomery(point2.z);
-
-        VERIFY(is_point_on_curve(point2));
-
-        JacobianPoint result = point_add(point1, point2);
-
-        // Convert from Jacobian coordinates back to Affine coordinates
-        convert_jacobian_to_affine(result);
-
-        // Make sure the resulting point is on the curve
-        VERIFY(is_point_on_curve(result));
-
-        // Convert the result back from Montgomery form
-        result.x = from_montgomery(result.x);
-        result.y = from_montgomery(result.y);
-        // Final modular reduction on the coordinates
-        result.x = modular_reduce(result.x);
-        result.y = modular_reduce(result.y);
-
-        return r.is_equal_to_constant_time(result.x);
+        OPENSSL_TRY(ret);
+        VERIFY_NOT_REACHED();
     }
 
     ErrorOr<bool> verify(ReadonlyBytes hash, ReadonlyBytes pubkey, SECPxxxr1Signature signature)
@@ -441,51 +427,48 @@ public:
 
     ErrorOr<SECPxxxr1Signature> sign_scalar(ReadonlyBytes hash, UnsignedBigInteger private_key)
     {
-        auto d = unsigned_big_integer_to_storage_type(private_key);
+        auto ctx_import = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_name(nullptr, "EC", nullptr)));
 
-        auto k_int = TRY(generate_private_key_scalar());
-        auto k = unsigned_big_integer_to_storage_type(k_int);
-        auto k_mo = to_montgomery_order(k);
+        OPENSSL_TRY(EVP_PKEY_fromdata_init(ctx_import.ptr()));
 
-        auto kG = TRY(generate_public_key_internal(k));
-        auto r = kG.x;
+        auto d = TRY(unsigned_big_integer_to_openssl_bignum(private_key));
 
-        if (r.is_zero_constant_time()) {
-            // Retry with a new k
-            return sign_scalar(hash, private_key);
-        }
+        auto* params_bld = OPENSSL_TRY_PTR(OSSL_PARAM_BLD_new());
+        ScopeGuard const free_params_bld = [&] { OSSL_PARAM_BLD_free(params_bld); };
 
-        // Compute z from the hash
-        StorageType z = 0u;
-        for (size_t i = 0; i < KEY_BYTE_SIZE && i < hash.size(); i++) {
-            z <<= 8;
-            z |= hash[i];
-        }
+        OPENSSL_TRY(OSSL_PARAM_BLD_push_utf8_string(params_bld, OSSL_PKEY_PARAM_GROUP_NAME, CURVE_PARAMETERS.name, strlen(CURVE_PARAMETERS.name)));
+        OPENSSL_TRY(OSSL_PARAM_BLD_push_BN(params_bld, OSSL_PKEY_PARAM_PRIV_KEY, d.ptr()));
 
-        // s = k^-1 * (z + r * d) mod n
-        auto r_mo = to_montgomery_order(r);
-        auto z_mo = to_montgomery_order(z);
-        auto d_mo = to_montgomery_order(d);
+        auto* params = OPENSSL_TRY_PTR(OSSL_PARAM_BLD_to_param(params_bld));
+        ScopeGuard const free_params = [&] { OSSL_PARAM_free(params); };
 
-        // r * d mod n
-        auto rd_mo = modular_multiply_order(r_mo, d_mo);
+        auto key = TRY(OpenSSL_PKEY::wrap(EVP_PKEY_new()));
+        auto* key_ptr = key.ptr();
+        OPENSSL_TRY(EVP_PKEY_fromdata(ctx_import.ptr(), &key_ptr, EVP_PKEY_KEYPAIR, params));
 
-        // z + (r * d) mod n
-        auto z_plus_rd_mo = modular_add_order(z_mo, rd_mo);
+        auto ctx = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_pkey(nullptr, key.ptr(), nullptr)));
 
-        // k^-1 mod n
-        auto k_inv_mo = modular_inverse_order(k_mo);
+        OPENSSL_TRY(EVP_PKEY_sign_init(ctx.ptr()));
 
-        // s = k^-1 * (z + r * d) mod n
-        auto s_mo = modular_multiply_order(z_plus_rd_mo, k_inv_mo);
-        auto s = from_montgomery_order(s_mo);
+        size_t sig_len = 0;
+        OPENSSL_TRY(EVP_PKEY_sign(ctx.ptr(), nullptr, &sig_len, hash.data(), hash.size()));
 
-        if (s.is_zero_constant_time()) {
-            // Retry with a new k
-            return sign_scalar(hash, private_key);
-        }
+        auto sig = TRY(ByteBuffer::create_uninitialized(sig_len));
+        OPENSSL_TRY(EVP_PKEY_sign(ctx.ptr(), sig.data(), &sig_len, hash.data(), hash.size()));
 
-        return SECPxxxr1Signature { storage_type_to_unsigned_big_integer(r), storage_type_to_unsigned_big_integer(s), KEY_BYTE_SIZE };
+        auto const* sig_data = sig.data();
+        auto* sig_obj = OPENSSL_TRY_PTR(d2i_ECDSA_SIG(nullptr, &sig_data, sig.size()));
+        ScopeGuard const free_sig_obj = [&] { ECDSA_SIG_free(sig_obj); };
+
+        // Duplicate r and s so that sig_obj can own them
+        auto r = TRY(OpenSSL_BN::wrap(BN_dup(OPENSSL_TRY_PTR(ECDSA_SIG_get0_r(sig_obj)))));
+        auto s = TRY(OpenSSL_BN::wrap(BN_dup(OPENSSL_TRY_PTR(ECDSA_SIG_get0_s(sig_obj)))));
+
+        return SECPxxxr1Signature {
+            TRY(openssl_bignum_to_unsigned_big_integer(r)),
+            TRY(openssl_bignum_to_unsigned_big_integer(s)),
+            KEY_BYTE_SIZE,
+        };
     }
 
     ErrorOr<SECPxxxr1Signature> sign(ReadonlyBytes hash, ReadonlyBytes private_key_bytes)
