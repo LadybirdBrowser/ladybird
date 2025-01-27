@@ -273,23 +273,28 @@ private:
         HashMap<FlyString, NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet>> rules_by_animation_keyframes;
     };
 
-    struct BuiltRuleCaches {
-        NonnullOwnPtr<RuleCache> main_rules;
-        HashMap<FlyString, NonnullOwnPtr<RuleCache>> layer_rules;
+    struct RuleCaches {
+        RuleCache main;
+        HashMap<FlyString, NonnullOwnPtr<RuleCache>> by_layer;
     };
-    [[nodiscard]] BuiltRuleCaches make_rule_cache_for_cascade_origin(CascadeOrigin, SelectorInsights&, Vector<MatchingRule>& hover_rules);
 
-    [[nodiscard]] RuleCache const* rule_cache_for_cascade_origin(CascadeOrigin, FlyString const& qualified_layer_name) const;
+    struct RuleCachesForDocumentAndShadowRoots {
+        RuleCaches for_document;
+        HashMap<GC::Ref<DOM::ShadowRoot const>, NonnullOwnPtr<RuleCaches>> for_shadow_roots;
+    };
+
+    void make_rule_cache_for_cascade_origin(CascadeOrigin, SelectorInsights&, Vector<MatchingRule>& hover_rules);
+
+    [[nodiscard]] RuleCache const* rule_cache_for_cascade_origin(CascadeOrigin, FlyString const& qualified_layer_name, GC::Ptr<DOM::ShadowRoot const>) const;
 
     static void collect_selector_insights(Selector const&, SelectorInsights&);
 
     OwnPtr<SelectorInsights> m_selector_insights;
     Vector<MatchingRule> m_hover_rules;
     OwnPtr<StyleInvalidationData> m_style_invalidation_data;
-    OwnPtr<RuleCache> m_author_rule_cache;
-    HashMap<FlyString, NonnullOwnPtr<RuleCache>> m_layer_rule_caches;
-    OwnPtr<RuleCache> m_user_rule_cache;
-    OwnPtr<RuleCache> m_user_agent_rule_cache;
+    OwnPtr<RuleCachesForDocumentAndShadowRoots> m_author_rule_cache;
+    OwnPtr<RuleCachesForDocumentAndShadowRoots> m_user_rule_cache;
+    OwnPtr<RuleCachesForDocumentAndShadowRoots> m_user_agent_rule_cache;
     GC::Root<CSSStyleSheet> m_user_style_sheet;
 
     using FontLoaderList = Vector<NonnullOwnPtr<FontLoader>>;
