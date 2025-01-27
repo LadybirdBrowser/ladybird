@@ -1128,10 +1128,11 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
                 float_to_edge();
                 CSSPixels lowest_margin_edge = 0;
                 for (auto const& current : side_data.current_boxes) {
-                    lowest_margin_edge = max(lowest_margin_edge, current.used_values.margin_box_height());
+                    auto current_rect = margin_box_rect_in_ancestor_coordinate_space(current.used_values, root());
+                    lowest_margin_edge = max(lowest_margin_edge, current_rect.bottom());
                 }
 
-                side_data.y_offset += lowest_margin_edge;
+                side_data.y_offset += max<CSSPixels>(0, lowest_margin_edge - y_in_root + box_state.margin_box_top());
 
                 // Also, forget all previous boxes floated to this side while since they're no longer relevant.
                 side_data.clear();
