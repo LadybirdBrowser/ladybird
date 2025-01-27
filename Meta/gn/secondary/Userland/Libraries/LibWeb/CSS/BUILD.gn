@@ -50,6 +50,7 @@ source_set("CSS") {
     "MediaQuery.cpp",
     "MediaQueryList.cpp",
     "MediaQueryListEvent.cpp",
+    "Number.cpp",
     "ParsedFontFace.cpp",
     "PreferredColorScheme.cpp",
     "PreferredContrast.cpp",
