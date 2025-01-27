@@ -168,6 +168,8 @@ private:
 
     void queue_a_popover_toggle_event_task(String old_state, String new_state);
 
+    static Optional<String> popover_value_to_state(Optional<String> value);
+
     // https://html.spec.whatwg.org/multipage/custom-elements.html#attached-internals
     GC::Ptr<ElementInternals> m_attached_internals;
 

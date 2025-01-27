@@ -1,2 +1,3 @@
 Didn't crash when showing recently hidden popover
 Didn't crash when removing visible popover
+Didn't crash when removing popover with changed attribute

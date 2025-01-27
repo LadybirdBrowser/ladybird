@@ -619,6 +619,27 @@ void HTMLElement::attribute_changed(FlyString const& name, Optional<String> cons
     }
     ENUMERATE_GLOBAL_EVENT_HANDLERS(__ENUMERATE)
 #undef __ENUMERATE
+
+    [&]() {
+        // https://html.spec.whatwg.org/multipage/popover.html#the-popover-attribute:concept-element-attributes-change-ext
+        // https://whatpr.org/html/9457/popover.html#the-popover-attribute:concept-element-attributes-change-ext
+        // The following attribute change steps, given element, localName, oldValue, value, and namespace, are used for all HTML elements:
+
+        // 1. If namespace is not null, then return.
+        if (namespace_.has_value())
+            return;
+
+        // 2. If localName is not popover, then return.
+        if (name != HTML::AttributeNames::popover)
+            return;
+
+        // 3. If element's popover visibility state is in the showing state
+        //    and oldValue and value are in different states,
+        //    then run the hide popover algorithm given element, true, true, false, and true.
+        if (m_popover_visibility_state == PopoverVisibilityState::Showing
+            && popover_value_to_state(old_value) != popover_value_to_state(value))
+            MUST(hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::No, IgnoreDomState::Yes));
+    }();
 }
 
 WebIDL::ExceptionOr<void> HTMLElement::cloned(Web::DOM::Node& copy, bool clone_children) const
@@ -957,13 +978,8 @@ WebIDL::ExceptionOr<GC::Ref<ElementInternals>> HTMLElement::attach_internals()
     return { internals };
 }
 
-// https://html.spec.whatwg.org/multipage/popover.html#dom-popover
-Optional<String> HTMLElement::popover() const
+Optional<String> HTMLElement::popover_value_to_state(Optional<String> value)
 {
-    // FIXME: This should probably be `Reflect` in the IDL.
-    // The popover IDL attribute must reflect the popover attribute, limited to only known values.
-    auto value = get_attribute(HTML::AttributeNames::popover);
-
     if (!value.has_value())
         return {};
 
@@ -973,6 +989,15 @@ Optional<String> HTMLElement::popover() const
     // FIXME: This should reflect the hint value too.
 
     return "manual"_string;
+}
+
+// https://html.spec.whatwg.org/multipage/popover.html#dom-popover
+Optional<String> HTMLElement::popover() const
+{
+    // FIXME: This should probably be `Reflect` in the IDL.
+    // The popover IDL attribute must reflect the popover attribute, limited to only known values.
+    auto value = get_attribute(HTML::AttributeNames::popover);
+    return popover_value_to_state(value);
 }
 
 // https://html.spec.whatwg.org/multipage/popover.html#dom-popover

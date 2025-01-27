@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <script src="include.js"></script>
 <div popover id="pop"></div>
+<div popover id="pop2"></div>
 <script>
     test(() => {
         const pop = document.getElementById("pop");
@@ -10,5 +11,10 @@
         println("Didn't crash when showing recently hidden popover");
         pop.remove();
         println("Didn't crash when removing visible popover");
+        const pop2 = document.getElementById("pop2");
+        pop2.showPopover();
+        pop2.popover = undefined;
+        pop2.remove();
+        println("Didn't crash when removing popover with changed attribute");
     });
 </script>
