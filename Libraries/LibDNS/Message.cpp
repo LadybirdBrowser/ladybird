@@ -924,7 +924,7 @@ ErrorOr<Records::A> Records::A::from_raw(ParseContext& ctx)
 ErrorOr<void> Records::A::to_raw(ByteBuffer& buffer) const
 {
     auto const address = this->address.to_u32();
-    auto const net_address = static_cast<NetworkOrdered<u32>>(address);
+    auto const net_address = bit_cast<NetworkOrdered<u32>>(address);
     auto bytes = TRY(buffer.get_bytes_for_writing(sizeof(net_address)));
     bytes.overwrite(0, &net_address, sizeof(net_address));
     return {};
@@ -940,6 +940,18 @@ ErrorOr<Records::AAAA> Records::AAAA::from_raw(ParseContext& ctx)
     return Records::AAAA { IPv6Address { bit_cast<Array<u8, 16>>(address) } };
 }
 
+ErrorOr<void> Records::AAAA::to_raw(ByteBuffer& buffer) const
+{
+    auto const* const address_bytes = this->address.to_in6_addr_t();
+    u128 address {};
+    memcpy(&address, address_bytes, sizeof(address));
+
+    auto const net_address = bit_cast<NetworkOrdered<u128>>(address);
+    auto bytes = TRY(buffer.get_bytes_for_writing(sizeof(net_address)));
+    bytes.overwrite(0, &net_address, sizeof(net_address));
+    return {};
+}
+
 ErrorOr<Records::TXT> Records::TXT::from_raw(ParseContext& ctx)
 {
     // RFC 1035, 3.3.14. TXT RDATA format.
@@ -951,6 +963,18 @@ ErrorOr<Records::TXT> Records::TXT::from_raw(ParseContext& ctx)
     return Records::TXT { ByteString::copy(content) };
 }
 
+ErrorOr<void> Records::TXT::to_raw(ByteBuffer& buffer) const
+{
+    auto const length = static_cast<u8>(content.length());
+    auto length_bytes = TRY(buffer.get_bytes_for_writing(1));
+    memcpy(length_bytes.data(), &length, 1);
+
+    auto content_bytes = TRY(buffer.get_bytes_for_writing(length));
+    memcpy(content_bytes.data(), content.characters(), length);
+
+    return {};
+}
+
 ErrorOr<Records::CNAME> Records::CNAME::from_raw(ParseContext& ctx)
 {
     // RFC 1035, 3.3.1. CNAME RDATA format.
@@ -958,6 +982,11 @@ ErrorOr<Records::CNAME> Records::CNAME::from_raw(ParseContext& ctx)
 
     auto name = TRY(DomainName::from_raw(ctx));
     return Records::CNAME { move(name) };
+}
+
+ErrorOr<void> Records::CNAME::to_raw(ByteBuffer& buffer) const
+{
+    return names.to_raw(buffer);
 }
 
 ErrorOr<Records::NS> Records::NS::from_raw(ParseContext& ctx)
@@ -1131,6 +1160,13 @@ ErrorOr<void> Records::SIG::to_raw_excluding_signature(ByteBuffer& buffer) const
     return {};
 }
 
+ErrorOr<void> Records::SIG::to_raw(ByteBuffer& buffer) const
+{
+    TRY(to_raw_excluding_signature(buffer));
+    TRY(buffer.try_append(signature));
+    return {};
+}
+
 
 ErrorOr<String> Records::SIG::to_string() const
 {
@@ -1163,6 +1199,18 @@ ErrorOr<Records::HINFO> Records::HINFO::from_raw(ParseContext& ctx)
     ByteBuffer os;
     TRY(ctx.stream.read_until_filled(TRY(os.get_bytes_for_writing(os_length))));
     return Records::HINFO { ByteString::copy(cpu), ByteString::copy(os) };
+}
+
+ErrorOr<void> Records::HINFO::to_raw(ByteBuffer& buffer) const
+{
+    auto allocated_length = cpu.length() + os.length() + 2;
+    auto bytes = TRY(buffer.get_bytes_for_writing(allocated_length));
+    FixedMemoryStream stream { bytes };
+    TRY(stream.write_value(static_cast<u8>(cpu.length())));
+    TRY(stream.write_until_depleted(cpu.bytes()));
+    TRY(stream.write_value(static_cast<u8>(os.length())));
+    TRY(stream.write_until_depleted(os.bytes()));
+    return {};
 }
 
 ErrorOr<Records::OPT> Records::OPT::from_raw(ParseContext& ctx)

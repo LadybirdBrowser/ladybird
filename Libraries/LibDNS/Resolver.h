@@ -10,6 +10,7 @@
 #include <AK/HashTable.h>
 #include <AK/MaybeOwned.h>
 #include <AK/MemoryStream.h>
+#include <AK/QuickSort.h>
 #include <AK/Random.h>
 #include <AK/StringView.h>
 #include <AK/TemporaryChange.h>
@@ -18,6 +19,7 @@
 #include <LibCore/Socket.h>
 #include <LibCore/Timer.h>
 #include <LibCrypto/Certificate/Certificate.h>
+#include <LibCrypto/Curves/Ed25519.h>
 #include <LibCrypto/PK/RSA.h>
 #include <LibDNS/Message.h>
 #include <LibThreading/MutexProtected.h>
@@ -558,22 +560,25 @@ private:
     ErrorOr<void> validate_dnssec(Messages::Message message, PendingLookup& lookup, NonnullRefPtr<LookupResult> result)
     {
         struct RecordAndRRSIG {
-            Optional<Messages::ResourceRecord> record;
+            Vector<Messages::ResourceRecord> records;
             Messages::Records::RRSIG rrsig;
         };
         HashMap<Messages::ResourceType, RecordAndRRSIG> records_with_rrsigs;
         for (auto& record : message.answers) {
+            dbgln("- {}", record.to_string());
             if (record.type == Messages::ResourceType::RRSIG) {
                 auto& rrsig = record.record.get<Messages::Records::RRSIG>();
-                if (auto found = records_with_rrsigs.get(rrsig.type_covered); found.has_value())
+                auto type = rrsig.type_covered;
+                if (auto found = records_with_rrsigs.get(type); found.has_value())
                     found->rrsig = move(rrsig);
                 else
-                    records_with_rrsigs.set(rrsig.type_covered, { {}, move(rrsig) });
+                    records_with_rrsigs.set(type, { {}, move(rrsig) });
             } else {
+                auto type = record.type;
                 if (auto found = records_with_rrsigs.get(record.type); found.has_value())
-                    found->record = move(record);
+                    found->records.append( move(record));
                 else
-                    records_with_rrsigs.set(record.type, { move(record), {} });
+                    records_with_rrsigs.set(type, { { move(record) }, {} });
             }
         }
 
@@ -585,50 +590,48 @@ private:
         auto name = result->name();
 
         Core::deferred_invoke([this, lookup, name, records_with_rrsigs = move(records_with_rrsigs), result = move(result)] mutable {
-            dbgln("DNS: Resolving DNSKEY for {}", name.to_string());
-            this->lookup(lookup.name, Messages::Class::IN, Array { Messages::ResourceType::DNSKEY }.span(), { .validate_dnssec_locally = false })
+            dbgln_if(DNS_DEBUG, "DNS: Resolving DNSKEY for {}", name.to_string());
+            this->lookup(lookup.name, Messages::Class::IN, { Messages::ResourceType::DNSKEY }, { .validate_dnssec_locally = false })
                 ->when_resolved([=, this, records_with_rrsigs = move(records_with_rrsigs)](NonnullRefPtr<LookupResult const>& dnskey_lookup_result) mutable {
-                    dbgln("DNSKEY for {}:", name.to_string());
+                    dbgln_if(DNS_DEBUG, "DNSKEY for {}:", name.to_string());
                     for (auto& record : dnskey_lookup_result->records())
-                        dbgln("DNSKEY: {}", record.to_string());
+                        dbgln_if(DNS_DEBUG, "- DNSKEY: {}", record.to_string());
 
-                    dbgln("DNS: Validating {} RRSIGs for {}", records_with_rrsigs.size(), name.to_string());
+                    dbgln_if(DNS_DEBUG, "DNS: Validating {} RRSIGs for {}", records_with_rrsigs.size(), name.to_string());
                     Vector<NonnullRefPtr<Core::Promise<Empty>>> promises;
 
                     // (owner | type | class) -> (RRSet, RRSIG, DNSKey*)
                     HashMap<String, CanonicalizedRRSetWithRRSIG> rrsets_with_rrsigs;
 
                     for (auto& [type, pair] : records_with_rrsigs) {
-                        if (!pair.record.has_value())
-                            continue;
-
-                        auto& record = *pair.record;
+                        auto& records = pair.records;
                         auto& rrsig = pair.rrsig;
 
-                        auto canonicalized_name = record.name.to_canonical_string();
-                        auto key = MUST(String::formatted("{}|{}|{}", canonicalized_name, to_underlying(record.type), to_underlying(record.class_)));
+                        for (auto& record : records) {
+                            auto canonicalized_name = record.name.to_canonical_string();
+                            auto key = MUST(String::formatted("{}|{}|{}", canonicalized_name, to_underlying(record.type), to_underlying(record.class_)));
 
-                        if (!rrsets_with_rrsigs.contains(key)) {
-                            auto dnskeys = [&] -> Vector<Messages::Records::DNSKEY> {
-                                Vector<Messages::Records::DNSKEY> keys;
-                                for (auto& dnskey_record : dnskey_lookup_result->records()) {
-                                    if (auto r = dnskey_record.record.get_pointer<Messages::Records::DNSKEY>(); r && r->algorithm == rrsig.algorithm)
-                                        keys.append(*r);
-                                }
-                                return keys;
-                            }();
-                            rrsets_with_rrsigs.set(key, CanonicalizedRRSetWithRRSIG { {}, rrsig, move(dnskeys) });
+                            if (!rrsets_with_rrsigs.contains(key)) {
+                                auto dnskeys = [&] -> Vector<Messages::Records::DNSKEY> {
+                                    Vector<Messages::Records::DNSKEY> keys;
+                                    for (auto& dnskey_record : dnskey_lookup_result->records()) {
+                                        if (auto r = dnskey_record.record.get_pointer<Messages::Records::DNSKEY>(); r && r->algorithm == rrsig.algorithm)
+                                            keys.append(*r);
+                                    }
+                                    return keys;
+                                }();
+                                rrsets_with_rrsigs.set(key, CanonicalizedRRSetWithRRSIG { {}, move(rrsig), move(dnskeys) });
+                            }
+                            auto& rrset_with_rrsig = *rrsets_with_rrsigs.get(key);
+                            rrset_with_rrsig.rrset.append(move(record));
                         }
-
-                        auto& rrset_with_rrsig = *rrsets_with_rrsigs.get(key);
-                        rrset_with_rrsig.rrset.append(record);
                     }
 
                     for (auto& entry : rrsets_with_rrsigs) {
                         auto& rrset_with_rrsig = entry.value;
 
                         if (rrset_with_rrsig.dnskeys.is_empty()) {
-                            dbgln("DNS: No DNSKEY found for validation of {} RRs", rrset_with_rrsig.rrset.size());
+                            dbgln_if(DNS_DEBUG, "DNS: No DNSKEY found for validation of {} RRs", rrset_with_rrsig.rrset.size());
                             continue;
                         }
 
@@ -636,20 +639,21 @@ private:
                     }
 
                     auto promise = Core::Promise<Empty>::after(move(promises))
-                        ->when_resolved([result, lookup](Empty) {
-                            result->set_dnssec_validated(true);
-                            result->finished_request();
-                            lookup.promise->resolve(result);
-                        })
-                        .when_rejected([result, lookup](Error& error) {
-                            result->finished_request();
-                            lookup.promise->reject(move(error));
-                        }).map<NonnullRefPtr<LookupResult const>>([result](Empty&) { return result; });
+                                       ->when_resolved([result, lookup](Empty) {
+                                           result->set_dnssec_validated(true);
+                                           result->finished_request();
+                                           lookup.promise->resolve(result);
+                                       })
+                                       .when_rejected([result, lookup](Error& error) {
+                                           result->finished_request();
+                                           lookup.promise->reject(move(error));
+                                       })
+                                       .map<NonnullRefPtr<LookupResult const>>([result](Empty&) { return result; });
 
                     lookup.promise = move(promise);
                 })
                 .when_rejected([=](auto& error) {
-                    dbgln("Failed to resolve DNSKEY for {}: {}", name.to_string(), error);
+                    dbgln_if(DNS_DEBUG, "Failed to resolve DNSKEY for {}: {}", name.to_string(), error);
                     lookup.promise->reject(move(error));
                 });
         });
@@ -662,113 +666,203 @@ private:
         for (auto& key : rrset_with_rrsig.dnskeys) {
             if (key.calculated_key_tag == rrset_with_rrsig.rrsig.key_tag)
                 return key;
-            dbgln("DNS: DNSKEY with tag {} does not match RRSIG with tag {}", key.calculated_key_tag, rrset_with_rrsig.rrsig.key_tag);
+            dbgln_if(DNS_DEBUG, "DNS: DNSKEY with tag {} does not match RRSIG with tag {}", key.calculated_key_tag, rrset_with_rrsig.rrsig.key_tag);
         }
         VERIFY_NOT_REACHED();
     }
 
-    NonnullRefPtr<Core::Promise<Empty>> validate_rrset_with_rrsig(CanonicalizedRRSetWithRRSIG rrset_with_rrsig, NonnullRefPtr<LookupResult> result)
+#define TRY_OR_REJECT_PROMISE(promise, expr)                  \
+    ({                                                \
+        auto _result = (expr);                        \
+        if (_result.is_error()) {                     \
+            promise->reject(_result.release_error()); \
+            return promise;                           \
+        }                                             \
+        _result.release_value();                      \
+    })
+
+    NonnullRefPtr<Core::Promise<Empty>> validate_rrset_with_rrsig( CanonicalizedRRSetWithRRSIG rrset_with_rrsig, NonnullRefPtr<LookupResult> result)
     {
         auto promise = Core::Promise<Empty>::construct();
         auto& rrsig = rrset_with_rrsig.rrsig;
 
-        ByteBuffer canon_encoded;
+        Vector<ByteBuffer> canon_encoded_rrs;
+        auto total_size = 0uz;
         for (auto& rr : rrset_with_rrsig.rrset) {
             rr.ttl = rrsig.original_ttl;
-            dbgln("Canonical RR: {}", rr.to_string());
-            MUST(rr.to_raw(canon_encoded));
+            canon_encoded_rrs.empend();
+            auto& canon_encoded_rr = canon_encoded_rrs.last();
+            TRY_OR_REJECT_PROMISE(promise, rr.to_raw(canon_encoded_rr));
+            total_size += canon_encoded_rr.size();
         }
+        quick_sort(canon_encoded_rrs, [](auto const& a, auto const& b) {
+            return memcmp(a.data(), b.data(), min(a.size(), b.size())) < 0;
+        });
+
+        ByteBuffer canon_encoded;
+        TRY_OR_REJECT_PROMISE(promise, canon_encoded.try_ensure_capacity(total_size));
+        for (auto& rr : canon_encoded_rrs)
+            canon_encoded.append(rr);
 
         auto& dnskey = find_dnskey(rrset_with_rrsig);
 
-        dbgln("Validating RRSet with RRSIG for {}", result->name().to_string());
+        dbgln_if(DNS_DEBUG, "Validating RRSet with RRSIG for {}", result->name().to_string());
         for (auto& rr : rrset_with_rrsig.rrset)
-            dbgln("- RR {}", rr.to_string());
-        dbgln("- DNSKEY {}", dnskey.to_string());
-        dbgln("- RRSIG {}", rrset_with_rrsig.rrsig.to_string());
+            dbgln_if(DNS_DEBUG, "- RR {}", rr.to_string());
+        dbgln_if(DNS_DEBUG, "- DNSKEY {}", dnskey.to_string());
+        dbgln_if(DNS_DEBUG, "- RRSIG {}", rrsig.to_string());
+
+        ByteBuffer to_be_signed;
+        {
+            //  2 bytes: type_covered
+            //  1 byte : algorithm
+            //  1 byte : labels
+            //  4 bytes: original_ttl
+            //  4 bytes: signature_expiration
+            //  4 bytes: signature_inception
+            //  2 bytes: key_tag
+            //  (wire-format encoded signer name)
+            to_be_signed = TRY_OR_REJECT_PROMISE(promise, ByteBuffer::create_uninitialized(2 + 1 + 1 + 4 + 4 + 4 + 2));
+
+            auto write_u16_be = [&](size_t offset, u16 value) {
+                to_be_signed.bytes()[offset + 0] = (value >> 8) & 0xff;
+                to_be_signed.bytes()[offset + 1] = (value >> 0) & 0xff;
+            };
+            auto write_u32_be = [&](size_t offset, u32 value) {
+                to_be_signed.bytes()[offset + 0] = (value >> 24) & 0xff;
+                to_be_signed.bytes()[offset + 1] = (value >> 16) & 0xff;
+                to_be_signed.bytes()[offset + 2] = (value >> 8) & 0xff;
+                to_be_signed.bytes()[offset + 3] = (value >> 0) & 0xff;
+            };
+
+            size_t offset = 0;
+            write_u16_be(offset, to_underlying(rrsig.type_covered));
+            offset += 2;
+            to_be_signed[offset++] = static_cast<u8>(rrsig.algorithm);
+            to_be_signed[offset++] = rrsig.label_count;
+            write_u32_be(offset, rrsig.original_ttl);
+            offset += 4;
+            write_u32_be(offset, rrsig.expiration.seconds_since_epoch());
+            offset += 4;
+            write_u32_be(offset, rrsig.inception.seconds_since_epoch());
+            offset += 4;
+            write_u16_be(offset, rrsig.key_tag);
+        }
+
+        TRY_OR_REJECT_PROMISE(promise, rrsig.signers_name.to_raw(to_be_signed));
+        TRY_OR_REJECT_PROMISE(promise, to_be_signed.try_append(canon_encoded.data(), canon_encoded.size()));
+
+        dbgln("To be signed: {:hex-dump}", to_be_signed.bytes());
 
         switch (dnskey.algorithm) {
         case Messages::DNSSEC::Algorithm::RSAMD5: {
-            Crypto::PK::RSA rsa { dnskey.public_key };
-            auto result = rsa.verify(canon_encoded, rrsig.signature.bytes());
-            if (result.is_error())
-                promise->reject(result.release_error());
-            else if (!result.value())
-                promise->reject(Error::from_string_literal("Invalid signature for RR"));
+            auto md5 = Crypto::Hash::MD5::create();
+            md5->update(to_be_signed.data(), to_be_signed.size());
+            auto digest = md5->digest();
+
+            auto public_key = TRY_OR_REJECT_PROMISE(promise, Crypto::PK::RSA::parse_rsa_key(dnskey.public_key, false, {}));
+
+            auto const& signature_data = rrsig.signature; // ByteBuffer with raw RSA/MD5 signature
+            if (signature_data.is_empty()) {
+                promise->reject(Error::from_string_literal("RRSIG has an empty signature"));
+                return promise;
+            }
+
+            Crypto::PK::RSA_PKCS1_EME rsa { public_key };
+            if (auto const ok = TRY_OR_REJECT_PROMISE(promise, rsa.verify(digest.bytes(), signature_data)); !ok) {
+                promise->reject(Error::from_string_literal("RSA/MD5 signature validation failed"));
+                return promise;
+            }
+
+            break;
+        }
+        case Messages::DNSSEC::Algorithm::ECDSAP256SHA256: {
+            auto sha256 = Crypto::Hash::SHA256::hash(to_be_signed);
+            auto keys = TRY_OR_REJECT_PROMISE(promise, Crypto::PK::EC::parse_ec_key(dnskey.public_key, false, {}));
+            auto signature = TRY_OR_REJECT_PROMISE(promise, Crypto::Curves::SECPxxxr1Signature::from_raw(Crypto::ASN1::secp256r1_oid, rrsig.signature));
+            Crypto::Curves::SECP256r1 curve;
+            if (auto ok = TRY_OR_REJECT_PROMISE(promise, curve.verify(sha256.bytes(), keys.public_key.to_secpxxxr1_point(), signature)); !ok) {
+                promise->reject(Error::from_string_literal("ECDSA/SHA256 signature validation failed"));
+                return promise;
+            }
+            break;
+        }
+        case Messages::DNSSEC::Algorithm::ECDSAP384SHA384: {
+            auto sha384 = Crypto::Hash::SHA384::hash(to_be_signed);
+            auto keys = TRY_OR_REJECT_PROMISE(promise, Crypto::PK::EC::parse_ec_key(dnskey.public_key, false, {}));
+            auto signature = TRY_OR_REJECT_PROMISE(promise, Crypto::Curves::SECPxxxr1Signature::from_raw(Crypto::ASN1::secp384r1_oid, rrsig.signature));
+            Crypto::Curves::SECP384r1 curve;
+            if (auto ok = TRY_OR_REJECT_PROMISE(promise, curve.verify(sha384.bytes(), keys.public_key.to_secpxxxr1_point(), signature)); !ok) {
+                promise->reject(Error::from_string_literal("ECDSA/SHA384 signature validation failed"));
+                return promise;
+            }
+            break;
+        }
+        case Messages::DNSSEC::Algorithm::RSASHA512: {
+            auto sha512 = Crypto::Hash::SHA512::hash(to_be_signed);
+            auto public_key = TRY_OR_REJECT_PROMISE(promise, Crypto::PK::RSA::parse_rsa_key(dnskey.public_key, false, {}));
+            Crypto::PK::RSA_PKCS1_EME rsa { public_key };
+            if (auto ok = TRY_OR_REJECT_PROMISE(promise, rsa.verify(sha512.bytes(), rrsig.signature)); !ok) {
+                promise->reject(Error::from_string_literal("RSA/SHA512 signature validation failed"));
+                return promise;
+            }
+            break;
+        }
+        case Messages::DNSSEC::Algorithm::RSASHA1: {
+            auto sha1 = Crypto::Hash::SHA1::hash(to_be_signed);
+            auto public_key = TRY_OR_REJECT_PROMISE(promise, Crypto::PK::RSA::parse_rsa_key(dnskey.public_key, false, {}));
+            Crypto::PK::RSA_PKCS1_EME rsa { public_key };
+            if (auto ok = TRY_OR_REJECT_PROMISE(promise, rsa.verify(sha1.bytes(), rrsig.signature)); !ok) {
+                promise->reject(Error::from_string_literal("RSA/SHA1 signature validation failed"));
+                return promise;
+            }
+            break;
+        }
+        case Messages::DNSSEC::Algorithm::RSASHA256: {
+            auto sha256 = Crypto::Hash::SHA256::hash(to_be_signed);
+            auto public_key = TRY_OR_REJECT_PROMISE(promise, Crypto::PK::RSA::parse_rsa_key(dnskey.public_key, false, {}));
+            Crypto::PK::RSA_PKCS1_EME rsa { public_key };
+            if (auto ok = TRY_OR_REJECT_PROMISE(promise, rsa.verify(sha256.bytes(), rrsig.signature)); !ok) {
+                promise->reject(Error::from_string_literal("RSA/SHA1 signature validation failed"));
+                return promise;
+            }
+            break;
+        }
+        case Messages::DNSSEC::Algorithm::ED25519: {
+            Crypto::Curves::Ed25519 ed25519;
+            if (!ed25519.verify(dnskey.public_key.bytes(), rrsig.signature.bytes(), to_be_signed.bytes())) {
+                promise->reject(Error::from_string_literal("ED25519 signature validation failed"));
+                return promise;
+            }
             break;
         }
         case Messages::DNSSEC::Algorithm::DSA:
-            break;
-        case Messages::DNSSEC::Algorithm::RSASHA1:
-            break;
-        case Messages::DNSSEC::Algorithm::RSASHA256:
-            break;
-        case Messages::DNSSEC::Algorithm::RSASHA512:
-            break;
-        case Messages::DNSSEC::Algorithm::ECDSAP256SHA256: {
-            // RFC 6605, 4. DNSKEY and RRSIG Resource Records for ECDSA
-            ByteBuffer buffer;
-            // In DNSSEC keys, Q is a simple bit string that represents the uncompressed form of a curve point, "x | y".
-            // our parser expects the uncompressed form to start with 0x04, so we add it here.
-            buffer.ensure_capacity(dnskey.public_key.size() + 1);
-            buffer.append(0x04);
-            buffer.append(dnskey.public_key);
-            auto point = MUST(Crypto::Curves::SECPxxxr1Point::from_uncompressed(buffer));
-            auto key = Crypto::PK::EC::KeyPairType { move(point), {} };
-            Crypto::Curves::SECP256r1 curve;
-            // The ECDSA signature is the combination of two non-negative integers,
-            // called "r" and "s" in FIPS 186-3.  The two integers, each of which is
-            // formatted as a simple octet string, are combined into a single longer
-            // octet string for DNSSEC as the concatenation "r | s".
-            Crypto::Curves::SECPxxxr1Signature signature;
-            // For P-256, each integer MUST be encoded as 32 octets
-            if (rrsig.signature.size() != 64) {
-                promise->reject(Error::from_string_literal("Invalid signature length for ECDSAP256"));
-                break;
-            }
-
-            signature.r = Crypto::UnsignedBigInteger::import_data(rrsig.signature.bytes().data(), rrsig.signature.size() / 2);
-            signature.s = Crypto::UnsignedBigInteger::import_data(rrsig.signature.bytes().offset_pointer(rrsig.signature.size() / 2), rrsig.signature.size() / 2);
-
-            ByteBuffer signed_data;
-            // signature = sign(RRSIG_RDATA | RR(1) | RR(2)... )
-            // RRSIG_RDATA = type_covered | algorithm | labels | original_ttl | signature_expiration | signature_inception | key_tag | signer_name
-            // RR(n) = owner | type | class | TTL | RDATA length | RDATA
-            if (auto result = rrsig.to_raw_excluding_signature(signed_data); result.is_error()) {
-                promise->reject(result.release_error());
-                break;
-            }
-            signed_data.append(canon_encoded);
-
-            dbgln("Signed data: {:32hex-dump}", signed_data.bytes());
-
-            auto hash = Crypto::Hash::SHA256::hash(signed_data);
-
-            auto result = curve.verify_point(hash.bytes(), key.public_key.to_secpxxxr1_point(), signature);
-            if (result.is_error())
-                promise->reject(result.release_error());
-            else if (!result.value())
-                promise->reject(Error::from_string_literal("Invalid signature for RR"));
-
-            break;
-        }
-        case Messages::DNSSEC::Algorithm::ECDSAP384SHA384:
-            break;
         case Messages::DNSSEC::Algorithm::RSASHA1NSEC3SHA1:
-        case Messages::DNSSEC::Algorithm::ED25519:
+            // Not implemented here
+            dbgln("Not implemented: DNSSEC algorithm {}", to_string(dnskey.algorithm));
+            break;
         case Messages::DNSSEC::Algorithm::Unknown:
-            dbgln("DNS: Unsupported algorithm for DNSSEC validation: {}", to_string(dnskey.algorithm));
-            promise->reject(Error::from_string_literal("Unsupported algorithm for DNSSEC validation"));
+            dbgln("DNS: Unsupported algorithm for DNSSEC validation: {}",
+                to_string(dnskey.algorithm));
+            promise->reject(
+                Error::from_string_literal("Unsupported algorithm for DNSSEC validation"));
             break;
         }
 
+        // If we haven't rejected by now, we consider the RRSet valid.
         if (!promise->is_rejected()) {
+            // Typically you'd store these validated RRs in the lookup result.
             for (auto& record : rrset_with_rrsig.rrset)
                 result->add_record(move(record));
+
+            // Resolve with an empty success.
             promise->resolve({});
         }
+
         return promise;
     }
+
+#undef TRY_OR_REJECT_PROMISE
 
     bool has_connection(bool attempt_restart = true)
     {

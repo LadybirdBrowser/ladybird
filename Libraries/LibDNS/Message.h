@@ -279,6 +279,8 @@ static inline StringView to_string(Algorithm algorithm)
         return "ED25519"sv;
     case Algorithm::Unknown:
         return "Unknown"sv;
+    default:
+        return "Invalid"sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -373,7 +375,7 @@ struct AAAA {
 
     static constexpr ResourceType type = ResourceType::AAAA;
     static ErrorOr<AAAA> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
     ErrorOr<String> to_string() const { return address.to_string(); }
 };
 struct TXT {
@@ -381,7 +383,7 @@ struct TXT {
 
     static constexpr ResourceType type = ResourceType::TXT;
     static ErrorOr<TXT> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
     ErrorOr<String> to_string() const { return String::formatted("Text: '{}'", StringView { content }); }
 };
 struct CNAME {
@@ -389,7 +391,7 @@ struct CNAME {
 
     static constexpr ResourceType type = ResourceType::CNAME;
     static ErrorOr<CNAME> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
     ErrorOr<String> to_string() const { return names.to_string(); }
 };
 struct NS {
@@ -521,7 +523,7 @@ struct SIG {
 
     static constexpr ResourceType type = ResourceType::SIG;
     static ErrorOr<SIG> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
     ErrorOr<void> to_raw_excluding_signature(ByteBuffer&) const;
     ErrorOr<String> to_string() const;
 };
@@ -589,7 +591,7 @@ struct HINFO {
 
     static constexpr ResourceType type = ResourceType::HINFO;
     static ErrorOr<HINFO> from_raw(ParseContext&);
-    ErrorOr<void> to_raw(ByteBuffer&) const { return Error::from_string_literal("Not implemented"); }
+    ErrorOr<void> to_raw(ByteBuffer&) const;
     ErrorOr<String> to_string() const { return String::formatted("HINFO CPU: '{}', OS: '{}'", StringView { cpu }, StringView { os }); }
 };
 struct OPT {
