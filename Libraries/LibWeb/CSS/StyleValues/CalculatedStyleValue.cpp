@@ -1735,11 +1735,6 @@ bool RemCalculationNode::equals(CalculationNode const& other) const
 
 CalculatedStyleValue::CalculationResult CalculatedStyleValue::CalculationResult::from_value(Value const& value, CalculationResolutionContext const& context, Optional<CSSNumericType> numeric_type)
 {
-    auto const expected_numeric_type = numeric_type_from_calculated_style_value(value, {});
-    if (numeric_type.has_value()) {
-        VERIFY(numeric_type.value() == expected_numeric_type);
-    }
-
     auto number = value.visit(
         [](Number const& number) { return number.value(); },
         [](Angle const& angle) { return angle.to_degrees(); },
@@ -1765,7 +1760,7 @@ CalculatedStyleValue::CalculationResult CalculatedStyleValue::CalculationResult:
         [](Time const& time) { return time.to_seconds(); },
         [](Percentage const& percentage) { return percentage.value(); });
 
-    return CalculationResult { number, numeric_type };
+    return CalculationResult { number, move(numeric_type) };
 }
 
 void CalculatedStyleValue::CalculationResult::add(CalculationResult const& other)
