@@ -364,13 +364,6 @@ bool CSSStyleValue::has_auto() const
     return is_keyword() && as_keyword().keyword() == Keyword::Auto;
 }
 
-Keyword CSSStyleValue::to_keyword() const
-{
-    if (is_keyword())
-        return as_keyword().keyword();
-    return Keyword::Invalid;
-}
-
 int CSSStyleValue::to_font_weight() const
 {
     if (is_keyword()) {

@@ -66,4 +66,11 @@ private:
     Keyword m_keyword { Keyword::Invalid };
 };
 
+inline Keyword CSSStyleValue::to_keyword() const
+{
+    if (is_keyword())
+        return static_cast<CSSKeywordValue const&>(*this).keyword();
+    return Keyword::Invalid;
+}
+
 }
