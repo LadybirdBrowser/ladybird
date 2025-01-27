@@ -20,7 +20,10 @@ public:
 
     ~PerformanceTiming();
 
-    u64 navigation_start() { return document_load_timing_info().navigation_start_time; }
+    u64 navigation_start()
+    {
+        return monotonic_timestamp_to_wall_time_milliseconds([](auto& load_info) { return load_info.navigation_start_time; });
+    }
     u64 unload_event_start() { return 0; }
     u64 unload_event_end() { return 0; }
     u64 redirect_start() { return 0; }
@@ -35,17 +38,36 @@ public:
     u64 response_start() { return 0; }
     u64 response_end() { return 0; }
     u64 dom_loading() { return 0; }
-    u64 dom_interactive() { return document_load_timing_info().dom_interactive_time; }
-    u64 dom_content_loaded_event_start() { return document_load_timing_info().dom_content_loaded_event_start_time; }
-    u64 dom_content_loaded_event_end() { return document_load_timing_info().dom_content_loaded_event_end_time; }
-    u64 dom_complete() { return document_load_timing_info().dom_complete_time; }
-    u64 load_event_start() { return document_load_timing_info().load_event_start_time; }
-    u64 load_event_end() { return document_load_timing_info().load_event_end_time; }
+    u64 dom_interactive()
+    {
+        return monotonic_timestamp_to_wall_time_milliseconds([](auto& load_info) { return load_info.dom_interactive_time; });
+    }
+    u64 dom_content_loaded_event_start()
+    {
+        return monotonic_timestamp_to_wall_time_milliseconds([](auto& load_info) { return load_info.dom_content_loaded_event_start_time; });
+    }
+    u64 dom_content_loaded_event_end()
+    {
+        return monotonic_timestamp_to_wall_time_milliseconds([](auto& load_info) { return load_info.dom_content_loaded_event_end_time; });
+    }
+    u64 dom_complete()
+    {
+        return monotonic_timestamp_to_wall_time_milliseconds([](auto& load_info) { return load_info.dom_complete_time; });
+    }
+    u64 load_event_start()
+    {
+        return monotonic_timestamp_to_wall_time_milliseconds([](auto& load_info) { return load_info.load_event_start_time; });
+    }
+    u64 load_event_end()
+    {
+        return monotonic_timestamp_to_wall_time_milliseconds([](auto& load_info) { return load_info.load_event_end_time; });
+    }
 
 private:
     explicit PerformanceTiming(JS::Realm&);
 
-    DOM::DocumentLoadTimingInfo const& document_load_timing_info() const;
+    DOM::DocumentLoadTimingInfo const& document_load_timing_info(JS::Object const& global_object) const;
+    u64 monotonic_timestamp_to_wall_time_milliseconds(Function<HighResolutionTime::DOMHighResTimeStamp(DOM::DocumentLoadTimingInfo const&)> selector) const;
 
     virtual void initialize(JS::Realm&) override;
 };

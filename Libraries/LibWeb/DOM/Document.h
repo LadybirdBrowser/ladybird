@@ -54,17 +54,17 @@ struct DocumentLoadTimingInfo {
     // https://html.spec.whatwg.org/multipage/dom.html#navigation-start-time
     double navigation_start_time { 0 };
     // https://html.spec.whatwg.org/multipage/dom.html#dom-interactive-time
-    double dom_interactive_time { 0 };
+    HighResolutionTime::DOMHighResTimeStamp dom_interactive_time { 0 };
     // https://html.spec.whatwg.org/multipage/dom.html#dom-content-loaded-event-start-time
-    double dom_content_loaded_event_start_time { 0 };
+    HighResolutionTime::DOMHighResTimeStamp dom_content_loaded_event_start_time { 0 };
     // https://html.spec.whatwg.org/multipage/dom.html#dom-content-loaded-event-end-time
-    double dom_content_loaded_event_end_time { 0 };
+    HighResolutionTime::DOMHighResTimeStamp dom_content_loaded_event_end_time { 0 };
     // https://html.spec.whatwg.org/multipage/dom.html#dom-complete-time
-    double dom_complete_time { 0 };
+    HighResolutionTime::DOMHighResTimeStamp dom_complete_time { 0 };
     // https://html.spec.whatwg.org/multipage/dom.html#load-event-start-time
-    double load_event_start_time { 0 };
+    HighResolutionTime::DOMHighResTimeStamp load_event_start_time { 0 };
     // https://html.spec.whatwg.org/multipage/dom.html#load-event-end-time
-    double load_event_end_time { 0 };
+    HighResolutionTime::DOMHighResTimeStamp load_event_end_time { 0 };
 };
 
 // https://html.spec.whatwg.org/multipage/dom.html#document-unload-timing-info
