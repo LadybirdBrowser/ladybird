@@ -17,10 +17,10 @@ class ListItemMarkerBox final : public Box {
     GC_DECLARE_ALLOCATOR(ListItemMarkerBox);
 
 public:
-    explicit ListItemMarkerBox(DOM::Document&, CSS::ListStyleType, CSS::ListStylePosition, size_t index, GC::Ref<CSS::ComputedProperties>);
+    explicit ListItemMarkerBox(DOM::Document&, CSS::ListStyleType, CSS::ListStylePosition, GC::Ref<DOM::Element>, GC::Ref<CSS::ComputedProperties>);
     virtual ~ListItemMarkerBox() override;
 
-    Optional<String> const& text() const { return m_text; }
+    Optional<String> text() const;
 
     virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 
@@ -28,14 +28,14 @@ public:
     CSS::ListStylePosition list_style_position() const { return m_list_style_position; }
 
 private:
+    virtual void visit_edges(Cell::Visitor&) override;
+
     virtual bool is_list_item_marker_box() const final { return true; }
     virtual bool can_have_children() const override { return false; }
 
     CSS::ListStyleType m_list_style_type { CSS::CounterStyleNameKeyword::None };
     CSS::ListStylePosition m_list_style_position { CSS::ListStylePosition::Outside };
-    size_t m_index;
-
-    Optional<String> m_text {};
+    GC::Ref<DOM::Element> m_list_item_element;
 };
 
 template<>
