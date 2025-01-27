@@ -691,22 +691,6 @@ AvailableSpace LayoutState::UsedValues::available_inner_space_or_constraints_fro
     return AvailableSpace(inner_width, inner_height);
 }
 
-void LayoutState::UsedValues::set_content_offset(CSSPixelPoint new_offset)
-{
-    set_content_x(new_offset.x());
-    set_content_y(new_offset.y());
-}
-
-void LayoutState::UsedValues::set_content_x(CSSPixels x)
-{
-    offset.set_x(x);
-}
-
-void LayoutState::UsedValues::set_content_y(CSSPixels y)
-{
-    offset.set_y(y);
-}
-
 void LayoutState::UsedValues::set_indefinite_content_width()
 {
     m_has_definite_width = false;

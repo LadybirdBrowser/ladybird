@@ -101,9 +101,9 @@ struct LayoutState {
         // the constraint is used in that axis instead.
         AvailableSpace available_inner_space_or_constraints_from(AvailableSpace const& outer_space) const;
 
-        void set_content_offset(CSSPixelPoint);
-        void set_content_x(CSSPixels);
-        void set_content_y(CSSPixels);
+        void set_content_offset(CSSPixelPoint new_offset) { offset = new_offset; }
+        void set_content_x(CSSPixels x) { offset.set_x(x); }
+        void set_content_y(CSSPixels y) { offset.set_y(y); }
 
         CSSPixelPoint offset;
 
