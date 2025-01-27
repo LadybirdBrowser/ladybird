@@ -381,20 +381,30 @@ void StyleComputer::for_each_stylesheet(CascadeOrigin cascade_origin, Callback c
     }
 }
 
-StyleComputer::RuleCache const* StyleComputer::rule_cache_for_cascade_origin(CascadeOrigin cascade_origin, FlyString const& qualified_layer_name) const
+StyleComputer::RuleCache const* StyleComputer::rule_cache_for_cascade_origin(CascadeOrigin cascade_origin, FlyString const& qualified_layer_name, GC::Ptr<DOM::ShadowRoot const> shadow_root) const
 {
-    switch (cascade_origin) {
-    case CascadeOrigin::Author:
-        if (qualified_layer_name.is_empty())
+    auto const* rule_caches_for_document_and_shadow_roots = [&]() -> RuleCachesForDocumentAndShadowRoots const* {
+        switch (cascade_origin) {
+        case CascadeOrigin::Author:
             return m_author_rule_cache;
-        return m_layer_rule_caches.get(qualified_layer_name).value_or(nullptr);
-    case CascadeOrigin::User:
-        return m_user_rule_cache;
-    case CascadeOrigin::UserAgent:
-        return m_user_agent_rule_cache;
-    default:
-        TODO();
-    }
+        case CascadeOrigin::User:
+            return m_user_rule_cache;
+        case CascadeOrigin::UserAgent:
+            return m_user_agent_rule_cache;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }();
+    auto const* rule_caches_by_layer = [&]() -> RuleCaches const* {
+        if (shadow_root)
+            return rule_caches_for_document_and_shadow_roots->for_shadow_roots.get(*shadow_root).value_or(nullptr);
+        return &rule_caches_for_document_and_shadow_roots->for_document;
+    }();
+    if (!rule_caches_by_layer)
+        return nullptr;
+    if (qualified_layer_name.is_empty())
+        return &rule_caches_by_layer->main;
+    return rule_caches_by_layer->by_layer.get(qualified_layer_name).value_or(nullptr);
 }
 
 [[nodiscard]] static bool filter_namespace_rule(Optional<FlyString> const& element_namespace_uri, MatchingRule const& rule)
@@ -478,11 +488,6 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element c
     else if (shadow_root)
         shadow_host = shadow_root->host();
 
-    auto const* maybe_rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name);
-    if (!maybe_rule_cache)
-        return {};
-    auto& rule_cache = *maybe_rule_cache;
-
     Vector<MatchingRule const&, 512> rules_to_run;
 
     auto add_rule_to_run = [&](MatchingRule const& rule_to_run) {
@@ -524,34 +529,48 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element c
         }
     };
 
-    for (auto const& class_name : element.class_names()) {
-        if (auto it = rule_cache.rules_by_class.find(class_name); it != rule_cache.rules_by_class.end())
-            add_rules_to_run(it->value);
-    }
-    if (auto id = element.id(); id.has_value()) {
-        if (auto it = rule_cache.rules_by_id.find(id.value()); it != rule_cache.rules_by_id.end())
-            add_rules_to_run(it->value);
-    }
-    if (auto it = rule_cache.rules_by_tag_name.find(element.local_name()); it != rule_cache.rules_by_tag_name.end())
-        add_rules_to_run(it->value);
-    if (pseudo_element.has_value()) {
-        if (CSS::Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element.value())) {
-            add_rules_to_run(rule_cache.rules_by_pseudo_element.at(to_underlying(pseudo_element.value())));
-        } else {
-            // NOTE: We don't cache rules for unknown pseudo-elements. They can't match anything anyway.
+    auto add_rules_from_cache = [&](RuleCache const& rule_cache) {
+        for (auto const& class_name : element.class_names()) {
+            if (auto it = rule_cache.rules_by_class.find(class_name); it != rule_cache.rules_by_class.end())
+                add_rules_to_run(it->value);
         }
+        if (auto id = element.id(); id.has_value()) {
+            if (auto it = rule_cache.rules_by_id.find(id.value()); it != rule_cache.rules_by_id.end())
+                add_rules_to_run(it->value);
+        }
+        if (auto it = rule_cache.rules_by_tag_name.find(element.local_name()); it != rule_cache.rules_by_tag_name.end())
+            add_rules_to_run(it->value);
+        if (pseudo_element.has_value()) {
+            if (CSS::Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element.value())) {
+                add_rules_to_run(rule_cache.rules_by_pseudo_element.at(to_underlying(pseudo_element.value())));
+            } else {
+                // NOTE: We don't cache rules for unknown pseudo-elements. They can't match anything anyway.
+            }
+        }
+
+        if (element.is_document_element())
+            add_rules_to_run(rule_cache.root_rules);
+
+        element.for_each_attribute([&](auto& name, auto&) {
+            if (auto it = rule_cache.rules_by_attribute_name.find(name); it != rule_cache.rules_by_attribute_name.end())
+                add_rules_to_run(it->value);
+        });
+
+        add_rules_to_run(rule_cache.other_rules);
+    };
+
+    if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, nullptr))
+        add_rules_from_cache(*rule_cache);
+
+    if (shadow_root) {
+        if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, shadow_root))
+            add_rules_from_cache(*rule_cache);
     }
 
-    if (element.is_document_element())
-        add_rules_to_run(rule_cache.root_rules);
-
-    element.for_each_attribute([&](auto& name, auto&) {
-        if (auto it = rule_cache.rules_by_attribute_name.find(name); it != rule_cache.rules_by_attribute_name.end()) {
-            add_rules_to_run(it->value);
-        }
-    });
-
-    add_rules_to_run(rule_cache.other_rules);
+    if (element_shadow_root) {
+        if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, element_shadow_root))
+            add_rules_from_cache(*rule_cache);
+    }
 
     Vector<MatchingRule const*> matching_rules;
     matching_rules.ensure_capacity(rules_to_run.size());
@@ -2450,8 +2469,10 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
                 if (pseudo_element.has_value())
                     effect->set_pseudo_element(Selector::PseudoElement { pseudo_element.value() });
 
-                if (auto keyframe_set = m_author_rule_cache->rules_by_animation_keyframes.get(animation->id()); keyframe_set.has_value())
-                    effect->set_key_frame_set(keyframe_set.value());
+                if (auto* rule_cache = rule_cache_for_cascade_origin(CascadeOrigin::Author, {}, {})) {
+                    if (auto keyframe_set = rule_cache->rules_by_animation_keyframes.get(animation->id()); keyframe_set.has_value())
+                        effect->set_key_frame_set(keyframe_set.value());
+                }
 
                 effect->set_target(&element);
                 element.set_cached_animation_name_animation(animation, pseudo_element);
@@ -2579,13 +2600,8 @@ void StyleComputer::collect_selector_insights(Selector const& selector, Selector
     }
 }
 
-StyleComputer::BuiltRuleCaches StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin, SelectorInsights& insights, Vector<MatchingRule>& hover_rules)
+void StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin, SelectorInsights& insights, Vector<MatchingRule>& hover_rules)
 {
-    auto caches = BuiltRuleCaches {
-        .main_rules = make<RuleCache>(),
-        .layer_rules = {},
-    };
-
     size_t num_class_rules = 0;
     size_t num_id_rules = 0;
     size_t num_tag_name_rules = 0;
@@ -2597,6 +2613,26 @@ StyleComputer::BuiltRuleCaches StyleComputer::make_rule_cache_for_cascade_origin
     Vector<MatchingRule> matching_rules;
     size_t style_sheet_index = 0;
     for_each_stylesheet(cascade_origin, [&](auto& sheet, GC::Ptr<DOM::ShadowRoot> shadow_root) {
+        auto& rule_caches = [&] -> RuleCaches& {
+            RuleCachesForDocumentAndShadowRoots* rule_caches_for_document_or_shadow_root = nullptr;
+            switch (cascade_origin) {
+            case CascadeOrigin::Author:
+                rule_caches_for_document_or_shadow_root = m_author_rule_cache;
+                break;
+            case CascadeOrigin::User:
+                rule_caches_for_document_or_shadow_root = m_user_rule_cache;
+                break;
+            case CascadeOrigin::UserAgent:
+                rule_caches_for_document_or_shadow_root = m_user_agent_rule_cache;
+                break;
+            default:
+                VERIFY_NOT_REACHED();
+            }
+            if (!shadow_root)
+                return rule_caches_for_document_or_shadow_root->for_document;
+            return *rule_caches_for_document_or_shadow_root->for_shadow_roots.ensure(*shadow_root, [] { return make<RuleCaches>(); });
+        }();
+
         size_t rule_index = 0;
         sheet.for_each_effective_style_producing_rule([&](auto const& rule) {
             SelectorList const& absolutized_selectors = [&]() {
@@ -2628,7 +2664,7 @@ StyleComputer::BuiltRuleCaches StyleComputer::make_rule_cache_for_cascade_origin
                 };
 
                 auto const& qualified_layer_name = matching_rule.qualified_layer_name();
-                auto& rule_cache = qualified_layer_name.is_empty() ? caches.main_rules : caches.layer_rules.ensure(qualified_layer_name, [] { return make<RuleCache>(); });
+                auto& rule_cache = qualified_layer_name.is_empty() ? rule_caches.main : *rule_caches.by_layer.ensure(qualified_layer_name, [] { return make<RuleCache>(); });
 
                 bool contains_root_pseudo_class = false;
                 Optional<CSS::Selector::PseudoElement::Type> pseudo_element;
@@ -2682,19 +2718,19 @@ StyleComputer::BuiltRuleCaches StyleComputer::make_rule_cache_for_cascade_origin
                 bool added_to_bucket = false;
 
                 auto add_to_id_bucket = [&](FlyString const& name) {
-                    rule_cache->rules_by_id.ensure(name).append(move(matching_rule));
+                    rule_cache.rules_by_id.ensure(name).append(move(matching_rule));
                     ++num_id_rules;
                     added_to_bucket = true;
                 };
 
                 auto add_to_class_bucket = [&](FlyString const& name) {
-                    rule_cache->rules_by_class.ensure(name).append(move(matching_rule));
+                    rule_cache.rules_by_class.ensure(name).append(move(matching_rule));
                     ++num_class_rules;
                     added_to_bucket = true;
                 };
 
                 auto add_to_tag_name_bucket = [&](FlyString const& name) {
-                    rule_cache->rules_by_tag_name.ensure(name).append(move(matching_rule));
+                    rule_cache.rules_by_tag_name.ensure(name).append(move(matching_rule));
                     ++num_tag_name_rules;
                     added_to_bucket = true;
                 };
@@ -2731,23 +2767,23 @@ StyleComputer::BuiltRuleCaches StyleComputer::make_rule_cache_for_cascade_origin
                 if (!added_to_bucket) {
                     if (matching_rule.contains_pseudo_element) {
                         if (CSS::Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element.value())) {
-                            rule_cache->rules_by_pseudo_element[to_underlying(pseudo_element.value())].append(move(matching_rule));
+                            rule_cache.rules_by_pseudo_element[to_underlying(pseudo_element.value())].append(move(matching_rule));
                         } else {
                             // NOTE: We don't cache rules for unknown pseudo-elements. They can't match anything anyway.
                         }
                     } else if (contains_root_pseudo_class) {
-                        rule_cache->root_rules.append(move(matching_rule));
+                        rule_cache.root_rules.append(move(matching_rule));
                     } else {
                         for (auto const& simple_selector : selector.compound_selectors().last().simple_selectors) {
                             if (simple_selector.type == CSS::Selector::SimpleSelector::Type::Attribute) {
-                                rule_cache->rules_by_attribute_name.ensure(simple_selector.attribute().qualified_name.name.lowercase_name).append(move(matching_rule));
+                                rule_cache.rules_by_attribute_name.ensure(simple_selector.attribute().qualified_name.name.lowercase_name).append(move(matching_rule));
                                 ++num_attribute_rules;
                                 added_to_bucket = true;
                                 break;
                             }
                         }
                         if (!added_to_bucket) {
-                            rule_cache->other_rules.append(move(matching_rule));
+                            rule_cache.other_rules.append(move(matching_rule));
                         }
                     }
                 }
@@ -2786,12 +2822,10 @@ StyleComputer::BuiltRuleCaches StyleComputer::make_rule_cache_for_cascade_origin
                     dbgln("    - keyframe {}: {} properties", it.key(), it->properties.size());
             }
 
-            caches.main_rules->rules_by_animation_keyframes.set(rule.name(), move(keyframe_set));
+            rule_caches.main.rules_by_animation_keyframes.set(rule.name(), move(keyframe_set));
         });
         ++style_sheet_index;
     });
-
-    return caches;
 }
 
 struct LayerNode {
@@ -2866,6 +2900,10 @@ void StyleComputer::build_qualified_layer_names_cache()
 
 void StyleComputer::build_rule_cache()
 {
+    m_author_rule_cache = make<RuleCachesForDocumentAndShadowRoots>();
+    m_user_rule_cache = make<RuleCachesForDocumentAndShadowRoots>();
+    m_user_agent_rule_cache = make<RuleCachesForDocumentAndShadowRoots>();
+
     m_selector_insights = make<SelectorInsights>();
     m_style_invalidation_data = make<StyleInvalidationData>();
 
@@ -2875,11 +2913,9 @@ void StyleComputer::build_rule_cache()
 
     build_qualified_layer_names_cache();
 
-    auto author_rules = make_rule_cache_for_cascade_origin(CascadeOrigin::Author, *m_selector_insights, m_hover_rules);
-    m_author_rule_cache = move(author_rules.main_rules);
-    m_layer_rule_caches = move(author_rules.layer_rules);
-    m_user_rule_cache = make_rule_cache_for_cascade_origin(CascadeOrigin::User, *m_selector_insights, m_hover_rules).main_rules;
-    m_user_agent_rule_cache = make_rule_cache_for_cascade_origin(CascadeOrigin::UserAgent, *m_selector_insights, m_hover_rules).main_rules;
+    make_rule_cache_for_cascade_origin(CascadeOrigin::Author, *m_selector_insights, m_hover_rules);
+    make_rule_cache_for_cascade_origin(CascadeOrigin::User, *m_selector_insights, m_hover_rules);
+    make_rule_cache_for_cascade_origin(CascadeOrigin::UserAgent, *m_selector_insights, m_hover_rules);
 }
 
 void StyleComputer::invalidate_rule_cache()
