@@ -234,8 +234,10 @@ void HTMLOptionElement::inserted()
     //    If insertedNode's parent is a select element,
     //    or insertedNode's parent is an optgroup element whose parent is a select element,
     //    then run that select element's selectedness setting algorithm.
-    if (auto select_element = owner_select_element())
-        select_element->update_selectedness();
+    if (auto select_element = owner_select_element()) {
+        if (!select_element->can_skip_selectedness_update_for_inserted_option(*this))
+            select_element->update_selectedness();
+    }
 }
 
 void HTMLOptionElement::removed_from(Node* old_parent, Node& old_root)
