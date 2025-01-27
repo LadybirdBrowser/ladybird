@@ -6881,36 +6881,25 @@ RefPtr<CSSStyleValue> Parser::parse_math_depth_value(TokenStream<ComponentValue>
     // auto-add | add(<integer>) | <integer>
     auto transaction = tokens.begin_transaction();
 
-    auto const& token = tokens.consume_a_token();
-    if (tokens.has_next_token())
-        return nullptr;
-
     // auto-add
-    if (token.is_ident("auto-add"sv)) {
+    if (tokens.next_token().is_ident("auto-add"sv)) {
+        tokens.discard_a_token(); // auto-add
         transaction.commit();
         return MathDepthStyleValue::create_auto_add();
     }
 
-    // FIXME: Make it easier to parse "thing that might be <bar> or literally anything that resolves to it" and get rid of this
-    auto parse_something_that_resolves_to_integer = [this](ComponentValue const& token) -> RefPtr<CSSStyleValue> {
-        if (token.is(Token::Type::Number) && token.token().number().is_integer())
-            return IntegerStyleValue::create(token.token().to_integer());
-        if (auto value = parse_calculated_value(token); value && value->resolves_to_number())
-            return value;
-        return nullptr;
-    };
-
     // add(<integer>)
-    if (token.is_function("add"sv)) {
-        auto context_guard = push_temporary_value_parsing_context(FunctionContext { token.function().name });
+    if (tokens.next_token().is_function("add"sv)) {
+        auto const& function = tokens.next_token().function();
+        auto context_guard = push_temporary_value_parsing_context(FunctionContext { function.name });
 
-        auto add_tokens = TokenStream { token.function().value };
+        auto add_tokens = TokenStream { function.value };
         add_tokens.discard_whitespace();
-        auto const& integer_token = add_tokens.consume_a_token();
-        add_tokens.discard_whitespace();
-        if (add_tokens.has_next_token())
-            return nullptr;
-        if (auto integer_value = parse_something_that_resolves_to_integer(integer_token)) {
+        if (auto integer_value = parse_integer_value(add_tokens)) {
+            add_tokens.discard_whitespace();
+            if (add_tokens.has_next_token())
+                return nullptr;
+            tokens.discard_a_token(); // add()
             transaction.commit();
             return MathDepthStyleValue::create_add(integer_value.release_nonnull());
         }
@@ -6918,7 +6907,7 @@ RefPtr<CSSStyleValue> Parser::parse_math_depth_value(TokenStream<ComponentValue>
     }
 
     // <integer>
-    if (auto integer_value = parse_something_that_resolves_to_integer(token)) {
+    if (auto integer_value = parse_integer_value(tokens)) {
         transaction.commit();
         return MathDepthStyleValue::create_integer(integer_value.release_nonnull());
     }
