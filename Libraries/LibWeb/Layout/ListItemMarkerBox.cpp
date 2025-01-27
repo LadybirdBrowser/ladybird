@@ -12,56 +12,63 @@ namespace Web::Layout {
 
 GC_DEFINE_ALLOCATOR(ListItemMarkerBox);
 
-ListItemMarkerBox::ListItemMarkerBox(DOM::Document& document, CSS::ListStyleType style_type, CSS::ListStylePosition style_position, size_t index, GC::Ref<CSS::ComputedProperties> style)
+ListItemMarkerBox::ListItemMarkerBox(DOM::Document& document, CSS::ListStyleType style_type, CSS::ListStylePosition style_position, GC::Ref<DOM::Element> list_item_element, GC::Ref<CSS::ComputedProperties> style)
     : Box(document, nullptr, move(style))
     , m_list_style_type(style_type)
     , m_list_style_position(style_position)
-    , m_index(index)
+    , m_list_item_element(list_item_element)
 {
-    m_list_style_type.visit(
-        [this](CSS::CounterStyleNameKeyword keyword) {
+}
+
+ListItemMarkerBox::~ListItemMarkerBox() = default;
+
+Optional<String> ListItemMarkerBox::text() const
+{
+    auto index = m_list_item_element->ordinal_value();
+
+    return m_list_style_type.visit(
+        [index](CSS::CounterStyleNameKeyword keyword) -> Optional<String> {
             switch (keyword) {
             case CSS::CounterStyleNameKeyword::Square:
             case CSS::CounterStyleNameKeyword::Circle:
             case CSS::CounterStyleNameKeyword::Disc:
             case CSS::CounterStyleNameKeyword::DisclosureClosed:
             case CSS::CounterStyleNameKeyword::DisclosureOpen:
-                break;
+                return {};
             case CSS::CounterStyleNameKeyword::Decimal:
-                m_text = MUST(String::formatted("{}.", m_index));
-                break;
+                return MUST(String::formatted("{}.", index));
             case CSS::CounterStyleNameKeyword::DecimalLeadingZero:
                 // This is weird, but in accordance to spec.
-                m_text = m_index < 10 ? MUST(String::formatted("0{}.", m_index)) : MUST(String::formatted("{}.", m_index));
-                break;
+                return MUST(index < 10 ? String::formatted("0{}.", index) : String::formatted("{}.", index));
             case CSS::CounterStyleNameKeyword::LowerAlpha:
             case CSS::CounterStyleNameKeyword::LowerLatin:
-                m_text = String::bijective_base_from(m_index - 1, String::Case::Lower);
-                break;
+                return String::bijective_base_from(index - 1, String::Case::Lower);
             case CSS::CounterStyleNameKeyword::UpperAlpha:
             case CSS::CounterStyleNameKeyword::UpperLatin:
-                m_text = String::bijective_base_from(m_index - 1, String::Case::Upper);
-                break;
+                return String::bijective_base_from(index - 1, String::Case::Upper);
             case CSS::CounterStyleNameKeyword::LowerRoman:
-                m_text = String::roman_number_from(m_index, String::Case::Lower);
-                break;
+                return String::roman_number_from(index, String::Case::Lower);
             case CSS::CounterStyleNameKeyword::UpperRoman:
-                m_text = String::roman_number_from(m_index, String::Case::Upper);
-                break;
+                return String::roman_number_from(index, String::Case::Upper);
             case CSS::CounterStyleNameKeyword::None:
-                break;
+                return {};
+            default:
+                VERIFY_NOT_REACHED();
             }
         },
-        [this](String const& string) {
-            m_text = string;
+        [](String const& string) -> Optional<String> {
+            return string;
         });
 }
-
-ListItemMarkerBox::~ListItemMarkerBox() = default;
 
 GC::Ptr<Painting::Paintable> ListItemMarkerBox::create_paintable() const
 {
     return Painting::MarkerPaintable::create(*this);
 }
 
+void ListItemMarkerBox::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_list_item_element);
+}
 }
