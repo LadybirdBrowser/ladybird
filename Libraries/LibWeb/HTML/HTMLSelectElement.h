@@ -98,6 +98,8 @@ public:
 
     void update_inner_text_element(Badge<HTMLOptionElement>);
 
+    bool can_skip_selectedness_update_for_inserted_option(HTMLOptionElement const&) const;
+
 private:
     HTMLSelectElement(DOM::Document&, DOM::QualifiedName);
 

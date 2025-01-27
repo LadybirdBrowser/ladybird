@@ -293,6 +293,20 @@ i32 HTMLSelectElement::default_tab_index_value() const
     return 0;
 }
 
+bool HTMLSelectElement::can_skip_selectedness_update_for_inserted_option(HTMLOptionElement const& option) const
+{
+    if (option.selected())
+        return false;
+
+    if (m_cached_number_of_selected_options >= 2)
+        return false;
+
+    if (display_size() == 1 && m_cached_number_of_selected_options == 0)
+        return false;
+
+    return true;
+}
+
 bool HTMLSelectElement::can_skip_children_changed_selectedness_update(ChildrenChangedMetadata const& metadata) const
 {
     // If the following criteria are met, there is no need to re-run the selectedness algorithm.
@@ -300,18 +314,8 @@ bool HTMLSelectElement::can_skip_children_changed_selectedness_update(ChildrenCh
     if (metadata.type != ChildrenChangedMetadata::Type::Inserted)
         return false;
 
-    if (auto* option = as_if<HTMLOptionElement>(*metadata.node)) {
-        if (option->selected())
-            return false;
-
-        if (m_cached_number_of_selected_options >= 2)
-            return false;
-
-        if (display_size() == 1 && m_cached_number_of_selected_options == 0)
-            return false;
-
-        return true;
-    }
+    if (auto* option = as_if<HTMLOptionElement>(*metadata.node))
+        return can_skip_selectedness_update_for_inserted_option(*option);
 
     return false;
 }
