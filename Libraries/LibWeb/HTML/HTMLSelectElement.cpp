@@ -2,6 +2,7 @@
  * Copyright (c) 2020, the SerenityOS developers.
  * Copyright (c) 2021-2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Bastiaan van der Plaat <bastiaan.v.d.plaat@gmail.com>
+ * Copyright (c) 2025, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -292,9 +293,36 @@ i32 HTMLSelectElement::default_tab_index_value() const
     return 0;
 }
 
+bool HTMLSelectElement::can_skip_children_changed_selectedness_update(ChildrenChangedMetadata const& metadata) const
+{
+    // If the following criteria are met, there is no need to re-run the selectedness algorithm.
+    // FIXME: We can tighten up these conditions and skip even more work!
+    if (metadata.type != ChildrenChangedMetadata::Type::Inserted)
+        return false;
+
+    if (auto* option = as_if<HTMLOptionElement>(*metadata.node)) {
+        if (option->selected())
+            return false;
+
+        if (m_cached_number_of_selected_options >= 2)
+            return false;
+
+        if (display_size() == 1 && m_cached_number_of_selected_options == 0)
+            return false;
+
+        return true;
+    }
+
+    return false;
+}
+
 void HTMLSelectElement::children_changed(ChildrenChangedMetadata const* metadata)
 {
     Base::children_changed(metadata);
+
+    if (metadata && can_skip_children_changed_selectedness_update(*metadata))
+        return;
+
     update_cached_list_of_options();
     update_selectedness();
 }
