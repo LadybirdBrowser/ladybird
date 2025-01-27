@@ -301,12 +301,12 @@ public:
     [[nodiscard]] bool entire_subtree_needs_style_update() const { return m_entire_subtree_needs_style_update; }
     void set_entire_subtree_needs_style_update(bool b) { m_entire_subtree_needs_style_update = b; }
 
-    enum class ForceSelfStyleInvalidation : bool {
-        Yes,
-        No
-    };
     void invalidate_style(StyleInvalidationReason);
-    void invalidate_style(StyleInvalidationReason, Vector<CSS::InvalidationSet::Property> const&, ForceSelfStyleInvalidation = ForceSelfStyleInvalidation::No);
+    struct StyleInvalidationOptions {
+        bool invalidate_self { false };
+        bool invalidate_elements_that_use_css_custom_properties { false };
+    };
+    void invalidate_style(StyleInvalidationReason, Vector<CSS::InvalidationSet::Property> const&, StyleInvalidationOptions);
 
     void set_document(Badge<Document>, Document&);
 

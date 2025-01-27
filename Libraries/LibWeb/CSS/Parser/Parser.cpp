@@ -9569,6 +9569,14 @@ NonnullRefPtr<CSSStyleValue> Parser::resolve_unresolved_style_value(DOM::Element
     Vector<ComponentValue> values_with_variables_expanded;
 
     HashMap<FlyString, NonnullRefPtr<PropertyDependencyNode>> dependencies;
+    ScopeGuard mark_element_if_uses_custom_properties = [&] {
+        for (auto const& name : dependencies.keys()) {
+            if (is_a_custom_property_name_string(name)) {
+                element.set_style_uses_css_custom_properties(true);
+                return;
+            }
+        }
+    };
     if (!expand_variables(element, pseudo_element, string_from_property_id(property_id), dependencies, unresolved_values_without_variables_expanded, values_with_variables_expanded))
         return CSSKeywordValue::create(Keyword::Unset);
 

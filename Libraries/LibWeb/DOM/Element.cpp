@@ -1986,13 +1986,14 @@ ErrorOr<void> Element::scroll_into_view(Optional<Variant<bool, ScrollIntoViewOpt
 void Element::invalidate_style_after_attribute_change(FlyString const& attribute_name, Optional<String> const& old_value, Optional<String> const& new_value)
 {
     Vector<CSS::InvalidationSet::Property, 1> changed_properties;
-    ForceSelfStyleInvalidation force_self_invalidation = ForceSelfStyleInvalidation::No;
+    StyleInvalidationOptions style_invalidation_options;
     if (is_presentational_hint(attribute_name)) {
-        force_self_invalidation = ForceSelfStyleInvalidation::Yes;
+        style_invalidation_options.invalidate_self = true;
     }
 
     if (attribute_name == HTML::AttributeNames::style) {
-        force_self_invalidation = ForceSelfStyleInvalidation::Yes;
+        style_invalidation_options.invalidate_self = true;
+        style_invalidation_options.invalidate_elements_that_use_css_custom_properties = true;
     } else if (attribute_name == HTML::AttributeNames::class_) {
         Vector<StringView> old_classes;
         Vector<StringView> new_classes;
@@ -2025,7 +2026,7 @@ void Element::invalidate_style_after_attribute_change(FlyString const& attribute
     }
 
     changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::Attribute, .value = attribute_name });
-    invalidate_style(StyleInvalidationReason::ElementAttributeChange, changed_properties, force_self_invalidation);
+    invalidate_style(StyleInvalidationReason::ElementAttributeChange, changed_properties, style_invalidation_options);
 }
 
 bool Element::is_hidden() const

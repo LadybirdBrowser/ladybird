@@ -245,6 +245,9 @@ public:
     void set_custom_properties(Optional<CSS::Selector::PseudoElement::Type>, HashMap<FlyString, CSS::StyleProperty> custom_properties);
     [[nodiscard]] HashMap<FlyString, CSS::StyleProperty> const& custom_properties(Optional<CSS::Selector::PseudoElement::Type>) const;
 
+    bool style_uses_css_custom_properties() const { return m_style_uses_css_custom_properties; }
+    void set_style_uses_css_custom_properties(bool value) { m_style_uses_css_custom_properties = value; }
+
     // NOTE: The function is wrapped in a GC::HeapFunction immediately.
     HTML::TaskID queue_an_element_task(HTML::Task::Source, Function<void()>);
 
@@ -496,6 +499,7 @@ private:
     Array<CSSPixelPoint, 3> m_scroll_offset;
 
     bool m_in_top_layer { false };
+    bool m_style_uses_css_custom_properties { false };
 
     OwnPtr<CSS::CountersSet> m_counters_set;
 
