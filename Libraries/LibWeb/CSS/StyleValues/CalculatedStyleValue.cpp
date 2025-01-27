@@ -871,11 +871,10 @@ CalculatedStyleValue::CalculationResult ConstantCalculationNode::resolve(Calcula
         return { AK::E<double>, CSSNumericType {} };
     case ConstantType::Pi:
         return { AK::Pi<double>, CSSNumericType {} };
-    // FIXME: We need to keep track of Infinity and NaN across all nodes, since they require special handling.
     case ConstantType::Infinity:
-        return { NumericLimits<double>::max(), CSSNumericType {} };
+        return { AK::Infinity<double>, CSSNumericType {} };
     case ConstantType::MinusInfinity:
-        return { NumericLimits<double>::lowest(), CSSNumericType {} };
+        return { -AK::Infinity<double>, CSSNumericType {} };
     case ConstantType::NaN:
         return { AK::NaN<double>, CSSNumericType {} };
     }

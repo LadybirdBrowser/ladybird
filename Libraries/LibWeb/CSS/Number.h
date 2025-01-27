@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -70,12 +70,7 @@ public:
         return { Type::Number, m_value / other.m_value };
     }
 
-    String to_string() const
-    {
-        if (m_type == Type::IntegerWithExplicitSign)
-            return MUST(String::formatted("{:+}", m_value));
-        return String::number(m_value);
-    }
+    String to_string() const;
 
     bool operator==(Number const& other) const
     {
