@@ -330,7 +330,8 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     DOM::DocumentLoadTimingInfo load_timing_info;
     // AD-HOC: The response object no longer has an associated timing info object. For now, we use response's non-standard response time property,
     //         which represents the time that the time that the response object was created.
-    load_timing_info.navigation_start_time = navigation_params.response->response_time().nanoseconds() / 1e6;
+    auto response_creation_time = navigation_params.response->response_time().nanoseconds() / 1e6;
+    load_timing_info.navigation_start_time = HighResolutionTime::coarsen_time(response_creation_time, HTML::relevant_settings_object(*window).cross_origin_isolated_capability() == HTML::CanUseCrossOriginIsolatedAPIs::Yes);
 
     // 9. Let document be a new Document, with
     //    type: type

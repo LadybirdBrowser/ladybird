@@ -5,6 +5,14 @@
         bufferedMessages.push(message);
     }
 
+    function synchronousWaitMicroseconds(microseconds) {
+        var start = performance.now() * 1000,
+            now = start;
+        while (now - start < microseconds) {
+            now = performance.now() * 1000;
+        }
+    }
+
     const globalObserver = new PerformanceObserver((list, observer) => {
         printlnBuffered(`observer === globalObserver: ${observer === globalObserver}`);
         printlnBuffered(
@@ -53,7 +61,11 @@
     globalObserver.observe({ entryTypes: ["measure", "mark"] });
 
     const startMark = performance.mark("start");
+    // The resolution of the clock used by the Performance interface is 100 microseconds, so we wait twice that time
+    // between calls to ensure they are ordered as we expect.
+    synchronousWaitMicroseconds(200);
     const endMark = performance.mark("end");
+    synchronousWaitMicroseconds(200);
     const measureMark = performance.measure("measure", "start", "end");
 
     function printCatchedException(func) {
