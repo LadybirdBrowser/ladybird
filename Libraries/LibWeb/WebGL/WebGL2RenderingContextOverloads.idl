@@ -39,10 +39,10 @@ interface mixin WebGL2RenderingContextOverloads {
     undefined texSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, [AllowShared] ArrayBufferView srcData, unsigned long long srcOffset);
 
     [FIXME] undefined compressedTexImage2D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, GLsizei imageSize, GLintptr offset);
-    [FIXME] undefined compressedTexImage2D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, [AllowShared] ArrayBufferView srcData, optional unsigned long long srcOffset = 0, optional GLuint srcLengthOverride = 0);
+    undefined compressedTexImage2D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, [AllowShared] ArrayBufferView srcData, optional unsigned long long srcOffset = 0, optional GLuint srcLengthOverride = 0);
 
     [FIXME] undefined compressedTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLsizei imageSize, GLintptr offset);
-    [FIXME] undefined compressedTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset,GLsizei width, GLsizei height, GLenum format, [AllowShared] ArrayBufferView srcData, optional unsigned long long srcOffset = 0, optional GLuint srcLengthOverride = 0);
+    undefined compressedTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, [AllowShared] ArrayBufferView srcData, optional unsigned long long srcOffset = 0, optional GLuint srcLengthOverride = 0);
 
     undefined uniform1fv(WebGLUniformLocation? location, Float32List v, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
     undefined uniform2fv(WebGLUniformLocation? location, Float32List v, optional unsigned long long srcOffset = 0, optional GLuint srcLength = 0);
