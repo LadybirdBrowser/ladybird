@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Event timestamp should not have a resolution better than 5 microseconds
+1 Pass
+Pass	Event timestamp should not have a resolution better than 5 microseconds

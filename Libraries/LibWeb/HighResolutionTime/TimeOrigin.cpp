@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Math.h>
 #include <AK/Time.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
@@ -46,8 +47,19 @@ DOMHighResTimeStamp get_time_origin_timestamp(JS::Object const& global)
 // https://w3c.github.io/hr-time/#dfn-coarsen-time
 DOMHighResTimeStamp coarsen_time(DOMHighResTimeStamp timestamp, bool cross_origin_isolated_capability)
 {
-    // FIXME: Implement this.
-    (void)cross_origin_isolated_capability;
+    // 1. Let time resolution be 100 microseconds, or a higher implementation-defined value.
+    auto time_resolution_milliseconds = 0.1;
+
+    // 2. If crossOriginIsolatedCapability is true, set time resolution to be 5 microseconds, or a higher implementation-defined value.
+    if (cross_origin_isolated_capability)
+        time_resolution_milliseconds = 0.005;
+
+    // 3. In an implementation-defined manner, coarsen and potentially jitter timestamp such that its resolution will not exceed time resolution
+    timestamp = floor(timestamp / time_resolution_milliseconds) * time_resolution_milliseconds;
+
+    // FIXME: Applying jitter to the coarsened timestamp here may decrease our susceptibility to timing attacks.
+
+    // 4. Return timestamp as a moment
     return timestamp;
 }
 
