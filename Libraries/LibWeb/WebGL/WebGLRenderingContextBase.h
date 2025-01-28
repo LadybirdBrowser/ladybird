@@ -14,6 +14,7 @@ class WebGLRenderingContextBase {
 public:
     virtual GC::Cell const* gc_cell() const = 0;
     virtual void visit_edges(JS::Cell::Visitor&) = 0;
+    virtual OpenGLContext& context() = 0;
 };
 
 }

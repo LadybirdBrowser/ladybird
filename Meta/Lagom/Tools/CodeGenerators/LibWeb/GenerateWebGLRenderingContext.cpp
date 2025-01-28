@@ -1199,6 +1199,54 @@ public:
             continue;
         }
 
+        if (webgl_version == 2 && function.name == "compressedTexImage2D"sv && function.overload_index == 0) {
+            function_impl_generator.append(R"~~~(
+    u8 const* pixels_ptr = src_data->viewed_array_buffer()->buffer().data();
+    size_t count = src_data->byte_length();
+    auto src_data_element_size = src_data->element_size();
+
+    if ((src_offset * src_data_element_size) + src_length_override > count) {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+
+    pixels_ptr += src_data->byte_offset();
+    pixels_ptr += src_offset * src_data_element_size;
+    if (src_length_override == 0) {
+        count -= src_offset;
+    } else {
+        count = src_length_override;
+    }
+
+    glCompressedTexImage2D(target, level, internalformat, width, height, border, count, pixels_ptr);
+)~~~");
+            continue;
+        }
+
+        if (webgl_version == 2 && function.name == "compressedTexSubImage2D"sv && function.overload_index == 0) {
+            function_impl_generator.append(R"~~~(
+    u8 const* pixels_ptr = src_data->viewed_array_buffer()->buffer().data();
+    size_t count = src_data->byte_length();
+    auto src_data_element_size = src_data->element_size();
+
+    if ((src_offset * src_data_element_size) + src_length_override > count) {
+        set_error(GL_INVALID_VALUE);
+        return;
+    }
+
+    pixels_ptr += src_data->byte_offset();
+    pixels_ptr += src_offset * src_data_element_size;
+    if (src_length_override == 0) {
+        count -= src_offset;
+    } else {
+        count = src_length_override;
+    }
+
+    glCompressedTexSubImage2D(target, level, xoffset, yoffset, width, height, format, count, pixels_ptr);
+)~~~");
+            continue;
+        }
+
         if (function.name == "getShaderParameter"sv) {
             generate_webgl_object_handle_unwrap(function_impl_generator, "shader"sv, "JS::js_null()"sv);
             function_impl_generator.append(R"~~~(
@@ -1998,6 +2046,17 @@ public:
     } else {
         VERIFY_NOT_REACHED();
     }
+)~~~");
+                gl_call_arguments.append(ByteString::formatted("byte_size"));
+                gl_call_arguments.append(ByteString::formatted("ptr"));
+                continue;
+            }
+            if (parameter.type->name() == "ArrayBufferView"sv) {
+                function_impl_generator.set("buffer_source_name", parameter_name);
+
+                function_impl_generator.append(R"~~~(
+    void const* ptr = @buffer_source_name@->viewed_array_buffer()->buffer().data() + @buffer_source_name@->byte_offset();
+    size_t byte_size = @buffer_source_name@->byte_length();
 )~~~");
                 gl_call_arguments.append(ByteString::formatted("byte_size"));
                 gl_call_arguments.append(ByteString::formatted("ptr"));
