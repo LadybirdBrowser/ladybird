@@ -28,6 +28,7 @@ class CalculationNode;
 // Contains the context available at parse-time.
 struct CalculationContext {
     Optional<ValueType> percentages_resolve_as {};
+    bool resolve_numbers_as_integers = false;
 };
 // Contains the context for resolving the calculation.
 struct CalculationResolutionContext {
