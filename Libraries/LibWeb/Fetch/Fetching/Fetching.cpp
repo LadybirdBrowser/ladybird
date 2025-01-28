@@ -2722,17 +2722,23 @@ void set_sec_fetch_site_header(Infrastructure::Request& request)
 
     // 5. If header’s value is not none, then for each url in r’s url list:
     if (!header_value.equals_ignoring_ascii_case("none"sv)) {
+        VERIFY(request.origin().has<URL::Origin>());
+        auto& request_origin = request.origin().get<URL::Origin>();
+
         for (auto& url : request.url_list()) {
             // 1. If url is same origin with r’s origin, continue.
-            if (url.origin().is_same_origin(request.current_url().origin()))
+            if (url.origin().is_same_origin(request_origin))
                 continue;
 
             // 2. Set header’s value to cross-site.
             header_value = "cross-site"sv;
 
-            // FIXME: 3. If r’s origin is not same site with url’s origin, then break.
+            // 3. If r’s origin is not same site with url’s origin, then break.
+            if (!request_origin.is_same_site(url.origin()))
+                break;
 
-            // FIXME: 4. Set header’s value to same-site.
+            // 4. Set header’s value to same-site.
+            header_value = "same-site"sv;
         }
     }
 
