@@ -1667,6 +1667,7 @@ void Document::invalidate_style_for_elements_affected_by_hover_change(Node& old_
     auto& root = old_new_hovered_common_ancestor.root();
     auto shadow_root = is<ShadowRoot>(root) ? static_cast<ShadowRoot const*>(&root) : nullptr;
 
+    auto& style_computer = this->style_computer();
     auto compute_hover_selectors_match_state = [&](Element const& element) {
         auto state = MUST(AK::Bitmap::create(hover_rules.size(), 0));
         for (size_t rule_index = 0; rule_index < hover_rules.size(); ++rule_index) {
@@ -1681,6 +1682,8 @@ void Document::invalidate_style_for_elements_affected_by_hover_change(Node& old_
                 continue;
 
             auto const& selector = rule.selector;
+            if (style_computer.should_reject_with_ancestor_filter(selector))
+                continue;
 
             SelectorEngine::MatchContext context;
             bool selector_matched = false;
@@ -1703,27 +1706,34 @@ void Document::invalidate_style_for_elements_affected_by_hover_change(Node& old_
         return state;
     };
 
-    root.for_each_in_inclusive_subtree([&](Node& node) {
-        if (!node.is_element())
-            return TraversalDecision::Continue;
-        auto& element = static_cast<Element&>(node);
-        if (!element.affected_by_hover())
-            return TraversalDecision::Continue;
+    Function<void(Node&)> invalidate_hovered_elements_recursively = [&](Node& node) -> void {
+        if (node.is_element()) {
+            auto& element = static_cast<Element&>(node);
+            style_computer.push_ancestor(element);
+            if (element.affected_by_hover()) {
+                auto selectors_match_state_before = compute_hover_selectors_match_state(element);
+                TemporaryChange change { m_hovered_node, hovered_node };
+                auto selectors_match_state_after = compute_hover_selectors_match_state(element);
+                if (selectors_match_state_before.view() != selectors_match_state_after.view()) {
+                    element.set_needs_style_update(true);
+                    element.for_each_in_subtree_of_type<Element>([](auto& element) {
+                        element.set_needs_inherited_style_update(true);
+                        return TraversalDecision::Continue;
+                    });
+                }
+            }
+        }
 
-        auto selectors_match_state_before = compute_hover_selectors_match_state(element);
-        TemporaryChange change { m_hovered_node, hovered_node };
-        auto selectors_match_state_after = compute_hover_selectors_match_state(element);
-        if (selectors_match_state_before.view() == selectors_match_state_after.view())
-            return TraversalDecision::Continue;
-
-        element.set_needs_style_update(true);
-        element.for_each_in_subtree_of_type<Element>([](auto& element) {
-            element.set_needs_inherited_style_update(true);
-            return TraversalDecision::Continue;
+        node.for_each_child([&](auto& child) {
+            invalidate_hovered_elements_recursively(child);
+            return IterationDecision::Continue;
         });
 
-        return TraversalDecision::Continue;
-    });
+        if (node.is_element())
+            style_computer.pop_ancestor(static_cast<Element&>(node));
+    };
+
+    invalidate_hovered_elements_recursively(root);
 }
 
 void Document::set_hovered_node(Node* node)
