@@ -9,6 +9,7 @@
  */
 
 #include <AK/OwnPtr.h>
+#include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/Rect.h>
 #include <LibUnicode/Segmenter.h>
@@ -178,7 +179,7 @@ WebIDL::ExceptionOr<void> CanvasRenderingContext2D::draw_image_internal(CanvasIm
     }
 
     if (auto* painter = this->painter()) {
-        painter->draw_bitmap(destination_rect, *bitmap, source_rect.to_rounded<int>(), scaling_mode, drawing_state().filters, drawing_state().global_alpha);
+        painter->draw_bitmap(destination_rect, *bitmap, source_rect.to_rounded<int>(), scaling_mode, drawing_state().filters, drawing_state().global_alpha, drawing_state().current_compositing_and_blending_operator);
         did_draw(destination_rect);
     }
 
@@ -302,7 +303,7 @@ void CanvasRenderingContext2D::stroke_internal(Gfx::Path const& path)
     auto& state = drawing_state();
 
     // FIXME: Honor state's line_cap, line_join, miter_limit, dash_list, and line_dash_offset.
-    painter->stroke_path(path, state.stroke_style.to_gfx_paint_style(), state.filters, state.line_width, state.global_alpha);
+    painter->stroke_path(path, state.stroke_style.to_gfx_paint_style(), state.filters, state.line_width, state.global_alpha, state.current_compositing_and_blending_operator);
 
     did_draw(path.bounding_box());
 }
@@ -338,7 +339,7 @@ void CanvasRenderingContext2D::fill_internal(Gfx::Path const& path, Gfx::Winding
     auto path_to_fill = path;
     path_to_fill.close_all_subpaths();
     auto& state = this->drawing_state();
-    painter->fill_path(path_to_fill, state.fill_style.to_gfx_paint_style(), state.filters, state.global_alpha, winding_rule);
+    painter->fill_path(path_to_fill, state.fill_style.to_gfx_paint_style(), state.filters, state.global_alpha, state.current_compositing_and_blending_operator, winding_rule);
 
     did_draw(path_to_fill.bounding_box());
 }
@@ -430,7 +431,7 @@ WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data
     ASSERT(image_data->bitmap().alpha_type() == Gfx::AlphaType::Unpremultiplied);
 
     auto painter = Gfx::Painter::create(image_data->bitmap());
-    painter->draw_bitmap(image_data->bitmap().rect().to_type<float>(), *snapshot, source_rect_intersected, Gfx::ScalingMode::NearestNeighbor, {}, drawing_state().global_alpha);
+    painter->draw_bitmap(image_data->bitmap().rect().to_type<float>(), *snapshot, source_rect_intersected, Gfx::ScalingMode::NearestNeighbor, {}, drawing_state().global_alpha, Gfx::CompositingAndBlendingOperator::SourceOver);
 
     // 7. Set the pixels values of imageData for areas of the source rectangle that are outside of the output bitmap to transparent black.
     // NOTE: No-op, already done during creation.
@@ -443,7 +444,7 @@ void CanvasRenderingContext2D::put_image_data(ImageData const& image_data, float
 {
     if (auto* painter = this->painter()) {
         auto dst_rect = Gfx::FloatRect(x, y, image_data.width(), image_data.height());
-        painter->draw_bitmap(dst_rect, Gfx::ImmutableBitmap::create(image_data.bitmap()), image_data.bitmap().rect(), Gfx::ScalingMode::NearestNeighbor, drawing_state().filters, 1.0f);
+        painter->draw_bitmap(dst_rect, Gfx::ImmutableBitmap::create(image_data.bitmap()), image_data.bitmap().rect(), Gfx::ScalingMode::NearestNeighbor, drawing_state().filters, 1.0f, Gfx::CompositingAndBlendingOperator::SourceOver);
         did_draw(dst_rect);
     }
 }
@@ -751,6 +752,68 @@ void CanvasRenderingContext2D::set_global_alpha(float alpha)
     drawing_state().global_alpha = alpha;
 }
 
+#define ENUMERATE_COMPOSITE_OPERATIONS(E)  \
+    E("normal", Normal)                    \
+    E("multiply", Multiply)                \
+    E("screen", Screen)                    \
+    E("overlay", Overlay)                  \
+    E("darken", Darken)                    \
+    E("lighten", Lighten)                  \
+    E("color-dodge", ColorDodge)           \
+    E("color-burn", ColorBurn)             \
+    E("hard-light", HardLight)             \
+    E("soft-light", SoftLight)             \
+    E("difference", Difference)            \
+    E("exclusion", Exclusion)              \
+    E("hue", Hue)                          \
+    E("saturation", Saturation)            \
+    E("color", Color)                      \
+    E("luminosity", Luminosity)            \
+    E("clear", Clear)                      \
+    E("copy", Copy)                        \
+    E("source-over", SourceOver)           \
+    E("destination-over", DestinationOver) \
+    E("source-in", SourceIn)               \
+    E("destination-in", DestinationIn)     \
+    E("source-out", SourceOut)             \
+    E("destination-out", DestinationOut)   \
+    E("source-atop", SourceATop)           \
+    E("destination-atop", DestinationATop) \
+    E("xor", Xor)                          \
+    E("lighter", Lighter)                  \
+    E("plus-darker", PlusDarker)           \
+    E("plus-lighter", PlusLighter)
+
+String CanvasRenderingContext2D::global_composite_operation() const
+{
+    auto current_compositing_and_blending_operator = drawing_state().current_compositing_and_blending_operator;
+    switch (current_compositing_and_blending_operator) {
+#undef __ENUMERATE
+#define __ENUMERATE(operation, compositing_and_blending_operator)                \
+    case Gfx::CompositingAndBlendingOperator::compositing_and_blending_operator: \
+        return #operation##_string;
+        ENUMERATE_COMPOSITE_OPERATIONS(__ENUMERATE)
+#undef __ENUMERATE
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-globalcompositeoperation
+void CanvasRenderingContext2D::set_global_composite_operation(String global_composite_operation)
+{
+    // 1. If the given value is not identical to any of the values that the <blend-mode> or the <composite-mode> properties are defined to take, then return.
+    // 2. Otherwise, set this's current compositing and blending operator to the given value.
+#undef __ENUMERATE
+#define __ENUMERATE(operation, compositing_and_blending_operator)                                                                           \
+    if (global_composite_operation == operation##sv) {                                                                                      \
+        drawing_state().current_compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::compositing_and_blending_operator; \
+        return;                                                                                                                             \
+    }
+    ENUMERATE_COMPOSITE_OPERATIONS(__ENUMERATE)
+#undef __ENUMERATE
+}
+
 float CanvasRenderingContext2D::shadow_offset_x() const
 {
     return drawing_state().shadow_offset_x;
@@ -822,12 +885,15 @@ void CanvasRenderingContext2D::paint_shadow_for_fill_internal(Gfx::Path const& p
 
     auto& state = this->drawing_state();
 
+    if (state.current_compositing_and_blending_operator == Gfx::CompositingAndBlendingOperator::Copy)
+        return;
+
     painter->save();
 
     Gfx::AffineTransform transform;
     transform.translate(state.shadow_offset_x, state.shadow_offset_y);
     painter->set_transform(transform);
-    painter->fill_path(path_to_fill, state.shadow_color.with_opacity(state.global_alpha), winding_rule, state.shadow_blur);
+    painter->fill_path(path_to_fill, state.shadow_color.with_opacity(state.global_alpha), winding_rule, state.shadow_blur, state.current_compositing_and_blending_operator);
 
     painter->restore();
 
@@ -842,12 +908,15 @@ void CanvasRenderingContext2D::paint_shadow_for_stroke_internal(Gfx::Path const&
 
     auto& state = drawing_state();
 
+    if (state.current_compositing_and_blending_operator == Gfx::CompositingAndBlendingOperator::Copy)
+        return;
+
     painter->save();
 
     Gfx::AffineTransform transform;
     transform.translate(state.shadow_offset_x, state.shadow_offset_y);
     painter->set_transform(transform);
-    painter->stroke_path(path, state.shadow_color.with_opacity(state.global_alpha), state.line_width, state.shadow_blur);
+    painter->stroke_path(path, state.shadow_color.with_opacity(state.global_alpha), state.line_width, state.shadow_blur, state.current_compositing_and_blending_operator);
 
     painter->restore();
 
@@ -933,5 +1002,4 @@ void CanvasRenderingContext2D::set_filter(String filter)
 
     // 3. If parsedValue is failure, then return.
 }
-
 }

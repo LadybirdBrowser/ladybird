@@ -481,7 +481,7 @@ void TinyVGDecodedImageData::draw(Painter& painter) const
             command.fill->visit(
                 [&](Color color) { painter.fill_path(fill_path, color, WindingRule::EvenOdd); },
                 [&](NonnullRefPtr<SVGGradientPaintStyle> const& style) {
-                    painter.fill_path(fill_path, style, {}, 1.0f, WindingRule::EvenOdd);
+                    painter.fill_path(fill_path, style, {}, 1.0f, CompositingAndBlendingOperator::SourceOver, WindingRule::EvenOdd);
                 });
         }
 
@@ -489,7 +489,7 @@ void TinyVGDecodedImageData::draw(Painter& painter) const
             command.stroke->visit(
                 [&](Color color) { painter.stroke_path(draw_path, color, command.stroke_width); },
                 [&](NonnullRefPtr<SVGGradientPaintStyle> const& style) {
-                    painter.stroke_path(draw_path, style, {}, command.stroke_width, 1.0f);
+                    painter.stroke_path(draw_path, style, {}, command.stroke_width, 1.0f, CompositingAndBlendingOperator::SourceOver);
                 });
         }
     }
