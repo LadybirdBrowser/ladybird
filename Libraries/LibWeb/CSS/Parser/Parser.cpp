@@ -1921,23 +1921,26 @@ RefPtr<CalculatedStyleValue> Parser::parse_calculated_value(ComponentValue const
 
     CalculationContext context {};
     for (auto const& value_context : m_value_context.in_reverse()) {
-        auto percentages_resolve_as = value_context.visit(
-            [](PropertyID property_id) -> Optional<ValueType> {
-                return property_resolves_percentages_relative_to(property_id);
+        auto maybe_context = value_context.visit(
+            [](PropertyID property_id) -> Optional<CalculationContext> {
+                return CalculationContext {
+                    .percentages_resolve_as = property_resolves_percentages_relative_to(property_id),
+                    .resolve_numbers_as_integers = property_accepts_type(property_id, ValueType::Integer),
+                };
             },
-            [](FunctionContext const& function) -> Optional<ValueType> {
+            [](FunctionContext const& function) -> Optional<CalculationContext> {
                 // Gradients resolve percentages as lengths relative to the gradient-box.
                 if (function.name.is_one_of_ignoring_ascii_case(
                         "linear-gradient"sv, "repeating-linear-gradient"sv,
                         "radial-gradient"sv, "repeating-radial-gradient"sv,
                         "conic-gradient"sv, "repeating-conic-gradient"sv)) {
-                    return ValueType::Length;
+                    return CalculationContext { .percentages_resolve_as = ValueType::Length };
                 }
-                // FIXME: Add other functions that provide a context for resolving percentages
+                // FIXME: Add other functions that provide a context for resolving values
                 return {};
             });
-        if (percentages_resolve_as.has_value()) {
-            context.percentages_resolve_as = move(percentages_resolve_as);
+        if (maybe_context.has_value()) {
+            context = maybe_context.release_value();
             break;
         }
     }
