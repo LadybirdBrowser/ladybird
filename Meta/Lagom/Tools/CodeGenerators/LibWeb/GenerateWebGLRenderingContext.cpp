@@ -1547,6 +1547,44 @@ public:
             continue;
         }
 
+        if (function.name == "getActiveUniforms"sv) {
+            generate_webgl_object_handle_unwrap(function_impl_generator, "program"sv, "{}"sv);
+            function_impl_generator.append(R"~~~(
+    auto params = MUST(ByteBuffer::create_zeroed(uniform_indices.size() * sizeof(GLint)));
+    Span<GLint> params_span(reinterpret_cast<GLint*>(params.data()), uniform_indices.size());
+    glGetActiveUniformsiv(program_handle, uniform_indices.size(), uniform_indices.data(), pname, params_span.data());
+
+    Vector<JS::Value> params_as_values;
+    params_as_values.ensure_capacity(params.size());
+    for (GLint param : params_span) {
+        switch (pname) {
+        case GL_UNIFORM_TYPE:
+            params_as_values.unchecked_append(JS::Value(static_cast<GLenum>(param)));
+            break;
+        case GL_UNIFORM_SIZE:
+            params_as_values.unchecked_append(JS::Value(static_cast<GLuint>(param)));
+            break;
+        case GL_UNIFORM_BLOCK_INDEX:
+        case GL_UNIFORM_OFFSET:
+        case GL_UNIFORM_ARRAY_STRIDE:
+        case GL_UNIFORM_MATRIX_STRIDE:
+            params_as_values.unchecked_append(JS::Value(param));
+            break;
+        case GL_UNIFORM_IS_ROW_MAJOR:
+            params_as_values.unchecked_append(JS::Value(param == GL_TRUE));
+            break;
+        default:
+            dbgln("Unknown WebGL uniform parameter name in getActiveUniforms: 0x{:04x}", pname);
+            set_error(GL_INVALID_ENUM);
+            return JS::js_null();
+        }
+    }
+
+    return JS::Array::create_from(m_realm, params_as_values);
+)~~~");
+            continue;
+        }
+
         if (function.name == "getActiveAttrib"sv) {
             generate_webgl_object_handle_unwrap(function_impl_generator, "program"sv, "{}"sv);
             function_impl_generator.append(R"~~~(
