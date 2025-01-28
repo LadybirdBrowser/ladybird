@@ -9726,8 +9726,6 @@ bool Parser::expand_variables(DOM::Element& element, Optional<Selector::PseudoEl
 
 bool Parser::expand_unresolved_values(DOM::Element& element, FlyString const& property_name, TokenStream<ComponentValue>& source, Vector<ComponentValue>& dest)
 {
-    auto property = property_id_from_string(property_name);
-
     while (source.has_next_token()) {
         auto const& value = source.consume_a_token();
         if (value.is_function()) {
@@ -9735,50 +9733,6 @@ bool Parser::expand_unresolved_values(DOM::Element& element, FlyString const& pr
                 if (!substitute_attr_function(element, property_name, value.function(), dest))
                     return false;
                 continue;
-            }
-
-            if (property.has_value()) {
-                // FIXME: I think we don't need any of this once simplification is implemented. It runs inside parse_calculation_node() already.
-                // So, this is just a temporary hack to not change behaviour until that's done.
-                if (auto maybe_calc_value = parse_calculated_value(value); maybe_calc_value && maybe_calc_value->is_calculated()) {
-                    auto& calc_value = maybe_calc_value->as_calculated();
-                    CalculationResolutionContext context {};
-                    if (property_accepts_type(*property, ValueType::Angle) && calc_value.resolves_to_angle()) {
-                        if (auto resolved_value = calc_value.resolve_angle(context); resolved_value.has_value())
-                            dest.empend(Token::create_dimension(resolved_value->to_degrees(), "deg"_fly_string));
-                        continue;
-                    }
-                    if (property_accepts_type(*property, ValueType::Frequency) && calc_value.resolves_to_frequency()) {
-                        if (auto resolved_value = calc_value.resolve_frequency(context); resolved_value.has_value())
-                            dest.empend(Token::create_dimension(resolved_value->to_hertz(), "hz"_fly_string));
-                        continue;
-                    }
-                    if (property_accepts_type(*property, ValueType::Length) && calc_value.resolves_to_length()) {
-                        // FIXME: In order to resolve lengths, we need to know the font metrics in case a font-relative unit
-                        //  is used. So... we can't do that until style is computed?
-                        //  This might be easier once we have calc-simplification implemented.
-                    }
-                    if (property_accepts_type(*property, ValueType::Percentage) && calc_value.resolves_to_percentage()) {
-                        if (auto resolved_value = calc_value.resolve_percentage(context); resolved_value.has_value())
-                            dest.empend(Token::create_percentage(resolved_value.value().value()));
-                        continue;
-                    }
-                    if (property_accepts_type(*property, ValueType::Time) && calc_value.resolves_to_time()) {
-                        if (auto resolved_value = calc_value.resolve_time(context); resolved_value.has_value())
-                            dest.empend(Token::create_dimension(resolved_value->to_seconds(), "s"_fly_string));
-                        continue;
-                    }
-                    if (property_accepts_type(*property, ValueType::Number) && calc_value.resolves_to_number()) {
-                        if (auto resolved_value = calc_value.resolve_number(context); resolved_value.has_value())
-                            dest.empend(Token::create_number(resolved_value.value(), Number::Type::Number));
-                        continue;
-                    }
-                    if (property_accepts_type(*property, ValueType::Integer) && calc_value.resolves_to_number()) {
-                        if (auto resolved_value = calc_value.resolve_integer(context); resolved_value.has_value())
-                            dest.empend(Token::create_number(resolved_value.value(), Number::Type::Integer));
-                        continue;
-                    }
-                }
             }
 
             auto const& source_function = value.function();
