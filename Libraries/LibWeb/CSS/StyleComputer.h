@@ -187,6 +187,8 @@ public:
     void absolutize_values(ComputedProperties&) const;
     void compute_font(ComputedProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
 
+    [[nodiscard]] bool should_reject_with_ancestor_filter(Selector const&) const;
+
 private:
     enum class ComputeStyleMode {
         Normal,
@@ -194,8 +196,6 @@ private:
     };
 
     struct MatchingFontCandidate;
-
-    [[nodiscard]] bool should_reject_with_ancestor_filter(Selector const&) const;
 
     [[nodiscard]] GC::Ptr<ComputedProperties> compute_style_impl(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, ComputeStyleMode) const;
     [[nodiscard]] GC::Ref<CascadedProperties> compute_cascaded_values(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, bool& did_match_any_pseudo_element_rules, bool& did_match_any_hover_rules, ComputeStyleMode) const;
