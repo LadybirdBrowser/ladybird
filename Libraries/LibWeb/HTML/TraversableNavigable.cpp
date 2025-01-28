@@ -30,9 +30,9 @@ TraversableNavigable::TraversableNavigable(GC::Ref<Page> page)
 {
 #ifdef AK_OS_MACOS
     auto display_list_player_type = page->client().display_list_player_type();
-    if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable) {
-        m_metal_context = Gfx::get_metal_context();
-        m_skia_backend_context = Gfx::SkiaBackendContext::create_metal_context(*m_metal_context);
+    if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable)
+        auto metal_context = Gfx::get_metal_context();
+        m_skia_backend_context = Gfx::SkiaBackendContext::create_metal_context(*metal_context);
     }
 #endif
 
@@ -1402,7 +1402,7 @@ void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::
     switch (page().client().display_list_player_type()) {
     case DisplayListPlayerType::SkiaGPUIfAvailable: {
 #ifdef AK_OS_MACOS
-        if (m_metal_context && m_skia_backend_context && is<Painting::IOSurfaceBackingStore>(target)) {
+        if (m_skia_backend_context && is<Painting::IOSurfaceBackingStore>(target)) {
             auto& iosurface_backing_store = static_cast<Painting::IOSurfaceBackingStore&>(target);
             auto painting_surface = Gfx::PaintingSurface::wrap_iosurface(iosurface_backing_store.iosurface_handle(), *m_skia_backend_context);
             Painting::DisplayListPlayerSkia player(*m_skia_backend_context, painting_surface);

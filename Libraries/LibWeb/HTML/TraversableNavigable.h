@@ -155,10 +155,6 @@ private:
     String m_window_handle;
 
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
-
-#ifdef AK_OS_MACOS
-    RefPtr<Gfx::MetalContext> m_metal_context;
-#endif
 };
 
 struct BrowsingContextAndDocument {
