@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -25,29 +26,35 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(TraversableNavigable);
 
+static RefPtr<Gfx::SkiaBackendContext> g_cached_skia_backend_context;
+
+static RefPtr<Gfx::SkiaBackendContext> get_skia_backend_context()
+{
+    if (!g_cached_skia_backend_context) {
+#ifdef AK_OS_MACOS
+        auto metal_context = Gfx::get_metal_context();
+        g_cached_skia_backend_context = Gfx::SkiaBackendContext::create_metal_context(*metal_context);
+#elif USE_VULKAN
+        auto maybe_vulkan_context = Gfx::create_vulkan_context();
+        if (maybe_vulkan_context.is_error()) {
+            dbgln("Vulkan context creation failed: {}", maybe_vulkan_context.error());
+            return {};
+        }
+
+        auto vulkan_context = maybe_vulkan_context.release_value();
+        g_cached_skia_backend_context = Gfx::SkiaBackendContext::create_vulkan_context(vulkan_context);
+#endif
+    }
+    return g_cached_skia_backend_context;
+}
+
 TraversableNavigable::TraversableNavigable(GC::Ref<Page> page)
     : Navigable(page)
     , m_session_history_traversal_queue(vm().heap().allocate<SessionHistoryTraversalQueue>())
 {
-#ifdef USE_VULKAN
-    auto display_list_player_type = page->client().display_list_player_type();
-    if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable) {
-        auto maybe_vulkan_context = Gfx::create_vulkan_context();
-        if (!maybe_vulkan_context.is_error()) {
-            auto vulkan_context = maybe_vulkan_context.release_value();
-            m_skia_backend_context = Gfx::SkiaBackendContext::create_vulkan_context(vulkan_context);
-        } else {
-            dbgln("Vulkan context creation failed: {}", maybe_vulkan_context.error());
-        }
-    }
-#endif
-
-#ifdef AK_OS_MACOS
     auto display_list_player_type = page->client().display_list_player_type();
     if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable)
-        auto metal_context = Gfx::get_metal_context();
-    m_skia_backend_context = Gfx::SkiaBackendContext::create_metal_context(*metal_context);
-#endif
+        m_skia_backend_context = get_skia_backend_context();
 }
 
 TraversableNavigable::~TraversableNavigable() = default;
