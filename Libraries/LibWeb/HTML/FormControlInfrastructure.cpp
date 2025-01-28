@@ -278,7 +278,13 @@ ErrorOr<SerializedFormData> serialize_to_multipart_form_data(Vector<XHR::FormDat
                 // Add a `Content-Disposition` header with a `name` set to entry's name and `filename` set to entry's filename.
                 TRY(builder.try_append(TRY(String::formatted("Content-Disposition: form-data; name=\"{}\"; filename=\"{}\"\r\n", escaped_name, escaped_filename))));
                 // The parts of the generated multipart/form-data resource that correspond to file fields must have a `Content-Type` header specified.
-                TRY(builder.try_append(TRY(String::formatted("Content-Type: {}\r\n\r\n", file->type()))));
+                // RFC7578: If the contents of a file are to be sent, the file data SHOULD be labeled with an appropriate media type, if known, or
+                //          "application/octet-stream".
+                if (!file->type().is_empty()) {
+                    TRY(builder.try_append(TRY(String::formatted("Content-Type: {}\r\n\r\n", file->type()))));
+                } else {
+                    TRY(builder.try_append("Content-Type: application/octet-stream\r\n\r\n"sv));
+                }
                 TRY(builder.try_append(file->raw_bytes()));
                 TRY(builder.try_append("\r\n"sv));
                 return {};
