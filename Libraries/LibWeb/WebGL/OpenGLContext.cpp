@@ -123,6 +123,32 @@ void OpenGLContext::notify_content_will_change()
 
 void OpenGLContext::clear_buffer_to_default_values()
 {
+#ifdef AK_OS_MACOS
+    Array<GLfloat, 4> current_clear_color;
+    glGetFloatv(GL_COLOR_CLEAR_VALUE, current_clear_color.data());
+
+    GLfloat current_clear_depth;
+    glGetFloatv(GL_DEPTH_CLEAR_VALUE, &current_clear_depth);
+
+    GLint current_clear_stencil;
+    glGetIntegerv(GL_STENCIL_CLEAR_VALUE, &current_clear_stencil);
+
+    // The implicit clear value for the color buffer is (0, 0, 0, 0)
+    glClearColor(0, 0, 0, 0);
+
+    // The implicit clear value for the depth buffer is 1.0.
+    glClearDepthf(1.0f);
+
+    // The implicit clear value for the stencil buffer is 0.
+    glClearStencil(0);
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+    // Restore the clear values.
+    glClearColor(current_clear_color[0], current_clear_color[1], current_clear_color[2], current_clear_color[3]);
+    glClearDepthf(current_clear_depth);
+    glClearStencil(current_clear_stencil);
+#endif
 }
 
 void OpenGLContext::allocate_painting_surface_if_needed()
