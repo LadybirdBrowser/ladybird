@@ -35,6 +35,7 @@ static bool gl_function_modifies_framebuffer(StringView function_name)
         || function_name == "clearBufferuiv"sv
         || function_name == "clearBufferfi"sv
         || function_name == "drawArrays"sv
+        || function_name == "drawArraysInstanced"sv
         || function_name == "drawElements"sv
         || function_name == "drawElementsInstanced"sv
         || function_name == "blitFramebuffer"sv
