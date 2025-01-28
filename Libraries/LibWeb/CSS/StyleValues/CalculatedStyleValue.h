@@ -268,6 +268,8 @@ public:
     virtual CalculatedStyleValue::CalculationResult resolve(CalculationResolutionContext const&) const override;
     virtual NonnullRefPtr<CalculationNode> with_simplified_children(CalculationContext const&, CalculationResolutionContext const&) const override { return *this; }
 
+    RefPtr<CSSStyleValue> to_style_value(CalculationContext const&) const;
+
     NumericValue const& value() const { return m_value; }
 
     virtual void dump(StringBuilder&, int indent) const override;
