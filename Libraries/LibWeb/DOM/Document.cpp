@@ -1706,7 +1706,11 @@ void Document::invalidate_style_for_elements_affected_by_hover_change(Node& old_
         return state;
     };
 
-    Function<void(Node&)> invalidate_hovered_elements_recursively = [&](Node& node) -> void {
+    Function<void(Node&, bool)> invalidate_hovered_elements_recursively = [&](Node& node, bool descendants_need_inherited_style_update) -> void {
+        if (descendants_need_inherited_style_update) {
+            node.set_needs_inherited_style_update(true);
+        }
+        bool invalidated_any_elements = false;
         if (node.is_element()) {
             auto& element = static_cast<Element&>(node);
             style_computer.push_ancestor(element);
@@ -1716,16 +1720,13 @@ void Document::invalidate_style_for_elements_affected_by_hover_change(Node& old_
                 auto selectors_match_state_after = compute_hover_selectors_match_state(element);
                 if (selectors_match_state_before.view() != selectors_match_state_after.view()) {
                     element.set_needs_style_update(true);
-                    element.for_each_in_subtree_of_type<Element>([](auto& element) {
-                        element.set_needs_inherited_style_update(true);
-                        return TraversalDecision::Continue;
-                    });
+                    invalidated_any_elements = true;
                 }
             }
         }
 
         node.for_each_child([&](auto& child) {
-            invalidate_hovered_elements_recursively(child);
+            invalidate_hovered_elements_recursively(child, descendants_need_inherited_style_update || invalidated_any_elements);
             return IterationDecision::Continue;
         });
 
@@ -1733,7 +1734,7 @@ void Document::invalidate_style_for_elements_affected_by_hover_change(Node& old_
             style_computer.pop_ancestor(static_cast<Element&>(node));
     };
 
-    invalidate_hovered_elements_recursively(root);
+    invalidate_hovered_elements_recursively(root, false);
 }
 
 void Document::set_hovered_node(Node* node)
