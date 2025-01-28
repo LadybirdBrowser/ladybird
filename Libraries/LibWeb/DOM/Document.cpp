@@ -3199,8 +3199,11 @@ void Document::run_the_resize_steps()
         return;
     m_last_viewport_size = viewport_size;
 
-    if (!is_initial_size)
-        window()->dispatch_event(DOM::Event::create(realm(), UIEvents::EventNames::resize));
+    if (!is_initial_size) {
+        auto window_resize_event = DOM::Event::create(realm(), UIEvents::EventNames::resize);
+        window_resize_event->set_is_trusted(true);
+        window()->dispatch_event(window_resize_event);
+    }
 
     schedule_layout_update();
 }
