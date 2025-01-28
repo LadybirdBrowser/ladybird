@@ -130,7 +130,7 @@ CanUseCrossOriginIsolatedAPIs WindowEnvironmentSettingsObject::cross_origin_isol
     // FIXME: Return true if both of the following hold, and false otherwise:
     //          1. realm's agent cluster's cross-origin-isolation mode is "concrete", and
     //          2. window's associated Document is allowed to use the "cross-origin-isolated" feature.
-    return CanUseCrossOriginIsolatedAPIs::Yes;
+    return CanUseCrossOriginIsolatedAPIs::No;
 }
 
 }
