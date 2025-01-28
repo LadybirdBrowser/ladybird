@@ -1,0 +1,16 @@
+#import <WebGL/Types.idl>
+
+// https://registry.khronos.org/webgl/extensions/WEBGL_compressed_texture_s3tc/
+// NOTE: Original WEBGL_compressed_texture_s3tc name is changed to title case,
+//       so it matches corresponding C++ class name, and does not require
+//       IDL generator to handle snake_case to TitleCase conversion.
+//       Having a different name is totally fine, because LegacyNoInterfaceObject
+//       prevents the name from being exposed to JavaScript.
+[Exposed=(Window,Worker), LegacyNoInterfaceObject]
+interface WebGLCompressedTextureS3tc {
+    // Compressed Texture Formats
+    const GLenum COMPRESSED_RGB_S3TC_DXT1_EXT = 0x83F0;
+    const GLenum COMPRESSED_RGBA_S3TC_DXT1_EXT = 0x83F1;
+    const GLenum COMPRESSED_RGBA_S3TC_DXT3_EXT = 0x83F2;
+    const GLenum COMPRESSED_RGBA_S3TC_DXT5_EXT = 0x83F3;
+};

@@ -83,6 +83,7 @@ private:
     // "Multiple calls to getExtension with the same extension string, taking into account case-insensitive comparison, must return the same object as long as the extension is enabled."
     GC::Ptr<Extensions::ANGLEInstancedArrays> m_angle_instanced_arrays_extension;
     GC::Ptr<Extensions::OESVertexArrayObject> m_oes_vertex_array_object_extension;
+    GC::Ptr<Extensions::WebGLCompressedTextureS3tc> m_webgl_compressed_texture_s3tc_extension;
     GC::Ptr<Extensions::WebGLDrawBuffers> m_webgl_draw_buffers_extension;
 
     virtual void set_error(GLenum error) override;

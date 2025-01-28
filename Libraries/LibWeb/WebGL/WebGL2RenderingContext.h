@@ -80,6 +80,10 @@ private:
 
     GLenum m_error { 0 };
 
+    // Extensions
+    // "Multiple calls to getExtension with the same extension string, taking into account case-insensitive comparison, must return the same object as long as the extension is enabled."
+    GC::Ptr<Extensions::WebGLCompressedTextureS3tc> m_webgl_compressed_texture_s3tc_extension;
+
     virtual void set_error(GLenum error) override;
 };
 
