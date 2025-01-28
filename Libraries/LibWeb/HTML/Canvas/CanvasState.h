@@ -11,6 +11,7 @@
 #include <AK/Vector.h>
 #include <LibGfx/AffineTransform.h>
 #include <LibGfx/Color.h>
+#include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/Filter.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/PaintStyle.h>
@@ -96,6 +97,7 @@ public:
         bool image_smoothing_enabled { true };
         Bindings::ImageSmoothingQuality image_smoothing_quality { Bindings::ImageSmoothingQuality::Low };
         float global_alpha = { 1 };
+        Gfx::CompositingAndBlendingOperator current_compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::SourceOver;
         RefPtr<CSS::CSSStyleValue> font_style_value { nullptr };
         RefPtr<Gfx::Font const> current_font { nullptr };
         Bindings::CanvasTextAlign text_align { Bindings::CanvasTextAlign::Start };

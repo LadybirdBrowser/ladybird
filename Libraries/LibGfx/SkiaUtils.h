@@ -9,6 +9,7 @@
 
 #include <AK/Assertions.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/Filter.h>
 #include <LibGfx/PathSkia.h>
 #include <LibGfx/ScalingMode.h>
@@ -18,6 +19,7 @@
 #include <core/SkImageFilter.h>
 #include <core/SkPath.h>
 #include <core/SkSamplingOptions.h>
+#include <include/core/SkBlender.h>
 
 namespace Gfx {
 
@@ -90,5 +92,5 @@ constexpr SkSamplingOptions to_skia_sampling_options(Gfx::ScalingMode scaling_mo
 
 SkPath to_skia_path(Path const& path);
 sk_sp<SkImageFilter> to_skia_image_filter(Gfx::Filter const& filter);
-
+sk_sp<SkBlender> to_skia_blender(Gfx::CompositingAndBlendingOperator compositing_and_blending_operator);
 }

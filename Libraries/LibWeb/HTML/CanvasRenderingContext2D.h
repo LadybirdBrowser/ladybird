@@ -103,6 +103,9 @@ public:
     virtual float global_alpha() const override;
     virtual void set_global_alpha(float) override;
 
+    virtual String global_composite_operation() const override;
+    virtual void set_global_composite_operation(String) override;
+
     virtual String filter() const override;
     virtual void set_filter(String) override;
 
