@@ -67,7 +67,7 @@ interface mixin WebGLRenderingContextBase {
     undefined compileShader(WebGLShader shader);
 
     undefined copyTexImage2D(GLenum target, GLint level, GLenum internalformat, GLint x, GLint y, GLsizei width, GLsizei height, GLint border);
-    [FIXME] undefined copyTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height);
+    undefined copyTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height);
 
     WebGLBuffer? createBuffer();
     WebGLFramebuffer? createFramebuffer();
