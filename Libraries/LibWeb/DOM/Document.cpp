@@ -3191,6 +3191,8 @@ void Document::run_the_resize_steps()
     //    (e.g. as a result of the user resizing the browser window, or changing the page zoom scale factor,
     //    or an iframe element’s dimensions are changed) since the last time these steps were run,
     //    fire an event named resize at the Window object associated with doc.
+    // 2. If the VisualViewport associated with doc has had its scale, width, or height properties changed
+    //    since the last time these steps were run, fire an event named resize at the VisualViewport.
 
     auto viewport_size = viewport_rect().size().to_type<int>();
     bool is_initial_size = !m_last_viewport_size.has_value();
@@ -3203,6 +3205,10 @@ void Document::run_the_resize_steps()
         auto window_resize_event = DOM::Event::create(realm(), UIEvents::EventNames::resize);
         window_resize_event->set_is_trusted(true);
         window()->dispatch_event(window_resize_event);
+
+        auto visual_viewport_resize_event = DOM::Event::create(realm(), UIEvents::EventNames::resize);
+        visual_viewport_resize_event->set_is_trusted(true);
+        visual_viewport()->dispatch_event(visual_viewport_resize_event);
     }
 
     schedule_layout_update();
