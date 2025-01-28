@@ -1369,18 +1369,16 @@ ThrowCompletionOr<String> parse_temporal_calendar_string(VM& vm, String const& s
         // c. Else, return calendar.
         return calendar.value_or("iso8601"_string);
     }
-    // 3. Else,
-    else {
-        // a. Set parseResult to ParseText(StringToCodePoints(string), AnnotationValue).
-        auto annotation_parse_result = parse_iso8601(Production::AnnotationValue, string);
 
-        // b. If parseResult is a List of errors, throw a RangeError exception.
-        if (!annotation_parse_result.has_value())
-            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarString, string);
+    // 3. Set parseResult to ParseText(StringToCodePoints(string), AnnotationValue).
+    auto annotation_parse_result = parse_iso8601(Production::AnnotationValue, string);
 
-        // c. Else, return string.
-        return string;
-    }
+    // 4. If parseResult is a List of errors, throw a RangeError exception.
+    if (!annotation_parse_result.has_value())
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidCalendarString, string);
+
+    // 5. Return string.
+    return string;
 }
 
 // 13.35 ParseTemporalDurationString ( isoString ), https://tc39.es/proposal-temporal/#sec-temporal-parsetemporaldurationstring
