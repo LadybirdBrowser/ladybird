@@ -2,14 +2,14 @@ Harness status: OK
 
 Found 18 tests
 
-16 Pass
-2 Fail
+17 Pass
+1 Fail
 Pass	Default grid-column-gap is 'normal'
 Pass	grid-column-gap accepts pixels
 Pass	grid-column-gap accepts em
 Pass	grid-column-gap accepts vw
 Pass	grid-column-gap accepts percentage
-Fail	grid-column-gap accepts calc()
+Pass	grid-column-gap accepts calc()
 Fail	grid-column-gap accepts calc() mixing fixed and percentage values
 Pass	Initial grid-column-gap is 'normal'
 Pass	Initial grid-column-gap is 'normal' 2

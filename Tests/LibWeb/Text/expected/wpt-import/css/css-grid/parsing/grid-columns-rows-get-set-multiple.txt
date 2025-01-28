@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 40 tests
 
-23 Pass
-17 Fail
+22 Pass
+18 Fail
 Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithFixedElement' : grid-template-columns = '7px 11px', grid-template-rows = '17px 2px'
 Pass	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithPercentElement' : grid-template-columns = '400px 800px', grid-template-rows = '150px 450px'
 Fail	Test getting grid-template-columns and grid-template-rows set through CSS for element 'gridWithPercentWithoutSize' : grid-template-columns = '3.5px 7px', grid-template-rows = '4px 12px'
@@ -28,7 +28,7 @@ Pass	Test getting and setting grid-template-rows and grid-template-columns throu
 Pass	Test getting and setting grid-template-rows and grid-template-columns through JS: grid-template-columns = '0px 160px 22px', element.style.gridTemplateColumns = 'auto 16em 22px', grid-template-rows = '336px 100px 0px', element.style.gridTemplateRows = '56% 10em auto'
 Pass	Test getting and setting grid-template-rows and grid-template-columns through JS: grid-template-columns = '160px 20px', element.style.gridTemplateColumns = '16em minmax(16px, 20px)', grid-template-rows = '90px 0px', element.style.gridTemplateRows = 'minmax(10%, 15%) auto'
 Pass	Test getting and setting grid-template-rows and grid-template-columns through JS: grid-template-columns = '160px 640px', element.style.gridTemplateColumns = '16em 2fr', grid-template-rows = '600px 0px', element.style.gridTemplateRows = '14fr auto'
-Pass	Test getting and setting grid-template-rows and grid-template-columns through JS: grid-template-columns = '25px 20px', element.style.gridTemplateColumns = 'calc(25px) calc(2em)', grid-template-rows = '0px 60px', element.style.gridTemplateRows = 'auto calc(10%)'
+Fail	Test getting and setting grid-template-rows and grid-template-columns through JS: grid-template-columns = '25px 20px', element.style.gridTemplateColumns = 'calc(25px) calc(2em)', grid-template-rows = '0px 60px', element.style.gridTemplateRows = 'auto calc(10%)'
 Fail	Test getting and setting grid-template-rows and grid-template-columns through JS: grid-template-columns = '345px 92px', element.style.gridTemplateColumns = 'calc(25px + 40%) minmax(min-content, calc(10% + 12px))', grid-template-rows = '100px 0px', element.style.gridTemplateRows = 'minmax(calc(75% - 350px), max-content) auto'
 Fail	Test setting wrong/invalid values through CSS
 Fail	Test setting bad JS values: grid-template-columns = 'none auto', grid-template-rows = 'none auto'

@@ -1912,7 +1912,7 @@ RefPtr<CustomIdentStyleValue> Parser::parse_custom_ident_value(TokenStream<Compo
     return CustomIdentStyleValue::create(custom_ident);
 }
 
-RefPtr<CalculatedStyleValue> Parser::parse_calculated_value(ComponentValue const& component_value)
+RefPtr<CSSStyleValue> Parser::parse_calculated_value(ComponentValue const& component_value)
 {
     if (!component_value.is_function())
         return nullptr;
@@ -1948,6 +1948,12 @@ RefPtr<CalculatedStyleValue> Parser::parse_calculated_value(ComponentValue const
     auto function_node = parse_a_calc_function_node(function, context);
     if (!function_node)
         return nullptr;
+
+    // If the calculation got simplified down to a single value, return that instead.
+    if (function_node->type() == CalculationNode::Type::Numeric) {
+        if (auto number_value = as<NumericCalculationNode>(*function_node).to_style_value(context))
+            return number_value.release_nonnull();
+    }
 
     auto function_type = function_node->numeric_type();
     if (!function_type.has_value())
@@ -2182,13 +2188,18 @@ Optional<Ratio> Parser::parse_ratio(TokenStream<ComponentValue>& tokens)
     //        Still, we should probably support it. That means not assuming we can resolve the calculation immediately.
 
     auto read_number_value = [this](ComponentValue const& component_value) -> Optional<double> {
-        if (component_value.is(Token::Type::Number)) {
+        if (component_value.is(Token::Type::Number))
             return component_value.token().number_value();
-        } else if (component_value.is_function()) {
+
+        if (component_value.is_function()) {
             auto maybe_calc = parse_calculated_value(component_value);
-            if (!maybe_calc || !maybe_calc->resolves_to_number())
+            if (!maybe_calc)
                 return {};
-            if (auto resolved_number = maybe_calc->resolve_number({}); resolved_number.has_value() && resolved_number.value() >= 0) {
+            if (maybe_calc->is_number())
+                return maybe_calc->as_number().value();
+            if (!maybe_calc->is_calculated() || !maybe_calc->as_calculated().resolves_to_number())
+                return {};
+            if (auto resolved_number = maybe_calc->as_calculated().resolve_number({}); resolved_number.has_value() && resolved_number.value() >= 0) {
                 return resolved_number.value();
             }
         }
@@ -2490,7 +2501,9 @@ RefPtr<CSSStyleValue> Parser::parse_integer_value(TokenStream<ComponentValue>& t
         tokens.discard_a_token(); // integer
         return IntegerStyleValue::create(peek_token.token().number().integer_value());
     }
-    if (auto calc = parse_calculated_value(peek_token); calc && calc->resolves_to_number()) {
+    if (auto calc = parse_calculated_value(peek_token); calc
+        && (calc->is_integer() || (calc->is_calculated() && calc->as_calculated().resolves_to_number()))) {
+
         tokens.discard_a_token(); // calc
         return calc;
     }
@@ -2505,7 +2518,9 @@ RefPtr<CSSStyleValue> Parser::parse_number_value(TokenStream<ComponentValue>& to
         tokens.discard_a_token(); // number
         return NumberStyleValue::create(peek_token.token().number().value());
     }
-    if (auto calc = parse_calculated_value(peek_token); calc && calc->resolves_to_number()) {
+    if (auto calc = parse_calculated_value(peek_token); calc
+        && (calc->is_number() || (calc->is_calculated() && calc->as_calculated().resolves_to_number()))) {
+
         tokens.discard_a_token(); // calc
         return calc;
     }
@@ -2546,7 +2561,9 @@ RefPtr<CSSStyleValue> Parser::parse_percentage_value(TokenStream<ComponentValue>
         tokens.discard_a_token(); // percentage
         return PercentageStyleValue::create(Percentage(peek_token.token().percentage()));
     }
-    if (auto calc = parse_calculated_value(peek_token); calc && calc->resolves_to_percentage()) {
+    if (auto calc = parse_calculated_value(peek_token); calc
+        && (calc->is_percentage() || (calc->is_calculated() && calc->as_calculated().resolves_to_percentage()))) {
+
         tokens.discard_a_token(); // calc
         return calc;
     }
@@ -2576,11 +2593,11 @@ RefPtr<CSSStyleValue> Parser::parse_angle_value(TokenStream<ComponentValue>& tok
     }
 
     auto transaction = tokens.begin_transaction();
-    if (auto calculated_value = parse_calculated_value(tokens.consume_a_token());
-        calculated_value && calculated_value->resolves_to_angle()) {
+    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc
+        && (calc->is_angle() || (calc->is_calculated() && calc->as_calculated().resolves_to_angle()))) {
 
         transaction.commit();
-        return calculated_value;
+        return calc;
     }
     return nullptr;
 }
@@ -2610,11 +2627,11 @@ RefPtr<CSSStyleValue> Parser::parse_angle_percentage_value(TokenStream<Component
     }
 
     auto transaction = tokens.begin_transaction();
-    if (auto calculated_value = parse_calculated_value(tokens.consume_a_token());
-        calculated_value && calculated_value->resolves_to_angle_percentage()) {
+    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc
+        && (calc->is_angle() || calc->is_percentage() || (calc->is_calculated() && calc->as_calculated().resolves_to_angle_percentage()))) {
 
         transaction.commit();
-        return calculated_value;
+        return calc;
     }
     return nullptr;
 }
@@ -2632,11 +2649,11 @@ RefPtr<CSSStyleValue> Parser::parse_flex_value(TokenStream<ComponentValue>& toke
     }
 
     auto transaction = tokens.begin_transaction();
-    if (auto calculated_value = parse_calculated_value(tokens.consume_a_token());
-        calculated_value && calculated_value->resolves_to_flex()) {
+    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc
+        && (calc->is_flex() || (calc->is_calculated() && calc->as_calculated().resolves_to_flex()))) {
 
         transaction.commit();
-        return calculated_value;
+        return calc;
     }
     return nullptr;
 }
@@ -2654,11 +2671,11 @@ RefPtr<CSSStyleValue> Parser::parse_frequency_value(TokenStream<ComponentValue>&
     }
 
     auto transaction = tokens.begin_transaction();
-    if (auto calculated_value = parse_calculated_value(tokens.consume_a_token());
-        calculated_value && calculated_value->resolves_to_frequency()) {
+    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc
+        && (calc->is_frequency() || (calc->is_calculated() && calc->as_calculated().resolves_to_frequency()))) {
 
         transaction.commit();
-        return calculated_value;
+        return calc;
     }
     return nullptr;
 }
@@ -2679,11 +2696,11 @@ RefPtr<CSSStyleValue> Parser::parse_frequency_percentage_value(TokenStream<Compo
         return PercentageStyleValue::create(Percentage { tokens.consume_a_token().token().percentage() });
 
     auto transaction = tokens.begin_transaction();
-    if (auto calculated_value = parse_calculated_value(tokens.consume_a_token());
-        calculated_value && calculated_value->resolves_to_frequency_percentage()) {
+    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc
+        && (calc->is_frequency() || calc->is_percentage() || (calc->is_calculated() && calc->as_calculated().resolves_to_frequency_percentage()))) {
 
         transaction.commit();
-        return calculated_value;
+        return calc;
     }
     return nullptr;
 }
@@ -2755,11 +2772,11 @@ RefPtr<CSSStyleValue> Parser::parse_length_value(TokenStream<ComponentValue>& to
     }
 
     auto transaction = tokens.begin_transaction();
-    if (auto calculated_value = parse_calculated_value(tokens.consume_a_token());
-        calculated_value && calculated_value->resolves_to_length()) {
+    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc
+        && (calc->is_length() || (calc->is_calculated() && calc->as_calculated().resolves_to_length()))) {
 
         transaction.commit();
-        return calculated_value;
+        return calc;
     }
     return nullptr;
 }
@@ -2802,11 +2819,11 @@ RefPtr<CSSStyleValue> Parser::parse_length_percentage_value(TokenStream<Componen
     }
 
     auto transaction = tokens.begin_transaction();
-    if (auto calculated_value = parse_calculated_value(tokens.consume_a_token());
-        calculated_value && calculated_value->resolves_to_length_percentage()) {
+    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc
+        && (calc->is_length() || calc->is_percentage() || (calc->is_calculated() && calc->as_calculated().resolves_to_length_percentage()))) {
 
         transaction.commit();
-        return calculated_value;
+        return calc;
     }
     return nullptr;
 }
@@ -2824,11 +2841,11 @@ RefPtr<CSSStyleValue> Parser::parse_resolution_value(TokenStream<ComponentValue>
     }
 
     auto transaction = tokens.begin_transaction();
-    if (auto calculated_value = parse_calculated_value(tokens.consume_a_token());
-        calculated_value && calculated_value->resolves_to_resolution()) {
+    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc
+        && (calc->is_resolution() || (calc->is_calculated() && calc->as_calculated().resolves_to_resolution()))) {
 
         transaction.commit();
-        return calculated_value;
+        return calc;
     }
     return nullptr;
 }
@@ -2846,11 +2863,11 @@ RefPtr<CSSStyleValue> Parser::parse_time_value(TokenStream<ComponentValue>& toke
     }
 
     auto transaction = tokens.begin_transaction();
-    if (auto calculated_value = parse_calculated_value(tokens.consume_a_token());
-        calculated_value && calculated_value->resolves_to_time()) {
+    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc
+        && (calc->is_time() || (calc->is_calculated() && calc->as_calculated().resolves_to_time()))) {
 
         transaction.commit();
-        return calculated_value;
+        return calc;
     }
     return nullptr;
 }
@@ -2871,11 +2888,11 @@ RefPtr<CSSStyleValue> Parser::parse_time_percentage_value(TokenStream<ComponentV
         return PercentageStyleValue::create(Percentage { tokens.consume_a_token().token().percentage() });
 
     auto transaction = tokens.begin_transaction();
-    if (auto calculated_value = parse_calculated_value(tokens.consume_a_token());
-        calculated_value && calculated_value->resolves_to_time_percentage()) {
+    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc
+        && (calc->is_time() || calc->is_percentage() || (calc->is_calculated() && calc->as_calculated().resolves_to_time_percentage()))) {
 
         transaction.commit();
-        return calculated_value;
+        return calc;
     }
     return nullptr;
 }
@@ -7630,8 +7647,12 @@ Optional<CSS::GridSize> Parser::parse_grid_size(ComponentValue const& component_
 {
     if (component_value.is_function()) {
         if (auto maybe_calculated = parse_calculated_value(component_value)) {
-            if (maybe_calculated->resolves_to_length_percentage())
-                return GridSize(LengthPercentage(maybe_calculated.release_nonnull()));
+            if (maybe_calculated->is_length())
+                return GridSize(maybe_calculated->as_length().length());
+            if (maybe_calculated->is_percentage())
+                return GridSize(maybe_calculated->as_percentage().percentage());
+            if (maybe_calculated->is_calculated() && maybe_calculated->as_calculated().resolves_to_length_percentage())
+                return GridSize(LengthPercentage(maybe_calculated->as_calculated()));
             // FIXME: Support calculated <flex>
         }
 
@@ -7889,7 +7910,12 @@ Optional<CSS::ExplicitGridTrack> Parser::parse_track_sizing_function(ComponentVa
                 return CSS::ExplicitGridTrack(maybe_fit_content_value.value());
             return {};
         } else if (auto maybe_calculated = parse_calculated_value(token)) {
-            return CSS::ExplicitGridTrack(GridSize(LengthPercentage(maybe_calculated.release_nonnull())));
+            if (maybe_calculated->is_length())
+                return ExplicitGridTrack(GridSize(maybe_calculated->as_length().length()));
+            if (maybe_calculated->is_percentage())
+                return ExplicitGridTrack(GridSize(maybe_calculated->as_percentage().percentage()));
+            if (maybe_calculated->is_calculated() && maybe_calculated->as_calculated().resolves_to_length_percentage())
+                return ExplicitGridTrack(GridSize(LengthPercentage(maybe_calculated->as_calculated())));
         }
         return {};
     } else if (token.is_ident("auto"sv)) {
@@ -8123,9 +8149,15 @@ RefPtr<GridTrackPlacementStyleValue> Parser::parse_grid_track_placement(TokenStr
             return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_line({}, custom_ident->custom_ident().to_string()));
         }
         auto const& token = tokens.consume_a_token();
-        if (auto maybe_calculated = parse_calculated_value(token); maybe_calculated && maybe_calculated->resolves_to_number()) {
-            transaction.commit();
-            return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_line(static_cast<int>(maybe_calculated->resolve_integer({}).value()), {}));
+        if (auto maybe_calculated = parse_calculated_value(token)) {
+            if (maybe_calculated->is_number()) {
+                transaction.commit();
+                return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_line(static_cast<int>(maybe_calculated->as_number().number()), {}));
+            }
+            if (maybe_calculated->is_calculated() && maybe_calculated->as_calculated().resolves_to_number()) {
+                transaction.commit();
+                return GridTrackPlacementStyleValue::create(GridTrackPlacement::make_line(static_cast<int>(maybe_calculated->as_calculated().resolve_integer({}).value()), {}));
+            }
         }
         if (token.is_ident("auto"sv)) {
             transaction.commit();
@@ -9491,8 +9523,8 @@ RefPtr<CalculationNode> Parser::parse_a_calculation(Vector<ComponentValue> const
     if (!calculation_tree)
         return nullptr;
 
-    // FIXME: 6. Return the result of simplifying a calculation tree from values.
-    return calculation_tree.release_nonnull();
+    // 6. Return the result of simplifying a calculation tree from values.
+    return simplify_a_calculation_tree(*calculation_tree, context, CalculationResolutionContext {});
 }
 
 bool Parser::has_ignored_vendor_prefix(StringView string)

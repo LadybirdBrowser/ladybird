@@ -11,6 +11,15 @@
 #include <AK/TypeCasts.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
+#include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
+#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 
 namespace Web::CSS {
 
@@ -296,6 +305,30 @@ CalculatedStyleValue::CalculationResult NumericCalculationNode::resolve(Calculat
     }
 
     return CalculatedStyleValue::CalculationResult::from_value(m_value, context, numeric_type());
+}
+
+RefPtr<CSSStyleValue> NumericCalculationNode::to_style_value(CalculationContext const& context) const
+{
+    // TODO: Clamp values to the range allowed by the context.
+    return m_value.visit(
+        [&](Number const& number) -> RefPtr<CSSStyleValue> {
+            // FIXME: Returning infinity or NaN as a NumberStyleValue isn't valid.
+            //        This is a temporary fix until value-clamping is implemented here.
+            //        In future, we can remove these two lines and return NonnullRefPtr again.
+            if (!isfinite(number.value()))
+                return nullptr;
+
+            if (context.resolve_numbers_as_integers)
+                return IntegerStyleValue::create(llround(number.value()));
+            return NumberStyleValue::create(number.value());
+        },
+        [](Angle const& angle) -> RefPtr<CSSStyleValue> { return AngleStyleValue::create(angle); },
+        [](Flex const& flex) -> RefPtr<CSSStyleValue> { return FlexStyleValue::create(flex); },
+        [](Frequency const& frequency) -> RefPtr<CSSStyleValue> { return FrequencyStyleValue::create(frequency); },
+        [](Length const& length) -> RefPtr<CSSStyleValue> { return LengthStyleValue::create(length); },
+        [](Percentage const& percentage) -> RefPtr<CSSStyleValue> { return PercentageStyleValue::create(percentage); },
+        [](Resolution const& resolution) -> RefPtr<CSSStyleValue> { return ResolutionStyleValue::create(resolution); },
+        [](Time const& time) -> RefPtr<CSSStyleValue> { return TimeStyleValue::create(time); });
 }
 
 void NumericCalculationNode::dump(StringBuilder& builder, int indent) const
