@@ -832,7 +832,7 @@ class @class_name@ : public WebGLRenderingContextBase {
 public:
     @class_name@(JS::Realm&, NonnullOwnPtr<OpenGLContext>);
 
-    OpenGLContext& context() { return *m_context; }
+    virtual OpenGLContext& context() override { return *m_context; }
 
     virtual void present() = 0;
     virtual void needs_to_present() = 0;

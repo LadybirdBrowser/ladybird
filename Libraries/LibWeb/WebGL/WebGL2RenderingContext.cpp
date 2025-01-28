@@ -12,8 +12,10 @@
 #include <LibWeb/Bindings/WebGL2RenderingContextPrototype.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
+#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/WebGL/EventNames.h>
+#include <LibWeb/WebGL/Extensions/WebGLCompressedTextureS3tc.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 #include <LibWeb/WebGL/WebGL2RenderingContext.h>
 #include <LibWeb/WebGL/WebGLContextEvent.h>
@@ -71,6 +73,7 @@ void WebGL2RenderingContext::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     WebGL2RenderingContextImpl::visit_edges(visitor);
     visitor.visit(m_canvas_element);
+    visitor.visit(m_webgl_compressed_texture_s3tc_extension);
 }
 
 void WebGL2RenderingContext::present()
@@ -154,8 +157,29 @@ Optional<Vector<String>> WebGL2RenderingContext::get_supported_extensions()
     return context().get_supported_extensions();
 }
 
-JS::Object* WebGL2RenderingContext::get_extension(String const&)
+JS::Object* WebGL2RenderingContext::get_extension(String const& name)
 {
+    // Returns an object if, and only if, name is an ASCII case-insensitive match [HTML] for one of the names returned
+    // from getSupportedExtensions; otherwise, returns null. The object returned from getExtension contains any constants
+    // or functions provided by the extension. A returned object may have no constants or functions if the extension does
+    // not define any, but a unique object must still be returned. That object is used to indicate that the extension has
+    // been enabled.
+    auto supported_extensions = get_supported_extensions();
+    auto supported_extension_iterator = supported_extensions->find_if([&name](String const& supported_extension) {
+        return Infra::is_ascii_case_insensitive_match(supported_extension, name);
+    });
+    if (supported_extension_iterator == supported_extensions->end())
+        return nullptr;
+
+    if (Infra::is_ascii_case_insensitive_match(name, "WEBGL_compressed_texture_s3tc"sv)) {
+        if (!m_webgl_compressed_texture_s3tc_extension) {
+            m_webgl_compressed_texture_s3tc_extension = MUST(Extensions::WebGLCompressedTextureS3tc::create(realm(), this));
+        }
+
+        VERIFY(m_webgl_compressed_texture_s3tc_extension);
+        return m_webgl_compressed_texture_s3tc_extension;
+    }
+
     return nullptr;
 }
 

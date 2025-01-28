@@ -826,6 +826,7 @@ set(SOURCES
     WebDriver/TimeoutsConfiguration.cpp
     WebGL/Extensions/ANGLEInstancedArrays.cpp
     WebGL/Extensions/OESVertexArrayObject.cpp
+    WebGL/Extensions/WebGLCompressedTextureS3tc.cpp
     WebGL/Extensions/WebGLDrawBuffers.cpp
     WebGL/Extensions/WebGLVertexArrayObjectOES.cpp
     WebGL/EventNames.cpp
