@@ -496,7 +496,7 @@ ErrorOr<void> HTMLImageElement::update_the_image_data(bool restart_animations, b
     //           then abort the image request for the current request and the pending request,
     //           set current request's state to unavailable, set pending request to null, and return.
 
-    // 3. Let previous URL be the current request's current URL.
+    // 3. Let previousURL be the current request's current URL.
     auto previous_url = m_current_request->current_url();
 
     // 4. Let selected source be null and selected pixel density be undefined.
@@ -549,7 +549,7 @@ ErrorOr<void> HTMLImageElement::update_the_image_data(bool restart_animations, b
             m_current_request->set_image_data(entry->image_data);
             m_current_request->set_state(ImageRequest::State::CompletelyAvailable);
 
-            // 5. Prepare current request for presentation given img.
+            // 5. Prepare current request for presentation given the img element.
             m_current_request->prepare_for_presentation(*this);
 
             // 6. Set current request's current pixel density to selected pixel density.

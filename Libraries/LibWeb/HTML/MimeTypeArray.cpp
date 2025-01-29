@@ -65,7 +65,7 @@ GC::Ptr<MimeType> MimeTypeArray::item(u32 index) const
     auto& window = as<HTML::Window>(HTML::relevant_global_object(*this));
     auto mime_types = window.pdf_viewer_mime_type_objects();
 
-    // 2. If index < mimeType's size, then return mimeTypes[index].
+    // 2. If index < mimeTypes's size, then return mimeTypes[index].
     if (index < mime_types.size())
         return mime_types[index];
 

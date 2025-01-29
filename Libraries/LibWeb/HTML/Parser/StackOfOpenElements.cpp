@@ -83,7 +83,7 @@ bool StackOfOpenElements::has_in_select_scope(FlyString const& tag_name) const
     // https://html.spec.whatwg.org/multipage/parsing.html#has-an-element-in-the-specific-scope
     // 1. Initialize node to be the current node (the bottommost node of the stack).
     for (auto& node : m_elements.in_reverse()) {
-        // 2. If node is the target node, terminate in a match state.
+        // 2. If node is target node, terminate in a match state.
         if (node->local_name() == tag_name)
             return true;
         // 3. Otherwise, if node is one of the element types in list, terminate in a failure state.
@@ -92,8 +92,8 @@ bool StackOfOpenElements::has_in_select_scope(FlyString const& tag_name) const
             return false;
         // 4. Otherwise, set node to the previous entry in the stack of open elements and return to step 2.
     }
-    // [4.] (This will never fail, since the loop will always terminate in the previous step if the top of the stack
-    // — an html element — is reached.)
+    // NOTE: This will never fail, since the loop will always terminate in the previous step if the top of the stack
+    //       — an html element — is reached.
     VERIFY_NOT_REACHED();
 }
 

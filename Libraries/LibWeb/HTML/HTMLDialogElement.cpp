@@ -124,7 +124,7 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show()
     if (has_attribute(AttributeNames::open))
         return {};
 
-    // 5. Queue a dialog toggle event task given subject, "closed", and "open".
+    // 5. Queue a dialog toggle event task given this, "closed", and "open".
     queue_a_dialog_toggle_event_task("closed"_string, "open"_string);
 
     // 6. Add an open attribute to this, whose value is the empty string.
