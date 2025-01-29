@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/Forward.h>
 #include <AK/Noncopyable.h>
 #include <LibGfx/Size.h>
 

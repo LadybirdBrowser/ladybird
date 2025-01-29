@@ -7,12 +7,9 @@
 #include <core/SkBitmap.h>
 #include <core/SkBlurTypes.h>
 #include <core/SkCanvas.h>
-#include <core/SkColorFilter.h>
 #include <core/SkFont.h>
-#include <core/SkFontMgr.h>
 #include <core/SkMaskFilter.h>
 #include <core/SkPath.h>
-#include <core/SkPathBuilder.h>
 #include <core/SkPathEffect.h>
 #include <core/SkRRect.h>
 #include <core/SkSurface.h>
@@ -25,7 +22,6 @@
 #include <pathops/SkPathOps.h>
 
 #include <LibGfx/Font/ScaledFont.h>
-#include <LibGfx/PathSkia.h>
 #include <LibGfx/SkiaUtils.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>

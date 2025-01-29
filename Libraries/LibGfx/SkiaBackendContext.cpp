@@ -5,8 +5,6 @@
  */
 
 #include <AK/NonnullOwnPtr.h>
-#include <AK/OwnPtr.h>
-#include <AK/Platform.h>
 #include <AK/RefPtr.h>
 #include <LibGfx/SkiaBackendContext.h>
 
