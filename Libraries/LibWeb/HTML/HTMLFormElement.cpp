@@ -220,9 +220,10 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
     if (action.is_empty())
         action = form_document->url_string();
 
-    // 14. Parse a URL given action, relative to the submitter element's node document. If this fails, return.
-    // 15. Let parsed action be the resulting URL record.
-    auto parsed_action = submitter->document().parse_url(action);
+    // 14. Let parsed action be the result of encoding-parsing a URL given action, relative to submitter's node document.
+    auto parsed_action = submitter->document().encoding_parse_url(action);
+
+    // 15. If parsed action is failure, then return.
     if (!parsed_action.has_value()) {
         dbgln("Failed to submit form: Invalid URL: {}", action);
         return {};
@@ -234,31 +235,42 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
     // 17. Let enctype be the submitter element's enctype.
     auto encoding_type = encoding_type_state_from_form_element(submitter);
 
-    // 18. Let target be the submitter element's formtarget attribute value, if the element is a submit button and has
-    //     such an attribute. Otherwise, let it be the result of getting an element's target given submitter's form
-    //     owner.
-    auto target = submitter->attribute(AttributeNames::formtarget).value_or(get_an_elements_target());
+    // 18. Let formTarget be null.
+    Optional<String> form_target;
 
-    // 19. Let noopener be the result of getting an element's noopener with form and target.
+    // 19. If the submitter element is a submit button and it has a formtarget attribute, then set formTarget to the
+    //     formtarget attribute value.
+    if (auto* form_associated_element = as_if<FormAssociatedElement>(*submitter); form_associated_element && form_associated_element->is_submit_button()) {
+        if (auto formtarget_attribute = submitter->attribute(AttributeNames::formtarget); formtarget_attribute.has_value()) {
+            form_target = formtarget_attribute.release_value();
+        }
+    }
+
+    // 20. Let target be the result of getting an element's target given submitter's form owner and formTarget.
+    auto target = get_an_elements_target(form_target);
+
+    // 21. Let noopener be the result of getting an element's noopener with form, parsed action, and target.
     auto no_opener = get_an_elements_noopener(target);
 
-    // 20. Let targetNavigable be the first return value of applying the rules for choosing a navigable given target, form's node navigable, and noopener.
+    // 22. Let targetNavigable be the first return value of applying the rules for choosing a navigable given target,
+    //     form's node navigable, and noopener.
     auto target_navigable = form_document->navigable()->choose_a_navigable(target, no_opener).navigable;
 
-    // 21. If targetNavigable is null, then return.
+    // 23. If targetNavigable is null, then return.
     if (!target_navigable) {
         dbgln("Failed to submit form: choose_a_browsing_context returning a null browsing context");
         return {};
     }
 
-    // 22. Let historyHandling be "auto".
+    // 24. Let historyHandling be "auto".
     auto history_handling = Bindings::NavigationHistoryBehavior::Auto;
 
-    // 23. If form document has not yet completely loaded, then set historyHandling to "replace".
-    if (!form_document->is_completely_loaded())
+    // 25. If form document equals targetNavigable's active document, and form document has not yet completely loaded,
+    //     then set historyHandling to "replace".
+    if (form_document == target_navigable->active_document() && !form_document->is_completely_loaded())
         history_handling = Bindings::NavigationHistoryBehavior::Replace;
 
-    // 24. Select the appropriate row in the table below based on scheme as given by the first cell of each row.
+    // 25. Select the appropriate row in the table below based on scheme as given by the first cell of each row.
     //     Then, select the appropriate cell on that row based on method as given in the first cell of each column.
     //     Then, jump to the steps named in that cell and defined below the table.
 
