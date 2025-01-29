@@ -1630,7 +1630,8 @@
   },
   "inline-size": {
     "logical-alias-for": [
-      "width"
+      "width",
+      "height"
     ],
     "initial": "auto",
     "max-values": 1
