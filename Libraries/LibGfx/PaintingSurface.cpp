@@ -27,14 +27,14 @@ struct PaintingSurface::Impl {
     RefPtr<SkiaBackendContext> context;
 };
 
-NonnullRefPtr<PaintingSurface> PaintingSurface::create_with_size(RefPtr<SkiaBackendContext> context, Gfx::IntSize size, Gfx::BitmapFormat color_type, Gfx::AlphaType alpha_type)
+NonnullRefPtr<PaintingSurface> PaintingSurface::create_with_size(RefPtr<SkiaBackendContext> context, IntSize size, BitmapFormat color_type, AlphaType alpha_type)
 {
     auto sk_color_type = to_skia_color_type(color_type);
-    auto sk_alpha_type = alpha_type == Gfx::AlphaType::Premultiplied ? kPremul_SkAlphaType : kUnpremul_SkAlphaType;
+    auto sk_alpha_type = alpha_type == AlphaType::Premultiplied ? kPremul_SkAlphaType : kUnpremul_SkAlphaType;
     auto image_info = SkImageInfo::Make(size.width(), size.height(), sk_color_type, sk_alpha_type, SkColorSpace::MakeSRGB());
 
     if (!context) {
-        auto bitmap = Gfx::Bitmap::create(color_type, alpha_type, size).value();
+        auto bitmap = Bitmap::create(color_type, alpha_type, size).value();
         auto surface = SkSurfaces::WrapPixels(image_info, bitmap->begin(), bitmap->pitch());
         VERIFY(surface);
         return adopt_ref(*new PaintingSurface(make<Impl>(size, surface, bitmap, context)));
@@ -48,7 +48,7 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::create_with_size(RefPtr<SkiaBack
 NonnullRefPtr<PaintingSurface> PaintingSurface::wrap_bitmap(Bitmap& bitmap)
 {
     auto color_type = to_skia_color_type(bitmap.format());
-    auto alpha_type = bitmap.alpha_type() == Gfx::AlphaType::Premultiplied ? kPremul_SkAlphaType : kUnpremul_SkAlphaType;
+    auto alpha_type = bitmap.alpha_type() == AlphaType::Premultiplied ? kPremul_SkAlphaType : kUnpremul_SkAlphaType;
     auto size = bitmap.size();
     auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), color_type, alpha_type, SkColorSpace::MakeSRGB());
     auto surface = SkSurfaces::WrapPixels(image_info, bitmap.begin(), bitmap.pitch());
@@ -87,19 +87,19 @@ PaintingSurface::PaintingSurface(NonnullOwnPtr<Impl>&& impl)
 
 PaintingSurface::~PaintingSurface() = default;
 
-void PaintingSurface::read_into_bitmap(Gfx::Bitmap& bitmap)
+void PaintingSurface::read_into_bitmap(Bitmap& bitmap)
 {
     auto color_type = to_skia_color_type(bitmap.format());
-    auto alpha_type = bitmap.alpha_type() == Gfx::AlphaType::Premultiplied ? kPremul_SkAlphaType : kUnpremul_SkAlphaType;
+    auto alpha_type = bitmap.alpha_type() == AlphaType::Premultiplied ? kPremul_SkAlphaType : kUnpremul_SkAlphaType;
     auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), color_type, alpha_type, SkColorSpace::MakeSRGB());
     SkPixmap const pixmap(image_info, bitmap.begin(), bitmap.pitch());
     m_impl->surface->readPixels(pixmap, 0, 0);
 }
 
-void PaintingSurface::write_from_bitmap(Gfx::Bitmap const& bitmap)
+void PaintingSurface::write_from_bitmap(Bitmap const& bitmap)
 {
     auto color_type = to_skia_color_type(bitmap.format());
-    auto alpha_type = bitmap.alpha_type() == Gfx::AlphaType::Premultiplied ? kPremul_SkAlphaType : kUnpremul_SkAlphaType;
+    auto alpha_type = bitmap.alpha_type() == AlphaType::Premultiplied ? kPremul_SkAlphaType : kUnpremul_SkAlphaType;
     auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), color_type, alpha_type, SkColorSpace::MakeSRGB());
     SkPixmap const pixmap(image_info, bitmap.begin(), bitmap.pitch());
     m_impl->surface->writePixels(pixmap, 0, 0);
