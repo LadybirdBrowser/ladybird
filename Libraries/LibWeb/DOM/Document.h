@@ -510,6 +510,9 @@ public:
     [[nodiscard]] bool needs_full_layout_tree_update() const { return m_needs_full_layout_tree_update; }
     void set_needs_full_layout_tree_update(bool b) { m_needs_full_layout_tree_update = b; }
 
+    bool needs_invalidate_elements_affected_by_has() const { return m_needs_invalidate_elements_affected_by_has; }
+    void set_needs_invalidate_elements_affected_by_has(bool b) { m_needs_invalidate_elements_affected_by_has = b; }
+
     void set_needs_to_refresh_scroll_state(bool b);
 
     bool has_active_favicon() const { return m_active_favicon; }
@@ -805,6 +808,8 @@ private:
     // ^HTML::GlobalEventHandlers
     virtual GC::Ptr<EventTarget> global_event_handlers_to_event_target(FlyString const&) final { return *this; }
 
+    void invalidate_elements_affected_by_has();
+
     void tear_down_layout_tree();
 
     void update_active_element();
@@ -945,6 +950,7 @@ private:
 
     bool m_needs_full_style_update { false };
     bool m_needs_full_layout_tree_update { false };
+    bool m_needs_invalidate_elements_affected_by_has { false };
 
     bool m_needs_animated_style_update { false };
 
