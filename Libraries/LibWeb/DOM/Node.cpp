@@ -489,8 +489,11 @@ void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::Invalida
     auto element_has_properties_from_invalidation_set = [&](Element& element) {
         bool result = false;
         invalidation_set.for_each_property([&](auto const& property) {
-            if (element.affected_by_invalidation_property(property))
+            if (element.affected_by_invalidation_property(property)) {
                 result = true;
+                return IterationDecision::Break;
+            }
+            return IterationDecision::Continue;
         });
         return result;
     };

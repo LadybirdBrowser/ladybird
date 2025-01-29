@@ -190,6 +190,7 @@ static InvalidationSet build_invalidation_sets_for_selector_impl(StyleInvalidati
                         // we need to make all siblings are invalidated.
                         descendant_invalidation_set.set_needs_invalidate_whole_subtree();
                     }
+                    return IterationDecision::Continue;
                 });
             }
 
@@ -216,6 +217,8 @@ static InvalidationSet build_invalidation_sets_for_selector_impl(StyleInvalidati
                     } else {
                         descendant_invalidation_set.include_all_from(invalidation_set_for_rightmost_selector);
                     }
+
+                    return IterationDecision::Continue;
                 });
             }
         }
