@@ -930,9 +930,10 @@ String HTMLElement::get_an_elements_target(Optional<String> target) const
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#get-an-element's-noopener
-TokenizedFeature::NoOpener HTMLElement::get_an_elements_noopener(StringView target) const
+TokenizedFeature::NoOpener HTMLElement::get_an_elements_noopener(URL::URL const& url, StringView target) const
 {
-    // To get an element's noopener, given an a, area, or form element element and a string target:
+    // To get an element's noopener, given an a, area, or form element element, a URL record url, and a string target,
+    // perform the following steps. They return a boolean.
     auto rel = MUST(get_attribute_value(HTML::AttributeNames::rel).to_lowercase());
     auto link_types = rel.bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
 
@@ -945,7 +946,20 @@ TokenizedFeature::NoOpener HTMLElement::get_an_elements_noopener(StringView targ
     if (!link_types.contains_slow("opener"sv) && Infra::is_ascii_case_insensitive_match(target, "_blank"sv))
         return TokenizedFeature::NoOpener::Yes;
 
-    // 3. Return false.
+    // 3. If url's blob URL entry is not null:
+    if (url.blob_url_entry().has_value()) {
+        // 1. Let blobOrigin be url's blob URL entry's environment's origin.
+        auto const& blob_origin = url.blob_url_entry()->environment.origin;
+
+        // 2. Let topLevelOrigin be element's relevant settings object's top-level origin.
+        auto const& top_level_origin = relevant_settings_object(*this).top_level_origin;
+
+        // 3. If blobOrigin is not same site with topLevelOrigin, then return true.
+        if (!blob_origin.is_same_site(top_level_origin))
+            return TokenizedFeature::NoOpener::Yes;
+    }
+
+    // 4. Return false.
     return TokenizedFeature::NoOpener::No;
 }
 

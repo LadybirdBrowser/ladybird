@@ -488,7 +488,7 @@ void HTMLHyperlinkElementUtils::follow_the_hyperlink(Optional<String> hyperlink_
         return;
 
     // 6. Let noopener be the result of getting an element's noopener with subject, urlRecord, and targetAttributeValue.
-    auto noopener = hyperlink_element_utils_get_an_elements_noopener(target_attribute_value);
+    auto noopener = hyperlink_element_utils_get_an_elements_noopener(*url_record, target_attribute_value);
 
     // 7. Let targetNavigable be the first return value of applying the rules for choosing a navigable given
     //    targetAttributeValue, subject's node navigable, and noopener.

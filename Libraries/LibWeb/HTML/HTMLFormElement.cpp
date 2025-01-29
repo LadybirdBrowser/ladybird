@@ -250,7 +250,7 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
     auto target = get_an_elements_target(form_target);
 
     // 21. Let noopener be the result of getting an element's noopener with form, parsed action, and target.
-    auto no_opener = get_an_elements_noopener(target);
+    auto no_opener = get_an_elements_noopener(*parsed_action, target);
 
     // 22. Let targetNavigable be the first return value of applying the rules for choosing a navigable given target,
     //     form's node navigable, and noopener.
