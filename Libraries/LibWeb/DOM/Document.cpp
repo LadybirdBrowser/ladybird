@@ -3986,7 +3986,7 @@ void Document::abort()
 
     // 3. If document's during-loading navigation ID for WebDriver BiDi is non-null, then:
     if (m_navigation_id.has_value()) {
-        // 1. FIXME: Invoke WebDriver BiDi navigation aborted with document's browsing context,
+        // 1. FIXME: Invoke WebDriver BiDi navigation aborted with document's node navigable,
         //           and new WebDriver BiDi navigation status whose whose id is document's navigation id,
         //           status is "canceled", and url is document's URL.
 

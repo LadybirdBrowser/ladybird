@@ -1161,13 +1161,10 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
     if (!navigation_params.has<NullOrError>())
         VERIFY(navigation_params.has<GC::Ref<NavigationParams>>() && navigation_params.get<GC::Ref<NavigationParams>>()->response);
 
-    // 3. Let currentBrowsingContext be navigable's active browsing context.
-    [[maybe_unused]] auto current_browsing_context = active_browsing_context();
-
-    // 4. Let documentResource be entry's document state's resource.
+    // 3. Let documentResource be entry's document state's resource.
     auto document_resource = entry->document_state()->resource();
 
-    // 5. If navigationParams is null, then:
+    // 4. If navigationParams is null, then:
     if (navigation_params.has<NullOrError>()) {
         // 1. If documentResource is a string, then set navigationParams to the result
         //    of creating navigation params from a srcdoc resource given entry, navigable,
@@ -1208,7 +1205,7 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
     if (!active_window())
         return {};
 
-    // 6. Queue a global task on the navigation and traversal task source, given navigable's active window, to run these steps:
+    // 5. Queue a global task on the navigation and traversal task source, given navigable's active window, to run these steps:
     queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, entry, navigation_params = move(navigation_params), navigation_id, user_involvement, completion_steps]() mutable {
         // NOTE: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
         if (has_been_destroyed())
@@ -1276,7 +1273,7 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
             // 4. If navigationParams is not null, then:
             if (!navigation_params.has<NullOrError>()) {
                 // FIXME: 1. Run the environment discarding steps for navigationParams's reserved environment.
-                // FIXME: 2. Invoke WebDriver BiDi navigation failed with currentBrowsingContext and a new WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url is navigationParams's response's URL.
+                // FIXME: 2. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url is navigationParams's response's URL.
             }
         }
         // FIXME: 5. Otherwise, if navigationParams's response has a `Content-Disposition`
@@ -1383,11 +1380,11 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
     //           Otherwise, queue a global task on the navigation and traversal task source given navigable's active window to continue these steps.
 
     // 8. If navigable's active document's unload counter is greater than 0,
-    //    then invoke WebDriver BiDi navigation failed with a WebDriver BiDi navigation status whose id is navigationId,
-    //    status is "canceled", and url is url, and return.
+    //    then invoke WebDriver BiDi navigation failed with navigable and a WebDriver BiDi navigation status whose id
+    //    is navigationId, status is "canceled", and url is url, and return.
     if (active_document.unload_counter() > 0) {
-        // FIXME: invoke WebDriver BiDi navigation failed with a WebDriver BiDi navigation status whose id is navigationId,
-        //        status is "canceled", and url is url
+        // FIXME: invoke WebDriver BiDi navigation failed with navigable and a WebDriver BiDi navigation status whose id
+        //        is navigationId, status is "canceled", and url is url
         return {};
     }
 
@@ -1443,26 +1440,23 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
     if (parent() != nullptr)
         set_delaying_load_events(true);
 
-    // 15. Let targetBrowsingContext be navigable's active browsing context.
-    [[maybe_unused]] auto target_browsing_context = active_browsing_context();
+    // 15. Let targetSnapshotParams be the result of snapshotting target snapshot params given navigable.
+    [[maybe_unused]] auto target_snapshot_params = snapshot_target_snapshot_params();
 
-    // 16. Let targetSnapshotParams be the result of snapshotting target snapshot params given navigable.
-    auto target_snapshot_params = snapshot_target_snapshot_params();
+    // FIXME: 16. Invoke WebDriver BiDi navigation started with navigable and a new WebDriver BiDi navigation status whose id is navigationId, status is "pending", and url is url.
 
-    // FIXME: 17. Invoke WebDriver BiDi navigation started with targetBrowsingContext, and a new WebDriver BiDi navigation status whose id is navigationId, url is url, and status is "pending".
-
-    // 18. If navigable's ongoing navigation is "traversal", then:
+    // 17. If navigable's ongoing navigation is "traversal", then:
     if (ongoing_navigation().has<Traversal>()) {
-        // FIXME: 1. Invoke WebDriver BiDi navigation failed with targetBrowsingContext and a new WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url is url.
+        // FIXME: 1. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url is url.
 
         // 2. Return.
         return {};
     }
 
-    // 19. Set the ongoing navigation for navigable to navigationId.
+    // 18. Set the ongoing navigation for navigable to navigationId.
     set_ongoing_navigation(navigation_id);
 
-    // 20. If url's scheme is "javascript", then:
+    // 19. If url's scheme is "javascript", then:
     if (url.scheme() == "javascript"sv) {
         // 1. Queue a global task on the navigation and traversal task source given navigable's active window to navigate to a javascript: URL given navigable, url, historyHandling, initiatorOriginSnapshot, userInvolvement, and cspNavigationType.
         VERIFY(active_window());
@@ -1474,7 +1468,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         return {};
     }
 
-    // 21. If all of the following are true:
+    // 20. If all of the following are true:
     //     - userInvolvement is not "browser UI";
     //     - navigable's active document's origin is same origin-domain with sourceDocument's origin;
     //     - navigable's active document's is initial about:blank is false; and
@@ -1522,7 +1516,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         active_browsing_context()->page().client().page_did_start_loading(url, false);
     }
 
-    // 22. In parallel, run these steps:
+    // 21. In parallel, run these steps:
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, source_snapshot_params, target_snapshot_params, csp_navigation_type, document_resource, url, navigation_id, referrer_policy, initiator_origin_snapshot, response, history_handling, initiator_base_url_snapshot, user_involvement] {
         // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
         if (!active_window()) {
@@ -1535,7 +1529,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
 
         // 2. If unloadPromptCanceled is true, or navigable's ongoing navigation is no longer navigationId, then:
         if (unload_prompt_canceled != TraversableNavigable::CheckIfUnloadingIsCanceledResult::Continue || !ongoing_navigation().has<String>() || ongoing_navigation().get<String>() != navigation_id) {
-            // FIXME: 1. Invoke WebDriver BiDi navigation failed with targetBrowsingContext and a new WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url is url.
+            // FIXME: 1. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url is url.
 
             // 2. Abort these steps.
             set_delaying_load_events(false);
@@ -1696,7 +1690,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate_to_a_fragment(URL::URL const& url,
         // 1. Finalize a same-document navigation given traversable, navigable, historyEntry, entryToReplace, historyHandling, and userInvolvement.
         finalize_a_same_document_navigation(*traversable, *this, history_entry, entry_to_replace, history_handling, user_involvement);
 
-        // FIXME: 2. Invoke WebDriver BiDi fragment navigated with navigable's active browsing context and a new WebDriver BiDi
+        // FIXME: 2. Invoke WebDriver BiDi fragment navigated with navigable and a new WebDriver BiDi
         //            navigation status whose id is navigationId, url is url, and status is "complete".
         (void)navigation_id;
     }));
