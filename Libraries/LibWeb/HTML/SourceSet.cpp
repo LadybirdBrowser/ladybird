@@ -419,7 +419,7 @@ void SourceSet::normalize_source_densities(DOM::Element const& element)
 
         // 2. Otherwise, if the image source has a width descriptor,
         //    replace the width descriptor with a pixel density descriptor
-        //    with a value of the width descriptor value divided by the source size and a unit of x.
+        //    with a value of the width descriptor value divided by source size and a unit of x.
         auto descriptor_value_set = false;
         if (image_source.descriptor.has<ImageSource::WidthDescriptorValue>()) {
             auto& width_descriptor = image_source.descriptor.get<ImageSource::WidthDescriptorValue>();

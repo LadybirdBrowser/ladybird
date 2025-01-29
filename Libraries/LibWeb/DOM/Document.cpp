@@ -198,9 +198,9 @@ static GC::Ref<HTML::BrowsingContext> obtain_a_browsing_context_to_use_for_a_nav
     // 9. If swapGroup is false, then:
     if (!swap_group) {
         // 1. If coopEnforcementResult's would need a browsing context group switch due to report-only is true,
-        //    set browsing context's virtual browsing context group ID to a new unique identifier.
+        //    set browsingContext's virtual browsing context group ID to a new unique identifier.
         if (coop_enforcement_result.would_need_a_browsing_context_group_switch_due_to_report_only) {
-            // FIXME: set browsing context's virtual browsing context group ID to a new unique identifier.
+            // FIXME: set browsingContext's virtual browsing context group ID to a new unique identifier.
         }
 
         // 2. Return browsingContext.
@@ -3945,7 +3945,7 @@ void Document::destroy_a_document_and_its_descendants(GC::Ptr<GC::Function<void(
     // 3. Let numberDestroyed be 0.
     IGNORE_USE_IN_ESCAPING_LAMBDA size_t number_destroyed = 0;
 
-    // 4. For each childNavigable of childNavigable's, queue a global task on the navigation and traversal task source
+    // 4. For each childNavigable of childNavigables, queue a global task on the navigation and traversal task source
     //    given childNavigable's active window to perform the following steps:
     for (auto& child_navigable : child_navigables) {
         HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, *child_navigable->active_window(), GC::create_function(heap(), [&heap = heap(), &number_destroyed, child_navigable = child_navigable.ptr()] {

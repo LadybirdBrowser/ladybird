@@ -224,8 +224,7 @@ JS::ThrowCompletionOr<bool> cross_origin_set(JS::VM& vm, JS::Object& object, JS:
 
     // 3. If desc.[[Set]] is present and its value is not undefined, then:
     if (descriptor->set.has_value() && *descriptor->set) {
-        // FIXME: Spec issue, `setter` isn't being defined.
-        // 1. Perform ? Call(setter, Receiver, «V»).
+        // 1. Perform ? Call(desc.[[Set]], Receiver, « V »).
         TRY(JS::call(vm, *descriptor->set, receiver, value));
 
         // 2. Return true.

@@ -98,7 +98,7 @@ void HTMLOrSVGElement<ElementBase>::inserted()
     [[maybe_unused]] auto policy_container = element.shadow_including_root().document().policy_container();
 
     // FIXME: 2. If CSP list contains a header-delivered Content Security Policy, and element has a
-    //           nonce content attribute attr whose value is not the empty string, then:
+    //           nonce content attribute whose value is not the empty string, then:
     if (true && element.has_attribute(HTML::AttributeNames::nonce)) {
         // 2.1. Let nonce be element's [[CryptographicNonce]].
         auto nonce = m_cryptographic_nonce;

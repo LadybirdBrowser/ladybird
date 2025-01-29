@@ -29,8 +29,8 @@ create_potential_CORS_request(JS::VM& vm, URL::URL const& url, Optional<Fetch::I
     if (cors_attribute_state == CORSSettingAttribute::Anonymous)
         credentials_mode = Fetch::Infrastructure::Request::CredentialsMode::SameOrigin;
 
-    // 5. Let request be a new request whose URL is url, destination is destination, mode is mode, credentials mode is credentialsMode,
-    // and whose use-URL-credentials flag is set.
+    // 5. Return a new request whose URL is url, destination is destination, mode is mode, credentials mode is credentialsMode,
+    //    and whose use-URL-credentials flag is set.
     auto request = Fetch::Infrastructure::Request::create(vm);
     request->set_url(url);
     request->set_destination(destination);

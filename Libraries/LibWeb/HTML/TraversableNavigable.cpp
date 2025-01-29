@@ -958,13 +958,13 @@ TraversableNavigable::CheckIfUnloadingIsCanceledResult TraversableNavigable::che
         }
     }
 
-    // 5. Let totalTasks be the size of documentsThatNeedBeforeunload.
+    // 5. Let totalTasks be the size of documentsToFireBeforeunload.
     IGNORE_USE_IN_ESCAPING_LAMBDA auto total_tasks = documents_to_fire_beforeunload.size();
 
     // 6. Let completedTasks be 0.
     IGNORE_USE_IN_ESCAPING_LAMBDA size_t completed_tasks = 0;
 
-    // 7. For each document of documents, queue a global task on the navigation and traversal task source given document's relevant global object to run the steps:
+    // 7. For each document of documentsToFireBeforeunload, queue a global task on the navigation and traversal task source given document's relevant global object to run the steps:
     for (auto& document : documents_to_fire_beforeunload) {
         queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*document), GC::create_function(heap(), [document, &final_status, &completed_tasks, &unload_prompt_shown] {
             // 1. Let (unloadPromptShownForThisDocument, unloadPromptCanceledByThisDocument) be the result of running the steps to fire beforeunload given document and unloadPromptShown.

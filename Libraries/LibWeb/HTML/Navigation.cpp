@@ -605,8 +605,7 @@ GC::Ref<NavigationAPIMethodTracker> Navigation::add_an_upcoming_traverse_api_met
         /* .committed_promise = */ committed_promise,
         /* .finished_promise = */ finished_promise);
 
-    // 4. Set navigation's upcoming traverse API method trackers[key] to apiMethodTracker.
-    // FIXME: Fix spec typo key --> destinationKey
+    // 4. Set navigation's upcoming traverse API method trackers[destinationKey] to apiMethodTracker.
     m_upcoming_traverse_api_method_trackers.set(destination_key, api_method_tracker);
 
     // 5. Return apiMethodTracker.
@@ -1116,9 +1115,8 @@ bool Navigation::inner_navigate_event_firing_algorithm(
         if (navigation_type == Bindings::NavigationType::Traverse)
             m_suppress_scroll_restoration_during_ongoing_navigation = true;
 
-        // FIXME: Fix spec typo "serialied"
         // 7. If navigationType is "push" or "replace", then run the URL and history update steps given document and
-        //    event's destination's URL, with serialiedData set to event's classic history API state and historyHandling
+        //    event's destination's URL, with serializedData set to event's classic history API state and historyHandling
         //    set to navigationType.
         if (navigation_type == Bindings::NavigationType::Push || navigation_type == Bindings::NavigationType::Replace) {
             auto history_handling = navigation_type == Bindings::NavigationType::Push ? HistoryHandlingBehavior::Push : HistoryHandlingBehavior::Replace;

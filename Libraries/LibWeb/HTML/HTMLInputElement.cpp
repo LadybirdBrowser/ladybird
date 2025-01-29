@@ -1399,7 +1399,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::handle_src_attribute(String const& v
     request->set_credentials_mode(Fetch::Infrastructure::Request::CredentialsMode::Include);
     request->set_use_url_credentials(true);
 
-    // 4. Fetch request, with processResponseEndOfBody set to the following step given response response:
+    // 4. Fetch request, with processResponseEndOfBody set to the following steps given response response:
     m_resource_request = SharedResourceRequest::get_or_create(realm, document().page(), request->url());
     m_resource_request->add_callbacks(
         [this, &realm]() {
@@ -2376,13 +2376,15 @@ WebIDL::ExceptionOr<void> HTMLInputElement::step_up_or_down(bool is_down, WebIDL
     }
 
     // 8. If the element has a minimum, and value is less than that minimum, then set value to the smallest value that,
-    // when subtracted from the step base, is an integral multiple of the allowed value step, and that is more than or equal to minimum.
+    //    when subtracted from the step base, is an integral multiple of the allowed value step, and that is more than
+    //    or equal to that minimum.
     if (maybe_minimum.has_value() && value < *maybe_minimum) {
         value = AK::max(value, *maybe_minimum);
     }
 
     // 9. If the element has a maximum, and value is greater than that maximum, then set value to the largest value that,
-    // when subtracted from the step base, is an integral multiple of the allowed value step, and that is less than or equal to maximum.
+    //    when subtracted from the step base, is an integral multiple of the allowed value step, and that is less than
+    //    or equal to that maximum.
     if (maybe_maximum.has_value() && value > *maybe_maximum) {
         value = AK::min(value, *maybe_maximum);
     }
