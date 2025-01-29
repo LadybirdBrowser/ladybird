@@ -298,8 +298,8 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
             [&](String const& source) {
                 // 1. If previousId was not given:
                 if (!previous_id.has_value()) {
-                    // 1. Let globalName be "Window" if global is a Window object; "Worker" otherwise.
-                    auto global_name = is<Window>(this_impl()) ? "Window"sv : "Worker"sv;
+                    // 1. Let globalName be "Window" if global is a Window object; "WorkerGlobalScope" otherwise.
+                    auto global_name = is<Window>(this_impl()) ? "Window"sv : "WorkerGlobalScope"sv;
 
                     // 2. Let methodName be "setInterval" if repeat is true; "setTimeout" otherwise.
                     auto method_name = repeat == Repeat::Yes ? "setInterval"sv : "setTimeout"sv;
