@@ -682,7 +682,6 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
 
     // https://dom.spec.whatwg.org/#concept-element-interface
     // The element interface for any name and namespace is Element, unless stated otherwise.
-    dbgln("Potential FIXME: Creating unknown generic element '{}' in namespace '{}'", local_name, namespace_);
     auto element = realm.create<DOM::Element>(document, move(qualified_name));
     element->set_is_value(move(is_value));
     element->set_custom_element_state(CustomElementState::Uncustomized);
