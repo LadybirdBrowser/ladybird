@@ -474,37 +474,36 @@ void HTMLHyperlinkElementUtils::follow_the_hyperlink(Optional<String> hyperlink_
     if (cannot_navigate())
         return;
 
-    // 2. Let replace be false.
-    [[maybe_unused]] auto replace = false;
-
-    // 3. Let targetAttributeValue be the empty string.
+    // 2. Let targetAttributeValue be the empty string.
     String target_attribute_value;
 
-    // 4. If subject is an a or area element, then set targetAttributeValue to the result of getting an element's target given subject.
+    // 3. If subject is an a or area element, then set targetAttributeValue to the result of getting an element's target given subject.
     target_attribute_value = hyperlink_element_utils_get_an_elements_target();
 
-    // 5. Let noopener be the result of getting an element's noopener with subject and targetAttributeValue.
+    // 4. Let urlRecord be the result of encoding-parsing a URL given subject's href attribute value, relative to subject's node document.
+    auto url_record = hyperlink_element_utils_document().encoding_parse_url(href());
+
+    // 5. If urlRecord is failure, then return.
+    if (!url_record.has_value())
+        return;
+
+    // 6. Let noopener be the result of getting an element's noopener with subject, urlRecord, and targetAttributeValue.
     auto noopener = hyperlink_element_utils_get_an_elements_noopener(target_attribute_value);
 
-    // 6. Let targetNavigable be the first return value of applying the rules for choosing a navigable given
+    // 7. Let targetNavigable be the first return value of applying the rules for choosing a navigable given
     //    targetAttributeValue, subject's node navigable, and noopener.
     auto target_navigable = hyperlink_element_utils_document().navigable()->choose_a_navigable(target_attribute_value, noopener).navigable;
 
-    // 7. If targetNavigable is null, then return.
+    // 8. If targetNavigable is null, then return.
     if (!target_navigable)
         return;
 
-    // 8. Let urlString be the result of encoding-parsing-and-serializing a URL given subject's href attribute value,
-    //    relative to subject's node document.
-    auto url_string = hyperlink_element_utils_document().encoding_parse_and_serialize_url(href());
-
-    // 9. If urlString is failure, then return.
-    if (!url_string.has_value())
-        return;
+    // 9. Let urlString be the result of applying the URL serializer to urlRecord.
+    auto url_string = url_record->serialize();
 
     // 10. If hyperlinkSuffix is non-null, then append it to urlString.
     if (hyperlink_suffix.has_value())
-        url_string = MUST(String::formatted("{}{}", *url_string, *hyperlink_suffix));
+        url_string = MUST(String::formatted("{}{}", url_string, *hyperlink_suffix));
 
     // 11. Let referrerPolicy be the current state of subject's referrerpolicy content attribute.
     auto referrer_policy = ReferrerPolicy::from_string(hyperlink_element_utils_referrerpolicy().value_or({})).value_or(ReferrerPolicy::ReferrerPolicy::EmptyString);
@@ -512,7 +511,7 @@ void HTMLHyperlinkElementUtils::follow_the_hyperlink(Optional<String> hyperlink_
     // FIXME: 12. If subject's link types includes the noreferrer keyword, then set referrerPolicy to "no-referrer".
 
     // 13. Navigate targetNavigable to urlString using subject's node document, with referrerPolicy set to referrerPolicy and userInvolvement set to userInvolvement.
-    MUST(target_navigable->navigate({ .url = *url_string, .source_document = hyperlink_element_utils_document(), .referrer_policy = referrer_policy, .user_involvement = user_involvement }));
+    MUST(target_navigable->navigate({ .url = url_string, .source_document = hyperlink_element_utils_document(), .referrer_policy = referrer_policy, .user_involvement = user_involvement }));
 }
 
 }
