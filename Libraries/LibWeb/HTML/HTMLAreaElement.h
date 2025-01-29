@@ -48,9 +48,9 @@ private:
     {
         return get_an_elements_target(target);
     }
-    virtual TokenizedFeature::NoOpener hyperlink_element_utils_get_an_elements_noopener(StringView target) const override
+    virtual TokenizedFeature::NoOpener hyperlink_element_utils_get_an_elements_noopener(URL::URL const& url, StringView target) const override
     {
-        return get_an_elements_noopener(target);
+        return get_an_elements_noopener(url, target);
     }
 
     virtual Optional<ARIA::Role> default_role() const override;

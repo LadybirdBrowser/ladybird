@@ -117,7 +117,7 @@ public:
     virtual Optional<ARIA::Role> default_role() const override;
 
     String get_an_elements_target(Optional<String> target = {}) const;
-    TokenizedFeature::NoOpener get_an_elements_noopener(StringView target) const;
+    TokenizedFeature::NoOpener get_an_elements_noopener(URL::URL const& url, StringView target) const;
 
     WebIDL::ExceptionOr<GC::Ref<ElementInternals>> attach_internals();
 
