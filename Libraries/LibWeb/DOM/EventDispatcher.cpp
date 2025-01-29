@@ -37,7 +37,7 @@ bool EventDispatcher::inner_invoke(Event& event, Vector<GC::Root<DOM::DOMEventLi
     // 1. Let found be false.
     bool found = false;
 
-    // 2. For each listener in listeners, whose removed is false:
+    // 2. For each listener of listeners, whose removed is false:
     for (auto& listener : listeners) {
         if (listener->removed)
             continue;
@@ -212,8 +212,10 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
     // 4. Let relatedTarget be the result of retargeting event’s relatedTarget against target.
     GC::Ptr<EventTarget> related_target = retarget(event.related_target(), target);
 
+    // 5. Let clearTargets be false.
     bool clear_targets = false;
-    // 5. If target is not relatedTarget or target is event’s relatedTarget, then:
+
+    // 6. If target is not relatedTarget or target is event’s relatedTarget, then:
     if (related_target != target || event.related_target() == target) {
         // 1. Let touchTargets be a new list.
         Event::TouchTargetList touch_targets;
@@ -320,8 +322,9 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
 
         VERIFY(clear_targets_struct.has_value());
 
-        // 11. Let clearTargets be true if clearTargetsStruct’s shadow-adjusted target, clearTargetsStruct’s relatedTarget,
-        //     or an EventTarget object in clearTargetsStruct’s touch target list is a node and its root is a shadow root; otherwise false.
+        // 11. If clearTargetsStruct’s shadow-adjusted target, clearTargetsStruct’s relatedTarget, or an EventTarget
+        //     object in clearTargetsStruct’s touch target list is a node whose root is a shadow root:
+        //     set clearTargets to true.
         if (is<Node>(clear_targets_struct.value().shadow_adjusted_target.ptr())) {
             auto& shadow_adjusted_target_node = as<Node>(*clear_targets_struct.value().shadow_adjusted_target);
             if (is<ShadowRoot>(shadow_adjusted_target_node.root()))
@@ -350,7 +353,7 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
         if (activation_target)
             activation_target->legacy_pre_activation_behavior();
 
-        // 13. For each struct in event’s path, in reverse order:
+        // 13. For each struct of event’s path, in reverse order:
         for (auto& entry : event.path().in_reverse()) {
             // 1. If struct’s shadow-adjusted target is non-null, then set event’s eventPhase attribute to AT_TARGET.
             if (entry.shadow_adjusted_target)
@@ -363,7 +366,7 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
             invoke(entry, event, Event::Phase::CapturingPhase, legacy_output_did_listeners_throw);
         }
 
-        // 14. For each struct in event’s path:
+        // 14. For each struct of event’s path:
         for (auto& entry : event.path()) {
             // 1. If struct’s shadow-adjusted target is non-null, then set event’s eventPhase attribute to AT_TARGET.
             if (entry.shadow_adjusted_target) {
@@ -384,21 +387,21 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
         }
     }
 
-    // 6. Set event’s eventPhase attribute to NONE.
+    // 7. Set event’s eventPhase attribute to NONE.
     event.set_phase(Event::Phase::None);
 
-    // 7. Set event’s currentTarget attribute to null.
+    // 8. Set event’s currentTarget attribute to null.
     event.set_current_target(nullptr);
 
-    // 8. Set event’s path to the empty list.
+    // 9. Set event’s path to the empty list.
     event.clear_path();
 
-    // 9. Unset event’s dispatch flag, stop propagation flag, and stop immediate propagation flag.
+    // 10. Unset event’s dispatch flag, stop propagation flag, and stop immediate propagation flag.
     event.set_dispatched(false);
     event.set_stop_propagation(false);
     event.set_stop_immediate_propagation(false);
 
-    // 10. If clearTargets, then:
+    // 11. If clearTargets, then:
     if (clear_targets) {
         // 1. Set event’s target to null.
         event.set_target(nullptr);
@@ -410,7 +413,7 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
         event.clear_touch_target_list();
     }
 
-    // 11. If activationTarget is non-null, then:
+    // 12. If activationTarget is non-null, then:
     if (activation_target) {
         // 1. If event’s canceled flag is unset, then run activationTarget’s activation behavior with event.
         if (!event.cancelled()) {
@@ -423,7 +426,7 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
         }
     }
 
-    // 12. Return false if event’s canceled flag is set; otherwise true.
+    // 13. Return false if event’s canceled flag is set; otherwise true.
     return !event.cancelled();
 }
 

@@ -118,13 +118,13 @@ bool DOMTokenList::contains(String const& token)
 // https://dom.spec.whatwg.org/#dom-domtokenlist-add
 WebIDL::ExceptionOr<void> DOMTokenList::add(Vector<String> const& tokens)
 {
-    // 1. For each token in tokens:
+    // 1. For each token of tokens:
     for (auto const& token : tokens) {
         // a. If token is the empty string, then throw a "SyntaxError" DOMException.
         // b. If token contains any ASCII whitespace, then throw an "InvalidCharacterError" DOMException.
         TRY(validate_token(token));
 
-        // 2. For each token in tokens, append token to this’s token set.
+        // 2. For each token of tokens, append token to this’s token set.
         append_to_ordered_set(m_token_set, token);
     }
 
@@ -136,13 +136,13 @@ WebIDL::ExceptionOr<void> DOMTokenList::add(Vector<String> const& tokens)
 // https://dom.spec.whatwg.org/#dom-domtokenlist-remove
 WebIDL::ExceptionOr<void> DOMTokenList::remove(Vector<String> const& tokens)
 {
-    // 1. For each token in tokens:
+    // 1. For each token of tokens:
     for (auto const& token : tokens) {
         // a. If token is the empty string, then throw a "SyntaxError" DOMException.
         // b. If token contains any ASCII whitespace, then throw an "InvalidCharacterError" DOMException.
         TRY(validate_token(token));
 
-        // 2. For each token in tokens, remove token from this’s token set.
+        // 2. For each token of tokens, remove token from this’s token set.
         remove_from_ordered_set(m_token_set, token);
     }
 
