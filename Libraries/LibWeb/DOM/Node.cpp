@@ -486,18 +486,6 @@ void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::Invalida
         set_needs_style_update(true);
     }
 
-    auto element_has_properties_from_invalidation_set = [&](Element& element) {
-        bool result = false;
-        invalidation_set.for_each_property([&](auto const& property) {
-            if (element.affected_by_invalidation_property(property)) {
-                result = true;
-                return IterationDecision::Break;
-            }
-            return IterationDecision::Continue;
-        });
-        return result;
-    };
-
     auto invalidate_entire_subtree = [&](Node& subtree_root) {
         subtree_root.for_each_shadow_including_inclusive_descendant([&](Node& node) {
             if (!node.is_element())
@@ -506,7 +494,7 @@ void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::Invalida
             bool needs_style_recalculation = false;
             if (invalidation_set.needs_invalidate_whole_subtree()) {
                 needs_style_recalculation = true;
-            } else if (element_has_properties_from_invalidation_set(element)) {
+            } else if (element.includes_properties_from_invalidation_set(invalidation_set)) {
                 needs_style_recalculation = true;
             } else if (options.invalidate_elements_that_use_css_custom_properties && element.style_uses_css_custom_properties()) {
                 needs_style_recalculation = true;

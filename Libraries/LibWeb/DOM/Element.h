@@ -266,7 +266,7 @@ public:
     static GC::Ptr<Layout::NodeWithStyle> create_layout_node_for_display_type(DOM::Document&, CSS::Display const&, GC::Ref<CSS::ComputedProperties>, Element*);
 
     bool affected_by_hover() const;
-    bool affected_by_invalidation_property(CSS::InvalidationSet::Property const&) const;
+    bool includes_properties_from_invalidation_set(CSS::InvalidationSet const&) const;
 
     void set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::Selector::PseudoElement::Type, GC::Ptr<Layout::NodeWithStyle>);
     GC::Ptr<Layout::NodeWithStyle> get_pseudo_element_node(CSS::Selector::PseudoElement::Type) const;

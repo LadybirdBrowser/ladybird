@@ -1149,52 +1149,64 @@ bool Element::affected_by_hover() const
     return false;
 }
 
-bool Element::affected_by_invalidation_property(CSS::InvalidationSet::Property const& property) const
+bool Element::includes_properties_from_invalidation_set(CSS::InvalidationSet const& set) const
 {
-    switch (property.type) {
-    case CSS::InvalidationSet::Property::Type::Class:
-        return m_classes.contains_slow(property.name());
-    case CSS::InvalidationSet::Property::Type::Id:
-        return m_id == property.name();
-    case CSS::InvalidationSet::Property::Type::TagName:
-        return local_name() == property.name();
-    case CSS::InvalidationSet::Property::Type::Attribute: {
-        if (property.name() == HTML::AttributeNames::id || property.name() == HTML::AttributeNames::class_)
-            return true;
-        return has_attribute(property.name());
-    }
-    case CSS::InvalidationSet::Property::Type::PseudoClass: {
-        switch (property.value.get<CSS::PseudoClass>()) {
-        case CSS::PseudoClass::Enabled: {
-            return (is<HTML::HTMLButtonElement>(*this) || is<HTML::HTMLInputElement>(*this) || is<HTML::HTMLSelectElement>(*this) || is<HTML::HTMLTextAreaElement>(*this) || is<HTML::HTMLOptGroupElement>(*this) || is<HTML::HTMLOptionElement>(*this) || is<HTML::HTMLFieldSetElement>(*this))
-                && !is_actually_disabled();
+    auto includes_property = [&](CSS::InvalidationSet::Property const& property) {
+        switch (property.type) {
+        case CSS::InvalidationSet::Property::Type::Class:
+            return m_classes.contains_slow(property.name());
+        case CSS::InvalidationSet::Property::Type::Id:
+            return m_id == property.name();
+        case CSS::InvalidationSet::Property::Type::TagName:
+            return local_name() == property.name();
+        case CSS::InvalidationSet::Property::Type::Attribute: {
+            if (property.name() == HTML::AttributeNames::id || property.name() == HTML::AttributeNames::class_)
+                return true;
+            return has_attribute(property.name());
         }
-        case CSS::PseudoClass::Disabled: {
-            return is_actually_disabled();
-        }
-        case CSS::PseudoClass::Checked: {
-            // FIXME: This could be narrowed down to return true only if element is actually checked.
-            return is<HTML::HTMLInputElement>(*this) || is<HTML::HTMLOptionElement>(*this);
-        }
-        case CSS::PseudoClass::PlaceholderShown: {
-            if (is<HTML::HTMLInputElement>(*this) && has_attribute(HTML::AttributeNames::placeholder)) {
-                auto const& input_element = static_cast<HTML::HTMLInputElement const&>(*this);
-                return input_element.placeholder_element() && input_element.placeholder_value().has_value();
+        case CSS::InvalidationSet::Property::Type::PseudoClass: {
+            switch (property.value.get<CSS::PseudoClass>()) {
+            case CSS::PseudoClass::Enabled: {
+                return (is<HTML::HTMLButtonElement>(*this) || is<HTML::HTMLInputElement>(*this) || is<HTML::HTMLSelectElement>(*this) || is<HTML::HTMLTextAreaElement>(*this) || is<HTML::HTMLOptGroupElement>(*this) || is<HTML::HTMLOptionElement>(*this) || is<HTML::HTMLFieldSetElement>(*this))
+                    && !is_actually_disabled();
             }
-            // - FIXME: textarea elements that have a placeholder attribute whose value is currently being presented to the user.
-            return false;
+            case CSS::PseudoClass::Disabled: {
+                return is_actually_disabled();
+            }
+            case CSS::PseudoClass::Checked: {
+                // FIXME: This could be narrowed down to return true only if element is actually checked.
+                return is<HTML::HTMLInputElement>(*this) || is<HTML::HTMLOptionElement>(*this);
+            }
+            case CSS::PseudoClass::PlaceholderShown: {
+                if (is<HTML::HTMLInputElement>(*this) && has_attribute(HTML::AttributeNames::placeholder)) {
+                    auto const& input_element = static_cast<HTML::HTMLInputElement const&>(*this);
+                    return input_element.placeholder_element() && input_element.placeholder_value().has_value();
+                }
+                // - FIXME: textarea elements that have a placeholder attribute whose value is currently being presented to the user.
+                return false;
+            }
+            default:
+                VERIFY_NOT_REACHED();
+            }
         }
+        case CSS::InvalidationSet::Property::Type::InvalidateSelf:
+            return false;
+        case CSS::InvalidationSet::Property::Type::InvalidateWholeSubtree:
+            return true;
         default:
             VERIFY_NOT_REACHED();
         }
-    }
-    case CSS::InvalidationSet::Property::Type::InvalidateSelf:
-        return false;
-    case CSS::InvalidationSet::Property::Type::InvalidateWholeSubtree:
-        return true;
-    default:
-        VERIFY_NOT_REACHED();
-    }
+    };
+
+    bool includes_any = false;
+    set.for_each_property([&](auto const& property) {
+        if (includes_property(property)) {
+            includes_any = true;
+            return IterationDecision::Break;
+        }
+        return IterationDecision::Continue;
+    });
+    return includes_any;
 }
 
 bool Element::has_pseudo_elements() const
