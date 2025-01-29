@@ -24,7 +24,6 @@ struct PaintingSurface::Impl {
     IntSize size;
     sk_sp<SkSurface> surface;
     RefPtr<Bitmap> bitmap;
-    RefPtr<SkiaBackendContext> context;
 };
 
 NonnullRefPtr<PaintingSurface> PaintingSurface::create_with_size(RefPtr<SkiaBackendContext> context, IntSize size, BitmapFormat color_type, AlphaType alpha_type)
@@ -37,12 +36,12 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::create_with_size(RefPtr<SkiaBack
         auto bitmap = Bitmap::create(color_type, alpha_type, size).value();
         auto surface = SkSurfaces::WrapPixels(image_info, bitmap->begin(), bitmap->pitch());
         VERIFY(surface);
-        return adopt_ref(*new PaintingSurface(make<Impl>(size, surface, bitmap, context)));
+        return adopt_ref(*new PaintingSurface(make<Impl>(size, surface, bitmap)));
     }
 
     auto surface = SkSurfaces::RenderTarget(context->sk_context(), skgpu::Budgeted::kNo, image_info);
     VERIFY(surface);
-    return adopt_ref(*new PaintingSurface(make<Impl>(size, surface, nullptr, context)));
+    return adopt_ref(*new PaintingSurface(make<Impl>(size, surface, nullptr)));
 }
 
 NonnullRefPtr<PaintingSurface> PaintingSurface::wrap_bitmap(Bitmap& bitmap)
@@ -52,7 +51,7 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::wrap_bitmap(Bitmap& bitmap)
     auto size = bitmap.size();
     auto image_info = SkImageInfo::Make(bitmap.width(), bitmap.height(), color_type, alpha_type, SkColorSpace::MakeSRGB());
     auto surface = SkSurfaces::WrapPixels(image_info, bitmap.begin(), bitmap.pitch());
-    return adopt_ref(*new PaintingSurface(make<Impl>(size, surface, bitmap, nullptr)));
+    return adopt_ref(*new PaintingSurface(make<Impl>(size, surface, bitmap)));
 }
 
 #ifdef AK_OS_MACOS
@@ -76,7 +75,7 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::wrap_iosurface(Core::IOSurfaceHa
         VERIFY_NOT_REACHED();
     }
     auto surface = SkSurfaces::WrapBackendRenderTarget(context->sk_context(), backend_render_target, sk_origin, kBGRA_8888_SkColorType, nullptr, nullptr);
-    return adopt_ref(*new PaintingSurface(make<Impl>(size, surface, nullptr, context)));
+    return adopt_ref(*new PaintingSurface(make<Impl>(size, surface, nullptr)));
 }
 #endif
 
@@ -136,11 +135,10 @@ sk_sp<SkImage> PaintingSurface::sk_image_snapshot() const
     return m_impl->surface->makeImageSnapshot();
 }
 
-void PaintingSurface::flush() const
+void PaintingSurface::flush()
 {
-    if (auto context = m_impl->context) {
-        context->flush_and_submit(m_impl->surface.get());
-    }
+    if (on_flush)
+        on_flush(*this);
 }
 
 }

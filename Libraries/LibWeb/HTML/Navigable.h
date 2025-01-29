@@ -170,7 +170,7 @@ public:
 
     CSSPixelPoint viewport_scroll_offset() const { return m_viewport_scroll_offset; }
     CSSPixelRect viewport_rect() const { return { m_viewport_scroll_offset, m_size }; }
-    void set_viewport_size(CSSPixelSize);
+    virtual void set_viewport_size(CSSPixelSize);
     void perform_scroll_of_viewport(CSSPixelPoint position);
 
     void set_needs_display(InvalidateDisplayList = InvalidateDisplayList::Yes);
