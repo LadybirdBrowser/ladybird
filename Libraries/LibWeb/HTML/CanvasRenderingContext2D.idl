@@ -39,10 +39,9 @@ enum CanvasTextBaseline { "top", "hanging", "middle", "alphabetic", "ideographic
 [Exposed=Window]
 interface CanvasRenderingContext2D {
     [ImplementedAs=canvas_for_binding] readonly attribute HTMLCanvasElement canvas;
-
-    [FIXME] CanvasRenderingContext2DSettings getContextAttributes();
 };
 
+CanvasRenderingContext2D includes CanvasSettings;
 CanvasRenderingContext2D includes CanvasState;
 CanvasRenderingContext2D includes CanvasTransform;
 CanvasRenderingContext2D includes CanvasCompositing;
@@ -59,3 +58,9 @@ CanvasRenderingContext2D includes CanvasImageData;
 CanvasRenderingContext2D includes CanvasPathDrawingStyles;
 CanvasRenderingContext2D includes CanvasTextDrawingStyles;
 CanvasRenderingContext2D includes CanvasPath;
+
+// https://html.spec.whatwg.org/multipage/canvas.html#canvassettings
+interface mixin CanvasSettings {
+    // settings
+    [FIXME] CanvasRenderingContext2DSettings getContextAttributes();
+};
