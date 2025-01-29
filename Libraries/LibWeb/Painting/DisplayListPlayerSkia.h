@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibGfx/Bitmap.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>

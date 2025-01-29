@@ -14,7 +14,6 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/StorageAPI/StorageShed.h>
-#include <WebContent/BackingStoreManager.h>
 
 #ifdef AK_OS_MACOS
 #    include <LibGfx/MetalContext.h>

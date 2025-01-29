@@ -6,8 +6,6 @@
 
 #pragma once
 
-#include <LibCore/Forward.h>
-#include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BackingStore.h>
 #include <WebContent/Forward.h>
 

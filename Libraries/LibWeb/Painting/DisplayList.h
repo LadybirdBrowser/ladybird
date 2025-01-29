@@ -9,26 +9,12 @@
 #include <AK/Forward.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/SegmentedVector.h>
-#include <AK/Utf8View.h>
-#include <AK/Vector.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Forward.h>
-#include <LibGfx/Gradients.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/PaintStyle.h>
-#include <LibGfx/Palette.h>
-#include <LibGfx/Point.h>
-#include <LibGfx/Rect.h>
-#include <LibGfx/Size.h>
-#include <LibGfx/TextAlignment.h>
-#include <LibGfx/TextLayout.h>
 #include <LibWeb/CSS/Enums.h>
-#include <LibWeb/Painting/BorderRadiiData.h>
-#include <LibWeb/Painting/BorderRadiusCornerClipper.h>
 #include <LibWeb/Painting/Command.h>
-#include <LibWeb/Painting/GradientData.h>
-#include <LibWeb/Painting/PaintBoxShadowParams.h>
-#include <LibWeb/Painting/ScrollFrame.h>
 #include <LibWeb/Painting/ScrollState.h>
 
 namespace Web::Painting {
