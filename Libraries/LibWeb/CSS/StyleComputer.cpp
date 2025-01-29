@@ -629,6 +629,8 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
     auto map_logical_property_to_real_property = [](PropertyID property_id) -> Optional<PropertyID> {
         // FIXME: Honor writing-mode, direction and text-orientation.
         switch (property_id) {
+        case PropertyID::BlockSize:
+            return PropertyID::Height;
         case PropertyID::MarginBlockStart:
             return PropertyID::MarginTop;
         case PropertyID::MarginBlockEnd:
@@ -887,6 +889,26 @@ void StyleComputer::for_each_property_expanding_shorthands(PropertyID property_i
                 set_longhand_property(CSS::PropertyID::MaxHeight, value);
             } else {
                 set_longhand_property(CSS::PropertyID::MinHeight, value);
+            }
+        }
+        return;
+    }
+
+    if (property_id == CSS::PropertyID::MaxBlockSize || property_id == CSS::PropertyID::MinBlockSize) {
+        // FIXME: Use writing-mode to determine if we should set width or height.
+        bool is_horizontal = true;
+
+        if (is_horizontal) {
+            if (property_id == CSS::PropertyID::MaxBlockSize) {
+                set_longhand_property(CSS::PropertyID::MaxHeight, value);
+            } else {
+                set_longhand_property(CSS::PropertyID::MinHeight, value);
+            }
+        } else {
+            if (property_id == CSS::PropertyID::MaxBlockSize) {
+                set_longhand_property(CSS::PropertyID::MaxWidth, value);
+            } else {
+                set_longhand_property(CSS::PropertyID::MinWidth, value);
             }
         }
         return;
