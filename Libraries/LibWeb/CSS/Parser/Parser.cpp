@@ -8860,9 +8860,11 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_css_value(Prope
         }
 
         // No property matched, so we're done.
-        dbgln("No property (from {} properties) matched {}", unassigned_properties.size(), stream.next_token().to_debug_string());
-        for (auto id : unassigned_properties)
-            dbgln("    {}", string_from_property_id(id));
+        if constexpr (CSS_PARSER_DEBUG) {
+            dbgln("No property (from {} properties) matched {}", unassigned_properties.size(), stream.next_token().to_debug_string());
+            for (auto id : unassigned_properties)
+                dbgln("    {}", string_from_property_id(id));
+        }
         break;
     }
 
