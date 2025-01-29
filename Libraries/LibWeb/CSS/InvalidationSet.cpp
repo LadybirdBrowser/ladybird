@@ -21,14 +21,20 @@ bool InvalidationSet::is_empty() const
     return !m_needs_invalidate_self && !m_needs_invalidate_whole_subtree && m_properties.is_empty();
 }
 
-void InvalidationSet::for_each_property(Function<void(Property const&)> const& callback) const
+void InvalidationSet::for_each_property(Function<IterationDecision(Property const&)> const& callback) const
 {
-    if (m_needs_invalidate_self)
-        callback({ Property::Type::InvalidateSelf });
-    if (m_needs_invalidate_whole_subtree)
-        callback({ Property::Type::InvalidateWholeSubtree });
-    for (auto const& property : m_properties)
-        callback(property);
+    if (m_needs_invalidate_self) {
+        if (callback({ Property::Type::InvalidateSelf }) == IterationDecision::Break)
+            return;
+    }
+    if (m_needs_invalidate_whole_subtree) {
+        if (callback({ Property::Type::InvalidateWholeSubtree }) == IterationDecision::Break)
+            return;
+    }
+    for (auto const& property : m_properties) {
+        if (callback(property) == IterationDecision::Break)
+            return;
+    }
 }
 
 }
@@ -92,6 +98,7 @@ ErrorOr<void> Formatter<Web::CSS::InvalidationSet>::format(FormatBuilder& builde
         if (!first)
             builder.builder().append(", "sv);
         builder.builder().appendff("{}", property);
+        return IterationDecision::Continue;
     });
     return {};
 }
