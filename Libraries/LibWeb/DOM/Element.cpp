@@ -1166,6 +1166,8 @@ bool Element::includes_properties_from_invalidation_set(CSS::InvalidationSet con
         }
         case CSS::InvalidationSet::Property::Type::PseudoClass: {
             switch (property.value.get<CSS::PseudoClass>()) {
+            case CSS::PseudoClass::Has:
+                return true;
             case CSS::PseudoClass::Enabled: {
                 return (is<HTML::HTMLButtonElement>(*this) || is<HTML::HTMLInputElement>(*this) || is<HTML::HTMLSelectElement>(*this) || is<HTML::HTMLTextAreaElement>(*this) || is<HTML::HTMLOptGroupElement>(*this) || is<HTML::HTMLOptionElement>(*this) || is<HTML::HTMLFieldSetElement>(*this))
                     && !is_actually_disabled();

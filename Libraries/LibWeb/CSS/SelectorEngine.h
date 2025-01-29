@@ -18,6 +18,8 @@ enum class SelectorKind {
 
 struct MatchContext {
     GC::Ptr<CSS::CSSStyleSheet const> style_sheet_for_rule {};
+    GC::Ptr<DOM::Element const> subject {};
+    bool collect_per_element_selector_involvement_metadata { false };
     bool did_match_any_hover_rules { false };
 };
 

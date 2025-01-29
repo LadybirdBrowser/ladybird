@@ -401,16 +401,47 @@ GC::Ptr<HTML::Navigable> Node::navigable() const
     }
 }
 
+void Node::invalidate_elements_affected_by_has()
+{
+    Vector<CSS::InvalidationSet::Property, 1> changed_properties;
+    changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::Has });
+    auto invalidation_set = document().style_computer().invalidation_set_for_properties(changed_properties);
+    for_each_shadow_including_inclusive_descendant([&](Node& node) {
+        if (!node.is_element())
+            return TraversalDecision::Continue;
+        auto& element = static_cast<Element&>(node);
+        bool needs_style_recalculation = false;
+        // There are two cases in which an element must be invalidated, depending on the position of :has() in a selector:
+        // 1) In the subject position, i.e., ".a:has(.b)". In that case, invalidation sets are not helpful
+        //    for narrowing down the set of elements that need to be invalidated. Instead, we invalidate
+        //    all elements that were tested against selectors with :has() in the subject position during
+        //    selector matching.
+        // 2) In the non-subject position, i.e., ".a:has(.b) > .c". Here, invalidation sets can be used to
+        //    determine that only elements with the "c" class have to be invalidated.
+        if (element.affected_by_has_pseudo_class_in_subject_position()) {
+            needs_style_recalculation = true;
+        } else if (invalidation_set.needs_invalidate_whole_subtree()) {
+            needs_style_recalculation = true;
+        } else if (element.includes_properties_from_invalidation_set(invalidation_set)) {
+            needs_style_recalculation = true;
+        }
+
+        if (needs_style_recalculation) {
+            element.set_needs_style_update(true);
+        } else {
+            element.set_needs_inherited_style_update(true);
+        }
+        return TraversalDecision::Continue;
+    });
+}
+
 void Node::invalidate_style(StyleInvalidationReason reason)
 {
     if (is_character_data())
         return;
 
-    // FIXME: This is very not optimal! We should figure out a smaller set of elements to invalidate,
-    //        but right now the :has() selector means we have to invalidate everything.
-    if (!is_document() && document().style_computer().may_have_has_selectors()) {
-        document().invalidate_style(reason);
-        return;
+    if (document().style_computer().may_have_has_selectors()) {
+        document().invalidate_elements_affected_by_has();
     }
 
     if (!needs_style_update() && !document().needs_full_style_update()) {
@@ -462,7 +493,7 @@ void Node::invalidate_style(StyleInvalidationReason reason)
     document().schedule_style_update();
 }
 
-void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::InvalidationSet::Property> const& properties, StyleInvalidationOptions options)
+void Node::invalidate_style(StyleInvalidationReason, Vector<CSS::InvalidationSet::Property> const& properties, StyleInvalidationOptions options)
 {
     if (is_character_data())
         return;
@@ -472,8 +503,7 @@ void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::Invalida
         properties_used_in_has_selectors |= document().style_computer().invalidation_property_used_in_has_selector(property);
     }
     if (properties_used_in_has_selectors) {
-        document().invalidate_style(reason);
-        return;
+        document().invalidate_elements_affected_by_has();
     }
 
     auto invalidation_set = document().style_computer().invalidation_set_for_properties(properties);
