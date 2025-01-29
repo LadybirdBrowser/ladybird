@@ -82,6 +82,7 @@ background-position-x: 0%
 background-position-y: 0%
 background-repeat: repeat
 background-size: auto auto
+block-size: auto
 border-bottom-color: rgb(0, 0, 0)
 border-bottom-left-radius: 0px
 border-bottom-right-radius: 0px
@@ -134,7 +135,7 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: auto
 grid-template-rows: auto
-height: 2312px
+height: 2329px
 inline-size: auto
 inset-block-end: auto
 inset-block-start: auto
@@ -156,9 +157,11 @@ margin-top: 8px
 mask: none
 mask-image: none
 mask-type: luminance
+max-block-size: none
 max-height: none
 max-inline-size: none
 max-width: none
+min-block-size: 0px
 min-height: auto
 min-inline-size: 0px
 min-width: auto

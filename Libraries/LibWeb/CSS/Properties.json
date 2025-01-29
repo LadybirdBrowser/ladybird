@@ -448,6 +448,14 @@
     ],
     "percentages-resolve-to": "length"
   },
+  "block-size": {
+    "logical-alias-for": [
+      "height",
+      "width"
+    ],
+    "initial": "auto",
+    "max-values": 1
+  },
   "border": {
     "inherited": false,
     "initial": "medium currentcolor none",
@@ -2002,6 +2010,13 @@
       "math-style"
     ]
   },
+  "max-block-size": {
+    "logical-alias-for": [
+      "max-height",
+      "max-width"
+    ],
+    "initial": "none"
+  },
   "max-height": {
     "animation-type": "by-computed-value",
     "inherited": false,
@@ -2046,6 +2061,13 @@
     "quirks": [
       "unitless-length"
     ]
+  },
+  "min-block-size": {
+    "logical-alias-for": [
+      "min-height",
+      "min-width"
+    ],
+    "initial": "0"
   },
   "min-height": {
     "animation-type": "by-computed-value",
