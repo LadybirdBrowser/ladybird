@@ -1439,6 +1439,8 @@ void Document::update_style()
     // style change event. [CSS-Transitions-2]
     m_transition_generation++;
 
+    invalidate_elements_affected_by_has();
+
     if (!needs_full_style_update() && !needs_style_update() && !child_needs_style_update())
         return;
 
@@ -1656,6 +1658,44 @@ static Node* find_common_ancestor(Node* a, Node* b)
     }
 
     return nullptr;
+}
+
+void Document::invalidate_elements_affected_by_has()
+{
+    if (!m_needs_invalidate_elements_affected_by_has)
+        return;
+    m_needs_invalidate_elements_affected_by_has = false;
+
+    Vector<CSS::InvalidationSet::Property, 1> changed_properties;
+    changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::Has });
+    auto invalidation_set = document().style_computer().invalidation_set_for_properties(changed_properties);
+    for_each_shadow_including_inclusive_descendant([&](Node& node) {
+        if (!node.is_element())
+            return TraversalDecision::Continue;
+        auto& element = static_cast<Element&>(node);
+        bool needs_style_recalculation = false;
+        // There are two cases in which an element must be invalidated, depending on the position of :has() in a selector:
+        // 1) In the subject position, i.e., ".a:has(.b)". In that case, invalidation sets are not helpful
+        //    for narrowing down the set of elements that need to be invalidated. Instead, we invalidate
+        //    all elements that were tested against selectors with :has() in the subject position during
+        //    selector matching.
+        // 2) In the non-subject position, i.e., ".a:has(.b) > .c". Here, invalidation sets can be used to
+        //    determine that only elements with the "c" class have to be invalidated.
+        if (element.affected_by_has_pseudo_class_in_subject_position()) {
+            needs_style_recalculation = true;
+        } else if (invalidation_set.needs_invalidate_whole_subtree()) {
+            needs_style_recalculation = true;
+        } else if (element.includes_properties_from_invalidation_set(invalidation_set)) {
+            needs_style_recalculation = true;
+        }
+
+        if (needs_style_recalculation) {
+            element.set_needs_style_update(true);
+        } else {
+            element.set_needs_inherited_style_update(true);
+        }
+        return TraversalDecision::Continue;
+    });
 }
 
 void Document::invalidate_style_for_elements_affected_by_hover_change(Node& old_new_hovered_common_ancestor, GC::Ptr<Node> hovered_node)
