@@ -29,14 +29,6 @@ TraversableNavigable::TraversableNavigable(GC::Ref<Page> page)
     : Navigable(page)
     , m_session_history_traversal_queue(vm().heap().allocate<SessionHistoryTraversalQueue>())
 {
-#ifdef AK_OS_MACOS
-    auto display_list_player_type = page->client().display_list_player_type();
-    if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable)
-        auto metal_context = Gfx::get_metal_context();
-        m_skia_backend_context = Gfx::SkiaBackendContext::create_metal_context(*metal_context);
-    }
-#endif
-
 #ifdef USE_VULKAN
     auto display_list_player_type = page->client().display_list_player_type();
     if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable) {
@@ -48,6 +40,13 @@ TraversableNavigable::TraversableNavigable(GC::Ref<Page> page)
             dbgln("Vulkan context creation failed: {}", maybe_vulkan_context.error());
         }
     }
+#endif
+
+#ifdef AK_OS_MACOS
+    auto display_list_player_type = page->client().display_list_player_type();
+    if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable)
+        auto metal_context = Gfx::get_metal_context();
+    m_skia_backend_context = Gfx::SkiaBackendContext::create_metal_context(*metal_context);
 #endif
 }
 
@@ -1402,19 +1401,19 @@ void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::
 
     switch (page().client().display_list_player_type()) {
     case DisplayListPlayerType::SkiaGPUIfAvailable: {
-#ifdef AK_OS_MACOS
-        if (m_skia_backend_context && is<Painting::IOSurfaceBackingStore>(target)) {
-            auto& iosurface_backing_store = static_cast<Painting::IOSurfaceBackingStore&>(target);
-            auto painting_surface = Gfx::PaintingSurface::wrap_iosurface(iosurface_backing_store.iosurface_handle(), *m_skia_backend_context);
-            Painting::DisplayListPlayerSkia player(*m_skia_backend_context, painting_surface);
+#ifdef USE_VULKAN
+        if (m_skia_backend_context) {
+            Painting::DisplayListPlayerSkia player(*m_skia_backend_context, target.bitmap());
             player.execute(*display_list);
             return;
         }
 #endif
 
-#ifdef USE_VULKAN
-        if (m_skia_backend_context) {
-            Painting::DisplayListPlayerSkia player(*m_skia_backend_context, target.bitmap());
+#ifdef AK_OS_MACOS
+        if (m_skia_backend_context && is<Painting::IOSurfaceBackingStore>(target)) {
+            auto& iosurface_backing_store = static_cast<Painting::IOSurfaceBackingStore&>(target);
+            auto painting_surface = Gfx::PaintingSurface::wrap_iosurface(iosurface_backing_store.iosurface_handle(), *m_skia_backend_context);
+            Painting::DisplayListPlayerSkia player(*m_skia_backend_context, painting_surface);
             player.execute(*display_list);
             return;
         }

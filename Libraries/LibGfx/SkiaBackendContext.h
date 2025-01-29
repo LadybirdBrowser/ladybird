@@ -9,12 +9,12 @@
 #include <AK/Noncopyable.h>
 #include <AK/RefCounted.h>
 
-#ifdef AK_OS_MACOS
-#    include <LibGfx/MetalContext.h>
-#endif
-
 #ifdef USE_VULKAN
 #    include <LibGfx/VulkanContext.h>
+#endif
+
+#ifdef AK_OS_MACOS
+#    include <LibGfx/MetalContext.h>
 #endif
 
 class GrDirectContext;
@@ -30,11 +30,11 @@ class SkiaBackendContext : public RefCounted<SkiaBackendContext> {
 
 public:
 #ifdef USE_VULKAN
-    static RefPtr<SkiaBackendContext> create_vulkan_context(Gfx::VulkanContext&);
+    static RefPtr<SkiaBackendContext> create_vulkan_context(VulkanContext&);
 #endif
 
 #ifdef AK_OS_MACOS
-    static RefPtr<Gfx::SkiaBackendContext> create_metal_context(MetalContext&);
+    static RefPtr<SkiaBackendContext> create_metal_context(MetalContext&);
 #endif
 
     SkiaBackendContext() { }
