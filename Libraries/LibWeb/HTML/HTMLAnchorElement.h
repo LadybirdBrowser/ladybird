@@ -61,9 +61,9 @@ private:
     {
         queue_an_element_task(source, move(steps));
     }
-    virtual String hyperlink_element_utils_get_an_elements_target() const override
+    virtual String hyperlink_element_utils_get_an_elements_target(Optional<String> target) const override
     {
-        return get_an_elements_target();
+        return get_an_elements_target(target);
     }
     virtual TokenizedFeature::NoOpener hyperlink_element_utils_get_an_elements_noopener(StringView target) const override
     {
