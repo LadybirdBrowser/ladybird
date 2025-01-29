@@ -15,12 +15,12 @@
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/StorageAPI/StorageShed.h>
 
-#ifdef AK_OS_MACOS
-#    include <LibGfx/MetalContext.h>
-#endif
-
 #ifdef USE_VULKAN
 #    include <LibGfx/VulkanContext.h>
+#endif
+
+#ifdef AK_OS_MACOS
+#    include <LibGfx/MetalContext.h>
 #endif
 
 namespace Web::HTML {
