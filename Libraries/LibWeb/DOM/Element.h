@@ -411,6 +411,9 @@ public:
     bool has_style_containment() const;
     bool has_paint_containment() const;
 
+    bool affected_by_has_pseudo_class_in_subject_position() const { return m_affected_by_has_pseudo_class_in_subject_position; }
+    void set_affected_by_has_pseudo_class_in_subject_position(bool value) { m_affected_by_has_pseudo_class_in_subject_position = value; }
+
 protected:
     Element(Document&, DOM::QualifiedName);
     virtual void initialize(JS::Realm&) override;
@@ -500,6 +503,7 @@ private:
 
     bool m_in_top_layer { false };
     bool m_style_uses_css_custom_properties { false };
+    bool m_affected_by_has_pseudo_class_in_subject_position { false };
 
     OwnPtr<CSS::CountersSet> m_counters_set;
 

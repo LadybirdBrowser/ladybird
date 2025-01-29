@@ -586,7 +586,11 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element c
 
         auto const& selector = rule_to_run.selector;
 
-        SelectorEngine::MatchContext context { .style_sheet_for_rule = *rule_to_run.sheet };
+        SelectorEngine::MatchContext context {
+            .style_sheet_for_rule = *rule_to_run.sheet,
+            .subject = element,
+            .collect_per_element_selector_involvement_metadata = true,
+        };
         ScopeGuard guard = [&] {
             if (context.did_match_any_hover_rules)
                 did_match_any_hover_rules = true;

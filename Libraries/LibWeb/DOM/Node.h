@@ -301,6 +301,7 @@ public:
     [[nodiscard]] bool entire_subtree_needs_style_update() const { return m_entire_subtree_needs_style_update; }
     void set_entire_subtree_needs_style_update(bool b) { m_entire_subtree_needs_style_update = b; }
 
+    void invalidate_elements_affected_by_has();
     void invalidate_style(StyleInvalidationReason);
     struct StyleInvalidationOptions {
         bool invalidate_self { false };

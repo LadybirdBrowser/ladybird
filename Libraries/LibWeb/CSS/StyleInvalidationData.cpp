@@ -125,6 +125,7 @@ static void build_invalidation_sets_for_simple_selector(Selector::SimpleSelector
         case PseudoClass::Disabled:
         case PseudoClass::PlaceholderShown:
         case PseudoClass::Checked:
+        case PseudoClass::Has:
             invalidation_set.set_needs_invalidate_pseudo_class(pseudo_class.type);
             break;
         default:
