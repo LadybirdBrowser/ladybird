@@ -14,13 +14,14 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/StorageAPI/StorageShed.h>
-
-#ifdef USE_VULKAN
-#    include <LibGfx/VulkanContext.h>
-#endif
+#include <WebContent/BackingStoreManager.h>
 
 #ifdef AK_OS_MACOS
 #    include <LibGfx/MetalContext.h>
+#endif
+
+#ifdef USE_VULKAN
+#    include <LibGfx/VulkanContext.h>
 #endif
 
 namespace Web::HTML {
@@ -110,6 +111,8 @@ public:
     StorageAPI::StorageShed& storage_shed() { return m_storage_shed; }
     StorageAPI::StorageShed const& storage_shed() const { return m_storage_shed; }
 
+    void set_viewport_size(CSSPixelSize) override;
+
 private:
     TraversableNavigable(GC::Ref<Page>);
 
@@ -130,6 +133,8 @@ private:
     Vector<GC::Ref<SessionHistoryEntry>> get_session_history_entries_for_the_navigation_api(GC::Ref<Navigable>, int);
 
     [[nodiscard]] bool can_go_forward() const;
+
+    NonnullRefPtr<Gfx::PaintingSurface> painting_surface_for_backing_store(Painting::BackingStore&);
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-current-session-history-step
     int m_current_session_history_step { 0 };
@@ -154,6 +159,8 @@ private:
     String m_window_handle;
 
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
+    OwnPtr<Painting::DisplayListPlayerSkia> m_skia_player;
+    HashMap<Gfx::Bitmap*, NonnullRefPtr<Gfx::PaintingSurface>> m_bitmap_to_surface;
 };
 
 struct BrowsingContextAndDocument {

@@ -53,8 +53,12 @@ TraversableNavigable::TraversableNavigable(GC::Ref<Page> page)
     , m_session_history_traversal_queue(vm().heap().allocate<SessionHistoryTraversalQueue>())
 {
     auto display_list_player_type = page->client().display_list_player_type();
-    if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable)
+    if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable) {
         m_skia_backend_context = get_skia_backend_context();
+        m_skia_player = make<Painting::DisplayListPlayerSkia>(m_skia_backend_context);
+    } else {
+        m_skia_player = make<Painting::DisplayListPlayerSkia>();
+    }
 }
 
 TraversableNavigable::~TraversableNavigable() = default;
@@ -1384,6 +1388,45 @@ GC::Ptr<DOM::Node> TraversableNavigable::currently_focused_area()
     return candidate;
 }
 
+void TraversableNavigable::set_viewport_size(CSSPixelSize size)
+{
+    Navigable::set_viewport_size(size);
+
+    // Invalidate the surface cache if the traversable changed size.
+    m_bitmap_to_surface.clear();
+}
+
+NonnullRefPtr<Gfx::PaintingSurface> TraversableNavigable::painting_surface_for_backing_store(Painting::BackingStore& backing_store)
+{
+    auto& bitmap = backing_store.bitmap();
+    auto cached_surface = m_bitmap_to_surface.find(&bitmap);
+    if (cached_surface != m_bitmap_to_surface.end())
+        return cached_surface->value;
+
+    RefPtr<Gfx::PaintingSurface> new_surface;
+    if (page().client().display_list_player_type() == DisplayListPlayerType::SkiaGPUIfAvailable && m_skia_backend_context) {
+#ifdef USE_VULKAN
+        // Vulkan: Try to create an accelerated surface.
+        new_surface = Gfx::PaintingSurface::create_with_size(m_skia_backend_context, backing_store.size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
+        new_surface->on_flush = [&bitmap = bitmap](auto& surface) { surface.read_into_bitmap(bitmap); };
+#endif
+#ifdef AK_OS_MACOS
+        // macOS: Wrap an IOSurface if available.
+        if (is<Painting::IOSurfaceBackingStore>(backing_store)) {
+            auto& iosurface_backing_store = static_cast<Painting::IOSurfaceBackingStore&>(backing_store);
+            new_surface = Gfx::PaintingSurface::wrap_iosurface(iosurface_backing_store.iosurface_handle(), *m_skia_backend_context);
+        }
+#endif
+    }
+
+    // CPU and fallback: wrap the backing store bitmap directly.
+    if (!new_surface)
+        new_surface = Gfx::PaintingSurface::wrap_bitmap(bitmap);
+
+    m_bitmap_to_surface.set(&bitmap, *new_surface);
+    return *new_surface;
+}
+
 void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::BackingStore& target, PaintOptions paint_options)
 {
     auto document = active_document();
@@ -1391,9 +1434,8 @@ void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::
         return;
 
     for (auto& navigable : all_navigables()) {
-        if (auto active_document = navigable->active_document(); active_document && active_document->paintable()) {
+        if (auto active_document = navigable->active_document(); active_document && active_document->paintable())
             active_document->paintable()->refresh_scroll_state();
-        }
     }
 
     DOM::Document::PaintConfig paint_config;
@@ -1402,43 +1444,12 @@ void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::
     paint_config.has_focus = paint_options.has_focus;
     paint_config.canvas_fill_rect = Gfx::IntRect { {}, content_rect.size() };
     auto display_list = document->record_display_list(paint_config);
-    if (!display_list) {
+    if (!display_list)
         return;
-    }
 
-    switch (page().client().display_list_player_type()) {
-    case DisplayListPlayerType::SkiaGPUIfAvailable: {
-#ifdef USE_VULKAN
-        if (m_skia_backend_context) {
-            Painting::DisplayListPlayerSkia player(*m_skia_backend_context, target.bitmap());
-            player.execute(*display_list);
-            return;
-        }
-#endif
-
-#ifdef AK_OS_MACOS
-        if (m_skia_backend_context && is<Painting::IOSurfaceBackingStore>(target)) {
-            auto& iosurface_backing_store = static_cast<Painting::IOSurfaceBackingStore&>(target);
-            auto painting_surface = Gfx::PaintingSurface::wrap_iosurface(iosurface_backing_store.iosurface_handle(), *m_skia_backend_context);
-            Painting::DisplayListPlayerSkia player(*m_skia_backend_context, painting_surface);
-            player.execute(*display_list);
-            return;
-        }
-#endif
-
-        // Fallback to CPU backend if GPU is not available
-        Painting::DisplayListPlayerSkia player(target.bitmap());
-        player.execute(*display_list);
-        break;
-    }
-    case DisplayListPlayerType::SkiaCPU: {
-        Painting::DisplayListPlayerSkia player(target.bitmap());
-        player.execute(*display_list);
-        break;
-    }
-    default:
-        VERIFY_NOT_REACHED();
-    }
+    auto painting_surface = painting_surface_for_backing_store(target);
+    m_skia_player->set_surface(painting_surface);
+    m_skia_player->execute(*display_list);
 }
 
 }

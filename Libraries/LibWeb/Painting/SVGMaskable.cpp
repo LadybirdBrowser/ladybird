@@ -90,7 +90,9 @@ RefPtr<Gfx::ImmutableBitmap> SVGMaskable::calculate_mask_of_svg(PaintContext& co
         paint_context.set_svg_transform(graphics_element.get_transform());
         paint_context.set_draw_svg_geometry_for_clip_path(is<SVGClipPaintable>(paintable));
         StackingContext::paint_svg(paint_context, paintable, PaintPhase::Foreground);
-        DisplayListPlayerSkia display_list_player { *mask_bitmap };
+        auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(*mask_bitmap);
+        DisplayListPlayerSkia display_list_player;
+        display_list_player.set_surface(painting_surface);
         display_list_player.execute(display_list);
         return mask_bitmap;
     };

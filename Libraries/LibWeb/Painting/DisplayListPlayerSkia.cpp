@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -29,36 +30,13 @@
 
 namespace Web::Painting {
 
-#ifdef USE_VULKAN
-DisplayListPlayerSkia::DisplayListPlayerSkia(Gfx::SkiaBackendContext& context, Gfx::Bitmap& bitmap)
+DisplayListPlayerSkia::DisplayListPlayerSkia(RefPtr<Gfx::SkiaBackendContext> context)
     : m_context(context)
 {
-    m_surface = Gfx::PaintingSurface::create_with_size(m_context, bitmap.size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
-    m_flush_context = [&bitmap, surface = m_surface] mutable {
-        surface->read_into_bitmap(bitmap);
-    };
-}
-#endif
-
-#ifdef AK_OS_MACOS
-DisplayListPlayerSkia::DisplayListPlayerSkia(Gfx::SkiaBackendContext& context, NonnullRefPtr<Gfx::PaintingSurface> surface)
-    : m_context(context)
-    , m_surface(move(surface))
-{
-}
-#endif
-
-DisplayListPlayerSkia::DisplayListPlayerSkia(Gfx::Bitmap& bitmap)
-{
-    m_surface = Gfx::PaintingSurface::wrap_bitmap(bitmap);
 }
 
-DisplayListPlayerSkia::~DisplayListPlayerSkia()
+DisplayListPlayerSkia::DisplayListPlayerSkia()
 {
-    m_surface->flush();
-    if (m_flush_context) {
-        m_flush_context();
-    }
 }
 
 static SkRRect to_skia_rrect(auto const& rect, CornerRadii const& corner_radii)
@@ -88,9 +66,11 @@ static SkMatrix to_skia_matrix(Gfx::AffineTransform const& affine_transform)
     return matrix;
 }
 
-Gfx::PaintingSurface& DisplayListPlayerSkia::surface() const
+void DisplayListPlayerSkia::flush()
 {
-    return *m_surface;
+    if (m_context)
+        m_context->flush_and_submit(&surface().sk_surface());
+    surface().flush();
 }
 
 void DisplayListPlayerSkia::draw_glyph_run(DrawGlyphRun const& command)
@@ -850,10 +830,10 @@ void DisplayListPlayerSkia::add_mask(AddMask const& command)
 
     auto mask_surface = Gfx::PaintingSurface::create_with_size(m_context, rect.size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
 
-    auto previous_surface = move(m_surface);
-    m_surface = mask_surface;
+    NonnullRefPtr old_surface = surface();
+    set_surface(mask_surface);
     execute(*command.display_list);
-    m_surface = move(previous_surface);
+    set_surface(old_surface);
 
     SkMatrix mask_matrix;
     mask_matrix.setTranslate(rect.x(), rect.y());

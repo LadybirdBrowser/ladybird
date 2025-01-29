@@ -41,6 +41,8 @@ void DisplayListPlayer::execute(DisplayList& display_list)
     auto const& scroll_state = display_list.scroll_state();
     auto device_pixels_per_css_pixel = display_list.device_pixels_per_css_pixel();
 
+    VERIFY(m_surface);
+
     size_t next_command_index = 0;
     while (next_command_index < commands.size()) {
         auto scroll_frame_id = commands[next_command_index].scroll_frame_id;
@@ -128,6 +130,8 @@ void DisplayListPlayer::execute(DisplayList& display_list)
         else VERIFY_NOT_REACHED();
         // clang-format on
     }
+
+    flush();
 }
 
 }

@@ -14,21 +14,13 @@ class GrDirectContext;
 
 namespace Web::Painting {
 
-class DisplayListPlayerSkia : public DisplayListPlayer {
+class DisplayListPlayerSkia final : public DisplayListPlayer {
 public:
-    DisplayListPlayerSkia(Gfx::Bitmap&);
-
-#ifdef USE_VULKAN
-    DisplayListPlayerSkia(Gfx::SkiaBackendContext&, Gfx::Bitmap&);
-#endif
-
-#ifdef AK_OS_MACOS
-    DisplayListPlayerSkia(Gfx::SkiaBackendContext&, NonnullRefPtr<Gfx::PaintingSurface>);
-#endif
-
-    virtual ~DisplayListPlayerSkia() override;
+    DisplayListPlayerSkia(RefPtr<Gfx::SkiaBackendContext>);
+    DisplayListPlayerSkia();
 
 private:
+    void flush() override;
     void draw_glyph_run(DrawGlyphRun const&) override;
     void fill_rect(FillRect const&) override;
     void draw_painting_surface(DrawPaintingSurface const&) override;
@@ -68,12 +60,7 @@ private:
 
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const override;
 
-    Gfx::PaintingSurface& surface() const;
-
-    RefPtr<Gfx::SkiaBackendContext> m_context {};
-    RefPtr<Gfx::PaintingSurface> m_surface {};
-
-    Function<void()> m_flush_context;
+    RefPtr<Gfx::SkiaBackendContext> m_context;
 };
 
 }

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
@@ -29,6 +30,8 @@ public:
         BottomLeft,
     };
 
+    Function<void(PaintingSurface&)> on_flush;
+
     static NonnullRefPtr<PaintingSurface> create_with_size(RefPtr<SkiaBackendContext> context, IntSize size, BitmapFormat color_type, AlphaType alpha_type);
     static NonnullRefPtr<PaintingSurface> wrap_bitmap(Bitmap&);
 
@@ -50,7 +53,7 @@ public:
     template<typename T>
     T sk_image_snapshot() const;
 
-    void flush() const;
+    void flush();
 
     ~PaintingSurface();
 

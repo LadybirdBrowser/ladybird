@@ -6,6 +6,7 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <AK/RefPtr.h>
+#include <LibGfx/Bitmap.h>
 #include <LibGfx/SkiaBackendContext.h>
 
 #include <core/SkSurface.h>

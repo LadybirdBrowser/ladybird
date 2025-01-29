@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -25,9 +26,14 @@ class DisplayListPlayer {
 public:
     virtual ~DisplayListPlayer() = default;
 
-    void execute(DisplayList& display_list);
+    void execute(DisplayList&);
+    void set_surface(NonnullRefPtr<Gfx::PaintingSurface> surface) { m_surface = surface; }
+
+protected:
+    Gfx::PaintingSurface& surface() const { return *m_surface; }
 
 private:
+    virtual void flush() = 0;
     virtual void draw_glyph_run(DrawGlyphRun const&) = 0;
     virtual void fill_rect(FillRect const&) = 0;
     virtual void draw_painting_surface(DrawPaintingSurface const&) = 0;
@@ -65,6 +71,8 @@ private:
     virtual void apply_transform(ApplyTransform const&) = 0;
     virtual void apply_mask_bitmap(ApplyMaskBitmap const&) = 0;
     virtual bool would_be_fully_clipped_by_painter(Gfx::IntRect) const = 0;
+
+    RefPtr<Gfx::PaintingSurface> m_surface;
 };
 
 class DisplayList : public RefCounted<DisplayList> {
