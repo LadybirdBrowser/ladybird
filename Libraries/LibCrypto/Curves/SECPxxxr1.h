@@ -30,15 +30,20 @@ struct SECPxxxr1Point {
     {
         auto a_bytes = TRY(ByteBuffer::create_uninitialized(a.byte_length()));
         auto a_size = a.export_data(a_bytes.span());
-        VERIFY(a_size >= size);
 
-        for (size_t i = 0; i < a_size - size; i++) {
-            if (a_bytes[i] != 0) {
-                return Error::from_string_literal("Scalar is too large for the given size");
+        if (a_size >= size) {
+            for (size_t i = 0; i < a_size - size; i++) {
+                if (a_bytes[i] != 0) {
+                    return Error::from_string_literal("Scalar is too large for the given size");
+                }
             }
+
+            return a_bytes.slice(a_size - size, size);
         }
 
-        return a_bytes.slice(a_size - size, size);
+        auto a_extended_bytes = TRY(ByteBuffer::create_zeroed(size));
+        a_extended_bytes.overwrite(size - a_size, a_bytes.data(), a_size);
+        return a_extended_bytes;
     }
 
     static ErrorOr<SECPxxxr1Point> from_uncompressed(ReadonlyBytes data)
