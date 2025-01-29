@@ -1502,18 +1502,18 @@ u16 Node::compare_document_position(GC::Ptr<Node> other)
     // 4. If node1 is an attribute, then set attr1 to node1 and node1 to attr1’s element.
     if (is<Attr>(node1)) {
         attr1 = as<Attr>(node1);
-        node1 = const_cast<Element*>(attr1->owner_element());
+        node1 = attr1->owner_element();
     }
 
     // 5. If node2 is an attribute, then:
     if (is<Attr>(node2)) {
         // 1. Set attr2 to node2 and node2 to attr2’s element.
         attr2 = as<Attr>(node2);
-        node2 = const_cast<Element*>(attr2->owner_element());
+        node2 = attr2->owner_element();
 
         // 2. If attr1 and node1 are non-null, and node2 is node1, then:
         if (attr1 && node1 && node2 == node1) {
-            // FIXME: 1. For each attr in node2’s attribute list:
+            // FIXME: 1. For each attr of node2’s attribute list:
             //     1. If attr equals attr1, then return the result of adding DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC and DOCUMENT_POSITION_PRECEDING.
             //     2. If attr equals attr2, then return the result of adding DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC and DOCUMENT_POSITION_FOLLOWING.
         }
