@@ -26,6 +26,8 @@ public:
     String return_value() const;
     void set_return_value(String);
 
+    static WebIDL::ExceptionOr<void> show_a_modal_dialog(HTMLDialogElement&);
+
     WebIDL::ExceptionOr<void> show();
     WebIDL::ExceptionOr<void> show_modal();
     void close(Optional<String> return_value);

@@ -150,80 +150,88 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show()
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#dom-dialog-showmodal
 WebIDL::ExceptionOr<void> HTMLDialogElement::show_modal()
 {
-    // 1. If this has an open attribute and is modal of this is true, then return.
-    if (has_attribute(AttributeNames::open) && m_is_modal)
+    // The showModal() method steps are to show a modal dialog given this.
+    return show_a_modal_dialog(*this);
+}
+
+WebIDL::ExceptionOr<void> HTMLDialogElement::show_a_modal_dialog(HTMLDialogElement& subject)
+{
+    // To show a modal dialog given a dialog element subject:
+    auto& realm = subject.realm();
+
+    // 1. If subject has an open attribute and is modal of subject is true, then return.
+    if (subject.has_attribute(AttributeNames::open) && subject.m_is_modal)
         return {};
 
-    // 2. If this has an open attribute, then throw an "InvalidStateError" DOMException.
-    if (has_attribute(AttributeNames::open))
-        return WebIDL::InvalidStateError::create(realm(), "Dialog already open"_string);
+    // 2. If subject has an open attribute, then throw an "InvalidStateError" DOMException.
+    if (subject.has_attribute(AttributeNames::open))
+        return WebIDL::InvalidStateError::create(realm, "Dialog already open"_string);
 
-    // 3. If this's node document is not fully active, then throw an "InvalidStateError" DOMException.
-    if (!document().is_fully_active())
-        return WebIDL::InvalidStateError::create(realm(), "Document is not fully active"_string);
+    // 3. If subject's node document is not fully active, then throw an "InvalidStateError" DOMException.
+    if (!subject.document().is_fully_active())
+        return WebIDL::InvalidStateError::create(realm, "Document is not fully active"_string);
 
-    // 4. If this is not connected, then throw an "InvalidStateError" DOMException.
-    if (!is_connected())
-        return WebIDL::InvalidStateError::create(realm(), "Dialog not connected"_string);
+    // 4. If subject is not connected, then throw an "InvalidStateError" DOMException.
+    if (!subject.is_connected())
+        return WebIDL::InvalidStateError::create(realm, "Dialog not connected"_string);
 
-    // 5. If this is in the popover showing state, then throw an "InvalidStateError" DOMException.
-    if (popover_visibility_state() == PopoverVisibilityState::Showing)
-        return WebIDL::InvalidStateError::create(realm(), "Dialog already open as popover"_string);
+    // 5. If subject is in the popover showing state, then throw an "InvalidStateError" DOMException.
+    if (subject.popover_visibility_state() == PopoverVisibilityState::Showing)
+        return WebIDL::InvalidStateError::create(realm, "Dialog already open as popover"_string);
 
     // 6. If the result of firing an event named beforetoggle, using ToggleEvent,
     //  with the cancelable attribute initialized to true, the oldState attribute initialized to "closed",
-    //  and the newState attribute initialized to "open" at this is false, then return.
+    //  and the newState attribute initialized to "open" at subject is false, then return.
     ToggleEventInit event_init {};
     event_init.cancelable = true;
     event_init.old_state = "closed"_string;
     event_init.new_state = "open"_string;
 
-    auto beforetoggle_result = dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::beforetoggle, move(event_init)));
+    auto beforetoggle_result = subject.dispatch_event(ToggleEvent::create(realm, EventNames::beforetoggle, move(event_init)));
     if (!beforetoggle_result)
         return {};
 
-    // 7. If this has an open attribute, then return.
-    if (has_attribute(AttributeNames::open))
+    // 7. If subject has an open attribute, then return.
+    if (subject.has_attribute(AttributeNames::open))
         return {};
 
-    // 8. If this is not connected, then return.
-    if (!is_connected())
+    // 8. If subject is not connected, then return.
+    if (!subject.is_connected())
         return {};
 
-    // 9. If this is in the popover showing state, then return.
-    if (popover_visibility_state() == PopoverVisibilityState::Showing)
+    // 9. If subject is in the popover showing state, then return.
+    if (subject.popover_visibility_state() == PopoverVisibilityState::Showing)
         return {};
 
     // 10. Queue a dialog toggle event task given subject, "closed", and "open".
-    queue_a_dialog_toggle_event_task("closed"_string, "open"_string);
+    subject.queue_a_dialog_toggle_event_task("closed"_string, "open"_string);
 
-    // 11. Add an open attribute to this, whose value is the empty string.
-    TRY(set_attribute(AttributeNames::open, {}));
+    // 11. Add an open attribute to subject, whose value is the empty string.
+    TRY(subject.set_attribute(AttributeNames::open, {}));
 
-    // 12. Set is modal of this to true.
-    m_is_modal = true;
+    // 12. Set is modal of subject to true.
+    subject.m_is_modal = true;
 
-    // FIXME: 13. Assert: this's node document's open dialogs list does not contain this.
-    // FIXME: 14. Add this to this's node document's open dialogs list.
-    // FIXME: 15. Let this's node document be blocked by the modal dialog this.
+    // FIXME: 13. Assert: subject's node document's open dialogs list does not contain subject.
+    // FIXME: 14. Add subject to subject's node document's open dialogs list.
+    // FIXME: 15. Let subject's node document be blocked by the modal dialog subject.
 
-    // 16. If this's node document's top layer does not already contain this, then add an element to the top layer given this.
-    if (!document().top_layer_elements().contains(*this))
-        document().add_an_element_to_the_top_layer(*this);
+    // 16. If subject's node document's top layer does not already contain subject, then add an element to the top layer given subject.
+    if (!subject.document().top_layer_elements().contains(subject))
+        subject.document().add_an_element_to_the_top_layer(subject);
 
-    // 17. Set the dialog close watcher with this.
-    set_close_watcher();
+    // 17. Set the dialog close watcher with subject.
+    subject.set_close_watcher();
 
-    // FIXME: 18. Set this's previously focused element to the focused element.
-
-    // FIXME: 19. Let document be this's node document.
-    // FIXME: 20. Let hideUntil be the result of running topmost popover ancestor given this, document's showing hint popover list, null, and false.
-    // FIXME: 21. If hideUntil is null, then set hideUntil to the result of running topmost popover ancestor given this, document's showing auto popover list, null, and false.
+    // FIXME: 18. Set subject's previously focused element to the focused element.
+    // FIXME: 19. Let document be subject's node document.
+    // FIXME: 20. Let hideUntil be the result of running topmost popover ancestor given subject, document's showing hint popover list, null, and false.
+    // FIXME: 21. If hideUntil is null, then set hideUntil to the result of running topmost popover ancestor given subject, document's showing auto popover list, null, and false.
     // FIXME: 22. If hideUntil is null, then set hideUntil to document.
     // FIXME: 23. Run hide all popovers until given hideUntil, false, and true.
 
-    // 24. Run the dialog focusing steps given this.
-    run_dialog_focusing_steps();
+    // 24. Run the dialog focusing steps given subject.
+    subject.run_dialog_focusing_steps();
 
     return {};
 }
