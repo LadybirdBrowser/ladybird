@@ -11,7 +11,7 @@ script_name = pathlib.Path(__file__).resolve().name
 
 lines_to_skip = re.compile(
     r"^($| *//|\};|#import |.+ includes .+|\[[^\]]+\]"
-    r"|interface |dictionary |enum |namespace |typedef |callback )"
+    r"|interface |(?:partial )?dictionary |enum |namespace |typedef |callback )"
 )
 
 parser = argparse.ArgumentParser()
