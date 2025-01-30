@@ -173,7 +173,7 @@ public:
     bool has_scheduled_selectionchange_event() const { return m_has_scheduled_selectionchange_event; }
     void set_scheduled_selectionchange_event(bool value) { m_has_scheduled_selectionchange_event = value; }
 
-    bool is_mutable() const { return m_is_mutable; }
+    bool is_mutable() const { return m_is_mutable && enabled(); }
     void set_is_mutable(bool is_mutable) { m_is_mutable = is_mutable; }
 
     virtual void did_edit_text_node() = 0;
