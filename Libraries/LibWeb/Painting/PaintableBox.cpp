@@ -343,9 +343,10 @@ bool PaintableBox::could_be_scrolled_by_wheel_event(ScrollDirection direction) c
         return false;
     auto scrollable_overflow_size = direction == ScrollDirection::Horizontal ? scrollable_overflow_rect->width() : scrollable_overflow_rect->height();
     auto scrollport_size = direction == ScrollDirection::Horizontal ? absolute_padding_box_rect().width() : absolute_padding_box_rect().height();
-    if ((is_viewport() && overflow != CSS::Overflow::Hidden) || overflow == CSS::Overflow::Auto)
+    auto overflow_value_allows_scrolling = overflow == CSS::Overflow::Auto || overflow == CSS::Overflow::Scroll;
+    if ((is_viewport() && overflow != CSS::Overflow::Hidden) || overflow_value_allows_scrolling)
         return scrollable_overflow_size > scrollport_size;
-    return overflow == CSS::Overflow::Scroll;
+    return false;
 }
 
 bool PaintableBox::could_be_scrolled_by_wheel_event() const
@@ -375,15 +376,20 @@ Optional<CSSPixelRect> PaintableBox::scroll_thumb_rect(ScrollDirection direction
 
 Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(ScrollDirection direction) const
 {
-    if (!could_be_scrolled_by_wheel_event(direction)) {
+    bool is_horizontal = direction == ScrollDirection::Horizontal;
+    bool display_scrollbar = could_be_scrolled_by_wheel_event(direction);
+    if (is_horizontal) {
+        display_scrollbar |= computed_values().overflow_x() == CSS::Overflow::Scroll;
+    } else {
+        display_scrollbar |= computed_values().overflow_y() == CSS::Overflow::Scroll;
+    }
+    if (!display_scrollbar) {
         return {};
     }
 
     if (!own_scroll_frame_id().has_value()) {
         return {};
     }
-
-    bool is_horizontal = direction == ScrollDirection::Horizontal;
 
     auto padding_rect = absolute_padding_box_rect();
     auto scrollable_overflow_rect = this->scrollable_overflow_rect().value();
