@@ -1327,7 +1327,8 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
 // an optional serialized state-or-null navigationAPIState (default null),
 // an optional entry list or null formDataEntryList (default null),
 // an optional referrer policy referrerPolicy (default the empty string),
-// and an optional user navigation involvement userInvolvement (default "none"):
+// an optional user navigation involvement userInvolvement (default "none"),
+// and an optional Element sourceElement (default null):
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
 WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
@@ -1346,6 +1347,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
     auto const& form_data_entry_list = params.form_data_entry_list;
     auto referrer_policy = params.referrer_policy;
     auto user_involvement = params.user_involvement;
+    auto source_element = params.source_element;
     auto& active_document = *this->active_document();
     auto& realm = active_document.realm();
     auto& vm = this->vm();
@@ -1429,8 +1431,8 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         && !response
         && url.equals(active_session_history_entry()->url(), URL::ExcludeFragment::Yes)
         && url.fragment().has_value()) {
-        // 1. Navigate to a fragment given navigable, url, historyHandling, userInvolvement, navigationAPIState, and navigationId.
-        TRY(navigate_to_a_fragment(url, to_history_handling_behavior(history_handling), user_involvement, navigation_api_state, navigation_id));
+        // 1. Navigate to a fragment given navigable, url, historyHandling, userInvolvement, sourceElement, navigationAPIState, and navigationId.
+        TRY(navigate_to_a_fragment(url, to_history_handling_behavior(history_handling), user_involvement, source_element, navigation_api_state, navigation_id));
 
         // 2. Return.
         return {};
@@ -1492,7 +1494,8 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
 
         // 4. Let continue be the result of firing a push/replace/reload navigate event at navigation
         //    with navigationType set to historyHandling, isSameDocument set to false, userInvolvement set to userInvolvement,
-        //    formDataEntryList set to entryListForFiring, destinationURL set to url, and navigationAPIState set to navigationAPIStateForFiring.
+        //    sourceElement set to sourceElement, formDataEntryList set to entryListForFiring, destinationURL set to url,
+        //    and navigationAPIState set to navigationAPIStateForFiring.
         auto navigation_type = [](Bindings::NavigationHistoryBehavior history_handling) {
             switch (history_handling) {
             case Bindings::NavigationHistoryBehavior::Push:
@@ -1504,7 +1507,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
                 VERIFY_NOT_REACHED();
             }
         }(history_handling);
-        auto continue_ = navigation->fire_a_push_replace_reload_navigate_event(navigation_type, url, false, user_involvement, entry_list_for_firing, navigation_api_state_for_firing);
+        auto continue_ = navigation->fire_a_push_replace_reload_navigate_event(navigation_type, url, false, user_involvement, source_element, entry_list_for_firing, navigation_api_state_for_firing);
 
         // 5. If continue is false, then return.
         if (!continue_)
@@ -1611,7 +1614,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-fragid
-WebIDL::ExceptionOr<void> Navigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, Optional<SerializationRecord> navigation_api_state, String navigation_id)
+WebIDL::ExceptionOr<void> Navigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, Optional<SerializationRecord> navigation_api_state, String navigation_id)
 {
     (void)navigation_id;
 
@@ -1623,10 +1626,11 @@ WebIDL::ExceptionOr<void> Navigable::navigate_to_a_fragment(URL::URL const& url,
     // 3. If navigationAPIState is not null, then set destinationNavigationAPIState to navigationAPIState.
     auto destination_navigation_api_state = navigation_api_state.has_value() ? *navigation_api_state : active_session_history_entry()->navigation_api_state();
 
-    // 4. Let continue be the result of firing a push/replace/reload navigate event at navigation with navigationType set to historyHandling, isSameDocument set to true,
-    //    userInvolvement set to userInvolvement, and destinationURL set to url, and navigationAPIState set to destinationNavigationAPIState.
+    // 4. Let continue be the result of firing a push/replace/reload navigate event at navigation with navigationType
+    //    set to historyHandling, isSameDocument set to true, userInvolvement set to userInvolvement, sourceElement set
+    //    to sourceElement, destinationURL set to url, and navigationAPIState set to destinationNavigationAPIState.
     auto navigation_type = history_handling == HistoryHandlingBehavior::Push ? Bindings::NavigationType::Push : Bindings::NavigationType::Replace;
-    bool const continue_ = navigation->fire_a_push_replace_reload_navigate_event(navigation_type, url, true, user_involvement, {}, destination_navigation_api_state);
+    bool const continue_ = navigation->fire_a_push_replace_reload_navigate_event(navigation_type, url, true, user_involvement, source_element, {}, destination_navigation_api_state);
 
     // 5. If continue is false, then return.
     if (!continue_)

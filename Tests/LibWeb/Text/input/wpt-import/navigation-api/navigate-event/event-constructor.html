@@ -78,8 +78,7 @@ async_test(t => {
     assert_equals(event.downloadRequest, downloadRequest);
     assert_equals(event.info, info);
     assert_equals(event.hasUAVisualTransition, hasUAVisualTransition);
-    // NavigateEvent sourceElement is still in development, so test whether it is available.
-    if ("sourceElement" in e) assert_equals(event.sourceElement, sourceElement);
+    assert_equals(event.sourceElement, sourceElement);
   });
   history.pushState(2, null, "#2");
 }, "all properties are reflected back");
@@ -99,8 +98,7 @@ async_test(t => {
     assert_equals(event.formData, null);
     assert_equals(event.downloadRequest, null);
     assert_equals(event.info, undefined);
-    // NavigateEvent sourceElement is still in development, so test whether it is available.
-    if ("sourceElement" in e) assert_equals(event.sourceElement, null);
+    assert_equals(event.sourceElement, null);
   });
   history.pushState(3, null, "#3");
 }, "defaults are as expected");

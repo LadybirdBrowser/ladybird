@@ -9,7 +9,6 @@
 #include <LibWeb/Bindings/NavigateEventPrototype.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/NavigationType.h>
-#include <LibWeb/HTML/StructuredSerialize.h>
 
 namespace Web::HTML {
 
@@ -25,6 +24,7 @@ struct NavigateEventInit : public DOM::EventInit {
     Optional<String> download_request = {};
     Optional<JS::Value> info;
     bool has_ua_visual_transition = false;
+    GC::Ptr<DOM::Element> source_element = nullptr;
 };
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigationintercepthandler
@@ -54,8 +54,8 @@ public:
 
     [[nodiscard]] static GC::Ref<NavigateEvent> construct_impl(JS::Realm&, FlyString const& event_name, NavigateEventInit const&);
 
-    // The navigationType, destination, canIntercept, userInitiated, hashChange, signal, formData,
-    // downloadRequest, info, and hasUAVisualTransition attributes must return the values they are initialized to.
+    // The navigationType, destination, canIntercept, userInitiated, hashChange, signal, formData, downloadRequest,
+    // info, hasUAVisualTransition, and sourceElement attributes must return the values they are initialized to.
     Bindings::NavigationType navigation_type() const { return m_navigation_type; }
     GC::Ref<NavigationDestination> destination() const { return m_destination; }
     bool can_intercept() const { return m_can_intercept; }
@@ -66,6 +66,7 @@ public:
     Optional<String> download_request() const { return m_download_request; }
     JS::Value info() const { return m_info; }
     bool has_ua_visual_transition() const { return m_has_ua_visual_transition; }
+    GC::Ptr<DOM::Element> source_element() const { return m_source_element; }
 
     WebIDL::ExceptionOr<void> intercept(NavigationInterceptOptions const&);
     WebIDL::ExceptionOr<void> scroll();
@@ -141,6 +142,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigateevent-hasuavisualtransition
     bool m_has_ua_visual_transition { false };
+
+    // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigateevent-sourceelement
+    GC::Ptr<DOM::Element> m_source_element { nullptr };
 };
 
 }
