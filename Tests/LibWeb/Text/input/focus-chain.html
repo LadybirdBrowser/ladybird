@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<div id="1">
+    <div id="2">
+        <div id="3"></div>
+    </div>
+    <div id="4">
+        <div id="5"></div>
+    </div>
+</div>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        function targetToString(target) {
+            if (target[Symbol.toStringTag] === "Window")
+                return "window";
+
+            return `${target.tagName}#${target.id}`;
+        }
+
+        const div1 = document.getElementById("1");
+        const div2 = document.getElementById("2");
+        const div3 = document.getElementById("3");
+        const div4 = document.getElementById("4");
+        const div5 = document.getElementById("5");
+
+        [window, div1, div2, div3, div4, div5].forEach(focusTarget => {
+            const focusTargetString = targetToString(focusTarget);
+
+            focusTarget.onblur = (event) => {
+                println(`${focusTargetString} received blur event, target: ${targetToString(event.target)}, currentTarget: ${targetToString(event.currentTarget)}`);
+            };
+
+            focusTarget.onfocus = (event) => {
+                println(`${focusTargetString} received focus event, target: ${targetToString(event.target)}, currentTarget: ${targetToString(event.currentTarget)}`);
+            };
+
+            focusTarget.onfocusin = (event) => {
+                println(`${focusTargetString} received focusin event, target: ${targetToString(event.target)}, currentTarget: ${targetToString(event.currentTarget)}`);
+            };
+
+            focusTarget.onfocusout = (event) => {
+                println(`${focusTargetString} received focusout event, target: ${targetToString(event.target)}, currentTarget: ${targetToString(event.currentTarget)}`);
+            };
+        });
+
+        println("== div3 focus");
+        div3.focus();
+        println("== div5 focus");
+        div5.focus();
+        println("== div1 focus");
+        div1.focus();
+        println("== window focus");
+        window.focus();
+    });
+</script>

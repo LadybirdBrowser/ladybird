@@ -1,0 +1,30 @@
+== div3 focus
+DIV#3 received focus event, target: DIV#3, currentTarget: DIV#3
+DIV#3 received focusin event, target: DIV#3, currentTarget: DIV#3
+DIV#2 received focusin event, target: DIV#3, currentTarget: DIV#2
+DIV#1 received focusin event, target: DIV#3, currentTarget: DIV#1
+window received focusin event, target: DIV#3, currentTarget: window
+== div5 focus
+DIV#3 received blur event, target: DIV#3, currentTarget: DIV#3
+DIV#3 received focusout event, target: DIV#3, currentTarget: DIV#3
+DIV#2 received focusout event, target: DIV#3, currentTarget: DIV#2
+DIV#1 received focusout event, target: DIV#3, currentTarget: DIV#1
+window received focusout event, target: DIV#3, currentTarget: window
+DIV#5 received focus event, target: DIV#5, currentTarget: DIV#5
+DIV#5 received focusin event, target: DIV#5, currentTarget: DIV#5
+DIV#4 received focusin event, target: DIV#5, currentTarget: DIV#4
+DIV#1 received focusin event, target: DIV#5, currentTarget: DIV#1
+window received focusin event, target: DIV#5, currentTarget: window
+== div1 focus
+DIV#5 received blur event, target: DIV#5, currentTarget: DIV#5
+DIV#5 received focusout event, target: DIV#5, currentTarget: DIV#5
+DIV#4 received focusout event, target: DIV#5, currentTarget: DIV#4
+DIV#1 received focusout event, target: DIV#5, currentTarget: DIV#1
+window received focusout event, target: DIV#5, currentTarget: window
+DIV#1 received focus event, target: DIV#1, currentTarget: DIV#1
+DIV#1 received focusin event, target: DIV#1, currentTarget: DIV#1
+window received focusin event, target: DIV#1, currentTarget: window
+== window focus
+DIV#1 received blur event, target: DIV#1, currentTarget: DIV#1
+DIV#1 received focusout event, target: DIV#1, currentTarget: DIV#1
+window received focusout event, target: DIV#1, currentTarget: window
