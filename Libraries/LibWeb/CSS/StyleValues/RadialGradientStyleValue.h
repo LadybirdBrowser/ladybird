@@ -45,7 +45,7 @@ public:
 
     static ValueComparingNonnullRefPtr<RadialGradientStyleValue> create(EndingShape ending_shape, Size size, ValueComparingNonnullRefPtr<PositionStyleValue> position, Vector<LinearColorStopListElement> color_stop_list, GradientRepeating repeating)
     {
-        VERIFY(color_stop_list.size() >= 2);
+        VERIFY(!color_stop_list.is_empty());
         return adopt_ref(*new (nothrow) RadialGradientStyleValue(ending_shape, size, move(position), move(color_stop_list), repeating));
     }
 
