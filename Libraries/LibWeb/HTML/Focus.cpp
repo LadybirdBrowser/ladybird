@@ -44,7 +44,7 @@ static void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector
     //    pop the last entry from old chain and the last entry from new chain and redo this step.
     while (!old_chain.is_empty()
         && !new_chain.is_empty()
-        && &old_chain.last() == &new_chain.last()) {
+        && old_chain.last() == new_chain.last()) {
         (void)old_chain.take_last();
         (void)new_chain.take_last();
     }
