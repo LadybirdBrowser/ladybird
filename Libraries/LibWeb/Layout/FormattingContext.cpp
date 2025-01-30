@@ -1245,6 +1245,15 @@ void FormattingContext::layout_absolutely_positioned_element(Box const& box, Ava
         box_state.set_has_definite_height(true);
     }
 
+    // NOTE: BFC is special, as their abspos auto height depends on performing inside layout.
+    //       For other formatting contexts, the height we've resolved early is good.
+    //       See FormattingContext::compute_auto_height_for_absolutely_positioned_element()
+    //       for the special-casing of BFC roots.
+    if (!creates_block_formatting_context(box)) {
+        box_state.set_has_definite_width(true);
+        box_state.set_has_definite_height(true);
+    }
+
     auto independent_formatting_context = layout_inside(box, LayoutMode::Normal, box_state.available_inner_space_or_constraints_from(available_space));
 
     compute_height_for_absolutely_positioned_element(box, available_space, BeforeOrAfterInsideLayout::After);
