@@ -17,7 +17,7 @@ namespace Web::Painting {
 
 static ColorStopData resolve_color_stop_positions(Layout::NodeWithStyleAndBoxModelMetrics const& node, auto const& color_stop_list, auto resolve_position_to_float, bool repeating)
 {
-    VERIFY(color_stop_list.size() >= 2);
+    VERIFY(!color_stop_list.is_empty());
     ColorStopList resolved_color_stops;
 
     auto color_stop_length = [&](auto& stop) {

@@ -19,7 +19,7 @@ class ConicGradientStyleValue final : public AbstractImageStyleValue {
 public:
     static ValueComparingNonnullRefPtr<ConicGradientStyleValue> create(Angle from_angle, ValueComparingNonnullRefPtr<PositionStyleValue> position, Vector<AngularColorStopListElement> color_stop_list, GradientRepeating repeating)
     {
-        VERIFY(color_stop_list.size() >= 2);
+        VERIFY(!color_stop_list.is_empty());
         return adopt_ref(*new (nothrow) ConicGradientStyleValue(from_angle, move(position), move(color_stop_list), repeating));
     }
 

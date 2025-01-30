@@ -40,7 +40,7 @@ public:
 
     static ValueComparingNonnullRefPtr<LinearGradientStyleValue> create(GradientDirection direction, Vector<LinearColorStopListElement> color_stop_list, GradientType type, GradientRepeating repeating)
     {
-        VERIFY(color_stop_list.size() >= 2);
+        VERIFY(!color_stop_list.is_empty());
         return adopt_ref(*new (nothrow) LinearGradientStyleValue(direction, move(color_stop_list), type, repeating));
     }
 

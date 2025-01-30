@@ -75,9 +75,6 @@ Optional<Vector<TElement>> Parser::parse_color_stop_list(TokenStream<ComponentVa
     if (parse_color_stop_list_element(first_element) != ElementType::ColorStop)
         return {};
 
-    if (!tokens.has_next_token())
-        return {};
-
     Vector<TElement> color_stops { first_element };
     while (tokens.has_next_token()) {
         TElement list_element {};
