@@ -42,6 +42,7 @@ NavigateEvent::NavigateEvent(JS::Realm& realm, FlyString const& event_name, Navi
     , m_download_request(event_init.download_request)
     , m_info(event_init.info.value_or(JS::js_undefined()))
     , m_has_ua_visual_transition(event_init.has_ua_visual_transition)
+    , m_source_element(event_init.source_element)
 {
 }
 
@@ -62,6 +63,7 @@ void NavigateEvent::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_signal);
     visitor.visit(m_form_data);
     visitor.visit(m_info);
+    visitor.visit(m_source_element);
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigateevent-intercept

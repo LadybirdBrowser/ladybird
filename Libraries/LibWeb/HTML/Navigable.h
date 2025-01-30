@@ -146,11 +146,12 @@ public:
         Optional<Vector<XHR::FormDataEntry>&> form_data_entry_list = {};
         ReferrerPolicy::ReferrerPolicy referrer_policy = ReferrerPolicy::ReferrerPolicy::EmptyString;
         UserNavigationInvolvement user_involvement = UserNavigationInvolvement::None;
+        GC::Ptr<DOM::Element> source_element = nullptr;
     };
 
     WebIDL::ExceptionOr<void> navigate(NavigateParams);
 
-    WebIDL::ExceptionOr<void> navigate_to_a_fragment(URL::URL const&, HistoryHandlingBehavior, UserNavigationInvolvement, Optional<SerializationRecord> navigation_api_state, String navigation_id);
+    WebIDL::ExceptionOr<void> navigate_to_a_fragment(URL::URL const&, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ptr<DOM::Element> source_element, Optional<SerializationRecord> navigation_api_state, String navigation_id);
 
     GC::Ptr<DOM::Document> evaluate_javascript_url(URL::URL const&, URL::Origin const& new_document_origin, UserNavigationInvolvement, String navigation_id);
     void navigate_to_a_javascript_url(URL::URL const&, HistoryHandlingBehavior, URL::Origin const& initiator_origin, UserNavigationInvolvement, CSPNavigationType csp_navigation_type, String navigation_id);

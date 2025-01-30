@@ -911,6 +911,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
     Bindings::NavigationType navigation_type,
     GC::Ref<NavigationDestination> destination,
     UserNavigationInvolvement user_involvement,
+    GC::Ptr<DOM::Element> source_element,
     Optional<Vector<XHR::FormDataEntry>&> form_data_entry_list,
     Optional<String> download_request_filename,
     Optional<SerializationRecord> classic_history_api_state)
@@ -1010,6 +1011,9 @@ bool Navigation::inner_navigate_event_firing_algorithm(
     // FIXME: 17: Initialize event's hasUAVisualTransition to true if a visual transition, to display a cached rendered state
     //     of the document's latest entry, was done by the user agent. Otherwise, initialize it to false.
     event_init.has_ua_visual_transition = false;
+
+    // 18. Initialize event's sourceElement to sourceElement.
+    event_init.source_element = source_element;
 
     // 18. Set event's abort controller to a new AbortController created in navigation's relevant realm.
     // AD-HOC: Set on the NavigateEvent later after construction
@@ -1291,9 +1295,10 @@ bool Navigation::fire_a_traverse_navigate_event(GC::Ref<SessionHistoryEntry> des
     //    navigation's relevant global object's associated Document; otherwise false.
     destination->set_is_same_document(destination_she->document() == &as<Window>(relevant_global_object(*this)).associated_document());
 
-    // 9. Return the result of performing the inner navigate event firing algorithm given navigation, "traverse", event, destination, userInvolvement, null, and null.
+    // 9. Return the result of performing the inner navigate event firing algorithm given navigation, "traverse",
+    //    event, destination, userInvolvement, sourceElement, null, and null.
     // AD-HOC: We don't pass the event, but we do pass the classic_history_api state at the end to be set later
-    return inner_navigate_event_firing_algorithm(Bindings::NavigationType::Traverse, destination, user_involvement, {}, {}, {});
+    return inner_navigate_event_firing_algorithm(Bindings::NavigationType::Traverse, destination, user_involvement, {}, {}, {}, {});
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#fire-a-push/replace/reload-navigate-event
@@ -1302,6 +1307,7 @@ bool Navigation::fire_a_push_replace_reload_navigate_event(
     URL::URL destination_url,
     bool is_same_document,
     UserNavigationInvolvement user_involvement,
+    GC::Ptr<DOM::Element> source_element,
     Optional<Vector<XHR::FormDataEntry>&> form_data_entry_list,
     Optional<SerializationRecord> navigation_api_state,
     Optional<SerializationRecord> classic_history_api_state)
@@ -1333,13 +1339,13 @@ bool Navigation::fire_a_push_replace_reload_navigate_event(
     destination->set_is_same_document(is_same_document);
 
     // 8. Return the result of performing the inner navigate event firing algorithm given navigation,
-    //    navigationType, event, destination, userInvolvement, formDataEntryList, and null.
+    //    navigationType, event, destination, userInvolvement, sourceElement, formDataEntryList, and null.
     // AD-HOC: We don't pass the event, but we do pass the classic_history_api state at the end to be set later
-    return inner_navigate_event_firing_algorithm(navigation_type, destination, user_involvement, move(form_data_entry_list), {}, move(classic_history_api_state));
+    return inner_navigate_event_firing_algorithm(navigation_type, destination, user_involvement, source_element, move(form_data_entry_list), {}, move(classic_history_api_state));
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#fire-a-download-request-navigate-event
-bool Navigation::fire_a_download_request_navigate_event(URL::URL destination_url, UserNavigationInvolvement user_involvement, String filename)
+bool Navigation::fire_a_download_request_navigate_event(URL::URL destination_url, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, String filename)
 {
     auto& realm = relevant_realm(*this);
     auto& vm = this->vm();
@@ -1364,9 +1370,9 @@ bool Navigation::fire_a_download_request_navigate_event(URL::URL destination_url
     destination->set_is_same_document(false);
 
     // 8. Return the result of performing the inner navigate event firing algorithm given navigation,
-    //   "push", event, destination, userInvolvement, null, and filename.
+    //   "push", event, destination, userInvolvement, sourceElement, null, and filename.
     // AD-HOC: We don't pass the event, but we do pass the classic_history_api state at the end to be set later
-    return inner_navigate_event_firing_algorithm(Bindings::NavigationType::Push, destination, user_involvement, {}, move(filename), {});
+    return inner_navigate_event_firing_algorithm(Bindings::NavigationType::Push, destination, user_involvement, source_element, {}, move(filename), {});
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#initialize-the-navigation-api-entries-for-a-new-document
