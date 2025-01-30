@@ -823,6 +823,10 @@ public:
         m_pending_nodes_for_style_invalidation_due_to_presence_of_has.set(node.make_weak_ptr<Node>());
     }
 
+    Vector<GC::Ref<HTML::HTMLDialogElement>> const& open_dialogs() const { return m_open_dialogs; }
+    void add_to_open_dialogs_list(GC::Ref<HTML::HTMLDialogElement> dialog);
+    void remove_from_open_dialogs_list(HTML::HTMLDialogElement& dialog);
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -1174,6 +1178,10 @@ private:
     HashTable<GC::Ref<Element>> m_render_blocking_elements;
 
     HashTable<WeakPtr<Node>> m_pending_nodes_for_style_invalidation_due_to_presence_of_has;
+
+    // https://html.spec.whatwg.org/multipage/dom.html#open-dialogs-list
+    // Each Document has an open dialogs list, which is a list of dialog elements, initially empty.
+    Vector<GC::Ref<HTML::HTMLDialogElement>> m_open_dialogs;
 };
 
 template<>

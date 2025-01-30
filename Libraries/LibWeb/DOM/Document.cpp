@@ -94,6 +94,7 @@
 #include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLBaseElement.h>
 #include <LibWeb/HTML/HTMLBodyElement.h>
+#include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/HTMLDocument.h>
 #include <LibWeb/HTML/HTMLEmbedElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
@@ -591,6 +592,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_session_storage_holder);
     visitor.visit(m_render_blocking_elements);
     visitor.visit(m_policy_container);
+    visitor.visit(m_open_dialogs);
 }
 
 // https://w3c.github.io/selection-api/#dom-document-getselection
@@ -6349,6 +6351,16 @@ WebIDL::CallbackType* Document::onvisibilitychange()
 void Document::set_onvisibilitychange(WebIDL::CallbackType* value)
 {
     set_event_handler_attribute(HTML::EventNames::visibilitychange, value);
+}
+
+void Document::add_to_open_dialogs_list(GC::Ref<HTML::HTMLDialogElement> dialog)
+{
+    m_open_dialogs.append(dialog);
+}
+
+void Document::remove_from_open_dialogs_list(HTML::HTMLDialogElement& dialog)
+{
+    m_open_dialogs.remove_first_matching([&](auto& entry) { return entry.ptr() == &dialog; });
 }
 
 }
