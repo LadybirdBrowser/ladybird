@@ -335,7 +335,7 @@ void PaintableBox::after_paint(PaintContext& context, [[maybe_unused]] PaintPhas
     }
 }
 
-bool PaintableBox::is_scrollable(ScrollDirection direction) const
+bool PaintableBox::could_be_scrolled_by_wheel_event(ScrollDirection direction) const
 {
     auto overflow = direction == ScrollDirection::Horizontal ? computed_values().overflow_x() : computed_values().overflow_y();
     auto scrollable_overflow_rect = this->scrollable_overflow_rect();
@@ -348,9 +348,9 @@ bool PaintableBox::is_scrollable(ScrollDirection direction) const
     return overflow == CSS::Overflow::Scroll;
 }
 
-bool PaintableBox::is_scrollable() const
+bool PaintableBox::could_be_scrolled_by_wheel_event() const
 {
-    return is_scrollable(ScrollDirection::Horizontal) || is_scrollable(ScrollDirection::Vertical);
+    return could_be_scrolled_by_wheel_event(ScrollDirection::Horizontal) || could_be_scrolled_by_wheel_event(ScrollDirection::Vertical);
 }
 
 static constexpr CSSPixels scrollbar_thumb_thickness = 8;
@@ -375,7 +375,7 @@ Optional<CSSPixelRect> PaintableBox::scroll_thumb_rect(ScrollDirection direction
 
 Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(ScrollDirection direction) const
 {
-    if (!is_scrollable(direction)) {
+    if (!could_be_scrolled_by_wheel_event(direction)) {
         return {};
     }
 
@@ -907,7 +907,7 @@ Paintable::DispatchEventOfSameName PaintableBox::handle_mousemove(Badge<EventHan
 
 bool PaintableBox::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, int wheel_delta_x, int wheel_delta_y)
 {
-    if (!is_scrollable()) {
+    if (!could_be_scrolled_by_wheel_event()) {
         return false;
     }
 
@@ -1360,7 +1360,7 @@ PaintableBox const* PaintableBox::nearest_scrollable_ancestor() const
 {
     auto const* paintable = this->containing_block();
     while (paintable) {
-        if (paintable->is_scrollable())
+        if (paintable->could_be_scrolled_by_wheel_event())
             return paintable;
         if (paintable->is_fixed_position())
             return nullptr;

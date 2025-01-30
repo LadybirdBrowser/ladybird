@@ -232,7 +232,7 @@ public:
     StickyInsets const& sticky_insets() const { return *m_sticky_insets; }
     void set_sticky_insets(OwnPtr<StickyInsets> sticky_insets) { m_sticky_insets = move(sticky_insets); }
 
-    [[nodiscard]] bool is_scrollable() const;
+    [[nodiscard]] bool could_be_scrolled_by_wheel_event() const;
 
     void set_used_values_for_grid_template_columns(RefPtr<CSS::GridTrackSizeListStyleValue> style_value) { m_used_values_for_grid_template_columns = move(style_value); }
     RefPtr<CSS::GridTrackSizeListStyleValue> const& used_values_for_grid_template_columns() const { return m_used_values_for_grid_template_columns; }
@@ -262,7 +262,7 @@ protected:
     };
     Optional<ScrollbarData> compute_scrollbar_data(ScrollDirection) const;
     [[nodiscard]] Optional<CSSPixelRect> scroll_thumb_rect(ScrollDirection) const;
-    [[nodiscard]] bool is_scrollable(ScrollDirection) const;
+    [[nodiscard]] bool could_be_scrolled_by_wheel_event(ScrollDirection) const;
 
     TraversalDecision hit_test_scrollbars(CSSPixelPoint position, Function<TraversalDecision(HitTestResult)> const& callback) const;
 

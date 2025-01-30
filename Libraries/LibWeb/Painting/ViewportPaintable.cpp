@@ -194,7 +194,7 @@ void ViewportPaintable::refresh_scroll_state()
         CSSPixels min_x_offset_relative_to_nearest_scrollable_ancestor;
         CSSPixels max_x_offset_relative_to_nearest_scrollable_ancestor;
         auto const* containing_block_of_sticky_box = sticky_box.containing_block();
-        if (containing_block_of_sticky_box->is_scrollable()) {
+        if (containing_block_of_sticky_box->could_be_scrolled_by_wheel_event()) {
             min_y_offset_relative_to_nearest_scrollable_ancestor = 0;
             max_y_offset_relative_to_nearest_scrollable_ancestor = containing_block_of_sticky_box->scrollable_overflow_rect()->height() - sticky_box.absolute_border_box_rect().height();
             min_x_offset_relative_to_nearest_scrollable_ancestor = 0;
