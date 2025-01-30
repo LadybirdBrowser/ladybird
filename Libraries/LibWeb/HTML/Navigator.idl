@@ -1,4 +1,5 @@
 #import <Clipboard/Clipboard.idl>
+#import <CredentialManagement/CredentialsContainer.idl>
 #import <HTML/MimeTypeArray.idl>
 #import <HTML/NavigatorBeacon.idl>
 #import <HTML/NavigatorConcurrentHardware.idl>
@@ -34,6 +35,9 @@ interface Navigator {
 
     // https://w3c.github.io/media-capabilities/#dom-navigator-mediacapabilities
     [SameObject] readonly attribute MediaCapabilities mediaCapabilities;
+
+    // https://w3c.github.io/webappsec-credential-management/#framework-credential-management
+    [SecureContext, SameObject] readonly attribute CredentialsContainer credentials;
 };
 
 // NOTE: As NavigatorContentUtils, NavigatorCookies, NavigatorPlugins, and NavigatorAutomationInformation

@@ -48,6 +48,8 @@ static bool is_platform_object(Type const& type)
         "CanvasRenderingContext2D"sv,
         "ClipboardItem"sv,
         "CloseWatcher"sv,
+        "Credential"sv,
+        "CredentialsContainer"sv,
         "CryptoKey"sv,
         "DataTransfer"sv,
         "Document"sv,
@@ -56,6 +58,7 @@ static bool is_platform_object(Type const& type)
         "DynamicsCompressorNode"sv,
         "ElementInternals"sv,
         "EventTarget"sv,
+        "FederatedCredential"sv,
         "File"sv,
         "FileList"sv,
         "FontFace"sv,
@@ -80,6 +83,7 @@ static bool is_platform_object(Type const& type)
         "NavigationDestination"sv,
         "NavigationHistoryEntry"sv,
         "Node"sv,
+        "PasswordCredential"sv,
         "Path2D"sv,
         "PerformanceEntry"sv,
         "PerformanceMark"sv,
@@ -4424,6 +4428,7 @@ static void generate_using_namespace_definitions(SourceGenerator& generator)
 // FIXME: This is a total hack until we can figure out the namespace for a given type somehow.
 using namespace Web::Animations;
 using namespace Web::Clipboard;
+using namespace Web::CredentialManagement;
 using namespace Web::Crypto;
 using namespace Web::CSS;
 using namespace Web::DOM;
