@@ -57,7 +57,7 @@ protected:
     RefPtr<Core::Timer> m_responsiveness_timer;
 
     Vector<NonnullOwnPtr<Message>> m_unprocessed_messages;
-    Queue<IPC::File> m_unprocessed_fds;
+    Queue<IPC::File> m_unprocessed_fds; // unused on Windows
     ByteBuffer m_unprocessed_bytes;
 
     u32 m_local_endpoint_magic { 0 };
