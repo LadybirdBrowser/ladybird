@@ -791,10 +791,7 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
     //     element is either not listed or doesn't have a form attribute, and the intended parent is in the same tree as the element pointed to by the form element pointer,
     //     then associate element with the form element pointed to by the form element pointer and set element's parser inserted flag.
     // FIXME: Check if the element is not a form-associated custom element.
-    if (is<FormAssociatedElement>(*element)) {
-        auto* form_associated_element = dynamic_cast<FormAssociatedElement*>(element.ptr());
-        VERIFY(form_associated_element);
-
+    if (auto* form_associated_element = as_if<FormAssociatedElement>(*element)) {
         auto& html_element = form_associated_element->form_associated_element_to_html_element();
 
         if (m_form_element.ptr()
