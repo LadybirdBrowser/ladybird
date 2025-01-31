@@ -2486,7 +2486,7 @@ CalculatedStyleValue::CalculationResult CalculatedStyleValue::CalculationResult:
 
             // If we don't have a context, we cant resolve the length, so return NAN
             if (!context.length_resolution_context.has_value()) {
-                dbgln("Failed to resolve length, likely due to calc() being used with relative units and a property not taking it into account");
+                dbgln("Failed to resolve length `{}`, likely due to calc() being used with relative units and a property not taking it into account", length.to_string());
                 return AK::NaN<double>;
             }
 
@@ -3091,8 +3091,10 @@ NonnullRefPtr<CalculationNode> simplify_a_calculation_tree(CalculationNode const
 
                 // FIXME: The spec doesn't handle unresolved percentages here, but if we don't exit when we see one,
                 //        we'll get a wrongly-typed value after multiplying the types.
+                //        Same goes for other numerics with non-canonical units.
                 //        Spec bug: https://github.com/w3c/csswg-drafts/issues/11588
-                if (numeric_child.value().has<Percentage>() && context.percentages_resolve_as.has_value()) {
+                if ((numeric_child.value().has<Percentage>() && context.percentages_resolve_as.has_value())
+                    || !numeric_child.is_in_canonical_unit()) {
                     is_valid = false;
                     break;
                 }
