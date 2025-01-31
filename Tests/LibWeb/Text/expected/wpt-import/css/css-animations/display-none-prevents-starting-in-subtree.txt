@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	Elements in a "display: none" tree cannot start CSS Animations.
