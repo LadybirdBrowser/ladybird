@@ -78,6 +78,7 @@ enum class ShouldComputeRole {
     X(HTMLHyperlinkElementHrefChange)               \
     X(HTMLIFrameElementGeometryChange)              \
     X(HTMLInputElementSetChecked)                   \
+    X(HTMLInputElementSetIsOpen)                    \
     X(HTMLObjectElementUpdateLayoutAndChildObjects) \
     X(HTMLOptionElementSelectedChange)              \
     X(HTMLSelectElementSetIsOpen)                   \
