@@ -126,6 +126,12 @@ private:
     Web::WebDriver::Response element_send_keys_impl(String const& element_id, ByteString const& text);
     Web::WebDriver::Response add_cookie_impl(JsonObject const&);
 
+    // https://w3c.github.io/webdriver/#dfn-prompt-handler-configuration
+    struct PromptHandlerConfiguration {
+        String handler;
+        bool notify;
+    };
+    PromptHandlerConfiguration get_the_prompt_handler(String const& type);
     void handle_any_user_prompts(Function<void()> on_dialog_closed);
 
     void maximize_the_window();

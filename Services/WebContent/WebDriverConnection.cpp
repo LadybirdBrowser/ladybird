@@ -2631,58 +2631,97 @@ ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::ensure_current_top_lev
     return ensure_browsing_context_is_open(current_top_level_browsing_context());
 }
 
+// https://w3c.github.io/webdriver/#dfn-get-the-prompt-handler
+WebDriverConnection::PromptHandlerConfiguration WebDriverConnection::get_the_prompt_handler(String const& type)
+{
+    // 1. If the user prompt handler is null, let handlers be an empty map.
+    //    Otherwise let handlers be user prompt handler.
+    // FIXME: Support a user prompt handler.
+    HashMap<String, PromptHandlerConfiguration> handlers;
+
+    // 2. If handlers contains type return handlers[type].
+    if (auto existing = handlers.get(type); existing.has_value())
+        return existing.value();
+
+    // 3. If handlers contains "default" return handlers["default"].
+    if (auto existing = handlers.get("default"sv); existing.has_value())
+        return existing.value();
+
+    // 4. If type is "beforeUnload", return a prompt handler configuration with handler "accept" and notify false.
+    if (type == "beforeUnload"sv)
+        return PromptHandlerConfiguration { .handler = "accept"_string, .notify = false };
+
+    // 5. If handlers contains "fallbackDefault" return handlers["fallbackDefault"].
+    if (auto existing = handlers.get("fallbackDefault"sv); existing.has_value())
+        return existing.value();
+
+    // 6. Return a prompt handler configuration with handler "dismiss" and notify true.
+    return PromptHandlerConfiguration { .handler = "dismiss"_string, .notify = true };
+}
+
 // https://w3c.github.io/webdriver/#dfn-handle-any-user-prompts
 void WebDriverConnection::handle_any_user_prompts(Function<void()> on_dialog_closed)
 {
     auto& page = current_browsing_context().page();
     auto& heap = current_browsing_context().heap();
 
-    // 1. If there is no current user prompt, abort these steps and return success.
-    if (!page.has_pending_dialog()) {
-        on_dialog_closed();
+    // 1. If the current browsing context is not blocked by a dialog return success.
+    if (!page.has_pending_dialog())
         return;
+
+    // 2. Let type be "default".
+    auto type = "default"_string;
+
+    // 3. If the current user prompt is an alert dialog, set type to "alert".
+    //    Otherwise, if the current user prompt is a beforeunload dialog, set type to "beforeUnload".
+    //    Otherwise, if the current user prompt is a confirm dialog, set type to "confirm".
+    //    Otherwise, if the current user prompt is a prompt dialog, set type to "prompt".
+    switch (page.pending_dialog()) {
+    case Web::Page::PendingDialog::Alert:
+        type = "alert"_string;
+        break;
+    // FIXME: beforeunload
+    case Web::Page::PendingDialog::Confirm:
+        type = "confirm"_string;
+        break;
+    case Web::Page::PendingDialog::Prompt:
+        type = "prompt"_string;
+        break;
+    case Web::Page::PendingDialog::None:
+        break;
     }
 
-    // 2. Perform the following substeps based on the current session’s user prompt handler:
-    switch (m_unhandled_prompt_behavior) {
-    // -> dismiss state
-    case Web::WebDriver::UnhandledPromptBehavior::Dismiss:
-        // Dismiss the current user prompt.
-        page.dismiss_dialog(GC::create_function(heap, move(on_dialog_closed)));
-        break;
+    // 4. Let handler be get the prompt handler with type.
+    auto handler = get_the_prompt_handler(type);
 
-    // -> accept state
-    case Web::WebDriver::UnhandledPromptBehavior::Accept:
+    // AD-HOC: Grab the dialog text before we dismiss the dialog.
+    auto dialog_text = page.pending_dialog_text();
+
+    // 5. Perform the following substeps based on handler's handler:
+    //    -> "accept"
+    if (handler.handler == "accept"sv) {
         // Accept the current user prompt.
         page.accept_dialog(GC::create_function(heap, move(on_dialog_closed)));
-        break;
-
-    // -> dismiss and notify state
-    case Web::WebDriver::UnhandledPromptBehavior::DismissAndNotify:
+    }
+    //    -> "dismiss"
+    else if (handler.handler == "dismiss"sv) {
         // Dismiss the current user prompt.
-        page.dismiss_dialog(GC::create_function(heap, [this]() {
-            // Return an annotated unexpected alert open error.
-            async_driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnexpectedAlertOpen, "A user dialog is open"sv));
-        }));
-        break;
-
-    // -> accept and notify state
-    case Web::WebDriver::UnhandledPromptBehavior::AcceptAndNotify:
-        // Accept the current user prompt.
-        page.accept_dialog(GC::create_function(heap, [this]() {
-            // Return an annotated unexpected alert open error.
-            async_driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnexpectedAlertOpen, "A user dialog is open"sv));
-        }));
-        break;
-
-    // -> ignore state
-    case Web::WebDriver::UnhandledPromptBehavior::Ignore:
-        // Return an annotated unexpected alert open error.
-        async_driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnexpectedAlertOpen, "A user dialog is open"sv));
-        break;
+        page.dismiss_dialog(GC::create_function(heap, move(on_dialog_closed)));
+    }
+    //    -> "ignore"
+    else if (handler.handler == "ignore"sv) {
+        // Do nothing.
     }
 
-    // 3. Return success.
+    // 6. If handler's notify is true, return annotated unexpected alert open error.
+    if (handler.notify) {
+        JsonObject data;
+        if (dialog_text.has_value())
+            data.set("text"sv, JsonValue(*dialog_text));
+        async_driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnexpectedAlertOpen, "A user dialog is open"sv, move(data)));
+    }
+
+    // 7. Return success.
 }
 
 // https://w3c.github.io/webdriver/#dfn-wait-for-navigation-to-complete
