@@ -383,7 +383,8 @@
     "longhands": [
       "background-position-x",
       "background-position-y"
-    ]
+    ],
+    "percentages-resolve-to": "length"
   },
   "background-position-x": {
     "affects-layout": false,
@@ -613,7 +614,8 @@
       "border-top-right-radius",
       "border-bottom-left-radius",
       "border-bottom-right-radius"
-    ]
+    ],
+    "percentages-resolve-to": "length"
   },
   "border-right": {
     "inherited": false,
@@ -1083,8 +1085,7 @@
     "valid-types": [
       "number [-∞,∞]",
       "percentage [-∞,∞]"
-    ],
-    "percentages-resolve-to": "number"
+    ]
   },
   "fill-rule": {
     "affects-layout": false,
@@ -2130,7 +2131,8 @@
     "initial": "50% 50%",
     "valid-types": [
       "position"
-    ]
+    ],
+    "percentages-resolve-to": "length"
   },
   "opacity": {
     "animation-type": "by-computed-value",
@@ -2142,7 +2144,7 @@
       "number [-∞,∞]",
       "percentage [-∞,∞]"
     ],
-    "percentages-resolve-to": "number"
+    "__comment": "We don't have a percentages-resolve-to here because even though we're supposed to map percentages to [0,1], calc(10%) should resolve to 10% not 0.1."
   },
   "order": {
     "animation-type": "by-computed-value",
@@ -2530,7 +2532,7 @@
       "number [-∞,∞]",
       "percentage [-∞,∞]"
     ],
-    "percentages-resolve-to": "number"
+    "__comment": "We don't have a percentages-resolve-to here for the same reason as for opacity."
   },
   "stroke": {
     "affects-layout": false,
@@ -2595,7 +2597,7 @@
       "number [-∞,∞]",
       "percentage [-∞,∞]"
     ],
-    "percentages-resolve-to": "number"
+    "__comment": "We don't have a percentages-resolve-to here for the same reason as for opacity."
   },
   "stroke-width": {
     "affects-layout": false,
