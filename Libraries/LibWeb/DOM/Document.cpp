@@ -4973,26 +4973,31 @@ void Document::update_for_history_step_application(GC::Ref<HTML::SessionHistoryE
     //    - previousEntryForActivation is given;
     //    - navigationType is non-null; and
     //    - navigationType is "reload" or previousEntryForActivation's document is not document, then:
+    {
+        // FIXME: 1. If navigation's activation is null, then set navigation's activation to a new NavigationActivation object in navigation's relevant realm.
+        // FIXME: 2. Let previousEntryIndex be the result of getting the navigation API entry index of previousEntryForActivation within navigation.
+        // FIXME: 3. If previousEntryIndex is non-negative, then set activation's old entry to navigation's entry list[previousEntryIndex].
 
-    // FIXME: 1. If navigation's activation is null, then set navigation's activation to a new NavigationActivation object in navigation's relevant realm.
-    // FIXME: 2. Let previousEntryIndex be the result of getting the navigation API entry index of previousEntryForActivation within navigation.
-    // FIXME: 3. If previousEntryIndex is non-negative, then set activation's old entry to navigation's entry list[previousEntryIndex].
+        // FIXME: 4. Otherwise, if all the following are true:
+        //    - navigationType is "replace";
+        //    - previousEntryForActivation's document state's origin is same origin with document's origin; and
+        //    - previousEntryForActivation's document's initial about:blank is false,
+        //    then set activation's old entry to a new NavigationHistoryEntry in navigation's relevant realm, whose session history entry is previousEntryForActivation.
 
-    // FIXME: 4. Otherwise, if all the following are true:
-    //    - navigationType is "replace";
-    //    - previousEntryForActivation's document state's origin is same origin with document's origin; and
-    //    - previousEntryForActivation's document's initial about:blank is false,
-    //    then set activation's old entry to a new NavigationHistoryEntry in navigation's relevant realm, whose session history entry is previousEntryForActivation.
-
-    // FIXME: 5. Set activation's new entry to navigation's current entry.
-    // FIXME: 6. Set activation's navigation type to navigationType.
+        // FIXME: 5. Set activation's new entry to navigation's current entry.
+        // FIXME: 6. Set activation's navigation type to navigationType.
+    }
 
     // 8. If documentIsNew is true, then:
     if (document_is_new) {
-        // 1. Try to scroll to the fragment for document.
+        // FIXME: 1. Assert: document's during-loading navigation ID for WebDriver BiDi is not null.
+        // FIXME: 2. Invoke WebDriver BiDi navigation committed with navigable and a new WebDriver BiDi navigation
+        //           status whose id is document's during-loading navigation ID for WebDriver BiDi, status is "committed", and url is document's URL
+
+        // 3. Try to scroll to the fragment for document.
         try_to_scroll_to_the_fragment();
 
-        // 2. At this point scripts may run for the newly-created document document.
+        // 4. At this point scripts may run for the newly-created document document.
         m_ready_to_run_scripts = true;
     }
 
