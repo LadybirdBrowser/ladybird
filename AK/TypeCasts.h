@@ -36,22 +36,6 @@ ALWAYS_INLINE bool is(NonnullRefPtr<InputType> const& input)
 }
 
 template<typename OutputType, typename InputType>
-ALWAYS_INLINE CopyConst<InputType, OutputType>* as(InputType* input)
-{
-    static_assert(IsBaseOf<InputType, OutputType>);
-    VERIFY(!input || is<OutputType>(*input));
-    return static_cast<CopyConst<InputType, OutputType>*>(input);
-}
-
-template<typename OutputType, typename InputType>
-ALWAYS_INLINE CopyConst<InputType, OutputType>& as(InputType& input)
-{
-    static_assert(IsBaseOf<InputType, OutputType>);
-    VERIFY(is<OutputType>(input));
-    return static_cast<CopyConst<InputType, OutputType>&>(input);
-}
-
-template<typename OutputType, typename InputType>
 ALWAYS_INLINE CopyConst<InputType, OutputType>* as_if(InputType& input)
 {
     if (!is<OutputType>(input))
@@ -69,6 +53,24 @@ ALWAYS_INLINE CopyConst<InputType, OutputType>* as_if(InputType* input)
     if (!input)
         return nullptr;
     return as_if<OutputType>(*input);
+}
+
+template<typename OutputType, typename InputType>
+ALWAYS_INLINE CopyConst<InputType, OutputType>& as(InputType& input)
+{
+    auto* result = as_if<OutputType>(input);
+    VERIFY(result);
+    return *result;
+}
+
+template<typename OutputType, typename InputType>
+ALWAYS_INLINE CopyConst<InputType, OutputType>* as(InputType* input)
+{
+    if (!input)
+        return nullptr;
+    auto* result = as_if<OutputType>(input);
+    VERIFY(result);
+    return result;
 }
 
 }
