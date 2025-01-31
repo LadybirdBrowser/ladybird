@@ -295,7 +295,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::digest(AlgorithmIdentifier const& algorit
 }
 
 // https://w3c.github.io/webcrypto/#dfn-SubtleCrypto-method-generateKey
-JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::generate_key(AlgorithmIdentifier algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages)
+GC::Ref<WebIDL::Promise> SubtleCrypto::generate_key(AlgorithmIdentifier algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages)
 {
     auto& realm = this->realm();
 
@@ -431,7 +431,7 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::import_key(Binding
 }
 
 // https://w3c.github.io/webcrypto/#dfn-SubtleCrypto-method-exportKey
-JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::export_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
+GC::Ref<WebIDL::Promise> SubtleCrypto::export_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
 {
     auto& realm = this->realm();
     // 1. Let format and key be the format and key parameters passed to the exportKey() method, respectively.
@@ -477,7 +477,7 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::export_key(Binding
 }
 
 // https://w3c.github.io/webcrypto/#dfn-SubtleCrypto-method-sign
-JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::sign(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Root<WebIDL::BufferSource> const& data_parameter)
+GC::Ref<WebIDL::Promise> SubtleCrypto::sign(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Root<WebIDL::BufferSource> const& data_parameter)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -534,7 +534,7 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::sign(AlgorithmIden
 }
 
 // https://w3c.github.io/webcrypto/#dfn-SubtleCrypto-method-verify
-JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::verify(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Root<WebIDL::BufferSource> const& signature_data, GC::Root<WebIDL::BufferSource> const& data_parameter)
+GC::Ref<WebIDL::Promise> SubtleCrypto::verify(AlgorithmIdentifier const& algorithm, GC::Ref<CryptoKey> key, GC::Root<WebIDL::BufferSource> const& signature_data, GC::Root<WebIDL::BufferSource> const& data_parameter)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -598,7 +598,7 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::verify(AlgorithmId
 }
 
 // https://w3c.github.io/webcrypto/#SubtleCrypto-method-deriveBits
-JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::derive_bits(AlgorithmIdentifier algorithm, GC::Ref<CryptoKey> base_key, Optional<u32> length_optional)
+GC::Ref<WebIDL::Promise> SubtleCrypto::derive_bits(AlgorithmIdentifier algorithm, GC::Ref<CryptoKey> base_key, Optional<u32> length_optional)
 {
     auto& realm = this->realm();
     // 1. Let algorithm, baseKey and length, be the algorithm, baseKey and length parameters passed to the deriveBits() method, respectively.
@@ -645,7 +645,7 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::derive_bits(Algori
 }
 
 // https://w3c.github.io/webcrypto/#SubtleCrypto-method-deriveKey
-JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::derive_key(AlgorithmIdentifier algorithm, GC::Ref<CryptoKey> base_key, AlgorithmIdentifier derived_key_type, bool extractable, Vector<Bindings::KeyUsage> key_usages)
+GC::Ref<WebIDL::Promise> SubtleCrypto::derive_key(AlgorithmIdentifier algorithm, GC::Ref<CryptoKey> base_key, AlgorithmIdentifier derived_key_type, bool extractable, Vector<Bindings::KeyUsage> key_usages)
 {
     auto& realm = this->realm();
     auto& vm = this->vm();
@@ -747,7 +747,7 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::derive_key(Algorit
 }
 
 // https://w3c.github.io/webcrypto/#SubtleCrypto-method-wrapKey
-JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::wrap_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key, GC::Ref<CryptoKey> wrapping_key, AlgorithmIdentifier algorithm)
+GC::Ref<WebIDL::Promise> SubtleCrypto::wrap_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key, GC::Ref<CryptoKey> wrapping_key, AlgorithmIdentifier algorithm)
 {
     auto& realm = this->realm();
     // 1. Let format, key, wrappingKey and algorithm be the format, key, wrappingKey and wrapAlgorithm parameters passed to the wrapKey() method, respectively.
@@ -890,7 +890,7 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::wrap_key(Bindings:
 }
 
 // https://w3c.github.io/webcrypto/#SubtleCrypto-method-unwrapKey
-JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::unwrap_key(Bindings::KeyFormat format, KeyDataType wrapped_key, GC::Ref<CryptoKey> unwrapping_key, AlgorithmIdentifier algorithm, AlgorithmIdentifier unwrapped_key_algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages)
+GC::Ref<WebIDL::Promise> SubtleCrypto::unwrap_key(Bindings::KeyFormat format, KeyDataType wrapped_key, GC::Ref<CryptoKey> unwrapping_key, AlgorithmIdentifier algorithm, AlgorithmIdentifier unwrapped_key_algorithm, bool extractable, Vector<Bindings::KeyUsage> key_usages)
 {
     auto& realm = this->realm();
     // 1. Let format, unwrappingKey, algorithm, unwrappedKeyAlgorithm, extractable and usages, be the format, unwrappingKey, unwrapAlgorithm,
