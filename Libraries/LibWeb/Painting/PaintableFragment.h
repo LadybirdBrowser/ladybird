@@ -6,10 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Layout/LineBoxFragment.h>
 #include <LibWeb/Layout/Node.h>
-#include <LibWeb/Painting/BackgroundPainting.h>
-#include <LibWeb/Painting/BorderRadiiData.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web::Painting {
