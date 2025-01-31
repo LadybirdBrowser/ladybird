@@ -36,7 +36,7 @@ TextPaintable::DispatchEventOfSameName TextPaintable::handle_mousedown(Badge<Eve
     if (!label)
         return DispatchEventOfSameName::No;
     const_cast<Layout::Label*>(label)->handle_mousedown_on_label({}, position, button);
-    const_cast<HTML::Navigable&>(*navigable()).event_handler().set_mouse_event_tracking_paintable(this);
+    navigable()->event_handler().set_mouse_event_tracking_paintable(this);
     return DispatchEventOfSameName::Yes;
 }
 
@@ -47,7 +47,7 @@ TextPaintable::DispatchEventOfSameName TextPaintable::handle_mouseup(Badge<Event
         return DispatchEventOfSameName::No;
 
     const_cast<Layout::Label*>(label)->handle_mouseup_on_label({}, position, button);
-    const_cast<HTML::Navigable&>(*navigable()).event_handler().set_mouse_event_tracking_paintable(nullptr);
+    navigable()->event_handler().set_mouse_event_tracking_paintable(nullptr);
     return DispatchEventOfSameName::Yes;
 }
 
