@@ -94,6 +94,12 @@ void HTMLOrSVGElement<ElementBase>::inserted()
     // agent must execute the following steps on the element:
     DOM::Element& element = *static_cast<ElementBase*>(this);
 
+    // "A node becomes browsing-context connected when the insertion steps are invoked with it as the argument
+    // and it is now browsing-context connected."
+    // https://html.spec.whatwg.org/multipage/infrastructure.html#becomes-browsing-context-connected
+    if (!element.shadow_including_root().is_browsing_context_connected())
+        return;
+
     // FIXME: 1. Let CSP list be element's shadow-including root's policy container's CSP list.
     [[maybe_unused]] auto policy_container = element.shadow_including_root().document().policy_container();
 
