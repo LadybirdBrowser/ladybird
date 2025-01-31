@@ -1211,8 +1211,8 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
 
     // 5. For each transferable of transferList:
     for (auto& transferable : transfer_list) {
-        auto is_array_buffer = is<JS::ArrayBuffer>(*transferable);
-        auto is_detached = is_array_buffer && dynamic_cast<JS::ArrayBuffer&>(*transferable).is_detached();
+        auto array_buffer = as_if<JS::ArrayBuffer>(*transferable);
+        auto is_detached = array_buffer && array_buffer->is_detached();
 
         // 1. If transferable has an [[ArrayBufferData]] internal slot and IsDetachedBuffer(transferable) is true, then throw a "DataCloneError" DOMException.
         if (is_detached) {
@@ -1220,9 +1220,8 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
         }
 
         // 2. If transferable has a [[Detached]] internal slot and transferable.[[Detached]] is true, then throw a "DataCloneError" DOMException.
-        if (is<Bindings::Transferable>(*transferable)) {
-            auto& transferable_object = dynamic_cast<Bindings::Transferable&>(*transferable);
-            if (transferable_object.is_detached()) {
+        if (auto* transferable_object = as_if<Bindings::Transferable>(*transferable)) {
+            if (transferable_object->is_detached()) {
                 return WebIDL::DataCloneError::create(*vm.current_realm(), "Value already transferred"_string);
             }
         }
@@ -1232,17 +1231,16 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
         TransferDataHolder data_holder;
 
         // 4. If transferable has an [[ArrayBufferData]] internal slot, then:
-        if (is_array_buffer) {
+        if (array_buffer) {
             // 1. If transferable has an [[ArrayBufferMaxByteLength]] internal slot, then:
-            auto& array_buffer = dynamic_cast<JS::ArrayBuffer&>(*transferable);
-            if (!array_buffer.is_fixed_length()) {
+            if (!array_buffer->is_fixed_length()) {
                 // 1. Set dataHolder.[[Type]] to "ResizableArrayBuffer".
                 // 2. Set dataHolder.[[ArrayBufferData]] to transferable.[[ArrayBufferData]].
                 // 3. Set dataHolder.[[ArrayBufferByteLength]] to transferable.[[ArrayBufferByteLength]].
                 // 4. Set dataHolder.[[ArrayBufferMaxByteLength]] to transferable.[[ArrayBufferMaxByteLength]].
                 serialize_enum<TransferType>(data_holder.data, TransferType::ResizableArrayBuffer);
-                MUST(serialize_bytes(vm, data_holder.data, array_buffer.buffer().bytes())); // serializes both byte length and bytes
-                serialize_primitive_type<size_t>(data_holder.data, array_buffer.max_byte_length());
+                MUST(serialize_bytes(vm, data_holder.data, array_buffer->buffer().bytes())); // serializes both byte length and bytes
+                serialize_primitive_type<size_t>(data_holder.data, array_buffer->max_byte_length());
             }
 
             // 2. Otherwise:
@@ -1251,12 +1249,12 @@ WebIDL::ExceptionOr<SerializedTransferRecord> structured_serialize_with_transfer
                 // 2. Set dataHolder.[[ArrayBufferData]] to transferable.[[ArrayBufferData]].
                 // 3. Set dataHolder.[[ArrayBufferByteLength]] to transferable.[[ArrayBufferByteLength]].
                 serialize_enum<TransferType>(data_holder.data, TransferType::ArrayBuffer);
-                MUST(serialize_bytes(vm, data_holder.data, array_buffer.buffer().bytes())); // serializes both byte length and bytes
+                MUST(serialize_bytes(vm, data_holder.data, array_buffer->buffer().bytes())); // serializes both byte length and bytes
             }
 
             // 3. Perform ? DetachArrayBuffer(transferable).
             // NOTE: Specifications can use the [[ArrayBufferDetachKey]] internal slot to prevent ArrayBuffers from being detached. This is used in WebAssembly JavaScript Interface, for example. See: https://html.spec.whatwg.org/multipage/references.html#refsWASMJS
-            TRY(JS::detach_array_buffer(vm, array_buffer));
+            TRY(JS::detach_array_buffer(vm, *array_buffer));
         }
 
         // 5. Otherwise:
