@@ -216,6 +216,10 @@ public:
     bool selection_direction_applies() const;
     bool has_selectable_text() const;
 
+    bool supports_a_picker() const;
+    bool is_open() const { return m_is_open; }
+    void set_is_open(bool);
+
     static bool selection_or_range_applies_for_type_state(TypeAttributeState);
 
     Optional<String> selection_direction_binding() { return selection_direction(); }
@@ -368,6 +372,8 @@ private:
     String m_last_src_value;
 
     bool m_has_uncommitted_changes { false };
+
+    bool m_is_open { false };
 };
 
 }

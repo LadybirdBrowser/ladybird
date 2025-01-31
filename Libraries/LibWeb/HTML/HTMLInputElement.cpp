@@ -299,7 +299,11 @@ static void show_the_picker_if_applicable(HTMLInputElement& element)
     // 3. Consume user activation given element's relevant global object.
     relevant_global_object.consume_user_activation();
 
-    // 4. If element's type attribute is in the File Upload state, then run these steps in parallel:
+    // 4. If element does not support a picker, then return.
+    if (!element.supports_a_picker())
+        return;
+
+    // 5. If element's type attribute is in the File Upload state, then run these steps in parallel:
     if (element.type_state() == HTMLInputElement::TypeAttributeState::FileUpload) {
         // NOTE: These steps cannot be fully implemented here, and must be done in the PageClient when the response comes back from the PageHost
 
@@ -317,11 +321,12 @@ static void show_the_picker_if_applicable(HTMLInputElement& element)
         auto allow_multiple_files = element.has_attribute(HTML::AttributeNames::multiple) ? AllowMultipleFiles::Yes : AllowMultipleFiles::No;
         auto weak_element = element.make_weak_ptr<HTMLInputElement>();
 
+        element.set_is_open(true);
         element.document().browsing_context()->top_level_browsing_context()->page().did_request_file_picker(weak_element, move(accepted_file_types), allow_multiple_files);
         return;
     }
 
-    // 5. Otherwise, the user agent should show any relevant user interface for selecting a value for element,
+    // 6. Otherwise, the user agent should show any relevant user interface for selecting a value for element,
     //    in the way it normally would when the user interacts with the control. (If no such UI applies to element, then this step does nothing.)
     //    If such a user interface is shown, it must respect the requirements stated in the relevant parts of the specification for how element
     //    behaves given its type attribute state. (For example, various sections describe restrictions on the resulting value string.)
@@ -329,6 +334,7 @@ static void show_the_picker_if_applicable(HTMLInputElement& element)
     //    (If this closes a file selection picker, then per the above that will lead to firing either input and change events, or a cancel event.)
     if (element.type_state() == HTMLInputElement::TypeAttributeState::Color) {
         auto weak_element = element.make_weak_ptr<HTMLInputElement>();
+        element.set_is_open(true);
         element.document().browsing_context()->top_level_browsing_context()->page().did_request_color_picker(weak_element, Color::from_string(element.value()).value_or(Color(0, 0, 0)));
     }
 }
@@ -469,6 +475,8 @@ void HTMLInputElement::did_edit_text_node()
 
 void HTMLInputElement::did_pick_color(Optional<Color> picked_color, ColorPickerUpdateState state)
 {
+    set_is_open(false);
+
     if (type_state() == TypeAttributeState::Color && picked_color.has_value()) {
         // then when the user changes the element's value
         m_value = value_sanitization_algorithm(picked_color.value().to_string_without_alpha());
@@ -497,6 +505,8 @@ void HTMLInputElement::did_pick_color(Optional<Color> picked_color, ColorPickerU
 
 void HTMLInputElement::did_select_files(Span<SelectedFile> selected_files, MultipleHandling multiple_handling)
 {
+    set_is_open(false);
+
     // https://html.spec.whatwg.org/multipage/input.html#show-the-picker,-if-applicable
     // 4. If the user dismissed the prompt without changing their selection, then queue an element task on the user
     //    interaction task source given element to fire an event named cancel at element, with the bubbles attribute
@@ -2947,6 +2957,24 @@ bool HTMLInputElement::suffering_from_bad_input() const
         break;
     }
     return false;
+}
+
+// https://html.spec.whatwg.org/multipage/input.html#input-support-picker
+bool HTMLInputElement::supports_a_picker() const
+{
+    // The input element can support a picker. A picker is a user interface element that allows the end user to choose a value.
+    // Whether an input element supports a picker depends on the type attribute state and implementation-defined behavior.
+    // An input element must support a picker when its type attribute is in the File Upload state.
+    return first_is_one_of(type_state(), TypeAttributeState::FileUpload, TypeAttributeState::Color);
+}
+
+void HTMLInputElement::set_is_open(bool is_open)
+{
+    if (is_open == m_is_open)
+        return;
+
+    m_is_open = is_open;
+    invalidate_style(DOM::StyleInvalidationReason::HTMLInputElementSetIsOpen);
 }
 
 }
