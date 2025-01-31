@@ -209,6 +209,8 @@ public:
     void set_pseudo_element_computed_properties(CSS::Selector::PseudoElement::Type, GC::Ptr<CSS::ComputedProperties>);
     GC::Ptr<CSS::ComputedProperties> pseudo_element_computed_properties(CSS::Selector::PseudoElement::Type);
 
+    bool has_display_none_ancestor();
+    void play_or_cancel_animations_after_display_property_change(Optional<CSS::Display> old_display, Optional<CSS::Display> new_display);
     void reset_animated_css_properties();
 
     GC::Ptr<CSS::ElementInlineCSSStyleDeclaration> inline_style() { return m_inline_style; }

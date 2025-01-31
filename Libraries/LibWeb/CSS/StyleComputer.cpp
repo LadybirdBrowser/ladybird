@@ -2502,8 +2502,10 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
                 effect->set_target(&element);
                 element.set_cached_animation_name_animation(animation, pseudo_element);
 
-                HTML::TemporaryExecutionContext context(realm);
-                animation->play().release_value_but_fixme_should_propagate_errors();
+                if (!element.has_display_none_ancestor()) {
+                    HTML::TemporaryExecutionContext context(realm);
+                    animation->play().release_value_but_fixme_should_propagate_errors();
+                }
             } else {
                 // The animation hasn't changed, but some properties of the animation may have
                 if (auto animation = element.cached_animation_name_animation(pseudo_element); animation)
