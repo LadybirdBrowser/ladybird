@@ -1060,7 +1060,7 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
         return TraversalDecision::Continue;
 
     for (auto const& fragment : fragments()) {
-        if (fragment.paintable().has_stacking_context())
+        if (fragment.paintable().has_stacking_context() || !fragment.paintable().visible_for_hit_testing())
             continue;
         auto fragment_absolute_rect = fragment.absolute_rect();
         if (fragment_absolute_rect.contains(transformed_position_adjusted_by_scroll_offset)) {

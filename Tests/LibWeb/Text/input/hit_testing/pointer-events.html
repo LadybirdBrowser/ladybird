@@ -23,6 +23,9 @@
     <!-- div creates its own stacking context, #e2 must be hit instead of crashing -->
     <div id="e1" style="position: fixed; width: 100px; height: 100px; pointer-events: none; background-color: red"></div>
     <div id="e2" style="width: 100px; height: 100px; background-color: green"></div>
+
+    <!-- #f1 must be hit instead of #f2 -->
+    <a id="f1"><img id="f2" style="height: 30px; width: 30px; pointer-events: none"></a>
 </body>
 <script>
     test(() => {
@@ -38,5 +41,6 @@
         printHit(c1.offsetLeft + 50, c1.offsetTop + 50);
         printHit(d4.offsetLeft + 10, d4.offsetTop + 8);
         printHit(e1.offsetLeft + 50, e1.offsetTop + 50);
+        printHit(f1.offsetLeft + 15, f1.offsetTop + 15);
     });
 </script>
