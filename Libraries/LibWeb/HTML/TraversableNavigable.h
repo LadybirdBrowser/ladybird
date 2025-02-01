@@ -113,6 +113,9 @@ public:
 
     void set_viewport_size(CSSPixelSize) override;
 
+    bool needs_repaint() const { return m_needs_repaint; }
+    void set_needs_repaint() { m_needs_repaint = true; }
+
 private:
     TraversableNavigable(GC::Ref<Page>);
 
@@ -161,6 +164,8 @@ private:
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     OwnPtr<Painting::DisplayListPlayerSkia> m_skia_player;
     HashMap<Gfx::Bitmap*, NonnullRefPtr<Gfx::PaintingSurface>> m_bitmap_to_surface;
+
+    bool m_needs_repaint { true };
 };
 
 struct BrowsingContextAndDocument {

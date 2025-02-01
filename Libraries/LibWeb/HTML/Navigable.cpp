@@ -2198,13 +2198,6 @@ void Navigable::perform_scroll_of_viewport(CSSPixelPoint new_position)
     HTML::main_thread_event_loop().schedule();
 }
 
-void Navigable::set_needs_display(InvalidateDisplayList should_invalidate_display_list)
-{
-    if (auto document = active_document(); document) {
-        document->set_needs_display(should_invalidate_display_list);
-    }
-}
-
 // https://html.spec.whatwg.org/#rendering-opportunity
 bool Navigable::has_a_rendering_opportunity() const
 {

@@ -6093,8 +6093,6 @@ void Document::set_needs_display(CSSPixelRect const&, InvalidateDisplayList shou
     // FIXME: Ignore updates outside the visible viewport rect.
     //        This requires accounting for fixed-position elements in the input rect, which we don't do yet.
 
-    m_needs_repaint = true;
-
     if (should_invalidate_display_list == InvalidateDisplayList::Yes) {
         invalidate_display_list();
     }
@@ -6104,6 +6102,7 @@ void Document::set_needs_display(CSSPixelRect const&, InvalidateDisplayList shou
         return;
 
     if (navigable->is_traversable()) {
+        navigable->traversable_navigable()->set_needs_repaint();
         Web::HTML::main_thread_event_loop().schedule();
         return;
     }
@@ -6187,8 +6186,6 @@ RefPtr<Painting::DisplayList> Document::record_display_list(PaintConfig config)
 
     display_list->set_device_pixels_per_css_pixel(page().client().device_pixels_per_css_pixel());
     display_list->set_scroll_state(viewport_paintable.scroll_state());
-
-    m_needs_repaint = false;
 
     m_cached_display_list = display_list;
     m_cached_display_list_paint_config = config;

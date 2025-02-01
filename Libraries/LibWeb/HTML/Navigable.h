@@ -173,8 +173,6 @@ public:
     virtual void set_viewport_size(CSSPixelSize);
     void perform_scroll_of_viewport(CSSPixelPoint position);
 
-    void set_needs_display(InvalidateDisplayList = InvalidateDisplayList::Yes);
-
     // https://html.spec.whatwg.org/#rendering-opportunity
     [[nodiscard]] bool has_a_rendering_opportunity() const;
 

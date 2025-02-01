@@ -411,13 +411,13 @@ void EventLoop::update_the_rendering()
     for (auto& document : docs) {
         document->page().client().process_screenshot_requests();
         auto navigable = document->navigable();
-        if (navigable && document->needs_repaint()) {
-            auto* browsing_context = document->browsing_context();
-            auto& page = browsing_context->page();
-            if (navigable->is_traversable()) {
-                VERIFY(page.client().is_ready_to_paint());
-                page.client().paint_next_frame();
-            }
+        if (!navigable->is_traversable())
+            continue;
+        auto traversable = navigable->traversable_navigable();
+        if (traversable && traversable->needs_repaint()) {
+            auto& page = traversable->page();
+            VERIFY(page.client().is_ready_to_paint());
+            page.client().paint_next_frame();
         }
     }
 
