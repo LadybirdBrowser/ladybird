@@ -715,6 +715,7 @@ TEST_CASE(ECMA262_match)
         { "^(\\d{4}|[+-]\\d{6})(?:-?(\\d{2})(?:-?(\\d{2}))?)?(?:[ T]?(\\d{2}):?(\\d{2})(?::?(\\d{2})(?:[,.](\\d{1,}))?)?(?:(Z)|([+-])(\\d{2})(?::?(\\d{2}))?)?)?$"sv,
             ""sv,
             false, }, // See above, also ladybird#2931.
+        { "[^]*[^]"sv, "i"sv, true }, // Optimizer bug, ignoring an enabled trailing 'invert' when comparing blocks, ladybird#3421.
     };
     // clang-format on
 

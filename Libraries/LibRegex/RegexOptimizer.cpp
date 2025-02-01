@@ -500,7 +500,8 @@ static bool has_overlap(Vector<CompareTypeAndValuePair> const& lhs, Vector<Compa
         }
     }
 
-    return false;
+    // We got to the end, just double-check that the inverse flag was not left on (which would match everything).
+    return current_lhs_inversion_state();
 }
 
 enum class AtomicRewritePreconditionResult {
