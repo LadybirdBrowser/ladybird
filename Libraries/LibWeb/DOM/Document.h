@@ -735,7 +735,6 @@ public:
     GC::Ptr<HTML::Navigable> cached_navigable();
     void set_cached_navigable(GC::Ptr<HTML::Navigable>);
 
-    [[nodiscard]] bool needs_repaint() const { return m_needs_repaint; }
     void set_needs_display(InvalidateDisplayList = InvalidateDisplayList::Yes);
     void set_needs_display(CSSPixelRect const&, InvalidateDisplayList = InvalidateDisplayList::Yes);
 
@@ -1100,8 +1099,6 @@ private:
 
     // NOTE: This is WeakPtr, not GCPtr, on purpose. We don't want the document to keep some old detached navigable alive.
     WeakPtr<HTML::Navigable> m_cached_navigable;
-
-    bool m_needs_repaint { false };
 
     bool m_enable_cookies_on_file_domains { false };
 

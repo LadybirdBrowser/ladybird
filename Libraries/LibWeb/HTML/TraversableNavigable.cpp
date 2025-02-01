@@ -1429,6 +1429,8 @@ NonnullRefPtr<Gfx::PaintingSurface> TraversableNavigable::painting_surface_for_b
 
 void TraversableNavigable::paint(DevicePixelRect const& content_rect, Painting::BackingStore& target, PaintOptions paint_options)
 {
+    m_needs_repaint = false;
+
     auto document = active_document();
     if (!document)
         return;

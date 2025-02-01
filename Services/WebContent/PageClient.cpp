@@ -879,6 +879,6 @@ Web::DisplayListPlayerType PageClient::display_list_player_type() const
 void PageClient::queue_screenshot_task(Optional<Web::UniqueNodeID> node_id)
 {
     m_screenshot_tasks.enqueue({ node_id });
-    page().top_level_traversable()->set_needs_display();
+    page().top_level_traversable()->set_needs_repaint();
 }
 }
