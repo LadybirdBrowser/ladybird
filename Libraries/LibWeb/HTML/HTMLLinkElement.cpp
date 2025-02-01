@@ -166,8 +166,10 @@ void HTMLLinkElement::attribute_changed(FlyString const& name, Optional<String> 
         m_explicitly_enabled = true;
 
     if (m_relationship & Relationship::Stylesheet) {
-        if (name == HTML::AttributeNames::disabled && m_loaded_style_sheet)
+        if (name == HTML::AttributeNames::disabled && m_loaded_style_sheet) {
             document_or_shadow_root_style_sheets().remove_a_css_style_sheet(*m_loaded_style_sheet);
+            m_loaded_style_sheet = nullptr;
+        }
 
         // https://html.spec.whatwg.org/multipage/links.html#link-type-stylesheet:fetch-and-process-the-linked-resource
         // The appropriate times to fetch and process this type of link are:

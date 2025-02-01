@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<link rel="stylesheet" href="valid.css">
+<script>
+    test(() => {
+        const link = document.querySelector("link");
+        link.onload = () => {
+            link.disabled = true;
+            link.disabled = false;
+            println("PASS (didn't crash)");
+        };
+    });
+</script>
