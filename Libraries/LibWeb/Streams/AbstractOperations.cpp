@@ -3373,7 +3373,7 @@ WebIDL::ExceptionOr<void> readable_byte_stream_controller_enqueue(ReadableByteSt
 
         // 3. For each filledPullInto of filledPullIntos,
         for (auto& filled_pull_into : filled_pull_intos) {
-            // 1. Perform ! ReadableByteStreamControllerCommitPullIntoDescriptor(controller.[[stream]], filledPullInto).
+            // 1. Perform ! ReadableByteStreamControllerCommitPullIntoDescriptor(stream, filledPullInto).
             readable_byte_stream_controller_commit_pull_into_descriptor(*stream, *filled_pull_into);
         }
     }
