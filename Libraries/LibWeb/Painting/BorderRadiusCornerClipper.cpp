@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/PaintContext.h>
 
 namespace Web::Painting {

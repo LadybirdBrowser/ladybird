@@ -11,6 +11,7 @@
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/ImageRequest.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/ImagePaintable.h>
 #include <LibWeb/Platform/FontPlugin.h>
 

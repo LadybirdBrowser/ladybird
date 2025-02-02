@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Utf8View.h>
+#include <LibGfx/TextLayout.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Layout/Node.h>

@@ -6,6 +6,7 @@
  */
 
 #include <LibGfx/Quad.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/SVGPathPaintable.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
 

@@ -7,6 +7,7 @@
 #include "SVGImageElement.h"
 #include <LibCore/Timer.h>
 #include <LibGC/Heap.h>
+#include <LibGfx/ImmutableBitmap.h>
 #include <LibWeb/Bindings/SVGImageElementPrototype.h>
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/DOM/Event.h>

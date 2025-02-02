@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Layout/LegendBox.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/FieldSetPaintable.h>
 
 namespace Web::Painting {

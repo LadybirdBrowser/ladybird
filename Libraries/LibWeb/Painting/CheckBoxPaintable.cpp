@@ -12,6 +12,7 @@
 #include <LibWeb/Layout/CheckBox.h>
 #include <LibWeb/Layout/Label.h>
 #include <LibWeb/Painting/CheckBoxPaintable.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/InputColors.h>
 
 namespace Web::Painting {

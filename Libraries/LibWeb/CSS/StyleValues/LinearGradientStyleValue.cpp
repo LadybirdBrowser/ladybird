@@ -8,6 +8,7 @@
  */
 
 #include "LinearGradientStyleValue.h"
+#include <LibWeb/Painting/DisplayListRecorder.h>
 
 namespace Web::CSS {
 

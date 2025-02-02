@@ -10,6 +10,7 @@
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/Layout/Label.h>
 #include <LibWeb/Layout/RadioButton.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/InputColors.h>
 #include <LibWeb/Painting/RadioButtonPaintable.h>
 

@@ -9,6 +9,7 @@
 #include <LibWeb/Layout/NavigableContainerViewport.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/NavigableContainerViewportPaintable.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 

@@ -10,6 +10,7 @@
 #include "ConicGradientStyleValue.h"
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 
 namespace Web::CSS {
 
