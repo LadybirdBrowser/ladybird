@@ -545,6 +545,7 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
         //    namespace prefix set to prefix, local name set to localName, custom element state set to "undefined", custom element definition set to null,
         //    is value set to is, and node document set to document.
         auto element = create_html_element(realm, document, QualifiedName { local_name, prefix, Namespace::HTML });
+        element->set_is_value(is_value);
 
         // 3. If the synchronous custom elements flag is set, then run this step while catching any exceptions:
         if (synchronous_custom_elements_flag) {
