@@ -242,8 +242,11 @@ void HTMLDialogElement::request_close(Optional<String> return_value)
     // 1. If this does not have an open attribute, then return.
     if (!has_attribute(AttributeNames::open))
         return;
-    // 2. Assert: this's close watcher is not null.
-    VERIFY(m_close_watcher);
+    // ADHOC: 2. If this's close watcher is null, then close the dialog this with returnValue, and return. See https://github.com/whatwg/html/pull/10983
+    if (!m_close_watcher) {
+        close_the_dialog(move(return_value));
+        return;
+    }
     // 3. Set dialog's enable close watcher for requestClose() to true.
     // ADHOC: Implemented slightly differently to the spec, as the spec is unnecessarily complex.
     m_close_watcher->set_enabled(true);
