@@ -84,7 +84,11 @@ public:
 
     virtual void set_dirty_value_flag(bool flag) override { m_dirty_value = flag; }
 
+    bool user_validity() const { return m_user_validity; }
+    void set_user_validity(bool flag) { m_user_validity = flag; }
+
     void commit_pending_changes();
+    bool has_uncommitted_changes() { return m_has_uncommitted_changes; }
 
     String placeholder() const;
     Optional<String> placeholder_value() const;
@@ -220,6 +224,15 @@ public:
     virtual void did_edit_text_node() override;
     virtual GC::Ptr<DOM::Text> form_associated_element_to_text_node() override { return m_text_node; }
 
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#definitions
+    virtual bool suffering_from_being_missing() const override;
+    virtual bool suffering_from_a_type_mismatch() const override;
+    virtual bool suffering_from_a_pattern_mismatch() const override;
+    virtual bool suffering_from_an_underflow() const override;
+    virtual bool suffering_from_an_overflow() const override;
+    virtual bool suffering_from_a_step_mismatch() const override;
+    virtual bool suffering_from_bad_input() const override;
+
 private:
     HTMLInputElement(DOM::Document&, DOM::QualifiedName);
 
@@ -337,6 +350,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-fe-dirty
     bool m_dirty_value { false };
+
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#user-validity
+    bool m_user_validity { false };
 
     // https://html.spec.whatwg.org/multipage/input.html#the-input-element:legacy-pre-activation-behavior
     bool m_before_legacy_pre_activation_behavior_checked { false };

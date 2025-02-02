@@ -21,6 +21,7 @@
 #include <LibWeb/HTML/HTMLDetailsElement.h>
 #include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/HTMLFieldSetElement.h>
+#include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
@@ -750,12 +751,140 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         return false;
     }
     case CSS::PseudoClass::PopoverOpen: {
-        // https://html.spec.whatwg.org/#selector-popover-open
+        // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-popover-open
         // The :popover-open pseudo-class is defined to match any HTML element whose popover attribute is not in the no popover state and whose popover visibility state is showing.
         if (is<HTML::HTMLElement>(element) && element.has_attribute(HTML::AttributeNames::popover)) {
             auto& html_element = static_cast<HTML::HTMLElement const&>(element);
             return html_element.popover_visibility_state() == HTML::HTMLElement::PopoverVisibilityState::Showing;
         }
+
+        return false;
+    }
+    case CSS::PseudoClass::Valid: {
+        // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-valid
+        // The :valid pseudo-class must match any element falling into one of the following categories:
+
+        // - elements that are candidates for constraint validation and that satisfy their constraints
+        if (auto form_associated_element = as_if<Web::HTML::FormAssociatedElement>(element))
+            if (form_associated_element->is_candidate_for_constraint_validation() && form_associated_element->satisfies_its_constraints())
+                return true;
+
+        // - form elements that are not the form owner of any elements that themselves are candidates for constraint validation but do not satisfy their constraints
+        if (auto form_element = as_if<Web::HTML::HTMLFormElement>(element)) {
+            bool has_invalid_elements = false;
+            element.for_each_in_subtree([&](auto& node) {
+                if (auto form_associated_element = as_if<Web::HTML::FormAssociatedElement>(&node)) {
+                    if (form_associated_element->form() == form_element && form_associated_element->is_candidate_for_constraint_validation() && !form_associated_element->satisfies_its_constraints()) {
+                        has_invalid_elements = true;
+                        return TraversalDecision::Break;
+                    }
+                }
+                return TraversalDecision::Continue;
+            });
+            if (!has_invalid_elements)
+                return true;
+        }
+
+        // - fieldset elements that have no descendant elements that themselves are candidates for constraint validation but do not satisfy their constraints
+        if (is<Web::HTML::HTMLFieldSetElement>(element)) {
+            bool has_invalid_children = false;
+            element.for_each_in_subtree([&](auto& node) {
+                if (auto form_associated_element = as_if<Web::HTML::FormAssociatedElement>(&node)) {
+                    if (form_associated_element->is_candidate_for_constraint_validation() && !form_associated_element->satisfies_its_constraints()) {
+                        has_invalid_children = true;
+                        return TraversalDecision::Break;
+                    }
+                }
+                return TraversalDecision::Continue;
+            });
+            if (!has_invalid_children)
+                return true;
+        }
+
+        return false;
+    }
+    case CSS::PseudoClass::Invalid: {
+        // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-invalid
+        // The :invalid pseudo-class must match any element falling into one of the following categories:
+
+        // - elements that are candidates for constraint validation but that do not satisfy their constraints
+        if (auto form_associated_element = as_if<Web::HTML::FormAssociatedElement>(element))
+            if (form_associated_element->is_candidate_for_constraint_validation() && !form_associated_element->satisfies_its_constraints())
+                return true;
+
+        // - form elements that are the form owner of one or more elements that themselves are candidates for constraint validation but do not satisfy their constraints
+        if (auto form_element = as_if<Web::HTML::HTMLFormElement>(element)) {
+            bool has_invalid_elements = false;
+            element.for_each_in_subtree([&](auto& node) {
+                if (auto form_associated_element = as_if<Web::HTML::FormAssociatedElement>(&node)) {
+                    if (form_associated_element->form() == form_element && form_associated_element->is_candidate_for_constraint_validation() && !form_associated_element->satisfies_its_constraints()) {
+                        has_invalid_elements = true;
+                        return TraversalDecision::Break;
+                    }
+                }
+                return TraversalDecision::Continue;
+            });
+            if (has_invalid_elements)
+                return true;
+        }
+
+        // - fieldset elements that have of one or more descendant elements that themselves are candidates for constraint validation but do not satisfy their constraints
+        if (is<Web::HTML::HTMLFieldSetElement>(element)) {
+            bool has_invalid_children = false;
+            element.for_each_in_subtree([&](auto& node) {
+                if (auto form_associated_element = as_if<Web::HTML::FormAssociatedElement>(&node)) {
+                    if (form_associated_element->is_candidate_for_constraint_validation() && !form_associated_element->satisfies_its_constraints()) {
+                        has_invalid_children = true;
+                        return TraversalDecision::Break;
+                    }
+                }
+                return TraversalDecision::Continue;
+            });
+            if (has_invalid_children)
+                return true;
+        }
+
+        return false;
+    }
+    case CSS::PseudoClass::UserValid: {
+        // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-user-valid
+        // The :user-valid pseudo-class must match input, textarea, and select elements whose user validity is true,
+        bool user_validity = false;
+        if (auto input_element = as_if<Web::HTML::HTMLInputElement>(element)) {
+            user_validity = input_element->user_validity();
+        } else if (auto select_element = as_if<Web::HTML::HTMLSelectElement>(element)) {
+            user_validity = select_element->user_validity();
+        } else if (auto text_area_element = as_if<Web::HTML::HTMLTextAreaElement>(element)) {
+            user_validity = text_area_element->user_validity();
+        }
+        if (!user_validity)
+            return false;
+
+        // are candidates for constraint validation, and that satisfy their constraints.
+        auto& form_associated_element = as<Web::HTML::FormAssociatedElement>(element);
+        if (form_associated_element.is_candidate_for_constraint_validation() && form_associated_element.satisfies_its_constraints())
+            return true;
+
+        return false;
+    }
+    case CSS::PseudoClass::UserInvalid: {
+        // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-user-invalid
+        // The :user-invalid pseudo-class must match input, textarea, and select elements whose user validity is true,
+        bool user_validity = false;
+        if (auto input_element = as_if<Web::HTML::HTMLInputElement>(element)) {
+            user_validity = input_element->user_validity();
+        } else if (auto select_element = as_if<Web::HTML::HTMLSelectElement>(element)) {
+            user_validity = select_element->user_validity();
+        } else if (auto text_area_element = as_if<Web::HTML::HTMLTextAreaElement>(element)) {
+            user_validity = text_area_element->user_validity();
+        }
+        if (!user_validity)
+            return false;
+
+        // are candidates for constraint validation but do not satisfy their constraints.
+        auto& form_associated_element = as<Web::HTML::FormAssociatedElement>(element);
+        if (form_associated_element.is_candidate_for_constraint_validation() && !form_associated_element.satisfies_its_constraints())
+            return true;
 
         return false;
     }
@@ -923,7 +1052,7 @@ static bool fast_matches_simple_selector(CSS::Selector::SimpleSelector const& si
     case CSS::Selector::SimpleSelector::Type::Universal:
         return matches_namespace(simple_selector.qualified_name(), element, context.style_sheet_for_rule);
     case CSS::Selector::SimpleSelector::Type::TagName:
-        // https://html.spec.whatwg.org/#case-sensitivity-of-selectors
+        // https://html.spec.whatwg.org/multipage/semantics-other.html#case-sensitivity-of-selectors
         // When comparing a CSS element type selector to the names of HTML elements in HTML documents, the CSS element type selector must first be converted to ASCII lowercase. The
         // same selector when compared to other elements must be compared according to its original case. In both cases, to match the values must be identical to each other (and therefore
         // the comparison is case sensitive).

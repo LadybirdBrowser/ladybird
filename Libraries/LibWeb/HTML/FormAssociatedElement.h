@@ -91,6 +91,24 @@ public:
     // https://html.spec.whatwg.org/multipage/forms.html#concept-submit-button
     virtual bool is_submit_button() const { return false; }
 
+    // https://html.spec.whatwg.org/#candidate-for-constraint-validation
+    bool is_candidate_for_constraint_validation() const;
+
+    // https://html.spec.whatwg.org/#concept-fv-valid
+    bool satisfies_its_constraints() const;
+
+    // https://html.spec.whatwg.org/#definitions
+    virtual bool suffering_from_being_missing() const { return false; }
+    virtual bool suffering_from_a_type_mismatch() const { return false; }
+    virtual bool suffering_from_a_pattern_mismatch() const { return false; }
+    bool suffering_from_being_too_long() const;
+    bool suffering_from_being_too_short() const;
+    virtual bool suffering_from_an_underflow() const { return false; }
+    virtual bool suffering_from_an_overflow() const { return false; }
+    virtual bool suffering_from_a_step_mismatch() const { return false; }
+    virtual bool suffering_from_bad_input() const { return false; }
+    bool suffering_from_a_custom_error() const;
+
     virtual String value() const { return String {}; }
 
     virtual HTMLElement& form_associated_element_to_html_element() = 0;

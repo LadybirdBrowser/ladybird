@@ -468,7 +468,8 @@ void HTMLInputElement::did_pick_color(Optional<Color> picked_color, ColorPickerU
         if (state == ColorPickerUpdateState::Closed) {
             queue_an_element_task(HTML::Task::Source::UserInteraction, [this] {
                 // given the input element
-                // FIXME: to set its user interacted to true
+                // to set its user validity to true
+                m_user_validity = true;
                 // and fire an event named change at the input element, with the bubbles attribute initialized to true.
                 auto change_event = DOM::Event::create(realm(), HTML::EventNames::change);
                 change_event->set_bubbles(true);
@@ -1214,15 +1215,16 @@ void HTMLInputElement::user_interaction_did_change_input_value()
     // For input elements without a defined input activation behavior, but to which these events apply,
     // and for which the user interface involves both interactive manipulation and an explicit commit action,
     // then when the user changes the element's value, the user agent must queue an element task on the user interaction task source
-    // given the input element to fire an event named input at the input element, with the bubbles and composed attributes initialized to true,
-    // and any time the user commits the change, the user agent must queue an element task on the user interaction task source given the input
-    // element to set its user validity to true and fire an event named change at the input element, with the bubbles attribute initialized to true.
+    // given the input element to fire an event named input at the input element, with the bubbles and composed attributes initialized to true
     queue_an_element_task(HTML::Task::Source::UserInteraction, [this] {
         auto input_event = DOM::Event::create(realm(), HTML::EventNames::input);
         input_event->set_bubbles(true);
         input_event->set_composed(true);
         dispatch_event(*input_event);
     });
+    // and any time the user commits the change, the user agent must queue an element task on the user interaction task source given the input
+    // element to set its user validity to true and fire an event named change at the input element, with the bubbles attribute initialized to true.
+    // FIXME: Does this need to happen here?
 }
 
 void HTMLInputElement::update_slider_shadow_tree_elements()
@@ -1583,7 +1585,8 @@ String HTMLInputElement::value_sanitization_algorithm(String const& value) const
 // https://html.spec.whatwg.org/multipage/input.html#the-input-element:concept-form-reset-control
 void HTMLInputElement::reset_algorithm()
 {
-    // The reset algorithm for input elements is to set the dirty value flag and dirty checkedness flag back to false,
+    // The reset algorithm for input elements is to set its user validity, dirty value flag, and dirty checkedness flag back to false,
+    m_user_validity = false;
     m_dirty_value = false;
     m_dirty_checkedness = false;
 
@@ -2763,6 +2766,171 @@ HTMLInputElement::ValueAttributeMode HTMLInputElement::value_attribute_mode() co
 bool HTMLInputElement::is_focusable() const
 {
     return m_type != TypeAttributeState::Hidden && enabled();
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-being-missing
+bool HTMLInputElement::suffering_from_being_missing() const
+{
+    switch (type_state()) {
+    case TypeAttributeState::Checkbox:
+        // https://html.spec.whatwg.org/multipage/input.html#checkbox-state-(type%3Dcheckbox)%3Asuffering-from-being-missing
+        // If the element is required and its checkedness is false, then the element is suffering from being missing.
+        if (has_attribute(HTML::AttributeNames::required) && !checked())
+            return true;
+        break;
+    case TypeAttributeState::RadioButton:
+        // https://html.spec.whatwg.org/multipage/input.html#radio-button-state-(type%3Dradio)%3Asuffering-from-being-missing
+        // If an element in the radio button group is required, and all of the input elements in the radio button group have a checkedness that is false, then the element
+        // is suffering from being missing.
+        // FIXME: Implement this.
+        break;
+    case TypeAttributeState::FileUpload:
+        // https://html.spec.whatwg.org/multipage/input.html#file-upload-state-(type%3Dfile)%3Asuffering-from-being-missing
+        // If the element is required and the list of selected files is empty, then the element is suffering from being missing.
+        // FIXME: Implement this.
+        break;
+    default:
+        break;
+    }
+
+    // https://html.spec.whatwg.org/multipage/input.html#the-required-attribute%3Asuffering-from-being-missing
+    // If the element is required, and its value IDL attribute applies and is in the mode value, and the element is mutable, and the element's value is the empty
+    // string, then the element is suffering from being missing.
+    if (has_attribute(HTML::AttributeNames::required) && value_attribute_mode() == ValueAttributeMode::Value && is_mutable() && m_value.is_empty())
+        return true;
+
+    return false;
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-a-type-mismatch
+bool HTMLInputElement::suffering_from_a_type_mismatch() const
+{
+    switch (type_state()) {
+    case TypeAttributeState::URL:
+        // https://html.spec.whatwg.org/multipage/input.html#url-state-(type%3Durl)%3Asuffering-from-a-type-mismatch
+        // While the value of the element is neither the empty string nor a valid absolute URL, the element is suffering from a type mismatch.
+        // FIXME: Implement this.
+        break;
+    case TypeAttributeState::Email:
+        // https://html.spec.whatwg.org/multipage/input.html#email-state-(type%3Demail)%3Asuffering-from-a-type-mismatch
+        // While the value of the element is neither the empty string nor a single valid email address, the element is suffering from a type mismatch.
+        // FIXME: Implement this.
+        break;
+    default:
+        break;
+    }
+    return false;
+}
+
+// https://html.spec.whatwg.org/multipage/input.html#the-pattern-attribute%3Asuffering-from-a-pattern-mismatch
+bool HTMLInputElement::suffering_from_a_pattern_mismatch() const
+{
+    // If the element's value is not the empty string, and either the element's multiple attribute is not specified or it does not apply to the input element given its
+    // type attribute's current state, and the element has a compiled pattern regular expression but that regular expression does not match the element's value, then the element is
+    // suffering from a pattern mismatch.
+    // FIXME: Implement this.
+    return false;
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-an-underflow
+bool HTMLInputElement::suffering_from_an_underflow() const
+{
+    // https://html.spec.whatwg.org/multipage/input.html#the-min-and-max-attributes%3Asuffering-from-an-underflow-2
+    // When the element has a minimum and does not have a reversed range, and the result of applying the algorithm to convert a string to a number to the string
+    // given by the element's value is a number, and the number obtained from that algorithm is less than the minimum, the element is suffering from an underflow.
+    // FIXME: Implement this.
+
+    // https://html.spec.whatwg.org/multipage/input.html#the-min-and-max-attributes%3Asuffering-from-an-underflow-3
+    // When an element has a reversed range, and the result of applying the algorithm to convert a string to a number to the string given by the element's value is a
+    // number, and the number obtained from that algorithm is more than the maximum and less than the minimum, the element is simultaneously suffering from an underflow and
+    // suffering from an overflow.
+    // FIXME: Implement this.
+    return false;
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-an-overflow
+bool HTMLInputElement::suffering_from_an_overflow() const
+{
+    // https://html.spec.whatwg.org/multipage/input.html#the-min-and-max-attributes%3Asuffering-from-an-overflow-2
+    // When the element has a maximum and does not have a reversed range, and the result of applying the algorithm to convert a string to a number to the string
+    // given by the element's value is a number, and the number obtained from that algorithm is more than the maximum, the element is suffering from an overflow.
+
+    // https://html.spec.whatwg.org/multipage/input.html#the-min-and-max-attributes%3Asuffering-from-an-underflow-3
+    // When an element has a reversed range, and the result of applying the algorithm to convert a string to a number to the string given by the element's value is a
+    // number, and the number obtained from that algorithm is more than the maximum and less than the minimum, the element is simultaneously suffering from an underflow and
+    // suffering from an overflow.
+    // FIXME: Implement this.
+    return false;
+}
+
+// https://html.spec.whatwg.org/multipage/input.html#the-step-attribute%3Asuffering-from-a-step-mismatch
+bool HTMLInputElement::suffering_from_a_step_mismatch() const
+{
+    // When the element has an allowed value step, and the result of applying the algorithm to convert a string to a number to the string given by the element's
+    // value is a number, and that number subtracted from the step base is not an integral multiple of the allowed value step, the element is suffering from a step mismatch.
+    // FIXME: Implement this.
+    return false;
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-bad-input
+bool HTMLInputElement::suffering_from_bad_input() const
+{
+    switch (type_state()) {
+    case TypeAttributeState::Email:
+        // https://html.spec.whatwg.org/multipage/input.html#email-state-(type%3Demail)%3Asuffering-from-bad-input
+        // While the user interface is representing input that the user agent cannot convert to punycode, the control is suffering from bad input.
+        // FIXME: Implement this.
+
+        // https://html.spec.whatwg.org/multipage/input.html#email-state-(type%3Demail)%3Asuffering-from-bad-input-2
+        // While the user interface describes a situation where an individual value contains a U+002C COMMA (,) or is representing input that the user agent
+        // cannot convert to punycode, the control is suffering from bad input.
+        // FIXME: Implement this.
+        break;
+    case TypeAttributeState::Date:
+        // https://html.spec.whatwg.org/multipage/input.html#date-state-(type%3Ddate)%3Asuffering-from-bad-input
+        // While the user interface describes input that the user agent cannot convert to a valid date string, the control is suffering from bad input.
+        // FIXME: Implement this.
+        break;
+    case TypeAttributeState::Month:
+        // https://html.spec.whatwg.org/multipage/input.html#month-state-(type%3Dmonth)%3Asuffering-from-bad-input
+        // While the user interface describes input that the user agent cannot convert to a valid month string, the control is suffering from bad input.
+        // FIXME: Implement this.
+        break;
+    case TypeAttributeState::Week:
+        // https://html.spec.whatwg.org/multipage/input.html#week-state-(type%3Dweek)%3Asuffering-from-bad-input
+        // While the user interface describes input that the user agent cannot convert to a valid week string, the control is suffering from bad input.
+        // FIXME: Implement this.
+        break;
+    case TypeAttributeState::Time:
+        // https://html.spec.whatwg.org/multipage/#time-state-(type=time):suffering-from-bad-input
+        // While the user interface describes input that the user agent cannot convert to a valid time string, the control is suffering from bad input.
+        // FIXME: Implement this.
+        break;
+    case TypeAttributeState::LocalDateAndTime:
+        // https://html.spec.whatwg.org/multipage/input.html#local-date-and-time-state-(type%3Ddatetime-local)%3Asuffering-from-bad-input
+        // While the user interface describes input that the user agent cannot convert to a valid normalized local date and time string, the control is suffering from bad
+        // input.
+        // FIXME: Implement this.
+        break;
+    case TypeAttributeState::Number:
+        // https://html.spec.whatwg.org/multipage/input.html#number-state-(type%3Dnumber)%3Asuffering-from-bad-input
+        // While the user interface describes input that the user agent cannot convert to a valid floating-point number, the control is suffering from bad input.
+        // FIXME: Implement this.
+        break;
+    case TypeAttributeState::Range:
+        // https://html.spec.whatwg.org/multipage/input.html#range-state-(type%3Drange)%3Asuffering-from-bad-input
+        // While the user interface describes input that the user agent cannot convert to a valid floating-point number, the control is suffering from bad input.
+        // FIXME: Implement this.
+        break;
+    case TypeAttributeState::Color:
+        // https://html.spec.whatwg.org/multipage/input.html#color-state-(type%3Dcolor)%3Asuffering-from-bad-input
+        // While the element's value is not the empty string and parsing it returns failure, the control is suffering from bad input.
+        // FIXME: Implement this.
+        break;
+    default:
+        break;
+    }
+    return false;
 }
 
 }

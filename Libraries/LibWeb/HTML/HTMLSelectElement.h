@@ -100,6 +100,15 @@ public:
 
     bool can_skip_selectedness_update_for_inserted_option(HTMLOptionElement const&) const;
 
+    bool user_validity() const { return m_user_validity; }
+    void set_user_validity(bool flag) { m_user_validity = flag; }
+
+    // https://html.spec.whatwg.org/multipage/form-elements.html#placeholder-label-option
+    HTMLOptionElement* placeholder_label_option() const;
+
+    // https://html.spec.whatwg.org/multipage/form-elements.html#the-select-element%3Asuffering-from-being-missing
+    virtual bool suffering_from_being_missing() const override;
+
 private:
     HTMLSelectElement(DOM::Document&, DOM::QualifiedName);
 
@@ -132,6 +141,9 @@ private:
     Vector<SelectItem> m_select_items;
     GC::Ptr<DOM::Element> m_inner_text_element;
     GC::Ptr<DOM::Element> m_chevron_icon_element;
+
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#user-validity
+    bool m_user_validity { false };
 };
 
 }
