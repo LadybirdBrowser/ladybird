@@ -779,9 +779,8 @@ void invoke_custom_element_reactions(Vector<GC::Root<DOM::Element>>& element_que
                         auto& realm = callback.callback->shape().realm();
                         auto& global = realm.global_object();
 
-                        auto* window_or_worker = dynamic_cast<HTML::WindowOrWorkerGlobalScopeMixin*>(&global);
-                        VERIFY(window_or_worker);
-                        window_or_worker->report_an_exception(maybe_exception.error_value());
+                        auto& window_or_worker = as<HTML::WindowOrWorkerGlobalScopeMixin>(global);
+                        window_or_worker.report_an_exception(maybe_exception.error_value());
                     }
                 },
                 [&](DOM::CustomElementCallbackReaction& custom_element_callback_reaction) -> void {

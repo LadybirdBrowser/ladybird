@@ -327,9 +327,8 @@ JS::Completion invoke_callback(WebIDL::CallbackType& callback, Optional<JS::Valu
             // FIXME: 1. Assert: callable’s return type is undefined or any.
 
             // 2. Report an exception completion.[[Value]] for relevant realm’s global object.
-            auto* window_or_worker = dynamic_cast<HTML::WindowOrWorkerGlobalScopeMixin*>(&relevant_realm.global_object());
-            VERIFY(window_or_worker);
-            window_or_worker->report_an_exception(*completion.release_value());
+            auto& window_or_worker = as<HTML::WindowOrWorkerGlobalScopeMixin>(relevant_realm.global_object());
+            window_or_worker.report_an_exception(*completion.release_value());
 
             // 3. Return the unique undefined IDL value.
             return JS::js_undefined();

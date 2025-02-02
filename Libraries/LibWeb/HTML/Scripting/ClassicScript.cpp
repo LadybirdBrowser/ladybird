@@ -128,9 +128,8 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, GC::Ptr<JS::Envi
         VERIFY(rethrow_errors == RethrowErrors::No);
 
         // 1. Report an exception given by evaluationStatus.[[Value]] for realms's global object.
-        auto* window_or_worker = dynamic_cast<WindowOrWorkerGlobalScopeMixin*>(&realm.global_object());
-        VERIFY(window_or_worker);
-        window_or_worker->report_an_exception(*evaluation_status.value());
+        auto& window_or_worker = as<WindowOrWorkerGlobalScopeMixin>(realm.global_object());
+        window_or_worker.report_an_exception(*evaluation_status.value());
 
         // 2. Clean up after running script with realm.
         clean_up_after_running_script(realm);

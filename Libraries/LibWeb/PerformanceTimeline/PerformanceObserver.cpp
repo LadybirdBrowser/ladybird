@@ -50,8 +50,7 @@ WebIDL::ExceptionOr<void> PerformanceObserver::observe(PerformanceObserverInit& 
     auto& realm = this->realm();
 
     // 1. Let relevantGlobal be this's relevant global object.
-    auto* relevant_global = dynamic_cast<HTML::WindowOrWorkerGlobalScopeMixin*>(&HTML::relevant_global_object(*this));
-    VERIFY(relevant_global);
+    auto& relevant_global = as<HTML::WindowOrWorkerGlobalScopeMixin>(HTML::relevant_global_object(*this));
 
     // 2. If options's entryTypes and type members are both omitted, then throw a "TypeError".
     if (!options.entry_types.has_value() && !options.type.has_value())
@@ -123,7 +122,7 @@ WebIDL::ExceptionOr<void> PerformanceObserver::observe(PerformanceObserverInit& 
         //       performance observer object.
         m_options_list.clear();
         m_options_list.append(options);
-        relevant_global->register_performance_observer({}, *this);
+        relevant_global.register_performance_observer({}, *this);
     }
     // 7. Otherwise, run the following steps:
     else {
@@ -149,7 +148,7 @@ WebIDL::ExceptionOr<void> PerformanceObserver::observe(PerformanceObserverInit& 
 
         // 3. If the list of registered performance observer objects of relevantGlobal contains a registered performance
         //    observer obs whose observer is this:
-        if (relevant_global->has_registered_performance_observer(*this)) {
+        if (relevant_global.has_registered_performance_observer(*this)) {
             // 1. If obs's options list contains a PerformanceObserverInit item currentOptions whose type is equal to options's type,
             //    replace currentOptions with options in obs's options list.
             auto index = m_options_list.find_first_index_if([&options](PerformanceObserverInit const& entry) {
@@ -168,13 +167,13 @@ WebIDL::ExceptionOr<void> PerformanceObserver::observe(PerformanceObserverInit& 
         else {
             m_options_list.clear();
             m_options_list.append(options);
-            relevant_global->register_performance_observer({}, *this);
+            relevant_global.register_performance_observer({}, *this);
         }
 
         // 5. If options's buffered flag is set:
         if (options.buffered.has_value() && options.buffered.value()) {
             // 1. Let tuple be the relevant performance entry tuple of options's type and relevantGlobal.
-            auto const& tuple = relevant_global->relevant_performance_entry_tuple(type);
+            auto const& tuple = relevant_global.relevant_performance_entry_tuple(type);
 
             // 2. For each entry in tuple's performance entry buffer:
             for (auto const& entry : tuple.performance_entry_buffer) {
@@ -184,7 +183,7 @@ WebIDL::ExceptionOr<void> PerformanceObserver::observe(PerformanceObserverInit& 
             }
 
             // 3. Queue the PerformanceObserver task with relevantGlobal as input.
-            relevant_global->queue_the_performance_observer_task();
+            relevant_global.queue_the_performance_observer_task();
         }
     }
 
@@ -195,9 +194,8 @@ WebIDL::ExceptionOr<void> PerformanceObserver::observe(PerformanceObserverInit& 
 void PerformanceObserver::disconnect()
 {
     // 1. Remove this from the list of registered performance observer objects of relevant global object.
-    auto* relevant_global = dynamic_cast<HTML::WindowOrWorkerGlobalScopeMixin*>(&HTML::relevant_global_object(*this));
-    VERIFY(relevant_global);
-    relevant_global->unregister_performance_observer({}, *this);
+    auto& relevant_global = as<HTML::WindowOrWorkerGlobalScopeMixin>(HTML::relevant_global_object(*this));
+    relevant_global.unregister_performance_observer({}, *this);
 
     // 2. Empty this's observer buffer.
     m_observer_buffer.clear();
@@ -221,11 +219,10 @@ Vector<GC::Root<PerformanceTimeline::PerformanceEntry>> PerformanceObserver::tak
 GC::Ref<JS::Object> PerformanceObserver::supported_entry_types(JS::VM& vm)
 {
     // 1. Let globalObject be the environment settings object's global object.
-    auto* window_or_worker = dynamic_cast<HTML::WindowOrWorkerGlobalScopeMixin*>(&vm.get_global_object());
-    VERIFY(window_or_worker);
+    auto& window_or_worker = as<HTML::WindowOrWorkerGlobalScopeMixin>(vm.get_global_object());
 
     // 2. Return globalObject's frozen array of supported entry types.
-    return window_or_worker->supported_entry_types();
+    return window_or_worker.supported_entry_types();
 }
 
 void PerformanceObserver::unset_requires_dropped_entries(Badge<HTML::WindowOrWorkerGlobalScopeMixin>)

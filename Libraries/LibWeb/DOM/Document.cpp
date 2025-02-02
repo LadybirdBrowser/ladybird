@@ -3850,8 +3850,7 @@ Vector<GC::Root<HTML::Navigable>> Document::document_tree_child_navigables()
 void Document::run_unloading_cleanup_steps()
 {
     // 1. Let window be document's relevant global object.
-    auto* window = dynamic_cast<HTML::WindowOrWorkerGlobalScopeMixin*>(&HTML::relevant_global_object(*this));
-    VERIFY(window);
+    auto& window = as<HTML::WindowOrWorkerGlobalScopeMixin>(HTML::relevant_global_object(*this));
 
     // FIXME: 2. For each WebSocket object webSocket whose relevant global object is window, make disappear webSocket.
     //            If this affected any WebSocket objects, then set document's salvageable state to false.
@@ -3861,10 +3860,10 @@ void Document::run_unloading_cleanup_steps()
     // 4. If document's salvageable state is false, then:
     if (!m_salvageable) {
         // 1. For each EventSource object eventSource whose relevant global object is equal to window, forcibly close eventSource.
-        window->forcibly_close_all_event_sources();
+        window.forcibly_close_all_event_sources();
 
         // 2. Clear window's map of active timers.
-        window->clear_map_of_active_timers();
+        window.clear_map_of_active_timers();
     }
 
     FileAPI::run_unloading_cleanup_steps(*this);
