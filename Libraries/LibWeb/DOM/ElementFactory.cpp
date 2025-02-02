@@ -80,6 +80,7 @@
 #include <LibWeb/HTML/HTMLUnknownElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/MathML/MathMLElement.h>
 #include <LibWeb/MathML/TagNames.h>
@@ -526,19 +527,13 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
 {
     auto& realm = document.realm();
 
-    // 1. If prefix was not given, let prefix be null.
-    // NOTE: This is already taken care of by `prefix` having a default value.
-
-    // 2. If is was not given, let is be null.
-    // NOTE: This is already taken care of by `is` having a default value.
-
-    // 3. Let result be null.
+    // 1. Let result be null.
     // NOTE: We collapse this into just returning an element where necessary.
 
-    // 4. Let definition be the result of looking up a custom element definition given document, namespace, localName, and is.
+    // 2. Let definition be the result of looking up a custom element definition given document, namespace, localName, and is.
     auto definition = document.lookup_custom_element_definition(namespace_, local_name, is_value);
 
-    // 5. If definition is non-null, and definition’s name is not equal to its local name (i.e., definition represents a customized built-in element), then:
+    // 3. If definition is non-null, and definition’s name is not equal to its local name (i.e., definition represents a customized built-in element), then:
     if (definition && definition->name() != definition->local_name()) {
         // 1. Let interface be the element interface for localName and the HTML namespace.
         // 2. Set result to a new element that implements interface, with no attributes, namespace set to the HTML namespace,
@@ -554,8 +549,9 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
 
             // If this step threw an exception, then:
             if (upgrade_result.is_throw_completion()) {
-                // 1. Report the exception.
-                HTML::report_exception(upgrade_result, realm);
+                // 1. Report exception for definition’s constructor’s corresponding JavaScript object’s associated realm’s global object.
+                auto& window_or_worker = as<HTML::WindowOrWorkerGlobalScopeMixin>(HTML::relevant_global_object(definition->constructor().callback));
+                window_or_worker.report_an_exception(upgrade_result.error_value());
 
                 // 2. Set result’s custom element state to "failed".
                 element->set_custom_element_state(CustomElementState::Failed);
@@ -570,9 +566,9 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
         return element;
     }
 
-    // 6. Otherwise, if definition is non-null, then:
+    // 4. Otherwise, if definition is non-null, then:
     if (definition) {
-        // 1. If the synchronous custom elements flag is set, then run these steps while catching any exceptions:
+        // 1. If synchronousCustomElements is true, then run these steps while catching any exceptions:
         if (synchronous_custom_elements_flag) {
             auto synchronously_upgrade_custom_element = [&]() -> JS::ThrowCompletionOr<GC::Ref<HTML::HTMLElement>> {
                 // 1. Let C be definition’s constructor.
@@ -625,8 +621,9 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
 
             // If any of these steps threw an exception, then:
             if (result.is_throw_completion()) {
-                // 1. Report the exception.
-                HTML::report_exception(result, realm);
+                // 1. Report exception for definition’s constructor’s corresponding JavaScript object’s associated realm’s global object.
+                auto& window_or_worker = as<HTML::WindowOrWorkerGlobalScopeMixin>(HTML::relevant_global_object(definition->constructor().callback));
+                window_or_worker.report_an_exception(result.error_value());
 
                 // 2. Set result to a new element that implements the HTMLUnknownElement interface, with no attributes, namespace set to the HTML namespace, namespace prefix set to prefix,
                 //    local name set to localName, custom element state set to "failed", custom element definition set to null, is value set to null, and node document set to document.
@@ -649,7 +646,7 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
         return element;
     }
 
-    // 7. Otherwise:
+    // 5. Otherwise:
     //    1. Let interface be the element interface for localName and namespace.
     //    2. Set result to a new element that implements interface, with no attributes, namespace set to namespace, namespace prefix set to prefix,
     //       local name set to localName, custom element state set to "uncustomized", custom element definition set to null, is value set to is,
@@ -684,8 +681,8 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
         return element;
     }
 
-    // 8. Return result.
-    // NOTE: See step 3.
+    // 6. Return result.
+    // NOTE: See step 1.
 
     // https://dom.spec.whatwg.org/#concept-element-interface
     // The element interface for any name and namespace is Element, unless stated otherwise.
