@@ -1744,18 +1744,27 @@ bool readable_byte_stream_controller_fill_pull_into_descriptor_from_queue(Readab
         // 3. Let destStart be pullIntoDescriptor’s byte offset + pullIntoDescriptor’s bytes filled.
         auto dest_start = pull_into_descriptor.byte_offset + pull_into_descriptor.bytes_filled;
 
-        // 4. Assert: ! CanCopyDataBlockBytes(pullIntoDescriptor’s buffer, destStart, headOfQueue’s buffer, headOfQueue’s byte offset, bytesToCopy) is true.
-        VERIFY(can_copy_data_block_bytes_buffer(pull_into_descriptor.buffer, dest_start, head_of_queue.buffer, head_of_queue.byte_offset, bytes_to_copy));
+        // 4. Let descriptorBuffer be pullIntoDescriptor’s buffer.
+        auto descriptor_buffer = pull_into_descriptor.buffer;
 
-        // 5. Perform ! CopyDataBlockBytes(pullIntoDescriptor’s buffer.[[ArrayBufferData]], destStart, headOfQueue’s buffer.[[ArrayBufferData]], headOfQueue’s byte offset, bytesToCopy).
+        // 5. Let queueBuffer be headOfQueue’s buffer.
+        auto queue_buffer = head_of_queue.buffer;
+
+        // 6. Let queueByteOffset be headOfQueue’s byte offset.
+        auto queue_byte_offset = head_of_queue.byte_offset;
+
+        // 7. Assert: ! CanCopyDataBlockBytes(descriptorBuffer, destStart, queueBuffer, queueByteOffset, bytesToCopy) is true.
+        VERIFY(can_copy_data_block_bytes_buffer(descriptor_buffer, dest_start, queue_buffer, queue_byte_offset, bytes_to_copy));
+
+        // 8. Perform ! CopyDataBlockBytes(pullIntoDescriptor’s buffer.[[ArrayBufferData]], destStart, headOfQueue’s buffer.[[ArrayBufferData]], headOfQueue’s byte offset, bytesToCopy).
         JS::copy_data_block_bytes(pull_into_descriptor.buffer->buffer(), dest_start, head_of_queue.buffer->buffer(), head_of_queue.byte_offset, bytes_to_copy);
 
-        // 6. If headOfQueue’s byte length is bytesToCopy,
+        // 9. If headOfQueue’s byte length is bytesToCopy,
         if (head_of_queue.byte_length == bytes_to_copy) {
             // 1. Remove queue[0].
             queue.take_first();
         }
-        // 7. Otherwise,
+        // 10. Otherwise,
         else {
             // 1. Set headOfQueue’s byte offset to headOfQueue’s byte offset + bytesToCopy.
             head_of_queue.byte_offset += bytes_to_copy;
@@ -1764,13 +1773,13 @@ bool readable_byte_stream_controller_fill_pull_into_descriptor_from_queue(Readab
             head_of_queue.byte_length -= bytes_to_copy;
         }
 
-        // 8. Set controller.[[queueTotalSize]] to controller.[[queueTotalSize]] − bytesToCopy.
+        // 11. Set controller.[[queueTotalSize]] to controller.[[queueTotalSize]] − bytesToCopy.
         controller.set_queue_total_size(controller.queue_total_size() - bytes_to_copy);
 
-        // 9, Perform ! ReadableByteStreamControllerFillHeadPullIntoDescriptor(controller, bytesToCopy, pullIntoDescriptor).
+        // 12, Perform ! ReadableByteStreamControllerFillHeadPullIntoDescriptor(controller, bytesToCopy, pullIntoDescriptor).
         readable_byte_stream_controller_fill_head_pull_into_descriptor(controller, bytes_to_copy, pull_into_descriptor);
 
-        // 10. Set totalBytesToCopyRemaining to totalBytesToCopyRemaining − bytesToCopy.
+        // 13. Set totalBytesToCopyRemaining to totalBytesToCopyRemaining − bytesToCopy.
         total_bytes_to_copy_remaining -= bytes_to_copy;
     }
 
