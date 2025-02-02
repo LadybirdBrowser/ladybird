@@ -90,6 +90,9 @@ public:
 
     virtual void set_dirty_value_flag(bool flag) override { m_dirty_value = flag; }
 
+    bool user_validity() const { return m_user_validity; }
+    void set_user_validity(bool flag) { m_user_validity = flag; }
+
     u32 text_length() const;
 
     bool check_validity();
@@ -126,6 +129,9 @@ public:
     virtual void did_edit_text_node() override;
     virtual GC::Ptr<DOM::Text> form_associated_element_to_text_node() override { return m_text_node; }
 
+    // https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element%3Asuffering-from-being-missing
+    virtual bool suffering_from_being_missing() const override;
+
 private:
     HTMLTextAreaElement(DOM::Document&, DOM::QualifiedName);
 
@@ -156,6 +162,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-fe-dirty
     bool m_dirty_value { false };
+
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#user-validity
+    bool m_user_validity { false };
 
     // https://html.spec.whatwg.org/multipage/form-elements.html#concept-textarea-raw-value
     String m_raw_value;

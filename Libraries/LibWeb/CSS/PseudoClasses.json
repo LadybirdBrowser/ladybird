@@ -53,6 +53,9 @@
   "indeterminate": {
     "argument": ""
   },
+  "invalid": {
+    "argument": ""
+  },
   "is": {
     "argument": "<forgiving-selector-list>"
   },
@@ -135,6 +138,15 @@
     "argument": ""
   },
   "target-within": {
+    "argument": ""
+  },
+  "user-invalid": {
+    "argument": ""
+  },
+  "user-valid": {
+    "argument": ""
+  },
+  "valid": {
     "argument": ""
   },
   "visited": {

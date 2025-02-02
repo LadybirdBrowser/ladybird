@@ -110,7 +110,8 @@ i32 HTMLTextAreaElement::default_tab_index_value() const
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element:concept-form-reset-control
 void HTMLTextAreaElement::reset_algorithm()
 {
-    // The reset algorithm for textarea elements is to set the dirty value flag back to false,
+    // The reset algorithm for textarea elements is to set the user validity to false, dirty value flag back to false,
+    m_user_validity = false;
     m_dirty_value = false;
     // and set the raw value of element to its child text content.
     set_raw_value(child_text_content());
@@ -484,6 +485,14 @@ void HTMLTextAreaElement::queue_firing_input_event()
 bool HTMLTextAreaElement::is_focusable() const
 {
     return enabled();
+}
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element%3Asuffering-from-being-missing
+bool HTMLTextAreaElement::suffering_from_being_missing() const
+{
+    // If the element has its required attribute specified, and the element is mutable, and the element's value is the empty string, then the element is suffering from
+    // being missing.
+    return has_attribute(HTML::AttributeNames::required) && is_mutable() && value().is_empty();
 }
 
 }

@@ -40,6 +40,8 @@ static void fire_a_focus_event(GC::Ptr<DOM::EventTarget> focus_event_target, GC:
 // https://html.spec.whatwg.org/multipage/interaction.html#focus-update-steps
 static void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector<GC::Root<DOM::Node>> new_chain, DOM::Node* new_focus_target)
 {
+    // The focus update steps, given an old chain, a new chain, and a new focus target respectively, are as follows:
+
     // 1. If the last entry in old chain and the last entry in new chain are the same,
     //    pop the last entry from old chain and the last entry from new chain and redo this step.
     while (!old_chain.is_empty()
@@ -51,18 +53,21 @@ static void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector
 
     // 2. For each entry entry in old chain, in order, run these substeps:
     for (auto& entry : old_chain) {
-        // 1. If entry is an input element, and the change event applies to the element, and the element does not have
-        //    a defined activation behavior, and the user has changed the element's value or its list of selected files
-        //    while the control was focused without committing that change (such that it is different to what it was
-        //    when the control was first focused), then fire an event named change at the element, with the bubbles
-        //    attribute initialized to true.
+        // 1. If entry is an input element
         if (is<HTMLInputElement>(*entry)) {
             auto& input_element = static_cast<HTMLInputElement&>(*entry);
 
             // FIXME: Spec issue: It doesn't make sense to check if the element has a defined activation behavior, as
             //        that is always true. Instead, we check if it has an *input* activation behavior.
             //        https://github.com/whatwg/html/issues/9973
-            if (input_element.change_event_applies() && !input_element.has_input_activation_behavior()) {
+            // and the change event applies to the element, and the element does not have a defined activation behavior, and the user has changed the
+            // element's value or its list of selected files while the control was focused without committing that change (such that it is different to what it was when the control was first
+            // focused), then:
+            if (input_element.change_event_applies() && !input_element.has_input_activation_behavior() && input_element.has_uncommitted_changes()) {
+                // 1. Set entry's user validity to true.
+                input_element.set_user_validity(true);
+
+                // 2. Fire an event named change at the element, with the bubbles attribute initialized to true.
                 input_element.commit_pending_changes();
             }
         }

@@ -15,6 +15,7 @@
 #include <LibWeb/DOM/SelectionchangeEventDispatching.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLButtonElement.h>
+#include <LibWeb/HTML/HTMLDataListElement.h>
 #include <LibWeb/HTML/HTMLFieldSetElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
@@ -52,13 +53,13 @@ bool FormAssociatedElement::enabled() const
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-fe-disabled
     auto const& html_element = form_associated_element_to_html_element();
 
-    // A form control is disabled if any of the following conditions are met:
-    // 1. The element is a button, input, select, textarea, or form-associated custom element, and the disabled attribute is specified on this element (regardless of its value).
+    // A form control is disabled if any of the following are true:
+    // - The element is a button, input, select, textarea, or form-associated custom element, and the disabled attribute is specified on this element (regardless of its value); or
     // FIXME: This doesn't check for form-associated custom elements.
     if ((is<HTMLButtonElement>(html_element) || is<HTMLInputElement>(html_element) || is<HTMLSelectElement>(html_element) || is<HTMLTextAreaElement>(html_element)) && html_element.has_attribute(HTML::AttributeNames::disabled))
         return false;
 
-    // 2. The element is a descendant of a fieldset element whose disabled attribute is specified, and is not a descendant of that fieldset element's first legend element child, if any.
+    // - The element is a descendant of a fieldset element whose disabled attribute is specified, and is not a descendant of that fieldset element's first legend element child, if any.
     for (auto* fieldset_ancestor = html_element.first_ancestor_of_type<HTMLFieldSetElement>(); fieldset_ancestor; fieldset_ancestor = fieldset_ancestor->first_ancestor_of_type<HTMLFieldSetElement>()) {
         if (fieldset_ancestor->has_attribute(HTML::AttributeNames::disabled)) {
             auto* first_legend_element_child = fieldset_ancestor->first_child_of_type<HTMLLegendElement>();
@@ -200,6 +201,98 @@ WebIDL::ExceptionOr<void> FormAssociatedElement::set_form_action(String const& v
 {
     auto& html_element = form_associated_element_to_html_element();
     return html_element.set_attribute(HTML::AttributeNames::formaction, value);
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#candidate-for-constraint-validation
+bool FormAssociatedElement::is_candidate_for_constraint_validation() const
+{
+    // A submittable element is a candidate for constraint validation except when a condition has barred the element from constraint validation.
+    if (!is_submittable())
+        return false;
+
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#enabling-and-disabling-form-controls%3A-the-disabled-attribute%3Abarred-from-constraint-validation
+    // If an element is disabled, it is barred from constraint validation.
+    if (!enabled())
+        return false;
+
+    auto const& html_element = form_associated_element_to_html_element();
+
+    // https://html.spec.whatwg.org/multipage/form-elements.html#the-datalist-element%3Abarred-from-constraint-validation
+    // If an element has a datalist element ancestor, it is barred from constraint validation.
+    if (html_element.first_ancestor_of_type<HTMLDataListElement>())
+        return false;
+
+    if (is<HTMLInputElement>(html_element)) {
+        auto const& input_element = as<HTMLInputElement>(html_element);
+
+        // https://html.spec.whatwg.org/multipage/input.html#hidden-state-(type%3Dhidden)%3Abarred-from-constraint-validation
+        // If an input element's type attribute is in the Hidden state, it is barred from constraint validation.
+        if (input_element.type_state() == HTMLInputElement::TypeAttributeState::Hidden)
+            return false;
+
+        // https://html.spec.whatwg.org/multipage/input.html#reset-button-state-(type%3Dreset)%3Abarred-from-constraint-validation
+        // When an input element's type attribute is in the Reset Button state, the rules in this section apply.
+        // The element is barred from constraint validation.
+        if (input_element.type_state() == HTMLInputElement::TypeAttributeState::ResetButton)
+            return false;
+
+        // https://html.spec.whatwg.org/multipage/input.html#button-state-(type%3Dbutton)%3Abarred-from-constraint-validation
+        // When an input element's type attribute is in the Button state, the rules in this section apply.
+        // The element is barred from constraint validation.
+        if (input_element.type_state() == HTMLInputElement::TypeAttributeState::Button)
+            return false;
+
+        // https://html.spec.whatwg.org/multipage/input.html#the-readonly-attribute%3Abarred-from-constraint-validation
+        // If the readonly attribute is specified on an input element, the element is barred from constraint validation.
+        if (input_element.has_attribute(HTML::AttributeNames::readonly))
+            return false;
+    }
+
+    if (is<HTMLButtonElement>(html_element)) {
+        auto const& button_element = as<HTMLButtonElement>(html_element);
+
+        // https://html.spec.whatwg.org/multipage/form-elements.html#the-button-element%3Abarred-from-constraint-validation
+        // If the type attribute is in the Reset Button state or the Button state, the element is barred from constraint validation.
+        if (button_element.type_state() == HTMLButtonElement::TypeAttributeState::Button || button_element.type_state() == HTMLButtonElement::TypeAttributeState::Reset)
+            return false;
+    }
+
+    if (is<HTMLTextAreaElement>(html_element)) {
+        // https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element%3Abarred-from-constraint-validation
+        // If the readonly attribute is specified on a textarea element, the element is barred from constraint validation.
+        if (html_element.has_attribute(HTML::AttributeNames::readonly))
+            return false;
+    }
+
+    return true;
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-fv-valid
+bool FormAssociatedElement::satisfies_its_constraints() const
+{
+    return !(
+        suffering_from_being_missing() || suffering_from_a_type_mismatch() || suffering_from_a_pattern_mismatch() || suffering_from_being_too_long() || suffering_from_being_too_short() || suffering_from_an_underflow() || suffering_from_an_overflow() || suffering_from_a_step_mismatch() || suffering_from_bad_input() || suffering_from_a_custom_error());
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#limiting-user-input-length%3A-the-maxlength-attribute%3Asuffering-from-being-too-long
+bool FormAssociatedElement::suffering_from_being_too_long() const
+{
+    // FIXME: Implement this.
+    return false;
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#setting-minimum-input-length-requirements%3A-the-minlength-attribute%3Asuffering-from-being-too-short
+bool FormAssociatedElement::suffering_from_being_too_short() const
+{
+    // FIXME: Implement this.
+    return false;
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-a-custom-error
+bool FormAssociatedElement::suffering_from_a_custom_error() const
+{
+    // FIXME: Implement this.
+    return false;
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value

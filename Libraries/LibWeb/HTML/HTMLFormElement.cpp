@@ -125,18 +125,31 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
         // 2. Set form's firing submission events to true.
         m_firing_submission_events = true;
 
-        // FIXME: 3. If the submitter element's no-validate state is false, then interactively validate the constraints
+        // 3. For each element field in the list of submittable elements whose form owner is form, set field's user validity to true.
+        for (auto& element : get_submittable_elements()) {
+            // NOTE: Only input, select and textarea elements have a user validity flag.
+            //       See https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#user-validity
+            if (is<HTMLInputElement>(*element)) {
+                (&as<HTMLInputElement>(*element))->set_user_validity(false);
+            } else if (is<HTMLSelectElement>(*element)) {
+                (&as<HTMLSelectElement>(*element))->set_user_validity(false);
+            } else if (is<HTMLTextAreaElement>(*element)) {
+                (&as<HTMLTextAreaElement>(*element))->set_user_validity(false);
+            }
+        }
+
+        // FIXME: 4. If the submitter element's no-validate state is false, then interactively validate the constraints
         //           of form and examine the result. If the result is negative (i.e., the constraint validation concluded
         //           that there were invalid fields and probably informed the user of this), then:
         //           1. Set form's firing submission events to false.
         //           2. Return.
 
-        // 4. Let submitterButton be null if submitter is form. Otherwise, let submitterButton be submitter.
+        // 5. Let submitterButton be null if submitter is form. Otherwise, let submitterButton be submitter.
         GC::Ptr<HTMLElement> submitter_button;
         if (submitter != this)
             submitter_button = submitter;
 
-        // 5. Let shouldContinue be the result of firing an event named submit at form using SubmitEvent, with the
+        // 6. Let shouldContinue be the result of firing an event named submit at form using SubmitEvent, with the
         //    submitter attribute initialized to submitterButton, the bubbles attribute initialized to true, and the
         //    cancelable attribute initialized to true.
         SubmitEventInit event_init {};
@@ -146,14 +159,14 @@ WebIDL::ExceptionOr<void> HTMLFormElement::submit_form(GC::Ref<HTMLElement> subm
         submit_event->set_cancelable(true);
         bool should_continue = dispatch_event(*submit_event);
 
-        // 6. Set form's firing submission events to false.
+        // 7. Set form's firing submission events to false.
         m_firing_submission_events = false;
 
-        // 7. If shouldContinue is false, then return.
+        // 8. If shouldContinue is false, then return.
         if (!should_continue)
             return {};
 
-        // 8. If form cannot navigate, then return.
+        // 9. If form cannot navigate, then return.
         // Spec Note: Cannot navigate is run again as dispatching the submit event could have changed the outcome.
         if (cannot_navigate())
             return {};
