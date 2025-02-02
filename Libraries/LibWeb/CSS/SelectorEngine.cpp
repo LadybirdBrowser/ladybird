@@ -157,7 +157,7 @@ static inline bool matches_link_pseudo_class(DOM::Element const& element)
     return element.has_attribute(HTML::AttributeNames::href);
 }
 
-bool matches_hover_pseudo_class(DOM::Element const& element)
+static bool matches_hover_pseudo_class(DOM::Element const& element)
 {
     auto* hovered_node = element.document().hovered_node();
     if (!hovered_node)
@@ -899,8 +899,13 @@ bool matches(CSS::Selector const& selector, int component_list_index, DOM::Eleme
     VERIFY_NOT_REACHED();
 }
 
+bool fast_matches(CSS::Selector const& selector, DOM::Element const& element_to_match, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context);
+
 bool matches(CSS::Selector const& selector, DOM::Element const& element, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, GC::Ptr<DOM::ParentNode const> scope, SelectorKind selector_kind, GC::Ptr<DOM::Element const> anchor)
 {
+    if (selector_kind == SelectorKind::Normal && selector.can_use_fast_matches()) {
+        return fast_matches(selector, element, shadow_host, context);
+    }
     VERIFY(!selector.compound_selectors().is_empty());
     if (pseudo_element.has_value() && selector.pseudo_element().has_value() && selector.pseudo_element().value().type() != pseudo_element)
         return false;
@@ -1009,50 +1014,6 @@ bool fast_matches(CSS::Selector const& selector, DOM::Element const& element_to_
             VERIFY_NOT_REACHED();
         }
     }
-}
-
-bool can_use_fast_matches(CSS::Selector const& selector)
-{
-    for (auto const& compound_selector : selector.compound_selectors()) {
-        if (compound_selector.combinator != CSS::Selector::Combinator::None
-            && compound_selector.combinator != CSS::Selector::Combinator::Descendant
-            && compound_selector.combinator != CSS::Selector::Combinator::ImmediateChild) {
-            return false;
-        }
-
-        for (auto const& simple_selector : compound_selector.simple_selectors) {
-            if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoClass) {
-                auto const pseudo_class = simple_selector.pseudo_class().type;
-                if (pseudo_class != CSS::PseudoClass::FirstChild
-                    && pseudo_class != CSS::PseudoClass::LastChild
-                    && pseudo_class != CSS::PseudoClass::OnlyChild
-                    && pseudo_class != CSS::PseudoClass::Hover
-                    && pseudo_class != CSS::PseudoClass::Active
-                    && pseudo_class != CSS::PseudoClass::Focus
-                    && pseudo_class != CSS::PseudoClass::FocusVisible
-                    && pseudo_class != CSS::PseudoClass::FocusWithin
-                    && pseudo_class != CSS::PseudoClass::Link
-                    && pseudo_class != CSS::PseudoClass::AnyLink
-                    && pseudo_class != CSS::PseudoClass::Visited
-                    && pseudo_class != CSS::PseudoClass::LocalLink
-                    && pseudo_class != CSS::PseudoClass::Empty
-                    && pseudo_class != CSS::PseudoClass::Root
-                    && pseudo_class != CSS::PseudoClass::Enabled
-                    && pseudo_class != CSS::PseudoClass::Disabled
-                    && pseudo_class != CSS::PseudoClass::Checked) {
-                    return false;
-                }
-            } else if (simple_selector.type != CSS::Selector::SimpleSelector::Type::TagName
-                && simple_selector.type != CSS::Selector::SimpleSelector::Type::Universal
-                && simple_selector.type != CSS::Selector::SimpleSelector::Type::Class
-                && simple_selector.type != CSS::Selector::SimpleSelector::Type::Id
-                && simple_selector.type != CSS::Selector::SimpleSelector::Type::Attribute) {
-                return false;
-            }
-        }
-    }
-
-    return true;
 }
 
 }

@@ -33,6 +33,50 @@ static bool component_value_contains_nesting_selector(Parser::ComponentValue con
     return false;
 }
 
+static bool can_selector_use_fast_matches(CSS::Selector const& selector)
+{
+    for (auto const& compound_selector : selector.compound_selectors()) {
+        if (compound_selector.combinator != CSS::Selector::Combinator::None
+            && compound_selector.combinator != CSS::Selector::Combinator::Descendant
+            && compound_selector.combinator != CSS::Selector::Combinator::ImmediateChild) {
+            return false;
+        }
+
+        for (auto const& simple_selector : compound_selector.simple_selectors) {
+            if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoClass) {
+                auto const pseudo_class = simple_selector.pseudo_class().type;
+                if (pseudo_class != CSS::PseudoClass::FirstChild
+                    && pseudo_class != CSS::PseudoClass::LastChild
+                    && pseudo_class != CSS::PseudoClass::OnlyChild
+                    && pseudo_class != CSS::PseudoClass::Hover
+                    && pseudo_class != CSS::PseudoClass::Active
+                    && pseudo_class != CSS::PseudoClass::Focus
+                    && pseudo_class != CSS::PseudoClass::FocusVisible
+                    && pseudo_class != CSS::PseudoClass::FocusWithin
+                    && pseudo_class != CSS::PseudoClass::Link
+                    && pseudo_class != CSS::PseudoClass::AnyLink
+                    && pseudo_class != CSS::PseudoClass::Visited
+                    && pseudo_class != CSS::PseudoClass::LocalLink
+                    && pseudo_class != CSS::PseudoClass::Empty
+                    && pseudo_class != CSS::PseudoClass::Root
+                    && pseudo_class != CSS::PseudoClass::Enabled
+                    && pseudo_class != CSS::PseudoClass::Disabled
+                    && pseudo_class != CSS::PseudoClass::Checked) {
+                    return false;
+                }
+            } else if (simple_selector.type != CSS::Selector::SimpleSelector::Type::TagName
+                && simple_selector.type != CSS::Selector::SimpleSelector::Type::Universal
+                && simple_selector.type != CSS::Selector::SimpleSelector::Type::Class
+                && simple_selector.type != CSS::Selector::SimpleSelector::Type::Id
+                && simple_selector.type != CSS::Selector::SimpleSelector::Type::Attribute) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 Selector::Selector(Vector<CompoundSelector>&& compound_selectors)
     : m_compound_selectors(move(compound_selectors))
 {
@@ -88,6 +132,8 @@ Selector::Selector(Vector<CompoundSelector>&& compound_selectors)
     }
 
     collect_ancestor_hashes();
+
+    m_can_use_fast_matches = can_selector_use_fast_matches(*this);
 }
 
 void Selector::collect_ancestor_hashes()

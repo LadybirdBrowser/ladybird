@@ -86,7 +86,6 @@ struct MatchingRule {
     u32 specificity { 0 };
     CascadeOrigin cascade_origin;
     bool contains_pseudo_element { false };
-    bool can_use_fast_matches { false };
     bool must_be_hovered { false };
 
     // Helpers to deal with the fact that `rule` might be a CSSStyleRule or a CSSNestedDeclarations

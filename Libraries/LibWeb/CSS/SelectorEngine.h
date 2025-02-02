@@ -25,9 +25,4 @@ struct MatchContext {
 
 bool matches(CSS::Selector const&, DOM::Element const&, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, Optional<CSS::Selector::PseudoElement::Type> = {}, GC::Ptr<DOM::ParentNode const> scope = {}, SelectorKind selector_kind = SelectorKind::Normal, GC::Ptr<DOM::Element const> anchor = nullptr);
 
-[[nodiscard]] bool fast_matches(CSS::Selector const&, DOM::Element const&, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context);
-[[nodiscard]] bool can_use_fast_matches(CSS::Selector const&);
-
-[[nodiscard]] bool matches_hover_pseudo_class(DOM::Element const&);
-
 }
