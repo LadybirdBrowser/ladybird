@@ -13,6 +13,7 @@
 #include <LibWeb/Layout/ReplacedBox.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/MediaPaintable.h>
 #include <LibWeb/UIEvents/MouseButton.h>
 

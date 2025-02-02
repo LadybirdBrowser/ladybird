@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontStyleMapping.h>
 #include <LibGfx/Font/FontWeight.h>
 #include <LibWeb/CSS/CSSStyleValue.h>

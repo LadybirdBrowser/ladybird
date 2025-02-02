@@ -11,6 +11,7 @@
 #include <LibWeb/HTML/VideoTrackList.h>
 #include <LibWeb/Layout/VideoBox.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/VideoPaintable.h>
 
 namespace Web::Painting {

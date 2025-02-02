@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 
 namespace Web::Painting {
 

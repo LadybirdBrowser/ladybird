@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Painting/ClippableAndScrollable.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/PaintContext.h>
 
 namespace Web::Painting {

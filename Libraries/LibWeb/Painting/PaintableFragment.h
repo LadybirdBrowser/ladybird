@@ -6,7 +6,9 @@
 
 #pragma once
 
+#include <LibGfx/TextLayout.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Painting/ShadowData.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web::Painting {

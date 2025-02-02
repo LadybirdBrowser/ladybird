@@ -13,6 +13,7 @@
 #include <LibWeb/Layout/AudioBox.h>
 #include <LibWeb/Painting/AudioPaintable.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 
 namespace Web::Painting {
 

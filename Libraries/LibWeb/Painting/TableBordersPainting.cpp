@@ -8,6 +8,7 @@
 #include <AK/QuickSort.h>
 #include <AK/Traits.h>
 #include <LibWeb/Layout/TableFormattingContext.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/TableBordersPainting.h>
 

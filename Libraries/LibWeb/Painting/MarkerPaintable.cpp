@@ -6,6 +6,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibWeb/Layout/ListItemMarkerBox.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/MarkerPaintable.h>
 
 namespace Web::Painting {

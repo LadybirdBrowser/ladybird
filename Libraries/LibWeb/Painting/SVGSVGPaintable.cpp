@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Layout/ImageBox.h>
+#include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
 #include <LibWeb/Painting/StackingContext.h>
 
