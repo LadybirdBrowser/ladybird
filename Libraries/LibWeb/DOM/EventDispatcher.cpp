@@ -96,9 +96,8 @@ bool EventDispatcher::inner_invoke(Event& event, Vector<GC::Root<DOM::DOMEventLi
         // If this throws an exception, then:
         if (result.is_error()) {
             // 1. Report exception for listener’s callback’s corresponding JavaScript object’s associated realm’s global object.
-            auto* window_or_worker = dynamic_cast<HTML::WindowOrWorkerGlobalScopeMixin*>(&global);
-            VERIFY(window_or_worker);
-            window_or_worker->report_an_exception(*result.release_error().value());
+            auto& window_or_worker = as<HTML::WindowOrWorkerGlobalScopeMixin>(global);
+            window_or_worker.report_an_exception(*result.release_error().value());
 
             // 2. Set legacyOutputDidListenersThrowFlag if given. (Only used by IndexedDB currently)
             legacy_output_did_listeners_throw = true;

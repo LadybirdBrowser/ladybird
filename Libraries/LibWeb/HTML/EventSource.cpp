@@ -176,9 +176,8 @@ void EventSource::initialize(JS::Realm& realm)
     Base::initialize(realm);
     WEB_SET_PROTOTYPE_FOR_INTERFACE(EventSource);
 
-    auto* relevant_global = dynamic_cast<HTML::WindowOrWorkerGlobalScopeMixin*>(&HTML::relevant_global_object(*this));
-    VERIFY(relevant_global);
-    relevant_global->register_event_source({}, *this);
+    auto& relevant_global = as<HTML::WindowOrWorkerGlobalScopeMixin>(HTML::relevant_global_object(*this));
+    relevant_global.register_event_source({}, *this);
 }
 
 // https://html.spec.whatwg.org/multipage/server-sent-events.html#garbage-collection
@@ -191,9 +190,8 @@ void EventSource::finalize()
             m_fetch_controller->abort(realm(), {});
     }
 
-    auto* relevant_global = dynamic_cast<HTML::WindowOrWorkerGlobalScopeMixin*>(&HTML::relevant_global_object(*this));
-    VERIFY(relevant_global);
-    relevant_global->unregister_event_source({}, *this);
+    auto& relevant_global = as<HTML::WindowOrWorkerGlobalScopeMixin>(HTML::relevant_global_object(*this));
+    relevant_global.unregister_event_source({}, *this);
 }
 
 void EventSource::visit_edges(Cell::Visitor& visitor)

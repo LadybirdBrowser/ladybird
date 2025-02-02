@@ -363,9 +363,7 @@ WebIDL::ExceptionOr<Vector<GC::Root<PerformanceTimeline::PerformanceEntry>>> Per
 
 HTML::WindowOrWorkerGlobalScopeMixin& Performance::window_or_worker()
 {
-    auto* window_or_worker = dynamic_cast<HTML::WindowOrWorkerGlobalScopeMixin*>(&realm().global_object());
-    VERIFY(window_or_worker);
-    return *window_or_worker;
+    return as<HTML::WindowOrWorkerGlobalScopeMixin>(realm().global_object());
 }
 
 HTML::WindowOrWorkerGlobalScopeMixin const& Performance::window_or_worker() const
