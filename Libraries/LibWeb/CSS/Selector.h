@@ -268,12 +268,15 @@ public:
 
     auto const& ancestor_hashes() const { return m_ancestor_hashes; }
 
+    bool can_use_fast_matches() const { return m_can_use_fast_matches; }
+
 private:
     explicit Selector(Vector<CompoundSelector>&&);
 
     Vector<CompoundSelector> m_compound_selectors;
     mutable Optional<u32> m_specificity;
     Optional<Selector::PseudoElement> m_pseudo_element;
+    bool m_can_use_fast_matches { false };
     bool m_contains_the_nesting_selector { false };
     bool m_contains_hover_pseudo_class { false };
 

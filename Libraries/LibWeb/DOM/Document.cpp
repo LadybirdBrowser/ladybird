@@ -1728,13 +1728,8 @@ void Document::invalidate_style_for_elements_affected_by_hover_change(Node& old_
 
             SelectorEngine::MatchContext context;
             bool selector_matched = false;
-            if (rule.can_use_fast_matches) {
-                if (SelectorEngine::fast_matches(selector, element, {}, context))
-                    selector_matched = true;
-            } else {
-                if (SelectorEngine::matches(selector, element, {}, context, {}))
-                    selector_matched = true;
-            }
+            if (SelectorEngine::matches(selector, element, {}, context, {}))
+                selector_matched = true;
             if (element.has_pseudo_elements()) {
                 if (SelectorEngine::matches(selector, element, {}, context, CSS::Selector::PseudoElement::Type::Before))
                     selector_matched = true;

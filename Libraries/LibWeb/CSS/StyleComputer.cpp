@@ -595,13 +595,8 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element c
             if (context.did_match_any_hover_rules)
                 did_match_any_hover_rules = true;
         };
-        if (rule_to_run.can_use_fast_matches) {
-            if (!SelectorEngine::fast_matches(selector, element, shadow_host_to_use, context))
-                continue;
-        } else {
-            if (!SelectorEngine::matches(selector, element, shadow_host_to_use, context, pseudo_element))
-                continue;
-        }
+        if (!SelectorEngine::matches(selector, element, shadow_host_to_use, context, pseudo_element))
+            continue;
         matching_rules.append(&rule_to_run);
     }
 
@@ -2686,7 +2681,6 @@ void StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_ori
                     selector.specificity(),
                     cascade_origin,
                     false,
-                    SelectorEngine::can_use_fast_matches(selector),
                     false,
                 };
 
