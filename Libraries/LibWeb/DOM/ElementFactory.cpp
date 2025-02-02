@@ -177,6 +177,8 @@ ErrorOr<FixedArray<FlyString>> valid_local_names_for_given_html_element_interfac
         return FixedArray<FlyString>::create({ HTML::TagNames::input });
     if (html_element_interface_name == "HTMLLabelElement"sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::label });
+    if (html_element_interface_name == "HTMLLegendElement"sv)
+        return FixedArray<FlyString>::create({ HTML::TagNames::legend });
     if (html_element_interface_name == "HTMLLIElement"sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::li });
     if (html_element_interface_name == "HTMLLinkElement"sv)
@@ -199,6 +201,8 @@ ErrorOr<FixedArray<FlyString>> valid_local_names_for_given_html_element_interfac
         return FixedArray<FlyString>::create({ HTML::TagNames::object });
     if (html_element_interface_name == "HTMLOptGroupElement"sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::optgroup });
+    if (html_element_interface_name == "HTMLOptionElement"sv)
+        return FixedArray<FlyString>::create({ HTML::TagNames::option });
     if (html_element_interface_name == "HTMLOutputElement"sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::output });
     if (html_element_interface_name == "HTMLParagraphElement"sv)
@@ -231,6 +235,8 @@ ErrorOr<FixedArray<FlyString>> valid_local_names_for_given_html_element_interfac
         return FixedArray<FlyString>::create({ HTML::TagNames::td, HTML::TagNames::th });
     if (html_element_interface_name == "HTMLTableColElement"sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::colgroup, HTML::TagNames::col });
+    if (html_element_interface_name == "HTMLTableRowElement"sv)
+        return FixedArray<FlyString>::create({ HTML::TagNames::tr });
     if (html_element_interface_name == "HTMLTableElement"sv)
         return FixedArray<FlyString>::create({ HTML::TagNames::table });
     if (html_element_interface_name == "HTMLTableSectionElement"sv)
