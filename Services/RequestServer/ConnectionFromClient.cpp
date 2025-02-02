@@ -350,7 +350,7 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString const& metho
             async_request_finished(request_id, 0, Requests::NetworkError::UnableToResolveHost);
         })
         .when_resolved([this, request_id, host, url, method, request_body, request_headers, proxy_data](auto const& dns_result) {
-            if (dns_result->records().is_empty()) {
+            if (dns_result->records().is_empty() || dns_result->cached_addresses().is_empty()) {
                 dbgln("StartRequest: DNS lookup failed for '{}'", host);
                 async_request_finished(request_id, 0, Requests::NetworkError::UnableToResolveHost);
                 return;
