@@ -2387,21 +2387,15 @@ void readable_byte_stream_controller_respond_in_closed_state(ReadableByteStreamC
         // 1. Let filledPullIntos be a new empty list.
         SinglyLinkedList<GC::Root<PullIntoDescriptor>> filled_pull_intos;
 
-        // 2. Let i be 0.
-        u64 i = 0;
-
-        // 1. While i < ! ReadableStreamGetNumReadIntoRequests(stream),
-        while (i < readable_stream_get_num_read_into_requests(stream)) {
+        // 2. While filledPullIntos’s size < ! ReadableStreamGetNumReadIntoRequests(stream),
+        while (filled_pull_intos.size() < readable_stream_get_num_read_into_requests(stream)) {
             // 1. Let pullIntoDescriptor be ! ReadableByteStreamControllerShiftPendingPullInto(controller).
             auto pull_into_descriptor = readable_byte_stream_controller_shift_pending_pull_into(controller);
 
             // 2. Append pullIntoDescriptor to filledPullIntos.
             filled_pull_intos.append(pull_into_descriptor);
 
-            // 3. Set i to i + 1.
-            i++;
-
-            // 4. For each filledPullInto of filledPullIntos,
+            // 3. For each filledPullInto of filledPullIntos,
             for (auto& filled_pull_into : filled_pull_intos) {
                 // 1. Perform ! ReadableByteStreamControllerCommitPullIntoDescriptor(stream, filledPullInto).
                 readable_byte_stream_controller_commit_pull_into_descriptor(stream, *filled_pull_into);
