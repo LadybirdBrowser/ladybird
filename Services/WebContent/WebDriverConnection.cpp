@@ -2381,17 +2381,26 @@ Messages::WebDriverClient::ReleaseActionsResponse WebDriverConnection::release_a
         // 5. Wait for an action queue token with input state.
         Web::WebDriver::wait_for_an_action_queue_token(input_state);
 
+        // FIXME: Spec issue: The token we just enqueued must be dequeued, otherwise another token enqueued by dispatching
+        //        the undo actions below will never be at the head of the queue.
+        //        https://github.com/w3c/webdriver/issues/1878
+        input_state.actions_queue.take_first();
+
         // 6. Let undo actions be input state's input cancel list in reverse order.
         auto undo_actions = input_state.input_cancel_list;
         undo_actions.reverse();
 
         // 7. Try to dispatch actions with input state, undo actions, current browsing context, and actions options.
-        WEBDRIVER_TRY(Web::WebDriver::dispatch_tick_actions(input_state, undo_actions, AK::Duration::zero(), current_browsing_context(), actions_options));
+        auto on_complete = GC::create_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
+            m_action_executor = nullptr;
 
-        // 8. Reset the input state with session and session's current top-level browsing context.
-        Web::WebDriver::reset_input_state(*current_top_level_browsing_context());
+            // 8. Reset the input state with session and session's current top-level browsing context.
+            Web::WebDriver::reset_input_state(*current_top_level_browsing_context());
 
-        async_driver_execution_complete(JsonValue {});
+            async_driver_execution_complete(move(result));
+        });
+
+        m_action_executor = Web::WebDriver::dispatch_actions(input_state, { move(undo_actions) }, current_browsing_context(), move(actions_options), on_complete);
     });
 
     // 9. Return success with data null.
