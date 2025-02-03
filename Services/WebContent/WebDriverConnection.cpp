@@ -2327,26 +2327,25 @@ Messages::WebDriverClient::DeleteAllCookiesResponse WebDriverConnection::delete_
 // 15.7 Perform Actions, https://w3c.github.io/webdriver/#perform-actions
 Messages::WebDriverClient::PerformActionsResponse WebDriverConnection::perform_actions(JsonValue const& payload)
 {
-    // 4. If session's current browsing context is no longer open, return error with error code no such window.
-    // NOTE: We do this first so we can assume the current top-level browsing context below is non-null.
+    // 1. If session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
-    // 1. Let input state be the result of get the input state with session and session's current top-level browsing context.
-    auto& input_state = Web::WebDriver::get_input_state(*current_top_level_browsing_context());
+    // 2. Try to handle any user prompts with session.
+    handle_any_user_prompts([this, payload = move(const_cast<JsonValue&>(payload))]() {
+        // 3. Let input state be the result of get the input state with session and session's current top-level browsing context.
+        auto& input_state = Web::WebDriver::get_input_state(*current_top_level_browsing_context());
 
-    // 2. Let actions options be a new actions options with the is element origin steps set to represents a web element,
-    //    and the get element origin steps set to get a WebElement origin.
-    Web::WebDriver::ActionsOptions actions_options {
-        .is_element_origin = &Web::WebDriver::represents_a_web_element,
-        .get_element_origin = &Web::WebDriver::get_web_element_origin,
-    };
+        // 4. Let actions options be a new actions options with the is element origin steps set to represents a web element,
+        //    and the get element origin steps set to get a WebElement origin.
+        Web::WebDriver::ActionsOptions actions_options {
+            .is_element_origin = &Web::WebDriver::represents_a_web_element,
+            .get_element_origin = &Web::WebDriver::get_web_element_origin,
+        };
 
-    // 3. Let actions by tick be the result of trying to extract an action sequence with input state, parameters, and
-    //    actions options.
-    auto actions_by_tick = TRY(Web::WebDriver::extract_an_action_sequence(input_state, payload, actions_options));
+        // 5. Let actions by tick be the result of trying to extract an action sequence with input state, parameters, and
+        //    actions options.
+        auto actions_by_tick = WEBDRIVER_TRY(Web::WebDriver::extract_an_action_sequence(input_state, payload, actions_options));
 
-    // 5. Try to handle any user prompts with session.
-    handle_any_user_prompts([this, &input_state, actions_options = move(actions_options), actions_by_tick = move(actions_by_tick)]() mutable {
         // 6. Dispatch actions with input state, actions by tick, current browsing context, and actions options. If this
         //    results in an error return that error.
         auto on_complete = GC::create_function(current_browsing_context().heap(), [this](Web::WebDriver::Response result) {
@@ -2367,30 +2366,35 @@ Messages::WebDriverClient::ReleaseActionsResponse WebDriverConnection::release_a
     // 1. If session's current browsing context is no longer open, return error with error code no such window.
     TRY(ensure_current_browsing_context_is_open());
 
-    // 2. Let input state be the result of get the input state with session and current top-level browsing context.
-    auto& input_state = Web::WebDriver::get_input_state(*current_top_level_browsing_context());
+    // 2. Try to handle any user prompts with session.
+    handle_any_user_prompts([this]() {
+        // 3. Let input state be the result of get the input state with session and current top-level browsing context.
+        auto& input_state = Web::WebDriver::get_input_state(*current_top_level_browsing_context());
 
-    // 3. Let actions options be a new actions options with the is element origin steps set to represents a web element,
-    //    and the get element origin steps set to get a WebElement origin.
-    Web::WebDriver::ActionsOptions actions_options {
-        .is_element_origin = &Web::WebDriver::represents_a_web_element,
-        .get_element_origin = &Web::WebDriver::get_web_element_origin,
-    };
+        // 4. Let actions options be a new actions options with the is element origin steps set to represents a web element,
+        //    and the get element origin steps set to get a WebElement origin.
+        Web::WebDriver::ActionsOptions actions_options {
+            .is_element_origin = &Web::WebDriver::represents_a_web_element,
+            .get_element_origin = &Web::WebDriver::get_web_element_origin,
+        };
 
-    // 4. Wait for an action queue token with input state.
-    Web::WebDriver::wait_for_an_action_queue_token(input_state);
+        // 5. Wait for an action queue token with input state.
+        Web::WebDriver::wait_for_an_action_queue_token(input_state);
 
-    // 5. Let undo actions be input state’s input cancel list in reverse order.
-    auto undo_actions = input_state.input_cancel_list;
-    undo_actions.reverse();
+        // 6. Let undo actions be input state's input cancel list in reverse order.
+        auto undo_actions = input_state.input_cancel_list;
+        undo_actions.reverse();
 
-    // 6. Try to dispatch actions with input state, undo actions, current browsing context, and actions options.
-    TRY(Web::WebDriver::dispatch_tick_actions(input_state, undo_actions, AK::Duration::zero(), current_browsing_context(), actions_options));
+        // 7. Try to dispatch actions with input state, undo actions, current browsing context, and actions options.
+        WEBDRIVER_TRY(Web::WebDriver::dispatch_tick_actions(input_state, undo_actions, AK::Duration::zero(), current_browsing_context(), actions_options));
 
-    // 7. Reset the input state with session and session's current top-level browsing context.
-    Web::WebDriver::reset_input_state(*current_top_level_browsing_context());
+        // 8. Reset the input state with session and session's current top-level browsing context.
+        Web::WebDriver::reset_input_state(*current_top_level_browsing_context());
 
-    // 8. Return success with data null.
+        async_driver_execution_complete(JsonValue {});
+    });
+
+    // 9. Return success with data null.
     return JsonValue {};
 }
 
