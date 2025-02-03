@@ -712,6 +712,13 @@ public:
 
     OrderedHashTable<GC::Ref<Element>> const& top_layer_elements() const { return m_top_layer_elements; }
 
+    // AD-HOC: These lists are managed dynamically instead of being generated as needed.
+    // Spec issue: https://github.com/whatwg/html/issues/11007
+    Vector<GC::Ref<HTML::HTMLElement>>& showing_auto_popover_list() { return m_showing_auto_popover_list; }
+    Vector<GC::Ref<HTML::HTMLElement>>& showing_hint_popover_list() { return m_showing_hint_popover_list; }
+    Vector<GC::Ref<HTML::HTMLElement>> const& showing_auto_popover_list() const { return m_showing_auto_popover_list; }
+    Vector<GC::Ref<HTML::HTMLElement>> const& showing_hint_popover_list() const { return m_showing_hint_popover_list; }
+
     size_t transition_generation() const { return m_transition_generation; }
 
     // Does document represent an embedded svg img
@@ -1100,6 +1107,9 @@ private:
     // instead they generate boxes as if they were siblings of the root element.
     OrderedHashTable<GC::Ref<Element>> m_top_layer_elements;
     OrderedHashTable<GC::Ref<Element>> m_top_layer_pending_removals;
+
+    Vector<GC::Ref<HTML::HTMLElement>> m_showing_auto_popover_list;
+    Vector<GC::Ref<HTML::HTMLElement>> m_showing_hint_popover_list;
 
     // https://dom.spec.whatwg.org/#document-allow-declarative-shadow-roots
     bool m_allow_declarative_shadow_roots { false };

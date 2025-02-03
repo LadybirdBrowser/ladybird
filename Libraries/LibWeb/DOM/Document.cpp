@@ -574,6 +574,8 @@ void Document::visit_edges(Cell::Visitor& visitor)
 
     visitor.visit(m_top_layer_elements);
     visitor.visit(m_top_layer_pending_removals);
+    visitor.visit(m_showing_auto_popover_list);
+    visitor.visit(m_showing_hint_popover_list);
     visitor.visit(m_console_client);
     visitor.visit(m_editing_host_manager);
     visitor.visit(m_local_storage_holder);

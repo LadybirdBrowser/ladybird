@@ -1038,7 +1038,8 @@ Optional<String> HTMLElement::popover_value_to_state(Optional<String> value)
     if (value.value().is_empty() || value.value().equals_ignoring_ascii_case("auto"sv))
         return "auto"_string;
 
-    // FIXME: This should reflect the hint value too.
+    if (value.value().equals_ignoring_ascii_case("hint"sv))
+        return "hint"_string;
 
     return "manual"_string;
 }
@@ -1146,7 +1147,8 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
     // 5. Let nestedShow be element's popover showing or hiding.
     auto nested_show = m_popover_showing_or_hiding;
 
-    // FIXME: 6. Let fireEvents be the boolean negation of nestedShow.
+    // 6. Let fireEvents be the boolean negation of nestedShow.
+    FireEvents fire_events = nested_show ? FireEvents::No : FireEvents::Yes;
 
     // 7. Set element's popover showing or hiding to true.
     m_popover_showing_or_hiding = true;
@@ -1174,48 +1176,130 @@ WebIDL::ExceptionOr<void> HTMLElement::show_popover(ThrowExceptions throw_except
         return {};
     }
 
-    // FIXME: 11. Let shouldRestoreFocus be false.
+    // 11. Let shouldRestoreFocus be false.
+    auto should_restore_focus = FocusPreviousElement::No;
 
     // 12. Let originalType be the current state of element's popover attribute.
     auto original_type = popover();
 
-    // FIXME: 13. Let stackToAppendTo be null.
+    // 13. Let stackToAppendTo be null.
+    enum class StackToAppendTo : u8 {
+        Null,
+        Auto,
+        Hint,
+    };
+    StackToAppendTo stack_to_append_to = StackToAppendTo::Null;
 
-    // FIXME: 14. Let autoAncestor be the result of running the topmost popover ancestor algorithm given element, document's showing auto popover list, invoker, and true.
+    // 16. If originalType is the auto state, then:
+    if (original_type == "auto"sv) {
+        // 1. Run close entire popover list given document's showing hint popover list, shouldRestoreFocus, and fireEvents.
+        close_entire_popover_list(document.showing_hint_popover_list(), should_restore_focus, fire_events);
 
-    // FIXME: 15. Let hintAncestor be the result of running the topmost popover ancestor algorithm given element, document's showing hint popover list, invoker, and true.
-    // FIXME: 16. If originalType is the auto state, then:
-    // FIXME: 16.1. Run close entire popover list given document's showing hint popover list, shouldRestoreFocus, and fireEvents.
-    // FIXME: 16.2. Let ancestor be the result of running the topmost popover ancestor algorithm given element, document's showing auto popover list, invoker, and true.
-    // FIXME: 16.3. If ancestor is null, then set ancestor to document.
-    // FIXME: 16.4. Run hide all popovers until given ancestor, shouldRestoreFocus, and fireEvents.
-    // FIXME: 16.5. Set stackToAppendTo to "auto".
-    // FIXME: 17. If originalType is the hint state, then:
-    // FIXME: 17.1. If hintAncestor is not null, then:
-    // FIXME: 17.1.1. Run hide all popovers until given hintAncestor, shouldRestoreFocus, and fireEvents.
-    // FIXME: 17.1.2. Set stackToAppendTo to "hint".
-    // FIXME: 17.2. Otherwise:
-    // FIXME: 17.2.1. Run close entire popover list given document's showing hint popover list, shouldRestoreFocus, and fireEvents.
-    // FIXME: 17.2.2. If autoAncestor is not null, then:
-    // FIXME: 17.2.2.1. Run hide all popovers until given autoAncestor, shouldRestoreFocus, and fireEvents.
-    // FIXME: 17.2.2.2. Set stackToAppendTo to "auto".
-    // FIXME: 17.3. Otherwise, set stackToAppendTo to "hint".
-    // 18. If originalType is auto or FIXME: hint, then:
-    if (original_type.has_value() && (original_type.value() == "auto"sv)) {
-        //  FIXME: 18.1. Assert: stackToAppendTo is not null.
-        //  FIXME: 18.2. If originalType is not equal to the value of element's popover attribute, then:
-        //  FIXME: 18.2.1. If throwExceptions is true, then throw a "InvalidStateError" DOMException.
-        //  FIXME: 18.2.2. Return.
-        //  FIXME: 18.3. If the result of running check popover validity given element, false, throwExceptions, document, and false is false, then run cleanupShowingFlag and return.
-        //  FIXME: 18.4. If the result of running topmost auto or hint popover on document is null, then set shouldRestoreFocus to true.
-        //  FIXME: 18.5. If stackToAppendTo is "auto":
-        //  FIXME: 18.5.1. Assert: document's showing auto popover list does not contain element.
-        //  FIXME: 18.5.2. Set element's opened in popover mode to "auto".
+        // 2. Let ancestor be the result of running the topmost popover ancestor algorithm given element, document's showing auto popover list, invoker, and true.
+        Variant<GC::Ptr<HTMLElement>, GC::Ptr<DOM::Document>> ancestor = topmost_popover_ancestor(this, document.showing_auto_popover_list(), invoker, IsPopover::Yes);
+
+        // 3. If ancestor is null, then set ancestor to document.
+        if (!ancestor.get<GC::Ptr<HTMLElement>>())
+            ancestor = GC::Ptr(document);
+
+        // 4. Run hide all popovers until given ancestor, shouldRestoreFocus, and fireEvents.
+        hide_all_popovers_until(ancestor, should_restore_focus, fire_events);
+
+        // 5. Set stackToAppendTo to "auto".
+        stack_to_append_to = StackToAppendTo::Auto;
+    }
+
+    // 17. If originalType is the hint state, then:
+    if (original_type == "hint"sv) {
+
+        // AD-HOC: Steps 14 and 15 have been moved here to avoid hitting the `popover != manual` assertion in the topmost popover ancestor algorithm.
+        // Spec issue: https://github.com/whatwg/html/issues/10988.
+        // 14. Let autoAncestor be the result of running the topmost popover ancestor algorithm given element, document's showing auto popover list, invoker, and true.
+        auto auto_ancestor = topmost_popover_ancestor(this, document.showing_auto_popover_list(), invoker, IsPopover::Yes);
+
+        // 15. Let hintAncestor be the result of running the topmost popover ancestor algorithm given element, document's showing hint popover list, invoker, and true.
+        auto hint_ancestor = topmost_popover_ancestor(this, document.showing_hint_popover_list(), invoker, IsPopover::Yes);
+
+        // 1. If hintAncestor is not null, then:
+        if (hint_ancestor) {
+            // 1. Run hide all popovers until given hintAncestor, shouldRestoreFocus, and fireEvents.
+            hide_all_popovers_until(hint_ancestor, should_restore_focus, fire_events);
+
+            // 2. Set stackToAppendTo to "hint".
+            stack_to_append_to = StackToAppendTo::Hint;
+        }
+        // 2. Otherwise:
+        else {
+            // 1. Run close entire popover list given document's showing hint popover list, shouldRestoreFocus, and fireEvents.
+            close_entire_popover_list(document.showing_hint_popover_list(), should_restore_focus, fire_events);
+
+            // 2. If autoAncestor is not null, then:
+            if (auto_ancestor) {
+                // 1. Run hide all popovers until given autoAncestor, shouldRestoreFocus, and fireEvents.
+                hide_all_popovers_until(auto_ancestor, should_restore_focus, fire_events);
+
+                // 2. Set stackToAppendTo to "auto".
+                stack_to_append_to = StackToAppendTo::Auto;
+            }
+            // 3. Otherwise, set stackToAppendTo to "hint".
+            else {
+                stack_to_append_to = StackToAppendTo::Hint;
+            }
+        }
+    }
+
+    // 18. If originalType is auto or hint, then:
+    if (original_type.has_value() && original_type.value().is_one_of("auto", "hint")) {
+        // 1. Assert: stackToAppendTo is not null.
+        VERIFY(stack_to_append_to != StackToAppendTo::Null);
+
+        // 2. If originalType is not equal to the value of element's popover attribute, then:
+        if (original_type != popover()) {
+            // 1. If throwExceptions is true, then throw a "InvalidStateError" DOMException.
+            if (throw_exceptions == ThrowExceptions::Yes)
+                return WebIDL::InvalidStateError::create(realm(), "Element is not in a valid state to show a popover"_string);
+
+            // 2. Return.
+            return {};
+        }
+
+        // 3. If the result of running check popover validity given element, false, throwExceptions, document, and false is false, then run cleanupShowingFlag and return.
+        if (!TRY(check_popover_validity(ExpectedToBeShowing::No, throw_exceptions, document, IgnoreDomState::No))) {
+            cleanup_showing_flag();
+            return {};
+        }
+
+        // FIXME: 4. If the result of running topmost auto or hint popover on document is null, then set shouldRestoreFocus to true.
+
+        // 5. If stackToAppendTo is "auto":
+        if (stack_to_append_to == StackToAppendTo::Auto) {
+            // 1. Assert: document's showing auto popover list does not contain element.
+            VERIFY(!document.showing_auto_popover_list().contains_slow(GC::Ref(*this)));
+
+            // AD-HOC: Append element to the document's showing auto popover list.
+            // Spec issue: https://github.com/whatwg/html/issues/11007
+            document.showing_auto_popover_list().append(*this);
+
+            // 2. Set element's opened in popover mode to "auto".
+            m_opened_in_popover_mode = "auto"_string;
+        }
         // Otherwise:
-        // FIXME: 1. Assert: stackToAppendTo is "hint".
-        // FIXME: 2. Assert: document's showing hint popover list does not contain element.
-        // FIXME: 3. Set element's opened in popover mode to "hint".
-        // 18.6. Set element's popover close watcher to the result of establishing a close watcher given element's relevant global object, with:
+        else {
+            // 1. Assert: stackToAppendTo is "hint".
+            VERIFY(stack_to_append_to == StackToAppendTo::Hint);
+
+            // 2. Assert: document's showing hint popover list does not contain element.
+            VERIFY(!document.showing_hint_popover_list().contains_slow(GC::Ref(*this)));
+
+            // AD-HOC: Append element to the document's showing hint popover list.
+            // Spec issue: https://github.com/whatwg/html/issues/11007
+            document.showing_hint_popover_list().append(*this);
+
+            // 3. Set element's opened in popover mode to "hint".
+            m_opened_in_popover_mode = "hint"_string;
+        }
+
+        // 6. Set element's popover close watcher to the result of establishing a close watcher given element's relevant global object, with:
         m_popover_close_watcher = CloseWatcher::establish(*document.window());
         // - cancelAction being to return true.
         // We simply don't add an event listener for the cancel action.
@@ -1261,7 +1345,7 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover_for_bindings()
 
 // https://html.spec.whatwg.org/multipage/popover.html#hide-popover-algorithm
 // https://whatpr.org/html/9457/popover.html#hide-popover-algorithm
-WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement, FireEvents fire_events, ThrowExceptions throw_exceptions, IgnoreDomState ignore_dom_state)
+WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement focus_previous_element, FireEvents fire_events, ThrowExceptions throw_exceptions, IgnoreDomState ignore_dom_state)
 {
     // 1. If the result of running check popover validity given element, true, throwExceptions, null and ignoreDomState is false, then return.
     if (!TRY(check_popover_validity(ExpectedToBeShowing::Yes, throw_exceptions, nullptr, ignore_dom_state)))
@@ -1294,12 +1378,22 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement, FireEv
         }
     };
 
-    // 7. If element's popover attribute is in the auto state FIXME: or the hint state, then:
-    if (popover().has_value() && popover().value() == "auto"sv) {
-        // FIXME: 7.1. Run hide all popovers until given element, focusPreviousElement, and fireEvents.
-        // FIXME: 7.2. If the result of running check popover validity given element, true, throwExceptions, and ignoreDomState is false, then run cleanupSteps and return.
+    // AD-HOC: This implementation checks "opened in popover mode" instead of the current popover state.
+    // Spec issue: https://github.com/whatwg/html/issues/10996.
+    // 7. If element's popover attribute is in the auto state or the hint state, then:
+    if (m_opened_in_popover_mode.has_value() && m_opened_in_popover_mode.value().is_one_of("auto", "hint")) {
+        // 7.1. Run hide all popovers until given element, focusPreviousElement, and fireEvents.
+        hide_all_popovers_until(GC::Ptr(this), focus_previous_element, fire_events);
+
+        // 7.2. If the result of running check popover validity given element, true, throwExceptions, and ignoreDomState is false, then run cleanupSteps and return.
+        if (!TRY(check_popover_validity(ExpectedToBeShowing::Yes, throw_exceptions, nullptr, ignore_dom_state))) {
+            cleanup_steps();
+            return {};
+        }
     }
-    // FIXME: 8. Let autoPopoverListContainsElement be true if document's showing auto popover list's last item is element, otherwise false.
+    // 8. Let autoPopoverListContainsElement be true if document's showing auto popover list's last item is element, otherwise false.
+    auto const& showing_popovers = document.showing_auto_popover_list();
+    bool auto_popover_list_contains_element = !showing_popovers.is_empty() && showing_popovers.last() == this;
 
     // 9. Set element's popover invoker to null.
     m_popover_invoker = nullptr;
@@ -1312,7 +1406,9 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement, FireEv
         event_init.new_state = "closed"_string;
         dispatch_event(ToggleEvent::create(realm(), HTML::EventNames::beforetoggle, move(event_init)));
 
-        // FIXME: 10.2. If autoPopoverListContainsElement is true and document's showing auto popover list's last item is not element, then run hide all popovers until given element, focusPreviousElement, and false.
+        // 10.2. If autoPopoverListContainsElement is true and document's showing auto popover list's last item is not element, then run hide all popovers until given element, focusPreviousElement, and false.
+        if (auto_popover_list_contains_element && (showing_popovers.is_empty() || showing_popovers.last() != this))
+            hide_all_popovers_until(GC::Ptr(this), focus_previous_element, FireEvents::No);
 
         // 10.3. If the result of running check popover validity given element, true, throwExceptions, null, and ignoreDomState is false, then run cleanupSteps and return.
         if (!TRY(check_popover_validity(ExpectedToBeShowing::Yes, throw_exceptions, nullptr, ignore_dom_state))) {
@@ -1326,7 +1422,33 @@ WebIDL::ExceptionOr<void> HTMLElement::hide_popover(FocusPreviousElement, FireEv
         document.remove_an_element_from_the_top_layer_immediately(*this);
     }
 
-    // FIXME: 12. Set element's opened in popover mode to null.
+    // AD-HOC: The following block of code is all ad-hoc.
+    // Spec issue: https://github.com/whatwg/html/issues/11007
+
+    // If element's opened in popover mode is "auto" or "hint":
+    if (m_opened_in_popover_mode.has_value() && m_opened_in_popover_mode.value().is_one_of("auto", "hint")) {
+        // If document's showing hint popover list's last item is element:
+        auto& hint_popovers = document.showing_hint_popover_list();
+        if (!hint_popovers.is_empty() && hint_popovers.last() == this) {
+            // Assert: element's opened in popover mode is "hint".
+            VERIFY(m_opened_in_popover_mode == "hint"sv);
+
+            // Remove the last item from document's showing hint popover list.
+            hint_popovers.remove(hint_popovers.size() - 1);
+        }
+        // Otherwise:
+        else {
+            // Assert: document's showing auto popover list's last item is element.
+            auto& auto_popovers = document.showing_auto_popover_list();
+            VERIFY(!auto_popovers.is_empty() && auto_popovers.last() == this);
+
+            // Remove the last item from document's showing auto popover list.
+            auto_popovers.remove(auto_popovers.size() - 1);
+        }
+    }
+
+    // 12. Set element's opened in popover mode to null.
+    m_opened_in_popover_mode = {};
 
     // 13. Set element's popover visibility state to hidden.
     m_popover_visibility_state = PopoverVisibilityState::Hidden;
@@ -1382,6 +1504,251 @@ WebIDL::ExceptionOr<bool> HTMLElement::toggle_popover(TogglePopoverOptionsOrForc
     }
     // 8. Return true if this's popover visibility state is showing; otherwise false.
     return popover_visibility_state() == PopoverVisibilityState::Showing;
+}
+
+// AD-HOC: This implementation checks "opened in popover mode" instead of the current popover state.
+// Spec issue: https://github.com/whatwg/html/issues/10996.
+// https://html.spec.whatwg.org/multipage/popover.html#hide-all-popovers-until
+void HTMLElement::hide_all_popovers_until(Variant<GC::Ptr<HTMLElement>, GC::Ptr<DOM::Document>> endpoint, FocusPreviousElement focus_previous_element, FireEvents fire_events)
+{
+    // To hide all popovers until, given an HTML element or Document endpoint, a boolean focusPreviousElement, and a boolean fireEvents:
+
+    // 1. If endpoint is an HTML element and endpoint is not in the popover showing state, then return.
+    if (endpoint.has<GC::Ptr<HTMLElement>>() && endpoint.get<GC::Ptr<HTMLElement>>()->popover_visibility_state() != PopoverVisibilityState::Showing)
+        return;
+
+    // 2. Let document be endpoint's node document.
+    auto const* document = endpoint.visit([](auto endpoint) { return &endpoint->document(); });
+
+    // 3. Assert: endpoint is a Document or endpoint's popover visibility state is showing.
+    VERIFY(endpoint.has<GC::Ptr<DOM::Document>>() || endpoint.get<GC::Ptr<HTMLElement>>()->popover_visibility_state() == PopoverVisibilityState::Showing);
+
+    // 4. Assert: endpoint is a Document or endpoint's popover attribute is in the auto state or endpoint's popover attribute is in the hint state.
+    VERIFY(endpoint.has<GC::Ptr<DOM::Document>>() || endpoint.get<GC::Ptr<HTMLElement>>()->m_opened_in_popover_mode->is_one_of("auto", "hint"));
+
+    // 5. If endpoint is a Document:
+    if (endpoint.has<GC::Ptr<DOM::Document>>()) {
+        // 1. Run close entire popover list given document's showing hint popover list, focusPreviousElement, and fireEvents.
+        close_entire_popover_list(document->showing_hint_popover_list(), focus_previous_element, fire_events);
+
+        // 2. Run close entire popover list given document's showing auto popover list, focusPreviousElement, and fireEvents.
+        close_entire_popover_list(document->showing_auto_popover_list(), focus_previous_element, fire_events);
+
+        // 3. Return.
+        return;
+    }
+
+    // 6. If document's showing hint popover list contains endpoint:
+    auto endpoint_element = endpoint.get<GC::Ptr<HTMLElement>>();
+    if (document->showing_hint_popover_list().contains_slow(GC::Ref(*endpoint_element))) {
+        // 1. Assert: endpoint's popover attribute is in the hint state.
+        VERIFY(endpoint_element->m_opened_in_popover_mode == "hint"sv);
+
+        // 2. Run hide popover stack until given endpoint, document's showing hint popover list, focusPreviousElement, and fireEvents.
+        endpoint_element->hide_popover_stack_until(document->showing_hint_popover_list(), focus_previous_element, fire_events);
+
+        // 3. Return.
+        return;
+    }
+
+    // 7. Run close entire popover list given document's showing hint popover list, focusPreviousElement, and fireEvents.
+    close_entire_popover_list(document->showing_hint_popover_list(), focus_previous_element, fire_events);
+
+    // 8. If document's showing auto popover list does not contain endpoint, then return.
+    if (!document->showing_auto_popover_list().contains_slow(GC::Ref(*endpoint_element)))
+        return;
+
+    // 9. Run hide popover stack until given endpoint, document's showing auto popover list, focusPreviousElement, and fireEvents.
+    endpoint_element->hide_popover_stack_until(document->showing_auto_popover_list(), focus_previous_element, fire_events);
+}
+
+// https://html.spec.whatwg.org/multipage/popover.html#hide-popover-stack-until
+void HTMLElement::hide_popover_stack_until(Vector<GC::Ref<HTMLElement>> const& popover_list, FocusPreviousElement focus_previous_element, FireEvents fire_events)
+{
+    // To hide popover stack until, given an HTML element endpoint, a list popoverList, a boolean focusPreviousElement, and a boolean fireEvents:
+
+    // 1. Let repeatingHide be false.
+    bool repeating_hide = false;
+
+    // 2. Perform the following steps at least once:
+    do {
+        // 1. Let lastToHide be null.
+        GC::Ptr<HTMLElement> last_to_hide;
+
+        // 2. For each popover in popoverList:
+        // AD-HOC: This needs to be iterated in reverse because step 4 hides items in reverse.
+        for (auto const& popover : popover_list.in_reverse()) {
+            // 1. If popover is endpoint, then break.
+            if (popover == this)
+                break;
+
+            // 2. Set lastToHide to popover.
+            last_to_hide = popover;
+        }
+
+        // 3. If lastToHide is null, then return.
+        if (!last_to_hide)
+            return;
+
+        // 4. While lastToHide's popover visibility state is showing:
+        while (last_to_hide->popover_visibility_state() == PopoverVisibilityState::Showing) {
+            // 1. Assert: popoverList is not empty.
+            VERIFY(!popover_list.is_empty());
+
+            // 2. Run the hide popover algorithm given the last item in popoverList, focusPreviousElement, fireEvents, and false.
+            MUST(popover_list.last()->hide_popover(focus_previous_element, fire_events, ThrowExceptions::No, IgnoreDomState::No));
+        }
+
+        // 5. Assert: repeatingHide is false or popoverList's last item is endpoint.
+        VERIFY(!repeating_hide || popover_list.last() == this);
+
+        // 6. Set repeatingHide to true if popoverList contains endpoint and popoverList's last item is not endpoint, otherwise false.
+        repeating_hide = popover_list.contains_slow(GC::Ref(*this)) && popover_list.last() != this;
+
+        // 7. If repeatingHide is true, then set fireEvents to false.
+        if (repeating_hide)
+            fire_events = FireEvents::No;
+
+    } while (repeating_hide);
+    // and keep performing them while repeatingHide is true.
+}
+
+// https://html.spec.whatwg.org/multipage/popover.html#close-entire-popover-list
+void HTMLElement::close_entire_popover_list(Vector<GC::Ref<HTMLElement>> const& popover_list, FocusPreviousElement focus_previous_element, FireEvents fire_events)
+{
+    // To close entire popover list given a list popoverList, a boolean focusPreviousElement, and a boolean fireEvents:
+
+    // FIXME: If an event handler opens a new popover then this could be an infinite loop.
+    // 1. While popoverList is not empty:
+    while (!popover_list.is_empty()) {
+        // 1. Run the hide popover algorithm given popoverList's last item, focusPreviousElement, fireEvents, and false.
+        MUST(popover_list.last()->hide_popover(focus_previous_element, fire_events, ThrowExceptions::No, IgnoreDomState::No));
+    }
+}
+
+// https://html.spec.whatwg.org/multipage/popover.html#topmost-popover-ancestor
+GC::Ptr<HTMLElement> HTMLElement::topmost_popover_ancestor(GC::Ptr<DOM::Node> new_popover_or_top_layer_element, Vector<GC::Ref<HTMLElement>> const& popover_list, GC::Ptr<HTMLElement> invoker, IsPopover is_popover)
+{
+    // To find the topmost popover ancestor, given a Node newPopoverOrTopLayerElement, a list popoverList, an HTML element or null invoker, and a boolean isPopover, perform the following steps. They return an HTML element or null.
+
+    // 1. If isPopover is true:
+    auto* new_popover = as_if<HTML::HTMLElement>(*new_popover_or_top_layer_element);
+    if (is_popover == IsPopover::Yes) {
+        // 1. Assert: newPopoverOrTopLayerElement is an HTML element.
+        VERIFY(new_popover);
+
+        // 2. Assert: newPopoverOrTopLayerElement's popover attribute is not in the no popover state or the manual state.
+        VERIFY(!new_popover->popover().has_value() || new_popover->popover().value() != "manual"sv);
+
+        // 3. Assert: newPopoverOrTopLayerElement's popover visibility state is not in the popover showing state.
+        VERIFY(new_popover->popover_visibility_state() != PopoverVisibilityState::Showing);
+    }
+    // 2. Otherwise:
+    else {
+        // 1. Assert: invoker is null.
+        VERIFY(!invoker);
+    }
+
+    // 3. Let popoverPositions be an empty ordered map.
+    OrderedHashMap<GC::Ref<HTMLElement>, int> popover_positions;
+
+    // 4. Let index be 0.
+    int index = 0;
+
+    // 5. For each popover of popoverList:
+    for (auto const& popover : popover_list) {
+        // 1. Set popoverPositions[popover] to index.
+        popover_positions.set(*popover, index);
+
+        // 2. Increment index by 1.
+        index++;
+    }
+
+    // 6. If isPopover is true, then set popoverPositions[newPopoverOrTopLayerElement] to index.
+    if (is_popover == IsPopover::Yes)
+        popover_positions.set(*new_popover, index);
+
+    // 7. Increment index by 1.
+    index++;
+
+    // 8. Let topmostPopoverAncestor be null.
+    GC::Ptr<HTMLElement> topmost_popover_ancestor;
+
+    // 9. Let checkAncestor be an algorithm which performs the following steps given candidate:
+    auto check_ancestor = [&](auto candidate) {
+        // 1. If candidate is null, then return.
+        if (!candidate)
+            return;
+
+        // 2. Let okNesting be false.
+        bool ok_nesting = false;
+
+        // 3. Let candidateAncestor be null.
+        GC::Ptr<HTMLElement> candidate_ancestor;
+
+        // 4. While okNesting is false:
+        while (!ok_nesting) {
+            // 1. Set candidateAncestor to the result of running nearest inclusive open popover given candidate.
+            candidate_ancestor = candidate->nearest_inclusive_open_popover();
+
+            // 2. If candidateAncestor is null or popoverPositions does not contain candidateAncestor, then return.
+            if (!candidate_ancestor || !popover_positions.contains(*candidate_ancestor))
+                return;
+
+            // 3. Assert: candidateAncestor's popover attribute is not in the manual or none state.
+            VERIFY(!candidate_ancestor->popover().has_value() || candidate_ancestor->popover().value() != "manual"sv);
+
+            // AD-HOC: This also checks if isPopover is false.
+            // Spec issue: https://github.com/whatwg/html/issues/11008.
+            // 4. Set okNesting to true if newPopoverOrTopLayerElement's popover attribute is in the hint state or candidateAncestor's popover attribute is in the auto state.
+            if (is_popover == IsPopover::No || new_popover->popover() == "hint"sv || candidate_ancestor->popover() == "auto"sv)
+                ok_nesting = true;
+
+            // 5. If okNesting is false, then set candidate to candidateAncestor's parent in the flat tree.
+            if (!ok_nesting)
+                candidate = candidate_ancestor->shadow_including_first_ancestor_of_type<HTMLElement>();
+        }
+
+        // 5. Let candidatePosition be popoverPositions[candidateAncestor].
+        auto candidate_position = popover_positions.get(*candidate_ancestor).value();
+
+        // 6. If topmostPopoverAncestor is null or popoverPositions[topmostPopoverAncestor] is less than candidatePosition, then set topmostPopoverAncestor to candidateAncestor.
+        if (!topmost_popover_ancestor || popover_positions.get(*topmost_popover_ancestor).value() < candidate_position)
+            topmost_popover_ancestor = candidate_ancestor;
+    };
+
+    // 10. Run checkAncestor given newPopoverOrTopLayerElement's parent node within the flat tree.
+    check_ancestor(new_popover_or_top_layer_element->shadow_including_first_ancestor_of_type<HTMLElement>());
+
+    // 11. Run checkAncestor given invoker.
+    check_ancestor(invoker.ptr());
+
+    // 12. Return topmostPopoverAncestor.
+    return topmost_popover_ancestor;
+}
+
+// https://html.spec.whatwg.org/multipage/popover.html#nearest-inclusive-open-popover
+GC::Ptr<HTMLElement> HTMLElement::nearest_inclusive_open_popover()
+{
+    // To find the nearest inclusive open popover given a Node node, perform the following steps. They return an HTML element or null.
+
+    // 1. Let currentNode be node.
+    auto* current_node = this;
+
+    // 2. While currentNode is not null:
+    while (current_node) {
+        // AD-HOC: This also allows hint popovers.
+        // Spec issue: https://github.com/whatwg/html/issues/11008.
+        // 1. If currentNode's popover attribute is in the auto state and currentNode's popover visibility state is showing, then return currentNode.
+        if (current_node->popover().has_value() && current_node->popover().value().is_one_of("auto", "hint") && current_node->popover_visibility_state() == PopoverVisibilityState::Showing)
+            return current_node;
+
+        // 2. Set currentNode to currentNode's parent in the flat tree.
+        current_node = current_node->shadow_including_first_ancestor_of_type<HTMLElement>();
+    }
+
+    // 3. Return null.
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/popover.html#queue-a-popover-toggle-event-task
