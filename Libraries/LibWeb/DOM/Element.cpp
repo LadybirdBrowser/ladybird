@@ -461,6 +461,11 @@ GC::Ptr<Layout::NodeWithStyle> Element::create_layout_node_for_display_type(DOM:
         return document.heap().allocate<Layout::BlockContainer>(document, element, move(style));
 
     dbgln("FIXME: CSS display '{}' not implemented yet.", display.to_string());
+
+    // FIXME: We don't actually support `display: block ruby`, this is just a hack to prevent a crash
+    if (display.is_ruby_inside())
+        return document.heap().allocate<Layout::BlockContainer>(document, element, move(style));
+
     return document.heap().allocate<Layout::InlineNode>(document, element, move(style));
 }
 
