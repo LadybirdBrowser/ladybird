@@ -604,11 +604,87 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         }
     }
 
-    if (should_create_layout_node)
+    if (should_create_layout_node) {
         update_layout_tree_after_children(dom_node, *layout_node, context, element_has_content_visibility_hidden);
+        wrap_in_button_layout_tree_if_needed(dom_node, *layout_node);
+
+        // If we completely finished inserting a block level element into an inline parent, we need to fix up the tree so
+        // that we can maintain the invariant that all children are either inline or non-inline. We can't do this earlier,
+        // because the restructuring adds new children after this node that become part of the ancestor stack.
+        auto* layout_parent = layout_node->parent();
+        if (layout_parent && layout_parent->display().is_inline_outside() && !display.is_contents()
+            && !display.is_inline_outside() && layout_parent->display().is_flow_inside() && !layout_node->is_out_of_flow())
+            restructure_block_node_in_inline_parent(static_cast<NodeWithStyleAndBoxModelMetrics&>(*layout_node));
+    }
 
     dom_node.set_needs_layout_tree_update(false);
     dom_node.set_child_needs_layout_tree_update(false);
+}
+
+void TreeBuilder::wrap_in_button_layout_tree_if_needed(DOM::Node& dom_node, GC::Ref<Layout::Node> layout_node)
+{
+    auto is_button_layout = [&] {
+        if (dom_node.is_html_button_element())
+            return true;
+        if (!dom_node.is_html_input_element())
+            return false;
+        // https://html.spec.whatwg.org/multipage/rendering.html#the-input-element-as-a-button
+        // An input element whose type attribute is in the Submit Button, Reset Button, or Button state, when it generates a CSS box, is expected to depict a button and use button layout
+        auto const& input_element = static_cast<HTML::HTMLInputElement const&>(dom_node);
+        if (input_element.is_button())
+            return true;
+        return false;
+    }();
+
+    if (!is_button_layout)
+        return;
+
+    auto display = layout_node->display();
+
+    // https://html.spec.whatwg.org/multipage/rendering.html#button-layout
+    // If the computed value of 'inline-size' is 'auto', then the used value is the fit-content inline size.
+    if (is_button_layout && dom_node.layout_node()->computed_values().width().is_auto()) {
+        auto& computed_values = as<NodeWithStyle>(*dom_node.layout_node()).mutable_computed_values();
+        computed_values.set_width(CSS::Size::make_fit_content());
+    }
+
+    // https://html.spec.whatwg.org/multipage/rendering.html#button-layout
+    // If the element is an input element, or if it is a button element and its computed value for
+    // 'display' is not 'inline-grid', 'grid', 'inline-flex', or 'flex', then the element's box has
+    // a child anonymous button content box with the following behaviors:
+    if (is_button_layout && !display.is_grid_inside() && !display.is_flex_inside()) {
+        auto& parent = *layout_node;
+
+        // If the box does not overflow in the vertical axis, then it is centered vertically.
+        // FIXME: Only apply alignment when box overflows
+        auto flex_computed_values = parent.computed_values().clone_inherited_values();
+        auto& mutable_flex_computed_values = static_cast<CSS::MutableComputedValues&>(*flex_computed_values);
+        mutable_flex_computed_values.set_display(CSS::Display { CSS::DisplayOutside::Block, CSS::DisplayInside::Flex });
+        mutable_flex_computed_values.set_justify_content(CSS::JustifyContent::Center);
+        mutable_flex_computed_values.set_flex_direction(CSS::FlexDirection::Column);
+        mutable_flex_computed_values.set_height(CSS::Size::make_percentage(CSS::Percentage(100)));
+        mutable_flex_computed_values.set_min_height(parent.computed_values().min_height());
+        auto flex_wrapper = parent.heap().template allocate<BlockContainer>(parent.document(), nullptr, move(flex_computed_values));
+
+        auto content_box_computed_values = parent.computed_values().clone_inherited_values();
+        auto content_box_wrapper = parent.heap().template allocate<BlockContainer>(parent.document(), nullptr, move(content_box_computed_values));
+        content_box_wrapper->set_children_are_inline(parent.children_are_inline());
+
+        Vector<GC::Root<Node>> sequence;
+        for (auto child = parent.first_child(); child; child = child->next_sibling()) {
+            sequence.append(*child);
+        }
+
+        for (auto& node : sequence) {
+            parent.remove_child(*node);
+            content_box_wrapper->append_child(*node);
+        }
+
+        flex_wrapper->append_child(*content_box_wrapper);
+
+        parent.append_child(*flex_wrapper);
+        parent.set_children_are_inline(false);
+    }
 }
 
 void TreeBuilder::update_layout_tree_before_children(DOM::Node& dom_node, GC::Ref<Layout::Node> layout_node, TreeBuilder::Context&, bool element_has_content_visibility_hidden)
@@ -626,7 +702,6 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, GC::Ref
 {
     auto& document = dom_node.document();
     auto& style_computer = document.style_computer();
-    auto display = layout_node->display();
 
     if (is<ListItemBox>(*layout_node)) {
         auto& element = static_cast<DOM::Element&>(dom_node);
@@ -670,66 +745,6 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, GC::Ref
             layout_mask_or_clip_path(clip_path);
     }
 
-    auto is_button_layout = [&] {
-        if (dom_node.is_html_button_element())
-            return true;
-        if (!dom_node.is_html_input_element())
-            return false;
-        // https://html.spec.whatwg.org/multipage/rendering.html#the-input-element-as-a-button
-        // An input element whose type attribute is in the Submit Button, Reset Button, or Button state, when it generates a CSS box, is expected to depict a button and use button layout
-        auto const& input_element = static_cast<HTML::HTMLInputElement const&>(dom_node);
-        if (input_element.is_button())
-            return true;
-        return false;
-    }();
-
-    // https://html.spec.whatwg.org/multipage/rendering.html#button-layout
-    // If the computed value of 'inline-size' is 'auto', then the used value is the fit-content inline size.
-    if (is_button_layout && dom_node.layout_node()->computed_values().width().is_auto()) {
-        auto& computed_values = as<NodeWithStyle>(*dom_node.layout_node()).mutable_computed_values();
-        computed_values.set_width(CSS::Size::make_fit_content());
-    }
-
-    // https://html.spec.whatwg.org/multipage/rendering.html#button-layout
-    // If the element is an input element, or if it is a button element and its computed value for
-    // 'display' is not 'inline-grid', 'grid', 'inline-flex', or 'flex', then the element's box has
-    // a child anonymous button content box with the following behaviors:
-    if (is_button_layout && !display.is_grid_inside() && !display.is_flex_inside()) {
-        auto& parent = *dom_node.layout_node();
-
-        // If the box does not overflow in the vertical axis, then it is centered vertically.
-        // FIXME: Only apply alignment when box overflows
-        auto flex_computed_values = parent.computed_values().clone_inherited_values();
-        auto& mutable_flex_computed_values = static_cast<CSS::MutableComputedValues&>(*flex_computed_values);
-        mutable_flex_computed_values.set_display(CSS::Display { CSS::DisplayOutside::Block, CSS::DisplayInside::Flex });
-        mutable_flex_computed_values.set_justify_content(CSS::JustifyContent::Center);
-        mutable_flex_computed_values.set_flex_direction(CSS::FlexDirection::Column);
-        mutable_flex_computed_values.set_height(CSS::Size::make_percentage(CSS::Percentage(100)));
-        mutable_flex_computed_values.set_min_height(parent.computed_values().min_height());
-        auto flex_wrapper = parent.heap().template allocate<BlockContainer>(parent.document(), nullptr, move(flex_computed_values));
-
-        auto content_box_computed_values = parent.computed_values().clone_inherited_values();
-        auto content_box_wrapper = parent.heap().template allocate<BlockContainer>(parent.document(), nullptr, move(content_box_computed_values));
-        content_box_wrapper->set_children_are_inline(parent.children_are_inline());
-
-        Vector<GC::Root<Node>> sequence;
-        for (auto child = parent.first_child(); child; child = child->next_sibling()) {
-            if (child->is_generated_for_before_pseudo_element())
-                continue;
-            sequence.append(*child);
-        }
-
-        for (auto& node : sequence) {
-            parent.remove_child(*node);
-            content_box_wrapper->append_child(*node);
-        }
-
-        flex_wrapper->append_child(*content_box_wrapper);
-
-        parent.append_child(*flex_wrapper);
-        parent.set_children_are_inline(false);
-    }
-
     // Add nodes for the ::after pseudo-element.
     if (is<DOM::Element>(dom_node) && layout_node->can_have_children() && !element_has_content_visibility_hidden) {
         auto& element = static_cast<DOM::Element&>(dom_node);
@@ -737,14 +752,6 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, GC::Ref
         create_pseudo_element_if_needed(element, CSS::Selector::PseudoElement::Type::After, AppendOrPrepend::Append);
         pop_parent();
     }
-
-    // If we completely finished inserting a block level element into an inline parent, we need to fix up the tree so
-    // that we can maintain the invariant that all children are either inline or non-inline. We can't do this earlier,
-    // because the restructuring adds new children after this node that become part of the ancestor stack.
-    auto* layout_parent = layout_node->parent();
-    if (layout_parent && layout_parent->display().is_inline_outside() && !display.is_contents()
-        && !display.is_inline_outside() && layout_parent->display().is_flow_inside() && !layout_node->is_out_of_flow())
-        restructure_block_node_in_inline_parent(static_cast<NodeWithStyleAndBoxModelMetrics&>(*layout_node));
 }
 
 GC::Ptr<Layout::Node> TreeBuilder::build(DOM::Node& dom_node)

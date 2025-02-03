@@ -8,8 +8,8 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
             frag 0 from TextNode start: 0, length: 14, rect: [13,10 414.703125x55] baseline: 42.484375
                 "See more games"
             TextNode <#text>
-        BlockContainer <(anonymous)> at (9,9) content-size 422.703125x57 positioned [BFC] children: inline
-          TextNode <#text>
+            BlockContainer <(anonymous)> at (9,9) content-size 422.703125x57 positioned [BFC] children: inline
+              TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x75]
@@ -18,4 +18,4 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
         PaintableWithLines (BlockContainer(anonymous)) [13,10 414.703125x55]
           PaintableWithLines (BlockContainer(anonymous)) [13,10 414.703125x55]
             TextPaintable (TextNode<#text>)
-        PaintableWithLines (BlockContainer(anonymous)) [9,9 422.703125x57]
+            PaintableWithLines (BlockContainer(anonymous)) [9,9 422.703125x57]

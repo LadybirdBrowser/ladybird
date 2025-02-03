@@ -31,6 +31,7 @@ private:
 
     void update_layout_tree_before_children(DOM::Node&, GC::Ref<Layout::Node>, Context&, bool element_has_content_visibility_hidden);
     void update_layout_tree_after_children(DOM::Node&, GC::Ref<Layout::Node>, Context&, bool element_has_content_visibility_hidden);
+    void wrap_in_button_layout_tree_if_needed(DOM::Node&, GC::Ref<Layout::Node>);
     enum class MustCreateSubtree {
         No,
         Yes,

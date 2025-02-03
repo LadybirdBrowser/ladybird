@@ -4,9 +4,9 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
       frag 0 from BlockContainer start: 0, length: 0, rect: [29,29 0x0] baseline: 42
       BlockContainer <button> at (29,29) content-size 0x0 positioned inline-block [BFC] children: not-inline
         BlockContainer <(anonymous)> at (29,29) content-size 0x0 flex-container(column) [FFC] children: not-inline
-          BlockContainer <(anonymous)> at (29,29) content-size 0x0 [BFC] children: not-inline
-        BlockContainer <(anonymous)> at (9,9) content-size 40x40 positioned [BFC] children: inline
-          TextNode <#text>
+          BlockContainer <(anonymous)> at (29,29) content-size 0x0 flex-item [BFC] children: not-inline
+            BlockContainer <(anonymous)> at (9,9) content-size 40x40 positioned [BFC] children: inline
+              TextNode <#text>
       TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
@@ -15,4 +15,4 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
       PaintableWithLines (BlockContainer<BUTTON>) [8,8 42x42]
         PaintableWithLines (BlockContainer(anonymous)) [29,29 0x0]
           PaintableWithLines (BlockContainer(anonymous)) [29,29 0x0]
-        PaintableWithLines (BlockContainer(anonymous)) [9,9 40x40]
+            PaintableWithLines (BlockContainer(anonymous)) [9,9 40x40]
