@@ -7,6 +7,7 @@
 #include <LibWeb/Bindings/ShadowRootPrototype.h>
 #include <LibWeb/DOM/AdoptedStyleSheets.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/DocumentOrShadowRoot.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/HTMLTemplateElement.h>
@@ -117,6 +118,11 @@ WebIDL::ExceptionOr<void> ShadowRoot::set_html_unsafe(StringView html)
     TRY(unsafely_set_html(*this->host(), html));
 
     return {};
+}
+
+GC::Ptr<Element> ShadowRoot::active_element()
+{
+    return calculate_active_element(*this);
 }
 
 CSS::StyleSheetList& ShadowRoot::style_sheets()
