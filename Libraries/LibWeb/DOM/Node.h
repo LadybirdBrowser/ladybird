@@ -6,12 +6,10 @@
 
 #pragma once
 
-#include <AK/Badge.h>
 #include <AK/DistinctNumeric.h>
 #include <AK/FlyString.h>
 #include <AK/GenericShorthands.h>
 #include <AK/JsonObjectSerializer.h>
-#include <AK/RefPtr.h>
 #include <AK/TypeCasts.h>
 #include <AK/Vector.h>
 #include <LibWeb/CSS/InvalidationSet.h>
@@ -20,6 +18,7 @@
 #include <LibWeb/DOM/Slottable.h>
 #include <LibWeb/DOMParsing/XMLSerializer.h>
 #include <LibWeb/TraversalDecision.h>
+#include <LibWeb/TreeNode.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::DOM {
@@ -104,7 +103,8 @@ enum class StyleInvalidationReason {
 #undef __ENUMERATE_STYLE_INVALIDATION_REASON
 };
 
-class Node : public EventTarget {
+class Node : public EventTarget
+    , public TreeNode<Node> {
     WEB_PLATFORM_OBJECT(Node, EventTarget);
 
 public:
@@ -381,19 +381,6 @@ public:
 
     Slottable as_slottable();
 
-    Node* parent() { return m_parent.ptr(); }
-    Node const* parent() const { return m_parent.ptr(); }
-
-    bool has_children() const { return m_first_child; }
-    Node* next_sibling() { return m_next_sibling.ptr(); }
-    Node* previous_sibling() { return m_previous_sibling.ptr(); }
-    Node* first_child() { return m_first_child.ptr(); }
-    Node* last_child() { return m_last_child.ptr(); }
-    Node const* next_sibling() const { return m_next_sibling.ptr(); }
-    Node const* previous_sibling() const { return m_previous_sibling.ptr(); }
-    Node const* first_child() const { return m_first_child.ptr(); }
-    Node const* last_child() const { return m_last_child.ptr(); }
-
     size_t child_count() const
     {
         size_t count = 0;
@@ -418,79 +405,10 @@ public:
         return const_cast<Node*>(this)->child_at_index(index);
     }
 
-    // https://dom.spec.whatwg.org/#concept-tree-index
-    size_t index() const
-    {
-        // The index of an object is its number of preceding siblings, or 0 if it has none.
-        size_t index = 0;
-        for (auto* node = previous_sibling(); node; node = node->previous_sibling())
-            ++index;
-        return index;
-    }
-
-    bool is_ancestor_of(Node const&) const;
-    bool is_inclusive_ancestor_of(Node const&) const;
     bool is_descendant_of(Node const&) const;
     bool is_inclusive_descendant_of(Node const&) const;
 
     bool is_following(Node const&) const;
-
-    Node* next_in_pre_order()
-    {
-        if (first_child())
-            return first_child();
-        Node* node;
-        if (!(node = next_sibling())) {
-            node = parent();
-            while (node && !node->next_sibling())
-                node = node->parent();
-            if (node)
-                node = node->next_sibling();
-        }
-        return node;
-    }
-
-    Node* next_in_pre_order(Node const* stay_within)
-    {
-        if (first_child())
-            return first_child();
-
-        Node* node = static_cast<Node*>(this);
-        Node* next = nullptr;
-        while (!(next = node->next_sibling())) {
-            node = node->parent();
-            if (!node || node == stay_within)
-                return nullptr;
-        }
-        return next;
-    }
-
-    Node const* next_in_pre_order() const
-    {
-        return const_cast<Node*>(this)->next_in_pre_order();
-    }
-
-    Node const* next_in_pre_order(Node const* stay_within) const
-    {
-        return const_cast<Node*>(this)->next_in_pre_order(stay_within);
-    }
-
-    Node* previous_in_pre_order()
-    {
-        if (auto* node = previous_sibling()) {
-            while (node->last_child())
-                node = node->last_child();
-
-            return node;
-        }
-
-        return parent();
-    }
-
-    Node const* previous_in_pre_order() const
-    {
-        return const_cast<Node*>(this)->previous_in_pre_order();
-    }
 
     bool is_before(Node const& other) const
     {
@@ -526,98 +444,6 @@ public:
     }
 
     template<typename Callback>
-    TraversalDecision for_each_in_inclusive_subtree(Callback callback) const
-    {
-        if (auto decision = callback(static_cast<Node const&>(*this)); decision != TraversalDecision::Continue)
-            return decision;
-        for (auto* child = first_child(); child; child = child->next_sibling()) {
-            if (child->for_each_in_inclusive_subtree(callback) == TraversalDecision::Break)
-                return TraversalDecision::Break;
-        }
-        return TraversalDecision::Continue;
-    }
-
-    template<typename Callback>
-    TraversalDecision for_each_in_inclusive_subtree(Callback callback)
-    {
-        if (auto decision = callback(static_cast<Node&>(*this)); decision != TraversalDecision::Continue)
-            return decision;
-        for (auto* child = first_child(); child; child = child->next_sibling()) {
-            if (child->for_each_in_inclusive_subtree(callback) == TraversalDecision::Break)
-                return TraversalDecision::Break;
-        }
-        return TraversalDecision::Continue;
-    }
-
-    template<typename U, typename Callback>
-    TraversalDecision for_each_in_inclusive_subtree_of_type(Callback callback)
-    {
-        if (auto* maybe_node_of_type = as_if<U>(static_cast<Node&>(*this))) {
-            if (auto decision = callback(*maybe_node_of_type); decision != TraversalDecision::Continue)
-                return decision;
-        }
-        for (auto* child = first_child(); child; child = child->next_sibling()) {
-            if (child->template for_each_in_inclusive_subtree_of_type<U>(callback) == TraversalDecision::Break)
-                return TraversalDecision::Break;
-        }
-        return TraversalDecision::Continue;
-    }
-
-    template<typename U, typename Callback>
-    TraversalDecision for_each_in_inclusive_subtree_of_type(Callback callback) const
-    {
-        if (auto* maybe_node_of_type = as_if<U>(static_cast<Node const&>(*this))) {
-            if (auto decision = callback(*maybe_node_of_type); decision != TraversalDecision::Continue)
-                return decision;
-        }
-        for (auto* child = first_child(); child; child = child->next_sibling()) {
-            if (child->template for_each_in_inclusive_subtree_of_type<U>(callback) == TraversalDecision::Break)
-                return TraversalDecision::Break;
-        }
-        return TraversalDecision::Continue;
-    }
-
-    template<typename Callback>
-    TraversalDecision for_each_in_subtree(Callback callback) const
-    {
-        for (auto* child = first_child(); child; child = child->next_sibling()) {
-            if (child->for_each_in_inclusive_subtree(callback) == TraversalDecision::Break)
-                return TraversalDecision::Break;
-        }
-        return TraversalDecision::Continue;
-    }
-
-    template<typename Callback>
-    TraversalDecision for_each_in_subtree(Callback callback)
-    {
-        for (auto* child = first_child(); child; child = child->next_sibling()) {
-            if (child->for_each_in_inclusive_subtree(callback) == TraversalDecision::Break)
-                return TraversalDecision::Break;
-        }
-        return TraversalDecision::Continue;
-    }
-
-    template<typename U, typename Callback>
-    TraversalDecision for_each_in_subtree_of_type(Callback callback)
-    {
-        for (auto* child = first_child(); child; child = child->next_sibling()) {
-            if (child->template for_each_in_inclusive_subtree_of_type<U>(callback) == TraversalDecision::Break)
-                return TraversalDecision::Break;
-        }
-        return TraversalDecision::Continue;
-    }
-
-    template<typename U, typename Callback>
-    TraversalDecision for_each_in_subtree_of_type(Callback callback) const
-    {
-        for (auto* child = first_child(); child; child = child->next_sibling()) {
-            if (child->template for_each_in_inclusive_subtree_of_type<U>(callback) == TraversalDecision::Break)
-                return TraversalDecision::Break;
-        }
-        return TraversalDecision::Continue;
-    }
-
-    template<typename Callback>
     void for_each_ancestor(Callback callback) const
     {
         return const_cast<Node*>(this)->for_each_ancestor(move(callback));
@@ -647,38 +473,6 @@ public:
         }
     }
 
-    template<typename Callback>
-    void for_each_child(Callback callback) const
-    {
-        return const_cast<Node*>(this)->for_each_child(move(callback));
-    }
-
-    template<typename Callback>
-    void for_each_child(Callback callback)
-    {
-        for (auto* node = first_child(); node; node = node->next_sibling()) {
-            if (callback(*node) == IterationDecision::Break)
-                return;
-        }
-    }
-
-    template<typename U, typename Callback>
-    void for_each_child_of_type(Callback callback)
-    {
-        for (auto* node = first_child(); node; node = node->next_sibling()) {
-            if (auto* maybe_child_of_type = as_if<U>(node)) {
-                if (callback(*maybe_child_of_type) == IterationDecision::Break)
-                    return;
-            }
-        }
-    }
-
-    template<typename U, typename Callback>
-    void for_each_child_of_type(Callback callback) const
-    {
-        return const_cast<Node*>(this)->template for_each_child_of_type<U>(move(callback));
-    }
-
     template<typename U, typename Callback>
     WebIDL::ExceptionOr<void> for_each_child_of_type_fallible(Callback callback)
     {
@@ -692,89 +486,9 @@ public:
     }
 
     template<typename U>
-    U const* next_sibling_of_type() const
-    {
-        return const_cast<Node*>(this)->template next_sibling_of_type<U>();
-    }
-
-    template<typename U>
-    inline U* next_sibling_of_type()
-    {
-        for (auto* sibling = next_sibling(); sibling; sibling = sibling->next_sibling()) {
-            if (auto* maybe_sibling_of_type = as_if<U>(*sibling))
-                return maybe_sibling_of_type;
-        }
-        return nullptr;
-    }
-
-    template<typename U>
-    U const* previous_sibling_of_type() const
-    {
-        return const_cast<Node*>(this)->template previous_sibling_of_type<U>();
-    }
-
-    template<typename U>
-    U* previous_sibling_of_type()
-    {
-        for (auto* sibling = previous_sibling(); sibling; sibling = sibling->previous_sibling()) {
-            if (auto* maybe_sibling_of_type = as_if<U>(*sibling))
-                return maybe_sibling_of_type;
-        }
-        return nullptr;
-    }
-
-    template<typename U>
-    U const* first_child_of_type() const
-    {
-        return const_cast<Node*>(this)->template first_child_of_type<U>();
-    }
-
-    template<typename U>
-    U const* last_child_of_type() const
-    {
-        return const_cast<Node*>(this)->template last_child_of_type<U>();
-    }
-
-    template<typename U>
-    U* first_child_of_type()
-    {
-        for (auto* child = first_child(); child; child = child->next_sibling()) {
-            if (auto* maybe_child_of_type = as_if<U>(*child))
-                return maybe_child_of_type;
-        }
-        return nullptr;
-    }
-
-    template<typename U>
-    U* last_child_of_type()
-    {
-        for (auto* child = last_child(); child; child = child->previous_sibling()) {
-            if (auto* maybe_child_of_type = as_if<U>(*child))
-                return maybe_child_of_type;
-        }
-        return nullptr;
-    }
-
-    template<typename U>
     bool has_child_of_type() const
     {
         return first_child_of_type<U>() != nullptr;
-    }
-
-    template<typename U>
-    U const* first_ancestor_of_type() const
-    {
-        return const_cast<Node*>(this)->template first_ancestor_of_type<U>();
-    }
-
-    template<typename U>
-    U* first_ancestor_of_type()
-    {
-        for (auto* ancestor = parent(); ancestor; ancestor = ancestor->parent()) {
-            if (auto* maybe_ancestor_of_type = as_if<U>(*ancestor))
-                return maybe_ancestor_of_type;
-        }
-        return nullptr;
     }
 
     template<typename U>
@@ -842,12 +556,6 @@ private:
     void remove_child_impl(GC::Ref<Node>);
 
     static Optional<StringView> first_valid_id(StringView, Document const&);
-
-    GC::Ptr<Node> m_parent;
-    GC::Ptr<Node> m_first_child;
-    GC::Ptr<Node> m_last_child;
-    GC::Ptr<Node> m_next_sibling;
-    GC::Ptr<Node> m_previous_sibling;
 
     GC::Ptr<NodeList> m_child_nodes;
 };
