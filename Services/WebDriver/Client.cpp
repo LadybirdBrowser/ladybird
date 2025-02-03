@@ -791,7 +791,10 @@ Web::WebDriver::Response Client::release_actions(Web::WebDriver::Parameters para
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling DELETE /session/<session_id>/actions");
     auto session = TRY(find_session_with_id(parameters[0]));
-    return session->web_content_connection().release_actions();
+
+    return session->perform_async_action([&](auto& connection) {
+        return connection.release_actions();
+    });
 }
 
 // 16.1 Dismiss Alert, https://w3c.github.io/webdriver/#dismiss-alert
