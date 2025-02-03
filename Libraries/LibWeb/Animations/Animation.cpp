@@ -1331,9 +1331,6 @@ void Animation::invalidate_effect()
 
     if (auto* target = m_effect->target(); target) {
         target->document().set_needs_animated_style_update();
-        if (target->paintable()) {
-            target->paintable()->set_needs_display();
-        }
     }
 }
 
