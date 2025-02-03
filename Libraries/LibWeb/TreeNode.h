@@ -119,7 +119,7 @@ public:
         if (auto decision = callback(static_cast<T const&>(*this)); decision != TraversalDecision::Continue)
             return decision;
         for (auto* child = first_child(); child; child = child->next_sibling()) {
-            if (child->for_each_in_inclusive_subtree(callback) == IterationDecision::Break)
+            if (child->for_each_in_inclusive_subtree(callback) == TraversalDecision::Break)
                 return TraversalDecision::Break;
         }
         return TraversalDecision::Continue;
