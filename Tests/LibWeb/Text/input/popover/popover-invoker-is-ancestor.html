@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+
+<!-- popover invokers count as parents -->
+
+<button popovertarget=outer id=outerButton></button>
+<div popover id=outer>
+    <button popovertarget=middle id=middleButton></button>
+    <button popovertarget=second id=secondButton></button>
+</div>
+<div popover id=middle>
+    <button popovertarget=inner id=innerButton></button>
+</div>
+<div popover id=inner></div>
+<div popover id=second></div>
+
+<script>
+    test(() => {
+        const outer = document.getElementById("outer");
+        const middle = document.getElementById("middle");
+        const inner = document.getElementById("inner");
+        const second = document.getElementById("second");
+
+        const outerButton = document.getElementById("outerButton");
+        const middleButton = document.getElementById("middleButton");
+        const innerButton = document.getElementById("innerButton");
+        const secondButton = document.getElementById("secondButton");
+
+        outerButton.click();
+        middleButton.click();
+        innerButton.click();
+
+        if (outer.matches(":popover-open")
+            && middle.matches(":popover-open")
+            && inner.matches(":popover-open")
+            && !second.matches(":popover-open"))
+            println("PASS");
+
+        secondButton.click();
+
+        if (outer.matches(":popover-open")
+            && !middle.matches(":popover-open")
+            && !inner.matches(":popover-open")
+            && second.matches(":popover-open"))
+            println("PASS");
+    });
+</script>

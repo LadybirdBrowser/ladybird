@@ -65,6 +65,11 @@ enum class IgnoreDomState {
     No,
 };
 
+enum class IsPopover {
+    Yes,
+    No,
+};
+
 class HTMLElement
     : public DOM::Element
     , public HTML::GlobalEventHandlers
@@ -123,6 +128,7 @@ public:
 
     WebIDL::ExceptionOr<void> set_popover(Optional<String> value);
     Optional<String> popover() const;
+    Optional<String> opened_in_popover_mode() const { return m_opened_in_popover_mode; }
 
     virtual void removed_from(Node* old_parent, Node& old_root) override;
 
@@ -139,6 +145,9 @@ public:
     WebIDL::ExceptionOr<bool> check_popover_validity(ExpectedToBeShowing expected_to_be_showing, ThrowExceptions throw_exceptions, GC::Ptr<DOM::Document>, IgnoreDomState ignore_dom_state);
     WebIDL::ExceptionOr<void> show_popover(ThrowExceptions throw_exceptions, GC::Ptr<HTMLElement> invoker);
     WebIDL::ExceptionOr<void> hide_popover(FocusPreviousElement focus_previous_element, FireEvents fire_events, ThrowExceptions throw_exceptions, IgnoreDomState ignore_dom_state);
+
+    static void hide_all_popovers_until(Variant<GC::Ptr<HTMLElement>, GC::Ptr<DOM::Document>> endpoint, FocusPreviousElement focus_previous_element, FireEvents fire_events);
+    static GC::Ptr<HTMLElement> topmost_popover_ancestor(GC::Ptr<DOM::Node> new_popover_or_top_layer_element, Vector<GC::Ref<HTMLElement>> const& popover_list, GC::Ptr<HTMLElement> invoker, IsPopover is_popover);
 
 protected:
     HTMLElement(DOM::Document&, DOM::QualifiedName);
@@ -178,6 +187,9 @@ private:
     void queue_a_popover_toggle_event_task(String old_state, String new_state);
 
     static Optional<String> popover_value_to_state(Optional<String> value);
+    void hide_popover_stack_until(Vector<GC::Ref<HTMLElement>> const& popover_list, FocusPreviousElement focus_previous_element, FireEvents fire_events);
+    GC::Ptr<HTMLElement> nearest_inclusive_open_popover();
+    static void close_entire_popover_list(Vector<GC::Ref<HTMLElement>> const& popover_list, FocusPreviousElement focus_previous_element, FireEvents fire_events);
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#attached-internals
     GC::Ptr<ElementInternals> m_attached_internals;
@@ -204,6 +216,8 @@ private:
 
     // https://html.spec.whatwg.org/multipage/popover.html#popover-close-watcher
     GC::Ptr<CloseWatcher> m_popover_close_watcher;
+
+    Optional<String> m_opened_in_popover_mode;
 };
 
 }
