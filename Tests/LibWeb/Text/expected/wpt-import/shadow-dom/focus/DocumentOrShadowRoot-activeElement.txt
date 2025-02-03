@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	activeElement on document & shadow root when focused element is in the shadow tree
+Pass	activeElement on document & shadow root when focused element is in the document
+Pass	activeElement on document & shadow root when focused element is slotted
+Pass	activeElement on a neighboring host when focused element is in another shadow tree
+Pass	activeElement when focused element is in a nested shadow tree
+Pass	activeElement when focused element is in a parent shadow tree

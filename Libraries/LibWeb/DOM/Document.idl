@@ -73,7 +73,6 @@ interface Document : Node {
 
     readonly attribute USVString referrer;
 
-    readonly attribute Element? activeElement;
 
     Element? getElementById(DOMString id);
     NodeList getElementsByName([FlyString] DOMString name);

@@ -64,6 +64,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentFragment.h>
 #include <LibWeb/DOM/DocumentObserver.h>
+#include <LibWeb/DOM/DocumentOrShadowRoot.h>
 #include <LibWeb/DOM/DocumentType.h>
 #include <LibWeb/DOM/EditingHostManager.h>
 #include <LibWeb/DOM/Element.h>
@@ -2446,43 +2447,9 @@ String const& Document::compat_mode() const
     return css1_compat;
 }
 
-// https://html.spec.whatwg.org/multipage/interaction.html#dom-documentorshadowroot-activeelement
 void Document::update_active_element()
 {
-    // 1. Let candidate be this's node document's focused area's DOM anchor.
-    Node* candidate = focused_area();
-
-    // 2. Set candidate to the result of retargeting candidate against this.
-    candidate = as<Node>(retarget(candidate, this));
-
-    // 3. If candidate's root is not this, then return null.
-    if (&candidate->root() != this) {
-        set_active_element(nullptr);
-        return;
-    }
-
-    // 4. If candidate is not a Document object, then return candidate.
-    if (!is<Document>(candidate)) {
-        set_active_element(as<Element>(candidate));
-        return;
-    }
-
-    auto* candidate_document = static_cast<Document*>(candidate);
-
-    // 5. If candidate has a body element, then return that body element.
-    if (candidate_document->body()) {
-        set_active_element(candidate_document->body());
-        return;
-    }
-
-    // 6. If candidate's document element is non-null, then return that document element.
-    if (candidate_document->document_element()) {
-        set_active_element(candidate_document->document_element());
-        return;
-    }
-
-    // 7. Return null.
-    set_active_element(nullptr);
+    set_active_element(calculate_active_element(*this));
 }
 
 void Document::set_focused_area(GC::Ptr<Node> node)
