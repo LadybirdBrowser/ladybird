@@ -11,7 +11,7 @@ svg:not(:root), image, marker, pattern, symbol { overflow: hidden; }
 }
 
 *[xml|space=preserve] {
-    text-space-collapse: preserve-spaces;
+    white-space-collapse: preserve-spaces;
 }
 
 /* FIXME: Allow setting the rest of these to `display: none`.
