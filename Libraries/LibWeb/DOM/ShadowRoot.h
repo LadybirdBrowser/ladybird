@@ -50,6 +50,8 @@ public:
 
     WebIDL::ExceptionOr<String> get_html(GetHTMLOptions const&) const;
 
+    Element* active_element();
+
     CSS::StyleSheetList& style_sheets();
     CSS::StyleSheetList const& style_sheets() const;
 

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>HTML Test: DocumentOrShadowRoot.activeElement</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testdriver.js"></script>
+<script src="../../resources/testdriver-vendor.js"></script>
+<body>
+<script>
+function createChildAndFocus(focusParent) {
+  const focused = document.createElement("div");
+  focused.tabIndex = 0;
+  focusParent.appendChild(focused);
+  focused.focus();
+  return focused;
+}
+
+test(() => {
+  const host = document.createElement("div");
+  const shadowRoot = host.attachShadow({ mode: "open" });
+  document.body.appendChild(host);
+
+  const focused = createChildAndFocus(shadowRoot);
+  assert_equals(document.activeElement, host);
+  assert_equals(shadowRoot.activeElement, focused);
+}, "activeElement on document & shadow root when focused element is in the shadow tree");
+
+test(() => {
+  const host = document.createElement("div");
+  const shadowRoot = host.attachShadow({ mode: "open" });
+  document.body.appendChild(host);
+
+  const focused = createChildAndFocus(document.body);
+  assert_equals(document.activeElement, focused);
+  assert_equals(shadowRoot.activeElement, null);
+}, "activeElement on document & shadow root when focused element is in the document");
+
+test(() => {
+  const host = document.createElement("div");
+  const shadowRoot = host.attachShadow({ mode: "open" });
+  shadowRoot.appendChild(document.createElement("slot"));
+  document.body.appendChild(host);
+
+  // Child of |host|, will be slotted to the slot in |shadowRoot|.
+  const focused = createChildAndFocus(host);
+  assert_equals(document.activeElement, focused);
+  assert_equals(shadowRoot.activeElement, null);
+}, "activeElement on document & shadow root when focused element is slotted");
+
+test(() => {
+  const host = document.createElement("div");
+  const shadowRoot = host.attachShadow({ mode: "open" });
+  document.body.appendChild(host);
+  const neighborHost = document.createElement("div");
+  const neighborShadowRoot = neighborHost.attachShadow({ mode: "open" });
+  document.body.appendChild(neighborHost);
+
+  const focused = createChildAndFocus(shadowRoot);
+  assert_equals(document.activeElement, host);
+  assert_equals(shadowRoot.activeElement, focused);
+  assert_equals(neighborShadowRoot.activeElement, null);
+}, "activeElement on a neighboring host when focused element is in another shadow tree");
+
+test(() => {
+  const host = document.createElement("div");
+  const shadowRoot = host.attachShadow({ mode: "open" });
+  document.body.appendChild(host);
+  const nestedHost = document.createElement("div");
+  const nestedShadowRoot = nestedHost.attachShadow({ mode: "open" });
+  shadowRoot.appendChild(nestedHost);
+
+  const focused = createChildAndFocus(nestedShadowRoot);
+  assert_equals(document.activeElement, host);
+  assert_equals(shadowRoot.activeElement, nestedHost);
+  assert_equals(nestedShadowRoot.activeElement, focused);
+}, "activeElement when focused element is in a nested shadow tree");
+
+test(() => {
+  const host = document.createElement("div");
+  const shadowRoot = host.attachShadow({ mode: "open" });
+  document.body.appendChild(host);
+  const nestedHost = document.createElement("div");
+  const nestedShadowRoot = nestedHost.attachShadow({ mode: "open" });
+  shadowRoot.appendChild(nestedHost);
+
+  const focused = createChildAndFocus(shadowRoot);
+  assert_equals(document.activeElement, host);
+  assert_equals(shadowRoot.activeElement, focused);
+  assert_equals(nestedShadowRoot.activeElement, null);
+}, "activeElement when focused element is in a parent shadow tree");
+</script>
+</body>
