@@ -1029,9 +1029,6 @@ WebIDL::ExceptionOr<void> Document::set_title(String const& title)
         return {};
     }
 
-    if (browsing_context() == &page().top_level_browsing_context())
-        page().client().page_did_change_title(title.to_byte_string());
-
     return {};
 }
 
