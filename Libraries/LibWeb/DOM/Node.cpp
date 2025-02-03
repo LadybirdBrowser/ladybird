@@ -107,12 +107,8 @@ void Node::finalize()
 void Node::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    TreeNode::visit_edges(visitor);
     visitor.visit(m_document);
-    visitor.visit(m_parent);
-    visitor.visit(m_first_child);
-    visitor.visit(m_last_child);
-    visitor.visit(m_next_sibling);
-    visitor.visit(m_previous_sibling);
     visitor.visit(m_child_nodes);
 
     visitor.visit(m_layout_node);
@@ -2292,75 +2288,24 @@ void Node::queue_tree_mutation_record(Vector<GC::Root<Node>> added_nodes, Vector
 
 void Node::append_child_impl(GC::Ref<Node> node)
 {
-    VERIFY(!node->m_parent);
+    VERIFY(!node->parent());
 
     if (!is_child_allowed(*node))
         return;
 
-    if (m_last_child)
-        m_last_child->m_next_sibling = node.ptr();
-    node->m_previous_sibling = m_last_child;
-    node->m_parent = this;
-    m_last_child = node.ptr();
-    if (!m_first_child)
-        m_first_child = m_last_child;
+    TreeNode::append_child(node);
 }
 
 void Node::insert_before_impl(GC::Ref<Node> node, GC::Ptr<Node> child)
 {
     if (!child)
         return append_child_impl(move(node));
-
-    VERIFY(!node->m_parent);
-    VERIFY(child->parent() == this);
-
-    node->m_previous_sibling = child->m_previous_sibling;
-    node->m_next_sibling = child;
-
-    if (child->m_previous_sibling)
-        child->m_previous_sibling->m_next_sibling = node;
-
-    if (m_first_child == child)
-        m_first_child = node;
-
-    child->m_previous_sibling = node;
-
-    node->m_parent = this;
+    TreeNode::insert_before(node, child);
 }
 
 void Node::remove_child_impl(GC::Ref<Node> node)
 {
-    VERIFY(node->m_parent.ptr() == this);
-
-    if (m_first_child == node)
-        m_first_child = node->m_next_sibling;
-
-    if (m_last_child == node)
-        m_last_child = node->m_previous_sibling;
-
-    if (node->m_next_sibling)
-        node->m_next_sibling->m_previous_sibling = node->m_previous_sibling;
-
-    if (node->m_previous_sibling)
-        node->m_previous_sibling->m_next_sibling = node->m_next_sibling;
-
-    node->m_next_sibling = nullptr;
-    node->m_previous_sibling = nullptr;
-    node->m_parent = nullptr;
-}
-
-bool Node::is_ancestor_of(Node const& other) const
-{
-    for (auto* ancestor = other.parent(); ancestor; ancestor = ancestor->parent()) {
-        if (ancestor == this)
-            return true;
-    }
-    return false;
-}
-
-bool Node::is_inclusive_ancestor_of(Node const& other) const
-{
-    return &other == this || is_ancestor_of(other);
+    TreeNode::remove_child(node);
 }
 
 bool Node::is_descendant_of(Node const& other) const
