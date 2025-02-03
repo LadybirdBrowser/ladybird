@@ -15,6 +15,37 @@
 
 namespace Web {
 
+template<typename T, typename Callback>
+TraversalDecision traverse_preorder(T root, Callback callback)
+{
+    T current = root;
+    while (current != nullptr) {
+        TraversalDecision decision = callback(*current);
+        if (decision == TraversalDecision::Break)
+            return TraversalDecision::Break;
+
+        if (decision != TraversalDecision::SkipChildrenAndContinue && current->first_child() != nullptr) {
+            current = current->first_child();
+            continue;
+        }
+        if (current == root)
+            break;
+
+        if (current->next_sibling() != nullptr) {
+            current = current->next_sibling();
+            continue;
+        }
+
+        while (current != root && current->next_sibling() == nullptr)
+            current = current->parent();
+        if (current == root)
+            break;
+
+        current = current->next_sibling();
+    }
+    return TraversalDecision::Continue;
+}
+
 template<typename T>
 class TreeNode {
 public:
@@ -116,53 +147,33 @@ public:
     template<typename Callback>
     TraversalDecision for_each_in_inclusive_subtree(Callback callback) const
     {
-        if (auto decision = callback(static_cast<T const&>(*this)); decision != TraversalDecision::Continue)
-            return decision;
-        for (auto* child = first_child(); child; child = child->next_sibling()) {
-            if (child->for_each_in_inclusive_subtree(callback) == TraversalDecision::Break)
-                return TraversalDecision::Break;
-        }
-        return TraversalDecision::Continue;
+        return traverse_preorder(static_cast<T const*>(this), callback);
     }
 
     template<typename Callback>
     TraversalDecision for_each_in_inclusive_subtree(Callback callback)
     {
-        if (auto decision = callback(static_cast<T&>(*this)); decision != TraversalDecision::Continue)
-            return decision;
-        for (auto* child = first_child(); child; child = child->next_sibling()) {
-            if (child->for_each_in_inclusive_subtree(callback) == TraversalDecision::Break)
-                return TraversalDecision::Break;
-        }
-        return TraversalDecision::Continue;
+        return traverse_preorder(static_cast<T*>(this), callback);
     }
 
     template<typename U, typename Callback>
     TraversalDecision for_each_in_inclusive_subtree_of_type(Callback callback)
     {
-        if (is<U>(static_cast<T const&>(*this))) {
-            if (auto decision = callback(static_cast<U&>(*this)); decision != TraversalDecision::Continue)
-                return decision;
-        }
-        for (auto* child = first_child(); child; child = child->next_sibling()) {
-            if (child->template for_each_in_inclusive_subtree_of_type<U>(callback) == TraversalDecision::Break)
-                return TraversalDecision::Break;
-        }
-        return TraversalDecision::Continue;
+        return for_each_in_inclusive_subtree([callback = move(callback)](T& node) {
+            if (auto* maybe_node_of_type = as_if<U>(node))
+                return callback(*maybe_node_of_type);
+            return TraversalDecision::Continue;
+        });
     }
 
     template<typename U, typename Callback>
     TraversalDecision for_each_in_inclusive_subtree_of_type(Callback callback) const
     {
-        if (is<U>(static_cast<T const&>(*this))) {
-            if (auto decision = callback(static_cast<U const&>(*this)); decision != TraversalDecision::Continue)
-                return decision;
-        }
-        for (auto* child = first_child(); child; child = child->next_sibling()) {
-            if (child->template for_each_in_inclusive_subtree_of_type<U>(callback) == TraversalDecision::Break)
-                return TraversalDecision::Break;
-        }
-        return TraversalDecision::Continue;
+        return for_each_in_inclusive_subtree([callback = move(callback)](T const& node) {
+            if (auto* maybe_node_of_type = as_if<U>(node))
+                return callback(*maybe_node_of_type);
+            return TraversalDecision::Continue;
+        });
     }
 
     template<typename Callback>
