@@ -2646,9 +2646,6 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
     if (!target)
         return;
 
-    if (target->paintable())
-        target->paintable()->set_needs_display();
-
     auto previous_phase = effect->previous_phase();
     auto current_phase = effect->phase();
     auto current_iteration = effect->current_iteration().value_or(0.0);
