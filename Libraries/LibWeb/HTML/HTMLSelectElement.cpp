@@ -463,25 +463,28 @@ void HTMLSelectElement::show_the_picker_if_applicable()
     m_select_items.clear();
     u32 id_counter = 1;
     for (auto const& child : children_as_vector()) {
-        if (is<HTMLOptGroupElement>(*child)) {
-            auto& opt_group_element = as<HTMLOptGroupElement>(*child);
-            Vector<SelectItemOption> option_group_items;
-            for (auto const& child : opt_group_element.children_as_vector()) {
-                if (is<HTMLOptionElement>(*child)) {
-                    auto& option_element = as<HTMLOptionElement>(*child);
-                    option_group_items.append(SelectItemOption { id_counter++, option_element.selected(), option_element.disabled(), option_element, strip_newlines(option_element.label()), option_element.value() });
+        if (auto const* opt_group_element = as_if<HTMLOptGroupElement>(*child)) {
+            if (!opt_group_element->has_attribute(Web::HTML::AttributeNames::hidden)) {
+                Vector<SelectItemOption> option_group_items;
+                for (auto const& child : opt_group_element->children_as_vector()) {
+                    if (auto const& option_element = as_if<HTMLOptionElement>(*child)) {
+                        if (!option_element->has_attribute(Web::HTML::AttributeNames::hidden))
+                            option_group_items.append(SelectItemOption { id_counter++, option_element->selected(), option_element->disabled(), option_element, strip_newlines(option_element->label()), option_element->value() });
+                    }
                 }
+                m_select_items.append(SelectItemOptionGroup { opt_group_element->get_attribute(AttributeNames::label).value_or(String {}), option_group_items });
             }
-            m_select_items.append(SelectItemOptionGroup { opt_group_element.get_attribute(AttributeNames::label).value_or(String {}), option_group_items });
         }
 
-        if (is<HTMLOptionElement>(*child)) {
-            auto& option_element = as<HTMLOptionElement>(*child);
-            m_select_items.append(SelectItemOption { id_counter++, option_element.selected(), option_element.disabled(), option_element, strip_newlines(option_element.label()), option_element.value() });
+        if (auto const& option_element = as_if<HTMLOptionElement>(*child)) {
+            if (!option_element->has_attribute(Web::HTML::AttributeNames::hidden))
+                m_select_items.append(SelectItemOption { id_counter++, option_element->selected(), option_element->disabled(), option_element, strip_newlines(option_element->label()), option_element->value() });
         }
 
-        if (is<HTMLHRElement>(*child))
-            m_select_items.append(SelectItemSeparator {});
+        if (auto const* hr_element = as_if<HTMLHRElement>(*child)) {
+            if (!hr_element->has_attribute(Web::HTML::AttributeNames::hidden))
+                m_select_items.append(SelectItemSeparator {});
+        }
     }
 
     // Request select dropdown
