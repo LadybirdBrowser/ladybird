@@ -2213,6 +2213,50 @@ void StyleComputer::resolve_effective_overflow_values(ComputedProperties& style)
     }
 }
 
+static void compute_text_align(ComputedProperties& style, DOM::Element const& element, Optional<Selector::PseudoElement::Type> pseudo_element)
+{
+    // https://drafts.csswg.org/css-text-4/#valdef-text-align-match-parent
+    // This value behaves the same as inherit (computes to its parent’s computed value) except that an inherited
+    // value of start or end is interpreted against the parent’s direction value and results in a computed value of
+    // either left or right. Computes to start when specified on the root element.
+    if (style.property(PropertyID::TextAlign).to_keyword() == Keyword::MatchParent) {
+
+        // If it's a pseudo-element, then the "parent" is the originating element instead.
+        auto const* parent = [&]() -> DOM::Element const* {
+            if (pseudo_element.has_value())
+                return &element;
+            return element.parent_element();
+        }();
+
+        if (parent) {
+            auto const& parent_text_align = parent->computed_properties()->property(PropertyID::TextAlign);
+            auto const& parent_direction = parent->computed_properties()->direction().value_or(Direction::Ltr);
+            switch (parent_text_align.to_keyword()) {
+            case Keyword::Start:
+                if (parent_direction == Direction::Ltr) {
+                    style.set_property(PropertyID::TextAlign, CSSKeywordValue::create(Keyword::Left));
+                } else {
+                    style.set_property(PropertyID::TextAlign, CSSKeywordValue::create(Keyword::Right));
+                }
+                break;
+
+            case Keyword::End:
+                if (parent_direction == Direction::Ltr) {
+                    style.set_property(PropertyID::TextAlign, CSSKeywordValue::create(Keyword::Right));
+                } else {
+                    style.set_property(PropertyID::TextAlign, CSSKeywordValue::create(Keyword::Left));
+                }
+                break;
+
+            default:
+                style.set_property(PropertyID::TextAlign, parent_text_align);
+            }
+        } else {
+            style.set_property(PropertyID::TextAlign, CSSKeywordValue::create(Keyword::Start));
+        }
+    }
+}
+
 enum class BoxTypeTransformation {
     None,
     Blockify,
@@ -2544,8 +2588,9 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::Element& elem
     // 6. Run automatic box type transformations
     transform_box_type_if_needed(computed_style, element, pseudo_element);
 
-    // 7. Resolve effective overflow values
+    // 7. Apply any property-specific computed value logic
     resolve_effective_overflow_values(computed_style);
+    compute_text_align(computed_style, element, pseudo_element);
 
     // 8. Let the element adjust computed style
     element.adjust_computed_style(computed_style);
