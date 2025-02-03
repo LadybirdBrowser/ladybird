@@ -3,19 +3,19 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
     BlockContainer <body> at (8,8) content-size 784x59 children: inline
       frag 0 from BlockContainer start: 0, length: 0, rect: [13,10 414.703125x55] baseline: 44.484375
       BlockContainer <button.button_button___eDCW> at (13,10) content-size 414.703125x55 positioned inline-block [BFC] children: not-inline
-        BlockContainer <(anonymous)> at (9,9) content-size 422.703125x57 positioned [BFC] children: inline
-          TextNode <#text>
         BlockContainer <(anonymous)> at (13,10) content-size 414.703125x55 flex-container(column) [FFC] children: not-inline
           BlockContainer <(anonymous)> at (13,10) content-size 414.703125x55 flex-item [BFC] children: inline
             frag 0 from TextNode start: 0, length: 14, rect: [13,10 414.703125x55] baseline: 42.484375
                 "See more games"
+            BlockContainer <(anonymous)> at (9,9) content-size 422.703125x57 positioned [BFC] children: inline
+              TextNode <#text>
             TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x75]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x59]
       PaintableWithLines (BlockContainer<BUTTON>.button_button___eDCW) [8,8 424.703125x59]
-        PaintableWithLines (BlockContainer(anonymous)) [9,9 422.703125x57]
         PaintableWithLines (BlockContainer(anonymous)) [13,10 414.703125x55]
           PaintableWithLines (BlockContainer(anonymous)) [13,10 414.703125x55]
+            PaintableWithLines (BlockContainer(anonymous)) [9,9 422.703125x57]
             TextPaintable (TextNode<#text>)
