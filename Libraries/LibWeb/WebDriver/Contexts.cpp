@@ -127,4 +127,13 @@ ErrorOr<GC::Ref<HTML::WindowProxy>, WebDriver::Error> deserialize_web_window(JS:
     return *navigable->active_window_proxy();
 }
 
+// https://w3c.github.io/webdriver/#dfn-no-longer-open
+ErrorOr<void, WebDriver::Error> ensure_browsing_context_is_open(GC::Ptr<HTML::BrowsingContext> browsing_context)
+{
+    // A browsing context is said to be no longer open if its navigable has been destroyed.
+    if (!browsing_context || browsing_context->has_navigable_been_destroyed())
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv);
+    return {};
+}
+
 }

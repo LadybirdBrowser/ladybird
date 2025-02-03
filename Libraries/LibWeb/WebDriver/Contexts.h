@@ -22,4 +22,6 @@ ErrorOr<GC::Ref<HTML::WindowProxy>, WebDriver::Error> deserialize_web_frame(JS::
 bool represents_a_web_window(JS::Value);
 ErrorOr<GC::Ref<HTML::WindowProxy>, WebDriver::Error> deserialize_web_window(JS::Object const&);
 
+ErrorOr<void, WebDriver::Error> ensure_browsing_context_is_open(GC::Ptr<HTML::BrowsingContext>);
+
 }

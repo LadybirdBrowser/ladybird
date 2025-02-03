@@ -52,6 +52,7 @@
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
 #include <LibWeb/WebDriver/Actions.h>
+#include <LibWeb/WebDriver/Contexts.h>
 #include <LibWeb/WebDriver/ElementReference.h>
 #include <LibWeb/WebDriver/HeapTimer.h>
 #include <LibWeb/WebDriver/InputState.h>
@@ -111,15 +112,6 @@ static Gfx::IntRect compute_window_rect(Web::Page const& page)
         page.window_size().width(),
         page.window_size().height()
     };
-}
-
-// https://w3c.github.io/webdriver/#dfn-no-longer-open
-static ErrorOr<void, Web::WebDriver::Error> ensure_browsing_context_is_open(GC::Ptr<Web::HTML::BrowsingContext> browsing_context)
-{
-    // A browsing context is said to be no longer open if its navigable has been destroyed.
-    if (!browsing_context || browsing_context->has_navigable_been_destroyed())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv);
-    return {};
 }
 
 // https://w3c.github.io/webdriver/#dfn-scrolls-into-view
@@ -769,7 +761,7 @@ Messages::WebDriverClient::SwitchToParentFrameResponse WebDriverConnection::swit
     }
 
     // 2. If session's current parent browsing context is no longer open, return error with error code no such window.
-    TRY(ensure_browsing_context_is_open(current_parent_browsing_context()));
+    TRY(Web::WebDriver::ensure_browsing_context_is_open(current_parent_browsing_context()));
 
     // 3. Try to handle any user prompts with session.
     handle_any_user_prompts([this]() {
@@ -2623,12 +2615,12 @@ Messages::WebDriverClient::EnsureTopLevelBrowsingContextIsOpenResponse WebDriver
 
 ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::ensure_current_browsing_context_is_open()
 {
-    return ensure_browsing_context_is_open(current_browsing_context());
+    return Web::WebDriver::ensure_browsing_context_is_open(current_browsing_context());
 }
 
 ErrorOr<void, Web::WebDriver::Error> WebDriverConnection::ensure_current_top_level_browsing_context_is_open()
 {
-    return ensure_browsing_context_is_open(current_top_level_browsing_context());
+    return Web::WebDriver::ensure_browsing_context_is_open(current_top_level_browsing_context());
 }
 
 // https://w3c.github.io/webdriver/#dfn-handle-any-user-prompts
@@ -2696,7 +2688,7 @@ void WebDriverConnection::wait_for_navigation_to_complete(OnNavigationComplete o
     }
 
     // 2. If the current browsing context is no longer open, return success with data null.
-    if (ensure_browsing_context_is_open(current_browsing_context()).is_error()) {
+    if (Web::WebDriver::ensure_browsing_context_is_open(current_browsing_context()).is_error()) {
         on_complete->function()(JsonValue {});
         return;
     }
