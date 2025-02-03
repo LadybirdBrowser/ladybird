@@ -204,6 +204,9 @@ void LineBuilder::update_last_line()
         case CSS::TextAlign::LibwebRight:
             inline_offset += excess_inline_space;
             break;
+        case CSS::TextAlign::MatchParent:
+            // This should have been replaced before this point.
+            VERIFY_NOT_REACHED();
         case CSS::TextAlign::Left:
         case CSS::TextAlign::LibwebLeft:
         case CSS::TextAlign::Justify:
