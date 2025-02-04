@@ -64,20 +64,6 @@ public:
 
     virtual void finalize() override;
 
-    void increment_slot_count() { ++m_slot_count; }
-    void decrement_slot_count() { --m_slot_count; }
-    [[nodiscard]] size_t slot_count() const { return m_slot_count; }
-
-    template<typename Callback>
-    void for_each_slot(Callback callback)
-    {
-        if (m_slot_count == 0)
-            return;
-        for_each_in_subtree_of_type<HTML::HTMLSlotElement>([&](HTML::HTMLSlotElement& slot) {
-            return callback(slot);
-        });
-    }
-
 protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -106,9 +92,6 @@ private:
 
     GC::Ptr<CSS::StyleSheetList> m_style_sheets;
     mutable GC::Ptr<WebIDL::ObservableArray> m_adopted_style_sheets;
-
-    // AD-HOC: Number of HTMLSlotElement nodes that are descendants of this ShadowRoot.
-    size_t m_slot_count { 0 };
 };
 
 template<>
