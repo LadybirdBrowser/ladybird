@@ -301,6 +301,18 @@
     "extra-expanded",
     "ultra-expanded"
   ],
+  "generic-font-family": [
+    "serif",
+    "sans-serif",
+    "cursive",
+    "fantasy",
+    "monospace",
+    "math",
+    "ui-serif",
+    "ui-sans-serif",
+    "ui-monospace",
+    "ui-rounded"
+  ],
   "image-rendering": [
     "auto",
     "crisp-edges",
