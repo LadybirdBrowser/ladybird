@@ -58,7 +58,7 @@ public:
     size_t test_concurrency { 1 };
     ByteString python_executable_path;
     ByteString test_root_path;
-    ByteString test_glob;
+    Vector<ByteString> test_globs;
     bool test_dry_run { false };
     bool rebaseline { false };
     u8 verbosity { 0 };

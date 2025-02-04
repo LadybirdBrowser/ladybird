@@ -89,7 +89,7 @@ int main(int argc, char** argv)
     bool per_file = false;
     StringView specified_test_root;
     ByteString common_path;
-    ByteString test_glob;
+    Vector<ByteString> test_globs;
 
     Core::ArgsParser args_parser;
     args_parser.add_option(print_times, "Show duration of each test", "show-time", 't');
@@ -113,7 +113,7 @@ int main(int argc, char** argv)
     args_parser.add_option(per_file, "Show detailed per-file results as JSON (implies -j)", "per-file");
     args_parser.add_option(g_collect_on_every_allocation, "Collect garbage after every allocation", "collect-often", 'g');
     args_parser.add_option(JS::Bytecode::g_dump_bytecode, "Dump the bytecode", "dump-bytecode", 'd');
-    args_parser.add_option(test_glob, "Only run tests matching the given glob", "filter", 'f', "glob");
+    args_parser.add_option(test_globs, "Only run tests matching the given glob", "filter", 'f', "glob");
     for (auto& entry : g_extra_args)
         args_parser.add_option(*entry.key, entry.value.get<0>().characters(), entry.value.get<1>().characters(), entry.value.get<2>());
     args_parser.add_positional_argument(specified_test_root, "Tests root directory", "path", Core::ArgsParser::Required::No);
@@ -123,7 +123,10 @@ int main(int argc, char** argv)
     if (per_file)
         print_json = true;
 
-    test_glob = ByteString::formatted("*{}*", test_glob);
+    for (auto& glob : test_globs)
+        glob = ByteString::formatted("*{}*", glob);
+    if (test_globs.is_empty())
+        test_globs.append("*"sv);
 
     if (getenv("DISABLE_DBG_OUTPUT")) {
         AK::set_debug_enabled(false);
@@ -185,7 +188,7 @@ int main(int argc, char** argv)
     }
 
     Test::JS::TestRunner test_runner(test_root, common_path, print_times, print_progress, print_json, per_file);
-    test_runner.run(test_glob);
+    test_runner.run(test_globs);
 
     g_vm = nullptr;
 
