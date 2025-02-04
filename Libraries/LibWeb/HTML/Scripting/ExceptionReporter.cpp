@@ -52,7 +52,7 @@ void report_exception_to_console(JS::Value value, JS::Realm& realm, ErrorInPromi
     console.report_exception(*JS::Error::create(realm, value.to_string_without_side_effects()), error_in_promise == ErrorInPromise::Yes);
 }
 
-// https://html.spec.whatwg.org/#report-the-exception
+// https://html.spec.whatwg.org/multipage/webappapis.html#report-the-exception
 void report_exception(JS::Completion const& throw_completion, JS::Realm& realm)
 {
     VERIFY(throw_completion.type() == JS::Completion::Type::Throw);

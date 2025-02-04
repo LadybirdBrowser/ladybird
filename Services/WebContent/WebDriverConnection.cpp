@@ -145,7 +145,7 @@ static Optional<Web::DOM::Element&> container_for_element(Web::DOM::Element& ele
     // An element’s container is:
     // -> option element in a valid element context
     // -> optgroup element in a valid element context
-    // FIXME: Determine if the element is in a valid element context. (https://html.spec.whatwg.org/#concept-element-contexts)
+    // FIXME: Determine if the element is in a valid element context. (https://html.spec.whatwg.org/multipage/dom.html#concept-element-contexts)
     if (is<Web::HTML::HTMLOptionElement>(element) || is<Web::HTML::HTMLOptGroupElement>(element)) {
         // The element’s element context, which is determined by:
         // 1. Let datalist parent be the first datalist element reached by traversing the tree in reverse order from element, or undefined if the root of the tree is reached.

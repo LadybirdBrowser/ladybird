@@ -2923,7 +2923,7 @@ EventTarget* Document::get_parent(Event const& event)
     return m_window;
 }
 
-// https://html.spec.whatwg.org/#completely-loaded
+// https://html.spec.whatwg.org/multipage/document-lifecycle.html#completely-loaded
 bool Document::is_completely_loaded() const
 {
     return m_completely_loaded_time.has_value();
@@ -2971,7 +2971,7 @@ void Document::completely_finish_loading()
     }
 }
 
-// https://html.spec.whatwg.org/#dom-document-cookie
+// https://html.spec.whatwg.org/multipage/dom.html#dom-document-cookie
 WebIDL::ExceptionOr<String> Document::cookie(Cookie::Source source)
 {
     // On getting, if the document is a cookie-averse Document object, then the user agent must return the empty string.
@@ -2987,7 +2987,7 @@ WebIDL::ExceptionOr<String> Document::cookie(Cookie::Source source)
     return page().client().page_did_request_cookie(m_url, source);
 }
 
-// https://html.spec.whatwg.org/#dom-document-cookie
+// https://html.spec.whatwg.org/multipage/dom.html#dom-document-cookie
 WebIDL::ExceptionOr<void> Document::set_cookie(StringView cookie_string, Cookie::Source source)
 {
     // On setting, if the document is a cookie-averse Document object, then the user agent must do nothing.
@@ -3006,7 +3006,7 @@ WebIDL::ExceptionOr<void> Document::set_cookie(StringView cookie_string, Cookie:
     return {};
 }
 
-// https://html.spec.whatwg.org/#cookie-averse-document-object
+// https://html.spec.whatwg.org/multipage/dom.html#cookie-averse-document-object
 bool Document::is_cookie_averse() const
 {
     // A Document object that falls into one of the following conditions is a cookie-averse Document object:

@@ -1,4 +1,4 @@
-// https://html.spec.whatwg.org/#domstringmap
+// https://html.spec.whatwg.org/multipage/dom.html#domstringmap
 [Exposed=Window, LegacyOverrideBuiltIns]
 interface DOMStringMap {
     getter DOMString (DOMString name);

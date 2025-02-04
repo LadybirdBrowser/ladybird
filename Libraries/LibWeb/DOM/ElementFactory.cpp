@@ -288,7 +288,7 @@ bool is_unknown_html_element(FlyString const& tag_name)
     return true;
 }
 
-// https://html.spec.whatwg.org/#elements-in-the-dom:element-interface
+// https://html.spec.whatwg.org/multipage/dom.html#elements-in-the-dom%3Aelement-interface
 static GC::Ref<Element> create_html_element(JS::Realm& realm, Document& document, QualifiedName qualified_name)
 {
     FlyString tag_name = qualified_name.local_name();

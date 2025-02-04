@@ -252,7 +252,7 @@ void EventLoop::queue_task_to_update_the_rendering()
     }
 }
 
-// https://html.spec.whatwg.org/#update-the-rendering
+// https://html.spec.whatwg.org/multipage/webappapis.html#update-the-rendering
 void EventLoop::update_the_rendering()
 {
     VERIFY(!m_is_running_rendering_task);
@@ -479,7 +479,7 @@ TaskID queue_global_task(HTML::Task::Source source, JS::Object& global_object, G
     return queue_a_task(source, *event_loop, document, steps);
 }
 
-// https://html.spec.whatwg.org/#queue-a-microtask
+// https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-microtask
 void queue_a_microtask(DOM::Document const* document, GC::Ref<GC::Function<void()>> steps)
 {
     // 1. If event loop was not given, set event loop to the implied event loop.
@@ -505,7 +505,7 @@ void perform_a_microtask_checkpoint()
     main_thread_event_loop().perform_a_microtask_checkpoint();
 }
 
-// https://html.spec.whatwg.org/#perform-a-microtask-checkpoint
+// https://html.spec.whatwg.org/multipage/webappapis.html#perform-a-microtask-checkpoint
 void EventLoop::perform_a_microtask_checkpoint()
 {
     if (execution_paused())

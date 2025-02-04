@@ -54,6 +54,9 @@ LOCAL_INCLUDE_SUFFIX_EXCLUDES = [
     '.moc',
 ]
 
+# We check for and disallow any comments linking to the single-page HTML spec because it takes a long time to load.
+SINGLE_PAGE_HTML_SPEC_LINK = re.compile('//.*https://html\\.spec\\.whatwg\\.org/#')
+
 
 def should_check_file(filename):
     if not filename.endswith('.cpp') and not filename.endswith('.h'):
@@ -93,6 +96,7 @@ def run():
     errors_include_weird_format = []
     errors_include_missing_local = []
     errors_include_bad_complex = []
+    errors_single_page_html_spec = []
 
     for filename in find_files_here_or_argv():
         with open(filename, "r") as f:
@@ -140,6 +144,8 @@ def run():
                     print(f"In {filename}: Cannot find {referenced_file}")
                     if filename not in errors_include_missing_local:
                         errors_include_missing_local.append(filename)
+        if SINGLE_PAGE_HTML_SPEC_LINK.search(file_content):
+            errors_single_page_html_spec.append(filename)
 
     have_errors = False
     if errors_license:
@@ -173,6 +179,12 @@ def run():
         print(
              "Files that include a non-AK complex header:",
              " ".join(errors_include_bad_complex),
+        )
+        have_errors = True
+    if errors_single_page_html_spec:
+        print(
+            "Files with links to the single-page HTML spec:",
+            " ".join(errors_single_page_html_spec)
         )
         have_errors = True
 

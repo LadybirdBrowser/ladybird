@@ -74,7 +74,7 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(Window);
 
-// https://html.spec.whatwg.org/#run-the-animation-frame-callbacks
+// https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#run-the-animation-frame-callbacks
 void run_animation_frame_callbacks(DOM::Document& document, double now)
 {
     // FIXME: Bring this closer to the spec.
@@ -422,7 +422,7 @@ Optional<CSS::MediaFeatureValue> Window::query_media_feature(CSS::MediaFeatureID
     return {};
 }
 
-// https://html.spec.whatwg.org/#fire-a-page-transition-event
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#fire-a-page-transition-event
 void Window::fire_a_page_transition_event(FlyString const& event_name, bool persisted)
 {
     // To fire a page transition event named eventName at a Window window with a boolean persisted,
@@ -1678,7 +1678,7 @@ GC::Ref<CustomElementRegistry> Window::custom_elements()
     return GC::Ref { *m_custom_element_registry };
 }
 
-// https://html.spec.whatwg.org/#document-tree-child-navigable-target-name-property-set
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#document-tree-child-navigable-target-name-property-set
 OrderedHashMap<FlyString, GC::Ref<Navigable>> Window::document_tree_child_navigable_target_name_property_set()
 {
     // The document-tree child navigable target name property set of a Window object window is the return value of running these steps:
@@ -1720,7 +1720,7 @@ OrderedHashMap<FlyString, GC::Ref<Navigable>> Window::document_tree_child_naviga
     return names;
 }
 
-// https://html.spec.whatwg.org/#named-access-on-the-window-object
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#named-access-on-the-window-object
 Vector<FlyString> Window::supported_property_names() const
 {
     // FIXME: Make the const-correctness of the methods this method calls less cowboy.
@@ -1754,7 +1754,7 @@ Vector<FlyString> Window::supported_property_names() const
     return property_names.values();
 }
 
-// https://html.spec.whatwg.org/#named-access-on-the-window-object
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#named-access-on-the-window-object
 JS::Value Window::named_item_value(FlyString const& name) const
 {
     // FIXME: Make the const-correctness of the methods this method calls less cowboy.
@@ -1798,7 +1798,7 @@ JS::Value Window::named_item_value(FlyString const& name) const
     });
 }
 
-// https://html.spec.whatwg.org/#dom-window-nameditem-filter
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-nameditem-filter
 Window::NamedObjects Window::named_objects(StringView name)
 {
     // NOTE: Since the Window interface has the [Global] extended attribute, its named properties

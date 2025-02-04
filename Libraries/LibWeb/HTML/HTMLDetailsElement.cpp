@@ -225,7 +225,7 @@ void HTMLDetailsElement::ensure_details_exclusivity_by_closing_the_given_element
     });
 }
 
-// https://html.spec.whatwg.org/#the-details-and-summary-elements
+// https://html.spec.whatwg.org/multipage/rendering.html#the-details-and-summary-elements
 WebIDL::ExceptionOr<void> HTMLDetailsElement::create_shadow_tree_if_needed()
 {
     if (shadow_root())
@@ -298,7 +298,7 @@ void HTMLDetailsElement::update_shadow_tree_slots()
     update_shadow_tree_style();
 }
 
-// https://html.spec.whatwg.org/#the-details-and-summary-elements:the-details-element-6
+// https://html.spec.whatwg.org/multipage/rendering.html#the-details-and-summary-elements%3Athe-details-element-6
 void HTMLDetailsElement::update_shadow_tree_style()
 {
     if (!shadow_root())

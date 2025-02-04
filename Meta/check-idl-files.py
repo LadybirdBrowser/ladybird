@@ -19,6 +19,8 @@ parser.add_argument("--overwrite-inplace", action=argparse.BooleanOptionalAction
 parser.add_argument('filenames', nargs='*')
 args = parser.parse_args()
 
+SINGLE_PAGE_HTML_SPEC_LINK = re.compile('//.*https://html\\.spec\\.whatwg\\.org/#')
+
 
 def find_files_here_or_argv():
     if args.filenames:
@@ -32,11 +34,15 @@ def find_files_here_or_argv():
 def run():
     """Lint WebIDL files checked into git for four leading spaces on each line."""
     files_without_four_leading_spaces = set()
+    """Also lint for them not containing any links to the single-page HTML spec."""
+    files_with_single_page_html_spec_link = set()
     did_fail = False
     for filename in find_files_here_or_argv():
         lines = []
         with open(filename, "r") as f:
             for line_number, line in enumerate(f, start=1):
+                if SINGLE_PAGE_HTML_SPEC_LINK.search(line):
+                    files_with_single_page_html_spec_link.add(filename)
                 if lines_to_skip.match(line):
                     lines.append(line)
                     continue
@@ -60,6 +66,11 @@ def run():
         if not args.overwrite_inplace:
             print(
                 f"\nTo fix the WebIDL files in place, run: ./Meta/{script_name} --overwrite-inplace")
+
+    if files_with_single_page_html_spec_link:
+        print("\nWebIDL files that have links to the single-page HTML spec:",
+              " ".join(files_with_single_page_html_spec_link))
+
     if did_fail:
         sys.exit(1)
 

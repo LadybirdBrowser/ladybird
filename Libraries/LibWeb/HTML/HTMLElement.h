@@ -22,7 +22,7 @@ namespace Web::HTML {
     __ENUMERATE_HTML_ELEMENT_DIR_ATTRIBUTE(rtl) \
     __ENUMERATE_HTML_ELEMENT_DIR_ATTRIBUTE(auto)
 
-// https://html.spec.whatwg.org/#attr-contenteditable
+// https://html.spec.whatwg.org/multipage/interaction.html#attr-contenteditable
 enum class ContentEditableState {
     True,
     False,
@@ -182,7 +182,7 @@ private:
     // https://html.spec.whatwg.org/multipage/custom-elements.html#attached-internals
     GC::Ptr<ElementInternals> m_attached_internals;
 
-    // https://html.spec.whatwg.org/#attr-contenteditable
+    // https://html.spec.whatwg.org/multipage/interaction.html#attr-contenteditable
     ContentEditableState m_content_editable_state { ContentEditableState::Inherit };
 
     // https://html.spec.whatwg.org/multipage/interaction.html#click-in-progress-flag

@@ -174,7 +174,7 @@ public:
     virtual void set_viewport_size(CSSPixelSize);
     void perform_scroll_of_viewport(CSSPixelPoint position);
 
-    // https://html.spec.whatwg.org/#rendering-opportunity
+    // https://html.spec.whatwg.org/multipage/webappapis.html#rendering-opportunity
     [[nodiscard]] bool has_a_rendering_opportunity() const;
 
     [[nodiscard]] TargetSnapshotParams snapshot_target_snapshot_params();

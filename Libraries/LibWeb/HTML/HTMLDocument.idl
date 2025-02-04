@@ -1,6 +1,6 @@
 #import <DOM/Document.idl>
 
-// https://html.spec.whatwg.org/#htmldocument
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#htmldocument
 [Exposed=Window]
 interface HTMLDocument : Document {
 };

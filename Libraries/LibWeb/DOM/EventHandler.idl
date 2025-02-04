@@ -12,7 +12,7 @@ typedef OnErrorEventHandlerNonNull? OnErrorEventHandler;
 callback OnBeforeUnloadEventHandlerNonNull = DOMString? (Event event);
 typedef OnBeforeUnloadEventHandlerNonNull? OnBeforeUnloadEventHandler;
 
-// https://html.spec.whatwg.org/#globaleventhandlers
+// https://html.spec.whatwg.org/multipage/webappapis.html#globaleventhandlers
 interface mixin GlobalEventHandlers {
     attribute EventHandler onabort;
     attribute EventHandler onauxclick;
@@ -107,7 +107,7 @@ interface mixin GlobalEventHandlers {
     attribute EventHandler onlostpointercapture;
 };
 
-// https://html.spec.whatwg.org/#windoweventhandlers
+// https://html.spec.whatwg.org/multipage/webappapis.html#windoweventhandlers
 interface mixin WindowEventHandlers {
     attribute EventHandler onafterprint;
     attribute EventHandler onbeforeprint;

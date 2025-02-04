@@ -25,7 +25,7 @@ ElementInternals::ElementInternals(JS::Realm& realm, HTMLElement& target_element
 {
 }
 
-// https://html.spec.whatwg.org/#dom-elementinternals-shadowroot
+// https://html.spec.whatwg.org/multipage/custom-elements.html#dom-elementinternals-shadowroot
 GC::Ptr<DOM::ShadowRoot> ElementInternals::shadow_root() const
 {
     // 1. Let target be this's target element.

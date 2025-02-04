@@ -47,7 +47,7 @@ void Task::execute()
     m_steps->function()();
 }
 
-// https://html.spec.whatwg.org/#concept-task-runnable
+// https://html.spec.whatwg.org/multipage/webappapis.html#concept-task-runnable
 bool Task::is_runnable() const
 {
     // A task is runnable if its document is either null or fully active.

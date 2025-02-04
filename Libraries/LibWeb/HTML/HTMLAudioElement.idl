@@ -1,6 +1,6 @@
 #import <HTML/HTMLMediaElement.idl>
 
-// https://html.spec.whatwg.org/#htmlaudioelement
+// https://html.spec.whatwg.org/multipage/media.html#htmlaudioelement
 [Exposed=Window, LegacyFactoryFunction=Audio(optional DOMString src)]
 interface HTMLAudioElement : HTMLMediaElement {
     [HTMLConstructor] constructor();

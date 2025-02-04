@@ -3313,7 +3313,7 @@ CSS::StyleSheetList& Element::document_or_shadow_root_style_sheets()
     return document().style_sheets();
 }
 
-// https://html.spec.whatwg.org/#dom-element-gethtml
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-gethtml
 WebIDL::ExceptionOr<String> Element::get_html(GetHTMLOptions const& options) const
 {
     // Element's getHTML(options) method steps are to return the result
@@ -3325,7 +3325,7 @@ WebIDL::ExceptionOr<String> Element::get_html(GetHTMLOptions const& options) con
         options.shadow_roots);
 }
 
-// https://html.spec.whatwg.org/#dom-element-sethtmlunsafe
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-sethtmlunsafe
 WebIDL::ExceptionOr<void> Element::set_html_unsafe(StringView html)
 {
     // FIXME: 1. Let compliantHTML be the result of invoking the Get Trusted Type compliant string algorithm with TrustedHTML, this's relevant global object, html, "Element setHTMLUnsafe", and "script".

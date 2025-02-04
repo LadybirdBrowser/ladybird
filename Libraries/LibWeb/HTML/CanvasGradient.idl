@@ -1,4 +1,4 @@
-// https://html.spec.whatwg.org/#canvasgradient
+// https://html.spec.whatwg.org/multipage/canvas.html#canvasgradient
 [Exposed=(Window,Worker)]
 interface CanvasGradient {
     // opaque object

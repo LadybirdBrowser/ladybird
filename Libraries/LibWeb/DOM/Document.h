@@ -537,7 +537,7 @@ public:
     auto& pending_scroll_event_targets() { return m_pending_scroll_event_targets; }
     auto& pending_scrollend_event_targets() { return m_pending_scrollend_event_targets; }
 
-    // https://html.spec.whatwg.org/#completely-loaded
+    // https://html.spec.whatwg.org/multipage/document-lifecycle.html#completely-loaded
     bool is_completely_loaded() const;
 
     // https://html.spec.whatwg.org/multipage/dom.html#concept-document-navigation-id
@@ -936,7 +936,7 @@ private:
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#concept-document-salvageable
     bool m_salvageable { true };
 
-    // https://html.spec.whatwg.org/#page-showing
+    // https://html.spec.whatwg.org/multipage/document-lifecycle.html#page-showing
     bool m_page_showing { false };
 
     // Used by run_the_resize_steps().
@@ -993,7 +993,7 @@ private:
     // https://drafts.csswg.org/css-font-loading/#font-source
     GC::Ptr<CSS::FontFaceSet> m_fonts;
 
-    // https://html.spec.whatwg.org/#completely-loaded-time
+    // https://html.spec.whatwg.org/multipage/document-lifecycle.html#completely-loaded-time
     Optional<AK::UnixDateTime> m_completely_loaded_time;
 
     // https://html.spec.whatwg.org/multipage/dom.html#concept-document-navigation-id

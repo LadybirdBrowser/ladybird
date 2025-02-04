@@ -6,7 +6,7 @@
 #import <HTML/MessagePort.idl>
 #import <IndexedDB/IDBFactory.idl>
 
-// https://html.spec.whatwg.org/#timerhandler
+// https://html.spec.whatwg.org/multipage/webappapis.html#timerhandler
 typedef (DOMString or Function) TimerHandler;
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#windoworworkerglobalscope

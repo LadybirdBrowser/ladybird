@@ -96,7 +96,7 @@ WebIDL::ExceptionOr<void> ShadowRoot::set_inner_html(StringView value)
     return {};
 }
 
-// https://html.spec.whatwg.org/#dom-element-gethtml
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-element-gethtml
 WebIDL::ExceptionOr<String> ShadowRoot::get_html(GetHTMLOptions const& options) const
 {
     // ShadowRoot's getHTML(options) method steps are to return the result
@@ -108,7 +108,7 @@ WebIDL::ExceptionOr<String> ShadowRoot::get_html(GetHTMLOptions const& options) 
         options.shadow_roots);
 }
 
-// https://html.spec.whatwg.org/#dom-shadowroot-sethtmlunsafe
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-shadowroot-sethtmlunsafe
 WebIDL::ExceptionOr<void> ShadowRoot::set_html_unsafe(StringView html)
 {
     // FIXME: 1. Let compliantHTML be the result of invoking the Get Trusted Type compliant string algorithm with TrustedHTML, this's relevant global object, html, "ShadowRoot setHTMLUnsafe", and "script".
