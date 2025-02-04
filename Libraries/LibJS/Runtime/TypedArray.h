@@ -130,7 +130,7 @@ inline bool is_valid_integer_index(TypedArrayBase const& typed_array, CanonicalI
 
 // 10.4.5.17 TypedArrayGetElement ( O, index ), https://tc39.es/ecma262/#sec-typedarraygetelement
 template<typename T>
-inline ThrowCompletionOr<Value> typed_array_get_element(TypedArrayBase const& typed_array, CanonicalIndex property_index)
+inline Value typed_array_get_element(TypedArrayBase const& typed_array, CanonicalIndex property_index)
 {
     // 1. If IsValidIntegerIndex(O, index) is false, return undefined.
     if (!is_valid_integer_index(typed_array, property_index))
@@ -238,7 +238,7 @@ public:
             // b. If numericIndex is not undefined, then
             if (!numeric_index.is_undefined()) {
                 // i. Let value be TypedArrayGetElement(O, numericIndex).
-                auto value = MUST_OR_THROW_OOM(typed_array_get_element<T>(*this, numeric_index));
+                auto value = typed_array_get_element<T>(*this, numeric_index);
 
                 // ii. If value is undefined, return undefined.
                 if (value.is_undefined())
