@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>CSS Test: various 'object-position' values on a fixed-size img element, with a PNG image and 'object-fit:contain'.</title>
+    <link rel="author" title="Daniel Holbert" href="mailto:dholbert@mozilla.com">
+    <link rel="help" href="http://www.w3.org/TR/css3-images/#sizing">
+    <link rel="help" href="http://www.w3.org/TR/css3-images/#the-object-fit">
+    <link rel="help" href="http://www.w3.org/TR/css3-images/#the-object-position">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-images/object-position-png-002-ref.html">
+    <style type="text/css">
+      img {
+        background: lightgray;
+        margin-right: 2px;
+        object-fit: contain;
+        float: left;
+        width: 20px;
+        height: 20px;
+      }
+
+      .op_x-7  { object-position: -7%  50% }
+      .op_x13  { object-position: 13%  50% }
+      .op_x23  { object-position: 23%  50% }
+      .op_x50  { object-position: 50%  50% }
+      .op_x75  { object-position: 75%  50% }
+      .op_x88  { object-position: 88%  50% }
+      .op_x111 { object-position: 111% 50% }
+
+    </style>
+  </head>
+  <body>
+    <img src="support/colors-8x16.png" class="op_x-7">
+    <img src="support/colors-8x16.png" class="op_x13">
+    <img src="support/colors-8x16.png" class="op_x23">
+    <img src="support/colors-8x16.png" class="op_x50">
+    <img src="support/colors-8x16.png" class="op_x75">
+    <img src="support/colors-8x16.png" class="op_x88">
+    <img src="support/colors-8x16.png" class="op_x111">
+  </body>
+</html>
