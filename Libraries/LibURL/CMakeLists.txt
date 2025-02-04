@@ -7,6 +7,7 @@ set(SOURCES
     Site.cpp
     URL.cpp
     ${PUBLIC_SUFFIX_SOURCES}
+    Pattern/Pattern.cpp
 )
 
 serenity_lib(LibURL url)
