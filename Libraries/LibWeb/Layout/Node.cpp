@@ -1049,8 +1049,8 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     propagate_style_to_anonymous_wrappers();
 
-    if (is<NodeWithStyleAndBoxModelMetrics>(this))
-        static_cast<NodeWithStyleAndBoxModelMetrics&>(*this).propagate_style_along_continuation(computed_style);
+    if (auto* box_node = as_if<NodeWithStyleAndBoxModelMetrics>(*this))
+        box_node->propagate_style_along_continuation(computed_style);
 }
 
 void NodeWithStyle::propagate_style_to_anonymous_wrappers()
