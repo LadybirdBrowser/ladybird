@@ -47,14 +47,6 @@ ParsingContext::ParsingContext(DOM::Document const& document, Mode mode)
 {
 }
 
-ParsingContext::ParsingContext(DOM::ParentNode& parent_node, Mode mode)
-    : m_realm(parent_node.realm())
-    , m_document(&parent_node.document())
-    , m_url(parent_node.document().url())
-    , m_mode(mode)
-{
-}
-
 bool ParsingContext::in_quirks_mode() const
 {
     return m_document ? m_document->in_quirks_mode() : false;

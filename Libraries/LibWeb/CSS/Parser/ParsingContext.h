@@ -24,7 +24,6 @@ public:
     explicit ParsingContext(JS::Realm&, URL::URL, Mode = Mode::Normal);
     explicit ParsingContext(DOM::Document const&, Mode = Mode::Normal);
     explicit ParsingContext(DOM::Document const&, URL::URL, Mode = Mode::Normal);
-    explicit ParsingContext(DOM::ParentNode&, Mode = Mode::Normal);
 
     Mode mode() const { return m_mode; }
     bool is_parsing_svg_presentation_attribute() const { return m_mode == Mode::SVGPresentationAttribute; }

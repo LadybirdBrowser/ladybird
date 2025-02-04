@@ -744,7 +744,7 @@ GC::Ptr<ShadowRoot> Element::shadow_root_for_bindings() const
 WebIDL::ExceptionOr<bool> Element::matches(StringView selectors) const
 {
     // 1. Let s be the result of parse a selector from selectors.
-    auto maybe_selectors = parse_selector(CSS::Parser::ParsingContext(static_cast<ParentNode&>(const_cast<Element&>(*this))), selectors);
+    auto maybe_selectors = parse_selector(CSS::Parser::ParsingContext(document()), selectors);
 
     // 2. If s is failure, then throw a "SyntaxError" DOMException.
     if (!maybe_selectors.has_value())
@@ -764,7 +764,7 @@ WebIDL::ExceptionOr<bool> Element::matches(StringView selectors) const
 WebIDL::ExceptionOr<DOM::Element const*> Element::closest(StringView selectors) const
 {
     // 1. Let s be the result of parse a selector from selectors.
-    auto maybe_selectors = parse_selector(CSS::Parser::ParsingContext(static_cast<ParentNode&>(const_cast<Element&>(*this))), selectors);
+    auto maybe_selectors = parse_selector(CSS::Parser::ParsingContext(document()), selectors);
 
     // 2. If s is failure, then throw a "SyntaxError" DOMException.
     if (!maybe_selectors.has_value())
