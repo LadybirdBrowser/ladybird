@@ -72,12 +72,16 @@ struct DrawPaintingSurface {
 
 struct DrawScaledImmutableBitmap {
     Gfx::IntRect dst_rect;
+    Gfx::IntRect clip_rect;
     NonnullRefPtr<Gfx::ImmutableBitmap> bitmap;
-    Gfx::IntRect src_rect;
     Gfx::ScalingMode scaling_mode;
 
-    [[nodiscard]] Gfx::IntRect bounding_rect() const { return dst_rect; }
-    void translate_by(Gfx::IntPoint const& offset) { dst_rect.translate_by(offset); }
+    [[nodiscard]] Gfx::IntRect bounding_rect() const { return clip_rect; }
+    void translate_by(Gfx::IntPoint const& offset)
+    {
+        dst_rect.translate_by(offset);
+        clip_rect.translate_by(offset);
+    }
 };
 
 struct DrawRepeatedImmutableBitmap {

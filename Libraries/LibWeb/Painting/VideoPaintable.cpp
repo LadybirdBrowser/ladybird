@@ -130,7 +130,8 @@ void VideoPaintable::paint(PaintContext& context, PaintPhase phase) const
 
     auto paint_frame = [&](auto const& frame) {
         auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), frame->rect(), video_rect.to_type<int>());
-        context.display_list_recorder().draw_scaled_immutable_bitmap(video_rect.to_type<int>(), Gfx::ImmutableBitmap::create(*frame), frame->rect(), scaling_mode);
+        auto dst_rect = video_rect.to_type<int>();
+        context.display_list_recorder().draw_scaled_immutable_bitmap(dst_rect, dst_rect, Gfx::ImmutableBitmap::create(*frame), scaling_mode);
     };
 
     auto paint_transparent_black = [&]() {
