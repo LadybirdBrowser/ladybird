@@ -1,5 +1,5 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x36 [BFC] children: not-inline
     BlockContainer <body> at (8,8) content-size 784x20 children: inline
       frag 0 from TextNode start: 0, length: 14, rect: [8,8 112.421875x17] baseline: 13.296875
           "text text text"
@@ -14,7 +14,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
       TextNode <#text>
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x36]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x20]
       TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer<SPAN>.displaced_text) [150.421875,48 110.375x20]
