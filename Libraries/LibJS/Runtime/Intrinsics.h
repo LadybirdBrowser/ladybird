@@ -18,7 +18,7 @@ class Intrinsics final : public Cell {
     GC_DECLARE_ALLOCATOR(Intrinsics);
 
 public:
-    static ThrowCompletionOr<GC::Ref<Intrinsics>> create(Realm&);
+    static GC::Ref<Intrinsics> create(Realm&);
 
     GC::Ref<Shape> empty_object_shape() { return *m_empty_object_shape; }
 
@@ -107,7 +107,7 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
-    ThrowCompletionOr<void> initialize_intrinsics(Realm&);
+    void initialize_intrinsics(Realm&);
 
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, ArrayType) \
     void initialize_##snake_name();
