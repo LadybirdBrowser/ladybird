@@ -19,6 +19,7 @@ for cmd in \
         Meta/check-newlines-at-eof.py \
         Meta/check-png-sizes.sh \
         Meta/check-style.py \
+        Meta/check-html-doctype.py \
         Meta/lint-executable-resources.sh \
         Meta/lint-gn.sh \
         Meta/lint-prettier.sh \

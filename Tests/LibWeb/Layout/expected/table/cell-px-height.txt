@@ -1,12 +1,12 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x116 [BFC] children: not-inline
     TableWrapper <(anonymous)> at (8,8) content-size 102x100 [BFC] children: not-inline
       Box <body> at (8,8) content-size 102x100 table-box [TFC] children: not-inline
         Box <div.row> at (8,8) content-size 102x100 table-row children: not-inline
           BlockContainer <div.cell> at (9,9) content-size 100x0 table-cell [BFC] children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x116]
     PaintableWithLines (TableWrapper(anonymous)) [8,8 102x100]
       PaintableBox (Box<BODY>) [8,8 102x100]
         PaintableBox (Box<DIV>.row) [8,8 102x100]
