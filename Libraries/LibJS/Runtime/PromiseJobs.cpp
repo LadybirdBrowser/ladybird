@@ -58,7 +58,7 @@ static ThrowCompletionOr<Value> run_reaction_job(VM& vm, PromiseReaction& reacti
     // f. If promiseCapability is undefined, then
     if (promise_capability == nullptr) {
         // i. Assert: handlerResult is not an abrupt completion.
-        VERIFY(!handler_result.is_abrupt());
+        MUST_OR_THROW_INTERNAL_ERROR(handler_result);
 
         // ii. Return empty.
         dbgln_if(PROMISE_DEBUG, "run_reaction_job: Reaction has no PromiseCapability, returning empty value");

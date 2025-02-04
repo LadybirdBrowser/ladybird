@@ -18,4 +18,16 @@ test("infinite recursion", () => {
     expect(() => {
         new Proxy({}, { get: (_, __, p) => p.foo }).foo;
     }).toThrowWithMessage(InternalError, "Call stack size limit exceeded");
+
+    expect(() => {
+        function outer() {
+            async function inner() {
+                await outer;
+            }
+            inner();
+            outer();
+        }
+
+        outer();
+    }).toThrowWithMessage(InternalError, "Call stack size limit exceeded");
 });
