@@ -1316,10 +1316,11 @@ CSS::UserSelect Node::user_select_used_value() const
 
 void NodeWithStyleAndBoxModelMetrics::propagate_style_along_continuation(CSS::ComputedProperties const& computed_style) const
 {
-    for (auto continuation = continuation_of_node(); continuation; continuation = continuation->continuation_of_node()) {
-        if (!continuation->is_anonymous())
-            continuation->apply_style(computed_style);
-    }
+    auto continuation = continuation_of_node();
+    while (continuation && continuation->is_anonymous())
+        continuation = continuation->continuation_of_node();
+    if (continuation)
+        continuation->apply_style(computed_style);
 }
 
 void NodeWithStyleAndBoxModelMetrics::visit_edges(Cell::Visitor& visitor)
