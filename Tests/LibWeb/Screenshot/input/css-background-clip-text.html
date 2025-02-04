@@ -56,7 +56,7 @@
   </style>
 </head>
 <body>
-  <!-- Hack to make the test runner wait for the image to load -->
+  <!-- FIXME: Workaround to ensure CSS background-image is loaded before taking screenshot: https://github.com/LadybirdBrowser/ladybird/issues/3448 -->
   <img src="../data/car.png" />
   
   <p class="border-box linear-gradient">The background extends behind the border.</p>
