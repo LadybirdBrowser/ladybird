@@ -37,7 +37,7 @@ void Application::create_platform_arguments(Core::ArgsParser& args_parser)
     args_parser.add_option(test_concurrency, "Maximum number of tests to run at once", "test-concurrency", 'j', "jobs");
     args_parser.add_option(python_executable_path, "Path to python3", "python-executable", 'P', "path");
     args_parser.add_option(test_root_path, "Run tests in path", "run-tests", 'R', "test-root-path");
-    args_parser.add_option(test_glob, "Only run tests matching the given glob", "filter", 'f', "glob");
+    args_parser.add_option(test_globs, "Only run tests matching the given glob", "filter", 'f', "glob");
     args_parser.add_option(test_dry_run, "List the tests that would be run, without running them", "dry-run");
     args_parser.add_option(dump_failed_ref_tests, "Dump screenshots of failing ref tests", "dump-failed-ref-tests", 'D');
     args_parser.add_option(dump_gc_graph, "Dump GC graph", "dump-gc-graph", 'G');

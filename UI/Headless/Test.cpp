@@ -469,7 +469,11 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
     TRY(load_test_config(app.test_root_path));
 
     Vector<Test> tests;
-    auto test_glob = ByteString::formatted("*{}*", app.test_glob);
+
+    for (auto& glob : app.test_globs)
+        glob = ByteString::formatted("*{}*", glob);
+    if (app.test_globs.is_empty())
+        app.test_globs.append("*"sv);
 
     TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Layout", app.test_root_path), "."sv, TestMode::Layout));
     TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Text", app.test_root_path), "."sv, TestMode::Text));
@@ -486,7 +490,7 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
             "*/wpt-import/common/*"sv,
         };
         bool is_support_file = any_of(support_file_patterns, [&](auto pattern) { return test.input_path.matches(pattern); });
-        bool match_glob = test.input_path.matches(test_glob, CaseSensitivity::CaseSensitive);
+        bool match_glob = any_of(app.test_globs, [&](auto const& glob) { return test.relative_path.matches(glob, CaseSensitivity::CaseSensitive); });
         return is_support_file || !match_glob;
     });
 
@@ -500,7 +504,7 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
     }
 
     if (tests.is_empty()) {
-        if (app.test_glob.is_empty())
+        if (app.test_globs.is_empty())
             return Error::from_string_literal("No tests found");
         return Error::from_string_literal("No tests found matching filter");
     }

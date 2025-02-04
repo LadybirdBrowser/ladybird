@@ -42,7 +42,7 @@ public:
 
     virtual ~TestRunner() { s_the = nullptr; }
 
-    virtual void run(ByteString test_glob);
+    virtual void run(ReadonlySpan<ByteString> test_globs);
 
     Test::Counts const& counts() const { return m_counts; }
 
@@ -92,12 +92,12 @@ inline void cleanup()
     exit(1);
 }
 
-inline void TestRunner::run(ByteString test_glob)
+inline void TestRunner::run(ReadonlySpan<ByteString> test_globs)
 {
     size_t progress_counter = 0;
     auto test_paths = get_test_paths();
     for (auto& path : test_paths) {
-        if (!path.matches(test_glob))
+        if (!any_of(test_globs, [&](auto& glob) { return path.matches(glob); }))
             continue;
         ++progress_counter;
         do_run_single_test(path, progress_counter, test_paths.size());
