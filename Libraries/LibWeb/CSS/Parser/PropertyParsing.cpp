@@ -2385,7 +2385,7 @@ RefPtr<CSSStyleValue> Parser::parse_font_family_value(TokenStream<ComponentValue
 
             auto maybe_keyword = keyword_from_string(peek.token().ident());
             // Can't have a generic-font-name as a token in an unquoted font name.
-            if (maybe_keyword.has_value() && is_generic_font_family(maybe_keyword.value())) {
+            if (maybe_keyword.has_value() && keyword_to_generic_font_family(maybe_keyword.value()).has_value()) {
                 if (!current_name_parts.is_empty())
                     return nullptr;
                 tokens.discard_a_token(); // Ident

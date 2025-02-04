@@ -1504,24 +1504,6 @@ bool Parser::context_allows_quirky_length() const
     return unitless_length_allowed;
 }
 
-bool Parser::is_generic_font_family(Keyword keyword)
-{
-    switch (keyword) {
-    case Keyword::Cursive:
-    case Keyword::Fantasy:
-    case Keyword::Monospace:
-    case Keyword::Serif:
-    case Keyword::SansSerif:
-    case Keyword::UiMonospace:
-    case Keyword::UiRounded:
-    case Keyword::UiSerif:
-    case Keyword::UiSansSerif:
-        return true;
-    default:
-        return false;
-    }
-}
-
 Vector<ParsedFontFace::Source> Parser::parse_as_font_face_src()
 {
     return parse_font_face_src(m_token_stream);

@@ -796,7 +796,7 @@ GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
                         break;
                     }
                     auto keyword = keyword_from_string(part.token().ident());
-                    if (keyword.has_value() && is_generic_font_family(keyword.value())) {
+                    if (keyword.has_value() && keyword_to_generic_font_family(keyword.value()).has_value()) {
                         dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @font-face font-family format invalid; discarding.");
                         had_syntax_error = true;
                         break;
