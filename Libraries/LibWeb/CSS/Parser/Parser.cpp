@@ -43,18 +43,6 @@ Parser::Parser(ParsingContext const& context, Vector<Token> tokens)
 {
 }
 
-Parser::Parser(Parser&& other)
-    : m_context(other.m_context)
-    , m_tokens(move(other.m_tokens))
-    , m_token_stream(m_tokens)
-{
-    // Moving the TokenStream directly from `other` would break it, because TokenStream holds
-    // a reference to the Vector<Token>, so it would be pointing at the old Parser's tokens.
-    // So instead, we create a new TokenStream from this Parser's tokens, and then tell it to
-    // copy the other TokenStream's state. This is quite hacky.
-    m_token_stream.copy_state({}, other.m_token_stream);
-}
-
 // https://drafts.csswg.org/css-syntax/#parse-stylesheet
 template<typename T>
 Parser::ParsedStyleSheet Parser::parse_a_stylesheet(TokenStream<T>& input, Optional<URL::URL> location)

@@ -189,11 +189,6 @@ public:
         }
     }
 
-    void copy_state(Badge<Parser>, TokenStream<T> const& other)
-    {
-        m_index = other.m_index;
-    }
-
 private:
     // https://drafts.csswg.org/css-syntax/#token-stream-tokens
     Span<T const> m_tokens;
