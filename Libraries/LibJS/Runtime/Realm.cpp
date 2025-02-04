@@ -25,7 +25,7 @@ ThrowCompletionOr<NonnullOwnPtr<ExecutionContext>> Realm::initialize_host_define
     auto realm = vm.heap().allocate<Realm>();
 
     // 2. Perform CreateIntrinsics(realm).
-    MUST(Intrinsics::create(*realm));
+    Intrinsics::create(*realm);
 
     // FIXME: 3. Set realm.[[AgentSignifier]] to AgentSignifier().
 

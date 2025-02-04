@@ -143,7 +143,7 @@ static void initialize_constructor(VM& vm, PropertyKey const& property_key, Obje
 }
 
 // 9.3.2 CreateIntrinsics ( realmRec ), https://tc39.es/ecma262/#sec-createintrinsics
-ThrowCompletionOr<GC::Ref<Intrinsics>> Intrinsics::create(Realm& realm)
+GC::Ref<Intrinsics> Intrinsics::create(Realm& realm)
 {
     auto& vm = realm.vm();
 
@@ -165,7 +165,7 @@ ThrowCompletionOr<GC::Ref<Intrinsics>> Intrinsics::create(Realm& realm)
     //    is the specified value of the function's [[Prototype]] internal slot. The
     //    creation of the intrinsics and their properties must be ordered to avoid
     //    any dependencies upon objects that have not yet been created.
-    MUST_OR_THROW_OOM(intrinsics->initialize_intrinsics(realm));
+    intrinsics->initialize_intrinsics(realm);
 
     // 3. Perform AddRestrictedFunctionProperties(realmRec.[[Intrinsics]].[[%Function.prototype%]], realmRec).
     add_restricted_function_properties(static_cast<FunctionObject&>(*realm.intrinsics().function_prototype()), realm);
@@ -174,7 +174,7 @@ ThrowCompletionOr<GC::Ref<Intrinsics>> Intrinsics::create(Realm& realm)
     return *intrinsics;
 }
 
-ThrowCompletionOr<void> Intrinsics::initialize_intrinsics(Realm& realm)
+void Intrinsics::initialize_intrinsics(Realm& realm)
 {
     auto& vm = this->vm();
 
@@ -271,8 +271,6 @@ ThrowCompletionOr<void> Intrinsics::initialize_intrinsics(Realm& realm)
     m_json_parse_function = &json_object()->get_without_side_effects(vm.names.parse).as_function();
     m_json_stringify_function = &json_object()->get_without_side_effects(vm.names.stringify).as_function();
     m_object_prototype_to_string_function = &object_prototype()->get_without_side_effects(vm.names.toString).as_function();
-
-    return {};
 }
 
 template<typename T>
