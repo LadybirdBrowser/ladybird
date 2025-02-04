@@ -112,7 +112,7 @@ private:
 
     GC::Ptr<Platform::Timer> m_system_event_loop_timer;
 
-    // https://html.spec.whatwg.org/#performing-a-microtask-checkpoint
+    // https://html.spec.whatwg.org/multipage/webappapis.html#performing-a-microtask-checkpoint
     bool m_performing_a_microtask_checkpoint { false };
 
     Vector<WeakPtr<DOM::Document>> m_documents;

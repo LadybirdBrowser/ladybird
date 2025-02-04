@@ -1,6 +1,6 @@
 #import <HTML/Plugin.idl>
 
-// https://html.spec.whatwg.org/#pluginarray
+// https://html.spec.whatwg.org/multipage/system-state.html#pluginarray
 [Exposed=Window, LegacyUnenumerableNamedProperties]
 interface PluginArray {
     undefined refresh();

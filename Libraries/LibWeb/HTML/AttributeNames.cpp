@@ -16,7 +16,7 @@ ENUMERATE_HTML_ATTRIBUTES
 
 }
 
-// https://html.spec.whatwg.org/#boolean-attribute
+// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#boolean-attribute
 bool is_boolean_attribute(FlyString const& attribute)
 {
     // NOTE: For web compatibility, this matches the list of attributes which Chromium considers to be booleans,

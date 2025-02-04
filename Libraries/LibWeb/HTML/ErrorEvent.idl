@@ -1,6 +1,6 @@
 #import <DOM/Event.idl>
 
-// https://html.spec.whatwg.org/#errorevent
+// https://html.spec.whatwg.org/multipage/webappapis.html#errorevent
 [Exposed=(Window,Worker)]
 interface ErrorEvent : Event {
     constructor(DOMString type, optional ErrorEventInit eventInitDict = {});
@@ -12,7 +12,7 @@ interface ErrorEvent : Event {
     readonly attribute any error;
 };
 
-// https://html.spec.whatwg.org/#erroreventinit
+// https://html.spec.whatwg.org/multipage/webappapis.html#erroreventinit
 dictionary ErrorEventInit : EventInit {
     DOMString message = "";
     USVString filename = "";

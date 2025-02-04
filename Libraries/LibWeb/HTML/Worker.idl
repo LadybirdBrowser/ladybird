@@ -4,7 +4,7 @@
 #import <HTML/MessagePort.idl>
 #import <Fetch/Request.idl>
 
-// https://html.spec.whatwg.org/#worker
+// https://html.spec.whatwg.org/multipage/workers.html#worker
 [Exposed=(Window,DedicatedWorker,SharedWorker)]
 interface Worker : EventTarget {
     constructor(DOMString scriptURL, optional WorkerOptions options = {});

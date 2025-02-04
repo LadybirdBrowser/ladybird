@@ -1,6 +1,6 @@
 #import <DOM/Node.idl>
 
-// https://html.spec.whatwg.org/#customelementregistry
+// https://html.spec.whatwg.org/multipage/custom-elements.html#customelementregistry
 [Exposed=Window]
 interface CustomElementRegistry {
     [CEReactions] undefined define(DOMString name, CustomElementConstructor constructor, optional ElementDefinitionOptions options = {});

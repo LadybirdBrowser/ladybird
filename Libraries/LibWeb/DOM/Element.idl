@@ -102,7 +102,7 @@ interface Element : Node {
     readonly attribute long clientHeight;
     readonly attribute double currentCSSZoom;
 
-    // https://html.spec.whatwg.org/#dom-parsing-and-serialization
+    // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-parsing-and-serialization
     // FIXME: [CEReactions] undefined setHTMLUnsafe((TrustedHTML or DOMString) html);
     [CEReactions] undefined setHTMLUnsafe(DOMString html);
     DOMString getHTML(optional GetHTMLOptions options = {});

@@ -160,7 +160,7 @@ WebIDL::ExceptionOr<void> HTMLOptionsCollection::add(HTMLOptionOrOptGroupElement
     return {};
 }
 
-// https://html.spec.whatwg.org/#dom-htmloptionscollection-remove
+// https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#dom-htmloptionscollection-remove
 void HTMLOptionsCollection::remove(WebIDL::Long index)
 {
     // 1. If the number of nodes represented by the collection is zero, return.
@@ -178,7 +178,7 @@ void HTMLOptionsCollection::remove(WebIDL::Long index)
     element->remove();
 }
 
-// https://html.spec.whatwg.org/#dom-htmloptionscollection-selectedindex
+// https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#dom-htmloptionscollection-selectedindex
 WebIDL::Long HTMLOptionsCollection::selected_index() const
 {
     // The selectedIndex IDL attribute must act like the identically named attribute

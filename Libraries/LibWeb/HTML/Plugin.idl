@@ -1,6 +1,6 @@
 #import <HTML/MimeType.idl>
 
-// https://html.spec.whatwg.org/#plugin
+// https://html.spec.whatwg.org/multipage/infrastructure.html#plugin
 [Exposed=Window, LegacyUnenumerableNamedProperties]
 interface Plugin {
     readonly attribute DOMString name;

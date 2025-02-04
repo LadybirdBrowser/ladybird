@@ -61,7 +61,7 @@ interface Document : Node {
 
     attribute DOMString cookie;
 
-    // https://html.spec.whatwg.org/#Document-partial
+    // https://html.spec.whatwg.org/multipage/obsolete.html#Document-partial
     [CEReactions, LegacyNullToEmptyString] attribute DOMString fgColor;
     [CEReactions, LegacyNullToEmptyString] attribute DOMString linkColor;
     [CEReactions, LegacyNullToEmptyString] attribute DOMString vlinkColor;

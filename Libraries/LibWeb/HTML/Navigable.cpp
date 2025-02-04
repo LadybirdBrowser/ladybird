@@ -2202,7 +2202,7 @@ void Navigable::perform_scroll_of_viewport(CSSPixelPoint new_position)
     HTML::main_thread_event_loop().schedule();
 }
 
-// https://html.spec.whatwg.org/#rendering-opportunity
+// https://html.spec.whatwg.org/multipage/webappapis.html#rendering-opportunity
 bool Navigable::has_a_rendering_opportunity() const
 {
     // A navigable has a rendering opportunity if the user agent is currently able to present

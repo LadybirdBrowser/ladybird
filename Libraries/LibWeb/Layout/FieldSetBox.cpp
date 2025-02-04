@@ -23,7 +23,7 @@ FieldSetBox::~FieldSetBox() = default;
 
 bool FieldSetBox::has_rendered_legend() const
 {
-    // https://html.spec.whatwg.org/#rendered-legend
+    // https://html.spec.whatwg.org/multipage/rendering.html#rendered-legend
     bool has_rendered_legend = false;
     if (has_children()) {
         for_each_child_of_type<Box>([&](Box const& child) {

@@ -17,7 +17,7 @@ class HTMLOrSVGElement {
 public:
     [[nodiscard]] GC::Ref<DOMStringMap> dataset();
 
-    // https://html.spec.whatwg.org/#dom-noncedelement-nonce
+    // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#dom-noncedelement-nonce
     String const& nonce() { return m_cryptographic_nonce; }
     void set_nonce(String const& nonce) { m_cryptographic_nonce = nonce; }
 
@@ -33,7 +33,7 @@ protected:
     // https://html.spec.whatwg.org/multipage/dom.html#dom-dataset-dev
     GC::Ptr<DOMStringMap> m_dataset;
 
-    // https://html.spec.whatwg.org/#cryptographicnonce
+    // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#cryptographicnonce
     String m_cryptographic_nonce;
 
     // https://html.spec.whatwg.org/multipage/interaction.html#locked-for-focus

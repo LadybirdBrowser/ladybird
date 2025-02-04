@@ -73,7 +73,7 @@ enum EnterKeyHint {
     "send"
 };
 
-// https://html.spec.whatwg.org/#attr-inputmode
+// https://html.spec.whatwg.org/multipage/interaction.html#attr-inputmode
 enum InputMode {
     "none",
     "text",
@@ -85,7 +85,7 @@ enum InputMode {
     "search"
 };
 
-// https://html.spec.whatwg.org/#elementcontenteditable
+// https://html.spec.whatwg.org/multipage/interaction.html#elementcontenteditable
 interface mixin ElementContentEditable {
     [CEReactions] attribute DOMString contentEditable;
     [Reflect=enterkeyhint, Enumerated=EnterKeyHint, CEReactions] attribute DOMString enterKeyHint;

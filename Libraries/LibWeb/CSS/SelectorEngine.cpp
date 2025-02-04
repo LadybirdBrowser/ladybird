@@ -750,7 +750,7 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         return false;
     }
     case CSS::PseudoClass::PopoverOpen: {
-        // https://html.spec.whatwg.org/#selector-popover-open
+        // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-popover-open
         // The :popover-open pseudo-class is defined to match any HTML element whose popover attribute is not in the no popover state and whose popover visibility state is showing.
         if (is<HTML::HTMLElement>(element) && element.has_attribute(HTML::AttributeNames::popover)) {
             auto& html_element = static_cast<HTML::HTMLElement const&>(element);
@@ -923,7 +923,7 @@ static bool fast_matches_simple_selector(CSS::Selector::SimpleSelector const& si
     case CSS::Selector::SimpleSelector::Type::Universal:
         return matches_namespace(simple_selector.qualified_name(), element, context.style_sheet_for_rule);
     case CSS::Selector::SimpleSelector::Type::TagName:
-        // https://html.spec.whatwg.org/#case-sensitivity-of-selectors
+        // https://html.spec.whatwg.org/multipage/semantics-other.html#case-sensitivity-of-selectors
         // When comparing a CSS element type selector to the names of HTML elements in HTML documents, the CSS element type selector must first be converted to ASCII lowercase. The
         // same selector when compared to other elements must be compared according to its original case. In both cases, to match the values must be identical to each other (and therefore
         // the comparison is case sensitive).
