@@ -16,8 +16,7 @@
     </style>
 </head>
 <body>
-    <!-- FIXME: This <img> tag is only here as a hack. The test runner takes a screenshot after the load event,
-                which waits for img tags to load, but not images referred to in CSS. -->
+    <!-- FIXME: Workaround to ensure CSS background-image is loaded before taking screenshot: https://github.com/LadybirdBrowser/ladybird/issues/3448 -->
     <img src="../data/smiley.png"/>
 
     <!-- Single value -->
