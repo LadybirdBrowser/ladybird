@@ -544,7 +544,7 @@ void ArgsParser::add_option(Optional<double>& value, char const* help_string, ch
 void ArgsParser::add_option(Vector<ByteString>& values, char const* help_string, char const* long_name, char short_name, char const* value_name, OptionHideMode hide_mode)
 {
     Option option {
-        OptionArgumentMode::Optional,
+        OptionArgumentMode::Required,
         help_string,
         long_name,
         short_name,
