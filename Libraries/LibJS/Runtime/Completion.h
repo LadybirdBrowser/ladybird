@@ -31,24 +31,23 @@ namespace JS {
         _temporary_result.release_value();                                                                            \
     })
 
-#define MUST_OR_THROW_OOM(...)                                                                         \
-    ({                                                                                                 \
-        /* Ignore -Wshadow to allow nesting the macro. */                                              \
-        AK_IGNORE_DIAGNOSTIC("-Wshadow",                                                               \
-            auto&& _temporary_result = (__VA_ARGS__));                                                 \
-        if (_temporary_result.is_error()) {                                                            \
-            auto _completion = _temporary_result.release_error();                                      \
-                                                                                                       \
-            /* We can't explicitly check for OOM because InternalError does not store the ErrorType */ \
-            VERIFY(_completion.value().has_value());                                                   \
-            VERIFY(_completion.value()->is_object());                                                  \
-            VERIFY(::AK::is<JS::InternalError>(_completion.value()->as_object()));                     \
-                                                                                                       \
-            return _completion;                                                                        \
-        }                                                                                              \
-        static_assert(!::AK::Detail::IsLvalueReference<decltype(_temporary_result.release_value())>,   \
-            "Do not return a reference from a fallible expression");                                   \
-        _temporary_result.release_value();                                                             \
+#define MUST_OR_THROW_INTERNAL_ERROR(...)                                                            \
+    ({                                                                                               \
+        /* Ignore -Wshadow to allow nesting the macro. */                                            \
+        AK_IGNORE_DIAGNOSTIC("-Wshadow",                                                             \
+            auto&& _temporary_result = (__VA_ARGS__));                                               \
+        if (_temporary_result.is_error()) {                                                          \
+            auto _completion = _temporary_result.release_error();                                    \
+                                                                                                     \
+            VERIFY(_completion.value().has_value());                                                 \
+            VERIFY(_completion.value()->is_object());                                                \
+            VERIFY(::AK::is<JS::InternalError>(_completion.value()->as_object()));                   \
+                                                                                                     \
+            return _completion;                                                                      \
+        }                                                                                            \
+        static_assert(!::AK::Detail::IsLvalueReference<decltype(_temporary_result.release_value())>, \
+            "Do not return a reference from a fallible expression");                                 \
+        _temporary_result.release_value();                                                           \
     })
 
 // 6.2.3 The Completion Record Specification Type, https://tc39.es/ecma262/#sec-completion-record-specification-type
