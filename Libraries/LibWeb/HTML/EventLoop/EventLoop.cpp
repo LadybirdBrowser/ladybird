@@ -270,7 +270,10 @@ void EventLoop::update_the_rendering()
         if (!document.is_fully_active())
             return false;
 
-        // FIXME: doc is render-blocked;
+        // doc is render-blocked;
+        if (document.is_render_blocked()) {
+            return false;
+        }
 
         // doc's visibility state is "hidden";
         if (document.hidden())

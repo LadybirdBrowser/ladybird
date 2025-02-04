@@ -65,6 +65,10 @@ public:
 
     virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) const override;
 
+protected:
+    // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#implicitly-potentially-render-blocking
+    virtual bool is_implicitly_potentially_render_blocking() const override;
+
 private:
     HTMLScriptElement(DOM::Document&, DOM::QualifiedName);
 
