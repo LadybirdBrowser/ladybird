@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <LibGC/CellAllocator.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
 
