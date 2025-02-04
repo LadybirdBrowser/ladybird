@@ -797,6 +797,14 @@ public:
     GC::Ptr<HTML::Storage> local_storage_holder() { return m_local_storage_holder; }
     void set_local_storage_holder(GC::Ptr<HTML::Storage> storage) { m_local_storage_holder = storage; }
 
+    // https:// html.spec.whatwg.org/multipage/dom.html#render-blocked
+    [[nodiscard]] bool is_render_blocked() const;
+    // https://html.spec.whatwg.org/multipage/dom.html#allows-adding-render-blocking-elements
+    [[nodiscard]] bool allows_adding_render_blocking_elements() const;
+
+    void add_render_blocking_element(GC::Ref<Element>);
+    void remove_render_blocking_element(GC::Ref<Element>);
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -1131,6 +1139,9 @@ private:
     // https://html.spec.whatwg.org/multipage/webstorage.html#local-storage-holder
     // A Document object has an associated local storage holder, which is null or a Storage object. It is initially null.
     GC::Ptr<HTML::Storage> m_local_storage_holder;
+
+    // https://html.spec.whatwg.org/multipage/dom.html#render-blocking-element-set
+    HashTable<GC::Ref<Element>> m_render_blocking_elements;
 };
 
 template<>

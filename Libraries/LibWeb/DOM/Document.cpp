@@ -577,6 +577,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_editing_host_manager);
     visitor.visit(m_local_storage_holder);
     visitor.visit(m_session_storage_holder);
+    visitor.visit(m_render_blocking_elements);
 }
 
 // https://w3c.github.io/selection-api/#dom-document-getselection
@@ -5969,6 +5970,32 @@ Vector<GC::Root<DOM::Range>> Document::find_matching_text(String const& query, C
 bool Document::allow_declarative_shadow_roots() const
 {
     return m_allow_declarative_shadow_roots;
+}
+
+// https://html.spec.whatwg.org/multipage/dom.html#render-blocked
+bool Document::is_render_blocked() const
+{
+    // A Document document is render-blocked if both of the following are true:
+    // - document's render-blocking element set is non-empty, or document allows adding render-blocking elements.
+    // - FIXME: The current high resolution time given document's relevant global object has not exceeded an implementation-defined timeout value.
+    return !m_render_blocking_elements.is_empty() || allows_adding_render_blocking_elements();
+}
+
+// https://html.spec.whatwg.org/multipage/dom.html#allows-adding-render-blocking-elements
+bool Document::allows_adding_render_blocking_elements() const
+{
+    // A document allows adding render-blocking elements if document's content type is "text/html" and the body element of document is null.
+    return content_type() == "text/html" && !body();
+}
+
+void Document::add_render_blocking_element(GC::Ref<Element> element)
+{
+    m_render_blocking_elements.set(element);
+}
+
+void Document::remove_render_blocking_element(GC::Ref<Element> element)
+{
+    m_render_blocking_elements.remove(element);
 }
 
 // https://dom.spec.whatwg.org/#document-allow-declarative-shadow-roots

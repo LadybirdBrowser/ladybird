@@ -97,7 +97,8 @@ void HTMLScriptElement::execute_script()
         return;
     }
 
-    // FIXME: 3. Unblock rendering on el.
+    // 3. Unblock rendering on el.
+    unblock_rendering();
 
     // 3. If el's result is null, then fire an event named error at el, and return.
     if (m_result.has<ResultState::Null>()) {
@@ -393,7 +394,10 @@ void HTMLScriptElement::prepare_script()
             return;
         }
 
-        // FIXME: 7. If el is potentially render-blocking, then block rendering on el.
+        // 7. If el is potentially render-blocking, then block rendering on el.
+        if (is_potentially_render_blocking()) {
+            block_rendering();
+        }
 
         // 8. Set el's delaying the load event to true.
         begin_delaying_document_load_event(*m_preparation_time_document);
@@ -662,6 +666,13 @@ WebIDL::ExceptionOr<void> HTMLScriptElement::cloned(Node& copy, bool subtree) co
     script_copy.m_already_started = m_already_started;
 
     return {};
+}
+
+// https://html.spec.whatwg.org/multipage/urls-and-fetching.html#implicitly-potentially-render-blocking
+bool HTMLScriptElement::is_implicitly_potentially_render_blocking() const
+{
+    // A script element el is implicitly potentially render-blocking if el's type is "classic", el is parser-inserted, and el does not have an async or defer attribute.
+    return m_script_type == ScriptType::Classic && is_parser_inserted() && !has_attribute(AttributeNames::async) && !has_attribute(AttributeNames::defer);
 }
 
 }

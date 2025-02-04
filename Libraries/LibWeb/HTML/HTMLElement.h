@@ -151,6 +151,15 @@ protected:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
+    // https://html.spec.whatwg.org/multipage/dom.html#block-rendering
+    void block_rendering();
+    // https://html.spec.whatwg.org/multipage/dom.html#unblock-rendering
+    void unblock_rendering();
+    // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#potentially-render-blocking
+    bool is_potentially_render_blocking();
+    // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#implicitly-potentially-render-blocking
+    virtual bool is_implicitly_potentially_render_blocking() const { return false; }
+
 private:
     virtual bool is_html_element() const final { return true; }
 
