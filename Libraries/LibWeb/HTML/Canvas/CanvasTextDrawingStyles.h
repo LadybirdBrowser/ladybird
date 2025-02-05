@@ -47,7 +47,7 @@ public:
         // and with system fonts being computed to explicit values.
         // FIXME: with the 'line-height' component forced to 'normal'
         // FIXME: with the 'font-size' component converted to CSS pixels
-        auto font_style_value_result = parse_css_value(CSS::Parser::ParsingContext {}, font, CSS::PropertyID::Font);
+        auto font_style_value_result = parse_css_value(CSS::Parser::ParsingParams {}, font, CSS::PropertyID::Font);
 
         // If the new value is syntactically incorrect (including using property-independent style sheet syntax like 'inherit' or 'initial'), then it must be ignored, without assigning a new font value.
         // NOTE: ShorthandStyleValue should be the only valid option here. We implicitly VERIFY this below.

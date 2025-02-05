@@ -441,7 +441,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
                 dispatch_event(*DOM::Event::create(realm(), HTML::EventNames::error));
             } else {
                 auto const decoded_string = maybe_decoded_string.release_value();
-                m_loaded_style_sheet = parse_css_stylesheet(CSS::Parser::ParsingContext(document(), *response.url()), decoded_string);
+                m_loaded_style_sheet = parse_css_stylesheet(CSS::Parser::ParsingParams(document(), *response.url()), decoded_string);
 
                 if (m_loaded_style_sheet) {
                     Optional<String> location;

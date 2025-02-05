@@ -7,7 +7,6 @@ source_set("Parser") {
     "Helpers.cpp",
     "MediaParsing.cpp",
     "Parser.cpp",
-    "ParsingContext.cpp",
     "PropertyParsing.cpp",
     "RuleParsing.cpp",
     "SelectorParsing.cpp",

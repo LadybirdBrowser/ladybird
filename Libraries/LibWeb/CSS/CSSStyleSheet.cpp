@@ -139,7 +139,7 @@ WebIDL::ExceptionOr<unsigned> CSSStyleSheet::insert_rule(StringView rule, unsign
         return WebIDL::NotAllowedError::create(realm(), "Can't call insert_rule() on non-modifiable stylesheets."_string);
 
     // 3. Let parsed rule be the return value of invoking parse a rule with rule.
-    auto context = !m_owning_documents_or_shadow_roots.is_empty() ? Parser::ParsingContext { (*m_owning_documents_or_shadow_roots.begin())->document() } : Parser::ParsingContext { realm() };
+    auto context = !m_owning_documents_or_shadow_roots.is_empty() ? Parser::ParsingParams { (*m_owning_documents_or_shadow_roots.begin())->document() } : Parser::ParsingParams { realm() };
     auto parsed_rule = parse_css_rule(context, rule);
 
     // 4. If parsed rule is a syntax error, return parsed rule.
@@ -207,7 +207,7 @@ GC::Ref<WebIDL::Promise> CSSStyleSheet::replace(String text)
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
         // 1. Let rules be the result of running parse a stylesheet’s contents from text.
-        auto context = !m_owning_documents_or_shadow_roots.is_empty() ? Parser::ParsingContext { (*m_owning_documents_or_shadow_roots.begin())->document() } : CSS::Parser::ParsingContext { realm };
+        auto context = !m_owning_documents_or_shadow_roots.is_empty() ? Parser::ParsingParams { (*m_owning_documents_or_shadow_roots.begin())->document() } : CSS::Parser::ParsingParams { realm };
         auto* parsed_stylesheet = parse_css_stylesheet(context, text);
         auto& rules = parsed_stylesheet->rules();
 
@@ -241,7 +241,7 @@ WebIDL::ExceptionOr<void> CSSStyleSheet::replace_sync(StringView text)
         return WebIDL::NotAllowedError::create(realm(), "Can't call replaceSync() on non-modifiable stylesheets"_string);
 
     // 2. Let rules be the result of running parse a stylesheet’s contents from text.
-    auto context = !m_owning_documents_or_shadow_roots.is_empty() ? Parser::ParsingContext { (*m_owning_documents_or_shadow_roots.begin())->document() } : CSS::Parser::ParsingContext { realm() };
+    auto context = !m_owning_documents_or_shadow_roots.is_empty() ? Parser::ParsingParams { (*m_owning_documents_or_shadow_roots.begin())->document() } : CSS::Parser::ParsingParams { realm() };
     auto* parsed_stylesheet = parse_css_stylesheet(context, text);
     auto& rules = parsed_stylesheet->rules();
 

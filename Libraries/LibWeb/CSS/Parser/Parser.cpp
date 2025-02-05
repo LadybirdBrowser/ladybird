@@ -20,6 +20,7 @@
 #include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
 
@@ -30,14 +31,51 @@ static void log_parse_error(SourceLocation const& location = SourceLocation::cur
 
 namespace Web::CSS::Parser {
 
-Parser Parser::create(ParsingContext const& context, StringView input, StringView encoding)
+ParsingParams::ParsingParams(ParsingMode mode)
+    : mode(mode)
+{
+}
+
+ParsingParams::ParsingParams(JS::Realm& realm, ParsingMode mode)
+    : realm(realm)
+    , mode(mode)
+{
+}
+
+ParsingParams::ParsingParams(JS::Realm& realm, URL::URL url, ParsingMode mode)
+    : realm(realm)
+    , url(move(url))
+    , mode(mode)
+{
+}
+
+ParsingParams::ParsingParams(DOM::Document const& document, URL::URL url, ParsingMode mode)
+    : realm(const_cast<JS::Realm&>(document.realm()))
+    , document(&document)
+    , url(move(url))
+    , mode(mode)
+{
+}
+
+ParsingParams::ParsingParams(DOM::Document const& document, ParsingMode mode)
+    : realm(const_cast<JS::Realm&>(document.realm()))
+    , document(&document)
+    , url(document.url())
+    , mode(mode)
+{
+}
+
+Parser Parser::create(ParsingParams const& context, StringView input, StringView encoding)
 {
     auto tokens = Tokenizer::tokenize(input, encoding);
     return Parser { context, move(tokens) };
 }
 
-Parser::Parser(ParsingContext const& context, Vector<Token> tokens)
-    : m_context(context)
+Parser::Parser(ParsingParams const& context, Vector<Token> tokens)
+    : m_document(context.document)
+    , m_realm(context.realm)
+    , m_url(context.url)
+    , m_parsing_mode(context.mode)
     , m_tokens(move(tokens))
     , m_token_stream(m_tokens)
 {
@@ -84,7 +122,7 @@ CSSStyleSheet* Parser::parse_as_css_stylesheet(Optional<URL::URL> location)
     auto const& style_sheet = parse_a_stylesheet(m_token_stream, {});
 
     // Interpret all of the resulting top-level qualified rules as style rules, defined below.
-    GC::RootVector<CSSRule*> rules(m_context.realm().heap());
+    GC::RootVector<CSSRule*> rules(realm().heap());
     for (auto const& raw_rule : style_sheet.rules) {
         auto rule = convert_to_rule(raw_rule, Nested::No);
         // If any style rule is invalid, or any at-rule is not recognized or is invalid according to its grammar or context, it’s a parse error.
@@ -96,9 +134,9 @@ CSSStyleSheet* Parser::parse_as_css_stylesheet(Optional<URL::URL> location)
         rules.append(rule);
     }
 
-    auto rule_list = CSSRuleList::create(m_context.realm(), rules);
-    auto media_list = MediaList::create(m_context.realm(), {});
-    return CSSStyleSheet::create(m_context.realm(), rule_list, media_list, move(location));
+    auto rule_list = CSSRuleList::create(realm(), rules);
+    auto media_list = MediaList::create(realm(), {});
+    return CSSStyleSheet::create(realm(), rule_list, media_list, move(location));
 }
 
 RefPtr<Supports> Parser::parse_as_supports()
@@ -116,7 +154,7 @@ RefPtr<Supports> Parser::parse_a_supports(TokenStream<T>& tokens)
     m_rule_context.take_last();
     token_stream.discard_whitespace();
     if (maybe_condition && !token_stream.has_next_token())
-        return Supports::create(m_context.realm(), maybe_condition.release_nonnull());
+        return Supports::create(realm(), maybe_condition.release_nonnull());
 
     return {};
 }
@@ -1413,7 +1451,7 @@ PropertyOwningCSSStyleDeclaration* Parser::convert_to_style_declaration(Vector<D
     for (auto const& declaration : declarations) {
         extract_property(declaration, dest);
     }
-    return PropertyOwningCSSStyleDeclaration::create(m_context.realm(), move(properties.properties), move(properties.custom_properties));
+    return PropertyOwningCSSStyleDeclaration::create(realm(), move(properties.properties), move(properties.custom_properties));
 }
 
 Optional<StyleProperty> Parser::convert_to_style_property(Declaration const& declaration)
@@ -1462,7 +1500,7 @@ Optional<LengthOrCalculated> Parser::parse_source_size_value(TokenStream<Compone
 
 bool Parser::context_allows_quirky_length() const
 {
-    if (!m_context.in_quirks_mode())
+    if (!in_quirks_mode())
         return false;
 
     // https://drafts.csswg.org/css-values-4/#deprecated-quirky-length
@@ -1600,7 +1638,7 @@ LengthOrCalculated Parser::parse_as_sizes_attribute(DOM::Element const& element,
         //    If it does not parse correctly, or it does parse correctly but the <media-condition> evaluates to false, continue.
         TokenStream<ComponentValue> token_stream { unparsed_size };
         auto media_condition = parse_media_condition(token_stream, MediaCondition::AllowOr::Yes);
-        auto const* context_window = m_context.window();
+        auto const* context_window = window();
         if (!media_condition || (context_window && media_condition->evaluate(*context_window) == MatchResult::False)) {
             continue;
         }
@@ -1692,5 +1730,40 @@ template Vector<ComponentValue> Parser::parse_a_list_of_component_values(TokenSt
 
 template Vector<Vector<ComponentValue>> Parser::parse_a_comma_separated_list_of_component_values(TokenStream<ComponentValue>&);
 template Vector<Vector<ComponentValue>> Parser::parse_a_comma_separated_list_of_component_values(TokenStream<Token>&);
+
+DOM::Document const* Parser::document() const
+{
+    return m_document;
+}
+
+HTML::Window const* Parser::window() const
+{
+    if (!m_document)
+        return nullptr;
+    return m_document->window();
+}
+
+JS::Realm& Parser::realm() const
+{
+    VERIFY(m_realm);
+    return *m_realm;
+}
+
+bool Parser::in_quirks_mode() const
+{
+    return m_document ? m_document->in_quirks_mode() : false;
+}
+
+bool Parser::is_parsing_svg_presentation_attribute() const
+{
+    return m_parsing_mode == ParsingMode::SVGPresentationAttribute;
+}
+
+// https://www.w3.org/TR/css-values-4/#relative-urls
+// FIXME: URLs shouldn't be completed during parsing, but when used.
+URL::URL Parser::complete_url(StringView relative_url) const
+{
+    return m_url.complete_url(relative_url);
+}
 
 }

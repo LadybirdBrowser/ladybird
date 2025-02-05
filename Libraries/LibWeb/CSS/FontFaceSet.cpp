@@ -175,7 +175,7 @@ WebIDL::CallbackType* FontFaceSet::onloadingerror()
 static WebIDL::ExceptionOr<GC::Ref<JS::Set>> find_matching_font_faces(JS::Realm& realm, FontFaceSet& font_face_set, String const& font, String const&)
 {
     // 1. Parse font using the CSS value syntax of the font property. If a syntax error occurs, return a syntax error.
-    auto property = parse_css_value(CSS::Parser::ParsingContext(), font, PropertyID::Font);
+    auto property = parse_css_value(CSS::Parser::ParsingParams(), font, PropertyID::Font);
     if (!property)
         return WebIDL::SyntaxError::create(realm, "Unable to parse font"_string);
 

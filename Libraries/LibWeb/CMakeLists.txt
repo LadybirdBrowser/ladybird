@@ -99,7 +99,6 @@ set(SOURCES
     CSS/Parser/Helpers.cpp
     CSS/Parser/MediaParsing.cpp
     CSS/Parser/Parser.cpp
-    CSS/Parser/ParsingContext.cpp
     CSS/Parser/PropertyParsing.cpp
     CSS/Parser/RuleParsing.cpp
     CSS/Parser/SelectorParsing.cpp

@@ -9,7 +9,6 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/Parser/ParsingContext.h>
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/HTML/HTMLFontElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
@@ -136,7 +135,7 @@ void HTMLFontElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties
             auto font_size_or_empty = parse_legacy_font_size(value);
             if (font_size_or_empty.has_value()) {
                 auto font_size = string_from_keyword(font_size_or_empty.release_value());
-                if (auto parsed_value = parse_css_value(CSS::Parser::ParsingContext { document() }, font_size, CSS::PropertyID::FontSize))
+                if (auto parsed_value = parse_css_value(CSS::Parser::ParsingParams { document() }, font_size, CSS::PropertyID::FontSize))
                     cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::FontSize, parsed_value.release_nonnull());
             }
         }

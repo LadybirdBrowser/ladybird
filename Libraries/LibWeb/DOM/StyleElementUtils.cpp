@@ -54,7 +54,7 @@ void StyleElementUtils::update_a_style_block(DOM::Element& style_element)
 
     // FIXME: This is a bit awkward, as the spec doesn't actually tell us when to parse the CSS text,
     //        so we just do it here and pass the parsed sheet to create_a_css_style_sheet().
-    auto* sheet = parse_css_stylesheet(CSS::Parser::ParsingContext(style_element.document()), style_element.text_content().value_or(String {}));
+    auto* sheet = parse_css_stylesheet(CSS::Parser::ParsingParams(style_element.document()), style_element.text_content().value_or(String {}));
     if (!sheet)
         return;
 

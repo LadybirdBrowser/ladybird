@@ -307,7 +307,7 @@ static CSSStyleSheet& default_stylesheet(DOM::Document const& document)
     static GC::Root<CSSStyleSheet> sheet;
     if (!sheet.cell()) {
         extern String default_stylesheet_source;
-        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingContext(document), default_stylesheet_source));
+        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(document), default_stylesheet_source));
     }
     return *sheet;
 }
@@ -317,7 +317,7 @@ static CSSStyleSheet& quirks_mode_stylesheet(DOM::Document const& document)
     static GC::Root<CSSStyleSheet> sheet;
     if (!sheet.cell()) {
         extern String quirks_mode_stylesheet_source;
-        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingContext(document), quirks_mode_stylesheet_source));
+        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(document), quirks_mode_stylesheet_source));
     }
     return *sheet;
 }
@@ -327,7 +327,7 @@ static CSSStyleSheet& mathml_stylesheet(DOM::Document const& document)
     static GC::Root<CSSStyleSheet> sheet;
     if (!sheet.cell()) {
         extern String mathml_stylesheet_source;
-        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingContext(document), mathml_stylesheet_source));
+        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(document), mathml_stylesheet_source));
     }
     return *sheet;
 }
@@ -337,7 +337,7 @@ static CSSStyleSheet& svg_stylesheet(DOM::Document const& document)
     static GC::Root<CSSStyleSheet> sheet;
     if (!sheet.cell()) {
         extern String svg_stylesheet_source;
-        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingContext(document), svg_stylesheet_source));
+        sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(document), svg_stylesheet_source));
     }
     return *sheet;
 }
@@ -1009,7 +1009,7 @@ void StyleComputer::set_all_properties(
 
         NonnullRefPtr<CSSStyleValue> property_value = value;
         if (property_value->is_unresolved())
-            property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingContext { document }, element, pseudo_element, property_id, property_value->as_unresolved());
+            property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { document }, element, pseudo_element, property_id, property_value->as_unresolved());
         if (!property_value->is_unresolved())
             set_property_expanding_shorthands(cascaded_properties, property_id, property_value, declaration, cascade_origin, important, layer_name);
 
@@ -1038,7 +1038,7 @@ void StyleComputer::cascade_declarations(
 
             auto property_value = property.value;
             if (property.value->is_unresolved())
-                property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingContext { document() }, element, pseudo_element, property.property_id, property.value->as_unresolved());
+                property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { document() }, element, pseudo_element, property.property_id, property.value->as_unresolved());
             if (!property_value->is_unresolved())
                 set_property_expanding_shorthands(cascaded_properties, property.property_id, property_value, &match->declaration(), cascade_origin, important, layer_name);
         }
@@ -1057,7 +1057,7 @@ void StyleComputer::cascade_declarations(
 
                 auto property_value = property.value;
                 if (property.value->is_unresolved())
-                    property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingContext { document() }, element, pseudo_element, property.property_id, property.value->as_unresolved());
+                    property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { document() }, element, pseudo_element, property.property_id, property.value->as_unresolved());
                 if (!property_value->is_unresolved())
                     set_property_expanding_shorthands(cascaded_properties, property.property_id, property_value, inline_style, cascade_origin, important, layer_name);
             }
@@ -1157,7 +1157,7 @@ void StyleComputer::collect_animation_into(DOM::Element& element, Optional<CSS::
                     if (value->is_revert() || value->is_revert_layer())
                         return computed_properties.property(it.key);
                     if (value->is_unresolved())
-                        return Parser::Parser::resolve_unresolved_style_value(Parser::ParsingContext { element.document() }, element, pseudo_element, it.key, value->as_unresolved());
+                        return Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { element.document() }, element, pseudo_element, it.key, value->as_unresolved());
                     return value;
                 });
         };
@@ -2974,7 +2974,7 @@ void StyleComputer::build_rule_cache()
     m_style_invalidation_data = make<StyleInvalidationData>();
 
     if (auto user_style_source = document().page().user_style(); user_style_source.has_value()) {
-        m_user_style_sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingContext(document()), user_style_source.value()));
+        m_user_style_sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(document()), user_style_source.value()));
     }
 
     build_qualified_layer_names_cache();

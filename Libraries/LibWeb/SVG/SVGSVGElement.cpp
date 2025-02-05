@@ -49,7 +49,7 @@ GC::Ptr<Layout::Node> SVGSVGElement::create_layout_node(GC::Ref<CSS::ComputedPro
 
 RefPtr<CSS::CSSStyleValue> SVGSVGElement::width_style_value_from_attribute() const
 {
-    auto parsing_context = CSS::Parser::ParsingContext { document(), CSS::Parser::ParsingContext::Mode::SVGPresentationAttribute };
+    auto parsing_context = CSS::Parser::ParsingParams { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
     auto width_attribute = attribute(SVG::AttributeNames::width);
     if (auto width_value = parse_css_value(parsing_context, width_attribute.value_or(String {}), CSS::PropertyID::Width)) {
         return width_value.release_nonnull();
@@ -65,7 +65,7 @@ RefPtr<CSS::CSSStyleValue> SVGSVGElement::width_style_value_from_attribute() con
 
 RefPtr<CSS::CSSStyleValue> SVGSVGElement::height_style_value_from_attribute() const
 {
-    auto parsing_context = CSS::Parser::ParsingContext { document(), CSS::Parser::ParsingContext::Mode::SVGPresentationAttribute };
+    auto parsing_context = CSS::Parser::ParsingParams { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
     auto height_attribute = attribute(SVG::AttributeNames::height);
     if (auto height_value = parse_css_value(parsing_context, height_attribute.value_or(String {}), CSS::PropertyID::Height)) {
         return height_value.release_nonnull();
@@ -96,7 +96,7 @@ bool SVGSVGElement::is_presentational_hint(FlyString const& name) const
 void SVGSVGElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
     Base::apply_presentational_hints(cascaded_properties);
-    auto parsing_context = CSS::Parser::ParsingContext { document(), CSS::Parser::ParsingContext::Mode::SVGPresentationAttribute };
+    auto parsing_context = CSS::Parser::ParsingParams { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
 
     auto x_attribute = attribute(SVG::AttributeNames::x);
     if (auto x_value = parse_css_value(parsing_context, x_attribute.value_or(String {}), CSS::PropertyID::X)) {
@@ -147,7 +147,7 @@ void SVGSVGElement::update_fallback_view_box_for_svg_as_image()
     Optional<double> height;
 
     auto width_attribute = get_attribute_value(SVG::AttributeNames::width);
-    auto parsing_context = CSS::Parser::ParsingContext { document() };
+    auto parsing_context = CSS::Parser::ParsingParams { document() };
     if (auto width_value = parse_css_value(parsing_context, width_attribute, CSS::PropertyID::Width)) {
         if (width_value->is_length() && width_value->as_length().length().is_absolute())
             width = width_value->as_length().length().absolute_length_to_px().to_double();

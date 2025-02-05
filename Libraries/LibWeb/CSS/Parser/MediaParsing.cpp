@@ -622,9 +622,9 @@ GC::Ptr<CSSMediaRule> Parser::convert_to_media_rule(AtRule const& rule, Nested n
 {
     auto media_query_tokens = TokenStream { rule.prelude };
     auto media_query_list = parse_a_media_query_list(media_query_tokens);
-    auto media_list = MediaList::create(m_context.realm(), move(media_query_list));
+    auto media_list = MediaList::create(realm(), move(media_query_list));
 
-    GC::RootVector<CSSRule*> child_rules { m_context.realm().heap() };
+    GC::RootVector<CSSRule*> child_rules { realm().heap() };
     for (auto const& child : rule.child_rules_and_lists_of_declarations) {
         child.visit(
             [&](Rule const& rule) {
@@ -637,11 +637,11 @@ GC::Ptr<CSSMediaRule> Parser::convert_to_media_rule(AtRule const& rule, Nested n
                     dbgln_if(CSS_PARSER_DEBUG, "CSSParser: nested declarations invalid; discarding.");
                     return;
                 }
-                child_rules.append(CSSNestedDeclarations::create(m_context.realm(), *declaration));
+                child_rules.append(CSSNestedDeclarations::create(realm(), *declaration));
             });
     }
-    auto rule_list = CSSRuleList::create(m_context.realm(), child_rules);
-    return CSSMediaRule::create(m_context.realm(), media_list, rule_list);
+    auto rule_list = CSSRuleList::create(realm(), child_rules);
+    return CSSMediaRule::create(realm(), media_list, rule_list);
 }
 
 }

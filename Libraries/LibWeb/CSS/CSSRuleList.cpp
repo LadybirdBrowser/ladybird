@@ -69,7 +69,7 @@ WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<StringView,
     CSSRule* new_rule = nullptr;
     if (rule.has<StringView>()) {
         new_rule = parse_css_rule(
-            CSS::Parser::ParsingContext { realm() },
+            CSS::Parser::ParsingParams { realm() },
             rule.get<StringView>());
     } else {
         new_rule = rule.get<CSSRule*>();

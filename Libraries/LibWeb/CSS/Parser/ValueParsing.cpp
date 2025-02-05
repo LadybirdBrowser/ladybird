@@ -52,6 +52,7 @@
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 
@@ -659,7 +660,7 @@ RefPtr<CSSStyleValue> Parser::parse_angle_value(TokenStream<ComponentValue>& tok
     // When parsing an SVG attribute, an angle is allowed without a unit.
     // FIXME: How should these numbers be interpreted? https://github.com/w3c/svgwg/issues/792
     //        For now: Convert to an angle in degrees.
-    if (tokens.next_token().is(Token::Type::Number) && m_context.is_parsing_svg_presentation_attribute()) {
+    if (tokens.next_token().is(Token::Type::Number) && is_parsing_svg_presentation_attribute()) {
         auto numeric_value = tokens.consume_a_token().token().number_value();
         return AngleStyleValue::create(Angle::make_degrees(numeric_value));
     }
@@ -693,7 +694,7 @@ RefPtr<CSSStyleValue> Parser::parse_angle_percentage_value(TokenStream<Component
     // When parsing an SVG attribute, an angle is allowed without a unit.
     // FIXME: How should these numbers be interpreted? https://github.com/w3c/svgwg/issues/792
     //        For now: Convert to an angle in degrees.
-    if (tokens.next_token().is(Token::Type::Number) && m_context.is_parsing_svg_presentation_attribute()) {
+    if (tokens.next_token().is(Token::Type::Number) && is_parsing_svg_presentation_attribute()) {
         auto numeric_value = tokens.consume_a_token().token().number_value();
         return AngleStyleValue::create(Angle::make_degrees(numeric_value));
     }
@@ -805,7 +806,7 @@ RefPtr<CSSStyleValue> Parser::parse_length_value(TokenStream<ComponentValue>& to
         // When parsing an SVG attribute, a length is allowed without a unit.
         // FIXME: How should these numbers be interpreted? https://github.com/w3c/svgwg/issues/792
         //        For now: Convert to a length in pixels.
-        if (m_context.is_parsing_svg_presentation_attribute()) {
+        if (is_parsing_svg_presentation_attribute()) {
             transaction.commit();
             return LengthStyleValue::create(Length::make_px(CSSPixels::nearest_value_for(numeric_value)));
         }
@@ -852,7 +853,7 @@ RefPtr<CSSStyleValue> Parser::parse_length_percentage_value(TokenStream<Componen
         // When parsing an SVG attribute, a length is allowed without a unit.
         // FIXME: How should these numbers be interpreted? https://github.com/w3c/svgwg/issues/792
         //        For now: Convert to a length in pixels.
-        if (m_context.is_parsing_svg_presentation_attribute()) {
+        if (is_parsing_svg_presentation_attribute()) {
             transaction.commit();
             return LengthStyleValue::create(Length::make_px(CSSPixels::nearest_value_for(numeric_value)));
         }
@@ -1696,7 +1697,7 @@ RefPtr<CSSStyleValue> Parser::parse_color_value(TokenStream<ComponentValue>& tok
     }
 
     // https://drafts.csswg.org/css-color-4/#quirky-color
-    if (m_context.in_quirks_mode()) {
+    if (in_quirks_mode()) {
         // "When CSS is being parsed in quirks mode, <quirky-color> is a type of <color> that is only valid in certain properties:"
         // (NOTE: List skipped for brevity; quirks data is assigned in Properties.json)
         // "It is not valid in properties that include or reference these properties, such as the background shorthand,
@@ -2468,7 +2469,7 @@ Optional<URL::URL> Parser::parse_url_function(TokenStream<ComponentValue>& token
     auto& component_value = tokens.consume_a_token();
 
     auto convert_string_to_url = [&](StringView url_string) -> Optional<URL::URL> {
-        auto url = m_context.complete_url(url_string);
+        auto url = complete_url(url_string);
         if (url.is_valid()) {
             transaction.commit();
             return url;
@@ -3510,7 +3511,7 @@ RefPtr<StringStyleValue> Parser::parse_opentype_tag_value(TokenStream<ComponentV
     return string_value;
 }
 
-NonnullRefPtr<CSSStyleValue> Parser::resolve_unresolved_style_value(ParsingContext const& context, DOM::Element& element, Optional<Selector::PseudoElement::Type> pseudo_element, PropertyID property_id, UnresolvedStyleValue const& unresolved)
+NonnullRefPtr<CSSStyleValue> Parser::resolve_unresolved_style_value(ParsingParams const& context, DOM::Element& element, Optional<Selector::PseudoElement::Type> pseudo_element, PropertyID property_id, UnresolvedStyleValue const& unresolved)
 {
     // Unresolved always contains a var() or attr(), unless it is a custom property's value, in which case we shouldn't be trying
     // to produce a different CSSStyleValue from it.

@@ -672,7 +672,7 @@ NonnullRefPtr<CSSStyleValue> property_initial_value(PropertyID property_id)
     // This ensures the shorthands will always be able to get the initial values of their longhands.
     // This also now allows a longhand have its own longhand (like background-position-x).
 
-    Parser::ParsingContext parsing_context;
+    Parser::ParsingParams parsing_params;
     switch (property_id) {
 )~~~");
 
@@ -691,7 +691,7 @@ NonnullRefPtr<CSSStyleValue> property_initial_value(PropertyID property_id)
         member_generator.append(
             R"~~~(        case PropertyID::@name:titlecase@:
         {
-            auto parsed_value = parse_css_value(parsing_context, "@initial_value_string@"sv, PropertyID::@name:titlecase@);
+            auto parsed_value = parse_css_value(parsing_params, "@initial_value_string@"sv, PropertyID::@name:titlecase@);
             VERIFY(!parsed_value.is_null());
             auto initial_value = parsed_value.release_nonnull();
             initial_values[to_underlying(PropertyID::@name:titlecase@)] = initial_value;

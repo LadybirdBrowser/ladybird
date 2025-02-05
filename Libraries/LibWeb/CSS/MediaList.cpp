@@ -45,7 +45,7 @@ void MediaList::set_media_text(StringView text)
     m_media.clear();
     if (text.is_empty())
         return;
-    m_media = parse_media_query_list(Parser::ParsingContext { realm() }, text);
+    m_media = parse_media_query_list(Parser::ParsingParams { realm() }, text);
 }
 
 // https://www.w3.org/TR/cssom-1/#dom-medialist-item
@@ -61,7 +61,7 @@ Optional<String> MediaList::item(u32 index) const
 void MediaList::append_medium(StringView medium)
 {
     // 1. Let m be the result of parsing the given value.
-    auto m = parse_media_query(Parser::ParsingContext { realm() }, medium);
+    auto m = parse_media_query(Parser::ParsingParams { realm() }, medium);
 
     // 2. If m is null, then return.
     if (!m)
@@ -81,7 +81,7 @@ void MediaList::append_medium(StringView medium)
 // https://www.w3.org/TR/cssom-1/#dom-medialist-deletemedium
 void MediaList::delete_medium(StringView medium)
 {
-    auto m = parse_media_query(Parser::ParsingContext { realm() }, medium);
+    auto m = parse_media_query(Parser::ParsingParams { realm() }, medium);
     if (!m)
         return;
     m_media.remove_all_matching([&](auto& existing) -> bool {

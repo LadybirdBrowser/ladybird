@@ -9,7 +9,6 @@
 #include <LibWeb/Bindings/HTMLMetaElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/Parser/ParsingContext.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>

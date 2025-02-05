@@ -1541,7 +1541,7 @@ void Document::obtain_supported_color_schemes()
         auto content = element.attribute(HTML::AttributeNames::content);
         if (element.name().has_value() && element.name()->equals_ignoring_ascii_case("color-scheme"sv) && content.has_value()) {
             // 1. Let parsed be the result of parsing a list of component values given the value of element's content attribute.
-            auto context = CSS::Parser::ParsingContext { document() };
+            auto context = CSS::Parser::ParsingParams { document() };
             auto parsed = parse_css_value(context, content.value(), CSS::PropertyID::ColorScheme);
 
             // 2. If parsed is a valid CSS 'color-scheme' property value, then return parsed.
@@ -1572,7 +1572,7 @@ void Document::obtain_theme_color()
         auto content = element.attribute(HTML::AttributeNames::content);
         if (element.name().has_value() && element.name()->equals_ignoring_ascii_case("theme-color"sv) && content.has_value()) {
             // 1. If element has a media attribute and the value of element's media attribute does not match the environment, then continue.
-            auto context = CSS::Parser::ParsingContext { document() };
+            auto context = CSS::Parser::ParsingParams { document() };
             auto media = element.attribute(HTML::AttributeNames::media);
             if (media.has_value()) {
                 auto query = parse_media_query(context, media.value());

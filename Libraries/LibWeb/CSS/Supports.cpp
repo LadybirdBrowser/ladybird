@@ -59,13 +59,13 @@ bool Supports::InParens::evaluate(JS::Realm& realm) const
 
 bool Supports::Declaration::evaluate(JS::Realm& realm) const
 {
-    auto style_property = parse_css_supports_condition(Parser::ParsingContext { realm }, declaration);
+    auto style_property = parse_css_supports_condition(Parser::ParsingParams { realm }, declaration);
     return style_property.has_value();
 }
 
 bool Supports::Selector::evaluate(JS::Realm& realm) const
 {
-    auto style_property = parse_selector(Parser::ParsingContext { realm }, selector);
+    auto style_property = parse_selector(Parser::ParsingParams { realm }, selector);
     return style_property.has_value();
 }
 

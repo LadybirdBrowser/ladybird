@@ -35,7 +35,7 @@ public:
                 // 2. Let parsedValue be the result of parsing the given value with context if non-null.
                 // FIXME: Parse a color value
                 // https://drafts.csswg.org/css-color/#parse-a-css-color-value
-                auto style_value = parse_css_value(CSS::Parser::ParsingContext(), string, CSS::PropertyID::Color);
+                auto style_value = parse_css_value(CSS::Parser::ParsingParams(), string, CSS::PropertyID::Color);
                 if (style_value && style_value->has_color()) {
                     auto parsedValue = style_value->to_color(OptionalNone());
 
@@ -74,7 +74,7 @@ public:
                 // 2. Let parsedValue be the result of parsing the given value with context if non-null.
                 // FIXME: Parse a color value
                 // https://drafts.csswg.org/css-color/#parse-a-css-color-value
-                auto style_value = parse_css_value(CSS::Parser::ParsingContext(), string, CSS::PropertyID::Color);
+                auto style_value = parse_css_value(CSS::Parser::ParsingParams(), string, CSS::PropertyID::Color);
                 if (style_value && style_value->has_color()) {
                     auto parsedValue = style_value->to_color(OptionalNone());
 

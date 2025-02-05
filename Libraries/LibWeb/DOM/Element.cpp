@@ -744,7 +744,7 @@ GC::Ptr<ShadowRoot> Element::shadow_root_for_bindings() const
 WebIDL::ExceptionOr<bool> Element::matches(StringView selectors) const
 {
     // 1. Let s be the result of parse a selector from selectors.
-    auto maybe_selectors = parse_selector(CSS::Parser::ParsingContext(document()), selectors);
+    auto maybe_selectors = parse_selector(CSS::Parser::ParsingParams(document()), selectors);
 
     // 2. If s is failure, then throw a "SyntaxError" DOMException.
     if (!maybe_selectors.has_value())
@@ -764,7 +764,7 @@ WebIDL::ExceptionOr<bool> Element::matches(StringView selectors) const
 WebIDL::ExceptionOr<DOM::Element const*> Element::closest(StringView selectors) const
 {
     // 1. Let s be the result of parse a selector from selectors.
-    auto maybe_selectors = parse_selector(CSS::Parser::ParsingContext(document()), selectors);
+    auto maybe_selectors = parse_selector(CSS::Parser::ParsingParams(document()), selectors);
 
     // 2. If s is failure, then throw a "SyntaxError" DOMException.
     if (!maybe_selectors.has_value())
@@ -3273,7 +3273,7 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
             if (m_inline_style && m_inline_style->is_updating())
                 return;
             if (!m_inline_style) {
-                m_inline_style = parse_css_style_attribute(CSS::Parser::ParsingContext(document()), *value, *this);
+                m_inline_style = parse_css_style_attribute(CSS::Parser::ParsingParams(document()), *value, *this);
             } else {
                 // NOTE: ElementInlineCSSStyleDeclaration::set_css_text should never throw an exception.
                 m_inline_style->set_declarations_from_text(*value);
