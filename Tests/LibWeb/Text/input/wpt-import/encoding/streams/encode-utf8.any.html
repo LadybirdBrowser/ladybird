@@ -1,0 +1,16 @@
+<!doctype html>
+<meta charset=utf-8>
+
+<script>
+self.GLOBAL = {
+  isWindow: function() { return true; },
+  isWorker: function() { return false; },
+  isShadowRealm: function() { return false; },
+};
+</script>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/readable-stream-from-array.js"></script>
+<script src="resources/readable-stream-to-array.js"></script>
+<div id=log></div>
+<script src="../../encoding/streams/encode-utf8.any.js"></script>

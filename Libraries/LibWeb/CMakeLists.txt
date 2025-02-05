@@ -244,6 +244,7 @@ set(SOURCES
     Encoding/TextDecoder.cpp
     Encoding/TextEncoder.cpp
     Encoding/TextEncoderCommon.cpp
+    Encoding/TextEncoderStream.cpp
     EntriesAPI/FileSystemEntry.cpp
     EventTiming/PerformanceEventTiming.cpp
     Fetch/Body.cpp

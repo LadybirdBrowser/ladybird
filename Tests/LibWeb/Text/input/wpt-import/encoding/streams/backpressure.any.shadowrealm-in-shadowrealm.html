@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset=utf-8>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/testharness-shadowrealm-outer.js"></script>
+<script>
+(async function() {
+  const outer = new ShadowRealm();
+  outer.evaluate(`
+    var inner = new ShadowRealm();
+  `);
+  await shadowRealmEvalAsync(outer, `
+    await import("../../resources/testharness-shadowrealm-outer.js");
+    await shadowRealmEvalAsync(inner, \`
+      await import("/resources/testharness-shadowrealm-inner.js");
+      await import("../../resources/testharness.js");
+    \`);
+  `);
+
+  outer.evaluate(`
+    inner.evaluate("setShadowRealmGlobalProperties")
+  `)(location.search, fetchAdaptor);
+
+  await shadowRealmEvalAsync(outer, `
+    await shadowRealmEvalAsync(inner, \`
+      
+      await import("/encoding/streams/backpressure.any.js");
+    \`);
+  `);
+
+  outer.evaluate(`
+    function begin_shadow_realm_tests(windowCallback) {
+      inner.evaluate("begin_shadow_realm_tests")(windowCallback);
+    }
+  `);
+  await fetch_tests_from_shadow_realm(outer);
+  done();
+})().catch(e => setup(() => { throw e; }));
+</script>

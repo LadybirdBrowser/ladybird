@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+2 Pass
+2 Fail
+Fail	TextDecoderStream: write in detached realm should succeed
+Pass	TextEncoderStream: write in detached realm should succeed
+Pass	TextEncoderStream: close in detached realm should succeed
+Fail	TextDecoderStream: close in detached realm should succeed

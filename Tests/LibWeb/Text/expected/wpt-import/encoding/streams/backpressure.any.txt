@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+2 Pass
+2 Fail
+Fail	write() should not complete until read relieves backpressure for TextDecoderStream
+Fail	additional writes should wait for backpressure to be relieved for class TextDecoderStream
+Pass	write() should not complete until read relieves backpressure for TextEncoderStream
+Pass	additional writes should wait for backpressure to be relieved for class TextEncoderStream
