@@ -639,6 +639,12 @@ void HTMLElement::attribute_changed(FlyString const& name, Optional<String> cons
             // Having an invalid value maps to the "inherit" state.
             m_content_editable_state = ContentEditableState::Inherit;
         }
+    } else if (name == HTML::AttributeNames::inert) {
+        // https://html.spec.whatwg.org/multipage/interaction.html#the-inert-attribute
+        // The inert attribute is a boolean attribute that indicates, by its presence, that the element and all its flat tree descendants which don't otherwise escape inertness
+        // (such as modal dialogs) are to be made inert by the user agent.
+        auto is_inert = value.has_value();
+        set_subtree_inertness(is_inert);
     }
 
     // 1. If namespace is not null, or localName is not the name of an event handler content attribute on element, then return.
@@ -673,6 +679,18 @@ void HTMLElement::attribute_changed(FlyString const& name, Optional<String> cons
     }();
 }
 
+void HTMLElement::set_subtree_inertness(bool is_inert)
+{
+    set_inert(is_inert);
+    for_each_in_subtree_of_type<HTMLElement>([&](auto& html_element) {
+        if (html_element.has_attribute(HTML::AttributeNames::inert))
+            return TraversalDecision::SkipChildrenAndContinue;
+        // FIXME: Exclude elements that should escape inertness.
+        html_element.set_inert(is_inert);
+        return TraversalDecision::Continue;
+    });
+}
+
 WebIDL::ExceptionOr<void> HTMLElement::cloned(Web::DOM::Node& copy, bool clone_children) const
 {
     TRY(Base::cloned(copy, clone_children));
@@ -684,6 +702,9 @@ void HTMLElement::inserted()
 {
     Base::inserted();
     HTMLOrSVGElement::inserted();
+
+    if (auto* parent_html_element = first_ancestor_of_type<HTMLElement>(); parent_html_element && parent_html_element->is_inert() && !has_attribute(HTML::AttributeNames::inert))
+        set_subtree_inertness(true);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fire-a-synthetic-pointer-event
@@ -1826,6 +1847,14 @@ void HTMLElement::removed_from(Node* old_parent, Node& old_root)
     // If removedNode's popover attribute is not in the no popover state, then run the hide popover algorithm given removedNode, false, false, false, and true.
     if (popover().has_value())
         MUST(hide_popover(FocusPreviousElement::No, FireEvents::No, ThrowExceptions::No, IgnoreDomState::Yes));
+
+    if (old_parent) {
+        auto* parent_html_element = as_if<HTMLElement>(old_parent);
+        if (!parent_html_element)
+            parent_html_element = old_parent->first_ancestor_of_type<HTMLElement>();
+        if (parent_html_element && parent_html_element->is_inert() && !has_attribute(HTML::AttributeNames::inert))
+            set_subtree_inertness(false);
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-accesskeylabel
