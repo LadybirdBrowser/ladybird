@@ -80,6 +80,12 @@ public:
         return (... || this->operator==(forward<Ts>(strings)));
     }
 
+    template<typename... Ts>
+    [[nodiscard]] ALWAYS_INLINE constexpr bool is_one_of_ignoring_ascii_case(Ts&&... strings) const
+    {
+        return (... || this->equals_ignoring_ascii_case(forward<Ts>(strings)));
+    }
+
 private:
     friend class Optional<FlyString>;
 
