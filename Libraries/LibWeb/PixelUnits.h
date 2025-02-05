@@ -66,6 +66,9 @@ public:
     static constexpr i32 max_integer_value = NumericLimits<int>::max() >> fractional_bits;
     static constexpr i32 min_integer_value = NumericLimits<int>::min() >> fractional_bits;
 
+    // NOTE: This is apparently the largest value allowed by Firefox. Probably enough for us as well.
+    static constexpr float max_dimension_value = 17895700;
+
     constexpr CSSPixels() = default;
     template<Signed I>
     constexpr CSSPixels(I value)
