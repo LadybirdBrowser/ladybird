@@ -7,6 +7,7 @@
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/DOM/Element.h>
 
 namespace Web::CSS {
 GC_DEFINE_ALLOCATOR(CascadedProperties);
