@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<style>
+    #target {
+
+        font-feature-settings: "sinf" 1;
+        font-kerning: none;
+        font-language-override: "NAH";
+        font-optical-sizing: none;
+        font-size-adjust: 42;
+        font-variant-alternates: historical-forms;
+        font-variant-caps: small-caps;
+        font-variant-east-asian: ruby;
+        font-variant-emoji: unicode;
+        font-variant-ligatures: contextual;
+        font-variant-numeric: tabular-nums;
+        font-variant-position: sub;
+        font-variation-settings: "wght" 700;
+
+        /* This should reset all of these */
+        font: 20px sans-serif;
+    }
+</style>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        let target = document.getElementById("target");
+        let style = getComputedStyle(target);
+
+        let properties = [
+            "font-feature-settings",
+            "font-kerning",
+            "font-language-override",
+            "font-optical-sizing",
+            "font-size-adjust",
+            "font-variant-alternates",
+            "font-variant-caps",
+            "font-variant-east-asian",
+            "font-variant-emoji",
+            "font-variant-ligatures",
+            "font-variant-numeric",
+            "font-variant-position",
+            "font-variation-settings",
+        ];
+        for (let property of properties) {
+            println(`${property}: ${style[property]}`);
+        }
+    });
+</script>
