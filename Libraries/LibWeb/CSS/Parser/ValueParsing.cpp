@@ -3769,10 +3769,16 @@ bool Parser::substitute_attr_function(DOM::Element& element, FlyString const& pr
     // 1. If the attr() function has a substitution value, replace the attr() function by the substitution value.
     // https://drafts.csswg.org/css-values-5/#attr-types
     if (element.has_attribute(attribute_name)) {
+        auto parse_string_as_component_value = [this](String const& string) {
+            auto tokens = Tokenizer::tokenize(string, "utf-8"sv);
+            TokenStream stream { tokens };
+            return parse_a_component_value(stream);
+        };
+
         auto attribute_value = element.get_attribute_value(attribute_name);
         if (attribute_type.equals_ignoring_ascii_case("angle"_fly_string)) {
             // Parse a component value from the attribute’s value.
-            auto component_value = Parser::Parser::create(m_context, attribute_value).parse_as_component_value();
+            auto component_value = parse_string_as_component_value(attribute_value);
             // If the result is a <dimension-token> whose unit matches the given type, the result is the substitution value.
             // Otherwise, there is no substitution value.
             if (component_value.has_value() && component_value->is(Token::Type::Dimension)) {
@@ -3785,7 +3791,7 @@ bool Parser::substitute_attr_function(DOM::Element& element, FlyString const& pr
             // Parse a component value from the attribute’s value.
             // If the result is a <hex-color> or a named color ident, the substitution value is that result as a <color>.
             // Otherwise there is no substitution value.
-            auto component_value = Parser::Parser::create(m_context, attribute_value).parse_as_component_value();
+            auto component_value = parse_string_as_component_value(attribute_value);
             if (component_value.has_value()) {
                 if ((component_value->is(Token::Type::Hash)
                         && Color::from_string(MUST(String::formatted("#{}", component_value->token().hash_value()))).has_value())
@@ -3797,7 +3803,7 @@ bool Parser::substitute_attr_function(DOM::Element& element, FlyString const& pr
             }
         } else if (attribute_type.equals_ignoring_ascii_case("flex"_fly_string)) {
             // Parse a component value from the attribute’s value.
-            auto component_value = Parser::Parser::create(m_context, attribute_value).parse_as_component_value();
+            auto component_value = parse_string_as_component_value(attribute_value);
             // If the result is a <dimension-token> whose unit matches the given type, the result is the substitution value.
             // Otherwise, there is no substitution value.
             if (component_value.has_value() && component_value->is(Token::Type::Dimension)) {
@@ -3808,7 +3814,7 @@ bool Parser::substitute_attr_function(DOM::Element& element, FlyString const& pr
             }
         } else if (attribute_type.equals_ignoring_ascii_case("frequency"_fly_string)) {
             // Parse a component value from the attribute’s value.
-            auto component_value = Parser::Parser::create(m_context, attribute_value).parse_as_component_value();
+            auto component_value = parse_string_as_component_value(attribute_value);
             // If the result is a <dimension-token> whose unit matches the given type, the result is the substitution value.
             // Otherwise, there is no substitution value.
             if (component_value.has_value() && component_value->is(Token::Type::Dimension)) {
@@ -3831,7 +3837,7 @@ bool Parser::substitute_attr_function(DOM::Element& element, FlyString const& pr
             }
         } else if (attribute_type.equals_ignoring_ascii_case("length"_fly_string)) {
             // Parse a component value from the attribute’s value.
-            auto component_value = Parser::Parser::create(m_context, attribute_value).parse_as_component_value();
+            auto component_value = parse_string_as_component_value(attribute_value);
             // If the result is a <dimension-token> whose unit matches the given type, the result is the substitution value.
             // Otherwise, there is no substitution value.
             if (component_value.has_value() && component_value->is(Token::Type::Dimension)) {
@@ -3844,14 +3850,14 @@ bool Parser::substitute_attr_function(DOM::Element& element, FlyString const& pr
             // Parse a component value from the attribute’s value.
             // If the result is a <number-token>, the result is the substitution value.
             // Otherwise, there is no substitution value.
-            auto component_value = Parser::Parser::create(m_context, attribute_value).parse_as_component_value();
+            auto component_value = parse_string_as_component_value(attribute_value);
             if (component_value.has_value() && component_value->is(Token::Type::Number)) {
                 dest.append(component_value.release_value());
                 return true;
             }
         } else if (attribute_type.equals_ignoring_ascii_case("percentage"_fly_string)) {
             // Parse a component value from the attribute’s value.
-            auto component_value = Parser::Parser::create(m_context, attribute_value).parse_as_component_value();
+            auto component_value = parse_string_as_component_value(attribute_value);
             // If the result is a <percentage-token>, the result is the substitution value.
             // Otherwise, there is no substitution value.
             if (component_value.has_value() && component_value->is(Token::Type::Percentage)) {
@@ -3866,7 +3872,7 @@ bool Parser::substitute_attr_function(DOM::Element& element, FlyString const& pr
             return true;
         } else if (attribute_type.equals_ignoring_ascii_case("time"_fly_string)) {
             // Parse a component value from the attribute’s value.
-            auto component_value = Parser::Parser::create(m_context, attribute_value).parse_as_component_value();
+            auto component_value = parse_string_as_component_value(attribute_value);
             // If the result is a <dimension-token> whose unit matches the given type, the result is the substitution value.
             // Otherwise, there is no substitution value.
             if (component_value.has_value() && component_value->is(Token::Type::Dimension)) {
@@ -3886,7 +3892,7 @@ bool Parser::substitute_attr_function(DOM::Element& element, FlyString const& pr
             // Parse a component value from the attribute’s value.
             // If the result is a <number-token>, the substitution value is a dimension with the result’s value, and the given unit.
             // Otherwise, there is no substitution value.
-            auto component_value = Parser::Parser::create(m_context, attribute_value).parse_as_component_value();
+            auto component_value = parse_string_as_component_value(attribute_value);
             if (component_value.has_value() && component_value->is(Token::Type::Number)) {
                 if (attribute_value == "%"sv) {
                     dest.empend(Token::create_dimension(component_value->token().number_value(), attribute_type));
