@@ -633,8 +633,8 @@ ComponentValue Parser::consume_a_component_value<ComponentValue>(TokenStream<Com
 
 // 5.4.7. Consume a component value
 // https://drafts.csswg.org/css-syntax/#consume-component-value
-template<typename T>
-ComponentValue Parser::consume_a_component_value(TokenStream<T>& input)
+template<>
+ComponentValue Parser::consume_a_component_value(TokenStream<Token>& input)
 {
     // To consume a component value from a token stream input:
 
@@ -667,18 +667,18 @@ ComponentValue Parser::consume_a_component_value(TokenStream<T>& input)
 template<>
 void Parser::consume_a_component_value_and_do_nothing<ComponentValue>(TokenStream<ComponentValue>& tokens)
 {
-    // AD-HOC: To avoid unnecessairy allocations, we explicitly define a "do nothing" variant that discards the result immediately.
+    // AD-HOC: To avoid unnecessary allocations, we explicitly define a "do nothing" variant that discards the result immediately.
     // Note: This overload is called once tokens have already been converted into component values,
     //       so we do not need to do the work in the more general overload.
-    (void)tokens.consume_a_token();
+    tokens.discard_a_token();
 }
 
 // 5.4.7. Consume a component value
 // https://drafts.csswg.org/css-syntax/#consume-component-value
-template<typename T>
-void Parser::consume_a_component_value_and_do_nothing(TokenStream<T>& input)
+template<>
+void Parser::consume_a_component_value_and_do_nothing(TokenStream<Token>& input)
 {
-    // AD-HOC: To avoid unnecessairy allocations, we explicitly define a "do nothing" variant that discards the result immediately.
+    // AD-HOC: To avoid unnecessary allocations, we explicitly define a "do nothing" variant that discards the result immediately.
     // To consume a component value from a token stream input:
 
     // Process input:
@@ -752,8 +752,7 @@ Vector<ComponentValue> Parser::consume_a_list_of_component_values(TokenStream<T>
 }
 
 // https://drafts.csswg.org/css-syntax/#consume-simple-block
-template<typename T>
-SimpleBlock Parser::consume_a_simple_block(TokenStream<T>& input)
+SimpleBlock Parser::consume_a_simple_block(TokenStream<Token>& input)
 {
     // To consume a simple block from a token stream input:
 
@@ -789,16 +788,15 @@ SimpleBlock Parser::consume_a_simple_block(TokenStream<T>& input)
         // anything else
         {
             // Consume a component value from input and append the result to block’s value.
-            block.value.empend(move(consume_a_component_value(input)));
+            block.value.append(consume_a_component_value(input));
         }
     }
 }
 
 // https://drafts.csswg.org/css-syntax/#consume-simple-block
-template<typename T>
-void Parser::consume_a_simple_block_and_do_nothing(TokenStream<T>& input)
+void Parser::consume_a_simple_block_and_do_nothing(TokenStream<Token>& input)
 {
-    // AD-HOC: To avoid unnecessairy allocations, we explicitly define a "do nothing" variant that discards the result immediately.
+    // AD-HOC: To avoid unnecessary allocations, we explicitly define a "do nothing" variant that discards the result immediately.
     // To consume a simple block from a token stream input:
 
     // Assert: the next token of input is <{-token>, <[-token>, or <(-token>.
@@ -834,8 +832,7 @@ void Parser::consume_a_simple_block_and_do_nothing(TokenStream<T>& input)
 }
 
 // https://drafts.csswg.org/css-syntax/#consume-function
-template<typename T>
-Function Parser::consume_a_function(TokenStream<T>& input)
+Function Parser::consume_a_function(TokenStream<Token>& input)
 {
     // To consume a function from a token stream input:
 
@@ -873,10 +870,9 @@ Function Parser::consume_a_function(TokenStream<T>& input)
 }
 
 // https://drafts.csswg.org/css-syntax/#consume-function
-template<typename T>
-void Parser::consume_a_function_and_do_nothing(TokenStream<T>& input)
+void Parser::consume_a_function_and_do_nothing(TokenStream<Token>& input)
 {
-    // AD-HOC: To avoid unnecessairy allocations, we explicitly define a "do nothing" variant that discards the result immediately.
+    // AD-HOC: To avoid unnecessary allocations, we explicitly define a "do nothing" variant that discards the result immediately.
     // To consume a function from a token stream input:
 
     // Assert: The next token is a <function-token>.
@@ -1702,16 +1698,6 @@ template Vector<RuleOrListOfDeclarations> Parser::consume_a_blocks_contents(Toke
 
 template Vector<ComponentValue> Parser::consume_a_list_of_component_values(TokenStream<ComponentValue>&, Optional<Token::Type>, Nested);
 template Vector<ComponentValue> Parser::consume_a_list_of_component_values(TokenStream<Token>&, Optional<Token::Type>, Nested);
-
-template SimpleBlock Parser::consume_a_simple_block(TokenStream<Token>&);
-
-template void Parser::consume_a_simple_block_and_do_nothing(TokenStream<Token>&);
-
-template Function Parser::consume_a_function(TokenStream<Token>&);
-template Function Parser::consume_a_function(TokenStream<ComponentValue>&);
-
-template void Parser::consume_a_function_and_do_nothing(TokenStream<Token>&);
-template void Parser::consume_a_function_and_do_nothing(TokenStream<ComponentValue>&);
 
 template Optional<Declaration> Parser::consume_a_declaration(TokenStream<Token>&, Nested);
 template Optional<Declaration> Parser::consume_a_declaration(TokenStream<ComponentValue>&, Nested);
