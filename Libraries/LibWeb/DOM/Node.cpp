@@ -439,14 +439,14 @@ void Node::invalidate_style(StyleInvalidationReason reason)
 
     if (reason == StyleInvalidationReason::NodeInsertBefore || reason == StyleInvalidationReason::NodeRemove) {
         for (auto* sibling = previous_sibling(); sibling; sibling = sibling->previous_sibling()) {
-            if (sibling->is_element())
-                sibling->set_entire_subtree_needs_style_update(true);
+            if (auto* element = as_if<Element>(sibling); element && element->style_affected_by_structural_changes())
+                element->set_entire_subtree_needs_style_update(true);
         }
     }
 
     for (auto* sibling = next_sibling(); sibling; sibling = sibling->next_sibling()) {
-        if (sibling->is_element())
-            sibling->set_entire_subtree_needs_style_update(true);
+        if (auto* element = as_if<Element>(sibling); element && element->style_affected_by_structural_changes())
+            element->set_entire_subtree_needs_style_update(true);
     }
 
     for (auto* ancestor = parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host())
