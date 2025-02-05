@@ -2344,9 +2344,60 @@ RefPtr<CSSStyleValue> Parser::parse_font_value(TokenStream<ComponentValue>& toke
         line_height = property_initial_value(PropertyID::LineHeight);
 
     transaction.commit();
+    auto initial_value = CSSKeywordValue::create(Keyword::Initial);
     return ShorthandStyleValue::create(PropertyID::Font,
-        { PropertyID::FontStyle, PropertyID::FontVariant, PropertyID::FontWeight, PropertyID::FontWidth, PropertyID::FontSize, PropertyID::LineHeight, PropertyID::FontFamily },
-        { font_style.release_nonnull(), font_variant.release_nonnull(), font_weight.release_nonnull(), font_width.release_nonnull(), font_size.release_nonnull(), line_height.release_nonnull(), font_families.release_nonnull() });
+        {
+            // Set explicitly https://drafts.csswg.org/css-fonts/#set-explicitly
+            PropertyID::FontFamily,
+            PropertyID::FontSize,
+            PropertyID::FontWidth,
+            // FIXME: PropertyID::FontStretch
+            PropertyID::FontStyle,
+            PropertyID::FontVariant,
+            PropertyID::FontWeight,
+            PropertyID::LineHeight,
+
+            // Reset implicitly https://drafts.csswg.org/css-fonts/#reset-implicitly
+            PropertyID::FontFeatureSettings,
+            // FIXME: PropertyID::FontKerning,
+            PropertyID::FontLanguageOverride,
+            // FIXME: PropertyID::FontOpticalSizing,
+            // FIXME: PropertyID::FontSizeAdjust,
+            PropertyID::FontVariantAlternates,
+            PropertyID::FontVariantCaps,
+            PropertyID::FontVariantEastAsian,
+            PropertyID::FontVariantEmoji,
+            PropertyID::FontVariantLigatures,
+            PropertyID::FontVariantNumeric,
+            PropertyID::FontVariantPosition,
+            PropertyID::FontVariationSettings,
+        },
+        {
+            // Set explicitly
+            font_families.release_nonnull(),
+            font_size.release_nonnull(),
+            font_width.release_nonnull(),
+            // FIXME: font-stretch
+            font_style.release_nonnull(),
+            font_variant.release_nonnull(),
+            font_weight.release_nonnull(),
+            line_height.release_nonnull(),
+
+            // Reset implicitly
+            initial_value, // font-feature-settings
+                           // FIXME: font-kerning,
+            initial_value, // font-language-override
+                           // FIXME: font-optical-sizing,
+                           // FIXME: font-size-adjust,
+            initial_value, // font-variant-alternates
+            initial_value, // font-variant-caps
+            initial_value, // font-variant-east-asian
+            initial_value, // font-variant-emoji
+            initial_value, // font-variant-ligatures
+            initial_value, // font-variant-numeric
+            initial_value, // font-variant-position
+            initial_value, // font-variation-settings
+        });
 }
 
 RefPtr<CSSStyleValue> Parser::parse_font_family_value(TokenStream<ComponentValue>& tokens)
