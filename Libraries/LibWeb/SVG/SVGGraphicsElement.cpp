@@ -177,7 +177,7 @@ bool SVGGraphicsElement::is_presentational_hint(FlyString const& name) const
 
 void SVGGraphicsElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
-    CSS::Parser::ParsingContext parsing_context { document(), CSS::Parser::ParsingContext::Mode::SVGPresentationAttribute };
+    CSS::Parser::ParsingParams parsing_context { document(), CSS::Parser::ParsingMode::SVGPresentationAttribute };
     for_each_attribute([&](auto& name, auto& value) {
         for (auto property : attribute_style_properties) {
             if (!name.equals_ignoring_ascii_case(property.name))

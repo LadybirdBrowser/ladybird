@@ -65,7 +65,7 @@ bool SVGForeignObjectElement::is_presentational_hint(FlyString const& name) cons
 void SVGForeignObjectElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
 {
     Base::apply_presentational_hints(cascaded_properties);
-    auto parsing_context = CSS::Parser::ParsingContext { document() };
+    auto parsing_context = CSS::Parser::ParsingParams { document() };
     if (auto width_value = parse_css_value(parsing_context, get_attribute_value(Web::HTML::AttributeNames::width), CSS::PropertyID::Width))
         cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Width, width_value.release_nonnull());
 

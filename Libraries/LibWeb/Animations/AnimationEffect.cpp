@@ -601,7 +601,7 @@ Optional<double> AnimationEffect::transformed_progress() const
 
 RefPtr<CSS::CSSStyleValue const> AnimationEffect::parse_easing_string(StringView value)
 {
-    if (auto style_value = parse_css_value(CSS::Parser::ParsingContext(), value, CSS::PropertyID::AnimationTimingFunction)) {
+    if (auto style_value = parse_css_value(CSS::Parser::ParsingParams(), value, CSS::PropertyID::AnimationTimingFunction)) {
         if (style_value->is_easing())
             return style_value;
     }

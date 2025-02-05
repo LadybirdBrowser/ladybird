@@ -543,7 +543,7 @@ static WebIDL::ExceptionOr<Vector<BaseKeyframe>> process_a_keyframes_argument(JS
             if (!property_id.has_value())
                 continue;
 
-            if (auto style_value = parse_css_value(CSS::Parser::ParsingContext(), value_string, *property_id)) {
+            if (auto style_value = parse_css_value(CSS::Parser::ParsingParams(), value_string, *property_id)) {
                 // Handle 'initial' here so we don't have to get the default value of the property every frame in StyleComputer
                 if (style_value->is_initial())
                     style_value = CSS::property_initial_value(*property_id);
@@ -861,7 +861,7 @@ WebIDL::ExceptionOr<void> KeyframeEffect::set_keyframes(Optional<GC::Root<JS::Ob
 
         for (auto [property_id, property_value] : keyframe.parsed_properties()) {
             if (property_value->is_unresolved() && target)
-                property_value = CSS::Parser::Parser::resolve_unresolved_style_value(CSS::Parser::ParsingContext { target->document() }, *target, pseudo_element_type(), property_id, property_value->as_unresolved());
+                property_value = CSS::Parser::Parser::resolve_unresolved_style_value(CSS::Parser::ParsingParams { target->document() }, *target, pseudo_element_type(), property_id, property_value->as_unresolved());
             CSS::StyleComputer::for_each_property_expanding_shorthands(property_id, property_value, CSS::StyleComputer::AllowUnresolved::Yes, [&](CSS::PropertyID shorthand_id, CSS::CSSStyleValue const& shorthand_value) {
                 m_target_properties.set(shorthand_id);
                 resolved_keyframe.properties.set(shorthand_id, NonnullRefPtr<CSS::CSSStyleValue const> { shorthand_value });

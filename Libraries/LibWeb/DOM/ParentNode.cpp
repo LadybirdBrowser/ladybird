@@ -52,7 +52,7 @@ static WebIDL::ExceptionOr<Variant<GC::Ptr<Element>, GC::Ref<NodeList>>> scope_m
 {
     // To scope-match a selectors string selectors against a node, run these steps:
     // 1. Let s be the result of parse a selector selectors.
-    auto maybe_selectors = parse_selector(CSS::Parser::ParsingContext { node.document() }, selector_text);
+    auto maybe_selectors = parse_selector(CSS::Parser::ParsingParams { node.document() }, selector_text);
 
     // 2. If s is failure, then throw a "SyntaxError" DOMException.
     if (!maybe_selectors.has_value())

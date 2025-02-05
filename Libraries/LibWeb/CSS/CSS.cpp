@@ -27,7 +27,7 @@ bool supports(JS::VM&, StringView property, StringView value)
     // 1. If property is an ASCII case-insensitive match for any defined CSS property that the UA supports,
     //    and value successfully parses according to that property’s grammar, return true.
     if (auto property_id = property_id_from_string(property); property_id.has_value()) {
-        if (parse_css_value(Parser::ParsingContext {}, value, property_id.value()))
+        if (parse_css_value(Parser::ParsingParams {}, value, property_id.value()))
             return true;
     }
 
@@ -46,13 +46,13 @@ WebIDL::ExceptionOr<bool> supports(JS::VM& vm, StringView condition_text)
     auto& realm = *vm.current_realm();
 
     // 1. If conditionText, parsed and evaluated as a <supports-condition>, would return true, return true.
-    if (auto supports = parse_css_supports(Parser::ParsingContext { realm }, condition_text); supports && supports->matches())
+    if (auto supports = parse_css_supports(Parser::ParsingParams { realm }, condition_text); supports && supports->matches())
         return true;
 
     // 2. Otherwise, If conditionText, wrapped in parentheses and then parsed and evaluated as a <supports-condition>, would return true, return true.
     auto wrapped_condition_text = TRY_OR_THROW_OOM(vm, String::formatted("({})", condition_text));
 
-    if (auto supports = parse_css_supports(Parser::ParsingContext { realm }, wrapped_condition_text); supports && supports->matches())
+    if (auto supports = parse_css_supports(Parser::ParsingParams { realm }, wrapped_condition_text); supports && supports->matches())
         return true;
 
     // 3. Otherwise, return false.

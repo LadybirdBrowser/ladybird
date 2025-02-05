@@ -319,7 +319,7 @@ void IntersectionObserver::queue_entry(Badge<DOM::Document>, GC::Ref<Intersectio
 Optional<Vector<CSS::LengthPercentage>> IntersectionObserver::parse_a_margin(JS::Realm& realm, String margin_string)
 {
     // 1. Parse a list of component values marginString, storing the result as tokens.
-    auto tokens = CSS::Parser::Parser::create(CSS::Parser::ParsingContext { realm }, margin_string).parse_as_list_of_component_values();
+    auto tokens = CSS::Parser::Parser::create(CSS::Parser::ParsingParams { realm }, margin_string).parse_as_list_of_component_values();
 
     // 2. Remove all whitespace tokens from tokens.
     tokens.remove_all_matching([](auto componentValue) { return componentValue.is(CSS::Parser::Token::Type::Whitespace); });

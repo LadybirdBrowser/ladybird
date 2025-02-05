@@ -1218,7 +1218,7 @@ GC::Ref<CSS::CSSStyleDeclaration> Window::get_computed_style(DOM::Element& eleme
     // 3. If pseudoElt is provided, is not the empty string, and starts with a colon, then:
     if (pseudo_element.has_value() && pseudo_element.value().starts_with(':')) {
         // 1. Parse pseudoElt as a <pseudo-element-selector>, and let type be the result.
-        auto type = parse_pseudo_element_selector(CSS::Parser::ParsingContext(associated_document()), pseudo_element.value());
+        auto type = parse_pseudo_element_selector(CSS::Parser::ParsingParams(associated_document()), pseudo_element.value());
 
         // 2. If type is failure, or is an ::slotted() or ::part() pseudo-element, let obj be null.
         // FIXME: We can't pass a null element to ResolvedCSSStyleDeclaration
@@ -1261,7 +1261,7 @@ GC::Ref<CSS::CSSStyleDeclaration> Window::get_computed_style(DOM::Element& eleme
 WebIDL::ExceptionOr<GC::Ref<CSS::MediaQueryList>> Window::match_media(String const& query)
 {
     // 1. Let parsed media query list be the result of parsing query.
-    auto parsed_media_query_list = parse_media_query_list(CSS::Parser::ParsingContext(associated_document()), query);
+    auto parsed_media_query_list = parse_media_query_list(CSS::Parser::ParsingParams(associated_document()), query);
 
     // 2. Return a new MediaQueryList object, with this's associated Document as the document, with parsed media query list as its associated media query list.
     auto media_query_list = realm().create<CSS::MediaQueryList>(associated_document(), move(parsed_media_query_list));

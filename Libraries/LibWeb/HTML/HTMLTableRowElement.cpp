@@ -8,7 +8,6 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/Parser/ParsingContext.h>
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
@@ -68,7 +67,7 @@ void HTMLTableRowElement::apply_presentational_hints(GC::Ref<CSS::CascadedProper
             if (auto parsed_value = parse_dimension_value(value))
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Height, *parsed_value);
         } else if (name == HTML::AttributeNames::valign) {
-            if (auto parsed_value = parse_css_value(CSS::Parser::ParsingContext { document() }, value, CSS::PropertyID::VerticalAlign))
+            if (auto parsed_value = parse_css_value(CSS::Parser::ParsingParams { document() }, value, CSS::PropertyID::VerticalAlign))
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::VerticalAlign, parsed_value.release_nonnull());
         }
     });

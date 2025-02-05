@@ -131,8 +131,8 @@ WebIDL::ExceptionOr<void> PropertyOwningCSSStyleDeclaration::set_property(String
 
     // 5. Let component value list be the result of parsing value for property property.
     auto component_value_list = is<ElementInlineCSSStyleDeclaration>(this)
-        ? parse_css_value(CSS::Parser::ParsingContext { static_cast<ElementInlineCSSStyleDeclaration&>(*this).element()->document() }, value, property_id)
-        : parse_css_value(CSS::Parser::ParsingContext {}, value, property_id);
+        ? parse_css_value(CSS::Parser::ParsingParams { static_cast<ElementInlineCSSStyleDeclaration&>(*this).element()->document() }, value, property_id)
+        : parse_css_value(CSS::Parser::ParsingParams {}, value, property_id);
 
     // 6. If component value list is null, then return.
     if (!component_value_list)
@@ -528,7 +528,7 @@ void ElementInlineCSSStyleDeclaration::set_declarations_from_text(StringView css
     }
 
     empty_the_declarations();
-    auto style = parse_css_style_attribute(CSS::Parser::ParsingContext(m_element->document()), css_text, *m_element.ptr());
+    auto style = parse_css_style_attribute(CSS::Parser::ParsingParams(m_element->document()), css_text, *m_element.ptr());
     set_the_declarations(style->properties(), style->custom_properties());
 }
 
