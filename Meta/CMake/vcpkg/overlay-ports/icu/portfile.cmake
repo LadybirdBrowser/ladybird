@@ -62,6 +62,11 @@ endif()
 
 if(VCPKG_TARGET_IS_WINDOWS)
     list(APPEND CONFIGURE_OPTIONS --enable-icu-build-win)
+    # https://github.com/microsoft/vcpkg/pull/38826/files#diff-ea2b03d0dcb43b39cfac7b4f96e0ba52a5e4f15c1df6986850e0d52d56229430R64
+    if(NOT VCPKG_TARGET_IS_MINGW)
+        string(APPEND VCPKG_C_FLAGS "/std:c11")
+        string(APPEND VCPKG_CXX_FLAGS "/std:c++17")
+    endif()
 endif()
 
 if("tools" IN_LIST FEATURES)
