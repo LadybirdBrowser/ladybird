@@ -2230,7 +2230,7 @@ static void compute_text_align(ComputedProperties& style, DOM::Element const& el
 
         if (parent) {
             auto const& parent_text_align = parent->computed_properties()->property(PropertyID::TextAlign);
-            auto const& parent_direction = parent->computed_properties()->direction().value_or(Direction::Ltr);
+            auto const& parent_direction = parent->computed_properties()->direction();
             switch (parent_text_align.to_keyword()) {
             case Keyword::Start:
                 if (parent_direction == Direction::Ltr) {
