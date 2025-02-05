@@ -29,10 +29,8 @@ struct LaunchBrowserCallbacks;
 
 class Session : public RefCounted<Session> {
 public:
-    Session(String session_id, NonnullRefPtr<Client> client, Web::WebDriver::LadybirdOptions options);
+    static ErrorOr<NonnullRefPtr<Session>> create(NonnullRefPtr<Client> client, JsonObject& capabilities, ReadonlySpan<StringView> flags);
     ~Session();
-
-    void initialize_from_capabilities(JsonObject&);
 
     String session_id() const { return m_id; }
 
@@ -55,8 +53,6 @@ public:
     }
 
     bool has_window_handle(StringView handle) const { return m_windows.contains(handle); }
-
-    ErrorOr<void> start(LaunchBrowserCallbacks const&);
 
     Web::WebDriver::Response set_timeouts(JsonValue);
     Web::WebDriver::Response close_window();
@@ -83,6 +79,10 @@ public:
     }
 
 private:
+    Session(NonnullRefPtr<Client> client, JsonObject const& capabilities, String session_id, bool http);
+
+    ErrorOr<void> start(LaunchBrowserCallbacks const&);
+
     using ServerPromise = Core::Promise<ErrorOr<void>>;
     ErrorOr<NonnullRefPtr<Core::LocalServer>> create_server(NonnullRefPtr<ServerPromise> promise);
 
@@ -90,7 +90,9 @@ private:
     Web::WebDriver::LadybirdOptions m_options;
 
     bool m_started { false };
+
     String m_id;
+    bool m_http { false };
 
     HashMap<String, Window> m_windows;
     String m_current_window_handle;

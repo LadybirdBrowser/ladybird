@@ -42,6 +42,6 @@ struct LadybirdOptions {
     bool headless { false };
 };
 
-Response process_capabilities(JsonValue const& parameters);
+Response process_capabilities(JsonValue const& parameters, ReadonlySpan<StringView> flags);
 
 }

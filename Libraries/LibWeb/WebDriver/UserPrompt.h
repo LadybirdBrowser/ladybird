@@ -40,6 +40,9 @@ struct PromptHandlerConfiguration {
     };
 
     static PromptHandlerConfiguration deserialize(JsonValue const&);
+    StringView serialize() const;
+
+    bool operator==(PromptHandlerConfiguration const&) const = default;
 
     PromptHandler handler { PromptHandler::Dismiss };
     Notify notify { Notify::Yes };
@@ -52,7 +55,9 @@ UserPromptHandler const& user_prompt_handler();
 void set_user_prompt_handler(UserPromptHandler);
 
 Response deserialize_as_an_unhandled_prompt_behavior(JsonValue);
+bool check_user_prompt_handler_matches(JsonObject const&);
 void update_the_user_prompt_handler(JsonObject const&);
+JsonValue serialize_the_user_prompt_handler();
 
 }
 
