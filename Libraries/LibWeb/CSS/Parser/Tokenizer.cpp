@@ -919,13 +919,13 @@ Token Tokenizer::consume_string_token(u32 ending_code_point)
     // code point is used.
 
     // Initially create a <string-token> with its value set to the empty string.
-    auto start_byte_offset = current_byte_offset();
+    auto original_source_text_start_byte_offset_including_quotation_mark = current_byte_offset() - 1;
     auto token = create_new_token(Token::Type::String);
     StringBuilder builder;
 
     auto make_token = [&]() -> Token {
         token.m_value = builder.to_fly_string_without_validation();
-        token.m_original_source_text = input_since(start_byte_offset);
+        token.m_original_source_text = input_since(original_source_text_start_byte_offset_including_quotation_mark);
         return token;
     };
 
@@ -950,7 +950,7 @@ Token Tokenizer::consume_string_token(u32 ending_code_point)
             // <bad-string-token>, and return it.
             reconsume_current_input_code_point();
             auto bad_string_token = create_new_token(Token::Type::BadString);
-            bad_string_token.m_original_source_text = input_since(start_byte_offset);
+            bad_string_token.m_original_source_text = input_since(original_source_text_start_byte_offset_including_quotation_mark);
             return bad_string_token;
         }
 
