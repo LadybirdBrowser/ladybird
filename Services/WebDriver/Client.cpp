@@ -3,7 +3,7 @@
  * Copyright (c) 2022, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2022, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -13,8 +13,8 @@
 #include <AK/JsonValue.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
-#include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/WebDriver/Capabilities.h>
+#include <LibWeb/WebDriver/UserPrompt.h>
 #include <WebDriver/Client.h>
 
 namespace WebDriver {
@@ -50,12 +50,40 @@ ErrorOr<NonnullRefPtr<Session>, Web::WebDriver::Error> Client::find_session_with
     return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidSessionId, "Invalid session id");
 }
 
+// https://w3c.github.io/webdriver/#dfn-close-the-session
 void Client::close_session(String const& session_id)
 {
+    // FIXME: 1. If session's HTTP flag is set, remove session from active HTTP sessions.
+
+    // 2. Remove session from active sessions.
     if (s_sessions.remove(session_id))
         dbgln_if(WEBDRIVER_DEBUG, "Shut down session {}", session_id);
     else
         dbgln_if(WEBDRIVER_DEBUG, "Unable to shut down session {}: Not found", session_id);
+
+    // 3. Perform the following substeps based on the remote end's type:
+    // -> Remote end is an endpoint node
+    //     1. If the list of active sessions is empty:
+    if (s_sessions.is_empty()) {
+        // 1. Set the webdriver-active flag to false
+        // NOTE: This is handled by the WebContent process.
+
+        // 2. Set the user prompt handler to null.
+        Web::WebDriver::set_user_prompt_handler({});
+
+        // FIXME: 3. Unset the accept insecure TLS flag.
+        // FIXME: 4. Reset the has proxy configuration flag to its default value.
+
+        // 5. Optionally, close all top-level browsing contexts, without prompting to unload.
+        // NOTE: This is handled by the WebContent process.
+    }
+    // -> Remote end is an intermediary node
+    //     1. Close the associated session. If this causes an error to occur, complete the remainder of this algorithm
+    //        before returning the error.
+
+    // 4. Perform any implementation-specific cleanup steps.
+
+    // 5. If an error has occurred in any of the steps above, return the error, otherwise return success with data null.
 }
 
 // 8.1 New Session, https://w3c.github.io/webdriver/#dfn-new-sessions
@@ -64,69 +92,50 @@ Web::WebDriver::Response Client::new_session(Web::WebDriver::Parameters, JsonVal
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session");
 
-    // FIXME: 1. If the maximum active sessions is equal to the length of the list of active sessions,
-    //           return error with error code session not created.
+    // FIXME: 1. If the implementation is an endpoint node, and the list of active HTTP sessions is not empty, or otherwise if
+    //           the implementation is unable to start an additional session, return error with error code session not created.
 
-    // FIXME: 2. If the remote end is an intermediary node, take implementation-defined steps that either
-    //           result in returning an error with error code session not created, or in returning a
-    //           success with data that is isomorphic to that returned by remote ends according to the
-    //           rest of this algorithm. If an error is not returned, the intermediary node must retain a
-    //           reference to the session created on the upstream node as the associated session such
-    //           that commands may be forwarded to this associated session on subsequent commands.
+    // FIXME: 2. If the remote end is an intermediary node, take implementation-defined steps that either result in returning
+    //           an error with error code session not created, or in returning a success with data that is isomorphic to that
+    //           returned by remote ends according to the rest of this algorithm. If an error is not returned, the intermediary
+    //           node must retain a reference to the session created on the upstream node as the associated session such that
+    //           commands may be forwarded to this associated session on subsequent commands.
 
-    // FIXME: 3. If the maximum active sessions is equal to the length of the list of active sessions,
-    //           return error with error code session not created.
+    // 3. Let flags be a set containing "http".
+    static constexpr Array flags { "http"sv };
 
-    // 4. Let capabilities be the result of trying to process capabilities with parameters as an argument.
-    auto capabilities = TRY(Web::WebDriver::process_capabilities(payload));
+    // 4. Let capabilities be the result of trying to process capabilities with parameters and flags.
+    auto capabilities = TRY(Web::WebDriver::process_capabilities(payload, flags));
 
-    // 5. If capabilities’s is null, return error with error code session not created.
+    // 5. If capabilities's is null, return error with error code session not created.
     if (capabilities.is_null())
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::SessionNotCreated, "Could not match capabilities"sv);
 
-    // 6. Let session id be the result of generating a UUID.
-    auto session_id = MUST(Web::Crypto::generate_random_uuid());
+    // 6. Let session be the result of create a session, with capabilities, and flags.
+    auto maybe_session = Session::create(*this, capabilities.as_object(), flags);
+    if (maybe_session.is_error())
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::SessionNotCreated, ByteString::formatted("Failed to start session: {}", maybe_session.error()));
 
-    // 7. Let session be a new session with the session ID of session id.
-    Web::WebDriver::LadybirdOptions options { capabilities.as_object() };
-    auto session = make_ref_counted<Session>(session_id, *this, move(options));
+    auto session = maybe_session.release_value();
+    s_sessions.set(session->session_id(), session);
 
-    if (auto start_result = session->start(m_callbacks); start_result.is_error())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::SessionNotCreated, ByteString::formatted("Failed to start session: {}", start_result.error()));
-
-    auto& web_content_connection = session->web_content_connection();
-
-    // FIXME: 8. Set the current session to session.
-
-    // FIXME: 9. Run any WebDriver new session algorithm defined in external specifications,
-    //           with arguments session and capabilities.
-
-    // 10. Append session to active sessions.
-    s_sessions.set(session_id, session);
-
-    // NOTE: We do step 12 before 11 because step 12 mutates the capabilities we set in step 11.
-
-    // 12. Initialize the following from capabilities:
-    session->initialize_from_capabilities(capabilities.as_object());
-
-    // 11. Let body be a JSON Object initialized with:
+    // 7. Let body be a JSON Object initialized with:
     JsonObject body;
     // "sessionId"
-    //     session id
-    body.set("sessionId", JsonValue { session_id });
+    //     session's session ID.
+    body.set("sessionId", JsonValue { session->session_id() });
     // "capabilities"
     //     capabilities
     body.set("capabilities", move(capabilities));
 
-    // 13. Set the webdriver-active flag to true.
-    web_content_connection.async_set_is_webdriver_active(true);
+    // 8. Set session' current top-level browsing context to one of the endpoint node's top-level browsing contexts,
+    //    preferring the top-level browsing context that has system focus, or otherwise preferring any top-level
+    //    browsing context whose visibility state is visible.
+    // NOTE: This happens in the WebContent process.
 
-    // FIXME: 14. Set the current top-level browsing context for session with the top-level browsing context
-    //            of the UA’s current browsing context.
+    // FIXME: 9. Set the request queue to a new queue.
 
-    // FIXME: 15. Set the request queue to a new queue.
-
-    // 16. Return success with data body.
+    // 10. Return success with data body.
     return JsonValue { move(body) };
 }
 

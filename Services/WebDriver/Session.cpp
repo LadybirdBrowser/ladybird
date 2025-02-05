@@ -14,16 +14,99 @@
 #include <LibCore/LocalServer.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
+#include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/WebDriver/TimeoutsConfiguration.h>
 #include <LibWeb/WebDriver/UserPrompt.h>
 #include <unistd.h>
 
 namespace WebDriver {
 
-Session::Session(String session_id, NonnullRefPtr<Client> client, Web::WebDriver::LadybirdOptions options)
+// https://w3c.github.io/webdriver/#dfn-create-a-session
+ErrorOr<NonnullRefPtr<Session>> Session::create(NonnullRefPtr<Client> client, JsonObject& capabilities, ReadonlySpan<StringView> flags)
+{
+    // 1. Let session id be the result of generating a UUID.
+    auto session_id = MUST(Web::Crypto::generate_random_uuid());
+
+    // 2. Let session be a new session with session ID session id, and HTTP flag flags contains "http".
+    auto session = adopt_ref(*new Session(client, capabilities, move(session_id), flags.contains_slow("http"sv)));
+    TRY(session->start(client->launch_browser_callbacks()));
+
+    // FIXME: 3. Let proxy be the result of getting property "proxy" from capabilities and run the substeps of the first matching statement:
+    //     -> proxy is a proxy configuration object
+    //         Take implementation-defined steps to set the user agent proxy using the extracted proxy configuration. If the defined proxy cannot be configured return error with error code session not created. Otherwise set the has proxy configuration flag to true.
+    //     -> Otherwise
+    //         Set a property of capabilities with name "proxy" and a value that is a new JSON Object.
+
+    // FIXME: 4. If capabilites has a property named "acceptInsecureCerts", set the endpoint node's accept insecure TLS flag
+    //           to the result of getting a property named "acceptInsecureCerts" from capabilities.
+
+    // 5. Let user prompt handler capability be the result of getting property "unhandledPromptBehavior" from capabilities.
+    auto user_prompt_handler_capability = capabilities.get_object("unhandledPromptBehavior"sv);
+
+    // 6. If user prompt handler capability is not undefined, update the user prompt handler with user prompt handler capability.
+    if (user_prompt_handler_capability.has_value())
+        Web::WebDriver::update_the_user_prompt_handler(*user_prompt_handler_capability);
+
+    session->web_content_connection().async_set_user_prompt_handler(Web::WebDriver::user_prompt_handler());
+
+    // 7. Let serialized user prompt handler be serialize the user prompt handler.
+    auto serialized_user_prompt_handler = Web::WebDriver::serialize_the_user_prompt_handler();
+
+    // 8. Set a property on capabilities with the name "unhandledPromptBehavior", and the value serialized user prompt handler.
+    capabilities.set("unhandledPromptBehavior"sv, move(serialized_user_prompt_handler));
+
+    // 9. If flags contains "http":
+    if (flags.contains_slow("http"sv)) {
+        // 1. Let strategy be the result of getting property "pageLoadStrategy" from capabilities. If strategy is a
+        //    string, set the session's page loading strategy to strategy. Otherwise, set the page loading strategy to
+        //    normal and set a property of capabilities with name "pageLoadStrategy" and value "normal".
+        if (auto strategy = capabilities.get_byte_string("pageLoadStrategy"sv); strategy.has_value()) {
+            session->m_page_load_strategy = Web::WebDriver::page_load_strategy_from_string(*strategy);
+            session->web_content_connection().async_set_page_load_strategy(session->m_page_load_strategy);
+        } else {
+            capabilities.set("pageLoadStrategy"sv, "normal"sv);
+        }
+
+        // 3. Let strictFileInteractability be the result of getting property "strictFileInteractability" from .
+        //    capabilities. If strictFileInteractability is a boolean, set session's strict file interactability to
+        //    strictFileInteractability.
+        if (auto strict_file_interactiblity = capabilities.get_bool("strictFileInteractability"sv); strict_file_interactiblity.has_value()) {
+            session->m_strict_file_interactiblity = *strict_file_interactiblity;
+            session->web_content_connection().async_set_strict_file_interactability(session->m_strict_file_interactiblity);
+        }
+
+        // 4. Let timeouts be the result of getting a property "timeouts" from capabilities. If timeouts is not
+        //    undefined, set session's session timeouts to timeouts.
+        if (auto timeouts = capabilities.get_object("timeouts"sv); timeouts.has_value()) {
+            MUST(session->set_timeouts(*timeouts));
+        }
+
+        // 5. Set a property on capabilities with name "timeouts" and value serialize the timeouts configuration with
+        //    session's session timeouts.
+        capabilities.set("timeouts"sv, session->m_timeouts_configuration.value_or_lazy_evaluated([]() {
+            return Web::WebDriver::timeouts_object({});
+        }));
+    }
+
+    // FIXME: 10. Process any extension capabilities in capabilities in an implementation-defined manner.
+
+    // FIXME: 11. Run any WebDriver new session algorithm defined in external specifications, with arguments session, capabilities, and flags.
+
+    // 12. Append session to active sessions.
+    // 13. If flags contains "http", append session to active HTTP sessions.
+    // NOTE: These steps are handled by WebDriver::Client.
+
+    // 14. Set the webdriver-active flag to true.
+    session->web_content_connection().async_set_is_webdriver_active(true);
+
+    return session;
+}
+
+Session::Session(NonnullRefPtr<Client> client, JsonObject const& capabilities, String session_id, bool http)
     : m_client(move(client))
-    , m_options(move(options))
+    , m_options(capabilities)
     , m_id(move(session_id))
+    , m_http(http)
 {
 }
 
@@ -51,61 +134,6 @@ Session::~Session()
         MUST(Core::System::unlink(*m_web_content_socket_path));
         m_web_content_socket_path = {};
     }
-}
-
-// Step 12 of https://w3c.github.io/webdriver/#dfn-new-sessions
-void Session::initialize_from_capabilities(JsonObject& capabilities)
-{
-    auto& connection = web_content_connection();
-
-    // 1. Let strategy be the result of getting property "pageLoadStrategy" from capabilities.
-    auto strategy = capabilities.get_byte_string("pageLoadStrategy"sv);
-
-    // 2. If strategy is a string, set the current session’s page loading strategy to strategy. Otherwise, set the page loading strategy to normal and set a property of capabilities with name "pageLoadStrategy" and value "normal".
-    if (strategy.has_value()) {
-        m_page_load_strategy = Web::WebDriver::page_load_strategy_from_string(*strategy);
-        connection.async_set_page_load_strategy(m_page_load_strategy);
-    } else {
-        capabilities.set("pageLoadStrategy"sv, "normal"sv);
-    }
-
-    // 3. Let strictFileInteractability be the result of getting property "strictFileInteractability" from capabilities.
-    auto strict_file_interactiblity = capabilities.get_bool("strictFileInteractability"sv);
-
-    // 4. If strictFileInteractability is a boolean, set the current session’s strict file interactability to strictFileInteractability. Otherwise set the current session’s strict file interactability to false.
-    if (strict_file_interactiblity.has_value()) {
-        m_strict_file_interactiblity = *strict_file_interactiblity;
-        connection.async_set_strict_file_interactability(m_strict_file_interactiblity);
-    } else {
-        capabilities.set("strictFileInteractability"sv, false);
-    }
-
-    // FIXME: 5. Let proxy be the result of getting property "proxy" from capabilities and run the substeps of the first matching statement:
-    // FIXME:     proxy is a proxy configuration object
-    // FIXME:         Take implementation-defined steps to set the user agent proxy using the extracted proxy configuration. If the defined proxy cannot be configured return error with error code session not created.
-    // FIXME:     Otherwise
-    // FIXME:         Set a property of capabilities with name "proxy" and a value that is a new JSON Object.
-
-    // 6. If capabilities has a property with the key "timeouts":
-    if (auto timeouts = capabilities.get_object("timeouts"sv); timeouts.has_value()) {
-        // a. Let timeouts be the result of trying to JSON deserialize as a timeouts configuration the value of the "timeouts" property.
-        // NOTE: This happens on the remote end.
-
-        // b. Make the session timeouts the new timeouts.
-        MUST(set_timeouts(*timeouts));
-    } else {
-        // 7. Set a property on capabilities with name "timeouts" and value that of the JSON deserialization of the session timeouts.
-        capabilities.set("timeouts"sv, Web::WebDriver::timeouts_object({}));
-    }
-
-    // 8. Apply changes to the user agent for any implementation-defined capabilities selected during the capabilities processing step.
-    if (auto behavior = capabilities.get_object("unhandledPromptBehavior"sv); behavior.has_value()) {
-        Web::WebDriver::update_the_user_prompt_handler(*behavior);
-    } else {
-        capabilities.set("unhandledPromptBehavior"sv, "dismiss and notify"sv);
-    }
-
-    connection.async_set_user_prompt_handler(Web::WebDriver::user_prompt_handler());
 }
 
 ErrorOr<NonnullRefPtr<Core::LocalServer>> Session::create_server(NonnullRefPtr<ServerPromise> promise)

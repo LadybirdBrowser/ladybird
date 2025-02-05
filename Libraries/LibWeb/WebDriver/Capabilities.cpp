@@ -263,7 +263,7 @@ static bool matches_platform_name(StringView requested_platform_name, StringView
 }
 
 // https://w3c.github.io/webdriver/#dfn-matching-capabilities
-static JsonValue match_capabilities(JsonObject const& capabilities)
+static JsonValue match_capabilities(JsonObject const& capabilities, ReadonlySpan<StringView> flags)
 {
     static auto browser_name = StringView { BROWSER_NAME, strlen(BROWSER_NAME) }.to_lowercase_string();
     static auto platform_name = StringView { OS_STRING, strlen(OS_STRING) }.to_lowercase_string();
@@ -284,15 +284,26 @@ static JsonValue match_capabilities(JsonObject const& capabilities)
     matched_capabilities.set("acceptInsecureCerts"sv, false);
     // "strictFileInteractability"
     //     Boolean initially set to false, indicating that interactability checks will be applied to <input type=file>.
-    matched_capabilities.set("strictFileInteractability"sv, false);
+    // FIXME: Spec issue: This item likely should have been removed in lieu of step 2.
+    //        https://github.com/w3c/webdriver/issues/1879
     // "setWindowRect"
     //     Boolean indicating whether the remote end supports all of the resizing and positioning commands.
     matched_capabilities.set("setWindowRect"sv, true);
+    // "userAgent"
+    //     String containing the default User-Agent value.
+    matched_capabilities.set("userAgent"sv, Web::default_user_agent);
 
-    // 2. Optionally add extension capabilities as entries to matched capabilities. The values of these may be elided, and there is no requirement that all extension capabilities be added.
+    // 2. If flags contains "http", add the following entries to matched capabilities:
+    if (flags.contains_slow("http"sv)) {
+        // "strictFileInteractability"
+        //     Boolean initially set to false, indicating that interactabilty checks will be applied to <input type=file>.
+        matched_capabilities.set("strictFileInteractability"sv, false);
+    }
+
+    // 3. Optionally add extension capabilities as entries to matched capabilities. The values of these may be elided, and there is no requirement that all extension capabilities be added.
     matched_capabilities.set("serenity:ladybird"sv, default_ladybird_options());
 
-    // 3. For each name and value corresponding to capability’s own properties:
+    // 3. For each name and value corresponding to capabilities's own properties:
     auto result = capabilities.try_for_each_member([&](auto const& name, auto const& value) -> ErrorOr<void> {
         // a. Let match value equal value.
 
@@ -318,17 +329,23 @@ static JsonValue match_capabilities(JsonObject const& capabilities)
         }
         // -> "acceptInsecureCerts"
         else if (name == "acceptInsecureCerts"sv) {
-            // If value is true and the endpoint node does not support insecure TLS certificates, return success with data null.
+            // If accept insecure TLS flag is set and not equal to value, return success with data null.
             if (value.as_bool())
                 return AK::Error::from_string_literal("acceptInsecureCerts");
         }
         // -> "proxy"
         else if (name == "proxy"sv) {
-            // FIXME: If the endpoint node does not allow the proxy it uses to be configured, or if the proxy configuration defined in value is not one that passes the endpoint node’s implementation-specific validity checks, return success with data null.
+            // FIXME: If the has proxy configuration flag is set, or if the proxy configuration defined in value is not one that passes the endpoint node's implementation-specific validity checks, return success with data null.
+        }
+        // -> "unhandledPromptBehavior"
+        else if (name == "unhandledPromptBehavior"sv) {
+            // If check user prompt handler matches with value is false, return success with data null.
+            if (!check_user_prompt_handler_matches(value.as_object()))
+                return AK::Error::from_string_literal("unhandledPromptBehavior");
         }
         // -> Otherwise
         else {
-            // FIXME: If name is the name of an additional WebDriver capability which defines a matched capability serialization algorithm, let match value be the result of running the matched capability serialization algorithm for capability name with argument value.
+            // FIXME: If name is the name of an additional WebDriver capability which defines a matched capability serialization algorithm, let match value be the result of running the matched capability serialization algorithm for capability name with arguments value, and flags.
             // FIXME: Otherwise, if name is the key of an extension capability, let match value be the result of trying implementation-specific steps to match on name with value. If the match is not successful, return success with data null.
 
             // https://w3c.github.io/webdriver-bidi/#type-session-CapabilityRequest
@@ -343,8 +360,10 @@ static JsonValue match_capabilities(JsonObject const& capabilities)
             }
         }
 
-        // c. Set a property on matched capabilities with name name and value match value.
-        matched_capabilities.set(name, value);
+        // c. If match value is not null, set a property on matched capabilities with name name and value match value.
+        if (!value.is_null())
+            matched_capabilities.set(name, value);
+
         return {};
     });
 
@@ -358,7 +377,7 @@ static JsonValue match_capabilities(JsonObject const& capabilities)
 }
 
 // https://w3c.github.io/webdriver/#dfn-capabilities-processing
-Response process_capabilities(JsonValue const& parameters)
+Response process_capabilities(JsonValue const& parameters, ReadonlySpan<StringView> flags)
 {
     if (!parameters.is_object())
         return Error::from_code(ErrorCode::InvalidArgument, "Session parameters is not an object"sv);
@@ -376,7 +395,9 @@ Response process_capabilities(JsonValue const& parameters)
     JsonObject required_capabilities;
 
     if (auto capability = capabilities_request.get("alwaysMatch"sv); capability.has_value()) {
-        // b. Let required capabilities be the result of trying to validate capabilities with argument required capabilities.
+        // b. Let required capabilities be the result of trying to validate capabilities with arguments required capabilities and flag.
+        // FIXME: Spec issue: The "flags" parameter should not be provided to validate_capabilities.
+        // https://github.com/w3c/webdriver/issues/1879
         required_capabilities = TRY(validate_capabilities(*capability));
     }
 
@@ -384,23 +405,25 @@ Response process_capabilities(JsonValue const& parameters)
     JsonArray all_first_match_capabilities;
 
     if (auto capabilities = capabilities_request.get("firstMatch"sv); capabilities.has_value()) {
-        // b. If all first match capabilities is not a JSON List with one or more entries, return error with error code invalid argument.
+        // b. If all first match capabilities is not a List with one or more entries, return error with error code invalid argument.
         if (!capabilities->is_array() || capabilities->as_array().is_empty())
             return Error::from_code(ErrorCode::InvalidArgument, "Capability firstMatch must be an array with at least one entry"sv);
 
         all_first_match_capabilities = capabilities->as_array();
     } else {
-        // a. If all first match capabilities is undefined, set the value to a JSON List with a single entry of an empty JSON Object.
+        // a. If all first match capabilities is undefined, set the value to a List with a single entry of an empty JSON Object.
         all_first_match_capabilities.must_append(JsonObject {});
     }
 
-    // 4. Let validated first match capabilities be an empty JSON List.
+    // 4. Let validated first match capabilities be an empty List.
     JsonArray validated_first_match_capabilities;
     validated_first_match_capabilities.ensure_capacity(all_first_match_capabilities.size());
 
     // 5. For each first match capabilities corresponding to an indexed property in all first match capabilities:
     TRY(all_first_match_capabilities.try_for_each([&](auto const& first_match_capabilities) -> ErrorOr<void, Error> {
-        // a. Let validated capabilities be the result of trying to validate capabilities with argument first match capabilities.
+        // a. Let validated capabilities be the result of trying to validate capabilities with arguments first match capabilities and flags.
+        // FIXME: Spec issue: The "flags" parameter should not be provided to validate_capabilities.
+        // https://github.com/w3c/webdriver/issues/1879
         auto validated_capabilities = TRY(validate_capabilities(first_match_capabilities));
 
         // b. Append validated capabilities to validated first match capabilities.
@@ -425,7 +448,9 @@ Response process_capabilities(JsonValue const& parameters)
     // 8. For each capabilities corresponding to an indexed property in merged capabilities:
     for (auto const& capabilities : merged_capabilities.values()) {
         // a. Let matched capabilities be the result of trying to match capabilities with capabilities as an argument.
-        auto matched_capabilities = match_capabilities(capabilities.as_object());
+        // FIXME: Spec issue: The "flags" parameter *should* be provided to match_capabilities.
+        // https://github.com/w3c/webdriver/issues/1879
+        auto matched_capabilities = match_capabilities(capabilities.as_object(), flags);
 
         // b. If matched capabilities is not null, return success with data matched capabilities.
         if (!matched_capabilities.is_null())

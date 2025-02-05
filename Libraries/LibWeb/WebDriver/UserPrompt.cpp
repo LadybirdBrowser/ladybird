@@ -33,6 +33,25 @@ static constexpr PromptHandler prompt_handler_from_string(StringView prompt_hand
     VERIFY_NOT_REACHED();
 }
 
+static constexpr StringView prompt_type_to_string(PromptType prompt_type)
+{
+    switch (prompt_type) {
+    case PromptType::Alert:
+        return "alert"sv;
+    case PromptType::BeforeUnload:
+        return "beforeUnload"sv;
+    case PromptType::Confirm:
+        return "confirm"sv;
+    case PromptType::Default:
+        return "default"sv;
+    case PromptType::Prompt:
+        return "prompt"sv;
+    case PromptType::FallbackDefault:
+        return "fallbackDefault"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 static constexpr PromptType prompt_type_from_string(StringView prompt_type)
 {
     if (prompt_type == "alert"sv)
@@ -59,6 +78,24 @@ PromptHandlerConfiguration PromptHandlerConfiguration::deserialize(JsonValue con
         : PromptHandlerConfiguration::Notify::No;
 
     return { .handler = handler, .notify = notify };
+}
+
+// https://w3c.github.io/webdriver/#dfn-serialize-a-prompt-handler-configuration
+StringView PromptHandlerConfiguration::serialize() const
+{
+    // 1. Let serialized be configuration's handler.
+    // 2. If «"dismiss", "accept"» contains serialized, and configuration's notify is true, append " and notify" to serialized.
+    // 3. Return serialized.
+    switch (handler) {
+    case PromptHandler::Dismiss:
+        return notify == Notify::Yes ? "dismiss and notify"sv : "dismiss"sv;
+    case PromptHandler::Accept:
+        return notify == Notify::Yes ? "accept and notify"sv : "accept"sv;
+    case PromptHandler::Ignore:
+        return "ignore"sv;
+    }
+
+    VERIFY_NOT_REACHED();
 }
 
 UserPromptHandler const& user_prompt_handler()
@@ -147,6 +184,29 @@ Response deserialize_as_an_unhandled_prompt_behavior(JsonValue value)
     return JsonValue { move(user_prompt_handler) };
 }
 
+// https://w3c.github.io/webdriver/#dfn-check-user-prompt-handler-matches
+bool check_user_prompt_handler_matches(JsonObject const& requested_prompt_handler)
+{
+    // 1. If the user prompt handler is null, return true.
+    if (!s_user_prompt_handler.has_value())
+        return true;
+
+    // 2. For each request prompt type → request handler in requested prompt handler:
+    auto result = requested_prompt_handler.try_for_each_member([&](ByteString const& request_prompt_type, JsonValue const& request_handler) -> ErrorOr<void> {
+        // 1. If the user prompt handler contains request prompt type:
+        if (auto handler = s_user_prompt_handler->get(prompt_type_from_string(request_prompt_type)); handler.has_value()) {
+            // 1. If the requested prompt handler's handler is not equal to the user prompt handler's handler, return false.
+            if (handler != PromptHandlerConfiguration::deserialize(request_handler))
+                return AK::Error::from_string_literal("Prompt handler mismatch");
+        }
+
+        return {};
+    });
+
+    // 3. Return true
+    return !result.is_error();
+}
+
 // https://w3c.github.io/webdriver/#dfn-update-the-user-prompt-handler
 void update_the_user_prompt_handler(JsonObject const& requested_prompt_handler)
 {
@@ -161,6 +221,33 @@ void update_the_user_prompt_handler(JsonObject const& requested_prompt_handler)
             prompt_type_from_string(request_prompt_type),
             PromptHandlerConfiguration::deserialize(request_handler));
     });
+}
+
+// https://w3c.github.io/webdriver/#dfn-serialize-the-user-prompt-handler
+JsonValue serialize_the_user_prompt_handler()
+{
+    // 1. If the user prompt handler is null, return "dismiss and notify".
+    if (!s_user_prompt_handler.has_value())
+        return "dismiss and notify"sv;
+
+    // 2. If the user prompt handler has size 1, and user prompt handler contains "fallbackDefault", return the result
+    //    of serialize a prompt handler configuration with user prompt handler["fallbackDefault"].
+    if (s_user_prompt_handler->size() == 1) {
+        if (auto handler = s_user_prompt_handler->get(PromptType::FallbackDefault); handler.has_value())
+            return handler->serialize();
+    }
+
+    // 3. Let serialized be an empty map.
+    JsonObject serialized;
+
+    // 4. For each key → value of user prompt handler:
+    for (auto const& [key, value] : *s_user_prompt_handler) {
+        // 1. Set serialized[key] to serialize a prompt handler configuration with value.
+        serialized.set(prompt_type_to_string(key), value.serialize());
+    }
+
+    // 5. Return convert an Infra value to a JSON-compatible JavaScript value with serialized.
+    return serialized;
 }
 
 }
