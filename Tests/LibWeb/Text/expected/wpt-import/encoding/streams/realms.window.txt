@@ -1,0 +1,18 @@
+Harness status: Error
+
+Found 12 tests
+
+2 Pass
+10 Fail
+Pass	a TextEncoderStream object should be associated with the realm the constructor came from
+Pass	TextEncoderStream's readable and writable attributes should come from the same realm as the constructor definition
+Fail	the output chunks when read is called after write should come from the same realm as the constructor of TextEncoderStream
+Fail	the output chunks when write is called with a pending read should come from the same realm as the constructor of TextEncoderStream
+Fail	TypeError for unconvertable chunk should come from constructor realm of TextEncoderStream
+Fail	a TextDecoderStream object should be associated with the realm the constructor came from
+Fail	TextDecoderStream's readable and writable attributes should come from the same realm as the constructor definition
+Fail	the result object when read is called after write should come from the same realm as the constructor of TextDecoderStream
+Fail	the result object when write is called with a pending read should come from the same realm as the constructor of TextDecoderStream
+Fail	TypeError for chunk with the wrong type should come from constructor realm of TextDecoderStream
+Fail	TypeError for invalid chunk should come from constructor realm of TextDecoderStream
+Fail	TypeError for incomplete input should come from constructor realm of TextDecoderStream

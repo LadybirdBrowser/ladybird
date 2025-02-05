@@ -1,0 +1,12 @@
+Harness status: Error
+
+Found 6 tests
+
+1 Pass
+5 Fail
+Pass	a chunk that cannot be converted to a string should error the streams
+Fail	input of type undefined should be converted correctly to string
+Fail	input of type null should be converted correctly to string
+Fail	input of type numeric should be converted correctly to string
+Fail	input of type object should be converted correctly to string
+Fail	input of type array should be converted correctly to string

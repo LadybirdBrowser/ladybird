@@ -381,6 +381,7 @@ SyntaxError
 Text
 TextDecoder
 TextEncoder
+TextEncoderStream
 TextEvent
 TextMetrics
 TextTrack
