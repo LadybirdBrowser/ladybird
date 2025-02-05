@@ -83,6 +83,17 @@ CSS::ImmutableComputedValues const& Paintable::computed_values() const
     return m_layout_node->computed_values();
 }
 
+bool Paintable::visible_for_hit_testing() const
+{
+    // https://html.spec.whatwg.org/multipage/interaction.html#inert-subtrees
+    // When a node is inert:
+    // - Hit-testing must act as if the 'pointer-events' CSS property were set to 'none'.
+    if (auto dom_node = this->dom_node(); dom_node && dom_node->is_inert())
+        return false;
+
+    return computed_values().pointer_events() != CSS::PointerEvents::None;
+}
+
 void Paintable::set_dom_node(GC::Ptr<DOM::Node> dom_node)
 {
     m_dom_node = dom_node;
