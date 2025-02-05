@@ -423,6 +423,20 @@ public:
     bool affected_by_has_pseudo_class_in_subject_position() const { return m_affected_by_has_pseudo_class_in_subject_position; }
     void set_affected_by_has_pseudo_class_in_subject_position(bool value) { m_affected_by_has_pseudo_class_in_subject_position = value; }
 
+    bool affected_by_sibling_combinator() const { return m_affected_by_sibling_combinator; }
+    void set_affected_by_sibling_combinator(bool value) { m_affected_by_sibling_combinator = value; }
+
+    bool affected_by_first_or_last_child_pseudo_class() const { return m_affected_by_first_or_last_child_pseudo_class; }
+    void set_affected_by_first_or_last_child_pseudo_class(bool value) { m_affected_by_first_or_last_child_pseudo_class = value; }
+
+    bool affected_by_nth_child_pseudo_class() const { return m_affected_by_nth_child_pseudo_class; }
+    void set_affected_by_nth_child_pseudo_class(bool value) { m_affected_by_nth_child_pseudo_class = value; }
+
+    bool style_affected_by_structural_changes() const
+    {
+        return affected_by_sibling_combinator() || affected_by_first_or_last_child_pseudo_class() || affected_by_nth_child_pseudo_class();
+    }
+
 protected:
     Element(Document&, DOM::QualifiedName);
     virtual void initialize(JS::Realm&) override;
@@ -514,6 +528,9 @@ private:
     bool m_rendered_in_top_layer { false };
     bool m_style_uses_css_custom_properties { false };
     bool m_affected_by_has_pseudo_class_in_subject_position { false };
+    bool m_affected_by_sibling_combinator { false };
+    bool m_affected_by_first_or_last_child_pseudo_class { false };
+    bool m_affected_by_nth_child_pseudo_class { false };
 
     OwnPtr<CSS::CountersSet> m_counters_set;
 

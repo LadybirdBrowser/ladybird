@@ -494,6 +494,11 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
 {
     VERIFY(parent());
 
+    m_affected_by_has_pseudo_class_in_subject_position = false;
+    m_affected_by_sibling_combinator = false;
+    m_affected_by_first_or_last_child_pseudo_class = false;
+    m_affected_by_nth_child_pseudo_class = false;
+
     auto& style_computer = document().style_computer();
     auto new_computed_properties = style_computer.compute_style(*this);
 

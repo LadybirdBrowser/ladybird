@@ -495,8 +495,14 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         return focused_element && element.is_inclusive_ancestor_of(*focused_element);
     }
     case CSS::PseudoClass::FirstChild:
+        if (context.collect_per_element_selector_involvement_metadata) {
+            const_cast<DOM::Element&>(element).set_affected_by_first_or_last_child_pseudo_class(true);
+        }
         return !element.previous_element_sibling();
     case CSS::PseudoClass::LastChild:
+        if (context.collect_per_element_selector_involvement_metadata) {
+            const_cast<DOM::Element&>(element).set_affected_by_first_or_last_child_pseudo_class(true);
+        }
         return !element.next_element_sibling();
     case CSS::PseudoClass::OnlyChild:
         return !(element.previous_element_sibling() || element.next_element_sibling());
@@ -584,6 +590,10 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         auto const* parent = element.parent();
         if (!parent)
             return false;
+
+        if (context.collect_per_element_selector_involvement_metadata) {
+            const_cast<DOM::Element&>(element).set_affected_by_nth_child_pseudo_class(true);
+        }
 
         auto matches_selector_list = [&context, shadow_host](CSS::SelectorList const& list, DOM::Element const& element) {
             if (list.is_empty())
@@ -1011,11 +1021,17 @@ bool matches(CSS::Selector const& selector, int component_list_index, DOM::Eleme
         return matches(selector, component_list_index - 1, static_cast<DOM::Element const&>(*parent), shadow_host, context, scope, selector_kind, anchor);
     }
     case CSS::Selector::Combinator::NextSibling:
+        if (context.collect_per_element_selector_involvement_metadata) {
+            const_cast<DOM::Element&>(element).set_affected_by_sibling_combinator(true);
+        }
         VERIFY(component_list_index != 0);
         if (auto* sibling = element.previous_element_sibling())
             return matches(selector, component_list_index - 1, *sibling, shadow_host, context, scope, selector_kind, anchor);
         return false;
     case CSS::Selector::Combinator::SubsequentSibling:
+        if (context.collect_per_element_selector_involvement_metadata) {
+            const_cast<DOM::Element&>(element).set_affected_by_sibling_combinator(true);
+        }
         VERIFY(component_list_index != 0);
         for (auto* sibling = element.previous_element_sibling(); sibling; sibling = sibling->previous_element_sibling()) {
             if (matches(selector, component_list_index - 1, *sibling, shadow_host, context, scope, selector_kind, anchor))
