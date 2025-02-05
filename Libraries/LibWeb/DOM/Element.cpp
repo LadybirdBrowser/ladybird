@@ -501,7 +501,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
     // FIXME: Find the spec for this.
     if (is<HTML::HTMLTableElement>(*this)) {
         auto text_align = new_computed_properties->text_align();
-        if (text_align.has_value() && (text_align.value() == CSS::TextAlign::LibwebLeft || text_align.value() == CSS::TextAlign::LibwebCenter || text_align.value() == CSS::TextAlign::LibwebRight))
+        if (text_align == CSS::TextAlign::LibwebLeft || text_align == CSS::TextAlign::LibwebCenter || text_align == CSS::TextAlign::LibwebRight)
             new_computed_properties->set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Start));
     }
 

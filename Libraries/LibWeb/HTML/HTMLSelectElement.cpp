@@ -572,7 +572,7 @@ void HTMLSelectElement::computed_properties_changed()
     // Hide chevron icon when appearance is none
     if (m_chevron_icon_element) {
         auto appearance = computed_properties()->appearance();
-        if (appearance.has_value() && *appearance == CSS::Appearance::None) {
+        if (appearance == CSS::Appearance::None) {
             MUST(m_chevron_icon_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "none"_string));
         } else {
             MUST(m_chevron_icon_element->style_for_bindings()->set_property(CSS::PropertyID::Display, "block"_string));

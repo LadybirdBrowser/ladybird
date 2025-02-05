@@ -1194,7 +1194,7 @@ void HTMLInputElement::create_range_input_shadow_tree()
 void HTMLInputElement::computed_properties_changed()
 {
     auto appearance = computed_properties()->appearance();
-    if (!appearance.has_value() || *appearance == CSS::Appearance::None)
+    if (appearance == CSS::Appearance::None)
         return;
 
     auto accent_color = MUST(String::from_utf8(CSS::string_from_keyword(CSS::Keyword::Accentcolor)));
