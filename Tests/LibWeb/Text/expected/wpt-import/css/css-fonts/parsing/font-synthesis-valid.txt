@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Fail
+Fail	e.style['font-synthesis'] = "none" should set the property value
+Fail	e.style['font-synthesis'] = "weight" should set the property value
+Fail	e.style['font-synthesis'] = "style" should set the property value
+Fail	e.style['font-synthesis'] = "small-caps" should set the property value
+Fail	e.style['font-synthesis'] = "position" should set the property value
+Fail	e.style['font-synthesis'] = "style weight" should set the property value
+Fail	e.style['font-synthesis'] = "small-caps weight" should set the property value
+Fail	e.style['font-synthesis'] = "small-caps style" should set the property value
+Fail	e.style['font-synthesis'] = "style weight small-caps" should set the property value
+Fail	e.style['font-synthesis'] = "style small-caps weight " should set the property value
+Fail	e.style['font-synthesis'] = "small-caps style weight " should set the property value
+Fail	e.style['font-synthesis'] = "position style" should set the property value
+Fail	e.style['font-synthesis'] = "position weight style" should set the property value
+Fail	e.style['font-synthesis'] = "position weight small-caps style" should set the property value

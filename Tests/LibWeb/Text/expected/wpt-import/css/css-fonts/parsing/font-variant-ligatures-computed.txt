@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	Property font-variant-ligatures value 'normal'
+Pass	Property font-variant-ligatures value 'none'
+Pass	Property font-variant-ligatures value 'common-ligatures'
+Pass	Property font-variant-ligatures value 'no-common-ligatures'
+Pass	Property font-variant-ligatures value 'discretionary-ligatures'
+Pass	Property font-variant-ligatures value 'no-discretionary-ligatures'
+Pass	Property font-variant-ligatures value 'historical-ligatures'
+Pass	Property font-variant-ligatures value 'no-historical-ligatures'
+Pass	Property font-variant-ligatures value 'contextual'
+Pass	Property font-variant-ligatures value 'no-contextual'

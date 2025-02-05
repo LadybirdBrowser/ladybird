@@ -1,0 +1,64 @@
+Harness status: OK
+
+Found 58 tests
+
+24 Pass
+34 Fail
+Pass	Property font-weight value 'normal'
+Pass	Property font-weight value 'bold'
+Pass	Property font-weight value '1'
+Pass	Property font-weight value '100'
+Pass	Property font-weight value '200'
+Pass	Property font-weight value '300'
+Pass	Property font-weight value '400'
+Pass	Property font-weight value '500'
+Pass	Property font-weight value '600'
+Pass	Property font-weight value '700'
+Pass	Property font-weight value '800'
+Pass	Property font-weight value '900'
+Pass	Property font-weight value '1000'
+Pass	Property font-weight value '101'
+Fail	Property font-weight value '150.25'
+Pass	Property font-weight value 'calc(100)'
+Fail	Property font-weight value 'calc(0)'
+Fail	Property font-weight value 'calc(-100)'
+Pass	Property font-weight value 'calc(100 + 100)'
+Fail	Property font-weight value 'calc(100 + (sign(20cqw - 10px) * 5))'
+Fail	1 made bolder computes to 400
+Fail	50 made bolder computes to 400
+Fail	100 made bolder computes to 400
+Fail	200 made bolder computes to 400
+Fail	300 made bolder computes to 400
+Fail	349 made bolder computes to 400
+Pass	350 made bolder computes to 700
+Pass	400 made bolder computes to 700
+Pass	500 made bolder computes to 700
+Pass	549 made bolder computes to 700
+Fail	550 made bolder computes to 900
+Fail	600 made bolder computes to 900
+Fail	700 made bolder computes to 900
+Fail	749 made bolder computes to 900
+Fail	750 made bolder computes to 900
+Fail	800 made bolder computes to 900
+Fail	900 made bolder computes to 900
+Fail	950 made bolder computes to 950
+Fail	1000 made bolder computes to 1000
+Fail	1 made lighter computes to 1
+Fail	50 made lighter computes to 50
+Fail	100 made lighter computes to 100
+Fail	200 made lighter computes to 100
+Fail	300 made lighter computes to 100
+Fail	349 made lighter computes to 100
+Fail	350 made lighter computes to 100
+Fail	400 made lighter computes to 100
+Fail	500 made lighter computes to 100
+Fail	549 made lighter computes to 100
+Pass	550 made lighter computes to 400
+Pass	600 made lighter computes to 400
+Pass	700 made lighter computes to 400
+Pass	749 made lighter computes to 400
+Fail	750 made lighter computes to 700
+Fail	800 made lighter computes to 700
+Fail	900 made lighter computes to 700
+Fail	950 made lighter computes to 700
+Fail	1000 made lighter computes to 700

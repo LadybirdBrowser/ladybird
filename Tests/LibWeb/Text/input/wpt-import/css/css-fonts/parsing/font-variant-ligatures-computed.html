@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 3: getComputedStyle().fontVariantLigatures</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-3/#font-variant-ligatures-prop">
+<meta name="assert" content="font-variant-ligatures computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value('font-variant-ligatures', 'normal');
+test_computed_value('font-variant-ligatures', 'none');
+
+// <common-lig-values>        = [ common-ligatures | no-common-ligatures ]
+test_computed_value('font-variant-ligatures', 'common-ligatures');
+test_computed_value('font-variant-ligatures', 'no-common-ligatures');
+
+// <discretionary-lig-values> = [ discretionary-ligatures | no-discretionary-ligatures ]
+test_computed_value('font-variant-ligatures', 'discretionary-ligatures');
+test_computed_value('font-variant-ligatures', 'no-discretionary-ligatures');
+
+// <historical-lig-values>    = [ historical-ligatures | no-historical-ligatures ]
+test_computed_value('font-variant-ligatures', 'historical-ligatures');
+test_computed_value('font-variant-ligatures', 'no-historical-ligatures');
+
+// <contextual-alt-values>    = [ contextual | no-contextual ]
+test_computed_value('font-variant-ligatures', 'contextual');
+test_computed_value('font-variant-ligatures', 'no-contextual');
+</script>
+</body>
+</html>

@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 4: parsing @font-palette-values</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts/#font-palette-values">
+<meta name="assert" content="@font-palette-values is parsed correctly.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style id="style">
+@font-palette-values {
+}
+
+@font-palette-values A {
+}
+
+@font-palette-values --A --B {
+}
+
+/* 0 */
+@font-palette-values --A {
+    font-family: a, serif;  /* multiple families are allowed, but not generics */
+}
+
+/* 1 */
+@font-palette-values --A {
+    font-family: 1;
+}
+
+/* 2 */
+@font-palette-values --A {
+    font: 12px a;
+}
+
+/* 3 */
+@font-palette-values --A {
+    base-palette: 1 2;
+}
+
+/* 4 */
+@font-palette-values --A {
+    base-palette: ident;
+}
+
+/* 5 */
+@font-palette-values --A {
+    base-palette: "a" "b";
+}
+
+/* 6 */
+@font-palette-values --A {
+    base-palette: ;
+}
+
+/* 7 */
+@font-palette-values --A {
+    override-colors: ident #123;
+}
+
+/* 8 */
+@font-palette-values --A {
+    override-colors: 0 "red";
+}
+
+/* 9 */
+@font-palette-values --A {
+    override-colors: 0 #123, 1;
+}
+
+/* 10 */
+@font-palette-values --A {
+    override-colors: ;
+}
+
+/* 11 */
+@font-palette-values --A {
+    override-colors: 0 #123 1;
+}
+
+/* 12 */
+@font-palette-values --A {
+    override-colors: 0;
+}
+
+/* 13 */
+@font-palette-values --A {
+    font-family: "";
+}
+
+/* 14 */
+@font-palette-values --A {
+    base-palette: initial;
+    override-colors: initial;
+}
+
+/* 15 */
+@font-palette-values --A {
+    base-palette: inherit;
+    override-colors: inherit;
+}
+
+/* 16 */
+@font-palette-values --A {
+    base-palette: unset;
+    override-colors: unset;
+}
+
+/* 17 */
+@font-palette-values --A {
+    base-palette: -1;
+    override-color: -1 #123;
+}
+
+/* 18 */
+@font-palette-values --A {
+    override-colors: 0 canvas;
+}
+
+/* 19 */
+@font-palette-values --A {
+    override-colors: 0 currentcolor;
+}
+
+/* 20 */
+@font-palette-values --A {
+    override-colors: 0 light-dark(white, black);
+}
+
+/* 21 */
+@font-palette-values --A {
+    override-colors: 0 color-mix(in lch, red, canvas);
+}
+
+/* 22 */
+@font-palette-values --A {
+    override-colors: 0 light-dark(white, currentcolor);
+}
+
+/* 23 */
+@font-palette-values --A {
+    override-colors: 0 color-mix(in lch, red, color-mix(in lch, currentcolor, black));
+}
+</style>
+</head>
+<body>
+<script>
+let rules = document.getElementById("style").sheet.cssRules;
+test(function() {
+    assert_equals(rules.length, 24);
+});
+
+test(function() {
+    let text = rules[0].cssText;
+    let rule = rules[0];
+    assert_equals(text.indexOf("font-family"), -1);
+    assert_equals(rule.fontFamily, "");
+    rule.fontFamily = "SomeFontFamily";
+    assert_equals(rule.fontFamily, "");
+    assert_equals(rule.basePalette, "");
+    rule.basePalette = "7";
+    assert_equals(rule.basePalette, "");
+    assert_throws_js(TypeError, function() {
+        rule.clear();
+    });
+    assert_throws_js(TypeError, function() {
+        rule.delete(4);
+    });
+    assert_throws_js(TypeError, function() {
+        rule.set(4, "0 #123");
+    });
+});
+
+test(function() {
+    let text = rules[1].cssText;
+    let rule = rules[1];
+    assert_equals(text.indexOf("font-family"), -1);
+    assert_equals(rule.fontFamily, "");
+});
+
+test(function() {
+    let text = rules[2].cssText;
+    let rule = rules[2];
+    assert_equals(text.indexOf("font:"), -1);
+    assert_equals(rule.fontFamily, "");
+});
+
+test(function() {
+    let text = rules[3].cssText;
+    let rule = rules[3];
+    assert_equals(text.indexOf("base-palette"), -1);
+    assert_equals(rule.basePalette, "");
+});
+
+test(function() {
+    let text = rules[4].cssText;
+    let rule = rules[4];
+    assert_equals(text.indexOf("base-palette"), -1);
+    assert_equals(rule.basePalette, "");
+});
+
+test(function() {
+    let text = rules[5].cssText;
+    let rule = rules[5];
+    assert_equals(text.indexOf("base-palette"), -1);
+    assert_equals(rule.basePalette, "");
+});
+
+test(function() {
+    let text = rules[6].cssText;
+    let rule = rules[6];
+    assert_equals(text.indexOf("base-palette"), -1);
+    assert_equals(rule.basePalette, "");
+});
+
+test(function() {
+    let text = rules[7].cssText;
+    let rule = rules[7];
+    assert_equals(text.indexOf("override-colors"), -1);
+    assert_equals(rule.overrideColors, "");
+});
+
+test(function() {
+    let text = rules[8].cssText;
+    let rule = rules[8];
+    assert_equals(text.indexOf("override-colors"), -1);
+    assert_equals(rule.overrideColors, "");
+});
+
+test(function() {
+    let text = rules[9].cssText;
+    let rule = rules[9];
+    assert_equals(text.indexOf("override-colors"), -1);
+    assert_equals(rule.overrideColors, "");
+});
+
+test(function() {
+    let text = rules[10].cssText;
+    let rule = rules[10];
+    assert_equals(text.indexOf("override-colors"), -1);
+    assert_equals(rule.overrideColors, "");
+});
+
+test(function() {
+    let text = rules[11].cssText;
+    let rule = rules[11];
+    assert_equals(text.indexOf("override-colors"), -1);
+    assert_equals(rule.overrideColors, "");
+});
+
+test(function() {
+    let text = rules[12].cssText;
+    let rule = rules[12];
+    assert_equals(text.indexOf("override-colors"), -1);
+    assert_equals(rule.overrideColors, "");
+});
+
+test(function() {
+    let text = rules[13].cssText;
+    let rule = rules[13];
+    // I see nothing in the spec that indicates an empty string is a parse error.
+    assert_not_equals(text.indexOf("font-family"), -1);
+});
+
+test(function() {
+    let text = rules[14].cssText;
+    let rule = rules[14];
+    assert_equals(text.indexOf("base-palette"), -1);
+    assert_equals(text.indexOf("override-colors"), -1);
+    assert_equals(rule.basePalette, "");
+    assert_equals(rule.overrideColors, "");
+});
+
+test(function() {
+    let text = rules[15].cssText;
+    let rule = rules[15];
+    assert_equals(text.indexOf("base-palette"), -1);
+    assert_equals(text.indexOf("override-colors"), -1);
+    assert_equals(rule.basePalette, "");
+    assert_equals(rule.overrideColors, "");
+});
+
+test(function() {
+    let text = rules[16].cssText;
+    let rule = rules[16];
+    assert_equals(text.indexOf("base-palette"), -1);
+    assert_equals(text.indexOf("override-colors"), -1);
+    assert_equals(rule.basePalette, "");
+    assert_equals(rule.overrideColors, "");
+});
+
+test(function() {
+    assert_equals(CSSRule.FONT_PALETTE_VALUES_RULE, undefined);
+});
+
+test(function() {
+    let text = rules[17].cssText;
+    let rule = rules[17];
+    assert_equals(text.indexOf("base-palette"), -1);
+    assert_equals(text.indexOf("override-color"), -1);
+    assert_equals(rule.basePalette, "");
+    assert_equals(rule.overrideColors, "");
+});
+
+test(function() {
+    let text = rules[18].cssText;
+    let rule = rules[18];
+    assert_equals(text.indexOf("override-colors"), -1);
+    assert_equals(rule.basePalette, "");
+    assert_equals(rule.overrideColors, "");
+});
+
+test(function() {
+    let text = rules[19].cssText;
+    let rule = rules[19];
+    assert_equals(text.indexOf("override-colors"), -1);
+    assert_equals(rule.overrideColors, "");
+});
+
+test(function() {
+    let text = rules[20].cssText;
+    let rule = rules[20];
+    assert_equals(text.indexOf("override-colors"), -1);
+    assert_equals(rule.overrideColors, "");
+});
+
+test(function() {
+    let text = rules[21].cssText;
+    let rule = rules[21];
+    assert_equals(text.indexOf("override-colors"), -1);
+    assert_equals(rule.overrideColors, "");
+});
+
+test(function() {
+    let text = rules[22].cssText;
+    let rule = rules[22];
+    assert_equals(text.indexOf("override-colors"), -1);
+    assert_equals(rule.overrideColors, "");
+});
+
+test(function() {
+    let text = rules[23].cssText;
+    let rule = rules[23];
+    assert_equals(text.indexOf("override-colors"), -1);
+    assert_equals(rule.overrideColors, "");
+});
+</script>
+</body>
+</html>

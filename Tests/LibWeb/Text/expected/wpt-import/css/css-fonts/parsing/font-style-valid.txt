@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 15 tests
+
+3 Pass
+12 Fail
+Pass	e.style['font-style'] = "normal" should set the property value
+Pass	e.style['font-style'] = "italic" should set the property value
+Pass	e.style['font-style'] = "oblique" should set the property value
+Fail	e.style['font-style'] = "oblique 0deg" should set the property value
+Fail	e.style['font-style'] = "oblique calc(10deg - 10deg)" should set the property value
+Fail	e.style['font-style'] = "oblique 10deg" should set the property value
+Fail	e.style['font-style'] = "oblique -10deg" should set the property value
+Fail	e.style['font-style'] = "oblique -90deg" should set the property value
+Fail	e.style['font-style'] = "oblique 90deg" should set the property value
+Fail	e.style['font-style'] = "oblique 10grad" should set the property value
+Fail	e.style['font-style'] = "oblique calc(90deg)" should set the property value
+Fail	e.style['font-style'] = "oblique calc(100deg)" should set the property value
+Fail	e.style['font-style'] = "oblique calc(-100deg)" should set the property value
+Fail	e.style['font-style'] = "oblique calc(30deg * 2)" should set the property value
+Fail	e.style['font-style'] = "oblique calc(30deg + (sign(2cqw - 10px) * 5deg))" should set the property value

@@ -1,0 +1,62 @@
+Harness status: OK
+
+Found 57 tests
+
+57 Pass
+Pass	e.style['font-size-adjust'] = "auto" should not set the property value
+Pass	e.style['font-size-adjust'] = "-10" should not set the property value
+Pass	e.style['font-size-adjust'] = "0.5 ex-height" should not set the property value
+Pass	e.style['font-size-adjust'] = "em 1.0" should not set the property value
+Pass	e.style['font-size-adjust'] = "ch 0.5" should not set the property value
+Pass	e.style['font-size-adjust'] = "ic 1.0" should not set the property value
+Pass	e.style['font-size-adjust'] = "ex-height" should not set the property value
+Pass	e.style['font-size-adjust'] = "cap-height" should not set the property value
+Pass	e.style['font-size-adjust'] = "ic-height" should not set the property value
+Pass	e.style['font-size-adjust'] = "ic-width" should not set the property value
+Pass	e.style['font-size-adjust'] = "ch-width" should not set the property value
+Pass	e.style['font-size-adjust'] = "ex-height none" should not set the property value
+Pass	e.style['font-size-adjust'] = "cap-height none" should not set the property value
+Pass	e.style['font-size-adjust'] = "ic-height none" should not set the property value
+Pass	e.style['font-size-adjust'] = "ic-width none" should not set the property value
+Pass	e.style['font-size-adjust'] = "ch-width none" should not set the property value
+Pass	e.style['font-size-adjust'] = "ex-height ex-height" should not set the property value
+Pass	e.style['font-size-adjust'] = "cap-height cap-height" should not set the property value
+Pass	e.style['font-size-adjust'] = "ic-height ic-height" should not set the property value
+Pass	e.style['font-size-adjust'] = "ic-width ic-width" should not set the property value
+Pass	e.style['font-size-adjust'] = "ch-width ch-width" should not set the property value
+Pass	e.style['font-size-adjust'] = "none none" should not set the property value
+Pass	e.style['font-size-adjust'] = "none 0.5" should not set the property value
+Pass	e.style['font-size-adjust'] = "none from-font" should not set the property value
+Pass	e.style['font-size-adjust'] = "from-font none" should not set the property value
+Pass	e.style['font-size-adjust'] = "from-font 0.5" should not set the property value
+Pass	e.style['font-size-adjust'] = "from-font ex-height" should not set the property value
+Pass	e.style['font-size-adjust'] = "from-font cap-height" should not set the property value
+Pass	e.style['font-size-adjust'] = "from-font ic-height" should not set the property value
+Pass	e.style['font-size-adjust'] = "from-font ic-width" should not set the property value
+Pass	e.style['font-size-adjust'] = "from-font ch-width" should not set the property value
+Pass	e.style['font-size-adjust'] = "from-font from-font" should not set the property value
+Pass	e.style['font-size-adjust'] = "ex-height from-font from-font" should not set the property value
+Pass	e.style['font-size-adjust'] = "cap-height from-font from-font" should not set the property value
+Pass	e.style['font-size-adjust'] = "ic-height from-font from-font" should not set the property value
+Pass	e.style['font-size-adjust'] = "ic-width from-font from-font" should not set the property value
+Pass	e.style['font-size-adjust'] = "ch-width from-font from-font" should not set the property value
+Pass	e.style['font-size-adjust'] = "ex-height from-font 0.5" should not set the property value
+Pass	e.style['font-size-adjust'] = "cap-height from-font 0.5" should not set the property value
+Pass	e.style['font-size-adjust'] = "ic-height from-font 0.5" should not set the property value
+Pass	e.style['font-size-adjust'] = "ic-width from-font 0.5" should not set the property value
+Pass	e.style['font-size-adjust'] = "ch-width from-font 0.5" should not set the property value
+Pass	e.style['font-size-adjust'] = "ex-height 0.5 from-font" should not set the property value
+Pass	e.style['font-size-adjust'] = "cap-height 0.5 from-font" should not set the property value
+Pass	e.style['font-size-adjust'] = "ic-height 0.5 from-font" should not set the property value
+Pass	e.style['font-size-adjust'] = "ic-width 0.5 from-font" should not set the property value
+Pass	e.style['font-size-adjust'] = "ch-width 0.5 from-font" should not set the property value
+Pass	e.style['font-size-adjust'] = "ex-height from-font none" should not set the property value
+Pass	e.style['font-size-adjust'] = "cap-height from-font none" should not set the property value
+Pass	e.style['font-size-adjust'] = "ic-height from-font none" should not set the property value
+Pass	e.style['font-size-adjust'] = "ic-width from-font none" should not set the property value
+Pass	e.style['font-size-adjust'] = "ch-width from-font none" should not set the property value
+Pass	e.style['font-size-adjust'] = "ex-height none from-font" should not set the property value
+Pass	e.style['font-size-adjust'] = "cap-height none from-font" should not set the property value
+Pass	e.style['font-size-adjust'] = "ic-height none from-font" should not set the property value
+Pass	e.style['font-size-adjust'] = "ic-width none from-font" should not set the property value
+Pass	e.style['font-size-adjust'] = "ch-width none from-font" should not set the property value

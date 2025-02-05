@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 4: parsing font with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#font-prop">
+<meta name="assert" content="font supports only the grammar '[ [ <'font-style'> || <font-variant-css2> || <'font-weight'> || <font-stretch-css3> ]? <'font-size'> [ / <'line-height'> ]? <'font-family'> ] | caption | icon | menu | message-box | small-caption | status-bar'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value('font', 'menu icon');
+
+test_invalid_value('font', 'italic oblique xx-small serif');
+test_invalid_value('font', 'small-caps small-caps medium/normal sans-serif');
+test_invalid_value('font', 'bold bolder xx-large/1.2 cursive');
+test_invalid_value('font', 'ultra-condensed extra-condensed larger/calc(120% + 1.2em) fantasy');
+test_invalid_value('font', 'italic small-caps lighter condensed normal smaller monospace');
+test_invalid_value('font', 'normal 100 semi-condensed oblique small-caps 10px/normal Menu');
+test_invalid_value('font', 'normal normal normal normal normal 20%/1.2 \"FB Armada\"');
+
+test_invalid_value('font', 'italic small-caps lighter condensed smaller');
+test_invalid_value('font', 'normal 100 semi-condensed oblique small-caps Menu');
+test_invalid_value('font', '100% larger / 2 fantasy');
+
+test_invalid_value('font', 'oldstyle-nums medium serif');
+test_invalid_value('font', 'common-ligatures medium serif');
+test_invalid_value('font', 'normal full-width medium serif');
+test_invalid_value('font', 'italic titling-caps medium serif');
+test_invalid_value('font', 'petite-caps medium serif');
+</script>
+</body>
+</html>

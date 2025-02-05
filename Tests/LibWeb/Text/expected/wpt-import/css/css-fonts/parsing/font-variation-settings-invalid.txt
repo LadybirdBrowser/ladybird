@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 18 tests
+
+17 Pass
+1 Fail
+Pass	e.style['font-variation-settings'] = "700" should not set the property value
+Pass	e.style['font-variation-settings'] = "\"XHGT\"" should not set the property value
+Pass	e.style['font-variation-settings'] = "wght 700" should not set the property value
+Pass	e.style['font-variation-settings'] = "normal, \"wght\" 700" should not set the property value
+Pass	e.style['font-variation-settings'] = "\"wgt\" 700" should not set the property value
+Pass	e.style['font-variation-settings'] = "\"XHGTX\" 0.7" should not set the property value
+Pass	e.style['font-variation-settings'] = "\"abc\u0001F\" 0.5" should not set the property value
+Pass	e.style['font-variation-settings'] = "\"abc\u0007F\" 0.5" should not set the property value
+Pass	e.style['font-variation-settings'] = "\"abcA9\" 0.5" should not set the property value
+Pass	e.style['font-variation-settings'] = "'wght' 200 'abcd' 400" should not set the property value
+Pass	e.style['font-variation-settings'] = "'a' 1234" should not set the property value
+Pass	e.style['font-variation-settings'] = "'abcde' 1234" should not set the property value
+Fail	e.style['font-variation-settings'] = "'wght' 200, " should not set the property value
+Pass	e.style['font-variation-settings'] = "'abcd\" 123" should not set the property value
+Pass	e.style['font-variation-settings'] = "'wght' 100px" should not set the property value
+Pass	e.style['font-variation-settings'] = "'wght' calc(100px + 200px)" should not set the property value
+Pass	e.style['font-variation-settings'] = "'wght' 42%" should not set the property value
+Pass	e.style['font-variation-settings'] = "'wght' calc(100%)" should not set the property value

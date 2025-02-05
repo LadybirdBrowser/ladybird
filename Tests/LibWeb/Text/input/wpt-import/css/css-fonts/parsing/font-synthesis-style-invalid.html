@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 4: parsing font-synthesis-style with invalid values</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-4/#font-synthesis-style">
+<meta name="assert" content="font-synthesis-style supports only the grammar 'auto | none'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value('font-synthesis-style', 'normal');
+test_invalid_value('font-synthesis-style', 'auto none');
+</script>
+</body>
+</html>

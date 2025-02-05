@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	e.style['font-feature-settings'] = "normal \"dlig\"" should not set the property value
+Pass	e.style['font-feature-settings'] = "\"c2sc\", normal" should not set the property value
+Pass	e.style['font-feature-settings'] = "\"tnum\" \"hist\"" should not set the property value
+Pass	e.style['font-feature-settings'] = "\"silly\" off" should not set the property value
+Pass	e.style['font-feature-settings'] = "dlig" should not set the property value

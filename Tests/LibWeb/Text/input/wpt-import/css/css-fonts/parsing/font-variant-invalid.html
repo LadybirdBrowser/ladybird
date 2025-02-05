@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 4: parsing font-variant with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#propdef-font-variant">
+<meta name="assert" content="font-variant supports only the grammar 'normal | none | [ <common-lig-values> || <discretionary-lig-values> || <historical-lig-values> || <contextual-alt-values> || [ small-caps | all-small-caps | petite-caps | all-petite-caps | unicase | titling-caps ] || [ stylistic(<feature-value-name>) || historical-forms || styleset(<feature-value-name>#) || character-variant(<feature-value-name>#) || swash(<feature-value-name>) || ornaments(<feature-value-name>) || annotation(<feature-value-name>) ] || <numeric-figure-values> || <numeric-spacing-values> || <numeric-fraction-values> || ordinal || slashed-zero || <east-asian-variant-values> || <east-asian-width-values> || ruby || [ sub | super ] ]'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value('font-variant', 'normal none');
+test_invalid_value('font-variant', 'none normal');
+test_invalid_value('font-variant', 'small-caps normal');
+test_invalid_value('font-variant', 'normal small-caps');
+test_invalid_value('font-variant', 'small-caps none');
+test_invalid_value('font-variant', 'none small-caps');
+
+// <common-lig-values>
+test_invalid_value('font-variant', 'common-ligatures no-common-ligatures');
+
+// <discretionary-lig-values>
+test_invalid_value('font-variant', 'discretionary-ligatures no-discretionary-ligatures');
+
+// <historical-lig-values>
+test_invalid_value('font-variant', 'historical-ligatures no-historical-ligatures');
+
+// <contextual-alt-values>
+test_invalid_value('font-variant', 'contextual no-contextual');
+
+// [ small-caps | all-small-caps | petite-caps | all-petite-caps | unicase | titling-caps ]
+test_invalid_value('font-variant', 'small-caps all-small-caps');
+
+// [ stylistic(<feature-value-name>) || historical-forms || styleset(<feature-value-name>#) || character-variant(<feature-value-name>#) || swash(<feature-value-name>) || ornaments(<feature-value-name>) || annotation(<feature-value-name>) ]
+test_invalid_value('font-variant', 'stylistic(flowing) stylistic(flowing)');
+
+// <numeric-figure-values>
+test_invalid_value('font-variant', 'lining-nums oldstyle-nums');
+
+// <numeric-spacing-values>
+test_invalid_value('font-variant', 'proportional-nums tabular-nums');
+
+// <numeric-fraction-values>
+test_invalid_value('font-variant', 'diagonal-fractions stacked-fractions');
+
+// ordinal
+test_invalid_value('font-variant', 'ordinal slashed-zero ordinal');
+
+// slashed-zero
+test_invalid_value('font-variant', 'slashed-zero jis78 slashed-zero');
+
+// <east-asian-variant-values>
+test_invalid_value('font-variant', 'jis78 jis83');
+
+// <east-asian-width-values>
+test_invalid_value('font-variant', 'full-width proportional-width');
+
+// ruby
+test_invalid_value('font-variant', 'ruby sub ruby');
+
+// [ sub | super ]
+test_invalid_value('font-variant', 'sub super');
+</script>
+</body>
+</html>

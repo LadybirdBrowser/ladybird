@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	e.style['font-family'] = "cursive serif" should not set the property value
+Pass	e.style['font-family'] = "Red/Black, sans-serif" should not set the property value
+Pass	e.style['font-family'] = "\"Lucida\" Grande, sans-serif" should not set the property value
+Pass	e.style['font-family'] = "Ahem!, sans-serif" should not set the property value
+Pass	e.style['font-family'] = "test@foo, sans-serif" should not set the property value
+Pass	e.style['font-family'] = "#POUND, sans-serif" should not set the property value
+Pass	e.style['font-family'] = "Hawaii 5-0, sans-serif" should not set the property value

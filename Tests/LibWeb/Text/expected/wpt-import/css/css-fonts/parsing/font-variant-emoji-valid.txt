@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	e.style['font-variant-emoji'] = "normal" should set the property value
+Pass	e.style['font-variant-emoji'] = "text" should set the property value
+Pass	e.style['font-variant-emoji'] = "emoji" should set the property value
+Pass	e.style['font-variant-emoji'] = "unicode" should set the property value

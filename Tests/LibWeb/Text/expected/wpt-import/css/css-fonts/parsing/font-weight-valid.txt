@@ -1,0 +1,28 @@
+Harness status: OK
+
+Found 22 tests
+
+17 Pass
+5 Fail
+Pass	e.style['font-weight'] = "normal" should set the property value
+Pass	e.style['font-weight'] = "bold" should set the property value
+Pass	e.style['font-weight'] = "bolder" should set the property value
+Pass	e.style['font-weight'] = "lighter" should set the property value
+Pass	e.style['font-weight'] = "1" should set the property value
+Pass	e.style['font-weight'] = "100" should set the property value
+Pass	e.style['font-weight'] = "200" should set the property value
+Pass	e.style['font-weight'] = "300" should set the property value
+Pass	e.style['font-weight'] = "400" should set the property value
+Pass	e.style['font-weight'] = "500" should set the property value
+Pass	e.style['font-weight'] = "600" should set the property value
+Pass	e.style['font-weight'] = "700" should set the property value
+Pass	e.style['font-weight'] = "800" should set the property value
+Pass	e.style['font-weight'] = "900" should set the property value
+Pass	e.style['font-weight'] = "1000" should set the property value
+Pass	e.style['font-weight'] = "101" should set the property value
+Pass	e.style['font-weight'] = "150.25" should set the property value
+Fail	e.style['font-weight'] = "calc(100)" should set the property value
+Fail	e.style['font-weight'] = "calc(0)" should set the property value
+Fail	e.style['font-weight'] = "calc(-100)" should set the property value
+Fail	e.style['font-weight'] = "calc(100 + 100)" should set the property value
+Fail	e.style['font-weight'] = "calc(100 + (sign(20cqw - 10px) * 5))" should set the property value

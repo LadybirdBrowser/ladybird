@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	Property font-variation-settings value 'normal'
+Pass	Property font-variation-settings value '"wght" 700'
+Pass	Property font-variation-settings value '"AB@D" 0.5'
+Pass	Property font-variation-settings value '"wght" 700, "wght" 500' duplicate values should be removed, keeping the rightmost occurrence.
+Pass	Property font-variation-settings value '"wght" 700, "XHGT" 0.7'
+Pass	Property font-variation-settings value '"wght" 100, "wdth" 200' values should be sorted alphabetically by tag.
+Pass	Property font-variation-settings value '"wght" 100, "wdth" 200, "wght" 300, "wdth" 400' duplicate values should be removed, keeping the rightmost occurrence, and sorted alphabetically by tag.
+Pass	Property font-variation-settings value '"XHGT" calc(0.4 + 0.3)'

@@ -1,0 +1,52 @@
+Harness status: OK
+
+Found 46 tests
+
+36 Pass
+10 Fail
+Pass	e.style['font-variant'] = "normal" should set the property value
+Fail	e.style['font-variant'] = "none" should set the property value
+Pass	e.style['font-variant'] = "common-ligatures" should set the property value
+Pass	e.style['font-variant'] = "no-common-ligatures" should set the property value
+Pass	e.style['font-variant'] = "discretionary-ligatures" should set the property value
+Pass	e.style['font-variant'] = "no-discretionary-ligatures" should set the property value
+Pass	e.style['font-variant'] = "historical-ligatures" should set the property value
+Pass	e.style['font-variant'] = "no-historical-ligatures" should set the property value
+Pass	e.style['font-variant'] = "contextual" should set the property value
+Pass	e.style['font-variant'] = "no-contextual" should set the property value
+Pass	e.style['font-variant'] = "small-caps" should set the property value
+Pass	e.style['font-variant'] = "all-small-caps" should set the property value
+Pass	e.style['font-variant'] = "petite-caps" should set the property value
+Pass	e.style['font-variant'] = "all-petite-caps" should set the property value
+Pass	e.style['font-variant'] = "unicase" should set the property value
+Pass	e.style['font-variant'] = "titling-caps" should set the property value
+Fail	e.style['font-variant'] = "stylistic(flowing)" should set the property value
+Pass	e.style['font-variant'] = "historical-forms" should set the property value
+Fail	e.style['font-variant'] = "styleset(flowing)" should set the property value
+Fail	e.style['font-variant'] = "character-variant(flowing)" should set the property value
+Fail	e.style['font-variant'] = "swash(flowing)" should set the property value
+Fail	e.style['font-variant'] = "ornaments(flowing)" should set the property value
+Fail	e.style['font-variant'] = "annotation(flowing)" should set the property value
+Fail	e.style['font-variant'] = "stylistic(flowing) historical-forms styleset(flowing) character-variant(flowing) swash(flowing) ornaments(flowing) annotation(flowing)" should set the property value
+Fail	e.style['font-variant'] = "annotation(flowing) ornaments(flowing) swash(flowing) character-variant(flowing) styleset(flowing) historical-forms stylistic(flowing)" should set the property value
+Pass	e.style['font-variant'] = "lining-nums" should set the property value
+Pass	e.style['font-variant'] = "oldstyle-nums" should set the property value
+Pass	e.style['font-variant'] = "proportional-nums" should set the property value
+Pass	e.style['font-variant'] = "tabular-nums" should set the property value
+Pass	e.style['font-variant'] = "diagonal-fractions" should set the property value
+Pass	e.style['font-variant'] = "stacked-fractions" should set the property value
+Pass	e.style['font-variant'] = "ordinal" should set the property value
+Pass	e.style['font-variant'] = "slashed-zero" should set the property value
+Pass	e.style['font-variant'] = "jis78" should set the property value
+Pass	e.style['font-variant'] = "jis83" should set the property value
+Pass	e.style['font-variant'] = "jis90" should set the property value
+Pass	e.style['font-variant'] = "jis04" should set the property value
+Pass	e.style['font-variant'] = "simplified" should set the property value
+Pass	e.style['font-variant'] = "traditional" should set the property value
+Pass	e.style['font-variant'] = "full-width" should set the property value
+Pass	e.style['font-variant'] = "proportional-width" should set the property value
+Pass	e.style['font-variant'] = "ruby" should set the property value
+Pass	e.style['font-variant'] = "sub" should set the property value
+Pass	e.style['font-variant'] = "super" should set the property value
+Fail	e.style['font-variant'] = "common-ligatures discretionary-ligatures historical-ligatures contextual small-caps stylistic(flowing) lining-nums proportional-nums diagonal-fractions ordinal slashed-zero jis78 full-width ruby sub" should set the property value
+Pass	e.style['font-variant'] = "super proportional-width jis83 stacked-fractions tabular-nums oldstyle-nums historical-forms all-small-caps no-contextual no-historical-ligatures no-discretionary-ligatures no-common-ligatures" should set the property value

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 4: parsing font-variant-emoji with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#font-variant-emoji-prop">
+<meta name="assert" content="font-variant-emoji supports only the grammar 'normal | text | emoji | unicode'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value('font-variant-emoji', 'auto');
+test_invalid_value('font-variant-emoji', 'none');
+test_invalid_value('font-variant-emoji', 'color');
+test_invalid_value('font-variant-emoji', 'normal text');
+test_invalid_value('font-variant-emoji', 'text emoji');
+test_invalid_value('font-variant-emoji', 'normal, unicode');
+test_invalid_value('font-variant-emoji', 'unicode, emoji');
+</script>
+</body>
+</html>

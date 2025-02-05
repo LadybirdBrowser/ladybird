@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 13 tests
+
+12 Pass
+1 Fail
+Pass	e.style['font-size'] = "xx-small" should set the property value
+Pass	e.style['font-size'] = "x-small" should set the property value
+Pass	e.style['font-size'] = "small" should set the property value
+Pass	e.style['font-size'] = "medium" should set the property value
+Pass	e.style['font-size'] = "large" should set the property value
+Pass	e.style['font-size'] = "x-large" should set the property value
+Pass	e.style['font-size'] = "xx-large" should set the property value
+Pass	e.style['font-size'] = "xxx-large" should set the property value
+Pass	e.style['font-size'] = "larger" should set the property value
+Pass	e.style['font-size'] = "smaller" should set the property value
+Pass	e.style['font-size'] = "10px" should set the property value
+Pass	e.style['font-size'] = "20%" should set the property value
+Fail	e.style['font-size'] = "calc(30% - 40px)" should set the property value

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 4: parsing font-language-override with valid values</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-4/#propdef-font-language-override">
+<meta name="assert" content="font-language-override supports the full grammar 'normal | <string>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value('font-language-override', 'normal');
+test_valid_value('font-language-override', '"KSW"');
+test_valid_value('font-language-override', '"APPH"');
+test_valid_value('font-language-override', '"ENG "', '"ENG"');  // Shortest serialization strips trailing spaces.
+test_valid_value('font-language-override', '"ksw"');  // Will not match the registered (uppercase) tag, but valid grammar.
+test_valid_value('font-language-override', '"tr"');
+test_valid_value('font-language-override', '"en  "', '"en"');
+test_valid_value('font-language-override', '" en "', '" en"');  // Leading space is not trimmed
+test_valid_value('font-language-override', '"1 %"');
+</script>
+</body>
+</html>

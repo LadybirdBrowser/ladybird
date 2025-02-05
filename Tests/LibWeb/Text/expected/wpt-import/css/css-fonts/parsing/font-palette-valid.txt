@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Fail
+Fail	e.style['font-palette'] = "normal" should set the property value
+Fail	e.style['font-palette'] = "light" should set the property value
+Fail	e.style['font-palette'] = "dark" should set the property value
+Fail	e.style['font-palette'] = "--pitchfork" should set the property value
+Fail	e.style['font-palette'] = "--" should set the property value

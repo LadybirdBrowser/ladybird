@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	Property font-kerning value 'auto'
+Fail	Property font-kerning value 'normal'
+Fail	Property font-kerning value 'none'

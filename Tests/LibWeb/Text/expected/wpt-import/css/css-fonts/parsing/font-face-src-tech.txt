@@ -1,0 +1,44 @@
+Harness status: OK
+
+Found 39 tests
+
+39 Fail
+Fail	Check that src: url("foo.ttf") is valid
+Fail	Check that src: url("foo.ttf") tech() is invalid
+Fail	Check that src: url("foo.ttf") tech(features-opentype) is valid
+Fail	Check that src: url("foo.ttf") tech(features-aat) is valid
+Fail	Check that src: url("foo.ttf") tech(color-COLRv0) is valid
+Fail	Check that src: url("foo.ttf") tech(color-COLRv1) is valid
+Fail	Check that src: url("foo.ttf") tech(color-sbix) is valid
+Fail	Check that src: url("foo.ttf") tech(color-CBDT) is valid
+Fail	Check that src: url("foo.ttf") tech(variations) is valid
+Fail	Check that src: url("foo.ttf") tech(palettes) is valid
+Fail	Check that src: url("foo.ttf") tech("features-opentype") is invalid
+Fail	Check that src: url("foo.ttf") tech("color-COLRv0") is invalid
+Fail	Check that src: url("foo.ttf") tech("variations") is invalid
+Fail	Check that src: url("foo.ttf") tech(features-opentype, color-COLRv0, variations, palettes) is valid
+Fail	Check that src: url("foo.ttf") tech(features-opentype color-COLRv0 variations palettes) is invalid
+Fail	Check that src: url("foo.ttf") tech(feature-opentype) is invalid
+Fail	Check that src: url("foo.ttf") tech(feature-aat) is invalid
+Fail	Check that src: url("foo.ttf") tech(feature-graphite) is invalid
+Fail	Check that src: url("foo.ttf") tech(auto) is invalid
+Fail	Check that src: url("foo.ttf") tech(default) is invalid
+Fail	Check that src: url("foo.ttf") tech(inherit) is invalid
+Fail	Check that src: url("foo.ttf") tech(initial) is invalid
+Fail	Check that src: url("foo.ttf") tech(none) is invalid
+Fail	Check that src: url("foo.ttf") tech(normal) is invalid
+Fail	Check that src: url("foo.ttf") tech(xyzzy) is invalid
+Fail	Check that src: url("foo.ttf") tech(xyzzy, features-opentype) is invalid
+Fail	Check that src: url("foo.ttf") tech(features-opentype, xyzzy) is invalid
+Fail	Check that src: url("foo.ttf") format(opentype) tech(features-opentype) is valid
+Fail	Check that src: url("foo.ttf") tech(features-opentype) format(opentype) is invalid
+Fail	Check that src: url("foo.ttf") tech(incremental), url("bar.html") is valid
+Fail	Check that src: url("foo.ttf") tech(incremental, color-SVG, features-graphite, features-aat), url("bar.html") is valid
+Fail	Check that src: url("foo.ttf") tech(color-SVG, features-graphite), url("bar.html") is valid
+Fail	Check that src: url("foo.ttf") tech(color-SVG), url("bar.html") is valid
+Fail	Check that src: url("foo.ttf") tech(features-graphite), url("bar.html") is valid
+Fail	Check that src: url("foo.ttf") dummy("opentype") tech(variations) is invalid
+Fail	Check that src: url("foo.ttf") dummy("opentype") dummy(variations) is invalid
+Fail	Check that src: url("foo.ttf") format(opentype) tech(features-opentype) dummy(something) is invalid
+Fail	Check that src: url("foo.ttf") format(dummy), url("foo.ttf") tech(variations) is valid
+Fail	Check that src: url("foo.ttf") tech(color), url("bar.html") is valid

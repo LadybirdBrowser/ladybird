@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 3: parsing font-variant-numeric with valid values</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-3/#font-variant-numeric-prop">
+<meta name="assert" content="font-variant-numeric supports the full grammar 'normal | [ <numeric-figure-values> || <numeric-spacing-values> || <numeric-fraction-values> || ordinal || slashed-zero ]'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value('font-variant-numeric', 'normal');
+
+// <numeric-figure-values>   = [ lining-nums | oldstyle-nums ]
+test_valid_value('font-variant-numeric', 'lining-nums');
+test_valid_value('font-variant-numeric', 'oldstyle-nums');
+
+// <numeric-spacing-values>  = [ proportional-nums | tabular-nums ]
+test_valid_value('font-variant-numeric', 'proportional-nums');
+test_valid_value('font-variant-numeric', 'tabular-nums');
+
+// <numeric-fraction-values> = [ diagonal-fractions | stacked-fractions ]
+test_valid_value('font-variant-numeric', 'diagonal-fractions');
+test_valid_value('font-variant-numeric', 'stacked-fractions');
+
+test_valid_value('font-variant-numeric', 'ordinal');
+
+test_valid_value('font-variant-numeric', 'slashed-zero');
+
+test_valid_value('font-variant-numeric', 'oldstyle-nums tabular-nums diagonal-fractions');
+
+// Blink gives "slashed-zero ordinal stacked-fractions proportional-nums lining-nums".
+// Also accept specified order as correct serialization.
+test_valid_value('font-variant-numeric', 'slashed-zero ordinal stacked-fractions proportional-nums lining-nums', ['slashed-zero ordinal stacked-fractions proportional-nums lining-nums', 'lining-nums proportional-nums stacked-fractions ordinal slashed-zero']);
+</script>
+</body>
+</html>

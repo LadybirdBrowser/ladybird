@@ -1,0 +1,22 @@
+Harness status: OK
+
+Found 17 tests
+
+17 Fail
+Fail	Check that src: local(inherit), url(foo.ttf) is valid
+Fail	Check that src: local("myfont"), local(unset) is valid
+Fail	Check that src: local(), url(foo.ttf) is valid
+Fail	Check that src: local(12px monospace), url(foo.ttf) is valid
+Fail	Check that src: local("myfont") format(opentype), url(foo.ttf) is valid
+Fail	Check that src: url(not a valid url/bar.ttf), url(foo.ttf) is valid
+Fail	Check that src: url(foo.ttf) format(bad), url(foo.ttf) is valid
+Fail	Check that src: url(foo.ttf) tech(unknown), url(foo.ttf) is valid
+Fail	Check that src: url(foo.ttf) tech(color-COLRv0) otherfunc(othervalue), url(foo.ttf) is valid
+Fail	Check that src: url(foo.ttf), url(something.ttf) format(broken) is valid
+Fail	Check that src: /* an empty component */, url(foo.ttf) is valid
+Fail	Check that src: local(""), url(foo.ttf), unparseable-garbage, local("another font name") is valid
+Fail	Check that src: local(), local(initial) is invalid
+Fail	Check that src: local("textfont") format(opentype), local("emoji") tech(color-COLRv0) is invalid
+Fail	Check that src: local(), /*empty*/, url(should be quoted.ttf), junk is invalid
+Fail	Check that src: url(foo.ttf) format(unknown), url(bar.ttf) tech(broken) is invalid
+Fail	Check that src: url(foo.ttf) tech(color-COLRv0) otherfunc(othervalue), junk is invalid
