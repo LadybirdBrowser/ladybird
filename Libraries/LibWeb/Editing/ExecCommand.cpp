@@ -45,8 +45,11 @@ WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[may
     //    classified with the miscellaneous events, we'd have to stop firing events for consistency's sake.
     //
     // AD-HOC: The defaultParagraphSeparator command is also in the Miscellaneous commands section
+    auto optional_command = Editing::find_command_definition(command);
+    VERIFY(optional_command.has_value());
+    auto const& command_definition = optional_command.release_value();
     GC::Ptr<Node> affected_editing_host;
-    if (!command.is_one_of(Editing::CommandNames::copy, Editing::CommandNames::cut,
+    if (!command_definition.command.is_one_of(Editing::CommandNames::copy, Editing::CommandNames::cut,
             Editing::CommandNames::defaultParagraphSeparator, Editing::CommandNames::paste, Editing::CommandNames::redo,
             Editing::CommandNames::selectAll, Editing::CommandNames::styleWithCSS, Editing::CommandNames::undo,
             Editing::CommandNames::useCSS)) {
@@ -89,9 +92,6 @@ WebIDL::ExceptionOr<bool> Document::exec_command(FlyString const& command, [[may
 
     // https://w3c.github.io/editing/docs/execCommand/#preserves-overrides
     // If a command preserves overrides, then before taking its action, the user agent must record current overrides.
-    auto optional_command = Editing::find_command_definition(command);
-    VERIFY(optional_command.has_value());
-    auto const& command_definition = optional_command.release_value();
     Vector<Editing::RecordedOverride> overrides;
     if (command_definition.preserves_overrides)
         overrides = Editing::record_current_overrides(*this);
@@ -146,7 +146,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_enabled(FlyString const& comma
     // Among commands defined in this specification, those listed in Miscellaneous commands are always enabled, except
     // for the cut command and the paste command.
     // NOTE: cut and paste are actually in the Clipboard commands section
-    if (command.is_one_of(
+    if (command.is_one_of_ignoring_ascii_case(
             Editing::CommandNames::defaultParagraphSeparator,
             Editing::CommandNames::redo,
             Editing::CommandNames::styleWithCSS,
@@ -155,7 +155,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_enabled(FlyString const& comma
         return true;
 
     // AD-HOC: selectAll requires a selection object to exist.
-    if (command == Editing::CommandNames::selectAll)
+    if (command.equals_ignoring_ascii_case(Editing::CommandNames::selectAll))
         return get_selection() != nullptr;
 
     // The other commands defined here are enabled if the active range is not null,
@@ -195,7 +195,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_enabled(FlyString const& comma
     //       the spec is that certain commands must not be enabled if the editing host is in the plaintext-only state.
     if (auto const* html_element = as_if<HTML::HTMLElement>(inclusive_ancestor_editing_host.ptr()); html_element
         && html_element->content_editable_state() == HTML::ContentEditableState::PlaintextOnly
-        && command.is_one_of(
+        && command.is_one_of_ignoring_ascii_case(
             Editing::CommandNames::backColor,
             Editing::CommandNames::bold,
             Editing::CommandNames::createLink,
@@ -242,7 +242,7 @@ WebIDL::ExceptionOr<bool> Document::query_command_indeterm(FlyString const& comm
         // https://w3c.github.io/editing/docs/execCommand/#inline-command-activated-values
         // If a command is a standard inline value command, it is indeterminate if among formattable nodes that are
         // effectively contained in the active range, there are two that have distinct effective command values.
-        if (command.is_one_of(Editing::CommandNames::backColor, Editing::CommandNames::fontName,
+        if (command_definition.command.is_one_of(Editing::CommandNames::backColor, Editing::CommandNames::fontName,
                 Editing::CommandNames::foreColor, Editing::CommandNames::hiliteColor)) {
             Optional<String> first_node_value;
             auto range = Editing::active_range(*this);
