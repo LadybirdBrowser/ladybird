@@ -1311,6 +1311,12 @@ bool Node::is_editable() const
     if (!parent() || !parent()->is_editable_or_editing_host())
         return false;
 
+    // https://html.spec.whatwg.org/multipage/interaction.html#inert-subtrees
+    // When a node is inert:
+    // - If it is editable, the node behaves as if it were non-editable.
+    if (is_inert())
+        return false;
+
     // and either it is an HTML element,
     if (is<HTML::HTMLElement>(this))
         return true;
