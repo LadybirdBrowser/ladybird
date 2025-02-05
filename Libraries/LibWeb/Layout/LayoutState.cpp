@@ -535,13 +535,14 @@ void LayoutState::UsedValues::set_node(NodeWithStyle& node, UsedValues const* co
                     || node.parent()->display().is_flow_inside())) {
                 if (containing_block_has_definite_size) {
                     CSSPixels available_width = containing_block_used_values->content_width();
-                    resolved_definite_size = available_width
+                    resolved_definite_size = clamp_to_max_dimension_value(
+                        available_width
                         - margin_left
                         - margin_right
                         - padding_left
                         - padding_right
                         - border_left
-                        - border_right;
+                        - border_right);
                     return true;
                 }
                 return false;
@@ -559,19 +560,19 @@ void LayoutState::UsedValues::set_node(NodeWithStyle& node, UsedValues const* co
                 auto containing_block_size_as_length = width ? containing_block_used_values->content_width() : containing_block_used_values->content_height();
                 context.percentage_basis = CSS::Length::make_px(containing_block_size_as_length);
             }
-            resolved_definite_size = adjust_for_box_sizing(size.calculated().resolve_length(context)->to_px(node), size, width);
+            resolved_definite_size = clamp_to_max_dimension_value(adjust_for_box_sizing(size.calculated().resolve_length(context)->to_px(node), size, width));
             return true;
         }
 
         if (size.is_length()) {
             VERIFY(!size.is_auto()); // This should have been covered by the Size::is_auto() branch above.
-            resolved_definite_size = adjust_for_box_sizing(size.length().to_px(node), size, width);
+            resolved_definite_size = clamp_to_max_dimension_value(adjust_for_box_sizing(size.length().to_px(node), size, width));
             return true;
         }
         if (size.is_percentage()) {
             if (containing_block_has_definite_size) {
                 auto containing_block_size = width ? containing_block_used_values->content_width() : containing_block_used_values->content_height();
-                resolved_definite_size = adjust_for_box_sizing(containing_block_size.scaled(size.percentage().as_fraction()), size, width);
+                resolved_definite_size = clamp_to_max_dimension_value(adjust_for_box_sizing(containing_block_size.scaled(size.percentage().as_fraction()), size, width));
                 return true;
             }
             return false;
@@ -600,10 +601,10 @@ void LayoutState::UsedValues::set_node(NodeWithStyle& node, UsedValues const* co
             if (m_has_definite_width && m_has_definite_height) {
                 // Both width and height are definite.
             } else if (m_has_definite_width) {
-                m_content_height = m_content_width / *aspect_ratio;
+                m_content_height = clamp_to_max_dimension_value(m_content_width / *aspect_ratio);
                 m_has_definite_height = true;
             } else if (m_has_definite_height) {
-                m_content_width = m_content_height * *aspect_ratio;
+                m_content_width = clamp_to_max_dimension_value(m_content_height * *aspect_ratio);
                 m_has_definite_width = true;
             }
         }
@@ -611,28 +612,27 @@ void LayoutState::UsedValues::set_node(NodeWithStyle& node, UsedValues const* co
 
     if (m_has_definite_width) {
         if (has_definite_min_width)
-            m_content_width = max(min_width, m_content_width);
+            m_content_width = clamp_to_max_dimension_value(max(min_width, m_content_width));
         if (has_definite_max_width)
-            m_content_width = min(max_width, m_content_width);
+            m_content_width = clamp_to_max_dimension_value(min(max_width, m_content_width));
     }
 
     if (m_has_definite_height) {
         if (has_definite_min_height)
-            m_content_height = max(min_height, m_content_height);
+            m_content_height = clamp_to_max_dimension_value(max(min_height, m_content_height));
         if (has_definite_max_height)
-            m_content_height = min(max_height, m_content_height);
+            m_content_height = clamp_to_max_dimension_value(min(max_height, m_content_height));
     }
 }
 
 void LayoutState::UsedValues::set_content_width(CSSPixels width)
 {
-    VERIFY(!width.might_be_saturated());
     if (width < 0) {
         // Negative widths are not allowed in CSS. We have a bug somewhere! Clamp to 0 to avoid doing too much damage.
         dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Layout calculated a negative width for {}: {}", m_node->debug_description(), width);
         width = 0;
     }
-    m_content_width = width;
+    m_content_width = clamp_to_max_dimension_value(width);
     // FIXME: We should not do this! Definiteness of widths should be determined early,
     //        and not changed later (except for some special cases in flex layout..)
     m_has_definite_width = true;
@@ -640,18 +640,17 @@ void LayoutState::UsedValues::set_content_width(CSSPixels width)
 
 void LayoutState::UsedValues::set_content_height(CSSPixels height)
 {
-    VERIFY(!height.might_be_saturated());
     if (height < 0) {
         // Negative heights are not allowed in CSS. We have a bug somewhere! Clamp to 0 to avoid doing too much damage.
         dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Layout calculated a negative height for {}: {}", m_node->debug_description(), height);
         height = 0;
     }
-    m_content_height = height;
+    m_content_height = clamp_to_max_dimension_value(height);
 }
 
 void LayoutState::UsedValues::set_temporary_content_width(CSSPixels width)
 {
-    m_content_width = width;
+    m_content_width = clamp_to_max_dimension_value(width);
 }
 
 void LayoutState::UsedValues::set_temporary_content_height(CSSPixels height)

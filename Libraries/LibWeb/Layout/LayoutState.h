@@ -244,4 +244,11 @@ private:
     void resolve_relative_positions();
 };
 
+inline CSSPixels clamp_to_max_dimension_value(CSSPixels value)
+{
+    if (value.might_be_saturated())
+        return CSSPixels(CSSPixels::max_dimension_value);
+    return value;
+}
+
 }

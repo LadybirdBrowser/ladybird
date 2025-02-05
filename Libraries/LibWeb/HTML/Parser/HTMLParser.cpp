@@ -4896,10 +4896,7 @@ RefPtr<CSS::CSSStyleValue> parse_dimension_value(StringView string)
     }
     auto integer_value = number_string.string_view().to_number<double>();
 
-    // NOTE: This is apparently the largest value allowed by Firefox.
-    static float max_dimension_value = 17895700;
-
-    float value = min(*integer_value, max_dimension_value);
+    float value = min(*integer_value, CSSPixels::max_dimension_value);
 
     // 6. If position is past the end of input, then return value as a length.
     if (position == input.end())

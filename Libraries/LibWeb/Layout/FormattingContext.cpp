@@ -1466,14 +1466,7 @@ CSSPixels FormattingContext::calculate_min_content_width(Layout::Box const& box)
 
     context->run(AvailableSpace(available_width, available_height));
 
-    cache.min_content_width = context->automatic_content_width();
-
-    if (cache.min_content_width->might_be_saturated()) {
-        // HACK: If layout calculates a non-finite result, something went wrong. Force it to zero and log a little whine.
-        dbgln("FIXME: Calculated non-finite min-content width for {}", box.debug_description());
-        cache.min_content_width = 0;
-    }
-
+    cache.min_content_width = clamp_to_max_dimension_value(context->automatic_content_width());
     return *cache.min_content_width;
 }
 
@@ -1506,14 +1499,7 @@ CSSPixels FormattingContext::calculate_max_content_width(Layout::Box const& box)
 
     context->run(AvailableSpace(available_width, available_height));
 
-    cache.max_content_width = context->automatic_content_width();
-
-    if (cache.max_content_width->might_be_saturated()) {
-        // HACK: If layout calculates a non-finite result, something went wrong. Force it to zero and log a little whine.
-        dbgln("FIXME: Calculated non-finite max-content width for {}", box.debug_description());
-        cache.max_content_width = 0;
-    }
-
+    cache.max_content_width = clamp_to_max_dimension_value(context->automatic_content_width());
     return *cache.max_content_width;
 }
 
@@ -1550,13 +1536,7 @@ CSSPixels FormattingContext::calculate_min_content_height(Layout::Box const& box
 
     context->run(AvailableSpace(AvailableSize::make_definite(width), AvailableSize::make_min_content()));
 
-    auto min_content_height = context->automatic_content_height();
-    if (min_content_height.might_be_saturated()) {
-        // HACK: If layout calculates a non-finite result, something went wrong. Force it to zero and log a little whine.
-        dbgln("FIXME: Calculated non-finite min-content height for {}", box.debug_description());
-        min_content_height = 0;
-    }
-
+    auto min_content_height = clamp_to_max_dimension_value(context->automatic_content_height());
     if (auto* cache_slot = get_cache_slot()) {
         *cache_slot = min_content_height;
     }
@@ -1594,13 +1574,7 @@ CSSPixels FormattingContext::calculate_max_content_height(Layout::Box const& box
 
     context->run(AvailableSpace(AvailableSize::make_definite(width), AvailableSize::make_max_content()));
 
-    auto max_content_height = context->automatic_content_height();
-
-    if (max_content_height.might_be_saturated()) {
-        // HACK: If layout calculates a non-finite result, something went wrong. Force it to zero and log a little whine.
-        dbgln("FIXME: Calculated non-finite max-content height for {}", box.debug_description());
-        max_content_height = 0;
-    }
+    auto max_content_height = clamp_to_max_dimension_value(context->automatic_content_height());
 
     if (auto* cache_slot = get_cache_slot()) {
         *cache_slot = max_content_height;
