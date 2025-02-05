@@ -68,18 +68,21 @@ void Viewport::update_text_blocks()
             return TraversalDecision::Continue;
         }
 
-        if (layout_node.is_text_node()) {
-            auto const& text_node = as<Layout::TextNode>(layout_node);
-            auto& dom_node = const_cast<DOM::Text&>(text_node.dom_node());
-            if (text_positions.is_empty()) {
-                text_positions.empend(dom_node);
-            } else {
-                text_positions.empend(dom_node, current_start_position);
-            }
+        if (auto* text_node = as_if<Layout::TextNode>(layout_node)) {
+            // https://html.spec.whatwg.org/multipage/interaction.html#inert-subtrees
+            // When a node is inert:
+            // - The user agent should ignore the node for the purposes of find-in-page.
+            if (auto& dom_node = const_cast<DOM::Text&>(text_node->dom_node()); !dom_node.is_inert()) {
+                if (text_positions.is_empty()) {
+                    text_positions.empend(dom_node);
+                } else {
+                    text_positions.empend(dom_node, current_start_position);
+                }
 
-            auto const& current_node_text = text_node.text_for_rendering();
-            current_start_position += current_node_text.bytes_as_string_view().length();
-            builder.append(move(current_node_text));
+                auto const& current_node_text = text_node->text_for_rendering();
+                current_start_position += current_node_text.bytes_as_string_view().length();
+                builder.append(move(current_node_text));
+            }
         }
 
         return TraversalDecision::Continue;
