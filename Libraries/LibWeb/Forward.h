@@ -135,6 +135,7 @@ class CSSKeywordValue;
 class CSSLayerBlockRule;
 class CSSLayerStatementRule;
 class CSSMediaRule;
+class CSSNamespaceRule;
 class CSSNestedDeclarations;
 class CSSOKLab;
 class CSSOKLCH;
