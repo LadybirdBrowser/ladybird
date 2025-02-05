@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 11 tests
+
+10 Pass
+1 Fail
+Pass	e.style['font-family'] = "Serif" should set the property value
+Pass	e.style['font-family'] = "Sans-Serif" should set the property value
+Pass	e.style['font-family'] = "Cursive" should set the property value
+Pass	e.style['font-family'] = "Fantasy" should set the property value
+Pass	e.style['font-family'] = "Monospace" should set the property value
+Fail	e.style['font-family'] = "System-UI" should set the property value
+Pass	e.style['font-family'] = "serif, sans-serif, cursive, fantasy, monospace, system-ui" should set the property value
+Pass	e.style['font-family'] = "Helvetica, Verdana, sans-serif" should set the property value
+Pass	e.style['font-family'] = "\"New Century Schoolbook\", serif" should set the property value
+Pass	e.style['font-family'] = "'21st Century', fantasy" should set the property value
+Pass	e.style['font-family'] = "\"inherit\", \"serif\"" should set the property value

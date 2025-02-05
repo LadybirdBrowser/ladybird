@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	Property font-variant-east-asian value 'normal'
+Pass	Property font-variant-east-asian value 'jis78'
+Pass	Property font-variant-east-asian value 'jis83'
+Pass	Property font-variant-east-asian value 'jis90'
+Pass	Property font-variant-east-asian value 'jis04'
+Pass	Property font-variant-east-asian value 'simplified'
+Pass	Property font-variant-east-asian value 'traditional'
+Pass	Property font-variant-east-asian value 'full-width'
+Pass	Property font-variant-east-asian value 'proportional-width'
+Pass	Property font-variant-east-asian value 'ruby'
+Pass	Property font-variant-east-asian value 'jis78 proportional-width'
+Pass	Property font-variant-east-asian value 'simplified full-width ruby'

@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 12 tests
+
+11 Pass
+1 Fail
+Pass	e.style['font-variant-east-asian'] = "normal" should set the property value
+Pass	e.style['font-variant-east-asian'] = "jis78" should set the property value
+Pass	e.style['font-variant-east-asian'] = "jis83" should set the property value
+Pass	e.style['font-variant-east-asian'] = "jis90" should set the property value
+Pass	e.style['font-variant-east-asian'] = "jis04" should set the property value
+Pass	e.style['font-variant-east-asian'] = "simplified" should set the property value
+Pass	e.style['font-variant-east-asian'] = "traditional" should set the property value
+Pass	e.style['font-variant-east-asian'] = "full-width" should set the property value
+Pass	e.style['font-variant-east-asian'] = "proportional-width" should set the property value
+Pass	e.style['font-variant-east-asian'] = "ruby" should set the property value
+Pass	e.style['font-variant-east-asian'] = "jis78 proportional-width" should set the property value
+Fail	e.style['font-variant-east-asian'] = "ruby full-width simplified" should set the property value

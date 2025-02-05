@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	e.style['font-synthesis-small-caps'] = "auto" should set the property value
+Fail	e.style['font-synthesis-small-caps'] = "none" should set the property value

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 4: getComputedStyle().fontLanguageOverride</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-4/#propdef-font-language-override">
+<meta name="assert" content="font-language-override computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value('font-language-override', 'normal');
+test_computed_value('font-language-override', '"KSW"');
+test_computed_value('font-language-override', '"ENG "', '"ENG"');
+test_computed_value('font-language-override', '"en  "', '"en"');
+test_computed_value('font-language-override', '" en "', '" en"');
+</script>
+</body>
+</html>

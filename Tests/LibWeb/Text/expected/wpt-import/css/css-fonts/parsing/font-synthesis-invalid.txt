@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	e.style['font-synthesis'] = "auto" should not set the property value
+Pass	e.style['font-synthesis'] = "none weight" should not set the property value
+Pass	e.style['font-synthesis'] = "none style" should not set the property value
+Pass	e.style['font-synthesis'] = "none position" should not set the property value
+Pass	e.style['font-synthesis'] = "style none" should not set the property value
+Pass	e.style['font-synthesis'] = "none small-caps" should not set the property value
+Pass	e.style['font-synthesis'] = "small-caps none" should not set the property value
+Pass	e.style['font-synthesis'] = "position none" should not set the property value

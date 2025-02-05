@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+3 Pass
+1 Fail
+Pass	e.style['font-stretch'] = "auto" should not set the property value
+Fail	e.style['font-stretch'] = "normal, ultra-condensed" should not set the property value
+Pass	e.style['font-stretch'] = "condensed expanded" should not set the property value
+Pass	e.style['font-stretch'] = "-50%" should not set the property value

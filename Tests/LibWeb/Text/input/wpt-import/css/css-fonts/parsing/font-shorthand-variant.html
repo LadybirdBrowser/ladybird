@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 4: font-variant vs font shorthand</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#font-prop">
+<meta name="assert" content="Only the CSS2 font-variant values (normal | small-caps) are supported by the font shorthand.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="container">
+  <div id="target"></div>
+</div>
+<script>
+test(() => {
+  const target = document.getElementById('target');
+  target.style.font = "medium serif";
+  target.style.fontVariant = "small-caps";
+  assert_equals(target.style.font, "small-caps medium serif", "font should be updated");
+  target.style.fontVariant = "titling-caps";
+  assert_equals(target.style.font, "", "font should be empty");
+  target.style.fontVariant = "normal";
+  assert_equals(target.style.font, "medium serif", "font should be reset");
+  target.style.fontVariant = "full-width";
+  assert_equals(target.style.font, "", "font should be empty");
+}, "font shorthand returns only CSS2 font-variant values");
+</script>
+</body>
+</html>

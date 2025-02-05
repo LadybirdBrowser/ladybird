@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<title>CSS Fonts 4 test: parsing the format() function in the src descriptor</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts/#font-face-src-parsing">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style id="testStyle">
+</style>
+<script>
+  const sheet = testStyle.sheet;
+  tests = [
+    // No format() function
+    { src: 'url("foo.ttf")', valid: true },
+    { src: 'url("foo.ttf"), url("bar.ttf")', valid: true },
+    // Empty format() is not valid
+    { src: 'url("foo.ttf") format()', valid: false },
+    // Garbage data instead of format() is not valid
+    { src: 'url("foo.ttf") dummy()', valid: false },
+    // Garbage data following valid format() is not valid
+    { src: 'url("foo.ttf") format("woff") dummy()', valid: false },
+    // Garbage data preceding valid format() is not valid
+    { src: 'url("foo.ttf") dummy() format("woff")', valid: false },
+    // Quoted strings in format()
+    { src: 'url("foo.ttf") format("collection")', valid: true },
+    { src: 'url("foo.ttf") format("opentype")', valid: true },
+    { src: 'url("foo.ttf") format("truetype")', valid: true },
+    { src: 'url("foo.ttf") format("woff")', valid: true },
+    { src: 'url("foo.ttf") format("woff2")', valid: true },
+    // Multiple strings (was valid in CSS Fonts 3, but not allowed in Fonts 4)
+    { src: 'url("foo.ttf") format("opentype", "truetype")', valid: false },
+    // Keywords (new in Fonts 4)
+    { src: 'url("foo.ttf") format(collection)', valid: true },
+    { src: 'url("foo.ttf") format(opentype)', valid: true },
+    { src: 'url("foo.ttf") format(truetype)', valid: true },
+    { src: 'url("foo.ttf") format(woff)', valid: true },
+    { src: 'url("foo.ttf") format(woff2)', valid: true },
+    // Multiple keywords are not accepted
+    { src: 'url("foo.ttf") format(opentype, truetype)', valid: false },
+    { src: 'url("foo.ttf") format(opentype truetype)', valid: false },
+    // Invalid format keywords should be a parse error
+    { src: 'url("foo.ttf") format(auto)', valid: false },
+    { src: 'url("foo.ttf") format(default)', valid: false },
+    { src: 'url("foo.ttf") format(inherit)', valid: false },
+    { src: 'url("foo.ttf") format(initial)', valid: false },
+    { src: 'url("foo.ttf") format(none)', valid: false },
+    { src: 'url("foo.ttf") format(normal)', valid: false },
+    { src: 'url("foo.ttf") format(xyzzy)', valid: false },
+    // Unknown format string still matches the grammar, although it won't be
+    // loaded. UAs may choose to either not load it, or not add unsupported
+    // entries to the list, ensure that subsequent component of the list are
+    // still recognized.
+    { src: 'url("foo.ttf") format("embedded-opentype"), url("bar.html")', valid: true },
+    { src: 'url("foo.ttf") format(embedded-opentype), url("bar.html")', valid: true },
+    { src: 'url("foo.ttf") format("svg"), url("bar.html")', valid: true },
+    { src: 'url("foo.ttf") format(svg), url("bar.html")', valid: true },
+    // A parsing error in one component does not make the entire descriptor invalid.
+    { src: 'url("foo.ttf") format(xyzz 200px), url("bar.html")', valid: true },
+    { src: 'url("foo.ttf") format(xyzz), url("bar.html")', valid: true },
+    { src: 'url("foo.ttf") dummy(xyzzy), url("bar.html")', valid: true },
+    { src: 'url("foo.ttf") format(), url("bar.html")', valid: true },
+    { src: 'url("foo.ttf") format(none), url("bar.html")', valid: true },
+  ];
+
+  for (let t of tests) {
+    test(() => {
+      assert_equals(sheet.cssRules.length, 0, "testSheet should initially be empty");
+      sheet.insertRule("@font-face { src: " + t.src + "}");
+      try {
+        assert_equals(sheet.cssRules[0].style.getPropertyValue("src") != "", t.valid);
+      } finally {
+        sheet.deleteRule(0);
+      }
+    }, "Check that src: " + t.src + " is " + (t.valid ? "valid" : "invalid"));
+  }
+</script>

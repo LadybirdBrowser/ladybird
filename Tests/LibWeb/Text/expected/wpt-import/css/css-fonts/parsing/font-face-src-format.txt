@@ -1,0 +1,40 @@
+Harness status: OK
+
+Found 35 tests
+
+35 Fail
+Fail	Check that src: url("foo.ttf") is valid
+Fail	Check that src: url("foo.ttf"), url("bar.ttf") is valid
+Fail	Check that src: url("foo.ttf") format() is invalid
+Fail	Check that src: url("foo.ttf") dummy() is invalid
+Fail	Check that src: url("foo.ttf") format("woff") dummy() is invalid
+Fail	Check that src: url("foo.ttf") dummy() format("woff") is invalid
+Fail	Check that src: url("foo.ttf") format("collection") is valid
+Fail	Check that src: url("foo.ttf") format("opentype") is valid
+Fail	Check that src: url("foo.ttf") format("truetype") is valid
+Fail	Check that src: url("foo.ttf") format("woff") is valid
+Fail	Check that src: url("foo.ttf") format("woff2") is valid
+Fail	Check that src: url("foo.ttf") format("opentype", "truetype") is invalid
+Fail	Check that src: url("foo.ttf") format(collection) is valid
+Fail	Check that src: url("foo.ttf") format(opentype) is valid
+Fail	Check that src: url("foo.ttf") format(truetype) is valid
+Fail	Check that src: url("foo.ttf") format(woff) is valid
+Fail	Check that src: url("foo.ttf") format(woff2) is valid
+Fail	Check that src: url("foo.ttf") format(opentype, truetype) is invalid
+Fail	Check that src: url("foo.ttf") format(opentype truetype) is invalid
+Fail	Check that src: url("foo.ttf") format(auto) is invalid
+Fail	Check that src: url("foo.ttf") format(default) is invalid
+Fail	Check that src: url("foo.ttf") format(inherit) is invalid
+Fail	Check that src: url("foo.ttf") format(initial) is invalid
+Fail	Check that src: url("foo.ttf") format(none) is invalid
+Fail	Check that src: url("foo.ttf") format(normal) is invalid
+Fail	Check that src: url("foo.ttf") format(xyzzy) is invalid
+Fail	Check that src: url("foo.ttf") format("embedded-opentype"), url("bar.html") is valid
+Fail	Check that src: url("foo.ttf") format(embedded-opentype), url("bar.html") is valid
+Fail	Check that src: url("foo.ttf") format("svg"), url("bar.html") is valid
+Fail	Check that src: url("foo.ttf") format(svg), url("bar.html") is valid
+Fail	Check that src: url("foo.ttf") format(xyzz 200px), url("bar.html") is valid
+Fail	Check that src: url("foo.ttf") format(xyzz), url("bar.html") is valid
+Fail	Check that src: url("foo.ttf") dummy(xyzzy), url("bar.html") is valid
+Fail	Check that src: url("foo.ttf") format(), url("bar.html") is valid
+Fail	Check that src: url("foo.ttf") format(none), url("bar.html") is valid

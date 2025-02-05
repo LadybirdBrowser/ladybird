@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 7 tests
+
+5 Pass
+2 Fail
+Pass	e.style['font-variation-settings'] = "normal" should set the property value
+Pass	e.style['font-variation-settings'] = "\"wght\" 700" should set the property value
+Pass	e.style['font-variation-settings'] = "'wght' 700" should set the property value
+Fail	e.style['font-variation-settings'] = "\"wght\" 700, \"XHGT\" 0.7" should set the property value
+Pass	e.style['font-variation-settings'] = "\"a cd\" 0.5" should set the property value
+Pass	e.style['font-variation-settings'] = "\"ab@d\" 0.5" should set the property value
+Fail	e.style['font-variation-settings'] = "'wght' 1e3, 'slnt' -450.0e-1" should set the property value

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 4: parsing font-variation-settings with valid values</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-4/#propdef-font-variation-settings">
+<meta name="assert" content="font-variation-settings supports the full grammar 'normal | [ <string> <number>] #'.">
+<meta name="assert" content="font-variation-settings strings are case sensitive.">
+  <script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_valid_value('font-variation-settings', 'normal');
+
+test_valid_value('font-variation-settings', '"wght" 700');
+test_valid_value('font-variation-settings', "'wght' 700", '"wght" 700');
+test_valid_value('font-variation-settings', '"wght" 700, "XHGT" 0.7');
+
+test_valid_value('font-variation-settings', '"a cd" 0.5');
+test_valid_value('font-variation-settings', '"ab@d" 0.5');
+test_valid_value('font-variation-settings', "'wght' 1e3, 'slnt' -450.0e-1", '"wght" 1000, "slnt" -45');
+</script>
+</body>
+</html>

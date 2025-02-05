@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 3: parsing font-feature-settings with invalid values</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-3/#font-feature-settings-prop">
+<meta name="assert" content="font-feature-settings supports only the grammar 'normal | <feature-tag-value> #'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+test_invalid_value('font-feature-settings', 'normal "dlig"');
+test_invalid_value('font-feature-settings', '"c2sc", normal');
+
+test_invalid_value('font-feature-settings', '"tnum" "hist"');
+test_invalid_value('font-feature-settings', '"silly" off');
+
+test_invalid_value('font-feature-settings', 'dlig');
+</script>
+</body>
+</html>

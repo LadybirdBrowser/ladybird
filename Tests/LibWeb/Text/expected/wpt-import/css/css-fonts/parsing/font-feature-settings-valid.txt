@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 8 tests
+
+2 Pass
+6 Fail
+Pass	e.style['font-feature-settings'] = "normal" should set the property value
+Fail	e.style['font-feature-settings'] = "\"dlig\" 1" should set the property value
+Fail	e.style['font-feature-settings'] = "\"smcp\" on" should set the property value
+Fail	e.style['font-feature-settings'] = "'c2sc'" should set the property value
+Pass	e.style['font-feature-settings'] = "\"liga\" off" should set the property value
+Fail	e.style['font-feature-settings'] = "\"tnum\", 'hist'" should set the property value
+Fail	e.style['font-feature-settings'] = "\"PKRN\"" should set the property value
+Fail	e.style['font-feature-settings'] = "\"dlig\" 1, \"smcp\" on, \"dlig\" 0" should set the property value

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Fonts Module Level 4: parsing font-size with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-fonts-4/#font-size-prop">
+<meta name="assert" content="font-size supports the full grammar '<absolute-size> | <relative-size> | <length-percentage>'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+</head>
+<body>
+<script>
+// <absolute-size>
+test_valid_value('font-size', 'xx-small');
+test_valid_value('font-size', 'x-small');
+test_valid_value('font-size', 'small');
+test_valid_value('font-size', 'medium');
+test_valid_value('font-size', 'large');
+test_valid_value('font-size', 'x-large');
+test_valid_value('font-size', 'xx-large');
+// Added in Fonts level 4: https://github.com/w3c/csswg-drafts/issues/3907
+test_valid_value('font-size', 'xxx-large');
+
+// <relative-size>
+test_valid_value('font-size', 'larger');
+test_valid_value('font-size', 'smaller');
+
+// <length-percentage>
+test_valid_value('font-size', '10px');
+test_valid_value('font-size', '20%');
+test_valid_value('font-size', 'calc(30% - 40px)');
+</script>
+</body>
+</html>

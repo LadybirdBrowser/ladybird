@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Fail
+Fail	Check that size-adjust: 100% is valid
+Fail	Check that size-adjust: 0% is valid
+Fail	Check that size-adjust: 110% is valid
+Fail	Check that size-adjust: 100000000000% is valid
+Fail	Check that size-adjust: -100% is invalid
+Fail	Check that size-adjust: -1% is invalid

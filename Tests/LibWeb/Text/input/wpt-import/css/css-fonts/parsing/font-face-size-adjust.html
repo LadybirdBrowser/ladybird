@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<title>CSS Fonts 5 test: parsing the size-adjust descriptor</title>
+<link rel="help" href="https://www.w3.org/TR/css-fonts-5/#size-adjust-desc">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style id="testStyle">
+</style>
+<script>
+  const sheet = testStyle.sheet;
+  // size-adjust grammar : <percentage [0,∞]>
+  tests = [
+    { sizeAdjust: '100%', valid: true },
+    { sizeAdjust: '0%', valid: true },
+    { sizeAdjust: '110%', valid: true },
+    { sizeAdjust: '100000000000%', valid: true },
+    { sizeAdjust: '-100%', valid: false },
+    { sizeAdjust: '-1%', valid: false },
+  ];
+
+  for (let t of tests) {
+    test(() => {
+      assert_equals(sheet.cssRules.length, 0, "testSheet should initially be empty");
+      sheet.insertRule("@font-face { size-adjust: " + t.sizeAdjust + "}");
+      try {
+        assert_equals(sheet.cssRules[0].style.getPropertyValue("size-adjust") != "", t.valid);
+      } finally {
+        sheet.deleteRule(0);
+      }
+    }, "Check that size-adjust: " + t.sizeAdjust + " is " + (t.valid ? "valid" : "invalid"));
+  }
+</script>

@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	e.style['font-synthesis-style'] = "normal" should not set the property value
+Pass	e.style['font-synthesis-style'] = "auto none" should not set the property value

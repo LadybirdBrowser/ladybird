@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 21 tests
+
+15 Pass
+6 Fail
+Fail	e.style['font-variant'] = "normal none" should not set the property value
+Fail	e.style['font-variant'] = "none normal" should not set the property value
+Fail	e.style['font-variant'] = "small-caps normal" should not set the property value
+Fail	e.style['font-variant'] = "normal small-caps" should not set the property value
+Fail	e.style['font-variant'] = "small-caps none" should not set the property value
+Fail	e.style['font-variant'] = "none small-caps" should not set the property value
+Pass	e.style['font-variant'] = "common-ligatures no-common-ligatures" should not set the property value
+Pass	e.style['font-variant'] = "discretionary-ligatures no-discretionary-ligatures" should not set the property value
+Pass	e.style['font-variant'] = "historical-ligatures no-historical-ligatures" should not set the property value
+Pass	e.style['font-variant'] = "contextual no-contextual" should not set the property value
+Pass	e.style['font-variant'] = "small-caps all-small-caps" should not set the property value
+Pass	e.style['font-variant'] = "stylistic(flowing) stylistic(flowing)" should not set the property value
+Pass	e.style['font-variant'] = "lining-nums oldstyle-nums" should not set the property value
+Pass	e.style['font-variant'] = "proportional-nums tabular-nums" should not set the property value
+Pass	e.style['font-variant'] = "diagonal-fractions stacked-fractions" should not set the property value
+Pass	e.style['font-variant'] = "ordinal slashed-zero ordinal" should not set the property value
+Pass	e.style['font-variant'] = "slashed-zero jis78 slashed-zero" should not set the property value
+Pass	e.style['font-variant'] = "jis78 jis83" should not set the property value
+Pass	e.style['font-variant'] = "full-width proportional-width" should not set the property value
+Pass	e.style['font-variant'] = "ruby sub ruby" should not set the property value
+Pass	e.style['font-variant'] = "sub super" should not set the property value
