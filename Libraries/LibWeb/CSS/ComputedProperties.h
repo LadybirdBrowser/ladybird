@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2023-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -75,70 +76,70 @@ public:
     LengthBox length_box(CSS::PropertyID left_id, CSS::PropertyID top_id, CSS::PropertyID right_id, CSS::PropertyID bottom_id, const CSS::Length& default_value) const;
     Color color_or_fallback(CSS::PropertyID, Layout::NodeWithStyle const&, Color fallback) const;
     CSS::PreferredColorScheme color_scheme(CSS::PreferredColorScheme, Optional<Vector<String> const&> document_supported_schemes) const;
-    Optional<CSS::TextAnchor> text_anchor() const;
-    Optional<CSS::TextAlign> text_align() const;
-    Optional<CSS::TextJustify> text_justify() const;
-    Optional<CSS::TextOverflow> text_overflow() const;
+    TextAnchor text_anchor() const;
+    TextAlign text_align() const;
+    TextJustify text_justify() const;
+    TextOverflow text_overflow() const;
     CSS::Length border_spacing_horizontal(Layout::Node const&) const;
     CSS::Length border_spacing_vertical(Layout::Node const&) const;
-    Optional<CSS::CaptionSide> caption_side() const;
+    CaptionSide caption_side() const;
     CSS::Clip clip() const;
     CSS::Display display() const;
-    Optional<CSS::Float> float_() const;
-    Optional<CSS::Clear> clear() const;
-    Optional<CSS::ColumnSpan> column_span() const;
+    Float float_() const;
+    Clear clear() const;
+    ColumnSpan column_span() const;
     struct ContentDataAndQuoteNestingLevel {
         CSS::ContentData content_data;
         u32 final_quote_nesting_level { 0 };
     };
     ContentDataAndQuoteNestingLevel content(DOM::Element&, u32 initial_quote_nesting_level) const;
-    Optional<CSS::ContentVisibility> content_visibility() const;
-    Optional<CSS::Cursor> cursor() const;
+    ContentVisibility content_visibility() const;
+    Cursor cursor() const;
     Variant<LengthOrCalculated, NumberOrCalculated> tab_size() const;
-    Optional<CSS::WhiteSpace> white_space() const;
-    Optional<CSS::WordBreak> word_break() const;
-    Optional<CSS::LengthOrCalculated> word_spacing() const;
+    WhiteSpace white_space() const;
+    WordBreak word_break() const;
+    Optional<LengthOrCalculated> word_spacing() const;
     Optional<LengthOrCalculated> letter_spacing() const;
-    Optional<CSS::LineStyle> line_style(CSS::PropertyID) const;
-    Optional<CSS::OutlineStyle> outline_style() const;
+    LineStyle line_style(CSS::PropertyID) const;
+    OutlineStyle outline_style() const;
     Vector<CSS::TextDecorationLine> text_decoration_line() const;
-    Optional<CSS::TextDecorationStyle> text_decoration_style() const;
-    Optional<CSS::TextTransform> text_transform() const;
+    TextDecorationStyle text_decoration_style() const;
+    TextTransform text_transform() const;
     Vector<CSS::ShadowData> text_shadow(Layout::Node const&) const;
-    Optional<CSS::ListStyleType> list_style_type() const;
-    Optional<CSS::ListStylePosition> list_style_position() const;
-    Optional<CSS::FlexDirection> flex_direction() const;
-    Optional<CSS::FlexWrap> flex_wrap() const;
-    Optional<CSS::FlexBasis> flex_basis() const;
+    ListStyleType list_style_type() const;
+    ListStylePosition list_style_position() const;
+    FlexDirection flex_direction() const;
+    FlexWrap flex_wrap() const;
+    FlexBasis flex_basis() const;
     float flex_grow() const;
     float flex_shrink() const;
     int order() const;
     Optional<Color> accent_color(Layout::NodeWithStyle const&) const;
-    Optional<CSS::AlignContent> align_content() const;
-    Optional<CSS::AlignItems> align_items() const;
-    Optional<CSS::AlignSelf> align_self() const;
-    Optional<CSS::Appearance> appearance() const;
+    AlignContent align_content() const;
+    AlignItems align_items() const;
+    AlignSelf align_self() const;
+    Appearance appearance() const;
     CSS::Filter backdrop_filter() const;
     CSS::Filter filter() const;
     float opacity() const;
-    Optional<CSS::Visibility> visibility() const;
-    Optional<CSS::ImageRendering> image_rendering() const;
-    Optional<CSS::JustifyContent> justify_content() const;
-    Optional<CSS::JustifyItems> justify_items() const;
-    Optional<CSS::JustifySelf> justify_self() const;
-    Optional<CSS::Overflow> overflow_x() const;
-    Optional<CSS::Overflow> overflow_y() const;
+    Visibility visibility() const;
+    ImageRendering image_rendering() const;
+    JustifyContent justify_content() const;
+    JustifyItems justify_items() const;
+    JustifySelf justify_self() const;
+    Overflow overflow_x() const;
+    Overflow overflow_y() const;
     Vector<CSS::ShadowData> box_shadow(Layout::Node const&) const;
-    Optional<CSS::BoxSizing> box_sizing() const;
-    Optional<CSS::PointerEvents> pointer_events() const;
+    BoxSizing box_sizing() const;
+    PointerEvents pointer_events() const;
     Variant<CSS::VerticalAlign, CSS::LengthPercentage> vertical_align() const;
     Optional<Gfx::FontVariantAlternates> font_variant_alternates() const;
-    Optional<FontVariantCaps> font_variant_caps() const;
+    FontVariantCaps font_variant_caps() const;
     Optional<Gfx::FontVariantEastAsian> font_variant_east_asian() const;
-    Optional<FontVariantEmoji> font_variant_emoji() const;
+    FontVariantEmoji font_variant_emoji() const;
     Optional<Gfx::FontVariantLigatures> font_variant_ligatures() const;
     Optional<Gfx::FontVariantNumeric> font_variant_numeric() const;
-    Optional<FontVariantPosition> font_variant_position() const;
+    FontVariantPosition font_variant_position() const;
     Optional<FlyString> font_language_override() const;
     Optional<HashMap<FlyString, IntegerOrCalculated>> font_feature_settings() const;
     Optional<HashMap<FlyString, NumberOrCalculated>> font_variation_settings() const;
@@ -151,37 +152,37 @@ public:
     CSS::GridTrackPlacement grid_column_start() const;
     CSS::GridTrackPlacement grid_row_end() const;
     CSS::GridTrackPlacement grid_row_start() const;
-    Optional<CSS::BorderCollapse> border_collapse() const;
+    BorderCollapse border_collapse() const;
     Vector<Vector<String>> grid_template_areas() const;
-    Optional<CSS::ObjectFit> object_fit() const;
+    ObjectFit object_fit() const;
     CSS::ObjectPosition object_position() const;
-    Optional<CSS::TableLayout> table_layout() const;
-    Optional<CSS::Direction> direction() const;
-    Optional<CSS::UnicodeBidi> unicode_bidi() const;
-    Optional<CSS::WritingMode> writing_mode() const;
-    Optional<CSS::UserSelect> user_select() const;
-    Optional<CSS::Isolation> isolation() const;
+    TableLayout table_layout() const;
+    Direction direction() const;
+    UnicodeBidi unicode_bidi() const;
+    WritingMode writing_mode() const;
+    UserSelect user_select() const;
+    Isolation isolation() const;
     CSS::Containment contain() const;
-    Optional<CSS::MixBlendMode> mix_blend_mode() const;
+    MixBlendMode mix_blend_mode() const;
 
     static Vector<CSS::Transformation> transformations_for_style_value(CSSStyleValue const& value);
     Vector<CSS::Transformation> transformations() const;
-    Optional<CSS::TransformBox> transform_box() const;
+    TransformBox transform_box() const;
     CSS::TransformOrigin transform_origin() const;
     Optional<CSS::Transformation> rotate() const;
     Optional<CSS::Transformation> translate() const;
     Optional<CSS::Transformation> scale() const;
 
-    Optional<CSS::MaskType> mask_type() const;
+    MaskType mask_type() const;
     Color stop_color() const;
     float stop_opacity() const;
     float fill_opacity() const;
-    Optional<CSS::StrokeLinecap> stroke_linecap() const;
-    Optional<CSS::StrokeLinejoin> stroke_linejoin() const;
+    StrokeLinecap stroke_linecap() const;
+    StrokeLinejoin stroke_linejoin() const;
     NumberOrCalculated stroke_miterlimit() const;
     float stroke_opacity() const;
-    Optional<CSS::FillRule> fill_rule() const;
-    Optional<CSS::ClipRule> clip_rule() const;
+    FillRule fill_rule() const;
+    ClipRule clip_rule() const;
 
     Gfx::Font const& first_available_computed_font() const { return m_font_list->first(); }
 
@@ -203,7 +204,7 @@ public:
 
     bool operator==(ComputedProperties const&) const;
 
-    Optional<CSS::Positioning> position() const;
+    Positioning position() const;
     Optional<int> z_index() const;
 
     void set_math_depth(int math_depth);
@@ -212,7 +213,7 @@ public:
     QuotesData quotes() const;
     Vector<CounterData> counter_data(PropertyID) const;
 
-    Optional<CSS::ScrollbarWidth> scrollbar_width() const;
+    ScrollbarWidth scrollbar_width() const;
 
     static NonnullRefPtr<Gfx::Font const> font_fallback(bool monospace, bool bold, float point_size);
 
@@ -228,7 +229,7 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
-    Optional<CSS::Overflow> overflow(CSS::PropertyID) const;
+    Overflow overflow(CSS::PropertyID) const;
     Vector<CSS::ShadowData> shadow(CSS::PropertyID, Layout::Node const&) const;
 
     GC::Ptr<CSS::CSSStyleDeclaration const> m_animation_name_source;
