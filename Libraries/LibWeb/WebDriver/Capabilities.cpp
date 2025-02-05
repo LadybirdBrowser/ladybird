@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -12,6 +12,7 @@
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWeb/WebDriver/Capabilities.h>
 #include <LibWeb/WebDriver/TimeoutsConfiguration.h>
+#include <LibWeb/WebDriver/UserPrompt.h>
 
 namespace Web::WebDriver {
 
@@ -24,21 +25,6 @@ static Response deserialize_as_a_page_load_strategy(JsonValue value)
 
     // 2. If there is no entry in the table of page load strategies with keyword value return an error with error code invalid argument.
     if (!value.as_string().is_one_of("none"sv, "eager"sv, "normal"sv))
-        return Error::from_code(ErrorCode::InvalidArgument, "Invalid pageLoadStrategy capability"sv);
-
-    // 3. Return success with data value.
-    return value;
-}
-
-// https://w3c.github.io/webdriver/#dfn-deserialize-as-an-unhandled-prompt-behavior
-static Response deserialize_as_an_unhandled_prompt_behavior(JsonValue value)
-{
-    // 1. If value is not a string return an error with error code invalid argument.
-    if (!value.is_string())
-        return Error::from_code(ErrorCode::InvalidArgument, "Capability unhandledPromptBehavior must be a string"sv);
-
-    // 2. If value is not present as a keyword in the known prompt handling approaches table return an error with error code invalid argument.
-    if (!value.as_string().is_one_of("dismiss"sv, "accept"sv, "dismiss and notify"sv, "accept and notify"sv, "ignore"sv))
         return Error::from_code(ErrorCode::InvalidArgument, "Invalid pageLoadStrategy capability"sv);
 
     // 3. Return success with data value.

@@ -828,6 +828,7 @@ set(SOURCES
     WebDriver/Response.cpp
     WebDriver/Screenshot.cpp
     WebDriver/TimeoutsConfiguration.cpp
+    WebDriver/UserPrompt.cpp
     WebGL/Extensions/ANGLEInstancedArrays.cpp
     WebGL/Extensions/OESVertexArrayObject.cpp
     WebGL/Extensions/WebGLDrawBuffers.cpp
