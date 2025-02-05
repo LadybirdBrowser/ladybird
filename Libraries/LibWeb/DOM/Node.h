@@ -499,6 +499,8 @@ public:
     Optional<String> lookup_prefix(Optional<String> namespace_) const;
     bool is_default_namespace(Optional<String> namespace_) const;
 
+    bool is_inert() const;
+
 protected:
     Node(JS::Realm&, Document&, NodeType);
     Node(Document&, NodeType);
