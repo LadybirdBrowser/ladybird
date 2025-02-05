@@ -3,7 +3,7 @@
  * Copyright (c) 2022, Sam Atkins <atkinssj@serenityos.org>
  * Copyright (c) 2022, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -15,6 +15,7 @@
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibWeb/WebDriver/TimeoutsConfiguration.h>
+#include <LibWeb/WebDriver/UserPrompt.h>
 #include <unistd.h>
 
 namespace WebDriver {
@@ -98,12 +99,13 @@ void Session::initialize_from_capabilities(JsonObject& capabilities)
     }
 
     // 8. Apply changes to the user agent for any implementation-defined capabilities selected during the capabilities processing step.
-    if (auto behavior = capabilities.get_byte_string("unhandledPromptBehavior"sv); behavior.has_value()) {
-        m_unhandled_prompt_behavior = Web::WebDriver::unhandled_prompt_behavior_from_string(*behavior);
-        connection.async_set_unhandled_prompt_behavior(m_unhandled_prompt_behavior);
+    if (auto behavior = capabilities.get_object("unhandledPromptBehavior"sv); behavior.has_value()) {
+        Web::WebDriver::update_the_user_prompt_handler(*behavior);
     } else {
         capabilities.set("unhandledPromptBehavior"sv, "dismiss and notify"sv);
     }
+
+    connection.async_set_user_prompt_handler(Web::WebDriver::user_prompt_handler());
 }
 
 ErrorOr<NonnullRefPtr<Core::LocalServer>> Session::create_server(NonnullRefPtr<ServerPromise> promise)
@@ -144,7 +146,7 @@ ErrorOr<NonnullRefPtr<Core::LocalServer>> Session::create_server(NonnullRefPtr<S
 
         web_content_connection->async_set_page_load_strategy(m_page_load_strategy);
         web_content_connection->async_set_strict_file_interactability(m_strict_file_interactiblity);
-        web_content_connection->async_set_unhandled_prompt_behavior(m_unhandled_prompt_behavior);
+        web_content_connection->async_set_user_prompt_handler(Web::WebDriver::user_prompt_handler());
         if (m_timeouts_configuration.has_value())
             web_content_connection->async_set_timeouts(*m_timeouts_configuration);
 

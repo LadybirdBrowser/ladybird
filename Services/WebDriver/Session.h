@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2022, Florent Castelli <florent.castelli@gmail.com>
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -101,7 +101,6 @@ private:
     RefPtr<Core::LocalServer> m_web_content_server;
 
     Web::WebDriver::PageLoadStrategy m_page_load_strategy { Web::WebDriver::PageLoadStrategy::Normal };
-    Web::WebDriver::UnhandledPromptBehavior m_unhandled_prompt_behavior { Web::WebDriver::UnhandledPromptBehavior::DismissAndNotify };
     Optional<JsonValue> m_timeouts_configuration;
     bool m_strict_file_interactiblity { false };
 };

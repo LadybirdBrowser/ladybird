@@ -1,10 +1,11 @@
 #include <LibWeb/WebDriver/Capabilities.h>
 #include <LibWeb/WebDriver/Response.h>
+#include <LibWeb/WebDriver/UserPrompt.h>
 
 endpoint WebDriverClient {
     close_session() => ()
     set_page_load_strategy(Web::WebDriver::PageLoadStrategy page_load_strategy) =|
-    set_unhandled_prompt_behavior(Web::WebDriver::UnhandledPromptBehavior unhandled_prompt_behavior) =|
+    set_user_prompt_handler(Web::WebDriver::UserPromptHandler user_prompt_handler) =|
     set_strict_file_interactability(bool strict_file_interactability) =|
     set_is_webdriver_active(bool active) =|
     get_timeouts() => (Web::WebDriver::Response response)

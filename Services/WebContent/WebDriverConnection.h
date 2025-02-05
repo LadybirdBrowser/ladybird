@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2022, Florent Castelli <florent.castelli@gmail.com>
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -48,7 +48,7 @@ private:
 
     virtual void close_session() override;
     virtual void set_page_load_strategy(Web::WebDriver::PageLoadStrategy const& page_load_strategy) override;
-    virtual void set_unhandled_prompt_behavior(Web::WebDriver::UnhandledPromptBehavior const& unhandled_prompt_behavior) override;
+    virtual void set_user_prompt_handler(Web::WebDriver::UserPromptHandler const& user_prompt_handler) override;
     virtual void set_strict_file_interactability(bool strict_file_interactability) override;
     virtual void set_is_webdriver_active(bool) override;
     virtual Messages::WebDriverClient::GetTimeoutsResponse get_timeouts() override;
@@ -126,6 +126,7 @@ private:
     Web::WebDriver::Response element_send_keys_impl(String const& element_id, ByteString const& text);
     Web::WebDriver::Response add_cookie_impl(JsonObject const&);
 
+    Web::WebDriver::PromptHandlerConfiguration get_the_prompt_handler(Web::WebDriver::PromptType type) const;
     void handle_any_user_prompts(Function<void()> on_dialog_closed);
 
     void maximize_the_window();
@@ -154,9 +155,6 @@ private:
 
     // https://w3c.github.io/webdriver/#dfn-page-load-strategy
     Web::WebDriver::PageLoadStrategy m_page_load_strategy { Web::WebDriver::PageLoadStrategy::Normal };
-
-    // https://w3c.github.io/webdriver/#dfn-unhandled-prompt-behavior
-    Web::WebDriver::UnhandledPromptBehavior m_unhandled_prompt_behavior { Web::WebDriver::UnhandledPromptBehavior::DismissAndNotify };
 
     // https://w3c.github.io/webdriver/#dfn-strict-file-interactability
     bool m_strict_file_interactability { false };

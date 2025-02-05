@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2022-2025, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -27,30 +27,6 @@ constexpr PageLoadStrategy page_load_strategy_from_string(StringView strategy)
         return PageLoadStrategy::Eager;
     if (strategy == "normal"sv)
         return PageLoadStrategy::Normal;
-    VERIFY_NOT_REACHED();
-}
-
-// https://w3c.github.io/webdriver/#dfn-unhandled-prompt-behavior
-enum class UnhandledPromptBehavior {
-    Dismiss,
-    Accept,
-    DismissAndNotify,
-    AcceptAndNotify,
-    Ignore,
-};
-
-constexpr UnhandledPromptBehavior unhandled_prompt_behavior_from_string(StringView behavior)
-{
-    if (behavior == "dismiss"sv)
-        return UnhandledPromptBehavior::Dismiss;
-    if (behavior == "accept"sv)
-        return UnhandledPromptBehavior::Accept;
-    if (behavior == "dismiss and notify"sv)
-        return UnhandledPromptBehavior::DismissAndNotify;
-    if (behavior == "accept and notify"sv)
-        return UnhandledPromptBehavior::AcceptAndNotify;
-    if (behavior == "ignore"sv)
-        return UnhandledPromptBehavior::Ignore;
     VERIFY_NOT_REACHED();
 }
 
