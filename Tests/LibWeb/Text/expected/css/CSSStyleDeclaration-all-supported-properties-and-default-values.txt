@@ -298,7 +298,7 @@ All supported properties and their default values exposed from CSSStyleDeclarati
 'flexWrap': 'nowrap'
 'flex-wrap': 'nowrap'
 'float': 'none'
-'font': 'normal normal 400 normal 16px / normal serif'
+'font': '16px serif'
 'fontFamily': 'serif'
 'font-family': 'serif'
 'fontFeatureSettings': 'normal'

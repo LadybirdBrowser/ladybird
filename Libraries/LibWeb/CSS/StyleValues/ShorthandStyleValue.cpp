@@ -1,11 +1,12 @@
 /*
  * Copyright (c) 2023, Ali Mohammad Pur <mpfard@serenityos.org>
- * Copyright (c) 2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2023-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include "ShorthandStyleValue.h"
+#include <LibGfx/Font/FontWeight.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
@@ -165,15 +166,36 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         return MUST(String::formatted("{} {} {}", longhand(PropertyID::FlexGrow)->to_string(mode), longhand(PropertyID::FlexShrink)->to_string(mode), longhand(PropertyID::FlexBasis)->to_string(mode)));
     case PropertyID::FlexFlow:
         return MUST(String::formatted("{} {}", longhand(PropertyID::FlexDirection)->to_string(mode), longhand(PropertyID::FlexWrap)->to_string(mode)));
-    case PropertyID::Font:
-        return MUST(String::formatted("{} {} {} {} {} / {} {}",
-            longhand(PropertyID::FontStyle)->to_string(mode),
-            longhand(PropertyID::FontVariant)->to_string(mode),
-            longhand(PropertyID::FontWeight)->to_string(mode),
-            longhand(PropertyID::FontWidth)->to_string(mode),
-            longhand(PropertyID::FontSize)->to_string(mode),
-            longhand(PropertyID::LineHeight)->to_string(mode),
-            longhand(PropertyID::FontFamily)->to_string(mode)));
+    case PropertyID::Font: {
+        auto font_style = longhand(PropertyID::FontStyle);
+        auto font_variant = longhand(PropertyID::FontVariant);
+        auto font_weight = longhand(PropertyID::FontWeight);
+        auto font_width = longhand(PropertyID::FontWidth);
+        auto font_size = longhand(PropertyID::FontSize);
+        auto line_height = longhand(PropertyID::LineHeight);
+        auto font_family = longhand(PropertyID::FontFamily);
+
+        StringBuilder builder;
+        auto append = [&](auto const& string) {
+            if (!builder.is_empty())
+                builder.append(' ');
+            builder.append(string);
+        };
+        if (font_style->to_keyword() != Keyword::Normal && font_style->to_keyword() != Keyword::Initial)
+            append(font_style->to_string(mode));
+        if (auto variant_string = font_variant->to_string(mode); variant_string != "normal"sv && variant_string != "initial"sv)
+            append(variant_string);
+        if (font_weight->to_font_weight() != Gfx::FontWeight::Regular && font_weight->to_keyword() != Keyword::Initial)
+            append(font_weight->to_string(mode));
+        if (font_width->to_keyword() != Keyword::Normal && font_width->to_keyword() != Keyword::Initial)
+            append(font_width->to_string(mode));
+        append(font_size->to_string(mode));
+        if (line_height->to_keyword() != Keyword::Normal && line_height->to_keyword() != Keyword::Initial)
+            append(MUST(String::formatted("/ {}", line_height->to_string(mode))));
+        append(font_family->to_string(mode));
+
+        return builder.to_string_without_validation();
+    }
     case PropertyID::FontVariant: {
         Vector<StringView> values;
         auto ligatures_or_null = longhand(PropertyID::FontVariantLigatures)->to_font_variant_ligatures();
