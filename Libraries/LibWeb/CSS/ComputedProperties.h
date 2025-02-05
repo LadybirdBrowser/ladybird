@@ -27,7 +27,7 @@ class ComputedProperties final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(ComputedProperties);
 
 public:
-    static constexpr size_t number_of_properties = to_underlying(CSS::last_property_id) + 1;
+    static constexpr size_t number_of_properties = to_underlying(last_property_id) + 1;
 
     virtual ~ComputedProperties() override;
 
@@ -36,7 +36,7 @@ public:
     {
         for (size_t i = 0; i < m_property_values.size(); ++i) {
             if (m_property_values[i])
-                callback((CSS::PropertyID)i, *m_property_values[i]);
+                callback((PropertyID)i, *m_property_values[i]);
         }
     }
 
@@ -45,51 +45,51 @@ public:
         Yes
     };
 
-    HashMap<CSS::PropertyID, NonnullRefPtr<CSSStyleValue const>> const& animated_property_values() const { return m_animated_property_values; }
+    HashMap<PropertyID, NonnullRefPtr<CSSStyleValue const>> const& animated_property_values() const { return m_animated_property_values; }
     void reset_animated_properties();
 
-    bool is_property_important(CSS::PropertyID property_id) const;
-    bool is_property_inherited(CSS::PropertyID property_id) const;
-    void set_property_important(CSS::PropertyID, Important);
-    void set_property_inherited(CSS::PropertyID, Inherited);
+    bool is_property_important(PropertyID property_id) const;
+    bool is_property_inherited(PropertyID property_id) const;
+    void set_property_important(PropertyID, Important);
+    void set_property_inherited(PropertyID, Inherited);
 
-    void set_property(CSS::PropertyID, NonnullRefPtr<CSSStyleValue const> value, Inherited = Inherited::No, Important = Important::No);
-    void set_animated_property(CSS::PropertyID, NonnullRefPtr<CSSStyleValue const> value);
+    void set_property(PropertyID, NonnullRefPtr<CSSStyleValue const> value, Inherited = Inherited::No, Important = Important::No);
+    void set_animated_property(PropertyID, NonnullRefPtr<CSSStyleValue const> value);
     enum class WithAnimationsApplied {
         No,
         Yes,
     };
-    CSSStyleValue const& property(CSS::PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
-    CSSStyleValue const* maybe_null_property(CSS::PropertyID) const;
-    void revert_property(CSS::PropertyID, ComputedProperties const& style_for_revert);
+    CSSStyleValue const& property(PropertyID, WithAnimationsApplied = WithAnimationsApplied::Yes) const;
+    CSSStyleValue const* maybe_null_property(PropertyID) const;
+    void revert_property(PropertyID, ComputedProperties const& style_for_revert);
 
-    GC::Ptr<CSS::CSSStyleDeclaration const> animation_name_source() const { return m_animation_name_source; }
-    void set_animation_name_source(GC::Ptr<CSS::CSSStyleDeclaration const> declaration) { m_animation_name_source = declaration; }
+    GC::Ptr<CSSStyleDeclaration const> animation_name_source() const { return m_animation_name_source; }
+    void set_animation_name_source(GC::Ptr<CSSStyleDeclaration const> declaration) { m_animation_name_source = declaration; }
 
-    GC::Ptr<CSS::CSSStyleDeclaration const> transition_property_source() const { return m_transition_property_source; }
-    void set_transition_property_source(GC::Ptr<CSS::CSSStyleDeclaration const> declaration) { m_transition_property_source = declaration; }
+    GC::Ptr<CSSStyleDeclaration const> transition_property_source() const { return m_transition_property_source; }
+    void set_transition_property_source(GC::Ptr<CSSStyleDeclaration const> declaration) { m_transition_property_source = declaration; }
 
-    CSS::Size size_value(CSS::PropertyID) const;
-    [[nodiscard]] Variant<LengthPercentage, NormalGap> gap_value(CSS::PropertyID) const;
-    LengthPercentage length_percentage_or_fallback(CSS::PropertyID, LengthPercentage const& fallback) const;
-    Optional<LengthPercentage> length_percentage(CSS::PropertyID) const;
-    LengthBox length_box(CSS::PropertyID left_id, CSS::PropertyID top_id, CSS::PropertyID right_id, CSS::PropertyID bottom_id, const CSS::Length& default_value) const;
-    Color color_or_fallback(CSS::PropertyID, Layout::NodeWithStyle const&, Color fallback) const;
-    CSS::PreferredColorScheme color_scheme(CSS::PreferredColorScheme, Optional<Vector<String> const&> document_supported_schemes) const;
+    Size size_value(PropertyID) const;
+    [[nodiscard]] Variant<LengthPercentage, NormalGap> gap_value(PropertyID) const;
+    LengthPercentage length_percentage_or_fallback(PropertyID, LengthPercentage const& fallback) const;
+    Optional<LengthPercentage> length_percentage(PropertyID) const;
+    LengthBox length_box(PropertyID left_id, PropertyID top_id, PropertyID right_id, PropertyID bottom_id, Length const& default_value) const;
+    Color color_or_fallback(PropertyID, Layout::NodeWithStyle const&, Color fallback) const;
+    PreferredColorScheme color_scheme(PreferredColorScheme, Optional<Vector<String> const&> document_supported_schemes) const;
     TextAnchor text_anchor() const;
     TextAlign text_align() const;
     TextJustify text_justify() const;
     TextOverflow text_overflow() const;
-    CSS::Length border_spacing_horizontal(Layout::Node const&) const;
-    CSS::Length border_spacing_vertical(Layout::Node const&) const;
+    Length border_spacing_horizontal(Layout::Node const&) const;
+    Length border_spacing_vertical(Layout::Node const&) const;
     CaptionSide caption_side() const;
-    CSS::Clip clip() const;
-    CSS::Display display() const;
+    Clip clip() const;
+    Display display() const;
     Float float_() const;
     Clear clear() const;
     ColumnSpan column_span() const;
     struct ContentDataAndQuoteNestingLevel {
-        CSS::ContentData content_data;
+        ContentData content_data;
         u32 final_quote_nesting_level { 0 };
     };
     ContentDataAndQuoteNestingLevel content(DOM::Element&, u32 initial_quote_nesting_level) const;
@@ -100,12 +100,12 @@ public:
     WordBreak word_break() const;
     Optional<LengthOrCalculated> word_spacing() const;
     Optional<LengthOrCalculated> letter_spacing() const;
-    LineStyle line_style(CSS::PropertyID) const;
+    LineStyle line_style(PropertyID) const;
     OutlineStyle outline_style() const;
-    Vector<CSS::TextDecorationLine> text_decoration_line() const;
+    Vector<TextDecorationLine> text_decoration_line() const;
     TextDecorationStyle text_decoration_style() const;
     TextTransform text_transform() const;
-    Vector<CSS::ShadowData> text_shadow(Layout::Node const&) const;
+    Vector<ShadowData> text_shadow(Layout::Node const&) const;
     ListStyleType list_style_type() const;
     ListStylePosition list_style_position() const;
     FlexDirection flex_direction() const;
@@ -119,8 +119,8 @@ public:
     AlignItems align_items() const;
     AlignSelf align_self() const;
     Appearance appearance() const;
-    CSS::Filter backdrop_filter() const;
-    CSS::Filter filter() const;
+    Filter backdrop_filter() const;
+    Filter filter() const;
     float opacity() const;
     Visibility visibility() const;
     ImageRendering image_rendering() const;
@@ -129,10 +129,10 @@ public:
     JustifySelf justify_self() const;
     Overflow overflow_x() const;
     Overflow overflow_y() const;
-    Vector<CSS::ShadowData> box_shadow(Layout::Node const&) const;
+    Vector<ShadowData> box_shadow(Layout::Node const&) const;
     BoxSizing box_sizing() const;
     PointerEvents pointer_events() const;
-    Variant<CSS::VerticalAlign, CSS::LengthPercentage> vertical_align() const;
+    Variant<VerticalAlign, LengthPercentage> vertical_align() const;
     Optional<Gfx::FontVariantAlternates> font_variant_alternates() const;
     FontVariantCaps font_variant_caps() const;
     Optional<Gfx::FontVariantEastAsian> font_variant_east_asian() const;
@@ -143,35 +143,35 @@ public:
     Optional<FlyString> font_language_override() const;
     Optional<HashMap<FlyString, IntegerOrCalculated>> font_feature_settings() const;
     Optional<HashMap<FlyString, NumberOrCalculated>> font_variation_settings() const;
-    CSS::GridTrackSizeList grid_auto_columns() const;
-    CSS::GridTrackSizeList grid_auto_rows() const;
-    CSS::GridTrackSizeList grid_template_columns() const;
-    CSS::GridTrackSizeList grid_template_rows() const;
-    [[nodiscard]] CSS::GridAutoFlow grid_auto_flow() const;
-    CSS::GridTrackPlacement grid_column_end() const;
-    CSS::GridTrackPlacement grid_column_start() const;
-    CSS::GridTrackPlacement grid_row_end() const;
-    CSS::GridTrackPlacement grid_row_start() const;
+    GridTrackSizeList grid_auto_columns() const;
+    GridTrackSizeList grid_auto_rows() const;
+    GridTrackSizeList grid_template_columns() const;
+    GridTrackSizeList grid_template_rows() const;
+    [[nodiscard]] GridAutoFlow grid_auto_flow() const;
+    GridTrackPlacement grid_column_end() const;
+    GridTrackPlacement grid_column_start() const;
+    GridTrackPlacement grid_row_end() const;
+    GridTrackPlacement grid_row_start() const;
     BorderCollapse border_collapse() const;
     Vector<Vector<String>> grid_template_areas() const;
     ObjectFit object_fit() const;
-    CSS::ObjectPosition object_position() const;
+    ObjectPosition object_position() const;
     TableLayout table_layout() const;
     Direction direction() const;
     UnicodeBidi unicode_bidi() const;
     WritingMode writing_mode() const;
     UserSelect user_select() const;
     Isolation isolation() const;
-    CSS::Containment contain() const;
+    Containment contain() const;
     MixBlendMode mix_blend_mode() const;
 
-    static Vector<CSS::Transformation> transformations_for_style_value(CSSStyleValue const& value);
-    Vector<CSS::Transformation> transformations() const;
+    static Vector<Transformation> transformations_for_style_value(CSSStyleValue const& value);
+    Vector<Transformation> transformations() const;
     TransformBox transform_box() const;
-    CSS::TransformOrigin transform_origin() const;
-    Optional<CSS::Transformation> rotate() const;
-    Optional<CSS::Transformation> translate() const;
-    Optional<CSS::Transformation> scale() const;
+    TransformOrigin transform_origin() const;
+    Optional<Transformation> rotate() const;
+    Optional<Transformation> translate() const;
+    Optional<Transformation> scale() const;
 
     MaskType mask_type() const;
     Color stop_color() const;
@@ -229,17 +229,17 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
-    Overflow overflow(CSS::PropertyID) const;
-    Vector<CSS::ShadowData> shadow(CSS::PropertyID, Layout::Node const&) const;
+    Overflow overflow(PropertyID) const;
+    Vector<ShadowData> shadow(PropertyID, Layout::Node const&) const;
 
-    GC::Ptr<CSS::CSSStyleDeclaration const> m_animation_name_source;
-    GC::Ptr<CSS::CSSStyleDeclaration const> m_transition_property_source;
+    GC::Ptr<CSSStyleDeclaration const> m_animation_name_source;
+    GC::Ptr<CSSStyleDeclaration const> m_transition_property_source;
 
     Array<RefPtr<CSSStyleValue const>, number_of_properties> m_property_values;
     Array<u8, ceil_div(number_of_properties, 8uz)> m_property_important {};
     Array<u8, ceil_div(number_of_properties, 8uz)> m_property_inherited {};
 
-    HashMap<CSS::PropertyID, NonnullRefPtr<CSSStyleValue const>> m_animated_property_values;
+    HashMap<PropertyID, NonnullRefPtr<CSSStyleValue const>> m_animated_property_values;
 
     int m_math_depth { InitialValues::math_depth() };
     mutable RefPtr<Gfx::FontCascadeList> m_font_list;

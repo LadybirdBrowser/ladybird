@@ -54,13 +54,13 @@ void ComputedProperties::visit_edges(Visitor& visitor)
     visitor.visit(m_transition_property_source);
 }
 
-bool ComputedProperties::is_property_important(CSS::PropertyID property_id) const
+bool ComputedProperties::is_property_important(PropertyID property_id) const
 {
     size_t n = to_underlying(property_id);
     return m_property_important[n / 8] & (1 << (n % 8));
 }
 
-void ComputedProperties::set_property_important(CSS::PropertyID property_id, Important important)
+void ComputedProperties::set_property_important(PropertyID property_id, Important important)
 {
     size_t n = to_underlying(property_id);
     if (important == Important::Yes)
@@ -69,13 +69,13 @@ void ComputedProperties::set_property_important(CSS::PropertyID property_id, Imp
         m_property_important[n / 8] &= ~(1 << (n % 8));
 }
 
-bool ComputedProperties::is_property_inherited(CSS::PropertyID property_id) const
+bool ComputedProperties::is_property_inherited(PropertyID property_id) const
 {
     size_t n = to_underlying(property_id);
     return m_property_inherited[n / 8] & (1 << (n % 8));
 }
 
-void ComputedProperties::set_property_inherited(CSS::PropertyID property_id, Inherited inherited)
+void ComputedProperties::set_property_inherited(PropertyID property_id, Inherited inherited)
 {
     size_t n = to_underlying(property_id);
     if (inherited == Inherited::Yes)
@@ -84,21 +84,21 @@ void ComputedProperties::set_property_inherited(CSS::PropertyID property_id, Inh
         m_property_inherited[n / 8] &= ~(1 << (n % 8));
 }
 
-void ComputedProperties::set_property(CSS::PropertyID id, NonnullRefPtr<CSSStyleValue const> value, Inherited inherited, Important important)
+void ComputedProperties::set_property(PropertyID id, NonnullRefPtr<CSSStyleValue const> value, Inherited inherited, Important important)
 {
     m_property_values[to_underlying(id)] = move(value);
     set_property_important(id, important);
     set_property_inherited(id, inherited);
 }
 
-void ComputedProperties::revert_property(CSS::PropertyID id, ComputedProperties const& style_for_revert)
+void ComputedProperties::revert_property(PropertyID id, ComputedProperties const& style_for_revert)
 {
     m_property_values[to_underlying(id)] = style_for_revert.m_property_values[to_underlying(id)];
     set_property_important(id, style_for_revert.is_property_important(id) ? Important::Yes : Important::No);
     set_property_inherited(id, style_for_revert.is_property_inherited(id) ? Inherited::Yes : Inherited::No);
 }
 
-void ComputedProperties::set_animated_property(CSS::PropertyID id, NonnullRefPtr<CSSStyleValue const> value)
+void ComputedProperties::set_animated_property(PropertyID id, NonnullRefPtr<CSSStyleValue const> value)
 {
     m_animated_property_values.set(id, move(value));
 }
@@ -108,7 +108,7 @@ void ComputedProperties::reset_animated_properties()
     m_animated_property_values.clear();
 }
 
-CSSStyleValue const& ComputedProperties::property(CSS::PropertyID property_id, WithAnimationsApplied return_animated_value) const
+CSSStyleValue const& ComputedProperties::property(PropertyID property_id, WithAnimationsApplied return_animated_value) const
 {
     if (return_animated_value == WithAnimationsApplied::Yes) {
         if (auto animated_value = m_animated_property_values.get(property_id); animated_value.has_value())
@@ -119,18 +119,18 @@ CSSStyleValue const& ComputedProperties::property(CSS::PropertyID property_id, W
     return *m_property_values[to_underlying(property_id)];
 }
 
-CSSStyleValue const* ComputedProperties::maybe_null_property(CSS::PropertyID property_id) const
+CSSStyleValue const* ComputedProperties::maybe_null_property(PropertyID property_id) const
 {
     if (auto animated_value = m_animated_property_values.get(property_id); animated_value.has_value())
         return animated_value.value();
     return m_property_values[to_underlying(property_id)];
 }
 
-Variant<LengthPercentage, NormalGap> ComputedProperties::gap_value(CSS::PropertyID id) const
+Variant<LengthPercentage, NormalGap> ComputedProperties::gap_value(PropertyID id) const
 {
     auto const& value = property(id);
     if (value.is_keyword()) {
-        VERIFY(value.as_keyword().keyword() == CSS::Keyword::Normal);
+        VERIFY(value.as_keyword().keyword() == Keyword::Normal);
         return NormalGap {};
     }
 
@@ -146,50 +146,50 @@ Variant<LengthPercentage, NormalGap> ComputedProperties::gap_value(CSS::Property
     VERIFY_NOT_REACHED();
 }
 
-CSS::Size ComputedProperties::size_value(CSS::PropertyID id) const
+Size ComputedProperties::size_value(PropertyID id) const
 {
     auto const& value = property(id);
     if (value.is_keyword()) {
         switch (value.to_keyword()) {
         case Keyword::Auto:
-            return CSS::Size::make_auto();
+            return Size::make_auto();
         case Keyword::MinContent:
-            return CSS::Size::make_min_content();
+            return Size::make_min_content();
         case Keyword::MaxContent:
-            return CSS::Size::make_max_content();
+            return Size::make_max_content();
         case Keyword::FitContent:
-            return CSS::Size::make_fit_content();
+            return Size::make_fit_content();
         case Keyword::None:
-            return CSS::Size::make_none();
+            return Size::make_none();
         default:
             VERIFY_NOT_REACHED();
         }
     }
 
     if (value.is_calculated())
-        return CSS::Size::make_calculated(value.as_calculated());
+        return Size::make_calculated(value.as_calculated());
 
     if (value.is_percentage())
-        return CSS::Size::make_percentage(value.as_percentage().percentage());
+        return Size::make_percentage(value.as_percentage().percentage());
 
     if (value.is_length()) {
         auto length = value.as_length().length();
         if (length.is_auto())
-            return CSS::Size::make_auto();
-        return CSS::Size::make_length(length);
+            return Size::make_auto();
+        return Size::make_length(length);
     }
 
     // FIXME: Support `fit-content(<length>)`
     dbgln("FIXME: Unsupported size value: `{}`, treating as `auto`", value.to_string(CSSStyleValue::SerializationMode::Normal));
-    return CSS::Size::make_auto();
+    return Size::make_auto();
 }
 
-LengthPercentage ComputedProperties::length_percentage_or_fallback(CSS::PropertyID id, LengthPercentage const& fallback) const
+LengthPercentage ComputedProperties::length_percentage_or_fallback(PropertyID id, LengthPercentage const& fallback) const
 {
     return length_percentage(id).value_or(fallback);
 }
 
-Optional<LengthPercentage> ComputedProperties::length_percentage(CSS::PropertyID id) const
+Optional<LengthPercentage> ComputedProperties::length_percentage(PropertyID id) const
 {
     auto const& value = property(id);
 
@@ -208,7 +208,7 @@ Optional<LengthPercentage> ComputedProperties::length_percentage(CSS::PropertyID
     return {};
 }
 
-LengthBox ComputedProperties::length_box(CSS::PropertyID left_id, CSS::PropertyID top_id, CSS::PropertyID right_id, CSS::PropertyID bottom_id, const CSS::Length& default_value) const
+LengthBox ComputedProperties::length_box(PropertyID left_id, PropertyID top_id, PropertyID right_id, PropertyID bottom_id, Length const& default_value) const
 {
     LengthBox box;
     box.left() = length_percentage_or_fallback(left_id, default_value);
@@ -218,7 +218,7 @@ LengthBox ComputedProperties::length_box(CSS::PropertyID left_id, CSS::PropertyI
     return box;
 }
 
-Color ComputedProperties::color_or_fallback(CSS::PropertyID id, Layout::NodeWithStyle const& node, Color fallback) const
+Color ComputedProperties::color_or_fallback(PropertyID id, Layout::NodeWithStyle const& node, Color fallback) const
 {
     auto const& value = property(id);
     if (!value.has_color())
@@ -227,15 +227,15 @@ Color ComputedProperties::color_or_fallback(CSS::PropertyID id, Layout::NodeWith
 }
 
 // https://drafts.csswg.org/css-color-adjust-1/#determine-the-used-color-scheme
-CSS::PreferredColorScheme ComputedProperties::color_scheme(CSS::PreferredColorScheme preferred_scheme, Optional<Vector<String> const&> document_supported_schemes) const
+PreferredColorScheme ComputedProperties::color_scheme(PreferredColorScheme preferred_scheme, Optional<Vector<String> const&> document_supported_schemes) const
 {
     // To determine the used color scheme of an element:
-    auto const& scheme_value = property(CSS::PropertyID::ColorScheme).as_color_scheme();
+    auto const& scheme_value = property(PropertyID::ColorScheme).as_color_scheme();
 
     // 1. If the user’s preferred color scheme, as indicated by the prefers-color-scheme media feature,
     //    is present among the listed color schemes, and is supported by the user agent,
     //    that’s the element’s used color scheme.
-    if (preferred_scheme != CSS::PreferredColorScheme::Auto && scheme_value.schemes().contains_slow(preferred_color_scheme_to_string(preferred_scheme)))
+    if (preferred_scheme != PreferredColorScheme::Auto && scheme_value.schemes().contains_slow(preferred_color_scheme_to_string(preferred_scheme)))
         return preferred_scheme;
 
     // 2. Otherwise, if the user has indicated an overriding preference for their chosen color scheme,
@@ -246,22 +246,22 @@ CSS::PreferredColorScheme ComputedProperties::color_scheme(CSS::PreferredColorSc
 
     // 3. Otherwise, if the user agent supports at least one of the listed color schemes,
     //    the used color scheme is the first supported color scheme in the list.
-    auto first_supported = scheme_value.schemes().first_matching([](auto scheme) { return preferred_color_scheme_from_string(scheme) != CSS::PreferredColorScheme::Auto; });
+    auto first_supported = scheme_value.schemes().first_matching([](auto scheme) { return preferred_color_scheme_from_string(scheme) != PreferredColorScheme::Auto; });
     if (first_supported.has_value())
         return preferred_color_scheme_from_string(first_supported.value());
 
     // 4. Otherwise, the used color scheme is the browser default. (Same as normal.)
     // `normal` indicates that the element supports the page’s supported color schemes, if they are set
     if (document_supported_schemes.has_value()) {
-        if (preferred_scheme != CSS::PreferredColorScheme::Auto && document_supported_schemes->contains_slow(preferred_color_scheme_to_string(preferred_scheme)))
+        if (preferred_scheme != PreferredColorScheme::Auto && document_supported_schemes->contains_slow(preferred_color_scheme_to_string(preferred_scheme)))
             return preferred_scheme;
 
-        auto document_first_supported = document_supported_schemes->first_matching([](auto scheme) { return preferred_color_scheme_from_string(scheme) != CSS::PreferredColorScheme::Auto; });
+        auto document_first_supported = document_supported_schemes->first_matching([](auto scheme) { return preferred_color_scheme_from_string(scheme) != PreferredColorScheme::Auto; });
         if (document_first_supported.has_value())
             return preferred_color_scheme_from_string(document_first_supported.value());
     }
 
-    return CSS::PreferredColorScheme::Light;
+    return PreferredColorScheme::Light;
 }
 
 NonnullRefPtr<Gfx::Font const> ComputedProperties::font_fallback(bool monospace, bool bold, float point_size)
@@ -280,7 +280,7 @@ NonnullRefPtr<Gfx::Font const> ComputedProperties::font_fallback(bool monospace,
 
 CSSPixels ComputedProperties::compute_line_height(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
 {
-    auto const& line_height = property(CSS::PropertyID::LineHeight);
+    auto const& line_height = property(PropertyID::LineHeight);
 
     if (line_height.is_keyword() && line_height.to_keyword() == Keyword::Normal)
         return font_metrics.line_height;
@@ -327,7 +327,7 @@ CSSPixels ComputedProperties::compute_line_height(CSSPixelRect const& viewport_r
 
 Optional<int> ComputedProperties::z_index() const
 {
-    auto const& value = property(CSS::PropertyID::ZIndex);
+    auto const& value = property(PropertyID::ZIndex);
     if (value.has_auto())
         return {};
     if (value.is_integer()) {
@@ -373,31 +373,31 @@ float ComputedProperties::resolve_opacity_value(CSSStyleValue const& value)
 
 float ComputedProperties::opacity() const
 {
-    auto const& value = property(CSS::PropertyID::Opacity);
+    auto const& value = property(PropertyID::Opacity);
     return resolve_opacity_value(value);
 }
 
 float ComputedProperties::fill_opacity() const
 {
-    auto const& value = property(CSS::PropertyID::FillOpacity);
+    auto const& value = property(PropertyID::FillOpacity);
     return resolve_opacity_value(value);
 }
 
 StrokeLinecap ComputedProperties::stroke_linecap() const
 {
-    auto const& value = property(CSS::PropertyID::StrokeLinecap);
+    auto const& value = property(PropertyID::StrokeLinecap);
     return keyword_to_stroke_linecap(value.to_keyword()).release_value();
 }
 
 StrokeLinejoin ComputedProperties::stroke_linejoin() const
 {
-    auto const& value = property(CSS::PropertyID::StrokeLinejoin);
+    auto const& value = property(PropertyID::StrokeLinejoin);
     return keyword_to_stroke_linejoin(value.to_keyword()).release_value();
 }
 
 NumberOrCalculated ComputedProperties::stroke_miterlimit() const
 {
-    auto const& value = property(CSS::PropertyID::StrokeMiterlimit);
+    auto const& value = property(PropertyID::StrokeMiterlimit);
 
     if (value.is_calculated()) {
         auto const& math_value = value.as_calculated();
@@ -410,53 +410,53 @@ NumberOrCalculated ComputedProperties::stroke_miterlimit() const
 
 float ComputedProperties::stroke_opacity() const
 {
-    auto const& value = property(CSS::PropertyID::StrokeOpacity);
+    auto const& value = property(PropertyID::StrokeOpacity);
     return resolve_opacity_value(value);
 }
 
 float ComputedProperties::stop_opacity() const
 {
-    auto const& value = property(CSS::PropertyID::StopOpacity);
+    auto const& value = property(PropertyID::StopOpacity);
     return resolve_opacity_value(value);
 }
 
 FillRule ComputedProperties::fill_rule() const
 {
-    auto const& value = property(CSS::PropertyID::FillRule);
+    auto const& value = property(PropertyID::FillRule);
     return keyword_to_fill_rule(value.to_keyword()).release_value();
 }
 
 ClipRule ComputedProperties::clip_rule() const
 {
-    auto const& value = property(CSS::PropertyID::ClipRule);
+    auto const& value = property(PropertyID::ClipRule);
     return keyword_to_fill_rule(value.to_keyword()).release_value();
 }
 
 FlexDirection ComputedProperties::flex_direction() const
 {
-    auto const& value = property(CSS::PropertyID::FlexDirection);
+    auto const& value = property(PropertyID::FlexDirection);
     return keyword_to_flex_direction(value.to_keyword()).release_value();
 }
 
 FlexWrap ComputedProperties::flex_wrap() const
 {
-    auto const& value = property(CSS::PropertyID::FlexWrap);
+    auto const& value = property(PropertyID::FlexWrap);
     return keyword_to_flex_wrap(value.to_keyword()).release_value();
 }
 
 FlexBasis ComputedProperties::flex_basis() const
 {
-    auto const& value = property(CSS::PropertyID::FlexBasis);
+    auto const& value = property(PropertyID::FlexBasis);
 
-    if (value.is_keyword() && value.to_keyword() == CSS::Keyword::Content)
-        return CSS::FlexBasisContent {};
+    if (value.is_keyword() && value.to_keyword() == Keyword::Content)
+        return FlexBasisContent {};
 
-    return size_value(CSS::PropertyID::FlexBasis);
+    return size_value(PropertyID::FlexBasis);
 }
 
 float ComputedProperties::flex_grow() const
 {
-    auto const& value = property(CSS::PropertyID::FlexGrow);
+    auto const& value = property(PropertyID::FlexGrow);
     if (!value.is_number())
         return 0;
     return value.as_number().number();
@@ -464,7 +464,7 @@ float ComputedProperties::flex_grow() const
 
 float ComputedProperties::flex_shrink() const
 {
-    auto const& value = property(CSS::PropertyID::FlexShrink);
+    auto const& value = property(PropertyID::FlexShrink);
     if (!value.is_number())
         return 1;
     return value.as_number().number();
@@ -472,7 +472,7 @@ float ComputedProperties::flex_shrink() const
 
 int ComputedProperties::order() const
 {
-    auto const& value = property(CSS::PropertyID::Order);
+    auto const& value = property(PropertyID::Order);
     if (!value.is_integer())
         return 0;
     return value.as_integer().integer();
@@ -480,67 +480,67 @@ int ComputedProperties::order() const
 
 ImageRendering ComputedProperties::image_rendering() const
 {
-    auto const& value = property(CSS::PropertyID::ImageRendering);
+    auto const& value = property(PropertyID::ImageRendering);
     return keyword_to_image_rendering(value.to_keyword()).release_value();
 }
 
-CSS::Length ComputedProperties::border_spacing_horizontal(Layout::Node const& layout_node) const
+Length ComputedProperties::border_spacing_horizontal(Layout::Node const& layout_node) const
 {
-    auto const& value = property(CSS::PropertyID::BorderSpacing);
+    auto const& value = property(PropertyID::BorderSpacing);
     if (value.is_length())
         return value.as_length().length();
     if (value.is_calculated())
-        return value.as_calculated().resolve_length({ .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) }).value_or(CSS::Length(0, CSS::Length::Type::Px));
+        return value.as_calculated().resolve_length({ .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) }).value_or(Length(0, Length::Type::Px));
     auto const& list = value.as_value_list();
     return list.value_at(0, false)->as_length().length();
 }
 
-CSS::Length ComputedProperties::border_spacing_vertical(Layout::Node const& layout_node) const
+Length ComputedProperties::border_spacing_vertical(Layout::Node const& layout_node) const
 {
-    auto const& value = property(CSS::PropertyID::BorderSpacing);
+    auto const& value = property(PropertyID::BorderSpacing);
     if (value.is_length())
         return value.as_length().length();
     if (value.is_calculated())
-        return value.as_calculated().resolve_length({ .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) }).value_or(CSS::Length(0, CSS::Length::Type::Px));
+        return value.as_calculated().resolve_length({ .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node) }).value_or(Length(0, Length::Type::Px));
     auto const& list = value.as_value_list();
     return list.value_at(1, false)->as_length().length();
 }
 
 CaptionSide ComputedProperties::caption_side() const
 {
-    auto const& value = property(CSS::PropertyID::CaptionSide);
+    auto const& value = property(PropertyID::CaptionSide);
     return keyword_to_caption_side(value.to_keyword()).release_value();
 }
 
-CSS::Clip ComputedProperties::clip() const
+Clip ComputedProperties::clip() const
 {
-    auto const& value = property(CSS::PropertyID::Clip);
+    auto const& value = property(PropertyID::Clip);
     if (!value.is_rect())
-        return CSS::Clip::make_auto();
-    return CSS::Clip(value.as_rect().rect());
+        return Clip::make_auto();
+    return Clip(value.as_rect().rect());
 }
 
 JustifyContent ComputedProperties::justify_content() const
 {
-    auto const& value = property(CSS::PropertyID::JustifyContent);
+    auto const& value = property(PropertyID::JustifyContent);
     return keyword_to_justify_content(value.to_keyword()).release_value();
 }
 
 JustifyItems ComputedProperties::justify_items() const
 {
-    auto const& value = property(CSS::PropertyID::JustifyItems);
+    auto const& value = property(PropertyID::JustifyItems);
     return keyword_to_justify_items(value.to_keyword()).release_value();
 }
 
 JustifySelf ComputedProperties::justify_self() const
 {
-    auto const& value = property(CSS::PropertyID::JustifySelf);
+    auto const& value = property(PropertyID::JustifySelf);
     return keyword_to_justify_self(value.to_keyword()).release_value();
 }
 
 Vector<Transformation> ComputedProperties::transformations_for_style_value(CSSStyleValue const& value)
 {
-    if (value.is_keyword() && value.to_keyword() == CSS::Keyword::None)
+    if (value.is_keyword() && value.to_keyword() == Keyword::None)
         return {};
 
     if (!value.is_value_list())
@@ -557,9 +557,9 @@ Vector<Transformation> ComputedProperties::transformations_for_style_value(CSSSt
     return transformations;
 }
 
-Vector<CSS::Transformation> ComputedProperties::transformations() const
+Vector<Transformation> ComputedProperties::transformations() const
 {
-    return transformations_for_style_value(property(CSS::PropertyID::Transform));
+    return transformations_for_style_value(property(PropertyID::Transform));
 }
 
 Optional<Transformation> ComputedProperties::rotate() const
@@ -599,13 +599,13 @@ static Optional<LengthPercentage> length_percentage_for_style_value(CSSStyleValu
 
 TransformBox ComputedProperties::transform_box() const
 {
-    auto const& value = property(CSS::PropertyID::TransformBox);
+    auto const& value = property(PropertyID::TransformBox);
     return keyword_to_transform_box(value.to_keyword()).release_value();
 }
 
-CSS::TransformOrigin ComputedProperties::transform_origin() const
+TransformOrigin ComputedProperties::transform_origin() const
 {
-    auto const& value = property(CSS::PropertyID::TransformOrigin);
+    auto const& value = property(PropertyID::TransformOrigin);
     if (!value.is_value_list() || value.as_value_list().size() != 2)
         return {};
     auto const& list = value.as_value_list();
@@ -619,7 +619,7 @@ CSS::TransformOrigin ComputedProperties::transform_origin() const
 
 Optional<Color> ComputedProperties::accent_color(Layout::NodeWithStyle const& node) const
 {
-    auto const& value = property(CSS::PropertyID::AccentColor);
+    auto const& value = property(PropertyID::AccentColor);
     if (value.has_color())
         return value.to_color(node);
     return {};
@@ -627,43 +627,43 @@ Optional<Color> ComputedProperties::accent_color(Layout::NodeWithStyle const& no
 
 AlignContent ComputedProperties::align_content() const
 {
-    auto const& value = property(CSS::PropertyID::AlignContent);
+    auto const& value = property(PropertyID::AlignContent);
     return keyword_to_align_content(value.to_keyword()).release_value();
 }
 
 AlignItems ComputedProperties::align_items() const
 {
-    auto const& value = property(CSS::PropertyID::AlignItems);
+    auto const& value = property(PropertyID::AlignItems);
     return keyword_to_align_items(value.to_keyword()).release_value();
 }
 
 AlignSelf ComputedProperties::align_self() const
 {
-    auto const& value = property(CSS::PropertyID::AlignSelf);
+    auto const& value = property(PropertyID::AlignSelf);
     return keyword_to_align_self(value.to_keyword()).release_value();
 }
 
 Appearance ComputedProperties::appearance() const
 {
-    auto const& value = property(CSS::PropertyID::Appearance);
+    auto const& value = property(PropertyID::Appearance);
     auto appearance = keyword_to_appearance(value.to_keyword()).release_value();
     switch (appearance) {
     // Note: All these compatibility values can be treated as 'auto'
-    case CSS::Appearance::Textfield:
-    case CSS::Appearance::MenulistButton:
-    case CSS::Appearance::Searchfield:
-    case CSS::Appearance::Textarea:
-    case CSS::Appearance::PushButton:
-    case CSS::Appearance::SliderHorizontal:
-    case CSS::Appearance::Checkbox:
-    case CSS::Appearance::Radio:
-    case CSS::Appearance::SquareButton:
-    case CSS::Appearance::Menulist:
-    case CSS::Appearance::Listbox:
-    case CSS::Appearance::Meter:
-    case CSS::Appearance::ProgressBar:
-    case CSS::Appearance::Button:
-        appearance = CSS::Appearance::Auto;
+    case Appearance::Textfield:
+    case Appearance::MenulistButton:
+    case Appearance::Searchfield:
+    case Appearance::Textarea:
+    case Appearance::PushButton:
+    case Appearance::SliderHorizontal:
+    case Appearance::Checkbox:
+    case Appearance::Radio:
+    case Appearance::SquareButton:
+    case Appearance::Menulist:
+    case Appearance::Listbox:
+    case Appearance::Meter:
+    case Appearance::ProgressBar:
+    case Appearance::Button:
+        appearance = Appearance::Auto;
         break;
     default:
         break;
@@ -671,17 +671,17 @@ Appearance ComputedProperties::appearance() const
     return appearance;
 }
 
-CSS::Filter ComputedProperties::backdrop_filter() const
+Filter ComputedProperties::backdrop_filter() const
 {
-    auto const& value = property(CSS::PropertyID::BackdropFilter);
+    auto const& value = property(PropertyID::BackdropFilter);
     if (value.is_filter_value_list())
         return Filter(value.as_filter_value_list());
     return Filter::make_none();
 }
 
-CSS::Filter ComputedProperties::filter() const
+Filter ComputedProperties::filter() const
 {
-    auto const& value = property(CSS::PropertyID::Filter);
+    auto const& value = property(PropertyID::Filter);
     if (value.is_filter_value_list())
         return Filter(value.as_filter_value_list());
     return Filter::make_none();
@@ -689,7 +689,7 @@ CSS::Filter ComputedProperties::filter() const
 
 Positioning ComputedProperties::position() const
 {
-    auto const& value = property(CSS::PropertyID::Position);
+    auto const& value = property(PropertyID::Position);
     return keyword_to_positioning(value.to_keyword()).release_value();
 }
 
@@ -721,37 +721,37 @@ bool ComputedProperties::operator==(ComputedProperties const& other) const
 
 TextAnchor ComputedProperties::text_anchor() const
 {
-    auto const& value = property(CSS::PropertyID::TextAnchor);
+    auto const& value = property(PropertyID::TextAnchor);
     return keyword_to_text_anchor(value.to_keyword()).release_value();
 }
 
 TextAlign ComputedProperties::text_align() const
 {
-    auto const& value = property(CSS::PropertyID::TextAlign);
+    auto const& value = property(PropertyID::TextAlign);
     return keyword_to_text_align(value.to_keyword()).release_value();
 }
 
 TextJustify ComputedProperties::text_justify() const
 {
-    auto const& value = property(CSS::PropertyID::TextJustify);
+    auto const& value = property(PropertyID::TextJustify);
     return keyword_to_text_justify(value.to_keyword()).release_value();
 }
 
 TextOverflow ComputedProperties::text_overflow() const
 {
-    auto const& value = property(CSS::PropertyID::TextOverflow);
+    auto const& value = property(PropertyID::TextOverflow);
     return keyword_to_text_overflow(value.to_keyword()).release_value();
 }
 
 PointerEvents ComputedProperties::pointer_events() const
 {
-    auto const& value = property(CSS::PropertyID::PointerEvents);
+    auto const& value = property(PropertyID::PointerEvents);
     return keyword_to_pointer_events(value.to_keyword()).release_value();
 }
 
 Variant<LengthOrCalculated, NumberOrCalculated> ComputedProperties::tab_size() const
 {
-    auto const& value = property(CSS::PropertyID::TabSize);
+    auto const& value = property(PropertyID::TabSize);
     if (value.is_calculated()) {
         auto const& math_value = value.as_calculated();
         if (math_value.resolves_to_length()) {
@@ -770,13 +770,13 @@ Variant<LengthOrCalculated, NumberOrCalculated> ComputedProperties::tab_size() c
 
 WordBreak ComputedProperties::word_break() const
 {
-    auto const& value = property(CSS::PropertyID::WordBreak);
+    auto const& value = property(PropertyID::WordBreak);
     return keyword_to_word_break(value.to_keyword()).release_value();
 }
 
 Optional<LengthOrCalculated> ComputedProperties::word_spacing() const
 {
-    auto const& value = property(CSS::PropertyID::WordSpacing);
+    auto const& value = property(PropertyID::WordSpacing);
     if (value.is_calculated()) {
         auto& math_value = value.as_calculated();
         if (math_value.resolves_to_length()) {
@@ -792,13 +792,13 @@ Optional<LengthOrCalculated> ComputedProperties::word_spacing() const
 
 WhiteSpace ComputedProperties::white_space() const
 {
-    auto const& value = property(CSS::PropertyID::WhiteSpace);
+    auto const& value = property(PropertyID::WhiteSpace);
     return keyword_to_white_space(value.to_keyword()).release_value();
 }
 
 Optional<LengthOrCalculated> ComputedProperties::letter_spacing() const
 {
-    auto const& value = property(CSS::PropertyID::LetterSpacing);
+    auto const& value = property(PropertyID::LetterSpacing);
     if (value.is_calculated()) {
         auto const& math_value = value.as_calculated();
         if (math_value.resolves_to_length()) {
@@ -812,7 +812,7 @@ Optional<LengthOrCalculated> ComputedProperties::letter_spacing() const
     return {};
 }
 
-LineStyle ComputedProperties::line_style(CSS::PropertyID property_id) const
+LineStyle ComputedProperties::line_style(PropertyID property_id) const
 {
     auto const& value = property(property_id);
     return keyword_to_line_style(value.to_keyword()).release_value();
@@ -820,31 +820,31 @@ LineStyle ComputedProperties::line_style(CSS::PropertyID property_id) const
 
 OutlineStyle ComputedProperties::outline_style() const
 {
-    auto const& value = property(CSS::PropertyID::OutlineStyle);
+    auto const& value = property(PropertyID::OutlineStyle);
     return keyword_to_outline_style(value.to_keyword()).release_value();
 }
 
 Float ComputedProperties::float_() const
 {
-    auto const& value = property(CSS::PropertyID::Float);
+    auto const& value = property(PropertyID::Float);
     return keyword_to_float(value.to_keyword()).release_value();
 }
 
 Clear ComputedProperties::clear() const
 {
-    auto const& value = property(CSS::PropertyID::Clear);
+    auto const& value = property(PropertyID::Clear);
     return keyword_to_clear(value.to_keyword()).release_value();
 }
 
 ColumnSpan ComputedProperties::column_span() const
 {
-    auto const& value = property(CSS::PropertyID::ColumnSpan);
+    auto const& value = property(PropertyID::ColumnSpan);
     return keyword_to_column_span(value.to_keyword()).release_value();
 }
 
 ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(DOM::Element& element, u32 initial_quote_nesting_level) const
 {
-    auto const& value = property(CSS::PropertyID::Content);
+    auto const& value = property(PropertyID::Content);
     auto quotes_data = quotes();
 
     auto quote_nesting_level = initial_quote_nesting_level;
@@ -870,7 +870,7 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
     if (value.is_content()) {
         auto& content_style_value = value.as_content();
 
-        CSS::ContentData content_data;
+        ContentData content_data;
 
         // FIXME: The content is a list of things: strings, identifiers or functions that return strings, and images.
         //        So it can't always be represented as a single String, but may have to be multiple boxes.
@@ -946,19 +946,19 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
 
 ContentVisibility ComputedProperties::content_visibility() const
 {
-    auto const& value = property(CSS::PropertyID::ContentVisibility);
+    auto const& value = property(PropertyID::ContentVisibility);
     return keyword_to_content_visibility(value.to_keyword()).release_value();
 }
 
 Cursor ComputedProperties::cursor() const
 {
-    auto const& value = property(CSS::PropertyID::Cursor);
+    auto const& value = property(PropertyID::Cursor);
     return keyword_to_cursor(value.to_keyword()).release_value();
 }
 
 Visibility ComputedProperties::visibility() const
 {
-    auto const& value = property(CSS::PropertyID::Visibility);
+    auto const& value = property(PropertyID::Visibility);
     if (!value.is_keyword())
         return {};
     return keyword_to_visibility(value.to_keyword()).release_value();
@@ -973,12 +973,12 @@ Display ComputedProperties::display() const
     return Display::from_short(Display::Short::Inline);
 }
 
-Vector<CSS::TextDecorationLine> ComputedProperties::text_decoration_line() const
+Vector<TextDecorationLine> ComputedProperties::text_decoration_line() const
 {
-    auto const& value = property(CSS::PropertyID::TextDecorationLine);
+    auto const& value = property(PropertyID::TextDecorationLine);
 
     if (value.is_value_list()) {
-        Vector<CSS::TextDecorationLine> lines;
+        Vector<TextDecorationLine> lines;
         auto& values = value.as_value_list().values();
         for (auto const& item : values) {
             lines.append(keyword_to_text_decoration_line(item->to_keyword()).value());
@@ -995,39 +995,39 @@ Vector<CSS::TextDecorationLine> ComputedProperties::text_decoration_line() const
 
 TextDecorationStyle ComputedProperties::text_decoration_style() const
 {
-    auto const& value = property(CSS::PropertyID::TextDecorationStyle);
+    auto const& value = property(PropertyID::TextDecorationStyle);
     return keyword_to_text_decoration_style(value.to_keyword()).release_value();
 }
 
 TextTransform ComputedProperties::text_transform() const
 {
-    auto const& value = property(CSS::PropertyID::TextTransform);
+    auto const& value = property(PropertyID::TextTransform);
     return keyword_to_text_transform(value.to_keyword()).release_value();
 }
 
 ListStyleType ComputedProperties::list_style_type() const
 {
-    auto const& value = property(CSS::PropertyID::ListStyleType);
+    auto const& value = property(PropertyID::ListStyleType);
     return keyword_to_list_style_type(value.to_keyword()).release_value();
 }
 
 ListStylePosition ComputedProperties::list_style_position() const
 {
-    auto const& value = property(CSS::PropertyID::ListStylePosition);
+    auto const& value = property(PropertyID::ListStylePosition);
     return keyword_to_list_style_position(value.to_keyword()).release_value();
 }
 
 Overflow ComputedProperties::overflow_x() const
 {
-    return overflow(CSS::PropertyID::OverflowX);
+    return overflow(PropertyID::OverflowX);
 }
 
 Overflow ComputedProperties::overflow_y() const
 {
-    return overflow(CSS::PropertyID::OverflowY);
+    return overflow(PropertyID::OverflowY);
 }
 
-Overflow ComputedProperties::overflow(CSS::PropertyID property_id) const
+Overflow ComputedProperties::overflow(PropertyID property_id) const
 {
     auto const& value = property(property_id);
     return keyword_to_overflow(value.to_keyword()).release_value();
@@ -1105,22 +1105,22 @@ Vector<ShadowData> ComputedProperties::text_shadow(Layout::Node const& layout_no
 
 BoxSizing ComputedProperties::box_sizing() const
 {
-    auto const& value = property(CSS::PropertyID::BoxSizing);
+    auto const& value = property(PropertyID::BoxSizing);
     return keyword_to_box_sizing(value.to_keyword()).release_value();
 }
 
-Variant<CSS::VerticalAlign, CSS::LengthPercentage> ComputedProperties::vertical_align() const
+Variant<VerticalAlign, LengthPercentage> ComputedProperties::vertical_align() const
 {
-    auto const& value = property(CSS::PropertyID::VerticalAlign);
+    auto const& value = property(PropertyID::VerticalAlign);
 
     if (value.is_keyword())
         return keyword_to_vertical_align(value.to_keyword()).release_value();
 
     if (value.is_length())
-        return CSS::LengthPercentage(value.as_length().length());
+        return LengthPercentage(value.as_length().length());
 
     if (value.is_percentage())
-        return CSS::LengthPercentage(value.as_percentage().percentage());
+        return LengthPercentage(value.as_percentage().percentage());
 
     if (value.is_calculated())
         return LengthPercentage { value.as_calculated() };
@@ -1130,7 +1130,7 @@ Variant<CSS::VerticalAlign, CSS::LengthPercentage> ComputedProperties::vertical_
 
 Optional<FlyString> ComputedProperties::font_language_override() const
 {
-    auto const& value = property(CSS::PropertyID::FontLanguageOverride);
+    auto const& value = property(PropertyID::FontLanguageOverride);
     if (value.is_string())
         return value.as_string().string_value();
     return {};
@@ -1138,43 +1138,43 @@ Optional<FlyString> ComputedProperties::font_language_override() const
 
 Optional<Gfx::FontVariantAlternates> ComputedProperties::font_variant_alternates() const
 {
-    auto const& value = property(CSS::PropertyID::FontVariantAlternates);
+    auto const& value = property(PropertyID::FontVariantAlternates);
     return value.to_font_variant_alternates();
 }
 
 FontVariantCaps ComputedProperties::font_variant_caps() const
 {
-    auto const& value = property(CSS::PropertyID::FontVariantCaps);
+    auto const& value = property(PropertyID::FontVariantCaps);
     return value.to_font_variant_caps().release_value();
 }
 
 Optional<Gfx::FontVariantEastAsian> ComputedProperties::font_variant_east_asian() const
 {
-    auto const& value = property(CSS::PropertyID::FontVariantEastAsian);
+    auto const& value = property(PropertyID::FontVariantEastAsian);
     return value.to_font_variant_east_asian();
 }
 
 FontVariantEmoji ComputedProperties::font_variant_emoji() const
 {
-    auto const& value = property(CSS::PropertyID::FontVariantEmoji);
+    auto const& value = property(PropertyID::FontVariantEmoji);
     return value.to_font_variant_emoji().release_value();
 }
 
 Optional<Gfx::FontVariantLigatures> ComputedProperties::font_variant_ligatures() const
 {
-    auto const& value = property(CSS::PropertyID::FontVariantLigatures);
+    auto const& value = property(PropertyID::FontVariantLigatures);
     return value.to_font_variant_ligatures();
 }
 
 Optional<Gfx::FontVariantNumeric> ComputedProperties::font_variant_numeric() const
 {
-    auto const& value = property(CSS::PropertyID::FontVariantNumeric);
+    auto const& value = property(PropertyID::FontVariantNumeric);
     return value.to_font_variant_numeric();
 }
 
 FontVariantPosition ComputedProperties::font_variant_position() const
 {
-    auto const& value = property(CSS::PropertyID::FontVariantPosition);
+    auto const& value = property(PropertyID::FontVariantPosition);
     return value.to_font_variant_position().release_value();
 }
 
@@ -1207,7 +1207,7 @@ Optional<HashMap<FlyString, IntegerOrCalculated>> ComputedProperties::font_featu
 
 Optional<HashMap<FlyString, NumberOrCalculated>> ComputedProperties::font_variation_settings() const
 {
-    auto const& value = property(CSS::PropertyID::FontVariationSettings);
+    auto const& value = property(PropertyID::FontVariationSettings);
 
     if (value.is_keyword())
         return {}; // normal
@@ -1232,86 +1232,86 @@ Optional<HashMap<FlyString, NumberOrCalculated>> ComputedProperties::font_variat
     return {};
 }
 
-CSS::GridTrackSizeList ComputedProperties::grid_auto_columns() const
+GridTrackSizeList ComputedProperties::grid_auto_columns() const
 {
-    auto const& value = property(CSS::PropertyID::GridAutoColumns);
+    auto const& value = property(PropertyID::GridAutoColumns);
     return value.as_grid_track_size_list().grid_track_size_list();
 }
 
-CSS::GridTrackSizeList ComputedProperties::grid_auto_rows() const
+GridTrackSizeList ComputedProperties::grid_auto_rows() const
 {
-    auto const& value = property(CSS::PropertyID::GridAutoRows);
+    auto const& value = property(PropertyID::GridAutoRows);
     return value.as_grid_track_size_list().grid_track_size_list();
 }
 
-CSS::GridTrackSizeList ComputedProperties::grid_template_columns() const
+GridTrackSizeList ComputedProperties::grid_template_columns() const
 {
-    auto const& value = property(CSS::PropertyID::GridTemplateColumns);
+    auto const& value = property(PropertyID::GridTemplateColumns);
     return value.as_grid_track_size_list().grid_track_size_list();
 }
 
-CSS::GridTrackSizeList ComputedProperties::grid_template_rows() const
+GridTrackSizeList ComputedProperties::grid_template_rows() const
 {
-    auto const& value = property(CSS::PropertyID::GridTemplateRows);
+    auto const& value = property(PropertyID::GridTemplateRows);
     return value.as_grid_track_size_list().grid_track_size_list();
 }
 
-CSS::GridAutoFlow ComputedProperties::grid_auto_flow() const
+GridAutoFlow ComputedProperties::grid_auto_flow() const
 {
-    auto const& value = property(CSS::PropertyID::GridAutoFlow);
+    auto const& value = property(PropertyID::GridAutoFlow);
     if (!value.is_grid_auto_flow())
-        return CSS::GridAutoFlow {};
+        return GridAutoFlow {};
     auto& grid_auto_flow_value = value.as_grid_auto_flow();
-    return CSS::GridAutoFlow { .row = grid_auto_flow_value.is_row(), .dense = grid_auto_flow_value.is_dense() };
+    return GridAutoFlow { .row = grid_auto_flow_value.is_row(), .dense = grid_auto_flow_value.is_dense() };
 }
 
-CSS::GridTrackPlacement ComputedProperties::grid_column_end() const
+GridTrackPlacement ComputedProperties::grid_column_end() const
 {
-    auto const& value = property(CSS::PropertyID::GridColumnEnd);
+    auto const& value = property(PropertyID::GridColumnEnd);
     return value.as_grid_track_placement().grid_track_placement();
 }
 
-CSS::GridTrackPlacement ComputedProperties::grid_column_start() const
+GridTrackPlacement ComputedProperties::grid_column_start() const
 {
-    auto const& value = property(CSS::PropertyID::GridColumnStart);
+    auto const& value = property(PropertyID::GridColumnStart);
     return value.as_grid_track_placement().grid_track_placement();
 }
 
-CSS::GridTrackPlacement ComputedProperties::grid_row_end() const
+GridTrackPlacement ComputedProperties::grid_row_end() const
 {
-    auto const& value = property(CSS::PropertyID::GridRowEnd);
+    auto const& value = property(PropertyID::GridRowEnd);
     return value.as_grid_track_placement().grid_track_placement();
 }
 
-CSS::GridTrackPlacement ComputedProperties::grid_row_start() const
+GridTrackPlacement ComputedProperties::grid_row_start() const
 {
-    auto const& value = property(CSS::PropertyID::GridRowStart);
+    auto const& value = property(PropertyID::GridRowStart);
     return value.as_grid_track_placement().grid_track_placement();
 }
 
 BorderCollapse ComputedProperties::border_collapse() const
 {
-    auto const& value = property(CSS::PropertyID::BorderCollapse);
+    auto const& value = property(PropertyID::BorderCollapse);
     return keyword_to_border_collapse(value.to_keyword()).release_value();
 }
 
 Vector<Vector<String>> ComputedProperties::grid_template_areas() const
 {
-    auto const& value = property(CSS::PropertyID::GridTemplateAreas);
+    auto const& value = property(PropertyID::GridTemplateAreas);
     return value.as_grid_template_area().grid_template_area();
 }
 
 ObjectFit ComputedProperties::object_fit() const
 {
-    auto const& value = property(CSS::PropertyID::ObjectFit);
+    auto const& value = property(PropertyID::ObjectFit);
     return keyword_to_object_fit(value.to_keyword()).release_value();
 }
 
-CSS::ObjectPosition ComputedProperties::object_position() const
+ObjectPosition ComputedProperties::object_position() const
 {
-    auto const& value = property(CSS::PropertyID::ObjectPosition);
+    auto const& value = property(PropertyID::ObjectPosition);
     auto const& position = value.as_position();
-    CSS::ObjectPosition object_position;
+    ObjectPosition object_position;
     auto const& edge_x = position.edge_x();
     auto const& edge_y = position.edge_y();
     if (edge_x->is_edge()) {
@@ -1329,44 +1329,44 @@ CSS::ObjectPosition ComputedProperties::object_position() const
 
 TableLayout ComputedProperties::table_layout() const
 {
-    auto const& value = property(CSS::PropertyID::TableLayout);
+    auto const& value = property(PropertyID::TableLayout);
     return keyword_to_table_layout(value.to_keyword()).release_value();
 }
 
 Direction ComputedProperties::direction() const
 {
-    auto const& value = property(CSS::PropertyID::Direction);
+    auto const& value = property(PropertyID::Direction);
     return keyword_to_direction(value.to_keyword()).release_value();
 }
 
 UnicodeBidi ComputedProperties::unicode_bidi() const
 {
-    auto const& value = property(CSS::PropertyID::UnicodeBidi);
+    auto const& value = property(PropertyID::UnicodeBidi);
     return keyword_to_unicode_bidi(value.to_keyword()).release_value();
 }
 
 WritingMode ComputedProperties::writing_mode() const
 {
-    auto const& value = property(CSS::PropertyID::WritingMode);
+    auto const& value = property(PropertyID::WritingMode);
     return keyword_to_writing_mode(value.to_keyword()).release_value();
 }
 
 UserSelect ComputedProperties::user_select() const
 {
-    auto const& value = property(CSS::PropertyID::UserSelect);
+    auto const& value = property(PropertyID::UserSelect);
     return keyword_to_user_select(value.to_keyword()).release_value();
 }
 
 Isolation ComputedProperties::isolation() const
 {
-    auto const& value = property(CSS::PropertyID::Isolation);
+    auto const& value = property(PropertyID::Isolation);
     return keyword_to_isolation(value.to_keyword()).release_value();
 }
 
-CSS::Containment ComputedProperties::contain() const
+Containment ComputedProperties::contain() const
 {
-    CSS::Containment containment = {};
-    auto const& value = property(CSS::PropertyID::Contain);
+    Containment containment = {};
+    auto const& value = property(PropertyID::Contain);
 
     switch (value.to_keyword()) {
     case Keyword::None:
@@ -1433,24 +1433,24 @@ CSS::Containment ComputedProperties::contain() const
 
 MixBlendMode ComputedProperties::mix_blend_mode() const
 {
-    auto const& value = property(CSS::PropertyID::MixBlendMode);
+    auto const& value = property(PropertyID::MixBlendMode);
     return keyword_to_mix_blend_mode(value.to_keyword()).release_value();
 }
 
 MaskType ComputedProperties::mask_type() const
 {
-    auto const& value = property(CSS::PropertyID::MaskType);
+    auto const& value = property(PropertyID::MaskType);
     return keyword_to_mask_type(value.to_keyword()).release_value();
 }
 
 Color ComputedProperties::stop_color() const
 {
-    NonnullRawPtr<CSSStyleValue const> value = property(CSS::PropertyID::StopColor);
+    NonnullRawPtr<CSSStyleValue const> value = property(PropertyID::StopColor);
     if (value->is_keyword()) {
         // Workaround lack of layout node to resolve current color.
         auto const& keyword = value->as_keyword();
-        if (keyword.keyword() == CSS::Keyword::Currentcolor)
-            value = property(CSS::PropertyID::Color);
+        if (keyword.keyword() == Keyword::Currentcolor)
+            value = property(PropertyID::Color);
     }
     if (value->has_color()) {
         // FIXME: This is used by the SVGStopElement, which does not participate in layout,
@@ -1469,7 +1469,7 @@ void ComputedProperties::set_math_depth(int math_depth)
 
 QuotesData ComputedProperties::quotes() const
 {
-    auto const& value = property(CSS::PropertyID::Quotes);
+    auto const& value = property(PropertyID::Quotes);
     if (value.is_keyword()) {
         switch (value.to_keyword()) {
         case Keyword::Auto:
@@ -1533,7 +1533,7 @@ Vector<CounterData> ComputedProperties::counter_data(PropertyID property_id) con
 
 ScrollbarWidth ComputedProperties::scrollbar_width() const
 {
-    auto const& value = property(CSS::PropertyID::ScrollbarWidth);
+    auto const& value = property(PropertyID::ScrollbarWidth);
     return keyword_to_scrollbar_width(value.to_keyword()).release_value();
 }
 
