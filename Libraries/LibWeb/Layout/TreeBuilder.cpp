@@ -573,6 +573,8 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         return false;
     }();
 
+    auto prior_quote_nesting_level = m_quote_nesting_level;
+
     if (should_create_layout_node)
         update_layout_tree_before_children(dom_node, *layout_node, context, element_has_content_visibility_hidden);
 
@@ -615,6 +617,14 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         if (layout_parent && layout_parent->display().is_inline_outside() && !display.is_contents()
             && !display.is_inline_outside() && layout_parent->display().is_flow_inside() && !layout_node->is_out_of_flow())
             restructure_block_node_in_inline_parent(static_cast<NodeWithStyleAndBoxModelMetrics&>(*layout_node));
+    }
+
+    // https://www.w3.org/TR/css-contain-2/#containment-style
+    // Giving an element style containment has the following effects:
+    // 2. The effects of the 'content' property’s 'open-quote', 'close-quote', 'no-open-quote' and 'no-close-quote' must
+    //    be scoped to the element’s sub-tree.
+    if (dom_node.is_element() && (static_cast<DOM::Element&>(dom_node)).has_style_containment()) {
+        m_quote_nesting_level = prior_quote_nesting_level;
     }
 
     dom_node.set_needs_layout_tree_update(false);
