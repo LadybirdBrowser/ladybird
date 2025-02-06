@@ -569,10 +569,6 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_css_value(Prope
         if (auto parsed_value = parse_font_variant_alternates_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
-    case PropertyID::FontVariantCaps:
-        if (auto parsed_value = parse_font_variant_caps_value(tokens); parsed_value && !tokens.has_next_token())
-            return parsed_value.release_nonnull();
-        return ParseError::SyntaxError;
     case PropertyID::FontVariantEastAsian:
         if (auto parsed_value = parse_font_variant_east_asian_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
@@ -735,12 +731,14 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_css_value(Prope
                 break;
         }
 
-        // Some types (such as <ratio>) can be made from multiple ComponentValues, so if we only made 1 CSSStyleValue, return it directly.
-        if (parsed_values.size() == 1)
-            return *parsed_values.take_first();
+        if (!stream.has_next_token()) {
+            // Some types (such as <ratio>) can be made from multiple ComponentValues, so if we only made 1 CSSStyleValue, return it directly.
+            if (parsed_values.size() == 1)
+                return *parsed_values.take_first();
 
-        if (!parsed_values.is_empty() && parsed_values.size() <= property_maximum_value_count(property_id))
-            return StyleValueList::create(move(parsed_values), StyleValueList::Separator::Space);
+            if (!parsed_values.is_empty() && parsed_values.size() <= property_maximum_value_count(property_id))
+                return StyleValueList::create(move(parsed_values), StyleValueList::Separator::Space);
+        }
     }
 
     // We have multiple values, but the property claims to accept only a single one, check if it's a shorthand property.
@@ -2866,30 +2864,6 @@ RefPtr<CSSStyleValue> Parser::parse_font_variant_alternates_value(TokenStream<Co
         return historical_forms;
 
     dbgln_if(CSS_PARSER_DEBUG, "CSSParser: @font-variant-alternate: parsing {} not implemented.", tokens.next_token().to_debug_string());
-    return nullptr;
-}
-
-// FIXME: This should not be needed, however http://wpt.live/css/css-fonts/font-variant-caps.html fails without it
-RefPtr<CSSStyleValue> Parser::parse_font_variant_caps_value(TokenStream<ComponentValue>& tokens)
-{
-    // https://drafts.csswg.org/css-fonts/#propdef-font-variant-caps
-    // normal | small-caps | all-small-caps | petite-caps | all-petite-caps | unicase | titling-caps
-
-    bool has_token = false;
-    while (tokens.has_next_token()) {
-        if (has_token)
-            break;
-        auto maybe_value = parse_keyword_value(tokens);
-        if (!maybe_value)
-            break;
-        auto value = maybe_value.release_nonnull();
-        auto font_variant = keyword_to_font_variant_caps(value->to_keyword());
-        if (font_variant.has_value()) {
-            return value;
-        }
-        break;
-    }
-
     return nullptr;
 }
 
