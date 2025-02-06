@@ -177,7 +177,6 @@ public:
     void collect_animation_into(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, GC::Ref<Animations::KeyframeEffect> animation, ComputedProperties&, AnimationRefresh = AnimationRefresh::No) const;
 
     [[nodiscard]] bool may_have_has_selectors() const;
-    [[nodiscard]] bool may_have_defined_selectors() const;
 
     size_t number_of_css_font_faces_with_loading_in_progress() const;
 
@@ -257,7 +256,6 @@ private:
 
     struct SelectorInsights {
         bool has_has_selectors { false };
-        bool has_defined_selectors { false };
     };
 
     struct RuleCache {
