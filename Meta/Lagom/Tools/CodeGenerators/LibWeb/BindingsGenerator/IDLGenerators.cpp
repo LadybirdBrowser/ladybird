@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021-2023, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2021-2023, Luke Wilde <lukew@serenityos.org>
+ * Copyright (c) 2021-2025, Luke Wilde <luke@ladybird.org>
  * Copyright (c) 2022, Ali Mohammad Pur <mpfard@serenityos.org>
  * Copyright (c) 2023-2024, Kenneth Myhra <kennethmyhra@serenityos.org>
  * Copyright (c) 2023-2025, Shannon Booth <shannon@serenityos.org>
@@ -4523,7 +4523,7 @@ GC_DEFINE_ALLOCATOR(@namespace_class@);
 void @namespace_class@::initialize(JS::Realm& realm)
 {
     [[maybe_unused]] auto& vm = this->vm();
-    [[maybe_unused]] u8 default_attributes = JS::Attribute::Enumerable;
+    [[maybe_unused]] u8 default_attributes = JS::Attribute::Enumerable | JS::Attribute::Configurable | JS::Attribute::Writable;
 
     Base::initialize(realm);
 

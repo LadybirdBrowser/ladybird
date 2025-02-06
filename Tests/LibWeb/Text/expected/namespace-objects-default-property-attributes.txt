@@ -1,0 +1,62 @@
+== CSS property descriptors
+supports writable: true
+supports configurable: true
+supports enumerable: true
+supports value before: function supports() { [native code] }
+supports value after: replaced
+escape writable: true
+escape configurable: true
+escape enumerable: true
+escape value before: function escape() { [native code] }
+escape value after: replaced
+== WebAssembly property descriptors
+compile writable: true
+compile configurable: true
+compile enumerable: true
+compile value before: function compile() { [native code] }
+compile value after: replaced
+instantiate writable: true
+instantiate configurable: true
+instantiate enumerable: true
+instantiate value before: function instantiate() { [native code] }
+instantiate value after: replaced
+compileStreaming writable: true
+compileStreaming configurable: true
+compileStreaming enumerable: true
+compileStreaming value before: function compileStreaming() { [native code] }
+compileStreaming value after: replaced
+instantiateStreaming writable: true
+instantiateStreaming configurable: true
+instantiateStreaming enumerable: true
+instantiateStreaming value before: function instantiateStreaming() { [native code] }
+instantiateStreaming value after: replaced
+validate writable: true
+validate configurable: true
+validate enumerable: true
+validate value before: function validate() { [native code] }
+validate value after: replaced
+Global writable: true
+Global configurable: true
+Global enumerable: false
+Global value before: function Global() { [native code] }
+Global value after: replaced
+Instance writable: true
+Instance configurable: true
+Instance enumerable: false
+Instance value before: function Instance() { [native code] }
+Instance value after: replaced
+Memory writable: true
+Memory configurable: true
+Memory enumerable: false
+Memory value before: function Memory() { [native code] }
+Memory value after: replaced
+Module writable: true
+Module configurable: true
+Module enumerable: false
+Module value before: function Module() { [native code] }
+Module value after: replaced
+Table writable: true
+Table configurable: true
+Table enumerable: false
+Table value before: function Table() { [native code] }
+Table value after: replaced
