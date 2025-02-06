@@ -923,18 +923,14 @@ Vector<DurationFormatPart> partition_duration_format_pattern(VM& vm, DurationFor
 
         // e. If style is "numeric" or "2-digit", then
         if (style == DurationFormat::ValueStyle::Numeric || style == DurationFormat::ValueStyle::TwoDigit) {
-            // i. Append FormatNumericUnits(durationFormat, duration, unit, signDisplayed) to result.
-            // FIXME: Spec issue: This step should have been removed. See:
-            //        https://github.com/tc39/proposal-intl-duration-format/issues/225
-
-            // ii. Let numericPartsList be FormatNumericUnits(durationFormat, duration, unit, signDisplayed).
+            // i. Let numericPartsList be FormatNumericUnits(durationFormat, duration, unit, signDisplayed).
             auto numeric_parts_list = format_numeric_units(vm, duration_format, duration, unit, sign_displayed);
 
-            // iii. If numericPartsList is not empty, append numericPartsList to result.
+            // ii. If numericPartsList is not empty, append numericPartsList to result.
             if (!numeric_parts_list.is_empty())
                 result.append(move(numeric_parts_list));
 
-            // iv. Set numericUnitFound to true.
+            // iii. Set numericUnitFound to true.
             numeric_unit_found = true;
         }
         // f. Else,
