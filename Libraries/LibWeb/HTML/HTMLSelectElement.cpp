@@ -718,7 +718,8 @@ bool HTMLSelectElement::suffering_from_being_missing() const
     // If the element has its required attribute specified, and either none of the option elements in the select element's list of options have their selectedness
     // set to true, or the only option element in the select element's list of options with its selectedness set to true is the placeholder label option, then the element is suffering from being
     // missing.
-    return has_attribute(HTML::AttributeNames::required) && (m_selected_options->length() == 0 || (m_selected_options->length() == 1 && m_selected_options->item(0) == placeholder_label_option()));
+    auto selected_options = this->selected_options();
+    return has_attribute(HTML::AttributeNames::required) && (selected_options->length() == 0 || (selected_options->length() == 1 && selected_options->item(0) == placeholder_label_option()));
 }
 
 }
