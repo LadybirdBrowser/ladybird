@@ -423,7 +423,7 @@ void Node::invalidate_style(StyleInvalidationReason reason)
     }
 
     // If any ancestor is already marked for an entire subtree update, there's no need to do anything here.
-    for (auto* ancestor = this; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
+    for (auto* ancestor = this->parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
         if (ancestor->entire_subtree_needs_style_update())
             return;
     }
