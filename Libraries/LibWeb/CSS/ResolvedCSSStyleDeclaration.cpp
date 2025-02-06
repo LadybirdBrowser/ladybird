@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2021-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
- * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,37 +9,23 @@
 #include <AK/Debug.h>
 #include <AK/Format.h>
 #include <AK/NonnullRefPtr.h>
-#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/ResolvedCSSStyleDeclaration.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/BackgroundRepeatStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
-#include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CSSColorValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
-#include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
-#include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
-#include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
-#include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
-#include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
-#include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
-#include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
-#include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/StackingContext.h>
-#include <LibWeb/Painting/ViewportPaintable.h>
 
 namespace Web::CSS {
 
@@ -113,23 +99,6 @@ static NonnullRefPtr<CSSStyleValue const> style_value_for_size(Size const& size)
     if (size.is_fit_content())
         return CSSKeywordValue::create(Keyword::FitContent);
     TODO();
-}
-
-static NonnullRefPtr<CSSStyleValue const> style_value_for_sided_shorthand(ValueComparingNonnullRefPtr<CSSStyleValue const> top, ValueComparingNonnullRefPtr<CSSStyleValue const> right, ValueComparingNonnullRefPtr<CSSStyleValue const> bottom, ValueComparingNonnullRefPtr<CSSStyleValue const> left)
-{
-    bool top_and_bottom_same = top == bottom;
-    bool left_and_right_same = left == right;
-
-    if (top_and_bottom_same && left_and_right_same && top == left)
-        return top;
-
-    if (top_and_bottom_same && left_and_right_same)
-        return StyleValueList::create(StyleValueVector { move(top), move(right) }, StyleValueList::Separator::Space);
-
-    if (left_and_right_same)
-        return StyleValueList::create(StyleValueVector { move(top), move(right), move(bottom) }, StyleValueList::Separator::Space);
-
-    return StyleValueList::create(StyleValueVector { move(top), move(right), move(bottom), move(left) }, StyleValueList::Separator::Space);
 }
 
 enum class LogicalSide {
@@ -437,54 +406,6 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
         // -> Any other property
         //    The resolved value is the computed value.
         //    NOTE: This is handled inside the `default` case.
-
-        // NOTE: Everything below is a shorthand that requires some manual construction.
-    case PropertyID::Border: {
-        auto width = style_value_for_property(layout_node, PropertyID::BorderWidth);
-        auto style = style_value_for_property(layout_node, PropertyID::BorderStyle);
-        auto color = style_value_for_property(layout_node, PropertyID::BorderColor);
-        // `border` only has a reasonable value if all four sides are the same.
-        if (width->is_value_list() || style->is_value_list() || color->is_value_list())
-            return nullptr;
-        return ShorthandStyleValue::create(property_id,
-            { PropertyID::BorderWidth, PropertyID::BorderStyle, PropertyID::BorderColor },
-            { width.release_nonnull(), style.release_nonnull(), color.release_nonnull() });
-    }
-    case PropertyID::BorderColor: {
-        auto top = style_value_for_property(layout_node, PropertyID::BorderTopColor);
-        auto right = style_value_for_property(layout_node, PropertyID::BorderRightColor);
-        auto bottom = style_value_for_property(layout_node, PropertyID::BorderBottomColor);
-        auto left = style_value_for_property(layout_node, PropertyID::BorderLeftColor);
-        return style_value_for_sided_shorthand(top.release_nonnull(), right.release_nonnull(), bottom.release_nonnull(), left.release_nonnull());
-    }
-    case PropertyID::BorderStyle: {
-        auto top = style_value_for_property(layout_node, PropertyID::BorderTopStyle);
-        auto right = style_value_for_property(layout_node, PropertyID::BorderRightStyle);
-        auto bottom = style_value_for_property(layout_node, PropertyID::BorderBottomStyle);
-        auto left = style_value_for_property(layout_node, PropertyID::BorderLeftStyle);
-        return style_value_for_sided_shorthand(top.release_nonnull(), right.release_nonnull(), bottom.release_nonnull(), left.release_nonnull());
-    }
-    case PropertyID::BorderWidth: {
-        auto top = style_value_for_property(layout_node, PropertyID::BorderTopWidth);
-        auto right = style_value_for_property(layout_node, PropertyID::BorderRightWidth);
-        auto bottom = style_value_for_property(layout_node, PropertyID::BorderBottomWidth);
-        auto left = style_value_for_property(layout_node, PropertyID::BorderLeftWidth);
-        return style_value_for_sided_shorthand(top.release_nonnull(), right.release_nonnull(), bottom.release_nonnull(), left.release_nonnull());
-    }
-    case PropertyID::Margin: {
-        auto top = style_value_for_property(layout_node, PropertyID::MarginTop);
-        auto right = style_value_for_property(layout_node, PropertyID::MarginRight);
-        auto bottom = style_value_for_property(layout_node, PropertyID::MarginBottom);
-        auto left = style_value_for_property(layout_node, PropertyID::MarginLeft);
-        return style_value_for_sided_shorthand(top.release_nonnull(), right.release_nonnull(), bottom.release_nonnull(), left.release_nonnull());
-    }
-    case PropertyID::Padding: {
-        auto top = style_value_for_property(layout_node, PropertyID::PaddingTop);
-        auto right = style_value_for_property(layout_node, PropertyID::PaddingRight);
-        auto bottom = style_value_for_property(layout_node, PropertyID::PaddingBottom);
-        auto left = style_value_for_property(layout_node, PropertyID::PaddingLeft);
-        return style_value_for_sided_shorthand(top.release_nonnull(), right.release_nonnull(), bottom.release_nonnull(), left.release_nonnull());
-    }
     case PropertyID::WebkitTextFillColor:
         return CSSColorValue::create_from_color(layout_node.computed_values().webkit_text_fill_color());
     case PropertyID::Invalid:

@@ -26,10 +26,10 @@ Setting flex: ''; becomes...
   e.style.length: 0
 
 Setting border: '1px solid red'; becomes...
-  border-width: '1px 1px 1px 1px'
-  border-style: 'solid solid solid solid'
-  border-color: 'red red red red'
-  border: ''
+  border-width: '1px'
+  border-style: 'solid'
+  border-color: 'red'
+  border: '1px solid red'
   e.style.length: 12
   > [0] border-top-width
   > [1] border-right-width
