@@ -93,15 +93,19 @@ ThrowCompletionOr<GC::Ref<PlainYearMonth>> to_temporal_year_month(VM& vm, Value 
     // 10. Let isoDate be CreateISODateRecord(result.[[Year]], result.[[Month]], result.[[Day]]).
     auto iso_date = create_iso_date_record(*parse_result.year, parse_result.month, parse_result.day);
 
-    // 11. Set result to ISODateToFields(calendar, isoDate, YEAR-MONTH).
+    // 11. If ISOYearMonthWithinLimits(isoDate) is false, throw a RangeError exception.
+    if (!iso_year_month_within_limits(iso_date))
+        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidPlainYearMonth);
+
+    // 12. Set result to ISODateToFields(calendar, isoDate, YEAR-MONTH).
     auto result = iso_date_to_fields(calendar, iso_date, DateType::YearMonth);
 
-    // 12. NOTE: The following operation is called with CONSTRAIN regardless of the value of overflow, in order for the
+    // 13. NOTE: The following operation is called with CONSTRAIN regardless of the value of overflow, in order for the
     //     calendar to store a canonical value in the [[Day]] field of the [[ISODate]] internal slot of the result.
-    // 13. Set isoDate to ? CalendarYearMonthFromFields(calendar, result, CONSTRAIN).
+    // 14. Set isoDate to ? CalendarYearMonthFromFields(calendar, result, CONSTRAIN).
     iso_date = TRY(calendar_year_month_from_fields(vm, calendar, result, Overflow::Constrain));
 
-    // 14. Return ! CreateTemporalYearMonth(isoDate, calendar).
+    // 15. Return ! CreateTemporalYearMonth(isoDate, calendar).
     return MUST(create_temporal_year_month(vm, iso_date, move(calendar)));
 }
 
