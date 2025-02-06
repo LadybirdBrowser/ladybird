@@ -2,10 +2,10 @@ Harness status: OK
 
 Found 7 tests
 
-4 Pass
-3 Fail
+5 Pass
+2 Fail
 Pass	font-variant: normal serialization
-Fail	font-variant: none serialization
+Pass	font-variant: none serialization
 Pass	font-variant-ligatures: none serialization with non-default value for another longhand
 Pass	font-variant: normal with non-default longhands
 Fail	CSS-wide keyword in one longhand
