@@ -524,13 +524,13 @@ private:
 
     Array<CSSPixelPoint, 3> m_scroll_offset;
 
-    bool m_in_top_layer { false };
-    bool m_rendered_in_top_layer { false };
+    bool m_in_top_layer : 1 { false };
+    bool m_rendered_in_top_layer : 1 { false };
     bool m_style_uses_css_custom_properties { false };
-    bool m_affected_by_has_pseudo_class_in_subject_position { false };
-    bool m_affected_by_sibling_combinator { false };
-    bool m_affected_by_first_or_last_child_pseudo_class { false };
-    bool m_affected_by_nth_child_pseudo_class { false };
+    bool m_affected_by_has_pseudo_class_in_subject_position : 1 { false };
+    bool m_affected_by_sibling_combinator : 1 { false };
+    bool m_affected_by_first_or_last_child_pseudo_class : 1 { false };
+    bool m_affected_by_nth_child_pseudo_class : 1 { false };
 
     OwnPtr<CSS::CountersSet> m_counters_set;
 
