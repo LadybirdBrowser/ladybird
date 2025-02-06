@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 46 tests
 
-36 Pass
-10 Fail
+37 Pass
+9 Fail
 Pass	e.style['font-variant'] = "normal" should set the property value
 Pass	e.style['font-variant'] = "none" should set the property value
 Pass	e.style['font-variant'] = "common-ligatures" should set the property value
@@ -49,4 +49,4 @@ Pass	e.style['font-variant'] = "ruby" should set the property value
 Pass	e.style['font-variant'] = "sub" should set the property value
 Pass	e.style['font-variant'] = "super" should set the property value
 Fail	e.style['font-variant'] = "common-ligatures discretionary-ligatures historical-ligatures contextual small-caps stylistic(flowing) lining-nums proportional-nums diagonal-fractions ordinal slashed-zero jis78 full-width ruby sub" should set the property value
-Fail	e.style['font-variant'] = "super proportional-width jis83 stacked-fractions tabular-nums oldstyle-nums historical-forms all-small-caps no-contextual no-historical-ligatures no-discretionary-ligatures no-common-ligatures" should set the property value
+Pass	e.style['font-variant'] = "super proportional-width jis83 stacked-fractions tabular-nums oldstyle-nums historical-forms all-small-caps no-contextual no-historical-ligatures no-discretionary-ligatures no-common-ligatures" should set the property value

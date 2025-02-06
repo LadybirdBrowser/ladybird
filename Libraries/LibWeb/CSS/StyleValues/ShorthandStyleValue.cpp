@@ -197,100 +197,33 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         return builder.to_string_without_validation();
     }
     case PropertyID::FontVariant: {
-        Vector<StringView> values;
-        auto ligatures_or_null = longhand(PropertyID::FontVariantLigatures)->to_font_variant_ligatures();
-        if (ligatures_or_null.has_value()) {
-            auto ligatures = ligatures_or_null.release_value();
-            if (ligatures.none) {
-                return MUST(String::formatted(""sv));
-            } else {
-                if (ligatures.common == Gfx::FontVariantLigatures::Common::Common)
-                    values.append("common-ligatures"sv);
-                else if (ligatures.common == Gfx::FontVariantLigatures::Common::NoCommon)
-                    values.append("no-common-ligatures"sv);
-                if (ligatures.discretionary == Gfx::FontVariantLigatures::Discretionary::Discretionary)
-                    values.append("discretionary-ligatures"sv);
-                else if (ligatures.discretionary == Gfx::FontVariantLigatures::Discretionary::NoDiscretionary)
-                    values.append("no-discretionary-ligatures"sv);
-                if (ligatures.historical == Gfx::FontVariantLigatures::Historical::Historical)
-                    values.append("historical-ligatures"sv);
-                else if (ligatures.historical == Gfx::FontVariantLigatures::Historical::NoHistorical)
-                    values.append("no-historical-ligatures"sv);
-                if (ligatures.contextual == Gfx::FontVariantLigatures::Contextual::Contextual)
-                    values.append("contextual"sv);
-                else if (ligatures.contextual == Gfx::FontVariantLigatures::Contextual::NoContextual)
-                    values.append("no-contextual"sv);
-            }
-        }
+        auto ligatures = longhand(PropertyID::FontVariantLigatures);
+        auto caps = longhand(PropertyID::FontVariantCaps);
+        auto alternates = longhand(PropertyID::FontVariantAlternates);
+        auto numeric = longhand(PropertyID::FontVariantNumeric);
+        auto east_asian = longhand(PropertyID::FontVariantEastAsian);
+        auto position = longhand(PropertyID::FontVariantPosition);
+        auto emoji = longhand(PropertyID::FontVariantEmoji);
 
-        auto caps_or_null = longhand(PropertyID::FontVariantCaps)->to_font_variant_caps();
-        if (caps_or_null.has_value() && caps_or_null.value() != CSS::FontVariantCaps::Normal) {
-            values.append(CSS::to_string(caps_or_null.release_value()));
-        }
+        Vector<String> values;
+        if (ligatures->to_keyword() != Keyword::Normal)
+            values.append(ligatures->to_string(mode));
+        if (caps->to_keyword() != Keyword::Normal)
+            values.append(caps->to_string(mode));
+        if (alternates->to_keyword() != Keyword::Normal)
+            values.append(alternates->to_string(mode));
+        if (numeric->to_keyword() != Keyword::Normal)
+            values.append(numeric->to_string(mode));
+        if (east_asian->to_keyword() != Keyword::Normal)
+            values.append(east_asian->to_string(mode));
+        if (position->to_keyword() != Keyword::Normal)
+            values.append(position->to_string(mode));
+        if (emoji->to_keyword() != Keyword::Normal)
+            values.append(emoji->to_string(mode));
 
-        auto emoji_or_null = longhand(PropertyID::FontVariantEmoji)->to_font_variant_emoji();
-        if (emoji_or_null.has_value() && emoji_or_null.value() != CSS::FontVariantEmoji::Normal) {
-            values.append(CSS::to_string(emoji_or_null.release_value()));
-        }
-
-        auto alternates_or_null = longhand(PropertyID::FontVariantAlternates)->to_font_variant_alternates();
-        if (alternates_or_null.has_value())
-            values.append("historical-forms"sv);
-
-        auto numeric_or_null = longhand(PropertyID::FontVariantNumeric)->to_font_variant_numeric();
-        if (numeric_or_null.has_value()) {
-            auto numeric = numeric_or_null.release_value();
-            if (numeric.ordinal)
-                values.append("ordinal"sv);
-            if (numeric.slashed_zero)
-                values.append("slashed-zero"sv);
-            if (numeric.figure == Gfx::FontVariantNumeric::Figure::Oldstyle)
-                values.append("oldstyle-nums"sv);
-            else if (numeric.figure == Gfx::FontVariantNumeric::Figure::Lining)
-                values.append("lining-nums"sv);
-            if (numeric.spacing == Gfx::FontVariantNumeric::Spacing::Proportional)
-                values.append("proportional-nums"sv);
-            else if (numeric.spacing == Gfx::FontVariantNumeric::Spacing::Tabular)
-                values.append("tabular-nums"sv);
-            if (numeric.fraction == Gfx::FontVariantNumeric::Fraction::Diagonal)
-                values.append("diagonal-fractions"sv);
-            else if (numeric.fraction == Gfx::FontVariantNumeric::Fraction::Stacked)
-                values.append("stacked-fractions"sv);
-        }
-        auto east_asian_or_null = longhand(PropertyID::FontVariantEastAsian)->to_font_variant_east_asian();
-        if (east_asian_or_null.has_value()) {
-            auto east_asian = east_asian_or_null.release_value();
-            if (east_asian.ruby)
-                values.append("ruby"sv);
-            else {
-                if (east_asian.variant == Gfx::FontVariantEastAsian::Variant::Jis78)
-                    values.append("jis78"sv);
-                else if (east_asian.variant == Gfx::FontVariantEastAsian::Variant::Jis83)
-                    values.append("jis83"sv);
-                else if (east_asian.variant == Gfx::FontVariantEastAsian::Variant::Jis90)
-                    values.append("jis90"sv);
-                else if (east_asian.variant == Gfx::FontVariantEastAsian::Variant::Jis04)
-                    values.append("jis04"sv);
-                else if (east_asian.variant == Gfx::FontVariantEastAsian::Variant::Simplified)
-                    values.append("simplified"sv);
-                else if (east_asian.variant == Gfx::FontVariantEastAsian::Variant::Traditional)
-                    values.append("traditional"sv);
-                if (east_asian.width == Gfx::FontVariantEastAsian::Width::Proportional)
-                    values.append("proportional-width"sv);
-                else if (east_asian.width == Gfx::FontVariantEastAsian::Width::FullWidth)
-                    values.append("full-width"sv);
-            }
-        }
-        auto position_or_null = longhand(PropertyID::FontVariantPosition)->to_font_variant_position();
-        if (position_or_null.has_value() && position_or_null.value() != CSS::FontVariantPosition::Normal) {
-            values.append(CSS::to_string(position_or_null.release_value()));
-        }
-        StringBuilder builder;
         if (values.is_empty())
-            builder.append("normal"sv);
-        else
-            builder.join(' ', values);
-        return MUST(builder.to_string());
+            return "normal"_string;
+        return MUST(String::join(' ', values));
     }
     case PropertyID::GridArea: {
         auto& row_start = longhand(PropertyID::GridRowStart)->as_grid_track_placement();
