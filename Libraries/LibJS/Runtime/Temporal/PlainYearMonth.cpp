@@ -84,17 +84,17 @@ ThrowCompletionOr<GC::Ref<PlainYearMonth>> to_temporal_year_month(VM& vm, Value 
     // 7. Set calendar to ? CanonicalizeCalendar(calendar).
     calendar = TRY(canonicalize_calendar(vm, calendar));
 
-    // 8. Let isoDate be CreateISODateRecord(result.[[Year]], result.[[Month]], result.[[Day]]).
-    auto iso_date = create_iso_date_record(*parse_result.year, parse_result.month, parse_result.day);
-
-    // 9. Set result to ISODateToFields(calendar, isoDate, YEAR-MONTH).
-    auto result = iso_date_to_fields(calendar, iso_date, DateType::YearMonth);
-
-    // 10. Let resolvedOptions be ? GetOptionsObject(options).
+    // 8. Let resolvedOptions be ? GetOptionsObject(options).
     auto resolved_options = TRY(get_options_object(vm, options));
 
-    // 11. Perform ? GetTemporalOverflowOption(resolvedOptions).
+    // 9. Perform ? GetTemporalOverflowOption(resolvedOptions).
     TRY(get_temporal_overflow_option(vm, resolved_options));
+
+    // 10. Let isoDate be CreateISODateRecord(result.[[Year]], result.[[Month]], result.[[Day]]).
+    auto iso_date = create_iso_date_record(*parse_result.year, parse_result.month, parse_result.day);
+
+    // 11. Set result to ISODateToFields(calendar, isoDate, YEAR-MONTH).
+    auto result = iso_date_to_fields(calendar, iso_date, DateType::YearMonth);
 
     // 12. NOTE: The following operation is called with CONSTRAIN regardless of the value of overflow, in order for the
     //     calendar to store a canonical value in the [[Day]] field of the [[ISODate]] internal slot of the result.
