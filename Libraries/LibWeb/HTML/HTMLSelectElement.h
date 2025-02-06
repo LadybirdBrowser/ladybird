@@ -43,6 +43,7 @@ public:
     void remove(WebIDL::Long);
 
     GC::Ref<DOM::HTMLCollection> selected_options();
+    GC::Ref<DOM::HTMLCollection> selected_options() const { return const_cast<HTMLSelectElement*>(this)->selected_options(); }
 
     WebIDL::Long selected_index() const;
     void set_selected_index(WebIDL::Long);

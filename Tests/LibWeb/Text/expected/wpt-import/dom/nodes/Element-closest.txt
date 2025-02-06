@@ -1,0 +1,35 @@
+Harness status: OK
+
+Found 29 tests
+
+28 Pass
+1 Fail
+Pass	Element.closest with context node 'test12' and selector 'select'
+Pass	Element.closest with context node 'test13' and selector 'fieldset'
+Pass	Element.closest with context node 'test13' and selector 'div'
+Pass	Element.closest with context node 'test3' and selector 'body'
+Pass	Element.closest with context node 'test4' and selector '[default]'
+Pass	Element.closest with context node 'test4' and selector '[selected]'
+Pass	Element.closest with context node 'test11' and selector '[selected]'
+Pass	Element.closest with context node 'test12' and selector '[name="form-a"]'
+Pass	Element.closest with context node 'test13' and selector 'form[name="form-a"]'
+Pass	Element.closest with context node 'test9' and selector 'input[required]'
+Pass	Element.closest with context node 'test9' and selector 'select[required]'
+Pass	Element.closest with context node 'test13' and selector 'div:not(.div1)'
+Pass	Element.closest with context node 'test6' and selector 'div.div3'
+Pass	Element.closest with context node 'test1' and selector 'div#test7'
+Pass	Element.closest with context node 'test12' and selector '.div3 > .div2'
+Pass	Element.closest with context node 'test12' and selector '.div3 > .div1'
+Pass	Element.closest with context node 'test9' and selector 'form > input[required]'
+Pass	Element.closest with context node 'test12' and selector 'fieldset > select[required]'
+Pass	Element.closest with context node 'test6' and selector 'input + fieldset'
+Pass	Element.closest with context node 'test3' and selector 'form + form'
+Pass	Element.closest with context node 'test5' and selector 'form + form'
+Pass	Element.closest with context node 'test10' and selector ':empty'
+Pass	Element.closest with context node 'test11' and selector ':last-child'
+Pass	Element.closest with context node 'test12' and selector ':first-child'
+Pass	Element.closest with context node 'test11' and selector ':invalid'
+Pass	Element.closest with context node 'test4' and selector ':scope'
+Pass	Element.closest with context node 'test4' and selector 'select > :scope'
+Pass	Element.closest with context node 'test4' and selector 'div > :scope'
+Fail	Element.closest with context node 'test4' and selector ':has(> :scope)'
