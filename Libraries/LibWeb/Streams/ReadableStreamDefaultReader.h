@@ -75,13 +75,23 @@ class ReadableStreamDefaultReader final
 public:
     static WebIDL::ExceptionOr<GC::Ref<ReadableStreamDefaultReader>> construct_impl(JS::Realm&, GC::Ref<ReadableStream>);
 
+    // AD-HOC: Callback functions for read_all_chunks
+    // successSteps, which is an algorithm accepting a JavaScript value
+    using ReadAllOnSuccessSteps = GC::Function<void()>;
+
+    // failureSteps, which is an algorithm accepting a JavaScript value
+    using ReadAllOnFailureSteps = GC::Function<void(JS::Value error)>;
+
+    // AD-HOC: callback triggered on every chunk received from the stream.
+    using ReadAllOnChunkSteps = GC::Function<void(JS::Value chunk)>;
+
     virtual ~ReadableStreamDefaultReader() override = default;
 
     GC::Ref<WebIDL::Promise> read();
 
     void read_a_chunk(Fetch::Infrastructure::IncrementalReadLoopReadRequest& read_request);
     void read_all_bytes(GC::Ref<ReadLoopReadRequest::SuccessSteps>, GC::Ref<ReadLoopReadRequest::FailureSteps>);
-    void read_all_chunks(GC::Ref<ReadLoopReadRequest::ChunkSteps>, GC::Ref<ReadLoopReadRequest::SuccessSteps>, GC::Ref<ReadLoopReadRequest::FailureSteps>);
+    void read_all_chunks(GC::Ref<ReadAllOnChunkSteps>, GC::Ref<ReadAllOnSuccessSteps>, GC::Ref<ReadAllOnFailureSteps>);
     GC::Ref<WebIDL::Promise> read_all_bytes_deprecated();
 
     void release_lock();

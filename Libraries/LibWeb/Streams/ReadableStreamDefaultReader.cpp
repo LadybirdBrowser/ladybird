@@ -212,20 +212,40 @@ void ReadableStreamDefaultReader::read_all_bytes(GC::Ref<ReadLoopReadRequest::Su
     readable_stream_default_reader_read(*this, read_request);
 }
 
-void ReadableStreamDefaultReader::read_all_chunks(GC::Ref<ReadLoopReadRequest::ChunkSteps> chunk_steps, GC::Ref<ReadLoopReadRequest::SuccessSteps> success_steps, GC::Ref<ReadLoopReadRequest::FailureSteps> failure_steps)
+void ReadableStreamDefaultReader::read_all_chunks(GC::Ref<ReadAllOnChunkSteps> chunk_steps, GC::Ref<ReadAllOnSuccessSteps> success_steps, GC::Ref<ReadAllOnFailureSteps> failure_steps)
 {
     // AD-HOC: Some spec steps direct us to "read all chunks" from a stream, but there isn't an AO defined to do that.
-    //         We implement those steps by using the "read all bytes" definition, with a custom callback to receive
-    //         each chunk that is read.
-    auto& realm = this->realm();
-    auto& vm = realm.vm();
+    //         We implement those steps by continuously making default read requests, which is an identity transformation,
+    //         with a custom callback to receive each chunk that is read. This is done until the controller signals
+    //         that there are no more chunks to consume.
+    //         This function is based on "read_all_bytes" above.
+    auto promise_capability = read();
 
-    // 1. Let readRequest be a new read request with the following items:
-    //    NOTE: items and steps in ReadLoopReadRequest.
-    auto read_request = heap().allocate<ReadLoopReadRequest>(vm, realm, *this, success_steps, failure_steps, chunk_steps);
+    WebIDL::react_to_promise(
+        promise_capability,
+        GC::create_function(heap(), [this, chunk_steps, success_steps, failure_steps](JS::Value value) -> WebIDL::ExceptionOr<JS::Value> {
+            auto& vm = this->vm();
 
-    // 2. Perform ! ReadableStreamDefaultReaderRead(this, readRequest).
-    readable_stream_default_reader_read(*this, read_request);
+            VERIFY(value.is_object());
+            auto& value_object = value.as_object();
+
+            auto done = MUST(JS::iterator_complete(vm, value_object));
+
+            if (!done) {
+                auto chunk = MUST(JS::iterator_value(vm, value_object));
+                chunk_steps->function()(chunk);
+
+                read_all_chunks(chunk_steps, success_steps, failure_steps);
+            } else {
+                success_steps->function()();
+            }
+
+            return JS::js_undefined();
+        }),
+        GC::create_function(heap(), [failure_steps](JS::Value error) -> WebIDL::ExceptionOr<JS::Value> {
+            failure_steps->function()(error);
+            return JS::js_undefined();
+        }));
 }
 
 // FIXME: This function is a promise-based wrapper around "read all bytes". The spec changed this function to not use promises

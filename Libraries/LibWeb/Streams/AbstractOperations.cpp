@@ -353,15 +353,12 @@ GC::Ref<WebIDL::Promise> readable_stream_pipe_to(ReadableStream& source, Writabl
 
     // FIXME: Currently a naive implementation that uses ReadableStreamDefaultReader::read_all_chunks() to read all chunks
     //        from the source and then through the callback success_steps writes those chunks to the destination.
-    auto chunk_steps = GC::create_function(realm.heap(), [&realm, writer](ByteBuffer buffer) {
-        auto array_buffer = JS::ArrayBuffer::create(realm, move(buffer));
-        auto chunk = JS::Uint8Array::create(realm, array_buffer->byte_length(), *array_buffer);
-
+    auto chunk_steps = GC::create_function(realm.heap(), [&realm, writer](JS::Value chunk) {
         auto promise = writable_stream_default_writer_write(writer, chunk);
         WebIDL::resolve_promise(realm, promise, JS::js_undefined());
     });
 
-    auto success_steps = GC::create_function(realm.heap(), [promise, &realm, reader, writer](ByteBuffer) {
+    auto success_steps = GC::create_function(realm.heap(), [promise, &realm, reader, writer]() {
         // Make sure we close the acquired writer.
         WebIDL::resolve_promise(realm, writable_stream_default_writer_close(*writer), JS::js_undefined());
         readable_stream_default_reader_release(*reader);
