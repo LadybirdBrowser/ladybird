@@ -767,6 +767,10 @@ void Node::insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_
             node->post_connection();
     }
 
+    if (is_connected()) {
+        set_needs_layout_tree_update(true);
+    }
+
     document().bump_dom_tree_version();
 }
 
@@ -1405,7 +1409,6 @@ void Node::set_needs_style_update(bool value)
 
 void Node::post_connection()
 {
-    set_needs_layout_tree_update(true);
 }
 
 void Node::inserted()
