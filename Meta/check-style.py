@@ -99,7 +99,7 @@ def run():
     errors_single_page_html_spec = []
 
     for filename in find_files_here_or_argv():
-        with open(filename, "r") as f:
+        with open(filename, mode="r", encoding='utf-8') as f:
             file_content = f.read()
         if not is_in_prefix_list(filename, LICENSE_HEADER_CHECK_EXCLUDES):
             if not GOOD_LICENSE_HEADER_PATTERN.search(file_content):
