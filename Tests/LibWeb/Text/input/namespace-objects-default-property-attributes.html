@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        "use strict";
+        println("== CSS property descriptors");
+        const cssNamespaceDescriptors = Object.getOwnPropertyDescriptors(CSS);
+        const cssNamespaceKeys = Object.keys(cssNamespaceDescriptors);
+
+        for (const key of cssNamespaceKeys) {
+            const descriptor = cssNamespaceDescriptors[key];
+            println(`${key} writable: ${descriptor.writable}`);
+            println(`${key} configurable: ${descriptor.configurable}`);
+            println(`${key} enumerable: ${descriptor.enumerable}`);
+            if (descriptor.writable) {
+                println(`${key} value before: ${CSS[key]}`);
+                CSS[key] = "replaced";
+                println(`${key} value after: ${CSS[key]}`);
+            }
+        }
+
+        println("== WebAssembly property descriptors");
+        const wasmNamespaceDescriptors = Object.getOwnPropertyDescriptors(WebAssembly);
+        const wasmNamespaceKeys = Object.keys(wasmNamespaceDescriptors);
+
+        for (const key of wasmNamespaceKeys) {
+            const descriptor = wasmNamespaceDescriptors[key];
+            println(`${key} writable: ${descriptor.writable}`);
+            println(`${key} configurable: ${descriptor.configurable}`);
+            println(`${key} enumerable: ${descriptor.enumerable}`);
+            if (descriptor.writable) {
+                println(`${key} value before: ${WebAssembly[key]}`);
+                WebAssembly[key] = "replaced";
+                println(`${key} value after: ${WebAssembly[key]}`);
+            }
+        }
+    });
+</script>
