@@ -69,6 +69,7 @@ static void collect_properties_used_in_has(Selector::SimpleSelector const& selec
         switch (pseudo_class.type) {
         case PseudoClass::Enabled:
         case PseudoClass::Disabled:
+        case PseudoClass::Defined:
         case PseudoClass::PlaceholderShown:
         case PseudoClass::Checked:
             if (in_has)
@@ -122,6 +123,7 @@ static void build_invalidation_sets_for_simple_selector(Selector::SimpleSelector
         auto const& pseudo_class = selector.pseudo_class();
         switch (pseudo_class.type) {
         case PseudoClass::Enabled:
+        case PseudoClass::Defined:
         case PseudoClass::Disabled:
         case PseudoClass::PlaceholderShown:
         case PseudoClass::Checked:

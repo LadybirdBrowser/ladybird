@@ -1183,6 +1183,9 @@ bool Element::includes_properties_from_invalidation_set(CSS::InvalidationSet con
             case CSS::PseudoClass::Disabled: {
                 return is_actually_disabled();
             }
+            case CSS::PseudoClass::Defined: {
+                return is_defined();
+            }
             case CSS::PseudoClass::Checked: {
                 // FIXME: This could be narrowed down to return true only if element is actually checked.
                 return is<HTML::HTMLInputElement>(*this) || is<HTML::HTMLOptionElement>(*this);
@@ -2366,8 +2369,9 @@ void Element::set_custom_element_state(CustomElementState state)
         return;
     m_custom_element_state = state;
 
-    if (document().style_computer().may_have_defined_selectors())
-        invalidate_style(StyleInvalidationReason::CustomElementStateChange);
+    Vector<CSS::InvalidationSet::Property, 1> changed_properties;
+    changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::Defined });
+    invalidate_style(StyleInvalidationReason::CustomElementStateChange, changed_properties, {});
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#html-element-constructors
