@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 9 tests
 
-8 Pass
-1 Fail
-Fail	e.style['font-variant-east-asian'] = "normal ruby" should not set the property value
+9 Pass
+Pass	e.style['font-variant-east-asian'] = "normal ruby" should not set the property value
 Pass	e.style['font-variant-east-asian'] = "jis78 jis83" should not set the property value
 Pass	e.style['font-variant-east-asian'] = "full-width proportional-width" should not set the property value
 Pass	e.style['font-variant-east-asian'] = "normal garbage" should not set the property value

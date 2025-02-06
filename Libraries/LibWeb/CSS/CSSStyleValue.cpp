@@ -495,14 +495,14 @@ Optional<FontVariantCaps> CSSStyleValue::to_font_variant_caps() const
 
 Optional<Gfx::FontVariantEastAsian> CSSStyleValue::to_font_variant_east_asian() const
 {
-    VERIFY(is_value_list());
-    auto& list = as_value_list();
     Gfx::FontVariantEastAsian east_asian {};
-    for (auto& value : list.values()) {
-        VERIFY(value->is_keyword());
-        switch (value->as_keyword().keyword()) {
+    bool normal = false;
+
+    auto apply_keyword = [&east_asian, &normal](Keyword keyword) {
+        switch (keyword) {
         case Keyword::Normal:
-            return {};
+            normal = true;
+            break;
         case Keyword::Jis78:
             east_asian.variant = Gfx::FontVariantEastAsian::Variant::Jis78;
             break;
@@ -532,9 +532,20 @@ Optional<Gfx::FontVariantEastAsian> CSSStyleValue::to_font_variant_east_asian() 
             break;
         default:
             VERIFY_NOT_REACHED();
-            break;
+        }
+    };
+
+    if (is_keyword()) {
+        apply_keyword(to_keyword());
+    } else if (is_value_list()) {
+        for (auto& value : as_value_list().values()) {
+            apply_keyword(value->to_keyword());
         }
     }
+
+    if (normal)
+        return {};
+
     return east_asian;
 }
 
@@ -546,21 +557,17 @@ Optional<FontVariantEmoji> CSSStyleValue::to_font_variant_emoji() const
 
 Optional<Gfx::FontVariantLigatures> CSSStyleValue::to_font_variant_ligatures() const
 {
-    if (!is_value_list()) {
-        return {};
-    }
-    auto const& list = as_value_list();
     Gfx::FontVariantLigatures ligatures {};
+    bool normal = false;
 
-    for (auto& value : list.values()) {
-        if (!value->is_keyword())
-            continue;
-        switch (value->as_keyword().keyword()) {
+    auto apply_keyword = [&ligatures, &normal](Keyword keyword) {
+        switch (keyword) {
         case Keyword::Normal:
-            return {};
+            normal = true;
+            break;
         case Keyword::None:
             ligatures.none = true;
-            return ligatures;
+            break;
         case Keyword::CommonLigatures:
             ligatures.common = Gfx::FontVariantLigatures::Common::Common;
             break;
@@ -587,22 +594,33 @@ Optional<Gfx::FontVariantLigatures> CSSStyleValue::to_font_variant_ligatures() c
             break;
         default:
             VERIFY_NOT_REACHED();
-            break;
+        }
+    };
+
+    if (is_keyword()) {
+        apply_keyword(to_keyword());
+    } else if (is_value_list()) {
+        for (auto& value : as_value_list().values()) {
+            apply_keyword(value->to_keyword());
         }
     }
+
+    if (normal)
+        return {};
+
     return ligatures;
 }
 
 Optional<Gfx::FontVariantNumeric> CSSStyleValue::to_font_variant_numeric() const
 {
-    VERIFY(is_value_list());
-    auto& list = as_value_list();
     Gfx::FontVariantNumeric numeric {};
-    for (auto& value : list.values()) {
-        VERIFY(value->is_keyword());
-        switch (value->as_keyword().keyword()) {
+    bool normal = false;
+
+    auto apply_keyword = [&numeric, &normal](Keyword keyword) {
+        switch (keyword) {
         case Keyword::Normal:
-            return {};
+            normal = true;
+            break;
         case Keyword::Ordinal:
             numeric.ordinal = true;
             break;
@@ -629,9 +647,20 @@ Optional<Gfx::FontVariantNumeric> CSSStyleValue::to_font_variant_numeric() const
             break;
         default:
             VERIFY_NOT_REACHED();
-            break;
+        }
+    };
+
+    if (is_keyword()) {
+        apply_keyword(to_keyword());
+    } else if (is_value_list()) {
+        for (auto& value : as_value_list().values()) {
+            apply_keyword(value->to_keyword());
         }
     }
+
+    if (normal)
+        return {};
+
     return numeric;
 }
 

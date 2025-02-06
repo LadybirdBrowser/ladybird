@@ -2816,12 +2816,32 @@ RefPtr<CSSStyleValue> Parser::parse_font_variant(TokenStream<ComponentValue>& to
         }
     }
 
-    if (ligatures_values.is_empty())
-        ligatures_values.append(CSSKeywordValue::create(Keyword::Normal));
-    if (numeric_values.is_empty())
-        numeric_values.append(CSSKeywordValue::create(Keyword::Normal));
-    if (east_asian_values.is_empty())
-        east_asian_values.append(CSSKeywordValue::create(Keyword::Normal));
+    auto normal_value = CSSKeywordValue::create(Keyword::Normal);
+    auto resolve_list = [&normal_value](StyleValueVector values) -> NonnullRefPtr<CSSStyleValue> {
+        if (values.is_empty())
+            return normal_value;
+        if (values.size() == 1)
+            return *values.first();
+        return StyleValueList::create(move(values), StyleValueList::Separator::Space);
+    };
+
+    if (!alternates_value)
+        alternates_value = normal_value;
+    if (!caps_value)
+        caps_value = normal_value;
+    if (!emoji_value)
+        emoji_value = normal_value;
+    if (!position_value)
+        position_value = normal_value;
+
+    quick_sort(east_asian_values, [](auto& left, auto& right) { return *keyword_to_font_variant_east_asian(left->to_keyword()) < *keyword_to_font_variant_east_asian(right->to_keyword()); });
+    auto east_asian_value = resolve_list(east_asian_values);
+
+    quick_sort(ligatures_values, [](auto& left, auto& right) { return *keyword_to_font_variant_ligatures(left->to_keyword()) < *keyword_to_font_variant_ligatures(right->to_keyword()); });
+    auto ligatures_value = resolve_list(ligatures_values);
+
+    quick_sort(numeric_values, [](auto& left, auto& right) { return *keyword_to_font_variant_numeric(left->to_keyword()) < *keyword_to_font_variant_numeric(right->to_keyword()); });
+    auto numeric_value = resolve_list(numeric_values);
 
     return ShorthandStyleValue::create(PropertyID::FontVariant,
         { PropertyID::FontVariantAlternates,
@@ -2832,13 +2852,13 @@ RefPtr<CSSStyleValue> Parser::parse_font_variant(TokenStream<ComponentValue>& to
             PropertyID::FontVariantNumeric,
             PropertyID::FontVariantPosition },
         {
-            alternates_value == nullptr ? CSSKeywordValue::create(Keyword::Normal) : alternates_value.release_nonnull(),
-            caps_value == nullptr ? CSSKeywordValue::create(Keyword::Normal) : caps_value.release_nonnull(),
-            StyleValueList::create(move(east_asian_values), StyleValueList::Separator::Space),
-            emoji_value == nullptr ? CSSKeywordValue::create(Keyword::Normal) : emoji_value.release_nonnull(),
-            StyleValueList::create(move(ligatures_values), StyleValueList::Separator::Space),
-            StyleValueList::create(move(numeric_values), StyleValueList::Separator::Space),
-            position_value == nullptr ? CSSKeywordValue::create(Keyword::Normal) : position_value.release_nonnull(),
+            alternates_value.release_nonnull(),
+            caps_value.release_nonnull(),
+            move(east_asian_value),
+            emoji_value.release_nonnull(),
+            move(ligatures_value),
+            move(numeric_value),
+            position_value.release_nonnull(),
         });
 }
 
@@ -2874,45 +2894,64 @@ RefPtr<CSSStyleValue> Parser::parse_font_variant_east_asian_value(TokenStream<Co
     // <east-asian-variant-values> = [ jis78 | jis83 | jis90 | jis04 | simplified | traditional ]
     // <east-asian-width-values>   = [ full-width | proportional-width ]
 
-    StyleValueVector value_list;
-    bool has_ruby = false;
-    bool has_variant = false;
-    bool has_width = false;
+    // normal
+    if (auto normal = parse_all_as_single_keyword_value(tokens, Keyword::Normal))
+        return normal.release_nonnull();
 
-    // normal | ...
-    if (auto normal = parse_all_as_single_keyword_value(tokens, Keyword::Normal)) {
-        value_list.append(normal.release_nonnull());
-    } else {
-        while (tokens.has_next_token()) {
-            auto maybe_value = parse_keyword_value(tokens);
-            if (!maybe_value)
-                break;
-            auto value = maybe_value.release_nonnull();
-            auto font_variant = keyword_to_font_variant_east_asian(value->to_keyword());
-            if (!font_variant.has_value()) {
+    // [ <east-asian-variant-values> || <east-asian-width-values> || ruby ]
+    RefPtr<CSSStyleValue> ruby_value;
+    RefPtr<CSSStyleValue> variant_value;
+    RefPtr<CSSStyleValue> width_value;
+
+    while (tokens.has_next_token()) {
+        auto maybe_value = parse_keyword_value(tokens);
+        if (!maybe_value)
+            break;
+        auto font_variant_east_asian = keyword_to_font_variant_east_asian(maybe_value->to_keyword());
+        if (!font_variant_east_asian.has_value())
+            return nullptr;
+
+        switch (font_variant_east_asian.value()) {
+        case FontVariantEastAsian::Ruby:
+            if (ruby_value)
                 return nullptr;
-            }
-            auto keyword = value->to_keyword();
-            if (keyword == Keyword::Ruby) {
-                if (has_ruby)
-                    return nullptr;
-                has_ruby = true;
-            } else if (keyword == Keyword::FullWidth || keyword == Keyword::ProportionalWidth) {
-                if (has_width)
-                    return nullptr;
-                has_width = true;
-            } else {
-                if (has_variant)
-                    return nullptr;
-                has_variant = true;
-            }
-            value_list.append(move(value));
+            ruby_value = maybe_value.release_nonnull();
+            break;
+        case FontVariantEastAsian::FullWidth:
+        case FontVariantEastAsian::ProportionalWidth:
+            if (width_value)
+                return nullptr;
+            width_value = maybe_value.release_nonnull();
+            break;
+        case FontVariantEastAsian::Jis78:
+        case FontVariantEastAsian::Jis83:
+        case FontVariantEastAsian::Jis90:
+        case FontVariantEastAsian::Jis04:
+        case FontVariantEastAsian::Simplified:
+        case FontVariantEastAsian::Traditional:
+            if (variant_value)
+                return nullptr;
+            variant_value = maybe_value.release_nonnull();
+            break;
+        case FontVariantEastAsian::Normal:
+            return nullptr;
         }
     }
-    if (value_list.is_empty())
-        return nullptr;
 
-    return StyleValueList::create(move(value_list), StyleValueList::Separator::Space);
+    StyleValueVector values;
+    if (variant_value)
+        values.append(variant_value.release_nonnull());
+    if (width_value)
+        values.append(width_value.release_nonnull());
+    if (ruby_value)
+        values.append(ruby_value.release_nonnull());
+
+    if (values.is_empty())
+        return nullptr;
+    if (values.size() == 1)
+        return *values.first();
+
+    return StyleValueList::create(move(values), StyleValueList::Separator::Space);
 }
 
 RefPtr<CSSStyleValue> Parser::parse_font_variant_ligatures_value(TokenStream<ComponentValue>& tokens)
@@ -2924,64 +2963,79 @@ RefPtr<CSSStyleValue> Parser::parse_font_variant_ligatures_value(TokenStream<Com
     // <historical-lig-values>   = [ historical-ligatures | no-historical-ligatures ]
     // <contextual-alt-values>   = [ contextual | no-contextual ]
 
-    StyleValueVector value_list;
-    bool has_common_ligatures = false;
-    bool has_discretionary_ligatures = false;
-    bool has_historical_ligatures = false;
-    bool has_contextual = false;
+    // normal
+    if (auto normal = parse_all_as_single_keyword_value(tokens, Keyword::Normal))
+        return normal.release_nonnull();
 
-    // normal | ...
-    if (auto normal = parse_all_as_single_keyword_value(tokens, Keyword::Normal)) {
-        value_list.append(normal.release_nonnull());
-        // none | ...
-    } else if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None)) {
-        value_list.append(none.release_nonnull());
-    } else {
-        while (tokens.has_next_token()) {
-            auto maybe_value = parse_keyword_value(tokens);
-            if (!maybe_value)
-                break;
-            auto value = maybe_value.release_nonnull();
-            switch (value->to_keyword()) {
-            // <common-lig-values>       = [ common-ligatures | no-common-ligatures ]
-            case Keyword::CommonLigatures:
-            case Keyword::NoCommonLigatures:
-                if (has_common_ligatures)
-                    return nullptr;
-                has_common_ligatures = true;
-                break;
-            // <discretionary-lig-values> = [ discretionary-ligatures | no-discretionary-ligatures ]
-            case Keyword::DiscretionaryLigatures:
-            case Keyword::NoDiscretionaryLigatures:
-                if (has_discretionary_ligatures)
-                    return nullptr;
-                has_discretionary_ligatures = true;
-                break;
-            // <historical-lig-values> = [ historical-ligatures | no-historical-ligatures ]
-            case Keyword::HistoricalLigatures:
-            case Keyword::NoHistoricalLigatures:
-                if (has_historical_ligatures)
-                    return nullptr;
-                has_historical_ligatures = true;
-                break;
-            // <contextual-alt-values> = [ contextual | no-contextual ]
-            case Keyword::Contextual:
-            case Keyword::NoContextual:
-                if (has_contextual)
-                    return nullptr;
-                has_contextual = true;
-                break;
-            default:
+    // none
+    if (auto none = parse_all_as_single_keyword_value(tokens, Keyword::None))
+        return none.release_nonnull();
+
+    // [ <common-lig-values> || <discretionary-lig-values> || <historical-lig-values> || <contextual-alt-values> ]
+    RefPtr<CSSStyleValue> common_ligatures_value;
+    RefPtr<CSSStyleValue> discretionary_ligatures_value;
+    RefPtr<CSSStyleValue> historical_ligatures_value;
+    RefPtr<CSSStyleValue> contextual_value;
+
+    while (tokens.has_next_token()) {
+        auto maybe_value = parse_keyword_value(tokens);
+        if (!maybe_value)
+            break;
+        auto font_variant_ligatures = keyword_to_font_variant_ligatures(maybe_value->to_keyword());
+        if (!font_variant_ligatures.has_value())
+            return nullptr;
+
+        switch (font_variant_ligatures.value()) {
+        // <common-lig-values>       = [ common-ligatures | no-common-ligatures ]
+        case FontVariantLigatures::CommonLigatures:
+        case FontVariantLigatures::NoCommonLigatures:
+            if (common_ligatures_value)
                 return nullptr;
-            }
-            value_list.append(move(value));
+            common_ligatures_value = maybe_value.release_nonnull();
+            break;
+        // <discretionary-lig-values> = [ discretionary-ligatures | no-discretionary-ligatures ]
+        case FontVariantLigatures::DiscretionaryLigatures:
+        case FontVariantLigatures::NoDiscretionaryLigatures:
+            if (discretionary_ligatures_value)
+                return nullptr;
+            discretionary_ligatures_value = maybe_value.release_nonnull();
+            break;
+        // <historical-lig-values> = [ historical-ligatures | no-historical-ligatures ]
+        case FontVariantLigatures::HistoricalLigatures:
+        case FontVariantLigatures::NoHistoricalLigatures:
+            if (historical_ligatures_value)
+                return nullptr;
+            historical_ligatures_value = maybe_value.release_nonnull();
+            break;
+        // <contextual-alt-values> = [ contextual | no-contextual ]
+        case FontVariantLigatures::Contextual:
+        case FontVariantLigatures::NoContextual:
+            if (contextual_value)
+                return nullptr;
+            contextual_value = maybe_value.release_nonnull();
+            break;
+        case FontVariantLigatures::Normal:
+        case FontVariantLigatures::None:
+            return nullptr;
         }
     }
 
-    if (value_list.is_empty())
-        return nullptr;
+    StyleValueVector values;
+    if (common_ligatures_value)
+        values.append(common_ligatures_value.release_nonnull());
+    if (discretionary_ligatures_value)
+        values.append(discretionary_ligatures_value.release_nonnull());
+    if (historical_ligatures_value)
+        values.append(historical_ligatures_value.release_nonnull());
+    if (contextual_value)
+        values.append(contextual_value.release_nonnull());
 
-    return StyleValueList::create(move(value_list), StyleValueList::Separator::Space);
+    if (values.is_empty())
+        return nullptr;
+    if (values.size() == 1)
+        return *values.first();
+
+    return StyleValueList::create(move(values), StyleValueList::Separator::Space);
 }
 
 RefPtr<CSSStyleValue> Parser::parse_font_variant_numeric_value(TokenStream<ComponentValue>& tokens)
@@ -2992,67 +3046,81 @@ RefPtr<CSSStyleValue> Parser::parse_font_variant_numeric_value(TokenStream<Compo
     // <numeric-spacing-values>      = [ proportional-nums | tabular-nums ]
     // <numeric-fraction-values>     = [ diagonal-fractions | stacked-fractions ]
 
-    StyleValueVector value_list;
-    bool has_figures = false;
-    bool has_spacing = false;
-    bool has_fractions = false;
-    bool has_ordinals = false;
-    bool has_slashed_zero = false;
+    // normal
+    if (auto normal = parse_all_as_single_keyword_value(tokens, Keyword::Normal))
+        return normal.release_nonnull();
 
-    // normal | ...
-    if (auto normal = parse_all_as_single_keyword_value(tokens, Keyword::Normal)) {
-        value_list.append(normal.release_nonnull());
-    } else {
-        while (tokens.has_next_token()) {
-            auto maybe_value = parse_keyword_value(tokens);
-            if (!maybe_value)
-                break;
-            auto value = maybe_value.release_nonnull();
-            switch (value->to_keyword()) {
-            // ... || ordinal
-            case Keyword::Ordinal:
-                if (has_ordinals)
-                    return nullptr;
-                has_ordinals = true;
-                break;
-            // ... || slashed-zero
-            case Keyword::SlashedZero:
-                if (has_slashed_zero)
-                    return nullptr;
-                has_slashed_zero = true;
-                break;
-            // <numeric-figure-values> = [ lining-nums | oldstyle-nums ]
-            case Keyword::LiningNums:
-            case Keyword::OldstyleNums:
-                if (has_figures)
-                    return nullptr;
-                has_figures = true;
-                break;
-            // <numeric-spacing-values> = [ proportional-nums | tabular-nums ]
-            case Keyword::ProportionalNums:
-            case Keyword::TabularNums:
-                if (has_spacing)
-                    return nullptr;
-                has_spacing = true;
-                break;
-            // <numeric-fraction-values> = [ diagonal-fractions | stacked-fractions ]
-            case Keyword::DiagonalFractions:
-            case Keyword::StackedFractions:
-                if (has_fractions)
-                    return nullptr;
-                has_fractions = true;
-                break;
-            default:
+    RefPtr<CSSStyleValue> figures_value;
+    RefPtr<CSSStyleValue> spacing_value;
+    RefPtr<CSSStyleValue> fractions_value;
+    RefPtr<CSSStyleValue> ordinals_value;
+    RefPtr<CSSStyleValue> slashed_zero_value;
+
+    // [ <numeric-figure-values> || <numeric-spacing-values> || <numeric-fraction-values> || ordinal || slashed-zero]
+    while (tokens.has_next_token()) {
+        auto maybe_value = parse_keyword_value(tokens);
+        if (!maybe_value)
+            break;
+        auto font_variant_numeric = keyword_to_font_variant_numeric(maybe_value->to_keyword());
+        if (!font_variant_numeric.has_value())
+            return nullptr;
+        switch (font_variant_numeric.value()) {
+        // ... || ordinal
+        case FontVariantNumeric::Ordinal:
+            if (ordinals_value)
                 return nullptr;
-            }
-            value_list.append(value);
+            ordinals_value = maybe_value.release_nonnull();
+            break;
+        // ... || slashed-zero
+        case FontVariantNumeric::SlashedZero:
+            if (slashed_zero_value)
+                return nullptr;
+            slashed_zero_value = maybe_value.release_nonnull();
+            break;
+        // <numeric-figure-values> = [ lining-nums | oldstyle-nums ]
+        case FontVariantNumeric::LiningNums:
+        case FontVariantNumeric::OldstyleNums:
+            if (figures_value)
+                return nullptr;
+            figures_value = maybe_value.release_nonnull();
+            break;
+        // <numeric-spacing-values> = [ proportional-nums | tabular-nums ]
+        case FontVariantNumeric::ProportionalNums:
+        case FontVariantNumeric::TabularNums:
+            if (spacing_value)
+                return nullptr;
+            spacing_value = maybe_value.release_nonnull();
+            break;
+        // <numeric-fraction-values> = [ diagonal-fractions | stacked-fractions ]
+        case FontVariantNumeric::DiagonalFractions:
+        case FontVariantNumeric::StackedFractions:
+            if (fractions_value)
+                return nullptr;
+            fractions_value = maybe_value.release_nonnull();
+            break;
+        case FontVariantNumeric::Normal:
+            return nullptr;
         }
     }
 
-    if (value_list.is_empty())
-        return nullptr;
+    StyleValueVector values;
+    if (figures_value)
+        values.append(figures_value.release_nonnull());
+    if (spacing_value)
+        values.append(spacing_value.release_nonnull());
+    if (fractions_value)
+        values.append(fractions_value.release_nonnull());
+    if (ordinals_value)
+        values.append(ordinals_value.release_nonnull());
+    if (slashed_zero_value)
+        values.append(slashed_zero_value.release_nonnull());
 
-    return StyleValueList::create(move(value_list), StyleValueList::Separator::Space);
+    if (values.is_empty())
+        return nullptr;
+    if (values.size() == 1)
+        return *values.first();
+
+    return StyleValueList::create(move(values), StyleValueList::Separator::Space);
 }
 
 RefPtr<CSSStyleValue> Parser::parse_list_style_value(TokenStream<ComponentValue>& tokens)
