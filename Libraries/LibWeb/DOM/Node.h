@@ -88,7 +88,6 @@ enum class ShouldComputeRole {
     X(NodeRemove)                                   \
     X(NodeSetTextContent)                           \
     X(Other)                                        \
-    X(ParentOfInsertedNode)                         \
     X(SetSelectorText)                              \
     X(SettingsChange)                               \
     X(StyleSheetDeleteRule)                         \
