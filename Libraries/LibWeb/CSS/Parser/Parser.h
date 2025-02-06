@@ -376,7 +376,6 @@ private:
     RefPtr<CSSStyleValue> parse_font_variation_settings_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_font_variant(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_font_variant_alternates_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_font_variant_caps_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_font_variant_east_asian_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_font_variant_emoji(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_font_variant_ligatures_value(TokenStream<ComponentValue>&);

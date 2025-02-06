@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 11 tests
 
-10 Pass
-1 Fail
+11 Pass
 Pass	e.style['min-height'] = "none" should not set the property value
 Pass	e.style['min-height'] = "complex" should not set the property value
 Pass	e.style['min-height'] = "-10%" should not set the property value
@@ -13,5 +12,5 @@ Pass	e.style['min-height'] = "10px 20%" should not set the property value
 Pass	e.style['min-height'] = "max-content 10px" should not set the property value
 Pass	e.style['min-height'] = "min-content max-content" should not set the property value
 Pass	e.style['min-height'] = "available" should not set the property value
-Fail	e.style['min-height'] = "10px border-box" should not set the property value
+Pass	e.style['min-height'] = "10px border-box" should not set the property value
 Pass	e.style['min-height'] = "content-box 20%" should not set the property value

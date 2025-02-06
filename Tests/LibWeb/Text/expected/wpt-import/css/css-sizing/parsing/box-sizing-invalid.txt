@@ -2,12 +2,11 @@ Harness status: OK
 
 Found 7 tests
 
-6 Pass
-1 Fail
+7 Pass
 Pass	e.style['box-sizing'] = "margin-box" should not set the property value
 Pass	e.style['box-sizing'] = "padding-box" should not set the property value
 Pass	e.style['box-sizing'] = "fill-box" should not set the property value
 Pass	e.style['box-sizing'] = "stroke-box" should not set the property value
 Pass	e.style['box-sizing'] = "view-box" should not set the property value
 Pass	e.style['box-sizing'] = "content-box border-box" should not set the property value
-Fail	e.style['box-sizing'] = "content-box, border-box" should not set the property value
+Pass	e.style['box-sizing'] = "content-box, border-box" should not set the property value

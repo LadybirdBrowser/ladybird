@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-3 Pass
-1 Fail
+4 Pass
 Pass	e.style['flex-grow'] = "2e3.4" should not set the property value
 Pass	e.style['flex-grow'] = "-+5" should not set the property value
 Pass	e.style['flex-grow'] = "6 7" should not set the property value
-Fail	e.style['flex-grow'] = "1." should not set the property value
+Pass	e.style['flex-grow'] = "1." should not set the property value

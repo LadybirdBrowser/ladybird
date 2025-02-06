@@ -2,12 +2,11 @@ Harness status: OK
 
 Found 7 tests
 
-5 Pass
-2 Fail
+7 Pass
 Pass	e.style['font-variant-emoji'] = "auto" should not set the property value
 Pass	e.style['font-variant-emoji'] = "none" should not set the property value
 Pass	e.style['font-variant-emoji'] = "color" should not set the property value
 Pass	e.style['font-variant-emoji'] = "normal text" should not set the property value
 Pass	e.style['font-variant-emoji'] = "text emoji" should not set the property value
-Fail	e.style['font-variant-emoji'] = "normal, unicode" should not set the property value
-Fail	e.style['font-variant-emoji'] = "unicode, emoji" should not set the property value
+Pass	e.style['font-variant-emoji'] = "normal, unicode" should not set the property value
+Pass	e.style['font-variant-emoji'] = "unicode, emoji" should not set the property value
