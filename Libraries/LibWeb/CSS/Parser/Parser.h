@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020-2021, the SerenityOS developers.
- * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -11,6 +11,7 @@
 #include <AK/NonnullRawPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
+#include <LibGC/Ptr.h>
 #include <LibGfx/Font/UnicodeRange.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
@@ -19,7 +20,6 @@
 #include <LibWeb/CSS/ParsedFontFace.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/Parser/Dimension.h>
-#include <LibWeb/CSS/Parser/ParsingContext.h>
 #include <LibWeb/CSS/Parser/TokenStream.h>
 #include <LibWeb/CSS/Parser/Tokenizer.h>
 #include <LibWeb/CSS/Parser/Types.h>
@@ -27,6 +27,7 @@
 #include <LibWeb/CSS/Ratio.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/BasicShapeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/Supports.h>
 #include <LibWeb/Forward.h>
@@ -58,11 +59,33 @@ struct NegateNode {
 };
 }
 
-class Parser {
-public:
-    static Parser create(ParsingContext const&, StringView input, StringView encoding = "utf-8"sv);
+enum class ParsingMode {
+    Normal,
+    SVGPresentationAttribute, // See https://svgwg.org/svg2-draft/types.html#presentation-attribute-css-value
+};
 
-    Parser(Parser&&);
+struct ParsingParams {
+    explicit ParsingParams(ParsingMode = ParsingMode::Normal);
+    explicit ParsingParams(JS::Realm&, ParsingMode = ParsingMode::Normal);
+    explicit ParsingParams(JS::Realm&, URL::URL, ParsingMode = ParsingMode::Normal);
+    explicit ParsingParams(DOM::Document const&, URL::URL, ParsingMode = ParsingMode::Normal);
+    explicit ParsingParams(DOM::Document const&, ParsingMode = ParsingMode::Normal);
+
+    GC::Ptr<JS::Realm> realm;
+    GC::Ptr<DOM::Document const> document;
+    URL::URL url;
+    ParsingMode mode { ParsingMode::Normal };
+};
+
+// The very large CSS Parser implementation code is broken up among several .cpp files:
+// Parser.cpp contains the core parser algorithms, defined in https://drafts.csswg.org/css-syntax
+// Everything else is in different *Parsing.cpp files
+class Parser {
+    AK_MAKE_NONCOPYABLE(Parser);
+    AK_MAKE_NONMOVABLE(Parser);
+
+public:
+    static Parser create(ParsingParams const&, StringView input, StringView encoding = "utf-8"sv);
 
     CSSStyleSheet* parse_as_css_stylesheet(Optional<URL::URL> location);
     ElementInlineCSSStyleDeclaration* parse_as_style_attribute(DOM::Element&);
@@ -95,12 +118,12 @@ public:
 
     Vector<ComponentValue> parse_as_list_of_component_values();
 
-    static NonnullRefPtr<CSSStyleValue> resolve_unresolved_style_value(ParsingContext const&, DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, PropertyID, UnresolvedStyleValue const&);
+    static NonnullRefPtr<CSSStyleValue> resolve_unresolved_style_value(ParsingParams const&, DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, PropertyID, UnresolvedStyleValue const&);
 
     [[nodiscard]] LengthOrCalculated parse_as_sizes_attribute(DOM::Element const& element, HTML::HTMLImageElement const* img = nullptr);
 
 private:
-    Parser(ParsingContext const&, Vector<Token>);
+    Parser(ParsingParams const&, Vector<Token>);
 
     enum class ParseError {
         IncludesIgnoredVendorPrefix,
@@ -186,14 +209,10 @@ private:
     [[nodiscard]] ComponentValue consume_a_component_value(TokenStream<T>&);
     template<typename T>
     void consume_a_component_value_and_do_nothing(TokenStream<T>&);
-    template<typename T>
-    SimpleBlock consume_a_simple_block(TokenStream<T>&);
-    template<typename T>
-    void consume_a_simple_block_and_do_nothing(TokenStream<T>&);
-    template<typename T>
-    Function consume_a_function(TokenStream<T>&);
-    template<typename T>
-    void consume_a_function_and_do_nothing(TokenStream<T>&);
+    SimpleBlock consume_a_simple_block(TokenStream<Token>&);
+    void consume_a_simple_block_and_do_nothing(TokenStream<Token>&);
+    Function consume_a_function(TokenStream<Token>&);
+    void consume_a_function_and_do_nothing(TokenStream<Token>&);
     // TODO: consume_a_unicode_range_value()
 
     Optional<GeneralEnclosed> parse_general_enclosed(TokenStream<ComponentValue>&);
@@ -428,7 +447,6 @@ private:
     bool substitute_attr_function(DOM::Element& element, FlyString const& property_name, Function const& attr_function, Vector<ComponentValue>& dest);
 
     static bool has_ignored_vendor_prefix(StringView);
-    static bool is_generic_font_family(Keyword);
 
     struct PropertiesAndCustomProperties {
         Vector<StyleProperty> properties;
@@ -438,7 +456,17 @@ private:
     PropertiesAndCustomProperties extract_properties(Vector<RuleOrListOfDeclarations> const&);
     void extract_property(Declaration const&, Parser::PropertiesAndCustomProperties&);
 
-    ParsingContext m_context;
+    DOM::Document const* document() const;
+    HTML::Window const* window() const;
+    JS::Realm& realm() const;
+    bool in_quirks_mode() const;
+    bool is_parsing_svg_presentation_attribute() const;
+    URL::URL complete_url(StringView) const;
+
+    GC::Ptr<DOM::Document const> m_document;
+    GC::Ptr<JS::Realm> m_realm;
+    URL::URL m_url;
+    ParsingMode m_parsing_mode { ParsingMode::Normal };
 
     Vector<Token> m_tokens;
     TokenStream<Token> m_token_stream;
@@ -477,16 +505,16 @@ private:
 
 namespace Web {
 
-CSS::CSSStyleSheet* parse_css_stylesheet(CSS::Parser::ParsingContext const&, StringView, Optional<URL::URL> location = {});
-CSS::ElementInlineCSSStyleDeclaration* parse_css_style_attribute(CSS::Parser::ParsingContext const&, StringView, DOM::Element&);
-RefPtr<CSS::CSSStyleValue> parse_css_value(CSS::Parser::ParsingContext const&, StringView, CSS::PropertyID property_id = CSS::PropertyID::Invalid);
-Optional<CSS::SelectorList> parse_selector(CSS::Parser::ParsingContext const&, StringView);
-Optional<CSS::SelectorList> parse_selector_for_nested_style_rule(CSS::Parser::ParsingContext const&, StringView);
-Optional<CSS::Selector::PseudoElement> parse_pseudo_element_selector(CSS::Parser::ParsingContext const&, StringView);
-CSS::CSSRule* parse_css_rule(CSS::Parser::ParsingContext const&, StringView);
-RefPtr<CSS::MediaQuery> parse_media_query(CSS::Parser::ParsingContext const&, StringView);
-Vector<NonnullRefPtr<CSS::MediaQuery>> parse_media_query_list(CSS::Parser::ParsingContext const&, StringView);
-RefPtr<CSS::Supports> parse_css_supports(CSS::Parser::ParsingContext const&, StringView);
-Optional<CSS::StyleProperty> parse_css_supports_condition(CSS::Parser::ParsingContext const&, StringView);
+CSS::CSSStyleSheet* parse_css_stylesheet(CSS::Parser::ParsingParams const&, StringView, Optional<URL::URL> location = {});
+CSS::ElementInlineCSSStyleDeclaration* parse_css_style_attribute(CSS::Parser::ParsingParams const&, StringView, DOM::Element&);
+RefPtr<CSS::CSSStyleValue> parse_css_value(CSS::Parser::ParsingParams const&, StringView, CSS::PropertyID property_id = CSS::PropertyID::Invalid);
+Optional<CSS::SelectorList> parse_selector(CSS::Parser::ParsingParams const&, StringView);
+Optional<CSS::SelectorList> parse_selector_for_nested_style_rule(CSS::Parser::ParsingParams const&, StringView);
+Optional<CSS::Selector::PseudoElement> parse_pseudo_element_selector(CSS::Parser::ParsingParams const&, StringView);
+CSS::CSSRule* parse_css_rule(CSS::Parser::ParsingParams const&, StringView);
+RefPtr<CSS::MediaQuery> parse_media_query(CSS::Parser::ParsingParams const&, StringView);
+Vector<NonnullRefPtr<CSS::MediaQuery>> parse_media_query_list(CSS::Parser::ParsingParams const&, StringView);
+RefPtr<CSS::Supports> parse_css_supports(CSS::Parser::ParsingParams const&, StringView);
+Optional<CSS::StyleProperty> parse_css_supports_condition(CSS::Parser::ParsingParams const&, StringView);
 
 }
