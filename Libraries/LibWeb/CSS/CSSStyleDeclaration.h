@@ -61,6 +61,7 @@ protected:
 private:
     // ^PlatformObject
     virtual Optional<JS::Value> item_value(size_t index) const override;
+    Optional<StyleProperty> get_property_internal(PropertyID) const;
 };
 
 class PropertyOwningCSSStyleDeclaration : public CSSStyleDeclaration {

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2023-2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2023-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -13,6 +13,7 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Infra/Strings.h>
@@ -261,34 +262,115 @@ bool PropertyOwningCSSStyleDeclaration::set_a_css_declaration(PropertyID propert
     return true;
 }
 
-// https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertyvalue
-String CSSStyleDeclaration::get_property_value(StringView property_name) const
+static Optional<StyleProperty> style_property_for_sided_shorthand(PropertyID property_id, Optional<StyleProperty> const& top, Optional<StyleProperty> const& right, Optional<StyleProperty> const& bottom, Optional<StyleProperty> const& left)
 {
-    auto property_id = property_id_from_string(property_name);
-    if (!property_id.has_value())
+    if (!top.has_value() || !right.has_value() || !bottom.has_value() || !left.has_value())
         return {};
 
-    if (property_id.value() == PropertyID::Custom) {
-        auto maybe_custom_property = custom_property(FlyString::from_utf8_without_validation(property_name.bytes()));
-        if (maybe_custom_property.has_value()) {
-            return maybe_custom_property.value().value->to_string(
-                computed_flag() ? Web::CSS::CSSStyleValue::SerializationMode::ResolvedValue
-                                : Web::CSS::CSSStyleValue::SerializationMode::Normal);
-        }
+    if (top->important != right->important || top->important != bottom->important || top->important != left->important)
         return {};
+
+    ValueComparingNonnullRefPtr<CSSStyleValue> const top_value { top->value };
+    ValueComparingNonnullRefPtr<CSSStyleValue> const right_value { right->value };
+    ValueComparingNonnullRefPtr<CSSStyleValue> const bottom_value { bottom->value };
+    ValueComparingNonnullRefPtr<CSSStyleValue> const left_value { left->value };
+
+    bool const top_and_bottom_same = top_value == bottom_value;
+    bool const left_and_right_same = left_value == right_value;
+
+    RefPtr<CSSStyleValue const> value;
+
+    if (top_and_bottom_same && left_and_right_same && top_value == left_value) {
+        value = top_value;
+    } else if (top_and_bottom_same && left_and_right_same) {
+        value = StyleValueList::create(StyleValueVector { top_value, right_value }, StyleValueList::Separator::Space);
+    } else if (left_and_right_same) {
+        value = StyleValueList::create(StyleValueVector { top_value, right_value, bottom_value }, StyleValueList::Separator::Space);
+    } else {
+        value = StyleValueList::create(StyleValueVector { top_value, right_value, bottom_value, left_value }, StyleValueList::Separator::Space);
     }
 
+    return StyleProperty {
+        .important = top->important,
+        .property_id = property_id,
+        .value = value.release_nonnull(),
+    };
+}
+
+// https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertyvalue
+Optional<StyleProperty> CSSStyleDeclaration::get_property_internal(PropertyID property_id) const
+{
     // 2. If property is a shorthand property, then follow these substeps:
-    if (property_is_shorthand(property_id.value())) {
+    if (property_is_shorthand(property_id)) {
+
+        // AD-HOC: Handle shorthands that require manual construction.
+        switch (property_id) {
+        case PropertyID::Border: {
+            auto width = get_property_internal(PropertyID::BorderWidth);
+            auto style = get_property_internal(PropertyID::BorderStyle);
+            auto color = get_property_internal(PropertyID::BorderColor);
+            // `border` only has a reasonable value if all four sides are the same.
+            if (!width.has_value() || width->value->is_value_list() || !style.has_value() || style->value->is_value_list() || !color.has_value() || color->value->is_value_list())
+                return {};
+            if (width->important != style->important || width->important != color->important)
+                return {};
+            return StyleProperty {
+                .important = width->important,
+                .property_id = property_id,
+                .value = ShorthandStyleValue::create(property_id,
+                    { PropertyID::BorderWidth, PropertyID::BorderStyle, PropertyID::BorderColor },
+                    { width->value, style->value, color->value })
+            };
+        }
+        case PropertyID::BorderColor: {
+            auto top = get_property_internal(PropertyID::BorderTopColor);
+            auto right = get_property_internal(PropertyID::BorderRightColor);
+            auto bottom = get_property_internal(PropertyID::BorderBottomColor);
+            auto left = get_property_internal(PropertyID::BorderLeftColor);
+            return style_property_for_sided_shorthand(property_id, top, right, bottom, left);
+        }
+        case PropertyID::BorderStyle: {
+            auto top = get_property_internal(PropertyID::BorderTopStyle);
+            auto right = get_property_internal(PropertyID::BorderRightStyle);
+            auto bottom = get_property_internal(PropertyID::BorderBottomStyle);
+            auto left = get_property_internal(PropertyID::BorderLeftStyle);
+            return style_property_for_sided_shorthand(property_id, top, right, bottom, left);
+        }
+        case PropertyID::BorderWidth: {
+            auto top = get_property_internal(PropertyID::BorderTopWidth);
+            auto right = get_property_internal(PropertyID::BorderRightWidth);
+            auto bottom = get_property_internal(PropertyID::BorderBottomWidth);
+            auto left = get_property_internal(PropertyID::BorderLeftWidth);
+            return style_property_for_sided_shorthand(property_id, top, right, bottom, left);
+        }
+        case PropertyID::Margin: {
+            auto top = get_property_internal(PropertyID::MarginTop);
+            auto right = get_property_internal(PropertyID::MarginRight);
+            auto bottom = get_property_internal(PropertyID::MarginBottom);
+            auto left = get_property_internal(PropertyID::MarginLeft);
+            return style_property_for_sided_shorthand(property_id, top, right, bottom, left);
+        }
+        case PropertyID::Padding: {
+            auto top = get_property_internal(PropertyID::PaddingTop);
+            auto right = get_property_internal(PropertyID::PaddingRight);
+            auto bottom = get_property_internal(PropertyID::PaddingBottom);
+            auto left = get_property_internal(PropertyID::PaddingLeft);
+            return style_property_for_sided_shorthand(property_id, top, right, bottom, left);
+        }
+        default:
+            break;
+        }
+
         // 1. Let list be a new empty array.
         Vector<ValueComparingNonnullRefPtr<CSSStyleValue const>> list;
         Optional<Important> last_important_flag;
 
         // 2. For each longhand property longhand that property maps to, in canonical order, follow these substeps:
-        Vector<PropertyID> longhand_ids = longhands_for_shorthand(property_id.value());
+        Vector<PropertyID> longhand_ids = longhands_for_shorthand(property_id);
         for (auto longhand_property_id : longhand_ids) {
-            // 1. If longhand is a case-sensitive match for a property name of a CSS declaration in the declarations, let declaration be that CSS declaration, or null otherwise.
-            auto declaration = property(longhand_property_id);
+            // 1. If longhand is a case-sensitive match for a property name of a CSS declaration in the declarations,
+            //    let declaration be that CSS declaration, or null otherwise.
+            auto declaration = get_property_internal(longhand_property_id);
 
             // 2. If declaration is null, then return the empty string.
             if (!declaration.has_value())
@@ -304,18 +386,42 @@ String CSSStyleDeclaration::get_property_value(StringView property_name) const
 
         // 3. If important flags of all declarations in list are same, then return the serialization of list.
         // NOTE: Currently we implement property-specific shorthand serialization in ShorthandStyleValue::to_string().
-        return ShorthandStyleValue::create(property_id.value(), longhand_ids, list)->to_string(computed_flag() ? CSSStyleValue::SerializationMode::ResolvedValue : CSSStyleValue::SerializationMode::Normal);
+        return StyleProperty {
+            .important = last_important_flag.value(),
+            .property_id = property_id,
+            .value = ShorthandStyleValue::create(property_id, longhand_ids, list),
+        };
 
         // 4. Return the empty string.
         // NOTE: This is handled by the loop.
     }
 
-    auto maybe_property = property(property_id.value());
+    return property(property_id);
+}
+
+// https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertyvalue
+String CSSStyleDeclaration::get_property_value(StringView property_name) const
+{
+    auto property_id = property_id_from_string(property_name);
+    if (!property_id.has_value())
+        return {};
+
+    if (property_id.value() == PropertyID::Custom) {
+        auto maybe_custom_property = custom_property(FlyString::from_utf8_without_validation(property_name.bytes()));
+        if (maybe_custom_property.has_value()) {
+            return maybe_custom_property.value().value->to_string(
+                computed_flag() ? CSSStyleValue::SerializationMode::ResolvedValue
+                                : CSSStyleValue::SerializationMode::Normal);
+        }
+        return {};
+    }
+
+    auto maybe_property = get_property_internal(property_id.value());
     if (!maybe_property.has_value())
         return {};
     return maybe_property->value->to_string(
-        computed_flag() ? Web::CSS::CSSStyleValue::SerializationMode::ResolvedValue
-                        : Web::CSS::CSSStyleValue::SerializationMode::Normal);
+        computed_flag() ? CSSStyleValue::SerializationMode::ResolvedValue
+                        : CSSStyleValue::SerializationMode::Normal);
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-getpropertypriority
