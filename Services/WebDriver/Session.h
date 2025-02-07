@@ -36,7 +36,8 @@ public:
         No,
         Yes,
     };
-    static ErrorOr<NonnullRefPtr<Session>, Web::WebDriver::Error> find_session(StringView session_id, AllowInvalidWindowHandle = AllowInvalidWindowHandle::No);
+    static ErrorOr<NonnullRefPtr<Session>, Web::WebDriver::Error> find_session(StringView session_id, Web::WebDriver::SessionFlags = Web::WebDriver::SessionFlags::Default, AllowInvalidWindowHandle = AllowInvalidWindowHandle::No);
+    static size_t session_count(Web::WebDriver::SessionFlags);
 
     struct Window {
         String handle;
@@ -54,6 +55,7 @@ public:
     void close();
 
     String session_id() const { return m_session_id; }
+    Web::WebDriver::SessionFlags session_flags() const { return m_session_flags; }
     String const& current_window_handle() const { return m_current_window_handle; }
 
     bool has_window_handle(StringView handle) const { return m_windows.contains(handle); }
