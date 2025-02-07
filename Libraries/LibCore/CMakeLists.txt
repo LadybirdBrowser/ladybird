@@ -43,7 +43,6 @@ set(SOURCES
     Resource.cpp
     ResourceImplementation.cpp
     ResourceImplementationFile.cpp
-    Socket.cpp
     SystemServerTakeover.cpp
     TCPServer.cpp
     ThreadEventQueue.cpp
@@ -54,11 +53,13 @@ set(SOURCES
 if (WIN32)
     list(APPEND SOURCES
         ProcessWindows.cpp
+        SocketWindows.cpp
         AnonymousBufferWindows.cpp
         EventLoopImplementationWindows.cpp)
 else()
     list(APPEND SOURCES
         Process.cpp
+        Socket.cpp
         AnonymousBuffer.cpp
         EventLoopImplementationUnix.cpp)
 endif()
