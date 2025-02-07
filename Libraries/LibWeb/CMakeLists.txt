@@ -243,6 +243,7 @@ set(SOURCES
     Editing/Internal/Algorithms.cpp
     Encoding/TextDecoder.cpp
     Encoding/TextEncoder.cpp
+    Encoding/TextEncoderCommon.cpp
     EntriesAPI/FileSystemEntry.cpp
     EventTiming/PerformanceEventTiming.cpp
     Fetch/Body.cpp

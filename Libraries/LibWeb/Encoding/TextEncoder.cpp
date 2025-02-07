@@ -106,11 +106,4 @@ TextEncoderEncodeIntoResult TextEncoder::encode_into(String const& source, GC::R
     return { read, written };
 }
 
-// https://encoding.spec.whatwg.org/#dom-textencoder-encoding
-FlyString const& TextEncoder::encoding()
-{
-    static FlyString const encoding = "utf-8"_fly_string;
-    return encoding;
-}
-
 }

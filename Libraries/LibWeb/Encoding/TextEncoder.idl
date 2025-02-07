@@ -1,7 +1,4 @@
-// https://encoding.spec.whatwg.org/#textencodercommon
-interface mixin TextEncoderCommon {
-    readonly attribute DOMString encoding;
-};
+#import <Encoding/TextEncoderCommon.idl>
 
 // https://encoding.spec.whatwg.org/#dictdef-textencoderencodeintoresult
 dictionary TextEncoderEncodeIntoResult {
@@ -17,4 +14,5 @@ interface TextEncoder {
     [NewObject] Uint8Array encode(optional USVString input = "");
     TextEncoderEncodeIntoResult encodeInto(USVString source, [AllowShared] Uint8Array destination);
 };
+
 TextEncoder includes TextEncoderCommon;
