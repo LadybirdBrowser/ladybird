@@ -379,6 +379,9 @@ public:
         return UnixDateTime {};
     }
 
+    // Creates UNIX time from an ISO 8601 Week, such as 2025-W06, with year 2025 and week 6.
+    [[nodiscard]] static UnixDateTime from_iso8601_week(u32 year, u32 week);
+
     // Creates UNIX time from a unix timestamp.
     // Note that the returned time is probably not equivalent to the same timestamp in UTC time, since UNIX time does not observe leap seconds.
     [[nodiscard]] constexpr static UnixDateTime from_unix_time_parts(i32 year, u8 month, u8 day, u8 hour, u8 minute, u8 second, u16 millisecond)
