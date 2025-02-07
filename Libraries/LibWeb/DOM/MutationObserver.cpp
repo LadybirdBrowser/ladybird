@@ -35,9 +35,11 @@ MutationObserver::MutationObserver(JS::Realm& realm, GC::Ptr<WebIDL::CallbackTyp
 
 MutationObserver::~MutationObserver()
 {
-    HTML::relevant_agent(*this).mutation_observers.remove_all_matching([this](auto& observer) {
-        return observer.ptr() == this;
-    });
+}
+
+void MutationObserver::finalize()
+{
+    HTML::relevant_agent(*this).mutation_observers.remove(*this);
 }
 
 void MutationObserver::initialize(JS::Realm& realm)

@@ -53,6 +53,7 @@ private:
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+    virtual void finalize() override;
 
     // https://dom.spec.whatwg.org/#concept-mo-callback
     GC::Ptr<WebIDL::CallbackType> m_callback;
@@ -64,6 +65,11 @@ private:
 
     // https://dom.spec.whatwg.org/#concept-mo-queue
     Vector<GC::Ref<MutationRecord>> m_record_queue;
+
+    IntrusiveListNode<MutationObserver> m_list_node;
+
+public:
+    using List = IntrusiveList<&MutationObserver::m_list_node>;
 };
 
 // https://dom.spec.whatwg.org/#registered-observer
