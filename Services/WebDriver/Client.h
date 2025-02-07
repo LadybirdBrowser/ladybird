@@ -11,10 +11,9 @@
 #include <AK/Function.h>
 #include <AK/NonnullRefPtr.h>
 #include <LibCore/EventReceiver.h>
+#include <LibCore/Process.h>
 #include <LibWeb/WebDriver/Client.h>
-#include <LibWeb/WebDriver/Error.h>
 #include <LibWeb/WebDriver/Response.h>
-#include <WebDriver/Session.h>
 
 namespace WebDriver {
 
@@ -31,16 +30,9 @@ public:
     virtual ~Client() override;
 
     LaunchBrowserCallbacks const& launch_browser_callbacks() const { return m_callbacks; }
-    void close_session(String const& session_id);
 
 private:
     Client(NonnullOwnPtr<Core::BufferedTCPSocket>, LaunchBrowserCallbacks, Core::EventReceiver* parent);
-
-    enum class AllowInvalidWindowHandle {
-        No,
-        Yes,
-    };
-    ErrorOr<NonnullRefPtr<Session>, Web::WebDriver::Error> find_session_with_id(StringView session_id, AllowInvalidWindowHandle = AllowInvalidWindowHandle::No);
 
     virtual Web::WebDriver::Response new_session(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response delete_session(Web::WebDriver::Parameters parameters, JsonValue payload) override;
@@ -104,8 +96,6 @@ private:
     virtual Web::WebDriver::Response take_screenshot(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response take_element_screenshot(Web::WebDriver::Parameters parameters, JsonValue payload) override;
     virtual Web::WebDriver::Response print_page(Web::WebDriver::Parameters parameters, JsonValue payload) override;
-
-    static HashMap<String, NonnullRefPtr<Session>> s_sessions;
 
     LaunchBrowserCallbacks m_callbacks;
 };

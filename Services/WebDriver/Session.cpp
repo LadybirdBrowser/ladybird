@@ -10,6 +10,7 @@
 
 #include "Session.h"
 #include "Client.h"
+#include <AK/HashMap.h>
 #include <AK/JsonObject.h>
 #include <LibCore/LocalServer.h>
 #include <LibCore/StandardPaths.h>
@@ -20,6 +21,8 @@
 #include <unistd.h>
 
 namespace WebDriver {
+
+static HashMap<String, NonnullRefPtr<Session>> s_sessions;
 
 // https://w3c.github.io/webdriver/#dfn-create-a-session
 ErrorOr<NonnullRefPtr<Session>> Session::create(NonnullRefPtr<Client> client, JsonObject& capabilities, ReadonlySpan<StringView> flags)
@@ -93,8 +96,9 @@ ErrorOr<NonnullRefPtr<Session>> Session::create(NonnullRefPtr<Client> client, Js
     // FIXME: 11. Run any WebDriver new session algorithm defined in external specifications, with arguments session, capabilities, and flags.
 
     // 12. Append session to active sessions.
-    // 13. If flags contains "http", append session to active HTTP sessions.
-    // NOTE: These steps are handled by WebDriver::Client.
+    s_sessions.set(session->session_id(), session);
+
+    // FIXME: 13. If flags contains "http", append session to active HTTP sessions.
 
     // 14. Set the webdriver-active flag to true.
     session->web_content_connection().async_set_is_webdriver_active(true);
@@ -105,28 +109,55 @@ ErrorOr<NonnullRefPtr<Session>> Session::create(NonnullRefPtr<Client> client, Js
 Session::Session(NonnullRefPtr<Client> client, JsonObject const& capabilities, String session_id, bool http)
     : m_client(move(client))
     , m_options(capabilities)
-    , m_id(move(session_id))
+    , m_session_id(move(session_id))
     , m_http(http)
 {
 }
 
-// https://w3c.github.io/webdriver/#dfn-close-the-session
-Session::~Session()
-{
-    if (!m_started)
-        return;
+Session::~Session() = default;
 
-    // 1. Perform the following substeps based on the remote end’s type:
-    // NOTE: We perform the "Remote end is an endpoint node" steps in the WebContent process.
-    for (auto& it : m_windows) {
-        it.value.web_content_connection->close_session();
+ErrorOr<NonnullRefPtr<Session>, Web::WebDriver::Error> Session::find_session(StringView session_id, AllowInvalidWindowHandle allow_invalid_window_handle)
+{
+    if (auto session = s_sessions.get(session_id); session.has_value()) {
+        if (allow_invalid_window_handle == AllowInvalidWindowHandle::No)
+            TRY(session.value()->ensure_current_window_handle_is_valid());
+
+        return *session.release_value();
     }
 
-    // 2. Remove the current session from active sessions.
-    // NOTE: We are in a session destruction which means it is already removed
-    // from active sessions
+    return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidSessionId, "Invalid session id");
+}
 
-    // 3. Perform any implementation-specific cleanup steps.
+// https://w3c.github.io/webdriver/#dfn-close-the-session
+void Session::close()
+{
+    // FIXME: 1. If session's HTTP flag is set, remove session from active HTTP sessions.
+
+    // 2. Remove session from active sessions.
+    s_sessions.remove(m_session_id);
+
+    // 3. Perform the following substeps based on the remote end's type:
+    // -> Remote end is an endpoint node
+    //     1. If the list of active sessions is empty:
+    if (s_sessions.is_empty()) {
+        // 1. Set the webdriver-active flag to false
+        // NOTE: This is handled by the WebContent process.
+
+        // 2. Set the user prompt handler to null.
+        Web::WebDriver::set_user_prompt_handler({});
+
+        // FIXME: 3. Unset the accept insecure TLS flag.
+        // FIXME: 4. Reset the has proxy configuration flag to its default value.
+
+        // 5. Optionally, close all top-level browsing contexts, without prompting to unload.
+        for (auto& it : m_windows)
+            it.value.web_content_connection->close_session();
+    }
+    // -> Remote end is an intermediary node
+    //     1. Close the associated session. If this causes an error to occur, complete the remainder of this algorithm
+    //        before returning the error.
+
+    // 4. Perform any implementation-specific cleanup steps.
     if (m_browser_process.has_value())
         MUST(Core::System::kill(m_browser_process->pid(), SIGTERM));
 
@@ -134,6 +165,8 @@ Session::~Session()
         MUST(Core::System::unlink(*m_web_content_socket_path));
         m_web_content_socket_path = {};
     }
+
+    // 5. If an error has occurred in any of the steps above, return the error, otherwise return success with data null.
 }
 
 ErrorOr<NonnullRefPtr<Core::LocalServer>> Session::create_server(NonnullRefPtr<ServerPromise> promise)
@@ -169,7 +202,7 @@ ErrorOr<NonnullRefPtr<Core::LocalServer>> Session::create_server(NonnullRefPtr<S
             dbgln_if(WEBDRIVER_DEBUG, "Window {} was closed remotely.", window_handle);
             m_windows.remove(window_handle);
             if (m_windows.is_empty())
-                m_client->close_session(session_id());
+                close();
         };
 
         web_content_connection->async_set_page_load_strategy(m_page_load_strategy);
@@ -197,7 +230,7 @@ ErrorOr<void> Session::start(LaunchBrowserCallbacks const& callbacks)
 {
     auto promise = TRY(ServerPromise::try_create());
 
-    m_web_content_socket_path = ByteString::formatted("{}/webdriver/session_{}_{}", TRY(Core::StandardPaths::runtime_directory()), getpid(), m_id);
+    m_web_content_socket_path = ByteString::formatted("{}/webdriver/session_{}_{}", TRY(Core::StandardPaths::runtime_directory()), getpid(), m_session_id);
     m_web_content_server = TRY(create_server(promise));
 
     if (m_options.headless)
@@ -209,7 +242,6 @@ ErrorOr<void> Session::start(LaunchBrowserCallbacks const& callbacks)
     //        errors received while accepting the Browser and WebContent sockets.
     TRY(TRY(promise->await()));
 
-    m_started = true;
     return {};
 }
 
@@ -233,7 +265,7 @@ Web::WebDriver::Response Session::close_window()
 
         // 4. If there are no more open top-level browsing contexts, then close the session.
         if (m_windows.size() == 1)
-            m_client->close_session(session_id());
+            close();
     }
 
     // 5. Return the result of running the remote end steps for the Get Window Handles command.

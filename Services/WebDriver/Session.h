@@ -32,7 +32,11 @@ public:
     static ErrorOr<NonnullRefPtr<Session>> create(NonnullRefPtr<Client> client, JsonObject& capabilities, ReadonlySpan<StringView> flags);
     ~Session();
 
-    String session_id() const { return m_id; }
+    enum class AllowInvalidWindowHandle {
+        No,
+        Yes,
+    };
+    static ErrorOr<NonnullRefPtr<Session>, Web::WebDriver::Error> find_session(StringView session_id, AllowInvalidWindowHandle = AllowInvalidWindowHandle::No);
 
     struct Window {
         String handle;
@@ -47,10 +51,10 @@ public:
         return current_window->web_content_connection;
     }
 
-    String const& current_window_handle() const
-    {
-        return m_current_window_handle;
-    }
+    void close();
+
+    String session_id() const { return m_session_id; }
+    String const& current_window_handle() const { return m_current_window_handle; }
 
     bool has_window_handle(StringView handle) const { return m_windows.contains(handle); }
 
@@ -89,9 +93,7 @@ private:
     NonnullRefPtr<Client> m_client;
     Web::WebDriver::LadybirdOptions m_options;
 
-    bool m_started { false };
-
-    String m_id;
+    String m_session_id;
     bool m_http { false };
 
     HashMap<String, Window> m_windows;
