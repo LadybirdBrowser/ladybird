@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	document.write external script
+1 Pass
+Pass	document.write external script
