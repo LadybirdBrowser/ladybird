@@ -24,6 +24,12 @@ struct timeval {
 
 namespace AK {
 
+constexpr inline double ms_per_day = 86'400'000;
+constexpr inline double seconds_per_day = 86'400;
+constexpr inline double seconds_per_year = 60.0 * 60.0 * 24.0 * 365.2425;
+constexpr inline auto seconds_per_hour = 3'600;
+constexpr inline auto seconds_per_minute = 60;
+
 // Concept to detect types which look like timespec without requiring the type.
 template<typename T>
 concept TimeSpecType = requires(T t) {
@@ -121,8 +127,6 @@ constexpr i64 days_since_epoch(int year, int month, int day)
 
 constexpr i64 seconds_since_epoch_to_year(i64 seconds)
 {
-    constexpr double seconds_per_year = 60.0 * 60.0 * 24.0 * 365.2425;
-
     // NOTE: We are not using floor() from <math.h> to avoid LibC / DynamicLoader dependency issues.
     auto round_down = [](double value) -> i64 {
         auto as_i64 = static_cast<i64>(value);
@@ -379,10 +383,6 @@ public:
     // Note that the returned time is probably not equivalent to the same timestamp in UTC time, since UNIX time does not observe leap seconds.
     [[nodiscard]] constexpr static UnixDateTime from_unix_time_parts(i32 year, u8 month, u8 day, u8 hour, u8 minute, u8 second, u16 millisecond)
     {
-        constexpr auto seconds_per_day = 86'400;
-        constexpr auto seconds_per_hour = 3'600;
-        constexpr auto seconds_per_minute = 60;
-
         i64 days = days_since_epoch(year, month, day);
         // With year=2'147'483'648, we can end up with days=569'603'931'504.
         // Expressing that in milliseconds would require more than 64 bits,
