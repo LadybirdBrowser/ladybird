@@ -12,8 +12,8 @@ namespace Web::CredentialManagement {
 // https://www.w3.org/TR/credential-management-1/#dom-credential-isconditionalmediationavailable
 GC::Ref<WebIDL::Promise> Credential::is_conditional_mediation_available(JS::VM& vm)
 {
-    auto* realm = vm.current_realm();
-    return WebIDL::create_rejected_promise_from_exception(*realm, vm.throw_completion<JS::InternalError>(JS::ErrorType::NotImplemented, "is conditional mediation available"sv));
+    // 1. Return a promise resolved with false.
+    return WebIDL::create_resolved_promise(*vm.current_realm(), JS::Value(false));
 }
 
 Credential::~Credential() { }
