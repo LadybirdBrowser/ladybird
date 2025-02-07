@@ -25,11 +25,11 @@ public:
 
     virtual ~Credential() override;
 
-    String const& id() { return m_id; }
-    String const& name() { return m_name; }
-    String const& icon_url() { return m_icon_url; }
+    String const& id() const { return m_id; }
+    String const& name() const { return m_name; }
+    String const& icon_url() const { return m_icon_url; }
 
-    virtual String type() = 0;
+    virtual String type() const = 0;
 
 protected:
     explicit Credential(JS::Realm&);
