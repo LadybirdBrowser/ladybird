@@ -14,6 +14,24 @@
 
 namespace Web::CredentialManagement {
 
+class PasswordCredentialInterface final : public CredentialInterface {
+    CREDENTIAL_INTERFACE(PasswordCredentialInterface);
+
+public:
+    virtual String type() const override { return "password"_string; }
+    virtual String options_member_identifier() const override { return "password"_string; }
+    virtual Optional<String> get_permission_policy() const override { return {}; }
+    virtual Optional<String> create_permission_policy() const override { return {}; }
+
+    virtual String discovery() const override { return "credential store"_string; }
+    virtual bool supports_conditional_user_mediation() const override
+    {
+        // NOTE: PasswordCredential does not override is_conditional_mediation_available(),
+        //       therefore conditional mediation is not supported.
+        return false;
+    }
+};
+
 class PasswordCredential final : public Credential {
     WEB_PLATFORM_OBJECT(PasswordCredential, Credential);
     GC_DECLARE_ALLOCATOR(PasswordCredential);
@@ -28,6 +46,10 @@ public:
     String const& password() const { return m_password; }
 
     String type() const override { return "password"_string; }
+    virtual CredentialInterface const* interface() const override
+    {
+        return PasswordCredentialInterface::the();
+    }
 
 private:
     explicit PasswordCredential(JS::Realm&);
