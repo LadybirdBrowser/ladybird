@@ -25,9 +25,9 @@ public:
 
     virtual ~PasswordCredential() override;
 
-    String const& password() { return m_password; }
+    String const& password() const { return m_password; }
 
-    String type() override { return "password"_string; }
+    String type() const override { return "password"_string; }
 
 private:
     explicit PasswordCredential(JS::Realm&);

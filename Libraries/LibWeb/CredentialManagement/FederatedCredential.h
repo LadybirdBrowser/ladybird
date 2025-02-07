@@ -23,10 +23,10 @@ public:
 
     virtual ~FederatedCredential() override;
 
-    String const& provider() { return m_provider; }
-    Optional<String> const& protocol() { return m_protocol; }
+    String const& provider() const { return m_provider; }
+    Optional<String> const& protocol() const { return m_protocol; }
 
-    String type() override { return "federated"_string; }
+    String type() const override { return "federated"_string; }
 
 private:
     explicit FederatedCredential(JS::Realm&);
