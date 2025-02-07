@@ -14,6 +14,7 @@
 
 namespace Web::CredentialManagement {
 
+// https://w3c.github.io/webappsec-credential-management/#federatedcredential
 class FederatedCredential final
     : public Credential
     , public CredentialUserData {
@@ -25,11 +26,11 @@ public:
 
     virtual ~FederatedCredential() override;
 
-    String const& provider() { return m_provider; }
-    Optional<String> const& protocol() { return m_protocol; }
-    URL::Origin const& origin() { return m_origin; }
+    String const& provider() const { return m_provider; }
+    Optional<String> const& protocol() const { return m_protocol; }
+    URL::Origin const& origin() const { return m_origin; }
 
-    String type() override { return "federated"_string; }
+    String type() const override { return "federated"_string; }
 
 private:
     FederatedCredential(JS::Realm&, FederatedCredentialInit const&, URL::Origin);
@@ -42,11 +43,13 @@ private:
     URL::Origin m_origin;
 };
 
+// https://www.w3.org/TR/credential-management-1/#dictdef-federatedcredentialrequestoptions
 struct FederatedCredentialRequestOptions {
     Optional<Vector<String>> providers;
     Optional<Vector<String>> protocols;
 };
 
+// https://www.w3.org/TR/credential-management-1/#dictdef-federatedcredentialinit
 struct FederatedCredentialInit : CredentialData {
     Optional<String> name;
     Optional<String> icon_url;

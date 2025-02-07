@@ -13,6 +13,7 @@
 
 namespace Web::CredentialManagement {
 
+// https://www.w3.org/TR/credential-management-1/#credential
 class Credential : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(Credential, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(Credential);
@@ -22,9 +23,9 @@ public:
 
     virtual ~Credential() override;
 
-    String const& id() { return m_id; }
+    String const& id() const { return m_id; }
 
-    virtual String type() = 0;
+    virtual String type() const = 0;
 
 protected:
     explicit Credential(JS::Realm&);
@@ -34,6 +35,7 @@ protected:
     String m_id;
 };
 
+// https://www.w3.org/TR/credential-management-1/#dictdef-credentialdata
 struct CredentialData {
     String id;
 };
