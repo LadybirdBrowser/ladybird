@@ -11,6 +11,7 @@
 #include <AK/RefCounted.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/Encoding/TextEncoderCommon.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -24,7 +25,9 @@ struct TextEncoderEncodeIntoResult {
 };
 
 // https://encoding.spec.whatwg.org/#textencoder
-class TextEncoder final : public Bindings::PlatformObject {
+class TextEncoder final
+    : public Bindings::PlatformObject
+    , public TextEncoderCommonMixin {
     WEB_PLATFORM_OBJECT(TextEncoder, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(TextEncoder);
 
@@ -35,8 +38,6 @@ public:
 
     GC::Ref<JS::Uint8Array> encode(String const& input) const;
     TextEncoderEncodeIntoResult encode_into(String const& source, GC::Root<WebIDL::BufferSource> const& destination) const;
-
-    static FlyString const& encoding();
 
 protected:
     // https://encoding.spec.whatwg.org/#dom-textencoder
