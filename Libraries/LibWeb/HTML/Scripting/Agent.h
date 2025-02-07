@@ -10,6 +10,7 @@
 #include <AK/Vector.h>
 #include <LibGC/Root.h>
 #include <LibJS/Forward.h>
+#include <LibWeb/DOM/MutationObserver.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionsStack.h>
 
@@ -25,8 +26,7 @@ struct Agent {
     bool mutation_observer_microtask_queued { false };
 
     // https://dom.spec.whatwg.org/#mutation-observer-list
-    // FIXME: This should be a set.
-    Vector<GC::Root<DOM::MutationObserver>> mutation_observers;
+    DOM::MutationObserver::List mutation_observers;
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#custom-element-reactions-stack
     // Each similar-origin window agent has a custom element reactions stack, which is initially empty.

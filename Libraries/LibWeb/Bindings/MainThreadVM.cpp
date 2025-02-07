@@ -675,7 +675,7 @@ void queue_mutation_observer_microtask(DOM::Document const& document)
         // 2. Let notifySet be a clone of the surrounding agent’s mutation observers.
         GC::RootVector<DOM::MutationObserver*> notify_set(heap);
         for (auto& observer : surrounding_agent.mutation_observers)
-            notify_set.append(observer);
+            notify_set.append(&observer);
 
         // FIXME: 3. Let signalSet be a clone of the surrounding agent’s signal slots.
 
