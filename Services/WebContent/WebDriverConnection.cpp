@@ -2067,15 +2067,16 @@ Messages::WebDriverClient::ExecuteScriptResponse WebDriverConnection::execute_sc
 
     // 3. Handle any user prompts, and return its value if it is an error.
     handle_any_user_prompts([this, body = move(body), arguments = move(arguments)]() mutable {
-        m_has_pending_script_execution = true;
+        auto script_execution_id = m_script_execution_id_counter++;
+        m_current_script_execution_id = script_execution_id;
 
         // 4. Let timeout be session's session timeouts' script timeout.
         auto timeout_ms = m_timeouts_configuration.script_timeout;
 
         // This handles steps 5 to 9 and produces the appropriate result type for the following steps.
-        Web::WebDriver::execute_script(current_browsing_context(), move(body), move(arguments), timeout_ms, GC::create_function(current_browsing_context().heap(), [this](Web::WebDriver::ExecutionResult result) {
+        Web::WebDriver::execute_script(current_browsing_context(), move(body), move(arguments), timeout_ms, GC::create_function(current_browsing_context().heap(), [this, script_execution_id](Web::WebDriver::ExecutionResult result) {
             dbgln_if(WEBDRIVER_DEBUG, "Executing script returned: {}", result.value);
-            handle_script_response(result);
+            handle_script_response(result, script_execution_id);
         }));
     });
 
@@ -2096,26 +2097,27 @@ Messages::WebDriverClient::ExecuteAsyncScriptResponse WebDriverConnection::execu
 
     // 3. Handle any user prompts, and return its value if it is an error.
     handle_any_user_prompts([this, body = move(body), arguments = move(arguments)]() mutable {
-        m_has_pending_script_execution = true;
+        auto script_execution_id = m_script_execution_id_counter++;
+        m_current_script_execution_id = script_execution_id;
 
         // 4. Let timeout be session's session timeouts' script timeout.
         auto timeout_ms = m_timeouts_configuration.script_timeout;
 
         // This handles steps 5 to 9 and produces the appropriate result type for the following steps.
-        Web::WebDriver::execute_async_script(current_browsing_context(), move(body), move(arguments), timeout_ms, GC::create_function(current_browsing_context().heap(), [&](Web::WebDriver::ExecutionResult result) {
+        Web::WebDriver::execute_async_script(current_browsing_context(), move(body), move(arguments), timeout_ms, GC::create_function(current_browsing_context().heap(), [this, script_execution_id](Web::WebDriver::ExecutionResult result) {
             dbgln_if(WEBDRIVER_DEBUG, "Executing async script returned: {}", result.value);
-            handle_script_response(result);
+            handle_script_response(result, script_execution_id);
         }));
     });
 
     return JsonValue {};
 }
 
-void WebDriverConnection::handle_script_response(Web::WebDriver::ExecutionResult result)
+void WebDriverConnection::handle_script_response(Web::WebDriver::ExecutionResult result, size_t script_execution_id)
 {
-    if (!m_has_pending_script_execution)
+    if (script_execution_id != m_current_script_execution_id)
         return;
-    m_has_pending_script_execution = false;
+    m_current_script_execution_id.clear();
 
     auto response = [&]() -> Web::WebDriver::Response {
         switch (result.state) {
@@ -2838,8 +2840,8 @@ void WebDriverConnection::page_did_open_dialog(Badge<PageClient>)
     // https://w3c.github.io/webdriver/#dfn-execute-a-function-body
     // If at any point during the algorithm a user prompt appears, immediately return Completion { [[Type]]: normal,
     // [[Value]]: null, [[Target]]: empty }, but continue to run the other steps of this algorithm in parallel.
-    if (m_has_pending_script_execution) {
-        m_has_pending_script_execution = false;
+    if (m_current_script_execution_id.has_value()) {
+        m_current_script_execution_id.clear();
         async_driver_execution_complete(JsonValue {});
     }
 }
