@@ -29,7 +29,7 @@ struct LaunchBrowserCallbacks;
 
 class Session : public RefCounted<Session> {
 public:
-    static ErrorOr<NonnullRefPtr<Session>> create(NonnullRefPtr<Client> client, JsonObject& capabilities, ReadonlySpan<StringView> flags);
+    static ErrorOr<NonnullRefPtr<Session>> create(NonnullRefPtr<Client> client, JsonObject& capabilities, Web::WebDriver::SessionFlags flags);
     ~Session();
 
     enum class AllowInvalidWindowHandle {
@@ -83,7 +83,7 @@ public:
     }
 
 private:
-    Session(NonnullRefPtr<Client> client, JsonObject const& capabilities, String session_id, bool http);
+    Session(NonnullRefPtr<Client> client, JsonObject const& capabilities, String session_id, Web::WebDriver::SessionFlags flags);
 
     ErrorOr<void> start(LaunchBrowserCallbacks const&);
 
@@ -94,7 +94,7 @@ private:
     Web::WebDriver::LadybirdOptions m_options;
 
     String m_session_id;
-    bool m_http { false };
+    Web::WebDriver::SessionFlags m_session_flags { Web::WebDriver::SessionFlags::Default };
 
     HashMap<String, Window> m_windows;
     String m_current_window_handle;

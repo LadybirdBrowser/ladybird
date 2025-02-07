@@ -25,13 +25,13 @@ namespace WebDriver {
 static HashMap<String, NonnullRefPtr<Session>> s_sessions;
 
 // https://w3c.github.io/webdriver/#dfn-create-a-session
-ErrorOr<NonnullRefPtr<Session>> Session::create(NonnullRefPtr<Client> client, JsonObject& capabilities, ReadonlySpan<StringView> flags)
+ErrorOr<NonnullRefPtr<Session>> Session::create(NonnullRefPtr<Client> client, JsonObject& capabilities, Web::WebDriver::SessionFlags flags)
 {
     // 1. Let session id be the result of generating a UUID.
     auto session_id = MUST(Web::Crypto::generate_random_uuid());
 
     // 2. Let session be a new session with session ID session id, and HTTP flag flags contains "http".
-    auto session = adopt_ref(*new Session(client, capabilities, move(session_id), flags.contains_slow("http"sv)));
+    auto session = adopt_ref(*new Session(client, capabilities, move(session_id), flags));
     TRY(session->start(client->launch_browser_callbacks()));
 
     // FIXME: 3. Let proxy be the result of getting property "proxy" from capabilities and run the substeps of the first matching statement:
@@ -59,7 +59,7 @@ ErrorOr<NonnullRefPtr<Session>> Session::create(NonnullRefPtr<Client> client, Js
     capabilities.set("unhandledPromptBehavior"sv, move(serialized_user_prompt_handler));
 
     // 9. If flags contains "http":
-    if (flags.contains_slow("http"sv)) {
+    if (has_flag(flags, Web::WebDriver::SessionFlags::Http)) {
         // 1. Let strategy be the result of getting property "pageLoadStrategy" from capabilities. If strategy is a
         //    string, set the session's page loading strategy to strategy. Otherwise, set the page loading strategy to
         //    normal and set a property of capabilities with name "pageLoadStrategy" and value "normal".
@@ -106,11 +106,11 @@ ErrorOr<NonnullRefPtr<Session>> Session::create(NonnullRefPtr<Client> client, Js
     return session;
 }
 
-Session::Session(NonnullRefPtr<Client> client, JsonObject const& capabilities, String session_id, bool http)
+Session::Session(NonnullRefPtr<Client> client, JsonObject const& capabilities, String session_id, Web::WebDriver::SessionFlags flags)
     : m_client(move(client))
     , m_options(capabilities)
     , m_session_id(move(session_id))
-    , m_http(http)
+    , m_session_flags(flags)
 {
 }
 

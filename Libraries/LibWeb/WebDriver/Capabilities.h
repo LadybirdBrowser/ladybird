@@ -6,11 +6,18 @@
 
 #pragma once
 
+#include <AK/EnumBits.h>
 #include <AK/Forward.h>
 #include <AK/StringView.h>
 #include <LibWeb/WebDriver/Response.h>
 
 namespace Web::WebDriver {
+
+enum class SessionFlags {
+    Default = 0x0,
+    Http = 0x1,
+};
+AK_ENUM_BITWISE_OPERATORS(SessionFlags);
 
 // https://w3c.github.io/webdriver/#dfn-page-load-strategy
 enum class PageLoadStrategy {
@@ -42,6 +49,6 @@ struct LadybirdOptions {
     bool headless { false };
 };
 
-Response process_capabilities(JsonValue const& parameters, ReadonlySpan<StringView> flags);
+Response process_capabilities(JsonValue const& parameters, SessionFlags flags);
 
 }
