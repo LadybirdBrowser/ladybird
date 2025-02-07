@@ -13,6 +13,24 @@
 
 namespace Web::CredentialManagement {
 
+class FederatedCredentialInterface final : public CredentialInterface {
+    CREDENTIAL_INTERFACE(FederatedCredentialInterface);
+
+public:
+    virtual String type() const override { return "federated"_string; }
+    virtual String options_member_identifier() const override { return "federated"_string; }
+    virtual Optional<String> get_permission_policy() const override { return {}; }
+    virtual Optional<String> create_permission_policy() const override { return {}; }
+
+    virtual String discovery() const override { return "credential store"_string; }
+    virtual bool supports_conditional_user_mediation() const override
+    {
+        // NOTE: FederatedCredential does not override is_conditional_mediation_available(),
+        //       therefore conditional mediation is not supported.
+        return false;
+    }
+};
+
 class FederatedCredential final : public Credential {
     WEB_PLATFORM_OBJECT(FederatedCredential, Credential);
     GC_DECLARE_ALLOCATOR(FederatedCredential);
@@ -27,6 +45,10 @@ public:
     Optional<String> const& protocol() const { return m_protocol; }
 
     String type() const override { return "federated"_string; }
+    virtual CredentialInterface const* interface() const override
+    {
+        return FederatedCredentialInterface::the();
+    }
 
 private:
     explicit FederatedCredential(JS::Realm&);
