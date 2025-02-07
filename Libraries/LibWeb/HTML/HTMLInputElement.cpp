@@ -2067,6 +2067,18 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_width(WebIDL::UnsignedLong value
     return set_attribute(HTML::AttributeNames::width, String::number(value));
 }
 
+// https://html.spec.whatwg.org/multipage/input.html#month-state-(type=month):concept-input-value-string-number
+static Optional<double> convert_month_string_to_number(StringView input)
+{
+    // The algorithm to convert a string to a number, given a string input, is as follows: If parsing a month from input
+    // results in an error, then return an error; otherwise, return the number of months between January 1970 and the
+    // parsed month.
+    auto maybe_year_and_month = parse_a_month_string(input);
+    if (!maybe_year_and_month.has_value())
+        return {};
+    return number_of_months_since_unix_epoch(maybe_year_and_month.value());
+}
+
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-string-number
 Optional<double> HTMLInputElement::convert_string_to_number(StringView input) const
 {
@@ -2078,8 +2090,22 @@ Optional<double> HTMLInputElement::convert_string_to_number(StringView input) co
     if (type_state() == TypeAttributeState::Range)
         return parse_floating_point_number(input);
 
+    if (type_state() == TypeAttributeState::Month)
+        return convert_month_string_to_number(input);
+
     dbgln("HTMLInputElement::convert_string_to_number() not implemented for input type {}", type());
     return {};
+}
+
+// https://html.spec.whatwg.org/multipage/input.html#month-state-(type=month):concept-input-value-number-string
+static String convert_number_to_month_string(double input)
+{
+    // The algorithm to convert a number to a string, given a number input, is as follows: Return a valid month
+    // string that represents the month that has input months between it and January 1970.
+    auto months = JS::modulo(input, 12);
+    auto year = 1970 + (input - months) / 12;
+
+    return MUST(String::formatted("{:04d}-{:02d}", static_cast<int>(year), static_cast<int>(months) + 1));
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-string-number
@@ -2092,6 +2118,9 @@ String HTMLInputElement::convert_number_to_string(double input) const
     // https://html.spec.whatwg.org/multipage/input.html#range-state-(type=range):concept-input-value-number-string
     if (type_state() == TypeAttributeState::Range)
         return String::number(input);
+
+    if (type_state() == TypeAttributeState::Month)
+        return convert_number_to_month_string(input);
 
     dbgln("HTMLInputElement::convert_number_to_string() not implemented for input type {}", type());
     return {};
