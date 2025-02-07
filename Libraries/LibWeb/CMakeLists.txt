@@ -828,6 +828,7 @@ set(SOURCES
     WebDriver/InputSource.cpp
     WebDriver/InputState.cpp
     WebDriver/JSON.cpp
+    WebDriver/Proxy.cpp
     WebDriver/Response.cpp
     WebDriver/Screenshot.cpp
     WebDriver/TimeoutsConfiguration.cpp

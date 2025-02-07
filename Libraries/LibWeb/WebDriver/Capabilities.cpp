@@ -11,6 +11,7 @@
 #include <AK/Optional.h>
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWeb/WebDriver/Capabilities.h>
+#include <LibWeb/WebDriver/Proxy.h>
 #include <LibWeb/WebDriver/TimeoutsConfiguration.h>
 #include <LibWeb/WebDriver/UserPrompt.h>
 
@@ -29,33 +30,6 @@ static Response deserialize_as_a_page_load_strategy(JsonValue value)
 
     // 3. Return success with data value.
     return value;
-}
-
-// https://w3c.github.io/webdriver/#dfn-deserialize-as-a-proxy
-static ErrorOr<JsonObject, Error> deserialize_as_a_proxy(JsonValue parameter)
-{
-    // 1. If parameter is not a JSON Object return an error with error code invalid argument.
-    if (!parameter.is_object())
-        return Error::from_code(ErrorCode::InvalidArgument, "Capability proxy must be an object"sv);
-
-    // 2. Let proxy be a new, empty proxy configuration object.
-    JsonObject proxy;
-
-    // 3. For each enumerable own property in parameter run the following substeps:
-    TRY(parameter.as_object().try_for_each_member([&](auto const& key, JsonValue const& value) -> ErrorOr<void, Error> {
-        // 1. Let key be the name of the property.
-        // 2. Let value be the result of getting a property named name from capability.
-
-        // FIXME: 3. If there is no matching key for key in the proxy configuration table return an error with error code invalid argument.
-        // FIXME: 4. If value is not one of the valid values for that key, return an error with error code invalid argument.
-
-        // 5. Set a property key to value on proxy.
-        proxy.set(key, value);
-
-        return {};
-    }));
-
-    return proxy;
 }
 
 static InterfaceMode default_interface_mode { InterfaceMode::Graphical };
@@ -332,7 +306,10 @@ static JsonValue match_capabilities(JsonObject const& capabilities, SessionFlags
         }
         // -> "proxy"
         else if (name == "proxy"sv) {
-            // FIXME: If the has proxy configuration flag is set, or if the proxy configuration defined in value is not one that passes the endpoint node's implementation-specific validity checks, return success with data null.
+            // If the has proxy configuration flag is set, or if the proxy configuration defined in value is not one that
+            // passes the endpoint node's implementation-specific validity checks, return success with data null.
+            if (has_proxy_configuration())
+                return AK::Error::from_string_literal("proxy");
         }
         // -> "unhandledPromptBehavior"
         else if (name == "unhandledPromptBehavior"sv) {
