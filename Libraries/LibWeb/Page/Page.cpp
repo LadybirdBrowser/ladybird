@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, Sam Atkins <atkinssj@serenityos.org>
- * Copyright (c) 2024, Tim Ledbetter <timledbetter@gmail.com>
+ * Copyright (c) 2024-2025, Tim Ledbetter <tim.ledbetter@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -593,38 +593,39 @@ Page::FindInPageResult Page::perform_find_in_page_query(FindInPageQuery const& q
 
     Vector<GC::Root<DOM::Range>> all_matches;
 
-    auto find_current_match_index = [this, &direction](auto& document, auto& matches) -> size_t {
+    auto active_range = [](auto& document) -> GC::Ptr<DOM::Range> {
+        auto selection = document.get_selection();
+        if (!selection || selection->is_collapsed())
+            return {};
+
+        return selection->range();
+    };
+
+    auto find_current_match_index = [this](DOM::Range& range, auto const& matches) -> Optional<size_t> {
         // Always return the first match if there is no active query.
         if (!m_last_find_in_page_query.has_value())
             return 0;
 
-        auto selection = document.get_selection();
-        if (!selection)
-            return 0;
-
-        auto range = selection->range();
-        if (!range)
-            return 0;
-
         for (size_t i = 0; i < matches.size(); ++i) {
-            auto boundary_comparison_or_error = matches[i]->compare_boundary_points(DOM::Range::HowToCompareBoundaryPoints::START_TO_START, *range);
-            if (!boundary_comparison_or_error.is_error() && boundary_comparison_or_error.value() >= 0) {
-                // If the match occurs after the current selection then we don't need to increment the match index later on.
-                if (boundary_comparison_or_error.value() && direction == SearchDirection::Forward)
-                    direction = {};
-
+            auto boundary_comparison_or_error = matches[i]->compare_boundary_points(DOM::Range::HowToCompareBoundaryPoints::START_TO_START, range);
+            if (!boundary_comparison_or_error.is_error() && boundary_comparison_or_error.value() >= 0)
                 return i;
-            }
         }
 
-        return 0;
+        return {};
     };
 
+    auto should_update_match_index = false;
     for (auto const& document : documents_in_active_window()) {
         auto matches = document->find_matching_text(query.string, query.case_sensitivity);
         if (document == top_level_traversable()->active_document()) {
-            auto new_match_index = find_current_match_index(*document, matches);
-            m_find_in_page_match_index = new_match_index + all_matches.size();
+            if (auto range = active_range(*document)) {
+                auto new_match_index = find_current_match_index(*range, matches);
+                should_update_match_index = true;
+                m_find_in_page_match_index = new_match_index.value_or(0) + all_matches.size();
+            } else {
+                m_find_in_page_match_index = all_matches.size();
+            }
         }
 
         all_matches.extend(move(matches));
@@ -637,8 +638,8 @@ Page::FindInPageResult Page::perform_find_in_page_query(FindInPageQuery const& q
         }
     }
 
-    if (direction.has_value()) {
-        if (direction.value() == SearchDirection::Forward) {
+    if (direction.has_value() && should_update_match_index) {
+        if (direction == SearchDirection::Forward) {
             if (m_find_in_page_match_index >= all_matches.size() - 1) {
                 if (query.wrap_around == WrapAround::No)
                     return {};
