@@ -308,4 +308,59 @@ i32 number_of_months_since_unix_epoch(YearAndMonth year_and_month)
     return (year_and_month.year - 1970) * 12 + year_and_month.month - 1;
 }
 
+// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-week-string
+Optional<WeekYearAndWeek> parse_a_week_string(StringView input_view)
+{
+    // 1. Let input be the string being parsed.
+    // 2. Let position be a pointer into input, initially pointing at the start of the string.
+    GenericLexer input { input_view };
+
+    // 3. Collect a sequence of code points that are ASCII digits from input given position. If the collected sequence is
+    //    not at least four characters long, then fail. Otherwise, interpret the resulting sequence as a base-ten integer.
+    //    Let that number be the year.
+    auto year_string = input.consume_while(is_ascii_digit);
+    if (year_string.length() < 4)
+        return {};
+    auto maybe_year = year_string.to_number<u32>();
+    if (!maybe_year.has_value())
+        return {};
+    auto year = maybe_year.value();
+
+    // 4. If year is not a number greater than zero, then fail.
+    if (year < 1)
+        return {};
+
+    // 5. If position is beyond the end of input or if the character at position is not a U+002D HYPHEN-MINUS character, then
+    //    fail. Otherwise, move position forwards one character.
+    if (!input.consume_specific('-'))
+        return {};
+
+    // 6. If position is beyond the end of input or if the character at position is not a U+0057 LATIN CAPITAL LETTER W character
+    //    (W), then fail. Otherwise, move position forwards one character.
+    if (!input.consume_specific('W'))
+        return {};
+
+    // 7. Collect a sequence of code points that are ASCII digits from input given position. If the collected sequence is not
+    //    exactly two characters long, then fail. Otherwise, interpret the resulting sequence as a base-ten integer. Let that
+    //    number be the week.
+    auto week_string = input.consume_while(is_ascii_digit);
+    if (week_string.length() != 2)
+        return {};
+    auto week = week_string.to_number<u32>().value();
+
+    // 8. Let maxweek be the week number of the last day of year year.
+    auto maxweek = week_number_of_the_last_day(year);
+
+    // 9. If week is not a number in the range 1 ≤ week ≤ maxweek, then fail.
+    if (week < 1 || week > maxweek)
+        return {};
+
+    // 10. If position is not beyond the end of input, then fail.
+    if (!input.is_eof())
+        return {};
+
+    // 11. Return the week-year number year and the week number week.
+    return WeekYearAndWeek { year, week };
+}
+
 }

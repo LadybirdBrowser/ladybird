@@ -2079,6 +2079,20 @@ static Optional<double> convert_month_string_to_number(StringView input)
     return number_of_months_since_unix_epoch(maybe_year_and_month.value());
 }
 
+// https://html.spec.whatwg.org/multipage/input.html#week-state-(type=week):concept-input-value-string-number
+static Optional<double> convert_week_string_to_number(StringView input)
+{
+    // The algorithm to convert a string to a number, given a string input, is as follows: If parsing a week
+    // string from input results in an error, then return an error; otherwise, return the number of
+    // milliseconds elapsed from midnight UTC on the morning of 1970-01-01 (the time represented by the value
+    // "1970-01-01T00:00:00.0Z") to midnight UTC on the morning of the Monday of the parsed week, ignoring
+    // leap seconds.
+    auto parsed_week = parse_a_week_string(input);
+    if (!parsed_week.has_value())
+        return {};
+    return UnixDateTime::from_iso8601_week(parsed_week->week_year, parsed_week->week).milliseconds_since_epoch();
+}
+
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-string-number
 Optional<double> HTMLInputElement::convert_string_to_number(StringView input) const
 {
@@ -2092,6 +2106,9 @@ Optional<double> HTMLInputElement::convert_string_to_number(StringView input) co
 
     if (type_state() == TypeAttributeState::Month)
         return convert_month_string_to_number(input);
+
+    if (type_state() == TypeAttributeState::Week)
+        return convert_week_string_to_number(input);
 
     dbgln("HTMLInputElement::convert_string_to_number() not implemented for input type {}", type());
     return {};
@@ -2108,6 +2125,36 @@ static String convert_number_to_month_string(double input)
     return MUST(String::formatted("{:04d}-{:02d}", static_cast<int>(year), static_cast<int>(months) + 1));
 }
 
+// https://html.spec.whatwg.org/multipage/input.html#week-state-(type=week):concept-input-value-string-number
+static String convert_number_to_week_string(double input)
+{
+    // The algorithm to convert a number to a string, given a number input, is as follows: Return a valid week string that
+    // that represents the week that, in UTC, is current input milliseconds after midnight UTC on the morning of 1970-01-01
+    // (the time represented by the value "1970-01-01T00:00:00.0Z").
+
+    int days_since_epoch = static_cast<int>(input / AK::ms_per_day);
+    int year = 1970;
+
+    while (true) {
+        auto days = days_in_year(year);
+        if (days_since_epoch < days)
+            break;
+        days_since_epoch -= days;
+        ++year;
+    }
+
+    auto january_1_weekday = day_of_week(year, 1, 1);
+    int offset_to_week_start = (january_1_weekday <= 3) ? january_1_weekday : january_1_weekday - 7;
+    int week = (days_since_epoch + offset_to_week_start) / 7 + 1;
+
+    if (week < 0) {
+        --year;
+        week = weeks_in_year(year) + week;
+    }
+
+    return MUST(String::formatted("{:04d}-W{:02d}", year, week));
+}
+
 // https://html.spec.whatwg.org/multipage/input.html#concept-input-value-string-number
 String HTMLInputElement::convert_number_to_string(double input) const
 {
@@ -2121,6 +2168,9 @@ String HTMLInputElement::convert_number_to_string(double input) const
 
     if (type_state() == TypeAttributeState::Month)
         return convert_number_to_month_string(input);
+
+    if (type_state() == TypeAttributeState::Week)
+        return convert_number_to_week_string(input);
 
     dbgln("HTMLInputElement::convert_number_to_string() not implemented for input type {}", type());
     return {};
