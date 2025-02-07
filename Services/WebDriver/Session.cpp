@@ -16,6 +16,7 @@
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibWeb/Crypto/Crypto.h>
+#include <LibWeb/WebDriver/Proxy.h>
 #include <LibWeb/WebDriver/TimeoutsConfiguration.h>
 #include <LibWeb/WebDriver/UserPrompt.h>
 #include <unistd.h>
@@ -35,11 +36,19 @@ ErrorOr<NonnullRefPtr<Session>> Session::create(NonnullRefPtr<Client> client, Js
     auto session = adopt_ref(*new Session(client, capabilities, move(session_id), flags));
     TRY(session->start(client->launch_browser_callbacks()));
 
-    // FIXME: 3. Let proxy be the result of getting property "proxy" from capabilities and run the substeps of the first matching statement:
-    //     -> proxy is a proxy configuration object
-    //         Take implementation-defined steps to set the user agent proxy using the extracted proxy configuration. If the defined proxy cannot be configured return error with error code session not created. Otherwise set the has proxy configuration flag to true.
-    //     -> Otherwise
-    //         Set a property of capabilities with name "proxy" and a value that is a new JSON Object.
+    // 3. Let proxy be the result of getting property "proxy" from capabilities and run the substeps of the first matching statement:
+    // -> proxy is a proxy configuration object
+    if (auto proxy = capabilities.get_object("proxy"sv); proxy.has_value()) {
+        // Take implementation-defined steps to set the user agent proxy using the extracted proxy configuration. If the
+        // defined proxy cannot be configured return error with error code session not created. Otherwise set the has
+        // proxy configuration flag to true.
+        return Error::from_string_literal("Proxy configuration is not yet supported");
+    }
+    // -> Otherwise
+    else {
+        // Set a property of capabilities with name "proxy" and a value that is a new JSON Object.
+        capabilities.set("proxy", JsonObject {});
+    }
 
     // FIXME: 4. If capabilites has a property named "acceptInsecureCerts", set the endpoint node's accept insecure TLS flag
     //           to the result of getting a property named "acceptInsecureCerts" from capabilities.
@@ -161,7 +170,9 @@ void Session::close()
         Web::WebDriver::set_user_prompt_handler({});
 
         // FIXME: 3. Unset the accept insecure TLS flag.
-        // FIXME: 4. Reset the has proxy configuration flag to its default value.
+
+        // 4. Reset the has proxy configuration flag to its default value.
+        Web::WebDriver::reset_has_proxy_configuration();
 
         // 5. Optionally, close all top-level browsing contexts, without prompting to unload.
         for (auto& it : m_windows)
