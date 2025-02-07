@@ -23,6 +23,7 @@
 namespace WebDriver {
 
 static HashMap<String, NonnullRefPtr<Session>> s_sessions;
+static HashMap<String, NonnullRefPtr<Session>> s_http_sessions;
 
 // https://w3c.github.io/webdriver/#dfn-create-a-session
 ErrorOr<NonnullRefPtr<Session>> Session::create(NonnullRefPtr<Client> client, JsonObject& capabilities, Web::WebDriver::SessionFlags flags)
@@ -98,7 +99,9 @@ ErrorOr<NonnullRefPtr<Session>> Session::create(NonnullRefPtr<Client> client, Js
     // 12. Append session to active sessions.
     s_sessions.set(session->session_id(), session);
 
-    // FIXME: 13. If flags contains "http", append session to active HTTP sessions.
+    // 13. If flags contains "http", append session to active HTTP sessions.
+    if (has_flag(flags, Web::WebDriver::SessionFlags::Http))
+        s_http_sessions.set(session->session_id(), session);
 
     // 14. Set the webdriver-active flag to true.
     session->web_content_connection().async_set_is_webdriver_active(true);
@@ -116,9 +119,11 @@ Session::Session(NonnullRefPtr<Client> client, JsonObject const& capabilities, S
 
 Session::~Session() = default;
 
-ErrorOr<NonnullRefPtr<Session>, Web::WebDriver::Error> Session::find_session(StringView session_id, AllowInvalidWindowHandle allow_invalid_window_handle)
+ErrorOr<NonnullRefPtr<Session>, Web::WebDriver::Error> Session::find_session(StringView session_id, Web::WebDriver::SessionFlags session_flags, AllowInvalidWindowHandle allow_invalid_window_handle)
 {
-    if (auto session = s_sessions.get(session_id); session.has_value()) {
+    auto const& sessions = has_flag(session_flags, Web::WebDriver::SessionFlags::Http) ? s_http_sessions : s_sessions;
+
+    if (auto session = sessions.get(session_id); session.has_value()) {
         if (allow_invalid_window_handle == AllowInvalidWindowHandle::No)
             TRY(session.value()->ensure_current_window_handle_is_valid());
 
@@ -128,10 +133,19 @@ ErrorOr<NonnullRefPtr<Session>, Web::WebDriver::Error> Session::find_session(Str
     return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidSessionId, "Invalid session id");
 }
 
+size_t Session::session_count(Web::WebDriver::SessionFlags session_flags)
+{
+    if (has_flag(session_flags, Web::WebDriver::SessionFlags::Http))
+        return s_http_sessions.size();
+    return s_sessions.size();
+}
+
 // https://w3c.github.io/webdriver/#dfn-close-the-session
 void Session::close()
 {
-    // FIXME: 1. If session's HTTP flag is set, remove session from active HTTP sessions.
+    // 1. If session's HTTP flag is set, remove session from active HTTP sessions.
+    if (has_flag(session_flags(), Web::WebDriver::SessionFlags::Http))
+        s_http_sessions.remove(m_session_id);
 
     // 2. Remove session from active sessions.
     s_sessions.remove(m_session_id);
@@ -275,9 +289,8 @@ Web::WebDriver::Response Session::close_window()
 // 11.3 Switch to Window, https://w3c.github.io/webdriver/#dfn-switch-to-window
 Web::WebDriver::Response Session::switch_to_window(StringView handle)
 {
-    // 4. If handle is equal to the associated window handle for some top-level browsing context in the
-    //    current session, let context be the that browsing context, and set the current top-level
-    //    browsing context with context.
+    // 4. If handle is equal to the associated window handle for some top-level browsing context, let context be the that
+    //    browsing context, and set the current top-level browsing context with session and context.
     //    Otherwise, return error with error code no such window.
     if (auto it = m_windows.find(handle); it != m_windows.end())
         m_current_window_handle = it->key;

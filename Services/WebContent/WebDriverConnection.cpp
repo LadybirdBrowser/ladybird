@@ -570,9 +570,8 @@ Messages::WebDriverClient::CloseWindowResponse WebDriverConnection::close_window
 // 11.3 Switch to Window, https://w3c.github.io/webdriver/#dfn-switch-to-window
 Messages::WebDriverClient::SwitchToWindowResponse WebDriverConnection::switch_to_window(String const& handle)
 {
-    // 4. If handle is equal to the associated window handle for some top-level browsing context in the
-    //    current session, let context be the that browsing context, and set the current top-level
-    //    browsing context with context.
+    // 4. If handle is equal to the associated window handle for some top-level browsing context, let context be the that
+    //    browsing context, and set the current top-level browsing context with session and context.
     //    Otherwise, return error with error code no such window.
     bool found_matching_context = false;
 

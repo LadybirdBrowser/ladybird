@@ -44,8 +44,10 @@ Web::WebDriver::Response Client::new_session(Web::WebDriver::Parameters, JsonVal
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session");
 
-    // FIXME: 1. If the implementation is an endpoint node, and the list of active HTTP sessions is not empty, or otherwise if
-    //           the implementation is unable to start an additional session, return error with error code session not created.
+    // 1. If the implementation is an endpoint node, and the list of active HTTP sessions is not empty, or otherwise if
+    //    the implementation is unable to start an additional session, return error with error code session not created.
+    if (Session::session_count(Web::WebDriver::SessionFlags::Http) > 0)
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::SessionNotCreated, "There is already an active HTTP session"sv);
 
     // FIXME: 2. If the remote end is an intermediary node, take implementation-defined steps that either result in returning
     //           an error with error code session not created, or in returning a success with data that is isomorphic to that
@@ -96,8 +98,8 @@ Web::WebDriver::Response Client::delete_session(Web::WebDriver::Parameters param
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling DELETE /session/<session_id>");
 
-    // 1. If the current session is an active session, try to close the session.
-    if (auto session = Session::find_session(parameters[0], Session::AllowInvalidWindowHandle::Yes); !session.is_error())
+    // 1. If session is an active HTTP session, try to close the session with session.
+    if (auto session = Session::find_session(parameters[0], Web::WebDriver::SessionFlags::Http, Session::AllowInvalidWindowHandle::Yes); !session.is_error())
         session.value()->close();
 
     // 2. Return success with data null.
@@ -242,7 +244,7 @@ Web::WebDriver::Response Client::close_window(Web::WebDriver::Parameters paramet
 Web::WebDriver::Response Client::switch_to_window(Web::WebDriver::Parameters parameters, AK::JsonValue payload)
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling POST /session/<session_id>/window");
-    auto session = TRY(Session::find_session(parameters[0], Session::AllowInvalidWindowHandle::Yes));
+    auto session = TRY(Session::find_session(parameters[0], Web::WebDriver::SessionFlags::Default, Session::AllowInvalidWindowHandle::Yes));
 
     if (!payload.is_object())
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload is not a JSON object");
@@ -262,7 +264,7 @@ Web::WebDriver::Response Client::switch_to_window(Web::WebDriver::Parameters par
 Web::WebDriver::Response Client::get_window_handles(Web::WebDriver::Parameters parameters, JsonValue)
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /session/<session_id>/window/handles");
-    auto session = TRY(Session::find_session(parameters[0], Session::AllowInvalidWindowHandle::Yes));
+    auto session = TRY(Session::find_session(parameters[0], Web::WebDriver::SessionFlags::Default, Session::AllowInvalidWindowHandle::Yes));
     return session->get_window_handles();
 }
 
