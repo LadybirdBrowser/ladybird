@@ -53,6 +53,8 @@ if (NOT DEFINED CACHE{VCPKG_TARGET_TRIPLET} AND NOT DEFINED CACHE{VCPKG_HOST_TRI
         set(os linux)
     elseif (os_name MATCHES "Darwin|macOS")
         set(os osx)
+    elseif (os_name MATCHES "Windows")
+        set (os windows)
     else()
         message(FATAL_ERROR "Unable to automatically detect os name for vcpkg, please set VCPKG_TARGET_TRIPLET manually")
     endif()
@@ -64,7 +66,11 @@ if (NOT DEFINED CACHE{VCPKG_TARGET_TRIPLET} AND NOT DEFINED CACHE{VCPKG_HOST_TRI
     string(REPLACE "-triplets" "" triplet_path ${triplet_path})
     string(TOLOWER ${triplet_path} triplet_path)
     if (NOT triplet_path STREQUAL "distribution")
-        set(full_triplet "${full_triplet}-dynamic")
+        if (NOT os_name MATCHES "Windows") #NOTE: Windows defaults to dynamic linking
+            set(full_triplet "${full_triplet}-dynamic")
+        endif()
+    elseif (os_name MATCHES "Windows")
+        set(full_triplet "${full_triplet}-static")
     endif()
 
     message(STATUS "Determined host VCPKG_TARGET_TRIPLET: ${full_triplet}")
