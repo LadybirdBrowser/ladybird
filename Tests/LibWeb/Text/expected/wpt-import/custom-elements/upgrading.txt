@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 28 tests
 
-25 Pass
-3 Fail
+28 Pass
 Pass	Creating an element in the document of the template elements must not enqueue a custom element upgrade reaction because the document does not have a browsing context
 Pass	Creating an element in the document of the template elements and inserting into the document must not enqueue a custom element upgrade reaction
 Pass	Creating an element in the document of the template elements and adopting back to a document with browsing context must enqueue a custom element upgrade reaction
@@ -19,9 +18,9 @@ Pass	Creating an element in a document created by createHTMLDocument and adoptin
 Pass	Creating an element in an HTML document created by createDocument must not enqueue a custom element upgrade reaction because the document does not have a browsing context
 Pass	Creating an element in an HTML document created by createDocument and inserting into the document must not enqueue a custom element upgrade reaction
 Pass	Creating an element in an HTML document created by createDocument and adopting back to a document with browsing context must enqueue a custom element upgrade reaction
-Fail	Creating an element in an HTML document fetched by XHR must not enqueue a custom element upgrade reaction because the document does not have a browsing context
-Fail	Creating an element in an HTML document fetched by XHR and inserting into the document must not enqueue a custom element upgrade reaction
-Fail	Creating an element in an HTML document fetched by XHR and adopting back to a document with browsing context must enqueue a custom element upgrade reaction
+Pass	Creating an element in an HTML document fetched by XHR must not enqueue a custom element upgrade reaction because the document does not have a browsing context
+Pass	Creating an element in an HTML document fetched by XHR and inserting into the document must not enqueue a custom element upgrade reaction
+Pass	Creating an element in an HTML document fetched by XHR and adopting back to a document with browsing context must enqueue a custom element upgrade reaction
 Pass	Creating an element in the document of an iframe must not enqueue a custom element upgrade reaction if there is no matching definition
 Pass	Creating an element in the document of an iframe must enqueue a custom element upgrade reaction if there is a matching definition
 Pass	"define" in the document of an iframe must not enqueue a custom element upgrade reaction on a disconnected unresolved custom element
