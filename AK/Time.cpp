@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2020, the SerenityOS developers.
+ * Copyright (c) 2025, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -269,6 +270,27 @@ MonotonicTime MonotonicTime::now()
 MonotonicTime MonotonicTime::now_coarse()
 {
     return MonotonicTime { now_time_from_clock(CLOCK_MONOTONIC_COARSE) };
+}
+
+UnixDateTime UnixDateTime::from_iso8601_week(u32 week_year, u32 week)
+{
+    auto january_1_weekday = day_of_week(week_year, 1, 1);
+    i32 offset_to_monday = (january_1_weekday <= 3) ? -january_1_weekday : 7 - january_1_weekday;
+    i32 first_monday_of_year = 1 + offset_to_monday;
+    i32 day_of_year = (first_monday_of_year + (week - 1) * 7) + 1;
+
+    // FIXME: There should be a more efficient way to do this that doesn't require a loop.
+    u8 month = 1;
+    while (true) {
+        auto days = days_in_month(week_year, month);
+        if (day_of_year <= days)
+            break;
+
+        day_of_year -= days;
+        ++month;
+    }
+
+    return UnixDateTime::from_unix_time_parts(week_year, month, static_cast<u8>(day_of_year), 0, 0, 0, 0);
 }
 
 UnixDateTime UnixDateTime::now()
