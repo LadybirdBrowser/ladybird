@@ -125,6 +125,9 @@ public:
     // https://w3c.github.io/ServiceWorker/#get-the-service-worker-object
     GC::Ref<ServiceWorker::ServiceWorker> get_service_worker_object(ServiceWorker::ServiceWorkerRecord*);
 
+    // https://w3c.github.io/webappsec-credential-management/#active-credential-types
+    Vector<String> active_credential_types() const;
+
     [[nodiscard]] bool discarded() const { return m_discarded; }
     void set_discarded(bool b) { m_discarded = b; }
 
@@ -158,6 +161,10 @@ private:
     // An environment settings object has a service worker object map,
     // a map where the keys are service workers and the values are ServiceWorker objects.
     HashMap<ServiceWorker::ServiceWorkerRecord*, GC::Ref<ServiceWorker::ServiceWorker>> m_service_worker_object_map;
+
+    // https://w3c.github.io/webappsec-credential-management/#active-credential-types
+    // Each environment settings object has an associated active credential types, a set which is initially empty.
+    Vector<String> m_active_credential_types;
 
     // https://w3c.github.io/ServiceWorker/#service-worker-client-discarded-flag
     // A service worker client has an associated discarded flag. It is initially unset.

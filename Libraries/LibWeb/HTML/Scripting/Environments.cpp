@@ -646,4 +646,10 @@ GC::Ref<ServiceWorker::ServiceWorker> EnvironmentSettingsObject::get_service_wor
     return *object_map.get(service_worker);
 }
 
+// https://w3c.github.io/webappsec-credential-management/#active-credential-types
+Vector<String> EnvironmentSettingsObject::active_credential_types() const
+{
+    return m_active_credential_types;
+}
+
 }
