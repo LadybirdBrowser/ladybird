@@ -54,7 +54,7 @@ Web::WebDriver::Response Client::new_session(Web::WebDriver::Parameters, JsonVal
     //           commands may be forwarded to this associated session on subsequent commands.
 
     // 3. Let flags be a set containing "http".
-    static constexpr Array flags { "http"sv };
+    static constexpr auto flags = Web::WebDriver::SessionFlags::Http;
 
     // 4. Let capabilities be the result of trying to process capabilities with parameters and flags.
     auto capabilities = TRY(Web::WebDriver::process_capabilities(payload, flags));

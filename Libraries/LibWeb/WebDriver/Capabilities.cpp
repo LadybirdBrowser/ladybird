@@ -263,7 +263,7 @@ static bool matches_platform_name(StringView requested_platform_name, StringView
 }
 
 // https://w3c.github.io/webdriver/#dfn-matching-capabilities
-static JsonValue match_capabilities(JsonObject const& capabilities, ReadonlySpan<StringView> flags)
+static JsonValue match_capabilities(JsonObject const& capabilities, SessionFlags flags)
 {
     static auto browser_name = StringView { BROWSER_NAME, strlen(BROWSER_NAME) }.to_lowercase_string();
     static auto platform_name = StringView { OS_STRING, strlen(OS_STRING) }.to_lowercase_string();
@@ -294,7 +294,7 @@ static JsonValue match_capabilities(JsonObject const& capabilities, ReadonlySpan
     matched_capabilities.set("userAgent"sv, Web::default_user_agent);
 
     // 2. If flags contains "http", add the following entries to matched capabilities:
-    if (flags.contains_slow("http"sv)) {
+    if (has_flag(flags, SessionFlags::Http)) {
         // "strictFileInteractability"
         //     Boolean initially set to false, indicating that interactabilty checks will be applied to <input type=file>.
         matched_capabilities.set("strictFileInteractability"sv, false);
@@ -377,7 +377,7 @@ static JsonValue match_capabilities(JsonObject const& capabilities, ReadonlySpan
 }
 
 // https://w3c.github.io/webdriver/#dfn-capabilities-processing
-Response process_capabilities(JsonValue const& parameters, ReadonlySpan<StringView> flags)
+Response process_capabilities(JsonValue const& parameters, SessionFlags flags)
 {
     if (!parameters.is_object())
         return Error::from_code(ErrorCode::InvalidArgument, "Session parameters is not an object"sv);
