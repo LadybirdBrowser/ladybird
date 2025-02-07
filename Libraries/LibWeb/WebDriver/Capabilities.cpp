@@ -65,25 +65,19 @@ void set_default_interface_mode(InterfaceMode interface_mode)
     default_interface_mode = interface_mode;
 }
 
-static Response deserialize_as_ladybird_options(JsonValue value)
+static Response deserialize_as_ladybird_capability(StringView name, JsonValue value)
 {
-    if (!value.is_object())
-        return Error::from_code(ErrorCode::InvalidArgument, "Extension capability serenity:ladybird must be an object"sv);
-
-    auto const& object = value.as_object();
-
-    if (auto headless = object.get("headless"sv); headless.has_value() && !headless->is_bool())
-        return Error::from_code(ErrorCode::InvalidArgument, "Extension capability serenity:ladybird/headless must be a boolean"sv);
+    if (name == "ladybird:headless"sv) {
+        if (!value.is_bool())
+            return Error::from_code(ErrorCode::InvalidArgument, "Extension capability ladybird:headless must be a boolean"sv);
+    }
 
     return value;
 }
 
-static JsonObject default_ladybird_options()
+static void set_default_ladybird_capabilities(JsonObject& options)
 {
-    JsonObject options;
-    options.set("headless"sv, default_interface_mode == InterfaceMode::Headless);
-
-    return options;
+    options.set("ladybird:headless"sv, default_interface_mode == InterfaceMode::Headless);
 }
 
 // https://w3c.github.io/webdriver/#dfn-validate-capabilities
@@ -177,9 +171,8 @@ static ErrorOr<JsonObject, Error> validate_capabilities(JsonValue const& capabil
         else if (name.contains(':')) {
             // If name is known to the implementation, let deserialized be the result of trying to deserialize value in
             // an implementation-specific way. Otherwise, let deserialized be set to value.
-            if (name == "serenity:ladybird"sv) {
-                deserialized = TRY(deserialize_as_ladybird_options(value));
-            }
+            if (name.starts_with("ladybird:"sv))
+                deserialized = TRY(deserialize_as_ladybird_capability(name, value));
         }
 
         // -> The remote end is an endpoint node
@@ -303,8 +296,9 @@ static JsonValue match_capabilities(JsonObject const& capabilities, SessionFlags
         matched_capabilities.set("strictFileInteractability"sv, false);
     }
 
-    // 3. Optionally add extension capabilities as entries to matched capabilities. The values of these may be elided, and there is no requirement that all extension capabilities be added.
-    matched_capabilities.set("serenity:ladybird"sv, default_ladybird_options());
+    // 3. Optionally add extension capabilities as entries to matched capabilities. The values of these may be elided,
+    //    and there is no requirement that all extension capabilities be added.
+    set_default_ladybird_capabilities(matched_capabilities);
 
     // 3. For each name and value corresponding to capabilities's own properties:
     auto result = capabilities.try_for_each_member([&](auto const& name, auto const& value) -> ErrorOr<void> {
@@ -466,13 +460,8 @@ Response process_capabilities(JsonValue const& parameters, SessionFlags flags)
 
 LadybirdOptions::LadybirdOptions(JsonObject const& capabilities)
 {
-    auto options = capabilities.get_object("serenity:ladybird"sv);
-    if (!options.has_value())
-        return;
-
-    auto headless = options->get_bool("headless"sv);
-    if (headless.has_value())
-        this->headless = headless.value();
+    if (auto headless = capabilities.get_bool("ladybird:headless"sv); headless.has_value())
+        this->headless = *headless;
 }
 
 }
