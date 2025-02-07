@@ -174,9 +174,12 @@ static ErrorOr<JsonObject, Error> validate_capabilities(JsonValue const& capabil
         }
 
         // -> name is the key of an extension capability
-        //     If name is known to the implementation, let deserialized be the result of trying to deserialize value in an implementation-specific way. Otherwise, let deserialized be set to value.
-        else if (name == "serenity:ladybird"sv) {
-            deserialized = TRY(deserialize_as_ladybird_options(value));
+        else if (name.contains(':')) {
+            // If name is known to the implementation, let deserialized be the result of trying to deserialize value in
+            // an implementation-specific way. Otherwise, let deserialized be set to value.
+            if (name == "serenity:ladybird"sv) {
+                deserialized = TRY(deserialize_as_ladybird_options(value));
+            }
         }
 
         // -> The remote end is an endpoint node
