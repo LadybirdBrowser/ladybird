@@ -32,7 +32,7 @@ url threw exception: InvalidStateError: valueAsNumber: Invalid input type used
 email threw exception: InvalidStateError: valueAsNumber: Invalid input type used
 password threw exception: InvalidStateError: valueAsNumber: Invalid input type used
 date did not throw: NaN
-month did not throw: NaN
+month did not throw: 100
 week did not throw: NaN
 time did not throw: NaN
 datetime-local did not throw: NaN

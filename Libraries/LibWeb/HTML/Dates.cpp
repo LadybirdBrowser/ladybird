@@ -2,12 +2,13 @@
  * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2022, Adam Hodgen <ant1441@gmail.com>
  * Copyright (c) 2022, Andrew Kaster <akaster@serenityos.org>
- * Copyright (c) 2023, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2023-2025, Shannon Booth <shannon@serenityos.org>
  * Copyright (c) 2023, stelar7 <dudedbz@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/GenericLexer.h>
 #include <AK/Time.h>
 #include <LibWeb/HTML/Dates.h>
 
@@ -241,6 +242,70 @@ WebIDL::ExceptionOr<GC::Ref<JS::Date>> parse_time_string(JS::Realm& realm, Strin
         }
     }
     return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Can't parse time string"sv };
+}
+
+// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-month-component
+static Optional<YearAndMonth> parse_a_month_component(GenericLexer& input)
+{
+    // 1. Collect a sequence of code points that are ASCII digits from input given position. If the collected sequence is
+    //    not at least four characters long, then fail. Otherwise, interpret the resulting sequence as a base-ten integer.
+    //    Let that number be the year.
+    auto year_string = input.consume_while(is_ascii_digit);
+    if (year_string.length() < 4)
+        return {};
+    auto maybe_year = year_string.to_number<u32>();
+    if (!maybe_year.has_value())
+        return {};
+    auto year = maybe_year.value();
+
+    // 2. If year is not a number greater than zero, then fail.
+    if (year < 1)
+        return {};
+
+    // 3. If position is beyond the end of input or if the character at position is not a U+002D HYPHEN-MINUS character, then
+    //    fail. Otherwise, move position forwards one character.
+    if (!input.consume_specific('-'))
+        return {};
+
+    // 4. Collect a sequence of code points that are ASCII digits from input given position. If the collected sequence is not
+    //    exactly two characters long, then fail. Otherwise, interpret the resulting sequence as a base-ten integer. Let that
+    //    number be the month.
+    auto month_string = input.consume_while(is_ascii_digit);
+    if (month_string.length() != 2)
+        return {};
+    auto month = month_string.to_number<u32>().value();
+
+    // 5. If month is not a number in the range 1 ≤ month ≤ 12, then fail.
+    if (month < 1 || month > 12)
+        return {};
+
+    // 6. Return year and month.
+    return YearAndMonth { year, month };
+}
+
+// https://html.spec.whatwg.org/multipage/common-microsyntaxes.html#parse-a-month-string
+Optional<YearAndMonth> parse_a_month_string(StringView input_view)
+{
+    // 1. Let input be the string being parsed.
+    // 2. Let position be a pointer into input, initially pointing at the start of the string.
+    GenericLexer input { input_view };
+
+    // 3. Parse a month component to obtain year and month. If this returns nothing, then fail.
+    auto year_and_month = parse_a_month_component(input);
+    if (!year_and_month.has_value())
+        return {};
+
+    // 4. If position is not beyond the end of input, then fail.
+    if (!input.is_eof())
+        return {};
+
+    // 5. Return year and month.
+    return year_and_month;
+}
+
+i32 number_of_months_since_unix_epoch(YearAndMonth year_and_month)
+{
+    return (year_and_month.year - 1970) * 12 + year_and_month.month - 1;
 }
 
 }
