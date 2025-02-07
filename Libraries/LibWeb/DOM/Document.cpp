@@ -3890,6 +3890,11 @@ void Document::destroy()
         return task.document() == this;
     });
 
+    // AD-HOC: Mark this document as destroyed. This makes any tasks scheduled for this document in the
+    //         future immediately runnable instead of blocking on the document becoming fully active.
+    //         This is important because otherwise those tasks will get stuck in the task queue forever.
+    m_has_been_destroyed = true;
+
     // 8. Set document's browsing context to null.
     m_browsing_context = nullptr;
 

@@ -560,6 +560,8 @@ public:
     Vector<GC::Root<HTML::Navigable>> inclusive_ancestor_navigables();
     Vector<GC::Root<HTML::Navigable>> document_tree_child_navigables();
 
+    [[nodiscard]] bool has_been_destroyed() const { return m_has_been_destroyed; }
+
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#destroy-a-document
     void destroy();
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#destroy-a-document-and-its-descendants
@@ -872,6 +874,8 @@ private:
 
     GC::Ptr<HTML::HTMLParser> m_parser;
     bool m_active_parser_was_aborted { false };
+
+    bool m_has_been_destroyed { false };
 
     String m_source;
 
