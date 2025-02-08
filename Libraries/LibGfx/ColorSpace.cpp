@@ -47,6 +47,34 @@ ColorSpace::ColorSpace(NonnullOwnPtr<Details::ColorSpaceImpl>&& color_space)
 {
 }
 
+ErrorOr<ColorSpace> ColorSpace::from_cicp(Media::CodingIndependentCodePoints cicp)
+{
+    // FIXME: Bail on invalid input
+
+    skcms_Matrix3x3 gamut = SkNamedGamut::kSRGB;
+    switch (cicp.color_primaries()) {
+    case Media::ColorPrimaries::BT709:
+        gamut = SkNamedGamut::kSRGB;
+        break;
+    case Media::ColorPrimaries::SMPTE432:
+        gamut = SkNamedGamut::kDisplayP3;
+        break;
+    default:
+        return Error::from_string_literal("FIXME: Unsupported color primaries");
+    }
+
+    skcms_TransferFunction transfer_function = SkNamedTransferFn::kSRGB;
+    switch (cicp.transfer_characteristics()) {
+    case Media::TransferCharacteristics::SRGB:
+        transfer_function = SkNamedTransferFn::kSRGB;
+        break;
+    default:
+        return Error::from_string_literal("FIXME: Unsupported transfer function");
+    }
+
+    return ColorSpace { make<Details::ColorSpaceImpl>(SkColorSpace::MakeRGB(transfer_function, gamut)) };
+}
+
 ErrorOr<ColorSpace> ColorSpace::load_from_icc_bytes(ReadonlyBytes icc_bytes)
 {
     if (icc_bytes.size() != 0) {
