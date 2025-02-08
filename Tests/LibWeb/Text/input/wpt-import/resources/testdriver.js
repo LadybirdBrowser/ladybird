@@ -322,7 +322,7 @@
         /**
          * Minimizes the browser window.
          *
-         * Matches the the behaviour of the `Minimize
+         * Matches the behaviour of the `Minimize
          * <https://www.w3.org/TR/webdriver/#minimize-window>`_
          * WebDriver command
          *

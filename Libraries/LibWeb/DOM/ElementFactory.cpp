@@ -659,7 +659,7 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
         element->set_is_value(move(is_value));
         element->set_custom_element_state(CustomElementState::Uncustomized);
 
-        // 3. If namespace is the HTML namespace, and either localName is a valid custom element name or is is non-null,
+        // 3. If namespace is the HTML namespace, and either localName is a valid custom element name or is non-null,
         //    then set result’s custom element state to "undefined".
         if (HTML::is_valid_custom_element_name(local_name) || is_value.has_value())
             element->set_custom_element_state(CustomElementState::Undefined);
