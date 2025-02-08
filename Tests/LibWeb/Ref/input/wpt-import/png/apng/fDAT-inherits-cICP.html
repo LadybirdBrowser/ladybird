@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<meta charset="utf-8">
+<title>PNG Third Edition: animated PNG, fdAT inherits colorspace from cICP</title>
+<link rel="author" title="Chris Lilley" href="mailto:chris@w3.org">
+<link rel="help" href="https://www.w3.org/TR/png-3/#apng-frame-based-animation">
+<link rel="help" href="https://www.w3.org/TR/png-3/#structure">
+<link rel="help" href="https://www.w3.org/TR/png-3/#fdAT-chunk">
+<link rel="help" href="https://www.w3.org/TR/png-3/#cICP-chunk">
+<link rel="match" href="../../../../expected/wpt-import/png/apng/apng-lime-rectangle-ref.html">
+<meta name="assert" content="Each frame inherits every property specified by any critical or ancillary chunks before the first IDAT chunk in the file">
+<script>
+    const el = document.querySelector(".reftest-wait");
+    setTimeout(() => {
+        el.classList.remove('reftest-wait');
+        }, 2100);
+</script>
+<body>
+    <p>Test passes if you see a lime green rectangle, and no red.</p>
+    <!-- sRGB lime =  color(display-p3 0.4584 0.9853 0.2983) -->
+    <div class="test"><img src="support/062.png" alt=""></div>
+</body>
