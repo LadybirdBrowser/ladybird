@@ -5,7 +5,6 @@ shared_library("LibCompress") {
     "Deflate.cpp",
     "Gzip.cpp",
     "Lzma.cpp",
-    "Lzma2.cpp",
     "PackBitsDecoder.cpp",
     "Zlib.cpp",
   ]
