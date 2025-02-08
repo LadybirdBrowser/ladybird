@@ -39,7 +39,14 @@ void SVGAElement::attribute_changed(FlyString const& name, Optional<String> cons
     Base::attribute_changed(name, old_value, value, namespace_);
 
     if (name == SVG::AttributeNames::href) {
-        invalidate_style(DOM::StyleInvalidationReason::HTMLHyperlinkElementHrefChange);
+        invalidate_style(
+            DOM::StyleInvalidationReason::HTMLHyperlinkElementHrefChange,
+            {
+                { .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::AnyLink },
+                { .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::Link },
+                { .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::LocalLink },
+            },
+            {});
     }
     if (name == HTML::AttributeNames::rel) {
         if (m_rel_list)
