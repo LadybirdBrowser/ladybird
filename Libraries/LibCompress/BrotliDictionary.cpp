@@ -8,25 +8,36 @@
 #include <LibCompress/BrotliDictionary.h>
 
 // Include the 119.9 KiB of dictionary data from a binary file
+
+// As of 8.2.2025 GCC trunk does not support disabling the warning so gcc would not work with pedantic on
+#if defined(__has_embed) && defined(__clang__)
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wc23-extensions"
+u8 const brotli_dictionary_data[] = {
+#    embed "BrotliDictionary.cpp.dict.bin"
+};
+#    pragma clang diagnostic pop
+#else
 extern u8 const brotli_dictionary_data[];
-#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
+#    if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
 asm(".const_data\n"
     ".globl _brotli_dictionary_data\n"
     "_brotli_dictionary_data:\n");
-#elif defined(AK_OS_EMSCRIPTEN)
+#    elif defined(AK_OS_EMSCRIPTEN)
 asm(".section .data, \"\",@\n"
     ".global brotli_dictionary_data\n"
     "brotli_dictionary_data:\n");
-#else
+#    else
 asm(".section .rodata\n"
     ".global brotli_dictionary_data\n"
     "brotli_dictionary_data:\n");
-#endif
+#    endif
 asm(".incbin \"" __FILE__ ".dict.bin\"\n"
-#if (!defined(AK_OS_WINDOWS) && !defined(AK_OS_EMSCRIPTEN))
+#    if (!defined(AK_OS_WINDOWS) && !defined(AK_OS_EMSCRIPTEN))
     ".previous\n");
-#else
+#    else
 );
+#    endif
 #endif
 
 namespace Compress {
