@@ -7,7 +7,6 @@ shared_library("LibCompress") {
     "Lzma.cpp",
     "Lzma2.cpp",
     "PackBitsDecoder.cpp",
-    "Xz.cpp",
     "Zlib.cpp",
   ]
   deps = [
