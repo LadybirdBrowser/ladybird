@@ -4,7 +4,6 @@ set(TEST_SOURCES
     TestLzma.cpp
     TestLzw.cpp
     TestPackBits.cpp
-    TestXz.cpp
     TestZlib.cpp
 )
 
