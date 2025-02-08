@@ -30,6 +30,7 @@ struct PNGLoadingContext {
     u32 frame_count { 0 };
     u32 loop_count { 0 };
     Vector<ImageFrameDescriptor> frame_descriptors;
+    Optional<Media::CodingIndependentCodePoints> cicp;
     Optional<ByteBuffer> icc_profile;
     OwnPtr<ExifMetadata> exif_metadata;
 
@@ -111,6 +112,11 @@ ErrorOr<ImageFrameDescriptor> PNGImageDecoderPlugin::frame(size_t index, Optiona
     return m_context->frame_descriptors[index];
 }
 
+ErrorOr<Optional<Media::CodingIndependentCodePoints>> PNGImageDecoderPlugin::cicp()
+{
+    return m_context->cicp;
+}
+
 ErrorOr<Optional<ReadonlyBytes>> PNGImageDecoderPlugin::icc_data()
 {
     if (m_context->icc_profile.has_value())
@@ -187,12 +193,24 @@ ErrorOr<void> PNGImageDecoderPlugin::initialize()
     png_set_filler(m_context->png_ptr, 0xFF, PNG_FILLER_AFTER);
     png_set_bgr(m_context->png_ptr);
 
-    char* profile_name = nullptr;
-    int compression_type = 0;
-    u8* profile_data = nullptr;
-    u32 profile_len = 0;
-    if (png_get_iCCP(m_context->png_ptr, m_context->info_ptr, &profile_name, &compression_type, &profile_data, &profile_len))
-        m_context->icc_profile = TRY(ByteBuffer::copy(profile_data, profile_len));
+    png_byte color_primaries { 0 };
+    png_byte transfer_function { 0 };
+    png_byte matrix_coefficients { 0 };
+    png_byte video_full_range_flag { 0 };
+    if (png_get_cICP(m_context->png_ptr, m_context->info_ptr, &color_primaries, &transfer_function, &matrix_coefficients, &video_full_range_flag)) {
+        Media::ColorPrimaries cp { color_primaries };
+        Media::TransferCharacteristics tc { transfer_function };
+        Media::MatrixCoefficients mc { matrix_coefficients };
+        Media::VideoFullRangeFlag rf { video_full_range_flag };
+        m_context->cicp = Media::CodingIndependentCodePoints { cp, tc, mc, rf };
+    } else {
+        char* profile_name = nullptr;
+        int compression_type = 0;
+        u8* profile_data = nullptr;
+        u32 profile_len = 0;
+        if (png_get_iCCP(m_context->png_ptr, m_context->info_ptr, &profile_name, &compression_type, &profile_data, &profile_len))
+            m_context->icc_profile = TRY(ByteBuffer::copy(profile_data, profile_len));
+    }
 
     u8* exif_data = nullptr;
     u32 exif_length = 0;
