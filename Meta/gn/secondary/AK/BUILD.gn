@@ -254,7 +254,6 @@ write_cmake_config("ak_debug_gen") {
     "LIBWEB_CSS_DEBUG=",
     "LIBWEB_WASM_DEBUG=",
     "LINE_EDITOR_DEBUG=",
-    "LZMA_DEBUG=",
     "LZW_DEBUG=",
     "MACH_PORT_DEBUG=",
     "MATROSKA_DEBUG=",

@@ -150,10 +150,6 @@
 #    cmakedefine01 LINE_EDITOR_DEBUG
 #endif
 
-#ifndef LZMA_DEBUG
-#    cmakedefine01 LZMA_DEBUG
-#endif
-
 #ifndef LZW_DEBUG
 #    cmakedefine01 LZW_DEBUG
 #endif

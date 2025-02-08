@@ -1,7 +1,6 @@
 set(TEST_SOURCES
     TestDeflate.cpp
     TestGzip.cpp
-    TestLzma.cpp
     TestLzw.cpp
     TestPackBits.cpp
     TestZlib.cpp

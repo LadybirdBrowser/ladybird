@@ -4,7 +4,6 @@ shared_library("LibCompress") {
   sources = [
     "Deflate.cpp",
     "Gzip.cpp",
-    "Lzma.cpp",
     "PackBitsDecoder.cpp",
     "Zlib.cpp",
   ]

@@ -12,8 +12,6 @@ set(FUZZER_TARGETS
     JPEGLoader
     Js
     JsonParser
-    LzmaDecompression
-    LzmaRoundtrip
     MatroskaReader
     MD5
     PEM
@@ -56,8 +54,6 @@ set(FUZZER_DEPENDENCIES_GzipRoundtrip LibCompress)
 set(FUZZER_DEPENDENCIES_ICOLoader LibGfx)
 set(FUZZER_DEPENDENCIES_JPEGLoader LibGfx)
 set(FUZZER_DEPENDENCIES_Js LibJS LibGC)
-set(FUZZER_DEPENDENCIES_LzmaDecompression LibCompress)
-set(FUZZER_DEPENDENCIES_LzmaRoundtrip LibCompress)
 set(FUZZER_DEPENDENCIES_MatroskaReader LibMedia)
 set(FUZZER_DEPENDENCIES_MD5 LibCrypto)
 set(FUZZER_DEPENDENCIES_PEM LibCrypto)
