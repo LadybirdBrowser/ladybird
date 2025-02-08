@@ -1,6 +1,4 @@
 set(SOURCES
-    Brotli.cpp
-    BrotliDictionary.cpp
     Deflate.cpp
     Lzma.cpp
     Lzma2.cpp

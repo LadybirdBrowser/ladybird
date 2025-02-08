@@ -3,7 +3,6 @@ set(FUZZER_TARGETS
     Base64Roundtrip
     BLAKE2b
     BMPLoader
-    Brotli
     DeflateCompression
     DeflateDecompression
     GIFLoader
@@ -47,7 +46,6 @@ endif()
 set(FUZZER_DEPENDENCIES_ASN1 LibCrypto LibTLS)
 set(FUZZER_DEPENDENCIES_BLAKE2b LibCrypto)
 set(FUZZER_DEPENDENCIES_BMPLoader LibGfx)
-set(FUZZER_DEPENDENCIES_Brotli LibCompress)
 set(FUZZER_DEPENDENCIES_CSSParser LibWeb)
 set(FUZZER_DEPENDENCIES_DeflateCompression LibCompress)
 set(FUZZER_DEPENDENCIES_DeflateDecompression LibCompress)
