@@ -2,8 +2,6 @@ shared_library("LibCompress") {
   output_name = "compress"
   include_dirs = [ "//Userland/Libraries" ]
   sources = [
-    "Brotli.cpp",
-    "BrotliDictionary.cpp",
     "Deflate.cpp",
     "Gzip.cpp",
     "Lzma.cpp",
