@@ -49,6 +49,10 @@ static ErrorOr<OwnPtr<ImageDecoderPlugin>> probe_and_sniff_for_appropriate_plugi
 
 ErrorOr<ColorSpace> ImageDecoder::color_space()
 {
+    auto maybe_cicp = TRY(m_plugin->cicp());
+    if (maybe_cicp.has_value())
+        return ColorSpace::from_cicp(*maybe_cicp);
+
     auto maybe_icc_data = TRY(icc_data());
     if (!maybe_icc_data.has_value())
         return ColorSpace {};

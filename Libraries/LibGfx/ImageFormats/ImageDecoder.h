@@ -16,6 +16,7 @@
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/Size.h>
 #include <LibGfx/VectorGraphic.h>
+#include <LibMedia/Color/CodingIndependentCodePoints.h>
 
 namespace Gfx {
 
@@ -86,6 +87,7 @@ public:
 
     virtual Optional<Metadata const&> metadata() { return OptionalNone {}; }
 
+    virtual ErrorOr<Optional<Media::CodingIndependentCodePoints>> cicp() { return OptionalNone {}; }
     virtual ErrorOr<Optional<ReadonlyBytes>> icc_data() { return OptionalNone {}; }
 
     virtual NaturalFrameFormat natural_frame_format() const { return NaturalFrameFormat::RGB; }

@@ -10,6 +10,7 @@
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
 #include <LibIPC/Forward.h>
+#include <LibMedia/Color/CodingIndependentCodePoints.h>
 
 namespace Gfx {
 
@@ -28,6 +29,7 @@ public:
     ColorSpace& operator=(ColorSpace&&);
     ~ColorSpace();
 
+    static ErrorOr<ColorSpace> from_cicp(Media::CodingIndependentCodePoints);
     static ErrorOr<ColorSpace> load_from_icc_bytes(ReadonlyBytes);
 
     // In order to keep this file free of Skia types, this function can't return
