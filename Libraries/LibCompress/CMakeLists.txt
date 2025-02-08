@@ -1,6 +1,5 @@
 set(SOURCES
     Deflate.cpp
-    Lzma.cpp
     PackBitsDecoder.cpp
     Zlib.cpp
     Gzip.cpp
