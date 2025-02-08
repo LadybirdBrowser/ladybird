@@ -157,7 +157,7 @@
     },
     {
       "name": "libpng",
-      "version": "1.6.43#3"
+      "version": "1.6.45"
     },
     {
       "name": "libproxy",
