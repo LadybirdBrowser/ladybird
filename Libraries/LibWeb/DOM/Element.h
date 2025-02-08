@@ -423,6 +423,9 @@ public:
     bool affected_by_has_pseudo_class_in_subject_position() const { return m_affected_by_has_pseudo_class_in_subject_position; }
     void set_affected_by_has_pseudo_class_in_subject_position(bool value) { m_affected_by_has_pseudo_class_in_subject_position = value; }
 
+    bool affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator() const { return m_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator; }
+    void set_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator(bool value) { m_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator = value; }
+
     bool affected_by_sibling_combinator() const { return m_affected_by_sibling_combinator; }
     void set_affected_by_sibling_combinator(bool value) { m_affected_by_sibling_combinator = value; }
 
@@ -531,6 +534,7 @@ private:
     bool m_affected_by_sibling_combinator : 1 { false };
     bool m_affected_by_first_or_last_child_pseudo_class : 1 { false };
     bool m_affected_by_nth_child_pseudo_class : 1 { false };
+    bool m_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator : 1 { false };
 
     OwnPtr<CSS::CountersSet> m_counters_set;
 

@@ -121,6 +121,9 @@ static inline bool matches_relative_selector(CSS::Selector const& selector, size
         return has;
     }
     case CSS::Selector::Combinator::NextSibling: {
+        if (context.collect_per_element_selector_involvement_metadata) {
+            const_cast<DOM::Element&>(*anchor).set_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator(true);
+        }
         auto* sibling = element.next_element_sibling();
         if (!sibling)
             return false;
@@ -129,6 +132,9 @@ static inline bool matches_relative_selector(CSS::Selector const& selector, size
         return matches_relative_selector(selector, compound_index + 1, *sibling, shadow_host, context, anchor);
     }
     case CSS::Selector::Combinator::SubsequentSibling: {
+        if (context.collect_per_element_selector_involvement_metadata) {
+            const_cast<DOM::Element&>(*anchor).set_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator(true);
+        }
         for (auto const* sibling = element.next_element_sibling(); sibling; sibling = sibling->next_element_sibling()) {
             if (!matches(selector, compound_index, *sibling, shadow_host, context, {}, SelectorKind::Relative, anchor))
                 continue;
