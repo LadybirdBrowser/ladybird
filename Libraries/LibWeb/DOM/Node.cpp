@@ -397,13 +397,41 @@ GC::Ptr<HTML::Navigable> Node::navigable() const
     }
 }
 
+void Node::invalidate_ancestors_affected_by_has_in_subject_position()
+{
+    // This call only takes care of invalidating `:has()` in subject position (e.g., ".a:has(.b)").
+    // Non-subject position (e.g., ".a:has(.b) + .c") is still handled by another call that uses
+    // invalidation sets and requires whole document traversal.
+    // Here we assume that :has() invalidation scope is limited to ancestors and sibling ancestors.
+    for (auto* ancestor = this; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
+        if (!ancestor->is_element())
+            continue;
+        auto& element = static_cast<Element&>(*ancestor);
+        if (element.affected_by_has_pseudo_class_in_subject_position()) {
+            element.set_needs_style_update(true);
+        }
+
+        // If any previous sibling ancestor was tested against selectors like ".a:has(+ .b)" or ".a:has(~ .b)"
+        // its style might be affected by the change in descendant node.
+        for (auto* previous_sibling = element.previous_sibling(); previous_sibling; previous_sibling = previous_sibling->previous_sibling()) {
+            if (!previous_sibling->is_element())
+                continue;
+            auto& element = static_cast<Element&>(*previous_sibling);
+            if (element.affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator()) {
+                element.set_needs_style_update(true);
+            }
+        }
+    }
+}
+
 void Node::invalidate_style(StyleInvalidationReason reason)
 {
     if (is_character_data())
         return;
 
     if (document().style_computer().may_have_has_selectors()) {
-        document().set_needs_invalidate_elements_affected_by_has(true);
+        invalidate_ancestors_affected_by_has_in_subject_position();
+        document().set_needs_invalidate_elements_affected_by_has_in_non_subject_position(true);
     }
 
     if (!needs_style_update() && !document().needs_full_style_update()) {
@@ -465,7 +493,8 @@ void Node::invalidate_style(StyleInvalidationReason, Vector<CSS::InvalidationSet
         properties_used_in_has_selectors |= document().style_computer().invalidation_property_used_in_has_selector(property);
     }
     if (properties_used_in_has_selectors) {
-        document().set_needs_invalidate_elements_affected_by_has(true);
+        invalidate_ancestors_affected_by_has_in_subject_position();
+        document().set_needs_invalidate_elements_affected_by_has_in_non_subject_position(true);
     }
 
     auto invalidation_set = document().style_computer().invalidation_set_for_properties(properties);

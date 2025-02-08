@@ -510,8 +510,8 @@ public:
     [[nodiscard]] bool needs_full_layout_tree_update() const { return m_needs_full_layout_tree_update; }
     void set_needs_full_layout_tree_update(bool b) { m_needs_full_layout_tree_update = b; }
 
-    bool needs_invalidate_elements_affected_by_has() const { return m_needs_invalidate_elements_affected_by_has; }
-    void set_needs_invalidate_elements_affected_by_has(bool b) { m_needs_invalidate_elements_affected_by_has = b; }
+    bool needs_invalidate_elements_affected_by_has_in_non_subject_position() const { return m_needs_invalidate_elements_affected_by_has_in_non_subject_position; }
+    void set_needs_invalidate_elements_affected_by_has_in_non_subject_position(bool b) { m_needs_invalidate_elements_affected_by_has_in_non_subject_position = b; }
 
     void set_needs_to_refresh_scroll_state(bool b);
 
@@ -817,7 +817,7 @@ private:
     // ^HTML::GlobalEventHandlers
     virtual GC::Ptr<EventTarget> global_event_handlers_to_event_target(FlyString const&) final { return *this; }
 
-    void invalidate_elements_affected_by_has();
+    void invalidate_elements_affected_by_has_in_non_subject_position();
 
     void tear_down_layout_tree();
 
@@ -961,7 +961,7 @@ private:
 
     bool m_needs_full_style_update { false };
     bool m_needs_full_layout_tree_update { false };
-    bool m_needs_invalidate_elements_affected_by_has { false };
+    bool m_needs_invalidate_elements_affected_by_has_in_non_subject_position { false };
 
     bool m_needs_animated_style_update { false };
 

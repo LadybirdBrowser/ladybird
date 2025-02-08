@@ -1438,7 +1438,7 @@ void Document::update_style()
     // style change event. [CSS-Transitions-2]
     m_transition_generation++;
 
-    invalidate_elements_affected_by_has();
+    invalidate_elements_affected_by_has_in_non_subject_position();
 
     if (!needs_full_style_update() && !needs_style_update() && !child_needs_style_update())
         return;
@@ -1659,30 +1659,24 @@ static Node* find_common_ancestor(Node* a, Node* b)
     return nullptr;
 }
 
-void Document::invalidate_elements_affected_by_has()
+void Document::invalidate_elements_affected_by_has_in_non_subject_position()
 {
-    if (!m_needs_invalidate_elements_affected_by_has)
+    if (!m_needs_invalidate_elements_affected_by_has_in_non_subject_position)
         return;
-    m_needs_invalidate_elements_affected_by_has = false;
+    m_needs_invalidate_elements_affected_by_has_in_non_subject_position = false;
 
+    // Take care of elements that affected by :has() in non-subject position, i.e., ".a:has(.b) > .c".
+    // Elements affected by :has() in subject position, i.e., ".a:has(.b)", are handled by
+    // Node::invalidate_style() and should already be marked for style update by now.
     Vector<CSS::InvalidationSet::Property, 1> changed_properties;
     changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::Has });
-    auto invalidation_set = document().style_computer().invalidation_set_for_properties(changed_properties);
+    auto invalidation_set = style_computer().invalidation_set_for_properties(changed_properties);
     for_each_shadow_including_inclusive_descendant([&](Node& node) {
         if (!node.is_element())
             return TraversalDecision::Continue;
         auto& element = static_cast<Element&>(node);
         bool needs_style_recalculation = false;
-        // There are two cases in which an element must be invalidated, depending on the position of :has() in a selector:
-        // 1) In the subject position, i.e., ".a:has(.b)". In that case, invalidation sets are not helpful
-        //    for narrowing down the set of elements that need to be invalidated. Instead, we invalidate
-        //    all elements that were tested against selectors with :has() in the subject position during
-        //    selector matching.
-        // 2) In the non-subject position, i.e., ".a:has(.b) > .c". Here, invalidation sets can be used to
-        //    determine that only elements with the "c" class have to be invalidated.
-        if (element.affected_by_has_pseudo_class_in_subject_position()) {
-            needs_style_recalculation = true;
-        } else if (invalidation_set.needs_invalidate_whole_subtree()) {
+        if (invalidation_set.needs_invalidate_whole_subtree()) {
             needs_style_recalculation = true;
         } else if (element.includes_properties_from_invalidation_set(invalidation_set)) {
             needs_style_recalculation = true;

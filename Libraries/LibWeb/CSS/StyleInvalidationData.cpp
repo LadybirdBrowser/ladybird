@@ -107,6 +107,8 @@ enum class InsideNthChildPseudoClass {
 
 static InvalidationSet build_invalidation_sets_for_selector_impl(StyleInvalidationData& style_invalidation_data, Selector const& selector, InsideNthChildPseudoClass inside_nth_child_pseudo_class);
 
+static void add_invalidation_sets_to_cover_scope_leakage_of_relative_selector_in_has_pseudo_class(Selector const& selector, StyleInvalidationData& style_invalidation_data);
+
 static void build_invalidation_sets_for_simple_selector(Selector::SimpleSelector const& selector, InvalidationSet& invalidation_set, ExcludePropertiesNestedInNotPseudoClass exclude_properties_nested_in_not_pseudo_class, StyleInvalidationData& style_invalidation_data, InsideNthChildPseudoClass inside_nth_child_selector)
 {
     switch (selector.type) {
@@ -130,7 +132,12 @@ static void build_invalidation_sets_for_simple_selector(Selector::SimpleSelector
         case PseudoClass::Disabled:
         case PseudoClass::PlaceholderShown:
         case PseudoClass::Checked:
-        case PseudoClass::Has:
+        case PseudoClass::Has: {
+            for (auto const& nested_selector : pseudo_class.argument_selector_list) {
+                add_invalidation_sets_to_cover_scope_leakage_of_relative_selector_in_has_pseudo_class(*nested_selector, style_invalidation_data);
+            }
+            [[fallthrough]];
+        }
         case PseudoClass::Link:
         case PseudoClass::AnyLink:
         case PseudoClass::LocalLink:
@@ -156,6 +163,47 @@ static void build_invalidation_sets_for_simple_selector(Selector::SimpleSelector
     default:
         break;
     }
+}
+
+static void add_invalidation_sets_to_cover_scope_leakage_of_relative_selector_in_has_pseudo_class(Selector const& selector, StyleInvalidationData& style_invalidation_data)
+{
+    // Normally, :has() invalidation scope is limited to ancestors and ancestor siblings, however it could require
+    // descendants invalidation when :is() with complex selector is used inside :has() relative selector.
+    // For example ".a:has(:is(.b .c))" requires invalidation whenever "b" class is added or removed.
+    // To cover this case, we add descendant invalidation set that requires whole subtree invalidation for each
+    // property used in non-subject part of complex selector.
+
+    auto invalidate_whole_subtree_for_invalidation_properties_in_non_subject_part_of_complex_selector = [&](Selector const& selector) {
+        for_each_consecutive_simple_selector_group(selector, [&](Vector<Selector::SimpleSelector const&> const& simple_selectors, Selector::Combinator, bool rightmost) {
+            if (rightmost) {
+                return;
+            }
+
+            InvalidationSet invalidation_set;
+            for (auto const& simple_selector : simple_selectors) {
+                build_invalidation_sets_for_simple_selector(simple_selector, invalidation_set, ExcludePropertiesNestedInNotPseudoClass::No, style_invalidation_data, InsideNthChildPseudoClass::No);
+            }
+
+            invalidation_set.for_each_property([&](auto const& invalidation_property) {
+                auto& descendant_invalidation_set = style_invalidation_data.descendant_invalidation_sets.ensure(invalidation_property, [] { return InvalidationSet {}; });
+                descendant_invalidation_set.set_needs_invalidate_whole_subtree();
+                return IterationDecision::Continue;
+            });
+        });
+    };
+
+    for_each_consecutive_simple_selector_group(selector, [&](Vector<Selector::SimpleSelector const&> const& simple_selectors, Selector::Combinator, bool) {
+        for (auto const& simple_selector : simple_selectors) {
+            if (simple_selector.type != Selector::SimpleSelector::Type::PseudoClass)
+                continue;
+            auto const& pseudo_class = simple_selector.pseudo_class();
+            if (pseudo_class.type == PseudoClass::Is || pseudo_class.type == PseudoClass::Where || pseudo_class.type == PseudoClass::Not) {
+                for (auto const& selector : pseudo_class.argument_selector_list) {
+                    invalidate_whole_subtree_for_invalidation_properties_in_non_subject_part_of_complex_selector(*selector);
+                }
+            }
+        }
+    });
 }
 
 static InvalidationSet build_invalidation_sets_for_selector_impl(StyleInvalidationData& style_invalidation_data, Selector const& selector, InsideNthChildPseudoClass inside_nth_child_pseudo_class)
