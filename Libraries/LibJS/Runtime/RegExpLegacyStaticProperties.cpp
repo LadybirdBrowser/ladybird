@@ -15,9 +15,12 @@ void RegExpLegacyStaticProperties::invalidate()
 {
     m_input = {};
     m_last_match = {};
+    m_last_match_string = {};
     m_last_paren = {};
     m_left_context = {};
+    m_left_context_string = {};
     m_right_context = {};
+    m_right_context_string = {};
     m_$1 = {};
     m_$2 = {};
     m_$3 = {};
@@ -92,7 +95,7 @@ void update_legacy_regexp_static_properties(RegExpConstructor& constructor, Utf1
 
     // 8. Set the value of C’s [[RegExpLastMatch]] internal slot to a String whose length is endIndex - startIndex and containing the code units from S with indices startIndex through endIndex - 1, in ascending order.
     auto last_match = string.view().substring_view(start_index, end_index - start_index);
-    legacy_static_properties.set_last_match(Utf16String::create(last_match));
+    legacy_static_properties.set_last_match(last_match);
 
     // 9. If n > 0, set the value of C’s [[RegExpLastParen]] internal slot to the last element of capturedValues.
     if (group_count > 0) {
@@ -106,11 +109,11 @@ void update_legacy_regexp_static_properties(RegExpConstructor& constructor, Utf1
 
     // 11. Set the value of C’s [[RegExpLeftContext]] internal slot to a String whose length is startIndex and containing the code units from S with indices 0 through startIndex - 1, in ascending order.
     auto left_context = string.view().substring_view(0, start_index);
-    legacy_static_properties.set_left_context(Utf16String::create(left_context));
+    legacy_static_properties.set_left_context(left_context);
 
     // 12. Set the value of C’s [[RegExpRightContext]] internal slot to a String whose length is len - endIndex and containing the code units from S with indices endIndex through len - 1, in ascending order.
     auto right_context = string.view().substring_view(end_index, len - end_index);
-    legacy_static_properties.set_right_context(Utf16String::create(right_context));
+    legacy_static_properties.set_right_context(right_context);
 
     // 13. For each integer i such that 1 ≤ i ≤ 9
     for (size_t i = 1; i <= 9; i++) {
