@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+3 Pass
+1 Fail
+Fail	document.open() sets document to no-quirks mode (write no doctype)
+Pass	document.open() sets document to no-quirks mode (write old doctype)
+Pass	document.open() sets document to no-quirks mode (write new doctype)
+Pass	document.open() sets document to no-quirks mode, not limited-quirks mode
