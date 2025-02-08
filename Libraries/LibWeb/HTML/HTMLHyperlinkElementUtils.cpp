@@ -30,7 +30,14 @@ void HTMLHyperlinkElementUtils::set_the_url()
 {
     ScopeGuard invalidate_style_if_needed = [old_url = m_url, this] {
         if (m_url != old_url) {
-            hyperlink_element_utils_element().invalidate_style(DOM::StyleInvalidationReason::HTMLHyperlinkElementHrefChange);
+            hyperlink_element_utils_element().invalidate_style(
+                DOM::StyleInvalidationReason::HTMLHyperlinkElementHrefChange,
+                {
+                    { .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::AnyLink },
+                    { .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::Link },
+                    { .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::LocalLink },
+                },
+                {});
         }
     };
 
