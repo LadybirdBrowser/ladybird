@@ -65,7 +65,7 @@ private:
             promise->on_resolution = [](NonnullRefPtr<Core::EventReceiver>& object) -> ErrorOr<void> {
                 auto self = static_ptr_cast<BackgroundAction<Result>>(object);
                 VERIFY(self->m_result.has_value());
-                if (auto maybe_error = self->m_on_complete(self->m_result.value()); maybe_error.is_error())
+                if (auto maybe_error = self->m_on_complete(self->m_result.release_value()); maybe_error.is_error())
                     self->m_on_error(maybe_error.release_error());
 
                 return {};
