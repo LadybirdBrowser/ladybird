@@ -41,16 +41,15 @@ struct JPEGErrorManager : jpeg_error_mgr {
 ErrorOr<void> JPEGLoadingContext::decode()
 {
     struct jpeg_decompress_struct cinfo;
+    ScopeGuard guard { [&]() { jpeg_destroy_decompress(&cinfo); } };
+
     struct JPEGErrorManager jerr;
     cinfo.err = jpeg_std_error(&jerr);
 
     jpeg_source_mgr source_manager {};
 
-    if (setjmp(jerr.setjmp_buffer)) {
-        jpeg_destroy_decompress(&cinfo);
-        state = State::Error;
+    if (setjmp(jerr.setjmp_buffer))
         return Error::from_string_literal("Failed to decode JPEG");
-    }
 
     jerr.error_exit = [](j_common_ptr cinfo) {
         char buffer[JMSG_LENGTH_MAX];
@@ -58,6 +57,7 @@ ErrorOr<void> JPEGLoadingContext::decode()
         dbgln("JPEG error: {}", buffer);
         longjmp(static_cast<JPEGErrorManager*>(cinfo->err)->setjmp_buffer, 1);
     };
+
     jpeg_create_decompress(&cinfo);
 
     source_manager.next_input_byte = data.data();
@@ -78,10 +78,8 @@ ErrorOr<void> JPEGLoadingContext::decode()
     cinfo.src = &source_manager;
 
     jpeg_save_markers(&cinfo, JPEG_APP0 + 2, 0xFFFF);
-    if (jpeg_read_header(&cinfo, TRUE) != JPEG_HEADER_OK) {
-        jpeg_destroy_decompress(&cinfo);
+    if (jpeg_read_header(&cinfo, TRUE) != JPEG_HEADER_OK)
         return Error::from_string_literal("Failed to read JPEG header");
-    }
 
     if (cinfo.jpeg_color_space == JCS_CMYK || cinfo.jpeg_color_space == JCS_YCCK) {
         cinfo.out_color_space = JCS_CMYK;
@@ -128,12 +126,10 @@ ErrorOr<void> JPEGLoadingContext::decode()
         jpeg_finish_decompress(&cinfo);
     else
         jpeg_abort_decompress(&cinfo);
-    jpeg_destroy_decompress(&cinfo);
 
     if (cmyk_bitmap && !rgb_bitmap)
         rgb_bitmap = TRY(cmyk_bitmap->to_low_quality_rgb());
 
-    state = State::Decoded;
     return {};
 }
 
@@ -180,7 +176,11 @@ ErrorOr<ImageFrameDescriptor> JPEGImageDecoderPlugin::frame(size_t index, Option
         return Error::from_string_literal("JPEGImageDecoderPlugin: Decoding failed");
 
     if (m_context->state < JPEGLoadingContext::State::Decoded) {
-        TRY(m_context->decode());
+        if (auto result = m_context->decode(); result.is_error()) {
+            m_context->state = JPEGLoadingContext::State::Error;
+            return result.release_error();
+        }
+
         m_context->state = JPEGLoadingContext::State::Decoded;
     }
 
