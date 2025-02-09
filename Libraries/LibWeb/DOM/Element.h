@@ -420,6 +420,13 @@ public:
     bool has_style_containment() const;
     bool has_paint_containment() const;
 
+    bool matches_enabled_pseudo_class() const;
+    bool matches_disabled_pseudo_class() const;
+    bool matches_checked_pseudo_class() const;
+    bool matches_placeholder_shown_pseudo_class() const;
+    bool matches_link_pseudo_class() const;
+    bool matches_local_link_pseudo_class() const;
+
     bool affected_by_has_pseudo_class_in_subject_position() const { return m_affected_by_has_pseudo_class_in_subject_position; }
     void set_affected_by_has_pseudo_class_in_subject_position(bool value) { m_affected_by_has_pseudo_class_in_subject_position = value; }
 

@@ -16,8 +16,6 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
-#include <LibWeb/HTML/HTMLAreaElement.h>
-#include <LibWeb/HTML/HTMLButtonElement.h>
 #include <LibWeb/HTML/HTMLDetailsElement.h>
 #include <LibWeb/HTML/HTMLDialogElement.h>
 #include <LibWeb/HTML/HTMLFieldSetElement.h>
@@ -25,8 +23,6 @@
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
-#include <LibWeb/HTML/HTMLOptGroupElement.h>
-#include <LibWeb/HTML/HTMLOptionElement.h>
 #include <LibWeb/HTML/HTMLProgressElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
@@ -155,15 +151,6 @@ static inline bool matches_has_pseudo_class(CSS::Selector const& selector, DOM::
     return matches_relative_selector(selector, 0, anchor, shadow_host, context, anchor);
 }
 
-// https://html.spec.whatwg.org/multipage/semantics-other.html#selector-link
-static inline bool matches_link_pseudo_class(DOM::Element const& element)
-{
-    // All a elements that have an href attribute, and all area elements that have an href attribute, must match one of :link and :visited.
-    if (!is<HTML::HTMLAnchorElement>(element) && !is<HTML::HTMLAreaElement>(element) && !is<SVG::SVGAElement>(element))
-        return false;
-    return element.has_attribute(HTML::AttributeNames::href);
-}
-
 static bool matches_hover_pseudo_class(DOM::Element const& element)
 {
     auto* hovered_node = element.document().hovered_node();
@@ -172,30 +159,6 @@ static bool matches_hover_pseudo_class(DOM::Element const& element)
     if (&element == hovered_node)
         return true;
     return element.is_shadow_including_ancestor_of(*hovered_node);
-}
-
-// https://html.spec.whatwg.org/multipage/semantics-other.html#selector-checked
-static inline bool matches_checked_pseudo_class(DOM::Element const& element)
-{
-    // The :checked pseudo-class must match any element falling into one of the following categories:
-    // - input elements whose type attribute is in the Checkbox state and whose checkedness state is true
-    // - input elements whose type attribute is in the Radio Button state and whose checkedness state is true
-    if (is<HTML::HTMLInputElement>(element)) {
-        auto const& input_element = static_cast<HTML::HTMLInputElement const&>(element);
-        switch (input_element.type_state()) {
-        case HTML::HTMLInputElement::TypeAttributeState::Checkbox:
-        case HTML::HTMLInputElement::TypeAttributeState::RadioButton:
-            return static_cast<HTML::HTMLInputElement const&>(element).checked();
-        default:
-            return false;
-        }
-    }
-
-    // - option elements whose selectedness is true
-    if (is<HTML::HTMLOptionElement>(element)) {
-        return static_cast<HTML::HTMLOptionElement const&>(element).selected();
-    }
-    return false;
 }
 
 // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-indeterminate
@@ -463,25 +426,9 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
     case CSS::PseudoClass::AnyLink:
         // NOTE: AnyLink should match whether the link is visited or not, so if we ever start matching
         //       :visited, we'll need to handle these differently.
-        return matches_link_pseudo_class(element);
+        return element.matches_link_pseudo_class();
     case CSS::PseudoClass::LocalLink: {
-        // The :local-link pseudo-class allows authors to style hyperlinks based on the users current location
-        // within a site. It represents an element that is the source anchor of a hyperlink whose target’s
-        // absolute URL matches the element’s own document URL. If the hyperlink’s target includes a fragment
-        // URL, then the fragment URL of the current URL must also match; if it does not, then the fragment
-        // URL portion of the current URL is not taken into account in the comparison.
-        if (!matches_link_pseudo_class(element))
-            return false;
-        auto document_url = element.document().url();
-        auto maybe_href = element.attribute(HTML::AttributeNames::href);
-        if (!maybe_href.has_value())
-            return false;
-        auto target_url = element.document().encoding_parse_url(*maybe_href);
-        if (!target_url.has_value())
-            return false;
-        if (target_url->fragment().has_value())
-            return document_url.equals(*target_url, URL::ExcludeFragment::No);
-        return document_url.equals(*target_url, URL::ExcludeFragment::Yes);
+        return element.matches_local_link_pseudo_class();
     }
     case CSS::PseudoClass::Visited:
         // FIXME: Maybe match this selector sometimes?
@@ -544,16 +491,11 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
     case CSS::PseudoClass::Lang:
         return matches_lang_pseudo_class(element, pseudo_class.languages);
     case CSS::PseudoClass::Disabled:
-        // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-disabled
-        // The :disabled pseudo-class must match any element that is actually disabled.
-        return element.is_actually_disabled();
+        return element.matches_disabled_pseudo_class();
     case CSS::PseudoClass::Enabled:
-        // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-enabled
-        // The :enabled pseudo-class must match any button, input, select, textarea, optgroup, option, fieldset element, or form-associated custom element that is not actually disabled.
-        return (is<HTML::HTMLButtonElement>(element) || is<HTML::HTMLInputElement>(element) || is<HTML::HTMLSelectElement>(element) || is<HTML::HTMLTextAreaElement>(element) || is<HTML::HTMLOptGroupElement>(element) || is<HTML::HTMLOptionElement>(element) || is<HTML::HTMLFieldSetElement>(element))
-            && !element.is_actually_disabled();
+        return element.matches_enabled_pseudo_class();
     case CSS::PseudoClass::Checked:
-        return matches_checked_pseudo_class(element);
+        return element.matches_checked_pseudo_class();
     case CSS::PseudoClass::Indeterminate:
         return matches_indeterminate_pseudo_class(element);
     case CSS::PseudoClass::Defined:
