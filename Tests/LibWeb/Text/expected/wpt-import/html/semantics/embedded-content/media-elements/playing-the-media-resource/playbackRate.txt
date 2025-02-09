@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	playbackRate initial value
+Pass	playbackRate set to small positive value
+Pass	playbackRate set to large positive value
+Pass	playbackRate set to small negative value
+Pass	playbackRate set to large negative value
+Pass	playbackRate set to 0
+Pass	playbackRate set to -1
