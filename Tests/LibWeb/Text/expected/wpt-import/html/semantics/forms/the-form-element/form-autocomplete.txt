@@ -1,0 +1,72 @@
+Harness status: OK
+
+Found 67 tests
+
+67 Pass
+Pass	form autocomplete attribute missing
+Pass	form autocomplete attribute on
+Pass	form autocomplete attribute off
+Pass	form autocomplete attribute invalid
+Pass	on is an allowed autocomplete field name
+Pass	off is an allowed autocomplete field name
+Pass	name is an allowed autocomplete field name
+Pass	honorific-prefix is an allowed autocomplete field name
+Pass	given-name is an allowed autocomplete field name
+Pass	additional-name is an allowed autocomplete field name
+Pass	family-name is an allowed autocomplete field name
+Pass	honorific-suffix is an allowed autocomplete field name
+Pass	nickname is an allowed autocomplete field name
+Pass	username is an allowed autocomplete field name
+Pass	new-password is an allowed autocomplete field name
+Pass	current-password is an allowed autocomplete field name
+Pass	one-time-code is an allowed autocomplete field name
+Pass	organization-title is an allowed autocomplete field name
+Pass	organization is an allowed autocomplete field name
+Pass	street-address is an allowed autocomplete field name
+Pass	address-line1 is an allowed autocomplete field name
+Pass	address-line2 is an allowed autocomplete field name
+Pass	address-line3 is an allowed autocomplete field name
+Pass	address-level4 is an allowed autocomplete field name
+Pass	address-level3 is an allowed autocomplete field name
+Pass	address-level2 is an allowed autocomplete field name
+Pass	address-level1 is an allowed autocomplete field name
+Pass	country is an allowed autocomplete field name
+Pass	country-name is an allowed autocomplete field name
+Pass	postal-code is an allowed autocomplete field name
+Pass	cc-name is an allowed autocomplete field name
+Pass	cc-given-name is an allowed autocomplete field name
+Pass	cc-additional-name is an allowed autocomplete field name
+Pass	cc-family-name is an allowed autocomplete field name
+Pass	cc-number is an allowed autocomplete field name
+Pass	cc-exp is an allowed autocomplete field name
+Pass	cc-exp-month is an allowed autocomplete field name
+Pass	cc-exp-year is an allowed autocomplete field name
+Pass	cc-csc is an allowed autocomplete field name
+Pass	cc-type is an allowed autocomplete field name
+Pass	transaction-currency is an allowed autocomplete field name
+Pass	transaction-amount is an allowed autocomplete field name
+Pass	language is an allowed autocomplete field name
+Pass	bday is an allowed autocomplete field name
+Pass	bday-day is an allowed autocomplete field name
+Pass	bday-month is an allowed autocomplete field name
+Pass	bday-year is an allowed autocomplete field name
+Pass	sex is an allowed autocomplete field name
+Pass	url is an allowed autocomplete field name
+Pass	photo is an allowed autocomplete field name
+Pass	tel is an allowed autocomplete field name
+Pass	tel-country-code is an allowed autocomplete field name
+Pass	tel-national is an allowed autocomplete field name
+Pass	tel-area-code is an allowed autocomplete field name
+Pass	tel-local is an allowed autocomplete field name
+Pass	tel-local-prefix is an allowed autocomplete field name
+Pass	tel-local-suffix is an allowed autocomplete field name
+Pass	tel-extension is an allowed autocomplete field name
+Pass	email is an allowed autocomplete field name
+Pass	impp is an allowed autocomplete field name
+Pass	webauthn is an allowed autocomplete field name
+Pass	Test whitespace-only attribute value
+Pass	Test maximum number of tokens
+Pass	Unknown field
+Pass	Test 'wearing the autofill anchor mantle' with off/on
+Pass	Serialize combinations of section, mode, contact, and field
+Pass	Serialize combinations of section, mode, contact, field, and credential
