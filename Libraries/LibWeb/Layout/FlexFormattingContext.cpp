@@ -150,18 +150,6 @@ void FlexFormattingContext::run(AvailableSpace const& available_space)
         }
     }
 
-    {
-        // NOTE: We re-resolve cross sizes here, now that we can resolve percentages.
-
-        // 7. Determine the hypothetical cross size of each item
-        for (auto& item : m_flex_items) {
-            determine_hypothetical_cross_size_of_item(item, true);
-        }
-
-        // 11. Determine the used cross size of each flex item.
-        determine_used_cross_size_of_each_flex_item();
-    }
-
     // 16. Align all flex lines (per align-content)
     align_all_flex_lines();
 
