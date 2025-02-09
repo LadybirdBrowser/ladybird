@@ -23,7 +23,7 @@ interface CSSRule {
 };
 ```
 
-3. Add a `libweb_js_bindings(HTML/HTMLDetailsElement)` call to [`LibWeb/idl_files.cmake`](../Libraries/LibWeb/idl_files.cmake)
+3. Add a `libweb_js_bindings(HTML/HTMLDetailsElement)` call to [`LibWeb/idl_files.cmake`](../Libraries/LibWeb/idl_files.cmake) (only for top-level interfaces)
 
 4. Forward declare the generated class in [`LibWeb/Forward.h`](../Libraries/LibWeb/Forward.h):
     - `HTMLDetailsElement` in its namespace.
