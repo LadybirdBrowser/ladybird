@@ -1,0 +1,23 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x316 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x300 children: not-inline
+      BlockContainer <(anonymous)> at (8,8) content-size 784x150 children: inline
+        frag 0 from SVGSVGBox start: 0, length: 0, rect: [8,8 300x150] baseline: 150
+        SVGSVGBox <svg> at (8,8) content-size 300x150 [SVG] children: inline
+          TextNode <#text>
+      BlockContainer <(anonymous)> at (8,158) content-size 784x0 children: not-inline continuation
+        SVGGraphicsBox <g> at (8,158) content-size 784x0 children: not-inline
+      BlockContainer <(anonymous)> at (8,158) content-size 784x150 children: inline
+        frag 0 from SVGSVGBox start: 0, length: 0, rect: [8,158 300x150] baseline: 150
+        SVGSVGBox <svg> at (8,158) content-size 300x150 [SVG] children: not-inline continuation
+        TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x316]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x300]
+      PaintableWithLines (BlockContainer(anonymous)) [8,8 784x150]
+        SVGSVGPaintable (SVGSVGBox<svg>) [8,8 300x150]
+      PaintableWithLines (BlockContainer(anonymous)) [8,158 784x0]
+        SVGGraphicsPaintable (SVGGraphicsBox<g>) [8,158 784x0]
+      PaintableWithLines (BlockContainer(anonymous)) [8,158 784x150]
+        SVGSVGPaintable (SVGSVGBox<svg>) [8,158 300x150]

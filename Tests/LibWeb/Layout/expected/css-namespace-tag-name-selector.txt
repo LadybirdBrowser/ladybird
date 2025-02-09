@@ -6,8 +6,8 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
         frag 1 from TextNode start: 0, length: 1, rect: [310,146 8x17] baseline: 13.296875
             " "
         frag 2 from BlockContainer start: 0, length: 0, rect: [319,51 0x108] baseline: 110
-        SVGSVGBox <svg> at (9,9) content-size 300x150 [SVG] children: not-inline
-          SVGGraphicsBox <a> at (33.765625,32.4375) content-size 188.71875x60.15625 children: not-inline
+        SVGSVGBox <svg> at (9,9) content-size 300x150 [SVG] children: inline
+          SVGGraphicsBox <a> at (33.765625,32.4375) content-size 188.71875x60.15625 children: inline
             SVGTextBox <text> at (33.765625,32.4375) content-size 188.71875x60.15625 children: inline
               TextNode <#text>
         TextNode <#text>

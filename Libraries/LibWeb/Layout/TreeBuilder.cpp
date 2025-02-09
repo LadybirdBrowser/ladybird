@@ -553,6 +553,13 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         } else {
             if (layout_node->is_svg_box()) {
                 m_ancestor_stack.last()->append_child(*layout_node);
+                if (display.is_inline_outside()) {
+                    // After inserting an inline-level box into a parent, mark the parent as having inline children.
+                    layout_node->parent()->set_children_are_inline(true);
+                } else if (layout_node->is_in_flow()) {
+                    // After inserting an in-flow block-level box into a parent, mark the parent as having non-inline children.
+                    layout_node->parent()->set_children_are_inline(false);
+                }
             } else {
                 insert_node_into_inline_or_block_ancestor(*layout_node, display, AppendOrPrepend::Append);
             }

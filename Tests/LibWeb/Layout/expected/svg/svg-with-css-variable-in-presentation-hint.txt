@@ -2,7 +2,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x118 [BFC] children: not-inline
     BlockContainer <body> at (8,8) content-size 784x102 children: inline
       frag 0 from SVGSVGBox start: 0, length: 0, rect: [9,9 100x100] baseline: 102
-      SVGSVGBox <svg> at (9,9) content-size 100x100 [SVG] children: not-inline
+      SVGSVGBox <svg> at (9,9) content-size 100x100 [SVG] children: inline
         SVGGeometryBox <rect> at (29,29) content-size 60x60 children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
