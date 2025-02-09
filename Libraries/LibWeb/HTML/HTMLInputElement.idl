@@ -11,7 +11,7 @@ interface HTMLInputElement : HTMLElement {
 
     [CEReactions, Reflect] attribute DOMString accept;
     [CEReactions, Reflect] attribute DOMString alt;
-    [CEReactions, Enumerated=Autocomplete, Reflect] attribute DOMString autocomplete;
+    [CEReactions] attribute DOMString autocomplete;
     [CEReactions, Reflect=checked] attribute boolean defaultChecked;
     [ImplementedAs=checked_binding] attribute boolean checked;
     [CEReactions, Reflect=dirname] attribute DOMString dirName;
