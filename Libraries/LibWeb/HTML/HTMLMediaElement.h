@@ -109,6 +109,12 @@ public:
     double volume() const { return m_volume; }
     WebIDL::ExceptionOr<void> set_volume(double);
 
+    double default_playback_rate() const { return m_default_playback_rate; }
+    void set_default_playback_rate(double);
+
+    double playback_rate() const { return m_playback_rate; }
+    WebIDL::ExceptionOr<void> set_playback_rate(double);
+
     bool muted() const { return m_muted; }
     void set_muted(bool);
 
@@ -265,6 +271,12 @@ private:
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-paused
     bool m_paused { true };
+
+    // https://html.spec.whatwg.org/multipage/media.html#dom-media-defaultplaybackrate
+    double m_default_playback_rate { 1.0 };
+
+    // https://html.spec.whatwg.org/multipage/media.html#dom-media-playbackrate
+    double m_playback_rate { 1.0 };
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-volume
     double m_volume { 1.0 };

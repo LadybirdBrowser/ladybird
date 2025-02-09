@@ -59,8 +59,8 @@ interface HTMLMediaElement : HTMLElement {
     readonly attribute unrestricted double duration;
     [FIXME] object getStartDate();
     readonly attribute boolean paused;
-    [FIXME] attribute double defaultPlaybackRate;
-    [FIXME] attribute double playbackRate;
+    attribute double defaultPlaybackRate;
+    attribute double playbackRate;
     [FIXME] attribute boolean preservesPitch;
     [FIXME] readonly attribute TimeRanges played;
     [FIXME] readonly attribute TimeRanges seekable;
