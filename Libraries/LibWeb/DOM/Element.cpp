@@ -41,6 +41,8 @@
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
 #include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/HTMLAnchorElement.h>
+#include <LibWeb/HTML/HTMLAreaElement.h>
 #include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLButtonElement.h>
 #include <LibWeb/HTML/HTMLFieldSetElement.h>
@@ -72,6 +74,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
+#include <LibWeb/SVG/SVGAElement.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -1197,6 +1200,15 @@ bool Element::includes_properties_from_invalidation_set(CSS::InvalidationSet con
                 }
                 // - FIXME: textarea elements that have a placeholder attribute whose value is currently being presented to the user.
                 return false;
+            }
+            case CSS::PseudoClass::AnyLink:
+            case CSS::PseudoClass::Link:
+            case CSS::PseudoClass::LocalLink: {
+                if (!is<HTML::HTMLAnchorElement>(*this) && !is<HTML::HTMLAreaElement>(*this) && !is<SVG::SVGAElement>(*this))
+                    return false;
+                if (!has_attribute(HTML::AttributeNames::href))
+                    return false;
+                return true;
             }
             default:
                 VERIFY_NOT_REACHED();
