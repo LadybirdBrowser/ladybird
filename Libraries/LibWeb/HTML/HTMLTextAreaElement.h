@@ -12,6 +12,7 @@
 #include <LibCore/Timer.h>
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/HTML/AutocompleteElement.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/WebIDL/Types.h>
@@ -20,10 +21,12 @@ namespace Web::HTML {
 
 class HTMLTextAreaElement final
     : public HTMLElement
-    , public FormAssociatedTextControlElement {
+    , public FormAssociatedTextControlElement
+    , public AutocompleteElement {
     WEB_PLATFORM_OBJECT(HTMLTextAreaElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLTextAreaElement);
-    FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLTextAreaElement)
+    FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLTextAreaElement);
+    AUTOCOMPLETE_ELEMENT(HTMLElement, HTMLTextAreaElement);
 
 public:
     virtual ~HTMLTextAreaElement() override;
