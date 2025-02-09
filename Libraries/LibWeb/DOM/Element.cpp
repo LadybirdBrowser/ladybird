@@ -1160,6 +1160,88 @@ bool Element::affected_by_hover() const
     return false;
 }
 
+// https://html.spec.whatwg.org/multipage/semantics-other.html#selector-enabled
+bool Element::matches_enabled_pseudo_class() const
+{
+    // The :enabled pseudo-class must match any button, input, select, textarea, optgroup, option, fieldset element, or form-associated custom element that is not actually disabled.
+    return (is<HTML::HTMLButtonElement>(*this) || is<HTML::HTMLInputElement>(*this) || is<HTML::HTMLSelectElement>(*this) || is<HTML::HTMLTextAreaElement>(*this) || is<HTML::HTMLOptGroupElement>(*this) || is<HTML::HTMLOptionElement>(*this) || is<HTML::HTMLFieldSetElement>(*this))
+        && !is_actually_disabled();
+}
+
+// https://html.spec.whatwg.org/multipage/semantics-other.html#selector-disabled
+bool Element::matches_disabled_pseudo_class() const
+{
+    // The :disabled pseudo-class must match any element that is actually disabled.
+    return is_actually_disabled();
+}
+
+// https://html.spec.whatwg.org/multipage/semantics-other.html#selector-checked
+bool Element::matches_checked_pseudo_class() const
+{
+    // The :checked pseudo-class must match any element falling into one of the following categories:
+    // - input elements whose type attribute is in the Checkbox state and whose checkedness state is true
+    // - input elements whose type attribute is in the Radio Button state and whose checkedness state is true
+    if (is<HTML::HTMLInputElement>(*this)) {
+        auto const& input_element = static_cast<HTML::HTMLInputElement const&>(*this);
+        switch (input_element.type_state()) {
+        case HTML::HTMLInputElement::TypeAttributeState::Checkbox:
+        case HTML::HTMLInputElement::TypeAttributeState::RadioButton:
+            return static_cast<HTML::HTMLInputElement const&>(*this).checked();
+        default:
+            return false;
+        }
+    }
+
+    // - option elements whose selectedness is true
+    if (is<HTML::HTMLOptionElement>(*this)) {
+        return static_cast<HTML::HTMLOptionElement const&>(*this).selected();
+    }
+    return false;
+}
+
+// https://html.spec.whatwg.org/multipage/semantics-other.html#selector-placeholder-shown
+bool Element::matches_placeholder_shown_pseudo_class() const
+{
+    //  The :placeholder-shown pseudo-class must match any element falling into one of the following categories:
+    // - input elements that have a placeholder attribute whose value is currently being presented to the user.
+    if (is<HTML::HTMLInputElement>(*this) && has_attribute(HTML::AttributeNames::placeholder)) {
+        auto const& input_element = static_cast<HTML::HTMLInputElement const&>(*this);
+        return input_element.placeholder_element() && input_element.placeholder_value().has_value();
+    }
+    // - FIXME: textarea elements that have a placeholder attribute whose value is currently being presented to the user.
+    return false;
+}
+
+// https://html.spec.whatwg.org/multipage/semantics-other.html#selector-link
+bool Element::matches_link_pseudo_class() const
+{
+    // All a elements that have an href attribute, and all area elements that have an href attribute, must match one of :link and :visited.
+    if (!is<HTML::HTMLAnchorElement>(*this) && !is<HTML::HTMLAreaElement>(*this) && !is<SVG::SVGAElement>(*this))
+        return false;
+    return has_attribute(HTML::AttributeNames::href);
+}
+
+bool Element::matches_local_link_pseudo_class() const
+{
+    // The :local-link pseudo-class allows authors to style hyperlinks based on the users current location
+    // within a site. It represents an element that is the source anchor of a hyperlink whose target’s
+    // absolute URL matches the element’s own document URL. If the hyperlink’s target includes a fragment
+    // URL, then the fragment URL of the current URL must also match; if it does not, then the fragment
+    // URL portion of the current URL is not taken into account in the comparison.
+    if (!matches_link_pseudo_class())
+        return false;
+    auto document_url = document().url();
+    auto maybe_href = attribute(HTML::AttributeNames::href);
+    if (!maybe_href.has_value())
+        return false;
+    auto target_url = document().encoding_parse_url(*maybe_href);
+    if (!target_url.has_value())
+        return false;
+    if (target_url->fragment().has_value())
+        return document_url.equals(*target_url, URL::ExcludeFragment::No);
+    return document_url.equals(*target_url, URL::ExcludeFragment::Yes);
+}
+
 bool Element::includes_properties_from_invalidation_set(CSS::InvalidationSet const& set) const
 {
     auto includes_property = [&](CSS::InvalidationSet::Property const& property) {
@@ -1180,35 +1262,25 @@ bool Element::includes_properties_from_invalidation_set(CSS::InvalidationSet con
             case CSS::PseudoClass::Has:
                 return true;
             case CSS::PseudoClass::Enabled: {
-                return (is<HTML::HTMLButtonElement>(*this) || is<HTML::HTMLInputElement>(*this) || is<HTML::HTMLSelectElement>(*this) || is<HTML::HTMLTextAreaElement>(*this) || is<HTML::HTMLOptGroupElement>(*this) || is<HTML::HTMLOptionElement>(*this) || is<HTML::HTMLFieldSetElement>(*this))
-                    && !is_actually_disabled();
+                return matches_enabled_pseudo_class();
             }
             case CSS::PseudoClass::Disabled: {
-                return is_actually_disabled();
+                return matches_disabled_pseudo_class();
             }
             case CSS::PseudoClass::Defined: {
                 return is_defined();
             }
             case CSS::PseudoClass::Checked: {
-                // FIXME: This could be narrowed down to return true only if element is actually checked.
-                return is<HTML::HTMLInputElement>(*this) || is<HTML::HTMLOptionElement>(*this);
+                return matches_checked_pseudo_class();
             }
             case CSS::PseudoClass::PlaceholderShown: {
-                if (is<HTML::HTMLInputElement>(*this) && has_attribute(HTML::AttributeNames::placeholder)) {
-                    auto const& input_element = static_cast<HTML::HTMLInputElement const&>(*this);
-                    return input_element.placeholder_element() && input_element.placeholder_value().has_value();
-                }
-                // - FIXME: textarea elements that have a placeholder attribute whose value is currently being presented to the user.
-                return false;
+                return matches_placeholder_shown_pseudo_class();
             }
             case CSS::PseudoClass::AnyLink:
             case CSS::PseudoClass::Link:
+                return matches_link_pseudo_class();
             case CSS::PseudoClass::LocalLink: {
-                if (!is<HTML::HTMLAnchorElement>(*this) && !is<HTML::HTMLAreaElement>(*this) && !is<SVG::SVGAElement>(*this))
-                    return false;
-                if (!has_attribute(HTML::AttributeNames::href))
-                    return false;
-                return true;
+                return matches_local_link_pseudo_class();
             }
             default:
                 VERIFY_NOT_REACHED();
