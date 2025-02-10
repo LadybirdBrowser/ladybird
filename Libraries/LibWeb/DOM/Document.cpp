@@ -2451,10 +2451,10 @@ Document::IndicatedPart Document::determine_the_indicated_part() const
 
     // 5. Let fragmentBytes be the result of percent-decoding fragment.
     // 6. Let decodedFragment be the result of running UTF-8 decode without BOM on fragmentBytes.
-    auto decoded_fragment = URL::percent_decode(*fragment);
+    auto decoded_fragment = String::from_utf8_with_replacement_character(URL::percent_decode(*fragment), String::WithBOMHandling::No);
 
     // 7. Set potentialIndicatedElement to the result of finding a potential indicated element given document and decodedFragment.
-    potential_indicated_element = find_a_potential_indicated_element(MUST(FlyString::from_deprecated_fly_string(decoded_fragment)));
+    potential_indicated_element = find_a_potential_indicated_element(decoded_fragment);
 
     // 8. If potentialIndicatedElement is not null, then return potentialIndicatedElement.
     if (potential_indicated_element)
