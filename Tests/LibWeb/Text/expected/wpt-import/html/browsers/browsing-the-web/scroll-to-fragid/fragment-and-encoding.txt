@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	U+00FF should find U+00FF
+Pass	Percent-encoded UTF-8 BOM should find U+FEFF as BOM is not stripped when decoding
+Pass	%FF should not find U+00FF as decoding it gives U+FFFD
+Pass	Valid UTF-8 + invalid UTF-8 should not be matched to the utf8-decoded former + the isomorphic-decoded latter
