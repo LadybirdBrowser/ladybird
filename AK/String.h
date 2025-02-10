@@ -96,6 +96,13 @@ public:
     // Creates a new String from another string, repeated N times.
     static ErrorOr<String> repeated(String const&, size_t count);
 
+    enum class Case {
+        Upper,
+        Lower,
+    };
+    [[nodiscard]] static String bijective_base_from(size_t value, Case, unsigned base = 26, StringView map = {});
+    [[nodiscard]] static String roman_number_from(size_t value, Case);
+
     // Creates a new String by case-transforming this String. Using these methods require linking LibUnicode into your application.
     ErrorOr<String> to_lowercase(Optional<StringView> const& locale = {}) const;
     ErrorOr<String> to_uppercase(Optional<StringView> const& locale = {}) const;

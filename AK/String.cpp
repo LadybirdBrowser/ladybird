@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -457,6 +458,88 @@ ErrorOr<String> String::repeated(String const& input, size_t count)
     }));
 
     return result;
+}
+
+String String::bijective_base_from(size_t value, Case target_case, unsigned base, StringView map)
+{
+    value++;
+    if (map.is_null())
+        map = target_case == Case::Upper ? "ABCDEFGHIJKLMNOPQRSTUVWXYZ"sv : "abcdefghijklmnopqrstuvwxyz"sv;
+
+    VERIFY(base >= 2 && base <= map.length());
+
+    // The '8 bits per byte' assumption may need to go?
+    Array<char, round_up_to_power_of_two(sizeof(size_t) * 8 + 1, 2)> buffer;
+    size_t i = 0;
+    do {
+        auto remainder = value % base;
+        auto new_value = value / base;
+        if (remainder == 0) {
+            new_value--;
+            remainder = map.length();
+        }
+
+        buffer[i++] = map[remainder - 1];
+        value = new_value;
+    } while (value > 0);
+
+    for (size_t j = 0; j < i / 2; ++j)
+        swap(buffer[j], buffer[i - j - 1]);
+
+    return MUST(from_utf8(ReadonlyBytes(buffer.data(), i)));
+}
+
+String String::roman_number_from(size_t value, Case target_case)
+{
+    if (value > 3999)
+        return number(value);
+
+    StringBuilder builder;
+
+    while (value > 0) {
+        if (value >= 1000) {
+            builder.append(target_case == Case::Upper ? 'M' : 'm');
+            value -= 1000;
+        } else if (value >= 900) {
+            builder.append(target_case == Case::Upper ? "CM"sv : "cm"sv);
+            value -= 900;
+        } else if (value >= 500) {
+            builder.append(target_case == Case::Upper ? 'D' : 'd');
+            value -= 500;
+        } else if (value >= 400) {
+            builder.append(target_case == Case::Upper ? "CD"sv : "cd"sv);
+            value -= 400;
+        } else if (value >= 100) {
+            builder.append(target_case == Case::Upper ? 'C' : 'c');
+            value -= 100;
+        } else if (value >= 90) {
+            builder.append(target_case == Case::Upper ? "XC"sv : "xc"sv);
+            value -= 90;
+        } else if (value >= 50) {
+            builder.append(target_case == Case::Upper ? 'L' : 'l');
+            value -= 50;
+        } else if (value >= 40) {
+            builder.append(target_case == Case::Upper ? "XL"sv : "xl"sv);
+            value -= 40;
+        } else if (value >= 10) {
+            builder.append(target_case == Case::Upper ? 'X' : 'x');
+            value -= 10;
+        } else if (value == 9) {
+            builder.append(target_case == Case::Upper ? "IX"sv : "ix"sv);
+            value -= 9;
+        } else if (value >= 5 && value <= 8) {
+            builder.append(target_case == Case::Upper ? 'V' : 'v');
+            value -= 5;
+        } else if (value == 4) {
+            builder.append(target_case == Case::Upper ? "IV"sv : "iv"sv);
+            value -= 4;
+        } else if (value <= 3) {
+            builder.append(target_case == Case::Upper ? 'I' : 'i');
+            value -= 1;
+        }
+    }
+
+    return builder.to_string_without_validation();
 }
 
 }
