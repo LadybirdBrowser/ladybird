@@ -1141,43 +1141,199 @@ Optional<FlyString> ComputedProperties::font_language_override() const
 Optional<Gfx::FontVariantAlternates> ComputedProperties::font_variant_alternates() const
 {
     auto const& value = property(PropertyID::FontVariantAlternates);
-    return value.to_font_variant_alternates();
+    switch (keyword_to_font_variant_alternates(value.to_keyword()).value()) {
+    case FontVariantAlternates::Normal:
+        return {};
+    case FontVariantAlternates::HistoricalForms:
+        return Gfx::FontVariantAlternates { .historical_forms = true };
+    }
+    VERIFY_NOT_REACHED();
 }
 
 FontVariantCaps ComputedProperties::font_variant_caps() const
 {
     auto const& value = property(PropertyID::FontVariantCaps);
-    return value.to_font_variant_caps().release_value();
+    return keyword_to_font_variant_caps(value.to_keyword()).release_value();
 }
 
 Optional<Gfx::FontVariantEastAsian> ComputedProperties::font_variant_east_asian() const
 {
     auto const& value = property(PropertyID::FontVariantEastAsian);
-    return value.to_font_variant_east_asian();
+    Gfx::FontVariantEastAsian east_asian {};
+    bool normal = false;
+
+    auto apply_keyword = [&east_asian, &normal](Keyword keyword) {
+        switch (keyword) {
+        case Keyword::Normal:
+            normal = true;
+            break;
+        case Keyword::Jis78:
+            east_asian.variant = Gfx::FontVariantEastAsian::Variant::Jis78;
+            break;
+        case Keyword::Jis83:
+            east_asian.variant = Gfx::FontVariantEastAsian::Variant::Jis83;
+            break;
+        case Keyword::Jis90:
+            east_asian.variant = Gfx::FontVariantEastAsian::Variant::Jis90;
+            break;
+        case Keyword::Jis04:
+            east_asian.variant = Gfx::FontVariantEastAsian::Variant::Jis04;
+            break;
+        case Keyword::Simplified:
+            east_asian.variant = Gfx::FontVariantEastAsian::Variant::Simplified;
+            break;
+        case Keyword::Traditional:
+            east_asian.variant = Gfx::FontVariantEastAsian::Variant::Traditional;
+            break;
+        case Keyword::FullWidth:
+            east_asian.width = Gfx::FontVariantEastAsian::Width::FullWidth;
+            break;
+        case Keyword::ProportionalWidth:
+            east_asian.width = Gfx::FontVariantEastAsian::Width::Proportional;
+            break;
+        case Keyword::Ruby:
+            east_asian.ruby = true;
+            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    };
+
+    if (value.is_keyword()) {
+        apply_keyword(value.to_keyword());
+    } else if (value.is_value_list()) {
+        for (auto& child_value : value.as_value_list().values()) {
+            apply_keyword(child_value->to_keyword());
+        }
+    }
+
+    if (normal)
+        return {};
+
+    return east_asian;
 }
 
 FontVariantEmoji ComputedProperties::font_variant_emoji() const
 {
     auto const& value = property(PropertyID::FontVariantEmoji);
-    return value.to_font_variant_emoji().release_value();
+    return keyword_to_font_variant_emoji(value.to_keyword()).release_value();
 }
 
 Optional<Gfx::FontVariantLigatures> ComputedProperties::font_variant_ligatures() const
 {
     auto const& value = property(PropertyID::FontVariantLigatures);
-    return value.to_font_variant_ligatures();
+    Gfx::FontVariantLigatures ligatures {};
+    bool normal = false;
+
+    auto apply_keyword = [&ligatures, &normal](Keyword keyword) {
+        switch (keyword) {
+        case Keyword::Normal:
+            normal = true;
+            break;
+        case Keyword::None:
+            ligatures.none = true;
+            break;
+        case Keyword::CommonLigatures:
+            ligatures.common = Gfx::FontVariantLigatures::Common::Common;
+            break;
+        case Keyword::NoCommonLigatures:
+            ligatures.common = Gfx::FontVariantLigatures::Common::NoCommon;
+            break;
+        case Keyword::DiscretionaryLigatures:
+            ligatures.discretionary = Gfx::FontVariantLigatures::Discretionary::Discretionary;
+            break;
+        case Keyword::NoDiscretionaryLigatures:
+            ligatures.discretionary = Gfx::FontVariantLigatures::Discretionary::NoDiscretionary;
+            break;
+        case Keyword::HistoricalLigatures:
+            ligatures.historical = Gfx::FontVariantLigatures::Historical::Historical;
+            break;
+        case Keyword::NoHistoricalLigatures:
+            ligatures.historical = Gfx::FontVariantLigatures::Historical::NoHistorical;
+            break;
+        case Keyword::Contextual:
+            ligatures.contextual = Gfx::FontVariantLigatures::Contextual::Contextual;
+            break;
+        case Keyword::NoContextual:
+            ligatures.contextual = Gfx::FontVariantLigatures::Contextual::NoContextual;
+            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    };
+
+    if (value.is_keyword()) {
+        apply_keyword(value.to_keyword());
+    } else if (value.is_value_list()) {
+        for (auto& child_value : value.as_value_list().values()) {
+            apply_keyword(child_value->to_keyword());
+        }
+    }
+
+    if (normal)
+        return {};
+
+    return ligatures;
 }
 
 Optional<Gfx::FontVariantNumeric> ComputedProperties::font_variant_numeric() const
 {
     auto const& value = property(PropertyID::FontVariantNumeric);
-    return value.to_font_variant_numeric();
+    Gfx::FontVariantNumeric numeric {};
+    bool normal = false;
+
+    auto apply_keyword = [&numeric, &normal](Keyword keyword) {
+        switch (keyword) {
+        case Keyword::Normal:
+            normal = true;
+            break;
+        case Keyword::Ordinal:
+            numeric.ordinal = true;
+            break;
+        case Keyword::SlashedZero:
+            numeric.slashed_zero = true;
+            break;
+        case Keyword::OldstyleNums:
+            numeric.figure = Gfx::FontVariantNumeric::Figure::Oldstyle;
+            break;
+        case Keyword::LiningNums:
+            numeric.figure = Gfx::FontVariantNumeric::Figure::Lining;
+            break;
+        case Keyword::ProportionalNums:
+            numeric.spacing = Gfx::FontVariantNumeric::Spacing::Proportional;
+            break;
+        case Keyword::TabularNums:
+            numeric.spacing = Gfx::FontVariantNumeric::Spacing::Tabular;
+            break;
+        case Keyword::DiagonalFractions:
+            numeric.fraction = Gfx::FontVariantNumeric::Fraction::Diagonal;
+            break;
+        case Keyword::StackedFractions:
+            numeric.fraction = Gfx::FontVariantNumeric::Fraction::Stacked;
+            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    };
+
+    if (value.is_keyword()) {
+        apply_keyword(value.to_keyword());
+    } else if (value.is_value_list()) {
+        for (auto& child_value : value.as_value_list().values()) {
+            apply_keyword(child_value->to_keyword());
+        }
+    }
+
+    if (normal)
+        return {};
+
+    return numeric;
 }
 
 FontVariantPosition ComputedProperties::font_variant_position() const
 {
     auto const& value = property(PropertyID::FontVariantPosition);
-    return value.to_font_variant_position().release_value();
+    return keyword_to_font_variant_position(value.to_keyword()).release_value();
 }
 
 Optional<HashMap<FlyString, IntegerOrCalculated>> ComputedProperties::font_feature_settings() const
