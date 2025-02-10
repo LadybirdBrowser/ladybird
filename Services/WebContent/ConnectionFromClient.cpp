@@ -616,12 +616,20 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
             }
 
             auto pseudo_element_style = element.pseudo_element_computed_properties(pseudo_element.value());
-            ByteString computed_values = serialize_json(*pseudo_element_style);
-            ByteString resolved_values = serialize_json(element.resolved_css_values(pseudo_element.value()));
+
+            ByteString computed_values;
+            ByteString fonts_json;
+            ByteString resolved_values;
+            if (pseudo_element_style) {
+                computed_values = serialize_json(*pseudo_element_style);
+                fonts_json = serialize_fonts_json(*pseudo_element_style);
+                resolved_values = serialize_json(element.resolved_css_values(pseudo_element.value()));
+            } else {
+                dbgln("Inspected pseudo-element has no computed style.");
+            }
+
             ByteString custom_properties_json = serialize_custom_properties_json(element, pseudo_element);
             ByteString node_box_sizing_json = serialize_node_box_sizing_json(pseudo_element_node.ptr());
-            ByteString fonts_json = serialize_fonts_json(*pseudo_element_style);
-
             async_did_inspect_dom_node(page_id, true, move(computed_values), move(resolved_values), move(custom_properties_json), move(node_box_sizing_json), {}, move(fonts_json));
             return;
         }
