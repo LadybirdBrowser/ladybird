@@ -122,6 +122,22 @@
     "auto",
     "hidden"
   ],
+  "counter-style-name-keyword": [
+    "circle",
+    "decimal",
+    "decimal-leading-zero",
+    "disc",
+    "disclosure-closed",
+    "disclosure-open",
+    "lower-alpha",
+    "lower-latin",
+    "lower-roman",
+    "none",
+    "square",
+    "upper-alpha",
+    "upper-latin",
+    "upper-roman"
+  ],
   "cursor": [
     "auto",
     "default",
@@ -386,22 +402,6 @@
     "inset",
     "outset"
   ],
-  "list-style-type": [
-    "circle",
-    "decimal",
-    "decimal-leading-zero",
-    "disc",
-    "disclosure-closed",
-    "disclosure-open",
-    "lower-alpha",
-    "lower-latin",
-    "lower-roman",
-    "none",
-    "square",
-    "upper-alpha",
-    "upper-latin",
-    "upper-roman"
-  ],
   "list-style-position": [
     "inside",
     "outside"
@@ -419,10 +419,10 @@
     "compact"
   ],
   "mix-blend-mode": [
-    "normal", 
-    "multiply", 
-    "screen", 
-    "overlay", 
+    "normal",
+    "multiply",
+    "screen",
+    "overlay",
     "darken",
     "lighten",
     "color-dodge",
@@ -434,8 +434,8 @@
     "hue",
     "saturation",
     "color",
-    "luminosity", 
-    "plus-darker", 
+    "luminosity",
+    "plus-darker",
     "plus-lighter"
   ],
   "object-fit": [

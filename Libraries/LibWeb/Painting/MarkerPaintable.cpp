@@ -66,65 +66,63 @@ void MarkerPaintable::paint(PaintContext& context, PaintPhase phase) const
 
     auto color = computed_values().color();
 
-    switch (layout_box().list_style_type()) {
-    case CSS::ListStyleType::Square:
-        context.display_list_recorder().fill_rect(device_marker_rect.to_type<int>(), color);
-        break;
-    case CSS::ListStyleType::Circle:
-        context.display_list_recorder().draw_ellipse(device_marker_rect.to_type<int>(), color, 1);
-        break;
-    case CSS::ListStyleType::Disc:
-        context.display_list_recorder().fill_ellipse(device_marker_rect.to_type<int>(), color);
-        break;
-    case CSS::ListStyleType::DisclosureClosed: {
-        // https://drafts.csswg.org/css-counter-styles-3/#disclosure-closed
-        // For the disclosure-open and disclosure-closed counter styles, the marker must be an image or character suitable for indicating the open and closed states of a disclosure widget, such as HTML’s details element.
-        // FIXME: If the image is directional, it must respond to the writing mode of the element, similar to the bidi-sensitive images feature of the Images 4 module.
-
-        // Draw an equilateral triangle pointing right.
-        auto path = Gfx::Path();
-        path.move_to({ left, top });
-        path.line_to({ left + sin_60_deg * (right - left), (top + bottom) / 2 });
-        path.line_to({ left, bottom });
-        path.close();
-        context.display_list_recorder().fill_path({ .path = path, .color = color, .winding_rule = Gfx::WindingRule::EvenOdd });
-        break;
-    }
-    case CSS::ListStyleType::DisclosureOpen: {
-        // https://drafts.csswg.org/css-counter-styles-3/#disclosure-open
-        // For the disclosure-open and disclosure-closed counter styles, the marker must be an image or character suitable for indicating the open and closed states of a disclosure widget, such as HTML’s details element.
-        // FIXME: If the image is directional, it must respond to the writing mode of the element, similar to the bidi-sensitive images feature of the Images 4 module.
-
-        // Draw an equilateral triangle pointing down.
-        auto path = Gfx::Path();
-        path.move_to({ left, top });
-        path.line_to({ right, top });
-        path.line_to({ (left + right) / 2, top + sin_60_deg * (bottom - top) });
-        path.close();
-        context.display_list_recorder().fill_path({ .path = path, .color = color, .winding_rule = Gfx::WindingRule::EvenOdd });
-        break;
-    }
-    case CSS::ListStyleType::Decimal:
-    case CSS::ListStyleType::DecimalLeadingZero:
-    case CSS::ListStyleType::LowerAlpha:
-    case CSS::ListStyleType::LowerLatin:
-    case CSS::ListStyleType::LowerRoman:
-    case CSS::ListStyleType::UpperAlpha:
-    case CSS::ListStyleType::UpperLatin:
-    case CSS::ListStyleType::UpperRoman: {
-        auto text = layout_box().text();
-        if (!text.has_value())
-            break;
+    if (auto& text = layout_box().text(); text.has_value()) {
         // FIXME: This should use proper text layout logic!
         // This does not line up with the text in the <li> element which looks very sad :(
         context.display_list_recorder().draw_text(device_enclosing.to_type<int>(), *text, layout_box().scaled_font(context), Gfx::TextAlignment::Center, color);
-        break;
-    }
-    case CSS::ListStyleType::None:
-        return;
+    } else if (auto const* counter_style = layout_box().list_style_type().get_pointer<CSS::CounterStyleNameKeyword>()) {
+        switch (*counter_style) {
+        case CSS::CounterStyleNameKeyword::Square:
+            context.display_list_recorder().fill_rect(device_marker_rect.to_type<int>(), color);
+            break;
+        case CSS::CounterStyleNameKeyword::Circle:
+            context.display_list_recorder().draw_ellipse(device_marker_rect.to_type<int>(), color, 1);
+            break;
+        case CSS::CounterStyleNameKeyword::Disc:
+            context.display_list_recorder().fill_ellipse(device_marker_rect.to_type<int>(), color);
+            break;
+        case CSS::CounterStyleNameKeyword::DisclosureClosed: {
+            // https://drafts.csswg.org/css-counter-styles-3/#disclosure-closed
+            // For the disclosure-open and disclosure-closed counter styles, the marker must be an image or character suitable for indicating the open and closed states of a disclosure widget, such as HTML’s details element.
+            // FIXME: If the image is directional, it must respond to the writing mode of the element, similar to the bidi-sensitive images feature of the Images 4 module.
 
-    default:
-        VERIFY_NOT_REACHED();
+            // Draw an equilateral triangle pointing right.
+            auto path = Gfx::Path();
+            path.move_to({ left, top });
+            path.line_to({ left + sin_60_deg * (right - left), (top + bottom) / 2 });
+            path.line_to({ left, bottom });
+            path.close();
+            context.display_list_recorder().fill_path({ .path = path, .color = color, .winding_rule = Gfx::WindingRule::EvenOdd });
+            break;
+        }
+        case CSS::CounterStyleNameKeyword::DisclosureOpen: {
+            // https://drafts.csswg.org/css-counter-styles-3/#disclosure-open
+            // For the disclosure-open and disclosure-closed counter styles, the marker must be an image or character suitable for indicating the open and closed states of a disclosure widget, such as HTML’s details element.
+            // FIXME: If the image is directional, it must respond to the writing mode of the element, similar to the bidi-sensitive images feature of the Images 4 module.
+
+            // Draw an equilateral triangle pointing down.
+            auto path = Gfx::Path();
+            path.move_to({ left, top });
+            path.line_to({ right, top });
+            path.line_to({ (left + right) / 2, top + sin_60_deg * (bottom - top) });
+            path.close();
+            context.display_list_recorder().fill_path({ .path = path, .color = color, .winding_rule = Gfx::WindingRule::EvenOdd });
+            break;
+        }
+        case CSS::CounterStyleNameKeyword::None:
+            return;
+        case CSS::CounterStyleNameKeyword::Decimal:
+        case CSS::CounterStyleNameKeyword::DecimalLeadingZero:
+        case CSS::CounterStyleNameKeyword::LowerAlpha:
+        case CSS::CounterStyleNameKeyword::LowerLatin:
+        case CSS::CounterStyleNameKeyword::LowerRoman:
+        case CSS::CounterStyleNameKeyword::UpperAlpha:
+        case CSS::CounterStyleNameKeyword::UpperLatin:
+        case CSS::CounterStyleNameKeyword::UpperRoman:
+            // These are handled by text() already.
+        default:
+            VERIFY_NOT_REACHED();
+        }
     }
 }
 
