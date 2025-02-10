@@ -1438,7 +1438,7 @@ void Document::update_style()
     // style change event. [CSS-Transitions-2]
     m_transition_generation++;
 
-    invalidate_elements_affected_by_has_in_non_subject_position();
+    invalidate_style_of_elements_affected_by_has();
 
     if (!needs_full_style_update() && !needs_style_update() && !child_needs_style_update())
         return;
@@ -1659,11 +1659,18 @@ static Node* find_common_ancestor(Node* a, Node* b)
     return nullptr;
 }
 
-void Document::invalidate_elements_affected_by_has_in_non_subject_position()
+void Document::invalidate_style_of_elements_affected_by_has()
 {
-    if (!m_needs_invalidate_elements_affected_by_has_in_non_subject_position)
+    if (m_pending_nodes_for_style_invalidation_due_to_presence_of_has.is_empty()) {
         return;
-    m_needs_invalidate_elements_affected_by_has_in_non_subject_position = false;
+    }
+
+    for (auto const& node : m_pending_nodes_for_style_invalidation_due_to_presence_of_has) {
+        if (node.is_null())
+            continue;
+        node->invalidate_ancestors_affected_by_has_in_subject_position();
+    }
+    m_pending_nodes_for_style_invalidation_due_to_presence_of_has.clear();
 
     // Take care of elements that affected by :has() in non-subject position, i.e., ".a:has(.b) > .c".
     // Elements affected by :has() in subject position, i.e., ".a:has(.b)", are handled by

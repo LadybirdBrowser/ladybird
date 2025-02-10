@@ -510,9 +510,6 @@ public:
     [[nodiscard]] bool needs_full_layout_tree_update() const { return m_needs_full_layout_tree_update; }
     void set_needs_full_layout_tree_update(bool b) { m_needs_full_layout_tree_update = b; }
 
-    bool needs_invalidate_elements_affected_by_has_in_non_subject_position() const { return m_needs_invalidate_elements_affected_by_has_in_non_subject_position; }
-    void set_needs_invalidate_elements_affected_by_has_in_non_subject_position(bool b) { m_needs_invalidate_elements_affected_by_has_in_non_subject_position = b; }
-
     void set_needs_to_refresh_scroll_state(bool b);
 
     bool has_active_favicon() const { return m_active_favicon; }
@@ -807,6 +804,11 @@ public:
     void add_render_blocking_element(GC::Ref<Element>);
     void remove_render_blocking_element(GC::Ref<Element>);
 
+    void schedule_ancestors_style_invalidation_due_to_presence_of_has(Node& node)
+    {
+        m_pending_nodes_for_style_invalidation_due_to_presence_of_has.set(node.make_weak_ptr<Node>());
+    }
+
 protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
@@ -817,7 +819,7 @@ private:
     // ^HTML::GlobalEventHandlers
     virtual GC::Ptr<EventTarget> global_event_handlers_to_event_target(FlyString const&) final { return *this; }
 
-    void invalidate_elements_affected_by_has_in_non_subject_position();
+    void invalidate_style_of_elements_affected_by_has();
 
     void tear_down_layout_tree();
 
@@ -961,7 +963,6 @@ private:
 
     bool m_needs_full_style_update { false };
     bool m_needs_full_layout_tree_update { false };
-    bool m_needs_invalidate_elements_affected_by_has_in_non_subject_position { false };
 
     bool m_needs_animated_style_update { false };
 
@@ -1146,6 +1147,8 @@ private:
 
     // https://html.spec.whatwg.org/multipage/dom.html#render-blocking-element-set
     HashTable<GC::Ref<Element>> m_render_blocking_elements;
+
+    HashTable<WeakPtr<Node>> m_pending_nodes_for_style_invalidation_due_to_presence_of_has;
 };
 
 template<>
