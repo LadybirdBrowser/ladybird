@@ -430,8 +430,22 @@ void Node::invalidate_style(StyleInvalidationReason reason)
         return;
 
     if (document().style_computer().may_have_has_selectors()) {
-        invalidate_ancestors_affected_by_has_in_subject_position();
-        document().set_needs_invalidate_elements_affected_by_has_in_non_subject_position(true);
+        if (reason == StyleInvalidationReason::NodeRemove) {
+            for (auto* previous_sibling = this->previous_sibling(); previous_sibling; previous_sibling = previous_sibling->previous_sibling()) {
+                if (!previous_sibling->is_element())
+                    continue;
+                auto& element = static_cast<Element&>(*previous_sibling);
+                if (element.affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator()) {
+                    element.set_needs_style_update(true);
+                }
+            }
+
+            if (auto parent = parent_or_shadow_host(); parent) {
+                document().schedule_ancestors_style_invalidation_due_to_presence_of_has(*parent);
+            }
+        } else {
+            document().schedule_ancestors_style_invalidation_due_to_presence_of_has(*this);
+        }
     }
 
     if (!needs_style_update() && !document().needs_full_style_update()) {
@@ -493,8 +507,7 @@ void Node::invalidate_style(StyleInvalidationReason, Vector<CSS::InvalidationSet
         properties_used_in_has_selectors |= document().style_computer().invalidation_property_used_in_has_selector(property);
     }
     if (properties_used_in_has_selectors) {
-        invalidate_ancestors_affected_by_has_in_subject_position();
-        document().set_needs_invalidate_elements_affected_by_has_in_non_subject_position(true);
+        document().schedule_ancestors_style_invalidation_due_to_presence_of_has(*this);
     }
 
     auto invalidation_set = document().style_computer().invalidation_set_for_properties(properties);
