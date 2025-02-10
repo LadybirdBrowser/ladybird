@@ -177,6 +177,7 @@ public:
     void collect_animation_into(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>, GC::Ref<Animations::KeyframeEffect> animation, ComputedProperties&, AnimationRefresh = AnimationRefresh::No) const;
 
     [[nodiscard]] bool may_have_has_selectors() const;
+    [[nodiscard]] bool have_has_selectors() const;
 
     size_t number_of_css_font_faces_with_loading_in_progress() const;
 

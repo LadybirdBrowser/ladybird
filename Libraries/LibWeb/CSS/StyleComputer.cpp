@@ -3172,4 +3172,10 @@ bool StyleComputer::may_have_has_selectors() const
     return m_selector_insights->has_has_selectors;
 }
 
+bool StyleComputer::have_has_selectors() const
+{
+    build_rule_cache_if_needed();
+    return m_selector_insights->has_has_selectors;
+}
+
 }
