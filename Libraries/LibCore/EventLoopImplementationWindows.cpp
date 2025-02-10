@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/HashMap.h>
 #include <LibCore/EventLoopImplementationWindows.h>
 #include <LibCore/Notifier.h>
 #include <LibCore/ThreadEventQueue.h>
