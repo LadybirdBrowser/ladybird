@@ -3710,7 +3710,7 @@ HTML::SourceSnapshotParams Document::snapshot_source_snapshot_params() const
     // fetch client
     //     sourceDocument's relevant settings object
     // source policy container
-    //     sourceDocument's policy container
+    //     a clone of sourceDocument's policy container
 
     return HTML::SourceSnapshotParams {
         .has_transient_activation = as<HTML::Window>(HTML::relevant_global_object(*this)).has_transient_activation(),
