@@ -29,7 +29,6 @@ if (LAGOM_TOOLS_ONLY)
 endif()
 
 set(SOURCES
-    Command.cpp
     ConfigFile.cpp
     DateTime.cpp
     ElapsedTimer.cpp
@@ -44,13 +43,12 @@ set(SOURCES
     ResourceImplementation.cpp
     ResourceImplementationFile.cpp
     SystemServerTakeover.cpp
-    TCPServer.cpp
     ThreadEventQueue.cpp
     Timer.cpp
-    UDPServer.cpp
 )
 
 if (WIN32)
+    # FIXME: Support UDPServer and TCPServer on Windows
     list(APPEND SOURCES
         ProcessWindows.cpp
         SocketWindows.cpp
@@ -58,10 +56,13 @@ if (WIN32)
         EventLoopImplementationWindows.cpp)
 else()
     list(APPEND SOURCES
+        Command.cpp
         Process.cpp
         Socket.cpp
         AnonymousBuffer.cpp
-        EventLoopImplementationUnix.cpp)
+        EventLoopImplementationUnix.cpp
+        UDPServer.cpp
+        TCPServer.cpp)
 endif()
 
 if (NOT WIN32 AND NOT EMSCRIPTEN)
