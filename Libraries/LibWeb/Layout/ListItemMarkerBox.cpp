@@ -26,25 +26,25 @@ ListItemMarkerBox::ListItemMarkerBox(DOM::Document& document, CSS::ListStyleType
     case CSS::ListStyleType::DisclosureOpen:
         break;
     case CSS::ListStyleType::Decimal:
-        m_text = ByteString::formatted("{}.", m_index);
+        m_text = MUST(String::formatted("{}.", m_index));
         break;
     case CSS::ListStyleType::DecimalLeadingZero:
         // This is weird, but in accordance to spec.
-        m_text = m_index < 10 ? ByteString::formatted("0{}.", m_index) : ByteString::formatted("{}.", m_index);
+        m_text = m_index < 10 ? MUST(String::formatted("0{}.", m_index)) : MUST(String::formatted("{}.", m_index));
         break;
     case CSS::ListStyleType::LowerAlpha:
     case CSS::ListStyleType::LowerLatin:
-        m_text = ByteString::bijective_base_from(m_index - 1).to_lowercase();
+        m_text = String::bijective_base_from(m_index - 1, String::Case::Lower);
         break;
     case CSS::ListStyleType::UpperAlpha:
     case CSS::ListStyleType::UpperLatin:
-        m_text = ByteString::bijective_base_from(m_index - 1);
+        m_text = String::bijective_base_from(m_index - 1, String::Case::Upper);
         break;
     case CSS::ListStyleType::LowerRoman:
-        m_text = ByteString::roman_number_from(m_index).to_lowercase();
+        m_text = String::roman_number_from(m_index, String::Case::Lower);
         break;
     case CSS::ListStyleType::UpperRoman:
-        m_text = ByteString::roman_number_from(m_index);
+        m_text = String::roman_number_from(m_index, String::Case::Upper);
         break;
     case CSS::ListStyleType::None:
         break;
