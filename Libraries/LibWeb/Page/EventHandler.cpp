@@ -1253,6 +1253,29 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         }
     }
 
+    if (key == UIEvents::KeyCode::Key_Return) {
+        if (auto* element = m_navigable->active_document()->focused_element(); is<HTML::HTMLElement>(element)) {
+            auto& html_element = static_cast<HTML::HTMLElement&>(*element);
+
+            HTML::HTMLFormElement* form = nullptr;
+            if (is<HTML::HTMLFormElement>(element->parent_element())) {
+                form = static_cast<HTML::HTMLFormElement*>(element->parent_element());
+            } else {
+                for (auto* parent = element->parent_element(); parent; parent = parent->parent_element()) {
+                    if (is<HTML::HTMLFormElement>(parent)) {
+                        form = static_cast<HTML::HTMLFormElement*>(parent);
+                        break;
+                    }
+                }
+            }
+            if (form) {
+                return EventResult::Handled;
+            }
+            html_element.click();
+            return EventResult::Handled;
+        }
+    }
+
     // FIXME: Implement scroll by line and by page instead of approximating the behavior of other browsers.
     auto arrow_key_scroll_distance = 100;
     auto page_scroll_distance = document->window()->inner_height() - (document->window()->outer_height() - document->window()->inner_height());
