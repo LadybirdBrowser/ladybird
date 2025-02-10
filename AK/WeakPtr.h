@@ -206,6 +206,14 @@ WeakPtr<T> make_weak_ptr_if_nonnull(T const* ptr)
     return MUST(try_make_weak_ptr_if_nonnull(ptr));
 }
 
+template<typename T>
+struct Traits<WeakPtr<T>> : public DefaultTraits<WeakPtr<T>> {
+    using PeekType = T*;
+    using ConstPeekType = T const*;
+    static unsigned hash(WeakPtr<T> const& p) { return ptr_hash(p.ptr()); }
+    static bool equals(WeakPtr<T> const& a, WeakPtr<T> const& b) { return a.ptr() == b.ptr(); }
+};
+
 }
 
 #if USING_AK_GLOBALLY
