@@ -1665,12 +1665,22 @@ void Document::invalidate_style_of_elements_affected_by_has()
         return;
     }
 
+    ScopeGuard clear_pending_nodes_guard = [&] {
+        m_pending_nodes_for_style_invalidation_due_to_presence_of_has.clear();
+    };
+
+    // It's ok to call have_has_selectors() instead of may_have_has_selectors() here and force
+    // rule cache build, because it's going to be build soon anyway, since we could get here
+    // only from update_style().
+    if (!style_computer().have_has_selectors()) {
+        return;
+    }
+
     for (auto const& node : m_pending_nodes_for_style_invalidation_due_to_presence_of_has) {
         if (node.is_null())
             continue;
         node->invalidate_ancestors_affected_by_has_in_subject_position();
     }
-    m_pending_nodes_for_style_invalidation_due_to_presence_of_has.clear();
 
     // Take care of elements that affected by :has() in non-subject position, i.e., ".a:has(.b) > .c".
     // Elements affected by :has() in subject position, i.e., ".a:has(.b)", are handled by
