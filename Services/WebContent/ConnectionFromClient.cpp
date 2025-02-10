@@ -529,15 +529,20 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
             HashTable<FlyString> seen_properties;
 
             auto const* element_to_check = &element;
+            auto pseudo_element_to_check = pseudo_element;
             while (element_to_check) {
-                for (auto const& property : element_to_check->custom_properties(pseudo_element)) {
+                for (auto const& property : element_to_check->custom_properties(pseudo_element_to_check)) {
                     if (!seen_properties.contains(property.key)) {
                         seen_properties.set(property.key);
                         MUST(serializer.add(property.key, property.value.value->to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal)));
                     }
                 }
 
-                element_to_check = element_to_check->parent_element();
+                if (pseudo_element_to_check.has_value()) {
+                    pseudo_element_to_check.clear();
+                } else {
+                    element_to_check = element_to_check->parent_element();
+                }
             }
 
             MUST(serializer.finish());
