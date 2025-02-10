@@ -513,11 +513,15 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
             new_computed_properties->set_property(CSS::PropertyID::TextAlign, CSS::CSSKeywordValue::create(CSS::Keyword::Start));
     }
 
+    bool had_list_marker = false;
+
     CSS::RequiredInvalidationAfterStyleChange invalidation;
-    if (m_computed_properties)
+    if (m_computed_properties) {
         invalidation = compute_required_invalidation(*m_computed_properties, new_computed_properties);
-    else
+        had_list_marker = m_computed_properties->display().is_list_item();
+    } else {
         invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
+    }
 
     if (!invalidation.is_none())
         set_computed_properties(move(new_computed_properties));
@@ -542,6 +546,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
 
     recompute_pseudo_element_style(CSS::Selector::PseudoElement::Type::Before);
     recompute_pseudo_element_style(CSS::Selector::PseudoElement::Type::After);
+    if (had_list_marker || m_computed_properties->display().is_list_item())
+        recompute_pseudo_element_style(CSS::Selector::PseudoElement::Type::Marker);
 
     if (invalidation.is_none())
         return invalidation;
