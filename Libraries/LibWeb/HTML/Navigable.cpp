@@ -792,6 +792,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
     //    mode: "navigate"
     //    referrer: entry's document state's request referrer
     //    referrer policy: entry's document state's request referrer policy
+    //    policy container: sourceSnapshotParams's source policy container
     auto request = Fetch::Infrastructure::Request::create(vm);
     request->set_url(entry->url());
     request->set_client(source_snapshot_params.fetch_client);
@@ -802,6 +803,7 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
     request->set_replaces_client_id(active_document.relevant_settings_object().id);
     request->set_mode(Fetch::Infrastructure::Request::Mode::Navigate);
     request->set_referrer(entry->document_state()->request_referrer());
+    request->set_policy_container(source_snapshot_params.source_policy_container);
 
     // 4. If documentResource is a POST resource, then:
     if (auto* post_resource = document_resource.get_pointer<POSTResource>()) {
@@ -1460,10 +1462,10 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
 
     // 19. If url's scheme is "javascript", then:
     if (url.scheme() == "javascript"sv) {
-        // 1. Queue a global task on the navigation and traversal task source given navigable's active window to navigate to a javascript: URL given navigable, url, historyHandling, initiatorOriginSnapshot, userInvolvement, and cspNavigationType.
+        // 1. Queue a global task on the navigation and traversal task source given navigable's active window to navigate to a javascript: URL given navigable, url, historyHandling, sourceSnapshotParams, initiatorOriginSnapshot, userInvolvement, and cspNavigationType.
         VERIFY(active_window());
-        queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, url, history_handling, initiator_origin_snapshot, user_involvement, csp_navigation_type, navigation_id] {
-            navigate_to_a_javascript_url(url, to_history_handling_behavior(history_handling), initiator_origin_snapshot, user_involvement, csp_navigation_type, navigation_id);
+        queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, url, history_handling, source_snapshot_params, initiator_origin_snapshot, user_involvement, csp_navigation_type, navigation_id] {
+            navigate_to_a_javascript_url(url, to_history_handling_behavior(history_handling), source_snapshot_params, initiator_origin_snapshot, user_involvement, csp_navigation_type, navigation_id);
         }));
 
         // 2. Return.
@@ -1810,7 +1812,7 @@ GC::Ptr<DOM::Document> Navigable::evaluate_javascript_url(URL::URL const& url, U
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-to-a-javascript:-url
-void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlingBehavior history_handling, URL::Origin const& initiator_origin, UserNavigationInvolvement user_involvement, CSPNavigationType csp_navigation_type, String navigation_id)
+void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlingBehavior history_handling, SourceSnapshotParams, URL::Origin const& initiator_origin, UserNavigationInvolvement user_involvement, CSPNavigationType csp_navigation_type, String navigation_id)
 {
     // 1. Assert: historyHandling is "replace".
     VERIFY(history_handling == HistoryHandlingBehavior::Replace);
@@ -1822,7 +1824,7 @@ void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlin
     if (!initiator_origin.is_same_origin_domain(active_document()->origin()))
         return;
 
-    // FIXME: 4. Let request be a new request whose URL is url.
+    // FIXME: 4. Let request be a new request whose URL is url and whose policy container is sourceSnapshotParams's source policy container.
 
     // FIXME: 5. If the result of should navigation request of type be blocked by Content Security Policy? given request and cspNavigationType is "Blocked", then return.
     (void)csp_navigation_type;
