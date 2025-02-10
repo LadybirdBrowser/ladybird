@@ -106,7 +106,7 @@ static ErrorOr<void> collect_ref_tests(Application const& app, Vector<Test>& tes
     return {};
 }
 
-static ErrorOr<void> collect_crash_tests(Vector<Test>& tests, StringView path, StringView trail)
+static ErrorOr<void> collect_crash_tests(Application const& app, Vector<Test>& tests, StringView path, StringView trail)
 {
     Core::DirIterator it(ByteString::formatted("{}/{}", path, trail), Core::DirIterator::Flags::SkipDots);
     while (it.has_next()) {
@@ -114,14 +114,14 @@ static ErrorOr<void> collect_crash_tests(Vector<Test>& tests, StringView path, S
         auto input_path = TRY(FileSystem::real_path(ByteString::formatted("{}/{}/{}", path, trail, name)));
 
         if (FileSystem::is_directory(input_path)) {
-            TRY(collect_crash_tests(tests, path, ByteString::formatted("{}/{}", trail, name)));
+            TRY(collect_crash_tests(app, tests, path, ByteString::formatted("{}/{}", trail, name)));
             continue;
         }
-
         if (!is_valid_test_name(name))
             continue;
 
-        tests.append({ TestMode::Crash, input_path, {}, {} });
+        auto relative_path = LexicalPath::relative_path(input_path, app.test_root_path).release_value();
+        tests.append({ TestMode::Crash, input_path, {}, move(relative_path) });
     }
 
     return {};
@@ -478,7 +478,7 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
     TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Layout", app.test_root_path), "."sv, TestMode::Layout));
     TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Text", app.test_root_path), "."sv, TestMode::Text));
     TRY(collect_ref_tests(app, tests, ByteString::formatted("{}/Ref", app.test_root_path), "."sv));
-    TRY(collect_crash_tests(tests, ByteString::formatted("{}/Crash", app.test_root_path), "."sv));
+    TRY(collect_crash_tests(app, tests, ByteString::formatted("{}/Crash", app.test_root_path), "."sv));
 #if !defined(AK_OS_MACOS)
     TRY(collect_ref_tests(app, tests, ByteString::formatted("{}/Screenshot", app.test_root_path), "."sv));
 #endif
