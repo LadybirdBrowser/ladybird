@@ -17,11 +17,13 @@
 #import <HTML/Canvas/CanvasUserInterface.idl>
 
 enum PredefinedColorSpace { "srgb", "display-p3" };
+enum CanvasColorType { "unorm8", "float16" };
 
 dictionary CanvasRenderingContext2DSettings {
     boolean alpha = true;
     boolean desynchronized = false;
     PredefinedColorSpace colorSpace = "srgb";
+    CanvasColorType colorType = "unorm8";
     boolean willReadFrequently = false;
 };
 
