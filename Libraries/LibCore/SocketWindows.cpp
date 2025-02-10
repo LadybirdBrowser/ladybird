@@ -122,6 +122,8 @@ void PosixSocketHelper::close()
     if (m_notifier)
         m_notifier->set_enabled(false);
 
+    // shutdown is required for another end to receive FD_CLOSE
+    shutdown(m_fd, SD_BOTH);
     MUST(System::close(m_fd));
     m_fd = -1;
 }

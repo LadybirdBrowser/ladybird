@@ -150,7 +150,7 @@ static int notifier_type_to_network_event(NotificationType type)
 {
     switch (type) {
     case NotificationType::Read:
-        return FD_READ;
+        return FD_READ | FD_CLOSE;
     case NotificationType::Write:
         return FD_WRITE;
     default:
