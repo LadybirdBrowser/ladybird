@@ -15,6 +15,14 @@
 
 namespace Core {
 
+static WSABUF make_wsa_buf(ReadonlyBytes bytes)
+{
+    WSABUF buffer {};
+    buffer.buf = reinterpret_cast<CHAR*>(const_cast<u8*>(bytes.data()));
+    buffer.len = static_cast<ULONG>(bytes.size());
+    return buffer;
+}
+
 ErrorOr<Bytes> PosixSocketHelper::read(Bytes buffer, int flags)
 {
     if (!is_open())
@@ -22,7 +30,7 @@ ErrorOr<Bytes> PosixSocketHelper::read(Bytes buffer, int flags)
 
     // FIXME: also take into account if PosixSocketHelper is blocking/non-blocking (see set_blocking)
     bool blocking = !(flags & MSG_DONTWAIT);
-    WSABUF buf = { static_cast<ULONG>(buffer.size()), reinterpret_cast<CHAR*>(buffer.data()) };
+    WSABUF buf = make_wsa_buf(buffer);
     DWORD nread = 0;
     DWORD fl = 0;
     OVERLAPPED ov = {};
@@ -66,7 +74,7 @@ ErrorOr<size_t> PosixSocketHelper::write(ReadonlyBytes buffer, int flags)
 
     // FIXME: Implement non-blocking PosixSocketHelper::write
     (void)flags;
-    WSABUF buf = { static_cast<ULONG>(buffer.size()), reinterpret_cast<CHAR*>(const_cast<u8*>(buffer.data())) };
+    WSABUF buf = make_wsa_buf(buffer);
     DWORD nwritten = 0;
 
     if (WSASend(m_fd, &buf, 1, &nwritten, 0, NULL, NULL) == SOCKET_ERROR)
