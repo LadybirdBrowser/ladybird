@@ -564,6 +564,7 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
                 case Bindings::NavigationType::Push:
                     // FIXME: Add ever populated check, and fix the bug where top level traversable's step is not updated when a child navigable navigates
                     // - "push": Assert: targetEntry's step is displayedEntry's step + 1 and targetEntry's document state's ever populated is false.
+                    VERIFY(target_entry != displayed_entry);
                     VERIFY(target_entry->step().get<int>() > displayed_entry->step().get<int>());
                     break;
                 }
