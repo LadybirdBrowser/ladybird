@@ -18,6 +18,7 @@ namespace Web::HTML::EventNames {
     __ENUMERATE_HTML_EVENT(animationend)             \
     __ENUMERATE_HTML_EVENT(animationiteration)       \
     __ENUMERATE_HTML_EVENT(animationstart)           \
+    __ENUMERATE_HTML_EVENT(audioprocess)             \
     __ENUMERATE_HTML_EVENT(beforeinput)              \
     __ENUMERATE_HTML_EVENT(beforematch)              \
     __ENUMERATE_HTML_EVENT(beforeprint)              \

@@ -794,6 +794,7 @@ set(SOURCES
     WebAudio/AudioListener.cpp
     WebAudio/AudioNode.cpp
     WebAudio/AudioParam.cpp
+    WebAudio/AudioProcessingEvent.cpp
     WebAudio/AudioScheduledSourceNode.cpp
     WebAudio/BaseAudioContext.cpp
     WebAudio/BiquadFilterNode.cpp
@@ -809,6 +810,7 @@ set(SOURCES
     WebAudio/PannerNode.cpp
     WebAudio/PeriodicWave.cpp
     WebAudio/StereoPannerNode.cpp
+    WebAudio/ScriptProcessorNode.cpp
     WebDriver/Actions.cpp
     WebDriver/Capabilities.cpp
     WebDriver/Client.cpp

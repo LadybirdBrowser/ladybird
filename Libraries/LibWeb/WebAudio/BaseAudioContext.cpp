@@ -22,6 +22,7 @@
 #include <LibWeb/WebAudio/GainNode.h>
 #include <LibWeb/WebAudio/OscillatorNode.h>
 #include <LibWeb/WebAudio/PannerNode.h>
+#include <LibWeb/WebAudio/ScriptProcessorNode.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Promise.h>
 
@@ -158,6 +159,53 @@ WebIDL::ExceptionOr<GC::Ref<PeriodicWave>> BaseAudioContext::create_periodic_wav
         options.disable_normalization = constraints->disable_normalization;
 
     return PeriodicWave::construct_impl(realm(), *this, options);
+}
+
+// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createscriptprocessor
+WebIDL::ExceptionOr<GC::Ref<ScriptProcessorNode>> BaseAudioContext::create_script_processor(WebIDL::UnsignedLong buffer_size, WebIDL::UnsignedLong number_of_input_channels, WebIDL::UnsignedLong number_of_output_channels)
+{
+    // Factory method for a ScriptProcessorNode.
+    // This method is DEPRECATED, as it is intended to be replaced by AudioWorkletNode.
+
+    // Creates a ScriptProcessorNode for direct audio processing using scripts.
+    // An IndexSizeError exception MUST be thrown if bufferSize or numberOfInputChannels or numberOfOutputChannels are outside the valid range.
+
+    // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createscriptprocessor-buffersize-numberofinputchannels-numberofoutputchannels-buffersize
+    // The bufferSize parameter determines the buffer size in units of sample-frames. If it’s not passed in, or if the value is 0,
+    // then the implementation will choose the best buffer size for the given environment, which will be constant power of 2 throughout
+    // the lifetime of the node. Otherwise if the author explicitly specifies the bufferSize, it MUST be one of the following values:
+    // 256, 512, 1024, 2048, 4096, 8192, 16384. This value controls how frequently the audioprocess event is dispatched and how many
+    // sample-frames need to be processed each call. Lower values for bufferSize will result in a lower (better) latency.
+    // Higher values will be necessary to avoid audio breakup and glitches. It is recommended for authors to not specify this
+    // buffer size and allow the implementation to pick a good buffer size to balance between latency and audio quality.
+    // If the value of this parameter is not one of the allowed power-of-2 values listed above, an IndexSizeError MUST be thrown.
+    switch (buffer_size) {
+    case 0:
+        // TODO: Pick this value in a smarter way
+        buffer_size = 256;
+        break;
+    case 256:
+    case 512:
+    case 1024:
+    case 2048:
+    case 4096:
+    case 8192:
+    case 16384:
+        break;
+    default:
+        return WebIDL::NotSupportedError::create(realm(), "Buffer size must be 0 or a power of 2 between 256 and 16384."_string);
+    }
+
+    if (number_of_input_channels > MAX_NUMBER_OF_CHANNELS)
+        return WebIDL::NotSupportedError::create(realm(), "Number of input channels is greater than allowed range"_string);
+    if (number_of_output_channels > MAX_NUMBER_OF_CHANNELS)
+        return WebIDL::NotSupportedError::create(realm(), "Number of input channels is greater than allowed range"_string);
+
+    // It is invalid for both numberOfInputChannels and numberOfOutputChannels to be zero. In this case an IndexSizeError MUST be thrown.
+    if (number_of_input_channels == 0 && number_of_output_channels == 0)
+        return WebIDL::IndexSizeError::create(realm(), "Number of input channels and number of output channels cannot both be zero."_string);
+
+    return ScriptProcessorNode::create(realm(), *this, buffer_size, number_of_input_channels, number_of_output_channels);
 }
 
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createstereopanner
