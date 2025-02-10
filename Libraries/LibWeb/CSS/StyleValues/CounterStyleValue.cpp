@@ -75,14 +75,14 @@ static String generate_a_counter_representation(CSSStyleValue const& counter_sty
                     return MUST(String::formatted("{}", value));
                 case ListStyleType::LowerAlpha:
                 case ListStyleType::LowerLatin:
-                    return MUST(String::from_byte_string(ByteString::bijective_base_from(value - 1).to_lowercase()));
+                    return String::bijective_base_from(value - 1, String::Case::Lower);
                 case ListStyleType::UpperAlpha:
                 case ListStyleType::UpperLatin:
-                    return MUST(String::from_byte_string(ByteString::bijective_base_from(value - 1)));
+                    return String::bijective_base_from(value - 1, String::Case::Upper);
                 case ListStyleType::LowerRoman:
-                    return MUST(String::from_byte_string(ByteString::roman_number_from(value).to_lowercase()));
+                    return String::roman_number_from(value, String::Case::Lower);
                 case ListStyleType::UpperRoman:
-                    return MUST(String::from_byte_string(ByteString::roman_number_from(value)));
+                    return String::roman_number_from(value, String::Case::Upper);
                 default:
                     break;
                 }

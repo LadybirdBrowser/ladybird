@@ -117,7 +117,7 @@ void MarkerPaintable::paint(PaintContext& context, PaintPhase phase) const
             break;
         // FIXME: This should use proper text layout logic!
         // This does not line up with the text in the <li> element which looks very sad :(
-        context.display_list_recorder().draw_text(device_enclosing.to_type<int>(), MUST(String::from_byte_string(*text)), layout_box().scaled_font(context), Gfx::TextAlignment::Center, color);
+        context.display_list_recorder().draw_text(device_enclosing.to_type<int>(), *text, layout_box().scaled_font(context), Gfx::TextAlignment::Center, color);
         break;
     }
     case CSS::ListStyleType::None:
