@@ -53,35 +53,34 @@ static String generate_a_counter_representation(CSSStyleValue const& counter_sty
         auto counter_style_name = counter_style.as_custom_ident().custom_ident();
         auto keyword = keyword_from_string(counter_style_name);
         if (keyword.has_value()) {
-            auto list_style_type = keyword_to_list_style_type(*keyword);
-            if (list_style_type.has_value()) {
+            if (auto list_style_type = keyword_to_counter_style_name_keyword(*keyword); list_style_type.has_value()) {
                 switch (*list_style_type) {
-                case ListStyleType::Square:
+                case CounterStyleNameKeyword::Square:
                     return "▪"_string;
-                case ListStyleType::Circle:
+                case CounterStyleNameKeyword::Circle:
                     return "◦"_string;
-                case ListStyleType::Disc:
+                case CounterStyleNameKeyword::Disc:
                     return "•"_string;
-                case ListStyleType::DisclosureClosed:
+                case CounterStyleNameKeyword::DisclosureClosed:
                     return "▸"_string;
-                case ListStyleType::DisclosureOpen:
+                case CounterStyleNameKeyword::DisclosureOpen:
                     return "▾"_string;
-                case ListStyleType::Decimal:
+                case CounterStyleNameKeyword::Decimal:
                     return MUST(String::formatted("{}", value));
-                case ListStyleType::DecimalLeadingZero:
+                case CounterStyleNameKeyword::DecimalLeadingZero:
                     // This is weird, but in accordance to spec.
                     if (value < 10)
                         return MUST(String::formatted("0{}", value));
                     return MUST(String::formatted("{}", value));
-                case ListStyleType::LowerAlpha:
-                case ListStyleType::LowerLatin:
+                case CounterStyleNameKeyword::LowerAlpha:
+                case CounterStyleNameKeyword::LowerLatin:
                     return String::bijective_base_from(value - 1, String::Case::Lower);
-                case ListStyleType::UpperAlpha:
-                case ListStyleType::UpperLatin:
+                case CounterStyleNameKeyword::UpperAlpha:
+                case CounterStyleNameKeyword::UpperLatin:
                     return String::bijective_base_from(value - 1, String::Case::Upper);
-                case ListStyleType::LowerRoman:
+                case CounterStyleNameKeyword::LowerRoman:
                     return String::roman_number_from(value, String::Case::Lower);
-                case ListStyleType::UpperRoman:
+                case CounterStyleNameKeyword::UpperRoman:
                     return String::roman_number_from(value, String::Case::Upper);
                 default:
                     break;

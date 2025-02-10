@@ -1815,8 +1815,8 @@
     "inherited": true,
     "initial": "disc",
     "valid-types": [
-      "string",
-      "list-style-type"
+      "counter-style-name-keyword",
+      "string"
     ]
   },
   "margin": {

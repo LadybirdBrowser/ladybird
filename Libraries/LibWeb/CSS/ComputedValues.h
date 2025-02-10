@@ -78,6 +78,8 @@ struct Containment {
     bool is_empty() const { return !(size_containment || inline_size_containment || layout_containment || style_containment || paint_containment); }
 };
 
+using ListStyleType = Variant<CounterStyleNameKeyword, String>;
+
 class InitialValues {
 public:
     static AspectRatio aspect_ratio() { return AspectRatio { true, {} }; }
@@ -112,7 +114,7 @@ public:
     static Vector<Gfx::Filter> backdrop_filter() { return {}; }
     static Vector<Gfx::Filter> filter() { return {}; }
     static Color background_color() { return Color::Transparent; }
-    static CSS::ListStyleType list_style_type() { return CSS::ListStyleType::Disc; }
+    static CSS::ListStyleType list_style_type() { return CSS::CounterStyleNameKeyword::Disc; }
     static CSS::ListStylePosition list_style_position() { return CSS::ListStylePosition::Outside; }
     static CSS::Visibility visibility() { return CSS::Visibility::Visible; }
     static CSS::FlexDirection flex_direction() { return CSS::FlexDirection::Row; }

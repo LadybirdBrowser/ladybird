@@ -1008,7 +1008,9 @@ TextTransform ComputedProperties::text_transform() const
 ListStyleType ComputedProperties::list_style_type() const
 {
     auto const& value = property(PropertyID::ListStyleType);
-    return keyword_to_list_style_type(value.to_keyword()).release_value();
+    if (value.is_string())
+        return value.as_string().string_value().to_string();
+    return keyword_to_counter_style_name_keyword(value.to_keyword()).release_value();
 }
 
 ListStylePosition ComputedProperties::list_style_position() const

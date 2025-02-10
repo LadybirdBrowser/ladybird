@@ -24,14 +24,14 @@ public:
 
     virtual GC::Ptr<Painting::Paintable> create_paintable() const override;
 
-    CSS::ListStyleType list_style_type() const { return m_list_style_type; }
+    CSS::ListStyleType const& list_style_type() const { return m_list_style_type; }
     CSS::ListStylePosition list_style_position() const { return m_list_style_position; }
 
 private:
     virtual bool is_list_item_marker_box() const final { return true; }
     virtual bool can_have_children() const override { return false; }
 
-    CSS::ListStyleType m_list_style_type { CSS::ListStyleType::None };
+    CSS::ListStyleType m_list_style_type { CSS::CounterStyleNameKeyword::None };
     CSS::ListStylePosition m_list_style_position { CSS::ListStylePosition::Outside };
     size_t m_index;
 
