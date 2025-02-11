@@ -98,7 +98,7 @@ public:
     void set_id(u16 id) { m_id = id; }
     u16 id() { return m_id; }
 
-    bool is_valid() const { return m_valid && m_request_done; }
+    bool can_be_removed() const { return !m_valid && m_request_done; }
     Messages::DomainName const& name() const { return m_name; }
 
 private:
@@ -518,7 +518,7 @@ private:
             HashTable<ByteString> to_remove;
             for (auto& entry : cache) {
                 entry.value->check_expiration();
-                if (!entry.value->is_valid())
+                if (entry.value->can_be_removed())
                     to_remove.set(entry.key);
             }
             for (auto const& key : to_remove)
