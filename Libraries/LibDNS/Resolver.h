@@ -213,10 +213,10 @@ public:
 
     NonnullRefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>> lookup(ByteString name, Messages::Class class_ = Messages::Class::IN)
     {
-        return lookup(move(name), class_, Array { Messages::ResourceType::A, Messages::ResourceType::AAAA });
+        return lookup(move(name), class_, { Messages::ResourceType::A, Messages::ResourceType::AAAA });
     }
 
-    NonnullRefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>> lookup(ByteString name, Messages::Class class_, Span<Messages::ResourceType const> desired_types, PendingLookup* repeating_lookup = nullptr)
+    NonnullRefPtr<Core::Promise<NonnullRefPtr<LookupResult const>>> lookup(ByteString name, Messages::Class class_, Vector<Messages::ResourceType> desired_types, PendingLookup* repeating_lookup = nullptr)
     {
         flush_cache();
 
