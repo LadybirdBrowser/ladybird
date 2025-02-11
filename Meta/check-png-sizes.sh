@@ -9,6 +9,10 @@ script_path=$(cd -P -- "$(dirname -- "$0")" && pwd -P)
 cd "${script_path}/.."
 
 if ! command -v optipng >/dev/null ; then
+    if [[ "$GITHUB_ACTIONS" == "true" ]]; then
+        echo 'optipng is not installed, failing check because running in CI.'
+        exit 1
+    fi
     echo 'optipng is not installed, skipping png size check.'
     echo 'Please install optipng for your system to run this check.'
     exit 0
