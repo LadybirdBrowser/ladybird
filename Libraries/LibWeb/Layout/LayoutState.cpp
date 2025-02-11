@@ -648,16 +648,6 @@ void LayoutState::UsedValues::set_content_height(CSSPixels height)
     m_content_height = clamp_to_max_dimension_value(height);
 }
 
-void LayoutState::UsedValues::set_temporary_content_width(CSSPixels width)
-{
-    m_content_width = clamp_to_max_dimension_value(width);
-}
-
-void LayoutState::UsedValues::set_temporary_content_height(CSSPixels height)
-{
-    m_content_height = height;
-}
-
 AvailableSize LayoutState::UsedValues::available_width_inside() const
 {
     if (width_constraint == SizeConstraint::MinContent)
