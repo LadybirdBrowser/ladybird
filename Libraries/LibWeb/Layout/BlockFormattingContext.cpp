@@ -131,15 +131,13 @@ void BlockFormattingContext::parent_context_did_dimension_child_root_box()
 
     // Left-side floats: offset_from_edge is from left edge (0) to left content edge of floating_box.
     for (auto& floating_box : m_left_floats.all_boxes) {
-        auto& box_state = m_state.get_mutable(floating_box->box);
-        box_state.set_content_x(floating_box->offset_from_edge);
+        floating_box->used_values.set_content_x(floating_box->offset_from_edge);
     }
 
     // Right-side floats: offset_from_edge is from right edge (float_containing_block_width) to the left content edge of floating_box.
     for (auto& floating_box : m_right_floats.all_boxes) {
         auto float_containing_block_width = containing_block_width_for(floating_box->box);
-        auto& box_state = m_state.get_mutable(floating_box->box);
-        box_state.set_content_x(float_containing_block_width - floating_box->offset_from_edge);
+        floating_box->used_values.set_content_x(float_containing_block_width - floating_box->offset_from_edge);
     }
 
     if (m_layout_mode == LayoutMode::Normal) {
