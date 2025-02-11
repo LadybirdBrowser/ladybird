@@ -15,7 +15,7 @@ jobs:
         run: |
           set -e
 
-          brew install curl flake8 llvm@19 ninja shellcheck swift-format unzip
+          brew install curl flake8 llvm@19 ninja optipng shellcheck swift-format unzip
 
           # Note: gn isn't available in homebrew :(
           # Corresponds to https://gn.googlesource.com/gn/+/225e90c5025bf74f41dbee60d9cde4512c846fe7
