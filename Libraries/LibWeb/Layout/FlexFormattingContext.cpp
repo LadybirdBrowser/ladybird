@@ -675,17 +675,6 @@ void FlexFormattingContext::determine_flex_base_size_and_hypothetical_main_size(
     auto clamp_min = has_main_min_size(child_box) ? specified_main_min_size(child_box) : automatic_minimum_size(item);
     auto clamp_max = has_main_max_size(child_box) ? specified_main_max_size(child_box) : CSSPixels::max();
     item.hypothetical_main_size = max(CSSPixels(0), css_clamp(item.flex_base_size, clamp_min, clamp_max));
-
-    // NOTE: At this point, we set the hypothetical main size as the flex item's *temporary* main size.
-    //       The size may change again when we resolve flexible lengths, but this is necessary in order for
-    //       descendants of this flex item to resolve percentage sizes against something.
-    //
-    //       The spec just barely hand-waves about this, but it seems to *roughly* match what other engines do.
-    //       See "Note" section here: https://drafts.csswg.org/css-flexbox-1/#definite-sizes
-    if (is_row_layout())
-        item.used_values.set_temporary_content_width(item.hypothetical_main_size);
-    else
-        item.used_values.set_temporary_content_height(item.hypothetical_main_size);
 }
 
 // https://drafts.csswg.org/css-flexbox-1/#min-size-auto
