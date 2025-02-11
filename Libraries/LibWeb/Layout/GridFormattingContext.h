@@ -36,6 +36,7 @@ struct GridPosition {
 
 struct GridItem {
     GC::Ref<Box const> box;
+    LayoutState::UsedValues& used_values;
 
     // Position and span are empty if the item is auto-placed which could only be the case for abspos items
     Optional<int> row;
@@ -53,12 +54,11 @@ struct GridItem {
         return dimension == GridDimension::Column ? column.value() : row.value();
     }
 
-    [[nodiscard]] CSSPixels add_margin_box_sizes(CSSPixels content_size, GridDimension dimension, LayoutState const& state) const
+    [[nodiscard]] CSSPixels add_margin_box_sizes(CSSPixels content_size, GridDimension dimension) const
     {
-        auto const& box_state = state.get(box);
         if (dimension == GridDimension::Column)
-            return box_state.margin_box_left() + content_size + box_state.margin_box_right();
-        return box_state.margin_box_top() + content_size + box_state.margin_box_bottom();
+            return used_values.margin_box_left() + content_size + used_values.margin_box_right();
+        return used_values.margin_box_top() + content_size + used_values.margin_box_bottom();
     }
 
     [[nodiscard]] int gap_adjusted_position(GridDimension const dimension) const
@@ -252,6 +252,8 @@ private:
     Vector<GridItem> m_grid_items;
 
     Optional<AvailableSpace> m_available_space;
+
+    LayoutState::UsedValues& m_grid_container_used_values;
 
     void determine_grid_container_height();
     void determine_intrinsic_size_of_grid_container(AvailableSpace const& available_space);
