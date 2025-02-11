@@ -186,7 +186,7 @@ struct LayoutState {
         CSSPixels border_top_collapsed() const { return use_collapsing_borders_model() ? round(border_top / 2) : border_top; }
         CSSPixels border_bottom_collapsed() const { return use_collapsing_borders_model() ? round(border_bottom / 2) : border_bottom; }
 
-        GC::Ptr<Layout::NodeWithStyle> m_node { nullptr };
+        GC::Ptr<Layout::NodeWithStyle const> m_node { nullptr };
         UsedValues const* m_containing_block_used_values { nullptr };
 
         CSSPixels m_content_width { 0 };
