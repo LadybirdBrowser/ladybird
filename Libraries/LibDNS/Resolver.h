@@ -99,6 +99,7 @@ public:
     u16 id() { return m_id; }
 
     bool can_be_removed() const { return !m_valid && m_request_done; }
+    bool is_done() const { return m_request_done; }
     Messages::DomainName const& name() const { return m_name; }
 
 private:
@@ -320,8 +321,12 @@ public:
             if (existing_promise)
                 return existing_promise.release_nonnull();
 
-            promise->resolve(*result);
-            return promise;
+            // Something has gone wrong if there are no pending lookups but the result isn't done.
+            // Continue on and hope that we eventually resolve or timeout in that case.
+            if (result->is_done()) {
+                promise->resolve(*result);
+                return promise;
+            }
         }
 
         Messages::Message query;
