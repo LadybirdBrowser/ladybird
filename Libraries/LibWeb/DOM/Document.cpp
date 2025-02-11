@@ -1346,7 +1346,7 @@ void Document::update_layout()
         window->scroll_by(0, 0);
 }
 
-[[nodiscard]] static CSS::RequiredInvalidationAfterStyleChange update_style_recursively(Node& node, CSS::StyleComputer& style_computer)
+[[nodiscard]] static CSS::RequiredInvalidationAfterStyleChange update_style_recursively(Node& node, CSS::StyleComputer& style_computer, bool needs_inherited_style_update)
 {
     bool const needs_full_style_update = node.document().needs_full_style_update();
     CSS::RequiredInvalidationAfterStyleChange invalidation;
@@ -1362,19 +1362,19 @@ void Document::update_layout()
     if (is<Element>(node)) {
         if (needs_full_style_update || node.needs_style_update()) {
             invalidation |= static_cast<Element&>(node).recompute_style();
-        } else if (node.needs_inherited_style_update()) {
+        } else if (needs_inherited_style_update) {
             invalidation |= static_cast<Element&>(node).recompute_inherited_style();
         }
         is_display_none = static_cast<Element&>(node).computed_properties()->display().is_none();
     }
     node.set_needs_style_update(false);
-    node.set_needs_inherited_style_update(false);
 
-    if (needs_full_style_update || node.child_needs_style_update()) {
+    bool children_need_inherited_style_update = !invalidation.is_none();
+    if (needs_full_style_update || node.child_needs_style_update() || children_need_inherited_style_update) {
         if (node.is_element()) {
             if (auto shadow_root = static_cast<DOM::Element&>(node).shadow_root()) {
                 if (needs_full_style_update || shadow_root->needs_style_update() || shadow_root->child_needs_style_update()) {
-                    auto subtree_invalidation = update_style_recursively(*shadow_root, style_computer);
+                    auto subtree_invalidation = update_style_recursively(*shadow_root, style_computer, children_need_inherited_style_update);
                     if (!is_display_none)
                         invalidation |= subtree_invalidation;
                 }
@@ -1382,8 +1382,8 @@ void Document::update_layout()
         }
 
         node.for_each_child([&](auto& child) {
-            if (needs_full_style_update || child.needs_style_update() || child.needs_inherited_style_update() || child.child_needs_style_update()) {
-                auto subtree_invalidation = update_style_recursively(child, style_computer);
+            if (needs_full_style_update || child.needs_style_update() || children_need_inherited_style_update || child.child_needs_style_update()) {
+                auto subtree_invalidation = update_style_recursively(child, style_computer, children_need_inherited_style_update);
                 if (!is_display_none)
                     invalidation |= subtree_invalidation;
             }
@@ -1456,7 +1456,7 @@ void Document::update_style()
 
     style_computer().reset_ancestor_filter();
 
-    auto invalidation = update_style_recursively(*this, style_computer());
+    auto invalidation = update_style_recursively(*this, style_computer(), false);
     if (!invalidation.is_none()) {
         invalidate_display_list();
     }
@@ -1699,11 +1699,8 @@ void Document::invalidate_style_of_elements_affected_by_has()
             needs_style_recalculation = true;
         }
 
-        if (needs_style_recalculation) {
+        if (needs_style_recalculation)
             element.set_needs_style_update(true);
-        } else {
-            element.set_needs_inherited_style_update(true);
-        }
         return TraversalDecision::Continue;
     });
 }
@@ -1751,11 +1748,7 @@ void Document::invalidate_style_for_elements_affected_by_hover_change(Node& old_
         return state;
     };
 
-    Function<void(Node&, bool)> invalidate_hovered_elements_recursively = [&](Node& node, bool descendants_need_inherited_style_update) -> void {
-        if (descendants_need_inherited_style_update) {
-            node.set_needs_inherited_style_update(true);
-        }
-        bool invalidated_any_elements = false;
+    Function<void(Node&)> invalidate_hovered_elements_recursively = [&](Node& node) -> void {
         if (node.is_element()) {
             auto& element = static_cast<Element&>(node);
             style_computer.push_ancestor(element);
@@ -1765,13 +1758,12 @@ void Document::invalidate_style_for_elements_affected_by_hover_change(Node& old_
                 auto selectors_match_state_after = compute_hover_selectors_match_state(element);
                 if (selectors_match_state_before.view() != selectors_match_state_after.view()) {
                     element.set_needs_style_update(true);
-                    invalidated_any_elements = true;
                 }
             }
         }
 
         node.for_each_child([&](auto& child) {
-            invalidate_hovered_elements_recursively(child, descendants_need_inherited_style_update || invalidated_any_elements);
+            invalidate_hovered_elements_recursively(child);
             return IterationDecision::Continue;
         });
 
@@ -1779,7 +1771,7 @@ void Document::invalidate_style_for_elements_affected_by_hover_change(Node& old_
             style_computer.pop_ancestor(static_cast<Element&>(node));
     };
 
-    invalidate_hovered_elements_recursively(root, false);
+    invalidate_hovered_elements_recursively(root);
 }
 
 void Document::set_hovered_node(Node* node)

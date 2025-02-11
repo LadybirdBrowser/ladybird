@@ -303,9 +303,6 @@ public:
     void set_needs_style_update(bool);
     void set_needs_style_update_internal(bool) { m_needs_style_update = true; }
 
-    bool needs_inherited_style_update() const { return m_needs_inherited_style_update; }
-    void set_needs_inherited_style_update(bool);
-
     bool child_needs_style_update() const { return m_child_needs_style_update; }
     void set_child_needs_style_update(bool b) { m_child_needs_style_update = b; }
 
@@ -535,7 +532,6 @@ protected:
     bool m_child_needs_layout_tree_update { false };
 
     bool m_needs_style_update { false };
-    bool m_needs_inherited_style_update { false };
     bool m_child_needs_style_update { false };
     bool m_entire_subtree_needs_style_update { false };
 
