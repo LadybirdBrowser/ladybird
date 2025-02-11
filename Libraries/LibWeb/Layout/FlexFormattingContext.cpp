@@ -1093,12 +1093,7 @@ void FlexFormattingContext::determine_hypothetical_cross_size_of_item(FlexItem& 
         return;
     }
 
-    auto computed_cross_size = [&]() -> CSS::Size {
-        // "... treating auto as fit-content"
-        if (should_treat_cross_size_as_auto(item.box))
-            return CSS::Size::make_fit_content();
-        return this->computed_cross_size(item.box);
-    }();
+    auto computed_cross_size = this->computed_cross_size(item.box);
 
     if (computed_cross_size.is_min_content()) {
         item.hypothetical_cross_size = css_clamp(calculate_min_content_cross_size(item), clamp_min, clamp_max);
@@ -1110,44 +1105,16 @@ void FlexFormattingContext::determine_hypothetical_cross_size_of_item(FlexItem& 
         return;
     }
 
-    if (computed_cross_size.is_fit_content()) {
-        CSSPixels fit_content_cross_size = 0;
-        if (is_row_layout()) {
-            auto available_width = item.main_size.has_value() ? AvailableSize::make_definite(item.main_size.value()) : AvailableSize::make_indefinite();
-            auto available_height = AvailableSize::make_indefinite();
-            fit_content_cross_size = calculate_fit_content_height(item.box, AvailableSpace(available_width, available_height));
-        } else {
-            fit_content_cross_size = calculate_fit_content_width(item.box, m_available_space_for_items->space);
-        }
-
-        item.hypothetical_cross_size = css_clamp(fit_content_cross_size, clamp_min, clamp_max);
-        return;
-    }
-
-    // For indefinite cross sizes, we perform a throwaway layout and then measure it.
-    LayoutState throwaway_state(&m_state);
-
-    auto& box_state = throwaway_state.get_mutable(item.box);
+    // "... treating auto as fit-content"
+    auto fit_content_cross_size = calculate_fit_content_cross_size(item);
     if (is_row_layout()) {
-        box_state.set_content_width(item.main_size.value());
+        auto available_width = item.main_size.has_value() ? AvailableSize::make_definite(item.main_size.value()) : AvailableSize::make_indefinite();
+        auto available_height = AvailableSize::make_indefinite();
+        fit_content_cross_size = calculate_fit_content_height(item.box, AvailableSpace(available_width, available_height));
     } else {
-        box_state.set_content_height(item.main_size.value());
+        fit_content_cross_size = calculate_fit_content_width(item.box, m_available_space_for_items->space);
     }
-
-    // Item has definite main size, layout with that as the used main size.
-    auto independent_formatting_context = create_independent_formatting_context_if_needed(throwaway_state, LayoutMode::Normal, item.box);
-    // NOTE: Flex items should always create an independent formatting context!
-    VERIFY(independent_formatting_context);
-
-    auto available_width = is_row_layout() ? AvailableSize::make_definite(item.main_size.value()) : AvailableSize::make_indefinite();
-    auto available_height = is_row_layout() ? AvailableSize::make_indefinite() : AvailableSize::make_definite(item.main_size.value());
-
-    independent_formatting_context->run(AvailableSpace(available_width, available_height));
-
-    auto automatic_cross_size = is_row_layout() ? independent_formatting_context->automatic_content_height()
-                                                : independent_formatting_context->automatic_content_width();
-
-    item.hypothetical_cross_size = css_clamp(automatic_cross_size, clamp_min, clamp_max);
+    item.hypothetical_cross_size = css_clamp(fit_content_cross_size, clamp_min, clamp_max);
 }
 
 // https://www.w3.org/TR/css-flexbox-1/#algo-cross-line
