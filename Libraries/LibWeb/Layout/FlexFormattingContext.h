@@ -157,7 +157,10 @@ private:
 
     void set_main_size(Box const&, CSSPixels size);
     void set_cross_size(Box const&, CSSPixels size);
-    void set_offset(Box const&, CSSPixels main_offset, CSSPixels cross_offset);
+    void set_main_size(FlexItem&, CSSPixels size);
+    void set_cross_size(FlexItem&, CSSPixels size);
+    void set_offset(FlexItem&, CSSPixels main_offset, CSSPixels cross_offset);
+
     void set_main_axis_first_margin(FlexItem&, CSSPixels margin);
     void set_main_axis_second_margin(FlexItem&, CSSPixels margin);
 
