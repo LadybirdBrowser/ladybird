@@ -73,7 +73,7 @@ void FlexFormattingContext::run(AvailableSpace const& available_space)
                 auto item_max_cross_size = has_cross_max_size(item.box) ? specified_cross_max_size(item.box) : CSSPixels::max();
                 auto item_preferred_outer_cross_size = css_clamp(flex_container_inner_cross_size, item_min_cross_size, item_max_cross_size);
                 auto item_inner_cross_size = item_preferred_outer_cross_size - item.margins.cross_before - item.margins.cross_after - item.padding.cross_before - item.padding.cross_after - item.borders.cross_before - item.borders.cross_after;
-                set_cross_size(item.box, item_inner_cross_size);
+                set_cross_size(item, item_inner_cross_size);
                 set_has_definite_cross_size(item);
             }
         }
@@ -144,7 +144,7 @@ void FlexFormattingContext::run(AvailableSpace const& available_space)
         auto const& flex_container_computed_cross_size = is_row_layout() ? flex_container().computed_values().height() : flex_container().computed_values().width();
         if (flex_container_computed_cross_size.is_auto()) {
             for (auto& item : m_flex_items) {
-                set_cross_size(item.box, item.cross_size.value());
+                set_cross_size(item, item.cross_size.value());
                 set_has_definite_cross_size(item);
             }
         }
@@ -207,11 +207,10 @@ void FlexFormattingContext::populate_specified_margins(FlexItem& item, CSS::Flex
 {
     auto width_of_containing_block = m_flex_container_state.content_width();
 
-    auto& state = m_state.get_mutable(*item.box);
-    state.padding_left = item.box->computed_values().padding().left().to_px(item.box, width_of_containing_block);
-    state.padding_right = item.box->computed_values().padding().right().to_px(item.box, width_of_containing_block);
-    state.padding_top = item.box->computed_values().padding().top().to_px(item.box, width_of_containing_block);
-    state.padding_bottom = item.box->computed_values().padding().bottom().to_px(item.box, width_of_containing_block);
+    item.used_values.padding_left = item.box->computed_values().padding().left().to_px(item.box, width_of_containing_block);
+    item.used_values.padding_right = item.box->computed_values().padding().right().to_px(item.box, width_of_containing_block);
+    item.used_values.padding_top = item.box->computed_values().padding().top().to_px(item.box, width_of_containing_block);
+    item.used_values.padding_bottom = item.box->computed_values().padding().bottom().to_px(item.box, width_of_containing_block);
 
     // FIXME: This should also take reverse-ness into account
     if (flex_direction == CSS::FlexDirection::Row || flex_direction == CSS::FlexDirection::RowReverse) {
@@ -240,10 +239,10 @@ void FlexFormattingContext::populate_specified_margins(FlexItem& item, CSS::Flex
         item.borders.cross_before = item.box->computed_values().border_left().width;
         item.borders.cross_after = item.box->computed_values().border_right().width;
 
-        item.padding.main_before = state.padding_top;
-        item.padding.main_after = state.padding_bottom;
-        item.padding.cross_before = state.padding_left;
-        item.padding.cross_after = state.padding_right;
+        item.padding.main_before = item.used_values.padding_top;
+        item.padding.main_after = item.used_values.padding_bottom;
+        item.padding.cross_before = item.used_values.padding_left;
+        item.padding.cross_after = item.used_values.padding_right;
 
         item.margins.main_before = item.box->computed_values().margin().top().to_px(item.box, width_of_containing_block);
         item.margins.main_after = item.box->computed_values().margin().bottom().to_px(item.box, width_of_containing_block);
@@ -413,30 +412,46 @@ void FlexFormattingContext::set_cross_size(Box const& box, CSSPixels size)
         m_state.get_mutable(box).set_content_width(size);
 }
 
-void FlexFormattingContext::set_offset(Box const& box, CSSPixels main_offset, CSSPixels cross_offset)
+void FlexFormattingContext::set_main_size(FlexItem& item, CSSPixels size)
 {
     if (is_row_layout())
-        m_state.get_mutable(box).offset = CSSPixelPoint { main_offset, cross_offset };
+        item.used_values.set_content_width(size);
     else
-        m_state.get_mutable(box).offset = CSSPixelPoint { cross_offset, main_offset };
+        item.used_values.set_content_height(size);
+}
+
+void FlexFormattingContext::set_cross_size(FlexItem& item, CSSPixels size)
+{
+    if (is_row_layout())
+        item.used_values.set_content_height(size);
+    else
+        item.used_values.set_content_width(size);
+}
+
+void FlexFormattingContext::set_offset(FlexItem& item, CSSPixels main_offset, CSSPixels cross_offset)
+{
+    if (is_row_layout())
+        item.used_values.offset = CSSPixelPoint { main_offset, cross_offset };
+    else
+        item.used_values.offset = CSSPixelPoint { cross_offset, main_offset };
 }
 
 void FlexFormattingContext::set_main_axis_first_margin(FlexItem& item, CSSPixels margin)
 {
     item.margins.main_before = margin;
     if (is_row_layout())
-        m_state.get_mutable(item.box).margin_left = margin;
+        item.used_values.margin_left = margin;
     else
-        m_state.get_mutable(item.box).margin_top = margin;
+        item.used_values.margin_top = margin;
 }
 
 void FlexFormattingContext::set_main_axis_second_margin(FlexItem& item, CSSPixels margin)
 {
     item.margins.main_after = margin;
     if (is_row_layout())
-        m_state.get_mutable(item.box).margin_right = margin;
+        item.used_values.margin_right = margin;
     else
-        m_state.get_mutable(item.box).margin_bottom = margin;
+        item.used_values.margin_bottom = margin;
 }
 
 // https://drafts.csswg.org/css-flexbox-1/#algo-available
@@ -1030,7 +1045,7 @@ void FlexFormattingContext::resolve_flexible_lengths_for_line(FlexLine& line)
     // 6. Set each item’s used main size to its target main size.
     for (auto& item : line.items) {
         item.main_size = item.target_main_size;
-        set_main_size(item.box, item.target_main_size);
+        set_main_size(item, item.target_main_size);
 
         // https://drafts.csswg.org/css-flexbox-1/#definite-sizes
         // 1. If the flex container has a definite main size, then the post-flexing main sizes of its flex items are treated as definite.
@@ -1639,9 +1654,9 @@ void FlexFormattingContext::copy_dimensions_from_flex_items_to_boxes()
         item.used_values.border_top = box->computed_values().border_top().width;
         item.used_values.border_bottom = box->computed_values().border_bottom().width;
 
-        set_main_size(box, item.main_size.value());
-        set_cross_size(box, item.cross_size.value());
-        set_offset(box, item.main_offset, item.cross_offset);
+        set_main_size(item, item.main_size.value());
+        set_cross_size(item, item.cross_size.value());
+        set_offset(item, item.main_offset, item.cross_offset);
     }
 }
 
