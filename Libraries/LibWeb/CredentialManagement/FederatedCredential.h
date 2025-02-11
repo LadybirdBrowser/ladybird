@@ -30,6 +30,9 @@ public:
         //       therefore conditional mediation is not supported.
         return false;
     }
+
+    // https://w3c.github.io/webappsec-credential-management/#create-federatedcredential
+    virtual WebIDL::ExceptionOr<Variant<Empty, GC::Ref<Credential>, GC::Ref<CreateCredentialAlgorithm>>> create(JS::Realm&, URL::Origin const&, CredentialCreationOptions const&, bool) const override;
 };
 
 // https://w3c.github.io/webappsec-credential-management/#federatedcredential
