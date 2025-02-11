@@ -533,11 +533,8 @@ void Node::invalidate_style(StyleInvalidationReason, Vector<CSS::InvalidationSet
             } else if (options.invalidate_elements_that_use_css_custom_properties && element.style_uses_css_custom_properties()) {
                 needs_style_recalculation = true;
             }
-            if (needs_style_recalculation) {
+            if (needs_style_recalculation)
                 element.set_needs_style_update(true);
-            } else {
-                element.set_needs_inherited_style_update(true);
-            }
             return TraversalDecision::Continue;
         });
     };
@@ -1392,22 +1389,6 @@ EventTarget* Node::get_parent(Event const&)
         return assigned_slot.ptr();
 
     return parent();
-}
-
-void Node::set_needs_inherited_style_update(bool value)
-{
-    if (m_needs_inherited_style_update == value)
-        return;
-    m_needs_inherited_style_update = value;
-
-    if (m_needs_inherited_style_update) {
-        for (auto* ancestor = parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
-            if (ancestor->m_child_needs_style_update)
-                break;
-            ancestor->m_child_needs_style_update = true;
-        }
-        document().schedule_style_update();
-    }
 }
 
 void Node::set_needs_layout_tree_update(bool value)
