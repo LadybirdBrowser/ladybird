@@ -64,9 +64,14 @@ enum class CanPlayTypeResult;
 enum class CanvasFillRule;
 enum class CanvasTextAlign;
 enum class CanvasTextBaseline;
+enum class ColorGamut;
 enum class DOMParserSupportedType;
 enum class EndingType;
+enum class HdrMetadataType;
 enum class ImageSmoothingQuality;
+enum class MediaDecodingType;
+enum class MediaEncodingType;
+enum class MediaKeysRequirement;
 enum class ReadableStreamReaderMode;
 enum class ReferrerPolicy;
 enum class RequestCache;
@@ -79,6 +84,7 @@ enum class RequestRedirect;
 enum class ResizeObserverBoxOptions;
 enum class ResponseType;
 enum class TextTrackKind;
+enum class TransferFunction;
 enum class XMLHttpRequestResponseType;
 }
 
@@ -656,6 +662,17 @@ class MathMLElement;
 
 namespace Web::MediaCapabilitiesAPI {
 class MediaCapabilities;
+
+struct AudioConfiguration;
+struct KeySystemTrackConfiguration;
+struct MediaCapabilitiesDecodingInfo;
+struct MediaCapabilitiesEncodingInfo;
+struct MediaCapabilitiesInfo;
+struct MediaCapabilitiesKeySystemConfiguration;
+struct MediaConfiguration;
+struct MediaDecodingConfiguration;
+struct MediaEncodingConfiguration;
+struct VideoConfiguration;
 }
 
 namespace Web::MediaSourceExtensions {

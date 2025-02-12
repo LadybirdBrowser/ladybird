@@ -1,0 +1,6 @@
+// https://w3c.github.io/encrypted-media/#dom-mediakeysrequirement
+enum MediaKeysRequirement {
+    "required",
+    "optional",
+    "not-allowed"
+};
