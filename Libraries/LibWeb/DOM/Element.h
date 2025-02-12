@@ -51,6 +51,7 @@ struct GetHTMLOptions {
 struct ScrollIntoViewOptions : public HTML::ScrollOptions {
     Bindings::ScrollLogicalPosition block { Bindings::ScrollLogicalPosition::Start };
     Bindings::ScrollLogicalPosition inline_ { Bindings::ScrollLogicalPosition::Nearest };
+    Bindings::ScrollIntoViewContainer container { Bindings::ScrollIntoViewContainer::All };
 };
 
 // https://drafts.csswg.org/cssom-view-1/#dictdef-checkvisibilityoptions

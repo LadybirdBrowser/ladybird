@@ -15,10 +15,14 @@
 #import <HTML/Window.idl>
 
 enum ScrollLogicalPosition { "start", "center", "end", "nearest" };
+// https://drafts.csswg.org/cssom-view-1/#dictdef-scrollintoviewoptions
 dictionary ScrollIntoViewOptions : ScrollOptions {
     ScrollLogicalPosition block = "start";
     ScrollLogicalPosition inline = "nearest";
+    ScrollIntoViewContainer container = "all";
 };
+
+enum ScrollIntoViewContainer { "all", "nearest" };
 
 // https://drafts.csswg.org/cssom-view-1/#dictdef-checkvisibilityoptions
 dictionary CheckVisibilityOptions {
