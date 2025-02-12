@@ -411,16 +411,17 @@ void Node::invalidate_ancestors_affected_by_has_in_subject_position()
             element.set_needs_style_update(true);
         }
 
-        // If any previous sibling ancestor was tested against selectors like ".a:has(+ .b)" or ".a:has(~ .b)"
+        auto* parent = ancestor->parent_or_shadow_host();
+        if (!parent)
+            return;
+
+        // If any ancestor's sibling was tested against selectors like ".a:has(+ .b)" or ".a:has(~ .b)"
         // its style might be affected by the change in descendant node.
-        for (auto* previous_sibling = element.previous_sibling(); previous_sibling; previous_sibling = previous_sibling->previous_sibling()) {
-            if (!previous_sibling->is_element())
-                continue;
-            auto& element = static_cast<Element&>(*previous_sibling);
-            if (element.affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator()) {
+        parent->for_each_child_of_type<Element>([&](auto& element) {
+            if (element.affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator())
                 element.set_needs_style_update(true);
-            }
-        }
+            return IterationDecision::Continue;
+        });
     }
 }
 
@@ -431,17 +432,13 @@ void Node::invalidate_style(StyleInvalidationReason reason)
 
     if (document().style_computer().may_have_has_selectors()) {
         if (reason == StyleInvalidationReason::NodeRemove) {
-            for (auto* previous_sibling = this->previous_sibling(); previous_sibling; previous_sibling = previous_sibling->previous_sibling()) {
-                if (!previous_sibling->is_element())
-                    continue;
-                auto& element = static_cast<Element&>(*previous_sibling);
-                if (element.affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator()) {
-                    element.set_needs_style_update(true);
-                }
-            }
-
-            if (auto parent = parent_or_shadow_host(); parent) {
+            if (auto* parent = parent_or_shadow_host(); parent) {
                 document().schedule_ancestors_style_invalidation_due_to_presence_of_has(*parent);
+                parent->for_each_child_of_type<Element>([&](auto& element) {
+                    if (element.affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator())
+                        element.set_needs_style_update(true);
+                    return IterationDecision::Continue;
+                });
             }
         } else {
             document().schedule_ancestors_style_invalidation_due_to_presence_of_has(*this);
