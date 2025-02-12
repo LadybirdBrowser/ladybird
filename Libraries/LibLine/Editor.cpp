@@ -245,9 +245,8 @@ void Editor::add_to_history(ByteString const& line)
         return;
     if ((m_history.size() + 1) > m_history_capacity)
         m_history.take_first();
-    struct timeval tv;
-    gettimeofday(&tv, nullptr);
-    m_history.append({ line, tv.tv_sec });
+    auto now = UnixDateTime::now();
+    m_history.append({ line, now.seconds_since_epoch() });
     m_history_dirty = true;
 }
 
