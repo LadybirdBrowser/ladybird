@@ -68,7 +68,7 @@ i32 HTMLButtonElement::default_tab_index_value() const
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-button-element:concept-submit-button
 bool HTMLButtonElement::is_submit_button() const
 {
-    // If the type attribute is in the Submit Button state, the element is specifically a submit button.
+    // A button element is said to be a submit button if the type attribute is in the Submit Button state.
     return type_state() == TypeAttributeState::Submit;
 }
 
@@ -94,25 +94,15 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
     if (!this->document().is_fully_active())
         return;
 
-    // 3. If element has a form owner then switch on element's type attribute's state, then:
+    // 3. If element has a form owner:
     if (form() != nullptr) {
-        switch (type_state()) {
-        case TypeAttributeState::Submit:
-            // Submit Button
-            // Submit element's form owner from element with userInvolvement set to event's user navigation involvement.
+        // 1. If element is a submit button, then submit element's form owner from element with userInvolvement set to event's user navigation involvement.
+        if (is_submit_button()) {
             form()->submit_form(*this, { .user_involvement = user_navigation_involvement(event) }).release_value_but_fixme_should_propagate_errors();
-            break;
-        case TypeAttributeState::Reset:
-            // Reset Button
-            // Reset element's form owner.
+        }
+        // 2. If element's type attribute is in the Reset Button state, then reset element's form owner.
+        if (type_state() == TypeAttributeState::Reset) {
             form()->reset_form();
-            break;
-        case TypeAttributeState::Button:
-            // Button
-            // Do nothing.
-            break;
-        default:
-            VERIFY_NOT_REACHED();
         }
     }
 

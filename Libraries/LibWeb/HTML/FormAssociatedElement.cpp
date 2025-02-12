@@ -252,8 +252,8 @@ bool FormAssociatedElement::is_candidate_for_constraint_validation() const
         auto const& button_element = as<HTMLButtonElement>(html_element);
 
         // https://html.spec.whatwg.org/multipage/form-elements.html#the-button-element%3Abarred-from-constraint-validation
-        // If the type attribute is in the Reset Button state or the Button state, the element is barred from constraint validation.
-        if (button_element.type_state() == HTMLButtonElement::TypeAttributeState::Button || button_element.type_state() == HTMLButtonElement::TypeAttributeState::Reset)
+        // If the element is not a submit button, the element is barred from constraint validation.
+        if (!button_element.is_submit_button())
             return false;
     }
 
