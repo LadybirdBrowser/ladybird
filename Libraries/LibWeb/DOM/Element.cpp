@@ -498,6 +498,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style()
     VERIFY(parent());
 
     m_affected_by_has_pseudo_class_in_subject_position = false;
+    m_affected_by_has_pseudo_class_in_non_subject_position = false;
+    m_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator = false;
     m_affected_by_sibling_combinator = false;
     m_affected_by_first_or_last_child_pseudo_class = false;
     m_affected_by_nth_child_pseudo_class = false;
@@ -1310,6 +1312,16 @@ bool Element::includes_properties_from_invalidation_set(CSS::InvalidationSet con
         return IterationDecision::Continue;
     });
     return includes_any;
+}
+
+void Element::invalidate_style_if_affected_by_has()
+{
+    if (affected_by_has_pseudo_class_in_subject_position()) {
+        set_needs_style_update(true);
+    }
+    if (affected_by_has_pseudo_class_in_non_subject_position()) {
+        invalidate_style(StyleInvalidationReason::Other, { { CSS::InvalidationSet::Property::Type::PseudoClass, CSS::PseudoClass::Has } }, {});
+    }
 }
 
 bool Element::has_pseudo_elements() const

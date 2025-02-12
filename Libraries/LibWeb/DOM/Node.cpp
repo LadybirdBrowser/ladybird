@@ -397,34 +397,6 @@ GC::Ptr<HTML::Navigable> Node::navigable() const
     }
 }
 
-void Node::invalidate_ancestors_affected_by_has_in_subject_position()
-{
-    // This call only takes care of invalidating `:has()` in subject position (e.g., ".a:has(.b)").
-    // Non-subject position (e.g., ".a:has(.b) + .c") is still handled by another call that uses
-    // invalidation sets and requires whole document traversal.
-    // Here we assume that :has() invalidation scope is limited to ancestors and sibling ancestors.
-    for (auto* ancestor = this; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
-        if (!ancestor->is_element())
-            continue;
-        auto& element = static_cast<Element&>(*ancestor);
-        if (element.affected_by_has_pseudo_class_in_subject_position()) {
-            element.set_needs_style_update(true);
-        }
-
-        auto* parent = ancestor->parent_or_shadow_host();
-        if (!parent)
-            return;
-
-        // If any ancestor's sibling was tested against selectors like ".a:has(+ .b)" or ".a:has(~ .b)"
-        // its style might be affected by the change in descendant node.
-        parent->for_each_child_of_type<Element>([&](auto& element) {
-            if (element.affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator())
-                element.set_needs_style_update(true);
-            return IterationDecision::Continue;
-        });
-    }
-}
-
 void Node::invalidate_style(StyleInvalidationReason reason)
 {
     if (is_character_data())
@@ -436,7 +408,7 @@ void Node::invalidate_style(StyleInvalidationReason reason)
                 document().schedule_ancestors_style_invalidation_due_to_presence_of_has(*parent);
                 parent->for_each_child_of_type<Element>([&](auto& element) {
                     if (element.affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator())
-                        element.set_needs_style_update(true);
+                        element.invalidate_style_if_affected_by_has();
                     return IterationDecision::Continue;
                 });
             }

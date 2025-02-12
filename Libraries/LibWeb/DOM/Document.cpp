@@ -1679,30 +1679,25 @@ void Document::invalidate_style_of_elements_affected_by_has()
     for (auto const& node : m_pending_nodes_for_style_invalidation_due_to_presence_of_has) {
         if (node.is_null())
             continue;
-        node->invalidate_ancestors_affected_by_has_in_subject_position();
-    }
+        for (auto* ancestor = node.ptr(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
+            if (!ancestor->is_element())
+                continue;
+            auto& element = static_cast<Element&>(*ancestor);
+            element.invalidate_style_if_affected_by_has();
 
-    // Take care of elements that affected by :has() in non-subject position, i.e., ".a:has(.b) > .c".
-    // Elements affected by :has() in subject position, i.e., ".a:has(.b)", are handled by
-    // Node::invalidate_style() and should already be marked for style update by now.
-    Vector<CSS::InvalidationSet::Property, 1> changed_properties;
-    changed_properties.append({ .type = CSS::InvalidationSet::Property::Type::PseudoClass, .value = CSS::PseudoClass::Has });
-    auto invalidation_set = style_computer().invalidation_set_for_properties(changed_properties);
-    for_each_shadow_including_inclusive_descendant([&](Node& node) {
-        if (!node.is_element())
-            return TraversalDecision::Continue;
-        auto& element = static_cast<Element&>(node);
-        bool needs_style_recalculation = false;
-        if (invalidation_set.needs_invalidate_whole_subtree()) {
-            needs_style_recalculation = true;
-        } else if (element.includes_properties_from_invalidation_set(invalidation_set)) {
-            needs_style_recalculation = true;
+            auto* parent = ancestor->parent_or_shadow_host();
+            if (!parent)
+                return;
+
+            // If any ancestor's sibling was tested against selectors like ".a:has(+ .b)" or ".a:has(~ .b)"
+            // its style might be affected by the change in descendant node.
+            parent->for_each_child_of_type<Element>([&](auto& ancestor_sibling_element) {
+                if (ancestor_sibling_element.affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator())
+                    ancestor_sibling_element.invalidate_style_if_affected_by_has();
+                return IterationDecision::Continue;
+            });
         }
-
-        if (needs_style_recalculation)
-            element.set_needs_style_update(true);
-        return TraversalDecision::Continue;
-    });
+    }
 }
 
 void Document::invalidate_style_for_elements_affected_by_hover_change(Node& old_new_hovered_common_ancestor, GC::Ptr<Node> hovered_node)
