@@ -356,6 +356,25 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     VERIFY(!paths.is_empty());
     VERIFY(!base_paths.is_empty());
 
+    if (paths.first().starts_with("@"sv)) {
+        // Response file
+        auto file_or_error = Core::File::open(paths.first().substring_view(1), Core::File::OpenMode::Read);
+        paths.remove(0);
+        VERIFY(paths.is_empty());
+
+        if (file_or_error.is_error()) {
+            s_error_string = ByteString::formatted("Unable to open response file {}", paths.first());
+            return Error::from_string_view(s_error_string.view());
+        }
+        auto file = file_or_error.release_value();
+        auto string = TRY(file->read_until_eof());
+        for (auto const& path : StringView(string).split_view('\n')) {
+            if (path.is_empty())
+                continue;
+            paths.append(path);
+        }
+    }
+
     Vector<ByteString> lexical_bases;
     for (auto const& base_path : base_paths) {
         VERIFY(!base_path.is_empty());
