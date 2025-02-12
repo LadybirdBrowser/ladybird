@@ -101,6 +101,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # FIXME: This warning seems useful but has too many false positives with GCC 13.
     add_cxx_compile_options(-Wno-dangling-reference)
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang$" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC")
+    add_cxx_compile_options(-Wno-implicit-const-int-float-conversion)
     add_cxx_compile_options(-Wno-reserved-identifier)
     add_cxx_compile_options(-Wno-user-defined-literals)
     add_cxx_compile_options(-Wno-unqualified-std-cast-call)
