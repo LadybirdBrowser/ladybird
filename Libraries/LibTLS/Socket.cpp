@@ -52,6 +52,12 @@ ErrorOr<size_t> TLSv12::write_some(ReadonlyBytes bytes)
 
 ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect(ByteString const& host, u16 port, Options options)
 {
+#ifdef AK_OS_WINDOWS
+    (void)host;
+    (void)port;
+    (void)options;
+    return AK::Error::from_string_literal("TODO: Unable to connect via hostname on Windows");
+#else
     auto promise = Core::Promise<Empty>::construct();
     OwnPtr<Core::Socket> tcp_socket = TRY(Core::TCPSocket::connect(host, port));
     TRY(tcp_socket->set_blocking(false));
@@ -71,10 +77,17 @@ ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect(ByteString const& host, u16 port,
     tls_socket->on_connected = nullptr;
     tls_socket->m_context.should_expect_successful_read = true;
     return tls_socket;
+#endif
 }
 
 ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect(Core::SocketAddress address, ByteString const& host, Options options)
 {
+#ifdef AK_OS_WINDOWS
+    (void)address;
+    (void)host;
+    (void)options;
+    return AK::Error::from_string_literal("TODO: Unable to connect via address on Windows");
+#else
     auto promise = Core::Promise<Empty>::construct();
     OwnPtr<Core::Socket> tcp_socket = TRY(Core::TCPSocket::connect(address));
     TRY(tcp_socket->set_blocking(false));
@@ -94,6 +107,7 @@ ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect(Core::SocketAddress address, Byte
     tls_socket->on_connected = nullptr;
     tls_socket->m_context.should_expect_successful_read = true;
     return tls_socket;
+#endif
 }
 
 ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect(ByteString const& host, Core::Socket& underlying_stream, Options options)
