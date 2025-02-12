@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	font shorthand returns only CSS2 font-variant values
+1 Pass
+Pass	font shorthand returns only CSS2 font-variant values
