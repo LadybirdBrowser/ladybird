@@ -159,19 +159,21 @@ Vector<GC::Root<EventTarget>> Event::composed_path() const
 
     // 4. Let currentTarget be this’s currentTarget attribute value. (NOTE: Not necessary)
 
-    // 5. Append currentTarget to composedPath.
-    // NOTE: If path is not empty, then the event is being dispatched and will have a currentTarget.
+    // 5. Assert: currentTarget is an EventTarget object.
     VERIFY(m_current_target);
+
+    // 6. Append currentTarget to composedPath.
+    // NOTE: If path is not empty, then the event is being dispatched and will have a currentTarget.
     composed_path.append(const_cast<EventTarget*>(m_current_target.ptr()));
 
-    // 6. Let currentTargetIndex be 0.
+    // 7. Let currentTargetIndex be 0.
     size_t current_target_index = 0;
 
-    // 7. Let currentTargetHiddenSubtreeLevel be 0.
+    // 8. Let currentTargetHiddenSubtreeLevel be 0.
     size_t current_target_hidden_subtree_level = 0;
 
-    // 8. Let index be path’s size − 1.
-    // 9. While index is greater than or equal to 0:
+    // 9. Let index be path’s size − 1.
+    // 10. While index is greater than or equal to 0:
     for (ssize_t index = m_path.size() - 1; index >= 0; --index) {
         auto& path_entry = m_path.at(index);
 
@@ -192,12 +194,12 @@ Vector<GC::Root<EventTarget>> Event::composed_path() const
         // 4. Decrease index by 1.
     }
 
-    // 10. Let currentHiddenLevel and maxHiddenLevel be currentTargetHiddenSubtreeLevel.
+    // 11. Let currentHiddenLevel and maxHiddenLevel be currentTargetHiddenSubtreeLevel.
     size_t current_hidden_level = current_target_hidden_subtree_level;
     size_t max_hidden_level = current_target_hidden_subtree_level;
 
-    // 11. Set index to currentTargetIndex − 1.
-    // 12. While index is greater than or equal to 0:
+    // 12. Set index to currentTargetIndex − 1.
+    // 13. While index is greater than or equal to 0:
     for (ssize_t index = current_target_index - 1; index >= 0; --index) {
         auto& path_entry = m_path.at(index);
 
@@ -224,12 +226,12 @@ Vector<GC::Root<EventTarget>> Event::composed_path() const
         // 4. Decrease index by 1.
     }
 
-    // 13. Set currentHiddenLevel and maxHiddenLevel to currentTargetHiddenSubtreeLevel.
+    // 14. Set currentHiddenLevel and maxHiddenLevel to currentTargetHiddenSubtreeLevel.
     current_hidden_level = current_target_hidden_subtree_level;
     max_hidden_level = current_target_hidden_subtree_level;
 
-    // 14. Set index to currentTargetIndex + 1.
-    // 15. While index is less than path’s size:
+    // 15. Set index to currentTargetIndex + 1.
+    // 16. While index is less than path’s size:
     for (size_t index = current_target_index + 1; index < m_path.size(); ++index) {
         auto& path_entry = m_path.at(index);
 
@@ -256,7 +258,7 @@ Vector<GC::Root<EventTarget>> Event::composed_path() const
         // 4. Increase index by 1.
     }
 
-    // 16. Return composedPath.
+    // 17. Return composedPath.
     return composed_path;
 }
 
