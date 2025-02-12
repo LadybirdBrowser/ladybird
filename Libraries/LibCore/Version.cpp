@@ -10,7 +10,7 @@
 
 namespace Core::Version {
 
-ErrorOr<String> read_long_version_string()
+String read_long_version_string()
 {
     auto validate_git_hash = [](auto hash) {
         if (hash.length() < 4 || hash.length() > 40)
