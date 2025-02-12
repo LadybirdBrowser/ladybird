@@ -6,6 +6,7 @@
  */
 
 #include <AK/Function.h>
+#include <AK/Time.h>
 #include <LibCore/ArgsParser.h>
 #include <LibTest/Macros.h>
 #include <LibTest/TestResult.h>
@@ -22,21 +23,15 @@ class TestElapsedTimer {
 public:
     TestElapsedTimer() { restart(); }
 
-    void restart() { gettimeofday(&m_started, nullptr); }
+    void restart() { m_started = UnixDateTime::now(); }
 
     u64 elapsed_milliseconds()
     {
-        struct timeval now = {};
-        gettimeofday(&now, nullptr);
-
-        struct timeval delta = {};
-        timersub(&now, &m_started, &delta);
-
-        return delta.tv_sec * 1000 + delta.tv_usec / 1000;
+        return (UnixDateTime::now() - m_started).to_milliseconds();
     }
 
 private:
-    struct timeval m_started = {};
+    UnixDateTime m_started;
 };
 
 // Declared in Macros.h

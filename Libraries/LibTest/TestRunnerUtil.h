@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Time.h>
 #include <LibCore/DirIterator.h>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -15,10 +16,8 @@ namespace Test {
 
 inline double get_time_in_ms()
 {
-    struct timeval tv1;
-    auto return_code = gettimeofday(&tv1, nullptr);
-    VERIFY(return_code >= 0);
-    return static_cast<double>(tv1.tv_sec) * 1000.0 + static_cast<double>(tv1.tv_usec) / 1000.0;
+    auto now = UnixDateTime::now();
+    return static_cast<double>(now.milliseconds_since_epoch());
 }
 
 template<typename Callback>
