@@ -11,6 +11,6 @@
 
 namespace Core::Version {
 
-ErrorOr<String> read_long_version_string();
+String read_long_version_string();
 
 }
