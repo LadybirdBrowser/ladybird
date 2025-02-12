@@ -1589,6 +1589,12 @@ Containment ComputedProperties::contain() const
     return containment;
 }
 
+CSS::ContainerType ComputedProperties::container_type() const
+{
+    auto const& value = property(CSS::PropertyID::ContainerType);
+    return keyword_to_container_type(value.to_keyword()).release_value();
+}
+
 MixBlendMode ComputedProperties::mix_blend_mode() const
 {
     auto const& value = property(PropertyID::MixBlendMode);

@@ -117,6 +117,12 @@
     "style",
     "paint"
   ],
+  "container-type": [
+    "normal",
+    "size",
+    "inline-size",
+    "scroll-state"
+  ],
   "content-visibility": [
     "visible",
     "auto",

@@ -943,6 +943,15 @@
       "contain"
     ]
   },
+  "container-type": {
+    "animation-type": "none",
+    "inherited": false,
+    "initial": "normal",
+    "__comment": "FIXME: Some values of container-type need to be mutually exclusive. The grammar this should adhere to is 'normal | [ [ size | inline-size ] || scroll-state ]'.",
+    "valid-types": [
+      "container-type"
+    ]
+  },
   "content": {
     "animation-type": "discrete",
     "inherited": false,

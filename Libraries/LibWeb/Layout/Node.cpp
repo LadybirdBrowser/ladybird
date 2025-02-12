@@ -932,6 +932,9 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_isolation(computed_style.isolation());
     computed_values.set_mix_blend_mode(computed_style.mix_blend_mode());
 
+    if (auto container_type = computed_style.container_type(); container_type.has_value())
+        computed_values.set_container_type(container_type.value());
+
     propagate_style_to_anonymous_wrappers();
 
     if (auto* box_node = as_if<NodeWithStyleAndBoxModelMetrics>(*this))
