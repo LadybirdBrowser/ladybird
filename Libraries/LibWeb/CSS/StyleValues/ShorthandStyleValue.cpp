@@ -175,6 +175,30 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         auto line_height = longhand(PropertyID::LineHeight);
         auto font_family = longhand(PropertyID::FontFamily);
 
+        // Some longhands prevent serialization if they are not allowed in the shorthand.
+        // <font-variant-css2> = normal | small-caps
+        auto font_variant_string = font_variant->to_string(mode);
+        if (!first_is_one_of(font_variant_string, "normal"sv, "small-caps"sv) && !CSS::is_css_wide_keyword(font_variant_string)) {
+            return {};
+        }
+        // <font-width-css3> = normal | ultra-condensed | extra-condensed | condensed | semi-condensed | semi-expanded | expanded | extra-expanded | ultra-expanded
+        switch (font_width->to_keyword()) {
+        case Keyword::Initial:
+        case Keyword::Normal:
+        case Keyword::UltraCondensed:
+        case Keyword::ExtraCondensed:
+        case Keyword::Condensed:
+        case Keyword::SemiCondensed:
+        case Keyword::SemiExpanded:
+        case Keyword::Expanded:
+        case Keyword::ExtraExpanded:
+        case Keyword::UltraExpanded:
+            break;
+        default:
+            if (!font_width->is_css_wide_keyword())
+                return {};
+        }
+
         StringBuilder builder;
         auto append = [&](auto const& string) {
             if (!builder.is_empty())
@@ -183,8 +207,8 @@ String ShorthandStyleValue::to_string(SerializationMode mode) const
         };
         if (font_style->to_keyword() != Keyword::Normal && font_style->to_keyword() != Keyword::Initial)
             append(font_style->to_string(mode));
-        if (auto variant_string = font_variant->to_string(mode); variant_string != "normal"sv && variant_string != "initial"sv)
-            append(variant_string);
+        if (font_variant_string != "normal"sv && font_variant_string != "initial"sv)
+            append(font_variant_string);
         if (font_weight->to_font_weight() != Gfx::FontWeight::Regular && font_weight->to_keyword() != Keyword::Initial)
             append(font_weight->to_string(mode));
         if (font_width->to_keyword() != Keyword::Normal && font_width->to_keyword() != Keyword::Initial)
