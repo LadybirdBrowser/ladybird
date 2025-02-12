@@ -428,8 +428,13 @@ public:
     bool matches_link_pseudo_class() const;
     bool matches_local_link_pseudo_class() const;
 
+    void invalidate_style_if_affected_by_has();
+
     bool affected_by_has_pseudo_class_in_subject_position() const { return m_affected_by_has_pseudo_class_in_subject_position; }
     void set_affected_by_has_pseudo_class_in_subject_position(bool value) { m_affected_by_has_pseudo_class_in_subject_position = value; }
+
+    bool affected_by_has_pseudo_class_in_non_subject_position() const { return m_affected_by_has_pseudo_class_in_non_subject_position; }
+    void set_affected_by_has_pseudo_class_in_non_subject_position(bool value) { m_affected_by_has_pseudo_class_in_non_subject_position = value; }
 
     bool affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator() const { return m_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator; }
     void set_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator(bool value) { m_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator = value; }
@@ -539,6 +544,7 @@ private:
     bool m_rendered_in_top_layer : 1 { false };
     bool m_style_uses_css_custom_properties { false };
     bool m_affected_by_has_pseudo_class_in_subject_position : 1 { false };
+    bool m_affected_by_has_pseudo_class_in_non_subject_position : 1 { false };
     bool m_affected_by_sibling_combinator : 1 { false };
     bool m_affected_by_first_or_last_child_pseudo_class : 1 { false };
     bool m_affected_by_nth_child_pseudo_class : 1 { false };
