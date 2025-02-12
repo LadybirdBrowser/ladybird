@@ -1,0 +1,46 @@
+Harness status: OK
+
+Found 40 tests
+
+22 Pass
+18 Fail
+Pass	Test that decodingInfo rejects if it doesn't get a configuration
+Pass	Test that decodingInfo rejects if the MediaConfiguration isn't valid
+Pass	Test that decodingInfo rejects if the MediaConfiguration does not have a type
+Pass	Test that decodingInfo rejects if the configuration doesn't have an audio or video field
+Pass	Test that decodingInfo rejects if the video configuration has a negative framerate
+Pass	Test that decodingInfo rejects if the video configuration has a framerate set to 0
+Pass	Test that decodingInfo rejects if the video configuration has a framerate set to Infinity
+Pass	Test that decodingInfo rejects if the video configuration contentType doesn't parse
+Fail	Test that decodingInfo rejects if the video configuration contentType is not a valid MIME type string
+Pass	Test that decodingInfo rejects if the video configuration contentType isn't of type video
+Fail	Test that decodingInfo rejects if the video configuration contentType is of type audio
+Fail	Test that decodingInfo rejects if the audio configuration contentType is of type video
+Fail	Test that decodingInfo rejects if the video configuration contentType has more than one parameter
+Fail	Test that decodingInfo rejects if the video configuration contentType has one parameter that isn't codecs
+Fail	Test that decodingInfo rejects if the video configuration contentType does not imply a single media codec but has no codecs parameter
+Fail	Test that decodingInfo rejects if the video configuration contentType has a codecs parameter that indicates multiple video codecs
+Fail	Test that decodingInfo rejects if the video configuration contentType has a codecs parameter that indicates both an audio and a video codec
+Pass	Test that decodingInfo rejects framerate in the form of x/y
+Pass	Test that decodingInfo rejects framerate in the form of x/0
+Pass	Test that decodingInfo rejects framerate in the form of 0/y
+Pass	Test that decodingInfo rejects framerate in the form of -x/y
+Pass	Test that decodingInfo rejects framerate in the form of x/-y
+Pass	Test that decodingInfo rejects framerate in the form of x/
+Pass	Test that decodingInfo rejects framerate with trailing unallowed characters
+Pass	Test that decodingInfo rejects if the audio configuration contentType doesn't parse
+Fail	Test that decodingInfo rejects if the audio configuration contentType is not a valid MIME type string
+Pass	Test that decodingInfo rejects if the audio configuration contentType isn't of type audio
+Fail	Test that decodingInfo rejects if the audio configuration contentType has more than one parameter
+Fail	Test that decodingInfo rejects if the audio configuration contentType has one parameter that isn't codecs
+Fail	Test that decodingInfo rejects if the audio configuration contentType does not imply a single media codec but has no codecs parameter
+Fail	Test that decodingInfo rejects if the audio configuration contentType has a codecs parameter that indicates multiple audio codecs
+Fail	Test that decodingInfo rejects if the audio configuration contentType has a codecs parameter that indicates both an audio and a video codec
+Fail	Test that decodingInfo returns a valid MediaCapabilitiesInfo objects
+Pass	Test that decodingInfo rejects if the MediaConfiguration does not have a valid type
+Fail	Test that decodingInfo with spatialRendering set returns a valid MediaCapabilitiesInfo objects
+Fail	Test that decodingInfo with hdrMetadataType, colorGamut, and transferFunction set returns a valid MediaCapabilitiesInfo objects
+Fail	Test that decodingInfo with mismatched codec color space is unsupported
+Pass	Test that decodingInfo rejects if the video configuration has an empty hdrMetadataType
+Pass	Test that decodingInfo rejects if the video configuration has a colorGamut set to true
+Pass	Test that decodingInfo rejects if the video configuration has a transferFunction set to 3
