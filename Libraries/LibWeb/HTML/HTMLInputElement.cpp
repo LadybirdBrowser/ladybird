@@ -1680,6 +1680,21 @@ void HTMLInputElement::clear_algorithm()
 void HTMLInputElement::form_associated_element_was_inserted()
 {
     create_shadow_tree_if_needed();
+
+    if (is_connected()) {
+        // https://html.spec.whatwg.org/multipage/input.html#radio-button-state-(type=radio)
+        // When any of the following phenomena occur, if the element's checkedness state is true after the occurrence,
+        // the checkedness state of all the other elements in the same radio button group must be set to false:
+        // ...
+        // - The element becomes connected.
+        if (type_state() == TypeAttributeState::RadioButton && checked()) {
+            root().for_each_in_inclusive_subtree_of_type<HTMLInputElement>([&](auto& element) {
+                if (element.checked() && &element != this && is_in_same_radio_button_group(*this, element))
+                    element.set_checked(false);
+                return TraversalDecision::Continue;
+            });
+        }
+    }
 }
 
 void HTMLInputElement::form_associated_element_was_removed(DOM::Node*)
