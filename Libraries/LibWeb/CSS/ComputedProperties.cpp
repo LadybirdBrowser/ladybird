@@ -278,7 +278,7 @@ NonnullRefPtr<Gfx::Font const> ComputedProperties::font_fallback(bool monospace,
     return *Platform::FontPlugin::the().default_font(point_size);
 }
 
-CSSPixels ComputedProperties::compute_line_height(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
+CSSPixels ComputedProperties::compute_line_height(Layout::Node const& layout_node, CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
 {
     auto const& line_height = property(PropertyID::LineHeight);
 
@@ -288,22 +288,22 @@ CSSPixels ComputedProperties::compute_line_height(CSSPixelRect const& viewport_r
     if (line_height.is_length()) {
         auto line_height_length = line_height.as_length().length();
         if (!line_height_length.is_auto())
-            return line_height_length.to_px(viewport_rect, font_metrics, root_font_metrics);
+            return line_height_length.to_px(&layout_node, viewport_rect, font_metrics, root_font_metrics);
     }
 
     if (line_height.is_number())
-        return Length(line_height.as_number().number(), Length::Type::Em).to_px(viewport_rect, font_metrics, root_font_metrics);
+        return Length(line_height.as_number().number(), Length::Type::Em).to_px(&layout_node, viewport_rect, font_metrics, root_font_metrics);
 
     if (line_height.is_percentage()) {
         // Percentages are relative to 1em. https://www.w3.org/TR/css-inline-3/#valdef-line-height-percentage
         auto const& percentage = line_height.as_percentage().percentage();
-        return Length(percentage.as_fraction(), Length::Type::Em).to_px(viewport_rect, font_metrics, root_font_metrics);
+        return Length(percentage.as_fraction(), Length::Type::Em).to_px(&layout_node, viewport_rect, font_metrics, root_font_metrics);
     }
 
     if (line_height.is_calculated()) {
         CalculationResolutionContext context {
             .percentage_basis = Length(1, Length::Type::Em),
-            .length_resolution_context = Length::ResolutionContext { viewport_rect, font_metrics, root_font_metrics },
+            .length_resolution_context = Length::ResolutionContext { viewport_rect, font_metrics, root_font_metrics, &layout_node },
         };
         if (line_height.as_calculated().resolves_to_number()) {
             auto resolved = line_height.as_calculated().resolve_number(context);
@@ -311,7 +311,7 @@ CSSPixels ComputedProperties::compute_line_height(CSSPixelRect const& viewport_r
                 dbgln("FIXME: Failed to resolve calc() line-height (number): {}", line_height.as_calculated().to_string(CSSStyleValue::SerializationMode::Normal));
                 return CSSPixels::nearest_value_for(m_font_list->first().pixel_metrics().line_spacing());
             }
-            return Length(resolved.value(), Length::Type::Em).to_px(viewport_rect, font_metrics, root_font_metrics);
+            return Length(resolved.value(), Length::Type::Em).to_px(&layout_node, viewport_rect, font_metrics, root_font_metrics);
         }
 
         auto resolved = line_height.as_calculated().resolve_length(context);
@@ -319,7 +319,7 @@ CSSPixels ComputedProperties::compute_line_height(CSSPixelRect const& viewport_r
             dbgln("FIXME: Failed to resolve calc() line-height: {}", line_height.as_calculated().to_string(CSSStyleValue::SerializationMode::Normal));
             return CSSPixels::nearest_value_for(m_font_list->first().pixel_metrics().line_spacing());
         }
-        return resolved->to_px(viewport_rect, font_metrics, root_font_metrics);
+        return resolved->to_px(&layout_node, viewport_rect, font_metrics, root_font_metrics);
     }
 
     return font_metrics.line_height;

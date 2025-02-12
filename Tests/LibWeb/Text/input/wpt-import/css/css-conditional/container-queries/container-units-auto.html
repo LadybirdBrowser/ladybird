@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<title>CSS Container Queries Test: auto sized size container unit</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-lengths">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  #container {
+    container-type: size;
+  }
+  #target {
+    width: 100cqh;
+    height: calc(100px + 1000cqh);
+  }
+</style>
+<div id="container">
+  <div id="target"></div>
+</div>
+<script>
+  test(() => {
+    assert_equals(getComputedStyle(target).width, "0px");
+    assert_equals(getComputedStyle(target).height, "100px");
+  }, "Resolving cqh against a auto height size container should be 0");
+</script>

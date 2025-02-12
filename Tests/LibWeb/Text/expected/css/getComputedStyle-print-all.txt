@@ -110,6 +110,7 @@ column-gap: normal
 column-span: none
 column-width: auto
 contain: none
+container-type: normal
 content: normal
 content-visibility: visible
 counter-increment: none
@@ -135,7 +136,7 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: auto
 grid-template-rows: auto
-height: 2329px
+height: 2346px
 inline-size: auto
 inset-block-end: auto
 inset-block-start: auto

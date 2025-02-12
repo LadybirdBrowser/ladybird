@@ -1153,6 +1153,25 @@ DOM::Document const& Node::document() const
     return m_dom_node->document();
 }
 
+NodeWithStyle const* Node::nearest_horizontal_size_query_container_ancestor() const
+{
+    auto ancestor = parent();
+    // TODO: Handle CSS::ContainerType::InlineSize as well
+    while (ancestor && ancestor->computed_values().container_type() != CSS::ContainerType::Size) {
+        ancestor = ancestor->parent();
+    }
+    return ancestor;
+}
+NodeWithStyle const* Node::nearest_vertical_size_query_container_ancestor() const
+{
+    auto ancestor = parent();
+    // TODO: Handle CSS::ContainerType::InlineSize as well
+    while (ancestor && ancestor->computed_values().container_type() != CSS::ContainerType::Size) {
+        ancestor = ancestor->parent();
+    }
+    return ancestor;
+}
+
 // https://drafts.csswg.org/css-ui/#propdef-user-select
 CSS::UserSelect Node::user_select_used_value() const
 {

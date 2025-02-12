@@ -16,7 +16,9 @@
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Painting/PaintableBox.h>
 
 namespace Web::CSS {
 
@@ -137,6 +139,75 @@ CSSPixels Length::viewport_relative_length_to_px(CSSPixelRect const& viewport_re
     }
 }
 
+// https://drafts.csswg.org/css-conditional-5/#container-lengths
+CSSPixels Length::container_relative_length_to_px(Layout::Node const* layout_node, CSSPixelRect const& viewport_rect) const
+{
+    // FIXME: Percentages aren't resolved correctly in here yet because that would require us to reach
+    //        into the layout state to determine the container's parent's actual width or height.
+    //        (Not just the computed width or height!)
+    //        There will probably be a better way to do this once these can get absolutized up-front.
+    //        (Since the layout state will need to be stored somewhere anyways for that to happen)
+    switch (m_type) {
+    case Type::Cqw: {
+        if (layout_node) {
+            auto query_container = layout_node->nearest_horizontal_size_query_container_ancestor();
+            if (query_container) {
+                return query_container->computed_values().width().to_px(*query_container, 0) * (CSSPixels::nearest_value_for(m_value) / 100);
+            }
+        }
+        return viewport_rect.width() * (CSSPixels::nearest_value_for(m_value) / 100);
+    }
+    case Type::Cqh: {
+        if (layout_node) {
+            auto query_container = layout_node->nearest_vertical_size_query_container_ancestor();
+            if (query_container)
+                return query_container->computed_values().height().to_px(*query_container, 0) * (CSSPixels::nearest_value_for(m_value) / 100);
+        }
+        return viewport_rect.height() * (CSSPixels::nearest_value_for(m_value) / 100);
+    }
+    case Type::Cqi: {
+        if (layout_node) {
+            // FIXME: Select the width or height based on which is the inline axis.
+            auto query_container = layout_node->nearest_horizontal_size_query_container_ancestor();
+            if (query_container)
+                return query_container->computed_values().width().to_px(*query_container, 0) * (CSSPixels::nearest_value_for(m_value) / 100);
+        }
+        // FIXME: Select the width or height based on which is the block axis.
+        return viewport_rect.width() * (CSSPixels::nearest_value_for(m_value) / 100);
+    }
+    case Type::Cqb: {
+        if (layout_node) {
+            // FIXME: Select the width or height based on which is the block axis.
+            auto query_container = layout_node->nearest_vertical_size_query_container_ancestor();
+            if (query_container)
+                return query_container->computed_values().height().to_px(*query_container, 0) * (CSSPixels::nearest_value_for(m_value) / 100);
+        }
+        // FIXME: Select the width or height based on which is the block axis.
+        return viewport_rect.height() * (CSSPixels::nearest_value_for(m_value) / 100);
+    }
+    case Type::Cqmin: {
+        if (layout_node) {
+            auto query_container = layout_node->nearest_horizontal_size_query_container_ancestor();
+            auto other_query_container = layout_node->nearest_vertical_size_query_container_ancestor();
+            if (query_container && other_query_container)
+                return min(query_container->computed_values().width().to_px(*query_container, 0), other_query_container->computed_values().height().to_px(*other_query_container, query_container->containing_block()->paintable_box()->content_height())) * (CSSPixels::nearest_value_for(m_value) / 100);
+        }
+        return min(viewport_rect.width(), viewport_rect.height()) * (CSSPixels::nearest_value_for(m_value) / 100);
+    }
+    case Type::Cqmax: {
+        if (layout_node) {
+            auto query_container = layout_node->nearest_horizontal_size_query_container_ancestor();
+            auto other_query_container = layout_node->nearest_vertical_size_query_container_ancestor();
+            if (query_container && other_query_container)
+                return max(query_container->computed_values().width().to_px(*query_container, 0), other_query_container->computed_values().height().to_px(*other_query_container, query_container->containing_block()->paintable_box()->content_height())) * (CSSPixels::nearest_value_for(m_value) / 100);
+        }
+        return max(viewport_rect.width(), viewport_rect.height()) * (CSSPixels::nearest_value_for(m_value) / 100);
+    }
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
 Length::ResolutionContext Length::ResolutionContext::for_window(HTML::Window const& window)
 {
     auto const& initial_font = window.associated_document().style_computer().initial_font();
@@ -146,6 +217,7 @@ Length::ResolutionContext Length::ResolutionContext::for_window(HTML::Window con
         .viewport_rect = window.page().web_exposed_screen_area(),
         .font_metrics = font_metrics,
         .root_font_metrics = font_metrics,
+        .layout_node = {}
     };
 }
 
@@ -158,12 +230,13 @@ Length::ResolutionContext Length::ResolutionContext::for_layout_node(Layout::Nod
         .viewport_rect = node.navigable()->viewport_rect(),
         .font_metrics = { node.computed_values().font_size(), node.first_available_font().pixel_metrics() },
         .root_font_metrics = { root_element->layout_node()->computed_values().font_size(), root_element->layout_node()->first_available_font().pixel_metrics() },
+        .layout_node = &node
     };
 }
 
 CSSPixels Length::to_px(ResolutionContext const& context) const
 {
-    return to_px(context.viewport_rect, context.font_metrics, context.root_font_metrics);
+    return to_px(context.layout_node, context.viewport_rect, context.font_metrics, context.root_font_metrics);
 }
 
 CSSPixels Length::to_px_slow_case(Layout::Node const& layout_node) const
@@ -193,8 +266,11 @@ CSSPixels Length::to_px_slow_case(Layout::Node const& layout_node) const
         return font_relative_length_to_px(font_metrics, root_font_metrics);
     }
 
-    VERIFY(is_viewport_relative());
     auto const& viewport_rect = layout_node.document().viewport_rect();
+    if (is_container_relative())
+        return container_relative_length_to_px(&layout_node, viewport_rect);
+
+    VERIFY(is_viewport_relative());
     return viewport_relative_length_to_px(viewport_rect);
 }
 
@@ -232,6 +308,18 @@ StringView Length::unit_name() const
         return "lh"sv;
     case Type::Rlh:
         return "rlh"sv;
+    case Type::Cqw:
+        return "cqw"sv;
+    case Type::Cqh:
+        return "cqh"sv;
+    case Type::Cqi:
+        return "cqi"sv;
+    case Type::Cqb:
+        return "cqb"sv;
+    case Type::Cqmin:
+        return "cqmin"sv;
+    case Type::Cqmax:
+        return "cqmax"sv;
     case Type::Vw:
         return "vw"sv;
     case Type::Svw:
@@ -326,6 +414,18 @@ Optional<Length::Type> Length::unit_from_name(StringView name)
         return Length::Type::Lh;
     } else if (name.equals_ignoring_ascii_case("rlh"sv)) {
         return Length::Type::Rlh;
+    } else if (name.equals_ignoring_ascii_case("cqw"sv)) {
+        return Type::Cqw;
+    } else if (name.equals_ignoring_ascii_case("cqh"sv)) {
+        return Type::Cqh;
+    } else if (name.equals_ignoring_ascii_case("cqi"sv)) {
+        return Type::Cqi;
+    } else if (name.equals_ignoring_ascii_case("cqb"sv)) {
+        return Type::Cqb;
+    } else if (name.equals_ignoring_ascii_case("cqmin"sv)) {
+        return Type::Cqmin;
+    } else if (name.equals_ignoring_ascii_case("cqmax"sv)) {
+        return Type::Cqmax;
     } else if (name.equals_ignoring_ascii_case("vw"sv)) {
         return Length::Type::Vw;
     } else if (name.equals_ignoring_ascii_case("svw"sv)) {
@@ -393,20 +493,27 @@ Optional<Length::Type> Length::unit_from_name(StringView name)
     return {};
 }
 
-Optional<Length> Length::absolutize(CSSPixelRect const& viewport_rect, FontMetrics const& font_metrics, FontMetrics const& root_font_metrics) const
+Optional<Length> Length::absolutize(Layout::Node const& layout_node, CSSPixelRect const& viewport_rect, FontMetrics const& font_metrics, FontMetrics const& root_font_metrics) const
 {
     if (is_px())
         return {};
+    // FIXME: Absolutizing happens before layout, where container-relative units cannot be determined yet.
+    //        Just not absolutizing them seems to work in simple cases for now but will probably cause issues later.
+    //        The proper solution here is to layout any elements with size containment separately, after the main
+    //        layout pass so that their size is known in advance.
+    if (is_container_relative()) {
+        return *this;
+    }
     if (is_absolute() || is_relative()) {
-        auto px = to_px(viewport_rect, font_metrics, root_font_metrics);
+        auto px = to_px(&layout_node, viewport_rect, font_metrics, root_font_metrics);
         return CSS::Length::make_px(px);
     }
     return {};
 }
 
-Length Length::absolutized(CSSPixelRect const& viewport_rect, FontMetrics const& font_metrics, FontMetrics const& root_font_metrics) const
+Length Length::absolutized(Layout::Node const& layout_node, CSSPixelRect const& viewport_rect, FontMetrics const& font_metrics, FontMetrics const& root_font_metrics) const
 {
-    return absolutize(viewport_rect, font_metrics, root_font_metrics).value_or(*this);
+    return absolutize(layout_node, viewport_rect, font_metrics, root_font_metrics).value_or(*this);
 }
 
 Length Length::resolve_calculated(NonnullRefPtr<CalculatedStyleValue> const& calculated, Layout::Node const& layout_node, Length const& reference_value)

@@ -27,9 +27,9 @@ ValueComparingNonnullRefPtr<LengthStyleValue> LengthStyleValue::create(Length co
     return adopt_ref(*new (nothrow) LengthStyleValue(length));
 }
 
-ValueComparingNonnullRefPtr<CSSStyleValue const> LengthStyleValue::absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
+ValueComparingNonnullRefPtr<CSSStyleValue const> LengthStyleValue::absolutized(Layout::Node const& layout_node, CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
 {
-    if (auto length = m_length.absolutize(viewport_rect, font_metrics, root_font_metrics); length.has_value())
+    if (auto length = m_length.absolutize(layout_node, viewport_rect, font_metrics, root_font_metrics); length.has_value())
         return LengthStyleValue::create(length.release_value());
     return *this;
 }

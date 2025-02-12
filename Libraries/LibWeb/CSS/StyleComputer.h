@@ -183,7 +183,7 @@ public:
 
     [[nodiscard]] GC::Ref<ComputedProperties> compute_properties(DOM::Element&, Optional<Selector::PseudoElement::Type>, CascadedProperties&) const;
 
-    void absolutize_values(ComputedProperties&) const;
+    void absolutize_values(Layout::Node const*, ComputedProperties&) const;
     void compute_font(ComputedProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
 
     [[nodiscard]] bool should_reject_with_ancestor_filter(Selector const&) const;

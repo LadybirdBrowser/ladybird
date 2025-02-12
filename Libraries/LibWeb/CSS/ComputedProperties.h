@@ -198,7 +198,7 @@ public:
         m_font_list = move(font_list);
     }
 
-    [[nodiscard]] CSSPixels compute_line_height(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const;
+    [[nodiscard]] CSSPixels compute_line_height(Layout::Node const& layout_node, CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const;
 
     [[nodiscard]] CSSPixels line_height() const { return *m_line_height; }
     void set_line_height(Badge<StyleComputer> const&, CSSPixels line_height) { m_line_height = line_height; }

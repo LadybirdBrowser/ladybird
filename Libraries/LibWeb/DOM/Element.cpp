@@ -609,7 +609,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
     }
 
     document().style_computer().compute_font(*computed_properties, this, {});
-    document().style_computer().absolutize_values(*computed_properties);
+    document().style_computer().absolutize_values(layout_node(), *computed_properties);
 
     layout_node()->apply_style(*computed_properties);
     return invalidation;

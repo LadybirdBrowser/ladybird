@@ -21,12 +21,12 @@ String ShadowStyleValue::to_string(SerializationMode mode) const
     return MUST(builder.to_string());
 }
 
-ValueComparingNonnullRefPtr<CSSStyleValue const> ShadowStyleValue::absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
+ValueComparingNonnullRefPtr<CSSStyleValue const> ShadowStyleValue::absolutized(Layout::Node const& layout_node, CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const
 {
-    auto absolutized_offset_x = m_properties.offset_x->absolutized(viewport_rect, font_metrics, root_font_metrics);
-    auto absolutized_offset_y = m_properties.offset_y->absolutized(viewport_rect, font_metrics, root_font_metrics);
-    auto absolutized_blur_radius = m_properties.blur_radius->absolutized(viewport_rect, font_metrics, root_font_metrics);
-    auto absolutized_spread_distance = m_properties.spread_distance->absolutized(viewport_rect, font_metrics, root_font_metrics);
+    auto absolutized_offset_x = m_properties.offset_x->absolutized(layout_node, viewport_rect, font_metrics, root_font_metrics);
+    auto absolutized_offset_y = m_properties.offset_y->absolutized(layout_node, viewport_rect, font_metrics, root_font_metrics);
+    auto absolutized_blur_radius = m_properties.blur_radius->absolutized(layout_node, viewport_rect, font_metrics, root_font_metrics);
+    auto absolutized_spread_distance = m_properties.spread_distance->absolutized(layout_node, viewport_rect, font_metrics, root_font_metrics);
     return ShadowStyleValue::create(m_properties.color, absolutized_offset_x, absolutized_offset_y, absolutized_blur_radius, absolutized_spread_distance, m_properties.placement);
 }
 

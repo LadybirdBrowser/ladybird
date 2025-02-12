@@ -354,7 +354,7 @@ StyleValueList const& CSSStyleValue::as_value_list() const
     return static_cast<StyleValueList const&>(*this);
 }
 
-ValueComparingNonnullRefPtr<CSSStyleValue const> CSSStyleValue::absolutized(CSSPixelRect const&, Length::FontMetrics const&, Length::FontMetrics const&) const
+ValueComparingNonnullRefPtr<CSSStyleValue const> CSSStyleValue::absolutized(Layout::Node const&, CSSPixelRect const&, Length::FontMetrics const&, Length::FontMetrics const&) const
 {
     return *this;
 }

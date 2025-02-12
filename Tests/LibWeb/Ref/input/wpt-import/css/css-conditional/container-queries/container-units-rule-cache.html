@@ -1,0 +1,24 @@
+<!doctype html>
+<meta charset="utf-8">
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-lengths">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1832481">
+<link rel="author" href="mailto:emilio@crisal.io" title="Emilio Cobos Álvarez">
+<link rel="author" href="https://mozilla.org" title="Mozilla">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-conditional/container-queries/container-units-rule-cache-ref.html">
+<style>
+  .container {
+    width: 100px;
+    container-type: size;
+  }
+
+  .half {
+    height: 50cqh;
+    background-color: green;
+  }
+</style>
+<div class="container" style="height: 100px">
+  <div class="half"></div>
+</div>
+<div class="container" style="height: 200px">
+  <div class="half"></div>
+</div>
