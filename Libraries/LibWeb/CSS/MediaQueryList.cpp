@@ -54,6 +54,14 @@ bool MediaQueryList::matches() const
     if (m_media.is_empty())
         return true;
 
+    bool did_match = false;
+    for (auto const& media : m_media) {
+        if (media->matches()) {
+            did_match = true;
+            break;
+        }
+    }
+
     // NOTE: If our document is inside a frame, we need to update layout
     //       since that may cause our frame (and thus viewport) to resize.
     if (auto container_document = m_document->container_document()) {
@@ -61,12 +69,18 @@ bool MediaQueryList::matches() const
         const_cast<MediaQueryList*>(this)->evaluate();
     }
 
+    bool now_matches = false;
     for (auto& media : m_media) {
-        if (media->matches())
-            return true;
+        if (media->matches()) {
+            now_matches = true;
+            break;
+        }
     }
 
-    return false;
+    if (did_match != now_matches)
+        m_has_changed_state = true;
+
+    return now_matches;
 }
 
 bool MediaQueryList::evaluate()

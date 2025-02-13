@@ -32,6 +32,9 @@ public:
     void set_onchange(WebIDL::CallbackType*);
     WebIDL::CallbackType* onchange();
 
+    [[nodiscard]] Optional<bool> const& has_changed_state() const { return m_has_changed_state; }
+    void set_has_changed_state(bool has_changed_state) { m_has_changed_state = has_changed_state; }
+
 private:
     MediaQueryList(DOM::Document&, Vector<NonnullRefPtr<MediaQuery>>&&);
 
@@ -40,6 +43,8 @@ private:
 
     GC::Ref<DOM::Document> m_document;
     Vector<NonnullRefPtr<MediaQuery>> m_media;
+
+    mutable Optional<bool> m_has_changed_state { false };
 };
 
 }
