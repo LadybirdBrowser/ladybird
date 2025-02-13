@@ -295,7 +295,11 @@ details > :not(:first-child) {
     text-overflow: ellipsis;
 }
 
-.property-table tr:nth-child(even) {
+.hidden-row {
+    display: none;
+}
+
+.property-table tr:nth-child(even of :not(.hidden-row)) {
     background-color: var(--property-table-row);
 }
 
