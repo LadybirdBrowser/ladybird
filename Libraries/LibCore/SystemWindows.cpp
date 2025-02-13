@@ -11,6 +11,7 @@
 
 #include <AK/ByteString.h>
 #include <AK/ScopeGuard.h>
+#include <LibCore/Process.h>
 #include <LibCore/System.h>
 #include <direct.h>
 #include <sys/mman.h>
@@ -261,6 +262,11 @@ u64 physical_memory_bytes()
     ms.dwLength = sizeof ms;
     GlobalMemoryStatusEx(&ms);
     return ms.ullTotalPhys;
+}
+
+ErrorOr<ByteString> current_executable_path()
+{
+    return TRY(Process::get_name()).to_byte_string();
 }
 
 }

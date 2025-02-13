@@ -11,6 +11,7 @@
 
 #include <AK/ByteString.h>
 #include <AK/Forward.h>
+#include <AK/String.h>
 #include <LibCore/File.h>
 
 namespace Core {
