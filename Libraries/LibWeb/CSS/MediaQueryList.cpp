@@ -54,6 +54,13 @@ bool MediaQueryList::matches() const
     if (m_media.is_empty())
         return true;
 
+    // NOTE: If our document is inside a frame, we need to update layout
+    //       since that may cause our frame (and thus viewport) to resize.
+    if (auto container_document = m_document->container_document()) {
+        container_document->update_layout();
+        const_cast<MediaQueryList*>(this)->evaluate();
+    }
+
     for (auto& media : m_media) {
         if (media->matches())
             return true;
