@@ -29,24 +29,24 @@ namespace Detail {
 
 // Cannot use SpecializationOf with these templates because they have non-type parameters. See https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p1985r3.pdf
 template<typename T>
-constexpr bool IsArray = false;
+constexpr inline bool IsArray = false;
 template<typename T, size_t N>
-constexpr bool IsArray<Array<T, N>> = true;
+constexpr inline bool IsArray<Array<T, N>> = true;
 
 template<typename T>
-constexpr bool IsVector = false;
+constexpr inline bool IsVector = false;
 template<typename T, size_t inline_capacity>
-constexpr bool IsVector<Vector<T, inline_capacity>> = true;
+constexpr inline bool IsVector<Vector<T, inline_capacity>> = true;
 
 template<typename T>
-constexpr bool IsHashMap = false;
+constexpr inline bool IsHashMap = false;
 template<typename K, typename V, typename KeyTraits, typename ValueTraits, bool IsOrdered>
-constexpr bool IsHashMap<HashMap<K, V, KeyTraits, ValueTraits, IsOrdered>> = true;
+constexpr inline bool IsHashMap<HashMap<K, V, KeyTraits, ValueTraits, IsOrdered>> = true;
 
 template<typename T>
-constexpr bool IsSharedSingleProducerCircularQueue = false;
+constexpr inline bool IsSharedSingleProducerCircularQueue = false;
 template<typename T, size_t Size>
-constexpr bool IsSharedSingleProducerCircularQueue<Core::SharedSingleProducerCircularQueue<T, Size>> = true;
+constexpr inline bool IsSharedSingleProducerCircularQueue<Core::SharedSingleProducerCircularQueue<T, Size>> = true;
 
 }
 
