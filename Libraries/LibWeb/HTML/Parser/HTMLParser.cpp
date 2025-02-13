@@ -690,6 +690,7 @@ GC::Ptr<DOM::Element> HTMLParser::node_before_current_node()
 HTMLParser::AdjustedInsertionLocation HTMLParser::find_appropriate_place_for_inserting_node(GC::Ptr<DOM::Element> override_target)
 {
     // 1. If there was an override target specified, then let target be the override target.
+    //    Otherwise, let target be the current node.
     auto& target = override_target ? *override_target.ptr() : *current_node();
     HTMLParser::AdjustedInsertionLocation adjusted_insertion_location;
 
