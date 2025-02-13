@@ -269,4 +269,11 @@ ErrorOr<ByteString> current_executable_path()
     return TRY(Process::get_name()).to_byte_string();
 }
 
+ErrorOr<void> set_close_on_exec(int handle, bool enabled)
+{
+    if (!SetHandleInformation(to_handle(handle), HANDLE_FLAG_INHERIT, enabled ? 0 : HANDLE_FLAG_INHERIT))
+        return Error::from_windows_error();
+    return {};
+}
+
 }
