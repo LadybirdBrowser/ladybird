@@ -336,6 +336,12 @@ inspector.setStyleSheetSource = (identifier, sourceBase64) => {
     styleSheetSource.innerHTML = decodeBase64(sourceBase64);
 };
 
+const applyPropertyFilter = (row, searchText) => {
+    const nameMatch = row.cells[0].textContent.toLowerCase().includes(searchText);
+    const valueMatch = row.cells[1].textContent.toLowerCase().includes(searchText);
+    row.style.display = nameMatch || valueMatch ? "" : "none";
+};
+
 const setupPropertyFilter = inputId => {
     const filterInput = document.getElementById(`${inputId}-filter`);
 
@@ -345,10 +351,7 @@ const setupPropertyFilter = inputId => {
         const rows = tbody.getElementsByTagName("tr");
 
         for (let row of rows) {
-            const nameMatch = row.cells[0].textContent.toLowerCase().includes(searchText);
-            const valueMatch = row.cells[1].textContent.toLowerCase().includes(searchText);
-
-            row.style.display = nameMatch || valueMatch ? "" : "none";
+            applyPropertyFilter(row, searchText);
         }
     });
 };
@@ -358,6 +361,8 @@ inspector.createPropertyTables = (computedStyle, resolvedStyle, customProperties
         let oldTable = document.getElementById(tableID);
         let newTable = document.createElement("tbody");
         newTable.setAttribute("id", tableID);
+
+        let searchText = oldTable.parentNode.parentNode.querySelector(".property-filter").value;
 
         Object.keys(properties)
             .sort((a, b) => {
@@ -382,6 +387,10 @@ inspector.createPropertyTables = (computedStyle, resolvedStyle, customProperties
 
                 let valueColumn = row.insertCell();
                 valueColumn.innerText = properties[name];
+
+                if (searchText) {
+                    applyPropertyFilter(row, searchText);
+                }
             });
 
         oldTable.parentNode.replaceChild(newTable, oldTable);
