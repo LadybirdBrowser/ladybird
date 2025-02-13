@@ -339,7 +339,13 @@ inspector.setStyleSheetSource = (identifier, sourceBase64) => {
 const applyPropertyFilter = (row, searchText) => {
     const nameMatch = row.cells[0].textContent.toLowerCase().includes(searchText);
     const valueMatch = row.cells[1].textContent.toLowerCase().includes(searchText);
-    row.style.display = nameMatch || valueMatch ? "" : "none";
+    let matches = nameMatch || valueMatch;
+
+    if (matches) {
+        row.classList.remove("hidden-row");
+    } else {
+        row.classList.add("hidden-row");
+    }
 };
 
 const setupPropertyFilter = inputId => {
