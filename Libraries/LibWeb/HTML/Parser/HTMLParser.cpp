@@ -848,8 +848,11 @@ GC::Ref<DOM::Element> HTMLParser::insert_foreign_element(HTMLToken const& token,
     return element;
 }
 
+// https://html.spec.whatwg.org/multipage/parsing.html#insert-an-html-element
 GC::Ref<DOM::Element> HTMLParser::insert_html_element(HTMLToken const& token)
 {
+    // When the steps below require the user agent to insert an HTML element for a token, the user agent must insert a
+    // foreign element for the token, with the HTML namespace and false.
     return insert_foreign_element(token, Namespace::HTML, OnlyAddToElementStack::No);
 }
 
