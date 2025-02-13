@@ -4362,103 +4362,143 @@ void HTMLParser::process_using_the_rules_for_foreign_content(HTMLToken& token)
 // https://html.spec.whatwg.org/multipage/parsing.html#reset-the-insertion-mode-appropriately
 void HTMLParser::reset_the_insertion_mode_appropriately()
 {
+    // 1. Let last be false.
+    bool last = false;
+
+    // 2. Let node be the last node in the stack of open elements.
     for (ssize_t i = m_stack_of_open_elements.elements().size() - 1; i >= 0; --i) {
-        bool last = i == 0;
-        // NOTE: When parsing fragments, we substitute the context element for the root of the stack of open elements.
+        // 3. Loop: If node is the first node in the stack of open elements, then set last to true, and, if the parser
+        //    was created as part of the HTML fragment parsing algorithm (fragment case), set node to the context
+        //    element passed to that algorithm.
         GC::Ptr<DOM::Element> node;
+        if (i == 0)
+            last = true;
+
         if (last && m_parsing_fragment) {
             node = m_context_element.ptr();
         } else {
             node = m_stack_of_open_elements.elements().at(i).ptr();
         }
 
-        if (node->namespace_uri() != Namespace::HTML)
-            continue;
+        // NOTE: The following steps only apply to HTML elements, so skip ones that aren't.
+        if (node->namespace_uri() == Namespace::HTML) {
+            // 4. If node is a select element, run these substeps:
+            if (node->local_name() == HTML::TagNames::select) {
+                // 1. If last is true, jump to the step below labeled done.
+                if (!last) {
+                    // 2. Let ancestor be node.
+                    // 3. Loop: If ancestor is the first node in the stack of open elements, jump to the step below labeled done.
+                    for (ssize_t j = i; j > 0; --j) {
+                        // 4. Let ancestor be the node before ancestor in the stack of open elements.
+                        auto& ancestor = m_stack_of_open_elements.elements().at(j - 1);
 
-        if (node->local_name() == HTML::TagNames::select) {
-            if (!last) {
-                for (ssize_t j = i; j > 0; --j) {
-                    auto& ancestor = m_stack_of_open_elements.elements().at(j - 1);
+                        // 5. If ancestor is a template node, jump to the step below labeled done.
+                        if (is<HTMLTemplateElement>(*ancestor))
+                            break;
 
-                    if (is<HTMLTemplateElement>(*ancestor))
-                        break;
+                        // 6. If ancestor is a table node, switch the insertion mode to "in select in table" and return.
+                        if (is<HTMLTableElement>(*ancestor)) {
+                            m_insertion_mode = InsertionMode::InSelectInTable;
+                            return;
+                        }
 
-                    if (is<HTMLTableElement>(*ancestor)) {
-                        m_insertion_mode = InsertionMode::InSelectInTable;
-                        return;
+                        // 7. Jump back to the step labeled loop.
                     }
                 }
+
+                // 8. Done: Switch the insertion mode to "in select" and return.
+                m_insertion_mode = InsertionMode::InSelect;
+                return;
             }
 
-            m_insertion_mode = InsertionMode::InSelect;
-            return;
+            // 5. If node is a td or th element and last is false, then switch the insertion mode to "in cell" and return.
+            if (!last && node->local_name().is_one_of(HTML::TagNames::td, HTML::TagNames::th)) {
+                m_insertion_mode = InsertionMode::InCell;
+                return;
+            }
+
+            // 6. If node is a tr element, then switch the insertion mode to "in row" and return.
+            if (node->local_name() == HTML::TagNames::tr) {
+                m_insertion_mode = InsertionMode::InRow;
+                return;
+            }
+
+            // 7. If node is a tbody, thead, or tfoot element, then switch the insertion mode to "in table body" and return.
+            if (node->local_name().is_one_of(HTML::TagNames::tbody, HTML::TagNames::thead, HTML::TagNames::tfoot)) {
+                m_insertion_mode = InsertionMode::InTableBody;
+                return;
+            }
+
+            // 8. If node is a caption element, then switch the insertion mode to "in caption" and return.
+            if (node->local_name() == HTML::TagNames::caption) {
+                m_insertion_mode = InsertionMode::InCaption;
+                return;
+            }
+
+            // 9. If node is a colgroup element, then switch the insertion mode to "in column group" and return.
+            if (node->local_name() == HTML::TagNames::colgroup) {
+                m_insertion_mode = InsertionMode::InColumnGroup;
+                return;
+            }
+
+            // 10. If node is a table element, then switch the insertion mode to "in table" and return.
+            if (node->local_name() == HTML::TagNames::table) {
+                m_insertion_mode = InsertionMode::InTable;
+                return;
+            }
+
+            // 11. If node is a template element, then switch the insertion mode to the current template insertion mode and return.
+            if (node->local_name() == HTML::TagNames::template_) {
+                m_insertion_mode = m_stack_of_template_insertion_modes.last();
+                return;
+            }
+
+            // 12. If node is a head element and last is false, then switch the insertion mode to "in head" and return.
+            if (!last && node->local_name() == HTML::TagNames::head) {
+                m_insertion_mode = InsertionMode::InHead;
+                return;
+            }
+
+            // 13. If node is a body element, then switch the insertion mode to "in body" and return.
+            if (node->local_name() == HTML::TagNames::body) {
+                m_insertion_mode = InsertionMode::InBody;
+                return;
+            }
+
+            // 14. If node is a frameset element, then switch the insertion mode to "in frameset" and return. (fragment case)
+            if (node->local_name() == HTML::TagNames::frameset) {
+                VERIFY(m_parsing_fragment);
+                m_insertion_mode = InsertionMode::InFrameset;
+                return;
+            }
+
+            // 15. If node is an html element, run these substeps:
+            if (node->local_name() == HTML::TagNames::html) {
+                // 1. If the head element pointer is null, switch the insertion mode to "before head" and return. (fragment case)
+                if (!m_head_element) {
+                    VERIFY(m_parsing_fragment);
+                    m_insertion_mode = InsertionMode::BeforeHead;
+                    return;
+                }
+
+                // 2. Otherwise, the head element pointer is not null, switch the insertion mode to "after head" and return.
+                m_insertion_mode = InsertionMode::AfterHead;
+                return;
+            }
         }
 
-        if (!last && node->local_name().is_one_of(HTML::TagNames::td, HTML::TagNames::th)) {
-            m_insertion_mode = InsertionMode::InCell;
-            return;
-        }
-
-        if (node->local_name() == HTML::TagNames::tr) {
-            m_insertion_mode = InsertionMode::InRow;
-            return;
-        }
-
-        if (node->local_name().is_one_of(HTML::TagNames::tbody, HTML::TagNames::thead, HTML::TagNames::tfoot)) {
-            m_insertion_mode = InsertionMode::InTableBody;
-            return;
-        }
-
-        if (node->local_name() == HTML::TagNames::caption) {
-            m_insertion_mode = InsertionMode::InCaption;
-            return;
-        }
-
-        if (node->local_name() == HTML::TagNames::colgroup) {
-            m_insertion_mode = InsertionMode::InColumnGroup;
-            return;
-        }
-
-        if (node->local_name() == HTML::TagNames::table) {
-            m_insertion_mode = InsertionMode::InTable;
-            return;
-        }
-
-        if (node->local_name() == HTML::TagNames::template_) {
-            m_insertion_mode = m_stack_of_template_insertion_modes.last();
-            return;
-        }
-
-        if (!last && node->local_name() == HTML::TagNames::head) {
-            m_insertion_mode = InsertionMode::InHead;
-            return;
-        }
-
-        if (node->local_name() == HTML::TagNames::body) {
+        // 16. If last is true, then switch the insertion mode to "in body" and return. (fragment case)
+        if (last) {
+            VERIFY(m_parsing_fragment);
             m_insertion_mode = InsertionMode::InBody;
             return;
         }
 
-        if (node->local_name() == HTML::TagNames::frameset) {
-            VERIFY(m_parsing_fragment);
-            m_insertion_mode = InsertionMode::InFrameset;
-            return;
-        }
-
-        if (node->local_name() == HTML::TagNames::html) {
-            if (!m_head_element) {
-                VERIFY(m_parsing_fragment);
-                m_insertion_mode = InsertionMode::BeforeHead;
-                return;
-            }
-
-            m_insertion_mode = InsertionMode::AfterHead;
-            return;
-        }
+        // 17. Let node now be the node before node in the stack of open elements.
+        // 18. Return to the step labeled loop.
     }
 
-    VERIFY(m_parsing_fragment);
-    m_insertion_mode = InsertionMode::InBody;
+    VERIFY_NOT_REACHED();
 }
 
 char const* HTMLParser::insertion_mode_name() const
