@@ -106,9 +106,7 @@ ErrorOr<void> PosixSocketHelper::set_blocking(bool)
 
 ErrorOr<void> PosixSocketHelper::set_close_on_exec(bool enabled)
 {
-    if (!SetHandleInformation(to_handle(m_fd), HANDLE_FLAG_INHERIT, enabled ? 0 : HANDLE_FLAG_INHERIT))
-        return Error::from_windows_error();
-    return {};
+    return System::set_close_on_exec(m_fd, enabled);
 }
 
 ErrorOr<size_t> PosixSocketHelper::pending_bytes() const
