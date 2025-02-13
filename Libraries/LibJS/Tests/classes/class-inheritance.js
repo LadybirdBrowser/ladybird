@@ -181,6 +181,16 @@ test("Issue #7044, super property access before super() call", () => {
     new Foo();
 });
 
+test("super property load and store by identifier", () => {
+    class Foo {
+        constructor() {
+            super.bar += "1337";
+        }
+    }
+
+    new Foo();
+});
+
 test("Issue #8574, super property access before super() call", () => {
     var hit = false;
 

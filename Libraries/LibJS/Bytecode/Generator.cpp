@@ -607,12 +607,18 @@ CodeGenerationErrorOr<Generator::ReferenceOperands> Generator::emit_super_refere
     auto actual_this = get_this();
 
     Optional<ScopedOperand> computed_property_value;
+    Optional<IdentifierTableIndex> property_key_id;
 
     if (expression.is_computed()) {
         // SuperProperty : super [ Expression ]
         // 3. Let propertyNameReference be ? Evaluation of Expression.
         // 4. Let propertyNameValue be ? GetValue(propertyNameReference).
         computed_property_value = TRY(expression.property().generate_bytecode(*this)).value();
+    } else {
+        // SuperProperty : super . IdentifierName
+        // 3. Let propertyKey be the StringValue of IdentifierName.
+        auto const identifier_name = as<Identifier>(expression.property()).string();
+        property_key_id = intern_identifier(identifier_name);
     }
 
     // 5/7. Return ? MakeSuperPropertyReference(actualThis, propertyKey, strict).
@@ -628,6 +634,7 @@ CodeGenerationErrorOr<Generator::ReferenceOperands> Generator::emit_super_refere
     return ReferenceOperands {
         .base = base_value,
         .referenced_name = computed_property_value,
+        .referenced_identifier = property_key_id,
         .this_value = actual_this,
     };
 }
