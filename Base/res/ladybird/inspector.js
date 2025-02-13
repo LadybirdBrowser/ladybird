@@ -337,9 +337,18 @@ inspector.setStyleSheetSource = (identifier, sourceBase64) => {
 };
 
 const applyPropertyFilter = (row, searchText) => {
-    const nameMatch = row.cells[0].textContent.toLowerCase().includes(searchText);
-    const valueMatch = row.cells[1].textContent.toLowerCase().includes(searchText);
-    let matches = nameMatch || valueMatch;
+    let matches = false;
+    if (searchText) {
+        for (let cell of row.cells) {
+            if (cell.textContent.toLowerCase().includes(searchText)) {
+                matches = true;
+                break;
+            }
+        }
+    } else {
+        // Empty searchText matches everything, so skip the checks.
+        matches = true;
+    }
 
     if (matches) {
         row.classList.remove("hidden-row");
