@@ -259,7 +259,7 @@ WebIDL::ExceptionOr<void> AnalyserNode::get_byte_time_domain_data(GC::Root<WebID
 // https://webaudio.github.io/web-audio-api/#dom-analysernode-fftsize
 WebIDL::ExceptionOr<void> AnalyserNode::set_fft_size(unsigned long fft_size)
 {
-    if (fft_size < 32 || fft_size > 32768 || (fft_size & (fft_size - 1)) != 0)
+    if (fft_size < 32 || fft_size > 32768 || !is_power_of_two(fft_size))
         return WebIDL::IndexSizeError::create(realm(), "Analyser node fftSize not a power of 2 between 32 and 32768"_string);
 
     // reset previous block to 0s
@@ -304,9 +304,6 @@ WebIDL::ExceptionOr<void> AnalyserNode::set_smoothing_time_constant(double smoot
 
 WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> AnalyserNode::construct_impl(JS::Realm& realm, GC::Ref<BaseAudioContext> context, AnalyserOptions const& options)
 {
-    if (options.fft_size < 32 || options.fft_size > 32768 || !is_power_of_two(options.fft_size))
-        return WebIDL::IndexSizeError::create(realm, "Analyser node fftSize not a power of 2 between 32 and 32768"_string);
-
     if (options.min_decibels >= options.max_decibels)
         return WebIDL::IndexSizeError::create(realm, "Analyser node minDecibels greater than maxDecibels"_string);
 
@@ -317,6 +314,7 @@ WebIDL::ExceptionOr<GC::Ref<AnalyserNode>> AnalyserNode::construct_impl(JS::Real
     // MUST initialize the AudioNode this, with context and options as arguments.
 
     auto node = realm.create<AnalyserNode>(realm, context, options);
+    TRY(node->set_fft_size(options.fft_size));
 
     // Default options for channel count and interpretation
     // https://webaudio.github.io/web-audio-api/#AnalyserNode
