@@ -62,6 +62,14 @@ const selectTab = (tabButton, tabID, selectedTab, selectedTabButton) => {
     tab.style.display = "block";
     tabButton.classList.add("active");
 
+    // Apply any filtering if we have it
+    let filterInput = tab.querySelector(".property-filter");
+    let propertyTable = tab.querySelector(".property-table");
+    if (filterInput && propertyTable) {
+        filterInput.value = inspector.propertyFilterText || "";
+        filterInput.dispatchEvent(new InputEvent("input"));
+    }
+
     return tab;
 };
 
@@ -361,12 +369,12 @@ const setupPropertyFilter = inputId => {
     const filterInput = document.getElementById(`${inputId}-filter`);
 
     filterInput.addEventListener("input", event => {
-        const searchText = event.target.value.toLowerCase();
+        inspector.propertyFilterText = event.target.value.toLowerCase();
         const tbody = document.getElementById(`${inputId}-table`);
         const rows = tbody.getElementsByTagName("tr");
 
         for (let row of rows) {
-            applyPropertyFilter(row, searchText);
+            applyPropertyFilter(row, inspector.propertyFilterText);
         }
     });
 };
@@ -376,8 +384,6 @@ inspector.createPropertyTables = (computedStyle, resolvedStyle, customProperties
         let oldTable = document.getElementById(tableID);
         let newTable = document.createElement("tbody");
         newTable.setAttribute("id", tableID);
-
-        let searchText = oldTable.parentNode.parentNode.querySelector(".property-filter").value;
 
         Object.keys(properties)
             .sort((a, b) => {
@@ -403,8 +409,8 @@ inspector.createPropertyTables = (computedStyle, resolvedStyle, customProperties
                 let valueColumn = row.insertCell();
                 valueColumn.innerText = properties[name];
 
-                if (searchText) {
-                    applyPropertyFilter(row, searchText);
+                if (inspector.propertyFilterText) {
+                    applyPropertyFilter(row, inspector.propertyFilterText);
                 }
             });
 
