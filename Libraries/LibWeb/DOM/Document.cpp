@@ -3293,7 +3293,10 @@ void Document::evaluate_media_queries_and_report_changes()
         bool did_match = media_query_list->matches();
         bool now_matches = media_query_list->evaluate();
 
-        if (did_match != now_matches) {
+        auto did_change_internally = media_query_list->has_changed_state();
+        media_query_list->set_has_changed_state(false);
+
+        if (did_change_internally == true || did_match != now_matches) {
             CSS::MediaQueryListEventInit init;
             init.media = media_query_list->media();
             init.matches = now_matches;

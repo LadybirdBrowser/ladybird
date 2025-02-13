@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	MediaQueryList.changed is correct for all lists in the document even during a change event handler
+1 Pass
+Pass	MediaQueryList.changed is correct for all lists in the document even during a change event handler
