@@ -953,6 +953,9 @@ ContentVisibility ComputedProperties::content_visibility() const
 Cursor ComputedProperties::cursor() const
 {
     auto const& value = property(PropertyID::Cursor);
+    // FIXME: We don't currently support custom cursors.
+    if (value.is_url())
+        return Cursor::Auto;
     return keyword_to_cursor(value.to_keyword()).release_value();
 }
 
