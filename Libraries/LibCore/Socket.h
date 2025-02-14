@@ -195,6 +195,8 @@ public:
     ErrorOr<void> set_blocking(bool enabled) override { return m_helper.set_blocking(enabled); }
     ErrorOr<void> set_close_on_exec(bool enabled) override { return m_helper.set_close_on_exec(enabled); }
 
+    int fd() const { return m_helper.fd(); }
+
     virtual ~TCPSocket() override { close(); }
 
 private:
