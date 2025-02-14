@@ -9,6 +9,7 @@
 #include <LibCore/Socket.h>
 #include <LibDNS/Resolver.h>
 #include <LibMain/Main.h>
+#include <LibTLS/DefaultRootCACertificates.h>
 #include <LibTLS/TLSv12.h>
 
 ErrorOr<int> serenity_main(Main::Arguments arguments)
