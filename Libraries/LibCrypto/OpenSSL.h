@@ -11,13 +11,13 @@
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibCrypto/OpenSSLForward.h>
 
-namespace Crypto {
-
-static int openssl_print_errors(char const* str, size_t len, [[maybe_unused]] void* u)
+inline int openssl_print_errors(char const* str, size_t len, [[maybe_unused]] void* u)
 {
     dbgln("{}", StringView { str, len });
     return 1;
 }
+
+namespace Crypto {
 
 #define OPENSSL_TRY_PTR(...)                                           \
     ({                                                                 \
