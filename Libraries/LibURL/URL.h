@@ -122,6 +122,7 @@ public:
     }
 
     String serialize_path() const;
+    ByteString file_path() const;
     String serialize(ExcludeFragment = ExcludeFragment::No) const;
     ByteString serialize_for_display() const;
     ByteString to_byte_string() const { return serialize().to_byte_string(); }
