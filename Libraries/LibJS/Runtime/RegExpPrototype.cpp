@@ -224,7 +224,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
     result = regex.match(string.view());
 
     // 13.d and 13.a
-    if (!result.success) {
+    if (!result.success || last_index > string.length_in_code_units()) {
         // 13.d.i, 13.a.i
         if (sticky || global)
             TRY(regexp_object.set(vm.names.lastIndex, Value(0), Object::ShouldThrowExceptions::Yes));
