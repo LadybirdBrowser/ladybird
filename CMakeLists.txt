@@ -82,6 +82,9 @@ if (ENABLE_QT AND ENABLE_GUI_TARGETS)
     find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network)
 endif()
 
+# We need to find OpenSSL in order to link it explicitly with all targets.
+find_package(OpenSSL REQUIRED)
+
 include(CTest) # for BUILD_TESTING option, default ON
 
 if (ENABLE_GUI_TARGETS)
