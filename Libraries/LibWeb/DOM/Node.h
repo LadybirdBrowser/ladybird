@@ -15,6 +15,7 @@
 #include <LibWeb/CSS/InvalidationSet.h>
 #include <LibWeb/DOM/AccessibilityTreeNode.h>
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/DOM/NodeType.h>
 #include <LibWeb/DOM/Slottable.h>
 #include <LibWeb/DOMParsing/XMLSerializer.h>
 #include <LibWeb/TraversalDecision.h>
@@ -22,22 +23,6 @@
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::DOM {
-
-enum class NodeType : u16 {
-    INVALID = 0,
-    ELEMENT_NODE = 1,
-    ATTRIBUTE_NODE = 2,
-    TEXT_NODE = 3,
-    CDATA_SECTION_NODE = 4,
-    ENTITY_REFERENCE_NODE = 5,
-    ENTITY_NODE = 6,
-    PROCESSING_INSTRUCTION_NODE = 7,
-    COMMENT_NODE = 8,
-    DOCUMENT_NODE = 9,
-    DOCUMENT_TYPE_NODE = 10,
-    DOCUMENT_FRAGMENT_NODE = 11,
-    NOTATION_NODE = 12
-};
 
 enum class NameOrDescription {
     Name,
