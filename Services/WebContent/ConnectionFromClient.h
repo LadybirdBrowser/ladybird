@@ -47,6 +47,8 @@ public:
 
     Function<void(IPC::File const&)> on_image_decoder_connection;
 
+    Queue<Web::QueuedInputEvent>& input_event_queue() { return m_input_event_queue; }
+
 private:
     explicit ConnectionFromClient(GC::Heap&, IPC::Transport);
 
@@ -149,26 +151,15 @@ private:
 
     virtual void system_time_zone_changed() override;
 
-    void report_finished_handling_input_event(u64 page_id, Web::EventResult event_was_handled);
-
     GC::Heap& m_heap;
     NonnullOwnPtr<PageHost> m_page_host;
 
     HashMap<int, Web::FileRequest> m_requested_files {};
     int last_id { 0 };
 
-    struct QueuedInputEvent {
-        u64 page_id { 0 };
-        Web::InputEvent event;
-        size_t coalesced_event_count { 0 };
-    };
+    void enqueue_input_event(Web::QueuedInputEvent);
 
-    void enqueue_input_event(QueuedInputEvent);
-    void process_next_input_event();
-
-    Queue<QueuedInputEvent> m_input_event_queue;
-
-    GC::Root<Web::Platform::Timer> m_input_event_queue_timer;
+    Queue<Web::QueuedInputEvent> m_input_event_queue;
 };
 
 }

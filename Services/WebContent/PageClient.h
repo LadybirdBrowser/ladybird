@@ -48,6 +48,9 @@ public:
     virtual void process_screenshot_requests() override;
     virtual void paint(Web::DevicePixelRect const& content_rect, Web::Painting::BackingStore&, Web::PaintOptions = {}) override;
 
+    virtual Queue<Web::QueuedInputEvent>& input_event_queue() override;
+    virtual void report_finished_handling_input_event(u64 page_id, Web::EventResult event_was_handled) override;
+
     void set_palette_impl(Gfx::PaletteImpl&);
     void set_viewport_size(Web::DevicePixelSize const&);
     void set_screen_rects(Vector<Web::DevicePixelRect, 4> const& rects, size_t main_screen_index) { m_screen_rect = rects[main_screen_index]; }

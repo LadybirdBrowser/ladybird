@@ -223,6 +223,16 @@ void PageClient::paint(Web::DevicePixelRect const& content_rect, Web::Painting::
     page().top_level_traversable()->paint(content_rect, target, paint_options);
 }
 
+Queue<Web::QueuedInputEvent>& PageClient::input_event_queue()
+{
+    return client().input_event_queue();
+}
+
+void PageClient::report_finished_handling_input_event(u64 page_id, Web::EventResult event_was_handled)
+{
+    client().async_did_finish_handling_input_event(page_id, event_was_handled);
+}
+
 void PageClient::set_viewport_size(Web::DevicePixelSize const& size)
 {
     page().top_level_traversable()->set_viewport_size(page().device_to_css_size(size));
