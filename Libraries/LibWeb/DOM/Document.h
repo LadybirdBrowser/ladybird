@@ -152,6 +152,7 @@ public:
 
     void update_base_element(Badge<HTML::HTMLBaseElement>);
     GC::Ptr<HTML::HTMLBaseElement const> first_base_element_with_href_in_tree_order() const;
+    GC::Ptr<HTML::HTMLBaseElement const> first_base_element_with_target_in_tree_order() const;
 
     String url_string() const { return m_url.to_string(); }
     String document_uri() const { return url_string(); }
@@ -1022,8 +1023,9 @@ private:
     // https://w3c.github.io/selection-api/#dfn-selection
     GC::Ptr<Selection::Selection> m_selection;
 
-    // NOTE: This is a cache to make finding the first <base href> element O(1).
+    // NOTE: This is a cache to make finding the first <base href> or <base target> element O(1).
     GC::Ptr<HTML::HTMLBaseElement const> m_first_base_element_with_href_in_tree_order;
+    GC::Ptr<HTML::HTMLBaseElement const> m_first_base_element_with_target_in_tree_order;
 
     // https://html.spec.whatwg.org/multipage/images.html#list-of-available-images
     GC::Ptr<HTML::ListOfAvailableImages> m_list_of_available_images;

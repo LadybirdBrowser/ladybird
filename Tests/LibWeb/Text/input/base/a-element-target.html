@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe id="frame" src="../../data/base/a-element-target-sub.html"></iframe>
+<script>
+    asyncTest(done => {
+        window.onload = () => {
+            frame.onload = () => {
+                frame.onload = () => {
+                    println(frame.contentDocument.location.href.includes("a-element-target-sub-alt.html")? "Parent frame navigated successfully!" : "Parent frame incorrectly navigated to " + frame.contentDocument.location.href);
+                    done();
+                }
+            }
+            frame.contentDocument.getElementById("frame").contentDocument.getElementById("a").click();
+        };
+    });
+</script>

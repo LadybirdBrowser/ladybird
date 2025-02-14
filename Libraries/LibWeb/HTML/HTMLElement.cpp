@@ -948,8 +948,10 @@ String HTMLElement::get_an_elements_target(Optional<String> target) const
         if (auto maybe_target = attribute(AttributeNames::target); maybe_target.has_value()) {
             target = maybe_target.release_value();
         }
-        // FIXME: 2. Otherwise, if element's node document contains a base element with a target attribute,
+        // 2. Otherwise, if element's node document contains a base element with a target attribute,
         //    set target to the value of the target attribute of the first such base element.
+        if (auto base_element = document().first_base_element_with_target_in_tree_order())
+            target = base_element->attribute(AttributeNames::target);
     }
 
     // 2. If target is not null, and contains an ASCII tab or newline and a U+003C (<), then set target to "_blank".
