@@ -85,6 +85,12 @@ struct DragEvent {
 
 using InputEvent = Variant<KeyEvent, MouseEvent, DragEvent>;
 
+struct QueuedInputEvent {
+    u64 page_id { 0 };
+    InputEvent event;
+    size_t coalesced_event_count { 0 };
+};
+
 }
 
 namespace IPC {

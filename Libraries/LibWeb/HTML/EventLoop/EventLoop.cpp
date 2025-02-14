@@ -252,6 +252,63 @@ void EventLoop::queue_task_to_update_the_rendering()
     }
 }
 
+void EventLoop::process_input_events() const
+{
+    auto process_input_events_queue = [&](Page& page) {
+        auto& page_client = page.client();
+        auto& input_events_queue = page_client.input_event_queue();
+        while (!input_events_queue.is_empty()) {
+            auto event = input_events_queue.dequeue();
+            auto result = event.event.visit(
+                [&](KeyEvent const& key_event) {
+                    switch (key_event.type) {
+                    case KeyEvent::Type::KeyDown:
+                        return page.handle_keydown(key_event.key, key_event.modifiers, key_event.code_point, key_event.repeat);
+                    case KeyEvent::Type::KeyUp:
+                        return page.handle_keyup(key_event.key, key_event.modifiers, key_event.code_point, key_event.repeat);
+                    }
+                    VERIFY_NOT_REACHED();
+                },
+                [&](MouseEvent const& mouse_event) {
+                    switch (mouse_event.type) {
+                    case MouseEvent::Type::MouseDown:
+                        return page.handle_mousedown(mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers);
+                    case MouseEvent::Type::MouseUp:
+                        return page.handle_mouseup(mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers);
+                    case MouseEvent::Type::MouseMove:
+                        return page.handle_mousemove(mouse_event.position, mouse_event.screen_position, mouse_event.buttons, mouse_event.modifiers);
+                    case MouseEvent::Type::MouseWheel:
+                        return page.handle_mousewheel(mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers, mouse_event.wheel_delta_x, mouse_event.wheel_delta_y);
+                    case MouseEvent::Type::DoubleClick:
+                        return page.handle_doubleclick(mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers);
+                    }
+                    VERIFY_NOT_REACHED();
+                },
+                [&](Web::DragEvent& drag_event) {
+                    return page.handle_drag_and_drop_event(drag_event.type, drag_event.position, drag_event.screen_position, drag_event.button, drag_event.buttons, drag_event.modifiers, move(drag_event.files));
+                });
+
+            for (size_t i = 0; i < event.coalesced_event_count; ++i)
+                page_client.report_finished_handling_input_event(event.page_id, EventResult::Dropped);
+            page_client.report_finished_handling_input_event(event.page_id, result);
+        }
+    };
+
+    auto documents_of_traversable_navigables = documents_in_this_event_loop_matching([&](auto const& document) {
+        if (document.is_decoded_svg())
+            return false;
+        if (!document.navigable())
+            return false;
+        if (!document.navigable()->is_traversable())
+            return false;
+        return true;
+    });
+
+    for (auto const& document : documents_of_traversable_navigables) {
+        process_input_events_queue(document->page());
+    }
+}
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#update-the-rendering
 void EventLoop::update_the_rendering()
 {
@@ -260,6 +317,8 @@ void EventLoop::update_the_rendering()
     ScopeGuard const guard = [this] {
         m_is_running_rendering_task = false;
     };
+
+    process_input_events();
 
     // 1. Let frameTimestamp be eventLoop's last render opportunity time.
     auto frame_timestamp = m_last_render_opportunity_time;

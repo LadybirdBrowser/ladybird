@@ -60,7 +60,6 @@ ConnectionFromClient::ConnectionFromClient(GC::Heap& heap, IPC::Transport transp
     , m_heap(heap)
     , m_page_host(PageHost::create(*this))
 {
-    m_input_event_queue_timer = Web::Platform::Timer::create_single_shot(m_heap, 0, GC::create_function(heap, [this] { process_next_input_event(); }));
 }
 
 ConnectionFromClient::~ConnectionFromClient() = default;
@@ -186,55 +185,6 @@ void ConnectionFromClient::ready_to_paint(u64 page_id)
         page->ready_to_paint();
 }
 
-void ConnectionFromClient::process_next_input_event()
-{
-    if (m_input_event_queue.is_empty())
-        return;
-
-    auto event = m_input_event_queue.dequeue();
-
-    auto page = this->page(event.page_id);
-    if (!page.has_value())
-        return;
-
-    auto result = event.event.visit(
-        [&](Web::KeyEvent const& event) {
-            switch (event.type) {
-            case Web::KeyEvent::Type::KeyDown:
-                return page->page().handle_keydown(event.key, event.modifiers, event.code_point, event.repeat);
-            case Web::KeyEvent::Type::KeyUp:
-                return page->page().handle_keyup(event.key, event.modifiers, event.code_point, event.repeat);
-            }
-            VERIFY_NOT_REACHED();
-        },
-        [&](Web::MouseEvent const& event) {
-            switch (event.type) {
-            case Web::MouseEvent::Type::MouseDown:
-                return page->page().handle_mousedown(event.position, event.screen_position, event.button, event.buttons, event.modifiers);
-            case Web::MouseEvent::Type::MouseUp:
-                return page->page().handle_mouseup(event.position, event.screen_position, event.button, event.buttons, event.modifiers);
-            case Web::MouseEvent::Type::MouseMove:
-                return page->page().handle_mousemove(event.position, event.screen_position, event.buttons, event.modifiers);
-            case Web::MouseEvent::Type::MouseWheel:
-                return page->page().handle_mousewheel(event.position, event.screen_position, event.button, event.buttons, event.modifiers, event.wheel_delta_x, event.wheel_delta_y);
-            case Web::MouseEvent::Type::DoubleClick:
-                return page->page().handle_doubleclick(event.position, event.screen_position, event.button, event.buttons, event.modifiers);
-            }
-            VERIFY_NOT_REACHED();
-        },
-        [&](Web::DragEvent& event) {
-            return page->page().handle_drag_and_drop_event(event.type, event.position, event.screen_position, event.button, event.buttons, event.modifiers, move(event.files));
-        });
-
-    // We have to notify the client about coalesced events, so we do that by saying none of them were handled by the web page.
-    for (size_t i = 0; i < event.coalesced_event_count; ++i)
-        report_finished_handling_input_event(event.page_id, Web::EventResult::Dropped);
-    report_finished_handling_input_event(event.page_id, result);
-
-    if (!m_input_event_queue.is_empty())
-        m_input_event_queue_timer->start();
-}
-
 void ConnectionFromClient::key_event(u64 page_id, Web::KeyEvent const& event)
 {
     enqueue_input_event({ page_id, move(const_cast<Web::KeyEvent&>(event)), 0 });
@@ -279,15 +229,9 @@ void ConnectionFromClient::drag_event(u64 page_id, Web::DragEvent const& event)
     enqueue_input_event({ page_id, move(const_cast<Web::DragEvent&>(event)), 0 });
 }
 
-void ConnectionFromClient::enqueue_input_event(QueuedInputEvent event)
+void ConnectionFromClient::enqueue_input_event(Web::QueuedInputEvent event)
 {
     m_input_event_queue.enqueue(move(event));
-    m_input_event_queue_timer->start();
-}
-
-void ConnectionFromClient::report_finished_handling_input_event(u64 page_id, Web::EventResult event_result)
-{
-    async_did_finish_handling_input_event(page_id, event_result);
 }
 
 void ConnectionFromClient::debug_request(u64 page_id, ByteString const& request, ByteString const& argument)

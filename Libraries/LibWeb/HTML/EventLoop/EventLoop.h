@@ -95,6 +95,7 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
+    void process_input_events() const;
     void update_the_rendering();
 
     Type m_type { Type::Window };
