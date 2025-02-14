@@ -1,6 +1,7 @@
 add_cxx_compile_options(-Wvla)
 
 set(SOURCES
+    DefaultRootCACertificates.cpp
     Handshake.cpp
     HandshakeCertificate.cpp
     HandshakeClient.cpp

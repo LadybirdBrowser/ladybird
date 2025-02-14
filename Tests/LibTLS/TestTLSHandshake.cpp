@@ -10,6 +10,7 @@
 #include <LibCrypto/ASN1/ASN1.h>
 #include <LibCrypto/ASN1/PEM.h>
 #include <LibFileSystem/FileSystem.h>
+#include <LibTLS/DefaultRootCACertificates.h>
 #include <LibTLS/TLSv12.h>
 #include <LibTest/TestCase.h>
 

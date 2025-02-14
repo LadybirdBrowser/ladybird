@@ -13,12 +13,10 @@
 #include <LibCore/Socket.h>
 #include <LibCore/Timer.h>
 #include <LibCrypto/Authentication/HMAC.h>
-#include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibCrypto/Certificate/Certificate.h>
 #include <LibCrypto/Cipher/AES.h>
 #include <LibCrypto/Curves/EllipticCurve.h>
 #include <LibCrypto/Hash/HashManager.h>
-#include <LibCrypto/PK/RSA.h>
 #include <LibTLS/CipherSuite.h>
 #include <LibTLS/TLSPacketBuilder.h>
 
@@ -553,23 +551,4 @@ private:
     RefPtr<Core::Timer> m_handshake_timeout_timer;
 };
 
-class DefaultRootCACertificates {
-public:
-    DefaultRootCACertificates();
-
-    Vector<Certificate> const& certificates() const { return m_ca_certificates; }
-
-    static ErrorOr<Vector<Certificate>> parse_pem_root_certificate_authorities(ByteBuffer&);
-    static ErrorOr<Vector<Certificate>> load_certificates(Span<ByteString> custom_cert_paths = {});
-
-    static DefaultRootCACertificates& the();
-
-    static void set_default_certificate_paths(Span<ByteString> paths);
-
-private:
-    Vector<Certificate> m_ca_certificates;
-};
-
 }
-
-using TLS::DefaultRootCACertificates;
