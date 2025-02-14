@@ -63,7 +63,7 @@ interface HTMLMediaElement : HTMLElement {
     attribute double playbackRate;
     [FIXME] attribute boolean preservesPitch;
     readonly attribute TimeRanges played;
-    [FIXME] readonly attribute TimeRanges seekable;
+    readonly attribute TimeRanges seekable;
     readonly attribute boolean ended;
     [Reflect, CEReactions] attribute boolean autoplay;
     [Reflect, CEReactions] attribute boolean loop;

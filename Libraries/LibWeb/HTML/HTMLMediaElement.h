@@ -58,6 +58,7 @@ public:
 
     [[nodiscard]] GC::Ref<TimeRanges> buffered() const;
     [[nodiscard]] GC::Ref<TimeRanges> played() const;
+    [[nodiscard]] GC::Ref<TimeRanges> seekable() const;
 
     static inline constexpr auto supported_video_subtypes = Array {
         "webm"sv,

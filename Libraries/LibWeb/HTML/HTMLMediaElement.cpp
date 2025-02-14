@@ -185,6 +185,18 @@ GC::Ref<TimeRanges> HTMLMediaElement::played() const
     return time_ranges;
 }
 
+// https://html.spec.whatwg.org/multipage/media.html#dom-media-seekable
+GC::Ref<TimeRanges> HTMLMediaElement::seekable() const
+{
+    auto& realm = this->realm();
+
+    // The seekable attribute must return a new static normalized TimeRanges object that represents the ranges of the media resource, if any, that the
+    // user agent is able to seek to, at the time the attribute is evaluated.
+    auto time_ranges = realm.create<TimeRanges>(realm);
+    time_ranges->add_range(0, m_duration);
+    return time_ranges;
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#dom-navigator-canplaytype
 Bindings::CanPlayTypeResult HTMLMediaElement::can_play_type(StringView type) const
 {
@@ -1566,11 +1578,46 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
     if (playback_position < 0)
         playback_position = 0;
 
-    // FIXME: 8. If the (possibly now changed) new playback position is not in one of the ranges given in the seekable attribute,
-    //           then let it be the position in one of the ranges given in the seekable attribute that is the nearest to the new
-    //           playback position. If two positions both satisfy that constraint (i.e. the new playback position is exactly in the
-    //           middle between two ranges in the seekable attribute) then use the position that is closest to the current playback
-    //           position. If there are no ranges given in the seekable attribute then set the seeking IDL attribute to false and return.
+    // 8. If the (possibly now changed) new playback position is not in one of the ranges given in the seekable attribute,
+    auto time_ranges = seekable();
+    if (!time_ranges->in_range(playback_position)) {
+        // then let it be the position in one of the ranges given in the seekable attribute that is the nearest to the new
+        // playback position.
+
+        // If there are no ranges given in the seekable attribute then set the seeking IDL attribute to false and return.
+        if (time_ranges->length() == 0) {
+            set_seeking(false);
+            return;
+        }
+
+        double nearest_point;
+        Optional<double> other_nearest_point = {};
+        double distance = INFINITY;
+        for (size_t i = 0; i < time_ranges->length(); i++) {
+            for (double point : { MUST(time_ranges->start(i)), MUST(time_ranges->end(i)) }) {
+                auto point_distance = abs(playback_position - point);
+                if (point_distance < distance) {
+                    nearest_point = point;
+                    other_nearest_point = {};
+                    distance = point_distance;
+                } else if (point_distance == distance) {
+                    other_nearest_point = point;
+                }
+            }
+        }
+
+        // If two positions both satisfy that constraint (i.e. the new playback position is exactly in the middle between two ranges
+        // in the seekable attribute) then use the position that is closest to the current playback position.
+        if (other_nearest_point.has_value()) {
+            auto nearest_point_distance = abs(m_current_playback_position - nearest_point);
+            auto other_nearest_point_distance = abs(m_current_playback_position - other_nearest_point.value());
+            if (nearest_point_distance < other_nearest_point_distance) {
+                playback_position = nearest_point;
+            } else {
+                playback_position = other_nearest_point.value();
+            }
+        }
+    }
 
     // 9. If the approximate-for-speed flag is set, adjust the new playback position to a value that will allow for playback to resume
     //    promptly. If new playback position before this step is before current playback position, then the adjusted new playback position
