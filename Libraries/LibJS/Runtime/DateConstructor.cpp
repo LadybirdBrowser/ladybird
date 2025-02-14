@@ -196,6 +196,7 @@ static double parse_date_string(VM& vm, StringView date_string)
         "%Y-%m-%d%t%H:%M:%S%X"sv,              // "2025-01-13 00:00:00.000"
         "%Y-%m-%eT%T%z"sv,                     // "2021-04-21T15:00:00+0000"
         "%d%t%b%t%Y%t%T%t%Z"sv,                // "1 Jan 2001 00:00:00 GMT"
+        "%b%t%d,%t%Y"sv,                       // "Jan 15, 2025"
     };
 
     for (auto const& format : extra_formats) {
