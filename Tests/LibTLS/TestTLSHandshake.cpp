@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2021, Peter Bocan  <me@pbocan.net>
+ * Copyright (c) 2025, Altomani Gianluca <altomanigianluca@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -10,7 +11,6 @@
 #include <LibCrypto/ASN1/ASN1.h>
 #include <LibCrypto/ASN1/PEM.h>
 #include <LibFileSystem/FileSystem.h>
-#include <LibTLS/DefaultRootCACertificates.h>
 #include <LibTLS/TLSv12.h>
 #include <LibTest/TestCase.h>
 
@@ -24,10 +24,7 @@ static ByteBuffer operator""_b(char const* string, size_t length)
     return ByteBuffer::copy(string, length).release_value();
 }
 
-ErrorOr<Vector<Crypto::Certificate::Certificate>> load_certificates();
-ByteString locate_ca_certs_file();
-
-ByteString locate_ca_certs_file()
+static Optional<ByteString> locate_ca_certs_file()
 {
     if (FileSystem::exists(ca_certs_file)) {
         return ca_certs_file;
@@ -36,50 +33,23 @@ ByteString locate_ca_certs_file()
     if (FileSystem::exists(on_target_path)) {
         return on_target_path;
     }
-    return "";
-}
-
-ErrorOr<Vector<Crypto::Certificate::Certificate>> load_certificates()
-{
-    auto cacert_file = TRY(Core::File::open(locate_ca_certs_file(), Core::File::OpenMode::Read));
-    auto data = TRY(cacert_file->read_until_eof());
-    return TRY(DefaultRootCACertificates::parse_pem_root_certificate_authorities(data));
+    return {};
 }
 
 TEST_CASE(test_TLS_hello_handshake)
 {
-    Core::EventLoop loop;
     TLS::Options options;
-    options.set_root_certificates(TRY_OR_FAIL(load_certificates()));
-    options.set_alert_handler([&](TLS::AlertDescription) {
-        FAIL("Connection failure");
-        loop.quit(1);
-    });
-    options.set_finish_callback([&] {
-        loop.quit(0);
-    });
+    options.set_root_certificates_path(locate_ca_certs_file());
 
     auto tls = TRY_OR_FAIL(TLS::TLSv12::connect(DEFAULT_SERVER, port, move(options)));
-    ByteBuffer contents;
-    tls->on_ready_to_read = [&] {
-        (void)TRY_OR_FAIL(tls->read_some(contents.must_get_bytes_for_writing(4 * KiB)));
-        loop.quit(0);
-    };
 
-    if (tls->write_until_depleted("GET / HTTP/1.1\r\nHost: "_b).is_error()) {
-        FAIL("write(0) failed");
-        return;
-    }
+    TRY_OR_FAIL(tls->write_until_depleted("GET /generate_204 HTTP/1.1\r\nHost: "_b));
 
     auto the_server = DEFAULT_SERVER;
-    if (tls->write_until_depleted(the_server.bytes()).is_error()) {
-        FAIL("write(1) failed");
-        return;
-    }
-    if (tls->write_until_depleted("\r\nConnection : close\r\n\r\n"_b).is_error()) {
-        FAIL("write(2) failed");
-        return;
-    }
+    TRY_OR_FAIL(tls->write_until_depleted(the_server.bytes()));
+    TRY_OR_FAIL(tls->write_until_depleted("\r\nConnection: close\r\n\r\n"_b));
 
-    loop.exec();
+    auto tmp = TRY_OR_FAIL(ByteBuffer::create_zeroed(128));
+    auto contents = TRY_OR_FAIL(tls->read_some(tmp));
+    EXPECT(contents.starts_with("HTTP/1.1 204 No Content\r\n"_b));
 }
