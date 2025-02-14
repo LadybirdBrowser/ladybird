@@ -83,12 +83,9 @@ static bool parent_element_for_event_dispatch(Painting::Paintable& paintable, GC
     return node && layout_node;
 }
 
-static Gfx::StandardCursor cursor_css_to_gfx(Optional<CSS::Cursor> cursor)
+static Gfx::StandardCursor cursor_css_to_gfx(CSS::Cursor cursor)
 {
-    if (!cursor.has_value()) {
-        return Gfx::StandardCursor::None;
-    }
-    switch (cursor.value()) {
+    switch (cursor) {
     case CSS::Cursor::Crosshair:
     case CSS::Cursor::Cell:
         return Gfx::StandardCursor::Crosshair;
