@@ -94,10 +94,7 @@ void HTMLInputElement::visit_edges(Cell::Visitor& visitor)
 GC::Ref<ValidityState const> HTMLInputElement::validity() const
 {
     auto& realm = this->realm();
-
-    dbgln("FIXME: Implement validity attribute getter");
-
-    return realm.create<ValidityState>(realm);
+    return realm.create<ValidityState>(realm, static_cast<FormAssociatedElement const*>(this));
 }
 
 GC::Ptr<Layout::Node> HTMLInputElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)

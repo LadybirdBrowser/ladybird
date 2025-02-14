@@ -37,6 +37,9 @@ public:
     String value() const override;
     void set_value(String const&);
 
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validity
+    GC::Ref<ValidityState const> validity() const;
+
     // ^FormAssociatedElement
     // https://html.spec.whatwg.org/multipage/forms.html#category-listed
     virtual bool is_listed() const override { return true; }

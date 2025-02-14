@@ -41,6 +41,9 @@ public:
 
     String type() const { return get_attribute_value(HTML::AttributeNames::type); }
 
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validity
+    GC::Ref<ValidityState const> validity() const;
+
     // ^FormAssociatedElement
     // https://html.spec.whatwg.org/multipage/forms.html#category-listed
     virtual bool is_listed() const override { return true; }

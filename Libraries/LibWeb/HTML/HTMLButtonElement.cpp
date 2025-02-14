@@ -9,6 +9,7 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/HTMLButtonElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
+#include <LibWeb/HTML/ValidityState.h>
 
 namespace Web::HTML {
 
@@ -44,6 +45,13 @@ HTMLButtonElement::TypeAttributeState HTMLButtonElement::type_state() const
 WebIDL::ExceptionOr<void> HTMLButtonElement::set_type(String const& type)
 {
     return set_attribute(HTML::AttributeNames::type, type);
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validity
+GC::Ref<ValidityState const> HTMLButtonElement::validity() const
+{
+    auto& realm = this->realm();
+    return realm.create<ValidityState>(realm, static_cast<FormAssociatedElement const*>(this));
 }
 
 void HTMLButtonElement::form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& value, Optional<FlyString> const& namespace_)

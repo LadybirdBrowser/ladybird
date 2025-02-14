@@ -25,6 +25,7 @@
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
+#include <LibWeb/HTML/ValidityState.h>
 #include <LibWeb/Layout/ImageBox.h>
 #include <LibWeb/Layout/NavigableContainerViewport.h>
 #include <LibWeb/Loader/ResourceLoader.h>
@@ -602,6 +603,13 @@ RefPtr<Gfx::ImmutableBitmap> HTMLObjectElement::current_image_bitmap(Gfx::IntSiz
 void HTMLObjectElement::set_visible_in_viewport(bool)
 {
     // FIXME: Loosen grip on image data when it's not visible, e.g via volatile memory.
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validity
+GC::Ref<ValidityState const> HTMLObjectElement::validity() const
+{
+    auto& realm = this->realm();
+    return realm.create<ValidityState>(realm, static_cast<FormAssociatedElement const*>(this));
 }
 
 }
