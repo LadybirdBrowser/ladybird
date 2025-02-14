@@ -536,6 +536,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_fonts);
     visitor.visit(m_selection);
     visitor.visit(m_first_base_element_with_href_in_tree_order);
+    visitor.visit(m_first_base_element_with_target_in_tree_order);
     visitor.visit(m_parser);
     visitor.visit(m_lazy_load_intersection_observer);
     visitor.visit(m_visual_viewport);
@@ -1075,23 +1076,36 @@ Vector<CSS::BackgroundLayerData> const* Document::background_layers() const
 
 void Document::update_base_element(Badge<HTML::HTMLBaseElement>)
 {
-    GC::Ptr<HTML::HTMLBaseElement const> base_element;
+    GC::Ptr<HTML::HTMLBaseElement const> base_element_with_href = nullptr;
+    GC::Ptr<HTML::HTMLBaseElement const> base_element_with_target = nullptr;
 
-    for_each_in_subtree_of_type<HTML::HTMLBaseElement>([&base_element](HTML::HTMLBaseElement const& base_element_in_tree) {
-        if (base_element_in_tree.has_attribute(HTML::AttributeNames::href)) {
-            base_element = &base_element_in_tree;
-            return TraversalDecision::Break;
+    for_each_in_subtree_of_type<HTML::HTMLBaseElement>([&base_element_with_href, &base_element_with_target](HTML::HTMLBaseElement const& base_element_in_tree) {
+        if (!base_element_with_href && base_element_in_tree.has_attribute(HTML::AttributeNames::href)) {
+            base_element_with_href = &base_element_in_tree;
+            if (base_element_with_target)
+                return TraversalDecision::Break;
+        }
+        if (!base_element_with_target && base_element_in_tree.has_attribute(HTML::AttributeNames::target)) {
+            base_element_with_target = &base_element_in_tree;
+            if (base_element_with_href)
+                return TraversalDecision::Break;
         }
 
         return TraversalDecision::Continue;
     });
 
-    m_first_base_element_with_href_in_tree_order = base_element;
+    m_first_base_element_with_href_in_tree_order = base_element_with_href;
+    m_first_base_element_with_target_in_tree_order = base_element_with_target;
 }
 
 GC::Ptr<HTML::HTMLBaseElement const> Document::first_base_element_with_href_in_tree_order() const
 {
     return m_first_base_element_with_href_in_tree_order;
+}
+
+GC::Ptr<HTML::HTMLBaseElement const> Document::first_base_element_with_target_in_tree_order() const
+{
+    return m_first_base_element_with_target_in_tree_order;
 }
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#fallback-base-url
