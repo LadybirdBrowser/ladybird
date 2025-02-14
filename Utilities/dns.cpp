@@ -9,7 +9,6 @@
 #include <LibCore/Socket.h>
 #include <LibDNS/Resolver.h>
 #include <LibMain/Main.h>
-#include <LibTLS/DefaultRootCACertificates.h>
 #include <LibTLS/TLSv12.h>
 
 ErrorOr<int> serenity_main(Main::Arguments arguments)
@@ -94,8 +93,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
             return DNS::Resolver::SocketResult { MUST(Core::BufferedSocket<Core::UDPSocket>::create(MUST(Core::UDPSocket::connect(addr)))), DNS::Resolver::ConnectionMode::UDP };
         }
     };
-
-    DefaultRootCACertificates::set_default_certificate_paths(Array<ByteString, 1> { cert_path.is_empty() ? "/etc/ssl/cert.pem"sv : cert_path });
 
     MUST(resolver.when_socket_ready()->await());
 

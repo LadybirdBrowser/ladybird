@@ -20,21 +20,8 @@
 #include <RequestServer/HttpsProtocol.h>
 #include <UI/Utilities.h>
 
-// FIXME: Share b/w RequestServer and WebSocket
-static ErrorOr<ByteString> find_certificates(StringView serenity_resource_root)
-{
-    auto cert_path = ByteString::formatted("{}/res/ladybird/cacert.pem", serenity_resource_root);
-    if (!FileSystem::exists(cert_path))
-        return Error::from_string_literal("Don't know how to load certs!");
-    return cert_path;
-}
-
 ErrorOr<int> service_main(int ipc_socket)
 {
-    // Ensure the certificates are read out here.
-    DefaultRootCACertificates::set_default_certificate_paths(Vector { TRY(find_certificates(s_ladybird_resource_root)) });
-    [[maybe_unused]] auto& certs = DefaultRootCACertificates::the();
-
     Core::EventLoop event_loop;
 
     RequestServer::HttpProtocol::install();

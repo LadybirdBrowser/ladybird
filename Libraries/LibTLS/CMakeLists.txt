@@ -1,7 +1,6 @@
 add_cxx_compile_options(-Wvla)
 
 set(SOURCES
-    DefaultRootCACertificates.cpp
     TLSv12.cpp
 )
 

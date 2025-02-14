@@ -15,7 +15,6 @@
 #include <LibFileSystem/FileSystem.h>
 #include <LibIPC/SingleServer.h>
 #include <LibMain/Main.h>
-#include <LibTLS/DefaultRootCACertificates.h>
 #include <LibTLS/TLSv12.h>
 #include <RequestServer/ConnectionFromClient.h>
 
@@ -59,9 +58,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
         certificates.append(TRY(find_certificates(serenity_resource_root)));
     else
         RequestServer::g_default_certificate_path = certificates.first();
-
-    DefaultRootCACertificates::set_default_certificate_paths(certificates.span());
-    [[maybe_unused]] auto& certs = DefaultRootCACertificates::the();
 
     Core::EventLoop event_loop;
 
