@@ -81,10 +81,25 @@ public:
     [[nodiscard]] ByteString to_byte_string() const { return serialized<StringBuilder>(); }
 
     template<typename Callback>
+    void for_each(Callback callback)
+    {
+        for (auto& value : m_values)
+            callback(value);
+    }
+
+    template<typename Callback>
     void for_each(Callback callback) const
     {
         for (auto const& value : m_values)
             callback(value);
+    }
+
+    template<FallibleFunction<JsonValue&> Callback>
+    ErrorOr<void, CallbackErrorType<Callback>> try_for_each(Callback&& callback)
+    {
+        for (auto& value : m_values)
+            TRY(callback(value));
+        return {};
     }
 
     template<FallibleFunction<JsonValue const&> Callback>
@@ -95,6 +110,7 @@ public:
         return {};
     }
 
+    [[nodiscard]] Vector<JsonValue>& values() { return m_values; }
     [[nodiscard]] Vector<JsonValue> const& values() const { return m_values; }
 
     void ensure_capacity(size_t capacity) { m_values.ensure_capacity(capacity); }
