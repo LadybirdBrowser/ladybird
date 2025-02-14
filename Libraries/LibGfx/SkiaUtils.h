@@ -14,12 +14,12 @@
 #include <LibGfx/PathSkia.h>
 #include <LibGfx/ScalingMode.h>
 #include <LibGfx/WindingRule.h>
+#include <core/SkBlender.h>
 #include <core/SkColor.h>
 #include <core/SkColorType.h>
 #include <core/SkImageFilter.h>
 #include <core/SkPath.h>
 #include <core/SkSamplingOptions.h>
-#include <include/core/SkBlender.h>
 
 namespace Gfx {
 
