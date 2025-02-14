@@ -47,6 +47,14 @@ bool JsonObject::is_empty() const
     return m_members.is_empty();
 }
 
+Optional<JsonValue&> JsonObject::get(StringView key)
+{
+    auto it = m_members.find(key);
+    if (it == m_members.end())
+        return {};
+    return it->value;
+}
+
 Optional<JsonValue const&> JsonObject::get(StringView key) const
 {
     auto it = m_members.find(key);
@@ -116,11 +124,27 @@ Optional<ByteString> JsonObject::get_byte_string(StringView key) const
     return {};
 }
 
+Optional<JsonObject&> JsonObject::get_object(StringView key)
+{
+    auto maybe_value = get(key);
+    if (maybe_value.has_value() && maybe_value->is_object())
+        return maybe_value->as_object();
+    return {};
+}
+
 Optional<JsonObject const&> JsonObject::get_object(StringView key) const
 {
     auto maybe_value = get(key);
     if (maybe_value.has_value() && maybe_value->is_object())
         return maybe_value->as_object();
+    return {};
+}
+
+Optional<JsonArray&> JsonObject::get_array(StringView key)
+{
+    auto maybe_value = get(key);
+    if (maybe_value.has_value() && maybe_value->is_array())
+        return maybe_value->as_array();
     return {};
 }
 
