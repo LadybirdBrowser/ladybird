@@ -57,6 +57,7 @@ public:
     NetworkState network_state() const { return m_network_state; }
 
     [[nodiscard]] GC::Ref<TimeRanges> buffered() const;
+    [[nodiscard]] GC::Ref<TimeRanges> played() const;
 
     static inline constexpr auto supported_video_subtypes = Array {
         "webm"sv,

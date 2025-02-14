@@ -173,6 +173,18 @@ GC::Ref<TimeRanges> HTMLMediaElement::buffered() const
     return realm.create<TimeRanges>(realm);
 }
 
+// https://html.spec.whatwg.org/multipage/media.html#dom-media-played
+GC::Ref<TimeRanges> HTMLMediaElement::played() const
+{
+    auto& realm = this->realm();
+
+    // The played attribute must return a new static normalized TimeRanges object that represents the ranges of points on the media timeline of the media resource reached through the
+    // usual monotonic increase of the current playback position during normal playback, if any, at the time the attribute is evaluated.
+    auto time_ranges = realm.create<TimeRanges>(realm);
+    // FIXME: Actually add the correct ranges
+    return time_ranges;
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#dom-navigator-canplaytype
 Bindings::CanPlayTypeResult HTMLMediaElement::can_play_type(StringView type) const
 {
