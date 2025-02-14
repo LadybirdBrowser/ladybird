@@ -3678,9 +3678,17 @@ bool Parser::expand_variables(DOM::Element& element, Optional<Selector::PseudoEl
         if (auto custom_property_value = get_custom_property(element, pseudo_element, custom_property_name)) {
             VERIFY(custom_property_value->is_unresolved());
             TokenStream custom_property_tokens { custom_property_value->as_unresolved().values() };
+
+            auto dest_size_before = dest.size();
             if (!expand_variables(element, pseudo_element, custom_property_name, dependencies, custom_property_tokens, dest))
                 return false;
-            continue;
+
+            // If the size of dest has increased, then the custom property is not the initial guaranteed-invalid value.
+            // If it hasn't increased, then it is the initial guaranteed-invalid value, and thus we should move on to the fallback value.
+            if (dest_size_before < dest.size())
+                continue;
+
+            dbgln_if(CSS_PARSER_DEBUG, "CSSParser: Expanding custom property '{}' did not return any tokens, treating it as invalid and moving on to the fallback value.", custom_property_name);
         }
 
         // Use the provided fallback value, if any.

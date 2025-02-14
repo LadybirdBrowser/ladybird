@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+    :root {
+        --color-green: green;
+        --i: var(--invalid);
+        --dont: var(--invalid);
+        --exist: var(--invalid);
+        --but-i-do: var(--color-green);
+        --green-background-color: var(--i, var(--dont, var(--exist, var(--but-i-do))));
+    }
+    div {
+        width: 300px;
+        height: 300px;
+        background-color: red;
+    }
+    #box {
+        background-color: var(--green-background-color);
+    }
+</style>
+<div id="box"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const box = document.getElementById("box");
+        const computedStyle = window.getComputedStyle(box);
+        println(`background-color: ${computedStyle.backgroundColor}`);
+    });
+</script>
