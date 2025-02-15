@@ -187,7 +187,7 @@ static bool fire_an_event(FlyString name, Optional<Web::DOM::Element&> target)
 
 ErrorOr<NonnullRefPtr<WebDriverConnection>> WebDriverConnection::connect(Web::PageClient& page_client, ByteString const& webdriver_ipc_path)
 {
-    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
+    // TODO: Mach IPC and Windows IPC
 
     dbgln_if(WEBDRIVER_DEBUG, "Trying to connect to {}", webdriver_ipc_path);
     auto socket = TRY(Core::LocalSocket::connect(webdriver_ipc_path));
