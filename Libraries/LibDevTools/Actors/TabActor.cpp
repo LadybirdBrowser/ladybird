@@ -6,6 +6,7 @@
 
 #include <AK/JsonObject.h>
 #include <LibDevTools/Actors/TabActor.h>
+#include <LibDevTools/Actors/WatcherActor.h>
 #include <LibDevTools/DevToolsServer.h>
 
 namespace DevTools {
@@ -32,6 +33,16 @@ void TabActor::handle_message(StringView type, JsonObject const&)
         // FIXME: Firefox DevTools wants a favicon URL here, but supplying a URL seems to prevent this tab from being
         //        listed on the about:debugging page. Both Servo and Firefox itself supply `null` here.
         response.set("favicon"sv, JsonValue {});
+        send_message(move(response));
+        return;
+    }
+
+    if (type == "getWatcher"sv) {
+        if (!m_watcher)
+            m_watcher = devtools().register_actor<WatcherActor>(this);
+
+        response.set("actor"sv, m_watcher->name());
+        response.set("traits"sv, m_watcher->serialize_description());
         send_message(move(response));
         return;
     }
