@@ -619,7 +619,9 @@ String HTMLFormElement::action() const
         return document().url_string();
     }
 
-    return document().base_url().complete_url(form_action_attribute.value()).to_string();
+    if (auto maybe_url = document().base_url().complete_url(form_action_attribute.value()); maybe_url.has_value())
+        return maybe_url->to_string();
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-fs-action

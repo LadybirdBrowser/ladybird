@@ -2470,7 +2470,7 @@ Optional<URL::URL> Parser::parse_url_function(TokenStream<ComponentValue>& token
 
     auto convert_string_to_url = [&](StringView url_string) -> Optional<URL::URL> {
         auto url = complete_url(url_string);
-        if (url.is_valid()) {
+        if (url.has_value()) {
             transaction.commit();
             return url;
         }

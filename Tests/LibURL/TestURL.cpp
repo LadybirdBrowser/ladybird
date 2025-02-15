@@ -195,10 +195,10 @@ TEST_CASE(file_url_serialization)
 
 TEST_CASE(file_url_relative)
 {
-    EXPECT_EQ(URL::URL("https://vkoskiv.com/index.html"sv).complete_url("/static/foo.js"sv).serialize(), "https://vkoskiv.com/static/foo.js");
-    EXPECT_EQ(URL::URL("file:///home/vkoskiv/test/index.html"sv).complete_url("/static/foo.js"sv).serialize(), "file:///static/foo.js");
-    EXPECT_EQ(URL::URL("https://vkoskiv.com/index.html"sv).complete_url("static/foo.js"sv).serialize(), "https://vkoskiv.com/static/foo.js");
-    EXPECT_EQ(URL::URL("file:///home/vkoskiv/test/index.html"sv).complete_url("static/foo.js"sv).serialize(), "file:///home/vkoskiv/test/static/foo.js");
+    EXPECT_EQ(URL::URL("https://vkoskiv.com/index.html"sv).complete_url("/static/foo.js"sv)->serialize(), "https://vkoskiv.com/static/foo.js");
+    EXPECT_EQ(URL::URL("file:///home/vkoskiv/test/index.html"sv).complete_url("/static/foo.js"sv)->serialize(), "file:///static/foo.js");
+    EXPECT_EQ(URL::URL("https://vkoskiv.com/index.html"sv).complete_url("static/foo.js"sv)->serialize(), "https://vkoskiv.com/static/foo.js");
+    EXPECT_EQ(URL::URL("file:///home/vkoskiv/test/index.html"sv).complete_url("static/foo.js"sv)->serialize(), "file:///home/vkoskiv/test/static/foo.js");
 }
 
 TEST_CASE(about_url)
@@ -243,10 +243,10 @@ TEST_CASE(mailto_url_with_subject)
 
 TEST_CASE(trailing_slash_with_complete_url)
 {
-    EXPECT_EQ(URL::URL("http://a/b/"sv).complete_url("c/"sv).serialize(), "http://a/b/c/");
-    EXPECT_EQ(URL::URL("http://a/b/"sv).complete_url("c"sv).serialize(), "http://a/b/c");
-    EXPECT_EQ(URL::URL("http://a/b"sv).complete_url("c/"sv).serialize(), "http://a/c/");
-    EXPECT_EQ(URL::URL("http://a/b"sv).complete_url("c"sv).serialize(), "http://a/c");
+    EXPECT_EQ(URL::URL("http://a/b/"sv).complete_url("c/"sv)->serialize(), "http://a/b/c/");
+    EXPECT_EQ(URL::URL("http://a/b/"sv).complete_url("c"sv)->serialize(), "http://a/b/c");
+    EXPECT_EQ(URL::URL("http://a/b"sv).complete_url("c/"sv)->serialize(), "http://a/c/");
+    EXPECT_EQ(URL::URL("http://a/b"sv).complete_url("c"sv)->serialize(), "http://a/c");
 }
 
 TEST_CASE(trailing_port)
@@ -297,15 +297,15 @@ TEST_CASE(create_with_file_scheme)
 TEST_CASE(complete_url)
 {
     URL::URL base_url("http://serenityos.org/index.html#fragment"sv);
-    URL::URL url = base_url.complete_url("test.html"sv);
-    EXPECT(url.is_valid());
-    EXPECT_EQ(url.scheme(), "http");
-    EXPECT_EQ(url.serialized_host(), "serenityos.org");
-    EXPECT_EQ(url.serialize_path(), "/test.html");
-    EXPECT(!url.query().has_value());
-    EXPECT_EQ(url.cannot_be_a_base_url(), false);
+    auto url = base_url.complete_url("test.html"sv);
+    EXPECT(url.has_value());
+    EXPECT_EQ(url->scheme(), "http");
+    EXPECT_EQ(url->serialized_host(), "serenityos.org");
+    EXPECT_EQ(url->serialize_path(), "/test.html");
+    EXPECT(!url->query().has_value());
+    EXPECT_EQ(url->cannot_be_a_base_url(), false);
 
-    EXPECT(base_url.complete_url("../index.html#fragment"sv).equals(base_url));
+    EXPECT(base_url.complete_url("../index.html#fragment"sv)->equals(base_url));
 }
 
 TEST_CASE(leading_whitespace)
@@ -385,8 +385,8 @@ TEST_CASE(complete_file_url_with_base)
     EXPECT_EQ(url.path_segment_at_index(1), "index.html");
 
     auto sub_url = url.complete_url("js/app.js"sv);
-    EXPECT(sub_url.is_valid());
-    EXPECT_EQ(sub_url.serialize_path(), "/home/js/app.js");
+    EXPECT(sub_url.has_value());
+    EXPECT_EQ(sub_url->serialize_path(), "/home/js/app.js");
 }
 
 TEST_CASE(empty_url_with_base_url)
