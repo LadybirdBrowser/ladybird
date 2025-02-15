@@ -79,19 +79,19 @@ void SVGUseElement::process_the_url(Optional<String> const& href)
     // a same-document URL reference, and processing the URL must continue as indicated in Identifying
     // the target element with the current document as the referenced document.
     m_href = document().url().complete_url(href.value_or(String {}));
-    if (!m_href.is_valid())
+    if (!m_href.has_value())
         return;
 
     if (is_referrenced_element_same_document()) {
         clone_element_tree_as_our_shadow_tree(referenced_element());
     } else {
-        fetch_the_document(m_href);
+        fetch_the_document(*m_href);
     }
 }
 
 bool SVGUseElement::is_referrenced_element_same_document() const
 {
-    return m_href.equals(document().url(), URL::ExcludeFragment::Yes);
+    return m_href->equals(document().url(), URL::ExcludeFragment::Yes);
 }
 
 Gfx::AffineTransform SVGUseElement::element_transform() const
@@ -121,11 +121,11 @@ void SVGUseElement::svg_element_changed(SVGElement& svg_element)
 
 void SVGUseElement::svg_element_removed(SVGElement& svg_element)
 {
-    if (!m_href.fragment().has_value() || !is_referrenced_element_same_document()) {
+    if (!m_href.has_value() || !m_href->fragment().has_value() || !is_referrenced_element_same_document()) {
         return;
     }
 
-    if (AK::StringUtils::matches(svg_element.get_attribute_value("id"_fly_string), m_href.fragment().value())) {
+    if (AK::StringUtils::matches(svg_element.get_attribute_value("id"_fly_string), m_href->fragment().value())) {
         shadow_root()->remove_all_children();
     }
 }
@@ -133,14 +133,17 @@ void SVGUseElement::svg_element_removed(SVGElement& svg_element)
 // https://svgwg.org/svg2-draft/linking.html#processingURL-target
 GC::Ptr<DOM::Element> SVGUseElement::referenced_element()
 {
-    if (!m_href.is_valid())
+    if (!m_href.has_value())
         return nullptr;
 
-    if (!m_href.fragment().has_value())
+    if (!m_href->is_valid())
+        return nullptr;
+
+    if (!m_href->fragment().has_value())
         return nullptr;
 
     if (is_referrenced_element_same_document())
-        return document().get_element_by_id(*m_href.fragment());
+        return document().get_element_by_id(*m_href->fragment());
 
     if (!m_resource_request)
         return nullptr;
@@ -149,7 +152,7 @@ GC::Ptr<DOM::Element> SVGUseElement::referenced_element()
     if (!data || !is<SVG::SVGDecodedImageData>(*data))
         return nullptr;
 
-    return as<SVG::SVGDecodedImageData>(*data).svg_document().get_element_by_id(*m_href.fragment());
+    return as<SVG::SVGDecodedImageData>(*data).svg_document().get_element_by_id(*m_href->fragment());
 }
 
 // https://svgwg.org/svg2-draft/linking.html#processingURL-fetch

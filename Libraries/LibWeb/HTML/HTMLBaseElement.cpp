@@ -74,12 +74,12 @@ void HTMLBaseElement::set_the_frozen_base_url()
 
     // 3. Set element's frozen base URL to document's fallback base URL, if urlRecord is failure or running Is base allowed for Document? on the resulting URL record and document returns "Blocked", and to urlRecord otherwise.
     // FIXME: Apply "Is base allowed for Document?" CSP
-    if (!url_record.is_valid()) {
+    if (!url_record.has_value()) {
         m_frozen_base_url = document.fallback_base_url();
         return;
     }
 
-    m_frozen_base_url = move(url_record);
+    m_frozen_base_url = url_record.release_value();
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#dom-base-href
@@ -96,11 +96,11 @@ String HTMLBaseElement::href() const
     auto url_record = document.fallback_base_url().complete_url(url);
 
     // 4. If urlRecord is failure, return url.
-    if (!url_record.is_valid())
+    if (!url_record.has_value())
         return url;
 
     // 5. Return the serialization of urlRecord.
-    return url_record.to_string();
+    return url_record->to_string();
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#dom-base-href

@@ -194,7 +194,9 @@ String FormAssociatedElement::form_action() const
     }
 
     auto document_base_url = html_element.document().base_url();
-    return document_base_url.complete_url(form_action_attribute.value()).to_string();
+    if (auto maybe_url = document_base_url.complete_url(form_action_attribute.value()); maybe_url.has_value())
+        return maybe_url->to_string();
+    return {};
 }
 
 WebIDL::ExceptionOr<void> FormAssociatedElement::set_form_action(String const& value)

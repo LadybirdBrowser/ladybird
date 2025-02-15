@@ -460,7 +460,7 @@ private:
     JS::Realm& realm() const;
     bool in_quirks_mode() const;
     bool is_parsing_svg_presentation_attribute() const;
-    URL::URL complete_url(StringView) const;
+    Optional<URL::URL> complete_url(StringView) const;
 
     GC::Ptr<DOM::Document const> m_document;
     GC::Ptr<JS::Realm> m_realm;

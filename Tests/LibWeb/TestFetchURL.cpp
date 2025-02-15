@@ -102,12 +102,12 @@ TEST_CASE(data_url_base64_encoded_with_inline_whitespace)
 TEST_CASE(data_url_completed_with_fragment)
 {
     auto url = URL::URL("data:text/plain,test"sv).complete_url("#a"sv);
-    EXPECT(url.is_valid());
-    EXPECT_EQ(url.scheme(), "data");
-    EXPECT_EQ(url.fragment(), "a");
-    EXPECT(!url.host().has_value());
+    EXPECT(url.has_value());
+    EXPECT_EQ(url->scheme(), "data");
+    EXPECT_EQ(url->fragment(), "a");
+    EXPECT(!url->host().has_value());
 
-    auto data_url = TRY_OR_FAIL(Web::Fetch::Infrastructure::process_data_url(url));
+    auto data_url = TRY_OR_FAIL(Web::Fetch::Infrastructure::process_data_url(*url));
     EXPECT_EQ(data_url.mime_type.serialized(), "text/plain");
     EXPECT_EQ(StringView(data_url.body.bytes()), "test"sv);
 }

@@ -33,16 +33,12 @@ URL::URL(StringView string)
     }
 }
 
-URL URL::complete_url(StringView relative_url) const
+Optional<URL> URL::complete_url(StringView relative_url) const
 {
     if (!is_valid())
         return {};
 
-    auto result = Parser::basic_parse(relative_url, *this);
-    if (!result.has_value())
-        return {};
-
-    return result.release_value();
+    return Parser::basic_parse(relative_url, *this);
 }
 
 ByteString URL::path_segment_at_index(size_t index) const

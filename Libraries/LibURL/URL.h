@@ -135,7 +135,7 @@ public:
 
     bool equals(URL const& other, ExcludeFragment = ExcludeFragment::No) const;
 
-    URL complete_url(StringView) const;
+    Optional<URL> complete_url(StringView) const;
 
     [[nodiscard]] bool operator==(URL const& other) const
     {

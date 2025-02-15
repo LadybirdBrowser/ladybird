@@ -65,7 +65,7 @@ private:
     Optional<float> m_x;
     Optional<float> m_y;
 
-    URL::URL m_href;
+    Optional<URL::URL> m_href;
 
     GC::Ptr<DOM::DocumentObserver> m_document_observer;
     GC::Ptr<HTML::SharedResourceRequest> m_resource_request;
