@@ -183,7 +183,7 @@ void run_dump_test(HeadlessWebView& view, Test& test, URL::URL const& url, int t
             return TestResult::Pass;
         }
 
-        auto const color_output = isatty(STDOUT_FILENO) ? Diff::ColorOutput::Yes : Diff::ColorOutput::No;
+        auto const color_output = TRY(Core::System::isatty(STDOUT_FILENO)) ? Diff::ColorOutput::Yes : Diff::ColorOutput::No;
 
         if (color_output == Diff::ColorOutput::Yes)
             outln("\n\033[33;1mTest failed\033[0m: {}", url);
@@ -558,7 +558,7 @@ ErrorOr<void> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize
     bool all_tests_ok = true;
 
     // Keep clearing and reusing the same line if stdout is a TTY.
-    bool log_on_one_line = app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_DURATION && isatty(STDOUT_FILENO) == 1;
+    bool log_on_one_line = app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_DURATION && TRY(Core::System::isatty(STDOUT_FILENO));
     outln("Running {} tests...", tests.size());
 
     auto all_tests_complete = Core::Promise<Empty>::construct();
