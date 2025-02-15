@@ -382,7 +382,7 @@ static void run_test(HeadlessWebView& view, Test& test, Application& app)
     auto promise = Core::Promise<Empty>::construct();
 
     view.on_load_finish = [promise](auto const& url) {
-        if (!url.equals("about:blank"sv))
+        if (!url.equals(URL::about_blank()))
             return;
 
         Core::deferred_invoke([promise]() {
@@ -411,7 +411,7 @@ static void run_test(HeadlessWebView& view, Test& test, Application& app)
         VERIFY_NOT_REACHED();
     });
 
-    view.load("about:blank"sv);
+    view.load(URL::about_blank());
 }
 
 static void set_ui_callbacks_for_tests(HeadlessWebView& view)

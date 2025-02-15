@@ -73,7 +73,7 @@ void Page::load_html(StringView html)
     // FIXME: #23909 Figure out why GC threshold does not stay low when repeatedly loading html from the WebView
     heap().collect_garbage();
 
-    (void)top_level_traversable()->navigate({ .url = "about:srcdoc"sv,
+    (void)top_level_traversable()->navigate({ .url = URL::about_srcdoc(),
         .source_document = *top_level_traversable()->active_document(),
         .document_resource = String::from_utf8(html).release_value_but_fixme_should_propagate_errors(),
         .user_involvement = HTML::UserNavigationInvolvement::BrowserUI });

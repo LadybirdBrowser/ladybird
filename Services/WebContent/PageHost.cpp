@@ -19,7 +19,7 @@ PageHost::PageHost(ConnectionFromClient& client)
     : m_client(client)
 {
     auto& first_page = create_page();
-    Web::HTML::TraversableNavigable::create_a_fresh_top_level_traversable(first_page.page(), URL::URL("about:blank")).release_value_but_fixme_should_propagate_errors();
+    Web::HTML::TraversableNavigable::create_a_fresh_top_level_traversable(first_page.page(), URL::about_blank()).release_value_but_fixme_should_propagate_errors();
 }
 
 PageClient& PageHost::create_page()

@@ -33,7 +33,7 @@ GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::Navigabl
     //    origin: origin
     //    opener policy: coop
     HTML::OpenerPolicyEnforcementResult coop_enforcement_result {
-        .url = URL::URL("about:error"), // AD-HOC
+        .url = URL::about_error(), // AD-HOC
         .origin = origin,
         .opener_policy = coop
     };
@@ -55,7 +55,7 @@ GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::Navigabl
     //    about base URL: null
     //    user involvement: userInvolvement
     auto response = Fetch::Infrastructure::Response::create(vm);
-    response->url_list().append(URL::URL("about:error")); // AD-HOC: https://github.com/whatwg/html/issues/9122
+    response->url_list().append(URL::about_error()); // AD-HOC: https://github.com/whatwg/html/issues/9122
     auto navigation_params = vm.heap().allocate<HTML::NavigationParams>();
     navigation_params->id = navigation_id;
     navigation_params->navigable = navigable;

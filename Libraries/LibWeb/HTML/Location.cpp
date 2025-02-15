@@ -112,7 +112,7 @@ URL::URL Location::url() const
     // A Location object has an associated url, which is this Location object's relevant Document's URL,
     // if this Location object's relevant Document is non-null, and about:blank otherwise.
     auto const relevant_document = this->relevant_document();
-    return relevant_document ? relevant_document->url() : "about:blank"sv;
+    return relevant_document ? relevant_document->url() : URL::about_blank();
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-href

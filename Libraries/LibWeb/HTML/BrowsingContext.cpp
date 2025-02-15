@@ -73,7 +73,7 @@ URL::Origin determine_the_origin(Optional<URL::URL const&> url, SandboxingFlagSe
     }
 
     // 3. If url is about:srcdoc, then:
-    if (url == "about:srcdoc"sv) {
+    if (url == URL::about_srcdoc()) {
         // 1. Assert: sourceOrigin is non-null.
         VERIFY(source_origin.has_value());
 
@@ -167,7 +167,7 @@ WebIDL::ExceptionOr<BrowsingContext::BrowsingContextAndDocument> BrowsingContext
     SandboxingFlagSet sandbox_flags = {};
 
     // 7. Let origin be the result of determining the origin given about:blank, sandboxFlags, and creatorOrigin.
-    auto origin = determine_the_origin(URL::URL("about:blank"sv), sandbox_flags, creator_origin);
+    auto origin = determine_the_origin(URL::about_blank(), sandbox_flags, creator_origin);
 
     // FIXME: 8. Let permissionsPolicy be the result of creating a permissions policy given embedder and origin. [PERMISSIONSPOLICY]
 
@@ -192,7 +192,7 @@ WebIDL::ExceptionOr<BrowsingContext::BrowsingContextAndDocument> BrowsingContext
         });
 
     // 11. Let topLevelCreationURL be about:blank if embedder is null; otherwise embedder's relevant settings object's top-level creation URL.
-    auto top_level_creation_url = !embedder ? URL::URL("about:blank") : relevant_settings_object(*embedder).top_level_creation_url;
+    auto top_level_creation_url = !embedder ? URL::about_blank() : relevant_settings_object(*embedder).top_level_creation_url;
 
     // 12. Let topLevelOrigin be origin if embedder is null; otherwise embedder's relevant settings object's top-level origin.
     auto top_level_origin = !embedder ? origin : relevant_settings_object(*embedder).origin();
@@ -200,7 +200,7 @@ WebIDL::ExceptionOr<BrowsingContext::BrowsingContextAndDocument> BrowsingContext
     // 13. Set up a window environment settings object with about:blank, realm execution context, null, topLevelCreationURL, and topLevelOrigin.
     WindowEnvironmentSettingsObject::setup(
         page,
-        URL::URL("about:blank"),
+        URL::about_blank(),
         move(realm_execution_context),
         {},
         top_level_creation_url,
@@ -271,8 +271,8 @@ WebIDL::ExceptionOr<BrowsingContext::BrowsingContextAndDocument> BrowsingContext
     }
 
     // 17. Assert: document's URL and document's relevant settings object's creation URL are about:blank.
-    VERIFY(document->url() == "about:blank"sv);
-    VERIFY(document->relevant_settings_object().creation_url == "about:blank"sv);
+    VERIFY(document->url() == URL::about_blank());
+    VERIFY(document->relevant_settings_object().creation_url == URL::about_blank());
 
     // 18. Mark document as ready for post-load tasks.
     document->set_ready_for_post_load_tasks(true);

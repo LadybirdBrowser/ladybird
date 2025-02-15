@@ -255,7 +255,7 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Str
 
         // 3. If urlRecord is null, then set urlRecord to a URL record representing about:blank.
         if (!url_record.has_value())
-            url_record = URL::URL("about:blank"sv);
+            url_record = URL::about_blank();
 
         // 4. If urlRecord matches about:blank, then perform the URL and history update steps given targetNavigable's active document and urlRecord.
         if (url_matches_about_blank(url_record.value())) {
