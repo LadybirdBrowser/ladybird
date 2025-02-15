@@ -188,6 +188,7 @@ public:
     static CSS::Isolation isolation() { return CSS::Isolation::Auto; }
     static CSS::Containment contain() { return {}; }
     static CSS::MixBlendMode mix_blend_mode() { return CSS::MixBlendMode::Normal; }
+    static Optional<int> z_index() { return OptionalNone(); }
 
     // https://www.w3.org/TR/SVG/geometry.html
     static LengthPercentage cx() { return CSS::Length::make_px(0); }
