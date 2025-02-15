@@ -45,6 +45,8 @@ public:
         return actor;
     }
 
+    void refresh_tab_list();
+
 private:
     explicit DevToolsServer(DevToolsDelegate&, NonnullRefPtr<Core::TCPServer>);
 

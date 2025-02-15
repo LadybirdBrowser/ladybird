@@ -9,6 +9,7 @@
 #include <LibDevTools/Actors/PreferenceActor.h>
 #include <LibDevTools/Actors/ProcessActor.h>
 #include <LibDevTools/Actors/RootActor.h>
+#include <LibDevTools/Actors/TabActor.h>
 #include <LibDevTools/DevToolsDelegate.h>
 #include <LibDevTools/DevToolsServer.h>
 
@@ -88,7 +89,23 @@ void RootActor::handle_message(StringView type, JsonObject const& message)
     }
 
     if (type == "getTab"sv) {
-        response.set("tab"sv, JsonObject {});
+        auto browser_id = message.get_integer<u64>("browserId"sv);
+        if (!browser_id.has_value()) {
+            send_missing_parameter_error("browserId"sv);
+            return;
+        }
+
+        for (auto const& actor : devtools().actor_registry()) {
+            auto const* tab_actor = as_if<TabActor>(*actor.value);
+            if (!tab_actor)
+                continue;
+            if (tab_actor->description().id != *browser_id)
+                continue;
+
+            response.set("tab"sv, tab_actor->serialize_description());
+            break;
+        }
+
         send_message(move(response));
         return;
     }
@@ -119,7 +136,16 @@ void RootActor::handle_message(StringView type, JsonObject const& message)
     }
 
     if (type == "listTabs"sv) {
-        response.set("tabs"sv, JsonArray {});
+        m_has_sent_tab_list_changed_since_last_list_tabs_request = false;
+
+        JsonArray tabs;
+
+        for (auto& tab_description : devtools().delegate().tab_list()) {
+            auto& actor = devtools().register_actor<TabActor>(move(tab_description));
+            tabs.must_append(actor.serialize_description());
+        }
+
+        response.set("tabs"sv, move(tabs));
         send_message(move(response));
         return;
     }
@@ -131,6 +157,19 @@ void RootActor::handle_message(StringView type, JsonObject const& message)
     }
 
     send_unrecognized_packet_type_error(type);
+}
+
+void RootActor::send_tab_list_changed_message()
+{
+    if (m_has_sent_tab_list_changed_since_last_list_tabs_request)
+        return;
+
+    JsonObject message;
+    message.set("from"sv, name());
+    message.set("type"sv, "tabListChanged"sv);
+    send_message(move(message));
+
+    m_has_sent_tab_list_changed_since_last_list_tabs_request = true;
 }
 
 }

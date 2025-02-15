@@ -4,6 +4,7 @@ set(SOURCES
     Actors/PreferenceActor.cpp
     Actors/ProcessActor.cpp
     Actors/RootActor.cpp
+    Actors/TabActor.cpp
     Connection.cpp
     DevToolsServer.cpp
 )
