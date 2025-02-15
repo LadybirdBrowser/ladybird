@@ -24,8 +24,29 @@
 
 namespace WebView {
 
-ViewImplementation::ViewImplementation()
+static HashMap<u64, ViewImplementation*> s_all_views;
+static u64 s_view_count = 1; // This has to start at 1 for Firefox DevTools.
+
+void ViewImplementation::for_each_view(Function<IterationDecision(ViewImplementation&)> callback)
 {
+    for (auto& view : s_all_views) {
+        if (callback(*view.value) == IterationDecision::Break)
+            break;
+    }
+}
+
+Optional<ViewImplementation&> ViewImplementation::find_view_by_id(u64 id)
+{
+    if (auto view = s_all_views.get(id); view.has_value())
+        return *view.value();
+    return {};
+}
+
+ViewImplementation::ViewImplementation()
+    : m_view_id(s_view_count++)
+{
+    s_all_views.set(m_view_id, this);
+
     m_repeated_crash_timer = Core::Timer::create_single_shot(1000, [this] {
         // Reset the "crashing a lot" counter after 1 second in case we just
         // happen to be visiting crashy websites a lot.
@@ -44,6 +65,8 @@ ViewImplementation::ViewImplementation()
 
 ViewImplementation::~ViewImplementation()
 {
+    s_all_views.remove(m_view_id);
+
     if (m_client_state.client)
         m_client_state.client->unregister_view(m_client_state.page_index);
 }
