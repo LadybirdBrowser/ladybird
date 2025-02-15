@@ -33,6 +33,9 @@ public:
 
     GC::Ptr<DOM::HTMLCollection> const& elements();
 
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-setcustomvalidity
+    void set_custom_validity(String& error);
+
     // ^FormAssociatedElement
     // https://html.spec.whatwg.org/multipage/forms.html#category-listed
     virtual bool is_listed() const override { return true; }

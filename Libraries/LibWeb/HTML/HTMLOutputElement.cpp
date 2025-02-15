@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/HTML/HTMLOutputElement.h>
+#include <LibWeb/Infra/Strings.h>
 
 namespace Web::HTML {
 
@@ -108,6 +109,18 @@ void HTMLOutputElement::clear_algorithm()
 
     // and then to set the element's textContent IDL attribute to an empty string (thus clearing the element's child nodes).
     string_replace_all({});
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-setcustomvalidity
+void HTMLOutputElement::set_custom_validity(String& error)
+{
+    // The setCustomValidity(error) method steps are:
+
+    // 1. Set error to the result of normalizing newlines given error.
+    error = Infra::normalize_newlines(error);
+
+    // 2. Set the custom validity error message to error.
+    static_cast<FormAssociatedElement*>(this)->set_custom_validity_error_message(error);
 }
 
 }

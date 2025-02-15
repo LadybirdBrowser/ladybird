@@ -725,4 +725,16 @@ bool HTMLSelectElement::suffering_from_being_missing() const
     return has_attribute(HTML::AttributeNames::required) && (selected_options->length() == 0 || (selected_options->length() == 1 && selected_options->item(0) == placeholder_label_option()));
 }
 
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-setcustomvalidity
+void HTMLSelectElement::set_custom_validity(String& error)
+{
+    // The setCustomValidity(error) method steps are:
+
+    // 1. Set error to the result of normalizing newlines given error.
+    error = Infra::normalize_newlines(error);
+
+    // 2. Set the custom validity error message to error.
+    static_cast<FormAssociatedElement*>(this)->set_custom_validity_error_message(error);
+}
+
 }

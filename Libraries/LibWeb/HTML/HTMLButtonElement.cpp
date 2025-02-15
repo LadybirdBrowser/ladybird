@@ -9,6 +9,7 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/HTMLButtonElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
+#include <LibWeb/Infra/Strings.h>
 
 namespace Web::HTML {
 
@@ -55,6 +56,18 @@ void HTMLButtonElement::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     PopoverInvokerElement::visit_edges(visitor);
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-setcustomvalidity
+void HTMLButtonElement::set_custom_validity(String& error)
+{
+    // The setCustomValidity(error) method steps are:
+
+    // 1. Set error to the result of normalizing newlines given error.
+    error = Infra::normalize_newlines(error);
+
+    // 2. Set the custom validity error message to error.
+    dynamic_cast<FormAssociatedElement*>(this)->set_custom_validity_error_message(error);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-tabindex
