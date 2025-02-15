@@ -16,7 +16,9 @@ class DevToolsServer;
 class PreferenceActor;
 class ProcessActor;
 class RootActor;
+class TabActor;
 
 struct ProcessDescription;
+struct TabDescription;
 
 }
