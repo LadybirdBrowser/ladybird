@@ -453,6 +453,9 @@ public:
         return affected_by_sibling_combinator() || affected_by_first_or_last_child_pseudo_class() || affected_by_nth_child_pseudo_class();
     }
 
+    void set_had_duplicate_attribute_during_tokenization(Badge<HTML::HTMLParser>);
+    bool had_duplicate_attribute_during_tokenization() const { return m_had_duplicate_attribute_during_tokenization; }
+
 protected:
     Element(Document&, DOM::QualifiedName);
     virtual void initialize(JS::Realm&) override;
@@ -549,6 +552,13 @@ private:
     bool m_affected_by_first_or_last_child_pseudo_class : 1 { false };
     bool m_affected_by_nth_child_pseudo_class : 1 { false };
     bool m_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator : 1 { false };
+
+    // https://w3c.github.io/webappsec-csp/#is-element-nonceable
+    // AD-HOC: We need to know the element had a duplicate attribute when it was created from the HTML parser.
+    //         However, there currently isn't any specified way to do this, so we store a flag on the token, which is
+    //         then passed down to here. This is used by Content Security Policy to disable the nonce attribute if this
+    //         flag is set.
+    bool m_had_duplicate_attribute_during_tokenization { false };
 
     OwnPtr<CSS::CountersSet> m_counters_set;
 
