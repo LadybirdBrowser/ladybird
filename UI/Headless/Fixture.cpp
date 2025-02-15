@@ -45,6 +45,18 @@ private:
     Optional<Core::Process> m_process;
 };
 
+#ifdef AK_OS_WINDOWS
+// FIXME: Implement Ladybird::HttpEchoServerFixture::setup on Windows
+ErrorOr<void> HttpEchoServerFixture::setup(WebView::WebContentOptions&)
+{
+    VERIFY(0 && "Ladybird::HttpEchoServerFixture::setup is not implemented");
+}
+// FIXME: Implement Ladybird::HttpEchoServerFixture::teardown_impl on Windows
+void HttpEchoServerFixture::teardown_impl()
+{
+    VERIFY(0 && "Ladybird::HttpEchoServerFixture::teardown_impl is not implemented");
+}
+#else
 ErrorOr<void> HttpEchoServerFixture::setup(WebView::WebContentOptions& web_content_options)
 {
     auto const script_path = LexicalPath::join(s_fixtures_path, m_script_path);
@@ -99,6 +111,7 @@ void HttpEchoServerFixture::teardown_impl()
 
     m_process = {};
 }
+#endif
 
 void Fixture::initialize_fixtures()
 {
