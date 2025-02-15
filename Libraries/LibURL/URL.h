@@ -147,6 +147,8 @@ public:
     Optional<BlobURLEntry> const& blob_url_entry() const { return m_data->blob_url_entry; }
     void set_blob_url_entry(Optional<BlobURLEntry> entry) { m_data->blob_url_entry = move(entry); }
 
+    static URL about(String path);
+
 private:
     bool compute_validity() const;
 
@@ -210,6 +212,12 @@ URL create_with_data(StringView mime_type, StringView payload, bool is_base64 = 
 
 bool is_public_suffix(StringView host);
 Optional<String> get_public_suffix(StringView host);
+
+inline URL about_blank() { return URL::about("blank"_string); }
+inline URL about_srcdoc() { return URL::about("srcdoc"_string); }
+inline URL about_error() { return URL::about("error"_string); }
+inline URL about_version() { return URL::about("version"_string); }
+inline URL about_newtab() { return URL::about("newtab"_string); }
 
 }
 
