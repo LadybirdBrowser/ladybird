@@ -33,6 +33,7 @@ private:
     TabActor(DevToolsServer&, ByteString name, TabDescription);
 
     TabDescription m_description;
+    WeakPtr<WatcherActor> m_watcher;
 };
 
 }
