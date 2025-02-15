@@ -77,6 +77,11 @@ constexpr int days_in_year(int year)
     return 365 + (is_leap_year(year) ? 1 : 0);
 }
 
+constexpr int weeks_in_year(int year)
+{
+    return is_leap_year(year) ? 53 : 52;
+}
+
 namespace Detail {
 // Integer division rounding towards negative infinity.
 // TODO: This feels like there should be an easier way to do this.
@@ -602,5 +607,6 @@ using AK::timeval_add;
 using AK::timeval_sub;
 using AK::timeval_to_timespec;
 using AK::UnixDateTime;
+using AK::weeks_in_year;
 using AK::years_to_days_since_epoch;
 #endif
