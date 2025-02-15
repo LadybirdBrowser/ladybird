@@ -71,6 +71,7 @@ struct ChromeOptions {
     Optional<ProcessType> profile_helper_process {};
     Optional<ByteString> webdriver_content_ipc_path {};
     DNSSettings dns_settings { SystemDNS {} };
+    Optional<u16> devtools_port;
 };
 
 enum class IsLayoutTestMode {

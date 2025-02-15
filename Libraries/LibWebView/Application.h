@@ -13,6 +13,8 @@
 #include <AK/Swift.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Forward.h>
+#include <LibDevTools/DevToolsDelegate.h>
+#include <LibDevTools/Forward.h>
 #include <LibImageDecoderClient/Client.h>
 #include <LibMain/Main.h>
 #include <LibRequests/RequestClient.h>
@@ -23,7 +25,7 @@
 
 namespace WebView {
 
-class Application {
+class Application : public DevTools::DevToolsDelegate {
     AK_MAKE_NONCOPYABLE(Application);
 
 public:
@@ -59,6 +61,8 @@ public:
 
     ErrorOr<LexicalPath> path_for_downloaded_file(StringView file) const;
 
+    void refresh_tab_list();
+
 protected:
     template<DerivedFrom<Application> ApplicationType>
     static NonnullOwnPtr<ApplicationType> create(Main::Arguments& arguments, URL::URL new_tab_page_url)
@@ -83,6 +87,11 @@ private:
 
     ErrorOr<void> launch_request_server();
     ErrorOr<void> launch_image_decoder_server();
+    ErrorOr<void> launch_devtools_server();
+
+    virtual Vector<DevTools::TabDescription> tab_list() const override;
+    virtual Vector<DevTools::CSSProperty> css_property_list() const override;
+    virtual void inspect_tab(DevTools::TabDescription const&, DevTools::DevToolsDelegate::OnTabInspectionComplete) const override;
 
     static Application* s_the;
 
@@ -100,6 +109,8 @@ private:
     Core::EventLoop m_event_loop;
     ProcessManager m_process_manager;
     bool m_in_shutdown { false };
+
+    OwnPtr<DevTools::DevToolsServer> m_devtools;
 } SWIFT_IMMORTAL_REFERENCE;
 
 }
