@@ -4,14 +4,17 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibCrypto/Certificate/Certificate.h>
+#include <LibCrypto/ASN1/DER.h>
 #include <stddef.h>
 #include <stdint.h>
 
 extern "C" int LLVMFuzzerTestOneInput(uint8_t const* data, size_t size)
 {
     AK::set_debug_enabled(false);
-    (void)Crypto::Certificate::Certificate::parse_certificate({ data, size });
+
+    Crypto::ASN1::Decoder decoder(ReadonlyBytes { data, size });
+    while (!decoder.eof())
+        (void)decoder.drop();
 
     return 0;
 }

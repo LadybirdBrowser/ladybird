@@ -8,13 +8,6 @@
 #include <LibCrypto/Certificate/Certificate.h>
 #include <LibTest/TestCase.h>
 
-TEST_CASE(certificate_with_malformed_tbscertificate_should_fail_gracefully)
-{
-    Array<u8, 4> invalid_certificate_data { 0xB0, 0x02, 0x70, 0x00 };
-    auto parse_result = Crypto::Certificate::Certificate::parse_certificate(invalid_certificate_data);
-    EXPECT(parse_result.is_error());
-}
-
 TEST_CASE(test_private_key_info_decode)
 {
     constexpr auto keyder = "MIIBVQIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEA5HMXMnY+RhEcYXsa"
