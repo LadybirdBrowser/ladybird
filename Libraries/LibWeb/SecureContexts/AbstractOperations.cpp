@@ -72,7 +72,7 @@ Trustworthiness is_origin_potentially_trustworthy(URL::Origin const& origin)
 Trustworthiness is_url_potentially_trustworthy(URL::URL const& url)
 {
     // 1. If url is "about:blank" or "about:srcdoc", return "Potentially Trustworthy".
-    if (url == "about:blank"sv || url == "about:srcdoc"sv)
+    if (url == URL::about_blank() || url == URL::about_srcdoc())
         return Trustworthiness::PotentiallyTrustworthy;
 
     // 2. If url’s scheme is "data", return "Potentially Trustworthy".

@@ -625,7 +625,7 @@ static PolicyContainer determine_navigation_params_policy_container(URL::URL con
     }
 
     // 2. If responseURL is about:srcdoc, then:
-    if (response_url == "about:srcdoc"sv) {
+    if (response_url == URL::about_srcdoc()) {
         // 1. Assert: parentPolicyContainer is not null.
         VERIFY(parent_policy_container.has_value());
 
@@ -699,7 +699,7 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
     //    header list: (`Content-Type`, `text/html`)
     //    body: the UTF-8 encoding of documentResource, as a body
     auto response = Fetch::Infrastructure::Response::create(vm);
-    response->url_list().append(URL::URL("about:srcdoc"));
+    response->url_list().append(URL::about_srcdoc());
 
     auto header = Fetch::Infrastructure::Header::from_string_pair("Content-Type"sv, "text/html"sv);
     response->header_list()->append(move(header));
@@ -1254,7 +1254,7 @@ WebIDL::ExceptionOr<void> Navigable::populate_session_history_entry_document(
             auto error_html = load_error_page(entry->url(), error_message).release_value_but_fixme_should_propagate_errors();
             entry->document_state()->set_document(create_document_for_inline_content(this, navigation_id, user_involvement, [this, error_html](auto& document) {
                 auto parser = HTML::HTMLParser::create(document, error_html, "utf-8"sv);
-                document.set_url(URL::URL("about:error"));
+                document.set_url(URL::about_error());
                 parser->run();
 
                 // NOTE: Once the page has been set up, the user agent must act as if it had stopped parsing.

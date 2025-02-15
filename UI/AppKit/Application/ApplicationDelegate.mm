@@ -180,7 +180,7 @@
         return;
     }
 
-    [self createNewTab:URL::URL("about:version"sv)
+    [self createNewTab:URL::URL(URL::about_version())
                fromTab:(Tab*)current_tab
            activateTab:Web::HTML::ActivateTab::Yes];
 }

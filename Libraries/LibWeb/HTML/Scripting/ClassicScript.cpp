@@ -26,7 +26,7 @@ GC::Ref<ClassicScript> ClassicScript::create(ByteString filename, StringView sou
 
     // 1. If muted errors is true, then set baseURL to about:blank.
     if (muted_errors == MutedErrors::Yes)
-        base_url = "about:blank"sv;
+        base_url = URL::about_blank();
 
     // 2. If scripting is disabled for realm, then set source to the empty string.
     if (is_scripting_disabled(realm))

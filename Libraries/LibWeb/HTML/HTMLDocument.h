@@ -21,7 +21,7 @@ class HTMLDocument final : public DOM::Document {
 public:
     virtual ~HTMLDocument() override;
 
-    [[nodiscard]] static GC::Ref<HTMLDocument> create(JS::Realm&, URL::URL const& url = "about:blank"sv);
+    [[nodiscard]] static GC::Ref<HTMLDocument> create(JS::Realm&, URL::URL const& url = URL::about_blank());
     WebIDL::ExceptionOr<GC::Ref<HTMLDocument>> construct_impl(JS::Realm&);
 
 private:

@@ -103,7 +103,7 @@ public:
 
     static WebIDL::ExceptionOr<GC::Ref<Document>> create_and_initialize(Type, String content_type, HTML::NavigationParams const&);
 
-    [[nodiscard]] static GC::Ref<Document> create(JS::Realm&, URL::URL const& url = "about:blank"sv);
+    [[nodiscard]] static GC::Ref<Document> create(JS::Realm&, URL::URL const& url = URL::about_blank());
     [[nodiscard]] static GC::Ref<Document> create_for_fragment_parsing(JS::Realm&);
     static WebIDL::ExceptionOr<GC::Ref<Document>> construct_impl(JS::Realm&);
     virtual ~Document() override;

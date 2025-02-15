@@ -15,7 +15,7 @@ class XMLDocument final : public Document {
     GC_DECLARE_ALLOCATOR(XMLDocument);
 
 public:
-    static GC::Ref<XMLDocument> create(JS::Realm&, URL::URL const& url = "about:blank"sv);
+    static GC::Ref<XMLDocument> create(JS::Realm&, URL::URL const& url = URL::about_blank());
     virtual ~XMLDocument() override = default;
 
 private:

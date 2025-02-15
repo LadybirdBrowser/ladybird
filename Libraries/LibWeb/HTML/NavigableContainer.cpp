@@ -203,7 +203,7 @@ Optional<URL::URL> NavigableContainer::shared_attribute_processing_steps_for_ifr
         return {};
 
     // 1. Let url be the URL record about:blank.
-    auto url = URL::URL("about:blank");
+    auto url = URL::about_blank();
 
     // 2. If element has a src attribute specified, and its value is not the empty string,
     //    then parse the value of that attribute relative to element's node document.

@@ -422,7 +422,7 @@ GC::Ref<Document> Document::create(JS::Realm& realm, URL::URL const& url)
 
 GC::Ref<Document> Document::create_for_fragment_parsing(JS::Realm& realm)
 {
-    return realm.create<Document>(realm, "about:blank"sv, TemporaryDocumentForFragmentParsing::Yes);
+    return realm.create<Document>(realm, URL::about_blank(), TemporaryDocumentForFragmentParsing::Yes);
 }
 
 Document::Document(JS::Realm& realm, const URL::URL& url, TemporaryDocumentForFragmentParsing temporary_document_for_fragment_parsing)
