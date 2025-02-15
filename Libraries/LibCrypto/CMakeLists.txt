@@ -2,7 +2,6 @@ add_cxx_compile_options(-Wvla)
 
 set(SOURCES
     OpenSSL.cpp
-    AEAD/ChaCha20Poly1305.cpp
     ASN1/ASN1.cpp
     ASN1/DER.cpp
     ASN1/PEM.cpp

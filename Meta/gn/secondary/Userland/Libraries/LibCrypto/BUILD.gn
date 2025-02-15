@@ -8,7 +8,6 @@ shared_library("LibCrypto") {
     "//Userland/Libraries/LibCore",
   ]
   sources = [
-    "AEAD/ChaCha20Poly1305.cpp",
     "ASN1/ASN1.cpp",
     "ASN1/DER.cpp",
     "ASN1/PEM.cpp",
