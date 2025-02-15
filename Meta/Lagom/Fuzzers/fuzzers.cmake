@@ -16,7 +16,6 @@ set(FUZZER_TARGETS
     MD5
     PEM
     PNGLoader
-    Poly1305
     RegexECMA262
     RegexPosixBasic
     RegexPosixExtended
