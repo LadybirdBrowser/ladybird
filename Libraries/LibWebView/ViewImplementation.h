@@ -43,6 +43,11 @@ public:
         String fonts_json;
     };
 
+    static void for_each_view(Function<IterationDecision(ViewImplementation&)>);
+    static Optional<ViewImplementation&> find_view_by_id(u64);
+
+    u64 id() const { return m_id; }
+
     void set_url(Badge<WebContentClient>, URL::URL url) { m_url = move(url); }
     URL::URL const& url() const { return m_url; }
 
@@ -304,6 +309,8 @@ protected:
     size_t m_number_of_elements_playing_audio { 0 };
 
     Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };
+
+    u64 m_id { 0 };
 };
 
 }
