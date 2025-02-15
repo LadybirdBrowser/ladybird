@@ -3,7 +3,6 @@ set(TEST_SOURCES
     TestASN1.cpp
     TestBigFraction.cpp
     TestBigInteger.cpp
-    TestChaCha20.cpp
     TestChecksum.cpp
     TestCurves.cpp
     TestEd25519.cpp
