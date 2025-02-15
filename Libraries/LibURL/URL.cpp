@@ -475,6 +475,16 @@ String percent_encode(StringView input, PercentEncodeSet set, SpaceAsPlus space_
     return MUST(builder.to_string());
 }
 
+URL URL::about(String path)
+{
+    URL url;
+    url.m_data->valid = true;
+    url.m_data->scheme = "about"_string;
+    url.m_data->paths = { move(path) };
+    url.m_data->cannot_be_a_base_url = true;
+    return url;
+}
+
 // https://url.spec.whatwg.org/#percent-decode
 ByteString percent_decode(StringView input)
 {
