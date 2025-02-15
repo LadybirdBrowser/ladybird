@@ -11,17 +11,15 @@
 
   targetPkgs = pkgs:
     with pkgs;
-    with pkgs.qt6Packages;
-    with pkgs.nodePackages;
     [
-      qtbase.dev
-      qttools
-      qtwayland.dev
+      qt6Packages.qtbase.dev
+      qt6Packages.qttools
+      qt6Packages.qtwayland.dev
 
       ccache
       clang-tools
+      nodePackages.prettier
       pre-commit
-      prettier
 
       autoconf
       autoconf-archive
