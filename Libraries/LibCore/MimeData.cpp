@@ -8,6 +8,7 @@
 #include <AK/StringBuilder.h>
 #include <LibCore/File.h>
 #include <LibCore/MimeData.h>
+#include <LibURL/Parser.h>
 
 namespace Core {
 
@@ -18,7 +19,8 @@ Vector<URL::URL> MimeData::urls() const
         return {};
     Vector<URL::URL> urls;
     for (auto& line : StringView(it->value).split_view('\n')) {
-        urls.append(URL::URL(line));
+        if (auto maybe_url = URL::Parser::basic_parse(line); maybe_url.has_value())
+            urls.append(maybe_url.release_value());
     }
     return urls;
 }

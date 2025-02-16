@@ -15,6 +15,7 @@
 #include <AK/Vector.h>
 #include <LibCore/File.h>
 #include <LibJS/Runtime/Value.h>
+#include <LibURL/Parser.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/PropertyID.h>
@@ -289,7 +290,7 @@ Messages::WebDriverClient::NavigateToResponse WebDriverConnection::navigate_to(J
     // 2. Let url be the result of getting the property url from the parameters argument.
     if (!payload.is_object() || !payload.as_object().has_string("url"sv))
         return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload doesn't have a string `url`"sv);
-    URL::URL url(payload.as_object().get_byte_string("url"sv).value());
+    auto url = URL::Parser::basic_parse(payload.as_object().get_byte_string("url"sv).value());
 
     // FIXME: 3. If url is not an absolute URL or is not an absolute URL with fragment or not a local scheme, return error with error code invalid argument.
 
@@ -302,7 +303,7 @@ Messages::WebDriverClient::NavigateToResponse WebDriverConnection::navigate_to(J
         // FIXME:     a. If timer has not been started, start a timer. If this algorithm has not completed before timer reaches the session’s session page load timeout in milliseconds, return an error with error code timeout.
 
         // 7. Navigate the current top-level browsing context to url.
-        current_top_level_browsing_context()->page().load(url);
+        current_top_level_browsing_context()->page().load(url.value());
 
         auto navigation_complete = GC::create_function(current_top_level_browsing_context()->heap(), [this](Web::WebDriver::Response result) {
             // 9. Set the current browsing context with the current top-level browsing context.
@@ -317,7 +318,7 @@ Messages::WebDriverClient::NavigateToResponse WebDriverConnection::navigate_to(J
         // AD-HOC: We wait for the navigation to complete regardless of whether the current URL differs from the provided
         //         URL. Even if they're the same, the navigation queues a tasks that we must await, otherwise subsequent
         //         endpoint invocations will attempt to operate on the wrong page.
-        if (url.is_special() && url.scheme() != "file"sv) {
+        if (url->is_special() && url->scheme() != "file"sv) {
             // a. Try to wait for navigation to complete.
             wait_for_navigation_to_complete(navigation_complete);
 

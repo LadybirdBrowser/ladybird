@@ -5,6 +5,7 @@
  */
 
 #include <AK/JsonValue.h>
+#include <LibURL/Parser.h>
 #include <LibURL/URL.h>
 #include <LibWeb/WebDriver/Proxy.h>
 
@@ -45,7 +46,7 @@ static ErrorOr<void, Error> validate_proxy_item(StringView key, JsonValue const&
     if (key == "proxyAutoconfigUrl"sv) {
         if (!value.is_string())
             return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'proxyAutoconfigUrl' must be a string"sv);
-        if (URL::URL url { value.as_string() }; !url.is_valid())
+        if (auto url = URL::Parser::basic_parse(value.as_string()); !url.has_value())
             return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'proxyAutoconfigUrl' must be a valid URL"sv);
         return {};
     }
@@ -53,7 +54,7 @@ static ErrorOr<void, Error> validate_proxy_item(StringView key, JsonValue const&
     if (key == "ftpProxy"sv) {
         if (!value.is_string())
             return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'ftpProxy' must be a string"sv);
-        if (URL::URL url { value.as_string() }; !url.is_valid() || url.scheme() != "ftp"sv)
+        if (auto url = URL::Parser::basic_parse(value.as_string()); !url.has_value() || url->scheme() != "ftp"sv)
             return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'ftpProxy' must be a valid FTP URL"sv);
         return {};
     }
@@ -61,7 +62,7 @@ static ErrorOr<void, Error> validate_proxy_item(StringView key, JsonValue const&
     if (key == "httpProxy"sv) {
         if (!value.is_string())
             return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'httpProxy' must be a string"sv);
-        if (URL::URL url { value.as_string() }; !url.is_valid() || url.scheme() != "http"sv)
+        if (auto url = URL::Parser::basic_parse(value.as_string()); !url.has_value() || url->scheme() != "http"sv)
             return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'httpProxy' must be a valid HTTP URL"sv);
         return {};
     }
@@ -82,7 +83,7 @@ static ErrorOr<void, Error> validate_proxy_item(StringView key, JsonValue const&
     if (key == "sslProxy"sv) {
         if (!value.is_string())
             return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'sslProxy' must be a string"sv);
-        if (URL::URL url { value.as_string() }; !url.is_valid() || url.scheme() != "https"sv)
+        if (auto url = URL::Parser::basic_parse(value.as_string()); !url.has_value() || url->scheme() != "https"sv)
             return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'sslProxy' must be a valid HTTPS URL"sv);
         return {};
     }
@@ -90,7 +91,7 @@ static ErrorOr<void, Error> validate_proxy_item(StringView key, JsonValue const&
     if (key == "socksProxy"sv) {
         if (!value.is_string())
             return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'proxyAutoconfigUrl' must be a string"sv);
-        if (URL::URL url { value.as_string() }; !url.is_valid())
+        if (auto url = URL::Parser::basic_parse(value.as_string()); !url.has_value())
             return Error::from_code(ErrorCode::InvalidArgument, "Proxy configuration item 'proxyAutoconfigUrl' must be a valid URL"sv);
         return {};
     }
