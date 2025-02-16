@@ -24,7 +24,7 @@ class Script
 public:
     virtual ~Script() override;
 
-    URL::URL const& base_url() const { return m_base_url; }
+    Optional<URL::URL> const& base_url() const { return m_base_url; }
     ByteString const& filename() const { return m_filename; }
 
     JS::Realm& realm() { return m_realm; }
@@ -37,14 +37,14 @@ public:
     void set_parse_error(JS::Value value) { m_parse_error = value; }
 
 protected:
-    Script(URL::URL base_url, ByteString filename, JS::Realm&);
+    Script(Optional<URL::URL> base_url, ByteString filename, JS::Realm&);
 
     virtual void visit_edges(Visitor&) override;
 
 private:
     virtual void visit_host_defined_self(JS::Cell::Visitor&) override;
 
-    URL::URL m_base_url;
+    Optional<URL::URL> m_base_url;
     ByteString m_filename;
     GC::Ref<JS::Realm> m_realm;
 

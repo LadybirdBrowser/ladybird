@@ -329,7 +329,7 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
                     //           options's credentials mode, referrer policy is initiating script's fetch options's referrer policy, and fetch priority is "auto".
 
                     // 2. Set base URL to initiating script's base URL.
-                    base_url = initiating_script->base_url();
+                    base_url = initiating_script->base_url().value();
 
                     // Spec Note: The effect of these steps ensures that the string compilation done by setTimeout() and setInterval() behaves equivalently to that
                     //            done by eval(). That is, module script fetches via import() will behave the same in both contexts.

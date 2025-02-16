@@ -623,7 +623,7 @@ void fetch_internal_module_script_graph(JS::Realm& realm, JS::ModuleRequest cons
 
     // 5. Fetch a single module script given url, fetch client settings object, destination, options, referringScript's settings object's realm,
     //    referringScript's base URL, moduleRequest, false, and onSingleFetchComplete as defined below. If performFetch was given, pass it along as well.
-    fetch_single_module_script(realm, url, fetch_client_settings_object, destination, options, referring_script.realm(), referring_script.base_url(), module_request, TopLevelModule::No, perform_fetch, on_single_fetch_complete);
+    fetch_single_module_script(realm, url, fetch_client_settings_object, destination, options, referring_script.realm(), referring_script.base_url().value(), module_request, TopLevelModule::No, perform_fetch, on_single_fetch_complete);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-the-descendants-of-a-module-script
