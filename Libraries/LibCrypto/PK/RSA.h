@@ -121,6 +121,10 @@ public:
 
     ErrorOr<ByteBuffer> export_as_der() const
     {
+        if (m_prime_1.is_zero() || m_prime_2.is_zero()) {
+            return Error::from_string_literal("Cannot export private key without prime factors");
+        }
+
         ASN1::Encoder encoder;
         TRY(encoder.write_constructed(ASN1::Class::Universal, ASN1::Kind::Sequence, [&]() -> ErrorOr<void> {
             TRY(encoder.write(0x00u)); // version
