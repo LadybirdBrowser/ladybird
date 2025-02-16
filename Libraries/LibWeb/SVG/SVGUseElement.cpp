@@ -136,9 +136,6 @@ GC::Ptr<DOM::Element> SVGUseElement::referenced_element()
     if (!m_href.has_value())
         return nullptr;
 
-    if (!m_href->is_valid())
-        return nullptr;
-
     if (!m_href->fragment().has_value())
         return nullptr;
 

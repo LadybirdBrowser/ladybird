@@ -186,8 +186,6 @@ WebIDL::ExceptionOr<Optional<URL::URL>> resolve_imports_match(ByteString const& 
                 return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, String::formatted("Import resolution of '{}' was blocked by a null entry.", specifier_key).release_value_but_fixme_should_propagate_errors() };
 
             // 2. Assert: resolutionResult is a URL.
-            VERIFY(resolution_result->is_valid());
-
             // 3. Return resolutionResult.
             return resolution_result;
         }
@@ -207,8 +205,6 @@ WebIDL::ExceptionOr<Optional<URL::URL>> resolve_imports_match(ByteString const& 
                 return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, String::formatted("Import resolution of '{}' was blocked by a null entry.", specifier_key).release_value_but_fixme_should_propagate_errors() };
 
             // 2. Assert: resolutionResult is a URL.
-            VERIFY(resolution_result->is_valid());
-
             // 3. Let afterPrefix be the portion of normalizedSpecifier after the initial specifierKey prefix.
             // FIXME: Clarify if this is meant by the portion after the initial specifierKey prefix.
             auto after_prefix = normalized_specifier.substring(specifier_key.length());
