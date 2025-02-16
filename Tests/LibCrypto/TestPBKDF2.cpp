@@ -4,10 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibCrypto/Authentication/HMAC.h>
 #include <LibCrypto/Hash/PBKDF2.h>
-#include <LibCrypto/Hash/SHA1.h>
-#include <LibCrypto/Hash/SHA2.h>
 #include <LibTest/TestCase.h>
 
 // https://www.rfc-editor.org/rfc/rfc6070#section-2
@@ -27,7 +24,8 @@ TEST_CASE(test_vector_1_sha1)
     u32 iterations = 1;
     u32 derived_key_length_bytes = 20;
 
-    auto result = MUST(Crypto::Hash::PBKDF2::derive_key<Crypto::Authentication::HMAC<Crypto::Hash::SHA1>>(password, salt, iterations, derived_key_length_bytes));
+    Crypto::Hash::PBKDF2 pbkdf2(Crypto::Hash::HashKind::SHA1);
+    auto result = MUST(pbkdf2.derive_key(password, salt, iterations, derived_key_length_bytes));
 
     EXPECT_EQ(result, expected.span());
 }
@@ -48,7 +46,8 @@ TEST_CASE(test_vector_2_sha1)
     u32 iterations = 2;
     u32 derived_key_length_bytes = 20;
 
-    auto result = MUST(Crypto::Hash::PBKDF2::derive_key<Crypto::Authentication::HMAC<Crypto::Hash::SHA1>>(password, salt, iterations, derived_key_length_bytes));
+    Crypto::Hash::PBKDF2 pbkdf2(Crypto::Hash::HashKind::SHA1);
+    auto result = MUST(pbkdf2.derive_key(password, salt, iterations, derived_key_length_bytes));
 
     EXPECT_EQ(result, expected.span());
 }
@@ -69,7 +68,8 @@ TEST_CASE(test_vector_1_sha256)
     u32 iterations = 1;
     u32 derived_key_length_bytes = 20;
 
-    auto result = MUST(Crypto::Hash::PBKDF2::derive_key<Crypto::Authentication::HMAC<Crypto::Hash::SHA256>>(password, salt, iterations, derived_key_length_bytes));
+    Crypto::Hash::PBKDF2 pbkdf2(Crypto::Hash::HashKind::SHA256);
+    auto result = MUST(pbkdf2.derive_key(password, salt, iterations, derived_key_length_bytes));
 
     EXPECT_EQ(result, expected.span());
 }
@@ -90,7 +90,8 @@ TEST_CASE(test_vector_2_sha256)
     u32 iterations = 2;
     u32 derived_key_length_bytes = 20;
 
-    auto result = MUST(Crypto::Hash::PBKDF2::derive_key<Crypto::Authentication::HMAC<Crypto::Hash::SHA256>>(password, salt, iterations, derived_key_length_bytes));
+    Crypto::Hash::PBKDF2 pbkdf2(Crypto::Hash::HashKind::SHA256);
+    auto result = MUST(pbkdf2.derive_key(password, salt, iterations, derived_key_length_bytes));
 
     EXPECT_EQ(result, expected.span());
 }
@@ -111,7 +112,8 @@ TEST_CASE(test_vector_3_sha256)
     u32 iterations = 4096;
     u32 derived_key_length_bytes = 20;
 
-    auto result = MUST(Crypto::Hash::PBKDF2::derive_key<Crypto::Authentication::HMAC<Crypto::Hash::SHA256>>(password, salt, iterations, derived_key_length_bytes));
+    Crypto::Hash::PBKDF2 pbkdf2(Crypto::Hash::HashKind::SHA256);
+    auto result = MUST(pbkdf2.derive_key(password, salt, iterations, derived_key_length_bytes));
 
     EXPECT_EQ(result, expected.span());
 }
@@ -139,7 +141,8 @@ TEST_CASE(test_vector_4_sha256)
     u32 iterations = 4096;
     u32 derived_key_length_bytes = 25;
 
-    auto result = MUST(Crypto::Hash::PBKDF2::derive_key<Crypto::Authentication::HMAC<Crypto::Hash::SHA256>>(password, salt, iterations, derived_key_length_bytes));
+    Crypto::Hash::PBKDF2 pbkdf2(Crypto::Hash::HashKind::SHA256);
+    auto result = MUST(pbkdf2.derive_key(password, salt, iterations, derived_key_length_bytes));
 
     EXPECT_EQ(result, expected.span());
 }
@@ -160,7 +163,8 @@ TEST_CASE(test_vector_5_sha256)
     u32 iterations = 4096;
     u32 derived_key_length_bytes = 16;
 
-    auto result = MUST(Crypto::Hash::PBKDF2::derive_key<Crypto::Authentication::HMAC<Crypto::Hash::SHA256>>(password, salt, iterations, derived_key_length_bytes));
+    Crypto::Hash::PBKDF2 pbkdf2(Crypto::Hash::HashKind::SHA256);
+    auto result = MUST(pbkdf2.derive_key(password, salt, iterations, derived_key_length_bytes));
 
     EXPECT_EQ(result, expected.span());
 }

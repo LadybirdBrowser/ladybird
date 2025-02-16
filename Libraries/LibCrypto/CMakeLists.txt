@@ -25,7 +25,9 @@ set(SOURCES
     Curves/EdwardsCurve.cpp
     Curves/SECPxxxr1.cpp
     Hash/BLAKE2b.cpp
+    Hash/HKDF.cpp
     Hash/MD5.cpp
+    Hash/PBKDF2.cpp
     Hash/SHA1.cpp
     Hash/SHA2.cpp
     NumberTheory/ModularFunctions.cpp

@@ -6657,26 +6657,34 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> HKDF::derive_bits(AlgorithmParams 
     // all major browsers instead raise a TypeError, for example:
     //     "Failed to execute 'deriveBits' on 'SubtleCrypto': HkdfParams: salt: Not a BufferSource"
     // Because we are forced by neither peer pressure nor the spec, we don't support it either.
-    auto const& hash_algorithm = TRY(normalized_algorithm.hash.name(realm.vm()));
-    ErrorOr<ByteBuffer> result = Error::from_string_literal("noop error");
-    if (hash_algorithm == "SHA-1") {
-        result = ::Crypto::Hash::HKDF<::Crypto::Hash::SHA1>::derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, *length_optional / 8);
-    } else if (hash_algorithm == "SHA-256") {
-        result = ::Crypto::Hash::HKDF<::Crypto::Hash::SHA256>::derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, *length_optional / 8);
-    } else if (hash_algorithm == "SHA-384") {
-        result = ::Crypto::Hash::HKDF<::Crypto::Hash::SHA384>::derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, *length_optional / 8);
-    } else if (hash_algorithm == "SHA-512") {
-        result = ::Crypto::Hash::HKDF<::Crypto::Hash::SHA512>::derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, *length_optional / 8);
-    } else {
-        return WebIDL::NotSupportedError::create(m_realm, MUST(String::formatted("Invalid hash function '{}'", hash_algorithm)));
+
+    // Note: Check for zero length early because our implementation doesn't support it.
+    if (*length_optional == 0) {
+        return TRY(JS::ArrayBuffer::create(realm, static_cast<size_t>(0)));
     }
 
+    auto const& hash_algorithm = TRY(normalized_algorithm.hash.name(realm.vm()));
+    auto hash_kind = TRY([&] -> WebIDL::ExceptionOr<::Crypto::Hash::HashKind> {
+        if (hash_algorithm == "SHA-1")
+            return ::Crypto::Hash::HashKind::SHA1;
+        if (hash_algorithm == "SHA-256")
+            return ::Crypto::Hash::HashKind::SHA256;
+        if (hash_algorithm == "SHA-384")
+            return ::Crypto::Hash::HashKind::SHA384;
+        if (hash_algorithm == "SHA-512")
+            return ::Crypto::Hash::HashKind::SHA512;
+        return WebIDL::NotSupportedError::create(m_realm, MUST(String::formatted("Invalid hash function '{}'", hash_algorithm)));
+    }());
+
+    ::Crypto::Hash::HKDF hkdf(hash_kind);
+    auto maybe_result = hkdf.derive_key(Optional<ReadonlyBytes>(normalized_algorithm.salt), key_derivation_key, normalized_algorithm.info, *length_optional / 8);
+
     // 4. If the key derivation operation fails, then throw an OperationError.
-    if (result.is_error())
+    if (maybe_result.is_error())
         return WebIDL::OperationError::create(realm, "Failed to derive key"_string);
 
     // 5. Return result
-    return JS::ArrayBuffer::create(realm, result.release_value());
+    return JS::ArrayBuffer::create(realm, maybe_result.release_value());
 }
 
 WebIDL::ExceptionOr<JS::Value> HKDF::get_key_length(AlgorithmParams const&)
@@ -6708,32 +6716,32 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> PBKDF2::derive_bits(AlgorithmParam
     // the contents of the salt attribute of normalizedAlgorithm as the salt, S,
     // the value of the iterations attribute of normalizedAlgorithm as the iteration count, c,
     // and length divided by 8 as the intended key length, dkLen.
-    ErrorOr<ByteBuffer> result = Error::from_string_literal("noop error");
-
     auto password = key->handle().get<ByteBuffer>();
-
     auto salt = normalized_algorithm.salt;
     auto iterations = normalized_algorithm.iterations;
     auto derived_key_length_bytes = *length_optional / 8;
 
-    if (hash_algorithm == "SHA-1") {
-        result = ::Crypto::Hash::PBKDF2::derive_key<::Crypto::Authentication::HMAC<::Crypto::Hash::SHA1>>(password, salt, iterations, derived_key_length_bytes);
-    } else if (hash_algorithm == "SHA-256") {
-        result = ::Crypto::Hash::PBKDF2::derive_key<::Crypto::Authentication::HMAC<::Crypto::Hash::SHA256>>(password, salt, iterations, derived_key_length_bytes);
-    } else if (hash_algorithm == "SHA-384") {
-        result = ::Crypto::Hash::PBKDF2::derive_key<::Crypto::Authentication::HMAC<::Crypto::Hash::SHA384>>(password, salt, iterations, derived_key_length_bytes);
-    } else if (hash_algorithm == "SHA-512") {
-        result = ::Crypto::Hash::PBKDF2::derive_key<::Crypto::Authentication::HMAC<::Crypto::Hash::SHA512>>(password, salt, iterations, derived_key_length_bytes);
-    } else {
+    auto hash_kind = TRY([&] -> WebIDL::ExceptionOr<::Crypto::Hash::HashKind> {
+        if (hash_algorithm == "SHA-1")
+            return ::Crypto::Hash::HashKind::SHA1;
+        if (hash_algorithm == "SHA-256")
+            return ::Crypto::Hash::HashKind::SHA256;
+        if (hash_algorithm == "SHA-384")
+            return ::Crypto::Hash::HashKind::SHA384;
+        if (hash_algorithm == "SHA-512")
+            return ::Crypto::Hash::HashKind::SHA512;
         return WebIDL::NotSupportedError::create(m_realm, MUST(String::formatted("Invalid hash function '{}'", hash_algorithm)));
-    }
+    }());
+
+    ::Crypto::Hash::PBKDF2 pbkdf2(hash_kind);
+    auto maybe_result = pbkdf2.derive_key(password, salt, iterations, derived_key_length_bytes);
 
     // 5. If the key derivation operation fails, then throw an OperationError.
-    if (result.is_error())
+    if (maybe_result.is_error())
         return WebIDL::OperationError::create(realm, "Failed to derive key"_string);
 
     // 6. Return result
-    return JS::ArrayBuffer::create(realm, result.release_value());
+    return JS::ArrayBuffer::create(realm, maybe_result.release_value());
 }
 
 // https://w3c.github.io/webcrypto/#pbkdf2-operations
