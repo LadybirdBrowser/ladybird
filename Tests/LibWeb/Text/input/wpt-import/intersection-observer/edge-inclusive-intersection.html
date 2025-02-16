@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="./resources/intersection-observer-test-utils.js"></script>
+
+<style>
+pre, #log {
+  position: absolute;
+  top: 0;
+  left: 200px;
+}
+#root {
+  width: 200px;
+  height: 200px;
+  overflow: visible;
+}
+#target {
+  background-color: green;
+}
+</style>
+
+<div id="root">
+  <div id="target" style="width: 100px; height: 100px; transform: translateY(250px)"></div>
+</div>
+
+<script>
+var entries = [];
+
+runTestCycle(function() {
+  var root = document.getElementById('root');
+  assert_true(!!root, "root element exists.");
+  var target = document.getElementById('target');
+  assert_true(!!target, "target element exists.");
+  var observer = new IntersectionObserver(function(changes) {
+    entries = entries.concat(changes);
+  }, { root: root });
+  observer.observe(target);
+  entries = entries.concat(observer.takeRecords());
+  assert_equals(entries.length, 0, "No initial notifications.");
+  runTestCycle(step0, "First rAF.");
+}, "IntersectionObserver should detect and report edge-adjacent and zero-area intersections.");
+
+function step0() {
+  runTestCycle(step1, "Set transform=translateY(200px) on target.");
+  checkLastEntry(entries, 0, [8, 108, 258, 358, 0, 0, 0, 0, 8, 208, 8, 208, false]);
+  target.style.transform = "translateY(200px)";
+}
+
+function step1() {
+  runTestCycle(step2, "Set transform=translateY(201px) on target.");
+  checkLastEntry(entries, 1, [8, 108, 208, 308, 8, 108, 208, 208, 8, 208, 8, 208, true]);
+  target.style.transform = "translateY(201px)";
+}
+
+function step2() {
+  runTestCycle(step3, "Set transform=translateY(185px) on target.");
+  checkLastEntry(entries, 2);
+  target.style.height = "0px";
+  target.style.width = "300px";
+  target.style.transform = "translateY(185px)";
+}
+
+function step3() {
+  checkLastEntry(entries, 3, [8, 308, 193, 193, 8, 208, 193, 193, 8, 208, 8, 208, true]);
+}
+</script>
