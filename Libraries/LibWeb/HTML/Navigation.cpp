@@ -229,7 +229,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::navigate(String url, Navigatio
     //    If that returns failure, then return an early error result for a "SyntaxError" DOMException.
     //    Otherwise, let urlRecord be the resulting URL record.
     auto url_record = relevant_settings_object(*this).parse_url(url);
-    if (!url_record.is_valid())
+    if (!url_record.has_value())
         return early_error_result(WebIDL::SyntaxError::create(realm, "Cannot navigate to Invalid URL"_string));
 
     // 2. Let document be this's relevant global object's associated Document.
@@ -237,7 +237,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::navigate(String url, Navigatio
 
     // 3. If options["history"] is "push", and the navigation must be a replace given urlRecord and document,
     //    then return an early error result for a "NotSupportedError" DOMException.
-    if (options.history == Bindings::NavigationHistoryBehavior::Push && navigation_must_be_a_replace(url_record, document))
+    if (options.history == Bindings::NavigationHistoryBehavior::Push && navigation_must_be_a_replace(url_record.value(), document))
         return early_error_result(WebIDL::NotSupportedError::create(realm, "Navigation must be a replace, but push was requested"_string));
 
     // 4. Let state be options["state"], if it exists; otherwise, undefined.
@@ -278,7 +278,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::navigate(String url, Navigatio
     //       of the navigation, and we don't need to deal with the allowed by sandboxing to navigate check and its
     //       acccompanying exceptionsEnabled flag. We just treat all navigations as if they come from the Document
     //       corresponding to this Navigation object itself (i.e., document).
-    TRY(document.navigable()->navigate({ .url = url_record, .source_document = document, .history_handling = options.history, .navigation_api_state = move(serialized_state) }));
+    TRY(document.navigable()->navigate({ .url = url_record.release_value(), .source_document = document, .history_handling = options.history, .navigation_api_state = move(serialized_state) }));
 
     // 11. If this's upcoming non-traverse API method tracker is apiMethodTracker, then:
     // NOTE: If the upcoming non-traverse API method tracker is still apiMethodTracker, this means that the navigate

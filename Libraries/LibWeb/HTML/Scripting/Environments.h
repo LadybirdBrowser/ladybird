@@ -91,8 +91,8 @@ public:
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-time-origin
     virtual double time_origin() const = 0;
 
-    URL::URL parse_url(StringView);
-    URL::URL encoding_parse_url(StringView);
+    Optional<URL::URL> parse_url(StringView);
+    Optional<URL::URL> encoding_parse_url(StringView);
     Optional<String> encoding_parse_and_serialize_url(StringView);
 
     JS::Realm& realm();

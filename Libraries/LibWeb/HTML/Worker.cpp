@@ -63,7 +63,7 @@ WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(String const& script_url, Wo
     auto url = outside_settings.parse_url(script_url);
 
     // 4. If this fails, throw a "SyntaxError" DOMException.
-    if (!url.is_valid()) {
+    if (!url.has_value()) {
         dbgln_if(WEB_WORKER_DEBUG, "WebWorker: Invalid URL loaded '{}'.", script_url);
         return WebIDL::SyntaxError::create(document.realm(), "url is not valid"_string);
     }
@@ -82,7 +82,7 @@ WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(String const& script_url, Wo
 
     // 9. Run this step in parallel:
     //    1. Run a worker given worker, worker URL, outside settings, outside port, and options.
-    worker->run_a_worker(url, outside_settings, *outside_port, options);
+    worker->run_a_worker(url.value(), outside_settings, *outside_port, options);
 
     // 10. Return worker
     return worker;
