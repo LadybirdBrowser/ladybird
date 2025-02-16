@@ -354,10 +354,10 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
         auto& module_script = *as<HTML::Script>(module_record.host_defined());
 
         // 2. Assert: moduleScript's base URL is not null, as moduleScript is a JavaScript module script.
-        VERIFY(module_script.base_url().is_valid());
+        VERIFY(module_script.base_url().has_value());
 
         // 3. Let urlString be moduleScript's base URL, serialized.
-        auto url_string = module_script.base_url().serialize();
+        auto url_string = module_script.base_url()->serialize();
 
         // 4. Let steps be the following steps, given the argument specifier:
         auto steps = [module_script = GC::Ref { module_script }](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
@@ -427,7 +427,7 @@ ErrorOr<void> initialize_main_thread_vm(HTML::EventLoop::Type type)
             referencing_script = as<HTML::Script>(referrer.has<GC::Ref<JS::Script>>() ? *referrer.get<GC::Ref<JS::Script>>()->host_defined() : *referrer.get<GC::Ref<JS::CyclicModule>>()->host_defined());
 
             // 2. Set fetchReferrer to referencingScript's base URL.
-            fetch_referrer = referencing_script->base_url();
+            fetch_referrer = referencing_script->base_url().value();
 
             // FIXME: 3. Set originalFetchOptions to referencingScript's fetch options.
 

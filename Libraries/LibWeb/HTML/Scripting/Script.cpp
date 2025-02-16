@@ -11,7 +11,7 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(Script);
 
-Script::Script(URL::URL base_url, ByteString filename, JS::Realm& realm)
+Script::Script(Optional<URL::URL> base_url, ByteString filename, JS::Realm& realm)
     : m_base_url(move(base_url))
     , m_filename(move(filename))
     , m_realm(realm)
