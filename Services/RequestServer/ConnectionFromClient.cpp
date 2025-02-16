@@ -350,12 +350,6 @@ void ConnectionFromClient::set_dns_server(ByteString const& host_or_address, u16
 
 void ConnectionFromClient::start_request(i32 request_id, ByteString const& method, URL::URL const& url, HTTP::HeaderMap const& request_headers, ByteBuffer const& request_body, Core::ProxyData const& proxy_data)
 {
-    if (!url.is_valid()) {
-        dbgln("StartRequest: Invalid URL requested: '{}'", url);
-        async_request_finished(request_id, 0, Requests::NetworkError::MalformedUrl);
-        return;
-    }
-
     auto host = url.serialized_host().to_byte_string();
 
     // Check if host has the bracket notation for IPV6 addresses and remove them
@@ -590,11 +584,6 @@ Messages::RequestServer::SetCertificateResponse ConnectionFromClient::set_certif
 
 void ConnectionFromClient::ensure_connection(URL::URL const& url, ::RequestServer::CacheLevel const& cache_level)
 {
-    if (!url.is_valid()) {
-        dbgln("EnsureConnection: Invalid URL requested: '{}'", url);
-        return;
-    }
-
     auto const url_string_value = url.to_string();
 
     if (cache_level == CacheLevel::CreateConnection) {
@@ -649,11 +638,6 @@ void ConnectionFromClient::ensure_connection(URL::URL const& url, ::RequestServe
 
 void ConnectionFromClient::websocket_connect(i64 websocket_id, URL::URL const& url, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderMap const& additional_request_headers)
 {
-    if (!url.is_valid()) {
-        dbgln("WebSocket::Connect: Invalid URL requested: '{}'", url);
-        return;
-    }
-
     WebSocket::ConnectionInfo connection_info(url);
     connection_info.set_origin(origin);
     connection_info.set_protocols(protocols);
