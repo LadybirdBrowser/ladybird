@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 5 tests
+
+2 Pass
+3 Fail
+Pass	IntersectionObserver should detect and report edge-adjacent and zero-area intersections.
+Pass	First rAF.
+Fail	Set transform=translateY(200px) on target.
+Fail	Set transform=translateY(201px) on target.
+Fail	Set transform=translateY(185px) on target.
