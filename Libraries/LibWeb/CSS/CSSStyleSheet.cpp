@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibURL/Parser.h>
 #include <LibWeb/Bindings/CSSStyleSheetPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSImportRule.h>
@@ -42,10 +43,10 @@ WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> CSSStyleSheet::construct_impl(JS::Re
     if (options.has_value() && options->base_url.has_value()) {
         Optional<URL::URL> sheet_location_url;
         if (sheet->location().has_value())
-            sheet_location_url = sheet->location().release_value();
+            sheet_location_url = URL::Parser::basic_parse(sheet->location().release_value());
 
         // AD-HOC: This isn't explicitly mentioned in the specification, but multiple modern browsers do this.
-        Optional<URL::URL> url = sheet->location().has_value() ? sheet_location_url->complete_url(options->base_url.value()) : options->base_url.value();
+        Optional<URL::URL> url = sheet->location().has_value() ? sheet_location_url->complete_url(options->base_url.value()) : URL::Parser::basic_parse(options->base_url.value());
         if (!url.has_value())
             return WebIDL::NotAllowedError::create(realm, "Constructed style sheets must have a valid base URL"_string);
 

@@ -193,9 +193,9 @@ URL create_with_file_scheme(ByteString const& path, ByteString const& fragment, 
 
 URL create_with_url_or_path(ByteString const& url_or_path)
 {
-    URL url = url_or_path;
-    if (url.is_valid())
-        return url;
+    auto url = Parser::basic_parse(url_or_path);
+    if (url.has_value())
+        return url.release_value();
 
     ByteString path = LexicalPath::canonicalized_path(url_or_path);
     return create_with_file_scheme(path);

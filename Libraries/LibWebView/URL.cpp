@@ -7,6 +7,7 @@
 
 #include <AK/String.h>
 #include <LibFileSystem/FileSystem.h>
+#include <LibURL/Parser.h>
 #include <LibWebView/URL.h>
 
 namespace WebView {
@@ -25,7 +26,7 @@ Optional<URL::URL> sanitize_url(StringView url, Optional<StringView> search_engi
         if (!search_engine.has_value())
             return {};
 
-        return MUST(String::formatted(*search_engine, URL::percent_decode(url)));
+        return URL::Parser::basic_parse(MUST(String::formatted(*search_engine, URL::percent_decode(url))));
     };
 
     ByteString url_with_scheme = url;

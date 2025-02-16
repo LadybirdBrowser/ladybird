@@ -213,10 +213,8 @@ WebIDL::ExceptionOr<HashMap<URL::URL, ModuleSpecifierMap>> sort_and_normalise_sc
         }
 
         // 4. Let normalizedScopePrefix be the serialization of scopePrefixURL.
-        auto normalised_scope_prefix = scope_prefix_url->serialize();
-
         // 5. Set normalized[normalizedScopePrefix] to the result of sorting and normalizing a module specifier map given potentialSpecifierMap and baseURL.
-        normalised.set(normalised_scope_prefix, TRY(sort_and_normalise_module_specifier_map(realm, potential_specifier_map.as_object(), base_url)));
+        normalised.set(scope_prefix_url.value(), TRY(sort_and_normalise_module_specifier_map(realm, potential_specifier_map.as_object(), base_url)));
     }
 
     // 3. Return the result of sorting in descending order normalized, with an entry a being less than an entry b if a's key is code unit less than b's key.
@@ -316,7 +314,7 @@ void merge_existing_and_new_import_maps(Window& global, ImportMap& new_import_ma
         // 1. For each record of global's resolved module set:
         for (auto const& record : global.resolved_module_set()) {
             // 1. If scopePrefix is record's serialized base URL, or if scopePrefix ends with U+002F (/) and scopePrefix is a code unit prefix of record's serialized base URL, then:
-            if (scope_prefix == record.serialized_base_url || (scope_prefix.to_string().ends_with('/') && record.serialized_base_url.has_value() && Infra::is_code_unit_prefix(scope_prefix.to_string(), *record.serialized_base_url))) {
+            if (scope_prefix.to_string() == record.serialized_base_url || (scope_prefix.to_string().ends_with('/') && record.serialized_base_url.has_value() && Infra::is_code_unit_prefix(scope_prefix.to_string(), *record.serialized_base_url))) {
                 // 1. For each specifierKey → resolutionResult of scopeImports:
                 scope_imports.remove_all_matching([&](ByteString const& specifier_key, Optional<URL::URL> const&) {
                     // 1. If specifierKey is record's specifier, or if all of the following conditions are true:

@@ -5,6 +5,7 @@
  */
 
 #include "ProxyMappings.h"
+#include <LibURL/Parser.h>
 
 Web::ProxyMappings& Web::ProxyMappings::the()
 {
@@ -17,7 +18,12 @@ Core::ProxyData Web::ProxyMappings::proxy_for_url(URL::URL const& url) const
     auto url_string = url.to_byte_string();
     for (auto& it : m_mappings) {
         if (url_string.matches(it.key)) {
-            auto result = Core::ProxyData::parse_url(m_proxies[it.value]);
+            auto maybe_url = URL::Parser::basic_parse(m_proxies[it.value]);
+            if (!maybe_url.has_value()) {
+                dbgln("Failed to parse proxy URL: {}", m_proxies[it.value]);
+                continue;
+            }
+            auto result = Core::ProxyData::parse_url(maybe_url.value());
             if (result.is_error()) {
                 dbgln("Failed to parse proxy URL: {}", m_proxies[it.value]);
                 continue;

@@ -6,6 +6,7 @@
 
 #include <AK/String.h>
 #include <LibURL/Origin.h>
+#include <LibURL/Parser.h>
 #include <LibURL/URL.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOMURL/DOMURL.h>
@@ -73,16 +74,16 @@ ErrorOr<void> AutoplayAllowlist::enable_for_origins(ReadonlySpan<String> origins
     TRY(allowlist.try_ensure_capacity(origins.size()));
 
     for (auto const& origin : origins) {
-        URL::URL url { origin };
+        auto url = URL::Parser::basic_parse(origin);
 
-        if (!url.is_valid())
-            url = TRY(String::formatted("https://{}", origin));
-        if (!url.is_valid()) {
+        if (!url.has_value())
+            url = URL::Parser::basic_parse(TRY(String::formatted("https://{}", origin)));
+        if (!url.has_value()) {
             dbgln("Invalid origin for autoplay allowlist: {}", origin);
             continue;
         }
 
-        TRY(allowlist.try_append(url.origin()));
+        TRY(allowlist.try_append(url->origin()));
     }
 
     return {};
