@@ -179,7 +179,7 @@ void ServiceWorkerContainer::start_register(Optional<URL::URL> scope_url, Option
     }
 
     // 6. If scopeURL is failure, reject promise with a TypeError and abort these steps.
-    if (!scope_url->is_valid()) {
+    if (!scope_url.has_value()) {
         WebIDL::reject_promise(realm, promise, JS::TypeError::create(realm, "scopeURL is not a valid URL"sv));
         return;
     }
