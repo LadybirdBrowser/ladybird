@@ -198,43 +198,50 @@ TEST_CASE(test_secp256r1)
     };
     // clang-format on
 
-    ReadonlyBytes alice_private_key { alice_private_key_data, 32 };
-    ReadonlyBytes alice_public_key { alice_public_key_data, 65 };
-    ReadonlyBytes bob_private_key { bob_private_key_data, 32 };
-    ReadonlyBytes bob_public_key { bob_public_key_data, 65 };
-    ReadonlyBytes shared_secret { shared_secret_data, 65 };
+    auto alice_private_key = Crypto::UnsignedBigInteger::import_data(alice_private_key_data, 32);
+    auto alice_public_key = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ alice_public_key_data, 65 }));
+    auto bob_private_key = Crypto::UnsignedBigInteger::import_data(bob_private_key_data, 32);
+    auto bob_public_key = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ bob_public_key_data, 65 }));
+    auto shared_secret = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ shared_secret_data, 65 }));
+    auto private_key = Crypto::UnsignedBigInteger::import_data(private_key_data, 32);
+    auto expected_public_key = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ expected_public_key_data, 65 }));
 
     Crypto::Curves::SECP256r1 curve;
 
     auto generated_alice_public = MUST(curve.generate_public_key(alice_private_key));
-    EXPECT_EQ(alice_public_key, generated_alice_public);
+    EXPECT_EQ(alice_public_key.x, generated_alice_public.x);
+    EXPECT_EQ(alice_public_key.y, generated_alice_public.y);
 
     auto generated_bob_public = MUST(curve.generate_public_key(bob_private_key));
-    EXPECT_EQ(bob_public_key, generated_bob_public);
+    EXPECT_EQ(bob_public_key.x, generated_bob_public.x);
+    EXPECT_EQ(bob_public_key.y, generated_bob_public.y);
 
     auto shared_alice = MUST(curve.compute_coordinate(alice_private_key, bob_public_key));
-    EXPECT_EQ(shared_alice, shared_secret);
+    EXPECT_EQ(shared_alice.x, shared_secret.x);
+    EXPECT_EQ(shared_alice.y, shared_secret.y);
 
     auto shared_bob = MUST(curve.compute_coordinate(bob_private_key, alice_public_key));
-    EXPECT_EQ(shared_bob, shared_secret);
+    EXPECT_EQ(shared_bob.x, shared_secret.x);
+    EXPECT_EQ(shared_bob.y, shared_secret.y);
 
-    EXPECT_EQ(shared_alice, shared_bob);
+    EXPECT_EQ(shared_alice.x, shared_bob.x);
+    EXPECT_EQ(shared_alice.y, shared_bob.y);
 
-    auto generated_public = MUST(curve.generate_public_key({ private_key_data, 32 }));
-    ReadonlyBytes expected_public_key { expected_public_key_data, 65 };
-    EXPECT_EQ(expected_public_key, generated_public);
+    auto generated_public = MUST(curve.generate_public_key(private_key));
+    EXPECT_EQ(expected_public_key.x, generated_public.x);
+    EXPECT_EQ(expected_public_key.y, generated_public.y);
 }
 
 TEST_CASE(test_secp384r1)
 {
     // clang-format off
-    Array<u8, 48> alice_private_key {
+    Array<u8, 48> alice_private_key_data {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
     };
 
-    Array<u8, 97> alice_public_key {
+    Array<u8, 97> alice_public_key_data {
         0x04,
         0xAA, 0x87, 0xCA, 0x22, 0xBE, 0x8B, 0x05, 0x37, 0x8E, 0xB1, 0xC7, 0x1E, 0xF3, 0x20, 0xAD, 0x74,
         0x6E, 0x1D, 0x3B, 0x62, 0x8B, 0xA7, 0x9B, 0x98, 0x59, 0xF7, 0x41, 0xE0, 0x82, 0x54, 0x2A, 0x38,
@@ -244,13 +251,13 @@ TEST_CASE(test_secp384r1)
         0x0A, 0x60, 0xB1, 0xCE, 0x1D, 0x7E, 0x81, 0x9D, 0x7A, 0x43, 0x1D, 0x7C, 0x90, 0xEA, 0x0E, 0x5F,
     };
 
-    Array<u8, 48> bob_private_key {
+    Array<u8, 48> bob_private_key_data {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02,
     };
 
-    Array<u8, 97> bob_public_key {
+    Array<u8, 97> bob_public_key_data {
         0x04,
         0x08, 0xD9, 0x99, 0x05, 0x7B, 0xA3, 0xD2, 0xD9, 0x69, 0x26, 0x00, 0x45, 0xC5, 0x5B, 0x97, 0xF0,
         0x89, 0x02, 0x59, 0x59, 0xA6, 0xF4, 0x34, 0xD6, 0x51, 0xD2, 0x07, 0xD1, 0x9F, 0xB9, 0x6E, 0x9E,
@@ -260,7 +267,7 @@ TEST_CASE(test_secp384r1)
         0x5F, 0xFD, 0x43, 0xE9, 0x4D, 0x39, 0xE2, 0x2D, 0x61, 0x50, 0x1E, 0x70, 0x0A, 0x94, 0x0E, 0x80,
     };
 
-    Array<u8, 97> shared_secret {
+    Array<u8, 97> shared_secret_data {
         0x04,
         0x08, 0xd9, 0x99, 0x05, 0x7b, 0xa3, 0xd2, 0xd9, 0x69, 0x26, 0x00, 0x45, 0xc5, 0x5b, 0x97, 0xf0,
         0x89, 0x02, 0x59, 0x59, 0xa6, 0xf4, 0x34, 0xd6, 0x51, 0xd2, 0x07, 0xd1, 0x9f, 0xb9, 0x6e, 0x9e,
@@ -270,13 +277,13 @@ TEST_CASE(test_secp384r1)
         0x5f, 0xfd, 0x43, 0xe9, 0x4d, 0x39, 0xe2, 0x2d, 0x61, 0x50, 0x1e, 0x70, 0x0a, 0x94, 0x0e, 0x80,
     };
 
-    Array<u8, 48> private_key {
+    Array<u8, 48> private_key_data {
         0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
         0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xc7, 0x63, 0x4d, 0x81, 0xf4, 0x37, 0x2d, 0xdf,
         0x58, 0x1a, 0x0d, 0xb2, 0x48, 0xb0, 0xa7, 0x7a, 0xec, 0xec, 0x19, 0x6a, 0xcc, 0xc5, 0x29, 0x62,
     };
 
-    Array<u8, 97> expected_public_key {
+    Array<u8, 97> expected_public_key_data {
         0x04,
         0x40, 0x99, 0x95, 0x22, 0x08, 0xB4, 0x88, 0x96, 0x00, 0xA5, 0xEB, 0xBC, 0xB1, 0x3E, 0x1A, 0x32,
         0x69, 0x2B, 0xEF, 0xB0, 0x73, 0x3B, 0x41, 0xE6, 0xDC, 0xC6, 0x14, 0xE4, 0x2E, 0x58, 0x05, 0xF8,
@@ -287,22 +294,36 @@ TEST_CASE(test_secp384r1)
     };
     // clang-format on
 
+    auto alice_private_key = Crypto::UnsignedBigInteger::import_data(alice_private_key_data.data(), alice_private_key_data.size());
+    auto alice_public_key = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ alice_public_key_data.data(), alice_public_key_data.size() }));
+    auto bob_private_key = Crypto::UnsignedBigInteger::import_data(bob_private_key_data.data(), bob_private_key_data.size());
+    auto bob_public_key = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ bob_public_key_data.data(), bob_public_key_data.size() }));
+    auto shared_secret = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ shared_secret_data.data(), shared_secret_data.size() }));
+    auto private_key = Crypto::UnsignedBigInteger::import_data(private_key_data.data(), private_key_data.size());
+    auto expected_public_key = TRY_OR_FAIL(Crypto::Curves::SECPxxxr1Point::from_uncompressed({ expected_public_key_data.data(), expected_public_key_data.size() }));
+
     Crypto::Curves::SECP384r1 curve;
 
     auto generated_alice_public = MUST(curve.generate_public_key(alice_private_key));
-    EXPECT_EQ(alice_public_key.span(), generated_alice_public);
+    EXPECT_EQ(alice_public_key.x, generated_alice_public.x);
+    EXPECT_EQ(alice_public_key.y, generated_alice_public.y);
 
     auto generated_bob_public = MUST(curve.generate_public_key(bob_private_key));
-    EXPECT_EQ(bob_public_key.span(), generated_bob_public);
+    EXPECT_EQ(bob_public_key.x, generated_bob_public.x);
+    EXPECT_EQ(bob_public_key.y, generated_bob_public.y);
 
     auto shared_alice = MUST(curve.compute_coordinate(alice_private_key, bob_public_key));
-    EXPECT_EQ(shared_alice, shared_secret.span());
+    EXPECT_EQ(shared_alice.x, shared_secret.x);
+    EXPECT_EQ(shared_alice.y, shared_secret.y);
 
     auto shared_bob = MUST(curve.compute_coordinate(bob_private_key, alice_public_key));
-    EXPECT_EQ(shared_bob, shared_secret.span());
+    EXPECT_EQ(shared_bob.x, shared_secret.x);
+    EXPECT_EQ(shared_bob.y, shared_secret.y);
 
-    EXPECT_EQ(shared_alice, shared_bob);
+    EXPECT_EQ(shared_alice.x, shared_bob.x);
+    EXPECT_EQ(shared_alice.y, shared_bob.y);
 
     auto generated_public = MUST(curve.generate_public_key(private_key));
-    EXPECT_EQ(expected_public_key.span(), generated_public);
+    EXPECT_EQ(expected_public_key.x, generated_public.x);
+    EXPECT_EQ(expected_public_key.y, generated_public.y);
 }

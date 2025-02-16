@@ -13,7 +13,7 @@
 
 namespace Crypto::Curves {
 
-ErrorOr<UnsignedBigInteger> SECPxxxr1::generate_private_key_scalar()
+ErrorOr<UnsignedBigInteger> SECPxxxr1::generate_private_key()
 {
     auto key = TRY(OpenSSL_PKEY::wrap(EVP_PKEY_Q_keygen(nullptr, nullptr, "EC", m_curve_name)));
 
@@ -24,7 +24,7 @@ ErrorOr<UnsignedBigInteger> SECPxxxr1::generate_private_key_scalar()
     return TRY(openssl_bignum_to_unsigned_big_integer(priv_bn));
 }
 
-ErrorOr<SECPxxxr1Point> SECPxxxr1::generate_public_key_point(UnsignedBigInteger scalar)
+ErrorOr<SECPxxxr1Point> SECPxxxr1::generate_public_key(UnsignedBigInteger scalar)
 {
     auto* group = EC_GROUP_new_by_curve_name(EC_curve_nist2nid(m_curve_name));
     ScopeGuard const free_group = [&] { EC_GROUP_free(group); };
@@ -48,7 +48,7 @@ ErrorOr<SECPxxxr1Point> SECPxxxr1::generate_public_key_point(UnsignedBigInteger 
     };
 }
 
-ErrorOr<SECPxxxr1Point> SECPxxxr1::compute_coordinate_point(UnsignedBigInteger scalar, SECPxxxr1Point point)
+ErrorOr<SECPxxxr1Point> SECPxxxr1::compute_coordinate(UnsignedBigInteger scalar, SECPxxxr1Point point)
 {
     auto* group = EC_GROUP_new_by_curve_name(EC_curve_nist2nid(m_curve_name));
     ScopeGuard const free_group = [&] { EC_GROUP_free(group); };
@@ -80,7 +80,7 @@ ErrorOr<SECPxxxr1Point> SECPxxxr1::compute_coordinate_point(UnsignedBigInteger s
     };
 }
 
-ErrorOr<bool> SECPxxxr1::verify_point(ReadonlyBytes hash, SECPxxxr1Point pubkey, SECPxxxr1Signature signature)
+ErrorOr<bool> SECPxxxr1::verify(ReadonlyBytes hash, SECPxxxr1Point pubkey, SECPxxxr1Signature signature)
 {
     auto ctx_import = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_name(nullptr, "EC", nullptr)));
 
@@ -135,7 +135,7 @@ ErrorOr<bool> SECPxxxr1::verify_point(ReadonlyBytes hash, SECPxxxr1Point pubkey,
     VERIFY_NOT_REACHED();
 }
 
-ErrorOr<SECPxxxr1Signature> SECPxxxr1::sign_scalar(ReadonlyBytes hash, UnsignedBigInteger private_key)
+ErrorOr<SECPxxxr1Signature> SECPxxxr1::sign(ReadonlyBytes hash, UnsignedBigInteger private_key)
 {
     auto ctx_import = TRY(OpenSSL_PKEY_CTX::wrap(EVP_PKEY_CTX_new_from_name(nullptr, "EC", nullptr)));
 
