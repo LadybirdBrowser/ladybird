@@ -434,11 +434,6 @@ static void do_run_tests(XML::Document& document)
 
             path_builder.append(suite.attributes.find("URI")->value);
             auto url = URL::create_with_file_scheme(path_builder.string_view());
-            if (!url.is_valid()) {
-                warnln("Invalid URL {}", path_builder.string_view());
-                s_test_results.set(path_builder.string_view(), TestResult::RunnerFailed);
-                continue;
-            }
 
             auto file_path = URL::percent_decode(url.serialize_path());
             auto file_result = Core::File::open(file_path, Core::File::OpenMode::Read);
