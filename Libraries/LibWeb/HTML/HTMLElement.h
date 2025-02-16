@@ -140,6 +140,8 @@ public:
     WebIDL::ExceptionOr<void> show_popover(ThrowExceptions throw_exceptions, GC::Ptr<HTMLElement> invoker);
     WebIDL::ExceptionOr<void> hide_popover(FocusPreviousElement focus_previous_element, FireEvents fire_events, ThrowExceptions throw_exceptions, IgnoreDomState ignore_dom_state);
 
+    bool is_inert() const { return m_inert; }
+
 protected:
     HTMLElement(DOM::Document&, DOM::QualifiedName);
 
@@ -159,6 +161,9 @@ protected:
     bool is_potentially_render_blocking();
     // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#implicitly-potentially-render-blocking
     virtual bool is_implicitly_potentially_render_blocking() const { return false; }
+
+    void set_inert(bool inert) { m_inert = inert; }
+    void set_subtree_inertness(bool is_inert);
 
 private:
     virtual bool is_html_element() const final { return true; }
@@ -187,6 +192,8 @@ private:
 
     // https://html.spec.whatwg.org/multipage/interaction.html#click-in-progress-flag
     bool m_click_in_progress { false };
+
+    bool m_inert { false };
 
     // Popover API
 

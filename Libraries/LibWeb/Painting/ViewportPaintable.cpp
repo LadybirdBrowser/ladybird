@@ -298,7 +298,7 @@ void ViewportPaintable::recompute_selection_states(DOM::Range& range)
         }
 
         // 2. If it's a text node, mark it as StartAndEnd and return.
-        if (is<DOM::Text>(*start_container)) {
+        if (is<DOM::Text>(*start_container) && !range.start().node->is_inert()) {
             if (auto* paintable = start_container->paintable())
                 paintable->set_selection_state(SelectionState::StartAndEnd);
             return;
@@ -306,7 +306,7 @@ void ViewportPaintable::recompute_selection_states(DOM::Range& range)
     }
 
     // 3. Mark the selection start node as Start (if text) or Full (if anything else).
-    if (auto* paintable = start_container->paintable()) {
+    if (auto* paintable = start_container->paintable(); paintable && !range.start().node->is_inert()) {
         if (is<DOM::Text>(*start_container))
             paintable->set_selection_state(SelectionState::Start);
         else
@@ -314,12 +314,13 @@ void ViewportPaintable::recompute_selection_states(DOM::Range& range)
     }
 
     // 4. Mark the selection end node as End (if text) or Full (if anything else).
-    if (auto* paintable = end_container->paintable()) {
+    if (auto* paintable = end_container->paintable(); paintable && !range.end().node->is_inert()) {
         if (is<DOM::Text>(*end_container) || end_container->is_ancestor_of(start_container)) {
             paintable->set_selection_state(SelectionState::End);
         } else {
             paintable->for_each_in_inclusive_subtree([&](auto& layout_node) {
-                layout_node.set_selection_state(SelectionState::Full);
+                if (!layout_node.dom_node() || !layout_node.dom_node()->is_inert())
+                    layout_node.set_selection_state(SelectionState::Full);
                 return TraversalDecision::Continue;
             });
         }
@@ -327,6 +328,8 @@ void ViewportPaintable::recompute_selection_states(DOM::Range& range)
 
     // 5. Mark the nodes between start node and end node (in tree order) as Full.
     for (auto* node = start_container->next_in_pre_order(); node && (node->is_before(end_container) || node->is_descendant_of(end_container)); node = node->next_in_pre_order()) {
+        if (node->is_inert())
+            continue;
         if (auto* paintable = node->paintable())
             paintable->set_selection_state(SelectionState::Full);
     }

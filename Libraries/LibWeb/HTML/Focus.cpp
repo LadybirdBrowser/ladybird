@@ -216,7 +216,9 @@ void run_focusing_steps(DOM::Node* new_focus_target, DOM::Node* fallback_target,
             new_focus_target = content_navigable->active_document();
     }
 
-    // FIXME: 4. If new focus target is a focusable area and its DOM anchor is inert, then return.
+    // 4. If new focus target is a focusable area and its DOM anchor is inert, then return.
+    if (new_focus_target->is_inert())
+        return;
 
     // 5. If new focus target is the currently focused area of a top-level browsing context, then return.
     if (!new_focus_target->document().browsing_context())
@@ -264,7 +266,9 @@ void run_unfocusing_steps(DOM::Node* old_focus_target)
         }
     }
 
-    // FIXME: 2. If old focus target is inert, then return.
+    // 2. If old focus target is inert, then return.
+    if (old_focus_target->is_inert())
+        return;
 
     // FIXME: 3. If old focus target is an area element and one of its shapes is the currently focused area of a
     //    top-level browsing context, or, if old focus target is an element with one or more scrollable regions, and one
