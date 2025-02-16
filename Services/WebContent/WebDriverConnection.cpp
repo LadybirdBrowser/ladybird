@@ -2669,6 +2669,22 @@ Web::WebDriver::PromptHandlerConfiguration WebDriverConnection::get_the_prompt_h
     return { .handler = Web::WebDriver::PromptHandler::Dismiss, .notify = Web::WebDriver::PromptHandlerConfiguration::Notify::Yes };
 }
 
+// https://w3c.github.io/webdriver/#dfn-annotated-unexpected-alert-open-error
+static Web::WebDriver::Error create_annotated_unexpected_alert_open_error(Optional<String> const& text)
+{
+    // An annotated unexpected alert open error is an error with error code unexpected alert open and an optional error
+    // data dictionary with the following entries:
+    //     "text"
+    //         The current user prompt's message.
+    auto data = text.map([&](auto const& text) -> JsonValue {
+        JsonObject data;
+        data.set("text"sv, text.to_byte_string());
+        return data;
+    });
+
+    return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnexpectedAlertOpen, "A user prompt is open"sv, move(data));
+}
+
 // https://w3c.github.io/webdriver/#dfn-handle-any-user-prompts
 void WebDriverConnection::handle_any_user_prompts(Function<void()> on_dialog_closed)
 {
@@ -2705,10 +2721,10 @@ void WebDriverConnection::handle_any_user_prompts(Function<void()> on_dialog_clo
     // 3. Let handler be get the prompt handler with type.
     auto handler = get_the_prompt_handler(type);
 
-    auto on_complete = GC::create_function(heap, [this, notify = handler.notify, on_dialog_closed = GC::create_function(heap, move(on_dialog_closed))]() {
+    auto on_complete = GC::create_function(heap, [this, notify = handler.notify, pending_dialog_text = page.pending_dialog_text(), on_dialog_closed = GC::create_function(heap, move(on_dialog_closed))]() {
         // 5. If handler's notify is true, return annotated unexpected alert open error.
         if (notify == Web::WebDriver::PromptHandlerConfiguration::Notify::Yes) {
-            async_driver_execution_complete(Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::UnexpectedAlertOpen, "A user prompt is open"sv));
+            async_driver_execution_complete(create_annotated_unexpected_alert_open_error(pending_dialog_text));
             return;
         }
 
