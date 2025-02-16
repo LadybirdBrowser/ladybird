@@ -1015,8 +1015,6 @@ static WebIDL::ExceptionOr<Navigable::NavigationParamsVariant> create_navigation
         }
 
         // 16. Assert: locationURL is a URL.
-        VERIFY(location_url.value()->is_valid());
-
         // 17. Set entry's classic history API state to StructuredSerializeForStorage(null).
         entry->set_classic_history_api_state(MUST(structured_serialize_for_storage(vm, JS::js_null())));
 
