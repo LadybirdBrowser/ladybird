@@ -183,14 +183,14 @@ private:
 
         return m_segmented_text.visit(
             [&](String const& text) -> Optional<i32> {
-                if (boundary >= text.byte_count())
+                if (boundary > text.byte_count())
                     return {};
 
                 U8_SET_CP_START(text.bytes().data(), 0, icu_boundary);
                 return icu_boundary;
             },
             [&](icu::UnicodeString const& text) -> Optional<i32> {
-                if (icu_boundary >= text.length())
+                if (icu_boundary > text.length())
                     return {};
 
                 return text.getChar32Start(icu_boundary);
