@@ -10,7 +10,6 @@
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibCrypto/Hash/HashManager.h>
-#include <LibCrypto/NumberTheory/ModularFunctions.h>
 #include <LibCrypto/OpenSSL.h>
 #include <LibCrypto/PK/PK.h>
 
@@ -73,19 +72,6 @@ public:
     {
     }
 
-    RSAPrivateKey(Integer n, Integer d, Integer e, Integer p, Integer q)
-        : m_modulus(move(n))
-        , m_private_exponent(move(d))
-        , m_public_exponent(move(e))
-        , m_prime_1(move(p))
-        , m_prime_2(move(q))
-        , m_exponent_1(NumberTheory::Mod(m_private_exponent, m_prime_1.minus(1)))
-        , m_exponent_2(NumberTheory::Mod(m_private_exponent, m_prime_2.minus(1)))
-        , m_coefficient(NumberTheory::ModularInverse(m_prime_2, m_prime_1))
-        , m_length(m_modulus.trimmed_length() * sizeof(u32))
-    {
-    }
-
     RSAPrivateKey(Integer n, Integer d, Integer e, Integer p, Integer q, Integer dp, Integer dq, Integer qinv)
         : m_modulus(move(n))
         , m_private_exponent(move(d))
@@ -100,14 +86,6 @@ public:
     }
 
     RSAPrivateKey() = default;
-
-    static RSAPrivateKey from_crt(Integer n, Integer e, Integer p, Integer q, Integer dp, Integer dq, Integer qinv)
-    {
-        auto phi = p.minus(1).multiplied_by(q.minus(1));
-        auto d = NumberTheory::ModularInverse(e, phi);
-
-        return { n, d, e, p, q, dp, dq, qinv };
-    }
 
     Integer const& modulus() const { return m_modulus; }
     Integer const& private_exponent() const { return m_private_exponent; }

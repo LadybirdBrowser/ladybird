@@ -244,7 +244,7 @@ static WebIDL::ExceptionOr<::Crypto::PK::RSAPrivateKey<>> parse_jwk_rsa_private_
 
     // We know that if any of the extra parameters are provided, all of them must be
     if (!jwk.p.has_value())
-        return ::Crypto::PK::RSAPrivateKey<>(move(n), move(d), move(e), 0, 0);
+        return ::Crypto::PK::RSAPrivateKey<>(move(n), move(d), move(e));
 
     auto p = TRY(base64_url_uint_decode(realm, *jwk.p));
     auto q = TRY(base64_url_uint_decode(realm, *jwk.q));
