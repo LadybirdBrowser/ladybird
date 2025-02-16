@@ -6,6 +6,7 @@ set(TEST_SOURCES
     TestChecksum.cpp
     TestCurves.cpp
     TestEd25519.cpp
+    TestEd448.cpp
     TestHash.cpp
     TestHKDF.cpp
     TestHMAC.cpp
