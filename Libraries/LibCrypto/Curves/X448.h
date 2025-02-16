@@ -7,17 +7,16 @@
 #pragma once
 
 #include <AK/ByteBuffer.h>
-#include <LibCrypto/Curves/EllipticCurve.h>
 
 namespace Crypto::Curves {
 
-class X448 : public EllipticCurve {
+class X448 {
 public:
-    size_t key_size() override { return 56; }
-    ErrorOr<ByteBuffer> generate_private_key() override;
-    ErrorOr<ByteBuffer> generate_public_key(ReadonlyBytes a) override;
-    ErrorOr<ByteBuffer> compute_coordinate(ReadonlyBytes a, ReadonlyBytes b) override;
-    ErrorOr<ByteBuffer> derive_premaster_key(ReadonlyBytes shared_point) override;
+    size_t key_size() { return 56; }
+    ErrorOr<ByteBuffer> generate_private_key();
+    ErrorOr<ByteBuffer> generate_public_key(ReadonlyBytes a);
+    ErrorOr<ByteBuffer> compute_coordinate(ReadonlyBytes a, ReadonlyBytes b);
+    ErrorOr<ByteBuffer> derive_premaster_key(ReadonlyBytes shared_point);
 };
 
 }
