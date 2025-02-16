@@ -203,17 +203,17 @@ void prepare_to_run_callback(JS::Realm& realm)
 }
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#parse-a-url
-URL::URL EnvironmentSettingsObject::parse_url(StringView url)
+Optional<URL::URL> EnvironmentSettingsObject::parse_url(StringView url)
 {
     // 1. Let baseURL be environment's base URL, if environment is a Document object; otherwise environment's API base URL.
     auto base_url = api_base_url();
 
     // 2. Return the result of applying the URL parser to url, with baseURL.
-    return DOMURL::parse(url, base_url).value_or(URL::URL {});
+    return DOMURL::parse(url, base_url);
 }
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#encoding-parsing-a-url
-URL::URL EnvironmentSettingsObject::encoding_parse_url(StringView url)
+Optional<URL::URL> EnvironmentSettingsObject::encoding_parse_url(StringView url)
 {
     // 1. Let encoding be UTF-8.
     auto encoding = "UTF-8"_string;
@@ -229,7 +229,7 @@ URL::URL EnvironmentSettingsObject::encoding_parse_url(StringView url)
     auto base_url = api_base_url();
 
     // 5. Return the result of applying the URL parser to url, with baseURL and encoding.
-    return DOMURL::parse(url, base_url, encoding).value_or(URL::URL {});
+    return DOMURL::parse(url, base_url, encoding);
 }
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#encoding-parsing-and-serializing-a-url
@@ -239,11 +239,11 @@ Optional<String> EnvironmentSettingsObject::encoding_parse_and_serialize_url(Str
     auto parsed_url = encoding_parse_url(url);
 
     // 2. If url is failure, then return failure.
-    if (!parsed_url.is_valid())
+    if (!parsed_url.has_value())
         return {};
 
     // 3. Return the result of applying the URL serializer to url.
-    return parsed_url.serialize();
+    return parsed_url->serialize();
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#clean-up-after-running-a-callback

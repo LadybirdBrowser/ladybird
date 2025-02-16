@@ -46,11 +46,11 @@ WebIDL::ExceptionOr<GC::Ref<EventSource>> EventSource::construct_impl(JS::Realm&
     auto url_record = settings.encoding_parse_url(url);
 
     // 4. If urlRecord is failure, then throw a "SyntaxError" DOMException.
-    if (!url_record.is_valid())
+    if (!url_record.has_value())
         return WebIDL::SyntaxError::create(realm, MUST(String::formatted("Invalid URL '{}'", url)));
 
     // 5. Set ev's url to urlRecord.
-    event_source->m_url = move(url_record);
+    event_source->m_url = url_record.release_value();
 
     // 6. Let corsAttributeState be Anonymous.
     auto cors_attribute_state = CORSSettingAttribute::Anonymous;

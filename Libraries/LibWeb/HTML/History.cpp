@@ -199,11 +199,11 @@ WebIDL::ExceptionOr<void> History::shared_history_push_replace_state(JS::Value d
         auto parsed_url = relevant_settings_object(*this).parse_url(url->to_byte_string());
 
         // 2. If that fails, then throw a "SecurityError" DOMException.
-        if (!parsed_url.is_valid())
+        if (!parsed_url.has_value())
             return WebIDL::SecurityError::create(realm(), "Cannot pushState or replaceState to incompatible URL"_string);
 
         // 3. Set newURL to the resulting URL record.
-        new_url = parsed_url;
+        new_url = parsed_url.release_value();
 
         // 4. If document cannot have its URL rewritten to newURL, then throw a "SecurityError" DOMException.
         if (!can_have_its_url_rewritten(document, new_url))

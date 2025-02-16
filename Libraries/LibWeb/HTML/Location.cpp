@@ -141,11 +141,11 @@ WebIDL::ExceptionOr<void> Location::set_href(String const& new_href)
     auto url = entry_settings_object().encoding_parse_url(new_href.to_byte_string());
 
     // 3. If url is failure, then throw a "SyntaxError" DOMException.
-    if (!url.is_valid())
+    if (!url.has_value())
         return WebIDL::SyntaxError::create(realm, MUST(String::formatted("Invalid URL '{}'", new_href)));
 
     // 4. Location-object navigate this to url.
-    TRY(navigate(url));
+    TRY(navigate(url.release_value()));
 
     return {};
 }
@@ -450,11 +450,11 @@ WebIDL::ExceptionOr<void> Location::replace(String const& url)
 
     // 2. Parse url relative to the entry settings object. If that failed, throw a "SyntaxError" DOMException.
     auto replace_url = entry_settings_object().parse_url(url);
-    if (!replace_url.is_valid())
+    if (!replace_url.has_value())
         return WebIDL::SyntaxError::create(realm(), MUST(String::formatted("Invalid URL '{}'", url)));
 
     // 3. Location-object navigate this to the resulting URL record given "replace".
-    TRY(navigate(replace_url, Bindings::NavigationHistoryBehavior::Replace));
+    TRY(navigate(replace_url.release_value(), Bindings::NavigationHistoryBehavior::Replace));
 
     return {};
 }
@@ -473,11 +473,11 @@ WebIDL::ExceptionOr<void> Location::assign(String const& url)
 
     // 3. Parse url relative to the entry settings object. If that failed, throw a "SyntaxError" DOMException.
     auto assign_url = entry_settings_object().parse_url(url);
-    if (!assign_url.is_valid())
+    if (!assign_url.has_value())
         return WebIDL::SyntaxError::create(realm(), MUST(String::formatted("Invalid URL '{}'", url)));
 
     // 4. Location-object navigate this to the resulting URL record.
-    TRY(navigate(assign_url));
+    TRY(navigate(assign_url.release_value()));
 
     return {};
 }
