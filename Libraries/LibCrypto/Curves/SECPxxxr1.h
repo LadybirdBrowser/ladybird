@@ -135,62 +135,11 @@ struct SECPxxxr1Signature {
 
 class SECPxxxr1 {
 public:
-    size_t key_size() { return 1 + (2 * m_scalar_size); }
-
-    ErrorOr<UnsignedBigInteger> generate_private_key_scalar();
-    ErrorOr<SECPxxxr1Point> generate_public_key_point(UnsignedBigInteger scalar);
-    ErrorOr<SECPxxxr1Point> compute_coordinate_point(UnsignedBigInteger scalar, SECPxxxr1Point point);
-    ErrorOr<bool> verify_point(ReadonlyBytes hash, SECPxxxr1Point pubkey, SECPxxxr1Signature signature);
-    ErrorOr<SECPxxxr1Signature> sign_scalar(ReadonlyBytes hash, UnsignedBigInteger private_key);
-
-    ErrorOr<SECPxxxr1Point> derive_premaster_key_point(SECPxxxr1Point shared_point)
-    {
-        return shared_point;
-    }
-
-    ErrorOr<ByteBuffer> generate_private_key()
-    {
-        auto key = TRY(generate_private_key_scalar());
-
-        auto buffer = TRY(ByteBuffer::create_uninitialized(m_scalar_size));
-        auto buffer_bytes = buffer.bytes();
-        auto size = key.export_data(buffer_bytes);
-        return buffer.slice(0, size);
-    }
-
-    ErrorOr<ByteBuffer> generate_public_key(ReadonlyBytes a)
-    {
-        auto a_int = UnsignedBigInteger::import_data(a);
-        auto point = TRY(generate_public_key_point(a_int));
-        return point.to_uncompressed();
-    }
-
-    ErrorOr<ByteBuffer> compute_coordinate(ReadonlyBytes scalar_bytes, ReadonlyBytes point_bytes)
-    {
-        auto scalar = UnsignedBigInteger::import_data(scalar_bytes);
-        auto point = TRY(SECPxxxr1Point::from_uncompressed(point_bytes));
-        auto result = TRY(compute_coordinate_point(scalar, { point.x, point.y, m_scalar_size }));
-        return result.to_uncompressed();
-    }
-
-    ErrorOr<ByteBuffer> derive_premaster_key(ReadonlyBytes shared_point_bytes)
-    {
-        auto shared_point = TRY(SECPxxxr1Point::from_uncompressed(shared_point_bytes));
-        auto premaster_key_point = TRY(derive_premaster_key_point(shared_point));
-        return premaster_key_point.to_uncompressed();
-    }
-
-    ErrorOr<bool> verify(ReadonlyBytes hash, ReadonlyBytes pubkey, SECPxxxr1Signature signature)
-    {
-        auto pubkey_point = TRY(SECPxxxr1Point::from_uncompressed(pubkey));
-        return verify_point(hash, pubkey_point, signature);
-    }
-
-    ErrorOr<SECPxxxr1Signature> sign(ReadonlyBytes hash, ReadonlyBytes private_key_bytes)
-    {
-        auto signature = TRY(sign_scalar(hash, UnsignedBigInteger::import_data(private_key_bytes.data(), private_key_bytes.size())));
-        return signature;
-    }
+    ErrorOr<UnsignedBigInteger> generate_private_key();
+    ErrorOr<SECPxxxr1Point> generate_public_key(UnsignedBigInteger scalar);
+    ErrorOr<SECPxxxr1Point> compute_coordinate(UnsignedBigInteger scalar, SECPxxxr1Point point);
+    ErrorOr<bool> verify(ReadonlyBytes hash, SECPxxxr1Point pubkey, SECPxxxr1Signature signature);
+    ErrorOr<SECPxxxr1Signature> sign(ReadonlyBytes hash, UnsignedBigInteger private_key);
 
 protected:
     SECPxxxr1(char const* curve_name, size_t scalar_size)
