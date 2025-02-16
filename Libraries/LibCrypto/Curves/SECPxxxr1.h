@@ -11,7 +11,6 @@
 #include <AK/StringView.h>
 #include <LibCrypto/ASN1/Constants.h>
 #include <LibCrypto/ASN1/DER.h>
-#include <LibCrypto/Curves/EllipticCurve.h>
 #include <LibCrypto/OpenSSL.h>
 
 namespace {
@@ -134,9 +133,9 @@ struct SECPxxxr1Signature {
     }
 };
 
-class SECPxxxr1 : public EllipticCurve {
+class SECPxxxr1 {
 public:
-    size_t key_size() override { return 1 + (2 * m_scalar_size); }
+    size_t key_size() { return 1 + (2 * m_scalar_size); }
 
     ErrorOr<UnsignedBigInteger> generate_private_key_scalar();
     ErrorOr<SECPxxxr1Point> generate_public_key_point(UnsignedBigInteger scalar);
@@ -149,7 +148,7 @@ public:
         return shared_point;
     }
 
-    ErrorOr<ByteBuffer> generate_private_key() override
+    ErrorOr<ByteBuffer> generate_private_key()
     {
         auto key = TRY(generate_private_key_scalar());
 
@@ -159,14 +158,14 @@ public:
         return buffer.slice(0, size);
     }
 
-    ErrorOr<ByteBuffer> generate_public_key(ReadonlyBytes a) override
+    ErrorOr<ByteBuffer> generate_public_key(ReadonlyBytes a)
     {
         auto a_int = UnsignedBigInteger::import_data(a);
         auto point = TRY(generate_public_key_point(a_int));
         return point.to_uncompressed();
     }
 
-    ErrorOr<ByteBuffer> compute_coordinate(ReadonlyBytes scalar_bytes, ReadonlyBytes point_bytes) override
+    ErrorOr<ByteBuffer> compute_coordinate(ReadonlyBytes scalar_bytes, ReadonlyBytes point_bytes)
     {
         auto scalar = UnsignedBigInteger::import_data(scalar_bytes);
         auto point = TRY(SECPxxxr1Point::from_uncompressed(point_bytes));
@@ -174,7 +173,7 @@ public:
         return result.to_uncompressed();
     }
 
-    ErrorOr<ByteBuffer> derive_premaster_key(ReadonlyBytes shared_point_bytes) override
+    ErrorOr<ByteBuffer> derive_premaster_key(ReadonlyBytes shared_point_bytes)
     {
         auto shared_point = TRY(SECPxxxr1Point::from_uncompressed(shared_point_bytes));
         auto premaster_key_point = TRY(derive_premaster_key_point(shared_point));
