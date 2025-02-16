@@ -5,7 +5,7 @@
  */
 
 #include <AK/ByteBuffer.h>
-#include <LibCrypto/Curves/Ed25519.h>
+#include <LibCrypto/Curves/EdwardsCurve.h>
 #include <LibTest/TestCase.h>
 
 // https://datatracker.ietf.org/doc/html/rfc8032#section-7.1
@@ -45,9 +45,9 @@ TEST_CASE(TEST_1)
 
     Crypto::Curves::Ed25519 curve;
 
-    auto generated_signature = MUST(curve.sign(public_key, private_key, message));
+    auto generated_signature = TRY_OR_FAIL(curve.sign(private_key, message));
     EXPECT_EQ(generated_signature, expected_signature);
-    EXPECT_EQ(true, curve.verify(public_key, expected_signature, message));
+    EXPECT(TRY_OR_FAIL(curve.verify(public_key, expected_signature, message)));
 }
 
 TEST_CASE(TEST_2)
@@ -86,9 +86,9 @@ TEST_CASE(TEST_2)
 
     Crypto::Curves::Ed25519 curve;
 
-    auto generated_signature = MUST(curve.sign(public_key, private_key, message));
+    auto generated_signature = TRY_OR_FAIL(curve.sign(private_key, message));
     EXPECT_EQ(generated_signature, expected_signature);
-    EXPECT_EQ(true, curve.verify(public_key, expected_signature, message));
+    EXPECT(TRY_OR_FAIL(curve.verify(public_key, expected_signature, message)));
 }
 
 TEST_CASE(TEST_3)
@@ -128,9 +128,9 @@ TEST_CASE(TEST_3)
 
     Crypto::Curves::Ed25519 curve;
 
-    auto generated_signature = MUST(curve.sign(public_key, private_key, message));
+    auto generated_signature = TRY_OR_FAIL(curve.sign(private_key, message));
     EXPECT_EQ(generated_signature, expected_signature);
-    EXPECT_EQ(true, curve.verify(public_key, expected_signature, message));
+    EXPECT(TRY_OR_FAIL(curve.verify(public_key, expected_signature, message)));
 }
 
 TEST_CASE(TEST_SHA_ABC)
@@ -179,7 +179,7 @@ TEST_CASE(TEST_SHA_ABC)
 
     Crypto::Curves::Ed25519 curve;
 
-    auto generated_signature = MUST(curve.sign(public_key, private_key, message));
+    auto generated_signature = TRY_OR_FAIL(curve.sign(private_key, message));
     EXPECT_EQ(generated_signature, expected_signature);
-    EXPECT_EQ(true, curve.verify(public_key, expected_signature, message));
+    EXPECT(TRY_OR_FAIL(curve.verify(public_key, expected_signature, message)));
 }

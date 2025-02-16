@@ -22,12 +22,8 @@ set(SOURCES
     Checksum/CRC32.cpp
     Cipher/AES.cpp
     Cipher/Cipher.cpp
-    Curves/Curve25519.cpp
-    Curves/Ed25519.cpp
-    Curves/Ed448.cpp
+    Curves/EdwardsCurve.cpp
     Curves/SECPxxxr1.cpp
-    Curves/X25519.cpp
-    Curves/X448.cpp
     Hash/BLAKE2b.cpp
     Hash/MD5.cpp
     Hash/SHA1.cpp

@@ -3,7 +3,7 @@
  * Copyright (c) 2024, stelar7 <dudedbz@gmail.com>
  * Copyright (c) 2024, Jelle Raaijmakers <jelle@ladybird.org>
  * Copyright (c) 2024, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2024, Altomani Gianluca <altomanigianluca@gmail.com>
+ * Copyright (c) 2024-2025, Altomani Gianluca <altomanigianluca@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -17,11 +17,8 @@
 #include <LibCrypto/Authentication/HMAC.h>
 #include <LibCrypto/Certificate/Certificate.h>
 #include <LibCrypto/Cipher/AES.h>
-#include <LibCrypto/Curves/Ed25519.h>
-#include <LibCrypto/Curves/Ed448.h>
+#include <LibCrypto/Curves/EdwardsCurve.h>
 #include <LibCrypto/Curves/SECPxxxr1.h>
-#include <LibCrypto/Curves/X25519.h>
-#include <LibCrypto/Curves/X448.h>
 #include <LibCrypto/Hash/HKDF.h>
 #include <LibCrypto/Hash/HashManager.h>
 #include <LibCrypto/Hash/PBKDF2.h>
@@ -6091,7 +6088,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> ED25519::sign([[maybe_unused]] Alg
         return WebIDL::OperationError::create(realm, "Failed to generate public key"_string);
     auto public_key = maybe_public_key.release_value();
 
-    auto maybe_signature = curve.sign(public_key, private_key, message);
+    auto maybe_signature = curve.sign(private_key, message);
     if (maybe_signature.is_error())
         return WebIDL::OperationError::create(realm, "Failed to sign message"_string);
     auto signature = maybe_signature.release_value();
@@ -6122,10 +6119,14 @@ WebIDL::ExceptionOr<JS::Value> ED25519::verify([[maybe_unused]] AlgorithmParams 
 
     // 9. Let result be a boolean with the value true if the signature is valid and the value false otherwise.
     ::Crypto::Curves::Ed25519 curve;
-    auto result = curve.verify(public_key, signature, message);
+    auto maybe_verified = curve.verify(key->handle().get<ByteBuffer>(), signature, message);
+    if (maybe_verified.is_error()) {
+        auto error_message = MUST(String::from_utf8(maybe_verified.error().string_literal()));
+        return WebIDL::OperationError::create(realm, error_message);
+    }
 
     // 10. Return result.
-    return JS::Value(result);
+    return maybe_verified.release_value();
 }
 
 // https://wicg.github.io/webcrypto-secure-curves/#ed448-operations
