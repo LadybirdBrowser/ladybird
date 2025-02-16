@@ -44,4 +44,20 @@ ErrorOr<UnsignedBigInteger> openssl_bignum_to_unsigned_big_integer(OpenSSL_BN co
     return UnsignedBigInteger::import_data(buf.bytes().data(), size);
 }
 
+ErrorOr<StringView> hash_kind_to_openssl_digest_name(Hash::HashKind hash)
+{
+    switch (hash) {
+    case Hash::HashKind::SHA1:
+        return "SHA1"sv;
+    case Hash::HashKind::SHA256:
+        return "SHA256"sv;
+    case Hash::HashKind::SHA384:
+        return "SHA384"sv;
+    case Hash::HashKind::SHA512:
+        return "SHA512"sv;
+    default:
+        return Error::from_string_literal("Unsupported hash kind");
+    }
+}
+
 }
