@@ -5,9 +5,8 @@
  */
 
 #include <AK/ByteBuffer.h>
+#include <LibCrypto/Curves/EdwardsCurve.h>
 #include <LibCrypto/Curves/SECPxxxr1.h>
-#include <LibCrypto/Curves/X25519.h>
-#include <LibCrypto/Curves/X448.h>
 #include <LibTest/TestCase.h>
 
 TEST_CASE(test_x25519)
