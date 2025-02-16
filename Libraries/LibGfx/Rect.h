@@ -395,6 +395,12 @@ public:
             && other.top() < bottom();
     }
 
+    [[nodiscard]] bool edge_adjacent_intersects(Rect<T> const& other) const
+    {
+        return max(left(), other.left()) <= min(right(), other.right())
+            && max(top(), other.top()) <= min(bottom(), other.bottom());
+    }
+
     template<typename Container>
     [[nodiscard]] bool intersects(Container const& others) const
     {
