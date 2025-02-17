@@ -73,7 +73,7 @@ ErrorOr<NonnullRefPtr<Session>> Session::create(NonnullRefPtr<Client> client, Js
         // 1. Let strategy be the result of getting property "pageLoadStrategy" from capabilities. If strategy is a
         //    string, set the session's page loading strategy to strategy. Otherwise, set the page loading strategy to
         //    normal and set a property of capabilities with name "pageLoadStrategy" and value "normal".
-        if (auto strategy = capabilities.get_byte_string("pageLoadStrategy"sv); strategy.has_value()) {
+        if (auto strategy = capabilities.get_string("pageLoadStrategy"sv); strategy.has_value()) {
             session->m_page_load_strategy = Web::WebDriver::page_load_strategy_from_string(*strategy);
             session->web_content_connection().async_set_page_load_strategy(session->m_page_load_strategy);
         } else {
@@ -139,7 +139,7 @@ ErrorOr<NonnullRefPtr<Session>, Web::WebDriver::Error> Session::find_session(Str
         return *session.release_value();
     }
 
-    return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidSessionId, "Invalid session id");
+    return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidSessionId, "Invalid session id"sv);
 }
 
 size_t Session::session_count(Web::WebDriver::SessionFlags session_flags)
@@ -306,7 +306,7 @@ Web::WebDriver::Response Session::switch_to_window(StringView handle)
     if (auto it = m_windows.find(handle); it != m_windows.end())
         m_current_window_handle = it->key;
     else
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found");
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchWindow, "Window not found"sv);
 
     // 5. Update any implementation-specific state that would result from the user selecting the current
     //    browsing context for interaction, without altering OS-level focus.

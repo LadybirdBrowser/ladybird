@@ -85,7 +85,7 @@ Response encode_canvas_element(HTML::HTMLCanvasElement& canvas)
     auto encoded_string = MUST(data_url.substring_from_byte_offset(*index + 1));
 
     // 7. Return success with data encoded string.
-    return JsonValue { encoded_string.to_byte_string() };
+    return JsonValue { move(encoded_string) };
 }
 
 }

@@ -25,16 +25,18 @@
 namespace Web::WebDriver {
 
 // https://w3c.github.io/webdriver/#dfn-web-element-identifier
-static ByteString const web_element_identifier = "element-6066-11e4-a52e-4f735466cecf"sv;
+static String const web_element_identifier = "element-6066-11e4-a52e-4f735466cecf"_string;
+static JS::PropertyKey web_element_identifier_key { web_element_identifier.to_byte_string() };
 
 // https://w3c.github.io/webdriver/#dfn-shadow-root-identifier
-static ByteString const shadow_root_identifier = "shadow-6066-11e4-a52e-4f735466cecf"sv;
+static String const shadow_root_identifier = "shadow-6066-11e4-a52e-4f735466cecf"_string;
+static JS::PropertyKey shadow_root_identifier_key { shadow_root_identifier.to_byte_string() };
 
 // https://w3c.github.io/webdriver/#dfn-browsing-context-group-node-map
-static HashMap<GC::RawPtr<HTML::BrowsingContextGroup const>, HashTable<ByteString>> browsing_context_group_node_map;
+static HashMap<GC::RawPtr<HTML::BrowsingContextGroup const>, HashTable<String>> browsing_context_group_node_map;
 
 // https://w3c.github.io/webdriver/#dfn-navigable-seen-nodes-map
-static HashMap<GC::RawPtr<HTML::Navigable>, HashTable<ByteString>> navigable_seen_nodes_map;
+static HashMap<GC::RawPtr<HTML::Navigable>, HashTable<String>> navigable_seen_nodes_map;
 
 // https://w3c.github.io/webdriver/#dfn-get-a-node
 GC::Ptr<Web::DOM::Node> get_node(HTML::BrowsingContext const& browsing_context, StringView reference)
@@ -62,7 +64,7 @@ GC::Ptr<Web::DOM::Node> get_node(HTML::BrowsingContext const& browsing_context, 
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-or-create-a-node-reference
-ByteString get_or_create_a_node_reference(HTML::BrowsingContext const& browsing_context, Web::DOM::Node const& node)
+String get_or_create_a_node_reference(HTML::BrowsingContext const& browsing_context, Web::DOM::Node const& node)
 {
     // 1. Let browsing context group node map be session's browsing context group node map.
     // 2. Let browsing context group be browsing context's browsing context group.
@@ -73,7 +75,7 @@ ByteString get_or_create_a_node_reference(HTML::BrowsingContext const& browsing_
     // 4. Let node id map be browsing context group node map[browsing context group].
     auto& node_id_map = browsing_context_group_node_map.ensure(browsing_context_group);
 
-    auto node_id = ByteString::number(node.unique_id().value());
+    auto node_id = String::number(node.unique_id().value());
 
     // 5. If node id map does not contain node:
     if (!node_id_map.contains(node_id)) {
@@ -111,7 +113,7 @@ bool node_reference_is_known(HTML::BrowsingContext const& browsing_context, Stri
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-or-create-a-web-element-reference
-ByteString get_or_create_a_web_element_reference(HTML::BrowsingContext const& browsing_context, Web::DOM::Node const& element)
+String get_or_create_a_web_element_reference(HTML::BrowsingContext const& browsing_context, Web::DOM::Node const& element)
 {
     // 1. Assert: element implements Element.
     VERIFY(element.is_element());
@@ -132,7 +134,7 @@ JsonObject web_element_reference_object(HTML::BrowsingContext const& browsing_co
 
     // 3. Return a JSON Object initialized with a property with name identifier and value reference.
     JsonObject object;
-    object.set(identifier, MUST(String::from_byte_string(reference)));
+    object.set(identifier, move(reference));
     return object;
 }
 
@@ -153,7 +155,7 @@ bool represents_a_web_element(JS::Value value)
     if (!value.is_object())
         return false;
 
-    auto result = value.as_object().has_own_property(web_element_identifier);
+    auto result = value.as_object().has_own_property(web_element_identifier_key);
     return !result.is_error() && result.value();
 }
 
@@ -162,7 +164,7 @@ ErrorOr<GC::Ref<Web::DOM::Element>, WebDriver::Error> deserialize_web_element(We
 {
     // 1. If object has no own property web element identifier, return error with error code invalid argument.
     if (!object.has_string(web_element_identifier))
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a web element");
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a web element"sv);
 
     // 2. Let reference be the result of getting the web element identifier property from object.
     auto reference = extract_web_element_reference(object);
@@ -178,9 +180,9 @@ ErrorOr<GC::Ref<Web::DOM::Element>, WebDriver::Error> deserialize_web_element(We
 ErrorOr<GC::Ref<Web::DOM::Element>, WebDriver::Error> deserialize_web_element(Web::HTML::BrowsingContext const& browsing_context, JS::Object const& object)
 {
     // 1. If object has no own property web element identifier, return error with error code invalid argument.
-    auto property = object.get(web_element_identifier);
+    auto property = object.get(web_element_identifier_key);
     if (property.is_error() || !property.value().is_string())
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a web element");
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a web element"sv);
 
     // 2. Let reference be the result of getting the web element identifier property from object.
     auto reference = property.value().as_string().utf8_string();
@@ -192,9 +194,9 @@ ErrorOr<GC::Ref<Web::DOM::Element>, WebDriver::Error> deserialize_web_element(We
     return element;
 }
 
-ByteString extract_web_element_reference(JsonObject const& object)
+String extract_web_element_reference(JsonObject const& object)
 {
-    return object.get_byte_string(web_element_identifier).release_value();
+    return object.get_string(web_element_identifier).release_value();
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-a-webelement-origin
@@ -215,18 +217,18 @@ ErrorOr<GC::Ref<Web::DOM::Element>, Web::WebDriver::Error> get_known_element(Web
     // 1. If not node reference is known with session, session's current browsing context, and reference return error
     //    with error code no such element.
     if (!node_reference_is_known(browsing_context, reference))
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, ByteString::formatted("Element reference '{}' is not known", reference));
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, MUST(String::formatted("Element reference '{}' is not known", reference)));
 
     // 2. Let node be the result of get a node with session, session's current browsing context, and reference.
     auto node = get_node(browsing_context, reference);
 
     // 3. If node is not null and node does not implement Element return error with error code no such element.
     if (node && !node->is_element())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, ByteString::formatted("Could not find element with reference '{}'", reference));
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchElement, MUST(String::formatted("Could not find element with reference '{}'", reference)));
 
     // 4. If node is null or node is stale return error with error code stale element reference.
     if (!node || is_element_stale(*node))
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::StaleElementReference, ByteString::formatted("Element reference '{}' is stale", reference));
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::StaleElementReference, MUST(String::formatted("Element reference '{}' is stale", reference)));
 
     // 5. Return success with data node.
     return static_cast<Web::DOM::Element&>(*node);
@@ -403,7 +405,7 @@ GC::RootVector<GC::Ref<Web::DOM::Element>> pointer_interactable_tree(Web::HTML::
 }
 
 // https://w3c.github.io/webdriver/#dfn-get-or-create-a-shadow-root-reference
-ByteString get_or_create_a_shadow_root_reference(HTML::BrowsingContext const& browsing_context, Web::DOM::ShadowRoot const& shadow_root)
+String get_or_create_a_shadow_root_reference(HTML::BrowsingContext const& browsing_context, Web::DOM::ShadowRoot const& shadow_root)
 {
     // 1. Assert: element implements ShadowRoot.
     // 2. Return the result of trying to get or create a node reference with session, session's current browsing context,
@@ -422,7 +424,7 @@ JsonObject shadow_root_reference_object(HTML::BrowsingContext const& browsing_co
 
     // 3. Return a JSON Object initialized with a property with name identifier and value reference.
     JsonObject object;
-    object.set(identifier, MUST(String::from_byte_string(reference)));
+    object.set(identifier, move(reference));
     return object;
 }
 
@@ -443,7 +445,7 @@ bool represents_a_shadow_root(JS::Value value)
     if (!value.is_object())
         return false;
 
-    auto result = value.as_object().has_own_property(shadow_root_identifier);
+    auto result = value.as_object().has_own_property(shadow_root_identifier_key);
     return !result.is_error() && result.value();
 }
 
@@ -452,10 +454,10 @@ ErrorOr<GC::Ref<Web::DOM::ShadowRoot>, WebDriver::Error> deserialize_shadow_root
 {
     // 1. If object has no own property shadow root identifier, return error with error code invalid argument.
     if (!object.has_string(shadow_root_identifier))
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a Shadow Root");
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a Shadow Root"sv);
 
     // 2. Let reference be the result of getting the shadow root identifier property from object.
-    auto reference = object.get_byte_string(shadow_root_identifier).release_value();
+    auto const& reference = object.get_string(shadow_root_identifier).release_value();
 
     // 3. Let shadow be the result of trying to get a known shadow root with session and reference.
     auto shadow = TRY(get_known_shadow_root(browsing_context, reference));
@@ -468,9 +470,9 @@ ErrorOr<GC::Ref<Web::DOM::ShadowRoot>, WebDriver::Error> deserialize_shadow_root
 ErrorOr<GC::Ref<Web::DOM::ShadowRoot>, WebDriver::Error> deserialize_shadow_root(Web::HTML::BrowsingContext const& browsing_context, JS::Object const& object)
 {
     // 1. If object has no own property shadow root identifier, return error with error code invalid argument.
-    auto property = object.get(shadow_root_identifier);
+    auto property = object.get(shadow_root_identifier_key);
     if (property.is_error() || !property.value().is_string())
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a Shadow Root");
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Object is not a Shadow Root"sv);
 
     // 2. Let reference be the result of getting the shadow root identifier property from object.
     auto reference = property.value().as_string().utf8_string();
@@ -487,18 +489,18 @@ ErrorOr<GC::Ref<Web::DOM::ShadowRoot>, Web::WebDriver::Error> get_known_shadow_r
 {
     // 1. If not node reference is known with session, session's current browsing context, and reference return error with error code no such shadow root.
     if (!node_reference_is_known(browsing_context, reference))
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchShadowRoot, ByteString::formatted("Shadow root reference '{}' is not known", reference));
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchShadowRoot, MUST(String::formatted("Shadow root reference '{}' is not known", reference)));
 
     // 2. Let node be the result of get a node with session, session's current browsing context, and reference.
     auto node = get_node(browsing_context, reference);
 
     // 3. If node is not null and node does not implement ShadowRoot return error with error code no such shadow root.
     if (node && !node->is_shadow_root())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchShadowRoot, ByteString::formatted("Could not find shadow root with reference '{}'", reference));
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::NoSuchShadowRoot, MUST(String::formatted("Could not find shadow root with reference '{}'", reference)));
 
     // 4. If node is null or node is detached return error with error code detached shadow root.
     if (!node || is_shadow_root_detached(static_cast<Web::DOM::ShadowRoot&>(*node)))
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::DetachedShadowRoot, ByteString::formatted("Element reference '{}' is stale", reference));
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::DetachedShadowRoot, MUST(String::formatted("Element reference '{}' is stale", reference)));
 
     // 5. Return success with data node.
     return static_cast<Web::DOM::ShadowRoot&>(*node);
