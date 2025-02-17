@@ -56,9 +56,9 @@ void FrameActor::send_frame_update_message()
     }
 
     JsonObject message;
-    message.set("from", name());
-    message.set("type", "frameUpdate"sv);
-    message.set("frames", move(frames));
+    message.set("from"sv, name());
+    message.set("type"sv, "frameUpdate"sv);
+    message.set("frames"sv, move(frames));
     send_message(move(message));
 }
 

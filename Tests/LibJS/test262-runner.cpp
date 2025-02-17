@@ -401,16 +401,16 @@ static bool verify_test(ErrorOr<void, TestError>& result, TestMetadata const& me
 {
     if (result.is_error()) {
         if (result.error().phase == NegativePhase::Harness) {
-            output.set("harness_error", true);
-            output.set("harness_file", result.error().harness_file);
-            output.set("result", "harness_error"sv);
+            output.set("harness_error"sv, true);
+            output.set("harness_file"sv, result.error().harness_file);
+            output.set("result"sv, "harness_error"sv);
         } else if (result.error().phase == NegativePhase::Runtime) {
             auto& error_type = result.error().type;
             auto& error_details = result.error().details;
             if ((error_type == "InternalError"sv && error_details.starts_with("TODO("sv))
                 || (error_type == "Test262Error"sv && error_details.ends_with(" but got a InternalError"sv))) {
-                output.set("todo_error", true);
-                output.set("result", "todo_error"sv);
+                output.set("todo_error"sv, true);
+                output.set("result"sv, "todo_error"sv);
             }
         }
     }
@@ -419,8 +419,8 @@ static bool verify_test(ErrorOr<void, TestError>& result, TestMetadata const& me
         auto output_messages = output.get_byte_string("output"sv);
         VERIFY(output_messages.has_value());
         if (output_messages->contains("AsyncTestFailure:InternalError: TODO("sv)) {
-            output.set("todo_error", true);
-            output.set("result", "todo_error"sv);
+            output.set("todo_error"sv, true);
+            output.set("result"sv, "todo_error"sv);
         }
     }
 
@@ -440,9 +440,9 @@ static bool verify_test(ErrorOr<void, TestError>& result, TestMetadata const& me
 
     auto error_to_json = [&phase_to_string](TestError const& error) {
         JsonObject error_object;
-        error_object.set("phase", phase_to_string(error.phase));
-        error_object.set("type", error.type);
-        error_object.set("details", error.details);
+        error_object.set("phase"sv, phase_to_string(error.phase));
+        error_object.set("type"sv, error.type);
+        error_object.set("details"sv, error.details);
         return error_object;
     };
 
@@ -451,10 +451,10 @@ static bool verify_test(ErrorOr<void, TestError>& result, TestMetadata const& me
 
     ScopeGuard set_error = [&] {
         JsonObject error_object;
-        error_object.set("expected", expected_error);
-        error_object.set("got", got_error);
+        error_object.set("expected"sv, expected_error);
+        error_object.set("got"sv, got_error);
 
-        output.set("error", error_object);
+        output.set("error"sv, error_object);
     };
 
     if (!metadata.is_negative) {
@@ -466,8 +466,8 @@ static bool verify_test(ErrorOr<void, TestError>& result, TestMetadata const& me
     }
 
     JsonObject expected_error_object;
-    expected_error_object.set("phase", phase_to_string(metadata.phase));
-    expected_error_object.set("type", metadata.type.to_byte_string());
+    expected_error_object.set("phase"sv, phase_to_string(metadata.phase));
+    expected_error_object.set("type"sv, metadata.type.to_byte_string());
 
     expected_error = expected_error_object;
 
@@ -528,10 +528,10 @@ static bool g_in_assert = false;
         // immediately stop if we are already in a failed assert.
         g_in_assert = true;
         JsonObject assert_fail_result;
-        assert_fail_result.set("test", s_current_test);
-        assert_fail_result.set("assert_fail", true);
-        assert_fail_result.set("result", "assert_fail"sv);
-        assert_fail_result.set("output", StringView { assert_failed_message, strlen(assert_failed_message) });
+        assert_fail_result.set("test"sv, s_current_test);
+        assert_fail_result.set("assert_fail"sv, true);
+        assert_fail_result.set("result"sv, "assert_fail"sv);
+        assert_fail_result.set("output"sv, StringView { assert_failed_message, strlen(assert_failed_message) });
         outln(saved_stdout_fd, "RESULT {}{}", assert_fail_result.to_byte_string(), '\0');
         // (Attempt to) Ensure that messages are written before quitting.
         fflush(saved_stdout_fd);
@@ -730,7 +730,7 @@ int main(int argc, char** argv)
         StringView original_contents = source_with_strict.substring_view(strict_length);
 
         JsonObject result_object;
-        result_object.set("test", path);
+        result_object.set("test"sv, path);
 
         ScopeGuard output_guard = [&] {
             outln(saved_stdout_fd, "RESULT {}{}", result_object.to_byte_string(), '\0');
@@ -739,22 +739,22 @@ int main(int argc, char** argv)
 
         auto metadata_or_error = extract_metadata(original_contents);
         if (metadata_or_error.is_error()) {
-            result_object.set("result", "metadata_error"sv);
-            result_object.set("metadata_error", true);
-            result_object.set("metadata_output", metadata_or_error.error());
+            result_object.set("result"sv, "metadata_error"sv);
+            result_object.set("metadata_error"sv, true);
+            result_object.set("metadata_output"sv, metadata_or_error.error());
             continue;
         }
 
         auto& metadata = metadata_or_error.value();
         if (metadata.skip_test == SkipTest::Yes) {
-            result_object.set("result", "skipped"sv);
+            result_object.set("result"sv, "skipped"sv);
             continue;
         }
 
         bool passed = true;
 
         if (metadata.strict_mode != StrictMode::OnlyStrict) {
-            result_object.set("strict_mode", false);
+            result_object.set("strict_mode"sv, false);
 
             ARM_TIMER();
             auto result = run_test(original_contents, path, metadata);
@@ -762,15 +762,15 @@ int main(int argc, char** argv)
 
             auto first_output = collect_output();
             if (first_output.has_value())
-                result_object.set("output", *first_output);
+                result_object.set("output"sv, *first_output);
 
             passed = verify_test(result, metadata, result_object);
             auto output = first_output.value_or("");
             if (metadata.is_async && !s_parse_only) {
                 if (!output.contains("Test262:AsyncTestComplete"sv) || output.contains("Test262:AsyncTestFailure"sv)) {
-                    result_object.set("async_fail", true);
+                    result_object.set("async_fail"sv, true);
                     if (!first_output.has_value())
-                        result_object.set("output", JsonValue {});
+                        result_object.set("output"sv, JsonValue {});
 
                     passed = false;
                 }
@@ -778,7 +778,7 @@ int main(int argc, char** argv)
         }
 
         if (passed && metadata.strict_mode != StrictMode::NoStrict) {
-            result_object.set("strict_mode", true);
+            result_object.set("strict_mode"sv, true);
 
             ARM_TIMER();
             auto result = run_test(with_strict, path, metadata);
@@ -786,16 +786,16 @@ int main(int argc, char** argv)
 
             auto first_output = collect_output();
             if (first_output.has_value())
-                result_object.set("strict_output", *first_output);
+                result_object.set("strict_output"sv, *first_output);
 
             passed = verify_test(result, metadata, result_object);
             auto output = first_output.value_or("");
 
             if (metadata.is_async && !s_parse_only) {
                 if (!output.contains("Test262:AsyncTestComplete"sv) || output.contains("Test262:AsyncTestFailure"sv)) {
-                    result_object.set("async_fail", true);
+                    result_object.set("async_fail"sv, true);
                     if (!first_output.has_value())
-                        result_object.set("output", JsonValue {});
+                        result_object.set("output"sv, JsonValue {});
 
                     passed = false;
                 }

@@ -261,9 +261,14 @@ bool JsonObject::has_object(StringView key) const
     return value.has_value() && value->is_object();
 }
 
-void JsonObject::set(ByteString const& key, JsonValue value)
+void JsonObject::set(String key, JsonValue value)
 {
-    m_members.set(key, move(value));
+    m_members.set(move(key), move(value));
+}
+
+void JsonObject::set(StringView key, JsonValue value)
+{
+    set(MUST(String::from_utf8(key)), move(value));
 }
 
 bool JsonObject::remove(StringView key)

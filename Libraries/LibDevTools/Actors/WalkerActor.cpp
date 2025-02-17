@@ -93,7 +93,7 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         send_message(move(response));
 
         JsonObject message;
-        message.set("from", name());
+        message.set("from"sv, name());
         send_message(move(message));
 
         return;
@@ -175,12 +175,12 @@ JsonValue WalkerActor::serialize_node(JsonObject const& node) const
     JsonArray attrs;
 
     if (auto attributes = node.get_object("attributes"sv); attributes.has_value()) {
-        attributes->for_each_member([&](ByteString const& name, JsonValue const& value) {
+        attributes->for_each_member([&](String const& name, JsonValue const& value) {
             if (!value.is_string())
                 return;
 
             JsonObject attr;
-            attr.set("name"sv, name);
+            attr.set("name"sv, name.to_byte_string());
             attr.set("value"sv, value.as_string());
             attrs.must_append(move(attr));
         });

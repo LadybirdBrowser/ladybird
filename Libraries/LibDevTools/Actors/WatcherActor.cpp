@@ -88,7 +88,7 @@ void WatcherActor::handle_message(StringView type, JsonObject const& message)
             target.send_frame_update_message();
 
             JsonObject message;
-            message.set("from", name());
+            message.set("from"sv, name());
             send_message(move(message));
 
             return;

@@ -69,7 +69,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     auto properties = json.as_object();
 
     // Check we're in alphabetical order
-    ByteString most_recent_name = "";
+    String most_recent_name;
     properties.for_each_member([&](auto& name, auto&) {
         if (name < most_recent_name) {
             warnln("`{}` is in the wrong position in `{}`. Please keep this list alphabetical!", name, properties_json_path);
@@ -91,7 +91,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
 void replace_logical_aliases(JsonObject& properties)
 {
-    AK::HashMap<ByteString, ByteString> logical_aliases;
+    AK::HashMap<String, ByteString> logical_aliases;
     properties.for_each_member([&](auto& name, auto& value) {
         VERIFY(value.is_object());
         auto const& value_as_object = value.as_object();
@@ -142,10 +142,10 @@ enum class PropertyID {
     All,
 )~~~");
 
-    Vector<ByteString> inherited_shorthand_property_ids;
-    Vector<ByteString> inherited_longhand_property_ids;
-    Vector<ByteString> noninherited_shorthand_property_ids;
-    Vector<ByteString> noninherited_longhand_property_ids;
+    Vector<String> inherited_shorthand_property_ids;
+    Vector<String> inherited_longhand_property_ids;
+    Vector<String> noninherited_shorthand_property_ids;
+    Vector<String> noninherited_longhand_property_ids;
 
     properties.for_each_member([&](auto& name, auto& value) {
         VERIFY(value.is_object());
@@ -573,7 +573,7 @@ bool is_animatable_property(PropertyID property_id)
 
     properties.for_each_member([&](auto& name, auto& value) {
         VERIFY(value.is_object());
-        VERIFY(!name.is_empty() && !is_ascii_digit(name[0])); // Ensure `PropertyKey`s are not Numbers.
+        VERIFY(!name.is_empty() && !is_ascii_digit(name.bytes_as_string_view()[0])); // Ensure `PropertyKey`s are not Numbers.
         if (is_legacy_alias(value.as_object()))
             return;
 
