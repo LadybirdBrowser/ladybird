@@ -57,6 +57,9 @@ public:
     // https://www.w3.org/TR/html-aria/#el-output
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::status; }
 
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-setcustomvalidity
+    void set_custom_validity(String& error);
+
 private:
     HTMLOutputElement(DOM::Document&, DOM::QualifiedName);
 

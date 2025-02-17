@@ -47,6 +47,9 @@ public:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-setcustomvalidity
+    void set_custom_validity(String& error);
+
 private:
     HTMLObjectElement(DOM::Document&, DOM::QualifiedName);
 

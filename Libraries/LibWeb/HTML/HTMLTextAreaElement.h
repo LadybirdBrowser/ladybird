@@ -97,7 +97,8 @@ public:
 
     bool check_validity();
     bool report_validity();
-    void set_custom_validity(String const& error);
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-setcustomvalidity
+    void set_custom_validity(String& error);
 
     WebIDL::Long max_length() const;
     WebIDL::ExceptionOr<void> set_max_length(WebIDL::Long);

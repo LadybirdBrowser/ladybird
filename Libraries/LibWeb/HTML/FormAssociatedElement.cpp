@@ -23,6 +23,7 @@
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Selection/Selection.h>
 
@@ -293,8 +294,9 @@ bool FormAssociatedElement::suffering_from_being_too_short() const
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-a-custom-error
 bool FormAssociatedElement::suffering_from_a_custom_error() const
 {
-    // FIXME: Implement this.
-    return false;
+    // When a control's custom validity error message (as set by the element's setCustomValidity() method or ElementInternals's setValidity() method) is not the empty
+    // string.
+    return !m_custom_validity_error_message.is_empty();
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value

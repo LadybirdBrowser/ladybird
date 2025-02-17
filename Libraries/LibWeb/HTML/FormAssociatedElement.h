@@ -109,6 +109,10 @@ public:
     virtual bool suffering_from_bad_input() const { return false; }
     bool suffering_from_a_custom_error() const;
 
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-setcustomvalidity
+    void set_custom_validity_error_message(String error) { m_custom_validity_error_message = error; }
+    String custom_validity_error_message() { return m_custom_validity_error_message; }
+
     virtual String value() const { return String {}; }
 
     virtual HTMLElement& form_associated_element_to_html_element() = 0;
@@ -141,6 +145,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#parser-inserted-flag
     bool m_parser_inserted { false };
+
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#custom-validity-error-message
+    String m_custom_validity_error_message;
 };
 
 enum class SelectionSource {

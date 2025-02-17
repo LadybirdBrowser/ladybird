@@ -252,9 +252,15 @@ bool HTMLTextAreaElement::report_validity()
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-setcustomvalidity
-void HTMLTextAreaElement::set_custom_validity(String const& error)
+void HTMLTextAreaElement::set_custom_validity(String& error)
 {
-    dbgln("(STUBBED) HTMLTextAreaElement::set_custom_validity(\"{}\"). Called on: {}", error, debug_description());
+    // The setCustomValidity(error) method steps are:
+
+    // 1. Set error to the result of normalizing newlines given error.
+    error = Infra::normalize_newlines(error);
+
+    // 2. Set the custom validity error message to error.
+    static_cast<FormAssociatedElement*>(this)->set_custom_validity_error_message(error);
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-textarea-maxlength

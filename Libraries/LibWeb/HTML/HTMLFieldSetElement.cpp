@@ -14,6 +14,7 @@
 #include <LibWeb/HTML/HTMLOutputElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
+#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/FieldSetBox.h>
 
 namespace Web::HTML {
@@ -76,6 +77,18 @@ GC::Ptr<DOM::HTMLCollection> const& HTMLFieldSetElement::elements()
         });
     }
     return m_elements;
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-setcustomvalidity
+void HTMLFieldSetElement::set_custom_validity(String& error)
+{
+    // The setCustomValidity(error) method steps are:
+
+    // 1. Set error to the result of normalizing newlines given error.
+    error = Infra::normalize_newlines(error);
+
+    // 2. Set the custom validity error message to error.
+    static_cast<FormAssociatedElement*>(this)->set_custom_validity_error_message(error);
 }
 
 Layout::FieldSetBox* HTMLFieldSetElement::layout_node()

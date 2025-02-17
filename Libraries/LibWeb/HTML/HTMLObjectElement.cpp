@@ -25,6 +25,7 @@
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
+#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/ImageBox.h>
 #include <LibWeb/Layout/NavigableContainerViewport.h>
 #include <LibWeb/Loader/ResourceLoader.h>
@@ -602,6 +603,18 @@ RefPtr<Gfx::ImmutableBitmap> HTMLObjectElement::current_image_bitmap(Gfx::IntSiz
 void HTMLObjectElement::set_visible_in_viewport(bool)
 {
     // FIXME: Loosen grip on image data when it's not visible, e.g via volatile memory.
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-setcustomvalidity
+void HTMLObjectElement::set_custom_validity(String& error)
+{
+    // The setCustomValidity(error) method steps are:
+
+    // 1. Set error to the result of normalizing newlines given error.
+    error = Infra::normalize_newlines(error);
+
+    // 2. Set the custom validity error message to error.
+    static_cast<FormAssociatedElement*>(this)->set_custom_validity_error_message(error);
 }
 
 }

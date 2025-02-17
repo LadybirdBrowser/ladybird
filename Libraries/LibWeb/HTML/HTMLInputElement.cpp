@@ -2469,10 +2469,15 @@ WebIDL::ExceptionOr<bool> HTMLInputElement::report_validity()
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-setcustomvalidity
-void HTMLInputElement::set_custom_validity(String const& error)
+void HTMLInputElement::set_custom_validity(String& error)
 {
-    dbgln("(STUBBED) HTMLInputElement::set_custom_validity(error={}). Called on: {}", error, debug_description());
-    return;
+    // The setCustomValidity(error) method steps are:
+
+    // 1. Set error to the result of normalizing newlines given error.
+    error = Infra::normalize_newlines(error);
+
+    // 2. Set the custom validity error message to error.
+    static_cast<FormAssociatedElement*>(this)->set_custom_validity_error_message(error);
 }
 
 Optional<ARIA::Role> HTMLInputElement::default_role() const

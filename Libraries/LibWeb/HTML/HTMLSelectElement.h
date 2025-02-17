@@ -110,6 +110,9 @@ public:
     // https://html.spec.whatwg.org/multipage/form-elements.html#the-select-element%3Asuffering-from-being-missing
     virtual bool suffering_from_being_missing() const override;
 
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-setcustomvalidity
+    void set_custom_validity(String& error);
+
 private:
     HTMLSelectElement(DOM::Document&, DOM::QualifiedName);
 
