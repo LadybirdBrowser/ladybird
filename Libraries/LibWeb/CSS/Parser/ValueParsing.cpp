@@ -30,6 +30,7 @@
 #include <LibWeb/CSS/StyleValues/CSSLabLike.h>
 #include <LibWeb/CSS/StyleValues/CSSLightDark.h>
 #include <LibWeb/CSS/StyleValues/CSSRGB.h>
+#include <LibWeb/CSS/StyleValues/ConicGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
@@ -43,9 +44,11 @@
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
+#include <LibWeb/CSS/StyleValues/LinearGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RadialGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
@@ -1920,7 +1923,7 @@ RefPtr<StringStyleValue> Parser::parse_string_value(TokenStream<ComponentValue>&
     return nullptr;
 }
 
-RefPtr<CSSStyleValue> Parser::parse_image_value(TokenStream<ComponentValue>& tokens)
+RefPtr<AbstractImageStyleValue> Parser::parse_image_value(TokenStream<ComponentValue>& tokens)
 {
     if (auto url = parse_url_function(tokens); url.has_value())
         return ImageStyleValue::create(url.value());

@@ -128,7 +128,7 @@ Optional<Vector<AngularColorStopListElement>> Parser::parse_angular_color_stop_l
         [&](auto& it) { return parse_angle_percentage(it); });
 }
 
-RefPtr<CSSStyleValue> Parser::parse_linear_gradient_function(TokenStream<ComponentValue>& outer_tokens)
+RefPtr<LinearGradientStyleValue> Parser::parse_linear_gradient_function(TokenStream<ComponentValue>& outer_tokens)
 {
     using GradientType = LinearGradientStyleValue::GradientType;
 
@@ -262,7 +262,7 @@ RefPtr<CSSStyleValue> Parser::parse_linear_gradient_function(TokenStream<Compone
     return LinearGradientStyleValue::create(gradient_direction, move(*color_stops), gradient_type, repeating_gradient);
 }
 
-RefPtr<CSSStyleValue> Parser::parse_conic_gradient_function(TokenStream<ComponentValue>& outer_tokens)
+RefPtr<ConicGradientStyleValue> Parser::parse_conic_gradient_function(TokenStream<ComponentValue>& outer_tokens)
 {
     auto transaction = outer_tokens.begin_transaction();
     auto& component_value = outer_tokens.consume_a_token();
@@ -367,7 +367,7 @@ RefPtr<CSSStyleValue> Parser::parse_conic_gradient_function(TokenStream<Componen
     return ConicGradientStyleValue::create(from_angle, at_position.release_nonnull(), move(*color_stops), repeating_gradient);
 }
 
-RefPtr<CSSStyleValue> Parser::parse_radial_gradient_function(TokenStream<ComponentValue>& outer_tokens)
+RefPtr<RadialGradientStyleValue> Parser::parse_radial_gradient_function(TokenStream<ComponentValue>& outer_tokens)
 {
     using EndingShape = RadialGradientStyleValue::EndingShape;
     using Extent = RadialGradientStyleValue::Extent;
