@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <AK/String.h>
 #include <LibGC/Function.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Promise.h>
@@ -23,7 +24,7 @@ struct ExecutionResult {
 
 using OnScriptComplete = GC::Function<void(ExecutionResult)>;
 
-void execute_script(HTML::BrowsingContext const&, ByteString body, GC::RootVector<JS::Value> arguments, Optional<u64> const& timeout_ms, GC::Ref<OnScriptComplete> on_complete);
-void execute_async_script(HTML::BrowsingContext const&, ByteString body, GC::RootVector<JS::Value> arguments, Optional<u64> const& timeout_ms, GC::Ref<OnScriptComplete> on_complete);
+void execute_script(HTML::BrowsingContext const&, String body, GC::RootVector<JS::Value> arguments, Optional<u64> const& timeout_ms, GC::Ref<OnScriptComplete> on_complete);
+void execute_async_script(HTML::BrowsingContext const&, String body, GC::RootVector<JS::Value> arguments, Optional<u64> const& timeout_ms, GC::Ref<OnScriptComplete> on_complete);
 
 }

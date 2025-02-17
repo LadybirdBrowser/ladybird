@@ -68,7 +68,7 @@ Web::WebDriver::Response Client::new_session(Web::WebDriver::Parameters, JsonVal
     // 6. Let session be the result of create a session, with capabilities, and flags.
     auto maybe_session = Session::create(*this, capabilities.as_object(), flags);
     if (maybe_session.is_error())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::SessionNotCreated, ByteString::formatted("Failed to start session: {}", maybe_session.error()));
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::SessionNotCreated, MUST(String::formatted("Failed to start session: {}", maybe_session.error())));
 
     auto session = maybe_session.release_value();
 
@@ -258,14 +258,14 @@ Web::WebDriver::Response Client::switch_to_window(Web::WebDriver::Parameters par
     auto session = TRY(Session::find_session(parameters[0], Web::WebDriver::SessionFlags::Default, Session::AllowInvalidWindowHandle::Yes));
 
     if (!payload.is_object())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload is not a JSON object");
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "Payload is not a JSON object"sv);
 
     // 1. Let handle be the result of getting the property "handle" from the parameters argument.
     auto handle = payload.as_object().get("handle"sv);
 
     // 2. If handle is undefined, return error with error code invalid argument.
     if (!handle.has_value())
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "No property called 'handle' present");
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::InvalidArgument, "No property called 'handle' present"sv);
 
     return session->switch_to_window(handle->as_string());
 }
@@ -300,7 +300,7 @@ Web::WebDriver::Response Client::new_window(Web::WebDriver::Parameters parameter
     });
 
     if (timeout_fired)
-        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::Timeout, "Timed out waiting for window handle");
+        return Web::WebDriver::Error::from_code(Web::WebDriver::ErrorCode::Timeout, "Timed out waiting for window handle"sv);
 
     return handle;
 }

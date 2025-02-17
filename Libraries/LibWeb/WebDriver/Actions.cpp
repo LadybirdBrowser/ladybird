@@ -106,7 +106,7 @@ static Optional<ActionObject::Origin> determine_origin(ActionsOptions const& act
 
     if (origin->is_object()) {
         if (actions_options.is_element_origin(origin->as_object()))
-            return MUST(String::from_byte_string(extract_web_element_reference(origin->as_object())));
+            return extract_web_element_reference(origin->as_object());
     }
 
     return {};
@@ -229,7 +229,7 @@ static ErrorOr<PointerParameters, WebDriver::Error> process_pointer_parameters(O
 
     // 3. If parameters data is not an Object, return error with error code invalid argument.
     if (!parameters_data->is_object())
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'parameters' is not an Object");
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'parameters' is not an Object"sv);
 
     // 4. Let pointer type be the result of getting a property named "pointerType" from parameters data.
     auto pointer_type = TRY(get_optional_property(parameters_data->as_object(), "pointerType"sv));
@@ -241,7 +241,7 @@ static ErrorOr<PointerParameters, WebDriver::Error> process_pointer_parameters(O
         auto parsed_pointer_type = pointer_input_source_subtype_from_string(*pointer_type);
 
         if (!parsed_pointer_type.has_value())
-            return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'pointerType' must be one of 'mouse', 'pen', or 'touch'");
+            return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'pointerType' must be one of 'mouse', 'pen', or 'touch'"sv);
 
         // 2. Set the pointerType property of parameters to pointer type.
         parameters.pointer_type = *parsed_pointer_type;
@@ -272,7 +272,7 @@ static ErrorOr<ActionObject, WebDriver::Error> process_null_action(String id, Js
 
     // 2. If subtype is not "pause", return error with error code invalid argument.
     if (subtype != ActionObject::Subtype::Pause)
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'type' must be 'pause'");
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'type' must be 'pause'"sv);
 
     // 3. Let action be an action object constructed with arguments id, "none", and subtype.
     ActionObject action { move(id), InputSourceType::None, *subtype };
@@ -294,7 +294,7 @@ static ErrorOr<ActionObject, WebDriver::Error> process_key_action(String id, Jso
 
     // 2. If subtype is not one of the values "keyUp", "keyDown", or "pause", return an error with error code invalid argument.
     if (!first_is_one_of(subtype, KeyUp, KeyDown, Pause))
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'type' must be one of 'keyUp', 'keyDown', or 'pause'");
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'type' must be one of 'keyUp', 'keyDown', or 'pause'"sv);
 
     // 3. Let action be an action object constructed with arguments id, "key", and subtype.
     ActionObject action { move(id), InputSourceType::Key, *subtype };
@@ -317,7 +317,7 @@ static ErrorOr<ActionObject, WebDriver::Error> process_key_action(String id, Jso
         // FIXME: The spec seems undecided on whether grapheme clusters should be supported. Update this step to check
         //        for graphemes if we end up needing to support them. We would also need to update Page's key event
         //        handlers to support multi-code point events.
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'value' must be a single code point");
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'value' must be a single code point"sv);
     }
 
     // 7. Set the value property on action to key.
@@ -412,7 +412,7 @@ static ErrorOr<void, WebDriver::Error> process_pointer_move_action(JsonObject co
     // 6. If origin is not equal to "viewport" or "pointer", and actions options is element origin steps given origin
     //    return false, return error with error code invalid argument.
     if (!origin.has_value())
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'origin' must be 'viewport', 'pointer', or an element origin");
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'origin' must be 'viewport', 'pointer', or an element origin"sv);
 
     // 7. Set the origin property of action to origin.
     fields.origin = origin.release_value();
@@ -440,7 +440,7 @@ static ErrorOr<ActionObject, WebDriver::Error> process_pointer_action(String id,
 
     // 2. If subtype is not one of the values "pause", "pointerUp", "pointerDown", "pointerMove", or "pointerCancel", return an error with error code invalid argument.
     if (!first_is_one_of(subtype, Pause, PointerUp, PointerDown, PointerMove, PointerCancel))
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'type' must be one of 'pause', 'pointerUp', 'pointerDown', 'pointerMove', or 'pointerCancel'");
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'type' must be one of 'pause', 'pointerUp', 'pointerDown', 'pointerMove', or 'pointerCancel'"sv);
 
     // 3. Let action be an action object constructed with arguments id, "pointer", and subtype.
     ActionObject action { move(id), InputSourceType::Pointer, *subtype };
@@ -487,7 +487,7 @@ static ErrorOr<ActionObject, WebDriver::Error> process_wheel_action(String id, J
 
     // 2. If subtype is not the value "pause", or "scroll", return an error with error code invalid argument.
     if (!first_is_one_of(subtype, Pause, Scroll))
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'type' must be one of 'pause' or 'scroll'");
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'type' must be one of 'pause' or 'scroll'"sv);
 
     // 3. Let action be an action object constructed with arguments id, "wheel", and subtype.
     ActionObject action { move(id), InputSourceType::Wheel, *subtype };
@@ -514,7 +514,7 @@ static ErrorOr<ActionObject, WebDriver::Error> process_wheel_action(String id, J
     // 10. If origin is not equal to "viewport", or actions options' is element origin steps given origin return false,
     //     return error with error code invalid argument.
     if (!origin.has_value() || origin == ActionObject::OriginType::Pointer)
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'origin' must be 'viewport' or an element origin");
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'origin' must be 'viewport' or an element origin"sv);
 
     // 11. Set the origin property of action to origin.
     fields.origin = origin.release_value();
@@ -551,11 +551,11 @@ static ErrorOr<Vector<ActionObject>, WebDriver::Error> process_input_source_acti
 
     // 2. If type is not "key", "pointer", "wheel", or "none", return an error with error code invalid argument.
     if (!type.has_value())
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'type' must be one of 'key', 'pointer', 'wheel', or 'none'");
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'type' must be one of 'key', 'pointer', 'wheel', or 'none'"sv);
 
     // 3. Let id be the result of getting the property "id" from action sequence.
     // 4. If id is undefined or is not a String, return error with error code invalid argument.
-    auto const id = MUST(String::from_byte_string(TRY(get_property(action_sequence, "id"sv))));
+    auto const id = TRY(get_property(action_sequence, "id"sv));
 
     // 5. If type is equal to "pointer", let parameters data be the result of getting the property "parameters" from
     //    action sequence. Then let parameters be the result of trying to process pointer parameters with argument
@@ -575,7 +575,7 @@ static ErrorOr<Vector<ActionObject>, WebDriver::Error> process_input_source_acti
     //    return an error with error code invalid argument.
     if (auto const* pointer_input_source = source.get_pointer<PointerInputSource>(); pointer_input_source && parameters.has_value()) {
         if (parameters->pointer_type != pointer_input_source->subtype)
-            return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Invalid 'pointerType' property");
+            return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Invalid 'pointerType' property"sv);
     }
 
     // 8. Let action items be the result of getting a property named "actions" from action sequence.
@@ -589,7 +589,7 @@ static ErrorOr<Vector<ActionObject>, WebDriver::Error> process_input_source_acti
     TRY(action_items.try_for_each([&](auto const& action_item) -> ErrorOr<void, WebDriver::Error> {
         // 1. If action item is not an Object return error with error code invalid argument.
         if (!action_item.is_object())
-            return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'actions' item is not an Object");
+            return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'actions' item is not an Object"sv);
 
         auto action = TRY([&]() {
             switch (*type) {
@@ -1240,11 +1240,11 @@ static ErrorOr<void, WebDriver::Error> dispatch_pointer_move_action(ActionObject
 
     // 5. If x is less than 0 or greater than the width of the viewport in CSS pixels, then return error with error code move target out of bounds.
     if (coordinates.x() < 0 || coordinates.x() > viewport.width())
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::MoveTargetOutOfBounds, ByteString::formatted("Coordinates {} are out of bounds", coordinates));
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::MoveTargetOutOfBounds, MUST(String::formatted("Coordinates {} are out of bounds", coordinates)));
 
     // 6. If y is less than 0 or greater than the height of the viewport in CSS pixels, then return error with error code move target out of bounds.
     if (coordinates.y() < 0 || coordinates.y() > viewport.height())
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::MoveTargetOutOfBounds, ByteString::formatted("Coordinates {} are out of bounds", coordinates));
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::MoveTargetOutOfBounds, MUST(String::formatted("Coordinates {} are out of bounds", coordinates)));
 
     // 7. Let duration be equal to action object's duration property if it is not undefined, or tick duration otherwise.
     [[maybe_unused]] auto duration = action_object.duration.value_or(tick_duration);

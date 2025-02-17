@@ -71,7 +71,7 @@ static constexpr PromptType prompt_type_from_string(StringView prompt_type)
 
 PromptHandlerConfiguration PromptHandlerConfiguration::deserialize(JsonValue const& configuration)
 {
-    auto handler = prompt_handler_from_string(*configuration.as_object().get_byte_string("handler"sv));
+    auto handler = prompt_handler_from_string(*configuration.as_object().get_string("handler"sv));
 
     auto notify = *configuration.as_object().get_bool("notify"sv)
         ? PromptHandlerConfiguration::Notify::Yes
@@ -138,7 +138,7 @@ Response deserialize_as_an_unhandled_prompt_behavior(JsonValue value)
     TRY(value.as_object().try_for_each_member([&](String const& prompt_type, JsonValue const& handler_value) -> ErrorOr<void, WebDriver::Error> {
         // 1. If is string value is false and valid prompt types does not contain prompt type return error with error code invalid argument.
         if (!is_string_value && !valid_prompt_types.contains_slow(prompt_type))
-            return WebDriver::Error::from_code(ErrorCode::InvalidArgument, ByteString::formatted("'{}' is not a valid prompt type", prompt_type));
+            return WebDriver::Error::from_code(ErrorCode::InvalidArgument, MUST(String::formatted("'{}' is not a valid prompt type", prompt_type)));
 
         // 2. If known prompt handlers does not contain an entry with handler key handler return error with error code invalid argument.
         if (!handler_value.is_string())
@@ -147,7 +147,7 @@ Response deserialize_as_an_unhandled_prompt_behavior(JsonValue value)
         StringView handler = handler_value.as_string();
 
         if (!known_prompt_handlers.contains_slow(handler))
-            return WebDriver::Error::from_code(ErrorCode::InvalidArgument, ByteString::formatted("'{}' is not a known prompt handler", handler));
+            return WebDriver::Error::from_code(ErrorCode::InvalidArgument, MUST(String::formatted("'{}' is not a known prompt handler", handler)));
 
         // 3. Let notify be false.
         bool notify = false;

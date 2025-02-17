@@ -14,10 +14,10 @@
 namespace Web::WebDriver {
 
 // https://w3c.github.io/webdriver/#dfn-web-window-identifier
-static ByteString const WEB_WINDOW_IDENTIFIER = "window-fcc6-11e5-b4f8-330a88ab9d7f"sv;
+static JS::PropertyKey const WEB_WINDOW_IDENTIFIER { "window-fcc6-11e5-b4f8-330a88ab9d7f" };
 
 // https://w3c.github.io/webdriver/#dfn-web-frame-identifier
-static ByteString const WEB_FRAME_IDENTIFIER = "frame-075b-4da1-b6ba-e579c2d3230a"sv;
+static JS::PropertyKey const WEB_FRAME_IDENTIFIER { "frame-075b-4da1-b6ba-e579c2d3230a" };
 
 // https://w3c.github.io/webdriver/#dfn-windowproxy-reference-object
 JsonObject window_proxy_reference_object(HTML::WindowProxy const& window)
@@ -30,7 +30,7 @@ JsonObject window_proxy_reference_object(HTML::WindowProxy const& window)
     //      Ref: https://html.spec.whatwg.org/multipage/document-sequences.html#bc-traversable
     auto navigable = window.associated_browsing_context()->active_document()->navigable();
 
-    auto identifier = navigable->is_top_level_traversable()
+    auto const& identifier = navigable->is_top_level_traversable()
         ? WEB_WINDOW_IDENTIFIER
         : WEB_FRAME_IDENTIFIER;
 
@@ -39,7 +39,7 @@ JsonObject window_proxy_reference_object(HTML::WindowProxy const& window)
 
     // identifier
     //    Associated window handle of the window’s browsing context.
-    object.set(identifier, navigable->traversable_navigable()->window_handle());
+    object.set(identifier.as_string(), navigable->traversable_navigable()->window_handle());
 
     return object;
 }
@@ -64,7 +64,7 @@ bool represents_a_web_frame(JS::Value value)
     if (!value.is_object())
         return false;
 
-    auto result = value.as_object().has_own_property(WEB_FRAME_IDENTIFIER);
+    auto result = value.as_object().has_own_property(WEB_WINDOW_IDENTIFIER);
     return !result.is_error() && result.value();
 }
 

@@ -46,7 +46,7 @@ ErrorOr<void, Error> json_deserialize_as_a_timeouts_configuration_into(JsonValue
 {
     // 1. Set timeouts to the result of converting a JSON-derived JavaScript value to an Infra value with timeouts.
     if (!timeouts.is_object())
-        return Error::from_code(ErrorCode::InvalidArgument, "Payload is not a JSON object");
+        return Error::from_code(ErrorCode::InvalidArgument, "Payload is not a JSON object"sv);
 
     // 3. For each key → value in timeouts:
     TRY(timeouts.as_object().try_for_each_member([&](auto const& key, JsonValue const& value) -> ErrorOr<void, Error> {
@@ -62,7 +62,7 @@ ErrorOr<void, Error> json_deserialize_as_a_timeouts_configuration_into(JsonValue
             auto duration = value.get_integer<u64>();
 
             if (!duration.has_value() || *duration > JS::MAX_ARRAY_LIKE_INDEX)
-                return Error::from_code(ErrorCode::InvalidArgument, "Invalid timeout value");
+                return Error::from_code(ErrorCode::InvalidArgument, "Invalid timeout value"sv);
 
             parsed_value = static_cast<u64>(*duration);
         }
