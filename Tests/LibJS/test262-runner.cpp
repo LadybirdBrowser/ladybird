@@ -403,14 +403,14 @@ static bool verify_test(ErrorOr<void, TestError>& result, TestMetadata const& me
         if (result.error().phase == NegativePhase::Harness) {
             output.set("harness_error", true);
             output.set("harness_file", result.error().harness_file);
-            output.set("result", "harness_error");
+            output.set("result", "harness_error"sv);
         } else if (result.error().phase == NegativePhase::Runtime) {
             auto& error_type = result.error().type;
             auto& error_details = result.error().details;
             if ((error_type == "InternalError"sv && error_details.starts_with("TODO("sv))
                 || (error_type == "Test262Error"sv && error_details.ends_with(" but got a InternalError"sv))) {
                 output.set("todo_error", true);
-                output.set("result", "todo_error");
+                output.set("result", "todo_error"sv);
             }
         }
     }
@@ -420,20 +420,20 @@ static bool verify_test(ErrorOr<void, TestError>& result, TestMetadata const& me
         VERIFY(output_messages.has_value());
         if (output_messages->contains("AsyncTestFailure:InternalError: TODO("sv)) {
             output.set("todo_error", true);
-            output.set("result", "todo_error");
+            output.set("result", "todo_error"sv);
         }
     }
 
     auto phase_to_string = [](NegativePhase phase) {
         switch (phase) {
         case NegativePhase::ParseOrEarly:
-            return "parse";
+            return "parse"sv;
         case NegativePhase::Resolution:
-            return "resolution";
+            return "resolution"sv;
         case NegativePhase::Runtime:
-            return "runtime";
+            return "runtime"sv;
         case NegativePhase::Harness:
-            return "harness";
+            return "harness"sv;
         }
         VERIFY_NOT_REACHED();
     };
@@ -530,8 +530,8 @@ static bool g_in_assert = false;
         JsonObject assert_fail_result;
         assert_fail_result.set("test", s_current_test);
         assert_fail_result.set("assert_fail", true);
-        assert_fail_result.set("result", "assert_fail");
-        assert_fail_result.set("output", assert_failed_message);
+        assert_fail_result.set("result", "assert_fail"sv);
+        assert_fail_result.set("output", StringView { assert_failed_message, strlen(assert_failed_message) });
         outln(saved_stdout_fd, "RESULT {}{}", assert_fail_result.to_byte_string(), '\0');
         // (Attempt to) Ensure that messages are written before quitting.
         fflush(saved_stdout_fd);
@@ -739,7 +739,7 @@ int main(int argc, char** argv)
 
         auto metadata_or_error = extract_metadata(original_contents);
         if (metadata_or_error.is_error()) {
-            result_object.set("result", "metadata_error");
+            result_object.set("result", "metadata_error"sv);
             result_object.set("metadata_error", true);
             result_object.set("metadata_output", metadata_or_error.error());
             continue;
@@ -747,7 +747,7 @@ int main(int argc, char** argv)
 
         auto& metadata = metadata_or_error.value();
         if (metadata.skip_test == SkipTest::Yes) {
-            result_object.set("result", "skipped");
+            result_object.set("result", "skipped"sv);
             continue;
         }
 

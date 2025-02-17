@@ -188,16 +188,16 @@ public:
                     node.set("root"sv, ByteString::formatted("Root {} {}:{}", location->function_name(), location->filename(), location->line_number()));
                     break;
                 case HeapRoot::Type::RootVector:
-                    node.set("root"sv, "RootVector");
+                    node.set("root"sv, "RootVector"sv);
                     break;
                 case HeapRoot::Type::RegisterPointer:
-                    node.set("root"sv, "RegisterPointer");
+                    node.set("root"sv, "RegisterPointer"sv);
                     break;
                 case HeapRoot::Type::StackPointer:
-                    node.set("root"sv, "StackPointer");
+                    node.set("root"sv, "StackPointer"sv);
                     break;
                 case HeapRoot::Type::VM:
-                    node.set("root"sv, "VM");
+                    node.set("root"sv, "VM"sv);
                     break;
                 default:
                     VERIFY_NOT_REACHED();

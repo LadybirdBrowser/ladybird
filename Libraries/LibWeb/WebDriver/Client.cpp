@@ -331,7 +331,7 @@ ErrorOr<void, Client::WrappedError> Client::send_error_response(HTTP::HttpReques
     JsonObject error_response;
     error_response.set("error", error.error);
     error_response.set("message", error.message);
-    error_response.set("stacktrace", "");
+    error_response.set("stacktrace", ""sv);
     if (error.data.has_value())
         error_response.set("data", *error.data);
 

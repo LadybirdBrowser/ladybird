@@ -158,9 +158,9 @@ TEST_CASE(json_64_bit_value_coerced_to_32_bit)
 TEST_CASE(json_duplicate_keys)
 {
     JsonObject json;
-    json.set("test", "foo");
-    json.set("test", "bar");
-    json.set("test", "baz");
+    json.set("test", "foo"sv);
+    json.set("test", "bar"sv);
+    json.set("test", "baz"sv);
     EXPECT_EQ(json.to_byte_string(), "{\"test\":\"baz\"}");
 }
 

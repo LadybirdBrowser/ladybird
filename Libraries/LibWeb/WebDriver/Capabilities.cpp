@@ -236,6 +236,7 @@ static bool matches_platform_name(StringView requested_platform_name, StringView
 static JsonValue match_capabilities(JsonObject const& capabilities, SessionFlags flags)
 {
     static auto browser_name = StringView { BROWSER_NAME, strlen(BROWSER_NAME) }.to_lowercase_string();
+    static constexpr auto browser_version = StringView { BROWSER_VERSION, __builtin_strlen(BROWSER_VERSION) };
     static auto platform_name = StringView { OS_STRING, strlen(OS_STRING) }.to_lowercase_string();
 
     // 1. Let matched capabilities be a JSON Object with the following entries:
@@ -245,7 +246,7 @@ static JsonValue match_capabilities(JsonObject const& capabilities, SessionFlags
     matched_capabilities.set("browserName"sv, browser_name);
     // "browserVersion"
     //     The user agent version, as a string.
-    matched_capabilities.set("browserVersion"sv, BROWSER_VERSION);
+    matched_capabilities.set("browserVersion"sv, browser_version);
     // "platformName"
     //     ASCII Lowercase name of the current platform as a string.
     matched_capabilities.set("platformName"sv, platform_name);

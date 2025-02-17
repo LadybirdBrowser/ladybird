@@ -193,7 +193,7 @@ JsonValue WalkerActor::serialize_node(JsonObject const& node) const
     serialized.set("causesOverflow"sv, false);
     serialized.set("containerType"sv, JsonValue {});
     serialized.set("displayName"sv, name.to_lowercase());
-    serialized.set("displayType"sv, "block");
+    serialized.set("displayType"sv, "block"sv);
     serialized.set("host"sv, JsonValue {});
     serialized.set("isAfterPseudoElement"sv, false);
     serialized.set("isAnonymous"sv, false);
