@@ -345,7 +345,6 @@ public:)~~~");
    typedef class @message.response_type@ ResponseType;)~~~");
 
     message_generator.appendln(R"~~~(
-    @message.pascal_name@(decltype(nullptr)) : m_ipc_message_valid(false) { }
     @message.pascal_name@(@message.pascal_name@ const&) = default;
     @message.pascal_name@(@message.pascal_name@&&) = default;
     @message.pascal_name@& operator=(@message.pascal_name@ const&) = default;
@@ -412,12 +411,8 @@ public:)~~~");
     })~~~");
 
     message_generator.appendln(R"~~~(
-    virtual bool valid() const override { return m_ipc_message_valid; }
-
     virtual ErrorOr<IPC::MessageBuffer> encode() const override
     {
-        VERIFY(valid());
-
         IPC::MessageBuffer buffer;
         IPC::Encoder stream(buffer);
         TRY(stream.encode(endpoint_magic()));
@@ -445,8 +440,7 @@ public:)~~~");
     }
 
     message_generator.appendln(R"~~~(
-private:
-    bool m_ipc_message_valid { true };)~~~");
+private:)~~~");
 
     for (auto const& parameter : parameters) {
         auto parameter_generator = message_generator.fork();
@@ -715,8 +709,6 @@ public:
                     message_generator.appendln(R"~~~(
             [[maybe_unused]] auto& request = static_cast<const Messages::@endpoint.name@::@message.pascal_name@&>(message);
             auto response = @handler_name@(@arguments@);
-            if (!response.valid())
-                return Error::from_string_literal("Failed to handle @endpoint.name@::@message.pascal_name@ message");
             return make<IPC::MessageBuffer>(TRY(response.encode()));)~~~");
                 }
             } else {
