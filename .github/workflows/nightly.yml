@@ -1,6 +1,9 @@
-name: CI
+name: Nightly Builds
 
-on: [push, pull_request]
+on:
+  # Automatically run at the end of every day.
+  schedule:
+    - cron: '0 0 * * *'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || format('{0}-{1}', github.ref, github.run_number) }}
@@ -15,31 +18,31 @@ jobs:
       fail-fast: false
       matrix:
         os_name: ['Linux']
-        os: [ubuntu-24.04]
-        arch: ['x86_64']
+        os: [ubuntu-24.04-arm]
+        arch: ['arm64']
         build_preset: ['Sanitizer_CI']
-        toolchain: ['GNU']
+        toolchain: ['Clang']
         clang_plugins: [false]
 
         include:
           - os_name: 'Linux'
             os: ubuntu-24.04
             arch: 'x86_64'
-            build_preset: 'Sanitizer_CI'
-            toolchain: 'Clang'
-            clang_plugins: true
+            build_preset: 'Distribution_CI'
+            toolchain: 'GNU'
+            clang_plugins: false
 
           - os_name: 'macOS'
             os: macos-15
             arch: 'arm64'
-            build_preset: 'Sanitizer_CI'
+            build_preset: 'Distribution_CI'
             toolchain: 'Clang'
             clang_plugins: false
 
           - os_name: 'Linux'
-            os: ubuntu-24.04
-            arch: 'x86_64'
-            build_preset: 'Fuzzer_CI'
+            os: ubuntu-24.04-arm
+            arch: 'arm64'
+            build_preset: 'Distribution_CI'
             toolchain: 'Clang'
             clang_plugins: false
 
