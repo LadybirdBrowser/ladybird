@@ -24,6 +24,7 @@
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/ValidityState.h>
+#include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Selection/Selection.h>
 
@@ -54,6 +55,18 @@ GC::Ref<ValidityState const> FormAssociatedElement::validity() const
 {
     auto& realm = form_associated_element_to_html_element().realm();
     return realm.create<ValidityState>(realm, *this);
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-setcustomvalidity
+void FormAssociatedElement::set_custom_validity(String& error)
+{
+    // The setCustomValidity(error) method steps are:
+
+    // 1. Set error to the result of normalizing newlines given error.
+    error = Infra::normalize_newlines(error);
+
+    // 2. Set the custom validity error message to error.
+    m_custom_validity_error_message = error;
 }
 
 bool FormAssociatedElement::enabled() const
@@ -301,8 +314,9 @@ bool FormAssociatedElement::suffering_from_being_too_short() const
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-a-custom-error
 bool FormAssociatedElement::suffering_from_a_custom_error() const
 {
-    // FIXME: Implement this.
-    return false;
+    // When a control's custom validity error message (as set by the element's setCustomValidity() method or ElementInternals's setValidity() method) is not the empty
+    // string.
+    return !m_custom_validity_error_message.is_empty();
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value

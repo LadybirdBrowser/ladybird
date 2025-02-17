@@ -23,7 +23,7 @@ interface HTMLObjectElement : HTMLElement {
     [FIXME] readonly attribute DOMString validationMessage;
     [FIXME] boolean checkValidity();
     [FIXME] boolean reportValidity();
-    [FIXME] undefined setCustomValidity(DOMString error);
+    undefined setCustomValidity(DOMString error);
 
     // Obsolete
     [CEReactions, Reflect] attribute DOMString align;

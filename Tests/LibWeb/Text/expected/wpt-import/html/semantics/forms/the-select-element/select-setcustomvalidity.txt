@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	select setCustomValidity is correct
+1 Pass
+Pass	select setCustomValidity is correct

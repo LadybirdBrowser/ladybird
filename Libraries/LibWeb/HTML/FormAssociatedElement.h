@@ -125,6 +125,9 @@ public:
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validity
     GC::Ref<ValidityState const> validity() const;
 
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-setcustomvalidity
+    void set_custom_validity(String& error);
+
 protected:
     FormAssociatedElement() = default;
     virtual ~FormAssociatedElement() = default;
@@ -144,6 +147,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#parser-inserted-flag
     bool m_parser_inserted { false };
+
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#custom-validity-error-message
+    String m_custom_validity_error_message;
 };
 
 enum class SelectionSource {
