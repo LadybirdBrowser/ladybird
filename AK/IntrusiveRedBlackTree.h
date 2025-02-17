@@ -174,7 +174,14 @@ private:
 
     static V* node_to_value(TreeNode& node)
     {
+#ifdef AK_OS_WINDOWS
+        // NOTE: https://learn.microsoft.com/en-us/cpp/build/reference/vmb-vmg-representation-method?view=msvc-170
+        static_assert(sizeof(member) == 4);
+        auto distance = bit_cast<u8*>(static_cast<FlatPtr>(bit_cast<u32>(member)));
+        return bit_cast<V*>(bit_cast<u8*>(&node) - distance);
+#else
         return bit_cast<V*>(bit_cast<u8*>(&node) - bit_cast<u8*>(member));
+#endif
     }
 };
 
