@@ -142,13 +142,11 @@ void WebContentClient::did_change_title(u64 page_id, ByteString const& title)
         process->set_title(MUST(String::from_byte_string(title)));
 
     if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (!view->on_title_change)
-            return;
+        auto title_or_url = title.is_empty() ? view->url().to_byte_string() : title;
+        view->set_title({}, title_or_url);
 
-        if (title.is_empty())
-            view->on_title_change(view->url().to_byte_string());
-        else
-            view->on_title_change(title);
+        if (view->on_title_change)
+            view->on_title_change(title_or_url);
     }
 }
 
