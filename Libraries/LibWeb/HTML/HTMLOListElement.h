@@ -28,6 +28,8 @@ public:
         MUST(set_attribute(AttributeNames::start, String::number(start)));
     }
 
+    size_t starting_value() const;
+
 private:
     HTMLOListElement(DOM::Document&, DOM::QualifiedName);
 
