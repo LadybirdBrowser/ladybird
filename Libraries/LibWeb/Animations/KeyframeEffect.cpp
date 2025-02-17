@@ -938,6 +938,9 @@ void KeyframeEffect::update_computed_properties()
 
     auto invalidation = compute_required_invalidation(animated_properties_before_update, style->animated_property_values());
 
+    if (invalidation.is_none())
+        return;
+
     // Traversal of the subtree is necessary to update the animated properties inherited from the target element.
     target->for_each_in_subtree_of_type<DOM::Element>([&](auto& element) {
         auto element_invalidation = element.recompute_inherited_style();
