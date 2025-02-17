@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <LibWeb/HTML/AutocompleteElement.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLOptionsCollection.h>
@@ -19,10 +20,12 @@ namespace Web::HTML {
 
 class HTMLSelectElement final
     : public HTMLElement
-    , public FormAssociatedElement {
+    , public FormAssociatedElement
+    , public AutocompleteElement {
     WEB_PLATFORM_OBJECT(HTMLSelectElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLSelectElement);
-    FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLSelectElement)
+    FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLSelectElement);
+    AUTOCOMPLETE_ELEMENT(HTMLElement, HTMLSelectElement);
 
 public:
     virtual ~HTMLSelectElement() override;
