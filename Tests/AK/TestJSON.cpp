@@ -160,13 +160,13 @@ TEST_CASE(json_duplicate_keys)
     json.set("test"sv, "foo"sv);
     json.set("test"sv, "bar"sv);
     json.set("test"sv, "baz"sv);
-    EXPECT_EQ(json.serialized<StringBuilder>(), "{\"test\":\"baz\"}");
+    EXPECT_EQ(json.serialized(), "{\"test\":\"baz\"}");
 }
 
 TEST_CASE(json_u64_roundtrip)
 {
     auto big_value = 0xffffffffffffffffull;
-    auto json = JsonValue(big_value).serialized<StringBuilder>();
+    auto json = JsonValue(big_value).serialized();
     auto value = JsonValue::from_string(json);
     EXPECT_EQ_FORCE(value.is_error(), false);
     EXPECT_EQ(value.value().as_integer<u64>(), big_value);
@@ -531,7 +531,7 @@ TEST_CASE(json_array_serialized)
     auto raw_json = R"(["Hello",2,3.14,4,"World"])"sv;
     auto json_value = MUST(JsonValue::from_string(raw_json));
     auto array = json_value.as_array();
-    auto const& serialized_json = array.serialized<StringBuilder>();
+    auto const& serialized_json = array.serialized();
     EXPECT_EQ(serialized_json, raw_json);
 }
 

@@ -9,6 +9,7 @@
 #include <AK/JsonObject.h>
 #include <AK/JsonParser.h>
 #include <AK/JsonValue.h>
+#include <AK/StringBuilder.h>
 #include <AK/StringView.h>
 
 namespace AK {
@@ -190,6 +191,30 @@ JsonValue::JsonValue(JsonArray&& value)
 ErrorOr<JsonValue> JsonValue::from_string(StringView input)
 {
     return JsonParser(input).parse();
+}
+
+String JsonValue::serialized() const
+{
+    StringBuilder builder;
+    serialize(builder);
+
+    return MUST(builder.to_string());
+}
+
+void JsonValue::serialize(StringBuilder& builder) const
+{
+    m_value.visit(
+        [&](Empty const&) { builder.append("null"sv); },
+        [&](bool const& value) { builder.append(value ? "true"sv : "false"sv); },
+        [&](Arithmetic auto const& value) { builder.appendff("{}", value); },
+        [&](String const& value) {
+            builder.append('\"');
+            builder.append_escaped_for_json(value.bytes());
+            builder.append('\"');
+        },
+        [&](auto const& array_or_object) {
+            array_or_object->serialize(builder);
+        });
 }
 
 }

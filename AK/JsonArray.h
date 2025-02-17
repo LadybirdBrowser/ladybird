@@ -8,8 +8,8 @@
 
 #include <AK/Concepts.h>
 #include <AK/Error.h>
-#include <AK/JsonArraySerializer.h>
 #include <AK/JsonValue.h>
+#include <AK/String.h>
 #include <AK/Vector.h>
 
 namespace AK {
@@ -72,11 +72,8 @@ public:
     ErrorOr<void> append(JsonValue value) { return m_values.try_append(move(value)); }
     void set(size_t index, JsonValue value) { m_values.at(index) = move(value); }
 
-    template<typename Builder>
-    typename Builder::OutputType serialized() const;
-
-    template<typename Builder>
-    void serialize(Builder&) const;
+    String serialized() const;
+    void serialize(StringBuilder&) const;
 
     template<typename Callback>
     void for_each(Callback callback)
@@ -117,22 +114,6 @@ public:
 private:
     Vector<JsonValue> m_values;
 };
-
-template<typename Builder>
-inline void JsonArray::serialize(Builder& builder) const
-{
-    auto serializer = MUST(JsonArraySerializer<>::try_create(builder));
-    for_each([&](auto& value) { MUST(serializer.add(value)); });
-    MUST(serializer.finish());
-}
-
-template<typename Builder>
-inline typename Builder::OutputType JsonArray::serialized() const
-{
-    Builder builder;
-    serialize(builder);
-    return builder.to_byte_string();
-}
 
 }
 

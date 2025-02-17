@@ -298,7 +298,7 @@ ErrorOr<void, Client::WrappedError> Client::send_success_response(HTTP::HttpRequ
         keep_alive = it->value.trim_whitespace().equals_ignoring_ascii_case("keep-alive"sv);
 
     result = make_success_response(move(result));
-    auto content = result.serialized<StringBuilder>();
+    auto content = result.serialized();
 
     StringBuilder builder;
     builder.append("HTTP/1.1 200 OK\r\n"sv);
@@ -309,7 +309,7 @@ ErrorOr<void, Client::WrappedError> Client::send_success_response(HTTP::HttpRequ
         builder.append("Connection: keep-alive\r\n"sv);
     builder.append("Cache-Control: no-cache\r\n"sv);
     builder.append("Content-Type: application/json; charset=utf-8\r\n"sv);
-    builder.appendff("Content-Length: {}\r\n", content.length());
+    builder.appendff("Content-Length: {}\r\n", content.byte_count());
     builder.append("\r\n"sv);
     builder.append(content);
 
@@ -338,13 +338,13 @@ ErrorOr<void, Client::WrappedError> Client::send_error_response(HTTP::HttpReques
     JsonObject result;
     result.set("value"sv, move(error_response));
 
-    auto content = result.serialized<StringBuilder>();
+    auto content = result.serialized();
 
     StringBuilder builder;
     builder.appendff("HTTP/1.1 {} {}\r\n", error.http_status, reason);
     builder.append("Cache-Control: no-cache\r\n"sv);
     builder.append("Content-Type: application/json; charset=utf-8\r\n"sv);
-    builder.appendff("Content-Length: {}\r\n", content.length());
+    builder.appendff("Content-Length: {}\r\n", content.byte_count());
     builder.append("\r\n"sv);
     builder.append(content);
 

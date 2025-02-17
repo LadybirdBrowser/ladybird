@@ -754,7 +754,7 @@ void ArgsParser::autocomplete(FILE* file, StringView program_name, ReadonlySpan<
         object.set("invariant_offset"sv, has_invariant ? option_to_complete.length() : 0u);
         object.set("display_trivia"sv, StringView { option.help_string, strlen(option.help_string) });
         object.set("trailing_trivia"sv, option.argument_mode == OptionArgumentMode::Required ? " "sv : ""sv);
-        outln(file, "{}", object.serialized<StringBuilder>());
+        outln(file, "{}", object.serialized());
     };
 
     if (option_to_complete.starts_with("--"sv)) {
