@@ -656,7 +656,7 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
 
     if (namespace_ == Namespace::HTML) {
         auto element = create_html_element(realm, document, move(qualified_name));
-        element->set_is_value(move(is_value));
+        element->set_is_value(is_value);
         element->set_custom_element_state(CustomElementState::Uncustomized);
 
         // 3. If namespace is the HTML namespace, and either localName is a valid custom element name or is is non-null,
@@ -669,14 +669,14 @@ WebIDL::ExceptionOr<GC::Ref<Element>> create_element(Document& document, FlyStri
 
     if (namespace_ == Namespace::SVG) {
         auto element = create_svg_element(realm, document, qualified_name);
-        element->set_is_value(move(is_value));
+        element->set_is_value(is_value);
         element->set_custom_element_state(CustomElementState::Uncustomized);
         return element;
     }
 
     if (namespace_ == Namespace::MathML) {
         auto element = create_mathml_element(realm, document, qualified_name);
-        element->set_is_value(move(is_value));
+        element->set_is_value(is_value);
         element->set_custom_element_state(CustomElementState::Uncustomized);
         return element;
     }
