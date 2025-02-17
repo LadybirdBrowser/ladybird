@@ -13,6 +13,7 @@
 #include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/CSSNumericType.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Flex.h>
 #include <LibWeb/CSS/Frequency.h>
 #include <LibWeb/CSS/Length.h>
