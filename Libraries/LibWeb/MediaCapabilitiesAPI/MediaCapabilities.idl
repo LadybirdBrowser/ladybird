@@ -1,6 +1,114 @@
+#import <EncryptedMediaExtensions/EncryptedMediaExtensions.idl>
+
+// https://w3c.github.io/media-capabilities/#mediaconfiguration
+dictionary MediaConfiguration {
+    VideoConfiguration video;
+    AudioConfiguration audio;
+};
+
+dictionary MediaDecodingConfiguration : MediaConfiguration {
+    required MediaDecodingType type;
+    MediaCapabilitiesKeySystemConfiguration keySystemConfiguration;
+};
+
+dictionary MediaEncodingConfiguration : MediaConfiguration {
+    required MediaEncodingType type;
+};
+
+// https://w3c.github.io/media-capabilities/#enumdef-mediadecodingtype
+enum MediaDecodingType {
+    "file",
+    "media-source",
+    "webrtc"
+};
+
+// https://w3c.github.io/media-capabilities/#enumdef-mediaencodingtype
+enum MediaEncodingType {
+    "record",
+    "webrtc"
+};
+
+// https://w3c.github.io/media-capabilities/#dictdef-videoconfiguration
+dictionary VideoConfiguration {
+    required DOMString contentType;
+    required unsigned long width;
+    required unsigned long height;
+    required unsigned long long bitrate;
+    required double framerate;
+    boolean hasAlphaChannel;
+    HdrMetadataType hdrMetadataType;
+    ColorGamut colorGamut;
+    TransferFunction transferFunction;
+    DOMString scalabilityMode;
+    boolean spatialScalability;
+};
+
+// https://w3c.github.io/media-capabilities/#enumdef-hdrmetadatatype
+enum HdrMetadataType {
+    "smpteSt2086",
+    "smpteSt2094-10",
+    "smpteSt2094-40"
+};
+
+// https://w3c.github.io/media-capabilities/#enumdef-colorgamut
+enum ColorGamut {
+    "srgb",
+    "p3",
+    "rec2020"
+};
+
+// https://w3c.github.io/media-capabilities/#enumdef-transferfunction
+enum TransferFunction {
+    "srgb",
+    "pq",
+    "hlg"
+};
+
+// https://w3c.github.io/media-capabilities/#dictdef-audioconfiguration
+dictionary AudioConfiguration {
+    required DOMString contentType;
+    DOMString channels;
+    unsigned long long bitrate;
+    unsigned long samplerate;
+    boolean spatialRendering;
+};
+
+// https://w3c.github.io/media-capabilities/#mediacapabilitieskeysystemconfiguration
+dictionary MediaCapabilitiesKeySystemConfiguration {
+    required DOMString keySystem;
+    DOMString initDataType = "";
+    MediaKeysRequirement distinctiveIdentifier = "optional";
+    MediaKeysRequirement persistentState = "optional";
+    sequence<DOMString> sessionTypes;
+    KeySystemTrackConfiguration audio;
+    KeySystemTrackConfiguration video;
+};
+
+// https://w3c.github.io/media-capabilities/#keysystemtrackconfiguration
+dictionary KeySystemTrackConfiguration {
+    DOMString robustness = "";
+    DOMString? encryptionScheme = null;
+};
+
+// https://w3c.github.io/media-capabilities/#media-capabilities-info
+dictionary MediaCapabilitiesInfo {
+    required boolean supported;
+    required boolean smooth;
+    required boolean powerEfficient;
+};
+
+dictionary MediaCapabilitiesDecodingInfo : MediaCapabilitiesInfo {
+    [FIXME, required] MediaKeySystemAccess keySystemAccess;
+    MediaDecodingConfiguration configuration;
+};
+
+dictionary MediaCapabilitiesEncodingInfo : MediaCapabilitiesInfo {
+    MediaEncodingConfiguration configuration;
+};
+
 // https://w3c.github.io/media-capabilities/#mediacapabilities
 [Exposed=(Window, Worker)]
 interface MediaCapabilities {
-    [FIXME, NewObject] Promise<MediaCapabilitiesDecodingInfo> decodingInfo(MediaDecodingConfiguration configuration);
+    [NewObject] Promise<MediaCapabilitiesDecodingInfo> decodingInfo(MediaDecodingConfiguration configuration);
     [FIXME, NewObject] Promise<MediaCapabilitiesEncodingInfo> encodingInfo(MediaEncodingConfiguration configuration);
 };
