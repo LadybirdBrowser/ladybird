@@ -57,9 +57,9 @@ void RootActor::handle_message(StringView type, JsonObject const& message)
 
         for (auto const& actor : devtools().actor_registry()) {
             if (is<DeviceActor>(*actor.value))
-                response.set("deviceActor"sv, actor.key);
+                response.set("deviceActor"sv, MUST(String::from_byte_string(actor.key)));
             else if (is<PreferenceActor>(*actor.value))
-                response.set("preferenceActor"sv, actor.key);
+                response.set("preferenceActor"sv, MUST(String::from_byte_string(actor.key)));
         }
 
         send_message(move(response));

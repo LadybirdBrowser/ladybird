@@ -182,7 +182,7 @@ bool media_feature_accepts_type(MediaFeatureID media_feature_id, MediaFeatureVal
                 VERIFY(type.is_string());
                 auto type_name = type.as_string();
                 // Skip keywords.
-                if (type_name[0] != '<')
+                if (!type_name.starts_with('<'))
                     continue;
                 if (type_name == "<mq-boolean>") {
                     append_value_type_switch_if_needed();
@@ -258,9 +258,9 @@ bool media_feature_accepts_keyword(MediaFeatureID media_feature_id, Keyword keyw
             auto& values_array = values.value();
             for (auto& keyword : values_array.values()) {
                 VERIFY(keyword.is_string());
-                auto keyword_name = keyword.as_string();
+                auto const& keyword_name = keyword.as_string();
                 // Skip types.
-                if (keyword_name[0] == '<')
+                if (keyword_name.starts_with('<'))
                     continue;
                 append_keyword_switch_if_needed();
 

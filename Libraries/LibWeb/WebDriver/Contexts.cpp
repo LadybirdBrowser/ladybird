@@ -39,7 +39,7 @@ JsonObject window_proxy_reference_object(HTML::WindowProxy const& window)
 
     // identifier
     //    Associated window handle of the window’s browsing context.
-    object.set(identifier, navigable->traversable_navigable()->window_handle().to_byte_string());
+    object.set(identifier, navigable->traversable_navigable()->window_handle());
 
     return object;
 }

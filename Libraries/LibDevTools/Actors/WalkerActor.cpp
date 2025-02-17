@@ -135,12 +135,12 @@ JsonValue WalkerActor::serialize_node(JsonObject const& node) const
     if (!tab)
         return {};
 
-    auto actor = node.get_byte_string("actor"sv);
+    auto actor = node.get_string("actor"sv);
     if (!actor.has_value())
         return {};
 
-    auto name = node.get_byte_string("name"sv).release_value();
-    auto type = node.get_byte_string("type"sv).release_value();
+    auto name = node.get_string("name"sv).release_value();
+    auto type = node.get_string("type"sv).release_value();
 
     auto dom_type = Web::DOM::NodeType::INVALID;
     JsonValue node_value;
@@ -157,12 +157,12 @@ JsonValue WalkerActor::serialize_node(JsonObject const& node) const
     } else if (type == "text"sv) {
         dom_type = Web::DOM::NodeType::TEXT_NODE;
 
-        if (auto text = node.get_byte_string("text"sv); text.has_value())
+        if (auto text = node.get_string("text"sv); text.has_value())
             node_value = text.release_value();
     } else if (type == "comment"sv) {
         dom_type = Web::DOM::NodeType::COMMENT_NODE;
 
-        if (auto data = node.get_byte_string("data"sv); data.has_value())
+        if (auto data = node.get_string("data"sv); data.has_value())
             node_value = data.release_value();
     } else if (type == "shadow-root"sv) {
         is_shadow_root = true;
@@ -180,7 +180,7 @@ JsonValue WalkerActor::serialize_node(JsonObject const& node) const
                 return;
 
             JsonObject attr;
-            attr.set("name"sv, name.to_byte_string());
+            attr.set("name"sv, name);
             attr.set("value"sv, value.as_string());
             attrs.must_append(move(attr));
         });
@@ -189,10 +189,10 @@ JsonValue WalkerActor::serialize_node(JsonObject const& node) const
     JsonObject serialized;
     serialized.set("actor"sv, actor.release_value());
     serialized.set("attrs"sv, move(attrs));
-    serialized.set("baseURI"sv, tab->description().url);
+    serialized.set("baseURI"sv, MUST(String::from_byte_string(tab->description().url)));
     serialized.set("causesOverflow"sv, false);
     serialized.set("containerType"sv, JsonValue {});
-    serialized.set("displayName"sv, name.to_lowercase());
+    serialized.set("displayName"sv, name.to_ascii_lowercase());
     serialized.set("displayType"sv, "block"sv);
     serialized.set("host"sv, JsonValue {});
     serialized.set("isAfterPseudoElement"sv, false);
@@ -216,7 +216,7 @@ JsonValue WalkerActor::serialize_node(JsonObject const& node) const
 
     if (!is_top_level_document) {
         if (auto parent = m_dom_node_to_parent_map.get(&node); parent.has_value() && parent.value()) {
-            actor = parent.value()->get_byte_string("actor"sv);
+            actor = parent.value()->get_string("actor"sv);
             if (!actor.has_value())
                 return {};
 
@@ -255,8 +255,8 @@ void WalkerActor::populate_dom_tree_cache(JsonObject& node, JsonObject const* pa
 {
     m_dom_node_to_parent_map.set(&node, parent);
 
-    auto actor = ByteString::formatted("{}-node{}", name(), m_dom_node_count++);
-    m_actor_to_dom_node_map.set(actor, &node);
+    auto actor = MUST(String::formatted("{}-node{}", name(), m_dom_node_count++));
+    m_actor_to_dom_node_map.set(actor.to_byte_string(), &node);
     node.set("actor"sv, actor);
 
     auto children = node.get_array("children"sv);

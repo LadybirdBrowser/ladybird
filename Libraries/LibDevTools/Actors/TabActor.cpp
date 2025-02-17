@@ -60,8 +60,8 @@ JsonObject TabActor::serialize_description() const
     //        provide different IDs for browserId, browsingContextID, and outerWindowID.
     JsonObject description;
     description.set("actor"sv, name());
-    description.set("title"sv, m_description.title);
-    description.set("url"sv, m_description.url);
+    description.set("title"sv, MUST(String::from_byte_string(m_description.title)));
+    description.set("url"sv, MUST(String::from_byte_string(m_description.url)));
     description.set("browserId"sv, m_description.id);
     description.set("browsingContextID"sv, m_description.id);
     description.set("outerWindowID"sv, m_description.id);

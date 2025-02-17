@@ -132,7 +132,7 @@ JsonObject web_element_reference_object(HTML::BrowsingContext const& browsing_co
 
     // 3. Return a JSON Object initialized with a property with name identifier and value reference.
     JsonObject object;
-    object.set(identifier, reference);
+    object.set(identifier, MUST(String::from_byte_string(reference)));
     return object;
 }
 
@@ -422,7 +422,7 @@ JsonObject shadow_root_reference_object(HTML::BrowsingContext const& browsing_co
 
     // 3. Return a JSON Object initialized with a property with name identifier and value reference.
     JsonObject object;
-    object.set(identifier, reference);
+    object.set(identifier, MUST(String::from_byte_string(reference)));
     return object;
 }
 

@@ -50,8 +50,8 @@ void FrameActor::send_frame_update_message()
     if (auto tab_actor = m_tab.strong_ref()) {
         JsonObject frame;
         frame.set("id"sv, tab_actor->description().id);
-        frame.set("title"sv, tab_actor->description().title);
-        frame.set("url"sv, tab_actor->description().url);
+        frame.set("title"sv, MUST(String::from_byte_string(tab_actor->description().title)));
+        frame.set("url"sv, MUST(String::from_byte_string(tab_actor->description().url)));
         frames.must_append(move(frame));
     }
 
@@ -76,8 +76,8 @@ JsonObject FrameActor::serialize_target() const
     target.set("actor"sv, name());
 
     if (auto tab_actor = m_tab.strong_ref()) {
-        target.set("title"sv, tab_actor->description().title);
-        target.set("url"sv, tab_actor->description().url);
+        target.set("title"sv, MUST(String::from_byte_string(tab_actor->description().title)));
+        target.set("url"sv, MUST(String::from_byte_string(tab_actor->description().url)));
         target.set("browsingContextID"sv, tab_actor->description().id);
         target.set("outerWindowID"sv, tab_actor->description().id);
         target.set("isTopLevelTarget"sv, true);

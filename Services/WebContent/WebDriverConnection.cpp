@@ -83,10 +83,10 @@ namespace WebContent {
 static JsonValue serialize_cookie(Web::Cookie::Cookie const& cookie)
 {
     JsonObject serialized_cookie;
-    serialized_cookie.set("name"sv, cookie.name.to_byte_string());
-    serialized_cookie.set("value"sv, cookie.value.to_byte_string());
-    serialized_cookie.set("path"sv, cookie.path.to_byte_string());
-    serialized_cookie.set("domain"sv, cookie.domain.to_byte_string());
+    serialized_cookie.set("name"sv, cookie.name);
+    serialized_cookie.set("value"sv, cookie.value);
+    serialized_cookie.set("path"sv, cookie.path);
+    serialized_cookie.set("domain"sv, cookie.domain);
     serialized_cookie.set("secure"sv, cookie.secure);
     serialized_cookie.set("httpOnly"sv, cookie.http_only);
     serialized_cookie.set("expiry"sv, cookie.expiry_time.seconds_since_epoch());
@@ -346,7 +346,7 @@ Messages::WebDriverClient::GetCurrentUrlResponse WebDriverConnection::get_curren
         auto url = current_top_level_browsing_context()->active_document()->url();
 
         // 4. Return success with data url.
-        async_driver_execution_complete({ url.to_byte_string() });
+        async_driver_execution_complete({ url.to_string() });
     });
 
     return JsonValue {};
@@ -529,7 +529,7 @@ Messages::WebDriverClient::GetTitleResponse WebDriverConnection::get_title()
         auto title = current_top_level_browsing_context()->active_document()->title();
 
         // 4. Return success with data title.
-        async_driver_execution_complete({ title.to_byte_string() });
+        async_driver_execution_complete({ move(title) });
     });
 
     return JsonValue {};
@@ -1323,7 +1323,7 @@ Messages::WebDriverClient::GetElementAttributeResponse WebDriverConnection::get_
         }
 
         // 5. Return success with data result.
-        async_driver_execution_complete({ result.to_byte_string() });
+        async_driver_execution_complete({ move(result) });
     });
 
     return JsonValue {};
@@ -1389,7 +1389,7 @@ Messages::WebDriverClient::GetElementCssValueResponse WebDriverConnection::get_e
         //     "" (empty string)
 
         // 5. Return success with data computed value.
-        async_driver_execution_complete({ computed_value.to_byte_string() });
+        async_driver_execution_complete({ move(computed_value) });
     });
 
     return JsonValue {};
@@ -1411,7 +1411,7 @@ Messages::WebDriverClient::GetElementTextResponse WebDriverConnection::get_eleme
         auto rendered_text = Web::WebDriver::element_rendered_text(element);
 
         // 5. Return success with data rendered text.
-        async_driver_execution_complete({ rendered_text.to_byte_string() });
+        async_driver_execution_complete({ move(rendered_text) });
     });
 
     return JsonValue {};
@@ -1434,7 +1434,7 @@ Messages::WebDriverClient::GetElementTagNameResponse WebDriverConnection::get_el
         auto qualified_name = element->local_name();
 
         // 5. Return success with data qualified name.
-        async_driver_execution_complete({ qualified_name.to_string().to_byte_string() });
+        async_driver_execution_complete({ qualified_name.to_string() });
     });
 
     return JsonValue {};
@@ -1541,7 +1541,7 @@ Messages::WebDriverClient::GetComputedLabelResponse WebDriverConnection::get_com
         auto label = element->accessible_name(element->document()).release_value_but_fixme_should_propagate_errors();
 
         // 5. Return success with data label.
-        async_driver_execution_complete({ label.to_byte_string() });
+        async_driver_execution_complete({ move(label) });
     });
 
     return JsonValue {};
@@ -2047,7 +2047,7 @@ Messages::WebDriverClient::GetSourceResponse WebDriverConnection::get_source()
             source = MUST(document->serialize_fragment(Web::DOMParsing::RequireWellFormed::No));
 
         // 5. Return success with data source.
-        async_driver_execution_complete({ source->to_byte_string() });
+        async_driver_execution_complete({ source.release_value() });
     });
 
     return JsonValue {};
@@ -2465,7 +2465,7 @@ Messages::WebDriverClient::GetAlertTextResponse WebDriverConnection::get_alert_t
 
     // 4. Return success with data message.
     if (message.has_value())
-        return message->to_byte_string();
+        return message.value();
     return JsonValue {};
 }
 
@@ -2679,7 +2679,7 @@ static Web::WebDriver::Error create_annotated_unexpected_alert_open_error(Option
     //         The current user prompt's message.
     auto data = text.map([&](auto const& text) -> JsonValue {
         JsonObject data;
-        data.set("text"sv, text.to_byte_string());
+        data.set("text"sv, text);
         return data;
     });
 

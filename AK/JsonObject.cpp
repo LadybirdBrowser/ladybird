@@ -116,11 +116,17 @@ Optional<bool> JsonObject::get_bool(StringView key) const
     return {};
 }
 
+Optional<String const&> JsonObject::get_string(StringView key) const
+{
+    if (auto value = get(key); value.has_value() && value->is_string())
+        return value->as_string();
+    return {};
+}
+
 Optional<ByteString> JsonObject::get_byte_string(StringView key) const
 {
-    auto maybe_value = get(key);
-    if (maybe_value.has_value() && maybe_value->is_string())
-        return maybe_value->as_string();
+    if (auto value = get_string(key); value.has_value())
+        return value->to_byte_string();
     return {};
 }
 

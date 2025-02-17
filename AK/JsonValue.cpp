@@ -153,17 +153,17 @@ JsonValue::JsonValue(long long unsigned value)
 }
 
 JsonValue::JsonValue(double value)
-    : m_value(double { value })
-{
-}
-
-JsonValue::JsonValue(ByteString const& value)
     : m_value(value)
 {
 }
 
+JsonValue::JsonValue(String value)
+    : m_value(move(value))
+{
+}
+
 JsonValue::JsonValue(StringView value)
-    : m_value(ByteString { value })
+    : m_value(MUST(String::from_utf8(value)))
 {
 }
 
