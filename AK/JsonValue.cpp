@@ -13,28 +13,16 @@
 
 namespace AK {
 
-namespace {
-using JsonValueStorage = Variant<
-    Empty,
-    bool,
-    i64,
-    u64,
-    double,
-    ByteString,
-    NonnullOwnPtr<JsonArray>,
-    NonnullOwnPtr<JsonObject>>;
-
-static ErrorOr<JsonValueStorage> clone(JsonValueStorage const& other)
+static ErrorOr<JsonValue::Storage> clone(JsonValue::Storage const& other)
 {
     return other.visit(
-        [](NonnullOwnPtr<JsonArray> const& value) -> ErrorOr<JsonValueStorage> {
+        [](NonnullOwnPtr<JsonArray> const& value) -> ErrorOr<JsonValue::Storage> {
             return TRY(try_make<JsonArray>(*value));
         },
-        [](NonnullOwnPtr<JsonObject> const& value) -> ErrorOr<JsonValueStorage> {
+        [](NonnullOwnPtr<JsonObject> const& value) -> ErrorOr<JsonValue::Storage> {
             return TRY(try_make<JsonObject>(*value));
         },
-        [](auto const& value) -> ErrorOr<JsonValueStorage> { return JsonValueStorage(value); });
-}
+        [](auto const& value) -> ErrorOr<JsonValue::Storage> { return JsonValue::Storage(value); });
 }
 
 JsonValue::JsonValue() = default;

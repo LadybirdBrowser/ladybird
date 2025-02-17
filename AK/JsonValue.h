@@ -9,8 +9,8 @@
 
 #include <AK/ByteString.h>
 #include <AK/Forward.h>
+#include <AK/NonnullOwnPtr.h>
 #include <AK/Optional.h>
-#include <AK/OwnPtr.h>
 #include <AK/StringBuilder.h>
 
 namespace AK {
@@ -25,6 +25,16 @@ public:
         Array,
         Object,
     };
+
+    using Storage = Variant<
+        Empty,
+        bool,
+        i64,
+        u64,
+        double,
+        ByteString,
+        NonnullOwnPtr<JsonArray>,
+        NonnullOwnPtr<JsonObject>>;
 
     static ErrorOr<JsonValue> from_string(StringView);
 
@@ -222,16 +232,7 @@ public:
     bool equals(JsonValue const& other) const;
 
 private:
-    Variant<
-        Empty,
-        bool,
-        i64,
-        u64,
-        double,
-        ByteString,
-        NonnullOwnPtr<JsonArray>,
-        NonnullOwnPtr<JsonObject>>
-        m_value;
+    Storage m_value;
 };
 
 template<>
