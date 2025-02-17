@@ -1,5 +1,5 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
-  BlockContainer <html> at (1,1) content-size 798x600 [BFC] children: not-inline
+  BlockContainer <html> at (1,1) content-size 798x18 [BFC] children: not-inline
     BlockContainer <body> at (10,10) content-size 780x0 children: inline
       TextNode <#text>
       BlockContainer <div.only-t-l> at (6,6) content-size 10x10 positioned [BFC] children: not-inline
@@ -9,8 +9,8 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
       BlockContainer <div.both> at (11,11) content-size 10x10 positioned [BFC] children: not-inline
       TextNode <#text>
 
-ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x602]
-  PaintableWithLines (BlockContainer<HTML>) [0,0 800x602]
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x20]
     PaintableWithLines (BlockContainer<BODY>) [9,9 782x2]
       PaintableWithLines (BlockContainer<DIV>.only-t-l) [5,5 12x12]
       PaintableWithLines (BlockContainer<DIV>.only-mt-ml) [15,15 12x12]
