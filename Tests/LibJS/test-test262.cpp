@@ -317,8 +317,8 @@ void write_per_file(HashMap<size_t, TestResult> const& result_map, Vector<ByteSt
         result_object.set(paths[test], name_for_result(value));
 
     JsonObject complete_results {};
-    complete_results.set("duration", time_taken_in_ms / 1000.);
-    complete_results.set("results", result_object);
+    complete_results.set("duration"sv, time_taken_in_ms / 1000.);
+    complete_results.set("results"sv, result_object);
 
     if (file->write_until_depleted(complete_results.to_byte_string()).is_error())
         warnln("Failed to write per-file");

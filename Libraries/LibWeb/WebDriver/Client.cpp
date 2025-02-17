@@ -329,8 +329,8 @@ ErrorOr<void, Client::WrappedError> Client::send_error_response(HTTP::HttpReques
     auto reason = HTTP::HttpResponse::reason_phrase_for_code(error.http_status);
 
     JsonObject error_response;
-    error_response.set("error"sv, error.error);
-    error_response.set("message"sv, error.message);
+    error_response.set("error"sv, MUST(String::from_byte_string(error.error)));
+    error_response.set("message"sv, MUST(String::from_byte_string(error.message)));
     error_response.set("stacktrace"sv, ""sv);
     if (error.data.has_value())
         error_response.set("data"sv, *error.data);

@@ -10,6 +10,7 @@
 #include <AK/ByteString.h>
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
+#include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
@@ -24,7 +25,7 @@ class Actor
 public:
     virtual ~Actor();
 
-    ByteString const& name() const { return m_name; }
+    String const& name() const { return m_name; }
     virtual void handle_message(StringView type, JsonObject const&) = 0;
 
     class [[nodiscard]] BlockToken {
@@ -57,7 +58,7 @@ protected:
 
 private:
     DevToolsServer& m_devtools;
-    ByteString m_name;
+    String m_name;
 
     Vector<JsonValue> m_blocked_responses;
     bool m_block_responses { false };

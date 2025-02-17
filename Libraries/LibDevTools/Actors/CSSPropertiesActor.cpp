@@ -36,7 +36,7 @@ void CSSPropertiesActor::handle_message(StringView type, JsonObject const&)
 
         for (auto const& css_property : css_property_list) {
             JsonArray subproperties;
-            subproperties.must_append(css_property.name);
+            subproperties.must_append(MUST(String::from_byte_string(css_property.name)));
 
             JsonObject property;
             property.set("isInherited"sv, css_property.is_inherited);

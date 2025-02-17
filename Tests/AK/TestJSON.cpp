@@ -66,7 +66,7 @@ TEST_CASE(json_string)
 {
     auto json = JsonValue::from_string("\"A\""sv).value();
     EXPECT_EQ(json.type(), JsonValue::Type::String);
-    EXPECT_EQ(json.as_string().length(), size_t { 1 });
+    EXPECT_EQ(json.as_string().byte_count(), size_t { 1 });
     EXPECT_EQ(json.as_string() == "A", true);
 }
 
@@ -74,7 +74,7 @@ TEST_CASE(json_utf8_character)
 {
     auto json = JsonValue::from_string("\"\\u0041\""sv).value();
     EXPECT_EQ(json.type(), JsonValue::Type::String);
-    EXPECT_EQ(json.as_string().length(), size_t { 1 });
+    EXPECT_EQ(json.as_string().byte_count(), size_t { 1 });
     EXPECT_EQ(json.as_string() == "A", true);
 }
 
@@ -83,19 +83,19 @@ TEST_CASE(json_encoded_surrogates)
     {
         auto json = JsonValue::from_string("\"\\uD83E\\uDD13\""sv).value();
         EXPECT_EQ(json.type(), JsonValue::Type::String);
-        EXPECT_EQ(json.as_string().length(), 4u);
+        EXPECT_EQ(json.as_string().byte_count(), 4u);
         EXPECT_EQ(json.as_string(), "🤓"sv);
     }
     {
         auto json = JsonValue::from_string("\"\\uD83E\""sv).value();
         EXPECT_EQ(json.type(), JsonValue::Type::String);
-        EXPECT_EQ(json.as_string().length(), 3u);
+        EXPECT_EQ(json.as_string().byte_count(), 3u);
         EXPECT_EQ(json.as_string(), "\xED\xA0\xBE"sv);
     }
     {
         auto json = JsonValue::from_string("\"\\uDD13\""sv).value();
         EXPECT_EQ(json.type(), JsonValue::Type::String);
-        EXPECT_EQ(json.as_string().length(), 3u);
+        EXPECT_EQ(json.as_string().byte_count(), 3u);
         EXPECT_EQ(json.as_string(), "\xED\xB4\x93"sv);
     }
 }
@@ -110,7 +110,7 @@ TEST_CASE(json_utf8_multibyte)
 
     auto& json = json_or_error.value();
     EXPECT_EQ(json.type(), JsonValue::Type::String);
-    EXPECT_EQ(json.as_string().length(), size_t { 2 });
+    EXPECT_EQ(json.as_string().byte_count(), size_t { 2 });
     EXPECT_EQ(json.as_string() == "š", true);
     EXPECT_EQ(json.as_string() == "\xc5\xa1", true);
 }

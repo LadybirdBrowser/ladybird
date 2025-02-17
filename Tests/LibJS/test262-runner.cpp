@@ -46,8 +46,8 @@ enum class NegativePhase {
 
 struct TestError {
     NegativePhase phase { NegativePhase::ParseOrEarly };
-    ByteString type;
-    ByteString details;
+    String type;
+    String details;
     ByteString harness_file;
 };
 
@@ -60,8 +60,8 @@ static ErrorOr<ScriptOrModuleProgram, TestError> parse_program(JS::Realm& realm,
     if (script_or_error.is_error()) {
         return TestError {
             NegativePhase::ParseOrEarly,
-            "SyntaxError",
-            script_or_error.error()[0].to_byte_string(),
+            "SyntaxError"_string,
+            script_or_error.error()[0].to_string(),
             ""
         };
     }
@@ -92,22 +92,22 @@ static ErrorOr<void, TestError> run_program(InterpreterT& interpreter, ScriptOrM
 
             auto name = object.get_without_side_effects("name");
             if (!name.is_empty() && !name.is_accessor()) {
-                error.type = name.to_string_without_side_effects().to_byte_string();
+                error.type = name.to_string_without_side_effects();
             } else {
                 auto constructor = object.get_without_side_effects("constructor");
                 if (constructor.is_object()) {
                     name = constructor.as_object().get_without_side_effects("name");
                     if (!name.is_undefined())
-                        error.type = name.to_string_without_side_effects().to_byte_string();
+                        error.type = name.to_string_without_side_effects();
                 }
             }
 
             auto message = object.get_without_side_effects("message");
             if (!message.is_empty() && !message.is_accessor())
-                error.details = message.to_string_without_side_effects().to_byte_string();
+                error.details = message.to_string_without_side_effects();
         }
         if (error.type.is_empty())
-            error.type = error_value.to_string_without_side_effects().to_byte_string();
+            error.type = error_value.to_string_without_side_effects();
         return error;
     }
     return {};
@@ -136,8 +136,8 @@ static ErrorOr<StringView, TestError> read_harness_file(StringView harness_file)
     if (cache.is_error()) {
         return TestError {
             NegativePhase::Harness,
-            "filesystem",
-            ByteString::formatted("Could not read file: {}", harness_file),
+            "filesystem"_string,
+            MUST(String::formatted("Could not read file: {}", harness_file)),
             harness_file
         };
     }
@@ -202,8 +202,8 @@ static ErrorOr<void, TestError> run_test(StringView source, StringView filepath,
         if (parser.has_errors()) {
             return TestError {
                 NegativePhase::ParseOrEarly,
-                "SyntaxError",
-                parser.errors()[0].to_byte_string(),
+                "SyntaxError"_string,
+                parser.errors()[0].to_string(),
                 ""
             };
         }
@@ -250,14 +250,14 @@ static ErrorOr<void, TestError> run_test(StringView source, StringView filepath,
     return run_program(vm->bytecode_interpreter(), program);
 }
 
-static ErrorOr<TestMetadata, ByteString> extract_metadata(StringView source)
+static ErrorOr<TestMetadata, String> extract_metadata(StringView source)
 {
     auto lines = source.lines();
 
     TestMetadata metadata;
 
     bool parsing_negative = false;
-    ByteString failed_message;
+    String failed_message;
 
     auto parse_list = [&](StringView line) {
         auto start = line.find('[');
@@ -268,7 +268,7 @@ static ErrorOr<TestMetadata, ByteString> extract_metadata(StringView source)
 
         auto end = line.find_last(']');
         if (!end.has_value() || end.value() <= start.value()) {
-            failed_message = ByteString::formatted("Can't parse list in '{}'", line);
+            failed_message = MUST(String::formatted("Can't parse list in '{}'", line));
             return items;
         }
 
@@ -281,7 +281,7 @@ static ErrorOr<TestMetadata, ByteString> extract_metadata(StringView source)
     auto second_word = [&](StringView line) {
         auto separator = line.find(' ');
         if (!separator.has_value() || separator.value() >= (line.length() - 1u)) {
-            failed_message = ByteString::formatted("Can't parse value after space in '{}'", line);
+            failed_message = MUST(String::formatted("Can't parse value after space in '{}'", line));
             return ""sv;
         }
         return line.substring_view(separator.value() + 1);
@@ -311,7 +311,7 @@ static ErrorOr<TestMetadata, ByteString> extract_metadata(StringView source)
                 continue;
             } else {
                 if (include_list.is_empty()) {
-                    failed_message = "Supposed to parse a list but found no entries";
+                    failed_message = "Supposed to parse a list but found no entries"_string;
                     break;
                 }
 
@@ -335,18 +335,18 @@ static ErrorOr<TestMetadata, ByteString> extract_metadata(StringView source)
                     metadata.phase = NegativePhase::Runtime;
                 } else {
                     has_phase = false;
-                    failed_message = ByteString::formatted("Unknown negative phase: {}", phase);
+                    failed_message = MUST(String::formatted("Unknown negative phase: {}", phase));
                     break;
                 }
             } else if (line.starts_with("type:"sv)) {
                 metadata.type = second_word(line);
             } else {
                 if (!has_phase) {
-                    failed_message = "Failed to find phase in negative attributes";
+                    failed_message = "Failed to find phase in negative attributes"_string;
                     break;
                 }
                 if (metadata.type.is_empty()) {
-                    failed_message = "Failed to find type in negative attributes";
+                    failed_message = "Failed to find type in negative attributes"_string;
                     break;
                 }
 
@@ -392,7 +392,7 @@ static ErrorOr<TestMetadata, ByteString> extract_metadata(StringView source)
     }
 
     if (failed_message.is_empty())
-        failed_message = ByteString::formatted("Never reached end of comment '---*/'");
+        failed_message = MUST(String::formatted("Never reached end of comment '---*/'"));
 
     return failed_message;
 }
@@ -402,13 +402,13 @@ static bool verify_test(ErrorOr<void, TestError>& result, TestMetadata const& me
     if (result.is_error()) {
         if (result.error().phase == NegativePhase::Harness) {
             output.set("harness_error"sv, true);
-            output.set("harness_file"sv, result.error().harness_file);
+            output.set("harness_file"sv, String::from_utf8_with_replacement_character(result.error().harness_file));
             output.set("result"sv, "harness_error"sv);
         } else if (result.error().phase == NegativePhase::Runtime) {
             auto& error_type = result.error().type;
             auto& error_details = result.error().details;
-            if ((error_type == "InternalError"sv && error_details.starts_with("TODO("sv))
-                || (error_type == "Test262Error"sv && error_details.ends_with(" but got a InternalError"sv))) {
+            if ((error_type == "InternalError"sv && error_details.starts_with_bytes("TODO("sv))
+                || (error_type == "Test262Error"sv && error_details.ends_with_bytes(" but got a InternalError"sv))) {
                 output.set("todo_error"sv, true);
                 output.set("result"sv, "todo_error"sv);
             }
@@ -467,7 +467,7 @@ static bool verify_test(ErrorOr<void, TestError>& result, TestMetadata const& me
 
     JsonObject expected_error_object;
     expected_error_object.set("phase"sv, phase_to_string(metadata.phase));
-    expected_error_object.set("type"sv, metadata.type.to_byte_string());
+    expected_error_object.set("type"sv, metadata.type);
 
     expected_error = expected_error_object;
 
@@ -528,7 +528,7 @@ static bool g_in_assert = false;
         // immediately stop if we are already in a failed assert.
         g_in_assert = true;
         JsonObject assert_fail_result;
-        assert_fail_result.set("test"sv, s_current_test);
+        assert_fail_result.set("test"sv, String::from_utf8_with_replacement_character(s_current_test));
         assert_fail_result.set("assert_fail"sv, true);
         assert_fail_result.set("result"sv, "assert_fail"sv);
         assert_fail_result.set("output"sv, StringView { assert_failed_message, strlen(assert_failed_message) });
@@ -741,7 +741,7 @@ int main(int argc, char** argv)
         if (metadata_or_error.is_error()) {
             result_object.set("result"sv, "metadata_error"sv);
             result_object.set("metadata_error"sv, true);
-            result_object.set("metadata_output"sv, metadata_or_error.error());
+            result_object.set("metadata_output"sv, metadata_or_error.release_error());
             continue;
         }
 
@@ -762,7 +762,7 @@ int main(int argc, char** argv)
 
             auto first_output = collect_output();
             if (first_output.has_value())
-                result_object.set("output"sv, *first_output);
+                result_object.set("output"sv, String::from_utf8_with_replacement_character(*first_output));
 
             passed = verify_test(result, metadata, result_object);
             auto output = first_output.value_or("");
@@ -786,7 +786,7 @@ int main(int argc, char** argv)
 
             auto first_output = collect_output();
             if (first_output.has_value())
-                result_object.set("strict_output"sv, *first_output);
+                result_object.set("strict_output"sv, String::from_utf8_with_replacement_character(*first_output));
 
             passed = verify_test(result, metadata, result_object);
             auto output = first_output.value_or("");

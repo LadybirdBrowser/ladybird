@@ -176,7 +176,7 @@ public:
         for (auto& it : m_graph) {
             AK::JsonArray edges;
             for (auto const& value : it.value.edges) {
-                edges.must_append(ByteString::formatted("{}", value));
+                edges.must_append(MUST(String::formatted("{}", value)));
             }
 
             auto node = AK::JsonObject();
@@ -185,7 +185,7 @@ public:
                 auto location = it.value.root_origin->location;
                 switch (type) {
                 case HeapRoot::Type::Root:
-                    node.set("root"sv, ByteString::formatted("Root {} {}:{}", location->function_name(), location->filename(), location->line_number()));
+                    node.set("root"sv, MUST(String::formatted("Root {} {}:{}", location->function_name(), location->filename(), location->line_number())));
                     break;
                 case HeapRoot::Type::RootVector:
                     node.set("root"sv, "RootVector"sv);

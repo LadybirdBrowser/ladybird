@@ -68,7 +68,7 @@ JS::ThrowCompletionOr<JsonWebKey> JsonWebKey::parse(JS::Realm& realm, ReadonlyBy
         key.key_ops->ensure_capacity(key_ops->size());
 
         key_ops->for_each([&](auto const& value) {
-            key.key_ops->append(MUST(String::from_byte_string(value.as_string())));
+            key.key_ops->append(value.as_string());
         });
     }
 

@@ -76,6 +76,7 @@ public:
     Optional<FlatPtr> get_addr(StringView key) const;
     Optional<bool> get_bool(StringView key) const;
 
+    Optional<String const&> get_string(StringView key) const;
     Optional<ByteString> get_byte_string(StringView key) const;
 
     Optional<JsonObject&> get_object(StringView key);
@@ -144,7 +145,7 @@ inline void JsonValue::serialize(Builder& builder) const
         [&](Empty const&) { builder.append("null"sv); },
         [&](bool const& value) { builder.append(value ? "true"sv : "false"sv); },
         [&](Arithmetic auto const& value) { builder.appendff("{}", value); },
-        [&](ByteString const& value) {
+        [&](String const& value) {
             builder.append('\"');
             builder.append_escaped_for_json(value.bytes());
             builder.append('\"');

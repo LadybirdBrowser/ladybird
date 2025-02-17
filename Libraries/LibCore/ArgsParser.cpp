@@ -749,7 +749,7 @@ void ArgsParser::autocomplete(FILE* file, StringView program_name, ReadonlySpan<
 
     auto write_completion = [&](auto format, auto& option, auto has_invariant, auto... args) {
         JsonObject object;
-        object.set("completion"sv, ByteString::formatted(StringView { format, strlen(format) }, args...));
+        object.set("completion"sv, MUST(String::formatted(StringView { format, strlen(format) }, args...)));
         object.set("static_offset"sv, 0);
         object.set("invariant_offset"sv, has_invariant ? option_to_complete.length() : 0u);
         object.set("display_trivia"sv, StringView { option.help_string, strlen(option.help_string) });

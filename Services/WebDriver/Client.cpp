@@ -131,7 +131,7 @@ Web::WebDriver::Response Client::get_status(Web::WebDriver::Parameters, JsonValu
     //        An implementation-defined string explaining the remote end's readiness state.
     JsonObject body;
     body.set("ready"sv, readiness_state);
-    body.set("message"sv, ByteString::formatted("{} to accept a new session", readiness_state ? "Ready"sv : "Not ready"sv));
+    body.set("message"sv, MUST(String::formatted("{} to accept a new session", readiness_state ? "Ready"sv : "Not ready"sv)));
 
     // 2. Return success with data body.
     return JsonValue { body };

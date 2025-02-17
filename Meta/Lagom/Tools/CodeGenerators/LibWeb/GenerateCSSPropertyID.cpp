@@ -91,7 +91,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
 void replace_logical_aliases(JsonObject& properties)
 {
-    AK::HashMap<String, ByteString> logical_aliases;
+    AK::HashMap<String, String> logical_aliases;
     properties.for_each_member([&](auto& name, auto& value) {
         VERIFY(value.is_object());
         auto const& value_as_object = value.as_object();
@@ -319,7 +319,7 @@ bool property_accepts_@css_type_name@(PropertyID property_id, [[maybe_unused]] @
             return;
         if (auto maybe_valid_types = value.as_object().get_array("valid-types"sv); maybe_valid_types.has_value() && !maybe_valid_types->is_empty()) {
             for (auto valid_type : maybe_valid_types->values()) {
-                auto type_and_range = valid_type.as_string().split_view(' ');
+                auto type_and_range = MUST(valid_type.as_string().split(' '));
                 if (type_and_range.first() != css_type_name)
                     continue;
 
@@ -333,9 +333,9 @@ bool property_accepts_@css_type_name@(PropertyID property_id, [[maybe_unused]] @
                 if (type_and_range.size() > 1) {
                     auto range = type_and_range[1];
                     VERIFY(range.starts_with('[') && range.ends_with(']') && range.contains(','));
-                    auto comma_index = range.find(',').value();
-                    StringView min_value_string = range.substring_view(1, comma_index - 1);
-                    StringView max_value_string = range.substring_view(comma_index + 1, range.length() - comma_index - 2);
+                    auto comma_index = range.find_byte_offset(',').value();
+                    StringView min_value_string = range.bytes_as_string_view().substring_view(1, comma_index - 1);
+                    StringView max_value_string = range.bytes_as_string_view().substring_view(comma_index + 1, range.byte_count() - comma_index - 2);
 
                     // If the min/max value is infinite, we can just skip that side of the check.
                     if (min_value_string == "-∞")
@@ -782,7 +782,7 @@ bool property_accepts_type(PropertyID property_id, ValueType value_type)
             bool did_output_accepted_type = false;
             for (auto& type : valid_types.values()) {
                 VERIFY(type.is_string());
-                auto type_name = type.as_string().split_view(' ').first();
+                auto type_name = MUST(type.as_string().split(' ')).first();
                 if (type_name_is_enum(type_name))
                     continue;
 
@@ -888,7 +888,7 @@ bool property_accepts_keyword(PropertyID property_id, Keyword keyword)
         if (auto maybe_valid_types = object.get_array("valid-types"sv); maybe_valid_types.has_value() && !maybe_valid_types->is_empty()) {
             auto& valid_types = maybe_valid_types.value();
             for (auto& valid_type : valid_types.values()) {
-                auto type_name = valid_type.as_string().split_view(' ').first();
+                auto type_name = MUST(valid_type.as_string().split(' ')).first();
                 if (!type_name_is_enum(type_name))
                     continue;
 

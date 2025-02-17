@@ -40,7 +40,7 @@ static ErrorOr<PropertyType, WebDriver::Error> get_property(JsonObject const& pa
     if constexpr (IsSame<PropertyType, ByteString>) {
         if (!property->is_string())
             return WebDriver::Error::from_code(ErrorCode::InvalidArgument, ByteString::formatted("Property '{}' is not a String", key));
-        return property->as_string();
+        return property->as_string().to_byte_string();
     } else if constexpr (IsSame<PropertyType, bool>) {
         if (!property->is_bool())
             return WebDriver::Error::from_code(ErrorCode::InvalidArgument, ByteString::formatted("Property '{}' is not a Boolean", key));
