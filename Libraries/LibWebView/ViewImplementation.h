@@ -51,6 +51,9 @@ public:
     void set_url(Badge<WebContentClient>, URL::URL url) { m_url = move(url); }
     URL::URL const& url() const { return m_url; }
 
+    void set_title(Badge<WebContentClient>, ByteString title) { m_title = move(title); }
+    ByteString const& title() const { return m_title; }
+
     String const& handle() const { return m_client_state.client_handle; }
 
     void server_did_paint(Badge<WebContentClient>, i32 bitmap_id, Gfx::IntSize size);
@@ -286,6 +289,7 @@ protected:
     } m_client_state;
 
     URL::URL m_url;
+    ByteString m_title;
 
     float m_zoom_level { 1.0 };
     float m_device_pixel_ratio { 1.0 };
