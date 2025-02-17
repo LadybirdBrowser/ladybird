@@ -106,21 +106,32 @@ Web::WebDriver::Response Client::delete_session(Web::WebDriver::Parameters param
     return JsonValue {};
 }
 
+// https://w3c.github.io/webdriver/#dfn-readiness-state
+static bool readiness_state()
+{
+    // The readiness state of a remote end indicates whether it is free to accept new connections. It must be false if
+    // the implementation is an endpoint node and the list of active HTTP sessions is not empty, or otherwise if the
+    // remote end is known to be in a state in which attempting to create new sessions would fail. In all other cases it
+    // must be true.
+    return Session::session_count(Web::WebDriver::SessionFlags::Http) == 0;
+}
+
 // 8.3 Status, https://w3c.github.io/webdriver/#dfn-status
 // GET /status
 Web::WebDriver::Response Client::get_status(Web::WebDriver::Parameters, JsonValue)
 {
     dbgln_if(WEBDRIVER_DEBUG, "Handling GET /status");
 
+    auto readiness_state = WebDriver::readiness_state();
+
     // 1. Let body be a new JSON Object with the following properties:
     //    "ready"
-    //        The remote end’s readiness state.
+    //        The remote end's readiness state.
     //    "message"
-    //        An implementation-defined string explaining the remote end’s readiness state.
-    // FIXME: Report if we are somehow not ready.
+    //        An implementation-defined string explaining the remote end's readiness state.
     JsonObject body;
-    body.set("ready", true);
-    body.set("message", "Ready to start some sessions!");
+    body.set("ready", readiness_state);
+    body.set("message", ByteString::formatted("{} to accept a new session", readiness_state ? "Ready"sv : "Not ready"sv));
 
     // 2. Return success with data body.
     return JsonValue { body };
