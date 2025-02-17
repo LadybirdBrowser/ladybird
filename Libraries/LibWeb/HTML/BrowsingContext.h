@@ -6,24 +6,13 @@
 
 #pragma once
 
-#include <AK/Function.h>
 #include <AK/Noncopyable.h>
-#include <AK/RefPtr.h>
-#include <AK/WeakPtr.h>
-#include <LibGfx/Bitmap.h>
-#include <LibGfx/Rect.h>
-#include <LibGfx/Size.h>
-#include <LibJS/Forward.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/Origin.h>
-#include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
-#include <LibWeb/HTML/VisibilityState.h>
-#include <LibWeb/Platform/Timer.h>
-#include <LibWeb/TreeNode.h>
 
 namespace Web::HTML {
 
@@ -42,57 +31,10 @@ public:
 
     virtual ~BrowsingContext() override;
 
-    GC::Ref<HTML::TraversableNavigable> top_level_traversable() const;
-
-    GC::Ptr<BrowsingContext> first_child() const;
-    GC::Ptr<BrowsingContext> next_sibling() const;
+    GC::Ref<TraversableNavigable> top_level_traversable() const;
 
     bool is_ancestor_of(BrowsingContext const&) const;
     bool is_familiar_with(BrowsingContext const&) const;
-
-    template<typename Callback>
-    TraversalDecision for_each_in_inclusive_subtree(Callback callback) const
-    {
-        if (callback(*this) == TraversalDecision::Break)
-            return TraversalDecision::Break;
-        for (auto child = first_child(); child; child = child->next_sibling()) {
-            if (child->for_each_in_inclusive_subtree(callback) == TraversalDecision::Break)
-                return TraversalDecision::Break;
-        }
-        return TraversalDecision::Continue;
-    }
-
-    template<typename Callback>
-    TraversalDecision for_each_in_inclusive_subtree(Callback callback)
-    {
-        if (callback(*this) == TraversalDecision::Break)
-            return TraversalDecision::Break;
-        for (auto child = first_child(); child; child = child->next_sibling()) {
-            if (child->for_each_in_inclusive_subtree(callback) == TraversalDecision::Break)
-                return TraversalDecision::Break;
-        }
-        return TraversalDecision::Continue;
-    }
-
-    template<typename Callback>
-    TraversalDecision for_each_in_subtree(Callback callback) const
-    {
-        for (auto child = first_child(); child; child = child->next_sibling()) {
-            if (child->for_each_in_inclusive_subtree(callback) == TraversalDecision::Break)
-                return TraversalDecision::Break;
-        }
-        return TraversalDecision::Continue;
-    }
-
-    template<typename Callback>
-    TraversalDecision for_each_in_subtree(Callback callback)
-    {
-        for (auto child = first_child(); child; child = child->next_sibling()) {
-            if (child->for_each_in_inclusive_subtree(callback) == TraversalDecision::Break)
-                return TraversalDecision::Break;
-        }
-        return TraversalDecision::Continue;
-    }
 
     bool is_top_level() const;
     bool is_auxiliary() const { return m_is_auxiliary; }
@@ -147,7 +89,7 @@ private:
     GC::Ref<Page> m_page;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#browsing-context
-    GC::Ptr<HTML::WindowProxy> m_window_proxy;
+    GC::Ptr<WindowProxy> m_window_proxy;
 
     // https://html.spec.whatwg.org/multipage/browsers.html#opener-browsing-context
     GC::Ptr<BrowsingContext> m_opener_browsing_context;

@@ -439,14 +439,11 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
     if (!page.has_value())
         return;
 
-    auto& top_context = page->page().top_level_browsing_context();
-
-    top_context.for_each_in_inclusive_subtree([&](auto& ctx) {
-        if (ctx.active_document() != nullptr) {
-            ctx.active_document()->set_inspected_node(nullptr, {});
+    for (auto& navigable : Web::HTML::all_navigables()) {
+        if (navigable->active_document() != nullptr) {
+            navigable->active_document()->set_inspected_node(nullptr, {});
         }
-        return Web::TraversalDecision::Continue;
-    });
+    }
 
     auto* node = Web::DOM::Node::from_unique_id(node_id);
     // Note: Nodes without layout (aka non-visible nodes, don't have style computed)

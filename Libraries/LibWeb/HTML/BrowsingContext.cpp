@@ -9,28 +9,20 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
-#include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/DOM/Range.h>
-#include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/BrowsingContextGroup.h>
-#include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
-#include <LibWeb/HTML/DocumentState.h>
-#include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLDocument.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
-#include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
-#include <LibWeb/Layout/BreakNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/Painting/Paintable.h>
 
 namespace Web::HTML {
 
@@ -312,7 +304,7 @@ void BrowsingContext::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#bc-traversable
-GC::Ref<HTML::TraversableNavigable> BrowsingContext::top_level_traversable() const
+GC::Ref<TraversableNavigable> BrowsingContext::top_level_traversable() const
 {
     // A browsing context's top-level traversable is its active document's node navigable's top-level traversable.
     auto traversable = active_document()->navigable()->top_level_traversable();
@@ -433,15 +425,6 @@ BrowsingContext const* BrowsingContext::the_one_permitted_sandboxed_navigator() 
 {
     // FIXME: Implement this.
     return nullptr;
-}
-
-GC::Ptr<BrowsingContext> BrowsingContext::first_child() const
-{
-    return m_first_child;
-}
-GC::Ptr<BrowsingContext> BrowsingContext::next_sibling() const
-{
-    return m_next_sibling;
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#ancestor-browsing-context
