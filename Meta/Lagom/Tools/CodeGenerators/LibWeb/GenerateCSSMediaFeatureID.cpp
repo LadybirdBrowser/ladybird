@@ -140,9 +140,9 @@ bool media_feature_type_is_range(MediaFeatureID media_feature_id)
         auto member_generator = generator.fork();
         member_generator.set("name:titlecase", title_casify(name));
         VERIFY(feature.has("type"sv));
-        auto feature_type = feature.get_byte_string("type"sv);
+        auto feature_type = feature.get_string("type"sv);
         VERIFY(feature_type.has_value());
-        member_generator.set("is_range", feature_type.value() == "range" ? "true"_string : "false"_string);
+        member_generator.set("is_range", feature_type.value() == "range"sv ? "true"_string : "false"_string);
         member_generator.append(R"~~~(
     case MediaFeatureID::@name:titlecase@:
         return @is_range@;)~~~");

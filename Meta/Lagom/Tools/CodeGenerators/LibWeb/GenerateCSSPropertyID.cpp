@@ -420,7 +420,7 @@ Optional<PropertyID> property_id_from_camel_case_string(StringView string)
         auto member_generator = generator.fork();
         member_generator.set("name", name);
         member_generator.set("name:camelcase", camel_casify(name));
-        if (auto legacy_alias_for = value.as_object().get_byte_string("legacy-alias-for"sv); legacy_alias_for.has_value()) {
+        if (auto legacy_alias_for = value.as_object().get_string("legacy-alias-for"sv); legacy_alias_for.has_value()) {
             member_generator.set("name:titlecase", title_casify(legacy_alias_for.value()));
         } else {
             member_generator.set("name:titlecase", title_casify(name));
@@ -449,7 +449,7 @@ Optional<PropertyID> property_id_from_string(StringView string)
 
         auto member_generator = generator.fork();
         member_generator.set("name", name);
-        if (auto legacy_alias_for = value.as_object().get_byte_string("legacy-alias-for"sv); legacy_alias_for.has_value()) {
+        if (auto legacy_alias_for = value.as_object().get_string("legacy-alias-for"sv); legacy_alias_for.has_value()) {
             member_generator.set("name:titlecase", title_casify(legacy_alias_for.value()));
         } else {
             member_generator.set("name:titlecase", title_casify(name));
@@ -552,7 +552,7 @@ AnimationType animation_type_from_longhand_property(PropertyID property_id)
             VERIFY_NOT_REACHED();
         }
 
-        auto animation_type = value.as_object().get_byte_string("animation-type"sv).value();
+        auto animation_type = value.as_object().get_string("animation-type"sv).value();
         member_generator.set("value", title_casify(animation_type));
         member_generator.append(R"~~~(
     case PropertyID::@name:titlecase@:
@@ -681,7 +681,7 @@ NonnullRefPtr<CSSStyleValue> property_initial_value(PropertyID property_id)
             dbgln("No initial value specified for property '{}'", name);
             VERIFY_NOT_REACHED();
         }
-        auto initial_value = object.get_byte_string("initial"sv);
+        auto initial_value = object.get_string("initial"sv);
         VERIFY(initial_value.has_value());
         auto& initial_value_string = initial_value.value();
 
@@ -921,7 +921,7 @@ Optional<ValueType> property_resolves_percentages_relative_to(PropertyID propert
         if (is_legacy_alias(value.as_object()))
             return;
 
-        if (auto resolved_type = value.as_object().get_byte_string("percentages-resolve-to"sv); resolved_type.has_value()) {
+        if (auto resolved_type = value.as_object().get_string("percentages-resolve-to"sv); resolved_type.has_value()) {
             auto property_generator = generator.fork();
             property_generator.set("name:titlecase", title_casify(name));
             property_generator.set("resolved_type:titlecase", title_casify(resolved_type.value()));
@@ -1057,7 +1057,7 @@ bool is_animatable_property(JsonObject& properties, StringView property_name)
     auto property = properties.get_object(property_name);
     VERIFY(property.has_value());
 
-    if (auto animation_type = property.value().get_byte_string("animation-type"sv); animation_type.has_value()) {
+    if (auto animation_type = property.value().get_string("animation-type"sv); animation_type.has_value()) {
         return animation_type != "none";
     }
 

@@ -123,13 +123,6 @@ Optional<String const&> JsonObject::get_string(StringView key) const
     return {};
 }
 
-Optional<ByteString> JsonObject::get_byte_string(StringView key) const
-{
-    if (auto value = get_string(key); value.has_value())
-        return value->to_byte_string();
-    return {};
-}
-
 Optional<JsonObject&> JsonObject::get_object(StringView key)
 {
     auto maybe_value = get(key);
@@ -280,11 +273,6 @@ void JsonObject::set(StringView key, JsonValue value)
 bool JsonObject::remove(StringView key)
 {
     return m_members.remove(key);
-}
-
-ByteString JsonObject::to_byte_string() const
-{
-    return serialized<StringBuilder>();
 }
 
 }

@@ -149,14 +149,14 @@ PseudoClassMetadata pseudo_class_metadata(PseudoClass pseudo_class)
     pseudo_classes_data.for_each_member([&](auto& name, JsonValue const& value) {
         auto member_generator = generator.fork();
         auto& pseudo_class = value.as_object();
-        auto argument_string = pseudo_class.get_byte_string("argument"sv).value();
+        auto argument_string = pseudo_class.get_string("argument"sv).value();
 
         bool is_valid_as_identifier = argument_string.is_empty();
         bool is_valid_as_function = !argument_string.is_empty();
 
         if (argument_string.ends_with('?')) {
             is_valid_as_identifier = true;
-            argument_string = argument_string.substring(0, argument_string.length() - 1);
+            argument_string = MUST(argument_string.substring_from_byte_offset(0, argument_string.byte_count() - 1));
         }
 
         String parameter_type = "None"_string;

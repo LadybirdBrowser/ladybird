@@ -546,7 +546,7 @@ template<typename Generator>
 static void generate_tree(StringBuilder& builder, JsonObject const& node, Generator&& generator)
 {
     if (auto children = node.get_array("children"sv); children.has_value() && !children->is_empty()) {
-        auto name = node.get_byte_string("name"sv).value_or({});
+        auto name = node.get_string("name"sv).value_or({});
         builder.append("<details>"sv);
 
         builder.append("<summary>"sv);
@@ -570,8 +570,8 @@ String InspectorClient::generate_dom_tree(JsonObject const& dom_tree)
     StringBuilder builder;
 
     generate_tree(builder, dom_tree, [&](JsonObject const& node) {
-        auto type = node.get_byte_string("type"sv).value_or("unknown"sv);
-        auto name = node.get_byte_string("name"sv).value_or({});
+        auto type = node.get_string("type"sv).value_or("unknown"_string);
+        auto name = node.get_string("name"sv).value_or({});
 
         StringBuilder data_attributes;
         auto append_data_attribute = [&](auto name, auto value) {
@@ -592,10 +592,9 @@ String InspectorClient::generate_dom_tree(JsonObject const& dom_tree)
         append_data_attribute("id"sv, node_id);
 
         if (type == "text"sv) {
-            auto deprecated_text = node.get_byte_string("text"sv).release_value();
-            deprecated_text = escape_html_entities(deprecated_text);
-
+            auto deprecated_text = escape_html_entities(*node.get_string("text"sv));
             auto text = MUST(Web::Infra::strip_and_collapse_whitespace(deprecated_text));
+
             builder.appendff("<span data-node-type=\"text\" class=\"hoverable editable\" {}>", data_attributes.string_view());
 
             if (text.is_empty())
@@ -608,8 +607,7 @@ String InspectorClient::generate_dom_tree(JsonObject const& dom_tree)
         }
 
         if (type == "comment"sv) {
-            auto comment = node.get_byte_string("data"sv).release_value();
-            comment = escape_html_entities(comment);
+            auto comment = escape_html_entities(*node.get_string("data"sv));
 
             builder.appendff("<span class=\"hoverable comment\" {}>", data_attributes.string_view());
             builder.append("<span>&lt;!--</span>"sv);
@@ -620,7 +618,7 @@ String InspectorClient::generate_dom_tree(JsonObject const& dom_tree)
         }
 
         if (type == "shadow-root"sv) {
-            auto mode = node.get_byte_string("mode"sv).release_value();
+            auto mode = node.get_string("mode"sv).release_value();
 
             builder.appendff("<span class=\"hoverable internal\" {}>", data_attributes.string_view());
             builder.appendff("{} ({})", name, mode);
@@ -636,8 +634,8 @@ String InspectorClient::generate_dom_tree(JsonObject const& dom_tree)
                 m_body_or_frameset_node_id = node_id;
 
             auto tag = name;
-            if (node.get_byte_string("namespace"sv) == Web::Namespace::HTML.bytes_as_string_view())
-                tag = tag.to_lowercase();
+            if (node.get_string("namespace"sv) == Web::Namespace::HTML.bytes_as_string_view())
+                tag = MUST(tag.to_lowercase());
 
             builder.appendff("<span class=\"hoverable\" {}>", data_attributes.string_view());
             builder.append("<span>&lt;</span>"sv);
@@ -693,12 +691,11 @@ String InspectorClient::generate_accessibility_tree(JsonObject const& accessibil
     StringBuilder builder;
 
     generate_tree(builder, accessibility_tree, [&](JsonObject const& node) {
-        auto type = node.get_byte_string("type"sv).value_or("unknown"sv);
-        auto role = node.get_byte_string("role"sv).value_or({});
+        auto type = node.get_string("type"sv).value_or("unknown"_string);
+        auto role = node.get_string("role"sv).value_or({});
 
         if (type == "text"sv) {
-            auto text = node.get_byte_string("text"sv).release_value();
-            text = escape_html_entities(text);
+            auto text = escape_html_entities(*node.get_string("text"sv));
 
             builder.appendff("<span class=\"hoverable\">");
             builder.append(MUST(Web::Infra::strip_and_collapse_whitespace(text)));
@@ -708,16 +705,16 @@ String InspectorClient::generate_accessibility_tree(JsonObject const& accessibil
 
         if (type != "element"sv) {
             builder.appendff("<span class=\"hoverable internal\">");
-            builder.appendff(role.to_lowercase());
+            builder.appendff(MUST(role.to_lowercase()));
             builder.append("</span>"sv);
             return;
         }
 
-        auto name = node.get_byte_string("name"sv).value_or({});
-        auto description = node.get_byte_string("description"sv).value_or({});
+        auto name = node.get_string("name"sv).value_or({});
+        auto description = node.get_string("description"sv).value_or({});
 
         builder.appendff("<span class=\"hoverable\">");
-        builder.append(role.to_lowercase());
+        builder.append(MUST(role.to_lowercase()));
         builder.appendff(" name: \"{}\", description: \"{}\"", name, description);
         builder.append("</span>"sv);
     });

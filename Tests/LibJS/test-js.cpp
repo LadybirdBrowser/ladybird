@@ -165,7 +165,7 @@ TESTJS_RUN_FILE_FUNCTION(ByteString const& test_file, JS::Realm& realm, JS::Exec
         parse_succeeded = !Test::JS::parse_script(test_file, realm).is_error();
 
     bool test_passed = true;
-    ByteString message;
+    String message;
     String expectation_string;
 
     switch (expectation) {
@@ -174,14 +174,14 @@ TESTJS_RUN_FILE_FUNCTION(ByteString const& test_file, JS::Realm& realm, JS::Exec
         expectation_string = "File should not parse"_string;
         test_passed = !parse_succeeded;
         if (!test_passed)
-            message = "Expected the file to fail parsing, but it did not";
+            message = "Expected the file to fail parsing, but it did not"_string;
         break;
     case Pass:
     case ExplicitPass:
         expectation_string = "File should parse"_string;
         test_passed = parse_succeeded;
         if (!test_passed)
-            message = "Expected the file to parse, but it did not";
+            message = "Expected the file to parse, but it did not"_string;
         break;
     }
 
@@ -193,6 +193,6 @@ TESTJS_RUN_FILE_FUNCTION(ByteString const& test_file, JS::Realm& realm, JS::Exec
         {},
         duration_ms,
         test_result,
-        { Test::Suite { test_path, "Parse file"_string, test_result, { { move(expectation_string), test_result, message, static_cast<u64>(duration_ms) * 1000u } } } }
+        { Test::Suite { test_path, "Parse file"_string, test_result, { { move(expectation_string), test_result, move(message), static_cast<u64>(duration_ms) * 1000u } } } }
     };
 }

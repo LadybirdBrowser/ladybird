@@ -15,9 +15,9 @@
 
 namespace Web::Bindings {
 
-#define JWK_PARSE_STRING_PROPERTY(name)                                                     \
-    if (json_object.has_string(#name##sv)) {                                                \
-        key.name = MUST(String::from_byte_string(*json_object.get_byte_string(#name##sv))); \
+#define JWK_PARSE_STRING_PROPERTY(name)                                      \
+    if (auto value = json_object.get_string(#name##sv); value.has_value()) { \
+        key.name = value.release_value();                                    \
     }
 
 JS::ThrowCompletionOr<JsonWebKey> JsonWebKey::parse(JS::Realm& realm, ReadonlyBytes data)

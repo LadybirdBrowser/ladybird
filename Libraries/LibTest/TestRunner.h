@@ -274,7 +274,7 @@ inline void TestRunner::print_test_results_as_json() const
         root.set("files_total"sv, m_counts.files_total);
         root.set("duration"sv, m_total_elapsed_time_in_ms / 1000.0);
     }
-    outln("{}", root.to_byte_string());
+    outln("{}", root.serialized<StringBuilder>());
 }
 
 }
