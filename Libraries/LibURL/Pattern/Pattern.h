@@ -10,6 +10,7 @@
 #include <AK/String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
+#include <LibURL/Pattern/Component.h>
 #include <LibURL/Pattern/Init.h>
 
 namespace URL::Pattern {
@@ -40,6 +41,54 @@ struct Result {
     ComponentResult pathname;
     ComponentResult search;
     ComponentResult hash;
+};
+
+// https://urlpattern.spec.whatwg.org/#url-pattern
+class Pattern {
+public:
+    bool has_regexp_groups() const;
+
+    Component const& protocol_component() const { return m_protocol_component; }
+    Component const& username_component() const { return m_username_component; }
+    Component const& password_component() const { return m_password_component; }
+    Component const& hostname_component() const { return m_hostname_component; }
+    Component const& port_component() const { return m_port_component; }
+    Component const& pathname_component() const { return m_pathname_component; }
+    Component const& search_component() const { return m_search_component; }
+    Component const& hash_component() const { return m_hash_component; }
+
+private:
+    // https://urlpattern.spec.whatwg.org/#url-pattern-protocol-component
+    // protocol component, a component
+    Component m_protocol_component;
+
+    // https://urlpattern.spec.whatwg.org/#url-pattern-username-component
+    // username component, a component
+    Component m_username_component;
+
+    // https://urlpattern.spec.whatwg.org/#url-pattern-password-component
+    // password component, a component
+    Component m_password_component;
+
+    // https://urlpattern.spec.whatwg.org/#url-pattern-hostname-component
+    // hostname component, a component
+    Component m_hostname_component;
+
+    // https://urlpattern.spec.whatwg.org/#url-pattern-port-component
+    // port component, a component
+    Component m_port_component;
+
+    // https://urlpattern.spec.whatwg.org/#url-pattern-pathname-component
+    // pathname component, a component
+    Component m_pathname_component;
+
+    // https://urlpattern.spec.whatwg.org/#url-pattern-search-component
+    // search component, a component
+    Component m_search_component;
+
+    // https://urlpattern.spec.whatwg.org/#url-pattern-hash-component
+    // hash component, a component
+    Component m_hash_component;
 };
 
 }

@@ -10,16 +10,16 @@ interface URLPattern {
 
     URLPatternResult? exec(optional URLPatternInput input = {}, optional USVString baseURL);
 
-    [FIXME] readonly attribute USVString protocol;
-    [FIXME] readonly attribute USVString username;
-    [FIXME] readonly attribute USVString password;
-    [FIXME] readonly attribute USVString hostname;
-    [FIXME] readonly attribute USVString port;
-    [FIXME] readonly attribute USVString pathname;
-    [FIXME] readonly attribute USVString search;
-    [FIXME] readonly attribute USVString hash;
+    readonly attribute USVString protocol;
+    readonly attribute USVString username;
+    readonly attribute USVString password;
+    readonly attribute USVString hostname;
+    readonly attribute USVString port;
+    readonly attribute USVString pathname;
+    readonly attribute USVString search;
+    readonly attribute USVString hash;
 
-    [FIXME] readonly attribute boolean hasRegExpGroups;
+    readonly attribute boolean hasRegExpGroups;
 };
 
 // https://urlpattern.spec.whatwg.org/#dictdef-urlpatterninit
