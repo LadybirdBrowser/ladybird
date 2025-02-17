@@ -83,20 +83,6 @@ public:
     template<typename Builder>
     void serialize(Builder&) const;
 
-    ByteString as_string_or(ByteString const& alternative) const
-    {
-        if (is_string())
-            return as_string();
-        return alternative;
-    }
-
-    ByteString deprecated_to_byte_string() const
-    {
-        if (is_string())
-            return as_string();
-        return serialized<StringBuilder>();
-    }
-
     Optional<int> get_int() const { return get_integer<int>(); }
     Optional<i32> get_i32() const { return get_integer<i32>(); }
     Optional<i64> get_i64() const { return get_integer<i64>(); }

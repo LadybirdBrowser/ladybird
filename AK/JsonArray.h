@@ -78,8 +78,6 @@ public:
     template<typename Builder>
     void serialize(Builder&) const;
 
-    [[nodiscard]] ByteString to_byte_string() const { return serialized<StringBuilder>(); }
-
     template<typename Callback>
     void for_each(Callback callback)
     {
