@@ -55,7 +55,6 @@ public:
     JsonValue(long long unsigned);
 
     JsonValue(double);
-    JsonValue(char const*);
     JsonValue(ByteString const&);
     JsonValue(StringView);
 

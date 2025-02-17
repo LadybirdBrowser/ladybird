@@ -152,11 +152,6 @@ JsonValue::JsonValue(long long unsigned value)
 {
 }
 
-JsonValue::JsonValue(char const* cstring)
-    : m_value(ByteString { cstring })
-{
-}
-
 JsonValue::JsonValue(double value)
     : m_value(double { value })
 {
