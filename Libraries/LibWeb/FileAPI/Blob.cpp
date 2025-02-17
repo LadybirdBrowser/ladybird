@@ -36,7 +36,7 @@ GC::Ref<Blob> Blob::create(JS::Realm& realm, ByteBuffer byte_buffer, String type
 // https://w3c.github.io/FileAPI/#convert-line-endings-to-native
 ErrorOr<String> convert_line_endings_to_native(StringView string)
 {
-    // 1. Let native line ending be be the code point U+000A LF.
+    // 1. Let native line ending be the code point U+000A LF.
     auto native_line_ending = "\n"sv;
 
     // 2. If the underlying platform’s conventions are to represent newlines as a carriage return and line feed sequence, set native line ending to the code point U+000D CR followed by the code point U+000A LF.
