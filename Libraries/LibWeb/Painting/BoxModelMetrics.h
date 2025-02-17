@@ -1,15 +1,14 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <LibGfx/Size.h>
 #include <LibWeb/PixelUnits.h>
 
-namespace Web::Layout {
+namespace Web::Painting {
 
 struct PixelBox {
     CSSPixels top { 0 };

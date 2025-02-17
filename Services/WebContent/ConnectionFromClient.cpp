@@ -503,11 +503,11 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
             return builder.to_byte_string();
         };
         auto serialize_node_box_sizing_json = [](Web::Layout::Node const* layout_node) -> ByteString {
-            if (!layout_node || !layout_node->is_box()) {
+            if (!layout_node || !layout_node->is_box() || !layout_node->first_paintable() || !layout_node->first_paintable()->is_paintable_box()) {
                 return "{}";
             }
-            auto* box = static_cast<Web::Layout::Box const*>(layout_node);
-            auto box_model = box->box_model();
+            auto const& paintable_box = as<Web::Painting::PaintableBox>(*layout_node->first_paintable());
+            auto const& box_model = paintable_box.box_model();
             StringBuilder builder;
             auto serializer = MUST(JsonObjectSerializer<>::try_create(builder));
             MUST(serializer.add("padding_top"sv, box_model.padding.top.to_double()));
@@ -522,13 +522,8 @@ void ConnectionFromClient::inspect_dom_node(u64 page_id, Web::UniqueNodeID const
             MUST(serializer.add("border_right"sv, box_model.border.right.to_double()));
             MUST(serializer.add("border_bottom"sv, box_model.border.bottom.to_double()));
             MUST(serializer.add("border_left"sv, box_model.border.left.to_double()));
-            if (auto* paintable_box = box->paintable_box()) {
-                MUST(serializer.add("content_width"sv, paintable_box->content_width().to_double()));
-                MUST(serializer.add("content_height"sv, paintable_box->content_height().to_double()));
-            } else {
-                MUST(serializer.add("content_width"sv, 0));
-                MUST(serializer.add("content_height"sv, 0));
-            }
+            MUST(serializer.add("content_width"sv, paintable_box.content_width().to_double()));
+            MUST(serializer.add("content_height"sv, paintable_box.content_height().to_double()));
 
             MUST(serializer.finish());
             return builder.to_byte_string();

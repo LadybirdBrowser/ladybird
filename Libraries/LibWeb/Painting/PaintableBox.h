@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2022-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -13,6 +13,7 @@
 #include <LibWeb/Painting/BackgroundPainting.h>
 #include <LibWeb/Painting/BorderPainting.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
+#include <LibWeb/Painting/BoxModelMetrics.h>
 #include <LibWeb/Painting/ClipFrame.h>
 #include <LibWeb/Painting/ClippableAndScrollable.h>
 #include <LibWeb/Painting/Paintable.h>
@@ -49,7 +50,8 @@ public:
     Layout::NodeWithStyleAndBoxModelMetrics& layout_node_with_style_and_box_metrics() { return static_cast<Layout::NodeWithStyleAndBoxModelMetrics&>(Paintable::layout_node()); }
     Layout::NodeWithStyleAndBoxModelMetrics const& layout_node_with_style_and_box_metrics() const { return static_cast<Layout::NodeWithStyleAndBoxModelMetrics const&>(Paintable::layout_node()); }
 
-    auto const& box_model() const { return layout_node_with_style_and_box_metrics().box_model(); }
+    auto& box_model() { return m_box_model; }
+    auto const& box_model() const { return m_box_model; }
 
     struct OverflowData {
         CSSPixelRect scrollable_overflow_rect;
@@ -306,6 +308,8 @@ private:
 
     RefPtr<CSS::GridTrackSizeListStyleValue> m_used_values_for_grid_template_columns;
     RefPtr<CSS::GridTrackSizeListStyleValue> m_used_values_for_grid_template_rows;
+
+    BoxModelMetrics m_box_model;
 };
 
 class PaintableWithLines : public PaintableBox {
