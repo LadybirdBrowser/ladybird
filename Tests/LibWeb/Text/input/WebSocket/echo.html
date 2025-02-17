@@ -1,0 +1,35 @@
+<script src="../include.js"></script>
+<script>
+    asyncTest((done) => {
+        const ws = new WebSocket('wss://echo.websocket.org');
+
+        let messageCount = 0;
+
+        ws.onopen = function (ev) {
+            println(ev.type);
+
+            ws.onclose = function (ev) {
+                println(ev.type);
+                done();
+            }
+            ws.onerror = function (ev) {
+                println(ev.type);
+                done();
+            }
+        };
+        ws.onmessage = function (ev) {
+            if (ev.data.startsWith('WellHelloFriends')) {
+                println(`${ev.type} ${ev.data}`)
+            }
+
+            ws.send(`WellHelloFriends${messageCount}`);
+            if (messageCount++ === 5) {
+                ws.close();
+            }
+        }
+        ws.onerror = function (ev) {
+            println(ev.type);
+            done();
+        }
+    });
+</script>

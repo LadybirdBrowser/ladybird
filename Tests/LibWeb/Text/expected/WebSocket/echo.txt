@@ -1,0 +1,7 @@
+open
+message WellHelloFriends0
+message WellHelloFriends1
+message WellHelloFriends2
+message WellHelloFriends3
+message WellHelloFriends4
+close

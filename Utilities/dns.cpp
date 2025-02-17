@@ -81,20 +81,26 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
             } else {
                 return MUST(resolver.lookup(server_address)->await())->cached_addresses().first().visit([&](auto& address) -> DNS::Resolver::SocketResult {
                     if (use_tls) {
-                        auto tls = MUST(TLS::TLSv12::connect({ address, 853 }, server_address));
+                        TLS::Options options;
+                        options.set_root_certificates_path(cert_path);
+
+                        auto tls = MUST(TLS::TLSv12::connect({ address, 853 }, server_address, move(options)));
                         return { move(tls), DNS::Resolver::ConnectionMode::TCP };
                     }
                     return { MUST(Core::BufferedSocket<Core::UDPSocket>::create(MUST(Core::UDPSocket::connect({ address, 53 })))), DNS::Resolver::ConnectionMode::UDP };
                 });
             }
 
-            if (use_tls)
-                return DNS::Resolver::SocketResult { MUST(TLS::TLSv12::connect(addr, server_address)), DNS::Resolver::ConnectionMode::TCP };
+            if (use_tls) {
+                TLS::Options options;
+                options.set_root_certificates_path(cert_path);
+
+                return DNS::Resolver::SocketResult { MUST(TLS::TLSv12::connect(addr, server_address, move(options))), DNS::Resolver::ConnectionMode::TCP };
+            }
+
             return DNS::Resolver::SocketResult { MUST(Core::BufferedSocket<Core::UDPSocket>::create(MUST(Core::UDPSocket::connect(addr)))), DNS::Resolver::ConnectionMode::UDP };
         }
     };
-
-    DefaultRootCACertificates::set_default_certificate_paths(Array<ByteString, 1> { cert_path.is_empty() ? "/etc/ssl/cert.pem"sv : cert_path });
 
     MUST(resolver.when_socket_ready()->await());
 

@@ -59,9 +59,6 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     else
         RequestServer::g_default_certificate_path = certificates.first();
 
-    DefaultRootCACertificates::set_default_certificate_paths(certificates.span());
-    [[maybe_unused]] auto& certs = DefaultRootCACertificates::the();
-
     Core::EventLoop event_loop;
 
 #if defined(AK_OS_MACOS)

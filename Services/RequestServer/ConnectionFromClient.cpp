@@ -656,6 +656,9 @@ void ConnectionFromClient::websocket_connect(i64 websocket_id, URL::URL const& u
     connection_info.set_extensions(extensions);
     connection_info.set_headers(additional_request_headers);
 
+    if (!g_default_certificate_path.is_empty())
+        connection_info.set_root_certificates_path(g_default_certificate_path);
+
     auto connection = WebSocket::WebSocket::create(move(connection_info));
     connection->on_open = [this, websocket_id]() {
         async_websocket_connected(websocket_id);
