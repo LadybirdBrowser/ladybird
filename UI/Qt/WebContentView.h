@@ -10,9 +10,9 @@
 #include <AK/ByteString.h>
 #include <AK/Function.h>
 #include <AK/OwnPtr.h>
+#include <LibGfx/Cursor.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
-#include <LibGfx/StandardCursor.h>
 #include <LibURL/URL.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PreferredContrast.h>
