@@ -598,6 +598,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
 
     CSS::RequiredInvalidationAfterStyleChange invalidation;
 
+    HashMap<size_t, RefPtr<CSS::CSSStyleValue const>> old_values_with_relative_units;
     for (auto i = to_underlying(CSS::first_property_id); i <= to_underlying(CSS::last_property_id); ++i) {
         auto property_id = static_cast<CSS::PropertyID>(i);
         auto const& preabsolutized_value = m_cascaded_properties->property(property_id);
@@ -606,8 +607,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
         if (preabsolutized_value && preabsolutized_value->is_length() && preabsolutized_value->as_length().length().is_font_relative()) {
             auto is_inherited = computed_properties->is_property_inherited(property_id);
             computed_properties->set_property(property_id, *preabsolutized_value, is_inherited ? CSS::ComputedProperties::Inherited::Yes : CSS::ComputedProperties::Inherited::No);
-            auto new_value = computed_properties->maybe_null_property(property_id);
-            invalidation |= CSS::compute_property_invalidation(property_id, old_value, new_value);
+            old_values_with_relative_units.set(i, old_value);
         }
         if (!computed_properties->is_property_inherited(property_id))
             continue;
@@ -616,11 +616,19 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
         invalidation |= CSS::compute_property_invalidation(property_id, old_value, new_value);
     }
 
-    if (invalidation.is_none())
+    if (invalidation.is_none() && old_values_with_relative_units.is_empty())
         return invalidation;
 
     document().style_computer().compute_font(*computed_properties, this, {});
     document().style_computer().absolutize_values(*computed_properties);
+
+    for (auto [property_id, old_value] : old_values_with_relative_units) {
+        auto new_value = computed_properties->maybe_null_property(static_cast<CSS::PropertyID>(property_id));
+        invalidation |= CSS::compute_property_invalidation(static_cast<CSS::PropertyID>(property_id), old_value, new_value);
+    }
+
+    if (invalidation.is_none())
+        return invalidation;
 
     layout_node()->apply_style(*computed_properties);
     return invalidation;
