@@ -2457,13 +2457,6 @@ WebIDL::ExceptionOr<bool> HTMLInputElement::report_validity()
     return true;
 }
 
-// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-setcustomvalidity
-void HTMLInputElement::set_custom_validity(String const& error)
-{
-    dbgln("(STUBBED) HTMLInputElement::set_custom_validity(error={}). Called on: {}", error, debug_description());
-    return;
-}
-
 Optional<ARIA::Role> HTMLInputElement::default_role() const
 {
     // http://wpt.live/html-aam/roles-dynamic-switch.tentative.window.html "Disconnected <input type=checkbox switch>"

@@ -151,7 +151,6 @@ public:
 
     WebIDL::ExceptionOr<bool> check_validity();
     WebIDL::ExceptionOr<bool> report_validity();
-    void set_custom_validity(String const&);
 
     WebIDL::ExceptionOr<void> show_picker();
 
