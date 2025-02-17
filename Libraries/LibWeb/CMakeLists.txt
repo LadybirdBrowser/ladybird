@@ -554,7 +554,6 @@ set(SOURCES
     Layout/BlockContainer.cpp
     Layout/BlockFormattingContext.cpp
     Layout/Box.cpp
-    Layout/BoxModelMetrics.cpp
     Layout/BreakNode.cpp
     Layout/CanvasBox.cpp
     Layout/CheckBox.cpp
@@ -634,6 +633,7 @@ set(SOURCES
     Painting/BorderPainting.cpp
     Painting/BorderRadiusCornerClipper.cpp
     Painting/BordersData.cpp
+    Painting/BoxModelMetrics.cpp
     Painting/CanvasPaintable.cpp
     Painting/Command.cpp
     Painting/CheckBoxPaintable.cpp
