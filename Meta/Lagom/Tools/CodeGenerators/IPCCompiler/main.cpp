@@ -447,7 +447,7 @@ private:)~~~");
         parameter_generator.set("parameter.type", parameter.type);
         parameter_generator.set("parameter.name", parameter.name);
         parameter_generator.appendln(R"~~~(
-    @parameter.type@ m_@parameter.name@ {};)~~~");
+    @parameter.type@ m_@parameter.name@;)~~~");
     }
 
     message_generator.appendln("\n};");
