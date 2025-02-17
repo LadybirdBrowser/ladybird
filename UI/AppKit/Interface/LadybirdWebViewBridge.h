@@ -10,7 +10,6 @@
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/Size.h>
-#include <LibGfx/StandardCursor.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PreferredContrast.h>
 #include <LibWeb/CSS/PreferredMotion.h>
