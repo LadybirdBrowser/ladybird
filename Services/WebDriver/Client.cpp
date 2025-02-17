@@ -76,10 +76,10 @@ Web::WebDriver::Response Client::new_session(Web::WebDriver::Parameters, JsonVal
     JsonObject body;
     // "sessionId"
     //     session's session ID.
-    body.set("sessionId", JsonValue { session->session_id() });
+    body.set("sessionId"sv, JsonValue { session->session_id() });
     // "capabilities"
     //     capabilities
-    body.set("capabilities", move(capabilities));
+    body.set("capabilities"sv, move(capabilities));
 
     // 8. Set session' current top-level browsing context to one of the endpoint node's top-level browsing contexts,
     //    preferring the top-level browsing context that has system focus, or otherwise preferring any top-level
@@ -130,8 +130,8 @@ Web::WebDriver::Response Client::get_status(Web::WebDriver::Parameters, JsonValu
     //    "message"
     //        An implementation-defined string explaining the remote end's readiness state.
     JsonObject body;
-    body.set("ready", readiness_state);
-    body.set("message", ByteString::formatted("{} to accept a new session", readiness_state ? "Ready"sv : "Not ready"sv));
+    body.set("ready"sv, readiness_state);
+    body.set("message"sv, ByteString::formatted("{} to accept a new session", readiness_state ? "Ready"sv : "Not ready"sv));
 
     // 2. Return success with data body.
     return JsonValue { body };

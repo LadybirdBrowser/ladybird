@@ -43,7 +43,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     return 0;
 }
 
-static String get_snake_case_function_name_for_css_property_name(ByteString const& name)
+static String get_snake_case_function_name_for_css_property_name(StringView name)
 {
     auto snake_case_name = snake_casify(name);
     if (snake_case_name.starts_with('_'))
@@ -182,7 +182,7 @@ interface mixin GeneratedCSSStyleProperties {
         // For each CSS property property that is a supported CSS property and that begins with the string -webkit-,
         // the following partial interface applies where webkit-cased attribute is obtained by running the CSS property
         // to IDL attribute algorithm for property, with the lowercase first flag set.
-        if (name.starts_with("-webkit-"sv)) {
+        if (name.starts_with_bytes("-webkit-"sv)) {
             member_generator.set("name:webkit", css_property_to_idl_attribute(name, /* lowercase_first= */ true));
             member_generator.append(R"~~~(
     [CEReactions, LegacyNullToEmptyString, AttributeCallbackName=@name:snakecase@_webkit, ImplementedAs=@name:acceptable_cpp@] attribute CSSOMString @name:webkit@;

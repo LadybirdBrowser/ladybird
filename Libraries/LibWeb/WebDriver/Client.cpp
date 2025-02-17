@@ -173,7 +173,7 @@ static ErrorOr<MatchedRoute, Error> match_route(HTTP::HttpRequest const& request
 static JsonValue make_success_response(JsonValue value)
 {
     JsonObject result;
-    result.set("value", move(value));
+    result.set("value"sv, move(value));
     return result;
 }
 
@@ -329,14 +329,14 @@ ErrorOr<void, Client::WrappedError> Client::send_error_response(HTTP::HttpReques
     auto reason = HTTP::HttpResponse::reason_phrase_for_code(error.http_status);
 
     JsonObject error_response;
-    error_response.set("error", error.error);
-    error_response.set("message", error.message);
-    error_response.set("stacktrace", ""sv);
+    error_response.set("error"sv, error.error);
+    error_response.set("message"sv, error.message);
+    error_response.set("stacktrace"sv, ""sv);
     if (error.data.has_value())
-        error_response.set("data", *error.data);
+        error_response.set("data"sv, *error.data);
 
     JsonObject result;
-    result.set("value", move(error_response));
+    result.set("value"sv, move(error_response));
 
     auto content = result.serialized<StringBuilder>();
 

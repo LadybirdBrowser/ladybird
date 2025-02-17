@@ -15,12 +15,13 @@
 #include <AK/JsonArray.h>
 #include <AK/JsonObjectSerializer.h>
 #include <AK/JsonValue.h>
+#include <AK/String.h>
 
 namespace AK {
 
 class JsonObject {
     template<typename Callback>
-    using CallbackErrorType = decltype(declval<Callback>()(declval<ByteString const&>(), declval<JsonValue const&>()).release_error());
+    using CallbackErrorType = decltype(declval<Callback>()(declval<String const&>(), declval<JsonValue const&>()).release_error());
 
 public:
     JsonObject();
@@ -86,7 +87,8 @@ public:
     Optional<double> get_double_with_precision_loss(StringView key) const;
     Optional<float> get_float_with_precision_loss(StringView key) const;
 
-    void set(ByteString const& key, JsonValue value);
+    void set(String key, JsonValue value);
+    void set(StringView key, JsonValue value);
 
     template<typename Callback>
     void for_each_member(Callback callback) const
@@ -95,7 +97,7 @@ public:
             callback(member.key, member.value);
     }
 
-    template<FallibleFunction<ByteString const&, JsonValue const&> Callback>
+    template<FallibleFunction<String const&, JsonValue const&> Callback>
     ErrorOr<void, CallbackErrorType<Callback>> try_for_each_member(Callback&& callback) const
     {
         for (auto const& member : m_members)
@@ -114,7 +116,7 @@ public:
     [[nodiscard]] ByteString to_byte_string() const;
 
 private:
-    OrderedHashMap<ByteString, JsonValue> m_members;
+    OrderedHashMap<String, JsonValue> m_members;
 };
 
 template<typename Builder>

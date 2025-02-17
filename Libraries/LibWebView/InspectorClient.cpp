@@ -655,7 +655,7 @@ String InspectorClient::generate_dom_tree(JsonObject const& dom_tree)
                     builder.appendff("<span class=\"attribute-value\">\"{}\"</span>", escape_html_entities(value_string));
                     builder.append("</span>"sv);
 
-                    dom_node_attributes.empend(MUST(String::from_byte_string(name)), MUST(String::from_byte_string(value_string)));
+                    dom_node_attributes.empend(name, MUST(String::from_byte_string(value_string)));
                 });
             }
 

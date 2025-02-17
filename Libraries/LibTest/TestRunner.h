@@ -243,36 +243,36 @@ inline void TestRunner::print_test_results_as_json() const
 
                 auto name = suite.name;
                 if (name == "__$$TOP_LEVEL$$__"sv)
-                    name = ByteString::empty();
+                    name = String {};
 
                 auto path = *LexicalPath::relative_path(suite.path, m_test_root);
 
-                tests.set(ByteString::formatted("{}/{}::{}", path, name, case_.name), result_name);
+                tests.set(MUST(String::formatted("{}/{}::{}", path, name, case_.name)), result_name);
             }
         }
 
-        root.set("duration", static_cast<double>(duration_us) / 1000000.);
-        root.set("results", move(tests));
+        root.set("duration"sv, static_cast<double>(duration_us) / 1000000.);
+        root.set("results"sv, move(tests));
     } else {
         JsonObject suites;
-        suites.set("failed", m_counts.suites_failed);
-        suites.set("passed", m_counts.suites_passed);
-        suites.set("total", m_counts.suites_failed + m_counts.suites_passed);
+        suites.set("failed"sv, m_counts.suites_failed);
+        suites.set("passed"sv, m_counts.suites_passed);
+        suites.set("total"sv, m_counts.suites_failed + m_counts.suites_passed);
 
         JsonObject tests;
-        tests.set("failed", m_counts.tests_failed);
-        tests.set("passed", m_counts.tests_passed);
-        tests.set("skipped", m_counts.tests_skipped);
-        tests.set("xfail", m_counts.tests_expected_failed);
-        tests.set("total", m_counts.tests_failed + m_counts.tests_passed + m_counts.tests_skipped + m_counts.tests_expected_failed);
+        tests.set("failed"sv, m_counts.tests_failed);
+        tests.set("passed"sv, m_counts.tests_passed);
+        tests.set("skipped"sv, m_counts.tests_skipped);
+        tests.set("xfail"sv, m_counts.tests_expected_failed);
+        tests.set("total"sv, m_counts.tests_failed + m_counts.tests_passed + m_counts.tests_skipped + m_counts.tests_expected_failed);
 
         JsonObject results;
-        results.set("suites", suites);
-        results.set("tests", tests);
+        results.set("suites"sv, suites);
+        results.set("tests"sv, tests);
 
-        root.set("results", results);
-        root.set("files_total", m_counts.files_total);
-        root.set("duration", m_total_elapsed_time_in_ms / 1000.0);
+        root.set("results"sv, results);
+        root.set("files_total"sv, m_counts.files_total);
+        root.set("duration"sv, m_total_elapsed_time_in_ms / 1000.0);
     }
     outln("{}", root.to_byte_string());
 }

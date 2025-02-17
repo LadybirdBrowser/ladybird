@@ -98,10 +98,10 @@ static JsonValue serialize_cookie(Web::Cookie::Cookie const& cookie)
 static JsonValue serialize_rect(Gfx::IntRect const& rect)
 {
     JsonObject serialized_rect = {};
-    serialized_rect.set("x", rect.x());
-    serialized_rect.set("y", rect.y());
-    serialized_rect.set("width", rect.width());
-    serialized_rect.set("height", rect.height());
+    serialized_rect.set("x"sv, rect.x());
+    serialized_rect.set("y"sv, rect.y());
+    serialized_rect.set("width"sv, rect.width());
+    serialized_rect.set("height"sv, rect.height());
 
     return serialized_rect;
 }

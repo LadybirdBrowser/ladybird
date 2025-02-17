@@ -145,7 +145,7 @@ static ErrorOr<JsonObject, Error> validate_capabilities(JsonValue const& capabil
         else if (name.contains(':')) {
             // If name is known to the implementation, let deserialized be the result of trying to deserialize value in
             // an implementation-specific way. Otherwise, let deserialized be set to value.
-            if (name.starts_with("ladybird:"sv))
+            if (name.starts_with_bytes("ladybird:"sv))
                 deserialized = TRY(deserialize_as_ladybird_capability(name, value));
         }
 

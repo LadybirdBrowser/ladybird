@@ -47,7 +47,7 @@ ErrorOr<NonnullRefPtr<Session>> Session::create(NonnullRefPtr<Client> client, Js
     // -> Otherwise
     else {
         // Set a property of capabilities with name "proxy" and a value that is a new JSON Object.
-        capabilities.set("proxy", JsonObject {});
+        capabilities.set("proxy"sv, JsonObject {});
     }
 
     // FIXME: 4. If capabilites has a property named "acceptInsecureCerts", set the endpoint node's accept insecure TLS flag
