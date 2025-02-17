@@ -201,6 +201,32 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
         color_off = "\033[0m"sv;
     }
 
+    auto dump_box_model = [&] {
+        if (show_box_model && layout_node.first_paintable() && layout_node.first_paintable()->is_paintable_box()) {
+            auto const& paintable_box = static_cast<Painting::PaintableBox const&>(*layout_node.first_paintable());
+            auto const& box_model = paintable_box.box_model();
+            // Dump the horizontal box properties
+            builder.appendff(" [{}+{}+{} {} {}+{}+{}]",
+                box_model.margin.left,
+                box_model.border.left,
+                box_model.padding.left,
+                paintable_box.content_width(),
+                box_model.padding.right,
+                box_model.border.right,
+                box_model.margin.right);
+
+            // And the vertical box properties
+            builder.appendff(" [{}+{}+{} {} {}+{}+{}]",
+                box_model.margin.top,
+                box_model.border.top,
+                box_model.padding.top,
+                paintable_box.content_height(),
+                box_model.padding.bottom,
+                box_model.border.bottom,
+                box_model.margin.bottom);
+        }
+    };
+
     if (!is<Layout::Box>(layout_node)) {
         builder.appendff("{}{}{} <{}{}{}{}>",
             nonbox_color_on,
@@ -210,6 +236,8 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
             nonbox_color_on,
             identifier,
             color_off);
+
+        dump_box_model();
     } else {
         auto& box = as<Layout::Box>(layout_node);
         StringView color_on = is<Layout::SVGBox>(box) ? svg_box_color_on : box_color_on;
@@ -276,27 +304,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
         if (box.display().is_table_cell())
             builder.appendff(" {}table-cell{}", table_color_on, color_off);
 
-        if (show_box_model) {
-            // Dump the horizontal box properties
-            builder.appendff(" [{}+{}+{} {} {}+{}+{}]",
-                box.box_model().margin.left,
-                box.box_model().border.left,
-                box.box_model().padding.left,
-                box.paintable_box() ? box.paintable_box()->content_width() : 0,
-                box.box_model().padding.right,
-                box.box_model().border.right,
-                box.box_model().margin.right);
-
-            // And the vertical box properties
-            builder.appendff(" [{}+{}+{} {} {}+{}+{}]",
-                box.box_model().margin.top,
-                box.box_model().border.top,
-                box.box_model().padding.top,
-                box.paintable_box() ? box.paintable_box()->content_height() : 0,
-                box.box_model().padding.bottom,
-                box.box_model().border.bottom,
-                box.box_model().margin.bottom);
-        }
+        dump_box_model();
 
         if (auto formatting_context_type = Layout::FormattingContext::formatting_context_type_created_by_box(box); formatting_context_type.has_value()) {
             switch (formatting_context_type.value()) {

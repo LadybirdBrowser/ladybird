@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2018-2020, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2018-2025, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Layout/BoxModelMetrics.h>
+#include <LibWeb/Painting/BoxModelMetrics.h>
 
-namespace Web::Layout {
+namespace Web::Painting {
 
 PixelBox BoxModelMetrics::margin_box() const
 {
