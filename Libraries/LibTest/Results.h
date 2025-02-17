@@ -26,7 +26,7 @@ enum class Result {
 struct Case {
     String name;
     Result result;
-    ByteString details;
+    String details;
     u64 duration_us;
 };
 

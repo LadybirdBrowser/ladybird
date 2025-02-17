@@ -29,8 +29,8 @@ namespace Web::ARIA {
         JsonObject const& value_object = value.as_object();
 
         auto class_definition_generator = generator.fork();
-        class_definition_generator.set("spec_link"sv, value_object.get_byte_string("specLink"sv).value());
-        class_definition_generator.set("description"sv, value_object.get_byte_string("description"sv).value());
+        class_definition_generator.set("spec_link"sv, value_object.get_string("specLink"sv).release_value());
+        class_definition_generator.set("description"sv, value_object.get_string("description"sv).release_value());
         class_definition_generator.set("name"sv, name);
         class_definition_generator.append(R"~~~(
 // @spec_link@

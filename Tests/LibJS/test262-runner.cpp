@@ -416,7 +416,7 @@ static bool verify_test(ErrorOr<void, TestError>& result, TestMetadata const& me
     }
 
     if (metadata.is_async && output.has("output"sv)) {
-        auto output_messages = output.get_byte_string("output"sv);
+        auto output_messages = output.get_string("output"sv);
         VERIFY(output_messages.has_value());
         if (output_messages->contains("AsyncTestFailure:InternalError: TODO("sv)) {
             output.set("todo_error"sv, true);
@@ -532,7 +532,7 @@ static bool g_in_assert = false;
         assert_fail_result.set("assert_fail"sv, true);
         assert_fail_result.set("result"sv, "assert_fail"sv);
         assert_fail_result.set("output"sv, StringView { assert_failed_message, strlen(assert_failed_message) });
-        outln(saved_stdout_fd, "RESULT {}{}", assert_fail_result.to_byte_string(), '\0');
+        outln(saved_stdout_fd, "RESULT {}{}", assert_fail_result.serialized<StringBuilder>(), '\0');
         // (Attempt to) Ensure that messages are written before quitting.
         fflush(saved_stdout_fd);
         fflush(stderr);
@@ -733,7 +733,7 @@ int main(int argc, char** argv)
         result_object.set("test"sv, path);
 
         ScopeGuard output_guard = [&] {
-            outln(saved_stdout_fd, "RESULT {}{}", result_object.to_byte_string(), '\0');
+            outln(saved_stdout_fd, "RESULT {}{}", result_object.serialized<StringBuilder>(), '\0');
             fflush(saved_stdout_fd);
         };
 

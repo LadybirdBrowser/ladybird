@@ -77,7 +77,6 @@ public:
     Optional<bool> get_bool(StringView key) const;
 
     Optional<String const&> get_string(StringView key) const;
-    Optional<ByteString> get_byte_string(StringView key) const;
 
     Optional<JsonObject&> get_object(StringView key);
     Optional<JsonObject const&> get_object(StringView key) const;
@@ -113,8 +112,6 @@ public:
 
     template<typename Builder>
     void serialize(Builder&) const;
-
-    [[nodiscard]] ByteString to_byte_string() const;
 
 private:
     OrderedHashMap<String, JsonValue> m_members;
