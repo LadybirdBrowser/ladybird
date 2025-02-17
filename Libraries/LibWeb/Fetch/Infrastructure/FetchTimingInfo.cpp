@@ -22,7 +22,6 @@ GC::Ref<FetchTimingInfo> FetchTimingInfo::create(JS::VM& vm)
 void FetchTimingInfo::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_final_connection_timing_info);
 }
 
 // https://fetch.spec.whatwg.org/#create-an-opaque-timing-info

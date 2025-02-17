@@ -65,7 +65,7 @@ private:
 
     virtual void initialize(JS::Realm&) override;
 
-    ErrorOr<void> establish_web_socket_connection(URL::URL& url_record, Vector<String>& protocols, HTML::EnvironmentSettingsObject& client);
+    ErrorOr<void> establish_web_socket_connection(URL::URL const& url_record, Vector<String> const& protocols, HTML::EnvironmentSettingsObject& client);
 
     URL::URL m_url;
     String m_binary_type { "blob"_string };

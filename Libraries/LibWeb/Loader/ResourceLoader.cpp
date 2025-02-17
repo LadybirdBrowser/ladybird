@@ -108,11 +108,11 @@ RefPtr<Resource> ResourceLoader::load_resource(Resource::Type type, LoadRequest&
 
     load(
         request,
-        GC::create_function(m_heap, [=](ReadonlyBytes data, HTTP::HeaderMap const& headers, Optional<u32> status_code, Optional<String> const&) {
-            const_cast<Resource&>(*resource).did_load({}, data, headers, status_code);
+        GC::create_function(m_heap, [resource](ReadonlyBytes data, HTTP::HeaderMap const& headers, Optional<u32> status_code, Optional<String> const&) {
+            resource->did_load({}, data, headers, status_code);
         }),
-        GC::create_function(m_heap, [=](ByteString const& error, Optional<u32> status_code, Optional<String> const&, ReadonlyBytes data, HTTP::HeaderMap const& headers) {
-            const_cast<Resource&>(*resource).did_fail({}, error, data, headers, status_code);
+        GC::create_function(m_heap, [resource](ByteString const& error, Optional<u32> status_code, Optional<String> const&, ReadonlyBytes data, HTTP::HeaderMap const& headers) {
+            resource->did_fail({}, error, data, headers, status_code);
         }));
 
     return resource;
@@ -334,11 +334,9 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
     }
 
     if (url.scheme() == "file") {
-        if (request.page())
-            m_page = request.page();
-
-        if (!m_page.has_value()) {
-            log_failure(request, "INTERNAL ERROR: No Page for request");
+        auto page = request.page();
+        if (!page) {
+            log_failure(request, "INTERNAL ERROR: No Page for file scheme request");
             return;
         }
 
@@ -396,7 +394,7 @@ void ResourceLoader::load(LoadRequest& request, GC::Root<SuccessCallback> succes
             success_callback->function()(data, response_headers, {}, {});
         });
 
-        (*m_page)->client().request_file(move(file_request));
+        page->client().request_file(move(file_request));
 
         ++m_pending_loads;
         if (on_load_counter_change)

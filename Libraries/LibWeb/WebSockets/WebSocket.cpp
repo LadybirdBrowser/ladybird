@@ -24,6 +24,7 @@
 #include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/Loader/ResourceLoader.h>
+#include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/DOMException.h>
@@ -97,11 +98,13 @@ WebIDL::ExceptionOr<GC::Ref<WebSocket>> WebSocket::construct_impl(JS::Realm& rea
     web_socket->set_url(*url_record);
 
     // 11. Let client be this’s relevant settings object.
-    auto& client = relevant_settings_object;
+    // 12. Run this step in parallel:
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(vm.heap(), [web_socket, url_record, protocols_sequence = move(protocols_sequence)]() {
+        auto& client = HTML::relevant_settings_object(*web_socket);
 
-    // FIXME: 12. Run this step in parallel:
-    //     1. Establish a WebSocket connection given urlRecord, protocols, and client. [FETCH]
-    TRY_OR_THROW_OOM(vm, web_socket->establish_web_socket_connection(*url_record, protocols_sequence, client));
+        //  1. Establish a WebSocket connection given urlRecord, protocols, and client. [FETCH]
+        (void)web_socket->establish_web_socket_connection(*url_record, protocols_sequence, client);
+    }));
 
     return web_socket;
 }
@@ -119,7 +122,7 @@ void WebSocket::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(WebSocket);
 }
 
-ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL& url_record, Vector<String>& protocols, HTML::EnvironmentSettingsObject& client)
+ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_record, Vector<String> const& protocols, HTML::EnvironmentSettingsObject& client)
 {
     // FIXME: Integrate properly with FETCH as per https://fetch.spec.whatwg.org/#websocket-opening-handshake
 
