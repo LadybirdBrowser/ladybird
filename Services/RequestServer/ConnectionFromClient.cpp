@@ -18,6 +18,10 @@
 #include <LibWebSocket/Message.h>
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/RequestClientEndpoint.h>
+#ifdef AK_OS_WINDOWS
+// needed because curl.h includes winsock2.h
+#    include <AK/Windows.h>
+#endif
 #include <curl/curl.h>
 
 namespace RequestServer {
@@ -290,7 +294,7 @@ Messages::RequestServer::InitTransportResponse ConnectionFromClient::init_transp
 
 Messages::RequestServer::ConnectNewClientResponse ConnectionFromClient::connect_new_client()
 {
-    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
+    // TODO: Mach IPC
 
     int socket_fds[2] {};
     if (auto err = Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, socket_fds); err.is_error()) {
@@ -344,6 +348,12 @@ void ConnectionFromClient::set_dns_server(ByteString const& host_or_address, u16
         default_resolver()->dns.reset_connection();
 }
 
+#ifdef AK_OS_WINDOWS
+void ConnectionFromClient::start_request(i32, ByteString const&, URL::URL const&, HTTP::HeaderMap const&, ByteBuffer const&, Core::ProxyData const&)
+{
+    VERIFY(0 && "RequestServer::ConnectionFromClient::start_request is not implemented");
+}
+#else
 void ConnectionFromClient::start_request(i32 request_id, ByteString const& method, URL::URL const& url, HTTP::HeaderMap const& request_headers, ByteBuffer const& request_body, Core::ProxyData const& proxy_data)
 {
     if (!url.is_valid()) {
@@ -489,6 +499,7 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString const& metho
             m_active_requests.set(request_id, move(request));
         });
 }
+#endif
 
 static Requests::NetworkError map_curl_code_to_network_error(CURLcode const& code)
 {

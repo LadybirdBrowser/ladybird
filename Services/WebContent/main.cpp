@@ -210,7 +210,7 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     if (maybe_autoplay_allowlist_error.is_error())
         dbgln("Failed to load autoplay allowlist: {}", maybe_autoplay_allowlist_error.error());
 
-    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
+    // TODO: Mach IPC
 
     auto webcontent_socket = TRY(Core::take_over_socket_from_system_server("WebContent"sv));
     auto webcontent_client = TRY(WebContent::ConnectionFromClient::try_create(Web::Bindings::main_thread_vm().heap(), IPC::Transport(move(webcontent_socket))));
@@ -274,7 +274,7 @@ static ErrorOr<void> load_autoplay_allowlist(StringView config_path)
 
 ErrorOr<void> initialize_resource_loader(GC::Heap& heap, int request_server_socket)
 {
-    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
+    // TODO: Mach IPC
 
     auto socket = TRY(Core::LocalSocket::adopt_fd(request_server_socket));
     TRY(socket->set_blocking(true));
@@ -291,7 +291,7 @@ ErrorOr<void> initialize_resource_loader(GC::Heap& heap, int request_server_sock
 
 ErrorOr<void> initialize_image_decoder(int image_decoder_socket)
 {
-    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
+    // TODO: Mach IPC
     auto socket = TRY(Core::LocalSocket::adopt_fd(image_decoder_socket));
     TRY(socket->set_blocking(true));
 
@@ -308,7 +308,7 @@ ErrorOr<void> initialize_image_decoder(int image_decoder_socket)
 
 ErrorOr<void> reinitialize_image_decoder(IPC::File const& image_decoder_socket)
 {
-    static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
+    // TODO: Mach IPC
 
     auto socket = TRY(Core::LocalSocket::adopt_fd(image_decoder_socket.take_fd()));
     TRY(socket->set_blocking(true));
