@@ -433,6 +433,18 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString const& metho
                 curl_headers = curl_slist_append(curl_headers, "Content-Type:");
 
             for (auto const& header : request_headers.headers()) {
+                if (header.value.is_empty()) {
+                    // Special case for headers with an empty value. curl will discard the header unless we pass the
+                    // header name followed by a semicolon.
+                    //
+                    // i.e. we need to pass "Content-Type;" instead of "Content-Type: "
+                    //
+                    // See: https://curl.se/libcurl/c/httpcustomheader.html
+                    auto header_string = ByteString::formatted("{};", header.name);
+                    curl_headers = curl_slist_append(curl_headers, header_string.characters());
+                    continue;
+                }
+
                 auto header_string = ByteString::formatted("{}: {}", header.name, header.value);
                 curl_headers = curl_slist_append(curl_headers, header_string.characters());
             }
