@@ -601,15 +601,16 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
     for (auto i = to_underlying(CSS::first_property_id); i <= to_underlying(CSS::last_property_id); ++i) {
         auto property_id = static_cast<CSS::PropertyID>(i);
         auto const& preabsolutized_value = m_cascaded_properties->property(property_id);
+        RefPtr old_value = computed_properties->maybe_null_property(property_id);
         // Update property if it uses relative units as it might have been affected by a change in ancestor element style.
         if (preabsolutized_value && preabsolutized_value->is_length() && preabsolutized_value->as_length().length().is_font_relative()) {
             auto is_inherited = computed_properties->is_property_inherited(property_id);
             computed_properties->set_property(property_id, *preabsolutized_value, is_inherited ? CSS::ComputedProperties::Inherited::Yes : CSS::ComputedProperties::Inherited::No);
-            invalidation |= CSS::compute_property_invalidation(property_id, preabsolutized_value, preabsolutized_value);
+            auto new_value = computed_properties->maybe_null_property(property_id);
+            invalidation |= CSS::compute_property_invalidation(property_id, old_value, new_value);
         }
         if (!computed_properties->is_property_inherited(property_id))
             continue;
-        RefPtr old_value = computed_properties->maybe_null_property(property_id);
         RefPtr new_value = CSS::StyleComputer::get_inherit_value(property_id, this);
         computed_properties->set_property(property_id, *new_value, CSS::ComputedProperties::Inherited::Yes);
         invalidation |= CSS::compute_property_invalidation(property_id, old_value, new_value);
