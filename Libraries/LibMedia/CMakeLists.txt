@@ -6,7 +6,6 @@ endif()
 
 set(SOURCES
     Audio/Loader.cpp
-    Audio/PlaybackStream.cpp
     Audio/SampleFormats.cpp
     Color/ColorConverter.cpp
     Color/ColorPrimaries.cpp
@@ -47,4 +46,6 @@ elseif (LADYBIRD_AUDIO_BACKEND STREQUAL "OBOE")
     target_link_libraries(LibMedia PRIVATE log oboe::oboe)
 elseif (DEFINED LADYBIRD_AUDIO_BACKEND)
     message(FATAL_ERROR "Please update ${CMAKE_CURRENT_LIST_FILE} for audio backend ${LADYBIRD_AUDIO_BACKEND}")
+else ()
+    target_sources(LibMedia PRIVATE Audio/PlaybackStream.cpp)
 endif()
