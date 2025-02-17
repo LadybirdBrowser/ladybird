@@ -1,0 +1,42 @@
+/*
+ * Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#include <AK/JsonObject.h>
+#include <LibDevTools/Actors/PreferenceActor.h>
+
+namespace DevTools {
+
+NonnullRefPtr<PreferenceActor> PreferenceActor::create(DevToolsServer& devtools, ByteString name)
+{
+    return adopt_ref(*new PreferenceActor(devtools, move(name)));
+}
+
+PreferenceActor::PreferenceActor(DevToolsServer& devtools, ByteString name)
+    : Actor(devtools, move(name))
+{
+}
+
+PreferenceActor::~PreferenceActor() = default;
+
+void PreferenceActor::handle_message(StringView type, JsonObject const&)
+{
+    // FIXME: During session initialization, Firefox DevTools asks for the following boolean configurations:
+    //            browser.privatebrowsing.autostart
+    //            devtools.debugger.prompt-connection
+    //            dom.serviceWorkers.enabled
+    //        We just blindly return `false` for these, but we will eventually want a real configuration manager.
+    if (type == "getBoolPref"sv) {
+        JsonObject response;
+        response.set("from"sv, name());
+        response.set("value"sv, false);
+        send_message(move(response));
+        return;
+    }
+
+    send_unrecognized_packet_type_error(type);
+}
+
+}

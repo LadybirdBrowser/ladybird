@@ -43,8 +43,16 @@ public:
         String fonts_json;
     };
 
+    static void for_each_view(Function<IterationDecision(ViewImplementation&)>);
+    static Optional<ViewImplementation&> find_view_by_id(u64);
+
+    u64 id() const { return m_id; }
+
     void set_url(Badge<WebContentClient>, URL::URL url) { m_url = move(url); }
     URL::URL const& url() const { return m_url; }
+
+    void set_title(Badge<WebContentClient>, ByteString title) { m_title = move(title); }
+    ByteString const& title() const { return m_title; }
 
     String const& handle() const { return m_client_state.client_handle; }
 
@@ -281,6 +289,7 @@ protected:
     } m_client_state;
 
     URL::URL m_url;
+    ByteString m_title;
 
     float m_zoom_level { 1.0 };
     float m_device_pixel_ratio { 1.0 };
@@ -304,6 +313,8 @@ protected:
     size_t m_number_of_elements_playing_audio { 0 };
 
     Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };
+
+    u64 m_id { 0 };
 };
 
 }

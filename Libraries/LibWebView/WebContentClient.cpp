@@ -142,6 +142,8 @@ void WebContentClient::did_change_title(u64 page_id, ByteString const& title)
         process->set_title(MUST(String::from_byte_string(title)));
 
     if (auto view = view_for_page_id(page_id); view.has_value()) {
+        view->set_title({}, title);
+
         if (!view->on_title_change)
             return;
 

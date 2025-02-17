@@ -52,6 +52,7 @@ public:
     [[nodiscard]] bool has_array(StringView key) const;
     [[nodiscard]] bool has_object(StringView key) const;
 
+    Optional<JsonValue&> get(StringView key);
     Optional<JsonValue const&> get(StringView key) const;
 
     template<Integral T>
@@ -76,7 +77,10 @@ public:
 
     Optional<ByteString> get_byte_string(StringView key) const;
 
+    Optional<JsonObject&> get_object(StringView key);
     Optional<JsonObject const&> get_object(StringView key) const;
+
+    Optional<JsonArray&> get_array(StringView key);
     Optional<JsonArray const&> get_array(StringView key) const;
 
     Optional<double> get_double_with_precision_loss(StringView key) const;

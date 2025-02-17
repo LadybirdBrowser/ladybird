@@ -71,7 +71,7 @@ set(GENERATED_SOURCES
 )
 
 serenity_lib(LibWebView webview)
-target_link_libraries(LibWebView PRIVATE LibCore LibFileSystem LibGfx LibImageDecoderClient LibIPC LibRequests LibJS LibWeb LibUnicode LibURL LibSyntax)
+target_link_libraries(LibWebView PRIVATE LibCore LibDevTools LibFileSystem LibGfx LibImageDecoderClient LibIPC LibRequests LibJS LibWeb LibUnicode LibURL LibSyntax)
 
 if (APPLE)
     target_link_libraries(LibWebView PRIVATE LibThreading)
