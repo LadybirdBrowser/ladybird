@@ -23,6 +23,7 @@
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/ValidityState.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Selection/Selection.h>
 
@@ -46,6 +47,13 @@ void FormAssociatedElement::set_form(HTMLFormElement* form)
     m_form = form;
     if (m_form)
         m_form->add_associated_element({}, form_associated_element_to_html_element());
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validity
+GC::Ref<ValidityState const> FormAssociatedElement::validity() const
+{
+    auto& realm = form_associated_element_to_html_element().realm();
+    return realm.create<ValidityState>(realm, *this);
 }
 
 bool FormAssociatedElement::enabled() const

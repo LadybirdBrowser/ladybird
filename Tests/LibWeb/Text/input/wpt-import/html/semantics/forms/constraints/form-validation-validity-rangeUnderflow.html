@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>The constraint validation API Test: element.validity.rangeUnderflow</title>
+<link rel="author" title="Intel" href="http://www.intel.com/">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-validitystate-rangeunderflow">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#the-constraint-validation-api">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="support/validator.js"></script>
+<div id="log"></div>
+<script>
+  var testElements = [
+    {
+      tag: "input",
+      types: ["datetime-local"],
+      testData: [
+        {conditions: {min: "", value: "2000-01-01T12:00:00"}, expected: false, name: "[target] The min attribute is not set"},
+        {conditions: {min: "2000-01-01T12:00:00", value: ""}, expected: false, name: "[target] Value is empty string"},
+        {conditions: {min: "2001-01-01  12:00:00", value: "2000-01-01T12:00:00"}, expected: false, name: "[target] The min attribute is an invalid local date time string"},
+        {conditions: {min: "2000-01-01T11:00:00", value: "2000-01-01T12:00:00"}, expected: false, name: "[target] The min attribute is less than the value attribute"},
+        {conditions: {min: "2001-01-01T23:59:59", value: "2000-01-01T24:00:00"}, expected: false, name: "[target] The value is an invalid local date time string(hour is greater than 23)"},
+        {conditions: {min: "1980-01-01T12:00", value: "79-01-01T12:00"}, expected: false, name: "[target] The value is an invalid local date time string(year is two digits)"},
+        {conditions: {min: "2000-01-01T13:00:00", value: "2000-01-01T12:00:00"}, expected: true, name: "[target] The value is less than min"},
+        {conditions: {min: "2000-01-01T12:00:00.2", value: "2000-01-01T12:00:00.1"}, expected: true, name: "[target] The value is less than min(with millisecond in 1 digit)"},
+        {conditions: {min: "2000-01-01T12:00:00.02", value: "2000-01-01T12:00:00.01"}, expected: true, name: "[target] The value is less than min(with millisecond in 2 digits)"},
+        {conditions: {min: "2000-01-01T12:00:00.002", value: "2000-01-01T12:00:00.001"}, expected: true, name: "[target] The value is less than min(with millisecond in 3 digits)"},
+        {conditions: {min: "10000-01-01T12:00:00", value: "2000-01-01T12:00:00"}, expected: true, name: "[target] The value is less than min(Year is 10000 should be valid)"},
+        {conditions: {max: "8593-01-01T02:09", value: "8592-01-01T02:09"}, expected: false, name: "[target] The value is greater than max"}
+      ]
+    },
+    {
+      tag: "input",
+      types: ["date"],
+      testData: [
+        {conditions: {min: "", value: "2000-01-01"}, expected: false, name: "[target] The min attribute is not set"},
+        {conditions: {min: "2000-01-01", value: ""}, expected: false, name: "[target] Value is empty string"},
+        {conditions: {min: "2001/01/01", value: "2000-01-01"}, expected: false, name: "[target] The min attribute is an invalid date"},
+        {conditions: {min: "2000-02-02", value: "2000-1-1"}, expected: false, name: "[target] The value attribute is an invalid date"},
+        {conditions: {min: "988-01-01", value: "987-01-01"}, expected: false, name: "[target] The value is an invalid date(year is three digits)"},
+        {conditions: {min: "2001-01-01", value: "2000-13-01"}, expected: false, name: "[target] The value is an invalid date(month is less than 12)"},
+        {conditions: {min: "2001-01-01", value: "2000-02-30"}, expected: false, name: "[target] The value is an invalid date(date is less than 29 for Feb)"},
+        {conditions: {min: "2000-01-01", value: "2000-12-01"}, expected: false, name: "[target] The min attribute is less than value attribute"},
+        {conditions: {min: "2000-12-01", value: "2000-01-01"}, expected: true, name: "[target] The value attribute is less than min attribute"},
+        {conditions: {min: "10000-01-01", value: "9999-01-01"}, expected: true, name: "[target] The value attribute is less than min attribute(Year is 10000 should be valid)"}
+      ]
+    },
+    {
+      tag: "input",
+      types: ["time"],
+      testData: [
+        {conditions: {min: "", value: "12:00:00"}, expected: false, name: "[target] The min attribute is not set"},
+        {conditions: {min: "12:00:00", value: ""}, expected: false, name: "[target] Value is empty string"},
+        {conditions: {min: "12.00.01", value: "12:00:00"}, expected: false, name: "[target] The min attribute is an invalid time string"},
+        {conditions: {min: "12:00:01", value: "12.00.00"}, expected: false, name: "[target] The value attribute is an invalid time string"},
+        {conditions: {min: "12:00:00", value: "13:00:00"}, expected: false, name: "[target] The min attribute is less than value attribute"},
+        {conditions: {min: "13:00:00", value: "12"}, expected: false, name: "[target] The time missing second and minute parts is invalid"},
+        {conditions: {min: "12:00:02", value: "12:00:00"}, expected: true, name: "[target] The value attribute is less than min attribute"},
+        {conditions: {min: "12:00:00.2", value: "12:00:00.1"}, expected: true, name: "[target] The value is less than min(with millisecond in 1 digit)"},
+        {conditions: {min: "12:00:00.02", value: "12:00:00.01"}, expected: true, name: "[target] The value is less than min(with millisecond in 2 digit)"},
+        {conditions: {min: "12:00:00.002", value: "12:00:00.001"}, expected: true, name: "[target] The value is less than min(with millisecond in 3 digit)"},
+        {conditions: {min: "12:00:00", value: "11:59"}, expected: true, name: "[target] The time missing second part is valid"},
+        {conditions: {min: "14:00:00", max: "12:00:00", value: "12:00:00"}, expected: false, name: "[target] The time is max for reversed range"},
+        {conditions: {min: "14:00:00", max: "12:00:00", value: "13:00:00"}, expected: true, name: "[target] The time is outside the accepted range for reversed range"},
+        {conditions: {min: "14:00:00", max: "12:00:00", value: "14:00:00"}, expected: false, name: "[target] The time is min for reversed range"},
+        {conditions: {min: "14:00:00", max: "12:00:00", value: "15:00:00"}, expected: false, name: "[target] The time is inside the accepted range for reversed range"},
+      ]
+    },
+    {
+      tag: "input",
+      types: ["number"],
+      testData: [
+        {conditions: {min: "", value: "10"}, expected: false, name: "[target] The min attribute is not set"},
+        {conditions: {min: "5", value: ""}, expected: false, name: "[target] Value is empty string"},
+        {conditions: {min: "4", value: "5"}, expected: false, name: "[target] The min is less than value(integer)"},
+        {conditions: {min: "-5.6", value: "-5.5"}, expected: false, name: "[target] The min is less than value(floating number)"},
+        {conditions: {min: "0", value: "-0"}, expected: false, name: "[target] The min equals to value"},
+        {conditions: {min: "5", value: "6abc"}, expected: false, name: "[target] The value is not a number"},
+        {conditions: {min: "6", value: "5"}, expected: true, name: "[target] The value is less than min(integer)"},
+        {conditions: {min: "-5.4", value: "-5.5"}, expected: true, name: "[target] The value is less than min(floating number)"},
+        {conditions: {min: "1", value: "-.8"}, expected: true, name: "[target] The value is less than min(special floating number)"},
+        {conditions: {min: "5e+2", value: "-5e-1"}, expected: true, name: "[target] The value is less than min(scientific notation)"}
+      ]
+    }
+  ];
+
+  validator.run_test(testElements, "rangeUnderflow");
+</script>

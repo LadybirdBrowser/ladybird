@@ -191,8 +191,6 @@ public:
 
     virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) const override;
 
-    GC::Ref<ValidityState const> validity() const;
-
     // ^HTMLElement
     // https://html.spec.whatwg.org/multipage/forms.html#category-label
     virtual bool is_labelable() const override { return type_state() != TypeAttributeState::Hidden; }
