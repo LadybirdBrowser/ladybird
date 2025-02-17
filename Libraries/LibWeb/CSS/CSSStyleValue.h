@@ -9,20 +9,16 @@
 
 #pragma once
 
-#include <AK/Concepts.h>
 #include <AK/GenericShorthands.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
-#include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
 #include <LibGfx/Color.h>
-#include <LibGfx/Font/FontVariant.h>
 #include <LibURL/URL.h>
-#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/Forward.h>
