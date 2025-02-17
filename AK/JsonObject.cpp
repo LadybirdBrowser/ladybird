@@ -6,7 +6,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "JsonObject.h"
+#include <AK/JsonObject.h>
+#include <AK/JsonObjectSerializer.h>
+#include <AK/StringBuilder.h>
 
 namespace AK {
 
@@ -273,6 +275,23 @@ void JsonObject::set(StringView key, JsonValue value)
 bool JsonObject::remove(StringView key)
 {
     return m_members.remove(key);
+}
+
+String JsonObject::serialized() const
+{
+    StringBuilder builder;
+    serialize(builder);
+
+    return MUST(builder.to_string());
+}
+
+void JsonObject::serialize(StringBuilder& builder) const
+{
+    auto serializer = MUST(JsonObjectSerializer<>::try_create(builder));
+    for_each_member([&](auto& key, auto& value) {
+        MUST(serializer.add(key, value));
+    });
+    MUST(serializer.finish());
 }
 
 }

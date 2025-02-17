@@ -13,6 +13,7 @@ set(SOURCES
     Format.cpp
     GenericLexer.cpp
     Hex.cpp
+    JsonArray.cpp
     JsonObject.cpp
     JsonParser.cpp
     JsonValue.cpp

@@ -7,7 +7,6 @@
 #include <AK/Debug.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
-#include <AK/StringBuilder.h>
 #include <LibCore/EventLoop.h>
 #include <LibDevTools/Connection.h>
 
@@ -34,7 +33,7 @@ Connection::~Connection() = default;
 // https://firefox-source-docs.mozilla.org/devtools/backend/protocol.html#packets
 void Connection::send_message(JsonValue const& message)
 {
-    auto serialized = message.serialized<StringBuilder>();
+    auto serialized = message.serialized();
 
     if constexpr (DEVTOOLS_DEBUG) {
         if (message.is_object() && message.as_object().get("error"sv).has_value())
@@ -43,7 +42,7 @@ void Connection::send_message(JsonValue const& message)
             dbgln("\x1b[1;32m<<\x1b[0m {}", serialized);
     }
 
-    if (m_socket->write_formatted("{}:{}", serialized.length(), serialized).is_error()) {
+    if (m_socket->write_formatted("{}:{}", serialized.byte_count(), serialized).is_error()) {
         if (on_connection_closed)
             on_connection_closed();
     }

@@ -8,12 +8,10 @@
 
 #pragma once
 
-#include <AK/ByteString.h>
 #include <AK/Concepts.h>
 #include <AK/Error.h>
 #include <AK/HashMap.h>
 #include <AK/JsonArray.h>
-#include <AK/JsonObjectSerializer.h>
 #include <AK/JsonValue.h>
 #include <AK/String.h>
 
@@ -107,58 +105,12 @@ public:
 
     bool remove(StringView key);
 
-    template<typename Builder>
-    typename Builder::OutputType serialized() const;
-
-    template<typename Builder>
-    void serialize(Builder&) const;
+    String serialized() const;
+    void serialize(StringBuilder&) const;
 
 private:
     OrderedHashMap<String, JsonValue> m_members;
 };
-
-template<typename Builder>
-inline void JsonObject::serialize(Builder& builder) const
-{
-    auto serializer = MUST(JsonObjectSerializer<>::try_create(builder));
-    for_each_member([&](auto& key, auto& value) {
-        MUST(serializer.add(key, value));
-    });
-    MUST(serializer.finish());
-}
-
-template<typename Builder>
-inline typename Builder::OutputType JsonObject::serialized() const
-{
-    Builder builder;
-    serialize(builder);
-    return builder.to_byte_string();
-}
-
-template<typename Builder>
-inline void JsonValue::serialize(Builder& builder) const
-{
-    m_value.visit(
-        [&](Empty const&) { builder.append("null"sv); },
-        [&](bool const& value) { builder.append(value ? "true"sv : "false"sv); },
-        [&](Arithmetic auto const& value) { builder.appendff("{}", value); },
-        [&](String const& value) {
-            builder.append('\"');
-            builder.append_escaped_for_json(value.bytes());
-            builder.append('\"');
-        },
-        [&](auto const& array_or_object) {
-            array_or_object->serialize(builder);
-        });
-}
-
-template<typename Builder>
-inline typename Builder::OutputType JsonValue::serialized() const
-{
-    Builder builder;
-    serialize(builder);
-    return builder.to_byte_string();
-}
 
 }
 

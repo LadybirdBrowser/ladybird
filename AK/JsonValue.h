@@ -11,7 +11,6 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
-#include <AK/StringBuilder.h>
 
 namespace AK {
 
@@ -77,10 +76,8 @@ public:
     JsonValue& operator=(JsonArray&&);
     JsonValue& operator=(JsonObject&&);
 
-    template<typename Builder>
-    typename Builder::OutputType serialized() const;
-    template<typename Builder>
-    void serialize(Builder&) const;
+    String serialized() const;
+    void serialize(StringBuilder&) const;
 
     Optional<int> get_int() const { return get_integer<int>(); }
     Optional<i32> get_i32() const { return get_integer<i32>(); }
@@ -224,7 +221,7 @@ template<>
 struct Formatter<JsonValue> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, JsonValue const& value)
     {
-        return Formatter<StringView>::format(builder, value.serialized<StringBuilder>());
+        return Formatter<StringView>::format(builder, value.serialized());
     }
 };
 
