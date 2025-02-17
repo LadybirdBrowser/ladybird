@@ -1,6 +1,6 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
-    BlockContainer <body> at (8,16) content-size 784x67 children: not-inline
+    BlockContainer <body> at (8,16) content-size 784x584 children: not-inline
       BlockContainer <p> at (8,16) content-size 784x34 children: inline
         frag 0 from TextNode start: 0, length: 88, rect: [8,16 746.890625x17] baseline: 13.296875
             "NOTE: This test assumes that you're running with 1x pixels (which our test runner always"
@@ -19,7 +19,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
-    PaintableWithLines (BlockContainer<BODY>) [8,16 784x67]
+    PaintableWithLines (BlockContainer<BODY>) [8,16 784x584]
       PaintableWithLines (BlockContainer<P>) [8,16 784x34]
         TextPaintable (TextNode<#text>)
       PaintableWithLines (BlockContainer(anonymous)) [8,66 784x0]

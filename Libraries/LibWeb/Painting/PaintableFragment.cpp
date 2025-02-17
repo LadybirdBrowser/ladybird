@@ -42,7 +42,7 @@ int PaintableFragment::text_index_at(CSSPixelPoint position) const
         return 0;
 
     CSSPixels relative_inline_offset = [&]() {
-        switch (orientation()) {
+        switch (layout_node().text_flow_direction()) {
         case Gfx::Orientation::Horizontal:
             return position.x() - absolute_rect().x();
         case Gfx::Orientation::Vertical:
@@ -102,7 +102,7 @@ CSSPixelRect PaintableFragment::range_rect(size_t start_offset, size_t end_offse
         auto pixel_width_of_selection = CSSPixels::nearest_value_for(font.width(text.substring_view(selection_start_in_this_fragment, selection_end_in_this_fragment - selection_start_in_this_fragment))) + 1;
 
         auto rect = absolute_rect();
-        switch (orientation()) {
+        switch (layout_node().text_flow_direction()) {
         case Gfx::Orientation::Horizontal:
             rect.set_x(rect.x() + pixel_distance_to_first_selected_character);
             rect.set_width(pixel_width_of_selection);
@@ -128,7 +128,7 @@ CSSPixelRect PaintableFragment::range_rect(size_t start_offset, size_t end_offse
         auto pixel_width_of_selection = CSSPixels::nearest_value_for(font.width(text.substring_view(selection_start_in_this_fragment, selection_end_in_this_fragment - selection_start_in_this_fragment))) + 1;
 
         auto rect = absolute_rect();
-        switch (orientation()) {
+        switch (layout_node().text_flow_direction()) {
         case Gfx::Orientation::Horizontal:
             rect.set_x(rect.x() + pixel_distance_to_first_selected_character);
             rect.set_width(pixel_width_of_selection);
@@ -154,7 +154,7 @@ CSSPixelRect PaintableFragment::range_rect(size_t start_offset, size_t end_offse
         auto pixel_width_of_selection = CSSPixels::nearest_value_for(font.width(text.substring_view(selection_start_in_this_fragment, selection_end_in_this_fragment - selection_start_in_this_fragment))) + 1;
 
         auto rect = absolute_rect();
-        switch (orientation()) {
+        switch (layout_node().text_flow_direction()) {
         case Gfx::Orientation::Horizontal:
             rect.set_x(rect.x() + pixel_distance_to_first_selected_character);
             rect.set_width(pixel_width_of_selection);
@@ -170,21 +170,6 @@ CSSPixelRect PaintableFragment::range_rect(size_t start_offset, size_t end_offse
         return rect;
     }
     return {};
-}
-
-Gfx::Orientation PaintableFragment::orientation() const
-{
-    switch (m_writing_mode) {
-    case CSS::WritingMode::HorizontalTb:
-        return Gfx::Orientation::Horizontal;
-    case CSS::WritingMode::VerticalRl:
-    case CSS::WritingMode::VerticalLr:
-    case CSS::WritingMode::SidewaysRl:
-    case CSS::WritingMode::SidewaysLr:
-        return Gfx::Orientation::Vertical;
-    default:
-        VERIFY_NOT_REACHED();
-    }
 }
 
 CSSPixelRect PaintableFragment::selection_rect() const

@@ -369,7 +369,7 @@ All supported properties and their default values exposed from CSSStyleDeclarati
 'grid-template-columns': 'auto'
 'gridTemplateRows': 'auto'
 'grid-template-rows': 'auto'
-'height': '0px'
+'height': '134px'
 'imageRendering': 'auto'
 'image-rendering': 'auto'
 'inlineSize': 'auto'
