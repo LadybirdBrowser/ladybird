@@ -21,6 +21,7 @@
 #include <LibWeb/HTML/HTMLOptionElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/Numbers.h>
+#include <LibWeb/HTML/ValidityState.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/Node.h>
@@ -378,6 +379,13 @@ WebIDL::ExceptionOr<void> HTMLSelectElement::set_value(String const& value)
         option_element->set_selected(option_element->value() == value);
     update_inner_text_element();
     return {};
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validity
+GC::Ref<ValidityState const> HTMLSelectElement::validity() const
+{
+    auto& realm = this->realm();
+    return realm.create<ValidityState>(realm, static_cast<FormAssociatedElement const*>(this));
 }
 
 void HTMLSelectElement::queue_input_and_change_events()

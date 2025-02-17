@@ -51,6 +51,9 @@ public:
     virtual String value() const override;
     WebIDL::ExceptionOr<void> set_value(String const&);
 
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validity
+    GC::Ref<ValidityState const> validity() const;
+
     bool is_open() const { return m_is_open; }
     void set_is_open(bool);
 

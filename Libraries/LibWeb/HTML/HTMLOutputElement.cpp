@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/HTML/HTMLOutputElement.h>
+#include <LibWeb/HTML/ValidityState.h>
 
 namespace Web::HTML {
 
@@ -88,6 +89,13 @@ void HTMLOutputElement::set_value(String const& value)
 
     // 2. String replace all with the given value within this.
     string_replace_all(value);
+}
+
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validity
+GC::Ref<ValidityState const> HTMLOutputElement::validity() const
+{
+    auto& realm = this->realm();
+    return realm.create<ValidityState>(realm, static_cast<FormAssociatedElement const*>(this));
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-output-element:concept-form-reset-control

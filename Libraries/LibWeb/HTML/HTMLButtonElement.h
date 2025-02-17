@@ -40,6 +40,9 @@ public:
     TypeAttributeState type_state() const;
     WebIDL::ExceptionOr<void> set_type(String const&);
 
+    // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validity
+    GC::Ref<ValidityState const> validity() const;
+
     virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
     // ^EventTarget

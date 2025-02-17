@@ -1,0 +1,84 @@
+Harness status: OK
+
+Found 78 tests
+
+44 Pass
+34 Fail
+Pass	[INPUT in TEXT status] The required attribute is not set
+Pass	[INPUT in TEXT status] The value is not empty and required is true
+Fail	[INPUT in TEXT status] The value is empty and required is true
+Pass	[INPUT in SEARCH status] The required attribute is not set
+Pass	[INPUT in SEARCH status] The value is not empty and required is true
+Fail	[INPUT in SEARCH status] The value is empty and required is true
+Pass	[INPUT in TEL status] The required attribute is not set
+Pass	[INPUT in TEL status] The value is not empty and required is true
+Fail	[INPUT in TEL status] The value is empty and required is true
+Pass	[INPUT in URL status] The required attribute is not set
+Pass	[INPUT in URL status] The value is not empty and required is true
+Fail	[INPUT in URL status] The value is empty and required is true
+Pass	[INPUT in EMAIL status] The required attribute is not set
+Pass	[INPUT in EMAIL status] The value is not empty and required is true
+Fail	[INPUT in EMAIL status] The value is empty and required is true
+Pass	[INPUT in PASSWORD status] The required attribute is not set
+Pass	[INPUT in PASSWORD status] The value is not empty and required is true
+Fail	[INPUT in PASSWORD status] The value is empty and required is true
+Pass	[INPUT in DATETIME-LOCAL status] The required attribute is not set
+Pass	[INPUT in DATETIME-LOCAL status] Valid local date and time string(2000-12-10T12:00:00)
+Pass	[INPUT in DATETIME-LOCAL status] Valid local date and time string(2000-12-10 12:00)
+Pass	[INPUT in DATETIME-LOCAL status] Valid local date and time string(1979-10-14T12:00:00.001)
+Fail	[INPUT in DATETIME-LOCAL status] The value attribute is a number(1234567)
+Fail	[INPUT in DATETIME-LOCAL status] The value attribute is a Date object
+Fail	[INPUT in DATETIME-LOCAL status] Invalid local date and time string(1979-10-99 99:99)
+Pass	[INPUT in DATETIME-LOCAL status] Valid local date and time string(1979-10-14 12:00:00)
+Fail	[INPUT in DATETIME-LOCAL status] Invalid local date and time string(2001-12-21  12:00)-two white space
+Fail	[INPUT in DATETIME-LOCAL status] the value attribute is a string(abc)
+Fail	[INPUT in DATETIME-LOCAL status] The value attribute is empty string
+Pass	[INPUT in DATE status] The required attribute is not set
+Pass	[INPUT in DATE status] Valid date string(2000-12-10)
+Pass	[INPUT in DATE status] Valid date string(9999-01-01)
+Fail	[INPUT in DATE status] The value attribute is a number(1234567)
+Fail	[INPUT in DATE status] The value attribute is a Date object
+Fail	[INPUT in DATE status] Invalid date string(9999-99-99)
+Fail	[INPUT in DATE status] Invalid date string(37-01-01)
+Fail	[INPUT in DATE status] Invalid date string(2000/01/01)
+Fail	[INPUT in DATE status] The value attribute is empty string
+Pass	[INPUT in TIME status] The required attribute is not set
+Pass	[INPUT in TIME status] Validtime string(12:00:00)
+Pass	[INPUT in TIME status] Validtime string(12:00)
+Pass	[INPUT in TIME status] Valid time string(12:00:60.001)
+Pass	[INPUT in TIME status] Valid time string(12:00:60.01)
+Pass	[INPUT in TIME status] Valid time string(12:00:60.1)
+Fail	[INPUT in TIME status] The value attribute is a number(1234567)
+Fail	[INPUT in TIME status] The value attribute is a time object
+Fail	[INPUT in TIME status] Invalid time string(25:00:00)
+Fail	[INPUT in TIME status] Invalid time string(12:60:00)
+Fail	[INPUT in TIME status] Invalid time string(12:00:60)
+Fail	[INPUT in TIME status] Invalid time string(12:00:00:001)
+Fail	[INPUT in TIME status] The value attribute is empty string
+Pass	[INPUT in NUMBER status] The required attribute is not set
+Pass	[INPUT in NUMBER status] Value is an integer with a leading symbol '+'
+Pass	[INPUT in NUMBER status] Value is a number with a '-' symbol
+Pass	[INPUT in NUMBER status] Value is a number in scientific notation form(e is in lowercase)
+Pass	[INPUT in NUMBER status] Value is a number in scientific notation form(E is in uppercase)
+Pass	[INPUT in NUMBER status] Value is -0
+Fail	[INPUT in NUMBER status] Value is a number with some white spaces
+Fail	[INPUT in NUMBER status] Value is Math.pow(2, 1024)
+Fail	[INPUT in NUMBER status] Value is Math.pow(-2, 1024)
+Fail	[INPUT in NUMBER status] Value is a string that cannot be converted to a number
+Fail	[INPUT in NUMBER status] The value attribute is empty string
+Pass	[INPUT in CHECKBOX status] The required attribute is not set
+Pass	[INPUT in CHECKBOX status] The checked attribute is true
+Pass	[INPUT in CHECKBOX status] The checked attribute is false
+Pass	[INPUT in RADIO status] The required attribute is not set
+Pass	[INPUT in RADIO status] The checked attribute is true
+Fail	[INPUT in RADIO status] The checked attribute is false
+Pass	[INPUT in RADIO status] The checked attribute is false and the name attribute is empty
+Pass	[INPUT in FILE status] The required attribute is not set
+Fail	[INPUT in FILE status] The Files attribute is null
+Pass	[select]  The required attribute is not set
+Pass	[select]  Selected the option with value equals to 1
+Pass	[select]  Selected the option with value equals to empty
+Pass	[textarea]  The required attribute is not set
+Pass	[textarea]  The value is not empty
+Fail	[textarea]  The value is empty
+Fail	validationMessage should return empty string when willValidate is false and valueMissing is true

@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 12 tests
+
+11 Pass
+1 Fail
+Pass	click on mutable radio fires click event, then input event, then change event
+Pass	click on non-mutable radio doesn't fire the input event
+Pass	click on non-mutable radio doesn't fire the change event
+Pass	canceled activation steps on unchecked radio
+Pass	only one control of a radio button group can have its checkedness set to true
+Pass	radio inputs with non-ASCII name attributes belong to the same radio button group
+Pass	changing the name of a radio input element and setting its checkedness to true makes all the other elements' checkedness in the same radio button group be set to false
+Pass	moving radio input element out of or into a form should still work as expected
+Fail	Radio buttons in an orphan tree should make a group
+Pass	Radio buttons in different groups (because they have different form owners or no form owner) do not affect each other's checkedness
+Pass	Radio buttons in different groups (because they are not in the same tree) do not affect each other's checkedness
+Pass	Radio buttons in different groups (because they have different name attribute values, or no name attribute) do not affect each other's checkedness

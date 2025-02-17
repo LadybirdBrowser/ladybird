@@ -1,0 +1,53 @@
+Harness status: OK
+
+Found 47 tests
+
+30 Pass
+17 Fail
+Pass	[INPUT in DATETIME-LOCAL status] The min attribute is not set
+Pass	[INPUT in DATETIME-LOCAL status] Value is empty string
+Pass	[INPUT in DATETIME-LOCAL status] The min attribute is an invalid local date time string
+Pass	[INPUT in DATETIME-LOCAL status] The min attribute is less than the value attribute
+Pass	[INPUT in DATETIME-LOCAL status] The value is an invalid local date time string(hour is greater than 23)
+Pass	[INPUT in DATETIME-LOCAL status] The value is an invalid local date time string(year is two digits)
+Fail	[INPUT in DATETIME-LOCAL status] The value is less than min
+Fail	[INPUT in DATETIME-LOCAL status] The value is less than min(with millisecond in 1 digit)
+Fail	[INPUT in DATETIME-LOCAL status] The value is less than min(with millisecond in 2 digits)
+Fail	[INPUT in DATETIME-LOCAL status] The value is less than min(with millisecond in 3 digits)
+Fail	[INPUT in DATETIME-LOCAL status] The value is less than min(Year is 10000 should be valid)
+Pass	[INPUT in DATETIME-LOCAL status] The value is greater than max
+Pass	[INPUT in DATE status] The min attribute is not set
+Pass	[INPUT in DATE status] Value is empty string
+Pass	[INPUT in DATE status] The min attribute is an invalid date
+Pass	[INPUT in DATE status] The value attribute is an invalid date
+Pass	[INPUT in DATE status] The value is an invalid date(year is three digits)
+Pass	[INPUT in DATE status] The value is an invalid date(month is less than 12)
+Pass	[INPUT in DATE status] The value is an invalid date(date is less than 29 for Feb)
+Pass	[INPUT in DATE status] The min attribute is less than value attribute
+Fail	[INPUT in DATE status] The value attribute is less than min attribute
+Fail	[INPUT in DATE status] The value attribute is less than min attribute(Year is 10000 should be valid)
+Pass	[INPUT in TIME status] The min attribute is not set
+Pass	[INPUT in TIME status] Value is empty string
+Pass	[INPUT in TIME status] The min attribute is an invalid time string
+Pass	[INPUT in TIME status] The value attribute is an invalid time string
+Pass	[INPUT in TIME status] The min attribute is less than value attribute
+Pass	[INPUT in TIME status] The time missing second and minute parts is invalid
+Fail	[INPUT in TIME status] The value attribute is less than min attribute
+Fail	[INPUT in TIME status] The value is less than min(with millisecond in 1 digit)
+Fail	[INPUT in TIME status] The value is less than min(with millisecond in 2 digit)
+Fail	[INPUT in TIME status] The value is less than min(with millisecond in 3 digit)
+Fail	[INPUT in TIME status] The time missing second part is valid
+Pass	[INPUT in TIME status] The time is max for reversed range
+Fail	[INPUT in TIME status] The time is outside the accepted range for reversed range
+Pass	[INPUT in TIME status] The time is min for reversed range
+Pass	[INPUT in TIME status] The time is inside the accepted range for reversed range
+Pass	[INPUT in NUMBER status] The min attribute is not set
+Pass	[INPUT in NUMBER status] Value is empty string
+Pass	[INPUT in NUMBER status] The min is less than value(integer)
+Pass	[INPUT in NUMBER status] The min is less than value(floating number)
+Pass	[INPUT in NUMBER status] The min equals to value
+Pass	[INPUT in NUMBER status] The value is not a number
+Fail	[INPUT in NUMBER status] The value is less than min(integer)
+Fail	[INPUT in NUMBER status] The value is less than min(floating number)
+Fail	[INPUT in NUMBER status] The value is less than min(special floating number)
+Fail	[INPUT in NUMBER status] The value is less than min(scientific notation)

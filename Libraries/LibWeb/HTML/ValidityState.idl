@@ -1,15 +1,15 @@
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#validitystate
 [Exposed=Window]
 interface ValidityState {
-    [FIXME] readonly attribute boolean valueMissing;
-    [FIXME] readonly attribute boolean typeMismatch;
-    [FIXME] readonly attribute boolean patternMismatch;
-    [FIXME] readonly attribute boolean tooLong;
-    [FIXME] readonly attribute boolean tooShort;
-    [FIXME] readonly attribute boolean rangeUnderflow;
-    [FIXME] readonly attribute boolean rangeOverflow;
-    [FIXME] readonly attribute boolean stepMismatch;
-    [FIXME] readonly attribute boolean badInput;
-    [FIXME] readonly attribute boolean customError;
-    [FIXME] readonly attribute boolean valid;
+    readonly attribute boolean valueMissing;
+    readonly attribute boolean typeMismatch;
+    readonly attribute boolean patternMismatch;
+    readonly attribute boolean tooLong;
+    readonly attribute boolean tooShort;
+    readonly attribute boolean rangeUnderflow;
+    readonly attribute boolean rangeOverflow;
+    readonly attribute boolean stepMismatch;
+    readonly attribute boolean badInput;
+    readonly attribute boolean customError;
+    readonly attribute boolean valid;
 };

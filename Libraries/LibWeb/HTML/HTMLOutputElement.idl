@@ -1,5 +1,6 @@
 #import <HTML/HTMLElement.idl>
 #import <HTML/HTMLFormElement.idl>
+#import <HTML/ValidityState.idl>
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#htmloutputelement
 [Exposed=Window]
@@ -15,7 +16,7 @@ interface HTMLOutputElement : HTMLElement {
     [CEReactions] attribute DOMString value;
 
     [FIXME] readonly attribute boolean willValidate;
-    [FIXME] readonly attribute ValidityState validity;
+    readonly attribute ValidityState validity;
     [FIXME] readonly attribute DOMString validationMessage;
     [FIXME] boolean checkValidity();
     [FIXME] boolean reportValidity();
