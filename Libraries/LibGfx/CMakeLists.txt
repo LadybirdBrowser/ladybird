@@ -8,6 +8,7 @@ set(SOURCES
     CMYKBitmap.cpp
     Color.cpp
     ColorSpace.cpp
+    Cursor.cpp
     FontCascadeList.cpp
     Font/Font.cpp
     Font/FontData.cpp

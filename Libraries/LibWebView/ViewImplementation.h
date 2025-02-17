@@ -16,8 +16,8 @@
 #include <AK/String.h>
 #include <LibCore/Forward.h>
 #include <LibCore/Promise.h>
+#include <LibGfx/Cursor.h>
 #include <LibGfx/Forward.h>
-#include <LibGfx/StandardCursor.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/AudioPlayState.h>
