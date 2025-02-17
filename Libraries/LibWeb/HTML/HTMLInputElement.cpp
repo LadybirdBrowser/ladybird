@@ -36,7 +36,6 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/SharedResourceRequest.h>
-#include <LibWeb/HTML/ValidityState.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Infra/Strings.h>
@@ -88,16 +87,6 @@ void HTMLInputElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_slider_progress_element);
     visitor.visit(m_slider_thumb);
     visitor.visit(m_resource_request);
-}
-
-// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-cva-validity
-GC::Ref<ValidityState const> HTMLInputElement::validity() const
-{
-    auto& realm = this->realm();
-
-    dbgln("FIXME: Implement validity attribute getter");
-
-    return realm.create<ValidityState>(realm);
 }
 
 GC::Ptr<Layout::Node> HTMLInputElement::create_layout_node(GC::Ref<CSS::ComputedProperties> style)

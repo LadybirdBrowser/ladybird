@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>The constraint validation API Test: element.validity.valueMissing</title>
+<link rel="author" title="Intel" href="http://www.intel.com/">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#dom-validitystate-valuemissing">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#the-constraint-validation-api">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="support/validator.js"></script>
+<div id="log"></div>
+<form>
+  <input id="messagetest" type="checkbox" required="" disabled="">
+</form>
+
+<script>
+  var testElements = [
+    {
+      tag: "input",
+      types: ["text", "search", "tel", "url", "email", "password"],
+      testData: [
+        {conditions: {required: false, value: ""}, expected: false, name: "[target] The required attribute is not set"},
+        {conditions: {required: true, value: "abc"}, expected: false, name: "[target] The value is not empty and required is true"},
+        {conditions: {required: true, value: ""}, expected: true, expectedImmutable: false, name: "[target] The value is empty and required is true"}
+      ]
+    },
+    {
+      tag: "input",
+      types: ["datetime-local"],
+      testData: [
+        {conditions: {required: false, value: ""}, expected: false, name: "[target] The required attribute is not set"},
+        {conditions: {required: true, value: "2000-12-10T12:00:00"}, expected: false, name: "[target] Valid local date and time string(2000-12-10T12:00:00)"},
+        {conditions: {required: true, value: "2000-12-10 12:00"}, expected: false, name: "[target] Valid local date and time string(2000-12-10 12:00)"},
+        {conditions: {required: true, value: "1979-10-14T12:00:00.001"}, expected: false, name: "[target] Valid local date and time string(1979-10-14T12:00:00.001)"},
+        {conditions: {required: true, value: 1234567}, expected: true, expectedImmutable: false, name: "[target] The value attribute is a number(1234567)"},
+        {conditions: {required: true, value: new Date()}, expected: true, expectedImmutable: false, name: "[target] The value attribute is a Date object"},
+        {conditions: {required: true, value: "1979-10-99 99:99"}, expected: true, expectedImmutable: false, name: "[target] Invalid local date and time string(1979-10-99 99:99)"},
+        {conditions: {required: true, value: "1979-10-14 12:00:00"}, expected: false, name: "[target] Valid local date and time string(1979-10-14 12:00:00)"},
+        {conditions: {required: true, value: "2001-12-21  12:00"}, expected: true, expectedImmutable: false, name: "[target] Invalid local date and time string(2001-12-21  12:00)-two white space"},
+        {conditions: {required: true, value: "abc"}, expected: true, expectedImmutable: false, name: "[target] the value attribute is a string(abc)"},
+        {conditions: {required: true, value: ""}, expected: true, expectedImmutable: false, name: "[target] The value attribute is empty string"}
+      ]
+    },
+    {
+      tag: "input",
+      types: ["date"],
+      testData: [
+        {conditions: {required: false, value: ""}, expected: false, name: "[target] The required attribute is not set"},
+        {conditions: {required: true, value: "2000-12-10"}, expected: false, name: "[target] Valid date string(2000-12-10)"},
+        {conditions: {required: true, value: "9999-01-01"}, expected: false, name: "[target] Valid date string(9999-01-01)"},
+        {conditions: {required: true, value: 1234567}, expected: true, expectedImmutable: false, name: "[target] The value attribute is a number(1234567)"},
+        {conditions: {required: true, value: new Date()}, expected: true, expectedImmutable: false, name: "[target] The value attribute is a Date object"},
+        {conditions: {required: true, value: "9999-99-99"}, expected: true, expectedImmutable: false, name: "[target] Invalid date string(9999-99-99)"},
+        {conditions: {required: true, value: "37/01/01"}, expected: true, expectedImmutable: false, name: "[target] Invalid date string(37-01-01)"},
+        {conditions: {required: true, value: "2000/01/01"}, expected: true, expectedImmutable: false, name: "[target] Invalid date string(2000/01/01)"},
+        {conditions: {required: true, value: ""}, expected: true, expectedImmutable: false, name: "[target] The value attribute is empty string"}
+      ]
+    },
+    {
+      tag: "input",
+      types: ["time"],
+      testData: [
+        {conditions: {required: false, value: ""}, expected: false, name: "[target] The required attribute is not set"},
+        {conditions: {required: true, value: "12:00:00"}, expected: false, name: "[target] Validtime string(12:00:00)"},
+        {conditions: {required: true, value: "12:00"}, expected: false, name: "[target] Validtime string(12:00)"},
+        {conditions: {required: true, value: "12:00:00.001"}, expected: false, name: "[target] Valid time string(12:00:60.001)"},
+        {conditions: {required: true, value: "12:00:00.01"}, expected: false, name: "[target] Valid time string(12:00:60.01)"},
+        {conditions: {required: true, value: "12:00:00.1"}, expected: false, name: "[target] Valid time string(12:00:60.1)"},
+        {conditions: {required: true, value: 1234567}, expected: true, expectedImmutable: false, name: "[target] The value attribute is a number(1234567)"},
+        {conditions: {required: true, value: new Date()}, expected: true, expectedImmutable: false, name: "[target] The value attribute is a time object"},
+        {conditions: {required: true, value: "25:00:00"}, expected: true, expectedImmutable: false, name: "[target] Invalid time string(25:00:00)"},
+        {conditions: {required: true, value: "12:60:00"}, expected: true, expectedImmutable: false, name: "[target] Invalid time string(12:60:00)"},
+        {conditions: {required: true, value: "12:00:60"}, expected: true, expectedImmutable: false, name: "[target] Invalid time string(12:00:60)"},
+        {conditions: {required: true, value: "12:00:00:001"}, expected: true, expectedImmutable: false, name: "[target] Invalid time string(12:00:00:001)"},
+        {conditions: {required: true, value: ""}, expected: true, expectedImmutable: false, name: "[target] The value attribute is empty string"}
+      ]
+    },
+    {
+      tag: "input",
+      types: ["number"],
+      testData: [
+        {conditions: {required: false, value: ""}, expected: false, name: "[target] The required attribute is not set"},
+        {conditions: {required: true, value: "123"}, expected: false, name: "[target] Value is an integer with a leading symbol '+'"},
+        {conditions: {required: true, value: "-123.45"}, expected: false, name: "[target] Value is a number with a '-' symbol"},
+        {conditions: {required: true, value: "123.01e-10"}, expected: false, name: "[target] Value is a number in scientific notation form(e is in lowercase)"},
+        {conditions: {required: true, value: "123.01E+10"}, expected: false, name: "[target] Value is a number in scientific notation form(E is in uppercase)"},
+        {conditions: {required: true, value: "-0"}, expected: false, name: "[target] Value is -0"},
+        {conditions: {required: true, value: " 123 "}, expected: true, expectedImmutable: false, name: "[target] Value is a number with some white spaces"},
+        {conditions: {required: true, value: Math.pow(2, 1024)}, expected: true, expectedImmutable: false, name: "[target] Value is Math.pow(2, 1024)"},
+        {conditions: {required: true, value: Math.pow(-2, 1024)}, expected: true, expectedImmutable: false, name: "[target] Value is Math.pow(-2, 1024)"},
+        {conditions: {required: true, value: "abc"}, expected: true, expectedImmutable: false, name: "[target] Value is a string that cannot be converted to a number"},
+        {conditions: {required: true, value: ""}, expected: true, expectedImmutable: false, name: "[target] The value attribute is empty string"}
+      ]
+    },
+    {
+      tag: "input",
+      types: ["checkbox"],
+      testData: [
+        {conditions: {required: false, checked: false, name: "test1"}, expected: false, name: "[target] The required attribute is not set"},
+        {conditions: {required: true, checked: true, name: "test2"}, expected: false, name: "[target] The checked attribute is true"},
+        {conditions: {required: true, checked: false, name: "test3"}, expected: true, name: "[target] The checked attribute is false"}
+      ]
+    },
+    {
+      tag: "input",
+      types: ["radio"],
+      testData: [
+        {conditions: {required: false, checked: false, name: "test4"}, expected: false, name: "[target] The required attribute is not set"},
+        {conditions: {required: true, checked: true, name: "test5"}, expected: false, name: "[target] The checked attribute is true"},
+        {conditions: {required: true, checked: false, name: "test6"}, expected: true, name: "[target] The checked attribute is false"},
+        {conditions: {required: true, checked: false, name: ""}, expected: false, name: "[target] The checked attribute is false and the name attribute is empty"}
+      ]
+    },
+    {
+      tag: "input",
+      types: ["file"],
+      testData: [
+        {conditions: {required: false, files: null}, expected: false, name: "[target] The required attribute is not set"},
+        {conditions: {required: true, files: null}, expected: true, name: "[target] The Files attribute is null"}
+        //ToDo: Add a case to test the files is not null
+      ]
+    },
+    {
+      tag: "select",
+      types: [],
+      testData: [
+        {conditions: {required: false, value: ""}, expected: false, name: "[target] The required attribute is not set"},
+        {conditions: {required: true, value: 1}, expected: false, name: "[target] Selected the option with value equals to 1"},
+        {conditions: {required: true, value: ""}, expected: true, name: "[target] Selected the option with value equals to empty"}
+      ]
+    },
+    {
+      tag: "textarea",
+      types: [],
+      testData: [
+        {conditions: {required: false, value: ""}, expected: false, name: "[target] The required attribute is not set"},
+        {conditions: {required: true, value: "abc"}, expected: false, name: "[target] The value is not empty"},
+        {conditions: {required: true, value: ""}, expected: true, expectedImmutable: false, name: "[target] The value is empty"}
+      ]
+    }
+  ];
+
+  validator.run_test(testElements, "valueMissing");
+
+  test(() => {
+    assert_equals(document.getElementById("messagetest").validationMessage, '');
+  }, 'validationMessage should return empty string when willValidate is false and valueMissing is true');
+</script>

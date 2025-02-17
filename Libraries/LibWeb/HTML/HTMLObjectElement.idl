@@ -1,5 +1,6 @@
 #import <DOM/Document.idl>
 #import <HTML/HTMLElement.idl>
+#import <HTML/ValidityState.idl>
 
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#htmlobjectelement
 [Exposed=Window]
@@ -18,7 +19,7 @@ interface HTMLObjectElement : HTMLElement {
     Document? getSVGDocument();
 
     [FIXME] readonly attribute boolean willValidate;
-    [FIXME] readonly attribute ValidityState validity;
+    readonly attribute ValidityState validity;
     [FIXME] readonly attribute DOMString validationMessage;
     [FIXME] boolean checkValidity();
     [FIXME] boolean reportValidity();
