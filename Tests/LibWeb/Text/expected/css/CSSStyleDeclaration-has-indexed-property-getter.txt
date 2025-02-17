@@ -215,10 +215,11 @@ All properties associated with getComputedStyle(document.body):
     "212": "unicode-bidi",
     "213": "user-select",
     "214": "vertical-align",
-    "215": "width",
-    "216": "x",
-    "217": "y",
-    "218": "z-index"
+    "215": "view-transition-name",
+    "216": "width",
+    "217": "x",
+    "218": "y",
+    "219": "z-index"
 }
 All properties associated with document.body.style by default:
 {}

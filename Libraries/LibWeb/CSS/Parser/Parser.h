@@ -404,6 +404,7 @@ private:
     RefPtr<CSSStyleValue> parse_transition_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_translate_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_scale_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_view_transition_name_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_grid_track_size_list(TokenStream<ComponentValue>&, bool allow_separate_line_name_blocks = false);
     RefPtr<CSSStyleValue> parse_grid_auto_track_sizes(TokenStream<ComponentValue>&);
     RefPtr<GridAutoFlowStyleValue> parse_grid_auto_flow_value(TokenStream<ComponentValue>&);
