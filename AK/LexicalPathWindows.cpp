@@ -60,7 +60,7 @@ Vector<ByteString> LexicalPath::parts() const
 
 bool LexicalPath::has_extension(StringView extension) const
 {
-    if (extension[0] == '.')
+    if (extension.starts_with('.'))
         extension = extension.substring_view(1);
     return m_extension.equals_ignoring_ascii_case(extension);
 }
