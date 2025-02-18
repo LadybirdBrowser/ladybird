@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2025, Manuel Zahariev <manuel@duck.com>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
 #include "DateRegex.h"
 
 DateRegexGenerator::DatePatterns DateRegexGenerator::create_date_patterns()
