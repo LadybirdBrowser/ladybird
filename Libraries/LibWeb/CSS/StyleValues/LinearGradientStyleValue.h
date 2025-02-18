@@ -57,7 +57,7 @@ public:
 
     float angle_degrees(CSSPixelSize gradient_size) const;
 
-    void resolve_for_size(Layout::NodeWithStyleAndBoxModelMetrics const&, CSSPixelSize) const override;
+    void resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const override;
 
     bool is_paintable() const override { return true; }
     void paint(PaintContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering image_rendering) const override;
