@@ -16,8 +16,8 @@
 
 namespace Web::Painting {
 
-LinearGradientData resolve_linear_gradient_data(Layout::NodeWithStyleAndBoxModelMetrics const&, CSSPixelSize, CSS::LinearGradientStyleValue const&);
-ConicGradientData resolve_conic_gradient_data(Layout::NodeWithStyleAndBoxModelMetrics const&, CSS::ConicGradientStyleValue const&);
-RadialGradientData resolve_radial_gradient_data(Layout::NodeWithStyleAndBoxModelMetrics const&, CSSPixelSize, CSS::RadialGradientStyleValue const&);
+LinearGradientData resolve_linear_gradient_data(Layout::NodeWithStyle const&, CSSPixelSize, CSS::LinearGradientStyleValue const&);
+ConicGradientData resolve_conic_gradient_data(Layout::NodeWithStyle const&, CSS::ConicGradientStyleValue const&);
+RadialGradientData resolve_radial_gradient_data(Layout::NodeWithStyle const&, CSSPixelSize, CSS::RadialGradientStyleValue const&);
 
 }
