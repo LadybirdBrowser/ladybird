@@ -305,13 +305,11 @@ void TreeBuilder::restructure_block_node_in_inline_parent(NodeWithStyleAndBoxMod
     }();
     nearest_block_ancestor.set_children_are_inline(false);
 
-    // Unwind the ancestor stack to find the topmost inline ancestor.
+    // Find the topmost inline ancestor.
     GC::Ptr<NodeWithStyleAndBoxModelMetrics> topmost_inline_ancestor;
     for (auto* ancestor = &parent; ancestor; ancestor = ancestor->parent()) {
         if (ancestor == &nearest_block_ancestor)
             break;
-        if (ancestor == m_ancestor_stack.last())
-            m_ancestor_stack.take_last();
         if (ancestor->is_inline())
             topmost_inline_ancestor = static_cast<NodeWithStyleAndBoxModelMetrics*>(ancestor);
     }
@@ -320,7 +318,7 @@ void TreeBuilder::restructure_block_node_in_inline_parent(NodeWithStyleAndBoxMod
     // We need to host the topmost inline ancestor and its previous siblings in an anonymous "before" wrapper. If an
     // inline wrapper does not already exist, we create a new one and add it to the nearest block ancestor.
     GC::Ptr<Node> before_wrapper;
-    if (auto last_child = nearest_block_ancestor.last_child(); last_child->is_anonymous() && last_child->children_are_inline()) {
+    if (auto* last_child = nearest_block_ancestor.last_child(); last_child->is_anonymous() && last_child->children_are_inline()) {
         before_wrapper = last_child;
     } else {
         before_wrapper = nearest_block_ancestor.create_anonymous_wrapper();
@@ -388,20 +386,18 @@ void TreeBuilder::restructure_block_node_in_inline_parent(NodeWithStyleAndBoxMod
             current_parent->append_child(new_inline_node);
             current_parent = new_inline_node;
 
-            // Stop recreating nodes when we've reached node's parent
+            // Replace the node in the ancestor stack with the new node.
+            auto& node_with_style = static_cast<NodeWithStyle&>(*inline_node);
+            if (auto stack_index = m_ancestor_stack.find_first_index(node_with_style); stack_index.has_value())
+                m_ancestor_stack[stack_index.release_value()] = new_inline_node;
+
+            // Stop recreating nodes when we've reached node's parent.
             if (inline_node == &parent)
                 break;
         }
 
         after_wrapper->set_children_are_inline(true);
         nearest_block_ancestor.append_child(after_wrapper);
-    }
-
-    // Rewind the ancestor stack
-    for (GC::Ptr<Node> inline_node = topmost_inline_ancestor; inline_node; inline_node = inline_node->last_child()) {
-        if (!is<NodeWithStyle>(*inline_node))
-            break;
-        m_ancestor_stack.append(static_cast<NodeWithStyle&>(*inline_node));
     }
 }
 
