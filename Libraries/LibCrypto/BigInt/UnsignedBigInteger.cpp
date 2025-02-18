@@ -481,15 +481,20 @@ FLATTEN UnsignedBigInteger UnsignedBigInteger::bitwise_not_fill_to_one_based_ind
     return result;
 }
 
-FLATTEN UnsignedBigInteger UnsignedBigInteger::shift_left(size_t num_bits) const
+FLATTEN ErrorOr<UnsignedBigInteger> UnsignedBigInteger::try_shift_left(size_t num_bits) const
 {
     UnsignedBigInteger output;
     UnsignedBigInteger temp_result;
     UnsignedBigInteger temp_plus;
 
-    UnsignedBigIntegerAlgorithms::shift_left_without_allocation(*this, num_bits, temp_result, temp_plus, output);
+    TRY(UnsignedBigIntegerAlgorithms::try_shift_left_without_allocation(*this, num_bits, temp_result, temp_plus, output));
 
     return output;
+}
+
+FLATTEN UnsignedBigInteger UnsignedBigInteger::shift_left(size_t num_bits) const
+{
+    return MUST(try_shift_left(num_bits));
 }
 
 FLATTEN UnsignedBigInteger UnsignedBigInteger::shift_right(size_t num_bits) const
