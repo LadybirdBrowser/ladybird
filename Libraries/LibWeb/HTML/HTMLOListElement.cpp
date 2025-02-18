@@ -6,6 +6,7 @@
 
 #include <LibWeb/Bindings/HTMLOListElementPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/HTML/HTMLOListElement.h>
 #include <LibWeb/HTML/Numbers.h>
 
@@ -34,6 +35,34 @@ WebIDL::Long HTMLOListElement::start()
     if (auto maybe_number = HTML::parse_integer(content_attribute_value); maybe_number.has_value())
         return *maybe_number;
     return 1;
+}
+
+bool HTMLOListElement::is_presentational_hint(FlyString const& name) const
+{
+    if (Base::is_presentational_hint(name))
+        return true;
+
+    return name == HTML::AttributeNames::type;
+}
+
+void HTMLOListElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
+{
+    // https://html.spec.whatwg.org/multipage/rendering.html#lists
+    for_each_attribute([&](auto& name, auto& value) {
+        if (name == HTML::AttributeNames::type) {
+            if (value == "1"sv) {
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CSSKeywordValue::create(CSS::Keyword::Decimal));
+            } else if (value == "a"sv) {
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CSSKeywordValue::create(CSS::Keyword::LowerAlpha));
+            } else if (value == "A"sv) {
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CSSKeywordValue::create(CSS::Keyword::UpperAlpha));
+            } else if (value == "i"sv) {
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CSSKeywordValue::create(CSS::Keyword::LowerRoman));
+            } else if (value == "I"sv) {
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::ListStyleType, CSS::CSSKeywordValue::create(CSS::Keyword::UpperRoman));
+            }
+        }
+    });
 }
 
 }
