@@ -67,10 +67,17 @@ public:
 
     String to_string() const
     {
-        if (is_calculated())
-            return m_value.template get<NonnullRefPtr<CalculatedStyleValue>>()->to_string(Web::CSS::CSSStyleValue::SerializationMode::Normal);
-
-        return m_value.template get<T>().to_string();
+        return m_value.visit(
+            [](T const& t) {
+                if constexpr (IsArithmetic<T>) {
+                    return String::number(t);
+                } else {
+                    return t.to_string();
+                }
+            },
+            [](NonnullRefPtr<CalculatedStyleValue> const& calculated) {
+                return calculated->to_string(CSSStyleValue::SerializationMode::Normal);
+            });
     }
 
     bool operator==(CalculatedOr<T> const& other) const
