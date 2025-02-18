@@ -62,6 +62,7 @@ bool HTMLTableElement::is_presentational_hint(FlyString const& name) const
         HTML::AttributeNames::background,
         HTML::AttributeNames::bgcolor,
         HTML::AttributeNames::border,
+        HTML::AttributeNames::bordercolor,
         HTML::AttributeNames::cellpadding,
         HTML::AttributeNames::cellspacing,
         HTML::AttributeNames::height,
@@ -122,6 +123,19 @@ void HTMLTableElement::apply_presentational_hints(GC::Ref<CSS::CascadedPropertie
             apply_border_style(CSS::PropertyID::BorderTopStyle, CSS::PropertyID::BorderTopWidth, CSS::PropertyID::BorderTopColor);
             apply_border_style(CSS::PropertyID::BorderRightStyle, CSS::PropertyID::BorderRightWidth, CSS::PropertyID::BorderRightColor);
             apply_border_style(CSS::PropertyID::BorderBottomStyle, CSS::PropertyID::BorderBottomWidth, CSS::PropertyID::BorderBottomColor);
+        }
+        if (name == HTML::AttributeNames::bordercolor) {
+            // https://html.spec.whatwg.org/multipage/rendering.html#tables-2:attr-table-bordercolor
+            // When a table element has a bordercolor attribute, its value is expected to be parsed using the rules for parsing a legacy color value,
+            // and if that does not return failure, the user agent is expected to treat the attribute as a presentational hint setting the element's
+            // 'border-top-color', 'border-right-color', 'border-bottom-color', and 'border-left-color' properties to the resulting color.
+            if (auto parsed_color = parse_legacy_color_value(value); parsed_color.has_value()) {
+                auto color_value = CSS::CSSColorValue::create_from_color(parsed_color.value());
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderTopColor, color_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderRightColor, color_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderBottomColor, color_value);
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderLeftColor, color_value);
+            }
         }
     });
 }
