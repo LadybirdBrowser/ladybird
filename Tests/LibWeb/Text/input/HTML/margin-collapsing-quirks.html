@@ -1,0 +1,134 @@
+<!DOCTYPE quirks>
+<title>15.3.9 Margin collapsing quirks</title>
+<link rel="help" href="https://html.spec.whatwg.org/#margin-collapsing-quirks">
+<link rel="author" title="Psychpsyo" href="mailto:psychpsyo@gmail.com">
+<script src="../include.js"></script>
+
+<body>
+<script>
+    // prevent script from interfering with the test
+    document.head.appendChild(document.body.querySelector("script"));
+
+    const elementsWithDefaultMargins = ["BLOCKQUOTE", "DIR", "DL", "H1", "H2", "H3", "H4", "H5", "H6", "LISTING", "MENU", "OL", "P", "PLAINTEXT", "PRE", "UL", "XMP"]
+    // all these get re-used
+    const substantialFollowingSibling = document.createElement("DIV");
+    const substantialPreviousSibling = document.createElement("DIV");
+    const tdElement = document.createElement("TD");
+    const thElement = document.createElement("TD");
+    const pElement = document.createElement("P");
+
+    let testCount = 0;
+    let failureCount = 0;
+
+    function testElements(parent, hasContent, withSubstantialPreviousSiblings, withSubstantialFollowingSiblings, zeroProperty, elementList = elementsWithDefaultMargins) {
+        if (withSubstantialPreviousSiblings) parent.appendChild(substantialPreviousSibling);
+        for (const tagName of elementList) {
+            testCount++;
+            const elem = document.createElement(tagName);
+            if (hasContent) elem.textContent = "content";
+            parent.appendChild(elem);
+            if (withSubstantialFollowingSiblings) parent.appendChild(substantialFollowingSibling);
+            if (getComputedStyle(elem)[zeroProperty] !== "0px") {
+                println(`   FAIL - A${hasContent? "" : " blank"} <${tagName}> child of <${parent.tagName}>${withSubstantialPreviousSiblings? "" : " with no substantial previous siblings"}${withSubstantialFollowingSiblings? "" : " with no substantial following siblings"} needs a '${zeroProperty}' of 0.`);
+                failureCount++;
+            }
+            elem.remove();
+            if (withSubstantialFollowingSiblings) substantialFollowingSibling.remove();
+        }
+        if (withSubstantialPreviousSiblings) substantialPreviousSibling.remove();
+    }
+
+    function testIsSubstantial(node, isSubstantial, testName) {
+        document.body.appendChild(node);
+        document.body.appendChild(pElement);
+        // non-0px margin-block-start on P means node is substantial
+        testCount++;
+        if ((getComputedStyle(pElement)["margin-block-start"] !== "0px") !== isSubstantial) {
+            println(`   FAIL - ${testName} must ${isSubstantial? "" : "not "}be substantial`);
+            failureCount++;
+        }
+        pElement.remove();
+        node.remove();
+
+        // non-0px margin-block-end on P means node is substantial (P isn't blank)
+        testCount++;
+        document.body.appendChild(pElement);
+        pElement.appendChild(node);
+        if ((getComputedStyle(pElement)["margin-block-end"] !== "0px") !== isSubstantial) {
+            println(`   FAIL - a <P> containing ${testName} must ${isSubstantial? "not " : ""}be blank`);
+            failureCount++;
+        }
+        node.remove();
+        pElement.remove();
+    }
+
+    test(() => {
+        // Remove the <pre> element that include.js puts in the body. (We will put it back after our tests are done, don't worry)
+        const testOutputElement = document.querySelector("pre");
+        testOutputElement.remove();
+        println("Running tests...");
+
+
+        // FIRST REQUIREMENT (body/th/td children without substantial previous siblings have 'margin-block-start' of 0)
+        println("First Requirement:");
+        testElements(document.body, true, false, true, "margin-block-start");
+
+        document.body.appendChild(tdElement);
+        testElements(tdElement, true, false, true, "margin-block-start");
+        tdElement.remove();
+
+        document.body.appendChild(thElement);
+        testElements(thElement, true, false, true, "margin-block-start");
+        thElement.remove();
+
+
+        // SECOND REQUIREMENT (blank body/th/td children without substantial previous siblings have 'margin-block-end' of 0)
+        println("Second Requirement:");
+        testElements(document.body, false, false, true, "margin-block-end");
+
+        document.body.appendChild(tdElement);
+        testElements(tdElement, false, false, true, "margin-block-end");
+        tdElement.remove();
+
+        document.body.appendChild(thElement);
+        testElements(thElement, false, false, true, "margin-block-end");
+        thElement.remove();
+
+
+        // THIRD REQUIREMENT (blank th/td children without substantial following siblings have 'margin-block-start' of 0)
+        println("Third Requirement:");
+        document.body.appendChild(tdElement);
+        testElements(tdElement, false, true, false, "margin-block-start");
+        tdElement.remove();
+
+        document.body.appendChild(thElement);
+        testElements(thElement, false, true, false, "margin-block-start");
+        thElement.remove();
+
+
+        // FOURTH REQUIREMENT (p-tag th/td children without substantial following siblings have 'margin-block-end' of 0)
+        println("Fourth Requirement:");
+        document.body.appendChild(tdElement);
+        testElements(tdElement, true, true, false, "margin-block-end", ["P"]);
+        tdElement.remove();
+
+        document.body.appendChild(thElement);
+        testElements(thElement, true, true, false, "margin-block-end", ["P"]);
+        thElement.remove();
+
+        // FINALLY (check various elements for whether they are blank or substantial)
+        println("Substantiality:");
+        testIsSubstantial(document.createTextNode(""), false, "an empty text node");
+        testIsSubstantial(document.createTextNode(" "), false, "a text node with a space");
+        testIsSubstantial(document.createTextNode("substantial"), true, "a text node with text");
+        testIsSubstantial(document.createTextNode("\u0009\u000A\u000C\u000D\u0020"), false, "a text node with ascii-whitespace");
+        testIsSubstantial(document.createTextNode("\u202F"), true, "a text node with non-ascii-whitespace (nbsp)");
+        testIsSubstantial(document.createElement("div"), true, "a <DIV>");
+        testIsSubstantial(document.createElement("span"), true, "a <SPAN>");
+
+        println(`\n\nFailed ${failureCount}/${testCount} tests.`)
+
+        // Put that <pre> element from the start back to where it was.
+        document.body.appendChild(testOutputElement);
+    });
+</script>
