@@ -36,7 +36,7 @@ String ConicGradientStyleValue::to_string(SerializationMode mode) const
     return MUST(builder.to_string());
 }
 
-void ConicGradientStyleValue::resolve_for_size(Layout::NodeWithStyleAndBoxModelMetrics const& node, CSSPixelSize size) const
+void ConicGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& node, CSSPixelSize size) const
 {
     ResolvedDataCacheKey cache_key {
         .length_resolution_context = Length::ResolutionContext::for_layout_node(node),

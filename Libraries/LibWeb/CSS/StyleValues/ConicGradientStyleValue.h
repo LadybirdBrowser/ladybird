@@ -38,7 +38,7 @@ public:
 
     bool is_paintable() const override { return true; }
 
-    void resolve_for_size(Layout::NodeWithStyleAndBoxModelMetrics const&, CSSPixelSize) const override;
+    void resolve_for_size(Layout::NodeWithStyle const&, CSSPixelSize) const override;
 
     virtual ~ConicGradientStyleValue() override = default;
 
