@@ -276,9 +276,14 @@ bool SignedBigInteger::operator>(UnsignedBigInteger const& other) const
     return *this != other && !(*this < other);
 }
 
+FLATTEN ErrorOr<SignedBigInteger> SignedBigInteger::try_shift_left(size_t num_bits) const
+{
+    return SignedBigInteger { TRY(m_unsigned_data.try_shift_left(num_bits)), m_sign };
+}
+
 FLATTEN SignedBigInteger SignedBigInteger::shift_left(size_t num_bits) const
 {
-    return SignedBigInteger { m_unsigned_data.shift_left(num_bits), m_sign };
+    return MUST(try_shift_left(num_bits));
 }
 
 FLATTEN SignedBigInteger SignedBigInteger::shift_right(size_t num_bits) const

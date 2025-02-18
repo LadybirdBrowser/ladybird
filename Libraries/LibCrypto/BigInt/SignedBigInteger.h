@@ -120,6 +120,8 @@ public:
     [[nodiscard]] SignedBigInteger multiplied_by(SignedBigInteger const& other) const;
     [[nodiscard]] SignedDivisionResult divided_by(SignedBigInteger const& divisor) const;
 
+    [[nodiscard]] ErrorOr<SignedBigInteger> try_shift_left(size_t num_bits) const;
+
     [[nodiscard]] SignedBigInteger plus(UnsignedBigInteger const& other) const;
     [[nodiscard]] SignedBigInteger minus(UnsignedBigInteger const& other) const;
     [[nodiscard]] SignedBigInteger multiplied_by(UnsignedBigInteger const& other) const;

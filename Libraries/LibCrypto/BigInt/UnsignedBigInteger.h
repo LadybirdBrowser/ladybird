@@ -120,6 +120,8 @@ public:
     [[nodiscard]] UnsignedBigInteger multiplied_by(UnsignedBigInteger const& other) const;
     [[nodiscard]] UnsignedDivisionResult divided_by(UnsignedBigInteger const& divisor) const;
 
+    [[nodiscard]] ErrorOr<UnsignedBigInteger> try_shift_left(size_t num_bits) const;
+
     [[nodiscard]] u32 hash() const;
 
     void set_bit_inplace(size_t bit_index);

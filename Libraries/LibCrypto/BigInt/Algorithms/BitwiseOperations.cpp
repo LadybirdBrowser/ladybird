@@ -160,13 +160,23 @@ FLATTEN void UnsignedBigIntegerAlgorithms::bitwise_not_fill_to_one_based_index_w
     output.m_words[last_word_index] = (NumericLimits<UnsignedBigInteger::Word>::max() >> (UnsignedBigInteger::BITS_IN_WORD - index)) & ~last_word;
 }
 
+FLATTEN void UnsignedBigIntegerAlgorithms::shift_left_without_allocation(
+    UnsignedBigInteger const& number,
+    size_t num_bits,
+    UnsignedBigInteger& temp_result,
+    UnsignedBigInteger& temp_plus,
+    UnsignedBigInteger& output)
+{
+    MUST(try_shift_left_without_allocation(number, num_bits, temp_result, temp_plus, output));
+}
+
 /**
  * Complexity : O(N + num_bits % 8) where N is the number of words in the number
  * Shift method :
  * Start by shifting by whole words in num_bits (by putting missing words at the start),
  * then shift the number's words two by two by the remaining amount of bits.
  */
-FLATTEN void UnsignedBigIntegerAlgorithms::shift_left_without_allocation(
+FLATTEN ErrorOr<void> UnsignedBigIntegerAlgorithms::try_shift_left_without_allocation(
     UnsignedBigInteger const& number,
     size_t num_bits,
     UnsignedBigInteger& temp_result,
@@ -177,7 +187,7 @@ FLATTEN void UnsignedBigIntegerAlgorithms::shift_left_without_allocation(
     // where the shift amount is <= size of word (32).
     // But we do know how to shift by a multiple of word size (e.g 64=32*2)
     // So we first shift the result by how many whole words fit in 'num_bits'
-    shift_left_by_n_words(number, num_bits / UnsignedBigInteger::BITS_IN_WORD, temp_result);
+    TRY(try_shift_left_by_n_words(number, num_bits / UnsignedBigInteger::BITS_IN_WORD, temp_result));
 
     output.set_to(temp_result);
 
@@ -185,7 +195,7 @@ FLATTEN void UnsignedBigIntegerAlgorithms::shift_left_without_allocation(
     num_bits %= UnsignedBigInteger::BITS_IN_WORD;
 
     if (num_bits == 0) {
-        return;
+        return {};
     }
 
     for (size_t i = 0; i < temp_result.length(); ++i) {
@@ -202,9 +212,11 @@ FLATTEN void UnsignedBigIntegerAlgorithms::shift_left_without_allocation(
         //         efficient nor pretty. Maybe we should have an "add_with_shift" method ?
         temp_plus.set_to_0();
         temp_plus.m_words.append(carry_word);
-        shift_left_by_n_words(temp_plus, temp_result.length(), temp_result);
+        TRY(try_shift_left_by_n_words(temp_plus, temp_result.length(), temp_result));
         add_into_accumulator_without_allocation(output, temp_result);
     }
+
+    return {};
 }
 
 FLATTEN void UnsignedBigIntegerAlgorithms::shift_right_without_allocation(
@@ -221,12 +233,22 @@ void UnsignedBigIntegerAlgorithms::shift_left_by_n_words(
     size_t number_of_words,
     UnsignedBigInteger& output)
 {
+    MUST(try_shift_left_by_n_words(number, number_of_words, output));
+}
+
+ErrorOr<void> UnsignedBigIntegerAlgorithms::try_shift_left_by_n_words(
+    UnsignedBigInteger const& number,
+    size_t number_of_words,
+    UnsignedBigInteger& output)
+{
     // shifting left by N words means just inserting N zeroes to the beginning of the words vector
     output.set_to_0();
-    output.m_words.resize_and_keep_capacity(number_of_words + number.length());
+    TRY(output.m_words.try_resize_and_keep_capacity(number_of_words + number.length()));
 
     __builtin_memset(output.m_words.data(), 0, number_of_words * sizeof(unsigned));
     __builtin_memcpy(&output.m_words.data()[number_of_words], number.m_words.data(), number.m_words.size() * sizeof(unsigned));
+
+    return {};
 }
 
 void UnsignedBigIntegerAlgorithms::shift_right_by_n_words(
