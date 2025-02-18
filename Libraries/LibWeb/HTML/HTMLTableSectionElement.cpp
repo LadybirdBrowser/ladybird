@@ -107,7 +107,8 @@ bool HTMLTableSectionElement::is_presentational_hint(FlyString const& name) cons
 
     return first_is_one_of(name,
         HTML::AttributeNames::background,
-        HTML::AttributeNames::bgcolor);
+        HTML::AttributeNames::bgcolor,
+        HTML::AttributeNames::height);
 }
 
 void HTMLTableSectionElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
@@ -122,6 +123,9 @@ void HTMLTableSectionElement::apply_presentational_hints(GC::Ref<CSS::CascadedPr
         else if (name == HTML::AttributeNames::bgcolor) {
             if (auto color = parse_legacy_color_value(value); color.has_value())
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundColor, CSS::CSSColorValue::create_from_color(color.value()));
+        } else if (name == HTML::AttributeNames::height) {
+            if (auto parsed_value = parse_dimension_value(value))
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Height, parsed_value.release_nonnull());
         }
     });
 }
