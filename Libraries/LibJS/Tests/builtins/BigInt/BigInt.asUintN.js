@@ -22,6 +22,12 @@ describe("errors", () => {
             BigInt.asUintN(1, "foo");
         }).toThrowWithMessage(SyntaxError, "Invalid value for BigInt: foo");
     });
+
+    test("large allocation", () => {
+        expect(() => {
+            BigInt.asUintN(0x4000000000000, 1n);
+        }).toThrowWithMessage(InternalError, "Out of memory");
+    });
 });
 
 describe("correct behavior", () => {

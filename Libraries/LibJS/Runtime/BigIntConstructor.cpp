@@ -75,7 +75,7 @@ JS_DEFINE_NATIVE_FUNCTION(BigIntConstructor::as_int_n)
     // 3. Let mod be ℝ(bigint) modulo 2^bits.
     // FIXME: For large values of `bits`, this can likely be improved with a SignedBigInteger API to
     //        drop the most significant bits.
-    auto bits_shift_left = BIGINT_ONE.shift_left(bits);
+    auto bits_shift_left = TRY_OR_THROW_OOM(vm, BIGINT_ONE.try_shift_left(bits));
     auto mod = modulo(bigint->big_integer(), bits_shift_left);
 
     // 4. If mod ≥ 2^(bits-1), return ℤ(mod - 2^bits); otherwise, return ℤ(mod).
@@ -101,7 +101,7 @@ JS_DEFINE_NATIVE_FUNCTION(BigIntConstructor::as_uint_n)
     // 3. Return the BigInt value that represents ℝ(bigint) modulo 2bits.
     // FIXME: For large values of `bits`, this can likely be improved with a SignedBigInteger API to
     //        drop the most significant bits.
-    return BigInt::create(vm, modulo(bigint->big_integer(), BIGINT_ONE.shift_left(bits)));
+    return BigInt::create(vm, modulo(bigint->big_integer(), TRY_OR_THROW_OOM(vm, BIGINT_ONE.try_shift_left(bits))));
 }
 
 }
