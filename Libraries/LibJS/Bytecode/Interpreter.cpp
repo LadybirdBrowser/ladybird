@@ -1399,7 +1399,7 @@ inline ThrowCompletionOr<CalleeAndThis> get_callee_and_this_from_environment(Byt
         auto const* environment = interpreter.running_execution_context().lexical_environment.ptr();
         for (size_t i = 0; i < cache.hops; ++i)
             environment = environment->outer_environment();
-        if (!environment->is_permanently_screwed_by_eval()) {
+        if (!environment->is_permanently_screwed_by_eval() && environment->is_declarative_environment()) {
             callee = TRY(static_cast<DeclarativeEnvironment const&>(*environment).get_binding_value_direct(vm, cache.index));
             this_value = js_undefined();
             if (auto base_object = environment->with_base_object())
@@ -2179,7 +2179,7 @@ ThrowCompletionOr<void> GetBinding::execute_impl(Bytecode::Interpreter& interpre
         auto const* environment = interpreter.running_execution_context().lexical_environment.ptr();
         for (size_t i = 0; i < m_cache.hops; ++i)
             environment = environment->outer_environment();
-        if (!environment->is_permanently_screwed_by_eval()) {
+        if (!environment->is_permanently_screwed_by_eval() && environment->is_declarative_environment()) {
             interpreter.set(dst(), TRY(static_cast<DeclarativeEnvironment const&>(*environment).get_binding_value_direct(vm, m_cache.index)));
             return {};
         }
@@ -2328,7 +2328,7 @@ static ThrowCompletionOr<void> initialize_or_set_binding(Interpreter& interprete
     if (cache.is_valid()) {
         for (size_t i = 0; i < cache.hops; ++i)
             environment = environment->outer_environment();
-        if (!environment->is_permanently_screwed_by_eval()) {
+        if (!environment->is_permanently_screwed_by_eval() && environment->is_declarative_environment()) {
             if constexpr (initialization_mode == BindingInitializationMode::Initialize) {
                 TRY(static_cast<DeclarativeEnvironment&>(*environment).initialize_binding_direct(vm, cache.index, value, Environment::InitializeBindingHint::Normal));
             } else {
@@ -2950,7 +2950,7 @@ ThrowCompletionOr<void> TypeofBinding::execute_impl(Bytecode::Interpreter& inter
         auto const* environment = interpreter.running_execution_context().lexical_environment.ptr();
         for (size_t i = 0; i < m_cache.hops; ++i)
             environment = environment->outer_environment();
-        if (!environment->is_permanently_screwed_by_eval()) {
+        if (!environment->is_permanently_screwed_by_eval() && environment->is_declarative_environment()) {
             auto value = TRY(static_cast<DeclarativeEnvironment const&>(*environment).get_binding_value_direct(vm, m_cache.index));
             interpreter.set(dst(), value.typeof_(vm));
             return {};
