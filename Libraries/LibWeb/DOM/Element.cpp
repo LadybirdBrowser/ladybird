@@ -3796,4 +3796,12 @@ Optional<String> Element::lang() const
         return {};
     return maybe_lang.release_value();
 }
+
+// https://html.spec.whatwg.org/multipage/rendering.html#concept-rendering-elements-with-margins
+bool Element::is_element_with_default_margins() const
+{
+    // The elements with default margins are the following elements: blockquote, dir, dl, h1, h2, h3, h4, h5, h6, listing, menu, ol, p, plaintext, pre, ul, xmp
+    return is_html_element() && local_name().is_one_of(HTML::TagNames::blockquote, HTML::TagNames::dir, HTML::TagNames::dl, HTML::TagNames::h1, HTML::TagNames::h2, HTML::TagNames::h3, HTML::TagNames::h4, HTML::TagNames::h5, HTML::TagNames::h6, HTML::TagNames::listing, HTML::TagNames::menu, HTML::TagNames::ol, HTML::TagNames::p, HTML::TagNames::plaintext, HTML::TagNames::pre, HTML::TagNames::ul, HTML::TagNames::xmp);
+}
+
 }

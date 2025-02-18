@@ -1038,6 +1038,64 @@ void StyleComputer::cascade_declarations(
     }
 }
 
+// https://html.spec.whatwg.org/multipage/rendering.html#margin-collapsing-quirks
+void StyleComputer::apply_margin_collapsing_quirk(CascadedProperties& cascaded_properties, DOM::Element& element) const
+{
+    // In quirks mode,
+    if (!document().in_quirks_mode())
+        return;
+
+    bool add_margin_block_start_zero_rule = false;
+    bool add_margin_block_end_zero_rule = false;
+    // any element with default margins
+    if (element.is_element_with_default_margins()) {
+        // that is the child of a body, td, or th element,
+        auto const& parent = element.parent_element();
+        if (parent->is_html_element() && parent->local_name().is_one_of(HTML::TagNames::body, HTML::TagNames::td, HTML::TagNames::th)) {
+            // has no substantial previous siblings
+            if (!element.has_substantial_previous_siblings()) {
+                // is expected to have a user-agent level style sheet rule that sets its 'margin-block-start' property to zero.
+                add_margin_block_start_zero_rule = true;
+
+                // and is blank
+                if (element.is_blank()) {
+                    // is expected to have a user-agent level style sheet rule that sets its 'margin-block-end' property to zero also.
+                    add_margin_block_end_zero_rule = true;
+                }
+            }
+        }
+
+        // that is the child of a td or th element,
+        if (parent->is_html_element() && parent->local_name().is_one_of(HTML::TagNames::td, HTML::TagNames::th)) {
+            // has no substantial following siblings, and is blank,
+            if (!element.has_substantial_following_siblings() && element.is_blank()) {
+                // is expected to have a user-agent level style sheet rule that sets its 'margin-block-start' property to zero.
+                add_margin_block_start_zero_rule = true;
+            }
+        }
+    }
+
+    // any p element
+    if (element.is_html_element() && element.local_name() == HTML::TagNames::p) {
+        // that is the child of a td or th element
+        auto const& parent = element.parent_element();
+        if (parent->is_html_element() && parent->local_name().is_one_of(HTML::TagNames::td, HTML::TagNames::th)) {
+            // and has no substantial following siblings,
+            if (!element.has_substantial_following_siblings()) {
+                // is expected to have a user-agent level style sheet rule that sets its 'margin-block-end' property to zero.
+                add_margin_block_end_zero_rule = true;
+            }
+        }
+    }
+
+    if (add_margin_block_start_zero_rule) {
+        set_property_expanding_shorthands(cascaded_properties, PropertyID::MarginBlockStart, LengthStyleValue::create(Length::make_px(0)), nullptr, CascadeOrigin::UserAgent, Important::No, {});
+    }
+    if (add_margin_block_end_zero_rule) {
+        set_property_expanding_shorthands(cascaded_properties, PropertyID::MarginBlockEnd, LengthStyleValue::create(Length::make_px(0)), nullptr, CascadeOrigin::UserAgent, Important::No, {});
+    }
+}
+
 static void cascade_custom_properties(DOM::Element& element, Optional<CSS::Selector::PseudoElement::Type> pseudo_element, Vector<MatchingRule const*> const& matching_rules, HashMap<FlyString, StyleProperty>& custom_properties)
 {
     size_t needed_capacity = 0;
@@ -1580,6 +1638,8 @@ GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Element&
 
     // Normal user agent declarations
     cascade_declarations(*cascaded_properties, element, pseudo_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::No, {});
+    if (!pseudo_element.has_value())
+        apply_margin_collapsing_quirk(*cascaded_properties, element);
 
     // Normal user declarations
     cascade_declarations(*cascaded_properties, element, pseudo_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::No, {});

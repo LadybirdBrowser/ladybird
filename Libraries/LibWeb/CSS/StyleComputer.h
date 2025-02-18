@@ -265,6 +265,9 @@ private:
         Important,
         Optional<FlyString> layer_name) const;
 
+    // https://html.spec.whatwg.org/multipage/rendering.html#margin-collapsing-quirks
+    void apply_margin_collapsing_quirk(CascadedProperties&, DOM::Element&) const;
+
     void build_rule_cache();
     void build_rule_cache_if_needed() const;
 
