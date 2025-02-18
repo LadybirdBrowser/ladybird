@@ -8,6 +8,8 @@
 
 #include <AK/NonnullOwnPtr.h>
 #include <LibGC/Root.h>
+#include <LibWeb/CSS/ComputedValues.h>
+#include <LibWeb/Forward.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/TraversalDecision.h>

@@ -9,6 +9,7 @@
 #include <AK/Debug.h>
 #include <AK/Format.h>
 #include <AK/NonnullRefPtr.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/ResolvedCSSStyleDeclaration.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/BackgroundRepeatStyleValue.h>

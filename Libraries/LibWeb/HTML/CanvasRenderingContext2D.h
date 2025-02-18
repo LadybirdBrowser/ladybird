@@ -14,6 +14,7 @@
 #include <LibGfx/Forward.h>
 #include <LibGfx/Painter.h>
 #include <LibGfx/Path.h>
+#include <LibGfx/TextLayout.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/HTML/Canvas/CanvasCompositing.h>
 #include <LibWeb/HTML/Canvas/CanvasDrawImage.h>
@@ -31,8 +32,6 @@
 #include <LibWeb/HTML/Canvas/CanvasTextDrawingStyles.h>
 #include <LibWeb/HTML/Canvas/CanvasTransform.h>
 #include <LibWeb/HTML/CanvasGradient.h>
-#include <LibWeb/Layout/InlineNode.h>
-#include <LibWeb/Layout/LineBox.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {

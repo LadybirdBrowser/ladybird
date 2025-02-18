@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Bindings/HTMLFrameSetElementPrototype.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLFrameSetElement.h>

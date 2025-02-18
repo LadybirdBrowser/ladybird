@@ -6,6 +6,7 @@
 
 #include <LibGfx/Bitmap.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/BrowsingContext.h>

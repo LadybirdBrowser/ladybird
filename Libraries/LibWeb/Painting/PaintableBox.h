@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <LibGfx/Bitmap.h>
+#include <LibGfx/ImmutableBitmap.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/Box.h>
