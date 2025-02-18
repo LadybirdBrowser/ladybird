@@ -11,13 +11,13 @@
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <LibGfx/Font/Typeface.h>
+#include <LibGfx/FontCascadeList.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CascadeOrigin.h>
 #include <LibWeb/CSS/CascadedProperties.h>
-#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleInvalidationData.h>
 #include <LibWeb/Forward.h>

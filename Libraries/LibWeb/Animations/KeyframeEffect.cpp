@@ -11,6 +11,7 @@
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/Animations/PseudoElementParsing.h>
 #include <LibWeb/Bindings/KeyframeEffectPrototype.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>

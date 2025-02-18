@@ -14,6 +14,7 @@
 #include <LibRegex/Regex.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/NodePrototype.h>
+#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/CDATASection.h>
 #include <LibWeb/DOM/Comment.h>

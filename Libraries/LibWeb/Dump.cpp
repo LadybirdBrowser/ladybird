@@ -20,6 +20,7 @@
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/CSSSupportsRule.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PseudoClass.h>
 #include <LibWeb/DOM/Comment.h>

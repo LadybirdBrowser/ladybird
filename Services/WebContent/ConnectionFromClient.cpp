@@ -21,6 +21,7 @@
 #include <LibUnicode/TimeZone.h>
 #include <LibWeb/ARIA/RoleType.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/CharacterData.h>

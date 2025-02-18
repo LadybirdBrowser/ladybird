@@ -7,6 +7,7 @@
  */
 
 #include <AK/Demangle.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundRepeatStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
@@ -30,6 +31,7 @@
 #include <LibWeb/Layout/TableWrapper.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/SVG/SVGForeignObjectElement.h>
 
 namespace Web::Layout {

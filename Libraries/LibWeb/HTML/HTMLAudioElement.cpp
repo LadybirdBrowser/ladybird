@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/Bindings/HTMLAudioElementPrototype.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/HTML/AudioTrack.h>
 #include <LibWeb/HTML/AudioTrackList.h>

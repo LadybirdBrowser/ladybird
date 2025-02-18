@@ -10,9 +10,6 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Vector.h>
 #include <LibJS/Heap/Cell.h>
-#include <LibWeb/CSS/ComputedProperties.h>
-#include <LibWeb/CSS/ComputedValues.h>
-#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Forward.h>

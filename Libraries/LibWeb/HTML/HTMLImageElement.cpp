@@ -9,6 +9,7 @@
 #include <LibGfx/Bitmap.h>
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/Bindings/HTMLImageElementPrototype.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>

@@ -7,6 +7,7 @@
 
 #include <LibURL/Origin.h>
 #include <LibWeb/Bindings/HTMLIFrameElementPrototype.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
