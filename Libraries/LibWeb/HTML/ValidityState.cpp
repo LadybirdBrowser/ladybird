@@ -109,7 +109,7 @@ bool ValidityState::custom_error() const
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-validitystate-valid
 bool ValidityState::valid() const
 {
-    return !(value_missing() || type_mismatch() || pattern_mismatch() || too_long() || too_short() || range_underflow() || range_overflow() || step_mismatch() || bad_input() || custom_error() || valid());
+    return !(value_missing() || type_mismatch() || pattern_mismatch() || too_long() || too_short() || range_underflow() || range_overflow() || step_mismatch() || bad_input() || custom_error());
 }
 
 }
