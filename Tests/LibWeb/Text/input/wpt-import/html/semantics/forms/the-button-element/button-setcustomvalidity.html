@@ -1,0 +1,17 @@
+<!DOCTYPE HTML>
+<title>button setCustomValidity</title>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+
+<button id='button_test'></button>
+
+<script>
+
+test(() => {
+  let elem = document.getElementById("button_test");
+  assert_false(elem.validity.customError);
+  elem.setCustomValidity("custom error");
+  assert_true(elem.validity.customError);
+}, "button setCustomValidity is correct")
+
+</script>
