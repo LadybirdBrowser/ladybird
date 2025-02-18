@@ -36,7 +36,7 @@ bool HTMLHRElement::is_presentational_hint(FlyString const& name) const
     if (Base::is_presentational_hint(name))
         return true;
 
-    return first_is_one_of(name, HTML::AttributeNames::color, HTML::AttributeNames::noshade, HTML::AttributeNames::width);
+    return first_is_one_of(name, HTML::AttributeNames::align, HTML::AttributeNames::color, HTML::AttributeNames::noshade, HTML::AttributeNames::width);
 }
 
 void HTMLHRElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> cascaded_properties) const
@@ -48,6 +48,19 @@ void HTMLHRElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> 
             cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderRightStyle, CSS::CSSKeywordValue::create(CSS::Keyword::Solid));
             cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderBottomStyle, CSS::CSSKeywordValue::create(CSS::Keyword::Solid));
             cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BorderLeftStyle, CSS::CSSKeywordValue::create(CSS::Keyword::Solid));
+        }
+
+        if (name == HTML::AttributeNames::align) {
+            if (value.equals_ignoring_ascii_case("left"sv)) {
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginLeft, CSS::LengthStyleValue::create(CSS::Length::make_px(0)));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginRight, CSS::CSSKeywordValue::create(CSS::Keyword::Auto));
+            } else if (value.equals_ignoring_ascii_case("right"sv)) {
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginLeft, CSS::CSSKeywordValue::create(CSS::Keyword::Auto));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginRight, CSS::LengthStyleValue::create(CSS::Length::make_px(0)));
+            } else if (value.equals_ignoring_ascii_case("center"sv)) {
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginLeft, CSS::CSSKeywordValue::create(CSS::Keyword::Auto));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::MarginRight, CSS::CSSKeywordValue::create(CSS::Keyword::Auto));
+            }
         }
 
         // https://html.spec.whatwg.org/multipage/rendering.html#the-hr-element-2:attr-hr-color-3
