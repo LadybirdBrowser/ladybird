@@ -8,6 +8,7 @@ set(SOURCES
     URL.cpp
     ${PUBLIC_SUFFIX_SOURCES}
     Pattern/Pattern.cpp
+    Pattern/Tokenizer.cpp
 )
 
 serenity_lib(LibURL url)
