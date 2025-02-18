@@ -512,6 +512,7 @@ if (BUILD_TESTING)
         AK
         LibCrypto
         LibCompress
+        LibDNS
         LibGC
         LibTest
         LibTextCodec
