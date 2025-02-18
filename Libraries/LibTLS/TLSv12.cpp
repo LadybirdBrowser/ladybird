@@ -107,9 +107,9 @@ ErrorOr<size_t> TLSv12::pending_bytes() const
     return SSL_pending(m_ssl);
 }
 
-ErrorOr<bool> TLSv12::can_read_without_blocking(int count) const
+ErrorOr<bool> TLSv12::can_read_without_blocking(int timeout) const
 {
-    return SSL_pending(m_ssl) >= count;
+    return m_socket->can_read_without_blocking(timeout);
 }
 
 ErrorOr<void> TLSv12::set_blocking(bool block)
