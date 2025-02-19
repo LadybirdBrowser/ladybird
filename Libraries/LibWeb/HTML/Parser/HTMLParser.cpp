@@ -2011,6 +2011,11 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         // Insert an HTML element for the token.
         (void)insert_html_element(token);
 
+        // AD-HOC: We move this step before handling LINE FEED below, to ensure the flag is updated before
+        //         we process the next token. This is necessary due to how we implement token reprocessing.
+        // Set the frameset-ok flag to "not ok".
+        m_frameset_ok = false;
+
         // If the next token is a U+000A LINE FEED (LF) character token,
         // then ignore that token and move on to the next one.
         // (Newlines at the start of pre blocks are ignored as an authoring convenience.)
@@ -2021,8 +2026,6 @@ void HTMLParser::handle_in_body(HTMLToken& token)
             process_using_the_rules_for(m_insertion_mode, next_token.value());
         }
 
-        // Set the frameset-ok flag to "not ok".
-        m_frameset_ok = false;
         return;
     }
 
