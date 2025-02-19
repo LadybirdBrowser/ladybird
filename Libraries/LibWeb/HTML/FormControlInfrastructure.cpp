@@ -121,10 +121,10 @@ WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(J
             auto [x, y] = input_element->selected_coordinate();
 
             // 6. Create an entry with namex and x, and append it to entry list.
-            entry_list.append(XHR::FormDataEntry { .name = move(name_x), .value = String::number(x) });
+            entry_list.append(TRY(create_entry(realm, name_x, String::number(x))));
 
             // 7. Create an entry with namey and y, and append it to entry list.
-            entry_list.append(XHR::FormDataEntry { .name = move(name_y), .value = String::number(y) });
+            entry_list.append(TRY(create_entry(realm, name_y, String::number(y))));
 
             // 8. Continue.
             continue;
@@ -143,7 +143,7 @@ WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(J
         if (auto* select_element = dynamic_cast<HTML::HTMLSelectElement*>(control.ptr())) {
             for (auto const& option_element : select_element->list_of_options()) {
                 if (option_element->selected() && !option_element->disabled()) {
-                    entry_list.append(XHR::FormDataEntry { .name = name.to_string(), .value = option_element->value() });
+                    entry_list.append(TRY(create_entry(realm, name.to_string(), option_element->value())));
                 }
             }
         }
@@ -156,7 +156,7 @@ WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(J
 
             // 2. Create an entry with name and value, and append it to entry list.
             auto checkbox_or_radio_element_name = checkbox_or_radio_element->name();
-            entry_list.append(XHR::FormDataEntry { .name = checkbox_or_radio_element_name->to_string(), .value = move(value) });
+            entry_list.append(TRY(create_entry(realm, checkbox_or_radio_element_name->to_string(), value)));
         }
         // 8. Otherwise, if the field element is an input element whose type attribute is in the File Upload state, then:
         else if (auto* file_element = dynamic_cast<HTML::HTMLInputElement*>(control.ptr()); file_element && file_element->type_state() == HTMLInputElement::TypeAttributeState::FileUpload) {
@@ -165,13 +165,13 @@ WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(J
                 FileAPI::FilePropertyBag options {};
                 options.type = "application/octet-stream"_string;
                 auto file = TRY(FileAPI::File::create(realm, {}, String {}, options));
-                entry_list.append(XHR::FormDataEntry { .name = name.to_string(), .value = GC::make_root(file) });
+                entry_list.append(TRY(create_entry(realm, name.to_string(), GC::Ref<FileAPI::Blob> { file })));
             }
             // 2. Otherwise, for each file in selected files, create an entry with name and a File object representing the file, and append it to entry list.
             else {
                 for (size_t i = 0; i < file_element->files()->length(); i++) {
                     auto file = GC::Ref { *file_element->files()->item(i) };
-                    entry_list.append(XHR::FormDataEntry { .name = name.to_string(), .value = GC::make_root(file) });
+                    entry_list.append(TRY(create_entry(realm, name.to_string(), GC::Ref<FileAPI::Blob> { file })));
                 }
             }
         }
@@ -181,11 +181,11 @@ WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(J
             auto charset = encoding.has_value() ? encoding.value() : "UTF-8"_string;
 
             // 2. Create an entry with name and charset, and append it to entry list.
-            entry_list.append(XHR::FormDataEntry { .name = name.to_string(), .value = move(charset) });
+            entry_list.append(TRY(create_entry(realm, name.to_string(), charset)));
         }
         // 10. Otherwise, create an entry with name and the value of the field element, and append it to entry list.
         else {
-            entry_list.append(XHR::FormDataEntry { .name = name.to_string(), .value = control_as_form_associated_element->value() });
+            entry_list.append(TRY(create_entry(realm, name.to_string(), control_as_form_associated_element->value())));
         }
 
         // 11. If the element has a dirname attribute, and that attribute's value is not the empty string, then:
@@ -197,7 +197,7 @@ WebIDL::ExceptionOr<Optional<Vector<XHR::FormDataEntry>>> construct_entry_list(J
             String dir = MUST((control->directionality() == DOM::Element::Directionality::Ltr) ? String::from_utf8("ltr"sv) : String::from_utf8("rtl"sv));
 
             // 3. Create an entry with dirname and dir, and append it to entry list.
-            entry_list.append(XHR::FormDataEntry { .name = dirname, .value = dir });
+            entry_list.append(TRY(create_entry(realm, dirname, dir)));
         }
     }
     // 6. Let form data be a new FormData object associated with entry list.
