@@ -18,13 +18,13 @@ TEST_CASE(test_udp)
         [&] -> ErrorOr<DNS::Resolver::SocketResult> {
             Core::SocketAddress addr = { IPv4Address::from_string("1.1.1.1"sv).value(), static_cast<u16>(53) };
             return DNS::Resolver::SocketResult {
-                MUST(Core::BufferedSocket<Core::UDPSocket>::create(MUST(Core::UDPSocket::connect(addr)))),
+                TRY(Core::BufferedSocket<Core::UDPSocket>::create(TRY(Core::UDPSocket::connect(addr)))),
                 DNS::Resolver::ConnectionMode::UDP,
             };
         }
     };
 
-    MUST(resolver.when_socket_ready()->await());
+    TRY_OR_FAIL(resolver.when_socket_ready()->await());
 
     resolver.lookup("google.com", DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })
         ->when_resolved([&](auto& result) {
@@ -46,14 +46,18 @@ TEST_CASE(test_tcp)
     DNS::Resolver resolver {
         [&] -> ErrorOr<DNS::Resolver::SocketResult> {
             Core::SocketAddress addr = { IPv4Address::from_string("1.1.1.1"sv).value(), static_cast<u16>(53) };
+
+            auto tcp_socket = TRY(Core::TCPSocket::connect(addr));
+            TRY(tcp_socket->set_blocking(false));
+
             return DNS::Resolver::SocketResult {
-                MUST(Core::BufferedSocket<Core::TCPSocket>::create(MUST(Core::TCPSocket::connect(addr)))),
+                TRY(Core::BufferedSocket<Core::TCPSocket>::create(move(tcp_socket))),
                 DNS::Resolver::ConnectionMode::TCP,
             };
         }
     };
 
-    MUST(resolver.when_socket_ready()->await());
+    TRY_OR_FAIL(resolver.when_socket_ready()->await());
 
     resolver.lookup("google.com", DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })
         ->when_resolved([&](auto& result) {
@@ -91,6 +95,7 @@ TEST_CASE(test_tls)
 
             TLS::Options options;
             options.set_root_certificates_path(locate_ca_certs_file());
+            options.set_blocking(false);
 
             return DNS::Resolver::SocketResult {
                 MaybeOwned<Core::Socket>(TRY(TLS::TLSv12::connect(addr, "1.1.1.1", move(options)))),
@@ -99,7 +104,7 @@ TEST_CASE(test_tls)
         }
     };
 
-    MUST(resolver.when_socket_ready()->await());
+    TRY_OR_FAIL(resolver.when_socket_ready()->await());
 
     resolver.lookup("google.com", DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })
         ->when_resolved([&](auto& result) {

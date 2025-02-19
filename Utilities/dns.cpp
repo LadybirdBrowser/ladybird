@@ -73,36 +73,35 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
 
     DNS::Resolver resolver {
         [&] -> ErrorOr<DNS::Resolver::SocketResult> {
-            Core::SocketAddress addr;
-            if (auto v4 = IPv4Address::from_string(server_address); v4.has_value()) {
-                addr = { v4.value(), static_cast<u16>(use_tls ? 853 : 53) };
-            } else if (auto v6 = IPv6Address::from_string(server_address); v6.has_value()) {
-                addr = { v6.value(), static_cast<u16>(use_tls ? 853 : 53) };
-            } else {
-                return MUST(resolver.lookup(server_address)->await())->cached_addresses().first().visit([&](auto& address) -> DNS::Resolver::SocketResult {
-                    if (use_tls) {
-                        TLS::Options options;
-                        options.set_root_certificates_path(cert_path);
+            auto make_resolver = [&](Core::SocketAddress const& address) -> ErrorOr<DNS::Resolver::SocketResult> {
+                if (use_tls) {
+                    TLS::Options options;
+                    options.set_root_certificates_path(cert_path);
+                    options.set_blocking(false);
 
-                        auto tls = MUST(TLS::TLSv12::connect({ address, 853 }, server_address, move(options)));
-                        return { move(tls), DNS::Resolver::ConnectionMode::TCP };
-                    }
-                    return { MUST(Core::BufferedSocket<Core::UDPSocket>::create(MUST(Core::UDPSocket::connect({ address, 53 })))), DNS::Resolver::ConnectionMode::UDP };
+                    auto tls = TRY(TLS::TLSv12::connect(address, server_address, move(options)));
+                    return DNS::Resolver::SocketResult { move(tls), DNS::Resolver::ConnectionMode::TCP };
+                }
+
+                return DNS::Resolver::SocketResult {
+                    TRY(Core::BufferedSocket<Core::UDPSocket>::create(TRY(Core::UDPSocket::connect(address)))),
+                    DNS::Resolver::ConnectionMode::UDP,
+                };
+            };
+
+            if (auto v4 = IPv4Address::from_string(server_address); v4.has_value()) {
+                return make_resolver({ v4.value(), static_cast<u16>(use_tls ? 853 : 53) });
+            } else if (auto v6 = IPv6Address::from_string(server_address); v6.has_value()) {
+                return make_resolver({ v6.value(), static_cast<u16>(use_tls ? 853 : 53) });
+            } else {
+                return TRY(resolver.lookup(server_address)->await())->cached_addresses().first().visit([&](auto& address) {
+                    return make_resolver({ address, static_cast<u16>(use_tls ? 853 : 53) });
                 });
             }
-
-            if (use_tls) {
-                TLS::Options options;
-                options.set_root_certificates_path(cert_path);
-
-                return DNS::Resolver::SocketResult { MUST(TLS::TLSv12::connect(addr, server_address, move(options))), DNS::Resolver::ConnectionMode::TCP };
-            }
-
-            return DNS::Resolver::SocketResult { MUST(Core::BufferedSocket<Core::UDPSocket>::create(MUST(Core::UDPSocket::connect(addr)))), DNS::Resolver::ConnectionMode::UDP };
         }
     };
 
-    MUST(resolver.when_socket_ready()->await());
+    TRY(resolver.when_socket_ready()->await());
 
     size_t pending_requests = requests.size();
     for (auto& request : requests) {

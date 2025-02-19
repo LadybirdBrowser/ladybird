@@ -55,6 +55,8 @@ static NonnullRefPtr<Resolver> default_resolver()
 
         if (g_dns_info.use_dns_over_tls) {
             TLS::Options options;
+            options.set_blocking(false);
+
             if (!g_default_certificate_path.is_empty())
                 options.set_root_certificates_path(g_default_certificate_path);
 
