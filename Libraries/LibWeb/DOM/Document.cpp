@@ -1753,9 +1753,11 @@ void Document::invalidate_style_for_elements_affected_by_hover_change(Node& old_
             bool selector_matched = false;
             if (SelectorEngine::matches(selector, element, {}, context, {}))
                 selector_matched = true;
-            if (element.has_pseudo_elements()) {
+            if (element.has_pseudo_element(CSS::Selector::PseudoElement::Type::Before)) {
                 if (SelectorEngine::matches(selector, element, {}, context, CSS::Selector::PseudoElement::Type::Before))
                     selector_matched = true;
+            }
+            if (element.has_pseudo_element(CSS::Selector::PseudoElement::Type::After)) {
                 if (SelectorEngine::matches(selector, element, {}, context, CSS::Selector::PseudoElement::Type::After))
                     selector_matched = true;
             }
