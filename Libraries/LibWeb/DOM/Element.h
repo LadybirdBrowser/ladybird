@@ -273,6 +273,7 @@ public:
 
     void set_pseudo_element_node(Badge<Layout::TreeBuilder>, CSS::Selector::PseudoElement::Type, GC::Ptr<Layout::NodeWithStyle>);
     GC::Ptr<Layout::NodeWithStyle> get_pseudo_element_node(CSS::Selector::PseudoElement::Type) const;
+    bool has_pseudo_element(CSS::Selector::PseudoElement::Type) const;
     bool has_pseudo_elements() const;
     void clear_pseudo_element_nodes(Badge<Layout::TreeBuilder>);
     void serialize_pseudo_elements_as_json(JsonArraySerializer<StringBuilder>& children_array) const;
@@ -587,6 +588,15 @@ inline bool Element::has_class(FlyString const& class_name, CaseSensitivity case
     return any_of(m_classes, [&](auto& it) {
         return it.equals_ignoring_ascii_case(class_name);
     });
+}
+
+inline bool Element::has_pseudo_element(CSS::Selector::PseudoElement::Type type) const
+{
+    if (!m_pseudo_element_data)
+        return false;
+    if (!CSS::Selector::PseudoElement::is_known_pseudo_element_type(type))
+        return false;
+    return m_pseudo_element_data->at(to_underlying(type)).layout_node;
 }
 
 WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm&, Optional<FlyString> namespace_, FlyString const& qualified_name);
