@@ -14,13 +14,13 @@ namespace Web::CSS {
 // https://drafts.css-houdini.org/css-typed-om-1/#cssrgb
 class CSSRGB final : public CSSColorValue {
 public:
-    static ValueComparingNonnullRefPtr<CSSRGB> create(ValueComparingNonnullRefPtr<CSSStyleValue> r, ValueComparingNonnullRefPtr<CSSStyleValue> g, ValueComparingNonnullRefPtr<CSSStyleValue> b, ValueComparingRefPtr<CSSStyleValue> alpha = {}, Optional<FlyString> name = {})
+    static ValueComparingNonnullRefPtr<CSSRGB> create(ValueComparingNonnullRefPtr<CSSStyleValue> r, ValueComparingNonnullRefPtr<CSSStyleValue> g, ValueComparingNonnullRefPtr<CSSStyleValue> b, ValueComparingRefPtr<CSSStyleValue> alpha, ColorSyntax color_syntax, Optional<FlyString> name = {})
     {
         // alpha defaults to 1
         if (!alpha)
-            return adopt_ref(*new (nothrow) CSSRGB(move(r), move(g), move(b), NumberStyleValue::create(1), name));
+            return adopt_ref(*new (nothrow) CSSRGB(move(r), move(g), move(b), NumberStyleValue::create(1), color_syntax, name));
 
-        return adopt_ref(*new (nothrow) CSSRGB(move(r), move(g), move(b), alpha.release_nonnull(), name));
+        return adopt_ref(*new (nothrow) CSSRGB(move(r), move(g), move(b), alpha.release_nonnull(), color_syntax, name));
     }
     virtual ~CSSRGB() override = default;
 
@@ -36,8 +36,8 @@ public:
     virtual bool equals(CSSStyleValue const& other) const override;
 
 private:
-    CSSRGB(ValueComparingNonnullRefPtr<CSSStyleValue> r, ValueComparingNonnullRefPtr<CSSStyleValue> g, ValueComparingNonnullRefPtr<CSSStyleValue> b, ValueComparingNonnullRefPtr<CSSStyleValue> alpha, Optional<FlyString> name = {})
-        : CSSColorValue(ColorType::RGB)
+    CSSRGB(ValueComparingNonnullRefPtr<CSSStyleValue> r, ValueComparingNonnullRefPtr<CSSStyleValue> g, ValueComparingNonnullRefPtr<CSSStyleValue> b, ValueComparingNonnullRefPtr<CSSStyleValue> alpha, ColorSyntax color_syntax, Optional<FlyString> name = {})
+        : CSSColorValue(ColorType::RGB, color_syntax)
         , m_properties { .r = move(r), .g = move(g), .b = move(b), .alpha = move(alpha), .name = name }
     {
     }

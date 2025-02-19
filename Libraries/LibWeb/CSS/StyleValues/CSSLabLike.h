@@ -34,7 +34,7 @@ public:
 
 protected:
     CSSLabLike(ColorType color_type, ValueComparingNonnullRefPtr<CSSStyleValue> l, ValueComparingNonnullRefPtr<CSSStyleValue> a, ValueComparingNonnullRefPtr<CSSStyleValue> b, ValueComparingNonnullRefPtr<CSSStyleValue> alpha)
-        : CSSColorValue(color_type)
+        : CSSColorValue(color_type, ColorSyntax::Modern)
         , m_properties { .l = move(l), .a = move(a), .b = move(b), .alpha = move(alpha) }
     {
     }

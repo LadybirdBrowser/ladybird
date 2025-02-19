@@ -281,6 +281,7 @@ private:
     Optional<Vector<TElement>> parse_color_stop_list(TokenStream<ComponentValue>& tokens, auto parse_position);
     Optional<Vector<LinearColorStopListElement>> parse_linear_color_stop_list(TokenStream<ComponentValue>&);
     Optional<Vector<AngularColorStopListElement>> parse_angular_color_stop_list(TokenStream<ComponentValue>&);
+    Optional<InterpolationMethod> parse_interpolation_method(TokenStream<ComponentValue>&);
 
     RefPtr<LinearGradientStyleValue> parse_linear_gradient_function(TokenStream<ComponentValue>&);
     RefPtr<ConicGradientStyleValue> parse_conic_gradient_function(TokenStream<ComponentValue>&);

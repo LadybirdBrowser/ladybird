@@ -465,7 +465,7 @@ NonnullRefPtr<CSSStyleValue const> interpolate_box_shadow(DOM::Element& element,
         values.ensure_capacity(other.size());
         for (size_t i = values.size(); i < other.size(); i++) {
             values.unchecked_append(ShadowStyleValue::create(
-                CSSColorValue::create_from_color(Color::Transparent),
+                CSSColorValue::create_from_color(Color::Transparent, ColorSyntax::Legacy),
                 LengthStyleValue::create(Length::make_px(0)),
                 LengthStyleValue::create(Length::make_px(0)),
                 LengthStyleValue::create(Length::make_px(0)),
@@ -488,7 +488,7 @@ NonnullRefPtr<CSSStyleValue const> interpolate_box_shadow(DOM::Element& element,
         auto const& from_shadow = from_shadows[i]->as_shadow();
         auto const& to_shadow = to_shadows[i]->as_shadow();
         auto result_shadow = ShadowStyleValue::create(
-            CSSColorValue::create_from_color(interpolate_color(from_shadow.color()->to_color({}), to_shadow.color()->to_color({}), delta)),
+            CSSColorValue::create_from_color(interpolate_color(from_shadow.color()->to_color({}), to_shadow.color()->to_color({}), delta), ColorSyntax::Modern),
             interpolate_value(element, calculation_context, from_shadow.offset_x(), to_shadow.offset_x(), delta),
             interpolate_value(element, calculation_context, from_shadow.offset_y(), to_shadow.offset_y(), delta),
             interpolate_value(element, calculation_context, from_shadow.blur_radius(), to_shadow.blur_radius(), delta),
@@ -584,7 +584,7 @@ NonnullRefPtr<CSSStyleValue const> interpolate_value(DOM::Element& element, Calc
         Optional<Layout::NodeWithStyle const&> layout_node;
         if (auto node = element.layout_node())
             layout_node = *node;
-        return CSSColorValue::create_from_color(interpolate_color(from.to_color(layout_node), to.to_color(layout_node), delta));
+        return CSSColorValue::create_from_color(interpolate_color(from.to_color(layout_node), to.to_color(layout_node), delta), ColorSyntax::Modern);
     }
     case CSSStyleValue::Type::Integer:
         return IntegerStyleValue::create(interpolate_raw(from.as_integer().integer(), to.as_integer().integer(), delta));

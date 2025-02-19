@@ -25,7 +25,7 @@ public:
 
 private:
     CSSColor(ColorType color_type, ValueComparingNonnullRefPtr<CSSStyleValue> c1, ValueComparingNonnullRefPtr<CSSStyleValue> c2, ValueComparingNonnullRefPtr<CSSStyleValue> c3, ValueComparingNonnullRefPtr<CSSStyleValue> alpha)
-        : CSSColorValue(color_type)
+        : CSSColorValue(color_type, ColorSyntax::Modern)
         , m_properties { .channels = { move(c1), move(c2), move(c3) }, .alpha = move(alpha) }
     {
     }

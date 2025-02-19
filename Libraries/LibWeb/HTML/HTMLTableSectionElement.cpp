@@ -122,7 +122,7 @@ void HTMLTableSectionElement::apply_presentational_hints(GC::Ref<CSS::CascadedPr
         // https://html.spec.whatwg.org/multipage/rendering.html#tables-2:rules-for-parsing-a-legacy-colour-value
         else if (name == HTML::AttributeNames::bgcolor) {
             if (auto color = parse_legacy_color_value(value); color.has_value())
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundColor, CSS::CSSColorValue::create_from_color(color.value()));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundColor, CSS::CSSColorValue::create_from_color(color.value(), CSS::ColorSyntax::Legacy));
         } else if (name == HTML::AttributeNames::height) {
             if (auto parsed_value = parse_dimension_value(value))
                 cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Height, parsed_value.release_nonnull());

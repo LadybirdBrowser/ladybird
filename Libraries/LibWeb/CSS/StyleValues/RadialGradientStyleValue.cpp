@@ -19,8 +19,11 @@ String RadialGradientStyleValue::to_string(SerializationMode mode) const
     StringBuilder builder;
     if (is_repeating())
         builder.append("repeating-"sv);
-    builder.appendff("radial-gradient({} "sv,
-        m_properties.ending_shape == EndingShape::Circle ? "circle"sv : "ellipse"sv);
+    builder.appendff("radial-gradient("sv);
+
+    bool has_size = !m_properties.size.has<Extent>() || m_properties.size.get<Extent>() != Extent::FarthestCorner;
+    bool has_position = !m_properties.position->is_center();
+    bool has_color_space = m_properties.interpolation_method.has_value() && m_properties.interpolation_method.value().color_space != InterpolationMethod::default_color_space(m_properties.color_syntax);
 
     m_properties.size.visit(
         [&](Extent extent) {
@@ -31,7 +34,8 @@ String RadialGradientStyleValue::to_string(SerializationMode mode) const
                 case Extent::ClosestSide:
                     return "closest-side"sv;
                 case Extent::FarthestCorner:
-                    return "farthest-corner"sv;
+                    // "farthest-corner" is the default value and isn't serialized
+                    return ""sv;
                 case Extent::FarthestSide:
                     return "farthest-side"sv;
                 default:
@@ -46,10 +50,23 @@ String RadialGradientStyleValue::to_string(SerializationMode mode) const
             builder.appendff("{} {}", ellipse_size.radius_a.to_string(), ellipse_size.radius_b.to_string());
         });
 
-    if (!m_properties.position->is_center())
-        builder.appendff(" at {}"sv, m_properties.position->to_string(mode));
+    if (has_position) {
+        if (has_size)
+            builder.append(' ');
 
-    builder.append(", "sv);
+        builder.appendff("at {}"sv, m_properties.position->to_string(mode));
+    }
+
+    if (has_color_space) {
+        if (has_size || has_position)
+            builder.append(' ');
+
+        builder.append(m_properties.interpolation_method.value().to_string());
+    }
+
+    if (has_size || has_position || has_color_space)
+        builder.append(", "sv);
+
     serialize_color_stop_list(builder, m_properties.color_stop_list, mode);
     builder.append(')');
     return MUST(builder.to_string());
