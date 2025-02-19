@@ -186,7 +186,7 @@ public:
     void absolutize_values(ComputedProperties&) const;
     void compute_font(ComputedProperties&, DOM::Element const*, Optional<CSS::Selector::PseudoElement::Type>) const;
 
-    [[nodiscard]] bool should_reject_with_ancestor_filter(Selector const&) const;
+    [[nodiscard]] inline bool should_reject_with_ancestor_filter(Selector const&) const;
 
 private:
     enum class ComputeStyleMode {
@@ -337,5 +337,16 @@ private:
     Function<void(FontLoader const&)> m_on_load;
     Function<void()> m_on_fail;
 };
+
+inline bool StyleComputer::should_reject_with_ancestor_filter(Selector const& selector) const
+{
+    for (u32 hash : selector.ancestor_hashes()) {
+        if (hash == 0)
+            break;
+        if (!m_ancestor_filter.may_contain(hash))
+            return true;
+    }
+    return false;
+}
 
 }

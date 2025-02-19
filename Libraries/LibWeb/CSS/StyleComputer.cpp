@@ -420,16 +420,6 @@ StyleComputer::RuleCache const* StyleComputer::rule_cache_for_cascade_origin(Cas
     return true;
 }
 
-bool StyleComputer::should_reject_with_ancestor_filter(Selector const& selector) const
-{
-    for (u32 hash : selector.ancestor_hashes()) {
-        if (hash == 0)
-            break;
-        if (!m_ancestor_filter.may_contain(hash))
-            return true;
-    }
-    return false;
-}
 Vector<MatchingRule> const& StyleComputer::get_hover_rules() const
 {
     build_rule_cache_if_needed();
