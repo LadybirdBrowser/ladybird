@@ -199,9 +199,6 @@ void HTMLParser::run(HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point
 
         dbgln_if(HTML_PARSER_DEBUG, "[{}] {}", insertion_mode_name(), token.to_string());
 
-        if (token.is_end_of_file() && m_tokenizer.is_eof_inserted())
-            break;
-
         // https://html.spec.whatwg.org/multipage/parsing.html#tree-construction-dispatcher
         // As each token is emitted from the tokenizer, the user agent must follow the appropriate steps from the following list, known as the tree construction dispatcher:
         if (m_stack_of_open_elements.is_empty()
@@ -228,6 +225,9 @@ void HTMLParser::run(HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point
             // Process the token according to the rules given in the section for parsing tokens in foreign content.
             process_using_the_rules_for_foreign_content(token);
         }
+
+        if (token.is_end_of_file() && m_tokenizer.is_eof_inserted())
+            break;
 
         if (m_stop_parsing) {
             dbgln_if(HTML_PARSER_DEBUG, "Stop parsing{}! :^)", m_parsing_fragment ? " fragment" : "");
@@ -633,10 +633,18 @@ void HTMLParser::handle_before_html(HTMLToken& token)
 
     // -> Anything else
 AnythingElse:
+
     // Create an html element whose node document is the Document object. Append it to the Document object. Put this element in the stack of open elements.
-    auto element = create_element(document(), HTML::TagNames::html, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
-    MUST(document().append_child(element));
-    m_stack_of_open_elements.push(element);
+
+    // AD-HOC: First check if we've already inserted a <html> element into the document.
+    //         This can happen by mixing document.write() and DOM manipulation.
+    if (auto* html_element = document().document_element(); html_element && html_element->is_html_html_element()) {
+        m_stack_of_open_elements.push(*html_element);
+    } else {
+        auto element = create_element(document(), HTML::TagNames::html, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
+        MUST(document().append_child(element));
+        m_stack_of_open_elements.push(element);
+    }
 
     // Switch the insertion mode to "before head", then reprocess the token.
     m_insertion_mode = InsertionMode::BeforeHead;
