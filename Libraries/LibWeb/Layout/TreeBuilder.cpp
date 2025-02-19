@@ -611,6 +611,7 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         // because the restructuring adds new children after this node that become part of the ancestor stack.
         auto* layout_parent = layout_node->parent();
         if (layout_parent && layout_parent->display().is_inline_outside() && !display.is_contents()
+            && !is<SVG::SVGForeignObjectElement>(layout_parent->dom_node())
             && !display.is_inline_outside() && layout_parent->display().is_flow_inside() && !layout_node->is_out_of_flow())
             restructure_block_node_in_inline_parent(static_cast<NodeWithStyleAndBoxModelMetrics&>(*layout_node));
     }
