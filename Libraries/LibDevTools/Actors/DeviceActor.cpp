@@ -12,12 +12,12 @@
 
 namespace DevTools {
 
-NonnullRefPtr<DeviceActor> DeviceActor::create(DevToolsServer& devtools, ByteString name)
+NonnullRefPtr<DeviceActor> DeviceActor::create(DevToolsServer& devtools, String name)
 {
     return adopt_ref(*new DeviceActor(devtools, move(name)));
 }
 
-DeviceActor::DeviceActor(DevToolsServer& devtools, ByteString name)
+DeviceActor::DeviceActor(DevToolsServer& devtools, String name)
     : Actor(devtools, move(name))
 {
 }

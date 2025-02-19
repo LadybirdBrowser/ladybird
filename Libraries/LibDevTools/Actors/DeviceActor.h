@@ -15,13 +15,13 @@ class DeviceActor final : public Actor {
 public:
     static constexpr auto base_name = "device"sv;
 
-    static NonnullRefPtr<DeviceActor> create(DevToolsServer&, ByteString name);
+    static NonnullRefPtr<DeviceActor> create(DevToolsServer&, String name);
     virtual ~DeviceActor() override;
 
     virtual void handle_message(StringView type, JsonObject const&) override;
 
 private:
-    DeviceActor(DevToolsServer&, ByteString name);
+    DeviceActor(DevToolsServer&, String name);
 };
 
 }

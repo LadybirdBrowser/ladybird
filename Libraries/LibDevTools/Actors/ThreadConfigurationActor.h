@@ -15,7 +15,7 @@ class ThreadConfigurationActor final : public Actor {
 public:
     static constexpr auto base_name = "thread-configuration"sv;
 
-    static NonnullRefPtr<ThreadConfigurationActor> create(DevToolsServer&, ByteString name);
+    static NonnullRefPtr<ThreadConfigurationActor> create(DevToolsServer&, String name);
     virtual ~ThreadConfigurationActor() override;
 
     virtual void handle_message(StringView type, JsonObject const&) override;
@@ -23,7 +23,7 @@ public:
     JsonObject serialize_configuration() const;
 
 private:
-    ThreadConfigurationActor(DevToolsServer&, ByteString name);
+    ThreadConfigurationActor(DevToolsServer&, String name);
 };
 
 }

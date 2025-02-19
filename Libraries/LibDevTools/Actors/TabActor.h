@@ -7,21 +7,22 @@
 #pragma once
 
 #include <AK/NonnullRefPtr.h>
+#include <AK/String.h>
 #include <LibDevTools/Actor.h>
 
 namespace DevTools {
 
 struct TabDescription {
     u64 id { 0 };
-    ByteString title;
-    ByteString url;
+    String title;
+    String url;
 };
 
 class TabActor final : public Actor {
 public:
     static constexpr auto base_name = "tab"sv;
 
-    static NonnullRefPtr<TabActor> create(DevToolsServer&, ByteString name, TabDescription);
+    static NonnullRefPtr<TabActor> create(DevToolsServer&, String name, TabDescription);
     virtual ~TabActor() override;
 
     virtual void handle_message(StringView type, JsonObject const&) override;
@@ -30,7 +31,7 @@ public:
     JsonObject serialize_description() const;
 
 private:
-    TabActor(DevToolsServer&, ByteString name, TabDescription);
+    TabActor(DevToolsServer&, String name, TabDescription);
 
     TabDescription m_description;
     WeakPtr<WatcherActor> m_watcher;

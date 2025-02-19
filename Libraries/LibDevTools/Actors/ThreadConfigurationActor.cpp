@@ -10,12 +10,12 @@
 
 namespace DevTools {
 
-NonnullRefPtr<ThreadConfigurationActor> ThreadConfigurationActor::create(DevToolsServer& devtools, ByteString name)
+NonnullRefPtr<ThreadConfigurationActor> ThreadConfigurationActor::create(DevToolsServer& devtools, String name)
 {
     return adopt_ref(*new ThreadConfigurationActor(devtools, move(name)));
 }
 
-ThreadConfigurationActor::ThreadConfigurationActor(DevToolsServer& devtools, ByteString name)
+ThreadConfigurationActor::ThreadConfigurationActor(DevToolsServer& devtools, String name)
     : Actor(devtools, move(name))
 {
 }

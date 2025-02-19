@@ -9,12 +9,12 @@
 
 namespace DevTools {
 
-NonnullRefPtr<PreferenceActor> PreferenceActor::create(DevToolsServer& devtools, ByteString name)
+NonnullRefPtr<PreferenceActor> PreferenceActor::create(DevToolsServer& devtools, String name)
 {
     return adopt_ref(*new PreferenceActor(devtools, move(name)));
 }
 
-PreferenceActor::PreferenceActor(DevToolsServer& devtools, ByteString name)
+PreferenceActor::PreferenceActor(DevToolsServer& devtools, String name)
     : Actor(devtools, move(name))
 {
 }

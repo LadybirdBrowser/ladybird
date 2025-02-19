@@ -15,14 +15,14 @@ class PageStyleActor final : public Actor {
 public:
     static constexpr auto base_name = "page-style"sv;
 
-    static NonnullRefPtr<PageStyleActor> create(DevToolsServer&, ByteString name);
+    static NonnullRefPtr<PageStyleActor> create(DevToolsServer&, String name);
     virtual ~PageStyleActor() override;
 
     virtual void handle_message(StringView type, JsonObject const&) override;
     JsonValue serialize_style() const;
 
 private:
-    PageStyleActor(DevToolsServer&, ByteString name);
+    PageStyleActor(DevToolsServer&, String name);
 };
 
 }

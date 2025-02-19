@@ -16,7 +16,7 @@
 namespace DevTools {
 
 // https://firefox-source-docs.mozilla.org/devtools/backend/protocol.html#the-root-actor
-NonnullRefPtr<RootActor> RootActor::create(DevToolsServer& devtools, ByteString name)
+NonnullRefPtr<RootActor> RootActor::create(DevToolsServer& devtools, String name)
 {
     auto actor = adopt_ref(*new RootActor(devtools, move(name)));
 
@@ -35,7 +35,7 @@ NonnullRefPtr<RootActor> RootActor::create(DevToolsServer& devtools, ByteString 
     return actor;
 }
 
-RootActor::RootActor(DevToolsServer& devtools, ByteString name)
+RootActor::RootActor(DevToolsServer& devtools, String name)
     : Actor(devtools, move(name))
 {
 }
@@ -57,9 +57,9 @@ void RootActor::handle_message(StringView type, JsonObject const& message)
 
         for (auto const& actor : devtools().actor_registry()) {
             if (is<DeviceActor>(*actor.value))
-                response.set("deviceActor"sv, MUST(String::from_byte_string(actor.key)));
+                response.set("deviceActor"sv, actor.key);
             else if (is<PreferenceActor>(*actor.value))
-                response.set("preferenceActor"sv, MUST(String::from_byte_string(actor.key)));
+                response.set("preferenceActor"sv, actor.key);
         }
 
         send_message(move(response));
