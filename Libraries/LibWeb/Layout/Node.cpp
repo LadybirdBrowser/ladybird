@@ -30,6 +30,7 @@
 #include <LibWeb/Layout/TableWrapper.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
+#include <LibWeb/SVG/SVGForeignObjectElement.h>
 
 namespace Web::Layout {
 
@@ -1208,6 +1209,30 @@ CSS::UserSelect Node::user_select_used_value() const
     }
 
     return computed_value;
+}
+
+bool NodeWithStyleAndBoxModelMetrics::should_create_inline_continuation() const
+{
+    // This node must have an inline parent.
+    if (!parent())
+        return false;
+    auto const& parent_display = parent()->display();
+    if (!parent_display.is_inline_outside() || !parent_display.is_flow_inside())
+        return false;
+
+    // This node must not be inline itself or out of flow (which gets handled separately).
+    if (display().is_inline_outside() || is_out_of_flow())
+        return false;
+
+    // This node must not have `display: contents`; inline continuation gets handled by its children.
+    if (display().is_contents())
+        return false;
+
+    // Parent element must not be <foreignObject>
+    if (is<SVG::SVGForeignObjectElement>(parent()->dom_node()))
+        return false;
+
+    return true;
 }
 
 void NodeWithStyleAndBoxModelMetrics::propagate_style_along_continuation(CSS::ComputedProperties const& computed_style) const

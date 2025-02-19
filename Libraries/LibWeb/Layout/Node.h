@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -264,6 +265,8 @@ class NodeWithStyleAndBoxModelMetrics : public NodeWithStyle {
 public:
     GC::Ptr<NodeWithStyleAndBoxModelMetrics> continuation_of_node() const { return m_continuation_of_node; }
     void set_continuation_of_node(Badge<TreeBuilder>, GC::Ptr<NodeWithStyleAndBoxModelMetrics> node) { m_continuation_of_node = node; }
+
+    bool should_create_inline_continuation() const;
 
     void propagate_style_along_continuation(CSS::ComputedProperties const&) const;
 

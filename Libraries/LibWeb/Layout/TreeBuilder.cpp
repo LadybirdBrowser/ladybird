@@ -32,7 +32,6 @@
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/TreeBuilder.h>
 #include <LibWeb/Layout/Viewport.h>
-#include <LibWeb/SVG/SVGForeignObjectElement.h>
 
 namespace Web::Layout {
 
@@ -609,11 +608,9 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         // If we completely finished inserting a block level element into an inline parent, we need to fix up the tree so
         // that we can maintain the invariant that all children are either inline or non-inline. We can't do this earlier,
         // because the restructuring adds new children after this node that become part of the ancestor stack.
-        auto* layout_parent = layout_node->parent();
-        if (layout_parent && layout_parent->display().is_inline_outside() && !display.is_contents()
-            && !is<SVG::SVGForeignObjectElement>(layout_parent->dom_node())
-            && !display.is_inline_outside() && layout_parent->display().is_flow_inside() && !layout_node->is_out_of_flow())
-            restructure_block_node_in_inline_parent(static_cast<NodeWithStyleAndBoxModelMetrics&>(*layout_node));
+        if (auto node_with_metrics = as_if<NodeWithStyleAndBoxModelMetrics>(*layout_node);
+            node_with_metrics && node_with_metrics->should_create_inline_continuation())
+            restructure_block_node_in_inline_parent(*node_with_metrics);
     }
 
     // https://www.w3.org/TR/css-contain-2/#containment-style
