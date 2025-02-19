@@ -18,13 +18,14 @@
 
 namespace Web::CSS {
 
-ValueComparingNonnullRefPtr<CSSColorValue> CSSColorValue::create_from_color(Color color, Optional<FlyString> name)
+ValueComparingNonnullRefPtr<CSSColorValue> CSSColorValue::create_from_color(Color color, LegacySyntax legacy_syntax, Optional<FlyString> name)
 {
     return CSSRGB::create(
         NumberStyleValue::create(color.red()),
         NumberStyleValue::create(color.green()),
         NumberStyleValue::create(color.blue()),
         NumberStyleValue::create(color.alpha() / 255.0),
+        legacy_syntax,
         name);
 }
 
