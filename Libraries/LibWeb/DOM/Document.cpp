@@ -9,7 +9,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Bitmap.h>
 #include <AK/CharacterTypes.h>
 #include <AK/Debug.h>
 #include <AK/GenericLexer.h>
@@ -1732,52 +1731,50 @@ void Document::invalidate_style_for_elements_affected_by_hover_change(Node& old_
     auto shadow_root = is<ShadowRoot>(root) ? static_cast<ShadowRoot const*>(&root) : nullptr;
 
     auto& style_computer = this->style_computer();
-    auto compute_hover_selectors_match_state = [&](Element const& element) {
-        auto state = MUST(AK::Bitmap::create(hover_rules.size(), 0));
-        for (size_t rule_index = 0; rule_index < hover_rules.size(); ++rule_index) {
-            auto const& rule = hover_rules[rule_index];
+    auto does_rule_match_on_element = [&](Element const& element, CSS::MatchingRule const& rule) {
+        auto rule_root = rule.shadow_root;
+        auto from_user_agent_or_user_stylesheet = rule.cascade_origin == CSS::CascadeOrigin::UserAgent || rule.cascade_origin == CSS::CascadeOrigin::User;
+        bool rule_is_relevant_for_current_scope = rule_root == shadow_root
+            || (element.is_shadow_host() && rule_root == element.shadow_root())
+            || from_user_agent_or_user_stylesheet;
+        if (!rule_is_relevant_for_current_scope)
+            return false;
 
-            auto rule_root = rule.shadow_root;
-            auto from_user_agent_or_user_stylesheet = rule.cascade_origin == CSS::CascadeOrigin::UserAgent || rule.cascade_origin == CSS::CascadeOrigin::User;
-            bool rule_is_relevant_for_current_scope = rule_root == shadow_root
-                || (element.is_shadow_host() && rule_root == element.shadow_root())
-                || from_user_agent_or_user_stylesheet;
-            if (!rule_is_relevant_for_current_scope)
-                continue;
+        auto const& selector = rule.selector;
+        if (style_computer.should_reject_with_ancestor_filter(selector))
+            return false;
 
-            auto const& selector = rule.selector;
-            if (style_computer.should_reject_with_ancestor_filter(selector))
-                continue;
-
-            SelectorEngine::MatchContext context;
-            bool selector_matched = false;
-            if (SelectorEngine::matches(selector, element, {}, context, {}))
-                selector_matched = true;
-            if (element.has_pseudo_element(CSS::Selector::PseudoElement::Type::Before)) {
-                if (SelectorEngine::matches(selector, element, {}, context, CSS::Selector::PseudoElement::Type::Before))
-                    selector_matched = true;
-            }
-            if (element.has_pseudo_element(CSS::Selector::PseudoElement::Type::After)) {
-                if (SelectorEngine::matches(selector, element, {}, context, CSS::Selector::PseudoElement::Type::After))
-                    selector_matched = true;
-            }
-            if (selector_matched)
-                state.set(rule_index, true);
+        SelectorEngine::MatchContext context;
+        if (SelectorEngine::matches(selector, element, {}, context, {}))
+            return true;
+        if (element.has_pseudo_element(CSS::Selector::PseudoElement::Type::Before)) {
+            if (SelectorEngine::matches(selector, element, {}, context, CSS::Selector::PseudoElement::Type::Before))
+                return true;
         }
-        return state;
+        if (element.has_pseudo_element(CSS::Selector::PseudoElement::Type::After)) {
+            if (SelectorEngine::matches(selector, element, {}, context, CSS::Selector::PseudoElement::Type::After))
+                return true;
+        }
+        return false;
+    };
+
+    auto matches_different_set_of_hover_rules_after_hovered_element_change = [&](Element const& element) {
+        for (auto const& rule : hover_rules) {
+            bool before = does_rule_match_on_element(element, rule);
+            TemporaryChange change { m_hovered_node, hovered_node };
+            bool after = does_rule_match_on_element(element, rule);
+            if (before != after)
+                return true;
+        }
+        return false;
     };
 
     Function<void(Node&)> invalidate_hovered_elements_recursively = [&](Node& node) -> void {
         if (node.is_element()) {
             auto& element = static_cast<Element&>(node);
             style_computer.push_ancestor(element);
-            if (element.affected_by_hover()) {
-                auto selectors_match_state_before = compute_hover_selectors_match_state(element);
-                TemporaryChange change { m_hovered_node, hovered_node };
-                auto selectors_match_state_after = compute_hover_selectors_match_state(element);
-                if (selectors_match_state_before.view() != selectors_match_state_after.view()) {
-                    element.set_needs_style_update(true);
-                }
+            if (element.affected_by_hover() && matches_different_set_of_hover_rules_after_hovered_element_change(element)) {
+                element.set_needs_style_update(true);
             }
         }
 
