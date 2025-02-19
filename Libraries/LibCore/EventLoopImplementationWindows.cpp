@@ -9,6 +9,7 @@
 #include <LibCore/EventLoopImplementationWindows.h>
 #include <LibCore/Notifier.h>
 #include <LibCore/ThreadEventQueue.h>
+#include <LibCore/Timer.h>
 
 #include <AK/Windows.h>
 
@@ -196,7 +197,9 @@ void EventLoopManagerWindows::unregister_notifier(Notifier& notifier)
 intptr_t EventLoopManagerWindows::register_timer(EventReceiver& object, int milliseconds, bool should_reload, TimerShouldFireWhenNotVisible fire_when_not_visible)
 {
     VERIFY(milliseconds >= 0);
-    HANDLE timer = CreateWaitableTimer(NULL, FALSE, NULL);
+    // FIXME: This is a temporary fix for issue #3641
+    bool manual_reset = static_cast<Timer&>(object).is_single_shot();
+    HANDLE timer = CreateWaitableTimer(NULL, manual_reset, NULL);
     VERIFY(timer);
 
     LARGE_INTEGER first_time = {};
