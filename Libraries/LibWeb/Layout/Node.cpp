@@ -1232,6 +1232,10 @@ bool NodeWithStyleAndBoxModelMetrics::should_create_inline_continuation() const
     if (is<SVG::SVGForeignObjectElement>(parent()->dom_node()))
         return false;
 
+    // SVGBoxes are appended directly to their layout parent without changing the parent's (non-)inline behavior.
+    if (is_svg_box())
+        return false;
+
     return true;
 }
 

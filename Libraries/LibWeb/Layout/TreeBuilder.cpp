@@ -549,12 +549,10 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
             && old_layout_node != layout_node;
         if (may_replace_existing_layout_node) {
             old_layout_node->parent()->replace_child(*layout_node, *old_layout_node);
+        } else if (layout_node->is_svg_box()) {
+            m_ancestor_stack.last()->append_child(*layout_node);
         } else {
-            if (layout_node->is_svg_box()) {
-                m_ancestor_stack.last()->append_child(*layout_node);
-            } else {
-                insert_node_into_inline_or_block_ancestor(*layout_node, display, AppendOrPrepend::Append);
-            }
+            insert_node_into_inline_or_block_ancestor(*layout_node, display, AppendOrPrepend::Append);
         }
     }
 
