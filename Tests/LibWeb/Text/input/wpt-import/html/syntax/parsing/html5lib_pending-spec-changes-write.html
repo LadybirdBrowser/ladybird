@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf8">
+    <title>HTML 5 Parser tests html5lib_pending-spec-changes.html</title>
+    <meta name="timeout" content="long">
+    <meta name="variant" content="?run_type=uri">
+    <meta name="variant" content="?run_type=write">
+    <meta name="variant" content="?run_type=write_single">
+  </head>
+  <body>
+    <h1>html5lib Parser Test</h1>
+    <div id="log"></div>
+    <script src="common.js"></script>
+    <script src="test.js"></script>
+    <script src="template.js"></script>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script>
+      var num_iframes = 8;
+      var order = ['965e062f9d01c4334cb12637e84dcbf438d38faf','8772d25919914a17118b2105e126aaa5bc83f92c','9804e9659cd045f199d9f58ef85c2639724359aa',];
+      var tests = {
+          "965e062f9d01c4334cb12637e84dcbf438d38faf":[async_test('html5lib_pending-spec-changes.html 965e062f9d01c4334cb12637e84dcbf438d38faf'), "%3Cinput%20type%3D%22hidden%22%3E%3Cframeset%3E", "%23document%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cframeset%3E"],"8772d25919914a17118b2105e126aaa5bc83f92c":[async_test('html5lib_pending-spec-changes.html 8772d25919914a17118b2105e126aaa5bc83f92c'), "%3C%21DOCTYPE%20html%3E%3Ctable%3E%3Ccaption%3E%3Csvg%3Efoo%3C/table%3Ebar", "%23document%0A%7C%20%3C%21DOCTYPE%20html%3E%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%3Ctable%3E%0A%7C%20%20%20%20%20%20%20%3Ccaption%3E%0A%7C%20%20%20%20%20%20%20%20%20%3Csvg%20svg%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%22foo%22%0A%7C%20%20%20%20%20%22bar%22"],"9804e9659cd045f199d9f58ef85c2639724359aa":[async_test('html5lib_pending-spec-changes.html 9804e9659cd045f199d9f58ef85c2639724359aa'), "%3Ctable%3E%3Ctr%3E%3Ctd%3E%3Csvg%3E%3Cdesc%3E%3Ctd%3E%3C/desc%3E%3Ccircle%3E", "%23document%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%3Ctable%3E%0A%7C%20%20%20%20%20%20%20%3Ctbody%3E%0A%7C%20%20%20%20%20%20%20%20%20%3Ctr%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%3Ctd%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%3Csvg%20svg%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%3Csvg%20desc%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%3Ctd%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%3Ccircle%3E"],
+      }
+      init_tests(get_type());
+    </script>
+  </body>
+</html>

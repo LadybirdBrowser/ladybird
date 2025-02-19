@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf8">
+    <title>HTML 5 Parser tests html5lib_adoption02.html</title>
+    <meta name="timeout" content="long">
+    <meta name="variant" content="?run_type=uri">
+    <meta name="variant" content="?run_type=write">
+    <meta name="variant" content="?run_type=write_single">
+  </head>
+  <body>
+    <h1>html5lib Parser Test</h1>
+    <div id="log"></div>
+    <script src="common.js"></script>
+    <script src="test.js"></script>
+    <script src="template.js"></script>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script>
+      var num_iframes = 8;
+      var order = ['cefc9890d621707fedf5eb634f3a86d753659d9b','2a8f569e9d55b3cb7e54b026f758dea8593f4cb4',];
+      var tests = {
+          "cefc9890d621707fedf5eb634f3a86d753659d9b":[async_test('html5lib_adoption02.html cefc9890d621707fedf5eb634f3a86d753659d9b'), "%3Cb%3E1%3Ci%3E2%3Cp%3E3%3C/b%3E4", "%23document%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%3Cb%3E%0A%7C%20%20%20%20%20%20%20%221%22%0A%7C%20%20%20%20%20%20%20%3Ci%3E%0A%7C%20%20%20%20%20%20%20%20%20%222%22%0A%7C%20%20%20%20%20%3Ci%3E%0A%7C%20%20%20%20%20%20%20%3Cp%3E%0A%7C%20%20%20%20%20%20%20%20%20%3Cb%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%223%22%0A%7C%20%20%20%20%20%20%20%20%20%224%22"],"2a8f569e9d55b3cb7e54b026f758dea8593f4cb4":[async_test('html5lib_adoption02.html 2a8f569e9d55b3cb7e54b026f758dea8593f4cb4'), "%3Ca%3E%3Cdiv%3E%3Cstyle%3E%3C/style%3E%3Caddress%3E%3Ca%3E", "%23document%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%3Ca%3E%0A%7C%20%20%20%20%20%3Cdiv%3E%0A%7C%20%20%20%20%20%20%20%3Ca%3E%0A%7C%20%20%20%20%20%20%20%20%20%3Cstyle%3E%0A%7C%20%20%20%20%20%20%20%3Caddress%3E%0A%7C%20%20%20%20%20%20%20%20%20%3Ca%3E%0A%7C%20%20%20%20%20%20%20%20%20%3Ca%3E"],
+      }
+      init_tests(get_type());
+    </script>
+  </body>
+</html>

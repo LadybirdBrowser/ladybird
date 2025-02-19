@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	html5lib_tests22.html 0aae674c4a721f0a6f6205bca13056f08a516b00
+Pass	html5lib_tests22.html 9ee2a7fffc0ac4b0a2d59ac154d9d79b3b62499f
+Pass	html5lib_tests22.html eba4be47ca51e9c659aaa2de43e17aded0d13e50
+Pass	html5lib_tests22.html d69b2cbec658966233616e553d8b0b1dd544310d
+Pass	html5lib_tests22.html 4685334adccb0ef98b769fb8546b5696e28af968

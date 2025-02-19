@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf8">
+    <title>HTML 5 Parser tests html5lib_quirks01.html</title>
+    <meta name="timeout" content="long">
+    <meta name="variant" content="?run_type=uri">
+    <meta name="variant" content="?run_type=write">
+    <meta name="variant" content="?run_type=write_single">
+  </head>
+  <body>
+    <h1>html5lib Parser Test</h1>
+    <div id="log"></div>
+    <script src="common.js"></script>
+    <script src="test.js"></script>
+    <script src="template.js"></script>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script>
+      var num_iframes = 8;
+      var order = ['700e38ecb6ac91e9c5477fd451591b844d51f38e','d196aec77885a47ff43166960d48c8c9eb2cbee0','d4b597fe74a7af1b96750e29cb1180af8b97a1f4','e1bacd20039e6d1bed0de4aff51c37e303762170',];
+      var tests = {
+          "700e38ecb6ac91e9c5477fd451591b844d51f38e":[async_test('html5lib_quirks01.html 700e38ecb6ac91e9c5477fd451591b844d51f38e'), "%3C%21DOCTYPE%20html%20PUBLIC%20%22-//W3C//DTD%20XHTML%201.0%20Frameset//EN%22%0A%22http%3A//www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd%22%3E%3Cp%3E%3Ctable%3E", "%23document%0A%7C%20%3C%21DOCTYPE%20html%20%22-//W3C//DTD%20XHTML%201.0%20Frameset//EN%22%20%22http%3A//www.w3.org/TR/xhtml1/DTD/xhtml1-frameset.dtd%22%3E%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%3Cp%3E%0A%7C%20%20%20%20%20%3Ctable%3E"],"d196aec77885a47ff43166960d48c8c9eb2cbee0":[async_test('html5lib_quirks01.html d196aec77885a47ff43166960d48c8c9eb2cbee0'), "%3C%21DOCTYPE%20html%20SYSTEM%20%22http%3A//www.ibm.com/data/dtd/v11/ibmxhtml1-transitional.dtd%22%3E%3Cp%3E%3Ctable%3E", "%23document%0A%7C%20%3C%21DOCTYPE%20html%20%22%22%20%22http%3A//www.ibm.com/data/dtd/v11/ibmxhtml1-transitional.dtd%22%3E%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%3Cp%3E%0A%7C%20%20%20%20%20%20%20%3Ctable%3E"],"d4b597fe74a7af1b96750e29cb1180af8b97a1f4":[async_test('html5lib_quirks01.html d4b597fe74a7af1b96750e29cb1180af8b97a1f4'), "%3C%21DOCTYPE%20html%20PUBLIC%20%22html%22%3E%3Cp%3E%3Ctable%3E", "%23document%0A%7C%20%3C%21DOCTYPE%20html%20%22html%22%20%22%22%3E%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%3Cp%3E%0A%7C%20%20%20%20%20%20%20%3Ctable%3E"],"e1bacd20039e6d1bed0de4aff51c37e303762170":[async_test('html5lib_quirks01.html e1bacd20039e6d1bed0de4aff51c37e303762170'), "%3C%21DOCTYPE%20HTML%20PUBLIC%20%22-//W3C//DTD%20HTML%203.2//EN%22%0A%20%20%20%22http%3A//www.w3.org/TR/html4/strict.dtd%22%3E%3Cp%3E%3Ctable%3E", "%23document%0A%7C%20%3C%21DOCTYPE%20html%20%22-//W3C//DTD%20HTML%203.2//EN%22%20%22http%3A//www.w3.org/TR/html4/strict.dtd%22%3E%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%3Cp%3E%0A%7C%20%20%20%20%20%20%20%3Ctable%3E"],
+      }
+      init_tests(get_type());
+    </script>
+  </body>
+</html>

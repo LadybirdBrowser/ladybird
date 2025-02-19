@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf8">
+    <title>HTML 5 Parser tests html5lib_pending-spec-changes-plain-text-unsafe.html</title>
+    <meta name="timeout" content="long">
+    <meta name="variant" content="?run_type=uri">
+    <meta name="variant" content="?run_type=write">
+    <meta name="variant" content="?run_type=write_single">
+  </head>
+  <body>
+    <h1>html5lib Parser Test</h1>
+    <div id="log"></div>
+    <script src="common.js"></script>
+    <script src="test.js"></script>
+    <script src="template.js"></script>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script>
+      var num_iframes = 8;
+      var order = ['8afa8d082dc447be5cab2eeb3e13efb07ec72aa6',];
+      var tests = {
+          "8afa8d082dc447be5cab2eeb3e13efb07ec72aa6":[async_test('html5lib_pending-spec-changes-plain-text-unsafe.html 8afa8d082dc447be5cab2eeb3e13efb07ec72aa6'), "%3Cbody%3E%3Ctable%3E%00filler%00text%00", "%23document%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%22fillertext%22%0A%7C%20%20%20%20%20%3Ctable%3E"],
+      }
+      init_tests(get_type());
+    </script>
+  </body>
+</html>
