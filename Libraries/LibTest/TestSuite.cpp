@@ -249,13 +249,16 @@ int TestSuite::run(Vector<NonnullRefPtr<TestCase>> const& tests)
         }
     }
 
+    auto const runtime = m_testtime + m_benchtime;
+    auto const elapsed = global_timer.elapsed_milliseconds();
+
     dbgln("Finished {} tests and {} benchmarks in {}ms ({}ms tests, {}ms benchmarks, {}ms other).",
         test_count,
         benchmark_count,
-        global_timer.elapsed_milliseconds(),
+        elapsed,
         m_testtime,
         m_benchtime,
-        global_timer.elapsed_milliseconds() - (m_testtime + m_benchtime));
+        runtime > elapsed ? 0 : elapsed - runtime);
 
     if (test_count != 0) {
         if (test_passed_count == test_count) {
