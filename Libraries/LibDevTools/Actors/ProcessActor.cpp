@@ -9,12 +9,12 @@
 
 namespace DevTools {
 
-NonnullRefPtr<ProcessActor> ProcessActor::create(DevToolsServer& devtools, ByteString name, ProcessDescription description)
+NonnullRefPtr<ProcessActor> ProcessActor::create(DevToolsServer& devtools, String name, ProcessDescription description)
 {
     return adopt_ref(*new ProcessActor(devtools, move(name), move(description)));
 }
 
-ProcessActor::ProcessActor(DevToolsServer& devtools, ByteString name, ProcessDescription description)
+ProcessActor::ProcessActor(DevToolsServer& devtools, String name, ProcessDescription description)
     : Actor(devtools, move(name))
     , m_description(move(description))
 {

@@ -15,7 +15,7 @@ class WatcherActor final : public Actor {
 public:
     static constexpr auto base_name = "watcher"sv;
 
-    static NonnullRefPtr<WatcherActor> create(DevToolsServer&, ByteString name, WeakPtr<TabActor>);
+    static NonnullRefPtr<WatcherActor> create(DevToolsServer&, String name, WeakPtr<TabActor>);
     virtual ~WatcherActor() override;
 
     virtual void handle_message(StringView type, JsonObject const&) override;
@@ -23,7 +23,7 @@ public:
     JsonObject serialize_description() const;
 
 private:
-    WatcherActor(DevToolsServer&, ByteString name, WeakPtr<TabActor>);
+    WatcherActor(DevToolsServer&, String name, WeakPtr<TabActor>);
 
     WeakPtr<TabActor> m_tab;
     WeakPtr<Actor> m_target;

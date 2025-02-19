@@ -11,10 +11,9 @@
 
 namespace DevTools {
 
-// FIXME: Convert `name` to a String.
-Actor::Actor(DevToolsServer& devtools, ByteString name)
+Actor::Actor(DevToolsServer& devtools, String name)
     : m_devtools(devtools)
-    , m_name(MUST(String::from_byte_string(name)))
+    , m_name(move(name))
 {
 }
 

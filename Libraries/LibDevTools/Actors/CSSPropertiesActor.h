@@ -6,14 +6,14 @@
 
 #pragma once
 
-#include <AK/ByteString.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/String.h>
 #include <LibDevTools/Actor.h>
 
 namespace DevTools {
 
 struct CSSProperty {
-    ByteString name;
+    String name;
     bool is_inherited { false };
 };
 
@@ -21,13 +21,13 @@ class CSSPropertiesActor final : public Actor {
 public:
     static constexpr auto base_name = "css-properties"sv;
 
-    static NonnullRefPtr<CSSPropertiesActor> create(DevToolsServer&, ByteString name);
+    static NonnullRefPtr<CSSPropertiesActor> create(DevToolsServer&, String name);
     virtual ~CSSPropertiesActor() override;
 
     virtual void handle_message(StringView type, JsonObject const&) override;
 
 private:
-    CSSPropertiesActor(DevToolsServer&, ByteString name);
+    CSSPropertiesActor(DevToolsServer&, String name);
 };
 
 }

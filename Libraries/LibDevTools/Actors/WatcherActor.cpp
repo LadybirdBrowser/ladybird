@@ -18,12 +18,12 @@
 
 namespace DevTools {
 
-NonnullRefPtr<WatcherActor> WatcherActor::create(DevToolsServer& devtools, ByteString name, WeakPtr<TabActor> tab)
+NonnullRefPtr<WatcherActor> WatcherActor::create(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab)
 {
     return adopt_ref(*new WatcherActor(devtools, move(name), move(tab)));
 }
 
-WatcherActor::WatcherActor(DevToolsServer& devtools, ByteString name, WeakPtr<TabActor> tab)
+WatcherActor::WatcherActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab)
     : Actor(devtools, move(name))
     , m_tab(move(tab))
 {
@@ -67,7 +67,7 @@ void WatcherActor::handle_message(StringView type, JsonObject const& message)
     }
 
     if (type == "watchTargets"sv) {
-        auto target_type = message.get_byte_string("targetType"sv);
+        auto target_type = message.get_string("targetType"sv);
         if (!target_type.has_value()) {
             send_missing_parameter_error("targetType"sv);
             return;

@@ -8,12 +8,12 @@
 
 namespace DevTools {
 
-NonnullRefPtr<ThreadActor> ThreadActor::create(DevToolsServer& devtools, ByteString name)
+NonnullRefPtr<ThreadActor> ThreadActor::create(DevToolsServer& devtools, String name)
 {
     return adopt_ref(*new ThreadActor(devtools, move(name)));
 }
 
-ThreadActor::ThreadActor(DevToolsServer& devtools, ByteString name)
+ThreadActor::ThreadActor(DevToolsServer& devtools, String name)
     : Actor(devtools, move(name))
 {
 }

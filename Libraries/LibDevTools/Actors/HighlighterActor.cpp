@@ -9,12 +9,12 @@
 
 namespace DevTools {
 
-NonnullRefPtr<HighlighterActor> HighlighterActor::create(DevToolsServer& devtools, ByteString name)
+NonnullRefPtr<HighlighterActor> HighlighterActor::create(DevToolsServer& devtools, String name)
 {
     return adopt_ref(*new HighlighterActor(devtools, move(name)));
 }
 
-HighlighterActor::HighlighterActor(DevToolsServer& devtools, ByteString name)
+HighlighterActor::HighlighterActor(DevToolsServer& devtools, String name)
     : Actor(devtools, move(name))
 {
 }

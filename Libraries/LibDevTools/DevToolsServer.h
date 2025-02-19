@@ -10,13 +10,14 @@
 #include <AK/HashMap.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/String.h>
 #include <LibCore/Socket.h>
 #include <LibDevTools/Actors/RootActor.h>
 #include <LibDevTools/Forward.h>
 
 namespace DevTools {
 
-using ActorRegistry = HashMap<ByteString, NonnullRefPtr<Actor>>;
+using ActorRegistry = HashMap<String, NonnullRefPtr<Actor>>;
 
 class DevToolsServer {
 public:
@@ -30,12 +31,12 @@ public:
     template<typename ActorType, typename... Args>
     ActorType& register_actor(Args&&... args)
     {
-        ByteString name;
+        String name;
 
         if constexpr (IsSame<ActorType, RootActor>) {
-            name = ActorType::base_name;
+            name = String::from_utf8_without_validation(ActorType::base_name.bytes());
         } else {
-            name = ByteString::formatted("server{}-{}{}", m_server_id, ActorType::base_name, m_actor_count);
+            name = MUST(String::formatted("server{}-{}{}", m_server_id, ActorType::base_name, m_actor_count));
         }
 
         auto actor = ActorType::create(*this, name, forward<Args>(args)...);

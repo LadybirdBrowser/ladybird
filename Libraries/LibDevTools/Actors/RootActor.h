@@ -15,7 +15,7 @@ class RootActor final : public Actor {
 public:
     static constexpr auto base_name = "root"sv;
 
-    static NonnullRefPtr<RootActor> create(DevToolsServer&, ByteString name);
+    static NonnullRefPtr<RootActor> create(DevToolsServer&, String name);
     virtual ~RootActor() override;
 
     virtual void handle_message(StringView type, JsonObject const&) override;
@@ -23,7 +23,7 @@ public:
     void send_tab_list_changed_message();
 
 private:
-    RootActor(DevToolsServer&, ByteString name);
+    RootActor(DevToolsServer&, String name);
 
     // https://firefox-source-docs.mozilla.org/devtools/backend/protocol.html#the-request-reply-notify-pattern
     // the root actor sends at most one "tabListChanged" notification after each "listTabs" request.

@@ -15,13 +15,13 @@ class PreferenceActor final : public Actor {
 public:
     static constexpr auto base_name = "preference"sv;
 
-    static NonnullRefPtr<PreferenceActor> create(DevToolsServer&, ByteString name);
+    static NonnullRefPtr<PreferenceActor> create(DevToolsServer&, String name);
     virtual ~PreferenceActor() override;
 
     virtual void handle_message(StringView type, JsonObject const&) override;
 
 private:
-    PreferenceActor(DevToolsServer&, ByteString name);
+    PreferenceActor(DevToolsServer&, String name);
 };
 
 }
