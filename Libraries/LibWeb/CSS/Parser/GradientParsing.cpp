@@ -128,6 +128,101 @@ Optional<Vector<AngularColorStopListElement>> Parser::parse_angular_color_stop_l
         [&](auto& it) { return parse_angle_percentage(it); });
 }
 
+Optional<InterpolationMethod> Parser::parse_interpolation_method(TokenStream<ComponentValue>& tokens)
+{
+    // <color-interpolation-method> = in [ <rectangular-color-space> | <polar-color-space> <hue-interpolation-method>? ]
+
+    auto transaction = tokens.begin_transaction();
+
+    if (!tokens.consume_a_token().is_ident("in"sv))
+        return {};
+
+    tokens.discard_whitespace();
+    auto first_value = tokens.consume_a_token();
+    if (!first_value.is(Token::Type::Ident))
+        return {};
+
+    auto color_space_name = first_value.token().ident();
+    GradientSpace color_space;
+    bool polar_space = false;
+
+    if (color_space_name.equals_ignoring_ascii_case("srgb"sv)) {
+        color_space = GradientSpace::sRGB;
+    } else if (color_space_name.equals_ignoring_ascii_case("srgb-linear"sv)) {
+        color_space = GradientSpace::sRGBLinear;
+    } else if (color_space_name.equals_ignoring_ascii_case("display-p3"sv)) {
+        color_space = GradientSpace::DisplayP3;
+    } else if (color_space_name.equals_ignoring_ascii_case("a98-rgb"sv)) {
+        color_space = GradientSpace::A98RGB;
+    } else if (color_space_name.equals_ignoring_ascii_case("prophoto-rgb"sv)) {
+        color_space = GradientSpace::ProPhotoRGB;
+    } else if (color_space_name.equals_ignoring_ascii_case("rec2020"sv)) {
+        color_space = GradientSpace::Rec2020;
+    } else if (color_space_name.equals_ignoring_ascii_case("lab"sv)) {
+        color_space = GradientSpace::Lab;
+    } else if (color_space_name.equals_ignoring_ascii_case("oklab"sv)) {
+        color_space = GradientSpace::OKLab;
+    } else if (color_space_name.equals_ignoring_ascii_case("xyz-d50"sv)) {
+        color_space = GradientSpace::XYZD50;
+    } else if (color_space_name.equals_ignoring_ascii_case("xyz-d65"sv)
+        || color_space_name.equals_ignoring_ascii_case("xyz"sv)) {
+        color_space = GradientSpace::XYZD65;
+    } else {
+        polar_space = true;
+        if (color_space_name.equals_ignoring_ascii_case("hsl"sv)) {
+            color_space = GradientSpace::HSL;
+        } else if (color_space_name.equals_ignoring_ascii_case("hwb"sv)) {
+            color_space = GradientSpace::HWB;
+        } else if (color_space_name.equals_ignoring_ascii_case("lch"sv)) {
+            color_space = GradientSpace::LCH;
+        } else if (color_space_name.equals_ignoring_ascii_case("oklch"sv)) {
+            color_space = GradientSpace::OKLCH;
+        } else {
+            return {};
+        }
+    }
+
+    Optional<HueMethod> hue_method;
+    if (polar_space) {
+        [&]() {
+            auto hue_transaction = transaction.create_child();
+
+            tokens.discard_whitespace();
+            auto second_value = tokens.consume_a_token();
+            if (!second_value.is(Token::Type::Ident))
+                return;
+
+            auto hue_method_name = second_value.token().ident();
+            if (hue_method_name.equals_ignoring_ascii_case("shorter"sv)) {
+                hue_method = HueMethod::Shorter;
+            } else if (hue_method_name.equals_ignoring_ascii_case("longer"sv)) {
+                hue_method = HueMethod::Longer;
+            } else if (hue_method_name.equals_ignoring_ascii_case("increasing"sv)) {
+                hue_method = HueMethod::Increasing;
+            } else if (hue_method_name.equals_ignoring_ascii_case("decreasing"sv)) {
+                hue_method = HueMethod::Decreasing;
+            } else {
+                return;
+            }
+
+            tokens.discard_whitespace();
+            if (!tokens.consume_a_token().is_ident("hue"sv))
+                return;
+
+            hue_transaction.commit();
+        }();
+    }
+
+    transaction.commit();
+
+    InterpolationMethod interpolation_method;
+    interpolation_method.color_space = color_space;
+    if (hue_method.has_value())
+        interpolation_method.hue_method = hue_method.value();
+
+    return interpolation_method;
+}
+
 RefPtr<LinearGradientStyleValue> Parser::parse_linear_gradient_function(TokenStream<ComponentValue>& outer_tokens)
 {
     using GradientType = LinearGradientStyleValue::GradientType;
@@ -156,7 +251,7 @@ RefPtr<LinearGradientStyleValue> Parser::parse_linear_gradient_function(TokenStr
     if (!function_name.equals_ignoring_ascii_case("linear-gradient"sv))
         return nullptr;
 
-    // linear-gradient() = linear-gradient([ <angle> | to <side-or-corner> ]?, <color-stop-list>)
+    // <linear-gradient-syntax> = [ [ <angle> | to <side-or-corner> ] || <color-interpolation-method> ]? , <color-stop-list>
 
     TokenStream tokens { component_value.function().value };
     tokens.discard_whitespace();
@@ -188,6 +283,9 @@ RefPtr<LinearGradientStyleValue> Parser::parse_linear_gradient_function(TokenStr
             return to_side(token.token().ident()).has_value();
         return token.token().ident().equals_ignoring_ascii_case("to"sv);
     };
+
+    auto maybe_interpolation_method = parse_interpolation_method(tokens);
+    tokens.discard_whitespace();
 
     auto const& first_param = tokens.next_token();
     if (first_param.is(Token::Type::Dimension)) {
@@ -222,11 +320,12 @@ RefPtr<LinearGradientStyleValue> Parser::parse_linear_gradient_function(TokenStr
         tokens.discard_whitespace();
         Optional<SideOrCorner> side_b;
         if (tokens.has_next_token() && tokens.next_token().is(Token::Type::Ident))
-            side_b = to_side(tokens.consume_a_token().token().ident());
+            side_b = to_side(tokens.next_token().token().ident());
 
         if (side_a.has_value() && !side_b.has_value()) {
             gradient_direction = *side_a;
         } else if (side_a.has_value() && side_b.has_value()) {
+            tokens.discard_a_token();
             // Convert two sides to a corner
             if (to_underlying(*side_b) < to_underlying(*side_a))
                 swap(side_a, side_b);
@@ -247,11 +346,16 @@ RefPtr<LinearGradientStyleValue> Parser::parse_linear_gradient_function(TokenStr
         has_direction_param = false;
     }
 
+    if (!maybe_interpolation_method.has_value()) {
+        tokens.discard_whitespace();
+        maybe_interpolation_method = parse_interpolation_method(tokens);
+    }
+
     tokens.discard_whitespace();
     if (!tokens.has_next_token())
         return nullptr;
 
-    if (has_direction_param && !tokens.consume_a_token().is(Token::Type::Comma))
+    if ((has_direction_param || maybe_interpolation_method.has_value()) && !tokens.consume_a_token().is(Token::Type::Comma))
         return nullptr;
 
     auto color_stops = parse_linear_color_stop_list(tokens);
@@ -259,7 +363,7 @@ RefPtr<LinearGradientStyleValue> Parser::parse_linear_gradient_function(TokenStr
         return nullptr;
 
     transaction.commit();
-    return LinearGradientStyleValue::create(gradient_direction, move(*color_stops), gradient_type, repeating_gradient);
+    return LinearGradientStyleValue::create(gradient_direction, move(*color_stops), gradient_type, repeating_gradient, maybe_interpolation_method);
 }
 
 RefPtr<ConicGradientStyleValue> Parser::parse_conic_gradient_function(TokenStream<ComponentValue>& outer_tokens)
@@ -290,9 +394,9 @@ RefPtr<ConicGradientStyleValue> Parser::parse_conic_gradient_function(TokenStrea
 
     Angle from_angle(0, Angle::Type::Deg);
     RefPtr<PositionStyleValue> at_position;
+    Optional<InterpolationMethod> maybe_interpolation_method;
 
-    // conic-gradient( [ [ from <angle> ]? [ at <position> ]? ]  ||
-    // <color-interpolation-method> , <angular-color-stop-list> )
+    // conic-gradient( [ [ [ from <angle> ]? [ at <position> ]? ] || <color-interpolation-method> ]? , <angular-color-stop-list> )
     NonnullRawPtr<ComponentValue const> token = tokens.next_token();
     bool got_from_angle = false;
     bool got_color_interpolation_method = false;
@@ -335,12 +439,15 @@ RefPtr<ConicGradientStyleValue> Parser::parse_conic_gradient_function(TokenStrea
                 return nullptr;
             at_position = position;
             got_at_position = true;
-        } else if (consume_identifier("in"sv)) {
+        } else if (token->token().ident().equals_ignoring_ascii_case("in"sv)) {
             // <color-interpolation-method>
             if (got_color_interpolation_method)
                 return nullptr;
-            dbgln("FIXME: Parse color interpolation method for conic-gradient()");
             got_color_interpolation_method = true;
+
+            maybe_interpolation_method = parse_interpolation_method(tokens);
+            if (!maybe_interpolation_method.has_value())
+                return nullptr;
         } else {
             break;
         }
@@ -364,7 +471,7 @@ RefPtr<ConicGradientStyleValue> Parser::parse_conic_gradient_function(TokenStrea
         at_position = PositionStyleValue::create_center();
 
     transaction.commit();
-    return ConicGradientStyleValue::create(from_angle, at_position.release_nonnull(), move(*color_stops), repeating_gradient);
+    return ConicGradientStyleValue::create(from_angle, at_position.release_nonnull(), move(*color_stops), repeating_gradient, maybe_interpolation_method);
 }
 
 RefPtr<RadialGradientStyleValue> Parser::parse_radial_gradient_function(TokenStream<ComponentValue>& outer_tokens)
@@ -405,7 +512,8 @@ RefPtr<RadialGradientStyleValue> Parser::parse_radial_gradient_function(TokenStr
         return value;
     };
 
-    // radial-gradient( [ <ending-shape> || <size> ]? [ at <position> ]? , <color-stop-list> )
+    // <radial-gradient-syntax> = [ [ [ <radial-shape> || <radial-size> ]? [ at <position> ]? ] || <color-interpolation-method> ]? , <color-stop-list>
+    // FIXME: Maybe rename ending-shape things to radial-shape
 
     Size size = Extent::FarthestCorner;
     EndingShape ending_shape = EndingShape::Circle;
@@ -469,6 +577,9 @@ RefPtr<RadialGradientStyleValue> Parser::parse_radial_gradient_function(TokenStr
         return {};
     };
 
+    auto maybe_interpolation_method = parse_interpolation_method(tokens);
+    tokens.discard_whitespace();
+
     {
         // [ <ending-shape> || <size> ]?
         auto maybe_ending_shape = parse_ending_shape();
@@ -506,6 +617,14 @@ RefPtr<RadialGradientStyleValue> Parser::parse_radial_gradient_function(TokenStr
     }
 
     tokens.discard_whitespace();
+    if (!maybe_interpolation_method.has_value()) {
+        maybe_interpolation_method = parse_interpolation_method(tokens);
+        tokens.discard_whitespace();
+    }
+
+    if (maybe_interpolation_method.has_value())
+        expect_comma = true;
+
     if (!tokens.has_next_token())
         return nullptr;
     if (expect_comma && !tokens.consume_a_token().is(Token::Type::Comma))
@@ -520,7 +639,7 @@ RefPtr<RadialGradientStyleValue> Parser::parse_radial_gradient_function(TokenStr
         at_position = PositionStyleValue::create_center();
 
     transaction.commit();
-    return RadialGradientStyleValue::create(ending_shape, size, at_position.release_nonnull(), move(*color_stops), repeating_gradient);
+    return RadialGradientStyleValue::create(ending_shape, size, at_position.release_nonnull(), move(*color_stops), repeating_gradient, maybe_interpolation_method);
 }
 
 }

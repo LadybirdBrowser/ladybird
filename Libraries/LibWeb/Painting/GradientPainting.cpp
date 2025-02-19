@@ -121,7 +121,7 @@ LinearGradientData resolve_linear_gradient_data(Layout::NodeWithStyle const& nod
         },
         linear_gradient.is_repeating());
 
-    return { gradient_angle, resolved_color_stops };
+    return { gradient_angle, resolved_color_stops, linear_gradient.interpolation_method() };
 }
 
 ConicGradientData resolve_conic_gradient_data(Layout::NodeWithStyle const& node, CSS::ConicGradientStyleValue const& conic_gradient)
@@ -132,7 +132,7 @@ ConicGradientData resolve_conic_gradient_data(Layout::NodeWithStyle const& node,
             return angle_percentage.resolved(node, one_turn).to_degrees() / one_turn.to_degrees();
         },
         conic_gradient.is_repeating());
-    return { conic_gradient.angle_degrees(), resolved_color_stops };
+    return { conic_gradient.angle_degrees(), resolved_color_stops, conic_gradient.interpolation_method() };
 }
 
 RadialGradientData resolve_radial_gradient_data(Layout::NodeWithStyle const& node, CSSPixelSize gradient_size, CSS::RadialGradientStyleValue const& radial_gradient)
@@ -143,7 +143,7 @@ RadialGradientData resolve_radial_gradient_data(Layout::NodeWithStyle const& nod
             return length_percentage.to_px(node, gradient_size.width()).to_float() / gradient_size.width().to_float();
         },
         radial_gradient.is_repeating());
-    return { resolved_color_stops };
+    return { resolved_color_stops, radial_gradient.interpolation_method() };
 }
 
 }
