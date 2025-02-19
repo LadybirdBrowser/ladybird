@@ -33,6 +33,7 @@ struct Options {
     }
 
     OPTION_WITH_DEFAULTS(Optional<ByteString>, root_certificates_path, )
+    OPTION_WITH_DEFAULTS(bool, blocking, true)
 };
 
 class TLSv12 final : public Core::Socket {
@@ -67,8 +68,6 @@ private:
     explicit TLSv12(NonnullOwnPtr<Core::TCPSocket>, SSL_CTX*, SSL*, BIO*);
 
     static ErrorOr<NonnullOwnPtr<TLSv12>> connect_internal(NonnullOwnPtr<Core::TCPSocket>, ByteString const&, Options);
-
-    void wait_for_activity(bool);
 
     SSL_CTX* m_ssl_ctx { nullptr };
     SSL* m_ssl { nullptr };

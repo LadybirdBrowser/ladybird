@@ -27,10 +27,8 @@ ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect(Core::SocketAddress address, Byte
     return connect_internal(move(tcp_socket), host, options);
 }
 
-void TLSv12::wait_for_activity(bool read)
+static void wait_for_activity(int sock, bool read)
 {
-    auto sock = SSL_get_fd(m_ssl);
-
     fd_set fds;
     FD_ZERO(&fds);
     FD_SET(sock, &fds);
@@ -102,9 +100,9 @@ ErrorOr<bool> TLSv12::can_read_without_blocking(int timeout) const
     return m_socket->can_read_without_blocking(timeout);
 }
 
-ErrorOr<void> TLSv12::set_blocking(bool block)
+ErrorOr<void> TLSv12::set_blocking(bool)
 {
-    return m_socket->set_blocking(block);
+    return Error::from_string_literal("Blocking mode cannot be changed after the SSL connection is established");
 }
 
 ErrorOr<void> TLSv12::set_close_on_exec(bool enabled)
@@ -132,6 +130,8 @@ TLSv12::~TLSv12()
 
 ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect_internal(NonnullOwnPtr<Core::TCPSocket> socket, ByteString const& host, Options options)
 {
+    TRY(socket->set_blocking(options.blocking));
+
     auto* ssl_ctx = OPENSSL_TRY_PTR(SSL_CTX_new(TLS_client_method()));
     ArmedScopeGuard free_ssl_ctx = [&] { SSL_CTX_free(ssl_ctx); };
 
@@ -163,7 +163,29 @@ ErrorOr<NonnullOwnPtr<TLSv12>> TLSv12::connect_internal(NonnullOwnPtr<Core::TCPS
     // SSL takes ownership of the BIO and will handle freeing it
     SSL_set_bio(ssl, bio, bio);
 
-    OPENSSL_TRY(SSL_connect(ssl));
+    while (true) {
+        auto ret = SSL_connect(ssl);
+        if (ret == 1) {
+            // Successfully connected
+            break;
+        }
+
+        switch (SSL_get_error(ssl, ret)) {
+        case SSL_ERROR_WANT_READ:
+            wait_for_activity(socket->fd(), true);
+            break;
+        case SSL_ERROR_WANT_WRITE:
+            wait_for_activity(socket->fd(), false);
+            break;
+        case SSL_ERROR_SSL:
+            ERR_print_errors_cb(openssl_print_errors, nullptr);
+            return Error::from_string_literal("Fatal SSL error connecting to SSL server");
+        case SSL_ERROR_SYSCALL:
+            return Error::from_errno(errno);
+        default:
+            return Error::from_string_literal("Failed connecting to SSL server");
+        }
+    }
 
     free_ssl.disarm();
     free_ssl_ctx.disarm();
