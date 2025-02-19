@@ -95,6 +95,12 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     full_data.extend(inserted_data);
     full_data.append(after_data.data(), after_data.length_in_code_units());
     Utf16View full_view { full_data };
+
+    // OPTIMIZATION: Skip subsequent steps if the data didn't change.
+    if (utf16_view == full_view) {
+        return {};
+    }
+
     m_data = MUST(full_view.to_utf8(Utf16View::AllowInvalidCodeUnits::Yes));
 
     // 8. For each live range whose start node is node and start offset is greater than offset but less than or equal to offset plus count, set its start offset to offset.
