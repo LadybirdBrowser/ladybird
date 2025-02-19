@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-2 Pass
-1 Fail
-Fail	html5lib_pending-spec-changes.html 965e062f9d01c4334cb12637e84dcbf438d38faf
+3 Pass
+Pass	html5lib_pending-spec-changes.html 965e062f9d01c4334cb12637e84dcbf438d38faf
 Pass	html5lib_pending-spec-changes.html 8772d25919914a17118b2105e126aaa5bc83f92c
 Pass	html5lib_pending-spec-changes.html 9804e9659cd045f199d9f58ef85c2639724359aa

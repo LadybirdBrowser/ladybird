@@ -1897,6 +1897,8 @@ void HTMLParser::handle_in_body(HTMLToken& token)
 
         // 4. Switch the insertion mode to "in frameset".
         m_insertion_mode = InsertionMode::InFrameset;
+
+        return;
     }
 
     // -> An end-of-file token
