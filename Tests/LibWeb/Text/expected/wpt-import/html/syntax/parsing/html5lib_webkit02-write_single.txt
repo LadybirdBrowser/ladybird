@@ -2,13 +2,12 @@ Harness status: OK
 
 Found 30 tests
 
-29 Pass
-1 Fail
+30 Pass
 Pass	html5lib_webkit02.html f50b8c15847159a6d2c6ecc2bd1e4a944ba5aae6
 Pass	html5lib_webkit02.html 326328ea805a2ebdde707e08567713f88a4cf8ab
 Pass	html5lib_webkit02.html 05138397908cfdad69a3bfe5da5a06098320b504
 Pass	html5lib_webkit02.html 2aaa2ac0d7cec6144633d8f82f3bcaafa7498cd9
-Fail	html5lib_webkit02.html 4a256d7ef602c7c917c758e15981b9710f9b4130
+Pass	html5lib_webkit02.html 4a256d7ef602c7c917c758e15981b9710f9b4130
 Pass	html5lib_webkit02.html 98cea04429ddbe4ffaaa0b91fe77b8c0b1f7c1f4
 Pass	html5lib_webkit02.html 209ad7d6f6c9c53cb856c7d78b2bc4a7f38abd5f
 Pass	html5lib_webkit02.html cb9a86fbac96b08a6e708a2dbcd9f78539dfe9c6

@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	html5lib_pending-spec-changes-plain-text-unsafe.html 8afa8d082dc447be5cab2eeb3e13efb07ec72aa6
+1 Pass
+Pass	html5lib_pending-spec-changes-plain-text-unsafe.html 8afa8d082dc447be5cab2eeb3e13efb07ec72aa6
