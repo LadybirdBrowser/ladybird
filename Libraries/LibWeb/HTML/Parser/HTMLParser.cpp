@@ -199,6 +199,13 @@ void HTMLParser::run(HTMLTokenizer::StopAtInsertionPoint stop_at_insertion_point
 
         dbgln_if(HTML_PARSER_DEBUG, "[{}] {}", insertion_mode_name(), token.to_string());
 
+        if (m_next_line_feed_can_be_ignored) {
+            m_next_line_feed_can_be_ignored = false;
+            if (token.is_character() && token.code_point() == '\n') {
+                continue;
+            }
+        }
+
         // https://html.spec.whatwg.org/multipage/parsing.html#tree-construction-dispatcher
         // As each token is emitted from the tokenizer, the user agent must follow the appropriate steps from the following list, known as the tree construction dispatcher:
         if (m_stack_of_open_elements.is_empty()
@@ -2017,20 +2024,13 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         // Insert an HTML element for the token.
         (void)insert_html_element(token);
 
-        // AD-HOC: We move this step before handling LINE FEED below, to ensure the flag is updated before
-        //         we process the next token. This is necessary due to how we implement token reprocessing.
-        // Set the frameset-ok flag to "not ok".
-        m_frameset_ok = false;
-
         // If the next token is a U+000A LINE FEED (LF) character token,
         // then ignore that token and move on to the next one.
         // (Newlines at the start of pre blocks are ignored as an authoring convenience.)
-        auto next_token = m_tokenizer.next_token();
-        if (next_token.has_value() && next_token.value().is_character() && next_token.value().code_point() == '\n') {
-            // Ignore it.
-        } else if (next_token.has_value()) {
-            process_using_the_rules_for(m_insertion_mode, next_token.value());
-        }
+        m_next_line_feed_can_be_ignored = true;
+
+        // Set the frameset-ok flag to "not ok".
+        m_frameset_ok = false;
 
         return;
     }
@@ -2567,15 +2567,13 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         // 1. Insert an HTML element for the token.
         (void)insert_html_element(token);
 
-        // FIXME: 2. If the next token is a U+000A LINE FEED (LF) character token, then ignore that token and move on to the next one. (Newlines at the start of textarea elements are ignored as an authoring convenience.)
+        // 2. If the next token is a U+000A LINE FEED (LF) character token,
+        //    then ignore that token and move on to the next one.
+        //    (Newlines at the start of textarea elements are ignored as an authoring convenience.)
+        m_next_line_feed_can_be_ignored = true;
 
         // 3. Switch the tokenizer to the RCDATA state.
         m_tokenizer.switch_to({}, HTMLTokenizer::State::RCDATA);
-
-        // If the next token is a U+000A LINE FEED (LF) character token,
-        // then ignore that token and move on to the next one.
-        // (Newlines at the start of pre blocks are ignored as an authoring convenience.)
-        auto next_token = m_tokenizer.next_token();
 
         // 4. Let the original insertion mode be the current insertion mode.
         m_original_insertion_mode = m_insertion_mode;
@@ -2585,13 +2583,6 @@ void HTMLParser::handle_in_body(HTMLToken& token)
 
         // 6. Switch the insertion mode to "text".
         m_insertion_mode = InsertionMode::Text;
-
-        // FIXME: This step is not in the spec.
-        if (next_token.has_value() && next_token.value().is_character() && next_token.value().code_point() == '\n') {
-            // Ignore it.
-        } else if (next_token.has_value()) {
-            process_using_the_rules_for(m_insertion_mode, next_token.value());
-        }
         return;
     }
 

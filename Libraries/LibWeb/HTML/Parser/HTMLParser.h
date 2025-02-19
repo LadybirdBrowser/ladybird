@@ -187,6 +187,8 @@ private:
 
     HTMLTokenizer m_tokenizer;
 
+    bool m_next_line_feed_can_be_ignored { false };
+
     bool m_foster_parenting { false };
     bool m_frameset_ok { true };
     bool m_parsing_fragment { false };
