@@ -1,0 +1,18 @@
+Viewport <#document> at (0,0) content-size 800x600 children: not-inline
+  BlockContainer <html> at (0,0) content-size 800x116 [BFC] children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x100 children: inline
+      frag 0 from SVGSVGBox start: 0, length: 0, rect: [8,8 100x100] baseline: 100
+      SVGSVGBox <svg> at (8,8) content-size 100x100 [SVG] children: inline
+        SVGForeignObjectBox <foreignObject> at (8,8) content-size 0x0 children: not-inline
+          BlockContainer <div> at (8,8) content-size 100x17 children: inline
+            frag 0 from TextNode start: 0, length: 3, rect: [8,8 27.15625x17] baseline: 13.296875
+                "foo"
+            TextNode <#text>
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x116]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x100]
+      SVGSVGPaintable (SVGSVGBox<svg>) [8,8 100x100]
+        SVGForeignObjectPaintable (SVGForeignObjectBox<foreignObject>) [8,8 0x0] overflow: [8,8 100x17]
+          PaintableWithLines (BlockContainer<DIV>) [8,8 100x17]
+            TextPaintable (TextNode<#text>)
