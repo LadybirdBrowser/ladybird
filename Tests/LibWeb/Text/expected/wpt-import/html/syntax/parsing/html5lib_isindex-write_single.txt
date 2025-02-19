@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	html5lib_isindex.html 579ca96e69c47b3d2ac83f1aa79a450b745d21f3
+Pass	html5lib_isindex.html cb91f67071d81dd18d7ba9990de8f0f845c375f0
+Pass	html5lib_isindex.html bd8ac64cc8f1422fac94bbe1c8828c0b51dca3f2
+Pass	html5lib_isindex.html 4303a393c6933743460836cb5e7dd29ca7fd6f43

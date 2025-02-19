@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf8">
+    <title>HTML 5 Parser tests html5lib_tests12.html</title>
+    <meta name="timeout" content="long">
+    <meta name="variant" content="?run_type=uri">
+    <meta name="variant" content="?run_type=write">
+    <meta name="variant" content="?run_type=write_single">
+  </head>
+  <body>
+    <h1>html5lib Parser Test</h1>
+    <div id="log"></div>
+    <script src="common.js"></script>
+    <script src="test.js"></script>
+    <script src="template.js"></script>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script>
+      var num_iframes = 8;
+      var order = ['95751b82f57d4feaaf06d208d57b7f6cc4d5fef5','411c792cef85cbb029d5c91f4a2142751a319bc2',];
+      var tests = {
+          "95751b82f57d4feaaf06d208d57b7f6cc4d5fef5":[async_test('html5lib_tests12.html 95751b82f57d4feaaf06d208d57b7f6cc4d5fef5'), "%3C%21DOCTYPE%20html%3E%3Cbody%3E%3Cp%3Efoo%3Cmath%3E%3Cmtext%3E%3Ci%3Ebaz%3C/i%3E%3C/mtext%3E%3Cannotation-xml%3E%3Csvg%3E%3Cdesc%3E%3Cb%3Eeggs%3C/b%3E%3C/desc%3E%3Cg%3E%3CforeignObject%3E%3CP%3Espam%3CTABLE%3E%3Ctr%3E%3Ctd%3E%3Cimg%3E%3C/td%3E%3C/table%3E%3C/foreignObject%3E%3C/g%3E%3Cg%3Equux%3C/g%3E%3C/svg%3E%3C/annotation-xml%3E%3C/math%3Ebar", "%23document%0A%7C%20%3C%21DOCTYPE%20html%3E%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%3Cp%3E%0A%7C%20%20%20%20%20%20%20%22foo%22%0A%7C%20%20%20%20%20%20%20%3Cmath%20math%3E%0A%7C%20%20%20%20%20%20%20%20%20%3Cmath%20mtext%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%3Ci%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%22baz%22%0A%7C%20%20%20%20%20%20%20%20%20%3Cmath%20annotation-xml%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%3Csvg%20svg%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%3Csvg%20desc%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%3Cb%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22eggs%22%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%3Csvg%20g%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%3Csvg%20foreignObject%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%3Cp%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22spam%22%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%3Ctable%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%3Ctbody%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%3Ctr%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%3Ctd%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%3Cimg%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%3Csvg%20g%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22quux%22%0A%7C%20%20%20%20%20%20%20%22bar%22"],"411c792cef85cbb029d5c91f4a2142751a319bc2":[async_test('html5lib_tests12.html 411c792cef85cbb029d5c91f4a2142751a319bc2'), "%3C%21DOCTYPE%20html%3E%3Cbody%3Efoo%3Cmath%3E%3Cmtext%3E%3Ci%3Ebaz%3C/i%3E%3C/mtext%3E%3Cannotation-xml%3E%3Csvg%3E%3Cdesc%3E%3Cb%3Eeggs%3C/b%3E%3C/desc%3E%3Cg%3E%3CforeignObject%3E%3CP%3Espam%3CTABLE%3E%3Ctr%3E%3Ctd%3E%3Cimg%3E%3C/td%3E%3C/table%3E%3C/foreignObject%3E%3C/g%3E%3Cg%3Equux%3C/g%3E%3C/svg%3E%3C/annotation-xml%3E%3C/math%3Ebar", "%23document%0A%7C%20%3C%21DOCTYPE%20html%3E%0A%7C%20%3Chtml%3E%0A%7C%20%20%20%3Chead%3E%0A%7C%20%20%20%3Cbody%3E%0A%7C%20%20%20%20%20%22foo%22%0A%7C%20%20%20%20%20%3Cmath%20math%3E%0A%7C%20%20%20%20%20%20%20%3Cmath%20mtext%3E%0A%7C%20%20%20%20%20%20%20%20%20%3Ci%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%22baz%22%0A%7C%20%20%20%20%20%20%20%3Cmath%20annotation-xml%3E%0A%7C%20%20%20%20%20%20%20%20%20%3Csvg%20svg%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%3Csvg%20desc%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%3Cb%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22eggs%22%0A%7C%20%20%20%20%20%20%20%20%20%20%20%3Csvg%20g%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%3Csvg%20foreignObject%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%3Cp%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22spam%22%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%3Ctable%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%3Ctbody%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%3Ctr%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%3Ctd%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%3Cimg%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%3Csvg%20g%3E%0A%7C%20%20%20%20%20%20%20%20%20%20%20%20%20%22quux%22%0A%7C%20%20%20%20%20%22bar%22"],
+      }
+      init_tests(get_type());
+    </script>
+  </body>
+</html>
