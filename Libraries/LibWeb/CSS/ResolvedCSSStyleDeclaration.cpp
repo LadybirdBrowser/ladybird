@@ -147,7 +147,7 @@ static RefPtr<CSSStyleValue const> style_value_for_shadow(Vector<ShadowData> con
 
     auto make_shadow_style_value = [](ShadowData const& shadow) {
         return ShadowStyleValue::create(
-            CSSColorValue::create_from_color(shadow.color),
+            CSSColorValue::create_from_color(shadow.color, ColorSyntax::Modern),
             style_value_for_length_percentage(shadow.offset_x),
             style_value_for_length_percentage(shadow.offset_y),
             style_value_for_length_percentage(shadow.blur_radius),
@@ -209,23 +209,23 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
         // -> A resolved value special case property like color defined in another specification
         //    The resolved value is the used value.
     case PropertyID::BackgroundColor:
-        return CSSColorValue::create_from_color(layout_node.computed_values().background_color());
+        return CSSColorValue::create_from_color(layout_node.computed_values().background_color(), ColorSyntax::Modern);
     case PropertyID::BorderBottomColor:
-        return CSSColorValue::create_from_color(layout_node.computed_values().border_bottom().color);
+        return CSSColorValue::create_from_color(layout_node.computed_values().border_bottom().color, ColorSyntax::Modern);
     case PropertyID::BorderLeftColor:
-        return CSSColorValue::create_from_color(layout_node.computed_values().border_left().color);
+        return CSSColorValue::create_from_color(layout_node.computed_values().border_left().color, ColorSyntax::Modern);
     case PropertyID::BorderRightColor:
-        return CSSColorValue::create_from_color(layout_node.computed_values().border_right().color);
+        return CSSColorValue::create_from_color(layout_node.computed_values().border_right().color, ColorSyntax::Modern);
     case PropertyID::BorderTopColor:
-        return CSSColorValue::create_from_color(layout_node.computed_values().border_top().color);
+        return CSSColorValue::create_from_color(layout_node.computed_values().border_top().color, ColorSyntax::Modern);
     case PropertyID::BoxShadow:
         return style_value_for_shadow(layout_node.computed_values().box_shadow());
     case PropertyID::Color:
-        return CSSColorValue::create_from_color(layout_node.computed_values().color());
+        return CSSColorValue::create_from_color(layout_node.computed_values().color(), ColorSyntax::Modern);
     case PropertyID::OutlineColor:
-        return CSSColorValue::create_from_color(layout_node.computed_values().outline_color());
+        return CSSColorValue::create_from_color(layout_node.computed_values().outline_color(), ColorSyntax::Modern);
     case PropertyID::TextDecorationColor:
-        return CSSColorValue::create_from_color(layout_node.computed_values().text_decoration_color());
+        return CSSColorValue::create_from_color(layout_node.computed_values().text_decoration_color(), ColorSyntax::Modern);
         // NOTE: text-shadow isn't listed, but is computed the same as box-shadow.
     case PropertyID::TextShadow:
         return style_value_for_shadow(layout_node.computed_values().text_shadow());
@@ -456,7 +456,7 @@ RefPtr<CSSStyleValue const> ResolvedCSSStyleDeclaration::style_value_for_propert
         //    The resolved value is the computed value.
         //    NOTE: This is handled inside the `default` case.
     case PropertyID::WebkitTextFillColor:
-        return CSSColorValue::create_from_color(layout_node.computed_values().webkit_text_fill_color());
+        return CSSColorValue::create_from_color(layout_node.computed_values().webkit_text_fill_color(), ColorSyntax::Modern);
     case PropertyID::Invalid:
         return CSSKeywordValue::create(Keyword::Invalid);
     case PropertyID::Custom:

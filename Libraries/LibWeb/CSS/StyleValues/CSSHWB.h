@@ -37,7 +37,7 @@ public:
 
 private:
     CSSHWB(ValueComparingNonnullRefPtr<CSSStyleValue> h, ValueComparingNonnullRefPtr<CSSStyleValue> w, ValueComparingNonnullRefPtr<CSSStyleValue> b, ValueComparingNonnullRefPtr<CSSStyleValue> alpha)
-        : CSSColorValue(ColorType::HWB)
+        : CSSColorValue(ColorType::HWB, ColorSyntax::Modern)
         , m_properties { .h = move(h), .w = move(w), .b = move(b), .alpha = move(alpha) }
     {
     }

@@ -27,30 +27,45 @@ String LinearGradientStyleValue::to_string(SerializationMode mode) const
         case SideOrCorner::Right:
             return "right"sv;
         case SideOrCorner::TopLeft:
-            return "top left"sv;
+            return "left top"sv;
         case SideOrCorner::TopRight:
-            return "top right"sv;
+            return "right top"sv;
         case SideOrCorner::BottomLeft:
-            return "bottom left"sv;
+            return "left bottom"sv;
         case SideOrCorner::BottomRight:
-            return "bottom right"sv;
+            return "right bottom"sv;
         default:
             VERIFY_NOT_REACHED();
         }
     };
+
+    auto default_direction = m_properties.gradient_type == GradientType::WebKit ? SideOrCorner::Top : SideOrCorner::Bottom;
+    bool has_direction = m_properties.direction != default_direction;
+    bool has_color_space = m_properties.interpolation_method.has_value() && m_properties.interpolation_method.value().color_space != InterpolationMethod::default_color_space(m_properties.color_syntax);
 
     if (m_properties.gradient_type == GradientType::WebKit)
         builder.append("-webkit-"sv);
     if (is_repeating())
         builder.append("repeating-"sv);
     builder.append("linear-gradient("sv);
-    m_properties.direction.visit(
-        [&](SideOrCorner side_or_corner) {
-            return builder.appendff("{}{}, "sv, m_properties.gradient_type == GradientType::Standard ? "to "sv : ""sv, side_or_corner_to_string(side_or_corner));
-        },
-        [&](Angle const& angle) {
-            return builder.appendff("{}, "sv, angle.to_string());
-        });
+    if (has_direction) {
+        m_properties.direction.visit(
+            [&](SideOrCorner side_or_corner) {
+                builder.appendff("{}{}"sv, m_properties.gradient_type == GradientType::Standard ? "to "sv : ""sv, side_or_corner_to_string(side_or_corner));
+            },
+            [&](Angle const& angle) {
+                builder.append(angle.to_string());
+            });
+
+        if (has_color_space)
+            builder.append(' ');
+    }
+
+    if (has_color_space)
+        builder.append(m_properties.interpolation_method.value().to_string());
+
+    if (has_direction || has_color_space)
+        builder.append(", "sv);
 
     serialize_color_stop_list(builder, m_properties.color_stop_list, mode);
     builder.append(")"sv);

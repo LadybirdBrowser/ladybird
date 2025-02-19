@@ -1198,7 +1198,7 @@ RefPtr<CSSStyleValue> Parser::parse_rgb_color_value(TokenStream<ComponentValue>&
         alpha = NumberStyleValue::create(1);
 
     transaction.commit();
-    return CSSRGB::create(red.release_nonnull(), green.release_nonnull(), blue.release_nonnull(), alpha.release_nonnull());
+    return CSSRGB::create(red.release_nonnull(), green.release_nonnull(), blue.release_nonnull(), alpha.release_nonnull(), legacy_syntax ? ColorSyntax::Legacy : ColorSyntax::Modern);
 }
 
 // https://www.w3.org/TR/css-color-4/#funcdef-hsl
@@ -1310,7 +1310,7 @@ RefPtr<CSSStyleValue> Parser::parse_hsl_color_value(TokenStream<ComponentValue>&
         alpha = NumberStyleValue::create(1);
 
     transaction.commit();
-    return CSSHSL::create(h.release_nonnull(), s.release_nonnull(), l.release_nonnull(), alpha.release_nonnull());
+    return CSSHSL::create(h.release_nonnull(), s.release_nonnull(), l.release_nonnull(), alpha.release_nonnull(), legacy_syntax ? ColorSyntax::Legacy : ColorSyntax::Modern);
 }
 
 // https://www.w3.org/TR/css-color-4/#funcdef-hwb
@@ -1687,7 +1687,7 @@ RefPtr<CSSStyleValue> Parser::parse_color_value(TokenStream<ComponentValue>& tok
         auto color = Color::from_string(ident);
         if (color.has_value()) {
             transaction.commit();
-            return CSSColorValue::create_from_color(color.release_value(), ident);
+            return CSSColorValue::create_from_color(color.release_value(), ColorSyntax::Legacy, ident);
         }
         // Otherwise, fall through to the hashless-hex-color case
     }
@@ -1696,7 +1696,7 @@ RefPtr<CSSStyleValue> Parser::parse_color_value(TokenStream<ComponentValue>& tok
         auto color = Color::from_string(MUST(String::formatted("#{}", component_value.token().hash_value())));
         if (color.has_value()) {
             transaction.commit();
-            return CSSColorValue::create_from_color(color.release_value());
+            return CSSColorValue::create_from_color(color.release_value(), ColorSyntax::Legacy);
         }
         return {};
     }
@@ -1782,7 +1782,7 @@ RefPtr<CSSStyleValue> Parser::parse_color_value(TokenStream<ComponentValue>& tok
             auto color = Color::from_string(MUST(String::formatted("#{}", serialization)));
             if (color.has_value()) {
                 transaction.commit();
-                return CSSColorValue::create_from_color(color.release_value());
+                return CSSColorValue::create_from_color(color.release_value(), ColorSyntax::Legacy);
             }
         }
     }

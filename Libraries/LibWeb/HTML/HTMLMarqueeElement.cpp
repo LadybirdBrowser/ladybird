@@ -51,7 +51,7 @@ void HTMLMarqueeElement::apply_presentational_hints(GC::Ref<CSS::CascadedPropert
             // https://html.spec.whatwg.org/multipage/rendering.html#the-marquee-element-2:rules-for-parsing-a-legacy-colour-value
             auto color = parse_legacy_color_value(value);
             if (color.has_value())
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundColor, CSS::CSSColorValue::create_from_color(color.value()));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundColor, CSS::CSSColorValue::create_from_color(color.value(), CSS::ColorSyntax::Legacy));
         } else if (name == HTML::AttributeNames::height) {
             // https://html.spec.whatwg.org/multipage/rendering.html#the-marquee-element-2:maps-to-the-dimension-property
             if (auto parsed_value = parse_dimension_value(value)) {

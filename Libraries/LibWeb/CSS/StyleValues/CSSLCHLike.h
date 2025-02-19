@@ -33,7 +33,7 @@ public:
 
 protected:
     CSSLCHLike(ColorType color_type, ValueComparingNonnullRefPtr<CSSStyleValue> l, ValueComparingNonnullRefPtr<CSSStyleValue> c, ValueComparingNonnullRefPtr<CSSStyleValue> h, ValueComparingNonnullRefPtr<CSSStyleValue> alpha)
-        : CSSColorValue(color_type)
+        : CSSColorValue(color_type, ColorSyntax::Modern)
         , m_properties { .l = move(l), .c = move(c), .h = move(h), .alpha = move(alpha) }
     {
     }

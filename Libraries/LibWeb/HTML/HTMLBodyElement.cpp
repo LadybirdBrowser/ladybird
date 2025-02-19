@@ -65,12 +65,12 @@ void HTMLBodyElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties
             // https://html.spec.whatwg.org/multipage/rendering.html#the-page:rules-for-parsing-a-legacy-colour-value
             auto color = parse_legacy_color_value(value);
             if (color.has_value())
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundColor, CSS::CSSColorValue::create_from_color(color.value()));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundColor, CSS::CSSColorValue::create_from_color(color.value(), CSS::ColorSyntax::Legacy));
         } else if (name.equals_ignoring_ascii_case("text"sv)) {
             // https://html.spec.whatwg.org/multipage/rendering.html#the-page:rules-for-parsing-a-legacy-colour-value-2
             auto color = parse_legacy_color_value(value);
             if (color.has_value())
-                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Color, CSS::CSSColorValue::create_from_color(color.value()));
+                cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::Color, CSS::CSSColorValue::create_from_color(color.value(), CSS::ColorSyntax::Legacy));
         } else if (name.equals_ignoring_ascii_case("background"sv)) {
             VERIFY(m_background_style_value);
             cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::BackgroundImage, *m_background_style_value);

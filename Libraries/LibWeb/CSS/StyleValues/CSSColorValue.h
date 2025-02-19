@@ -15,10 +15,15 @@
 
 namespace Web::CSS {
 
+enum class ColorSyntax : u8 {
+    Legacy,
+    Modern,
+};
+
 // https://drafts.css-houdini.org/css-typed-om-1/#csscolorvalue
 class CSSColorValue : public CSSStyleValue {
 public:
-    static ValueComparingNonnullRefPtr<CSSColorValue> create_from_color(Color color, Optional<FlyString> name = {});
+    static ValueComparingNonnullRefPtr<CSSColorValue> create_from_color(Color color, ColorSyntax color_syntax, Optional<FlyString> name = {});
     virtual ~CSSColorValue() override = default;
 
     virtual bool has_color() const override { return true; }
@@ -42,11 +47,13 @@ public:
         LightDark, // This is used by CSSLightDark for light-dark(..., ...).
     };
     ColorType color_type() const { return m_color_type; }
+    ColorSyntax color_syntax() const { return m_color_syntax; }
 
 protected:
-    explicit CSSColorValue(ColorType color_type)
+    explicit CSSColorValue(ColorType color_type, ColorSyntax color_syntax)
         : CSSStyleValue(Type::Color)
         , m_color_type(color_type)
+        , m_color_syntax(color_syntax)
     {
     }
 
@@ -55,6 +62,7 @@ protected:
     static Optional<double> resolve_alpha(CSSStyleValue const&);
 
     ColorType m_color_type;
+    ColorSyntax m_color_syntax;
 };
 
 }

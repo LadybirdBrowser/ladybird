@@ -26,7 +26,7 @@ public:
 
 private:
     CSSLightDark(ValueComparingNonnullRefPtr<CSSStyleValue> light, ValueComparingNonnullRefPtr<CSSStyleValue> dark)
-        : CSSColorValue(CSSColorValue::ColorType::LightDark)
+        : CSSColorValue(CSSColorValue::ColorType::LightDark, ColorSyntax::Modern)
         , m_properties { .light = move(light), .dark = move(dark) }
     {
     }
