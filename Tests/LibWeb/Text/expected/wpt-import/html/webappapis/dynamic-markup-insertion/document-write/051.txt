@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	document.write \r\n
+1 Pass
+Pass	document.write \r\n

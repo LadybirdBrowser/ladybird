@@ -1209,16 +1209,16 @@ void HTMLParser::parse_generic_raw_text_element(HTMLToken& token)
     m_insertion_mode = InsertionMode::Text;
 }
 
-static bool is_empty_text_node(DOM::Node const* node)
+static bool is_text_node(DOM::Node const* node)
 {
-    return node && node->is_text() && static_cast<DOM::Text const*>(node)->data().is_empty();
+    return node && node->is_text();
 }
 
 DOM::Text* HTMLParser::find_character_insertion_node()
 {
     auto adjusted_insertion_location = find_appropriate_place_for_inserting_node();
     if (adjusted_insertion_location.insert_before_sibling) {
-        if (is_empty_text_node(adjusted_insertion_location.insert_before_sibling->previous_sibling()))
+        if (is_text_node(adjusted_insertion_location.insert_before_sibling->previous_sibling()))
             return static_cast<DOM::Text*>(adjusted_insertion_location.insert_before_sibling->previous_sibling());
         auto new_text_node = realm().create<DOM::Text>(document(), String {});
         adjusted_insertion_location.parent->insert_before(*new_text_node, *adjusted_insertion_location.insert_before_sibling);
@@ -1226,7 +1226,7 @@ DOM::Text* HTMLParser::find_character_insertion_node()
     }
     if (adjusted_insertion_location.parent->is_document())
         return nullptr;
-    if (is_empty_text_node(adjusted_insertion_location.parent->last_child()))
+    if (is_text_node(adjusted_insertion_location.parent->last_child()))
         return static_cast<DOM::Text*>(adjusted_insertion_location.parent->last_child());
     auto new_text_node = realm().create<DOM::Text>(document(), String {});
     MUST(adjusted_insertion_location.parent->append_child(*new_text_node));
@@ -1237,7 +1237,10 @@ void HTMLParser::flush_character_insertions()
 {
     if (m_character_insertion_builder.is_empty())
         return;
-    m_character_insertion_node->set_data(MUST(m_character_insertion_builder.to_string()));
+    if (m_character_insertion_node->data().is_empty())
+        m_character_insertion_node->set_data(MUST(m_character_insertion_builder.to_string()));
+    else
+        (void)m_character_insertion_node->append_data(MUST(m_character_insertion_builder.to_string()));
     m_character_insertion_builder.clear();
 }
 
