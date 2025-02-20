@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "ConnectionFromClient.h"
+
 #include <RequestServer/WebSocketImplCurl.h>
 
 namespace RequestServer {
@@ -95,6 +97,12 @@ void WebSocketImplCurl::connect(WebSocket::ConnectionInfo const& info)
 
     set_option(CURLOPT_HTTPHEADER, curl_headers);
     m_curl_string_lists.append(curl_headers);
+
+    if (auto const& dns_info = info.dns_result(); dns_info.has_value()) {
+        auto* resolve_list = curl_slist_append(nullptr, build_curl_resolve_list(*dns_info, url.serialized_host(), url.port_or_default()).characters());
+        set_option(CURLOPT_RESOLVE, resolve_list);
+        m_curl_string_lists.append(resolve_list);
+    }
 
     CURLMcode const err = curl_multi_add_handle(m_multi_handle, m_easy_handle);
     VERIFY(err == CURLM_OK);

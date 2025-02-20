@@ -14,6 +14,7 @@
 #include <LibCore/Proxy.h>
 #include <LibCore/Socket.h>
 #include <LibRequests/NetworkErrorEnum.h>
+#include <LibRequests/WebSocket.h>
 #include <LibTLS/TLSv12.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWebSocket/ConnectionInfo.h>
@@ -71,6 +72,24 @@ static NonnullRefPtr<Resolver> default_resolver()
 
     s_resolver = resolver;
     return resolver;
+}
+
+ByteString build_curl_resolve_list(DNS::LookupResult const& dns_result, StringView host, u16 port)
+{
+    StringBuilder resolve_opt_builder;
+    resolve_opt_builder.appendff("{}:{}:", host, port);
+    auto first = true;
+    for (auto& addr : dns_result.cached_addresses()) {
+        auto formatted_address = addr.visit(
+            [&](IPv4Address const& ipv4) { return ipv4.to_byte_string(); },
+            [&](IPv6Address const& ipv6) { return MUST(ipv6.to_string()).to_byte_string(); });
+        if (!first)
+            resolve_opt_builder.append(',');
+        first = false;
+        resolve_opt_builder.append(formatted_address);
+    }
+
+    return resolve_opt_builder.to_byte_string();
 }
 
 struct ConnectionFromClient::ActiveRequest {
@@ -463,20 +482,7 @@ void ConnectionFromClient::start_request(i32 request_id, ByteString const& metho
             set_option(CURLOPT_HEADERFUNCTION, &on_header_received);
             set_option(CURLOPT_HEADERDATA, reinterpret_cast<void*>(request.ptr()));
 
-            StringBuilder resolve_opt_builder;
-            resolve_opt_builder.appendff("{}:{}:", host, url.port_or_default());
-            auto first = true;
-            for (auto& addr : dns_result->cached_addresses()) {
-                auto formatted_address = addr.visit(
-                    [&](IPv4Address const& ipv4) { return ipv4.to_byte_string(); },
-                    [&](IPv6Address const& ipv6) { return MUST(ipv6.to_string()).to_byte_string(); });
-                if (!first)
-                    resolve_opt_builder.append(',');
-                first = false;
-                resolve_opt_builder.append(formatted_address);
-            }
-
-            auto formatted_address = resolve_opt_builder.to_byte_string();
+            auto formatted_address = build_curl_resolve_list(*dns_result, host, url.port_or_default());
             if (curl_slist* resolve_list = curl_slist_append(nullptr, formatted_address.characters())) {
                 set_option(CURLOPT_RESOLVE, resolve_list);
                 request->curl_string_lists.append(resolve_list);
@@ -653,37 +659,56 @@ void ConnectionFromClient::ensure_connection(URL::URL const& url, ::RequestServe
 
 void ConnectionFromClient::websocket_connect(i64 websocket_id, URL::URL const& url, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderMap const& additional_request_headers)
 {
-    // FIXME: Use our DNS resolver to resolve the hostname
-    WebSocket::ConnectionInfo connection_info(url);
-    connection_info.set_origin(origin);
-    connection_info.set_protocols(protocols);
-    connection_info.set_extensions(extensions);
-    connection_info.set_headers(additional_request_headers);
+    auto host = url.serialized_host().to_byte_string();
 
-    if (!g_default_certificate_path.is_empty())
-        connection_info.set_root_certificates_path(g_default_certificate_path);
+    // Check if host has the bracket notation for IPV6 addresses and remove them
+    if (host.starts_with("["sv) && host.ends_with("]"sv))
+        host = host.substring(1, host.length() - 2);
 
-    auto impl = WebSocketImplCurl::create(m_curl_multi);
-    auto connection = WebSocket::WebSocket::create(move(connection_info), move(impl));
+    m_resolver->dns.lookup(host, DNS::Messages::Class::IN, { DNS::Messages::ResourceType::A, DNS::Messages::ResourceType::AAAA })
+        ->when_rejected([this, websocket_id](auto const& error) {
+            dbgln("WebSocketConnect: DNS lookup failed: {}", error);
+            async_websocket_errored(websocket_id, static_cast<i32>(Requests::WebSocket::Error::CouldNotEstablishConnection));
+        })
+        .when_resolved([this, websocket_id, host, url, origin, protocols, extensions, additional_request_headers](auto dns_result) {
+            if (dns_result->records().is_empty() || dns_result->cached_addresses().is_empty()) {
+                dbgln("WebSocketConnect: DNS lookup failed for '{}'", host);
+                async_websocket_errored(websocket_id, static_cast<i32>(Requests::WebSocket::Error::CouldNotEstablishConnection));
+                return;
+            }
 
-    connection->on_open = [this, websocket_id]() {
-        async_websocket_connected(websocket_id);
-    };
-    connection->on_message = [this, websocket_id](auto message) {
-        async_websocket_received(websocket_id, message.is_text(), message.data());
-    };
-    connection->on_error = [this, websocket_id](auto message) {
-        async_websocket_errored(websocket_id, (i32)message);
-    };
-    connection->on_close = [this, websocket_id](u16 code, ByteString reason, bool was_clean) {
-        async_websocket_closed(websocket_id, code, move(reason), was_clean);
-    };
-    connection->on_ready_state_change = [this, websocket_id](auto state) {
-        async_websocket_ready_state_changed(websocket_id, (u32)state);
-    };
+            WebSocket::ConnectionInfo connection_info(url);
+            connection_info.set_origin(origin);
+            connection_info.set_protocols(protocols);
+            connection_info.set_extensions(extensions);
+            connection_info.set_headers(additional_request_headers);
+            connection_info.set_dns_result(move(dns_result));
 
-    connection->start();
-    m_websockets.set(websocket_id, move(connection));
+            if (!g_default_certificate_path.is_empty())
+                connection_info.set_root_certificates_path(g_default_certificate_path);
+
+            auto impl = WebSocketImplCurl::create(m_curl_multi);
+            auto connection = WebSocket::WebSocket::create(move(connection_info), move(impl));
+
+            connection->on_open = [this, websocket_id]() {
+                async_websocket_connected(websocket_id);
+            };
+            connection->on_message = [this, websocket_id](auto message) {
+                async_websocket_received(websocket_id, message.is_text(), message.data());
+            };
+            connection->on_error = [this, websocket_id](auto message) {
+                async_websocket_errored(websocket_id, (i32)message);
+            };
+            connection->on_close = [this, websocket_id](u16 code, ByteString reason, bool was_clean) {
+                async_websocket_closed(websocket_id, code, move(reason), was_clean);
+            };
+            connection->on_ready_state_change = [this, websocket_id](auto state) {
+                async_websocket_ready_state_changed(websocket_id, (u32)state);
+            };
+
+            connection->start();
+            m_websockets.set(websocket_id, move(connection));
+        });
 }
 
 void ConnectionFromClient::websocket_send(i64 websocket_id, bool is_text, ByteBuffer const& data)

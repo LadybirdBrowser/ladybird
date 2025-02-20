@@ -77,6 +77,8 @@ private:
     NonnullRefPtr<Resolver> m_resolver;
 };
 
+// FIXME: Find a good home for this
+ByteString build_curl_resolve_list(DNS::LookupResult const&, StringView host, u16 port);
 constexpr inline uintptr_t websocket_private_tag = 0x1;
 
 }
