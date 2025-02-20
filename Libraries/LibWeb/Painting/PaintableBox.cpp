@@ -1213,6 +1213,8 @@ CSSPixelRect PaintableBox::transform_box_rect() const
 
 void PaintableBox::resolve_paint_properties()
 {
+    Base::resolve_paint_properties();
+
     auto const& computed_values = this->computed_values();
     auto const& layout_node = this->layout_node();
 
@@ -1315,7 +1317,7 @@ void PaintableBox::resolve_paint_properties()
 
 void PaintableWithLines::resolve_paint_properties()
 {
-    PaintableBox::resolve_paint_properties();
+    Base::resolve_paint_properties();
 
     auto const& layout_node = this->layout_node();
     for (auto const& fragment : fragments()) {
