@@ -1,0 +1,15 @@
+<script src="../include.js"></script>
+<table id="table"><td id="td"></td></table>
+<script>
+    function testCellpadding(value) {
+        table.setAttribute("cellpadding", value);
+        println(getComputedStyle(td).padding);
+    }
+
+    test(() => {
+        testCellpadding("1");
+        testCellpadding("5");
+        testCellpadding("0");
+        testCellpadding("-1");
+    });
+</script>

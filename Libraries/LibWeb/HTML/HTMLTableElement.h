@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2020-2025, Andreas Kling <andreas@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -48,7 +48,7 @@ public:
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::table; }
 
     unsigned border() const;
-    unsigned padding() const;
+    [[nodiscard]] Optional<u32> cellpadding() const;
 
 private:
     HTMLTableElement(DOM::Document&, DOM::QualifiedName);
@@ -64,7 +64,7 @@ private:
 
     GC::Ptr<DOM::HTMLCollection> mutable m_rows;
     GC::Ptr<DOM::HTMLCollection> mutable m_t_bodies;
-    unsigned m_padding { 1 };
+    Optional<u32> m_cellpadding;
 };
 
 }

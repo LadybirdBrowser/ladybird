@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020-2022, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2020-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -99,11 +99,11 @@ void HTMLTableCellElement::apply_presentational_hints(GC::Ref<CSS::CascadedPrope
     if (!table_element)
         return;
 
-    if (auto padding = table_element->padding()) {
-        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::PaddingTop, CSS::LengthStyleValue::create(CSS::Length::make_px(padding)));
-        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::PaddingBottom, CSS::LengthStyleValue::create(CSS::Length::make_px(padding)));
-        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::PaddingLeft, CSS::LengthStyleValue::create(CSS::Length::make_px(padding)));
-        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::PaddingRight, CSS::LengthStyleValue::create(CSS::Length::make_px(padding)));
+    if (auto padding = table_element->cellpadding(); padding.has_value()) {
+        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::PaddingTop, CSS::LengthStyleValue::create(CSS::Length::make_px(*padding)));
+        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::PaddingBottom, CSS::LengthStyleValue::create(CSS::Length::make_px(*padding)));
+        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::PaddingLeft, CSS::LengthStyleValue::create(CSS::Length::make_px(*padding)));
+        cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::PaddingRight, CSS::LengthStyleValue::create(CSS::Length::make_px(*padding)));
     }
 
     auto border = table_element->border();
