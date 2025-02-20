@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	e.style['cursor'] = "en-resize" should not set the property value
+Pass	e.style['cursor'] = "url(\"https://example.com/\") alias" should not set the property value
+Pass	e.style['cursor'] = "1 2 url(\"https://example.com/\"), copy" should not set the property value
+Pass	e.style['cursor'] = "url(\"https://example.com/\"), url(\"https://example.com/\") 3, move" should not set the property value
+Pass	e.style['cursor'] = "url(\"https://example.com/\") 1px 2px, copy" should not set the property value
+Pass	e.style['cursor'] = "url(\"https://example.com/\"), url(\"https://example.com/\") 3% 4%, move" should not set the property value

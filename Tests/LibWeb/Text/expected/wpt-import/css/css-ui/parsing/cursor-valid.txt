@@ -1,0 +1,48 @@
+Harness status: OK
+
+Found 42 tests
+
+36 Pass
+6 Fail
+Pass	e.style['cursor'] = "auto" should set the property value
+Pass	e.style['cursor'] = "default" should set the property value
+Pass	e.style['cursor'] = "none" should set the property value
+Pass	e.style['cursor'] = "context-menu" should set the property value
+Pass	e.style['cursor'] = "help" should set the property value
+Pass	e.style['cursor'] = "pointer" should set the property value
+Pass	e.style['cursor'] = "progress" should set the property value
+Pass	e.style['cursor'] = "wait" should set the property value
+Pass	e.style['cursor'] = "cell" should set the property value
+Pass	e.style['cursor'] = "crosshair" should set the property value
+Pass	e.style['cursor'] = "text" should set the property value
+Pass	e.style['cursor'] = "vertical-text" should set the property value
+Pass	e.style['cursor'] = "alias" should set the property value
+Pass	e.style['cursor'] = "copy" should set the property value
+Pass	e.style['cursor'] = "move" should set the property value
+Pass	e.style['cursor'] = "no-drop" should set the property value
+Pass	e.style['cursor'] = "not-allowed" should set the property value
+Pass	e.style['cursor'] = "grab" should set the property value
+Pass	e.style['cursor'] = "grabbing" should set the property value
+Pass	e.style['cursor'] = "e-resize" should set the property value
+Pass	e.style['cursor'] = "n-resize" should set the property value
+Pass	e.style['cursor'] = "ne-resize" should set the property value
+Pass	e.style['cursor'] = "nw-resize" should set the property value
+Pass	e.style['cursor'] = "s-resize" should set the property value
+Pass	e.style['cursor'] = "se-resize" should set the property value
+Pass	e.style['cursor'] = "sw-resize" should set the property value
+Pass	e.style['cursor'] = "w-resize" should set the property value
+Pass	e.style['cursor'] = "ew-resize" should set the property value
+Pass	e.style['cursor'] = "ns-resize" should set the property value
+Pass	e.style['cursor'] = "nesw-resize" should set the property value
+Pass	e.style['cursor'] = "nwse-resize" should set the property value
+Pass	e.style['cursor'] = "col-resize" should set the property value
+Pass	e.style['cursor'] = "row-resize" should set the property value
+Pass	e.style['cursor'] = "all-scroll" should set the property value
+Pass	e.style['cursor'] = "zoom-in" should set the property value
+Pass	e.style['cursor'] = "zoom-out" should set the property value
+Fail	e.style['cursor'] = "url(\"https://example.com/\"), alias" should set the property value
+Fail	e.style['cursor'] = "url(\"https://example.com/\") 1 calc(2 + 0), copy" should set the property value
+Fail	e.style['cursor'] = "url(\"https://example.com/\"), url(\"https://example.com/\") 3 -4, move" should set the property value
+Fail	e.style['cursor'] = "url(\"https://example.com/\") 5 6, grab" should set the property value
+Fail	e.style['cursor'] = "image-set(\"https://example.com/\" 1x) 5 6, grab" should set the property value
+Fail	e.style['cursor'] = "image-set(\"https://example.com/\" 1x, \"https://example.com/highres\" 2x) 5 6, grab" should set the property value
