@@ -27,11 +27,12 @@ public:
         pthread_mutexattr_init(&attr);
         pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
         pthread_mutex_init(&m_mutex, &attr);
+        pthread_mutexattr_destroy(&attr);
     }
     ~Mutex()
     {
         VERIFY(m_lock_count == 0);
-        // FIXME: pthread_mutex_destroy() is not implemented.
+        pthread_mutex_destroy(&m_mutex);
     }
 
     void lock();
