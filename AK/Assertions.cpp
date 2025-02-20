@@ -21,6 +21,9 @@
 
 #if defined(AK_HAS_BACKTRACE_HEADER)
 #    include <cxxabi.h>
+#elif defined(AK_HAS_STD_STACKTRACE)
+#    include <stacktrace>
+#    include <string>
 #endif
 
 #if defined(AK_OS_SERENITY)
@@ -77,6 +80,15 @@ ALWAYS_INLINE void dump_backtrace()
     free(syms);
 }
 }
+#elif defined(AK_HAS_STD_STACKTRACE)
+namespace {
+ALWAYS_INLINE void dump_backtrace()
+{
+    // We assume the stacktrace implementation demangles symbols, as does microsoft/STL
+    PRINT_ERROR(std::to_string(std::stacktrace::current()).c_str());
+    PRINT_ERROR("\n");
+}
+}
 #endif
 
 extern "C" {
@@ -94,7 +106,7 @@ bool ak_colorize_output(void)
 
 void ak_trap(void)
 {
-#if defined(AK_HAS_BACKTRACE_HEADER)
+#if defined(AK_HAS_BACKTRACE_HEADER) || defined(AK_HAS_STD_STACKTRACE)
     dump_backtrace();
 #endif
     __builtin_trap();

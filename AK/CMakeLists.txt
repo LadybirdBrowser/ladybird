@@ -59,7 +59,59 @@ if (Backtrace_FOUND)
         target_link_libraries(AK PRIVATE ${Backtrace_LIBRARIES})
     endif()
 else()
-    message(WARNING "Backtrace not found, stack traces will be unavailable")
+    include(CheckCXXSourceCompiles)
+    check_cxx_source_compiles("
+        #include <version>
+        #include <stacktrace>
+        #if !defined(__cpp_lib_stacktrace) || (__cpp_lib_stacktrace < 202011L)
+        #    error \"No std::stacktrace available\"
+        #endif
+        int main() {}"
+        HAVE_STD_STACKTRACE
+    )
+    if (HAVE_STD_STACKTRACE)
+        target_compile_definitions(AK PRIVATE AK_HAS_STD_STACKTRACE)
+    elseif(CMAKE_CXX_SIMULATE_ID STREQUAL GNU AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12.1)
+        #NOTE: Checking simulate ID to include clang on libstdc++ in the check
+        #NOTE: On godbolt it works since clang 19 with the same flags as gcc
+        if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 14.1) 
+            set(CMAKE_REQUIRED_LINK_OPTIONS "-lstdc++exp")
+            check_cxx_source_compiles("
+                #include <version>
+                #include <stacktrace>
+                #if !defined(__cpp_lib_stacktrace) || (__cpp_lib_stacktrace < 202011L)
+                #    error \"No std::stacktrace available\"
+                #endif
+                int main() {}"
+                HAVE_STD_STACKTRACE
+            )
+            if (HAVE_STD_STACKTRACE)
+                target_link_options(AK PRIVATE "-lstdc++exp")
+                target_compile_definitions(AK PRIVATE AK_HAS_STD_STACKTRACE)
+            else()
+                message(WARNING "Backtrace and <stacktrace> not found, stack traces will be unavailable")
+            endif()
+        else()
+            set(CMAKE_REQUIRED_LINK_OPTIONS "-lstdc++_libbacktrace")
+            check_cxx_source_compiles("
+                #include <version>
+                #include <stacktrace>
+                #if !defined(__cpp_lib_stacktrace) || (__cpp_lib_stacktrace < 202011L)
+                #    error \"No std::stacktrace available\"
+                #endif
+                int main() {}"
+                HAVE_STD_STACKTRACE
+            )
+            if (HAVE_STD_STACKTRACE)
+                target_link_options(AK PRIVATE "-lstdc++_libbacktrace")
+                target_compile_definitions(AK PRIVATE AK_HAS_STD_STACKTRACE)
+            else()
+                message(WARNING "Backtrace and <stacktrace> not found, stack traces will be unavailable")
+            endif()
+        endif()
+    else()
+        message(WARNING "Backtrace and <stacktrace> not found, stack traces will be unavailable")
+    endif() 
 endif()
 
 find_package(simdutf REQUIRED)
