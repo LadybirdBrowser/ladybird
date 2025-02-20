@@ -1726,8 +1726,6 @@ void Document::invalidate_style_of_elements_affected_by_has()
 void Document::invalidate_style_for_elements_affected_by_hover_change(Node& old_new_hovered_common_ancestor, GC::Ptr<Node> hovered_node)
 {
     auto const& hover_rules = style_computer().get_hover_rules();
-    if (hover_rules.is_empty())
-        return;
 
     auto& root = old_new_hovered_common_ancestor.root();
     auto shadow_root = is<ShadowRoot>(root) ? static_cast<ShadowRoot const*>(&root) : nullptr;
@@ -1761,14 +1759,20 @@ void Document::invalidate_style_for_elements_affected_by_hover_change(Node& old_
     };
 
     auto matches_different_set_of_hover_rules_after_hovered_element_change = [&](Element const& element) {
-        for (auto const& rule : hover_rules) {
-            bool before = does_rule_match_on_element(element, rule);
-            TemporaryChange change { m_hovered_node, hovered_node };
-            bool after = does_rule_match_on_element(element, rule);
-            if (before != after)
-                return true;
-        }
-        return false;
+        bool result = false;
+        hover_rules.for_each_matching_rules(element, {}, [&](auto& rules) {
+            for (auto& rule : rules) {
+                bool before = does_rule_match_on_element(element, rule);
+                TemporaryChange change { m_hovered_node, hovered_node };
+                bool after = does_rule_match_on_element(element, rule);
+                if (before != after) {
+                    result = true;
+                    return IterationDecision::Break;
+                }
+            }
+            return IterationDecision::Continue;
+        });
+        return result;
     };
 
     Function<void(Node&)> invalidate_hovered_elements_recursively = [&](Node& node) -> void {

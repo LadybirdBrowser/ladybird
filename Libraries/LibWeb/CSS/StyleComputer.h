@@ -161,7 +161,7 @@ public:
     [[nodiscard]] GC::Ref<ComputedProperties> compute_style(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type> = {}) const;
     [[nodiscard]] GC::Ptr<ComputedProperties> compute_pseudo_element_style_if_needed(DOM::Element&, Optional<CSS::Selector::PseudoElement::Type>) const;
 
-    Vector<MatchingRule> const& get_hover_rules() const;
+    RuleCache const& get_hover_rules() const;
     [[nodiscard]] Vector<MatchingRule const*> collect_matching_rules(DOM::Element const&, CascadeOrigin, Optional<CSS::Selector::PseudoElement::Type>, bool& did_match_any_hover_rules, FlyString const& qualified_layer_name = {}) const;
 
     InvalidationSet invalidation_set_for_properties(Vector<InvalidationSet::Property> const&) const;
@@ -284,14 +284,14 @@ private:
         HashMap<GC::Ref<DOM::ShadowRoot const>, NonnullOwnPtr<RuleCaches>> for_shadow_roots;
     };
 
-    void make_rule_cache_for_cascade_origin(CascadeOrigin, SelectorInsights&, Vector<MatchingRule>& hover_rules);
+    void make_rule_cache_for_cascade_origin(CascadeOrigin, SelectorInsights&);
 
     [[nodiscard]] RuleCache const* rule_cache_for_cascade_origin(CascadeOrigin, FlyString const& qualified_layer_name, GC::Ptr<DOM::ShadowRoot const>) const;
 
     static void collect_selector_insights(Selector const&, SelectorInsights&);
 
     OwnPtr<SelectorInsights> m_selector_insights;
-    Vector<MatchingRule> m_hover_rules;
+    OwnPtr<RuleCache> m_hover_rule_cache;
     OwnPtr<StyleInvalidationData> m_style_invalidation_data;
     OwnPtr<RuleCachesForDocumentAndShadowRoots> m_author_rule_cache;
     OwnPtr<RuleCachesForDocumentAndShadowRoots> m_user_rule_cache;
