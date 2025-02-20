@@ -1311,6 +1311,12 @@ bool Node::is_editable() const
     if (!parent() || !parent()->is_editable_or_editing_host())
         return false;
 
+    // https://html.spec.whatwg.org/multipage/interaction.html#inert-subtrees
+    // When a node is inert:
+    // - If it is editable, the node behaves as if it were non-editable.
+    if (is_inert())
+        return false;
+
     // and either it is an HTML element,
     if (is<HTML::HTMLElement>(this))
         return true;
@@ -2108,6 +2114,17 @@ bool Node::is_default_namespace(Optional<String> namespace_) const
 
     // 3. Return true if defaultNamespace is the same as namespace; otherwise false.
     return default_namespace == namespace_;
+}
+
+bool Node::is_inert() const
+{
+    if (auto* html_element = as_if<HTML::HTMLElement>(*this))
+        return html_element->is_inert();
+
+    if (auto* enclosing_html_element = this->enclosing_html_element())
+        return enclosing_html_element->is_inert();
+
+    return false;
 }
 
 // https://dom.spec.whatwg.org/#in-a-document-tree
