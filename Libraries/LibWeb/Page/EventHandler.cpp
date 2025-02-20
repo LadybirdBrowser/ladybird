@@ -83,65 +83,72 @@ static bool parent_element_for_event_dispatch(Painting::Paintable& paintable, GC
     return node && layout_node;
 }
 
-static Gfx::StandardCursor cursor_css_to_gfx(CSS::Cursor cursor)
+static Gfx::Cursor cursor_css_to_gfx(Painting::ResolvedCursorData const& cursor_data, Gfx::StandardCursor auto_cursor)
 {
-    switch (cursor) {
-    case CSS::Cursor::Crosshair:
-    case CSS::Cursor::Cell:
-        return Gfx::StandardCursor::Crosshair;
-    case CSS::Cursor::Grab:
-    case CSS::Cursor::Grabbing:
-        return Gfx::StandardCursor::Drag;
-    case CSS::Cursor::Pointer:
-        return Gfx::StandardCursor::Hand;
-    case CSS::Cursor::Help:
-        return Gfx::StandardCursor::Help;
-    case CSS::Cursor::None:
-        return Gfx::StandardCursor::Hidden;
-    case CSS::Cursor::NotAllowed:
-        return Gfx::StandardCursor::Disallowed;
-    case CSS::Cursor::Text:
-    case CSS::Cursor::VerticalText:
-        return Gfx::StandardCursor::IBeam;
-    case CSS::Cursor::Move:
-    case CSS::Cursor::AllScroll:
-        return Gfx::StandardCursor::Move;
-    case CSS::Cursor::Progress:
-    case CSS::Cursor::Wait:
-        return Gfx::StandardCursor::Wait;
-    case CSS::Cursor::ColResize:
-        return Gfx::StandardCursor::ResizeColumn;
-    case CSS::Cursor::EResize:
-    case CSS::Cursor::WResize:
-    case CSS::Cursor::EwResize:
-        return Gfx::StandardCursor::ResizeHorizontal;
-    case CSS::Cursor::RowResize:
-        return Gfx::StandardCursor::ResizeRow;
-    case CSS::Cursor::NResize:
-    case CSS::Cursor::SResize:
-    case CSS::Cursor::NsResize:
-        return Gfx::StandardCursor::ResizeVertical;
-    case CSS::Cursor::NeResize:
-    case CSS::Cursor::SwResize:
-    case CSS::Cursor::NeswResize:
-        return Gfx::StandardCursor::ResizeDiagonalBLTR;
-    case CSS::Cursor::NwResize:
-    case CSS::Cursor::SeResize:
-    case CSS::Cursor::NwseResize:
-        return Gfx::StandardCursor::ResizeDiagonalTLBR;
-    case CSS::Cursor::ZoomIn:
-    case CSS::Cursor::ZoomOut:
-        return Gfx::StandardCursor::Zoom;
-    case CSS::Cursor::ContextMenu:
-    case CSS::Cursor::Alias:
-    case CSS::Cursor::Copy:
-    case CSS::Cursor::NoDrop:
-        // FIXME: No corresponding GFX Standard Cursor, fallthrough to None
-    case CSS::Cursor::Auto:
-    case CSS::Cursor::Default:
-    default:
-        return Gfx::StandardCursor::None;
-    }
+    return cursor_data.visit(
+        [auto_cursor](CSS::Cursor css_cursor) -> Gfx::Cursor {
+            switch (css_cursor) {
+            case CSS::Cursor::Crosshair:
+            case CSS::Cursor::Cell:
+                return Gfx::StandardCursor::Crosshair;
+            case CSS::Cursor::Grab:
+            case CSS::Cursor::Grabbing:
+                return Gfx::StandardCursor::Drag;
+            case CSS::Cursor::Pointer:
+                return Gfx::StandardCursor::Hand;
+            case CSS::Cursor::Help:
+                return Gfx::StandardCursor::Help;
+            case CSS::Cursor::None:
+                return Gfx::StandardCursor::Hidden;
+            case CSS::Cursor::NotAllowed:
+                return Gfx::StandardCursor::Disallowed;
+            case CSS::Cursor::Text:
+            case CSS::Cursor::VerticalText:
+                return Gfx::StandardCursor::IBeam;
+            case CSS::Cursor::Move:
+            case CSS::Cursor::AllScroll:
+                return Gfx::StandardCursor::Move;
+            case CSS::Cursor::Progress:
+            case CSS::Cursor::Wait:
+                return Gfx::StandardCursor::Wait;
+            case CSS::Cursor::ColResize:
+                return Gfx::StandardCursor::ResizeColumn;
+            case CSS::Cursor::EResize:
+            case CSS::Cursor::WResize:
+            case CSS::Cursor::EwResize:
+                return Gfx::StandardCursor::ResizeHorizontal;
+            case CSS::Cursor::RowResize:
+                return Gfx::StandardCursor::ResizeRow;
+            case CSS::Cursor::NResize:
+            case CSS::Cursor::SResize:
+            case CSS::Cursor::NsResize:
+                return Gfx::StandardCursor::ResizeVertical;
+            case CSS::Cursor::NeResize:
+            case CSS::Cursor::SwResize:
+            case CSS::Cursor::NeswResize:
+                return Gfx::StandardCursor::ResizeDiagonalBLTR;
+            case CSS::Cursor::NwResize:
+            case CSS::Cursor::SeResize:
+            case CSS::Cursor::NwseResize:
+                return Gfx::StandardCursor::ResizeDiagonalTLBR;
+            case CSS::Cursor::ZoomIn:
+            case CSS::Cursor::ZoomOut:
+                return Gfx::StandardCursor::Zoom;
+            case CSS::Cursor::Auto:
+                return auto_cursor;
+            case CSS::Cursor::ContextMenu:
+            case CSS::Cursor::Alias:
+            case CSS::Cursor::Copy:
+            case CSS::Cursor::NoDrop:
+                // FIXME: No corresponding GFX Standard Cursor, fallthrough to None
+            case CSS::Cursor::Default:
+            default:
+                return Gfx::StandardCursor::None;
+            }
+        },
+        [](Gfx::ImageCursor const& image_cursor) -> Gfx::Cursor {
+            return image_cursor;
+        });
 }
 
 // https://drafts.csswg.org/cssom-view/#dom-mouseevent-offsetx
@@ -692,7 +699,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSP
 
     bool hovered_node_changed = false;
     bool is_hovering_link = false;
-    Gfx::StandardCursor hovered_node_cursor = Gfx::StandardCursor::None;
+    Gfx::Cursor hovered_node_cursor = Gfx::StandardCursor::None;
 
     GC::Ptr<Painting::Paintable> paintable;
     Optional<int> start_index;
@@ -721,7 +728,7 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSP
             return EventResult::Dropped;
         }
 
-        auto const cursor = paintable->computed_values().cursor();
+        auto const cursor_data = paintable->closest_cursor();
         auto pointer_events = paintable->computed_values().pointer_events();
         // FIXME: Handle other values for pointer-events.
         VERIFY(pointer_events != CSS::PointerEvents::None);
@@ -739,15 +746,9 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint viewport_position, CSSP
                 is_hovering_link = true;
 
             if (paintable->layout_node().is_text_node()) {
-                if (cursor == CSS::Cursor::Auto)
-                    hovered_node_cursor = Gfx::StandardCursor::IBeam;
-                else
-                    hovered_node_cursor = cursor_css_to_gfx(cursor);
+                hovered_node_cursor = cursor_css_to_gfx(cursor_data, Gfx::StandardCursor::IBeam);
             } else if (node->is_element()) {
-                if (cursor == CSS::Cursor::Auto)
-                    hovered_node_cursor = Gfx::StandardCursor::Arrow;
-                else
-                    hovered_node_cursor = cursor_css_to_gfx(cursor);
+                hovered_node_cursor = cursor_css_to_gfx(cursor_data, Gfx::StandardCursor::Arrow);
             }
 
             auto page_offset = compute_mouse_event_page_offset(viewport_position);

@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/NonnullOwnPtr.h>
 #include <LibGC/Root.h>
+#include <LibGfx/Cursor.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/LineBox.h>
 #include <LibWeb/TraversalDecision.h>
@@ -46,6 +46,9 @@ enum class HitTestType {
     Exact,      // Exact matches only
     TextCursor, // Clicking past the right/bottom edge of text will still hit the text
 };
+
+// We can't simply use Gfx::Cursor because we can't resolve the `auto` cursor keyword until the EventHandler.
+using ResolvedCursorData = Variant<Gfx::ImageCursor, CSS::Cursor>;
 
 class Paintable
     : public JS::Cell
@@ -144,6 +147,8 @@ public:
     Gfx::AffineTransform compute_combined_css_transform() const;
 
     virtual void resolve_paint_properties() { }
+
+    ResolvedCursorData const& closest_cursor() const;
 
     virtual void finalize() override
     {

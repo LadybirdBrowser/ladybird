@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2022-2023, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2022-2023, Sam Atkins <atkinssj@serenityos.org>
+ * Copyright (c) 2022-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  * Copyright (c) 2025, Jelle Raaijmakers <jelle@ladybird.org>
  *
@@ -10,6 +10,7 @@
 #include <AK/GenericShorthands.h>
 #include <LibGfx/Font/ScaledFont.h>
 #include <LibUnicode/CharacterTypes.h>
+#include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Position.h>
@@ -19,6 +20,7 @@
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Painting/BackgroundPainting.h>
+#include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/SVGPaintable.h>
 #include <LibWeb/Painting/SVGSVGPaintable.h>
@@ -1211,6 +1213,82 @@ CSSPixelRect PaintableBox::transform_box_rect() const
     VERIFY_NOT_REACHED();
 }
 
+static Optional<ResolvedCursorData> to_image_cursor(CSS::CursorStyleValue const& cursor_style_value, Layout::NodeWithStyle const& layout_node)
+{
+    auto const& image = *cursor_style_value.image();
+    if (!image.is_paintable()) {
+        const_cast<CSS::AbstractImageStyleValue&>(image).load_any_resources(const_cast<DOM::Document&>(layout_node.document()));
+        return OptionalNone {};
+    }
+
+    auto const& document = layout_node.document();
+
+    // Determine the size of the cursor.
+    // "The default object size for cursor images is a UA-defined size that should be based on the size of a
+    // typical cursor on the UA’s operating system.
+    // The concrete object size is determined using the default sizing algorithm. If an operating system is
+    // incapable of rendering a cursor above a given size, cursors larger than that size must be shrunk to
+    // within the OS-supported size bounds, while maintaining the cursor image’s natural aspect ratio, if any."
+    // https://drafts.csswg.org/css-ui-3/#cursor
+
+    // 32x32 is selected arbitrarily.
+    // FIXME: Ask the OS for the default size?
+    CSSPixelSize const default_cursor_size { 32, 32 };
+    auto cursor_css_size = CSS::run_default_sizing_algorithm({}, {}, image.natural_width(), image.natural_height(), image.natural_aspect_ratio(), default_cursor_size);
+    // FIXME: How do we determine what cursor sizes the OS allows?
+    // We don't multiply by the pixel ratio, because we want to use the image's actual pixel size.
+    DevicePixelSize cursor_device_size { cursor_css_size.to_type<double>().to_rounded<int>() };
+
+    // Paint the cursor into a bitmap.
+    // FIXME: Cache the bitmap somewhere.
+    auto display_list = DisplayList::create();
+    DisplayListRecorder display_list_recorder(display_list);
+    PaintContext paint_context { display_list_recorder, document.page().palette(), document.page().client().device_pixels_per_css_pixel() };
+
+    image.resolve_for_size(layout_node, cursor_css_size);
+    image.paint(paint_context, DevicePixelRect { { 0, 0 }, cursor_device_size }, CSS::ImageRendering::Auto);
+
+    auto maybe_bitmap = Gfx::Bitmap::create_shareable(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, cursor_device_size.to_type<int>());
+    if (maybe_bitmap.is_error()) {
+        dbgln("Failed to create cursor bitmap: {}", maybe_bitmap.error());
+        return {};
+    }
+    auto bitmap = maybe_bitmap.release_value();
+
+    switch (document.page().client().display_list_player_type()) {
+    case DisplayListPlayerType::SkiaGPUIfAvailable:
+    case DisplayListPlayerType::SkiaCPU: {
+        auto painting_surface = Gfx::PaintingSurface::wrap_bitmap(bitmap);
+        DisplayListPlayerSkia display_list_player;
+        display_list_player.set_surface(painting_surface);
+        display_list_player.execute(*display_list);
+        break;
+    }
+    }
+
+    // "If the values are unspecified, then the natural hotspot defined inside the image resource itself is used.
+    // If both the values are unspecific and the referenced cursor has no defined hotspot, the effect is as if a
+    // value of "0 0" were specified."
+    // FIXME: Make use of embedded hotspots.
+    Gfx::IntPoint hotspot = { 0, 0 };
+    if (cursor_style_value.x().has_value() && cursor_style_value.y().has_value()) {
+        VERIFY(document.window());
+        CSS::CalculationResolutionContext const calculation_resolution_context {
+            .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(layout_node)
+        };
+        auto x = cursor_style_value.x()->resolved(calculation_resolution_context);
+        auto y = cursor_style_value.y()->resolved(calculation_resolution_context);
+        if (x.has_value() && y.has_value()) {
+            hotspot = { x.release_value(), y.release_value() };
+        }
+    }
+
+    return Gfx::ImageCursor {
+        .bitmap = bitmap->to_shareable_bitmap(),
+        .hotspot = hotspot
+    };
+}
+
 void PaintableBox::resolve_paint_properties()
 {
     Base::resolve_paint_properties();
@@ -1313,6 +1391,22 @@ void PaintableBox::resolve_paint_properties()
     if (auto mask_image = computed_values.mask_image()) {
         mask_image->resolve_for_size(layout_node_with_style_and_box_metrics(), absolute_padding_box_rect().size());
     }
+
+    // Return the first available cursor.
+    auto cursors = computed_values.cursor();
+    Optional<ResolvedCursorData> resolved_cursor;
+    for (auto const& cursor : cursors) {
+        resolved_cursor = cursor.visit(
+            [this](NonnullRefPtr<CSS::CursorStyleValue> const& cursor_style_value) -> Optional<ResolvedCursorData> {
+                return to_image_cursor(cursor_style_value, layout_node_with_style_and_box_metrics());
+            },
+            [](CSS::Cursor cursor_keyword) -> Optional<ResolvedCursorData> {
+                return cursor_keyword;
+            });
+        if (resolved_cursor.has_value())
+            break;
+    }
+    set_cursor(resolved_cursor.value_or(CSS::Cursor::Auto));
 }
 
 void PaintableWithLines::resolve_paint_properties()

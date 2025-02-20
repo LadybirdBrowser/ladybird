@@ -450,7 +450,15 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
         if (self == nil) {
             return;
         }
-        if (cursor == Gfx::StandardCursor::Hidden) {
+        if (!cursor.template has<Gfx::StandardCursor>()) {
+            // FIXME: Implement image cursors in AppKit.
+            [[NSCursor arrowCursor] set];
+            return;
+        }
+
+        auto standard_cursor = cursor.template get<Gfx::StandardCursor>();
+
+        if (standard_cursor == Gfx::StandardCursor::Hidden) {
             if (!m_hidden_cursor.has_value()) {
                 m_hidden_cursor.emplace();
             }
@@ -460,7 +468,7 @@ static void copy_data_to_clipboard(StringView data, NSPasteboardType pasteboard_
 
         m_hidden_cursor.clear();
 
-        switch (cursor) {
+        switch (standard_cursor) {
         case Gfx::StandardCursor::Arrow:
             [[NSCursor arrowCursor] set];
             break;

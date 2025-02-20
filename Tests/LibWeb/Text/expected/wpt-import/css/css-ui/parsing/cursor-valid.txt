@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 42 tests
 
-36 Pass
-6 Fail
+40 Pass
+2 Fail
 Pass	e.style['cursor'] = "auto" should set the property value
 Pass	e.style['cursor'] = "default" should set the property value
 Pass	e.style['cursor'] = "none" should set the property value
@@ -40,9 +40,9 @@ Pass	e.style['cursor'] = "row-resize" should set the property value
 Pass	e.style['cursor'] = "all-scroll" should set the property value
 Pass	e.style['cursor'] = "zoom-in" should set the property value
 Pass	e.style['cursor'] = "zoom-out" should set the property value
-Fail	e.style['cursor'] = "url(\"https://example.com/\"), alias" should set the property value
-Fail	e.style['cursor'] = "url(\"https://example.com/\") 1 calc(2 + 0), copy" should set the property value
-Fail	e.style['cursor'] = "url(\"https://example.com/\"), url(\"https://example.com/\") 3 -4, move" should set the property value
-Fail	e.style['cursor'] = "url(\"https://example.com/\") 5 6, grab" should set the property value
+Pass	e.style['cursor'] = "url(\"https://example.com/\"), alias" should set the property value
+Pass	e.style['cursor'] = "url(\"https://example.com/\") 1 calc(2 + 0), copy" should set the property value
+Pass	e.style['cursor'] = "url(\"https://example.com/\"), url(\"https://example.com/\") 3 -4, move" should set the property value
+Pass	e.style['cursor'] = "url(\"https://example.com/\") 5 6, grab" should set the property value
 Fail	e.style['cursor'] = "image-set(\"https://example.com/\" 1x) 5 6, grab" should set the property value
 Fail	e.style['cursor'] = "image-set(\"https://example.com/\" 1x, \"https://example.com/highres\" 2x) 5 6, grab" should set the property value

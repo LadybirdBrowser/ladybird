@@ -100,7 +100,7 @@ private:
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const override;
 
     void update_viewport_size();
-    void update_cursor(Gfx::StandardCursor cursor);
+    void update_cursor(Gfx::Cursor cursor);
 
     void enqueue_native_event(Web::MouseEvent::Type, QSinglePointEvent const& event);
 

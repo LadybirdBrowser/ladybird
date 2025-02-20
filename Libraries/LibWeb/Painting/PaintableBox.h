@@ -242,6 +242,9 @@ public:
     void set_used_values_for_grid_template_rows(RefPtr<CSS::GridTrackSizeListStyleValue> style_value) { m_used_values_for_grid_template_rows = move(style_value); }
     RefPtr<CSS::GridTrackSizeListStyleValue> const& used_values_for_grid_template_rows() const { return m_used_values_for_grid_template_rows; }
 
+    void set_cursor(ResolvedCursorData cursor) { m_cursor = move(cursor); }
+    ResolvedCursorData const& cursor() const { return m_cursor; }
+
 protected:
     explicit PaintableBox(Layout::Box const&);
     explicit PaintableBox(Layout::InlineNode const&);
@@ -303,6 +306,8 @@ private:
     Optional<ScrollDirection> m_scroll_thumb_dragging_direction;
 
     ResolvedBackground m_resolved_background;
+
+    ResolvedCursorData m_cursor { CSS::Cursor::Auto };
 
     OwnPtr<StickyInsets> m_sticky_insets;
 

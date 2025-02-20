@@ -1,11 +1,11 @@
 /*
  * Copyright (c) 2022-2023, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/StackingContext.h>
@@ -246,6 +246,16 @@ Painting::BorderRadiiData normalize_border_radii_data(Layout::Node const& node, 
     }
 
     return Painting::BorderRadiiData { top_left_radius_px, top_right_radius_px, bottom_right_radius_px, bottom_left_radius_px };
+}
+
+ResolvedCursorData const& Paintable::closest_cursor() const
+{
+    for (auto* paintable = this; paintable; paintable = paintable->parent()) {
+        if (paintable->is_paintable_box())
+            return static_cast<PaintableBox const&>(*paintable).cursor();
+    }
+
+    VERIFY_NOT_REACHED();
 }
 
 }
