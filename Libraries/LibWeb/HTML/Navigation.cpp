@@ -1126,7 +1126,14 @@ bool Navigation::inner_navigate_event_firing_algorithm(
             auto history_handling = navigation_type == Bindings::NavigationType::Push ? HistoryHandlingBehavior::Push : HistoryHandlingBehavior::Replace;
             perform_url_and_history_update_steps(document, event->destination()->raw_url(), event->classic_history_api_state(), history_handling);
         }
-        // Big spec note about reload here
+
+        // 8. Otherwise, if navigationType is "reload", then update the navigation API entries for a same-document navigation
+        //    given navigation, navigable's active session history entry, and "reload".
+        // NOTE: If navigationType is "traverse", then this event firing is happening as part of the traversal process, and
+        //       that process will take care of performing the appropriate session history entry updates.
+        if (navigation_type == Bindings::NavigationType::Reload) {
+            update_the_navigation_api_entries_for_a_same_document_navigation(*navigable->active_session_history_entry(), Bindings::NavigationType::Reload);
+        }
     }
 
     // 34. If endResultIsSameDocument is true:
