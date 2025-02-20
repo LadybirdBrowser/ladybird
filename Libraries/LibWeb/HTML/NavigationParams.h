@@ -60,7 +60,7 @@ struct NavigationParams : JS::Cell {
     URL::Origin origin;
 
     // a policy container to use for the new Document
-    PolicyContainer policy_container;
+    GC::Ptr<PolicyContainer> policy_container;
 
     // a sandboxing flag set to impose on the new Document
     SandboxingFlagSet final_sandboxing_flag_set = {};
@@ -110,5 +110,5 @@ struct NonFetchSchemeNavigationParams : JS::Cell {
     void visit_edges(Visitor& visitor) override;
 };
 
-bool check_a_navigation_responses_adherence_to_x_frame_options(GC::Ptr<Fetch::Infrastructure::Response> response, Navigable* navigable, URL::Origin destination_origin);
+bool check_a_navigation_responses_adherence_to_x_frame_options(GC::Ptr<Fetch::Infrastructure::Response> response, Navigable* navigable, GC::Ref<ContentSecurityPolicy::PolicyList const> csp_list, URL::Origin destination_origin);
 }

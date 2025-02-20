@@ -60,7 +60,7 @@ public:
         Applied,
     };
 
-    HistoryStepResult apply_the_traverse_history_step(int, Optional<SourceSnapshotParams>, GC::Ptr<Navigable>, UserNavigationInvolvement);
+    HistoryStepResult apply_the_traverse_history_step(int, GC::Ptr<SourceSnapshotParams>, GC::Ptr<Navigable>, UserNavigationInvolvement);
     HistoryStepResult apply_the_reload_history_step(UserNavigationInvolvement);
     enum class SynchronousNavigation : bool {
         Yes,
@@ -76,7 +76,7 @@ public:
 
     Vector<int> get_all_used_history_steps() const;
     void clear_the_forward_session_history();
-    void traverse_the_history_by_delta(int delta, Optional<DOM::Document&> source_document = {});
+    void traverse_the_history_by_delta(int delta, GC::Ptr<DOM::Document> source_document = {});
 
     void close_top_level_traversable();
     void definitely_close_top_level_traversable();
@@ -125,7 +125,7 @@ private:
     HistoryStepResult apply_the_history_step(
         int step,
         bool check_for_cancelation,
-        Optional<SourceSnapshotParams>,
+        GC::Ptr<SourceSnapshotParams>,
         GC::Ptr<Navigable> initiator_to_check,
         UserNavigationInvolvement user_involvement,
         Optional<Bindings::NavigationType> navigation_type,

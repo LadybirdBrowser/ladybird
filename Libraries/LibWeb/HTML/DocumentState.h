@@ -40,8 +40,8 @@ public:
     [[nodiscard]] GC::Ptr<DOM::Document> document() const { return m_document; }
     void set_document(GC::Ptr<DOM::Document> document) { m_document = document; }
 
-    [[nodiscard]] Variant<PolicyContainer, Client> history_policy_container() const { return m_history_policy_container; }
-    void set_history_policy_container(Variant<PolicyContainer, Client> history_policy_container) { m_history_policy_container = move(history_policy_container); }
+    [[nodiscard]] Variant<GC::Ref<PolicyContainer>, Client> history_policy_container() const { return m_history_policy_container; }
+    void set_history_policy_container(Variant<GC::Ref<PolicyContainer>, Client> history_policy_container) { m_history_policy_container = move(history_policy_container); }
 
     [[nodiscard]] Fetch::Infrastructure::Request::ReferrerType request_referrer() const { return m_request_referrer; }
     void set_request_referrer(Fetch::Infrastructure::Request::ReferrerType request_referrer) { m_request_referrer = move(request_referrer); }
@@ -82,7 +82,7 @@ private:
     GC::Ptr<DOM::Document> m_document;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-history-policy-container
-    Variant<PolicyContainer, Client> m_history_policy_container { Client::Tag };
+    Variant<GC::Ref<PolicyContainer>, Client> m_history_policy_container { Client::Tag };
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-request-referrer
     Fetch::Infrastructure::Request::ReferrerType m_request_referrer { Fetch::Infrastructure::Request::Referrer::Client };

@@ -18,7 +18,7 @@ public:
     [[nodiscard]] GC::Ref<DOMStringMap> dataset();
 
     // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#dom-noncedelement-nonce
-    String const& nonce() { return m_cryptographic_nonce; }
+    String const& nonce() const { return m_cryptographic_nonce; }
     void set_nonce(String const& nonce) { m_cryptographic_nonce = nonce; }
 
     void focus();

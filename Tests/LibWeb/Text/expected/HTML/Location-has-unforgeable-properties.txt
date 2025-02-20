@@ -1,0 +1,156 @@
+href exists on location itself: true
+href does not exist on LocationPrototype: true
+href descriptor is not undefined: true
+href enumerable: true
+href configurable: true
+href writable: undefined
+origin exists on location itself: true
+origin does not exist on LocationPrototype: true
+origin descriptor is not undefined: true
+origin enumerable: true
+origin configurable: true
+origin writable: undefined
+protocol exists on location itself: true
+protocol does not exist on LocationPrototype: true
+protocol descriptor is not undefined: true
+protocol enumerable: true
+protocol configurable: true
+protocol writable: undefined
+host exists on location itself: true
+host does not exist on LocationPrototype: true
+host descriptor is not undefined: true
+host enumerable: true
+host configurable: true
+host writable: undefined
+hostname exists on location itself: true
+hostname does not exist on LocationPrototype: true
+hostname descriptor is not undefined: true
+hostname enumerable: true
+hostname configurable: true
+hostname writable: undefined
+port exists on location itself: true
+port does not exist on LocationPrototype: true
+port descriptor is not undefined: true
+port enumerable: true
+port configurable: true
+port writable: undefined
+pathname exists on location itself: true
+pathname does not exist on LocationPrototype: true
+pathname descriptor is not undefined: true
+pathname enumerable: true
+pathname configurable: true
+pathname writable: undefined
+search exists on location itself: true
+search does not exist on LocationPrototype: true
+search descriptor is not undefined: true
+search enumerable: true
+search configurable: true
+search writable: undefined
+hash exists on location itself: true
+hash does not exist on LocationPrototype: true
+hash descriptor is not undefined: true
+hash enumerable: true
+hash configurable: true
+hash writable: undefined
+assign exists on location itself: true
+assign does not exist on LocationPrototype: true
+assign descriptor is not undefined: true
+assign enumerable: true
+assign configurable: true
+assign writable: false
+replace exists on location itself: true
+replace does not exist on LocationPrototype: true
+replace descriptor is not undefined: true
+replace enumerable: true
+replace configurable: true
+replace writable: false
+reload exists on location itself: true
+reload does not exist on LocationPrototype: true
+reload descriptor is not undefined: true
+reload enumerable: true
+reload configurable: true
+reload writable: false
+toString exists on location itself: true
+toString does not exist on LocationPrototype: true
+toString descriptor is not undefined: true
+toString enumerable: true
+toString configurable: true
+toString writable: false
+href exists on document.location itself: true
+href does not exist on LocationPrototype: true
+href descriptor is not undefined: true
+href enumerable: true
+href configurable: true
+href writable: undefined
+origin exists on document.location itself: true
+origin does not exist on LocationPrototype: true
+origin descriptor is not undefined: true
+origin enumerable: true
+origin configurable: true
+origin writable: undefined
+protocol exists on document.location itself: true
+protocol does not exist on LocationPrototype: true
+protocol descriptor is not undefined: true
+protocol enumerable: true
+protocol configurable: true
+protocol writable: undefined
+host exists on document.location itself: true
+host does not exist on LocationPrototype: true
+host descriptor is not undefined: true
+host enumerable: true
+host configurable: true
+host writable: undefined
+hostname exists on document.location itself: true
+hostname does not exist on LocationPrototype: true
+hostname descriptor is not undefined: true
+hostname enumerable: true
+hostname configurable: true
+hostname writable: undefined
+port exists on document.location itself: true
+port does not exist on LocationPrototype: true
+port descriptor is not undefined: true
+port enumerable: true
+port configurable: true
+port writable: undefined
+pathname exists on document.location itself: true
+pathname does not exist on LocationPrototype: true
+pathname descriptor is not undefined: true
+pathname enumerable: true
+pathname configurable: true
+pathname writable: undefined
+search exists on document.location itself: true
+search does not exist on LocationPrototype: true
+search descriptor is not undefined: true
+search enumerable: true
+search configurable: true
+search writable: undefined
+hash exists on document.location itself: true
+hash does not exist on LocationPrototype: true
+hash descriptor is not undefined: true
+hash enumerable: true
+hash configurable: true
+hash writable: undefined
+assign exists on document.location itself: true
+assign does not exist on LocationPrototype: true
+assign descriptor is not undefined: true
+assign enumerable: true
+assign configurable: true
+assign writable: false
+replace exists on document.location itself: true
+replace does not exist on LocationPrototype: true
+replace descriptor is not undefined: true
+replace enumerable: true
+replace configurable: true
+replace writable: false
+reload exists on document.location itself: true
+reload does not exist on LocationPrototype: true
+reload descriptor is not undefined: true
+reload enumerable: true
+reload configurable: true
+reload writable: false
+toString exists on document.location itself: true
+toString does not exist on LocationPrototype: true
+toString descriptor is not undefined: true
+toString enumerable: true
+toString configurable: true
+toString writable: false

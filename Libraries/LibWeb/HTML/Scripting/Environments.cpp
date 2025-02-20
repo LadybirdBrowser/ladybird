@@ -565,7 +565,7 @@ SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
     object.api_url_character_encoding = api_url_character_encoding();
     object.api_base_url = api_base_url();
     object.origin = origin();
-    object.policy_container = policy_container();
+    object.policy_container = policy_container()->serialize();
     object.cross_origin_isolated_capability = cross_origin_isolated_capability();
 
     return object;
