@@ -1,0 +1,27 @@
+Harness status: OK
+
+Found 21 tests
+
+18 Pass
+3 Fail
+Pass	Button with id reset-in-form should reflect type correctly
+Pass	Button with id submit-in-form should reflect type correctly
+Pass	Button with id button-in-form should reflect type correctly
+Fail	Button with id invalid-in-form should reflect type correctly
+Pass	Button with id missing-in-form should reflect type correctly
+Pass	Button with id missing-in-form-command-only should reflect type correctly
+Pass	Button with id missing-in-form-commandfor-only should reflect type correctly
+Pass	Button with id reset-attr-form should reflect type correctly
+Pass	Button with id submit-attr-form should reflect type correctly
+Pass	Button with id button-attr-form should reflect type correctly
+Fail	Button with id invalid-attr-form should reflect type correctly
+Pass	Button with id missing-attr-form should reflect type correctly
+Pass	Button with id missing-attr-form-command-only should reflect type correctly
+Pass	Button with id missing-attr-form-commandfor-only should reflect type correctly
+Pass	Button with id reset-outside-form should reflect type correctly
+Pass	Button with id submit-outside-form should reflect type correctly
+Pass	Button with id button-outside-form should reflect type correctly
+Fail	Button with id invalid-outside-form should reflect type correctly
+Pass	Button with id missing-outside-form should reflect type correctly
+Pass	Button with id missing-outside-form-command-only should reflect type correctly
+Pass	Button with id missing-outside-form-commandfor-only should reflect type correctly

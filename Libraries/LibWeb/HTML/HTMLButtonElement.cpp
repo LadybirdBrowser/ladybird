@@ -37,12 +37,44 @@ HTMLButtonElement::TypeAttributeState HTMLButtonElement::type_state() const
     ENUMERATE_HTML_BUTTON_TYPE_ATTRIBUTES
 #undef __ENUMERATE_HTML_BUTTON_TYPE_ATTRIBUTE
 
-    // The missing value default and invalid value default are the Submit Button state.
-    return HTMLButtonElement::TypeAttributeState::Submit;
+    // The attribute's missing value default and invalid value default are both the Auto state.
+    // https://html.spec.whatwg.org/multipage/form-elements.html#attr-button-type-auto-state
+    return HTMLButtonElement::TypeAttributeState::Auto;
 }
 
-WebIDL::ExceptionOr<void> HTMLButtonElement::set_type(String const& type)
+// https://html.spec.whatwg.org/multipage/form-elements.html#dom-button-type
+String HTMLButtonElement::type_for_bindings() const
 {
+    // The type getter steps are:
+    // 1. If this is a submit button, then return "submit".
+    if (is_submit_button())
+        return "submit"_string;
+
+    // 2. Let state be this's type attribute.
+    auto state = type_state();
+
+    // 3. Assert: state is not in the Submit Button state.
+    VERIFY(state != TypeAttributeState::Submit);
+
+    // 4. If state is in the Auto state, then return "button".
+    if (state == TypeAttributeState::Auto)
+        return "button"_string;
+
+    // 5. Return the keyword value corresponding to state.
+    switch (state) {
+#define __ENUMERATE_HTML_BUTTON_TYPE_ATTRIBUTE(keyword, state) \
+    case TypeAttributeState::state:                            \
+        return #keyword##_string;
+        ENUMERATE_HTML_BUTTON_TYPE_ATTRIBUTES
+#undef __ENUMERATE_HTML_BUTTON_TYPE_ATTRIBUTE
+    }
+    VERIFY_NOT_REACHED();
+}
+
+// https://html.spec.whatwg.org/multipage/form-elements.html#dom-button-type
+WebIDL::ExceptionOr<void> HTMLButtonElement::set_type_for_bindings(String const& type)
+{
+    // The type setter steps are to set the type content attribute to the given value.
     return set_attribute(HTML::AttributeNames::type, type);
 }
 
@@ -68,8 +100,17 @@ i32 HTMLButtonElement::default_tab_index_value() const
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-button-element:concept-submit-button
 bool HTMLButtonElement::is_submit_button() const
 {
-    // A button element is said to be a submit button if the type attribute is in the Submit Button state.
-    return type_state() == TypeAttributeState::Submit;
+    // A button element is said to be a submit button if any of the following are true:
+    switch (type_state()) {
+        // - the type attribute is in the Auto state and both the command and commandfor content attributes are not present; or
+    case TypeAttributeState::Auto:
+        return !has_attribute(AttributeNames::command) && !has_attribute(AttributeNames::commandfor);
+        // - the type attribute is in the Submit Button state.
+    case TypeAttributeState::Submit:
+        return true;
+    default:
+        return false;
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-button-element:concept-fe-value
@@ -106,7 +147,11 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
         }
     }
 
-    // 4. Run the popover target attribute activation behavior given element and event's target.
+    // FIXME: 4. Let target be the result of running element's get the commandfor associated element.
+    // FIXME: 5. If target is not null:
+    //           ...
+
+    // 6. Otherwise, run the popover target attribute activation behavior given element and event's target.
     if (event.target() && event.target()->is_dom_node())
         PopoverInvokerElement::popover_target_activation_behaviour(*this, as<DOM::Node>(*event.target()));
 }
