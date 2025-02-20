@@ -420,10 +420,10 @@ RuleCache const* StyleComputer::rule_cache_for_cascade_origin(CascadeOrigin casc
     return true;
 }
 
-Vector<MatchingRule> const& StyleComputer::get_hover_rules() const
+RuleCache const& StyleComputer::get_hover_rules() const
 {
     build_rule_cache_if_needed();
-    return m_hover_rules;
+    return *m_hover_rule_cache;
 }
 
 InvalidationSet StyleComputer::invalidation_set_for_properties(Vector<InvalidationSet::Property> const& properties) const
@@ -2637,7 +2637,7 @@ void StyleComputer::collect_selector_insights(Selector const& selector, Selector
     }
 }
 
-void StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin, SelectorInsights& insights, Vector<MatchingRule>& hover_rules)
+void StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin, SelectorInsights& insights)
 {
     Vector<MatchingRule> matching_rules;
     size_t style_sheet_index = 0;
@@ -2734,9 +2734,9 @@ void StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_ori
                 }
 
                 if (selector.contains_hover_pseudo_class()) {
-                    hover_rules.append(matching_rule);
+                    // For hover rule cache we intentionally pass pseudo_element as None, because we don't want to bucket hover rules by pseudo element type
+                    m_hover_rule_cache->add_rule(matching_rule, {}, contains_root_pseudo_class);
                 }
-
                 rule_cache.add_rule(matching_rule, pseudo_element, contains_root_pseudo_class);
             }
             ++rule_index;
@@ -2864,9 +2864,10 @@ void StyleComputer::build_rule_cache()
 
     build_qualified_layer_names_cache();
 
-    make_rule_cache_for_cascade_origin(CascadeOrigin::Author, *m_selector_insights, m_hover_rules);
-    make_rule_cache_for_cascade_origin(CascadeOrigin::User, *m_selector_insights, m_hover_rules);
-    make_rule_cache_for_cascade_origin(CascadeOrigin::UserAgent, *m_selector_insights, m_hover_rules);
+    m_hover_rule_cache = make<RuleCache>();
+    make_rule_cache_for_cascade_origin(CascadeOrigin::Author, *m_selector_insights);
+    make_rule_cache_for_cascade_origin(CascadeOrigin::User, *m_selector_insights);
+    make_rule_cache_for_cascade_origin(CascadeOrigin::UserAgent, *m_selector_insights);
 }
 
 void StyleComputer::invalidate_rule_cache()
@@ -2883,7 +2884,7 @@ void StyleComputer::invalidate_rule_cache()
     //       If we are sure that it's safe, we could keep it as an optimization.
     m_user_agent_rule_cache = nullptr;
 
-    m_hover_rules.clear_with_capacity();
+    m_hover_rule_cache = nullptr;
     m_style_invalidation_data = nullptr;
 }
 
@@ -3112,7 +3113,7 @@ void RuleCache::add_rule(MatchingRule const& matching_rule, Optional<Selector::P
         }
     }
 
-    if (matching_rule.contains_pseudo_element) {
+    if (matching_rule.contains_pseudo_element && pseudo_element.has_value()) {
         if (Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element.value())) {
             rules_by_pseudo_element[to_underlying(pseudo_element.value())].append(matching_rule);
         } else {
