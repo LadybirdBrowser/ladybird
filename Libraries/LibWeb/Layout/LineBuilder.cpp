@@ -284,9 +284,15 @@ void LineBuilder::update_last_line()
                 effective_box_bottom_offset = fragment_box_state.margin_box_bottom();
             }
 
+            auto alphabetic_baseline = m_current_block_offset + line_box_baseline - fragment.baseline() + effective_box_top_offset;
+
+            // NOTE: Plain inline text content is always on the alphabetic baseline.
+            if (!fragment.is_atomic_inline())
+                return alphabetic_baseline;
+
             switch (vertical_align) {
             case CSS::VerticalAlign::Baseline:
-                return m_current_block_offset + line_box_baseline - fragment.baseline() + effective_box_top_offset;
+                return alphabetic_baseline;
             case CSS::VerticalAlign::Top:
                 return m_current_block_offset + effective_box_top_offset;
             case CSS::VerticalAlign::Middle: {
@@ -301,7 +307,7 @@ void LineBuilder::update_last_line()
             case CSS::VerticalAlign::TextBottom:
             case CSS::VerticalAlign::TextTop:
                 // FIXME: These are all 'baseline'
-                return m_current_block_offset + line_box_baseline - fragment.baseline() + effective_box_top_offset;
+                return alphabetic_baseline;
             }
             VERIFY_NOT_REACHED();
         };
