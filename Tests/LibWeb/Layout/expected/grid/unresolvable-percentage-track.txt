@@ -1,6 +1,6 @@
 Viewport <#document> at (0,0) content-size 800x600 children: not-inline
   BlockContainer <html> at (0,0) content-size 800x600 [BFC] children: not-inline
-    BlockContainer <body> at (8,8) content-size 784x17 children: not-inline
+    BlockContainer <body> at (8,8) content-size 784x584 children: not-inline
       Box <div.ipc-page-grid> at (8,8) content-size 784x17 flex-container(row) [FFC] children: not-inline
         Box <div.ipc-sub-grid> at (8,8) content-size 36.84375x17 flex-item [GFC] children: not-inline
           BlockContainer <div> at (8,8) content-size 36.84375x17 [BFC] children: inline
@@ -10,7 +10,7 @@ Viewport <#document> at (0,0) content-size 800x600 children: not-inline
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x600]
-    PaintableWithLines (BlockContainer<BODY>) [8,8 784x17]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x584]
       PaintableBox (Box<DIV>.ipc-page-grid) [8,8 784x17]
         PaintableBox (Box<DIV>.ipc-sub-grid) [8,8 36.84375x17]
           PaintableWithLines (BlockContainer<DIV>) [8,8 36.84375x17]
