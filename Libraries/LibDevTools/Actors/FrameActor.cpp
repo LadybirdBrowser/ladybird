@@ -35,6 +35,14 @@ void FrameActor::handle_message(StringView type, JsonObject const&)
     JsonObject response;
     response.set("from"sv, name());
 
+    if (type == "detach"sv) {
+        if (auto tab = m_tab.strong_ref())
+            tab->reset_selected_node();
+
+        send_message(move(response));
+        return;
+    }
+
     if (type == "listFrames"sv) {
         send_message(move(response));
         return;

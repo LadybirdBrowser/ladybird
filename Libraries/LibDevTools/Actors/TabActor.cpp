@@ -7,6 +7,7 @@
 #include <AK/JsonObject.h>
 #include <LibDevTools/Actors/TabActor.h>
 #include <LibDevTools/Actors/WatcherActor.h>
+#include <LibDevTools/DevToolsDelegate.h>
 #include <LibDevTools/DevToolsServer.h>
 
 namespace DevTools {
@@ -22,7 +23,10 @@ TabActor::TabActor(DevToolsServer& devtools, String name, TabDescription descrip
 {
 }
 
-TabActor::~TabActor() = default;
+TabActor::~TabActor()
+{
+    reset_selected_node();
+}
 
 void TabActor::handle_message(StringView type, JsonObject const&)
 {
@@ -67,6 +71,11 @@ JsonObject TabActor::serialize_description() const
     description.set("outerWindowID"sv, m_description.id);
     description.set("traits"sv, move(traits));
     return description;
+}
+
+void TabActor::reset_selected_node()
+{
+    devtools().delegate().clear_highlighted_dom_node(description());
 }
 
 }

@@ -13,6 +13,8 @@
 #include <LibDevTools/Actors/CSSPropertiesActor.h>
 #include <LibDevTools/Actors/TabActor.h>
 #include <LibDevTools/Forward.h>
+#include <LibWeb/CSS/Selector.h>
+#include <LibWeb/Forward.h>
 
 namespace DevTools {
 
@@ -25,6 +27,9 @@ public:
 
     using OnTabInspectionComplete = Function<void(ErrorOr<JsonValue>)>;
     virtual void inspect_tab(TabDescription const&, OnTabInspectionComplete) const { }
+
+    virtual void highlight_dom_node(TabDescription const&, Web::UniqueNodeID, Optional<Web::CSS::Selector::PseudoElement::Type>) const { }
+    virtual void clear_highlighted_dom_node(TabDescription const&) const { }
 };
 
 }

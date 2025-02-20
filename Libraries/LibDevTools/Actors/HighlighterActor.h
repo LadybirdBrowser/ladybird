@@ -15,14 +15,16 @@ class HighlighterActor final : public Actor {
 public:
     static constexpr auto base_name = "highlighter"sv;
 
-    static NonnullRefPtr<HighlighterActor> create(DevToolsServer&, String name);
+    static NonnullRefPtr<HighlighterActor> create(DevToolsServer&, String name, WeakPtr<InspectorActor>);
     virtual ~HighlighterActor() override;
 
     virtual void handle_message(StringView type, JsonObject const&) override;
     JsonValue serialize_highlighter() const;
 
 private:
-    HighlighterActor(DevToolsServer&, String name);
+    HighlighterActor(DevToolsServer&, String name, WeakPtr<InspectorActor>);
+
+    WeakPtr<InspectorActor> m_inspector;
 };
 
 }

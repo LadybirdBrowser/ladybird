@@ -11,6 +11,8 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <LibDevTools/Actor.h>
+#include <LibWeb/CSS/Selector.h>
+#include <LibWeb/Forward.h>
 
 namespace DevTools {
 
@@ -25,6 +27,13 @@ public:
 
     static bool is_suitable_for_dom_inspection(JsonValue const&);
     JsonValue serialize_root() const;
+
+    struct DOMNode {
+        JsonObject const& node;
+        Web::UniqueNodeID id { 0 };
+        Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element;
+    };
+    Optional<DOMNode> dom_node(StringView actor);
 
 private:
     WalkerActor(DevToolsServer&, String name, WeakPtr<TabActor>, JsonObject dom_tree);

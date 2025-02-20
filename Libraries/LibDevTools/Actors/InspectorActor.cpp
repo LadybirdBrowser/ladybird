@@ -51,7 +51,7 @@ void InspectorActor::handle_message(StringView type, JsonObject const& message)
         }
 
         auto highlighter = m_highlighters.ensure(*type_name, [&]() -> NonnullRefPtr<HighlighterActor> {
-            return devtools().register_actor<HighlighterActor>();
+            return devtools().register_actor<HighlighterActor>(*this);
         });
 
         response.set("highlighter"sv, highlighter->serialize_highlighter());
@@ -82,12 +82,19 @@ void InspectorActor::handle_message(StringView type, JsonObject const& message)
         return;
     }
 
+    if (type == "supportsHighlighters"sv) {
+        response.set("value"sv, true);
+        send_message(move(response));
+        return;
+    }
+
     send_unrecognized_packet_type_error(type);
 }
 
 void InspectorActor::received_dom_tree(JsonObject dom_tree, BlockToken block_token)
 {
     auto& walker_actor = devtools().register_actor<WalkerActor>(m_tab, move(dom_tree));
+    m_walker = walker_actor;
 
     JsonObject walker;
     walker.set("actor"sv, walker_actor.name());
@@ -97,6 +104,20 @@ void InspectorActor::received_dom_tree(JsonObject dom_tree, BlockToken block_tok
     message.set("from"sv, name());
     message.set("walker"sv, move(walker));
     send_message(move(message), move(block_token));
+}
+
+RefPtr<TabActor> InspectorActor::tab_for(WeakPtr<InspectorActor> const& weak_inspector)
+{
+    if (auto inspector = weak_inspector.strong_ref())
+        return inspector->m_tab.strong_ref();
+    return {};
+}
+
+RefPtr<WalkerActor> InspectorActor::walker_for(WeakPtr<InspectorActor> const& weak_inspector)
+{
+    if (auto inspector = weak_inspector.strong_ref())
+        return inspector->m_walker.strong_ref();
+    return {};
 }
 
 }

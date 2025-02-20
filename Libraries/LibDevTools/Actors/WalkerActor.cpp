@@ -228,6 +228,28 @@ JsonValue WalkerActor::serialize_node(JsonObject const& node) const
     return serialized;
 }
 
+Optional<WalkerActor::DOMNode> WalkerActor::dom_node(StringView actor)
+{
+    auto maybe_dom_node = m_actor_to_dom_node_map.get(actor);
+    if (!maybe_dom_node.has_value() || !maybe_dom_node.value())
+        return {};
+
+    auto const& dom_node = *maybe_dom_node.value();
+
+    auto pseudo_element = dom_node.get_integer<UnderlyingType<Web::CSS::Selector::PseudoElement::Type>>("pseudo-element"sv).map([](auto value) {
+        VERIFY(value < to_underlying(Web::CSS::Selector::PseudoElement::Type::KnownPseudoElementCount));
+        return static_cast<Web::CSS::Selector::PseudoElement::Type>(value);
+    });
+
+    Web::UniqueNodeID node_id { 0 };
+    if (pseudo_element.has_value())
+        node_id = dom_node.get_integer<Web::UniqueNodeID::Type>("parent-id"sv).value();
+    else
+        node_id = dom_node.get_integer<Web::UniqueNodeID::Type>("id"sv).value();
+
+    return DOMNode { .node = dom_node, .id = node_id, .pseudo_element = pseudo_element };
+}
+
 Optional<JsonObject const&> WalkerActor::find_node_by_selector(JsonObject const& node, StringView selector)
 {
     auto matches = [&](auto const& candidate) {
