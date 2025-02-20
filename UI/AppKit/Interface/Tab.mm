@@ -7,7 +7,6 @@
 #include <AK/ByteString.h>
 #include <AK/String.h>
 #include <LibCore/Resource.h>
-#include <LibGfx/ImageFormats/PNGWriter.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibURL/URL.h>
 #include <LibWebView/ViewImplementation.h>
@@ -348,17 +347,8 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
 
 - (void)onFaviconChange:(Gfx::Bitmap const&)bitmap
 {
-    auto png = Gfx::PNGWriter::encode(bitmap);
-    if (png.is_error()) {
-        return;
-    }
-
-    auto* data = [NSData dataWithBytes:png.value().data()
-                                length:png.value().size()];
-
-    auto* favicon = [[NSImage alloc] initWithData:data];
+    auto* favicon = Ladybird::gfx_bitmap_to_ns_image(bitmap);
     [favicon setResizingMode:NSImageResizingModeStretch];
-
     self.favicon = favicon;
     [self updateTabTitleAndFavicon];
 }

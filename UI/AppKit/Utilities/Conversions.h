@@ -9,6 +9,7 @@
 #include <AK/ByteString.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <LibGfx/Bitmap.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
@@ -39,5 +40,7 @@ Gfx::Color ns_color_to_gfx_color(NSColor*);
 NSColor* gfx_color_to_ns_color(Gfx::Color);
 
 Gfx::IntPoint compute_origin_relative_to_window(NSWindow*, Gfx::IntPoint);
+
+NSImage* gfx_bitmap_to_ns_image(Gfx::Bitmap const&);
 
 }
