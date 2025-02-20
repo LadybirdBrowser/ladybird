@@ -135,6 +135,49 @@ TEST_CASE(detects_unsigned_overflow)
     EXPECT((Checked<u64>(0x4000000000000000) - Checked<u64>(0x4000000000000001)).has_overflow());
 }
 
+TEST_CASE(operations_with_overflowed)
+{
+    {
+        Checked<u32> overflowed(0x100000000);
+        EXPECT((Checked<u32>(0x100000000) + Checked<u32>(0xff)).has_overflow());
+        EXPECT((Checked<u32>(0xff) + Checked<u32>(0x100000000)).has_overflow());
+        EXPECT((overflowed += Checked<u32>(0xff)).has_overflow());
+        EXPECT((overflowed += Checked<u32>(0x100000000)).has_overflow());
+    }
+
+    {
+        Checked<u32> overflowed(0x100000000);
+        EXPECT((Checked<u32>(0x100000000) - Checked<u32>(0xff)).has_overflow());
+        EXPECT((Checked<u32>(0xff) - Checked<u32>(0x100000000)).has_overflow());
+        EXPECT((overflowed -= Checked<u32>(0xff)).has_overflow());
+        EXPECT((overflowed -= Checked<u32>(0x100000000)).has_overflow());
+    }
+
+    {
+        Checked<u32> overflowed(0x100000000);
+        EXPECT((Checked<u32>(0x100000000) * Checked<u32>(0xff)).has_overflow());
+        EXPECT((Checked<u32>(0xff) * Checked<u32>(0x100000000)).has_overflow());
+        EXPECT((overflowed *= Checked<u32>(0xff)).has_overflow());
+        EXPECT((overflowed *= Checked<u32>(0x100000000)).has_overflow());
+    }
+
+    {
+        Checked<u32> overflowed(0x100000000);
+        EXPECT((Checked<u32>(0x100000000) / Checked<u32>(0xff)).has_overflow());
+        EXPECT((Checked<u32>(0xff) / Checked<u32>(0x100000000)).has_overflow());
+        EXPECT((overflowed /= Checked<u32>(0xff)).has_overflow());
+        EXPECT((overflowed /= Checked<u32>(0x100000000)).has_overflow());
+    }
+
+    {
+        Checked<u32> overflowed(0x100000000);
+        EXPECT((Checked<u32>(0x100000000) % Checked<u32>(0xff)).has_overflow());
+        EXPECT((Checked<u32>(0xff) % Checked<u32>(0x100000000)).has_overflow());
+        EXPECT((overflowed %= Checked<u32>(0xff)).has_overflow());
+        EXPECT((overflowed %= Checked<u32>(0x100000000)).has_overflow());
+    }
+}
+
 TEST_CASE(should_constexpr_default_construct)
 {
     constexpr Checked<int> checked_value {};

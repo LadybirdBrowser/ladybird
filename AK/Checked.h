@@ -255,7 +255,7 @@ public:
     constexpr Checked& operator+=(Checked const& other)
     {
         m_overflow |= other.m_overflow;
-        add(other.value());
+        add(other.value_unchecked());
         return *this;
     }
 
@@ -268,7 +268,7 @@ public:
     constexpr Checked& operator-=(Checked const& other)
     {
         m_overflow |= other.m_overflow;
-        sub(other.value());
+        sub(other.value_unchecked());
         return *this;
     }
 
@@ -281,7 +281,7 @@ public:
     constexpr Checked& operator*=(Checked const& other)
     {
         m_overflow |= other.m_overflow;
-        mul(other.value());
+        mul(other.value_unchecked());
         return *this;
     }
 
@@ -294,7 +294,7 @@ public:
     constexpr Checked& operator/=(Checked const& other)
     {
         m_overflow |= other.m_overflow;
-        div(other.value());
+        div(other.value_unchecked());
         return *this;
     }
 
@@ -307,7 +307,7 @@ public:
     constexpr Checked& operator%=(Checked const& other)
     {
         m_overflow |= other.m_overflow;
-        mod(other.value());
+        mod(other.value_unchecked());
         return *this;
     }
 
@@ -434,7 +434,7 @@ template<typename T>
 constexpr Checked<T> operator+(Checked<T> const& a, Checked<T> const& b)
 {
     Checked<T> c { a };
-    c.add(b.value());
+    c += b;
     return c;
 }
 
@@ -442,7 +442,7 @@ template<typename T>
 constexpr Checked<T> operator-(Checked<T> const& a, Checked<T> const& b)
 {
     Checked<T> c { a };
-    c.sub(b.value());
+    c -= b;
     return c;
 }
 
@@ -450,7 +450,7 @@ template<typename T>
 constexpr Checked<T> operator*(Checked<T> const& a, Checked<T> const& b)
 {
     Checked<T> c { a };
-    c.mul(b.value());
+    c *= b;
     return c;
 }
 
@@ -458,7 +458,7 @@ template<typename T>
 constexpr Checked<T> operator/(Checked<T> const& a, Checked<T> const& b)
 {
     Checked<T> c { a };
-    c.div(b.value());
+    c /= b;
     return c;
 }
 
@@ -466,7 +466,7 @@ template<typename T>
 constexpr Checked<T> operator%(Checked<T> const& a, Checked<T> const& b)
 {
     Checked<T> c { a };
-    c.mod(b.value());
+    c %= b;
     return c;
 }
 
