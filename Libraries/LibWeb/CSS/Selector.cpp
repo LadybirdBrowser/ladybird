@@ -154,6 +154,7 @@ void Selector::collect_ancestor_hashes()
     for (ssize_t compound_selector_index = static_cast<ssize_t>(m_compound_selectors.size()) - 2; compound_selector_index >= 0; --compound_selector_index) {
         auto const& compound_selector = m_compound_selectors[compound_selector_index];
         if (last_combinator == Combinator::Descendant || last_combinator == Combinator::ImmediateChild) {
+            m_can_use_ancestor_filter = true;
             for (auto const& simple_selector : compound_selector.simple_selectors) {
                 switch (simple_selector.type) {
                 case SimpleSelector::Type::Id:

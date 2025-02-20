@@ -503,7 +503,8 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element c
         if (!rule_is_relevant_for_current_scope)
             return;
 
-        if (should_reject_with_ancestor_filter(rule_to_run.selector))
+        auto const& selector = rule_to_run.selector;
+        if (selector.can_use_ancestor_filter() && should_reject_with_ancestor_filter(selector))
             return;
 
         rules_to_run.unchecked_append(rule_to_run);
