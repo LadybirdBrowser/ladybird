@@ -1,8 +1,11 @@
 /*
  * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
+
+#include <LibGfx/ImageFormats/PNGWriter.h>
 
 #import <Utilities/Conversions.h>
 
@@ -126,6 +129,18 @@ Gfx::IntPoint compute_origin_relative_to_window(NSWindow* window, Gfx::IntPoint 
 
     position.set_y(screen_frame.height() - window_frame.height() - position.y());
     return position;
+}
+
+NSImage* gfx_bitmap_to_ns_image(Gfx::Bitmap const& bitmap)
+{
+    auto png = Gfx::PNGWriter::encode(bitmap);
+    if (png.is_error())
+        return nullptr;
+
+    auto* data = [NSData dataWithBytes:png.value().data()
+                                length:png.value().size()];
+
+    return [[NSImage alloc] initWithData:data];
 }
 
 }
