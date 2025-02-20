@@ -40,6 +40,8 @@ runs:
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100
         sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
 
+        # FIXME: https://github.com/WebAssembly/wabt/issues/2533
+        #        wabt doesn't have binary releases for arm64 Linux
         wget https://github.com/WebAssembly/wabt/releases/download/1.0.35/wabt-1.0.35-ubuntu-20.04.tar.gz
         tar -xzf ./wabt-1.0.35-ubuntu-20.04.tar.gz
         rm ./wabt-1.0.35-ubuntu-20.04.tar.gz
@@ -58,6 +60,13 @@ runs:
         set -e
         brew update
         brew install autoconf autoconf-archive automake bash ccache coreutils llvm@19 nasm ninja qt unzip wabt
+
+    - name: 'Set required environment variables'
+      if: ${{ inputs.os == 'Linux' && inputs.arch == 'arm64' }}
+      uses: actions/github-script@v7
+      with:
+        script: |
+          core.exportVariable('VCPKG_FORCE_SYSTEM_BINARIES', '1')
 
     - name: 'Install vcpkg'
       shell: bash

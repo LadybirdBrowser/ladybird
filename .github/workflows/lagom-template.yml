@@ -12,10 +12,12 @@ on:
         os:
           required: true
           type: string
-        fuzzer:
-          required: false
+        arch:
+          required: true
           type: string
-          default: 'NO_FUZZ'
+        build_preset:
+          required: true
+          type: string
         clang_plugins:
           required: false
           type: boolean
@@ -55,7 +57,7 @@ jobs:
         uses: ./.github/actions/setup
         with:
           os: ${{ inputs.os_name }}
-          arch: 'Lagom'
+          arch: ${{ inputs.arch }}
 
       # === PREPARE FOR BUILDING ===
 
@@ -76,11 +78,18 @@ jobs:
           fi
 
           if ${{ inputs.clang_plugins }} ; then
-            echo "ccache_key=${{ inputs.fuzzer }}-CLANG_PLUGINS" >> "$GITHUB_OUTPUT"
+            echo "ccache_key=${{ inputs.build_preset }}-CLANG_PLUGINS" >> "$GITHUB_OUTPUT"
             echo "cmake_options=-DENABLE_CLANG_PLUGINS=ON" >> "$GITHUB_OUTPUT"
           else
-            echo "ccache_key=${{ inputs.fuzzer }}" >> "$GITHUB_OUTPUT"
-            echo "cmake_options=" >> "$GITHUB_OUTPUT"
+            echo "ccache_key=${{ inputs.build_preset }}" >> "$GITHUB_OUTPUT"
+            if ${{ inputs.os_name == 'Linux' && inputs.arch == 'arm64' }} ; then
+                # FIXME: https://github.com/WebAssembly/wabt/issues/2533
+                #        wabt doesn't have binary releases for arm64 Linux
+                PKGCONFIG=$(which pkg-config)
+                echo "cmake_options=-DPKG_CONFIG_EXECUTABLE=$PKGCONFIG" >> "$GITHUB_OUTPUT"
+            else
+              echo "cmake_options=-DINCLUDE_WASM_SPEC_TESTS=ON -DWASM_SPEC_TEST_SKIP_FORMATTING=ON" >> "$GITHUB_OUTPUT"
+            fi
           fi
 
       - name: Restore Caches
@@ -88,7 +97,7 @@ jobs:
         id: 'cache-restore'
         with:
           os: ${{ inputs.os_name }}
-          arch: 'Lagom'
+          arch: ${{ inputs.arch }}
           toolchain: ${{ inputs.toolchain }}
           cache_key_extra: ${{ steps.build-parameters.outputs.ccache_key }}
           ccache_path: ${{ env.CCACHE_DIR }}
@@ -106,19 +115,17 @@ jobs:
         run: sqlite3 $HOME/Library/Application\ Support/com.apple.TCC/TCC.db "INSERT OR IGNORE INTO access VALUES ('kTCCServiceMicrophone','/usr/local/opt/runner/provisioner/provisioner',1,2,4,1,NULL,NULL,0,'UNUSED',NULL,0,1687786159,NULL,NULL,'UNUSED',1687786159);"
 
       - name: Create Build Environment
-        if: ${{ inputs.fuzzer == 'NO_FUZZ' }}
+        if: ${{ inputs.build_preset != 'Fuzzers_CI' }}
         working-directory: ${{ github.workspace }}
         run: |
-          cmake --preset Sanitizer_CI -B Build \
-            -DINCLUDE_WASM_SPEC_TESTS=ON \
-            -DWASM_SPEC_TEST_SKIP_FORMATTING=ON \
+          cmake --preset ${{ inputs.build_preset }} -B Build \
             ${{ steps.build-parameters.outputs.cmake_options }} \
             -DPython3_EXECUTABLE=${{ env.pythonLocation }}/bin/python \
             -DCMAKE_C_COMPILER=${{ steps.build-parameters.outputs.host_cc }} \
             -DCMAKE_CXX_COMPILER=${{ steps.build-parameters.outputs.host_cxx }}
 
       - name: Create Build Environment
-        if: ${{ inputs.fuzzer == 'FUZZ' }}
+        if: ${{ inputs.build_preset == 'Fuzzers_CI' }}
         working-directory: ${{ github.workspace }}
         run: |
           set -e
@@ -134,7 +141,7 @@ jobs:
 
           ninja -C ${{ github.workspace }}/Build/tools-build install
 
-          cmake --preset Fuzzers_CI -B Build \
+          cmake --preset ${{ inputs.build_preset }} -B Build \
             -DPython3_EXECUTABLE=${{ env.pythonLocation }}/bin/python \
             -DCMAKE_C_COMPILER=${{ steps.build-parameters.outputs.host_cc }} \
             -DCMAKE_CXX_COMPILER=${{ steps.build-parameters.outputs.host_cxx }} \
@@ -150,37 +157,37 @@ jobs:
           cmake --install . --strip --prefix ${{ github.workspace }}/Install
 
       - name: Enable the Ladybird Qt chrome
-        if: ${{ inputs.os_name == 'macOS' && inputs.fuzzer == 'NO_FUZZ' }}
+        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer_CI' }}
         working-directory: ${{ github.workspace }}
         run: cmake -B Build -DENABLE_QT=ON
 
       - name: Build the Ladybird Qt chrome
-        if: ${{ inputs.os_name == 'macOS' && inputs.fuzzer == 'NO_FUZZ' }}
+        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer_CI' }}
         working-directory: ${{ github.workspace }}/Build
         run: cmake --build .
 
       - name: Enable the AppKit chrome with Swift files
-        if: ${{ inputs.os_name == 'macOS' && inputs.fuzzer == 'NO_FUZZ' }}
+        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer_CI' }}
         working-directory: ${{ github.workspace }}
         # FIXME: Don't force release build after https://github.com/LadybirdBrowser/ladybird/issues/1101 is fixed
         run: cmake -B Build -DENABLE_QT=OFF -DENABLE_SWIFT=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo
 
       - name: Build the AppKit chrome with Swift files
-        if: ${{ inputs.os_name == 'macOS' && inputs.fuzzer == 'NO_FUZZ' }}
+        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer_CI' }}
         working-directory: ${{ github.workspace }}/Build
         run: cmake --build .
 
       - name: Save Caches
         uses: ./.github/actions/cache-save
         with:
-          arch: 'Lagom'
+          arch: ${{ inputs.arch }}
           ccache_path: ${{ env.CCACHE_DIR }}
           ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}
 
       # === TEST ===
 
       - name: Test
-        if: ${{ inputs.fuzzer == 'NO_FUZZ' }}
+        if: ${{ inputs.build_preset == 'Sanitizer_CI' }}
         working-directory: ${{ github.workspace }}
         run: ctest --preset Sanitizer --output-on-failure --test-dir Build --timeout 1800
         env:
@@ -189,17 +196,24 @@ jobs:
           ASAN_OPTIONS: 'log_path=${{ github.workspace }}/asan.log'
           UBSAN_OPTIONS: 'log_path=${{ github.workspace }}/ubsan.log'
 
+      - name: Test
+        if: ${{ inputs.build_preset != 'Fuzzers_CI' && inputs.build_preset != 'Sanitizer_CI' }}
+        working-directory: ${{ github.workspace }}
+        run: ctest --output-on-failure --test-dir Build --timeout 1800
+        env:
+          TESTS_ONLY: 1
+
       - name: Upload LibWeb Test Artifacts
-        if: ${{ always() && inputs.fuzzer == 'NO_FUZZ' }}
+        if: ${{ always() && inputs.build_preset != 'Fuzzers_CI' }}
         uses: actions/upload-artifact@v4
         with:
-          name: libweb-test-artifacts-${{ inputs.os_name }}-${{inputs.fuzzer}}-${{inputs.toolchain}}-${{inputs.clang-plugins}}
+          name: libweb-test-artifacts-${{ inputs.os_name }}-${{inputs.build_preset}}-${{inputs.toolchain}}-${{inputs.clang-plugins}}
           path: ${{ github.workspace }}/Build/UI/Headless/test-dumps
           retention-days: 0
           if-no-files-found: ignore
 
       - name: Sanitizer Output
-        if: ${{ !cancelled() && inputs.fuzzer == 'NO_FUZZ' }}
+        if: ${{ !cancelled() && inputs.build_preset == 'Sanitizer_CI' }}
         working-directory: ${{ github.workspace }}
         run: |
           log_output=$(find . -maxdepth 1 \( -name 'asan.log.*' -o -name 'ubsan.log.*' \) -exec cat {} \; )
@@ -211,7 +225,7 @@ jobs:
           fi
 
       - name: Lints
-        if: ${{ inputs.os_name == 'Linux' && inputs.fuzzer == 'NO_FUZZ' }}
+        if: ${{ inputs.os_name == 'Linux' && inputs.build_preset == 'Sanitizer_CI' }}
         working-directory: ${{ github.workspace }}
         run: |
           set -e
