@@ -6,33 +6,58 @@
 
 #include <AK/JsonObject.h>
 #include <LibDevTools/Actors/HighlighterActor.h>
+#include <LibDevTools/Actors/InspectorActor.h>
+#include <LibDevTools/Actors/TabActor.h>
+#include <LibDevTools/Actors/WalkerActor.h>
+#include <LibDevTools/DevToolsDelegate.h>
+#include <LibDevTools/DevToolsServer.h>
 
 namespace DevTools {
 
-NonnullRefPtr<HighlighterActor> HighlighterActor::create(DevToolsServer& devtools, String name)
+NonnullRefPtr<HighlighterActor> HighlighterActor::create(DevToolsServer& devtools, String name, WeakPtr<InspectorActor> inspector)
 {
-    return adopt_ref(*new HighlighterActor(devtools, move(name)));
+    return adopt_ref(*new HighlighterActor(devtools, move(name), move(inspector)));
 }
 
-HighlighterActor::HighlighterActor(DevToolsServer& devtools, String name)
+HighlighterActor::HighlighterActor(DevToolsServer& devtools, String name, WeakPtr<InspectorActor> inspector)
     : Actor(devtools, move(name))
+    , m_inspector(move(inspector))
 {
 }
 
 HighlighterActor::~HighlighterActor() = default;
 
-void HighlighterActor::handle_message(StringView type, JsonObject const&)
+void HighlighterActor::handle_message(StringView type, JsonObject const& message)
 {
     JsonObject response;
     response.set("from"sv, name());
 
     if (type == "show"sv) {
-        response.set("value"sv, true);
+        auto node = message.get_string("node"sv);
+        if (!node.has_value()) {
+            send_missing_parameter_error("node"sv);
+            return;
+        }
+
+        auto tab = InspectorActor::tab_for(m_inspector);
+        auto walker = InspectorActor::walker_for(m_inspector);
+        response.set("value"sv, false);
+
+        if (tab && walker) {
+            if (auto const& dom_node = walker->dom_node(*node); dom_node.has_value()) {
+                devtools().delegate().highlight_dom_node(tab->description(), dom_node->id, dom_node->pseudo_element);
+                response.set("value"sv, true);
+            }
+        }
+
         send_message(move(response));
         return;
     }
 
     if (type == "hide"sv) {
+        if (auto tab = InspectorActor::tab_for(m_inspector))
+            devtools().delegate().clear_highlighted_dom_node(tab->description());
+
         send_message(move(response));
         return;
     }

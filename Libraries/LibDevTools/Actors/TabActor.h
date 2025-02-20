@@ -30,6 +30,8 @@ public:
     TabDescription const& description() const { return m_description; }
     JsonObject serialize_description() const;
 
+    void reset_selected_node();
+
 private:
     TabActor(DevToolsServer&, String name, TabDescription);
 
