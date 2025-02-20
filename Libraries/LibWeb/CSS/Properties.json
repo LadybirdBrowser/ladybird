@@ -2895,6 +2895,19 @@
       "unitless-length"
     ]
   },
+  "view-transition-name": {
+    "affects-layout": false,
+    "affects-stacking-context": true,
+    "animation-type": "discrete",
+    "inherited": false,
+    "initial": "none",
+    "valid-types": [
+      "custom-ident"
+    ],
+    "valid-identifiers": [
+      "none"
+    ]
+  },
   "visibility": {
     "animation-type": "custom",
     "inherited": true,

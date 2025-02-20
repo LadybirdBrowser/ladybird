@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	Property view-transition-name value 'none'
+Pass	Property view-transition-name value 'foo'
+Pass	Property view-transition-name value 'bar'
+Pass	Property view-transition-name value 'baz'
+Pass	Property view-transition-name value 'unset'
+Pass	Property view-transition-name value 'initial'
+Pass	Property view-transition-name value 'inherit'
+Pass	Property view-transition-name value 'revert'
+Pass	Property view-transition-name value 'revert-layer'

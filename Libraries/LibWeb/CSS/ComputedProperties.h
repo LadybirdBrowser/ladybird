@@ -164,6 +164,7 @@ public:
     Isolation isolation() const;
     Containment contain() const;
     MixBlendMode mix_blend_mode() const;
+    Optional<FlyString> view_transition_name() const;
 
     static Vector<Transformation> transformations_for_style_value(CSSStyleValue const& value);
     Vector<Transformation> transformations() const;

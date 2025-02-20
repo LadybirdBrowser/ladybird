@@ -246,6 +246,13 @@ bool Node::establishes_stacking_context() const
     if (computed_values().mix_blend_mode() != CSS::MixBlendMode::Normal)
         return true;
 
+    // https://drafts.csswg.org/css-view-transitions-1/#named-and-transitioning
+    // Elements captured in a view transition during a view transition or whose view-transition-name computed value is
+    // not 'none' (at any time):
+    // - Form a stacking context.
+    if (computed_values().view_transition_name().has_value())
+        return true;
+
     return computed_values().opacity() < 1.0f;
 }
 
@@ -932,6 +939,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_user_select(computed_style.user_select());
     computed_values.set_isolation(computed_style.isolation());
     computed_values.set_mix_blend_mode(computed_style.mix_blend_mode());
+    computed_values.set_view_transition_name(computed_style.view_transition_name());
 
     propagate_style_to_anonymous_wrappers();
 

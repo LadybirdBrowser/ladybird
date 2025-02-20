@@ -713,6 +713,10 @@ Parser::ParseErrorOr<NonnullRefPtr<CSSStyleValue>> Parser::parse_css_value(Prope
         if (auto parsed_value = parse_scale_value(tokens); parsed_value && !tokens.has_next_token())
             return parsed_value.release_nonnull();
         return ParseError::SyntaxError;
+    case PropertyID::ViewTransitionName:
+        if (auto parsed_value = parse_view_transition_name_value(tokens); parsed_value && !tokens.has_next_token())
+            return parsed_value.release_nonnull();
+        return ParseError::SyntaxError;
     default:
         break;
     }
@@ -4436,6 +4440,27 @@ RefPtr<CSSStyleValue> Parser::parse_filter_value_list_value(TokenStream<Componen
 
     transaction.commit();
     return FilterValueListStyleValue::create(move(filter_value_list));
+}
+
+RefPtr<CSSStyleValue> Parser::parse_view_transition_name_value(TokenStream<ComponentValue>& tokens)
+{
+    // none | <custom-ident>
+    tokens.discard_whitespace();
+    {
+        auto transaction = tokens.begin_transaction();
+
+        // The values 'none' and 'auto' are excluded from <custom-ident> here.
+        // Note: Only auto is excluded here since none isn't parsed differently.
+        auto ident = parse_custom_ident_value(tokens, { "auto"sv });
+        if (!ident)
+            return {};
+
+        tokens.discard_whitespace();
+        transaction.commit();
+
+        return CustomIdentStyleValue::create(ident->custom_ident().to_string());
+    }
+    return {};
 }
 
 }
