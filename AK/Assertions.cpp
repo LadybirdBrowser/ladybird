@@ -100,22 +100,28 @@ void ak_trap(void)
     __builtin_trap();
 }
 
-void ak_verification_failed(char const* message)
+void ak_verification_failed(char const* message, char const* user_message)
 {
     if (ak_colorize_output())
         ERRORLN("\033[31;1mVERIFICATION FAILED\033[0m: {}", message);
     else
         ERRORLN("VERIFICATION FAILED: {}", message);
 
+    if (user_message)
+        ERRORLN("{}", user_message);
+
     ak_trap();
 }
 
-void ak_assertion_failed(char const* message)
+void ak_assertion_failed(char const* message, char const* user_message)
 {
     if (ak_colorize_output())
         ERRORLN("\033[31;1mASSERTION FAILED\033[0m: {}", message);
     else
         ERRORLN("ASSERTION FAILED: {}", message);
+
+    if (user_message)
+        ERRORLN("{}", user_message);
 
     ak_trap();
 }
