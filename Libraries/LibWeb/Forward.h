@@ -168,6 +168,7 @@ class CSSStyleRule;
 class CSSStyleSheet;
 class CSSStyleValue;
 class CSSSupportsRule;
+class CursorStyleValue;
 class CustomIdentStyleValue;
 class Display;
 class DisplayStyleValue;
