@@ -16,7 +16,8 @@ namespace Web::HTML {
 #define ENUMERATE_HTML_BUTTON_TYPE_ATTRIBUTES              \
     __ENUMERATE_HTML_BUTTON_TYPE_ATTRIBUTE(submit, Submit) \
     __ENUMERATE_HTML_BUTTON_TYPE_ATTRIBUTE(reset, Reset)   \
-    __ENUMERATE_HTML_BUTTON_TYPE_ATTRIBUTE(button, Button)
+    __ENUMERATE_HTML_BUTTON_TYPE_ATTRIBUTE(button, Button) \
+    __ENUMERATE_HTML_BUTTON_TYPE_ATTRIBUTE(auto, Auto)
 
 class HTMLButtonElement final
     : public HTMLElement
@@ -38,7 +39,8 @@ public:
     };
 
     TypeAttributeState type_state() const;
-    WebIDL::ExceptionOr<void> set_type(String const&);
+    String type_for_bindings() const;
+    WebIDL::ExceptionOr<void> set_type_for_bindings(String const&);
 
     virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
