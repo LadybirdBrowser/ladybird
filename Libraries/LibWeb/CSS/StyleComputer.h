@@ -110,6 +110,21 @@ struct OwnFontFaceKey {
     int slope { 0 };
 };
 
+struct RuleCache {
+    HashMap<FlyString, Vector<MatchingRule>> rules_by_id;
+    HashMap<FlyString, Vector<MatchingRule>> rules_by_class;
+    HashMap<FlyString, Vector<MatchingRule>> rules_by_tag_name;
+    HashMap<FlyString, Vector<MatchingRule>, AK::ASCIICaseInsensitiveFlyStringTraits> rules_by_attribute_name;
+    Array<Vector<MatchingRule>, to_underlying(CSS::Selector::PseudoElement::Type::KnownPseudoElementCount)> rules_by_pseudo_element;
+    Vector<MatchingRule> root_rules;
+    Vector<MatchingRule> other_rules;
+
+    HashMap<FlyString, NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet>> rules_by_animation_keyframes;
+
+    void add_rule(MatchingRule const&, Optional<Selector::PseudoElement::Type>, bool contains_root_pseudo_class);
+    void for_each_matching_rules(DOM::Element const&, Optional<Selector::PseudoElement::Type>, Function<IterationDecision(Vector<MatchingRule> const&)> callback) const;
+};
+
 class FontLoader;
 
 class StyleComputer {
@@ -257,18 +272,6 @@ private:
 
     struct SelectorInsights {
         bool has_has_selectors { false };
-    };
-
-    struct RuleCache {
-        HashMap<FlyString, Vector<MatchingRule>> rules_by_id;
-        HashMap<FlyString, Vector<MatchingRule>> rules_by_class;
-        HashMap<FlyString, Vector<MatchingRule>> rules_by_tag_name;
-        HashMap<FlyString, Vector<MatchingRule>, AK::ASCIICaseInsensitiveFlyStringTraits> rules_by_attribute_name;
-        Array<Vector<MatchingRule>, to_underlying(CSS::Selector::PseudoElement::Type::KnownPseudoElementCount)> rules_by_pseudo_element;
-        Vector<MatchingRule> root_rules;
-        Vector<MatchingRule> other_rules;
-
-        HashMap<FlyString, NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet>> rules_by_animation_keyframes;
     };
 
     struct RuleCaches {

@@ -386,7 +386,7 @@ void StyleComputer::for_each_stylesheet(CascadeOrigin cascade_origin, Callback c
     }
 }
 
-StyleComputer::RuleCache const* StyleComputer::rule_cache_for_cascade_origin(CascadeOrigin cascade_origin, FlyString const& qualified_layer_name, GC::Ptr<DOM::ShadowRoot const> shadow_root) const
+RuleCache const* StyleComputer::rule_cache_for_cascade_origin(CascadeOrigin cascade_origin, FlyString const& qualified_layer_name, GC::Ptr<DOM::ShadowRoot const> shadow_root) const
 {
     auto const* rule_caches_for_document_and_shadow_roots = [&]() -> RuleCachesForDocumentAndShadowRoots const* {
         switch (cascade_origin) {
@@ -526,33 +526,10 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::Element c
     };
 
     auto add_rules_from_cache = [&](RuleCache const& rule_cache) {
-        for (auto const& class_name : element.class_names()) {
-            if (auto it = rule_cache.rules_by_class.find(class_name); it != rule_cache.rules_by_class.end())
-                add_rules_to_run(it->value);
-        }
-        if (auto id = element.id(); id.has_value()) {
-            if (auto it = rule_cache.rules_by_id.find(id.value()); it != rule_cache.rules_by_id.end())
-                add_rules_to_run(it->value);
-        }
-        if (auto it = rule_cache.rules_by_tag_name.find(element.local_name()); it != rule_cache.rules_by_tag_name.end())
-            add_rules_to_run(it->value);
-        if (pseudo_element.has_value()) {
-            if (CSS::Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element.value())) {
-                add_rules_to_run(rule_cache.rules_by_pseudo_element.at(to_underlying(pseudo_element.value())));
-            } else {
-                // NOTE: We don't cache rules for unknown pseudo-elements. They can't match anything anyway.
-            }
-        }
-
-        if (element.is_document_element())
-            add_rules_to_run(rule_cache.root_rules);
-
-        element.for_each_attribute([&](auto& name, auto&) {
-            if (auto it = rule_cache.rules_by_attribute_name.find(name); it != rule_cache.rules_by_attribute_name.end())
-                add_rules_to_run(it->value);
+        rule_cache.for_each_matching_rules(element, pseudo_element, [&](auto const& matching_rules) {
+            add_rules_to_run(matching_rules);
+            return IterationDecision::Continue;
         });
-
-        add_rules_to_run(rule_cache.other_rules);
     };
 
     if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, nullptr))
@@ -2662,14 +2639,6 @@ void StyleComputer::collect_selector_insights(Selector const& selector, Selector
 
 void StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin, SelectorInsights& insights, Vector<MatchingRule>& hover_rules)
 {
-    size_t num_class_rules = 0;
-    size_t num_id_rules = 0;
-    size_t num_tag_name_rules = 0;
-    size_t num_pseudo_element_rules = 0;
-    size_t num_root_rules = 0;
-    size_t num_attribute_rules = 0;
-    size_t num_hover_rules = 0;
-
     Vector<MatchingRule> matching_rules;
     size_t style_sheet_index = 0;
     for_each_stylesheet(cascade_origin, [&](auto& sheet, GC::Ptr<DOM::ShadowRoot> shadow_root) {
@@ -2735,21 +2704,18 @@ void StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_ori
                         if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoElement) {
                             matching_rule.contains_pseudo_element = true;
                             pseudo_element = simple_selector.pseudo_element().type();
-                            ++num_pseudo_element_rules;
                         }
                     }
                     if (!contains_root_pseudo_class) {
                         if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoClass
                             && simple_selector.pseudo_class().type == CSS::PseudoClass::Root) {
                             contains_root_pseudo_class = true;
-                            ++num_root_rules;
                         }
                     }
 
                     if (!matching_rule.must_be_hovered) {
                         if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoClass && simple_selector.pseudo_class().type == CSS::PseudoClass::Hover) {
                             matching_rule.must_be_hovered = true;
-                            ++num_hover_rules;
                         }
                         if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoClass
                             && (simple_selector.pseudo_class().type == CSS::PseudoClass::Is
@@ -2761,7 +2727,6 @@ void StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_ori
                                 if (simple_argument_selector.type == CSS::Selector::SimpleSelector::Type::PseudoClass
                                     && simple_argument_selector.pseudo_class().type == CSS::PseudoClass::Hover) {
                                     matching_rule.must_be_hovered = true;
-                                    ++num_hover_rules;
                                 }
                             }
                         }
@@ -2772,80 +2737,7 @@ void StyleComputer::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_ori
                     hover_rules.append(matching_rule);
                 }
 
-                // NOTE: We traverse the simple selectors in reverse order to make sure that class/ID buckets are preferred over tag buckets
-                //       in the common case of div.foo or div#foo selectors.
-                bool added_to_bucket = false;
-
-                auto add_to_id_bucket = [&](FlyString const& name) {
-                    rule_cache.rules_by_id.ensure(name).append(move(matching_rule));
-                    ++num_id_rules;
-                    added_to_bucket = true;
-                };
-
-                auto add_to_class_bucket = [&](FlyString const& name) {
-                    rule_cache.rules_by_class.ensure(name).append(move(matching_rule));
-                    ++num_class_rules;
-                    added_to_bucket = true;
-                };
-
-                auto add_to_tag_name_bucket = [&](FlyString const& name) {
-                    rule_cache.rules_by_tag_name.ensure(name).append(move(matching_rule));
-                    ++num_tag_name_rules;
-                    added_to_bucket = true;
-                };
-
-                for (auto const& simple_selector : selector.compound_selectors().last().simple_selectors.in_reverse()) {
-                    if (simple_selector.type == CSS::Selector::SimpleSelector::Type::Id) {
-                        add_to_id_bucket(simple_selector.name());
-                        break;
-                    }
-                    if (simple_selector.type == CSS::Selector::SimpleSelector::Type::Class) {
-                        add_to_class_bucket(simple_selector.name());
-                        break;
-                    }
-                    if (simple_selector.type == CSS::Selector::SimpleSelector::Type::TagName) {
-                        add_to_tag_name_bucket(simple_selector.qualified_name().name.lowercase_name);
-                        break;
-                    }
-                    // NOTE: Selectors like `:is/where(.foo)` and `:is/where(.foo .bar)` are bucketed as class selectors for `foo` and `bar` respectively.
-                    if (auto simplified = is_roundabout_selector_bucketable_as_something_simpler(simple_selector); simplified.has_value()) {
-                        if (simplified->type == CSS::Selector::SimpleSelector::Type::TagName) {
-                            add_to_tag_name_bucket(simplified->name);
-                            break;
-                        }
-                        if (simplified->type == CSS::Selector::SimpleSelector::Type::Class) {
-                            add_to_class_bucket(simplified->name);
-                            break;
-                        }
-                        if (simplified->type == CSS::Selector::SimpleSelector::Type::Id) {
-                            add_to_id_bucket(simplified->name);
-                            break;
-                        }
-                    }
-                }
-                if (!added_to_bucket) {
-                    if (matching_rule.contains_pseudo_element) {
-                        if (CSS::Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element.value())) {
-                            rule_cache.rules_by_pseudo_element[to_underlying(pseudo_element.value())].append(move(matching_rule));
-                        } else {
-                            // NOTE: We don't cache rules for unknown pseudo-elements. They can't match anything anyway.
-                        }
-                    } else if (contains_root_pseudo_class) {
-                        rule_cache.root_rules.append(move(matching_rule));
-                    } else {
-                        for (auto const& simple_selector : selector.compound_selectors().last().simple_selectors) {
-                            if (simple_selector.type == CSS::Selector::SimpleSelector::Type::Attribute) {
-                                rule_cache.rules_by_attribute_name.ensure(simple_selector.attribute().qualified_name.name.lowercase_name).append(move(matching_rule));
-                                ++num_attribute_rules;
-                                added_to_bucket = true;
-                                break;
-                            }
-                        }
-                        if (!added_to_bucket) {
-                            rule_cache.other_rules.append(move(matching_rule));
-                        }
-                    }
-                }
+                rule_cache.add_rule(matching_rule, pseudo_element, contains_root_pseudo_class);
             }
             ++rule_index;
         });
@@ -3172,6 +3064,115 @@ bool StyleComputer::have_has_selectors() const
 {
     build_rule_cache_if_needed();
     return m_selector_insights->has_has_selectors;
+}
+
+void RuleCache::add_rule(MatchingRule const& matching_rule, Optional<Selector::PseudoElement::Type> pseudo_element, bool contains_root_pseudo_class)
+{
+    // NOTE: We traverse the simple selectors in reverse order to make sure that class/ID buckets are preferred over tag buckets
+    //       in the common case of div.foo or div#foo selectors.
+    auto add_to_id_bucket = [&](FlyString const& name) {
+        rules_by_id.ensure(name).append(matching_rule);
+    };
+
+    auto add_to_class_bucket = [&](FlyString const& name) {
+        rules_by_class.ensure(name).append(matching_rule);
+    };
+
+    auto add_to_tag_name_bucket = [&](FlyString const& name) {
+        rules_by_tag_name.ensure(name).append(matching_rule);
+    };
+
+    for (auto const& simple_selector : matching_rule.selector.compound_selectors().last().simple_selectors.in_reverse()) {
+        if (simple_selector.type == Selector::SimpleSelector::Type::Id) {
+            add_to_id_bucket(simple_selector.name());
+            return;
+        }
+        if (simple_selector.type == Selector::SimpleSelector::Type::Class) {
+            add_to_class_bucket(simple_selector.name());
+            return;
+        }
+        if (simple_selector.type == Selector::SimpleSelector::Type::TagName) {
+            add_to_tag_name_bucket(simple_selector.qualified_name().name.lowercase_name);
+            return;
+        }
+        // NOTE: Selectors like `:is/where(.foo)` and `:is/where(.foo .bar)` are bucketed as class selectors for `foo` and `bar` respectively.
+        if (auto simplified = is_roundabout_selector_bucketable_as_something_simpler(simple_selector); simplified.has_value()) {
+            if (simplified->type == Selector::SimpleSelector::Type::TagName) {
+                add_to_tag_name_bucket(simplified->name);
+                return;
+            }
+            if (simplified->type == Selector::SimpleSelector::Type::Class) {
+                add_to_class_bucket(simplified->name);
+                return;
+            }
+            if (simplified->type == Selector::SimpleSelector::Type::Id) {
+                add_to_id_bucket(simplified->name);
+                return;
+            }
+        }
+    }
+
+    if (matching_rule.contains_pseudo_element) {
+        if (Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element.value())) {
+            rules_by_pseudo_element[to_underlying(pseudo_element.value())].append(matching_rule);
+        } else {
+            // NOTE: We don't cache rules for unknown pseudo-elements. They can't match anything anyway.
+        }
+    } else if (contains_root_pseudo_class) {
+        root_rules.append(matching_rule);
+    } else {
+        for (auto const& simple_selector : matching_rule.selector.compound_selectors().last().simple_selectors) {
+            if (simple_selector.type == Selector::SimpleSelector::Type::Attribute) {
+                rules_by_attribute_name.ensure(simple_selector.attribute().qualified_name.name.lowercase_name).append(matching_rule);
+                return;
+            }
+        }
+        other_rules.append(matching_rule);
+    }
+}
+
+void RuleCache::for_each_matching_rules(DOM::Element const& element, Optional<Selector::PseudoElement::Type> pseudo_element, Function<IterationDecision(Vector<MatchingRule> const&)> callback) const
+{
+    for (auto const& class_name : element.class_names()) {
+        if (auto it = rules_by_class.find(class_name); it != rules_by_class.end()) {
+            if (callback(it->value) == IterationDecision::Break)
+                return;
+        }
+    }
+    if (auto id = element.id(); id.has_value()) {
+        if (auto it = rules_by_id.find(id.value()); it != rules_by_id.end()) {
+            if (callback(it->value) == IterationDecision::Break)
+                return;
+        }
+    }
+    if (auto it = rules_by_tag_name.find(element.local_name()); it != rules_by_tag_name.end()) {
+        if (callback(it->value) == IterationDecision::Break)
+            return;
+    }
+    if (pseudo_element.has_value()) {
+        if (Selector::PseudoElement::is_known_pseudo_element_type(pseudo_element.value())) {
+            if (callback(rules_by_pseudo_element.at(to_underlying(pseudo_element.value()))) == IterationDecision::Break)
+                return;
+        } else {
+            // NOTE: We don't cache rules for unknown pseudo-elements. They can't match anything anyway.
+        }
+    }
+
+    if (element.is_document_element()) {
+        if (callback(root_rules) == IterationDecision::Break)
+            return;
+    }
+
+    IterationDecision decision = IterationDecision::Continue;
+    element.for_each_attribute([&](auto& name, auto&) {
+        if (auto it = rules_by_attribute_name.find(name); it != rules_by_attribute_name.end()) {
+            decision = callback(it->value);
+        }
+    });
+    if (decision == IterationDecision::Break)
+        return;
+
+    (void)callback(other_rules);
 }
 
 }
