@@ -1741,7 +1741,7 @@ void Document::invalidate_style_for_elements_affected_by_hover_change(Node& old_
             return false;
 
         auto const& selector = rule.selector;
-        if (style_computer.should_reject_with_ancestor_filter(selector))
+        if (selector.can_use_ancestor_filter() && style_computer.should_reject_with_ancestor_filter(selector))
             return false;
 
         SelectorEngine::MatchContext context;
