@@ -356,7 +356,8 @@ void StackingContext::paint(PaintContext& context) const
         auto mask_display_list = DisplayList::create();
         DisplayListRecorder display_list_recorder(*mask_display_list);
         auto mask_painting_context = context.clone(display_list_recorder);
-        auto mask_rect_in_device_pixels = context.enclosing_device_rect(paintable_box().absolute_padding_box_rect());
+        CSSPixelPoint enclosing_scroll_offset = paintable_box().cumulative_offset_of_enclosing_scroll_frame();
+        auto mask_rect_in_device_pixels = context.enclosing_device_rect(paintable_box().absolute_padding_box_rect().translated(enclosing_scroll_offset));
         mask_image->paint(mask_painting_context, { {}, mask_rect_in_device_pixels.size() }, CSS::ImageRendering::Auto);
         context.display_list_recorder().add_mask(mask_display_list, mask_rect_in_device_pixels.to_type<int>());
     }
