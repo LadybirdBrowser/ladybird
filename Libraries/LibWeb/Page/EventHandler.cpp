@@ -1020,7 +1020,7 @@ bool EventHandler::focus_previous_element()
 
 constexpr bool should_ignore_keydown_event(u32 code_point, u32 modifiers)
 {
-    if (modifiers & (UIEvents::KeyModifier::Mod_Ctrl | UIEvents::KeyModifier::Mod_Alt | UIEvents::KeyModifier::Mod_Super))
+    if (modifiers & (UIEvents::KeyModifier::Mod_Ctrl | UIEvents::KeyModifier::Mod_Super))
         return true;
 
     // FIXME: There are probably also keys with non-zero code points that should be filtered out.
