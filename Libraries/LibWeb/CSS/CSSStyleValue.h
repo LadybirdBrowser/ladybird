@@ -348,7 +348,7 @@ public:
     bool has_auto() const;
     virtual bool has_color() const { return false; }
 
-    virtual ValueComparingNonnullRefPtr<CSSStyleValue const> absolutized(CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const;
+    virtual ValueComparingNonnullRefPtr<CSSStyleValue const> absolutized(Layout::Node const& layout_node, CSSPixelRect const& viewport_rect, Length::FontMetrics const& font_metrics, Length::FontMetrics const& root_font_metrics) const;
 
     virtual Color to_color(Optional<Layout::NodeWithStyle const&>) const { return {}; }
     Keyword to_keyword() const;

@@ -620,7 +620,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
         return invalidation;
 
     document().style_computer().compute_font(*computed_properties, this, {});
-    document().style_computer().absolutize_values(*computed_properties);
+    document().style_computer().absolutize_values(layout_node(), *computed_properties);
 
     for (auto [property_id, old_value] : old_values_with_relative_units) {
         auto new_value = computed_properties->maybe_null_property(static_cast<CSS::PropertyID>(property_id));
@@ -3040,6 +3040,10 @@ bool Element::has_size_containment() const
     if (computed_properties()->contain().size_containment)
         return true;
 
+    // https://drafts.csswg.org/css-conditional-5/#valdef-container-type-size
+    if (computed_properties()->container_type() == CSS::ContainerType::Size)
+        return true;
+
     return false;
 }
 // https://drafts.csswg.org/css-contain-2/#containment-inline-size
@@ -3063,6 +3067,10 @@ bool Element::has_inline_size_containment() const
     // FIXME: Implement this.
 
     if (computed_properties()->contain().inline_size_containment)
+        return true;
+
+    // https://drafts.csswg.org/css-conditional-5/#valdef-container-type-inline-size
+    if (computed_properties()->container_type() == CSS::ContainerType::InlineSize)
         return true;
 
     return false;
@@ -3110,6 +3118,10 @@ bool Element::has_style_containment() const
     // Changes the used value of the 'contain' property so as to turn on layout containment, style containment, and
     // paint containment for the element.
     if (computed_properties()->content_visibility() == CSS::ContentVisibility::Auto)
+        return true;
+
+    // https://drafts.csswg.org/css-conditional-5/#propdef-container-type
+    if (computed_properties()->container_type() == CSS::ContainerType::Size || computed_properties()->container_type() == CSS::ContainerType::InlineSize)
         return true;
 
     return false;

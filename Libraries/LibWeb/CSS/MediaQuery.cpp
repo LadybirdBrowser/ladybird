@@ -186,8 +186,8 @@ bool MediaFeature::compare(HTML::Window const& window, MediaFeatureValue left, C
             Gfx::FontPixelMetrics const& initial_font_metrics = initial_font.pixel_metrics();
             Length::FontMetrics font_metrics { CSSPixels { initial_font.point_size() }, initial_font_metrics };
 
-            left_px = left_length.to_px(viewport_rect, font_metrics, font_metrics);
-            right_px = right_length.to_px(viewport_rect, font_metrics, font_metrics);
+            left_px = left_length.to_px({}, viewport_rect, font_metrics, font_metrics);
+            right_px = right_length.to_px({}, viewport_rect, font_metrics, font_metrics);
         }
 
         switch (comparison) {
