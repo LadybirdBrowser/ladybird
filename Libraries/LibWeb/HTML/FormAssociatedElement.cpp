@@ -871,7 +871,15 @@ void FormAssociatedTextControlElement::decrement_cursor_position_offset(Collapse
         } else {
             m_selection_end = *offset;
         }
+    } else if (auto text_length = text_node->whole_text().to_byte_string().length(); m_selection_end == text_length && m_selection_end > 0) {
+
+        if (collapse == CollapseSelection::Yes) {
+            collapse_selection_to_offset(m_selection_end - 1);
+        } else {
+            m_selection_end = m_selection_end - 1;
+        }
     }
+
     selection_was_changed();
 }
 
