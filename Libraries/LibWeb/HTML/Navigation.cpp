@@ -1015,17 +1015,17 @@ bool Navigation::inner_navigate_event_firing_algorithm(
     // 18. Initialize event's sourceElement to sourceElement.
     event_init.source_element = source_element;
 
-    // 18. Set event's abort controller to a new AbortController created in navigation's relevant realm.
+    // 19. Set event's abort controller to a new AbortController created in navigation's relevant realm.
     // AD-HOC: Set on the NavigateEvent later after construction
     auto abort_controller = MUST(DOM::AbortController::construct_impl(realm));
 
-    // 19. Initialize event's signal to event's abort controller's signal.
+    // 20. Initialize event's signal to event's abort controller's signal.
     event_init.signal = abort_controller->signal();
 
-    // 20. Let currentURL be document's URL.
+    // 21. Let currentURL be document's URL.
     auto current_url = document.url();
 
-    // 21. If all of the following are true:
+    // 22. If all of the following are true:
     //  - event's classic history API state is null;
     //  - destination's is same document is true;
     //  - destination's URL equals currentURL with exclude fragments set to true; and
@@ -1036,10 +1036,10 @@ bool Navigation::inner_navigate_event_firing_algorithm(
         && destination->raw_url().equals(current_url, URL::ExcludeFragment::Yes)
         && destination->raw_url().fragment() != current_url.fragment());
 
-    // 22. If userInvolvement is not "none", then initialize event's userInitiated to true. Otherwise, initialize it to false.
+    // 23. If userInvolvement is not "none", then initialize event's userInitiated to true. Otherwise, initialize it to false.
     event_init.user_initiated = user_involvement != UserNavigationInvolvement::None;
 
-    // 23. If formDataEntryList is not null, then initialize event's formData to a new FormData created in navigation's relevant realm,
+    // 24. If formDataEntryList is not null, then initialize event's formData to a new FormData created in navigation's relevant realm,
     //     associated to formDataEntryList. Otherwise, initialize it to null.
     if (form_data_entry_list.has_value()) {
         event_init.form_data = MUST(XHR::FormData::construct_impl(realm, form_data_entry_list.release_value()));
@@ -1055,22 +1055,22 @@ bool Navigation::inner_navigate_event_firing_algorithm(
     //         we're doing a push or replace. We set it here because we create the event here
     event->set_classic_history_api_state(move(classic_history_api_state));
 
-    // 24. Assert: navigation's ongoing navigate event is null.
+    // 25. Assert: navigation's ongoing navigate event is null.
     VERIFY(m_ongoing_navigate_event == nullptr);
 
-    // 25. Set navigation's ongoing navigate event to event.
+    // 26. Set navigation's ongoing navigate event to event.
     m_ongoing_navigate_event = event;
 
-    // 26. Set navigation's focus changed during ongoing navigation to false.
+    // 27. Set navigation's focus changed during ongoing navigation to false.
     m_focus_changed_during_ongoing_navigation = false;
 
-    // 27. Set navigation's suppress normal scroll restoration during ongoing navigation to false.
+    // 28. Set navigation's suppress normal scroll restoration during ongoing navigation to false.
     m_suppress_scroll_restoration_during_ongoing_navigation = false;
 
-    // 28. Let dispatchResult be the result of dispatching event at navigation.
+    // 29. Let dispatchResult be the result of dispatching event at navigation.
     auto dispatch_result = dispatch_event(*event);
 
-    // 29. If dispatchResult is false:
+    // 30. If dispatchResult is false:
     if (!dispatch_result) {
         // 1. If navigationType is "traverse", then consume history-action user activation given navigation's relevant global object.
         if (navigation_type == Bindings::NavigationType::Traverse)
@@ -1084,15 +1084,15 @@ bool Navigation::inner_navigate_event_firing_algorithm(
         return false;
     }
 
-    // 30. Let endResultIsSameDocument be true if event's interception state
+    // 31. Let endResultIsSameDocument be true if event's interception state
     //     is not "none" or event's destination's is same document is true.
     bool const end_result_is_same_document = (event->interception_state() != NavigateEvent::InterceptionState::None) || event->destination()->same_document();
 
-    // 31. Prepare to run script given navigation's relevant settings object.
+    // 32. Prepare to run script given navigation's relevant settings object.
     // NOTE: There's a massive spec note here
     TemporaryExecutionContext execution_context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
 
-    // 32. If event's interception state is not "none":
+    // 33. If event's interception state is not "none":
     if (event->interception_state() != NavigateEvent::InterceptionState::None) {
         // 1. Set event's interception state to "committed".
         event->set_interception_state(NavigateEvent::InterceptionState::Committed);
@@ -1104,7 +1104,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
         VERIFY(from_nhe != nullptr);
 
         // 4. Set navigation's transition to a new NavigationTransition created in navigation's relevant realm,
-        //    whose navigation type is navigationType, from entry is fromNHE, and whose finished promise is a new promise
+        //    whose navigation type is navigationType, whose from entry is fromNHE, and whose finished promise is a new promise
         //    created in navigation's relevant realm.
         m_transition = NavigationTransition::create(realm, navigation_type, *from_nhe, WebIDL::create_promise(realm));
 
@@ -1129,7 +1129,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
         // Big spec note about reload here
     }
 
-    // 33. If endResultIsSameDocument is true:
+    // 34. If endResultIsSameDocument is true:
     if (end_result_is_same_document) {
         // 1. Let promisesList be an empty list.
         GC::RootVector<GC::Ref<WebIDL::Promise>> promises_list(realm.heap());
@@ -1238,16 +1238,16 @@ bool Navigation::inner_navigate_event_firing_algorithm(
             });
     }
 
-    // 34. Otherwise, if apiMethodTracker is non-null, then clean up apiMethodTracker.
+    // 35. Otherwise, if apiMethodTracker is non-null, then clean up apiMethodTracker.
     else if (api_method_tracker != nullptr) {
         clean_up(*api_method_tracker);
     }
 
-    // 35. Clean up after running script given navigation's relevant settings object.
+    // 36. Clean up after running script given navigation's relevant settings object.
     // Handled by TemporaryExecutionContext destructor from step 31
 
-    // 36. If event's interception state is "none", then return true.
-    // 37. Return false.
+    // 37. If event's interception state is "none", then return true.
+    // 38. Return false.
     return event->interception_state() == NavigateEvent::InterceptionState::None;
 }
 
