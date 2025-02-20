@@ -9,7 +9,9 @@
       "name": "curl",
       "features": [
         "brotli",
-        "http2"
+        "http2",
+        "ssl",
+        "websockets"
       ]
     },
     {

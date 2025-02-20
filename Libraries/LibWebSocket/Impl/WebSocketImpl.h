@@ -27,6 +27,8 @@ public:
     virtual bool eof() = 0;
     virtual void discard_connection() = 0;
 
+    virtual bool handshake_complete_when_connected() const { return false; }
+
     Function<void()> on_connected;
     Function<void()> on_connection_error;
     Function<void()> on_ready_to_read;

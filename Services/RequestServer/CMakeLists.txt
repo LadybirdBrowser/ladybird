@@ -4,6 +4,7 @@ set(CMAKE_AUTOUIC OFF)
 
 set(SOURCES
     ConnectionFromClient.cpp
+    WebSocketImplCurl.cpp
 )
 
 if (ANDROID)
