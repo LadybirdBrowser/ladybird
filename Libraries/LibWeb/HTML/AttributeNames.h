@@ -51,6 +51,8 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(color, "color")                                           \
     __ENUMERATE_HTML_ATTRIBUTE(cols, "cols")                                             \
     __ENUMERATE_HTML_ATTRIBUTE(colspan, "colspan")                                       \
+    __ENUMERATE_HTML_ATTRIBUTE(command, "command")                                       \
+    __ENUMERATE_HTML_ATTRIBUTE(commandfor, "commandfor")                                 \
     __ENUMERATE_HTML_ATTRIBUTE(compact, "compact")                                       \
     __ENUMERATE_HTML_ATTRIBUTE(content, "content")                                       \
     __ENUMERATE_HTML_ATTRIBUTE(contenteditable, "contenteditable")                       \

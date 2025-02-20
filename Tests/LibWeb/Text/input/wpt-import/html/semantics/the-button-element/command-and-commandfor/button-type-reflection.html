@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<link rel=author href="mailto:lwarlow@igalia.com">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+
+<iframe name=foo></iframe>
+<form id="form" target=foo action="about:blank">
+  <button id=reset-in-form type=reset commandfor=mypopover command=toggle-popover>reset</button>
+  <button id=submit-in-form type=submit commandfor=mypopover command=toggle-popover>submit</button>
+  <button id=button-in-form type=button commandfor=mypopover command=toggle-popover>type=button</button>
+  <button id=invalid-in-form type=invalid commandfor=mypopover command=toggle-popover>invalid</button>
+  <button id=missing-in-form commandfor=mypopover command=toggle-popover>missing</button>
+  <button id=missing-in-form-command-only command=toggle-popover>missing with command only</button>
+  <button id=missing-in-form-commandfor-only commandfor=mypopover >missing with commandfor only</button>
+</form>
+
+<button id=reset-attr-form type=reset commandfor=mypopover command=toggle-popover form=form>reset</button>
+<button id=submit-attr-form type=submit commandfor=mypopover command=toggle-popover form=form>submit</button>
+<button id=button-attr-form type=button commandfor=mypopover command=toggle-popover form=form>type=button</button>
+<button id=invalid-attr-form type=invalid commandfor=mypopover command=toggle-popover form=form>invalid</button>
+<button id=missing-attr-form commandfor=mypopover command=toggle-popover form=form>missing</button>
+<button id=missing-attr-form-command-only command=toggle-popover form=form>missing with command only</button>
+<button id=missing-attr-form-commandfor-only commandfor=mypopover form=form>missing with commandfor only</button>
+
+<button id=reset-outside-form type=reset commandfor=mypopover command=toggle-popover>reset</button>
+<button id=submit-outside-form type=submit commandfor=mypopover command=toggle-popover>submit</button>
+<button id=button-outside-form type=button commandfor=mypopover command=toggle-popover>type=button</button>
+<button id=invalid-outside-form type=invalid commandfor=mypopover command=toggle-popover>invalid</button>
+<button id=missing-outside-form commandfor=mypopover command=toggle-popover>missing</button>
+<button id=missing-outside-form-command-only command=toggle-popover>missing with command only</button>
+<button id=missing-outside-form-commandfor-only commandfor=mypopover>missing with commandfor only</button>
+
+<script>
+const data = {
+  'reset-in-form': 'reset',
+  'submit-in-form': 'submit',
+  'button-in-form': 'button',
+  'invalid-in-form': 'submit',
+  'missing-in-form': 'button',
+  'missing-in-form-command-only': 'button',
+  'missing-in-form-commandfor-only': 'button',
+  'reset-attr-form': 'reset',
+  'submit-attr-form': 'submit',
+  'button-attr-form': 'button',
+  'invalid-attr-form': 'submit',
+  'missing-attr-form': 'button',
+  'missing-attr-form-command-only': 'button',
+  'missing-attr-form-commandfor-only': 'button',
+  'reset-outside-form': 'reset',
+  'submit-outside-form': 'submit',
+  'button-outside-form': 'button',
+  'invalid-outside-form': 'submit',
+  'missing-outside-form': 'button',
+  'missing-outside-form-command-only': 'button',
+  'missing-outside-form-commandfor-only': 'button',
+};
+
+Object.entries(data).map(([id, expectedType]) => {
+  test(() => {
+    const button = document.getElementById(id);
+    assert_equals(button.type, expectedType, `type of ${id} should be ${expectedType}`);
+  }, `Button with id ${id} should reflect type correctly`);
+});
+</script>
