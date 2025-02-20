@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include "WebSocketImplCurl.h"
+
 #include <AK/Badge.h>
 #include <AK/IDAllocator.h>
 #include <AK/NonnullOwnPtr.h>
@@ -519,9 +521,22 @@ void ConnectionFromClient::check_active_requests()
         if (msg->msg != CURLMSG_DONE)
             continue;
 
-        ActiveRequest* request = nullptr;
-        auto result = curl_easy_getinfo(msg->easy_handle, CURLINFO_PRIVATE, &request);
+        void* application_private = nullptr;
+        auto result = curl_easy_getinfo(msg->easy_handle, CURLINFO_PRIVATE, &application_private);
         VERIFY(result == CURLE_OK);
+        VERIFY(application_private != nullptr);
+
+        // FIXME: Come up with a unified way to track websockets and standard fetches instead of this nasty tagged pointer
+        if (reinterpret_cast<uintptr_t>(application_private) & websocket_private_tag) {
+            auto* websocket_impl = reinterpret_cast<WebSocketImplCurl*>(reinterpret_cast<uintptr_t>(application_private) & ~websocket_private_tag);
+            if (msg->data.result == CURLE_OK)
+                websocket_impl->did_connect();
+            else
+                websocket_impl->on_connection_error();
+            continue;
+        }
+
+        auto* request = static_cast<ActiveRequest*>(application_private);
 
         if (!request->is_connect_only) {
             request->flush_headers_if_needed();
@@ -638,6 +653,7 @@ void ConnectionFromClient::ensure_connection(URL::URL const& url, ::RequestServe
 
 void ConnectionFromClient::websocket_connect(i64 websocket_id, URL::URL const& url, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderMap const& additional_request_headers)
 {
+    // FIXME: Use our DNS resolver to resolve the hostname
     WebSocket::ConnectionInfo connection_info(url);
     connection_info.set_origin(origin);
     connection_info.set_protocols(protocols);
@@ -647,7 +663,9 @@ void ConnectionFromClient::websocket_connect(i64 websocket_id, URL::URL const& u
     if (!g_default_certificate_path.is_empty())
         connection_info.set_root_certificates_path(g_default_certificate_path);
 
-    auto connection = WebSocket::WebSocket::create(move(connection_info));
+    auto impl = WebSocketImplCurl::create(m_curl_multi);
+    auto connection = WebSocket::WebSocket::create(move(connection_info), move(impl));
+
     connection->on_open = [this, websocket_id]() {
         async_websocket_connected(websocket_id);
     };
