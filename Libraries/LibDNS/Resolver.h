@@ -15,7 +15,7 @@
 #include <AK/TemporaryChange.h>
 #include <LibCore/DateTime.h>
 #include <LibCore/Promise.h>
-#include <LibCore/SocketAddress.h>
+#include <LibCore/Socket.h>
 #include <LibCore/Timer.h>
 #include <LibDNS/Message.h>
 #include <LibThreading/MutexProtected.h>
