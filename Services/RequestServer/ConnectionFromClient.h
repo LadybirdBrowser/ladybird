@@ -77,4 +77,6 @@ private:
     NonnullRefPtr<Resolver> m_resolver;
 };
 
+constexpr inline uintptr_t websocket_private_tag = 0x1;
+
 }

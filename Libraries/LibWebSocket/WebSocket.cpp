@@ -42,9 +42,14 @@ void WebSocket::start()
     m_impl->on_connected = [this] {
         if (m_state != WebSocket::InternalState::EstablishingProtocolConnection)
             return;
-        set_state(WebSocket::InternalState::SendingClientHandshake);
-        send_client_handshake();
-        drain_read();
+        if (m_impl->handshake_complete_when_connected()) {
+            set_state(WebSocket::InternalState::Open);
+            notify_open();
+        } else {
+            set_state(WebSocket::InternalState::SendingClientHandshake);
+            send_client_handshake();
+            drain_read();
+        }
     };
     m_impl->on_ready_to_read = [this] {
         drain_read();
