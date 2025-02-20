@@ -454,6 +454,9 @@ public:
         return affected_by_sibling_combinator() || affected_by_first_or_last_child_pseudo_class() || affected_by_nth_child_pseudo_class();
     }
 
+    // https://html.spec.whatwg.org/multipage/rendering.html#concept-rendering-elements-with-margins
+    bool is_element_with_default_margins() const;
+
 protected:
     Element(Document&, DOM::QualifiedName);
     virtual void initialize(JS::Realm&) override;
