@@ -5,18 +5,19 @@
  */
 
 #include <AK/JsonArray.h>
+#include <AK/StringUtils.h>
 #include <LibDevTools/Actors/TabActor.h>
 #include <LibDevTools/Actors/WalkerActor.h>
 #include <LibWeb/DOM/NodeType.h>
 
 namespace DevTools {
 
-NonnullRefPtr<WalkerActor> WalkerActor::create(DevToolsServer& devtools, ByteString name, WeakPtr<TabActor> tab, JsonObject dom_tree)
+NonnullRefPtr<WalkerActor> WalkerActor::create(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, JsonObject dom_tree)
 {
     return adopt_ref(*new WalkerActor(devtools, move(name), move(tab), move(dom_tree)));
 }
 
-WalkerActor::WalkerActor(DevToolsServer& devtools, ByteString name, WeakPtr<TabActor> tab, JsonObject dom_tree)
+WalkerActor::WalkerActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, JsonObject dom_tree)
     : Actor(devtools, move(name))
     , m_tab(move(tab))
     , m_dom_tree(move(dom_tree))
@@ -32,7 +33,7 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
     response.set("from"sv, name());
 
     if (type == "children"sv) {
-        auto node = message.get_byte_string("node"sv);
+        auto node = message.get_string("node"sv);
         if (!node.has_value()) {
             send_missing_parameter_error("node"sv);
             return;
@@ -57,13 +58,13 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
     }
 
     if (type == "querySelector"sv) {
-        auto node = message.get_byte_string("node"sv);
+        auto node = message.get_string("node"sv);
         if (!node.has_value()) {
             send_missing_parameter_error("node"sv);
             return;
         }
 
-        auto selector = message.get_byte_string("selector"sv);
+        auto selector = message.get_string("selector"sv);
         if (!selector.has_value()) {
             send_missing_parameter_error("selector"sv);
             return;
@@ -93,7 +94,7 @@ void WalkerActor::handle_message(StringView type, JsonObject const& message)
         send_message(move(response));
 
         JsonObject message;
-        message.set("from", name());
+        message.set("from"sv, name());
         send_message(move(message));
 
         return;
@@ -112,12 +113,12 @@ bool WalkerActor::is_suitable_for_dom_inspection(JsonValue const& node)
     if (!object.has_string("name"sv) || !object.has_string("type"sv))
         return false;
 
-    if (auto text = object.get_byte_string("text"sv); text.has_value()) {
-        if (text->is_whitespace())
+    if (auto text = object.get_string("text"sv); text.has_value()) {
+        if (AK::StringUtils::is_whitespace(*text))
             return false;
     }
-    if (auto data = object.get_byte_string("data"sv); data.has_value()) {
-        if (data->is_whitespace())
+    if (auto data = object.get_string("data"sv); data.has_value()) {
+        if (AK::StringUtils::is_whitespace(*data))
             return false;
     }
 
@@ -135,12 +136,12 @@ JsonValue WalkerActor::serialize_node(JsonObject const& node) const
     if (!tab)
         return {};
 
-    auto actor = node.get_byte_string("actor"sv);
+    auto actor = node.get_string("actor"sv);
     if (!actor.has_value())
         return {};
 
-    auto name = node.get_byte_string("name"sv).release_value();
-    auto type = node.get_byte_string("type"sv).release_value();
+    auto name = node.get_string("name"sv).release_value();
+    auto type = node.get_string("type"sv).release_value();
 
     auto dom_type = Web::DOM::NodeType::INVALID;
     JsonValue node_value;
@@ -157,12 +158,12 @@ JsonValue WalkerActor::serialize_node(JsonObject const& node) const
     } else if (type == "text"sv) {
         dom_type = Web::DOM::NodeType::TEXT_NODE;
 
-        if (auto text = node.get_byte_string("text"sv); text.has_value())
+        if (auto text = node.get_string("text"sv); text.has_value())
             node_value = text.release_value();
     } else if (type == "comment"sv) {
         dom_type = Web::DOM::NodeType::COMMENT_NODE;
 
-        if (auto data = node.get_byte_string("data"sv); data.has_value())
+        if (auto data = node.get_string("data"sv); data.has_value())
             node_value = data.release_value();
     } else if (type == "shadow-root"sv) {
         is_shadow_root = true;
@@ -175,7 +176,7 @@ JsonValue WalkerActor::serialize_node(JsonObject const& node) const
     JsonArray attrs;
 
     if (auto attributes = node.get_object("attributes"sv); attributes.has_value()) {
-        attributes->for_each_member([&](ByteString const& name, JsonValue const& value) {
+        attributes->for_each_member([&](String const& name, JsonValue const& value) {
             if (!value.is_string())
                 return;
 
@@ -192,8 +193,8 @@ JsonValue WalkerActor::serialize_node(JsonObject const& node) const
     serialized.set("baseURI"sv, tab->description().url);
     serialized.set("causesOverflow"sv, false);
     serialized.set("containerType"sv, JsonValue {});
-    serialized.set("displayName"sv, name.to_lowercase());
-    serialized.set("displayType"sv, "block");
+    serialized.set("displayName"sv, name.to_ascii_lowercase());
+    serialized.set("displayType"sv, "block"sv);
     serialized.set("host"sv, JsonValue {});
     serialized.set("isAfterPseudoElement"sv, false);
     serialized.set("isAnonymous"sv, false);
@@ -216,7 +217,7 @@ JsonValue WalkerActor::serialize_node(JsonObject const& node) const
 
     if (!is_top_level_document) {
         if (auto parent = m_dom_node_to_parent_map.get(&node); parent.has_value() && parent.value()) {
-            actor = parent.value()->get_byte_string("actor"sv);
+            actor = parent.value()->get_string("actor"sv);
             if (!actor.has_value())
                 return {};
 
@@ -230,7 +231,7 @@ JsonValue WalkerActor::serialize_node(JsonObject const& node) const
 Optional<JsonObject const&> WalkerActor::find_node_by_selector(JsonObject const& node, StringView selector)
 {
     auto matches = [&](auto const& candidate) {
-        return candidate.get_byte_string("name"sv)->equals_ignoring_ascii_case(selector);
+        return candidate.get_string("name"sv)->equals_ignoring_ascii_case(selector);
     };
 
     if (matches(node))
@@ -255,7 +256,7 @@ void WalkerActor::populate_dom_tree_cache(JsonObject& node, JsonObject const* pa
 {
     m_dom_node_to_parent_map.set(&node, parent);
 
-    auto actor = ByteString::formatted("{}-node{}", name(), m_dom_node_count++);
+    auto actor = MUST(String::formatted("{}-node{}", name(), m_dom_node_count++));
     m_actor_to_dom_node_map.set(actor, &node);
     node.set("actor"sv, actor);
 

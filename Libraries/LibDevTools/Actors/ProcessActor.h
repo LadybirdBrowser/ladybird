@@ -21,7 +21,7 @@ class ProcessActor final : public Actor {
 public:
     static constexpr auto base_name = "process"sv;
 
-    static NonnullRefPtr<ProcessActor> create(DevToolsServer&, ByteString name, ProcessDescription);
+    static NonnullRefPtr<ProcessActor> create(DevToolsServer&, String name, ProcessDescription);
     virtual ~ProcessActor() override;
 
     virtual void handle_message(StringView type, JsonObject const&) override;
@@ -30,7 +30,7 @@ public:
     JsonObject serialize_description() const;
 
 private:
-    ProcessActor(DevToolsServer&, ByteString name, ProcessDescription);
+    ProcessActor(DevToolsServer&, String name, ProcessDescription);
 
     ProcessDescription m_description;
 };

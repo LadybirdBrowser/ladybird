@@ -12,12 +12,12 @@
 
 namespace DevTools {
 
-NonnullRefPtr<CSSPropertiesActor> CSSPropertiesActor::create(DevToolsServer& devtools, ByteString name)
+NonnullRefPtr<CSSPropertiesActor> CSSPropertiesActor::create(DevToolsServer& devtools, String name)
 {
     return adopt_ref(*new CSSPropertiesActor(devtools, move(name)));
 }
 
-CSSPropertiesActor::CSSPropertiesActor(DevToolsServer& devtools, ByteString name)
+CSSPropertiesActor::CSSPropertiesActor(DevToolsServer& devtools, String name)
     : Actor(devtools, move(name))
 {
 }

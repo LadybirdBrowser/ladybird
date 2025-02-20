@@ -45,7 +45,7 @@ ErrorOr<Vector<String>> AutoComplete::parse_google_autocomplete(Vector<JsonValue
 
     if (!json[0].is_string())
         return Error::from_string_literal("Invalid JSON, expected first element to be a string");
-    auto query = TRY(String::from_byte_string(json[0].as_string()));
+    auto query = json[0].as_string();
 
     if (!json[1].is_array())
         return Error::from_string_literal("Invalid JSON, expected second element to be an array");
@@ -57,7 +57,7 @@ ErrorOr<Vector<String>> AutoComplete::parse_google_autocomplete(Vector<JsonValue
     Vector<String> results;
     results.ensure_capacity(suggestions_array.size());
     for (auto& suggestion : suggestions_array)
-        results.unchecked_append(MUST(String::from_byte_string(suggestion.as_string())));
+        results.unchecked_append(suggestion.as_string());
 
     return results;
 }
@@ -65,11 +65,13 @@ ErrorOr<Vector<String>> AutoComplete::parse_google_autocomplete(Vector<JsonValue
 ErrorOr<Vector<String>> AutoComplete::parse_duckduckgo_autocomplete(Vector<JsonValue> const& json)
 {
     Vector<String> results;
+
     for (auto const& suggestion : json) {
-        auto maybe_value = suggestion.as_object().get("phrase"sv);
-        if (!maybe_value.has_value())
-            continue;
-        results.append(MUST(String::from_byte_string(maybe_value->as_string())));
+        if (!suggestion.is_object())
+            return Error::from_string_literal("Invalid JSON, expected value to be an object");
+
+        if (auto value = suggestion.as_object().get_string("phrase"sv); !value.has_value())
+            results.append(*value);
     }
 
     return results;
@@ -77,28 +79,28 @@ ErrorOr<Vector<String>> AutoComplete::parse_duckduckgo_autocomplete(Vector<JsonV
 
 ErrorOr<Vector<String>> AutoComplete::parse_yahoo_autocomplete(JsonObject const& json)
 {
-    if (!json.get("q"sv).has_value() || !json.get("q"sv)->is_string())
+    auto query = json.get_string("q"sv);
+    if (!query.has_value())
         return Error::from_string_view("Invalid JSON, expected \"q\" to be a string"sv);
-    auto query = TRY(String::from_byte_string(json.get("q"sv)->as_string()));
-
-    if (!json.get("r"sv).has_value() || !json.get("r"sv)->is_array())
-        return Error::from_string_view("Invalid JSON, expected \"r\" to be an object"sv);
-    auto suggestions_object = json.get("r"sv)->as_array().values();
-
     if (query != m_query)
         return Error::from_string_literal("Invalid JSON, query does not match");
 
-    Vector<String> results;
-    results.ensure_capacity(suggestions_object.size());
-    for (auto& suggestion_object : suggestions_object) {
-        if (!suggestion_object.is_object())
-            return Error::from_string_literal("Invalid JSON, expected value to be an object");
-        auto suggestion = suggestion_object.as_object();
+    auto suggestions = json.get_array("r"sv);
+    if (!suggestions.has_value())
+        return Error::from_string_view("Invalid JSON, expected \"r\" to be an object"sv);
 
-        if (!suggestion.get("k"sv).has_value() || !suggestion.get("k"sv)->is_string())
+    Vector<String> results;
+    results.ensure_capacity(suggestions->size());
+
+    for (auto const& suggestion : suggestions->values()) {
+        if (!suggestion.is_object())
+            return Error::from_string_literal("Invalid JSON, expected value to be an object");
+
+        auto result = suggestion.as_object().get_string("k"sv);
+        if (!result.has_value())
             return Error::from_string_view("Invalid JSON, expected \"k\" to be a string"sv);
 
-        results.unchecked_append(MUST(String::from_byte_string(suggestion.get("k"sv)->as_string())));
+        results.unchecked_append(*result);
     }
 
     return results;

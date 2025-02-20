@@ -11,7 +11,7 @@
 
 namespace DevTools {
 
-Actor::Actor(DevToolsServer& devtools, ByteString name)
+Actor::Actor(DevToolsServer& devtools, String name)
     : m_devtools(devtools)
     , m_name(move(name))
 {
@@ -36,7 +36,7 @@ void Actor::send_missing_parameter_error(StringView parameter)
     JsonObject error;
     error.set("from"sv, name());
     error.set("error"sv, "missingParameter"sv);
-    error.set("message"sv, ByteString::formatted("Missing parameter: '{}'", parameter));
+    error.set("message"sv, MUST(String::formatted("Missing parameter: '{}'", parameter)));
     send_message(move(error));
 }
 
@@ -46,7 +46,7 @@ void Actor::send_unrecognized_packet_type_error(StringView type)
     JsonObject error;
     error.set("from"sv, name());
     error.set("error"sv, "unrecognizedPacketType"sv);
-    error.set("message"sv, ByteString::formatted("Unrecognized packet type: '{}'", type));
+    error.set("message"sv, MUST(String::formatted("Unrecognized packet type: '{}'", type)));
     send_message(move(error));
 }
 
@@ -57,7 +57,7 @@ void Actor::send_unknown_actor_error(StringView actor)
     JsonObject error;
     error.set("from"sv, name());
     error.set("error"sv, "unknownActor"sv);
-    error.set("message"sv, ByteString::formatted("Unknown actor: '{}'", actor));
+    error.set("message"sv, MUST(String::formatted("Unknown actor: '{}'", actor)));
     send_message(move(error));
 }
 

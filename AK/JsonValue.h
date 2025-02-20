@@ -7,11 +7,10 @@
 
 #pragma once
 
-#include <AK/ByteString.h>
 #include <AK/Forward.h>
+#include <AK/NonnullOwnPtr.h>
 #include <AK/Optional.h>
-#include <AK/OwnPtr.h>
-#include <AK/StringBuilder.h>
+#include <AK/String.h>
 
 namespace AK {
 
@@ -25,6 +24,16 @@ public:
         Array,
         Object,
     };
+
+    using Storage = Variant<
+        Empty,
+        bool,
+        i64,
+        u64,
+        double,
+        String,
+        NonnullOwnPtr<JsonArray>,
+        NonnullOwnPtr<JsonObject>>;
 
     static ErrorOr<JsonValue> from_string(StringView);
 
@@ -43,10 +52,9 @@ public:
     JsonValue(long unsigned);
     JsonValue(long long);
     JsonValue(long long unsigned);
-
     JsonValue(double);
-    JsonValue(char const*);
-    JsonValue(ByteString const&);
+
+    JsonValue(String);
     JsonValue(StringView);
 
     template<typename T>
@@ -68,24 +76,8 @@ public:
     JsonValue& operator=(JsonArray&&);
     JsonValue& operator=(JsonObject&&);
 
-    template<typename Builder>
-    typename Builder::OutputType serialized() const;
-    template<typename Builder>
-    void serialize(Builder&) const;
-
-    ByteString as_string_or(ByteString const& alternative) const
-    {
-        if (is_string())
-            return as_string();
-        return alternative;
-    }
-
-    ByteString deprecated_to_byte_string() const
-    {
-        if (is_string())
-            return as_string();
-        return serialized<StringBuilder>();
-    }
+    String serialized() const;
+    void serialize(StringBuilder&) const;
 
     Optional<int> get_int() const { return get_integer<int>(); }
     Optional<i32> get_i32() const { return get_integer<i32>(); }
@@ -124,9 +116,9 @@ public:
         return m_value.get<bool>();
     }
 
-    ByteString const& as_string() const
+    String const& as_string() const
     {
-        return m_value.get<ByteString>();
+        return m_value.get<String>();
     }
 
     JsonObject& as_object()
@@ -160,14 +152,14 @@ public:
             [](Empty const&) { return Type::Null; },
             [](bool const&) { return Type::Bool; },
             [](Arithmetic auto const&) { return Type::Number; },
-            [](ByteString const&) { return Type::String; },
+            [](String const&) { return Type::String; },
             [](NonnullOwnPtr<JsonArray> const&) { return Type::Array; },
             [](NonnullOwnPtr<JsonObject> const&) { return Type::Object; });
     }
 
     bool is_null() const { return m_value.has<Empty>(); }
     bool is_bool() const { return m_value.has<bool>(); }
-    bool is_string() const { return m_value.has<ByteString>(); }
+    bool is_string() const { return m_value.has<String>(); }
     bool is_array() const { return m_value.has<NonnullOwnPtr<JsonArray>>(); }
     bool is_object() const { return m_value.has<NonnullOwnPtr<JsonObject>>(); }
     bool is_number() const
@@ -222,23 +214,14 @@ public:
     bool equals(JsonValue const& other) const;
 
 private:
-    Variant<
-        Empty,
-        bool,
-        i64,
-        u64,
-        double,
-        ByteString,
-        NonnullOwnPtr<JsonArray>,
-        NonnullOwnPtr<JsonObject>>
-        m_value;
+    Storage m_value;
 };
 
 template<>
 struct Formatter<JsonValue> : Formatter<StringView> {
     ErrorOr<void> format(FormatBuilder& builder, JsonValue const& value)
     {
-        return Formatter<StringView>::format(builder, value.serialized<StringBuilder>());
+        return Formatter<StringView>::format(builder, value.serialized());
     }
 };
 

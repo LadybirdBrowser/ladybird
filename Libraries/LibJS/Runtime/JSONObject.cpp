@@ -448,7 +448,7 @@ Object* JSONObject::parse_json_object(VM& vm, JsonObject const& json_object)
     auto& realm = *vm.current_realm();
     auto object = Object::create(realm, realm.intrinsics().object_prototype());
     json_object.for_each_member([&](auto& key, auto& value) {
-        object->define_direct_property(key, parse_json_value(vm, value), default_attributes);
+        object->define_direct_property(key.to_byte_string(), parse_json_value(vm, value), default_attributes);
     });
     return object;
 }

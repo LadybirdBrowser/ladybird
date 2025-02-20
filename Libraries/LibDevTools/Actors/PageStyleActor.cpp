@@ -9,12 +9,12 @@
 
 namespace DevTools {
 
-NonnullRefPtr<PageStyleActor> PageStyleActor::create(DevToolsServer& devtools, ByteString name)
+NonnullRefPtr<PageStyleActor> PageStyleActor::create(DevToolsServer& devtools, String name)
 {
     return adopt_ref(*new PageStyleActor(devtools, move(name)));
 }
 
-PageStyleActor::PageStyleActor(DevToolsServer& devtools, ByteString name)
+PageStyleActor::PageStyleActor(DevToolsServer& devtools, String name)
     : Actor(devtools, move(name))
 {
 }

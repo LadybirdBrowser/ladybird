@@ -82,7 +82,7 @@ ErrorOr<void> encode(Encoder& encoder, ByteBuffer const& value)
 template<>
 ErrorOr<void> encode(Encoder& encoder, JsonValue const& value)
 {
-    return encoder.encode(value.serialized<StringBuilder>());
+    return encoder.encode(value.serialized());
 }
 
 template<>

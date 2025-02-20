@@ -16,12 +16,12 @@
 
 namespace DevTools {
 
-NonnullRefPtr<InspectorActor> InspectorActor::create(DevToolsServer& devtools, ByteString name, WeakPtr<TabActor> tab)
+NonnullRefPtr<InspectorActor> InspectorActor::create(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab)
 {
     return adopt_ref(*new InspectorActor(devtools, move(name), move(tab)));
 }
 
-InspectorActor::InspectorActor(DevToolsServer& devtools, ByteString name, WeakPtr<TabActor> tab)
+InspectorActor::InspectorActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab)
     : Actor(devtools, move(name))
     , m_tab(move(tab))
 {

@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include <AK/ByteString.h>
 #include <AK/Error.h>
 #include <AK/JsonObject.h>
+#include <AK/String.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Value.h>
@@ -19,16 +19,16 @@
 namespace Web::WebDriver {
 
 GC::Ptr<Web::DOM::Node> get_node(HTML::BrowsingContext const&, StringView reference);
-ByteString get_or_create_a_node_reference(HTML::BrowsingContext const&, Web::DOM::Node const&);
+String get_or_create_a_node_reference(HTML::BrowsingContext const&, Web::DOM::Node const&);
 bool node_reference_is_known(HTML::BrowsingContext const&, StringView reference);
 
-ByteString get_or_create_a_web_element_reference(HTML::BrowsingContext const&, Web::DOM::Node const& element);
+String get_or_create_a_web_element_reference(HTML::BrowsingContext const&, Web::DOM::Node const& element);
 JsonObject web_element_reference_object(HTML::BrowsingContext const&, Web::DOM::Node const& element);
 bool represents_a_web_element(JsonValue const&);
 bool represents_a_web_element(JS::Value);
 ErrorOr<GC::Ref<Web::DOM::Element>, WebDriver::Error> deserialize_web_element(Web::HTML::BrowsingContext const&, JsonObject const&);
 ErrorOr<GC::Ref<Web::DOM::Element>, WebDriver::Error> deserialize_web_element(Web::HTML::BrowsingContext const&, JS::Object const&);
-ByteString extract_web_element_reference(JsonObject const&);
+String extract_web_element_reference(JsonObject const&);
 ErrorOr<GC::Ref<Web::DOM::Element>, Web::WebDriver::Error> get_web_element_origin(Web::HTML::BrowsingContext const&, StringView origin);
 ErrorOr<GC::Ref<Web::DOM::Element>, Web::WebDriver::Error> get_known_element(Web::HTML::BrowsingContext const&, StringView reference);
 
@@ -46,7 +46,7 @@ bool is_element_in_view(ReadonlySpan<GC::Ref<Web::DOM::Element>> paint_tree, Web
 bool is_element_obscured(ReadonlySpan<GC::Ref<Web::DOM::Element>> paint_tree, Web::DOM::Element&);
 GC::RootVector<GC::Ref<Web::DOM::Element>> pointer_interactable_tree(Web::HTML::BrowsingContext&, Web::DOM::Element&);
 
-ByteString get_or_create_a_shadow_root_reference(HTML::BrowsingContext const&, Web::DOM::ShadowRoot const&);
+String get_or_create_a_shadow_root_reference(HTML::BrowsingContext const&, Web::DOM::ShadowRoot const&);
 JsonObject shadow_root_reference_object(HTML::BrowsingContext const&, Web::DOM::ShadowRoot const&);
 bool represents_a_shadow_root(JsonValue const&);
 bool represents_a_shadow_root(JS::Value);

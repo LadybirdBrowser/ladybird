@@ -15,13 +15,13 @@ class ThreadActor final : public Actor {
 public:
     static constexpr auto base_name = "thread"sv;
 
-    static NonnullRefPtr<ThreadActor> create(DevToolsServer&, ByteString name);
+    static NonnullRefPtr<ThreadActor> create(DevToolsServer&, String name);
     virtual ~ThreadActor() override;
 
     virtual void handle_message(StringView type, JsonObject const&) override;
 
 private:
-    ThreadActor(DevToolsServer&, ByteString name);
+    ThreadActor(DevToolsServer&, String name);
 };
 
 }

@@ -7,9 +7,9 @@
 #pragma once
 
 #include <AK/Badge.h>
-#include <AK/ByteString.h>
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
+#include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
@@ -24,7 +24,7 @@ class Actor
 public:
     virtual ~Actor();
 
-    ByteString const& name() const { return m_name; }
+    String const& name() const { return m_name; }
     virtual void handle_message(StringView type, JsonObject const&) = 0;
 
     class [[nodiscard]] BlockToken {
@@ -48,7 +48,7 @@ public:
     void send_unknown_actor_error(StringView actor);
 
 protected:
-    explicit Actor(DevToolsServer&, ByteString name);
+    explicit Actor(DevToolsServer&, String name);
 
     DevToolsServer& devtools() { return m_devtools; }
     DevToolsServer const& devtools() const { return m_devtools; }
@@ -57,7 +57,7 @@ protected:
 
 private:
     DevToolsServer& m_devtools;
-    ByteString m_name;
+    String m_name;
 
     Vector<JsonValue> m_blocked_responses;
     bool m_block_responses { false };

@@ -10,12 +10,12 @@
 
 namespace DevTools {
 
-NonnullRefPtr<TargetConfigurationActor> TargetConfigurationActor::create(DevToolsServer& devtools, ByteString name)
+NonnullRefPtr<TargetConfigurationActor> TargetConfigurationActor::create(DevToolsServer& devtools, String name)
 {
     return adopt_ref(*new TargetConfigurationActor(devtools, move(name)));
 }
 
-TargetConfigurationActor::TargetConfigurationActor(DevToolsServer& devtools, ByteString name)
+TargetConfigurationActor::TargetConfigurationActor(DevToolsServer& devtools, String name)
     : Actor(devtools, move(name))
 {
 }

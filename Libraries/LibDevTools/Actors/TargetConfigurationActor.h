@@ -15,7 +15,7 @@ class TargetConfigurationActor final : public Actor {
 public:
     static constexpr auto base_name = "target-configuration"sv;
 
-    static NonnullRefPtr<TargetConfigurationActor> create(DevToolsServer&, ByteString name);
+    static NonnullRefPtr<TargetConfigurationActor> create(DevToolsServer&, String name);
     virtual ~TargetConfigurationActor() override;
 
     virtual void handle_message(StringView type, JsonObject const&) override;
@@ -23,7 +23,7 @@ public:
     JsonObject serialize_configuration() const;
 
 private:
-    TargetConfigurationActor(DevToolsServer&, ByteString name);
+    TargetConfigurationActor(DevToolsServer&, String name);
 };
 
 }

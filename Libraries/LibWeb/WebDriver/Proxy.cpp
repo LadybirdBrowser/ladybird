@@ -116,7 +116,7 @@ ErrorOr<JsonObject, Error> deserialize_as_a_proxy(JsonValue const& parameter)
     JsonObject proxy;
 
     // 3. For each enumerable own property in parameter run the following substeps:
-    TRY(parameter.as_object().try_for_each_member([&](ByteString const& key, JsonValue const& value) -> ErrorOr<void, Error> {
+    TRY(parameter.as_object().try_for_each_member([&](String const& key, JsonValue const& value) -> ErrorOr<void, Error> {
         // 1. Let key be the name of the property.
         // 2. Let value be the result of getting a property named name from capability.
 

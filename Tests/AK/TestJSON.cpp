@@ -6,14 +6,13 @@
 
 #include <LibTest/TestCase.h>
 
-#include <AK/ByteString.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <AK/StringBuilder.h>
 
 TEST_CASE(load_form)
 {
-    ByteString raw_form_json = R"(
+    static constexpr auto raw_form_json = R"(
     {
         "name": "Form1",
         "widgets": [
@@ -33,13 +32,13 @@ TEST_CASE(load_form)
                 "visible":true
             }
         ]
-    })";
+    })"sv;
 
     JsonValue form_json = JsonValue::from_string(raw_form_json).value();
 
     EXPECT(form_json.is_object());
 
-    auto name = form_json.as_object().get_byte_string("name"sv);
+    auto name = form_json.as_object().get_string("name"sv);
     EXPECT(name.has_value());
 
     EXPECT_EQ(name.value(), "Form1");
@@ -49,7 +48,7 @@ TEST_CASE(load_form)
 
     widgets->for_each([&](JsonValue const& widget_value) {
         auto& widget_object = widget_value.as_object();
-        auto widget_class = widget_object.get_byte_string("class"sv).value();
+        auto widget_class = widget_object.get_string("class"sv).value();
         widget_object.for_each_member([&]([[maybe_unused]] auto& property_name, [[maybe_unused]] JsonValue const& property_value) {
         });
     });
@@ -66,7 +65,7 @@ TEST_CASE(json_string)
 {
     auto json = JsonValue::from_string("\"A\""sv).value();
     EXPECT_EQ(json.type(), JsonValue::Type::String);
-    EXPECT_EQ(json.as_string().length(), size_t { 1 });
+    EXPECT_EQ(json.as_string().byte_count(), size_t { 1 });
     EXPECT_EQ(json.as_string() == "A", true);
 }
 
@@ -74,7 +73,7 @@ TEST_CASE(json_utf8_character)
 {
     auto json = JsonValue::from_string("\"\\u0041\""sv).value();
     EXPECT_EQ(json.type(), JsonValue::Type::String);
-    EXPECT_EQ(json.as_string().length(), size_t { 1 });
+    EXPECT_EQ(json.as_string().byte_count(), size_t { 1 });
     EXPECT_EQ(json.as_string() == "A", true);
 }
 
@@ -83,19 +82,19 @@ TEST_CASE(json_encoded_surrogates)
     {
         auto json = JsonValue::from_string("\"\\uD83E\\uDD13\""sv).value();
         EXPECT_EQ(json.type(), JsonValue::Type::String);
-        EXPECT_EQ(json.as_string().length(), 4u);
+        EXPECT_EQ(json.as_string().byte_count(), 4u);
         EXPECT_EQ(json.as_string(), "🤓"sv);
     }
     {
         auto json = JsonValue::from_string("\"\\uD83E\""sv).value();
         EXPECT_EQ(json.type(), JsonValue::Type::String);
-        EXPECT_EQ(json.as_string().length(), 3u);
+        EXPECT_EQ(json.as_string().byte_count(), 3u);
         EXPECT_EQ(json.as_string(), "\xED\xA0\xBE"sv);
     }
     {
         auto json = JsonValue::from_string("\"\\uDD13\""sv).value();
         EXPECT_EQ(json.type(), JsonValue::Type::String);
-        EXPECT_EQ(json.as_string().length(), 3u);
+        EXPECT_EQ(json.as_string().byte_count(), 3u);
         EXPECT_EQ(json.as_string(), "\xED\xB4\x93"sv);
     }
 }
@@ -110,7 +109,7 @@ TEST_CASE(json_utf8_multibyte)
 
     auto& json = json_or_error.value();
     EXPECT_EQ(json.type(), JsonValue::Type::String);
-    EXPECT_EQ(json.as_string().length(), size_t { 2 });
+    EXPECT_EQ(json.as_string().byte_count(), size_t { 2 });
     EXPECT_EQ(json.as_string() == "š", true);
     EXPECT_EQ(json.as_string() == "\xc5\xa1", true);
 }
@@ -158,16 +157,16 @@ TEST_CASE(json_64_bit_value_coerced_to_32_bit)
 TEST_CASE(json_duplicate_keys)
 {
     JsonObject json;
-    json.set("test", "foo");
-    json.set("test", "bar");
-    json.set("test", "baz");
-    EXPECT_EQ(json.to_byte_string(), "{\"test\":\"baz\"}");
+    json.set("test"sv, "foo"sv);
+    json.set("test"sv, "bar"sv);
+    json.set("test"sv, "baz"sv);
+    EXPECT_EQ(json.serialized(), "{\"test\":\"baz\"}");
 }
 
 TEST_CASE(json_u64_roundtrip)
 {
     auto big_value = 0xffffffffffffffffull;
-    auto json = JsonValue(big_value).serialized<StringBuilder>();
+    auto json = JsonValue(big_value).serialized();
     auto value = JsonValue::from_string(json);
     EXPECT_EQ_FORCE(value.is_error(), false);
     EXPECT_EQ(value.value().as_integer<u64>(), big_value);
@@ -346,12 +345,12 @@ private:
 
 TEST_CASE(fallible_json_object_for_each)
 {
-    ByteString raw_json = R"(
+    static constexpr auto raw_json = R"(
     {
         "name": "anon",
         "home": "/home/anon",
         "default_browser": "Ladybird"
-    })";
+    })"sv;
 
     auto json = JsonValue::from_string(raw_json).value();
     auto const& object = json.as_object();
@@ -386,12 +385,12 @@ TEST_CASE(fallible_json_object_for_each)
 
 TEST_CASE(fallible_json_array_for_each)
 {
-    ByteString raw_json = R"(
+    static constexpr auto raw_json = R"(
     [
         "anon",
         "/home/anon",
         "Ladybird"
-    ])";
+    ])"sv;
 
     auto json = JsonValue::from_string(raw_json).value();
     auto const& array = json.as_array();
@@ -532,7 +531,7 @@ TEST_CASE(json_array_serialized)
     auto raw_json = R"(["Hello",2,3.14,4,"World"])"sv;
     auto json_value = MUST(JsonValue::from_string(raw_json));
     auto array = json_value.as_array();
-    auto const& serialized_json = array.serialized<StringBuilder>();
+    auto const& serialized_json = array.serialized();
     EXPECT_EQ(serialized_json, raw_json);
 }
 
@@ -543,7 +542,7 @@ TEST_CASE(json_array_serialize)
     auto array = json_value.as_array();
     StringBuilder builder {};
     array.serialize(builder);
-    EXPECT_EQ(builder.to_byte_string(), raw_json);
+    EXPECT_EQ(builder.string_view(), raw_json);
 }
 
 TEST_CASE(json_array_values)

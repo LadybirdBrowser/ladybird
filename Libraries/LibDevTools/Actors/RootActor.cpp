@@ -16,7 +16,7 @@
 namespace DevTools {
 
 // https://firefox-source-docs.mozilla.org/devtools/backend/protocol.html#the-root-actor
-NonnullRefPtr<RootActor> RootActor::create(DevToolsServer& devtools, ByteString name)
+NonnullRefPtr<RootActor> RootActor::create(DevToolsServer& devtools, String name)
 {
     auto actor = adopt_ref(*new RootActor(devtools, move(name)));
 
@@ -35,7 +35,7 @@ NonnullRefPtr<RootActor> RootActor::create(DevToolsServer& devtools, ByteString 
     return actor;
 }
 
-RootActor::RootActor(DevToolsServer& devtools, ByteString name)
+RootActor::RootActor(DevToolsServer& devtools, String name)
     : Actor(devtools, move(name))
 {
 }

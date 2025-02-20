@@ -19,7 +19,6 @@ public:
     static constexpr size_t inline_capacity = 256;
 
     using Buffer = Detail::ByteBuffer<inline_capacity>;
-    using OutputType = ByteString;
 
     static ErrorOr<StringBuilder> create(size_t initial_capacity = inline_capacity);
 

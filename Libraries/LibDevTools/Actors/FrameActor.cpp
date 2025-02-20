@@ -14,12 +14,12 @@
 
 namespace DevTools {
 
-NonnullRefPtr<FrameActor> FrameActor::create(DevToolsServer& devtools, ByteString name, WeakPtr<TabActor> tab, WeakPtr<CSSPropertiesActor> css_properties, WeakPtr<InspectorActor> inspector, WeakPtr<ThreadActor> thread)
+NonnullRefPtr<FrameActor> FrameActor::create(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<CSSPropertiesActor> css_properties, WeakPtr<InspectorActor> inspector, WeakPtr<ThreadActor> thread)
 {
     return adopt_ref(*new FrameActor(devtools, move(name), move(tab), move(css_properties), move(inspector), move(thread)));
 }
 
-FrameActor::FrameActor(DevToolsServer& devtools, ByteString name, WeakPtr<TabActor> tab, WeakPtr<CSSPropertiesActor> css_properties, WeakPtr<InspectorActor> inspector, WeakPtr<ThreadActor> thread)
+FrameActor::FrameActor(DevToolsServer& devtools, String name, WeakPtr<TabActor> tab, WeakPtr<CSSPropertiesActor> css_properties, WeakPtr<InspectorActor> inspector, WeakPtr<ThreadActor> thread)
     : Actor(devtools, move(name))
     , m_tab(move(tab))
     , m_css_properties(move(css_properties))
@@ -56,9 +56,9 @@ void FrameActor::send_frame_update_message()
     }
 
     JsonObject message;
-    message.set("from", name());
-    message.set("type", "frameUpdate"sv);
-    message.set("frames", move(frames));
+    message.set("from"sv, name());
+    message.set("type"sv, "frameUpdate"sv);
+    message.set("frames"sv, move(frames));
     send_message(move(message));
 }
 

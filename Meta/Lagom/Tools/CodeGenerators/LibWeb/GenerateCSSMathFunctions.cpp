@@ -126,7 +126,7 @@ RefPtr<CalculationNode> Parser::parse_math_function(Function const& function, Ca
     functions_data.for_each_member([&](auto& name, JsonValue const& value) -> void {
         auto& function_data = value.as_object();
         auto& parameters = function_data.get_array("parameters"sv).value();
-        auto parameter_validation_rule = function_data.get_byte_string("parameter-validation"sv);
+        auto parameter_validation_rule = function_data.get_string("parameter-validation"sv);
         bool requires_same_parameters = parameter_validation_rule.has_value() ? (parameter_validation_rule == "same"sv) : true;
 
         auto function_generator = generator.fork();
@@ -158,7 +158,7 @@ RefPtr<CalculationNode> Parser::parse_math_function(Function const& function, Ca
             // Generate some type checks
             VERIFY(parameters.size() == 1);
             auto& parameter_data = parameters[0].as_object();
-            auto parameter_type_string = parameter_data.get_byte_string("type"sv).value();
+            auto parameter_type_string = parameter_data.get_string("type"sv).value();
             function_generator.set("type_check", generate_calculation_type_check("argument_type"sv, parameter_type_string));
             function_generator.append(R"~~~(
             if (!(@type_check@)) {
@@ -221,11 +221,11 @@ RefPtr<CalculationNode> Parser::parse_math_function(Function const& function, Ca
             size_t parameter_index = 0;
             parameters.for_each([&](JsonValue const& parameter_value) {
                 auto& parameter = parameter_value.as_object();
-                auto parameter_type_string = parameter.get_byte_string("type"sv).value();
+                auto parameter_type_string = parameter.get_string("type"sv).value();
                 auto parameter_required = parameter.get_bool("required"sv).value();
 
                 auto parameter_generator = function_generator.fork();
-                parameter_generator.set("parameter_name", parameter.get_byte_string("name"sv).value());
+                parameter_generator.set("parameter_name", parameter.get_string("name"sv).value());
                 parameter_generator.set("parameter_index", String::number(parameter_index));
 
                 bool parameter_is_calculation;
@@ -235,7 +235,7 @@ RefPtr<CalculationNode> Parser::parse_math_function(Function const& function, Ca
                     parameter_generator.set("parse_function", "parse_rounding_strategy(arguments[argument_index])"_string);
                     parameter_generator.set("check_function", ".has_value()"_string);
                     parameter_generator.set("release_function", ".release_value()"_string);
-                    if (auto default_value = parameter.get_byte_string("default"sv); default_value.has_value()) {
+                    if (auto default_value = parameter.get_string("default"sv); default_value.has_value()) {
                         parameter_generator.set("parameter_default", MUST(String::formatted(" = RoundingStrategy::{}", title_casify(default_value.value()))));
                     } else {
                         parameter_generator.set("parameter_default", ""_string);
@@ -250,7 +250,7 @@ RefPtr<CalculationNode> Parser::parse_math_function(Function const& function, Ca
 
                     // NOTE: We have exactly one default value in the data right now, and it's a `<calc-constant>`,
                     //       so that's all we handle.
-                    if (auto default_value = parameter.get_byte_string("default"sv); default_value.has_value()) {
+                    if (auto default_value = parameter.get_string("default"sv); default_value.has_value()) {
                         parameter_generator.set("parameter_default", MUST(String::formatted(" = ConstantCalculationNode::create(CalculationNode::constant_type_from_string(\"{}\"sv).value())", default_value.value())));
                     } else {
                         parameter_generator.set("parameter_default", ""_string);
@@ -343,7 +343,7 @@ RefPtr<CalculationNode> Parser::parse_math_function(Function const& function, Ca
             parameter_index = 0;
             parameters.for_each([&](JsonValue const& parameter_value) {
                 auto& parameter = parameter_value.as_object();
-                auto parameter_type_string = parameter.get_byte_string("type"sv).value();
+                auto parameter_type_string = parameter.get_string("type"sv).value();
 
                 auto parameter_generator = function_generator.fork();
                 parameter_generator.set("parameter_index"sv, String::number(parameter_index));

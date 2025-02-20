@@ -85,7 +85,7 @@ ErrorOr<void> DevToolsServer::on_new_client()
 
 void DevToolsServer::on_message_received(JsonObject const& message)
 {
-    auto to = message.get_byte_string("to"sv);
+    auto to = message.get_string("to"sv);
     if (!to.has_value()) {
         m_root_actor->send_missing_parameter_error("to"sv);
         return;
@@ -97,7 +97,7 @@ void DevToolsServer::on_message_received(JsonObject const& message)
         return;
     }
 
-    auto type = message.get_byte_string("type"sv);
+    auto type = message.get_string("type"sv);
     if (!type.has_value()) {
         actor->value->send_missing_parameter_error("type"sv);
         return;

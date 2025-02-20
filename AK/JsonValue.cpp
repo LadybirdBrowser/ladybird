@@ -9,32 +9,21 @@
 #include <AK/JsonObject.h>
 #include <AK/JsonParser.h>
 #include <AK/JsonValue.h>
+#include <AK/StringBuilder.h>
 #include <AK/StringView.h>
 
 namespace AK {
 
-namespace {
-using JsonValueStorage = Variant<
-    Empty,
-    bool,
-    i64,
-    u64,
-    double,
-    ByteString,
-    NonnullOwnPtr<JsonArray>,
-    NonnullOwnPtr<JsonObject>>;
-
-static ErrorOr<JsonValueStorage> clone(JsonValueStorage const& other)
+static ErrorOr<JsonValue::Storage> clone(JsonValue::Storage const& other)
 {
     return other.visit(
-        [](NonnullOwnPtr<JsonArray> const& value) -> ErrorOr<JsonValueStorage> {
+        [](NonnullOwnPtr<JsonArray> const& value) -> ErrorOr<JsonValue::Storage> {
             return TRY(try_make<JsonArray>(*value));
         },
-        [](NonnullOwnPtr<JsonObject> const& value) -> ErrorOr<JsonValueStorage> {
+        [](NonnullOwnPtr<JsonObject> const& value) -> ErrorOr<JsonValue::Storage> {
             return TRY(try_make<JsonObject>(*value));
         },
-        [](auto const& value) -> ErrorOr<JsonValueStorage> { return JsonValueStorage(value); });
-}
+        [](auto const& value) -> ErrorOr<JsonValue::Storage> { return JsonValue::Storage(value); });
 }
 
 JsonValue::JsonValue() = default;
@@ -164,23 +153,18 @@ JsonValue::JsonValue(long long unsigned value)
 {
 }
 
-JsonValue::JsonValue(char const* cstring)
-    : m_value(ByteString { cstring })
-{
-}
-
 JsonValue::JsonValue(double value)
-    : m_value(double { value })
-{
-}
-
-JsonValue::JsonValue(ByteString const& value)
     : m_value(value)
 {
 }
 
+JsonValue::JsonValue(String value)
+    : m_value(move(value))
+{
+}
+
 JsonValue::JsonValue(StringView value)
-    : m_value(ByteString { value })
+    : m_value(MUST(String::from_utf8(value)))
 {
 }
 
@@ -207,6 +191,30 @@ JsonValue::JsonValue(JsonArray&& value)
 ErrorOr<JsonValue> JsonValue::from_string(StringView input)
 {
     return JsonParser(input).parse();
+}
+
+String JsonValue::serialized() const
+{
+    StringBuilder builder;
+    serialize(builder);
+
+    return MUST(builder.to_string());
+}
+
+void JsonValue::serialize(StringBuilder& builder) const
+{
+    m_value.visit(
+        [&](Empty const&) { builder.append("null"sv); },
+        [&](bool const& value) { builder.append(value ? "true"sv : "false"sv); },
+        [&](Arithmetic auto const& value) { builder.appendff("{}", value); },
+        [&](String const& value) {
+            builder.append('\"');
+            builder.append_escaped_for_json(value.bytes());
+            builder.append('\"');
+        },
+        [&](auto const& array_or_object) {
+            array_or_object->serialize(builder);
+        });
 }
 
 }

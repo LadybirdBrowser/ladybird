@@ -176,7 +176,7 @@ ErrorOr<InputSource*, WebDriver::Error> get_or_create_input_source(InputState& i
         // FIXME: Spec issue: It does not make sense to check if "source is a pointer input source". This would errantly
         //        prevent the ability to perform two pointer actions in a row.
         //        https://github.com/w3c/webdriver/issues/1810
-        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'type' does not match existing input source type");
+        return WebDriver::Error::from_code(WebDriver::ErrorCode::InvalidArgument, "Property 'type' does not match existing input source type"sv);
     }
 
     // 3. If source is undefined, set source to the result of trying to create an input source with input state and type.

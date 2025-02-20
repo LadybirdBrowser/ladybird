@@ -10,6 +10,7 @@
 #pragma once
 
 #include <AK/ByteString.h>
+#include <AK/String.h>
 #include <AK/Vector.h>
 
 namespace Test {
@@ -23,15 +24,15 @@ enum class Result {
 };
 
 struct Case {
-    ByteString name;
+    String name;
     Result result;
-    ByteString details;
+    String details;
     u64 duration_us;
 };
 
 struct Suite {
     ByteString path;
-    ByteString name;
+    String name;
     // A failed test takes precedence over a skipped test, which both have
     // precedence over a passed test
     Result most_severe_test_result { Result::Pass };

@@ -15,7 +15,7 @@ class FrameActor final : public Actor {
 public:
     static constexpr auto base_name = "frame"sv;
 
-    static NonnullRefPtr<FrameActor> create(DevToolsServer&, ByteString name, WeakPtr<TabActor>, WeakPtr<CSSPropertiesActor>, WeakPtr<InspectorActor>, WeakPtr<ThreadActor>);
+    static NonnullRefPtr<FrameActor> create(DevToolsServer&, String name, WeakPtr<TabActor>, WeakPtr<CSSPropertiesActor>, WeakPtr<InspectorActor>, WeakPtr<ThreadActor>);
     virtual ~FrameActor() override;
 
     virtual void handle_message(StringView type, JsonObject const&) override;
@@ -24,7 +24,7 @@ public:
     JsonObject serialize_target() const;
 
 private:
-    FrameActor(DevToolsServer&, ByteString name, WeakPtr<TabActor>, WeakPtr<CSSPropertiesActor>, WeakPtr<InspectorActor>, WeakPtr<ThreadActor>);
+    FrameActor(DevToolsServer&, String name, WeakPtr<TabActor>, WeakPtr<CSSPropertiesActor>, WeakPtr<InspectorActor>, WeakPtr<ThreadActor>);
 
     WeakPtr<TabActor> m_tab;
 

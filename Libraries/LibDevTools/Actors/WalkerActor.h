@@ -18,7 +18,7 @@ class WalkerActor final : public Actor {
 public:
     static constexpr auto base_name = "walker"sv;
 
-    static NonnullRefPtr<WalkerActor> create(DevToolsServer&, ByteString name, WeakPtr<TabActor>, JsonObject dom_tree);
+    static NonnullRefPtr<WalkerActor> create(DevToolsServer&, String name, WeakPtr<TabActor>, JsonObject dom_tree);
     virtual ~WalkerActor() override;
 
     virtual void handle_message(StringView type, JsonObject const&) override;
@@ -27,7 +27,7 @@ public:
     JsonValue serialize_root() const;
 
 private:
-    WalkerActor(DevToolsServer&, ByteString name, WeakPtr<TabActor>, JsonObject dom_tree);
+    WalkerActor(DevToolsServer&, String name, WeakPtr<TabActor>, JsonObject dom_tree);
 
     JsonValue serialize_node(JsonObject const&) const;
     Optional<JsonObject const&> find_node_by_selector(JsonObject const& node, StringView selector);
@@ -38,7 +38,7 @@ private:
     JsonObject m_dom_tree;
 
     HashMap<JsonObject const*, JsonObject const*> m_dom_node_to_parent_map;
-    HashMap<ByteString, JsonObject const*> m_actor_to_dom_node_map;
+    HashMap<String, JsonObject const*> m_actor_to_dom_node_map;
     size_t m_dom_node_count { 0 };
 };
 

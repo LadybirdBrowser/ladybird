@@ -11,12 +11,12 @@
 
 namespace DevTools {
 
-NonnullRefPtr<TabActor> TabActor::create(DevToolsServer& devtools, ByteString name, TabDescription description)
+NonnullRefPtr<TabActor> TabActor::create(DevToolsServer& devtools, String name, TabDescription description)
 {
     return adopt_ref(*new TabActor(devtools, move(name), move(description)));
 }
 
-TabActor::TabActor(DevToolsServer& devtools, ByteString name, TabDescription description)
+TabActor::TabActor(DevToolsServer& devtools, String name, TabDescription description)
     : Actor(devtools, move(name))
     , m_description(move(description))
 {

@@ -340,7 +340,7 @@ Vector<DevTools::TabDescription> Application::tab_list() const
     Vector<DevTools::TabDescription> tabs;
 
     ViewImplementation::for_each_view([&](ViewImplementation& view) {
-        tabs.empend(view.view_id(), view.title(), view.url().to_byte_string());
+        tabs.empend(view.view_id(), MUST(String::from_byte_string(view.title())), view.url().to_string());
         return IterationDecision::Continue;
     });
 
@@ -355,7 +355,7 @@ Vector<DevTools::CSSProperty> Application::css_property_list() const
         auto property_id = static_cast<Web::CSS::PropertyID>(i);
 
         DevTools::CSSProperty property;
-        property.name = Web::CSS::string_from_property_id(property_id).to_string().to_byte_string();
+        property.name = Web::CSS::string_from_property_id(property_id).to_string();
         property.is_inherited = Web::CSS::is_inherited_property(property_id);
         property_list.append(move(property));
     }

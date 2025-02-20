@@ -8,19 +8,18 @@
 
 #pragma once
 
-#include <AK/ByteString.h>
 #include <AK/Concepts.h>
 #include <AK/Error.h>
 #include <AK/HashMap.h>
 #include <AK/JsonArray.h>
-#include <AK/JsonObjectSerializer.h>
 #include <AK/JsonValue.h>
+#include <AK/String.h>
 
 namespace AK {
 
 class JsonObject {
     template<typename Callback>
-    using CallbackErrorType = decltype(declval<Callback>()(declval<ByteString const&>(), declval<JsonValue const&>()).release_error());
+    using CallbackErrorType = decltype(declval<Callback>()(declval<String const&>(), declval<JsonValue const&>()).release_error());
 
 public:
     JsonObject();
@@ -75,7 +74,7 @@ public:
     Optional<FlatPtr> get_addr(StringView key) const;
     Optional<bool> get_bool(StringView key) const;
 
-    Optional<ByteString> get_byte_string(StringView key) const;
+    Optional<String const&> get_string(StringView key) const;
 
     Optional<JsonObject&> get_object(StringView key);
     Optional<JsonObject const&> get_object(StringView key) const;
@@ -86,7 +85,8 @@ public:
     Optional<double> get_double_with_precision_loss(StringView key) const;
     Optional<float> get_float_with_precision_loss(StringView key) const;
 
-    void set(ByteString const& key, JsonValue value);
+    void set(String key, JsonValue value);
+    void set(StringView key, JsonValue value);
 
     template<typename Callback>
     void for_each_member(Callback callback) const
@@ -95,7 +95,7 @@ public:
             callback(member.key, member.value);
     }
 
-    template<FallibleFunction<ByteString const&, JsonValue const&> Callback>
+    template<FallibleFunction<String const&, JsonValue const&> Callback>
     ErrorOr<void, CallbackErrorType<Callback>> try_for_each_member(Callback&& callback) const
     {
         for (auto const& member : m_members)
@@ -105,60 +105,12 @@ public:
 
     bool remove(StringView key);
 
-    template<typename Builder>
-    typename Builder::OutputType serialized() const;
-
-    template<typename Builder>
-    void serialize(Builder&) const;
-
-    [[nodiscard]] ByteString to_byte_string() const;
+    String serialized() const;
+    void serialize(StringBuilder&) const;
 
 private:
-    OrderedHashMap<ByteString, JsonValue> m_members;
+    OrderedHashMap<String, JsonValue> m_members;
 };
-
-template<typename Builder>
-inline void JsonObject::serialize(Builder& builder) const
-{
-    auto serializer = MUST(JsonObjectSerializer<>::try_create(builder));
-    for_each_member([&](auto& key, auto& value) {
-        MUST(serializer.add(key, value));
-    });
-    MUST(serializer.finish());
-}
-
-template<typename Builder>
-inline typename Builder::OutputType JsonObject::serialized() const
-{
-    Builder builder;
-    serialize(builder);
-    return builder.to_byte_string();
-}
-
-template<typename Builder>
-inline void JsonValue::serialize(Builder& builder) const
-{
-    m_value.visit(
-        [&](Empty const&) { builder.append("null"sv); },
-        [&](bool const& value) { builder.append(value ? "true"sv : "false"sv); },
-        [&](Arithmetic auto const& value) { builder.appendff("{}", value); },
-        [&](ByteString const& value) {
-            builder.append('\"');
-            builder.append_escaped_for_json(value.bytes());
-            builder.append('\"');
-        },
-        [&](auto const& array_or_object) {
-            array_or_object->serialize(builder);
-        });
-}
-
-template<typename Builder>
-inline typename Builder::OutputType JsonValue::serialized() const
-{
-    Builder builder;
-    serialize(builder);
-    return builder.to_byte_string();
-}
 
 }
 

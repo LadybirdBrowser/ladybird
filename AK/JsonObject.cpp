@@ -6,7 +6,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "JsonObject.h"
+#include <AK/JsonObject.h>
+#include <AK/JsonObjectSerializer.h>
+#include <AK/StringBuilder.h>
 
 namespace AK {
 
@@ -116,11 +118,10 @@ Optional<bool> JsonObject::get_bool(StringView key) const
     return {};
 }
 
-Optional<ByteString> JsonObject::get_byte_string(StringView key) const
+Optional<String const&> JsonObject::get_string(StringView key) const
 {
-    auto maybe_value = get(key);
-    if (maybe_value.has_value() && maybe_value->is_string())
-        return maybe_value->as_string();
+    if (auto value = get(key); value.has_value() && value->is_string())
+        return value->as_string();
     return {};
 }
 
@@ -261,9 +262,14 @@ bool JsonObject::has_object(StringView key) const
     return value.has_value() && value->is_object();
 }
 
-void JsonObject::set(ByteString const& key, JsonValue value)
+void JsonObject::set(String key, JsonValue value)
 {
-    m_members.set(key, move(value));
+    m_members.set(move(key), move(value));
+}
+
+void JsonObject::set(StringView key, JsonValue value)
+{
+    set(MUST(String::from_utf8(key)), move(value));
 }
 
 bool JsonObject::remove(StringView key)
@@ -271,9 +277,21 @@ bool JsonObject::remove(StringView key)
     return m_members.remove(key);
 }
 
-ByteString JsonObject::to_byte_string() const
+String JsonObject::serialized() const
 {
-    return serialized<StringBuilder>();
+    StringBuilder builder;
+    serialize(builder);
+
+    return MUST(builder.to_string());
+}
+
+void JsonObject::serialize(StringBuilder& builder) const
+{
+    auto serializer = MUST(JsonObjectSerializer<>::try_create(builder));
+    for_each_member([&](auto& key, auto& value) {
+        MUST(serializer.add(key, value));
+    });
+    MUST(serializer.finish());
 }
 
 }

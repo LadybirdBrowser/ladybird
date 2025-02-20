@@ -15,13 +15,13 @@ class InspectorActor final : public Actor {
 public:
     static constexpr auto base_name = "inspector"sv;
 
-    static NonnullRefPtr<InspectorActor> create(DevToolsServer&, ByteString name, WeakPtr<TabActor>);
+    static NonnullRefPtr<InspectorActor> create(DevToolsServer&, String name, WeakPtr<TabActor>);
     virtual ~InspectorActor() override;
 
     virtual void handle_message(StringView type, JsonObject const&) override;
 
 private:
-    InspectorActor(DevToolsServer&, ByteString name, WeakPtr<TabActor>);
+    InspectorActor(DevToolsServer&, String name, WeakPtr<TabActor>);
 
     void received_dom_tree(JsonObject, BlockToken);
 

@@ -123,7 +123,7 @@ private:
 
     Web::WebDriver::Response element_click_impl(String const& element_id);
     Web::WebDriver::Response element_clear_impl(String const& element_id);
-    Web::WebDriver::Response element_send_keys_impl(String const& element_id, ByteString const& text);
+    Web::WebDriver::Response element_send_keys_impl(String const& element_id, String const& text);
     Web::WebDriver::Response add_cookie_impl(JsonObject const&);
 
     Web::WebDriver::PromptHandlerConfiguration get_the_prompt_handler(Web::WebDriver::PromptType type) const;
@@ -142,10 +142,10 @@ private:
 
     using GetStartNode = GC::Ref<GC::Function<ErrorOr<GC::Ref<Web::DOM::ParentNode>, Web::WebDriver::Error>()>>;
     using OnFindComplete = GC::Ref<GC::Function<void(Web::WebDriver::Response)>>;
-    void find(Web::WebDriver::LocationStrategy, ByteString, GetStartNode, OnFindComplete);
+    void find(Web::WebDriver::LocationStrategy, String, GetStartNode, OnFindComplete);
 
     struct ScriptArguments {
-        ByteString script;
+        String script;
         GC::RootVector<JS::Value> arguments;
     };
     ErrorOr<ScriptArguments, Web::WebDriver::Error> extract_the_script_arguments_from_a_request(JS::VM&, JsonValue const& payload);
