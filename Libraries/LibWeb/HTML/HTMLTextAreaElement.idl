@@ -7,7 +7,7 @@
 interface HTMLTextAreaElement : HTMLElement {
     [HTMLConstructor] constructor();
 
-    [CEReactions, Enumerated=Autocomplete, Reflect] attribute DOMString autocomplete;
+    [CEReactions] attribute DOMString autocomplete;
     [CEReactions] attribute unsigned long cols;
     [CEReactions, Reflect=dirname] attribute DOMString dirName;
     [CEReactions, Reflect] attribute boolean disabled;

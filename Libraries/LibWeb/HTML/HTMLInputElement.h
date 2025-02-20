@@ -12,6 +12,7 @@
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/FileAPI/FileList.h>
+#include <LibWeb/HTML/AutocompleteElement.h>
 #include <LibWeb/HTML/ColorPickerUpdateState.h>
 #include <LibWeb/HTML/FileFilter.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
@@ -52,10 +53,12 @@ class HTMLInputElement final
     : public HTMLElement
     , public FormAssociatedTextControlElement
     , public Layout::ImageProvider
-    , public PopoverInvokerElement {
+    , public PopoverInvokerElement
+    , public AutocompleteElement {
     WEB_PLATFORM_OBJECT(HTMLInputElement, HTMLElement);
     GC_DECLARE_ALLOCATOR(HTMLInputElement);
-    FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLInputElement)
+    FORM_ASSOCIATED_ELEMENT(HTMLElement, HTMLInputElement);
+    AUTOCOMPLETE_ELEMENT(HTMLElement, HTMLInputElement);
 
 public:
     virtual ~HTMLInputElement() override;
