@@ -454,6 +454,10 @@ public:
         return affected_by_sibling_combinator() || affected_by_first_or_last_child_pseudo_class() || affected_by_nth_child_pseudo_class();
     }
 
+    size_t number_of_owned_list_items() const;
+    Element const* list_owner() const;
+    size_t ordinal_value() const;
+
 protected:
     Element(Document&, DOM::QualifiedName);
     virtual void initialize(JS::Realm&) override;
