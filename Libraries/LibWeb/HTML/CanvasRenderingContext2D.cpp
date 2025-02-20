@@ -379,7 +379,7 @@ WebIDL::ExceptionOr<GC::Ref<ImageData>> CanvasRenderingContext2D::create_image_d
 WebIDL::ExceptionOr<GC::Ref<ImageData>> CanvasRenderingContext2D::create_image_data(ImageData const& image_data) const
 {
     // 1. Let newImageData be a new ImageData object.
-    // 2. Initialize newImageData given the value of imagedata's width attribute, the value of imagedata's height attribute, and defaultColorSpace set to the value of imagedata's colorSpace attribute.
+    // 2. Initialize newImageData given the value of imageData's width attribute, the value of imageData's height attribute, and defaultColorSpace set to the value of imageData's colorSpace attribute.
     // FIXME: Set defaultColorSpace to the value of image_data's colorSpace attribute
     // 3. Initialize the image data of newImageData to transparent black.
     // NOTE: No-op, already done during creation.
@@ -440,8 +440,13 @@ WebIDL::ExceptionOr<GC::Ptr<ImageData>> CanvasRenderingContext2D::get_image_data
     return image_data;
 }
 
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-putimagedata-short
 void CanvasRenderingContext2D::put_image_data(ImageData const& image_data, float x, float y)
 {
+    // The putImageData(imageData, dx, dy) method steps are to put pixels from an ImageData onto a bitmap,
+    // given imageData, this's output bitmap, dx, dy, 0, 0, imageData's width, and imageData's height.
+    // FIXME: "put pixels from an ImageData onto a bitmap" is a spec algorithm.
+    //        https://html.spec.whatwg.org/multipage/canvas.html#dom-context2d-putimagedata-common
     if (auto* painter = this->painter()) {
         auto dst_rect = Gfx::FloatRect(x, y, image_data.width(), image_data.height());
         painter->draw_bitmap(dst_rect, Gfx::ImmutableBitmap::create(image_data.bitmap()), image_data.bitmap().rect(), Gfx::ScalingMode::NearestNeighbor, drawing_state().filters, 1.0f, Gfx::CompositingAndBlendingOperator::SourceOver);

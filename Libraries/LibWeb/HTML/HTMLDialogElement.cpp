@@ -351,7 +351,7 @@ void HTMLDialogElement::close_the_dialog(Optional<String> result)
     // FIXME: 12. If subject's previously focused element is not null, then:
     //           1. Let element be subject's previously focused element.
     //           2. Set subject's previously focused element to null.
-    //           3. If subject's node document's focused area of the document's DOM anchor is a shadow-including inclusive descendant of element,
+    //           3. If subject's node document's focused area of the document's DOM anchor is a shadow-including inclusive descendant of subject,
     //              or wasModal is true, then run the focusing steps for element; the viewport should not be scrolled by doing this step.
 
     // 13. Queue an element task on the user interaction task source given the subject element to fire an event named close at subject.

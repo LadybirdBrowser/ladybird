@@ -23,7 +23,7 @@ interface HTMLButtonElement : HTMLElement {
     [CEReactions, Reflect=formnovalidate] attribute boolean formNoValidate;
     [CEReactions, Reflect=formtarget] attribute DOMString formTarget;
     [CEReactions, Reflect] attribute DOMString name;
-    [CEReactions, Reflect, Enumerated=ButtonTypeState] attribute DOMString type;
+    [CEReactions, ImplementedAs=type_for_bindings, Enumerated=ButtonTypeState] attribute DOMString type;
     [CEReactions, Reflect] attribute DOMString value;
 
     [FIXME] readonly attribute boolean willValidate;
