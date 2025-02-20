@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <andreas@ladybird.org>
+ * Copyright (c) 2020-2025, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Adam Hodgen <ant1441@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -16,6 +16,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/HTMLCollection.h>
+#include <LibWeb/HTML/HTMLTableCellElement.h>
 #include <LibWeb/HTML/HTMLTableColElement.h>
 #include <LibWeb/HTML/HTMLTableElement.h>
 #include <LibWeb/HTML/HTMLTableRowElement.h>
@@ -145,11 +146,20 @@ void HTMLTableElement::attribute_changed(FlyString const& name, Optional<String>
     Base::attribute_changed(name, old_value, value, namespace_);
 
     if (name == HTML::AttributeNames::cellpadding) {
+        auto old_cellpadding = m_cellpadding;
         if (value.has_value())
-            m_padding = max(0, parse_integer(value.value()).value_or(0));
+            m_cellpadding = max(0, parse_integer(value.value()).value_or(0));
         else
-            m_padding = 1;
+            m_cellpadding = 1;
 
+        // NOTE: cellpadding is magical, it applies to the cells inside this table, not the table itself.
+        //       When it changes, we need new style for the cells.
+        if (old_cellpadding != m_cellpadding) {
+            for_each_in_subtree_of_type<HTMLTableCellElement>([&](auto& cell) {
+                cell.set_needs_style_update(true);
+                return TraversalDecision::Continue;
+            });
+        }
         return;
     }
 }
@@ -478,9 +488,9 @@ unsigned int HTMLTableElement::border() const
     return parse_border(get_attribute_value(HTML::AttributeNames::border));
 }
 
-unsigned int HTMLTableElement::padding() const
+Optional<u32> HTMLTableElement::cellpadding() const
 {
-    return m_padding;
+    return m_cellpadding;
 }
 
 }
