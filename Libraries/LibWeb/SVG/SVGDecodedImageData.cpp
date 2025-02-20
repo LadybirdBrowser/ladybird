@@ -40,7 +40,7 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& rea
     navigation_params->navigable = navigable;
     navigation_params->response = response;
     navigation_params->origin = URL::Origin {};
-    navigation_params->policy_container = HTML::PolicyContainer {};
+    navigation_params->policy_container = navigable->heap().allocate<HTML::PolicyContainer>(navigable->active_document()->realm());
     navigation_params->final_sandboxing_flag_set = HTML::SandboxingFlagSet {};
     navigation_params->opener_policy = HTML::OpenerPolicy {};
 

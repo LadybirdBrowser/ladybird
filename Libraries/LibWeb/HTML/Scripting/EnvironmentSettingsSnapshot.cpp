@@ -10,12 +10,12 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(EnvironmentSettingsSnapshot);
 
-EnvironmentSettingsSnapshot::EnvironmentSettingsSnapshot(NonnullOwnPtr<JS::ExecutionContext> execution_context, SerializedEnvironmentSettingsObject const& serialized_settings)
+EnvironmentSettingsSnapshot::EnvironmentSettingsSnapshot(JS::Realm& realm, NonnullOwnPtr<JS::ExecutionContext> execution_context, SerializedEnvironmentSettingsObject const& serialized_settings)
     : EnvironmentSettingsObject(move(execution_context))
     , m_api_url_character_encoding(serialized_settings.api_url_character_encoding)
     , m_url(serialized_settings.api_base_url)
     , m_origin(serialized_settings.origin)
-    , m_policy_container(serialized_settings.policy_container)
+    , m_policy_container(create_a_policy_container_from_serialized_policy_container(realm, serialized_settings.policy_container))
     , m_time_origin(serialized_settings.time_origin)
 {
     // Why can't we put these in the init list? grandparent class members are strange it seems
@@ -26,5 +26,11 @@ EnvironmentSettingsSnapshot::EnvironmentSettingsSnapshot(NonnullOwnPtr<JS::Execu
 
 // Out of line to ensure this class has a key function
 EnvironmentSettingsSnapshot::~EnvironmentSettingsSnapshot() = default;
+
+void EnvironmentSettingsSnapshot::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_policy_container);
+}
 
 }

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
+ * Copyright (c) 2025, Luke Wilde <luke@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -9,6 +10,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <LibIPC/Forward.h>
 
 namespace Web::HTML {
 
@@ -40,5 +42,15 @@ struct EmbedderPolicy {
     // A report only reporting endpoint string, initially the empty string.
     String report_only_reporting_endpoint;
 };
+
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder&, Web::HTML::EmbedderPolicy const&);
+
+template<>
+ErrorOr<Web::HTML::EmbedderPolicy> decode(Decoder&);
 
 }

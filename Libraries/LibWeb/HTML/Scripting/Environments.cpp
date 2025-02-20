@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Luke Wilde <lukew@serenityos.org>
+ * Copyright (c) 2021-2025, Luke Wilde <luke@ladybird.org>
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2022, networkException <networkexception@serenityos.org>
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
@@ -565,7 +565,7 @@ SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
     object.api_url_character_encoding = api_url_character_encoding();
     object.api_base_url = api_base_url();
     object.origin = origin();
-    object.policy_container = policy_container();
+    object.policy_container = policy_container()->serialize();
     object.cross_origin_isolated_capability = cross_origin_isolated_capability();
 
     return object;

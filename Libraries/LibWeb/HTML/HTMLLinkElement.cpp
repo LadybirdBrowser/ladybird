@@ -286,7 +286,7 @@ GC::Ptr<Fetch::Infrastructure::Request> HTMLLinkElement::create_link_request(HTM
     auto request = create_potential_CORS_request(vm(), *url, options.destination, options.crossorigin);
 
     // 6. Set request's policy container to options's policy container.
-    request->set_policy_container(options.policy_container);
+    request->set_policy_container(GC::Ref { *options.policy_container });
 
     // 7. Set request's integrity metadata to options's integrity.
     request->set_integrity_metadata(options.integrity);

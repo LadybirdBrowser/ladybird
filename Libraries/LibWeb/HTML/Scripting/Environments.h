@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Luke Wilde <lukew@serenityos.org>
+ * Copyright (c) 2021-2025, Luke Wilde <luke@ladybird.org>
  * Copyright (c) 2022, Linus Groh <linusg@serenityos.org>
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
  *
@@ -83,7 +83,7 @@ public:
     virtual URL::Origin origin() const = 0;
 
     // A policy container https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-policy-container
-    virtual PolicyContainer policy_container() const = 0;
+    virtual GC::Ref<PolicyContainer> policy_container() const = 0;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#concept-settings-object-cross-origin-isolated-capability
     virtual CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() const = 0;

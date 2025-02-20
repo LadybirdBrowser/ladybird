@@ -18,7 +18,7 @@ class EnvironmentSettingsSnapshot final
     GC_DECLARE_ALLOCATOR(EnvironmentSettingsSnapshot);
 
 public:
-    EnvironmentSettingsSnapshot(NonnullOwnPtr<JS::ExecutionContext>, SerializedEnvironmentSettingsObject const&);
+    EnvironmentSettingsSnapshot(JS::Realm&, NonnullOwnPtr<JS::ExecutionContext>, SerializedEnvironmentSettingsObject const&);
 
     virtual ~EnvironmentSettingsSnapshot() override;
 
@@ -26,15 +26,18 @@ public:
     String api_url_character_encoding() const override { return m_api_url_character_encoding; }
     URL::URL api_base_url() const override { return m_url; }
     URL::Origin origin() const override { return m_origin; }
-    PolicyContainer policy_container() const override { return m_policy_container; }
+    GC::Ref<PolicyContainer> policy_container() const override { return m_policy_container; }
     CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() const override { return CanUseCrossOriginIsolatedAPIs::No; }
     double time_origin() const override { return m_time_origin; }
+
+protected:
+    virtual void visit_edges(Cell::Visitor&) override;
 
 private:
     String m_api_url_character_encoding;
     URL::URL m_url;
     URL::Origin m_origin;
-    HTML::PolicyContainer m_policy_container;
+    GC::Ref<PolicyContainer> m_policy_container;
     double m_time_origin { 0 };
 };
 
