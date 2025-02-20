@@ -54,7 +54,7 @@ private:
     virtual void did_paint(u64 page_id, Gfx::IntRect const&, i32) override;
     virtual void did_finish_loading(u64 page_id, URL::URL const&) override;
     virtual void did_request_refresh(u64 page_id) override;
-    virtual void did_request_cursor_change(u64 page_id, i32) override;
+    virtual void did_request_cursor_change(u64 page_id, Gfx::Cursor const&) override;
     virtual void did_change_title(u64 page_id, ByteString const&) override;
     virtual void did_change_url(u64 page_id, URL::URL const&) override;
     virtual void did_request_tooltip_override(u64 page_id, Gfx::IntPoint, ByteString const&) override;

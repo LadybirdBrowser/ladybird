@@ -102,7 +102,7 @@ float LinearGradientStyleValue::angle_degrees(CSSPixelSize gradient_size) const
         });
 }
 
-void LinearGradientStyleValue::resolve_for_size(Layout::NodeWithStyleAndBoxModelMetrics const& node, CSSPixelSize size) const
+void LinearGradientStyleValue::resolve_for_size(Layout::NodeWithStyle const& node, CSSPixelSize size) const
 {
     if (m_resolved.has_value() && m_resolved->size == size)
         return;

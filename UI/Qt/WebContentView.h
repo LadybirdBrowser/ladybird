@@ -10,9 +10,9 @@
 #include <AK/ByteString.h>
 #include <AK/Function.h>
 #include <AK/OwnPtr.h>
+#include <LibGfx/Cursor.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
-#include <LibGfx/StandardCursor.h>
 #include <LibURL/URL.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PreferredContrast.h>
@@ -100,7 +100,7 @@ private:
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const override;
 
     void update_viewport_size();
-    void update_cursor(Gfx::StandardCursor cursor);
+    void update_cursor(Gfx::Cursor cursor);
 
     void enqueue_native_event(Web::MouseEvent::Type, QSinglePointEvent const& event);
 

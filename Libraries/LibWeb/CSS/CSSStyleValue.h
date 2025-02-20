@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
- * Copyright (c) 2021-2024, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2022-2023, MacDue <macdue@dueutil.tech>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -9,20 +9,16 @@
 
 #pragma once
 
-#include <AK/Concepts.h>
 #include <AK/GenericShorthands.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
-#include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <AK/WeakPtr.h>
 #include <LibGfx/Color.h>
-#include <LibGfx/Font/FontVariant.h>
 #include <LibURL/URL.h>
-#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/Forward.h>
@@ -101,6 +97,7 @@ public:
         Content,
         Counter,
         CounterDefinitions,
+        Cursor,
         CustomIdent,
         Display,
         Easing,
@@ -195,6 +192,10 @@ public:
     bool is_counter_definitions() const { return type() == Type::CounterDefinitions; }
     CounterDefinitionsStyleValue const& as_counter_definitions() const;
     CounterDefinitionsStyleValue& as_counter_definitions() { return const_cast<CounterDefinitionsStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_counter_definitions()); }
+
+    bool is_cursor() const { return type() == Type::Cursor; }
+    CursorStyleValue const& as_cursor() const;
+    CursorStyleValue& as_cursor() { return const_cast<CursorStyleValue&>(const_cast<CSSStyleValue const&>(*this).as_cursor()); }
 
     bool is_custom_ident() const { return type() == Type::CustomIdent; }
     CustomIdentStyleValue const& as_custom_ident() const;

@@ -280,9 +280,9 @@ private:
     Optional<Vector<LinearColorStopListElement>> parse_linear_color_stop_list(TokenStream<ComponentValue>&);
     Optional<Vector<AngularColorStopListElement>> parse_angular_color_stop_list(TokenStream<ComponentValue>&);
 
-    RefPtr<CSSStyleValue> parse_linear_gradient_function(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_conic_gradient_function(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_radial_gradient_function(TokenStream<ComponentValue>&);
+    RefPtr<LinearGradientStyleValue> parse_linear_gradient_function(TokenStream<ComponentValue>&);
+    RefPtr<ConicGradientStyleValue> parse_conic_gradient_function(TokenStream<ComponentValue>&);
+    RefPtr<RadialGradientStyleValue> parse_radial_gradient_function(TokenStream<ComponentValue>&);
 
     ParseErrorOr<NonnullRefPtr<CSSStyleValue>> parse_css_value(PropertyID, TokenStream<ComponentValue>&, Optional<String> original_source_text = {});
     RefPtr<CSSStyleValue> parse_css_value_for_property(PropertyID, TokenStream<ComponentValue>&);
@@ -322,7 +322,7 @@ private:
     RefPtr<CSSStyleValue> parse_rect_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_ratio_value(TokenStream<ComponentValue>&);
     RefPtr<StringStyleValue> parse_string_value(TokenStream<ComponentValue>&);
-    RefPtr<CSSStyleValue> parse_image_value(TokenStream<ComponentValue>&);
+    RefPtr<AbstractImageStyleValue> parse_image_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_paint_value(TokenStream<ComponentValue>&);
     enum class PositionParsingMode {
         Normal,
@@ -366,6 +366,7 @@ private:
     RefPtr<CSSStyleValue> parse_counter_increment_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_counter_reset_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_counter_set_value(TokenStream<ComponentValue>&);
+    RefPtr<CSSStyleValue> parse_cursor_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_display_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_flex_shorthand_value(TokenStream<ComponentValue>&);
     RefPtr<CSSStyleValue> parse_flex_flow_value(TokenStream<ComponentValue>&);

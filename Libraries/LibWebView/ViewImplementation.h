@@ -14,8 +14,8 @@
 #include <AK/String.h>
 #include <LibCore/Forward.h>
 #include <LibCore/Promise.h>
+#include <LibGfx/Cursor.h>
 #include <LibGfx/Forward.h>
-#include <LibGfx/StandardCursor.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/AudioPlayState.h>
@@ -188,7 +188,7 @@ public:
     Function<void(URL::URL const&)> on_load_finish;
     Function<void(ByteString const& path, i32)> on_request_file;
     Function<void(Gfx::Bitmap const&)> on_favicon_change;
-    Function<void(Gfx::StandardCursor)> on_cursor_change;
+    Function<void(Gfx::Cursor const&)> on_cursor_change;
     Function<void(Gfx::IntPoint, ByteString const&)> on_request_tooltip_override;
     Function<void()> on_stop_tooltip_override;
     Function<void(ByteString const&)> on_enter_tooltip_area;

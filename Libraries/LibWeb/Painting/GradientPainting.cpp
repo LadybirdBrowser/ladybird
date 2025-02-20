@@ -15,7 +15,7 @@
 
 namespace Web::Painting {
 
-static ColorStopData resolve_color_stop_positions(Layout::NodeWithStyleAndBoxModelMetrics const& node, auto const& color_stop_list, auto resolve_position_to_float, bool repeating)
+static ColorStopData resolve_color_stop_positions(Layout::NodeWithStyle const& node, auto const& color_stop_list, auto resolve_position_to_float, bool repeating)
 {
     VERIFY(!color_stop_list.is_empty());
     ColorStopList resolved_color_stops;
@@ -110,7 +110,7 @@ static ColorStopData resolve_color_stop_positions(Layout::NodeWithStyleAndBoxMod
     return { resolved_color_stops, repeat_length };
 }
 
-LinearGradientData resolve_linear_gradient_data(Layout::NodeWithStyleAndBoxModelMetrics const& node, CSSPixelSize gradient_size, CSS::LinearGradientStyleValue const& linear_gradient)
+LinearGradientData resolve_linear_gradient_data(Layout::NodeWithStyle const& node, CSSPixelSize gradient_size, CSS::LinearGradientStyleValue const& linear_gradient)
 {
     auto gradient_angle = linear_gradient.angle_degrees(gradient_size);
     auto gradient_length_px = Gfx::calculate_gradient_length(gradient_size.to_type<float>(), gradient_angle);
@@ -124,7 +124,7 @@ LinearGradientData resolve_linear_gradient_data(Layout::NodeWithStyleAndBoxModel
     return { gradient_angle, resolved_color_stops };
 }
 
-ConicGradientData resolve_conic_gradient_data(Layout::NodeWithStyleAndBoxModelMetrics const& node, CSS::ConicGradientStyleValue const& conic_gradient)
+ConicGradientData resolve_conic_gradient_data(Layout::NodeWithStyle const& node, CSS::ConicGradientStyleValue const& conic_gradient)
 {
     CSS::Angle one_turn(360.0f, CSS::Angle::Type::Deg);
     auto resolved_color_stops = resolve_color_stop_positions(
@@ -135,7 +135,7 @@ ConicGradientData resolve_conic_gradient_data(Layout::NodeWithStyleAndBoxModelMe
     return { conic_gradient.angle_degrees(), resolved_color_stops };
 }
 
-RadialGradientData resolve_radial_gradient_data(Layout::NodeWithStyleAndBoxModelMetrics const& node, CSSPixelSize gradient_size, CSS::RadialGradientStyleValue const& radial_gradient)
+RadialGradientData resolve_radial_gradient_data(Layout::NodeWithStyle const& node, CSSPixelSize gradient_size, CSS::RadialGradientStyleValue const& radial_gradient)
 {
     // Start center, goes right to ending point, where the gradient line intersects the ending shape
     auto resolved_color_stops = resolve_color_stop_positions(

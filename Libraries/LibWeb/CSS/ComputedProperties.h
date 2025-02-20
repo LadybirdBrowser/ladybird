@@ -94,7 +94,7 @@ public:
     };
     ContentDataAndQuoteNestingLevel content(DOM::Element&, u32 initial_quote_nesting_level) const;
     ContentVisibility content_visibility() const;
-    Cursor cursor() const;
+    Vector<CursorData> cursor() const;
     Variant<LengthOrCalculated, NumberOrCalculated> tab_size() const;
     WhiteSpace white_space() const;
     WordBreak word_break() const;
