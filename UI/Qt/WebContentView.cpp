@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2022-2023, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2023, Linus Groh <linusg@serenityos.org>
+ * Copyright (c) 2024-2025, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -630,67 +631,86 @@ void WebContentView::initialize_client(WebView::ViewImplementation::CreateNewCli
     update_screen_rects();
 }
 
-void WebContentView::update_cursor(Gfx::StandardCursor cursor)
+void WebContentView::update_cursor(Gfx::Cursor cursor)
 {
-    switch (cursor) {
-    case Gfx::StandardCursor::Hidden:
-        setCursor(Qt::BlankCursor);
-        break;
-    case Gfx::StandardCursor::Arrow:
-        setCursor(Qt::ArrowCursor);
-        break;
-    case Gfx::StandardCursor::Crosshair:
-        setCursor(Qt::CrossCursor);
-        break;
-    case Gfx::StandardCursor::IBeam:
-        setCursor(Qt::IBeamCursor);
-        break;
-    case Gfx::StandardCursor::ResizeHorizontal:
-        setCursor(Qt::SizeHorCursor);
-        break;
-    case Gfx::StandardCursor::ResizeVertical:
-        setCursor(Qt::SizeVerCursor);
-        break;
-    case Gfx::StandardCursor::ResizeDiagonalTLBR:
-        setCursor(Qt::SizeFDiagCursor);
-        break;
-    case Gfx::StandardCursor::ResizeDiagonalBLTR:
-        setCursor(Qt::SizeBDiagCursor);
-        break;
-    case Gfx::StandardCursor::ResizeColumn:
-        setCursor(Qt::SplitHCursor);
-        break;
-    case Gfx::StandardCursor::ResizeRow:
-        setCursor(Qt::SplitVCursor);
-        break;
-    case Gfx::StandardCursor::Hand:
-        setCursor(Qt::PointingHandCursor);
-        break;
-    case Gfx::StandardCursor::Help:
-        setCursor(Qt::WhatsThisCursor);
-        break;
-    case Gfx::StandardCursor::Drag:
-        setCursor(Qt::ClosedHandCursor);
-        break;
-    case Gfx::StandardCursor::DragCopy:
-        setCursor(Qt::DragCopyCursor);
-        break;
-    case Gfx::StandardCursor::Move:
-        setCursor(Qt::DragMoveCursor);
-        break;
-    case Gfx::StandardCursor::Wait:
-        setCursor(Qt::BusyCursor);
-        break;
-    case Gfx::StandardCursor::Disallowed:
-        setCursor(Qt::ForbiddenCursor);
-        break;
-    case Gfx::StandardCursor::Eyedropper:
-    case Gfx::StandardCursor::Zoom:
-        // FIXME: No corresponding Qt cursors, default to Arrow
-    default:
-        setCursor(Qt::ArrowCursor);
-        break;
-    }
+    cursor.visit([this](Gfx::StandardCursor standard_cursor) {
+        switch (standard_cursor) {
+        case Gfx::StandardCursor::Hidden:
+            setCursor(Qt::BlankCursor);
+            break;
+        case Gfx::StandardCursor::Arrow:
+            setCursor(Qt::ArrowCursor);
+            break;
+        case Gfx::StandardCursor::Crosshair:
+            setCursor(Qt::CrossCursor);
+            break;
+        case Gfx::StandardCursor::IBeam:
+            setCursor(Qt::IBeamCursor);
+            break;
+        case Gfx::StandardCursor::ResizeHorizontal:
+            setCursor(Qt::SizeHorCursor);
+            break;
+        case Gfx::StandardCursor::ResizeVertical:
+            setCursor(Qt::SizeVerCursor);
+            break;
+        case Gfx::StandardCursor::ResizeDiagonalTLBR:
+            setCursor(Qt::SizeFDiagCursor);
+            break;
+        case Gfx::StandardCursor::ResizeDiagonalBLTR:
+            setCursor(Qt::SizeBDiagCursor);
+            break;
+        case Gfx::StandardCursor::ResizeColumn:
+            setCursor(Qt::SplitHCursor);
+            break;
+        case Gfx::StandardCursor::ResizeRow:
+            setCursor(Qt::SplitVCursor);
+            break;
+        case Gfx::StandardCursor::Hand:
+            setCursor(Qt::PointingHandCursor);
+            break;
+        case Gfx::StandardCursor::Help:
+            setCursor(Qt::WhatsThisCursor);
+            break;
+        case Gfx::StandardCursor::Drag:
+            setCursor(Qt::ClosedHandCursor);
+            break;
+        case Gfx::StandardCursor::DragCopy:
+            setCursor(Qt::DragCopyCursor);
+            break;
+        case Gfx::StandardCursor::Move:
+            setCursor(Qt::DragMoveCursor);
+            break;
+        case Gfx::StandardCursor::Wait:
+            setCursor(Qt::BusyCursor);
+            break;
+        case Gfx::StandardCursor::Disallowed:
+            setCursor(Qt::ForbiddenCursor);
+            break;
+        case Gfx::StandardCursor::Eyedropper:
+        case Gfx::StandardCursor::Zoom:
+            // FIXME: No corresponding Qt cursors, default to Arrow
+        default:
+            setCursor(Qt::ArrowCursor);
+            break;
+        } },
+        [this](Gfx::ImageCursor const& image_cursor) {
+            if (!image_cursor.bitmap.is_valid()) {
+                dbgln("Failed to set cursor: Bitmap is invalid.");
+                return;
+            }
+            auto const& bitmap = *image_cursor.bitmap.bitmap();
+            auto qimage = QImage { bitmap.scanline_u8(0), bitmap.width(), bitmap.height(), QImage::Format_ARGB32 };
+            if (qimage.isNull()) {
+                dbgln("Failed to set cursor: Null QImage.");
+                return;
+            }
+            auto qpixmap = QPixmap::fromImage(qimage);
+            if (qimage.isNull()) {
+                dbgln("Failed to set cursor: Couldn't create QPixmap from QImage.");
+                return;
+            }
+            setCursor(QCursor { qpixmap, image_cursor.hotspot.x(), image_cursor.hotspot.y() });
+        });
 }
 
 Web::DevicePixelSize WebContentView::viewport_size() const

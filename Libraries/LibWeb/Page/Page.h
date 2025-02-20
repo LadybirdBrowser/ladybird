@@ -127,8 +127,8 @@ public:
     bool is_in_tooltip_area() const { return m_is_in_tooltip_area; }
     void set_is_in_tooltip_area(bool b) { m_is_in_tooltip_area = b; }
 
-    Gfx::StandardCursor current_cursor() const { return m_current_cursor; }
-    void set_current_cursor(Gfx::StandardCursor cursor) { m_current_cursor = cursor; }
+    Gfx::Cursor current_cursor() const { return m_current_cursor; }
+    void set_current_cursor(Gfx::Cursor cursor) { m_current_cursor = move(cursor); }
 
     DevicePixelPoint window_position() const { return m_window_position; }
     void set_window_position(DevicePixelPoint position) { m_window_position = position; }
@@ -258,7 +258,7 @@ private:
     bool m_is_hovering_link { false };
     bool m_is_in_tooltip_area { false };
 
-    Gfx::StandardCursor m_current_cursor { Gfx::StandardCursor::Arrow };
+    Gfx::Cursor m_current_cursor { Gfx::StandardCursor::Arrow };
 
     DevicePixelPoint m_window_position {};
     DevicePixelSize m_window_size {};
@@ -338,7 +338,7 @@ public:
     virtual void page_did_create_new_document(Web::DOM::Document&) { }
     virtual void page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document&) { }
     virtual void page_did_finish_loading(URL::URL const&) { }
-    virtual void page_did_request_cursor_change(Gfx::StandardCursor) { }
+    virtual void page_did_request_cursor_change(Gfx::Cursor const&) { }
     virtual void page_did_request_context_menu(CSSPixelPoint) { }
     virtual void page_did_request_link_context_menu(CSSPixelPoint, URL::URL const&, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers) { }
     virtual void page_did_request_image_context_menu(CSSPixelPoint, URL::URL const&, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers, Optional<Gfx::Bitmap const*>) { }

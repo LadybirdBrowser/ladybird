@@ -123,16 +123,11 @@ void WebContentClient::did_request_refresh(u64 page_id)
         view->reload();
 }
 
-void WebContentClient::did_request_cursor_change(u64 page_id, i32 cursor_type)
+void WebContentClient::did_request_cursor_change(u64 page_id, Gfx::Cursor const& cursor)
 {
-    if (cursor_type < 0 || cursor_type >= (i32)Gfx::StandardCursor::__Count) {
-        dbgln("DidRequestCursorChange: Bad cursor type");
-        return;
-    }
-
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         if (view->on_cursor_change)
-            view->on_cursor_change(static_cast<Gfx::StandardCursor>(cursor_type));
+            view->on_cursor_change(cursor);
     }
 }
 
