@@ -71,6 +71,7 @@ set(SOURCES
     Runtime/DataViewPrototype.cpp
     Runtime/Date.cpp
     Runtime/DateConstructor.cpp
+    Runtime/DateRegex.cpp
     Runtime/DatePrototype.cpp
     Runtime/DeclarativeEnvironment.cpp
     Runtime/DisposableStack.cpp
