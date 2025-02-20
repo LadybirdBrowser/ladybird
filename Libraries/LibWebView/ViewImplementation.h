@@ -194,7 +194,7 @@ public:
     Function<void(URL::URL const&)> on_load_finish;
     Function<void(ByteString const& path, i32)> on_request_file;
     Function<void(Gfx::Bitmap const&)> on_favicon_change;
-    Function<void(Gfx::StandardCursor)> on_cursor_change;
+    Function<void(Gfx::Cursor const&)> on_cursor_change;
     Function<void(Gfx::IntPoint, ByteString const&)> on_request_tooltip_override;
     Function<void()> on_stop_tooltip_override;
     Function<void(ByteString const&)> on_enter_tooltip_area;

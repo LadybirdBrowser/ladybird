@@ -11,7 +11,6 @@
 #include <LibGC/CellAllocator.h>
 #include <LibWeb/CSS/Clip.h>
 #include <LibWeb/CSS/ComputedProperties.h>
-#include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CSSKeywordValue.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
@@ -32,7 +31,6 @@
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
-#include <LibWeb/CSS/StyleValues/ScrollbarGutterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
@@ -954,13 +952,30 @@ ContentVisibility ComputedProperties::content_visibility() const
     return keyword_to_content_visibility(value.to_keyword()).release_value();
 }
 
-Cursor ComputedProperties::cursor() const
+Vector<CursorData> ComputedProperties::cursor() const
 {
+    // Return the first available cursor.
     auto const& value = property(PropertyID::Cursor);
-    // FIXME: We don't currently support custom cursors.
-    if (value.is_url())
-        return Cursor::Auto;
-    return keyword_to_cursor(value.to_keyword()).release_value();
+    Vector<CursorData> cursors;
+    if (value.is_value_list()) {
+        for (auto const& item : value.as_value_list().values()) {
+            if (item->is_cursor()) {
+                cursors.append({ item->as_cursor() });
+                continue;
+            }
+
+            if (auto keyword = keyword_to_cursor(item->to_keyword()); keyword.has_value())
+                cursors.append(keyword.release_value());
+        }
+    } else if (value.is_keyword()) {
+        if (auto keyword = keyword_to_cursor(value.to_keyword()); keyword.has_value())
+            cursors.append(keyword.release_value());
+    }
+
+    if (cursors.is_empty())
+        cursors.append(Cursor::Auto);
+
+    return cursors;
 }
 
 Visibility ComputedProperties::visibility() const

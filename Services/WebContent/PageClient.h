@@ -114,7 +114,7 @@ private:
     virtual Web::CSS::PreferredColorScheme preferred_color_scheme() const override { return m_preferred_color_scheme; }
     virtual Web::CSS::PreferredContrast preferred_contrast() const override { return m_preferred_contrast; }
     virtual Web::CSS::PreferredMotion preferred_motion() const override { return m_preferred_motion; }
-    virtual void page_did_request_cursor_change(Gfx::StandardCursor) override;
+    virtual void page_did_request_cursor_change(Gfx::Cursor const&) override;
     virtual void page_did_layout() override;
     virtual void page_did_change_title(ByteString const&) override;
     virtual void page_did_change_url(URL::URL const&) override;

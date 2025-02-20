@@ -251,9 +251,9 @@ void PageClient::set_viewport_size(Web::DevicePixelSize const& size)
     m_pending_set_browser_zoom_request = false;
 }
 
-void PageClient::page_did_request_cursor_change(Gfx::StandardCursor cursor)
+void PageClient::page_did_request_cursor_change(Gfx::Cursor const& cursor)
 {
-    client().async_did_request_cursor_change(m_id, (u32)cursor);
+    client().async_did_request_cursor_change(m_id, cursor);
 }
 
 void PageClient::page_did_layout()

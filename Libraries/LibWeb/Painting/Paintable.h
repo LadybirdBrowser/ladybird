@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/NonnullOwnPtr.h>
 #include <LibGC/Root.h>
+#include <LibGfx/Cursor.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/InvalidateDisplayList.h>
