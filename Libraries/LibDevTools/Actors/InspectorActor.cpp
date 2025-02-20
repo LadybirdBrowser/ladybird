@@ -29,7 +29,7 @@ InspectorActor::InspectorActor(DevToolsServer& devtools, String name, WeakPtr<Ta
 
 InspectorActor::~InspectorActor() = default;
 
-void InspectorActor::handle_message(StringView type, JsonObject const&)
+void InspectorActor::handle_message(StringView type, JsonObject const& message)
 {
     JsonObject response;
     response.set("from"sv, name());
@@ -44,10 +44,17 @@ void InspectorActor::handle_message(StringView type, JsonObject const&)
     }
 
     if (type == "getHighlighterByType"sv) {
-        if (!m_highlighter)
-            m_highlighter = devtools().register_actor<HighlighterActor>();
+        auto type_name = message.get_string("typeName"sv);
+        if (!type_name.has_value()) {
+            send_missing_parameter_error("typeName"sv);
+            return;
+        }
 
-        response.set("highlighter"sv, m_highlighter->serialize_highlighter());
+        auto highlighter = m_highlighters.ensure(*type_name, [&]() -> NonnullRefPtr<HighlighterActor> {
+            return devtools().register_actor<HighlighterActor>();
+        });
+
+        response.set("highlighter"sv, highlighter->serialize_highlighter());
         send_message(move(response));
         return;
     }
