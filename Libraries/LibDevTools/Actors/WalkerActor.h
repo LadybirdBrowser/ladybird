@@ -44,6 +44,8 @@ private:
     void populate_dom_tree_cache(JsonObject& node, JsonObject const* parent = nullptr);
 
     WeakPtr<TabActor> m_tab;
+    WeakPtr<LayoutInspectorActor> m_layout_inspector;
+
     JsonObject m_dom_tree;
 
     HashMap<JsonObject const*, JsonObject const*> m_dom_node_to_parent_map;
