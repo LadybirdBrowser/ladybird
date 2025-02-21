@@ -147,6 +147,7 @@ set(SOURCES
     CSS/StyleValues/CSSLCHLike.cpp
     CSS/StyleValues/CSSLightDark.cpp
     CSS/StyleValues/CSSRGB.cpp
+    CSS/StyleValues/CursorStyleValue.cpp
     CSS/StyleValues/DisplayStyleValue.cpp
     CSS/StyleValues/EasingStyleValue.cpp
     CSS/StyleValues/EdgeStyleValue.cpp
