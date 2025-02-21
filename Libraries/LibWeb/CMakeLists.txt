@@ -729,6 +729,7 @@ set(SOURCES
     SVG/AttributeNames.cpp
     SVG/AttributeParser.cpp
     SVG/SVGAElement.cpp
+    SVG/SVGAnimatedEnumeration.cpp
     SVG/SVGAnimatedLength.cpp
     SVG/SVGAnimatedNumber.cpp
     SVG/SVGAnimatedRect.cpp

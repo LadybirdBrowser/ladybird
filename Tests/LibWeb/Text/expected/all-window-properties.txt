@@ -309,6 +309,7 @@ ResizeObserverEntry
 ResizeObserverSize
 Response
 SVGAElement
+SVGAnimatedEnumeration
 SVGAnimatedLength
 SVGAnimatedNumber
 SVGAnimatedRect

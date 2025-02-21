@@ -300,6 +300,7 @@ standard_idl_files = [
   "//Userland/Libraries/LibWeb/Streams/WritableStreamDefaultController.idl",
   "//Userland/Libraries/LibWeb/Streams/WritableStreamDefaultWriter.idl",
   "//Userland/Libraries/LibWeb/SVG/SVGAElement.idl",
+  "//Userland/Libraries/LibWeb/SVG/SVGAnimatedEnumeration.idl",
   "//Userland/Libraries/LibWeb/SVG/SVGAnimatedLength.idl",
   "//Userland/Libraries/LibWeb/SVG/SVGAnimatedNumber.idl",
   "//Userland/Libraries/LibWeb/SVG/SVGAnimatedRect.idl",

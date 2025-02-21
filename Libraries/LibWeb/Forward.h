@@ -795,6 +795,7 @@ struct StorageShelf;
 }
 
 namespace Web::SVG {
+class SVGAnimatedEnumeration;
 class SVGAnimatedLength;
 class SVGAnimatedRect;
 class SVGCircleElement;
