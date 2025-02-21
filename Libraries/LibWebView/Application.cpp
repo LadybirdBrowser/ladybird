@@ -363,7 +363,7 @@ Vector<DevTools::CSSProperty> Application::css_property_list() const
     return property_list;
 }
 
-void Application::inspect_tab(DevTools::TabDescription const& description, DevTools::DevToolsDelegate::OnTabInspectionComplete on_complete) const
+void Application::inspect_tab(DevTools::TabDescription const& description, OnTabInspectionComplete on_complete) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);
     if (!view.has_value()) {
@@ -377,6 +377,40 @@ void Application::inspect_tab(DevTools::TabDescription const& description, DevTo
     };
 
     view->inspect_dom_tree();
+}
+
+void Application::inspect_dom_node(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element, OnDOMNodeInspectionComplete on_complete) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value()) {
+        on_complete(Error::from_string_literal("Unable to locate tab"));
+        return;
+    }
+
+    view->on_received_dom_node_properties = [&view = *view, on_complete = move(on_complete)](ViewImplementation::DOMNodeProperties properties) {
+        view.on_received_dom_node_properties = nullptr;
+        on_complete(move(properties));
+    };
+
+    view->inspect_dom_node(node_id, pseudo_element);
+}
+
+void Application::clear_inspected_dom_node(DevTools::TabDescription const& description) const
+{
+    if (auto view = ViewImplementation::find_view_by_id(description.id); view.has_value())
+        view->clear_inspected_dom_node();
+}
+
+void Application::highlight_dom_node(DevTools::TabDescription const& description, Web::UniqueNodeID node_id, Optional<Web::CSS::Selector::PseudoElement::Type> pseudo_element) const
+{
+    if (auto view = ViewImplementation::find_view_by_id(description.id); view.has_value())
+        view->highlight_dom_node(node_id, pseudo_element);
+}
+
+void Application::clear_highlighted_dom_node(DevTools::TabDescription const& description) const
+{
+    if (auto view = ViewImplementation::find_view_by_id(description.id); view.has_value())
+        view->clear_highlighted_dom_node();
 }
 
 }
