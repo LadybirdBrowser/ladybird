@@ -133,6 +133,17 @@ void HTMLLinkElement::attribute_changed(FlyString const& name, Optional<String> 
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
+    // https://html.spec.whatwg.org/multipage/semantics.html#processing-the-type-attribute:attr-link-type
+    if (name == HTML::AttributeNames::type) {
+        if (value.has_value())
+            m_mime_type = value->to_ascii_lowercase();
+        else {
+            m_mime_type = {};
+        }
+
+        return;
+    }
+
     // 4.6.7 Link types - https://html.spec.whatwg.org/multipage/links.html#linkTypes
     auto old_relationship = m_relationship;
     if (name == HTML::AttributeNames::rel) {
@@ -379,8 +390,14 @@ void HTMLLinkElement::default_fetch_and_process_linked_resource()
 void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const& response, Variant<Empty, Fetch::Infrastructure::FetchAlgorithms::ConsumeBodyFailureTag, ByteBuffer> body_bytes)
 {
     // 1. If the resource's Content-Type metadata is not text/css, then set success to false.
-    auto extracted_mime_type = response.header_list()->extract_mime_type();
-    if (!extracted_mime_type.has_value() || extracted_mime_type->essence() != "text/css") {
+    auto mime_type_string = m_mime_type;
+    if (!mime_type_string.has_value()) {
+        auto extracted_mime_type = response.header_list()->extract_mime_type();
+        if (extracted_mime_type.has_value())
+            mime_type_string = extracted_mime_type->essence();
+    }
+
+    if (mime_type_string != "text/css"sv) {
         success = false;
     }
 

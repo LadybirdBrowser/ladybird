@@ -150,6 +150,8 @@ private:
     unsigned m_relationship { 0 };
     // https://html.spec.whatwg.org/multipage/semantics.html#explicitly-enabled
     bool m_explicitly_enabled { false };
+
+    Optional<String> m_mime_type;
 };
 
 }
