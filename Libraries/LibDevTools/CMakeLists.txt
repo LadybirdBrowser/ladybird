@@ -5,6 +5,7 @@ set(SOURCES
     Actors/FrameActor.cpp
     Actors/HighlighterActor.cpp
     Actors/InspectorActor.cpp
+    Actors/NodeActor.cpp
     Actors/PageStyleActor.cpp
     Actors/PreferenceActor.cpp
     Actors/ProcessActor.cpp

@@ -48,7 +48,6 @@ private:
 
     HashMap<JsonObject const*, JsonObject const*> m_dom_node_to_parent_map;
     HashMap<String, JsonObject const*> m_actor_to_dom_node_map;
-    size_t m_dom_node_count { 0 };
 };
 
 }
